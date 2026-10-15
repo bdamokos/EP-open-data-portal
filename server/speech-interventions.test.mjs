@@ -86,7 +86,8 @@ test('member statistics page boundaries, overlaps and total changes never report
   const first=await service.member('256971');assert.equal(first.nextPage,1);assert.equal(first.counts.blueQuestions,50);assert.equal(first.coverage.complete,false);
   const last=await service.member('256971',1);assert.equal(last.coverage.available,50);assert.equal(last.counts.blueQuestions,50);assert.equal(last.coverage.complete,false);assert(last.coverage.issues.includes('overlapping-pages'));
   await service.member('256971',1);assert.equal(requests,2);
-  await assert.rejects(new SpeechInterventions({request:async()=>response([])}).member('256971',3),e=>e.status===400);
+  const invalid=new SpeechInterventions({request:async()=>response(rows.slice(0,50))});await invalid.member('256971');
+  await assert.rejects(invalid.member('256971',3),e=>e.status===400);
 });
 
 test('missing or mismatched headers keep unavailable statistics distinct from zero',async()=>{
@@ -99,4 +100,34 @@ test('English API fragments with retained German blue-card headers are classifie
   assert.equal(fixture.headerExamples.length,3);
   assert.deepEqual(fixture.headerExamples.map(e=>interventionMetadata(e.activity).type).sort(),['blue-card-question','blue-card-question','blue-card-reaction']);
   assert(fixture.headerExamples.every(e=>e.url.startsWith('https://data.europarl.europa.eu/api/v2/speeches?')&&e.fetchedAt));
+});
+test('saved counter-replies remain in the exchange and count as reactions rather than additional answers',async()=>{
+  const result=sequence(fixture.activities),exchange=result.exchanges.find(e=>e.id===byNumber(209).activity_id);
+  assert.deepEqual(exchange.ids,[209,210,211,212,213].map(n=>byNumber(n).activity_id));
+  assert.equal(interventionMetadata(byNumber(212)).type,'blue-card-reaction');assert.equal(interventionMetadata(byNumber(213)).type,'blue-card-reaction');
+  const rows=[209,211,213].map(byNumber),stats=await new SpeechInterventions({request:async()=>response(rows)}).member('213330');
+  assert.equal(stats.counts.blueAnswers,1);assert.equal(stats.counts.blueReactions,1);
+});
+test('a speech in a numbered subitem opens its exact published parent',async()=>{
+  const speech=fixture.headerExamples.find(e=>e.activity.activity_id==='MTG-PL-2026-07-08-OTH-2017087113147').activity;
+  const parent=fixture.subitemParentExample.payload.data[0],calls=[];
+  const service=new SpeechInterventions({request:async(endpoint)=>{calls.push(endpoint);if(endpoint.startsWith('/events/'))return response([parent]);return response([speech]);}});
+  const context=await service.context(speech.activity_id);
+  assert.equal(context.unavailable,false);assert.equal(context.debates[0].id,'MTG-PL-2026-07-08-PVCRE-ITM-21-2');
+  assert(calls.includes('/events/MTG-PL-2026-07-08-PVCRE-ITM-21-2'));assert(context.debates[0].records.some(r=>r.id===speech.activity_id));
+});
+test('evicting an unfinished member selection restarts the browser page walk without losing the final count',async()=>{
+  const rows=Array.from({length:51},(_,i)=>{const a=clone(byNumber(173));a.activity_id='MTG-PL-2026-10-06-OTH-'+(100000+i);a.id='eli/dl/event/'+a.activity_id;return a;});
+  const offsets=[];
+  const service=new SpeechInterventions({request:async(endpoint,params)=>{
+    if(String(params['person-id'])==='256971') {offsets.push(params.offset);const data=rows.slice(params.offset,params.offset+50);return {...response(data),payload:{...response(data).payload,meta:{total:51}}};}
+    return response([]);
+  }});
+  const first=await service.member('256971');assert.equal(first.nextPage,1);
+  for(let id=1;id<=8;id++)await service.member(String(id));
+  assert.equal(service.members.size,8);
+  const restarted=await service.member('256971',first.nextPage);assert.equal(restarted.restarted,true);assert.equal(restarted.nextPage,1);
+  const completed=await service.member('256971',restarted.nextPage);
+  assert.equal(completed.coverage.complete,true);assert.equal(completed.coverage.available,51);assert.equal(completed.counts.blueQuestions,51);
+  assert.deepEqual(offsets,[0,0,50]);
 });

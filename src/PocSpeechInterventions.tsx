@@ -24,10 +24,11 @@ export function PocInterventionStatistics({member,onItems}:{member:number;onItem
     void(async()=>{
       setState(previous=>({member,data:previous.member===member?previous.data:null,loading:true,error:null}));
       try {
-        let page:number|null=0;
+        let page:number|null=0,restarts=0;
         while(page!==null) {
           const data:InterventionStatistics=await api<InterventionStatistics>(`speech-statistics/${member}?page=${page}`);
           if(!active)return;
+          if(data.restarted&&++restarts>2)throw new Error('This count was interrupted. Retry counts.');
           onItems?.(data.items);
           setState({member,data,loading:all&&data.nextPage!==null,error:null});
           if(!all)break;page=data.nextPage;
