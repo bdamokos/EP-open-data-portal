@@ -33,3 +33,10 @@ test('runtime source cannot reintroduce authenticated data adapters',()=>{
  const app=readFileSync(new URL('../src/PocApp.tsx',import.meta.url),'utf8');
  assert.doesNotMatch(app,/loadI18n/);
 });
+test('every explorer page carries the public-data notice',()=>{
+ const notice=readFileSync(new URL('../src/components/DataNotice.tsx',import.meta.url),'utf8');
+ assert.match(notice,/© European Union – Source: European Parliament/);
+ assert.match(notice,/creativecommons\.org\/licenses\/by\/4\.0/);
+ assert.match(notice,/Not an official Parliament service/);
+ for(const shell of ['PocApp.tsx','PocInsightShared.tsx'])assert.match(readFileSync(new URL(`../src/${shell}`,import.meta.url),'utf8'),/<DataNotice\b/,shell);
+});
