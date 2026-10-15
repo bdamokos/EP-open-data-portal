@@ -13,6 +13,8 @@ The Open Data API uses [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 
 ## Transparent website processing
 
+Portraits use only the public `https://www.europarl.europa.eu/mepphoto/{photo-id}.jpg` URL supplied by the exact member profile (or its existing member-ID fallback). They are fetched anonymously on demand, with redirects disabled. With `ODP_CACHE_DIR` configured, each saved binary record retains the exact member ID, source URL, retrieval timestamp, MIME type and a SHA-256 integrity checksum. Portraits have no language variant. Saved images are fresh for seven days; an expired image remains visible while one background refresh runs and if that refresh fails. Failures back off for five minutes and never become empty image records. The cache retains at most 128 MiB including record metadata and 2,048 records; it prunes by oldest save time and does not download the roster in advance. Each download is bounded to 2 MiB while streaming. The browser's existing six-hour private cache remains in place. Cached portraits stay outside Git and retain the source website's image terms.
+
 OEIL summaries are parsed from visible HTML, linked through the exact procedure reference returned by the API. The adapter records the source page, retrieval date, language and summary stage. It does not invent a summary when none is supplied.
 
 Parliamentary documents are read from official distributions linked by the Open Data API. DOCX is processed locally with bounded decompression; there is no document conversion service. Speaker headers, cover pages and document bodies remain distinguishable.
