@@ -77,6 +77,7 @@ export interface SpeechContext {
   debates:{id:string;titles:Record<string,string>;records:SpeechSequenceRow[];exchanges:SpeechExchange[];error?:string;coverage:{complete:boolean;expected:number|null;available:number;missingIds:string[]};sources?:{url:string;fetchedAt:string;stale:boolean}[]}[];
 }
 export interface InterventionStatistics {
+  restarted?:boolean;
   memberId:string;items:Speech[];counts:{groupOrations:number;blueQuestions:number|null;blueAnswers:number|null;blueReactions:number|null;catchTheEye:number|null};
   groups:{id:string;label:string;count:number}[];coverage:{complete:boolean;available:number;total:number|null;headers:number;unclassified:number;issues:string[]};
   nextPage:number|null;sources:{url:string;fetchedAt:string;stale:boolean}[];

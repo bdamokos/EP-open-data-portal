@@ -31,7 +31,7 @@ export function interventionMetadata(activity) {
   if(String(activity.had_activity_type).endsWith('/PLENARY_DEBATE_WRITTEN_STATEMENT'))type='written';
   else if(catchMarker)type='procedure';
   else if(from&&speaker) {
-    if(/blue card/.test(normalized))type=/\b(?:answer|reply|response)\b/.test(normalized)?'blue-card-answer':/\breaction\b/.test(normalized)?'blue-card-reaction':/\bquestion\b/.test(normalized)?'blue-card-question':/\b(?:speech|intervention)\b/.test(normalized)?'blue-card-intervention':'blue-card';
+    if(/blue card/.test(normalized))type=/\b(?:reaction|counter ?reply)\b/.test(normalized)?'blue-card-reaction':/\b(?:answer|reply|response)\b/.test(normalized)?'blue-card-answer':/\bquestion\b/.test(normalized)?'blue-card-question':/\b(?:speech|intervention)\b/.test(normalized)?'blue-card-intervention':'blue-card';
     else if(/blau(?:e|en) karte/.test(normalized))type=/\b(?:antwort|erwiderung)\b/.test(normalized)?'blue-card-answer':/\breaktion\b/.test(normalized)?'blue-card-reaction':/\bfrage\b/.test(normalized)?'blue-card-question':'blue-card';
     else if(/catch the eye/.test(normalized))type='catch-the-eye';
     else if(!from.organization&&!from.role&&!process&&speaker&&chairLabels.has(normalize(text(speaker).normalize('NFD').replace(/\p{M}/gu,''))))type='chair';

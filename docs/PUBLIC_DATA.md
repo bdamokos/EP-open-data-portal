@@ -59,6 +59,8 @@ Opening **Debate & exchanges** retrieves the selected speech and up to four exac
 
 Statistics initially read one 50-record member page; **Count all contributions** continues sequentially, up to 20 pages. Counts cover term 10 oral contributions and written statements and deduplicate exact speech IDs. Unique IDs are checked against declared totals; incomplete or overlapping pages retain a partial-coverage label. Up to eight member selections are held for 30 minutes. Neither statistics nor debate viewing starts an indexer, downloads a corpus in the background or writes the activity database. The bounded projected live example in `server/fixtures/speech-interventions-live-20261015.json` retains source requests, dates, exact headers and section markers, with complete text for one exchange.
 
+Numbered debate subitems retain their full parent IDs. Blue-card counter-replies count as reactions and remain in their original exchange. If a member selection is evicted or expires during pagination, the response restarts at page zero and the browser follows the returned next page, reusing the ordinary public-source cache. A walk allows two automatic restarts; each walk remains bounded to 20 pages.
+
 ## Saved examples and supporting data
 
 `server/fixtures` contains bounded public API responses and public OEIL HTML for tests. Each example retains source attribution or provenance. Public API records can contain identifiers named `notation_codictPersonId` or similar; these are fields returned by the open API, not calls to another service.

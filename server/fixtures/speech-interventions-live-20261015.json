@@ -5034,5 +5034,116 @@
         ]
       }
     }
-  ]
+  ],
+  "subitemParentExample": {
+    "url": "https://data.europarl.europa.eu/api/v2/events/MTG-PL-2026-07-08-PVCRE-ITM-21-2?format=application%2Fld%2Bjson",
+    "fetchedAt": "2026-10-15T22:24:47.071475+00:00",
+    "payload": {
+      "data": [
+        {
+          "id": "eli/dl/event/MTG-PL-2026-07-08-PVCRE-ITM-21-2",
+          "type": "Activity",
+          "activity_date": "2026-07-08",
+          "activity_end_date": "2026-07-08T18:38:11.538+02:00",
+          "activity_id": "MTG-PL-2026-07-08-PVCRE-ITM-21-2",
+          "activity_label": {
+            "sl": "21.2. Stalno preganjanje kristjanov v Nigeriji, zlasti pokol v vasi Kawel",
+            "lv": "21.2. Pastāvīgā kristiešu vajāšana Nigērijā, īpaši slaktiņš Kavelas ciematā",
+            "fi": "21.2. Meneillään oleva kristittyjen vaino Nigeriassa ja etenkin Kawelin kylän joukkomurha",
+            "ga": "21.2. Géarleanúint leanúnach Críostaithe sa Nigéir, go háirithe an sléacht sa sráidbhaile Kawel",
+            "it": "21.2. Le persecuzioni in atto contro i cristiani in Nigeria, in particolare il massacro nel villaggio di Kawel",
+            "hu": "21.2. A nigériai keresztények folytatódó üldözése, különösen a Kawel településen történt mészárlás",
+            "lt": "21.2. Nigerijoje tebesitęsiantis krikščionių persekiojimas, ypač žudynės Kawelo kaime",
+            "cs": "21.2. Neustálé pronásledování křesťanů v Nigérii, zejména masakr ve vesnici Kawel",
+            "mt": "21.2. Il-persekuzzjoni li għaddejja bħalissa tal-Insara fin-Niġerja, b’mod partikolari l-massakru fir-raħal ta’ Kawel",
+            "hr": "21.2. Kontinuirani progon kršćana u Nigeriji, posebice masakr u selu Kawelu",
+            "es": "21.2. Persecución actual de los cristianos en Nigeria, en particular la masacre en la aldea de Kawel",
+            "de": "21.2. Anhaltende Verfolgung von Christen in Nigeria, insbesondere das Massaker im Dorf Kawel",
+            "pl": "21.2. Trwające prześladowania chrześcijan w Nigerii, w szczególności masakra w wiosce Kawel",
+            "et": "21.2. Kristlaste jätkuv tagakiusamine Nigeerias, eelkõige Kaweli külas toime pandud veresaun",
+            "fr": "21.2. Persécutions en cours contre les chrétiens au Nigéria, notamment le massacre commis dans le village de Kawel",
+            "en": "21.2. Ongoing persecution of Christians in Nigeria, notably the Kawel village massacre",
+            "bg": "21.2. Продължаващото преследване на християните в Нигерия, по-специално масовото убийство в село Кавел",
+            "da": "21.2. Den fortsatte forfølgelse af kristne i Nigeria, navnlig massakren i landsbyen Kawel",
+            "el": "21.2. Οι συνεχιζόμενοι διωγμοί των χριστιανών στη Νιγηρία, ιδίως η σφαγή στο χωριό Kawel",
+            "nl": "21.2. De aanhoudende vervolging van christenen in Nigeria, met name het bloedbad in het dorp Kawel",
+            "pt": "21.2. Perseguição contínua de cristãos na Nigéria, nomeadamente o massacre na aldeia de Kawel",
+            "ro": "21.2. Persecutarea creștinilor care are loc în Nigeria, în special masacrul din satul Kawel",
+            "sv": "21.2. Fortsatt förföljelse av kristna i Nigeria, särskilt massakern i byn Kawel",
+            "sk": "21.2. Pokračujúce prenasledovanie kresťanov v Nigérii, najmä masaker v dedine Kawel"
+          },
+          "activity_start_date": "2026-07-08T17:54:23+02:00",
+          "based_on_a_realization_of": [
+            "eli/dl/doc/B-10-2026-0345",
+            "eli/dl/doc/B-10-2026-0352",
+            "eli/dl/doc/B-10-2026-0353",
+            "eli/dl/doc/B-10-2026-0355",
+            "eli/dl/doc/B-10-2026-0356",
+            "eli/dl/doc/B-10-2026-0354"
+          ],
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073540",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073521",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087706872",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073533",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113144",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113151",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113160",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073516",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073524",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073504",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073500",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073536",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113147",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073493",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073512",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113152",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073534",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073529",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113145",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073496",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073510",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073531",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113157",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113148",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113164",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113154",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073526",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073542",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073538",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073494",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073508",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073498",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113165",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073518",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113150",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073520",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073506",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073502",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073523",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113149",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087073514",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113155",
+            "eli/dl/event/MTG-PL-2026-07-08-PVCRE-CHA-9",
+            "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087113162"
+          ],
+          "executed": [
+            "eli/dl/event/MTG-PL-2026-07-08-OJ-ITM-D-94"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE",
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-07-08-ITM-021-02",
+            "eli/dl/doc/CRE-10-2026-07-08-ITM-021-02"
+          ]
+        }
+      ],
+      "@context": [
+        {
+          "data": "@graph",
+          "@base": "https://data.europarl.europa.eu/"
+        },
+        "https://data.europarl.europa.eu/api/v2/context.jsonld"
+      ]
+    }
+  }
 }
