@@ -7,6 +7,7 @@ import {PocSaved,SaveButton,SavedNav,useSavedChecks} from './PocSaved';
 import {QuestionStatus} from './PocQuestionStatus';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Portrait } from "./components/Portrait";
+import { DataNotice } from "./components/DataNotice";
 import { API_ROOT } from "./api";
 import { interfaceLabel, countryName, languageName } from "./interfaceLabels.mjs";
 import { publicUrl } from "./publicUrl";
@@ -769,8 +770,7 @@ export default function PocApp() {
               ))}
             </select>
           </label>
-          <span>European Parliament · Open Data</span>
-
+          <DataNotice/>
         </footer>
     </main>
   );
