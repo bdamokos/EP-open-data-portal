@@ -2,7 +2,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize } from './activity-index-model.mjs';
+import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles } from './activity-index-model.mjs';
+import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
 
 const parse = value => value == null ? null : JSON.parse(value);
 export class ActivityStore {
@@ -93,6 +94,16 @@ export class ActivityStore {
     for(const source of this.db.prepare(sql).iterate(generation,relative,'https://data.europarl.europa.eu/'+relative,'http://data.europarl.europa.eu/'+relative))
       yield {key:source.key,work:parse(source.body),fetchedAt:source.fetched_at};
   }
+  relatedJointMotions(generation,id) {
+    const ref='eli/dl/doc/'+id;
+    const sql=`SELECT key,body,fetched_at FROM sources AS source
+      WHERE generation=? AND kind='document' AND json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT'
+      AND EXISTS(SELECT 1 FROM json_each(source.body,'$.is_derivative_of') AS ref
+        WHERE (CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END) IN (?,?,?))
+      ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT 5`;
+    return this.db.prepare(sql).all(generation,ref,'https://data.europarl.europa.eu/'+ref,'http://data.europarl.europa.eu/'+ref)
+      .map(source=>({key:source.key,work:parse(source.body),fetchedAt:source.fetched_at}));
+  }
   markSeen(generation,key) { this.assertWriter();this.db.prepare('UPDATE sources SET seen=1 WHERE generation=? AND key=?').run(generation,key); }
   putSource(generation,key,kind,work,fetchedAt,rows=[]) {
     this.transaction(()=> {
@@ -151,8 +162,30 @@ export class ActivityStore {
     const where='generation=? AND mep=?'+(category?' AND category=?':'');
     const params=[generation,String(mep),...(category?[category]:[])];
     const total=this.db.prepare('SELECT COUNT(*) AS n FROM items WHERE '+where).get(...params).n;
+    const sittingSources=new Map(), outcomes=new Map();
+    const outcome=source=>{
+      const id=source.work.identifier || source.work.id;
+      if(!outcomes.has(id))outcomes.set(id,motionOutcome(source.work,source.fetchedAt,sittingId=>{
+        if(!sittingSources.has(sittingId))sittingSources.set(sittingId,this.source(generation,motionSourceKey(sittingId)));
+        return sittingSources.get(sittingId);
+      }));
+      return outcomes.get(id);
+    };
     const present=body=>{
       const row=parse(body);
+      if(row.recordKind==='document' && row.motionType) {
+        const source=this.source(generation,'/plenary-documents/'+row.sourceId);
+        if(source && isMotion(source.work)) {
+          const relatedJointMotions=this.relatedJointMotions(generation,row.sourceId).map(joint=>{
+            const id=joint.work.identifier, files=documentFiles(joint.work);
+            const file=files.find(file=>file.language===language && file.format==='PDF') || files.find(file=>file.language==='en' && file.format==='PDF');
+            const titles=joint.work.title_dcterms || {};
+            return {sourceId:id,reference:motionReference(id),title:titles[language]||titles.en||id,outcome:outcome(joint),
+              url:file?.url || 'https://data.europarl.europa.eu/eli/dl/doc/'+id};
+          });
+          return {...localize(row,language),resolutionOutcome:outcome(source),relatedJointMotions};
+        }
+      }
       if(row.recordKind==='answer'&&row.relatedQuestionId) {
         const question=this.source(generation,'/parliamentary-questions/'+row.relatedQuestionId)?.work;
         const titles=Object.assign({},...(question?.is_realized_by||[]).map(expression=>expression.title||{}),question?.title_dcterms||{});

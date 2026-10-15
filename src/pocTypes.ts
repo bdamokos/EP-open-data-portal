@@ -120,6 +120,23 @@ export interface SpeechDetail extends Speech {
   fetchedAt: string;
   textCache?: { sourceFetchedAt: string; stale: boolean; refreshInProgress: boolean; refreshError: string | null; availableLanguages: string[]; coverage: 'returned-languages-only' };
 }
+export interface MotionOutcome {
+  status: 'adopted' | 'rejected' | 'lapsed' | 'withdrawn' | 'unavailable';
+  reason?: string;
+  date?: string;
+  method?: string;
+  decisionId?: string;
+  sittingId?: string;
+  totals?: { for:number|null; against:number|null; abstaining:number|null } | null;
+  sources?: { url:string; fetchedAt:string; language:string|null }[];
+}
+export interface RelatedJointMotion {
+  sourceId:string;
+  reference:string;
+  title:string;
+  url:string;
+  outcome:MotionOutcome;
+}
 export interface JoinedActivity {
   id: string;
   sourceId: string;
@@ -138,6 +155,8 @@ export interface JoinedActivity {
   reference: string;
   files: DocumentFile[];
   answerStatus?: 'answered' | 'awaiting';
+  resolutionOutcome?: MotionOutcome;
+  relatedJointMotions?: RelatedJointMotion[];
   relatedQuestionId?: string;
   relatedQuestionTitle?:string;
   relatedQuestionTitles?:Record<string,string>;
