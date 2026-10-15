@@ -1,0 +1,10 @@
+export type ReferenceKind='eli'|'celex'|'act'|'document'|'procedure'|'question';
+export type FoundReference={start:number;end:number;key:string;kind:ReferenceKind;text:string};
+export function referenceKey(value:string):string|null;
+export function documentCelexCandidates(key:string):string[];
+export function questionCandidates(key:string):string[];
+export function findReferences(text:string):FoundReference[];
+export function referenceSegments(text:string):{text:string;ref?:FoundReference}[];
+export function referenceKeys(texts:string[],limit?:number):string[];
+export function eurLexUrl(celex:string,language?:string):string;
+export function cellarProcedureReference(value:string|null|undefined):string|null;

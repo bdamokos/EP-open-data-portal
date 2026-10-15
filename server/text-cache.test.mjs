@@ -6,7 +6,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {deflateRawSync} from 'node:zlib';
-import {docxParagraphs,allowedDownload,documentText} from './document-text.mjs';
+import {docxParagraphs,docxContent,allowedDownload,documentText,documentNotes} from './document-text.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 
 function zip(xml) {
@@ -22,6 +22,32 @@ test('DOCX extraction preserves paragraph/run breaks and omits deleted text and 
   assert.throws(()=>docxParagraphs(Buffer.from('not zip')));
   assert.throws(()=>docxParagraphs(zip('<!DOCTYPE x><w:document xmlns:w="urn:word"/>')));
   assert.throws(()=>docxParagraphs(zip('<w:document xmlns:w="urn:word"><w:p>'+('a'.repeat(4*1024*1024))+'</w:p></w:document>')));
+});
+function zipEntries(entries) {
+  const locals=[],centrals=[];let offset=0;
+  for(const [file,xml] of Object.entries(entries)) {
+    const name=Buffer.from(file),body=Buffer.from(xml),compressed=deflateRawSync(body);
+    const local=Buffer.alloc(30);local.writeUInt32LE(0x04034b50);local.writeUInt16LE(8,8);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(name.length,26);
+    const central=Buffer.alloc(46);central.writeUInt32LE(0x02014b50);central.writeUInt16LE(8,10);central.writeUInt32LE(compressed.length,20);central.writeUInt32LE(body.length,24);central.writeUInt16LE(name.length,28);central.writeUInt32LE(offset,42);
+    locals.push(local,name,compressed);centrals.push(central,name);offset+=30+name.length+compressed.length;
+  }
+  const directory=Buffer.concat(centrals),end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(Object.keys(entries).length,8);end.writeUInt16LE(Object.keys(entries).length,10);end.writeUInt32LE(directory.length,12);end.writeUInt32LE(offset,16);
+  return Buffer.concat([...locals,directory,end]);
+}
+// Mirrors the Commission answer markup observed in E-10-2026-000043: a custom mark follows each footnote reference.
+test('DOCX footnotes are returned separately with exact marker positions and hyperlink targets',()=>{
+  const w='xmlns:w="urn:word" xmlns:r="urn:rel"';
+  const document=`<w:document ${w}><w:body><w:p><w:r><w:t xml:space="preserve">  the EMFA with Regulation 139/2004</w:t></w:r><w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:customMarkFollows="1" w:id="3"/><w:t>1</w:t></w:r><w:r><w:t xml:space="preserve"> on concentrations.</w:t></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r><w:r><w:footnoteReference w:id="4"/></w:r><w:r><w:t> and again</w:t></w:r><w:r><w:footnoteReference w:id="3"/></w:r></w:p></w:body></w:document>`;
+  const footnotes=`<w:footnotes ${w}><w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id="3"><w:p><w:r><w:t>1</w:t></w:r><w:r><w:tab/><w:t>OJ L 24, 29.1.2004, ELI: http://data.europa.eu/eli/reg/2004/139/oj.</w:t></w:r></w:p></w:footnote><w:footnote w:id="4"><w:p><w:r><w:footnoteRef/></w:r><w:hyperlink r:id="rId9"><w:r><w:t>Communication</w:t></w:r></w:hyperlink></w:p></w:footnote><w:footnote w:id="7"><w:p><w:r><w:t>Unreferenced</w:t></w:r></w:p></w:footnote></w:footnotes>`;
+  const rels='<Relationships xmlns="urn:pkg"><Relationship Id="rId9" Type="hyperlink" Target="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52024DC0225" TargetMode="External"/><Relationship Id="rId10" Type="hyperlink" Target="javascript:alert(1)" TargetMode="External"/></Relationships>';
+  const content=docxContent(zipEntries({'word/document.xml':document,'word/footnotes.xml':footnotes,'word/_rels/footnotes.xml.rels':rels}));
+  assert.deepEqual(content.paragraphs,['the EMFA with Regulation 139/2004 on concentrations.','Second and again']);
+  assert.deepEqual(content.notes,[{id:'3',label:'1',text:'OJ L 24, 29.1.2004, ELI: http://data.europa.eu/eli/reg/2004/139/oj.',links:[]},{id:'4',label:'2',text:'Communication',links:['https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52024DC0225']}]);
+  assert.deepEqual(content.anchors,[{paragraph:0,offset:33,note:'3',label:'1'},{paragraph:1,offset:6,note:'4',label:'2'},{paragraph:1,offset:16,note:'3',label:'1'}]);
+  assert.deepEqual(docxContent(zipEntries({'word/document.xml':document})).notes,[]);
+  // Records saved before footnote extraction keep their text and report notes as not extracted.
+  assert.deepEqual(documentNotes({schemaVersion:1,paragraphs:['Text']}),{notesStatus:'not-extracted',notes:[],noteAnchors:[]});
+  assert.equal(documentNotes({extractionVersion:2,paragraphs:['Text'],notes:[{id:'1',label:'1',text:'n',links:[]}],anchors:[{paragraph:3,offset:0,note:'1',label:'1'}]}).notesStatus,'not-extracted');
 });
 test('document download accepts only API distributions and the observed official redirect host/path',()=>{
   assert(allowedDownload('https://data.europarl.europa.eu/distribution/id/file.docx'));

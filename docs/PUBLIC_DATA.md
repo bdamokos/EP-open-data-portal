@@ -5,7 +5,8 @@
 | [European Parliament Open Data API v2](https://data.europarl.europa.eu/en/developer-corner/opendata-api) | Current MEPs, memberships, activities, questions, answers, speech text, agendas, procedures and named votes | Anonymous JSON-LD, Atom and XML requests to `data.europarl.europa.eu/api/v2` |
 | [Parliament’s public website](https://www.europarl.europa.eu/) | Portraits, published activity RSS and original document links | Validated official portrait and RSS paths; document downloads only from API-supplied official distributions |
 | [Legislative Observatory](https://oeil.europarl.europa.eu/oeil/en/find-out-more) | Dossier stages and document summaries | Anonymous HTML parsing of exact procedure-file and document-summary pages; English and French where supplied |
-| [Publications Office knowledge graph](https://op.europa.eu/en/web/cellar/cellar-data/metadata/knowledge-graph) | EuroVoc concepts, country terminology and legislative topic timelines | Anonymous SPARQL GET to `publications.europa.eu/webapi/rdf/sparql` |
+| [Publications Office knowledge graph](https://op.europa.eu/en/web/cellar/cellar-data/metadata/knowledge-graph) | EuroVoc concepts, country terminology, legislative topic timelines, and titles, dates, in-force flags and procedure numbers of cited EU acts and Commission documents | Anonymous SPARQL GET to `publications.europa.eu/webapi/rdf/sparql` |
+| [EUR-Lex](https://eur-lex.europa.eu/) | Reader links to cited acts and documents | Outbound links built from exact CELEX numbers; the adapter makes no EUR-Lex request |
 | [Parliament Multimedia Centre](https://multimedia.europarl.europa.eu/) | Recording identity, coverage and official embeds | Anonymous public-site recording metadata, with a separately retained public-source recording catalogue |
 | [Parliament’s published player](https://webstreaming.europarl.europa.eu/) | Available interpretation tracks and playback | Public player metadata and the official iframe, created only after Play |
 
@@ -25,11 +26,21 @@ Portraits use only the public `https://www.europarl.europa.eu/mepphoto/{photo-id
 
 OEIL summaries are parsed from visible HTML, linked through the exact procedure reference returned by the API. The adapter records the source page, retrieval date, language and summary stage. It does not invent a summary when none is supplied.
 
-Parliamentary documents are read from official distributions linked by the Open Data API. DOCX is processed locally with bounded decompression; there is no document conversion service. Speaker headers, cover pages and document bodies remain distinguishable.
+Parliamentary documents are read from official distributions linked by the Open Data API. DOCX is processed locally with bounded decompression; there is no document conversion service. Speaker headers, cover pages and document bodies remain distinguishable. Footnotes are read from the same file's `word/footnotes.xml`, with external hyperlink targets from its relationships part. Each footnote marker is recorded at its exact character position instead of being joined to the preceding word, so “Regulation 139/2004” followed by footnote 2 no longer reads “139/20042”. At most 500 notes of 4,000 characters, each with up to 10 http(s) links, are kept. Text saved before footnote extraction remains readable and reports its notes as not extracted; it is refreshed once in the background when opened.
 
 The public Multimedia Centre site uses `https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0/media/{recording-id}`. The official player uses `wss://websockets.services.eup.glcloud.eu/content-manager/api/v1/socket.io/?EIO=4&transport=websocket`, namespace `/content`, event `join:event`, with the recording’s public `commonId`. These interfaces are exposed by the public website and are undocumented. The adapter sends no password, cookie, authorization header or forged Origin. It accepts only `PUBLISHED` content matching the recording identity and times.
 
 The client verifies the requested audio representation before playback. Missing, ambiguous or mismatched tracks leave the player closed. The adapter downloads metadata, not video segments or an audiovisual archive. Automatic recording-catalogue search is unavailable; a catalogue needs source-page URLs and retrieval dates. Missing catalogue coverage is shown explicitly.
+
+## References in questions and answers
+
+Question, answer and note text is scanned for exact official numbers: EU acts in their pre-2015 and post-2015 forms (for example “Regulation (EC) No 139/2004”, “Directive 2002/49/EC”, “Regulation (EU) 2016/679”), ELI and EUR-Lex CELEX links, COM, SWD and JOIN documents, procedure numbers such as 2025/0407(COD), and written, priority and oral question numbers. Each match becomes a CELEX number, procedure number or question identifier by fixed numbering rules. Titles, names and text similarity are never used to identify a reference. Unrecognised forms, such as unnumbered plurals or Court cases, stay plain text.
+
+One bounded SPARQL query per reader (at most 40 references) resolves CELEX numbers. A reference is linked only when exactly one work carries the number. A COM number checks both proposal (PC) and other (DC) CELEX forms and needs exactly one to exist. The interface-language title is used, with English as fallback and its language labelled. A missing in-force flag stays unknown rather than false. Procedure numbers come from the work's dossier, converted from Cellar's `2012/0011/COD` to Parliament's `2012/0011(COD)`.
+
+Question numbers restart each year. Years with a single parliamentary term map to that term. In term-change years (2014, 2019 and 2024), both possible identifiers are requested from the Open Data API, and the reference is linked only when exactly one exists and no lookup failed. Referenced questions open in the existing reader.
+
+Resolved, missing and ambiguous lookups are saved in `ODP_CACHE_DIR/legal-references-v1` for seven days (missing ones for one day), with source and retrieval time. Unavailable lookups are not saved; a previous result is shown and labelled as saved. A dossier summary in a reference card is the Legislative Observatory summary for the exact procedure number. Final-act summaries are preferred, then proposal summaries. Older summaries published as hard-wrapped text keep their printed line breaks as paragraphs. Acts dated before 16 July 2024 are marked as preceding the current term; they are described, not presented as indexed activity.
 
 ## Derived views
 
