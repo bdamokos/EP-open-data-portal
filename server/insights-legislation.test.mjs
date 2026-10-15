@@ -8,6 +8,9 @@ import {documentRows,projectDocument,speechRows} from './activity-index-model.mj
 import {agendaCreatorIds,agendaTopics,namedVote,topicVotes,voteScope,finalVotePatterns,topicRoles,classifyProcedure} from './insights-legislation-model.mjs';
 import {LegislationInsights} from './insights-legislation.mjs';
 import {insightQuery} from './insights-store.mjs';
+import {createInsights} from './insights.mjs';
+import {InsightViewCache} from './insights-view-cache.mjs';
+import {INSIGHTS_VERSION} from './insights-model.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/insights-live-20261014.json',import.meta.url)));
 const members=new Map([...new Set(fixture.decisions.payload.data.flatMap(v=>[...v.had_voter_favor,...v.had_voter_against,...v.had_voter_abstention]))].map(uri=>[uri.split('/').at(-1),{id:uri.split('/').at(-1),name:uri}]));
 const metadata=new Map();
@@ -62,6 +65,7 @@ test('read-only service uses exact parent/child speech join, bounded requests an
     const result=await service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-D-69'));
     assert.equal(result.detail.speeches.length,1);assert.equal(result.detail.speeches[0].sourceId,s.activity_id);assert.equal(result.detail.speeches[0].people[0].id,'257043');assert.equal(result.detail.coverage.speechAssociations.exactChildReferences,70);
     assert.equal(result.detail.coverage.speechAssociations.childrenWithoutSavedContributionRows,69);assert.equal(result.coverage.indexComplete,false);
+    assert.deepEqual(result.detail.people.find(p=>p.id==='257043').demographics,{country:'Unknown',group:'Unknown',gender:'Unknown',age:'Unknown'});
     const count=calls.length;await service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-D-69'));assert.equal(calls.length,count);
     const vote=await service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-V-48'));assert.equal(vote.detail.selectedVote.namedCounts.for,454);
     assert(!calls.some(([ep])=>ep.endsWith('/activities')||ep.endsWith('/events')));
@@ -105,5 +109,18 @@ test('actual October 19 agenda has six upcoming items and no expectation of futu
     assert.equal(base.sitting.phase,'upcoming');assert.equal(base.topics.length,6);
     const detail=await service.query(insightQuery(new URLSearchParams('sitting=MTG-PL-2026-10-19&topic=MTG-PL-2026-10-19-OJ-ITM-D-22'),{kind:'legislation',now:clock()}));
     assert.equal(detail.detail.coverage.speechAssociations.status,'not-yet-held');assert(detail.detail.roles.some(p=>p.id==='256968'&&p.role==='AGENDA_CONTRIBUTOR'));assert.deepEqual(agendaCreatorIds({'en':'<item><creators><label typeof="person" resource="https://example.com/person/256968">Wrong</label></creators></item>'}),[]);assert.equal(detail.detail.speeches.length,0);assert(!calls.some(ep=>ep.startsWith('/speeches/')||ep.includes('/decisions')||ep.includes('/vote-results')));
+  }finally{store.close();rmSync(directory,{recursive:true,force:true});}
+});
+
+test('legislation responses from before per-person demographic buckets are not reused after restart',async()=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'insights-chair-cache-')),store=new ActivityStore(path.join(directory,'index'));
+  const clock=()=>Date.parse('2026-10-14T12:00:00Z'),views=path.join(directory,'views');
+  try {
+    store.acquire();store.beginCycle();store.setMembers([{id:'257043',name:'MEP'}]);
+    const query=insightQuery(new URLSearchParams('sitting=MTG-PL-2026-10-07'),{kind:'legislation',now:clock()});
+    await new InsightViewCache({directory:views,clock}).get([INSIGHTS_VERSION,'legislation',store.status().servingGeneration,'2026-10-14',query],async()=>({view:'legislation',oldSchema:true}));
+    const service=createInsights(store,{clock,viewCache:{directory:views},loadMetadata:async()=>metadata,request:async(endpoint,params)=>endpoint==='/meetings'?params.offset===0?fixture.meetings:{...fixture.meetings,payload:{data:[]}}:fixture.foreseen});
+    const result=await service.query('legislation',new URLSearchParams('sitting=MTG-PL-2026-10-07'));
+    assert.equal(result.oldSchema,undefined);assert.equal(result.topics.length,18);
   }finally{store.close();rmSync(directory,{recursive:true,force:true});}
 });

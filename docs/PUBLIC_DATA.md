@@ -43,6 +43,8 @@ Speech clouds use supplied body text in the selected language. Counts describe d
 
 Plenary participation uses actual named voters and exact speech-parent links. Unavailable observations are null rather than fabricated zeroes. Whole-sitting pagination compares unique IDs with declared totals and reports partial coverage for overlaps or missing records.
 
+In an agenda item's **Who is involved** list, transcript headers identify chairing remarks per speech, including original-language chair labels retained in translated fragments. A person whose linked contributions are all identified as chairing is excluded from that list and its contributor demographics. A separate speech, written statement or documented item role retains them. Missing headers do not establish chairing. The distinction updates as the existing speech cloud or reader supplies headers; transcripts remain readable and no additional speech download is made. The bounded [header examples](../server/fixtures/chair-headers-20261015.json), retrieved on 15 October 2026 from the anonymous speech API, retain exact person/activity IDs, request URL and language; bodies are omitted.
+
 ## Saved examples and supporting data
 
 `server/fixtures` contains bounded public API responses and public OEIL HTML for tests. Each example retains source attribution or provenance. Public API records can contain identifiers named `notation_codictPersonId` or similar; these are fields returned by the open API, not calls to another service.

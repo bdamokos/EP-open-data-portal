@@ -5,7 +5,7 @@ import {EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext,procedureContextQuery} from './procedure-context.mjs';
 import {TopicTrends,topicTrendsQuery} from './topic-trends.mjs';
 import { QuestionInsights,insightQuery,savedMetadata,brusselsDay } from './insights-store.mjs';
-import { LegislationInsights } from './insights-legislation.mjs';
+import { LegislationInsights,LEGISLATION_VIEW_VERSION } from './insights-legislation.mjs';
 import { HttpError } from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
 import {INSIGHTS_VERSION} from './insights-model.mjs';
@@ -40,6 +40,7 @@ export function createInsights(store,options={}) {
     if(view==='participation'){const query=participationQuery(searchParams);return views.get([INSIGHTS_VERSION,view,store.status().servingGeneration,brusselsDay(clock()),query],()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}));}
     if(!['questions','legislation'].includes(view))throw new HttpError(404,'insight_not_found','Unknown insight view.');
     const query=insightQuery(searchParams,{kind:view,now:options.clock?.()??Date.now()});
-    return views.get([INSIGHTS_VERSION,view,store.status().servingGeneration,view==='legislation'?brusselsDay(clock()):null,query],()=>view==='questions'?questions.query(query):legislation.query(query));
+    const version=view==='legislation'?INSIGHTS_VERSION+':'+LEGISLATION_VIEW_VERSION:INSIGHTS_VERSION;
+    return views.get([version,view,store.status().servingGeneration,view==='legislation'?brusselsDay(clock()):null,query],()=>view==='questions'?questions.query(query):legislation.query(query));
   }};
 }

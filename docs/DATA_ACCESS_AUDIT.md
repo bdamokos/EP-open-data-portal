@@ -14,6 +14,8 @@ The current-term date-range check on 15 October 2026 used the same anonymous Ope
 
 Generic interface labels are app-owned; country and language display names use the browser’s internationalization data. Portrait and favicon fallbacks are app-owned SVGs. The application uses system fonts and carries no inherited institutional font binaries or copied dataset assets.
 
+Chair-only exclusions in the agenda contributor list reuse transcript headers from the existing bounded speech cloud and reader requests. The classification is scoped to exact speech/person IDs and does not infer participation from a person's office or speech length. The dated public header examples omit body text. No new source, request fan-out, authentication, cache writer or index writer is introduced.
+
 No production cache or database was copied into the initial repository. Git history starts with the standalone source. Hosting access controls and private Git authentication are separate from parliamentary data acquisition and remain outside source control.
 
 `npm test` checks the read-only routing boundary, allowed configuration and absence of authenticated data adapters. Future sources must document their public acquisition path here before being added. Failed public access must remain a reported gap; it must not trigger use of internal credentials or protection bypasses.
