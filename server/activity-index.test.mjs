@@ -113,7 +113,8 @@ test('real EP records verify report-to-procedure shadow and question-to-answer j
 test('HTTP joined endpoints read the persistent cache and validate categories, paging, methods and origin',async t=> {
   const dir=temp();process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=dir;
   const {activityIndex}=await import('./activity-index-worker.mjs');const {store}=activityIndex();
-  assert(store.acquire());const cycle=store.beginCycle();store.setMembers([{id:'257043',name:'MEP'}]);store.putSource(cycle.generation,'/q','document',projectDocument(question),fetchedAt,documentRows(question,'/q',fetchedAt).rows);store.publish(cycle.generation);store.release();
+  assert(store.acquire());const cycle=store.beginCycle();store.setMembers([{id:'257043',name:'MEP'}]);store.putSource(cycle.generation,'/q','document',projectDocument(question),fetchedAt,documentRows(question,'/q',fetchedAt).rows);
+  const early={...question,id:'eli/dl/doc/E-10-2024-000001',identifier:'E-10-2024-000001',document_date:'2024-07-16',inverse_answers_to:[]};store.putSource(cycle.generation,'/parliamentary-questions/'+early.identifier,'document',projectDocument(early),fetchedAt,documentRows(early,'/parliamentary-questions/'+early.identifier,fetchedAt).rows);store.publish(cycle.generation);store.release();
   const {server}=await import('./index.mjs?activity-http-test');
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}`;
   t.after(async()=>{await new Promise(resolve=>server.close(resolve));store.close();rmSync(dir,{recursive:true,force:true});delete process.env.ACTIVITY_INDEX_ENABLED;delete process.env.ACTIVITY_INDEX_DIR;});
@@ -135,7 +136,12 @@ test('HTTP joined endpoints read the persistent cache and validate categories, p
     assert.equal(body.cache.readOnly,true);
     const h=await fetch(base+prefix+insight,{method:'HEAD'});assert.equal(h.status,200);assert.equal(await h.text(),'');
   }
-  for(const suffix of ['?days=0','?days=366','?days=90&days=90','?url=https://evil.example'])assert.equal((await fetch(base+'/api/poc/insights/questions'+suffix)).status,400);
+  for(const days of ['term','366']) {
+    const response=await fetch(base+'/api/poc/insights/questions?days='+days+'&end=2026-10-13');assert.equal(response.status,200);
+    const body=await response.json();assert.equal(body.counts.analyzedQuestions,days==='term'?2:1);
+    if(days==='term'){assert.equal(body.window.start,'2024-07-16');assert(body.questions.some(q=>q.id===early.identifier));}
+  }
+  for(const suffix of ['?days=0','?days=999999','?days=90&days=90','?url=https://evil.example'])assert.equal((await fetch(base+'/api/poc/insights/questions'+suffix)).status,400);
   assert.equal((await fetch(base+'/api/poc/insights/legislation?url=https://evil.example')).status,400);
   assert.equal((await fetch(base+'/api/poc/insights/unknown')).status,404);
   assert.equal((await fetch(base+ '/api'+insight,{method:'POST'})).status,405);

@@ -33,6 +33,10 @@ The client verifies the requested audio representation before playback. Missing,
 
 ## Derived views
 
+Analysis periods in questions, topic timelines and MEP speech clouds include **Current term**, from 16 July 2024 through today (Europe/Brussels), or through the chosen Until date where available. Numeric API windows may span any number of days within that term; there is no fixed 365-day maximum. Both boundaries are inclusive. Shorter presets remain available.
+
+The [official API specification](https://data.europarl.europa.eu/api/v2) documents speech start/end dates and parliamentary-term selection without a 365-day span restriction. An anonymous, one-record check on 15 October 2026 spanning 16 July 2024–15 October 2026 returned a speech dated 16 September 2024; exact request and identifier are retained in [date-range-check.json](date-range-check.json). Questions and procedure timelines filter the existing saved index; selecting a wider period does not start a corpus download. Existing record, text and paging budgets remain, with truncated or incomplete coverage labelled separately from the date range.
+
 Question topics use titles and bounded already-cached English bodies. Repeated phrases remain together; routine parliamentary terms are filtered. Counts deduplicate questions and co-authors. Country vocabulary comparisons use the same question selection and retain coverage and sample-size limits.
 
 Speech clouds use supplied body text in the selected language. Counts describe distinct speeches mentioning a term; a single-speech cloud uses occurrences. Clicking a term opens exact source IDs and highlights literal whole words or phrases without rewriting the text. Machine translations are labelled. Absent translations are not generated.

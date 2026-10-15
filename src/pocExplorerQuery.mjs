@@ -7,7 +7,7 @@ export function readExplorerParam(query,key,fallback,allowed) {
   let raw=query.get(key);
   if(raw===null&&((key==='q-country'&&query.get('view')==='questions')||(key==='agenda-country'&&query.get('view')==='legislation'&&!query.has('pl-mode'))))raw=query.get('country');
   if(raw===null||raw.length>512)return fallback;
-  const value=key.endsWith('-country')?filterCountry(raw):typeof fallback==='number'?Number(raw):raw;
+  const value=key.endsWith('-country')?filterCountry(raw):key.endsWith('-days')&&raw==='term'?raw:typeof fallback==='number'?Number(raw):raw;
   if(allowed&&!allowed.includes(value))return fallback;
   if(typeof value==='number'&&!Number.isFinite(value))return fallback;
   if(key.endsWith('-country')&&!countries.has(value))return fallback;

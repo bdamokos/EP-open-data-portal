@@ -1,3 +1,5 @@
+import {PocAnalysisPeriod} from './PocAnalysisPeriod';
+import type {AnalysisPeriod} from '../server/analysis-period.mjs';
 import {useEffect,useId,useRef,useState,type ReactNode} from 'react';
 import {api} from './pocData';
 import {createPocClient} from './pocClient.mjs';
@@ -37,7 +39,7 @@ function useCloud(route:string) {
 }
 
 export function PocSpeechCloud({member,sitting,topic,country,interfaceLanguage='en',title,controls,onSpeech,onSpeakers}:{member?:number;sitting?:string;topic?:string;country?:string|null;interfaceLanguage?:string;title?:string|false;controls?:ReactNode;onSpeech?:(id:string,language:string)=>void;onSpeakers?:(people:{id:string;name:string;role:string|null}[])=>void}) {
-  const [language,setLanguage]=useState('en'),[days,setDays]=useState(90),[word,setWord]=useState<string|null>(null),[more,setMore]=useState(false),[reading,setReading]=useState<string|null>(null),examples=useRef<HTMLHeadingElement>(null);
+  const [language,setLanguage]=useState('en'),[days,setDays]=useState<AnalysisPeriod>(90),[word,setWord]=useState<string|null>(null),[more,setMore]=useState(false),[reading,setReading]=useState<string|null>(null),examples=useRef<HTMLHeadingElement>(null);
   const reader=useRef<HTMLDivElement>(null),sourceButtons=useRef(new Map<string,HTMLButtonElement>()),readerId=useId();
   const params=new URLSearchParams({lang:language});if(member){params.set('member',String(member));params.set('days',String(days));}else if(sitting)params.set('sitting',sitting);if(topic)params.set('topic',topic);if(country)params.set('country',country);
   const {data,loading,error,retry}=useCloud('insights/speech-cloud?'+params),selected=data?.words.find(term=>term.word===word);
@@ -55,7 +57,7 @@ export function PocSpeechCloud({member,sitting,topic,country,interfaceLanguage='
     else setReading(id);
   }
   return <section className="poc-cloud">
-    <header className="poc-cloud-heading">{title!==false&&<h3>{title||(member?'Speech word cloud':topic?'Words in this debate':'Plenary word cloud')}</h3>}<div className="poc-cloud-controls">{controls}<label>Text language<select value={language} onChange={event=>setLanguage(event.target.value)}>{languages.map(code=><option key={code} value={code}>{languageLabel(code)}</option>)}</select></label>{member&&<label>Period<select value={days} onChange={event=>setDays(Number(event.target.value))}>{[30,90,180,365].map(value=><option key={value} value={value}>{value} days</option>)}</select></label>}</div></header>
+    <header className="poc-cloud-heading">{title!==false&&<h3>{title||(member?'Speech word cloud':topic?'Words in this debate':'Plenary word cloud')}</h3>}<div className="poc-cloud-controls">{controls}<label>Text language<select value={language} onChange={event=>setLanguage(event.target.value)}>{languages.map(code=><option key={code} value={code}>{languageLabel(code)}</option>)}</select></label>{member&&<PocAnalysisPeriod value={days} periods={[30,90,180,365]} onChange={setDays}/>}</div></header>
     {data&&<p className="poc-cloud-caption"><strong>{data.coverage.transcripts} {data.coverage.transcripts===1?'speech':'speeches'}</strong>{speakers>0&&<> · {speakers} {speakers===1?'speaker':'speakers'}</>}{data.window.start&&<> · {humanDate(data.window.start,interfaceLanguage)}{data.window.end&&data.window.end!==data.window.start&&<> — {humanDate(data.window.end,interfaceLanguage)}</>}</>}{(data.coverage.truncated||(!data.coverage.complete&&!loading))&&<> · <strong>Partial coverage</strong></>}</p>}
     {loading&&!data&&<p role="status">Loading speech text…</p>}
     {data?.words.length?<><div className="poc-cloud-words">{data.words.slice(0,more?60:initialTerms).map((term,index)=><button key={term.word} aria-pressed={word===term.word} style={{fontSize:`calc(1rem + var(--cloud-scale, 1.05rem) * ${Math.sqrt(frequencies[index]/Math.max(1,...frequencies))})`}} onClick={()=>choose(term.word)}>{term.label||wordLabel(term.word)}<small>{data.coverage.transcripts===1?term.occurrences:term.speechCount}</small></button>)}</div><div className="poc-cloud-footer"><small>{data.coverage.transcripts===1?'Occurrences in this speech':'Number of speeches mentioning each term'}{data.speeches.some(speech=>speech.machineTranslation)?' · includes machine translations':''}</small>{data.words.length>initialTerms&&<button onClick={()=>setMore(value=>!value)} aria-expanded={more}>{more?'Fewer terms':'More terms'}</button>}</div></>:data&&!loading&&<p>{data.coverage.associationUnavailable?'No earlier debate is linked to this item.':data.scope.phase==='upcoming'&&!data.window.start?'The sitting has not taken place.':data.coverage.missingLanguage?'Parliament has not supplied text in this language.':'No oral speeches in this selection.'}</p>}
