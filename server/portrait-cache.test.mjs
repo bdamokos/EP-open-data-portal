@@ -5,6 +5,8 @@ import {execFileSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import {PortraitCache} from './portrait-cache.mjs';
+import {UpstreamQueue} from './upstream-queue.mjs';
+import {createPortraitLoader} from '../src/portraitLoader.mjs';
 
 const source = id => `https://www.europarl.europa.eu/mepphoto/${id}.jpg`;
 const jpeg = (body = 'test image') => new Response(body, {headers: {'content-type': 'image/jpeg'}});
@@ -77,6 +79,43 @@ test('failed refresh retains the saved image and timestamp and backs off upstrea
   assert.equal(calls, 3);
   const restarted = new PortraitCache({directory, clock: () => 1050, fetchImpl: () => assert.fail('retained file is intact')});
   assert.equal((await restarted.get(1, source)).fetchedAt, first.fetchedAt);
+});
+
+test('a stale wall burst bounds background work and leaves an upstream slot for interactive text', async () => {
+  let now = 1000;
+  const cache = new PortraitCache({directory: null, clock: () => now, freshMs: 100,
+    maxBackground: 2, maxBackgroundQueued: 4, fetchImpl: async () => jpeg('saved')});
+  const ids = Array.from({length: 24}, (_, i) => i + 1);
+  await Promise.all(ids.map(id => cache.get(id, source)));
+  now = 1100;
+  const upstream = new UpstreamQueue({interval: 0}), delayed = deferred(), priorities = [];
+  const resolveSource = async (id, {priority}) => {
+    priorities.push(priority);
+    const release = await upstream.acquire(priority);
+    try { await delayed.promise; return source(id); } finally { release(); }
+  };
+  const loader = createPortraitLoader({concurrency: 3, fetchImpl: async url => {
+    const image = await cache.get(Number(url.split('/').at(-1)), resolveSource);
+    return new Response(image.body, {headers: {'content-type': image.contentType}});
+  }});
+  const images = await Promise.all(ids.map(id => loader.load(`/api/poc/portrait/${id}`)));
+  assert(images.every(image => image.size === 5), 'all stale images return while refreshes are blocked');
+  assert.equal(cache.refreshes.size, 2); assert.equal(cache.backgroundQueue.size, 4);
+  assert.deepEqual(priorities, ['background', 'background']);
+  assert.equal(upstream.background, 1);
+  const releaseText = await upstream.acquire('interactive');
+  assert.equal(upstream.active, 2, 'text starts beside the one active background profile read');
+  releaseText(); delayed.resolve();
+  while (cache.backgroundActive || cache.backgroundQueue.size) {
+    await Promise.all([...cache.refreshes.values()]);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.equal(priorities.length, 6, 'overflow is retained without unbounded refresh fan-out');
+  assert(priorities.every(priority => priority === 'background'));
+  assert.equal((await cache.get(24, resolveSource)).fetchedAt, 1000);
+  await cache.refreshes.get(24);
+  assert.equal((await cache.get(24, resolveSource)).fetchedAt, 1100, 'a later visit can schedule overflow');
+  assert.equal(cache.backgroundActive, 0); assert.equal(upstream.active, 0);
 });
 
 test('cold failures are not saved and repeated requests respect the bounded retry delay', async t => {

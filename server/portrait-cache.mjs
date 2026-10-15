@@ -22,11 +22,13 @@ export class PortraitCache {
     clock = Date.now, fetchImpl = (...args) => fetch(...args), freshMs = 7 * 86400_000,
     retryMs = 5 * 60_000, maxDiskBytes = 128 * 1024 * 1024, maxDiskEntries = 2048,
     maxMemoryBytes = 8 * 1024 * 1024, maxMemoryEntries = 120,
+    maxBackground = 2, maxBackgroundQueued = 120,
     warn = message => console.warn(message)} = {}) {
     Object.assign(this, {directory, clock, fetchImpl, freshMs, retryMs, maxDiskBytes, maxDiskEntries,
-      maxMemoryBytes, maxMemoryEntries, warn});
+      maxMemoryBytes, maxMemoryEntries, maxBackground, maxBackgroundQueued, warn});
     this.memory = new Map(); this.memoryBytes = 0;
     this.pending = new Map(); this.refreshes = new Map(); this.failures = new Map();
+    this.backgroundQueue = new Map(); this.backgroundActive = 0;
     this.files = new Map(); this.diskBytes = 0; this.writes = Promise.resolve();
     this.initialized = null; this.warned = false;
   }
@@ -143,8 +145,8 @@ export class PortraitCache {
     await operation;
   }
 
-  async download(id, resolveSource) {
-    const sourceUrl = officialPortrait(await resolveSource(id));
+  async download(id, resolveSource, {priority = 'interactive'} = {}) {
+    const sourceUrl = officialPortrait(await resolveSource(id, {priority}));
     const response = await this.fetchImpl(sourceUrl, {
       headers: {'User-Agent': 'Mozilla/5.0 (compatible; Parliament-Explorer/0.1)', Accept: 'image/jpeg'},
       redirect: 'error', signal: AbortSignal.timeout(12000),
@@ -171,13 +173,14 @@ export class PortraitCache {
     return {memberId: id, sourceUrl, fetchedAt: this.clock(), contentType, body: Buffer.concat(chunks, size)};
   }
 
-  refresh(id, resolveSource) {
+  refresh(id, resolveSource, options) {
     if (this.refreshes.has(id)) return this.refreshes.get(id);
+    this.backgroundQueue.delete(id);
     const failure = this.failures.get(id);
     if (failure && this.clock() < failure.retryAt) return Promise.reject(failure.error);
     const job = (async () => {
       try {
-        const image = await this.download(id, resolveSource);
+        const image = await this.download(id, resolveSource, options);
         this.remember(id, image); this.failures.delete(id);
         await this.save(id, image);
         return image;
@@ -192,6 +195,29 @@ export class PortraitCache {
     return job;
   }
 
+  scheduleRefresh(id, resolveSource) {
+    if (this.refreshes.has(id) || this.backgroundQueue.has(id) ||
+        this.clock() < (this.failures.get(id)?.retryAt || 0) ||
+        this.backgroundQueue.size >= this.maxBackgroundQueued) return;
+    // Queue IDs/resolvers only, not image bodies. If full, another visit can
+    // retry scheduling; serving the retained portrait never waits for a slot.
+    this.backgroundQueue.set(id, resolveSource);
+    this.drainBackground();
+  }
+
+  drainBackground() {
+    while (this.backgroundActive < this.maxBackground && this.backgroundQueue.size) {
+      const [id, resolveSource] = this.backgroundQueue.entries().next().value;
+      this.backgroundQueue.delete(id);
+      if (this.refreshes.has(id)) continue;
+      this.backgroundActive++;
+      void this.refresh(id, resolveSource, {priority: 'background'}).catch(() => {}).finally(() => {
+        this.backgroundActive--;
+        this.drainBackground();
+      });
+    }
+  }
+
   get(id, resolveSource) {
     if (!Number.isSafeInteger(id) || id < 1) return Promise.reject(new HttpError(400, 'invalid_id', 'id must be a positive integer'));
     if (this.pending.has(id)) return this.pending.get(id);
@@ -202,7 +228,7 @@ export class PortraitCache {
       if (!image) return this.refresh(id, resolveSource);
       if (this.clock() - image.fetchedAt >= this.freshMs) {
         // A retained portrait stays visible during a refresh or an upstream outage.
-        void this.refresh(id, resolveSource).catch(() => {});
+        this.scheduleRefresh(id, resolveSource);
       }
       return image;
     })().finally(() => this.pending.delete(id));

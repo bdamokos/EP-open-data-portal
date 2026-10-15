@@ -704,5 +704,5 @@ export async function preloadOdp() {
 
 const portraits = new PortraitCache();
 export async function odpPortrait(id) {
-  return portraits.get(id, async memberId => (await odpProfile(memberId)).imageUrl);
+  return portraits.get(id, async (memberId, {priority}) => (await odpProfile(memberId, false, {priority})).imageUrl);
 }
