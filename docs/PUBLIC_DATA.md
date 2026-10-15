@@ -9,9 +9,19 @@
 | [Parliament Multimedia Centre](https://multimedia.europarl.europa.eu/) | Recording identity, coverage and official embeds | Anonymous public-site recording metadata, with a separately retained public-source recording catalogue |
 | [Parliament’s published player](https://webstreaming.europarl.europa.eu/) | Available interpretation tracks and playback | Public player metadata and the official iframe, created only after Play |
 
-The Open Data API uses [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); attribution is retained. Website text, images and recordings have their own institutional terms. A public URL does not give this application additional redistribution rights.
+## Licences and attribution
+
+| Material | Terms | Basis |
+| --- | --- | --- |
+| Open Data API records | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); CC0 may apply to raw data and metadata | Article 4 of the Bureau decision on Parliament’s open data, [OJ C/2025/341](https://eur-lex.europa.eu/eli/C/2025/341/oj) |
+| Website text, portraits, OEIL summaries, documents and recordings | Reuse allowed with the source acknowledged; third-party items keep their own rights | Parliament’s [legal notice](https://www.europarl.europa.eu/legal-notice/en/); no separate licence is published for these items |
+| EuroVoc and country terminology | Commission reuse policy, which adopts CC BY 4.0 | [Decision 2011/833/EU](https://eur-lex.europa.eu/eli/dec/2011/833/oj) |
+
+Every page shows a short notice (`src/components/DataNotice.tsx`) with the attribution “© European Union – Source: European Parliament”, the licence, a statement that the site is independent and that its counts and charts are derived, and a pointer to check the original and its terms before reuse. Material is linked or embedded from its official source rather than redistributed. A public URL does not give this application additional redistribution rights, and the Parliament’s name and logo are not used as a brand.
 
 ## Transparent website processing
+
+Portraits use only the public `https://www.europarl.europa.eu/mepphoto/{photo-id}.jpg` URL supplied by the exact member profile (or its existing member-ID fallback). They are fetched anonymously on demand, with redirects disabled. With `ODP_CACHE_DIR` configured, each saved binary record retains the exact member ID, source URL, retrieval timestamp, MIME type and a SHA-256 integrity checksum. Portraits have no language variant. Saved images are fresh for seven days; an expired image remains visible during refresh or if that refresh fails. At most two background refreshes run at once, with 120 queued member IDs; overflow remains stale until a later request can schedule it. Refresh profile reads use the shared upstream queue's background priority, leaving capacity for interactive text requests. Failures back off for five minutes and never become empty image records. The cache retains at most 128 MiB including record metadata and 2,048 records; it prunes by oldest save time and does not download the roster in advance. Each download is bounded to 2 MiB while streaming. The browser's existing six-hour private cache remains in place. Cached portraits stay outside Git and retain the source website's image terms.
 
 OEIL summaries are parsed from visible HTML, linked through the exact procedure reference returned by the API. The adapter records the source page, retrieval date, language and summary stage. It does not invent a summary when none is supplied.
 
