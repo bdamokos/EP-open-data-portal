@@ -43,7 +43,7 @@ export async function participation(legislation,store,query,{clock=Date.now,read
   const status=store.status(),catalogue=await legislation.catalogue(),today=brusselsDay(clock());
   const end=query.week?new Date(Date.parse(query.week+'T12:00:00Z')+6*86400_000).toISOString().slice(0,10):null;
   const sittings=query.week?catalogue.sittings.filter(s=>s.activity_date>=query.week&&s.activity_date<=end):catalogue.sittings.filter(s=>s.activity_id===(query.sitting||catalogue.sittings[0]?.activity_id));
-  if(!sittings.length||sittings.length>5)throw new HttpError(404,'sitting_not_found','Choose a recent listed sitting or plenary week.');
+  if(!sittings.length||sittings.length>5)throw new HttpError(404,'sitting_not_found','Choose a listed sitting or plenary week from the current parliamentary term.');
   const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],sources=[];
   for(const sitting of sittings) {
     let base;try{base=await legislation.query({language:query.language,sitting:sitting.activity_id,topic:null,vote:null});}catch{gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});continue;}const speechRows=new Map();let results=null,decisions=null;
