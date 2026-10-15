@@ -13,5 +13,35 @@
     "id": "MTG-PL-2024-09-16-OTH-2017001159649",
     "date": "2024-09-16"
   },
-  "scope": "A bounded access check, not a complete archive retrieval or completeness claim."
+  "scope": "A bounded access check, not a complete archive retrieval or completeness claim.",
+  "plenaryCatalogue": {
+    "retrievedOn": "2026-10-15",
+    "specificationUrl": "https://data.europarl.europa.eu/api/v2",
+    "authSent": false,
+    "cookieSent": false,
+    "language": null,
+    "requests": [
+      {
+        "url": "https://data.europarl.europa.eu/api/v2/meetings?year=2024,2025,2026&limit=50&offset=0&format=application%2Fld%2Bjson",
+        "status": 200,
+        "recordsReturned": 50
+      },
+      {
+        "url": "https://data.europarl.europa.eu/api/v2/meetings?year=2024,2025,2026&limit=50&offset=50&format=application%2Fld%2Bjson",
+        "status": 200,
+        "recordsReturned": 50
+      },
+      {
+        "url": "https://data.europarl.europa.eu/api/v2/meetings?year=2024,2025,2026&limit=50&offset=100&format=application%2Fld%2Bjson",
+        "status": 200,
+        "recordsReturned": 50
+      },
+      {
+        "url": "https://data.europarl.europa.eu/api/v2/meetings?year=2024,2025,2026&limit=50&offset=150&format=application%2Fld%2Bjson",
+        "status": 200,
+        "recordsReturned": 7
+      }
+    ],
+    "scope": "Official sitting metadata only; no agendas, transcript corpus or archive completeness claim."
+  }
 }
