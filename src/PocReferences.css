@@ -1,0 +1,31 @@
+.legal-reference-scope {position:relative;}
+:is(.poc,.poc-insights,.insight-inline-reader) button.legal-ref {display:inline;min-height:0;padding:0;margin:0;border:0;border-bottom:1.5px dotted currentColor;background:none;color:inherit;font:inherit;line-height:inherit;text-align:inherit;cursor:pointer;overflow-wrap:anywhere;}
+:is(.poc,.poc-insights,.insight-inline-reader) button.legal-ref:hover,:is(.poc,.poc-insights,.insight-inline-reader) button.legal-ref[aria-expanded="true"] {background:color-mix(in srgb,currentColor 12%,transparent);border-bottom-style:solid;}
+button.legal-ref:focus-visible {outline:3px solid var(--accessibility-orange);outline-offset:2px;}
+.legal-note-mark {font-size:.7em;line-height:0;margin-left:1px;}
+.legal-note-mark a {text-decoration:none;padding:0 2px;}
+.legal-reference-card {position:absolute;z-index:20;max-height:min(70vh,560px);overflow:auto;padding:16px 40px 14px 16px;background:#fff;color:var(--institutional-ink);box-shadow:0 10px 30px #00000059;border-top:3px solid var(--parliament-blue);font-size:15px;line-height:1.45;text-align:left;}
+.legal-reference-card:focus {outline:none;}
+.legal-reference-card:focus-visible {outline:3px solid var(--accessibility-orange);}
+.legal-reference-card p {margin:0 0 8px;}
+.legal-reference-kind {font-size:12px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase;color:var(--parliament-blue);}
+.legal-reference-title {font-weight:bold;}
+.legal-reference-meta {font-size:13px;color:#46566e;}
+.legal-reference-source {font-size:12px;color:#5d6b80;margin-top:10px!important;}
+.legal-reference-actions {display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px;}
+.legal-reference-card .legal-reference-actions :is(a,button) {display:inline-flex;align-items:center;min-height:40px;padding:8px 12px;font-size:14px;line-height:1.2;text-decoration:none;background:var(--institutional-ink);color:#fff;border:0;}
+.legal-reference-card .legal-reference-actions .legal-reference-secondary {background:#e6edf7;color:var(--institutional-ink);}
+.legal-reference-card .legal-reference-actions button[aria-expanded="true"] {background:var(--selected-yellow);color:var(--institutional-ink);}
+.legal-reference-card button.legal-reference-close {position:absolute;top:6px;right:6px;width:32px;min-width:0;height:32px;min-height:0;padding:0;font-size:22px;line-height:1;background:none;color:var(--institutional-ink);}
+.legal-reference-summary {margin-top:10px;padding-top:10px;border-top:1px solid #d7deea;}
+.legal-reference-summary h4 {margin:10px 0 4px;font-size:14px;}
+.legal-reference-summary p {font-size:14px;}
+:is(.poc,.poc-insights,.insight-inline-reader) button.legal-reference-text-button {min-height:0;padding:0;background:none;color:inherit;text-decoration:underline;font:inherit;}
+.legal-reference-question {margin-top:12px;}
+.legal-reference-question > button.legal-reference-text-button {font-size:14px;}
+.legal-notes {margin:14px 0 6px;padding-top:8px;border-top:1px solid color-mix(in srgb,currentColor 25%,transparent);font-size:14px;line-height:1.5;max-width:78ch;}
+.legal-notes summary {cursor:pointer;font-weight:bold;}
+.legal-notes ol {margin:8px 0 0;padding-left:26px;}
+.legal-notes li {margin-bottom:6px;overflow-wrap:anywhere;scroll-margin-top:12px;}
+.legal-notes li:target {background:color-mix(in srgb,var(--selected-yellow) 30%,transparent);}
+@media(max-width:560px) {.legal-reference-card {font-size:14px;max-height:65vh;}}
