@@ -4,7 +4,28 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      # @vitejs/plugin-react declares a peer range on vite, so separate PRs for
+      # either package cannot install. Keep them in one PR.
+      vite:
+        patterns:
+          - vite
+          - "@vitejs/*"
+      react:
+        patterns:
+          - react
+          - react-dom
+          - "@types/react"
+          - "@types/react-dom"
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"

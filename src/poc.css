@@ -46,7 +46,6 @@
 .poc-footer { display: flex; align-items: center; gap: 20px; flex-shrink: 0; padding: 10px var(--poc-gutter); background: var(--signal-blue); font-size: 13px; }
 .poc-footer label { flex-direction: row; align-items: center; font-size: 13px; }
 .poc-footer select { width: 170px; min-height: 38px; font-size: 14px; padding: 7px 10px; }
-.poc-footer span { flex: 1; text-align: center; }
 .poc-footer a { font-size: 13px; }
 .poc-profile { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 20px var(--poc-gutter); }
 .poc-back { align-self: start; margin-bottom: 16px; }
@@ -173,7 +172,6 @@
   .poc-category-selection { gap: 8px; margin-bottom: 12px; }
   .poc-activity-results-title { font-size: 18px; margin: 12px 0 16px; }
   .poc-footer { gap: 12px; padding: 8px 12px; }
-  .poc-footer span { display: none; }
   .poc-footer label { flex: 1; }
   .poc-footer a { font-size: 12px; }
   .poc-footer select { width: 130px; }
