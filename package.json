@@ -17,14 +17,14 @@
   "dependencies": {
     "fast-xml-parser": "^5.11.2",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@types/react": "^19.1.16",
-    "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^4.7.0",
-    "typescript": "^5.9.2",
-    "vite": "^7.1.7"
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
   },
   "license": "UNLICENSED",
   "engines": {
