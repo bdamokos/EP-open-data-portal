@@ -9,11 +9,11 @@ import { documentRows, projectDocument } from './activity-index-model.mjs';
 import { motionOutcome, motionReference, motionSittings, motionSourceKey, motionVoteCoverage } from './motion-outcomes.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/motion-outcomes-live-20261015.json',import.meta.url),'utf8'));
-const clock=()=>Date.parse('2026-10-15T12:00:00Z');
+const clock=()=>Date.parse('2026-10-16T12:00:00Z');
 const fetchedAt=new Date(clock()).toISOString();
 const work=id=>structuredClone(fixture.documents.find(document=>document.work.identifier===id).work);
 const votes=()=>structuredClone(fixture.votes);
-const resolve=(id,source=votes(),document=work(id))=>motionOutcome(document,fixture.retrievedAt,()=>source && {work:source,fetchedAt:fixture.retrievedAt});
+const resolve=(id,source=votes(),document=work(id))=>motionOutcome(document,fixture.documents.find(record=>record.work.identifier===id).retrievedAt,()=>source && {work:source,fetchedAt:fixture.retrievedAt});
 function storeTest(t) {
   const directory=mkdtempSync(path.join(os.tmpdir(),'motion-outcomes-test-'));
   const store=new ActivityStore(directory,{clock});store.acquire();
@@ -23,7 +23,7 @@ function storeTest(t) {
 function seed(store) {
   const cycle=store.beginCycle();
   store.setMembers([{id:'257043',name:'Test member'}]);
-  for(const {endpoint,work} of fixture.documents)store.putSource(cycle.generation,endpoint,'document',work,fixture.retrievedAt,documentRows(work,endpoint,fixture.retrievedAt).rows);
+  for(const {endpoint,work,retrievedAt} of fixture.documents)store.putSource(cycle.generation,endpoint,'document',work,retrievedAt,documentRows(work,endpoint,retrievedAt).rows);
   return cycle;
 }
 const rawResults=()=>fixture.votes.results.map(result=>({...result,had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',inverse_consists_of:[{id:'eli/dl/event/'+fixture.sittingId,consists_of:result.sittingResultIds}]}));
@@ -42,6 +42,14 @@ test('a whole-motion show-of-hands decision is available without numerical total
   const outcome=resolve('B-10-2026-0423');
   assert.equal(outcome.status,'adopted');assert.equal(outcome.method,'VOTE_HAND');assert.equal(outcome.totals,null);
   assert.equal(outcome.decisionId,'MTG-PL-2026-10-08-DEC-197660');
+});
+test('real shorter final-motion labels resolve rejected and adopted texts by their exact references',()=>{
+  const rejected=resolve('B-10-2026-0465'), adopted=resolve('RC-10-2026-0438');
+  assert.equal(rejected.status,'rejected');assert.equal(rejected.decisionId,'MTG-PL-2026-10-08-DEC-198175');
+  assert.deepEqual(rejected.totals,{for:282,against:259,abstaining:23});
+  assert.equal(adopted.status,'adopted');assert.equal(adopted.decisionId,'MTG-PL-2026-10-08-DEC-198252');
+  assert.deepEqual(adopted.totals,{for:492,against:23,abstaining:60});
+  assert.equal(adopted.sources[0].fetchedAt,'2026-10-16');
 });
 test('missing, ambiguous and incomplete evidence never becomes a rejected or pending motion',()=>{
   assert.equal(resolve('B-10-2026-0441',null).status,'unavailable');
@@ -133,6 +141,60 @@ test('partial/repeated decision pages stop safely and report gaps rather than fa
   assert.equal(store.taskCounts(cycle.generation).completed,1);
   const saved=store.source(cycle.generation,motionSourceKey(fixture.sittingId));assert.equal(saved.work.truncated,true);
   assert.equal(resolve('B-10-2026-0423',saved.work).reason,'incomplete-source');
+});
+test('incomplete refreshes retain the complete sitting through publication and record the failed attempt',async t=>{
+  for(const kind of ['missing-decision','empty-results'])await t.test(kind,async t=>{
+    const store=storeTest(t),cycle=seed(store),key=motionSourceKey(fixture.sittingId);
+    store.putSource(cycle.generation,key,'motion-outcomes',votes(),fixture.retrievedAt);store.publish(cycle.generation);
+    const previous=store.source(cycle.generation,key),refresh=store.beginCycle();
+    const worker=new ActivityWorker(store,{clock,fetchRecord:async endpoint=>({payload:{data:endpoint.endsWith('/vote-results')
+      ?kind==='empty-results'?[]:rawResults()
+      :rawDecisions().filter(decision=>kind!=='missing-decision' || !decision.id.endsWith('DEC-198216'))},fetchedAt})});
+    worker.scheduleMotionOutcomes(refresh.generation,work('RC-10-2026-0441'));
+    for(let i=0;i<4 && store.nextTask(refresh.generation);i++)await worker.task(store.nextTask(refresh.generation));
+    assert.equal(store.taskCounts(refresh.generation).completed,1);
+    store.publish(refresh.generation);
+    const saved=store.source(store.status().servingGeneration,key);
+    assert.equal(saved.fetchedAt,previous.fetchedAt);assert.deepEqual(saved.work.results,previous.work.results);
+    assert.deepEqual(saved.work.decisions,previous.work.decisions);assert.deepEqual(saved.work.sources,previous.work.sources);
+    const outcome=resolve('RC-10-2026-0441',saved.work);
+    assert.equal(outcome.status,'adopted');assert.deepEqual(outcome.totals,{for:482,against:41,abstaining:39});
+    assert.equal(outcome.refreshFailure.attemptedAt,fetchedAt);
+    assert(outcome.refreshFailure.coverage.missingDecisionIds.length || outcome.refreshFailure.coverage.missingResultIds.length);
+    const next=store.beginCycle(),recovery=new ActivityWorker(store,{clock,fetchRecord:async endpoint=>({payload:{data:endpoint.endsWith('/vote-results')?rawResults():rawDecisions()},fetchedAt})});
+    recovery.scheduleMotionOutcomes(next.generation,work('RC-10-2026-0441'));
+    await recovery.task(store.nextTask(next.generation));await recovery.task(store.nextTask(next.generation));
+    assert.equal(store.source(next.generation,key).work.lastRefreshFailure,null);
+    assert.equal(store.source(next.generation,key).fetchedAt,fetchedAt);
+  });
+});
+test('joint-motion links use indexed lookups and follow replacement, generation copies and pruning',t=>{
+  const store=storeTest(t),cycle=seed(store),id='B-10-2026-0441',joint=work('RC-10-2026-0441'),key='/plenary-documents/'+joint.identifier;
+  const prepare=store.db.prepare.bind(store.db);let lookup;
+  store.db.prepare=sql=>{lookup=sql;return prepare(sql);};
+  assert.equal(store.relatedJointMotions(cycle.generation,id).length,1);store.db.prepare=prepare;
+  const plan=prepare('EXPLAIN QUERY PLAN '+lookup).all(cycle.generation,'eli/dl/doc/'+id).map(row=>row.detail).join('\n');
+  assert.match(plan,/SEARCH link USING .*\(generation=\? AND original_ref=\?\)/);assert.doesNotMatch(plan,/SCAN source/);
+  store.putSource(cycle.generation,key,'document',{...joint,is_derivative_of:[]},fixture.retrievedAt);
+  assert.equal(store.relatedJointMotions(cycle.generation,id).length,0);
+  store.putSource(cycle.generation,key,'document',{...joint,is_derivative_of:[{id:'https://data.europarl.europa.eu/eli/dl/doc/'+id},'http://data.europarl.europa.eu/eli/dl/doc/'+id,
+    'https://example.com/eli/dl/doc/B-10-2026-0423','https://data.europarl.europa.eu/https://data.europarl.europa.eu/eli/dl/doc/B-10-2026-0423']},fixture.retrievedAt);
+  assert.equal(store.relatedJointMotions(cycle.generation,id).length,1);
+  assert.equal(store.relatedJointMotions(cycle.generation,'B-10-2026-0423').length,0);
+  store.publish(cycle.generation);const next=store.beginCycle();
+  assert.equal(store.relatedJointMotions(next.generation,id).length,1);
+  store.pruneUnseenDocuments(next.generation);
+  assert.equal(store.relatedJointMotions(next.generation,id).length,0);assert.equal(store.relatedJointMotions(cycle.generation,id).length,1);
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM motion_links AS link LEFT JOIN sources AS source ON source.generation=link.generation AND source.key=link.joint_key WHERE source.key IS NULL').get().n,0);
+});
+test('relationship-index migration waits for the writer lease and backfills retained joint sources',t=>{
+  const store=storeTest(t),cycle=seed(store),id='B-10-2026-0441';
+  store.db.exec("DELETE FROM motion_links; DELETE FROM meta WHERE key='motionLinksIndexVersion'");
+  const reader=new ActivityStore(path.dirname(store.filename),{clock});
+  try {
+    assert.equal(reader.acquire(),false);assert.equal(reader.relatedJointMotions(cycle.generation,id).length,0);
+    store.release();assert(reader.acquire());assert.equal(reader.relatedJointMotions(cycle.generation,id).length,1);
+  }finally{reader.close();}
 });
 test('upgrades enqueue retained motions without resetting a partial generation or touching another writer',t=>{
   const store=storeTest(t),cycle=seed(store);

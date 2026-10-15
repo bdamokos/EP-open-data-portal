@@ -129,6 +129,7 @@ export interface MotionOutcome {
   sittingId?: string;
   totals?: { for:number|null; against:number|null; abstaining:number|null } | null;
   sources?: { url:string; fetchedAt:string; language:string|null }[];
+  refreshFailure?: { attemptedAt:string; coverage:{missingResultIds:string[];missingDecisionIds:string[]}; sources:{url:string;fetchedAt:string;language:string|null}[] } | null;
 }
 export interface RelatedJointMotion {
   sourceId:string;

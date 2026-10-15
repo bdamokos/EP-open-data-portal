@@ -198,7 +198,7 @@ export class ActivityWorker {
       if(sittingDate>today)continue;
       const saved=this.store.source(generation,motionSourceKey(sittingId));
       const ttl=this.clock()-Date.parse(sittingDate)<14*DAY ? 6*60*60_000 : 7*DAY;
-      if(saved && !saved.work.truncated && this.clock()-Date.parse(saved.fetchedAt)<ttl)continue;
+      if(saved && !saved.work.truncated && !saved.work.lastRefreshFailure && this.clock()-Date.parse(saved.fetchedAt)<ttl)continue;
       this.store.enqueue(generation,motionSourceKey(sittingId)+':'+today,'motion-outcomes',{sittingId,stage:'results',offset:0,results:[],decisions:[],sources:[]},102);
     }
   }
@@ -242,11 +242,18 @@ export class ActivityWorker {
       this.store.taskProgress(task,{...next,stage:'decisions',offset:0,resultsUrl:sources[0].url,resultsFetchedAt:record.fetchedAt});return;
     }
     const firstDecisionSource=sources.find(source=>source.url.includes('/decisions?'));
-    this.store.putSource(generation,motionSourceKey(body.sittingId),'motion-outcomes',{
+    const key=motionSourceKey(body.sittingId), saved=this.store.source(generation,key);
+    // An empty or reduced result graph must not erase a previously complete sitting.
+    const resultIds=new Set(next.results.map(result=>result.id));
+    coverage.missingResultIds=[...new Set([...coverage.missingResultIds,...(saved?.work.results || []).map(result=>result.id).filter(id=>!resultIds.has(id))])];
+    const truncated=Boolean(coverage.missingResultIds.length || coverage.missingDecisionIds.length);
+    const lastRefreshFailure=truncated?{attemptedAt:record.fetchedAt,coverage,sources}:null;
+    const replacement=truncated && saved && !saved.work.truncated ? {...saved.work,lastRefreshFailure} : {
       results:next.results,decisions:next.decisions,sources,
       resultsUrl:body.resultsUrl,resultsFetchedAt:body.resultsFetchedAt,decisionsUrl:firstDecisionSource.url,decisionsFetchedAt:record.fetchedAt,
-      coverage,truncated:Boolean(coverage.missingResultIds.length || coverage.missingDecisionIds.length),
-    },record.fetchedAt);
+      coverage,truncated,lastRefreshFailure,
+    };
+    this.store.putSource(generation,key,'motion-outcomes',replacement,truncated && saved && !saved.work.truncated?saved.fetchedAt:record.fetchedAt);
     this.store.finishTask(task);
   }
   refreshReportJoins(generation,procedureId) {

@@ -71,7 +71,7 @@ export function motionOutcome(work,documentFetchedAt,sourceForSitting) {
       for (const decision of decisions) {
         if (!decision.inverse_consists_of.includes(parent.id) || !parent.consists_of.includes(decision.id)) continue;
         const subject = decision.referenceText?.en?.trim() || '';
-        const whole = /^Motion for a resolution \(as a whole\)$/i.test(subject);
+        const whole = /^Motion for a resolution(?: \(as a whole\))?$/i.test(subject);
         const standalone = /^(?:RC-)?B10-\d{4,6}\/\d{4}$/.test(subject);
         if (!whole && !standalone) continue;
         const exactIds = [...new Set(documentReferences(standalone ? subject : [decision.headingLabel?.en,decision.activity_label?.en].join('\n')))];
@@ -80,6 +80,7 @@ export function motionOutcome(work,documentFetchedAt,sourceForSitting) {
         if (!status) continue;
         candidates.set(decision.id,{
           status, date:decision.activity_date, method:tail(decision.decision_method), decisionId:tail(decision.id), sittingId,
+          refreshFailure:record.work.lastRefreshFailure || null,
           totals:[decision.number_of_votes_favor,decision.number_of_votes_against,decision.number_of_votes_abstention].every(value => value == null) ? null : {
             for:decision.number_of_votes_favor ?? null, against:decision.number_of_votes_against ?? null, abstaining:decision.number_of_votes_abstention ?? null,
           },

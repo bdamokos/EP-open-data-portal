@@ -6,6 +6,19 @@ import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles } f
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
 
 const parse = value => value == null ? null : JSON.parse(value);
+const motionReferenceValue = `CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END`;
+const originalMotionRef = `CASE
+  WHEN instr(${motionReferenceValue},'https://data.europarl.europa.eu/')=1 THEN substr(${motionReferenceValue},length('https://data.europarl.europa.eu/')+1)
+  WHEN instr(${motionReferenceValue},'http://data.europarl.europa.eu/')=1 THEN substr(${motionReferenceValue},length('http://data.europarl.europa.eu/')+1)
+  ELSE ${motionReferenceValue} END`;
+const motionLinkSelect = (source,from='') => `SELECT ${source}.generation,${originalMotionRef},${source}.key
+  FROM ${from}json_each(${source}.body,'$.is_derivative_of') AS ref
+  WHERE ${source}.kind='document' AND json_extract(${source}.body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT'
+  AND ${originalMotionRef} LIKE 'eli/dl/doc/B-10-%'`;
+const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
+  FROM motion_links AS link JOIN sources AS source ON source.generation=link.generation AND source.key=link.joint_key
+  WHERE link.generation=? AND link.original_ref=?
+  ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
 export class ActivityStore {
   constructor(directory, { clock = Date.now } = {}) {
     mkdirSync(directory, { recursive: true });
@@ -16,6 +29,19 @@ export class ActivityStore {
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS lease (id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT, expires INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS sources (generation INTEGER, key TEXT, kind TEXT, body TEXT, fetched_at TEXT, seen INTEGER DEFAULT 0, PRIMARY KEY(generation,key));
+      CREATE TABLE IF NOT EXISTS motion_links (generation INTEGER, original_ref TEXT, joint_key TEXT, PRIMARY KEY(generation,original_ref,joint_key));
+      CREATE INDEX IF NOT EXISTS motion_link_source ON motion_links(generation,joint_key);
+      CREATE TRIGGER IF NOT EXISTS motion_links_insert AFTER INSERT ON sources BEGIN
+        DELETE FROM motion_links WHERE generation=NEW.generation AND joint_key=NEW.key;
+        INSERT OR IGNORE INTO motion_links ${motionLinkSelect('NEW')};
+      END;
+      CREATE TRIGGER IF NOT EXISTS motion_links_update AFTER UPDATE OF body,kind ON sources BEGIN
+        DELETE FROM motion_links WHERE generation=OLD.generation AND joint_key=OLD.key;
+        INSERT OR IGNORE INTO motion_links ${motionLinkSelect('NEW')};
+      END;
+      CREATE TRIGGER IF NOT EXISTS motion_links_delete AFTER DELETE ON sources BEGIN
+        DELETE FROM motion_links WHERE generation=OLD.generation AND joint_key=OLD.key;
+      END;
       CREATE TABLE IF NOT EXISTS items (generation INTEGER, source_key TEXT, source_id TEXT, mep TEXT, category TEXT, date TEXT, body TEXT, PRIMARY KEY(generation,source_id,mep,category));
       CREATE INDEX IF NOT EXISTS item_lookup ON items(generation,mep,date DESC,source_id);
       CREATE INDEX IF NOT EXISTS item_source ON items(generation,source_key);
@@ -35,7 +61,14 @@ export class ActivityStore {
     return this.transaction(()=> {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
-      this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl); return true;
+      this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
+      if(this.get('motionLinksIndexVersion')!==1) {
+        this.assertWriter();
+        this.db.exec('INSERT OR IGNORE INTO motion_links '+motionLinkSelect('source','sources AS source, '));
+        this.assertWriter();
+        this.set('motionLinksIndexVersion',1);
+      }
+      return true;
     });
   }
   renew(ttl=90_000) { return this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=? AND expires>?').run(this.clock()+ttl,this.owner,this.clock()).changes===1; }
@@ -95,13 +128,7 @@ export class ActivityStore {
       yield {key:source.key,work:parse(source.body),fetchedAt:source.fetched_at};
   }
   relatedJointMotions(generation,id) {
-    const ref='eli/dl/doc/'+id;
-    const sql=`SELECT key,body,fetched_at FROM sources AS source
-      WHERE generation=? AND kind='document' AND json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT'
-      AND EXISTS(SELECT 1 FROM json_each(source.body,'$.is_derivative_of') AS ref
-        WHERE (CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END) IN (?,?,?))
-      ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT 5`;
-    return this.db.prepare(sql).all(generation,ref,'https://data.europarl.europa.eu/'+ref,'http://data.europarl.europa.eu/'+ref)
+    return this.db.prepare(relatedJointMotionsSql).all(generation,'eli/dl/doc/'+id)
       .map(source=>({key:source.key,work:parse(source.body),fetchedAt:source.fetched_at}));
   }
   markSeen(generation,key) { this.assertWriter();this.db.prepare('UPDATE sources SET seen=1 WHERE generation=? AND key=?').run(generation,key); }

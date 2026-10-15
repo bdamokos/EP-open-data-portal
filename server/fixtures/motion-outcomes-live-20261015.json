@@ -1,7 +1,7 @@
 {
   "attribution": "European Parliament Open Data API v2, CC BY 4.0",
   "retrievedAt": "2026-10-15",
-  "projection": "Three motion documents (en/fr/hu titles, English files); all sitting vote-result relationships and decisions with English references/outcomes/totals, excluding named voters and unrelated graph nodes.",
+  "projection": "Five motion documents (en/fr/hu titles, English files); all sitting vote-result relationships and decisions with English references/outcomes/totals, excluding named voters and unrelated graph nodes.",
   "sittingId": "MTG-PL-2026-10-08",
   "documents": [
     {
@@ -1106,6 +1106,862 @@
       },
       "sourceUrl": "https://data.europarl.europa.eu/api/v2/plenary-documents/B-10-2026-0423?format=application%2Fld%2Bjson",
       "retrievedAt": "2026-10-15"
+    },
+    {
+      "endpoint": "/plenary-documents/B-10-2026-0465",
+      "work": {
+        "id": "eli/dl/doc/B-10-2026-0465",
+        "identifier": "B-10-2026-0465",
+        "label": "B10-0465/2026",
+        "work_type": "def/ep-document-types/RESOLUTION_MOTION",
+        "parliamentary_term": "org/ep-10",
+        "document_date": "2026-10-05",
+        "title_dcterms": {
+          "hu": "ÁLLÁSFOGLALÁSI INDÍTVÁNY az 1925/2006/EK európai parlamenti és tanácsi rendelet III. mellékletének bizonyos, hidroxi-antracén-származékokat tartalmazó növényi fajok tekintetében történő módosításáról szóló bizottsági rendelet tervezetéről",
+          "en": "MOTION FOR A RESOLUTION on the draft Commission regulation amending Annex III to Regulation (EC) No 1925/2006 of the European Parliament and of the Council as regards certain botanical species containing hydroxyanthracene derivatives",
+          "fr": "PROPOSITION DE RÉSOLUTION sur le projet de règlement de la Commission modifiant l’annexe III du règlement (CE) nº 1925/2006 du Parlement européen et du Conseil en ce qui concerne certaines espèces végétales contenant des dérivés hydroxyanthracéniques"
+        },
+        "workHadParticipation": [
+          {
+            "id": "eli/dl/participation/B-10-2026-0465_24922",
+            "type": "Participation",
+            "activity_date": "2026-10-05",
+            "had_participant_person": [
+              "person/24922"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/ENVI",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 1101
+          }
+        ],
+        "creator": [
+          "person/24922",
+          "org/ENVI"
+        ],
+        "inverse_created_a_realization_of": [
+          "eli/dl/proc/2026-2839"
+        ],
+        "based_on": [
+          "eli/dl/doc/RULES-10-2026-05-18-ITM-A115"
+        ],
+        "originalLanguage": [
+          "http://publications.europa.eu/resource/authority/language/ENG"
+        ],
+        "is_realized_by": [
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/ENG",
+            "title": {
+              "en": "MOTION FOR A RESOLUTION on the draft Commission regulation amending Annex III to Regulation (EC) No 1925/2006 of the European Parliament and of the Council as regards certain botanical species containing hydroxyanthracene derivatives"
+            },
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "byteSize": "50343",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0465/B-10-2026-0465_en.pdf"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "byteSize": "50343",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0465/B-10-2026-0465_en.docx"
+              }
+            ]
+          }
+        ],
+        "inverse_answers_to": [],
+        "motionLinksVersion": 1,
+        "inverse_based_on_a_realization_of": [
+          "eli/dl/event/MTG-PL-2026-10-08-VOT-ITM-993191"
+        ],
+        "is_derivative_of": []
+      },
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/plenary-documents/B-10-2026-0465?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-16"
+    },
+    {
+      "endpoint": "/plenary-documents/RC-10-2026-0438",
+      "work": {
+        "id": "eli/dl/doc/RC-10-2026-0438",
+        "identifier": "RC-10-2026-0438",
+        "work_type": "def/ep-document-types/RESOLUTION_MOTION_JOINT",
+        "parliamentary_term": "org/ep-10",
+        "document_date": "2026-10-07",
+        "title_dcterms": {
+          "en": "JOINT MOTION FOR A RESOLUTION on the cases of Ali Karimli, Anar Mammadli and other political prisoners in Azerbaijan",
+          "fr": "PROPOSITION DE RÉSOLUTION COMMUNE sur les cas d’Ali Karimli, d’Anar Mammadli et d’autres prisonniers politiques en Azerbaïdjan",
+          "hu": "KÖZÖS ÁLLÁSFOGLALÁSRA IRÁNYULÓ INDÍTVÁNY Ali Karimli, Anar Mammadli és más azerbajdzsáni politikai foglyok ügyéről"
+        },
+        "workHadParticipation": [
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197662",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197662"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_96697",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/96697"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/ECR",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/ECR",
+            "precedenceOrder": 2704
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_257437",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/257437"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/VERTS-ALE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/VERTS-ALE",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256852",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256852"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/ECR",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/ECR",
+            "precedenceOrder": 2704
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_220896",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/220896"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197430",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197430"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197534",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197534"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_110673",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/110673"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_28307",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/28307"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/S-D",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/S-D",
+            "precedenceOrder": 2702
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_251324",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/251324"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_257013",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/257013"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256971",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256971"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197537",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197537"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/ECR",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/ECR",
+            "precedenceOrder": 2704
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256926",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256926"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197841",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197841"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_124713",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/124713"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197444",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197444"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_190713",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/190713"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197414",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197414"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_185341",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/185341"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197572",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197572"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/ECR",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/ECR",
+            "precedenceOrder": 2704
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_124766",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/124766"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_257014",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/257014"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197432",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197432"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197781",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197781"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_257081",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/257081"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256806",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256806"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/ECR",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/ECR",
+            "precedenceOrder": 2704
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_257011",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/257011"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256986",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256986"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/ECR",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/ECR",
+            "precedenceOrder": 2704
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256891",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256891"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256845",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256845"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/ECR",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/ECR",
+            "precedenceOrder": 2704
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197401",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197401"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_130100",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/130100"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_28617",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/28617"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_257045",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/257045"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197840",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197840"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197770",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197770"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_98582",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/98582"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197523",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197523"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256847",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256847"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_236053",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/236053"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/THE-LEFT",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/THE-LEFT",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256824",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256824"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/S-D",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/S-D",
+            "precedenceOrder": 2702
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197552",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197552"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/ECR",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/ECR",
+            "precedenceOrder": 2704
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256987",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256987"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197421",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197421"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_257055",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/257055"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/ECR",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/ECR",
+            "precedenceOrder": 2704
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_197402",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/197402"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256840",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256840"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_256968",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/256968"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_97968",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/97968"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/PPE",
+            "precedenceOrder": 2701
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0438_257110",
+            "type": "Participation",
+            "activity_date": "2026-10-07",
+            "had_participant_person": [
+              "person/257110"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/RENEW",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/RENEW",
+            "precedenceOrder": 2710
+          }
+        ],
+        "creator": [
+          "person/197662",
+          "person/197402",
+          "person/28617",
+          "person/256840",
+          "person/197414",
+          "person/197534",
+          "person/251324",
+          "person/256852",
+          "person/256986",
+          "person/130100",
+          "person/257013",
+          "person/257110",
+          "person/257081",
+          "person/256987",
+          "person/197840",
+          "person/257045",
+          "person/197421",
+          "person/98582",
+          "person/197770",
+          "person/256806",
+          "person/124713",
+          "person/28307",
+          "person/97968",
+          "person/256847",
+          "person/197523",
+          "person/185341",
+          "person/257014",
+          "person/124766",
+          "person/256968",
+          "person/197444",
+          "person/256891",
+          "person/220896",
+          "person/110673",
+          "person/197841",
+          "person/257011",
+          "person/197430",
+          "person/256926",
+          "person/256824",
+          "person/256971",
+          "org/RENEW",
+          "org/ECR",
+          "person/256845",
+          "org/THE-LEFT",
+          "person/197401",
+          "org/VERTS-ALE",
+          "person/197432",
+          "person/190713",
+          "person/197552",
+          "org/S-D",
+          "person/257437",
+          "person/236053",
+          "org/PPE",
+          "person/197781",
+          "person/197572",
+          "person/96697",
+          "person/257055",
+          "person/197537"
+        ],
+        "inverse_created_a_realization_of": [
+          "eli/dl/proc/2026-2914"
+        ],
+        "based_on": [
+          "eli/dl/doc/RULES-10-2026-05-18-ITM-A150"
+        ],
+        "originalLanguage": [
+          "http://publications.europa.eu/resource/authority/language/ENG"
+        ],
+        "is_realized_by": [
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/ENG",
+            "title": {
+              "en": "JOINT MOTION FOR A RESOLUTION on the cases of Ali Karimli, Anar Mammadli and other political prisoners in Azerbaijan"
+            },
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "byteSize": "52373",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0438/RC-10-2026-0438_en.pdf"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "byteSize": "52373",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0438/RC-10-2026-0438_en.docx"
+              }
+            ]
+          }
+        ],
+        "inverse_answers_to": [],
+        "motionLinksVersion": 1,
+        "inverse_based_on_a_realization_of": [
+          "eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-D-77",
+          "eli/dl/event/MTG-PL-2026-10-08-OJ-ITM-V-77"
+        ],
+        "is_derivative_of": [
+          "eli/dl/doc/B-10-2026-0451",
+          "eli/dl/doc/B-10-2026-0442",
+          "eli/dl/doc/B-10-2026-0458",
+          "eli/dl/doc/B-10-2026-0460",
+          "eli/dl/doc/B-10-2026-0454",
+          "eli/dl/doc/B-10-2026-0438"
+        ]
+      },
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/plenary-documents/RC-10-2026-0438?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-16"
     }
   ],
   "votes": {
