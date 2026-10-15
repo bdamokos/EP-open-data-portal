@@ -8,6 +8,7 @@ import {documentRows,projectDocument,speechRows} from './activity-index-model.mj
 import {agendaCreatorIds,agendaTopics,namedVote,topicVotes,voteScope,finalVotePatterns,topicRoles,classifyProcedure} from './insights-legislation-model.mjs';
 import {LegislationInsights} from './insights-legislation.mjs';
 import {insightQuery} from './insights-store.mjs';
+import {participation,participationQuery} from './insights-participation.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/insights-live-20261014.json',import.meta.url)));
 const members=new Map([...new Set(fixture.decisions.payload.data.flatMap(v=>[...v.had_voter_favor,...v.had_voter_against,...v.had_voter_abstention]))].map(uri=>[uri.split('/').at(-1),{id:uri.split('/').at(-1),name:uri}]));
 const metadata=new Map();
@@ -57,6 +58,19 @@ test('unavailable historical agendas preserve the selected date and the sitting 
   assert.equal(result.sitting.date,'2024-07-16');assert.equal(result.sittings.length,1);
   assert.equal(result.coverage.agendaComplete,false);assert.equal(result.coverage.agendaError,'No agenda supplied for this date');
   assert.equal(result.topics.length,0);
+});
+test('the first plenary week remains selectable and missing agendas produce null observations and explicit gaps',async()=>{
+  const clock=()=>Date.parse('2026-10-15T12:00:00Z'),calls=[];
+  const store={status:()=>({currentMeps:1,servingGeneration:1}),db:{prepare:()=>({all:()=>[{id:'125065',body:'{"id":"125065","name":"Test member"}'}]})}};
+  const service=new LegislationInsights(store,{clock,loadMetadata:async()=>new Map(),request:async(endpoint)=>{
+    calls.push(endpoint);if(endpoint!=='/meetings')throw new Error('No agenda supplied for this date');
+    return {url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:clock(),payload:{data:['2024-07-16','2024-07-17'].map(date=>({activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'}))}};
+  }});
+  const result=await participation(service,store,participationQuery(new URLSearchParams('week=2024-07-15')),{clock});
+  assert.deepEqual(result.window,{start:'2024-07-15',end:'2024-07-21'});
+  assert.equal(result.coverage.gaps.length,2);assert(result.coverage.gaps.every(g=>g.kind==='agenda-unavailable'));
+  assert(result.series.every(row=>row.speakers===null&&row.voters===null&&row.amendmentVotes===null));
+  assert.equal(calls.length,3);assert(!calls.some(ep=>/vote-results|decisions|speeches/.test(ep)));
 });
 test('actual agenda contains 18 topics through supplied meeting-part child refs, with exact doc/procedure links',()=>{
   assert.equal(topics.length,18);const t=topics.find(t=>t.id.endsWith('-V-48'));
