@@ -2,6 +2,8 @@
 
 Explore Members of the European Parliament, written questions, plenary debates, votes and legislative dossiers. Word clouds lead to the underlying speeches, with the selected words highlighted. Questions can be explored by topic, time and author country. Following MEPs is stored in the browser.
 
+See the [project vision](VISION.md) for the proof of concept’s purpose, approach to public data and future directions.
+
 ## Run locally
 
 Use Node.js 22.13 or newer and npm.
