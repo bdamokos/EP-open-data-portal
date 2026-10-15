@@ -47,6 +47,17 @@ test('the first current-term sitting can be selected without fetching other sitt
   assert.equal(result.coverage.catalogueStart,'2024-07-16');
   assert.deepEqual(calls,['/meetings','/meetings/MTG-PL-2024-07-16/foreseen-activities']);
 });
+test('unavailable historical agendas preserve the selected date and the sitting catalogue with an explicit gap',async()=>{
+  const clock=()=>Date.parse('2026-10-15T12:00:00Z');
+  const service=new LegislationInsights({status:()=>({currentMeps:1,servingGeneration:1})},{clock,request:async(endpoint)=>{
+    if(endpoint!=='/meetings')throw new Error('No agenda supplied for this date');
+    return {url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:clock(),payload:{data:[{activity_id:'MTG-PL-2024-07-16',activity_date:'2024-07-16',had_activity_type:'def/ep-activities/PLENARY_SITTING'}]}};
+  }});
+  const result=await service.query({language:'en',sitting:'MTG-PL-2024-07-16'});
+  assert.equal(result.sitting.date,'2024-07-16');assert.equal(result.sittings.length,1);
+  assert.equal(result.coverage.agendaComplete,false);assert.equal(result.coverage.agendaError,'No agenda supplied for this date');
+  assert.equal(result.topics.length,0);
+});
 test('actual agenda contains 18 topics through supplied meeting-part child refs, with exact doc/procedure links',()=>{
   assert.equal(topics.length,18);const t=topics.find(t=>t.id.endsWith('-V-48'));
   assert.deepEqual(t.documentIds,['A-10-2026-0237']);assert.deepEqual(t.procedureIds,['2025-2117']);

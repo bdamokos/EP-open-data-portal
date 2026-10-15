@@ -54,7 +54,7 @@ export class LegislationInsights {
     const meeting={payload:{data:[sitting]}};const agendaNodes=[],agendaSources=[];let agendaComplete=false,agendaError=null;
     for(let page=0;page<LEGISLATION_LIMITS.agendaPages;page++) {
       try {const r=await this.record('/meetings/'+sitting.activity_id+'/foreseen-activities',{limit:50,offset:page*50});agendaNodes.push(...r.payload.data);agendaSources.push({apiUrl:r.url,fetchedAt:new Date(r.fetchedAt).toISOString()});if(r.payload.data.length<50){agendaComplete=true;break;}}
-      catch(error){if(phase!=='upcoming')throw error;agendaError=error.message;break;}
+      catch(error){agendaError=error.message;break;}
     }
     const foreseen={url:agendaSources[0]?.apiUrl||'https://data.europarl.europa.eu/api/v2/meetings/'+sitting.activity_id+'/foreseen-activities',fetchedAt:agendaSources[0]?.fetchedAt||null,payload:{data:agendaNodes}};
     const topics=agendaTopics(meeting,foreseen).slice(0,LEGISLATION_LIMITS.agendaTopics);
