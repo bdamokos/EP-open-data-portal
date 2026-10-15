@@ -1,0 +1,116 @@
+{
+  "at": "2026-10-15T13:43:23.962Z",
+  "purpose": "Read-only anonymous public-source provenance audit. No application service, cache, grant or worker mutation.",
+  "checks": [
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/meps/125065?format=application%2Fld%2Bjson",
+      "status": 200,
+      "contentType": "application/ld+json",
+      "bytes": 19910,
+      "sha256": "b17188f2174b5cd6c42b2e3e4bb0376075c46b62423f4d8141a6b3e9a8a12ab0",
+      "authSent": false,
+      "cookieSent": false,
+      "jsonShape": [
+        "data",
+        "@context"
+      ],
+      "validatedContent": true
+    },
+    {
+      "url": "https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2025%2F0407%28COD%29",
+      "status": 200,
+      "contentType": "text/html;charset=UTF-8",
+      "bytes": 108157,
+      "sha256": "fece308ee3744f85db9ba0f35fa62d93033d0babf85c8c118553f0153d5f26b4",
+      "authSent": false,
+      "cookieSent": false,
+      "jsonShape": null,
+      "validatedContent": true
+    },
+    {
+      "url": "https://oeil.europarl.europa.eu/oeil/en/document-summary?id=1908635",
+      "status": 200,
+      "contentType": "text/html;charset=UTF-8",
+      "bytes": 51624,
+      "sha256": "8d4d37b56b5da736a859154bb85aef3356eb767d001a72d88b5dafa49fb85435",
+      "authSent": false,
+      "cookieSent": false,
+      "jsonShape": null,
+      "validatedContent": true
+    },
+    {
+      "url": "https://publications.europa.eu/webapi/rdf/sparql?query=SELECT+%3Fp+WHERE+%7B+%3Chttp%3A%2F%2Feurovoc.europa.eu%2F100141%3E+%3Fp+%3Fo+%7D+LIMIT+1&format=application%2Fsparql-results%2Bjson",
+      "status": 200,
+      "contentType": "application/sparql-results+json",
+      "bytes": 202,
+      "sha256": "2f21616df80f70ac9b51a81d8d837bcb6136d7a334955e4ee576e98e60507e9c",
+      "authSent": false,
+      "cookieSent": false,
+      "jsonShape": null,
+      "validatedContent": true
+    },
+    {
+      "url": "https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0/media/20261007-0900-PLENARY",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 1581,
+      "sha256": "1497e5ee4ead2afa3fd1fdf5c54e84754f49f9aa88ba75c6048677e07d2bf33a",
+      "authSent": false,
+      "cookieSent": false,
+      "jsonShape": [
+        "resultJSON"
+      ],
+      "validatedContent": true
+    },
+    {
+      "url": "https://webstreaming.europarl.europa.eu/content-manager/content-page/chunk-PZD5RX7C.js",
+      "status": 200,
+      "contentType": "application/javascript; charset=UTF-8",
+      "bytes": 2957162,
+      "sha256": "f92f0b25dd9abc50fffbea7bd3b844a79c34da0ce8984a8b5381067a69b98813",
+      "authSent": false,
+      "cookieSent": false,
+      "jsonShape": null,
+      "validatedContent": true
+    },
+    {
+      "url": "wss://websockets.services.eup.glcloud.eu/content-manager/api/v1/socket.io/?EIO=4&transport=websocket",
+      "event": "join:event",
+      "commonId": "20261007-0900-PLENARY",
+      "visibility": "PUBLISHED",
+      "start": "2026-10-07T07:00:20.000Z",
+      "end": "2026-10-07T18:13:47.000Z",
+      "languages": [
+        "OR",
+        "EN",
+        "FR",
+        "DE",
+        "IT",
+        "ES",
+        "EL",
+        "PT",
+        "NL",
+        "DA",
+        "FI",
+        "SV",
+        "CS",
+        "ET",
+        "LV",
+        "LT",
+        "HU",
+        "MT",
+        "PL",
+        "SK",
+        "SL",
+        "BG",
+        "RO",
+        "HR"
+      ],
+      "sha256": "95d4346b835f708c67235e487a7792b1e1fe52f83bf496edf11829b555132712",
+      "authSent": false,
+      "cookieSent": false,
+      "eventPasswordSent": false,
+      "publishedValidated": true
+    }
+  ]
+}

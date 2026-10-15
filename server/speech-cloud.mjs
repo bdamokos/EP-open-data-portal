@@ -1,0 +1,135 @@
+import {HttpError} from './http-utils.mjs';
+import {odp,odpLanguage} from './odp.mjs';
+import {array,tail} from './activity-index-model.mjs';
+import {personId} from './insights-model.mjs';
+import {insightQuery,brusselsDay} from './insights-store.mjs';
+import {countryCode,memberCountry} from './insights-countries.mjs';
+import {speechParagraphText,speechWordTokens,speechWordStopwords,speechWordLanguages} from './insights-speech-words.mjs';
+import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
+import {transcriptLanguage} from './transcript-language.mjs';
+import {phraseModel} from './insights-phrases.mjs';
+
+export const CLOUD_LIMITS=Object.freeze({pageSize:50,pages:20,xmlBytes:4*1024*1024,queries:6,cacheMs:30*60_000});
+export const CLOUD_SORT='sitting-date:asc,video-start-time:asc,numbering:asc';
+export function speechCloudQuery(search,{now=Date.now()}={}) {
+  const allowed=new Set(['lang','member','sitting','topic','days','end','page','country']);
+  if([...search.keys()].some(key=>!allowed.has(key)||search.getAll(key).length!==1))throw new HttpError(400,'invalid_query','Unsupported or repeated cloud query.');
+  const member=search.get('member'),sitting=search.get('sitting'),topic=search.get('topic'),page=search.get('page')||'0';
+  if(Boolean(member)===Boolean(sitting))throw new HttpError(400,'invalid_scope','Choose a MEP or a plenary sitting.');
+  if(member&&!/^[1-9]\d{0,8}$/.test(member)||sitting&&!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(sitting)||topic&&(!sitting||!topic.startsWith(sitting+'-OJ-ITM-')||!/^MTG-PL-\d{4}-\d{2}-\d{2}-OJ-ITM-[DV]-\d+$/.test(topic)))throw new HttpError(400,'invalid_scope','Invalid speech selection.');
+  if(!/^(0|[1-9]\d?)$/.test(page)||Number(page)>=CLOUD_LIMITS.pages)throw new HttpError(400,'invalid_page','Invalid cloud page.');
+  if(sitting&&(search.has('days')||search.has('end')))throw new HttpError(400,'invalid_window','Choose a sitting or a date window.');
+  const language=odpLanguage(search.get('lang')||'en');
+  if(!speechWordLanguages.includes(language))throw new HttpError(400,'unsupported_analysis_language','Word filtering is not available for this language.');
+  const country=search.get('country');if(country&&!countryCode(country))throw new HttpError(400,'invalid_country','Choose a country of representation.');
+  const window=member?insightQuery(new URLSearchParams({lang:language,...Object.fromEntries(['days','end'].filter(key=>search.has(key)).map(key=>[key,search.get(key)]))}),{now}):null;
+  return {member,sitting,topic,language,page:Number(page),country:country?countryCode(country):null,start:window?.start||null,end:window?.end||null,days:window?.days||null};
+}
+export const meaningfulSpeakerName=speakerNameIsSpecific;
+const participants=activity=>[...new Set(array(activity.had_participation).flatMap(p=>array(p.had_participant_person)).map(personId).filter(Boolean))];
+const escaped=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+
+export function analyzeSpeechCloud(records,language) {
+  const stopwords=speechWordStopwords(language);
+  const phrases=language==='en'?phraseModel(records.map(s=>({id:s.id,titles:{en:s.title}})),{bodies:new Map(records.map(s=>[s.id,{paragraphs:[s.text]}])),stopwords,minCount:2,maxShare:.8}):null;
+  const words=new Map();
+  for(const speech of records) {
+    const extracted=phrases?.extract(speech.text),counts=new Map();
+    for(const word of speechWordTokens(extracted?.text||speech.text,language)){const old=counts.get(word)||{word,label:null,occurrences:0};old.occurrences++;counts.set(word,old);}
+    for(const p of extracted?.phrases||[])if(!/^(?:mr|mrs|ms|madam|mister)\b/i.test(p.label)&&!p.label.toLowerCase().split(/[^\p{L}]+/u).filter(Boolean).every(word=>stopwords.has(word)))counts.set(p.key,{word:p.key,label:p.label,occurrences:[...speech.text.matchAll(new RegExp('(?<![\\p{L}])'+escaped(p.label)+'(?![\\p{L}])','giu'))].length||1});
+    for(const term of counts.values()) {
+      const word=words.get(term.word)||{word:term.word,label:term.label,speechCount:0,occurrences:0,speechIds:[]};word.speechCount++;word.occurrences+=term.occurrences;if(word.speechIds.length<8)word.speechIds.push(speech.id);words.set(term.word,word);
+    }
+  }
+  return [...words.values()].sort((a,b)=>b.speechCount-a.speechCount||b.occurrences-a.occurrences||a.word.localeCompare(b.word,language)).slice(0,60);
+}
+
+// Selected-view retrieval only: normal ODP cache/queue, no index or worker writes.
+export class SpeechCloudInsights {
+  constructor(store,{request=odp,legislation,clock=Date.now,loadMetadata=async()=>new Map()}={}) {Object.assign(this,{store,request,legislation,clock,loadMetadata});this.states=new Map();}
+  async scope(query) {
+    if(query.member) {
+      if(!this.store.db.prepare('SELECT id FROM members WHERE id=?').get(query.member))throw new HttpError(404,'member_not_found','This MEP is not in the current roster.');
+      return {kind:'member',dates:[{start:query.start,end:query.end}],ids:null,phase:'past',title:null};
+    }
+    const catalogue=await this.legislation.catalogue(),sitting=catalogue.sittings.find(s=>s.activity_id===query.sitting);
+    if(!sitting)throw new HttpError(404,'sitting_not_found','Choose a listed sitting.');
+    const upcoming=sitting.activity_date>brusselsDay(this.clock());
+    if(!query.topic)return {kind:'sitting',dates:upcoming?[]:[{start:sitting.activity_date,end:sitting.activity_date}],ids:null,phase:upcoming?'upcoming':'past',title:sitting.activity_label?.[query.language]||sitting.activity_label?.en||null};
+    const response=await this.legislation.query({language:query.language,sitting:query.sitting,topic:query.topic,vote:null});
+    const sources=response.detail.coverage.speechAssociations.sources;
+    return {kind:'topic',dates:[...new Set(sources.map(s=>s.eventDate))].sort().map(date=>({start:date,end:date})),ids:new Set(sources.flatMap(s=>s.contributionIds)),people:new Map(response.detail.people.map(person=>[person.id,person])),phase:upcoming?'upcoming':'past',title:response.detail.title};
+  }
+  async query(query) {
+    const {page,...selection}=query,key=JSON.stringify([this.store.status().servingGeneration,selection]);let state=this.states.get(key);
+    if(state&&this.clock()-state.at>CLOUD_LIMITS.cacheMs){this.states.delete(key);state=null;}
+    if(!state) {state={at:this.clock(),scope:null,cursor:{date:0,offset:0},page:-1,records:new Map(),seen:new Set(),scans:new Map(),sourceIssues:new Set(),duplicates:0,sources:[],rawRecords:0,missingLanguage:0,invalidText:0,xmlBytes:0,truncated:false,pending:null,result:null};this.states.set(key,state);while(this.states.size>CLOUD_LIMITS.queries)this.states.delete(this.states.keys().next().value);}
+    if(state.pending)await state.pending;
+    if(state.result&&(state.page>=page||state.cursor===null))return state.result;
+    const job=this.build(state,query,page);state.pending=job;
+    try{return await job;}finally{state.pending=null;}
+  }
+  async build(state,query,page) {
+    state.scope??=await this.scope(query);
+    const members=new Map(this.store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)]));
+    const metadata=query.country?await this.loadMetadata({members}):new Map();
+    if(!state.scope.dates.length)state.cursor=null;
+    while(state.cursor&&state.page<page) {
+      const {date,offset}=state.cursor,window=state.scope.dates[date];
+      const params={...(query.member?{'person-id':query.member}:{}),'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH','sitting-date':window.start,'sitting-date-end':window.end,'include-output':'xml_fragment',language:query.language,'sort-by':CLOUD_SORT,limit:CLOUD_LIMITS.pageSize,offset};
+      const record=await this.request('/speeches',params,{priority:'interactive',staleWhileRevalidate:true});
+      if(!Array.isArray(record.payload?.data))throw new HttpError(502,'speech_source_shape','Parliament returned unreadable speech text.');
+      if(Buffer.byteLength(JSON.stringify(record.payload))>12*1024*1024)throw new HttpError(502,'speech_source_size','Parliament’s speech response is too large.');
+      state.sources.push({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale)});
+      let scan=state.scans.get(date);
+      if(!scan){scan={ids:new Set(),totals:new Set(),ended:false};state.scans.set(date,scan);}
+      const declaredTotal=record.payload.meta?.total;
+      const knownTotal=Number.isSafeInteger(declaredTotal)&&declaredTotal>=0;
+      if(knownTotal){scan.totals.add(declaredTotal);if(scan.totals.size>1)state.sourceIssues.add('total-changed');}
+      else state.sourceIssues.add('total-unavailable');
+      const activities=[],before=scan.ids.size;
+      for(const activity of record.payload.data) {
+        if(!activity||typeof activity!=='object'){state.sourceIssues.add('invalid-source-row');continue;}
+        const id=activity.activity_id,people=participants(activity);
+        if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id||'')||tail(activity.had_activity_type)!=='PLENARY_DEBATE_SPEECH'||!/^\d{4}-\d{2}-\d{2}$/.test(activity.activity_date||'')||!id.startsWith('MTG-PL-'+activity.activity_date+'-')||activity.activity_date<window.start||activity.activity_date>window.end||query.member&&!people.includes(query.member)) {state.sourceIssues.add('invalid-source-row');continue;}
+        if(scan.ids.has(id)){state.duplicates++;state.sourceIssues.add('overlapping-pages');continue;}
+        scan.ids.add(id);activities.push(activity);
+      }
+      const hits=record.payload.searchResults?.hits;
+      if(Array.isArray(hits)) {
+        const hitIds=hits.map(hit=>tail(hit?.id)),graphIds=new Set(record.payload.data.map(activity=>activity?.activity_id));
+        if(hitIds.length!==record.payload.data.length||hitIds.some(id=>!graphIds.has(id))||graphIds.size!==new Set(hitIds).size)state.sourceIssues.add('search-hit-mismatch');
+      }
+      const shortPage=knownTotal&&offset+record.payload.data.length<declaredTotal&&record.payload.data.length<CLOUD_LIMITS.pageSize;
+      const noProgress=record.payload.data.length>0&&scan.ids.size===before;
+      if(shortPage)state.sourceIssues.add('short-page');
+      if(noProgress)state.sourceIssues.add('no-progress');
+      for(const activity of activities) {
+        const id=activity.activity_id,people=participants(activity);
+        if(state.scope.ids&&!state.scope.ids.has(id)||state.seen.has(id))continue;
+        state.seen.add(id);state.rawRecords++;
+        if(query.country&&!people.some(person=>memberCountry(person,members,metadata)===query.country))continue;
+        const docs=array(activity.recorded_in_a_realization_of),xml=docs.map(doc=>doc?.['api:xmlFragment']?.[query.language]).filter(value=>typeof value==='string').join('\n');
+        if(!xml){state.missingLanguage++;continue;}
+        if(state.xmlBytes+Buffer.byteLength(xml)>CLOUD_LIMITS.xmlBytes){state.sourceIssues.add('xml-byte-limit');state.cursor=null;break;}
+        const text=speechParagraphText(xml);if(!text){state.invalidText++;continue;}state.xmlBytes+=Buffer.byteLength(xml);
+        const headers=speechSpeakers(activity,xml),info=transcriptLanguage(xml);
+        state.records.set(id,{id,date:activity.activity_date,title:activity.activity_label?.[query.language]||activity.activity_label?.en||'Speech',text,machineTranslation:info.machine,people:people.map(id=>{const known=members.get(id)||state.scope.people?.get(id),header=headers.find(p=>p.id===id);return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),role:header?.role||(header&&!meaningfulSpeakerName(header.name)?(/president|chair/i.test(header.name)?'Chairing the sitting':null):null)};})});
+      }
+      state.page++;
+      if(shortPage||noProgress)state.cursor=null;
+      if(state.cursor) {
+        const more=record.payload.data.length>=CLOUD_LIMITS.pageSize&&(!knownTotal||offset+CLOUD_LIMITS.pageSize<declaredTotal);
+        if(!more)scan.ended=true;
+        state.cursor=more?{date,offset:offset+CLOUD_LIMITS.pageSize}:date+1<state.scope.dates.length?{date:date+1,offset:0}:null;
+      }
+      if((scan.ended||shortPage||noProgress)&&knownTotal&&scan.ids.size!==declaredTotal)state.sourceIssues.add('source-total-mismatch');
+      if(state.page>=CLOUD_LIMITS.pages-1&&state.cursor){state.sourceIssues.add('page-limit');state.cursor=null;}
+    }
+    const records=[...state.records.values()];
+    const scans=[...state.scans.values()],sourceRecords={unique:scans.reduce((sum,scan)=>sum+scan.ids.size,0),declared:scans.every(scan=>scan.totals.size===1)?scans.reduce((sum,scan)=>sum+[...scan.totals][0],0):null,duplicates:state.duplicates,issues:[...state.sourceIssues]};
+    state.truncated=state.sourceIssues.size>0;
+    state.result={view:'speech-cloud',scope:{kind:state.scope.kind,member:query.member,sitting:query.sitting,topic:query.topic,title:state.scope.title,phase:state.scope.phase},language:query.language,availableAnalysisLanguages:speechWordLanguages,window:{start:state.scope.dates[0]?.start||null,end:state.scope.dates.at(-1)?.end||null,days:query.days},country:query.country,words:analyzeSpeechCloud(records,query.language),speeches:records.map(({text,...speech})=>speech),coverage:{transcripts:records.length,matchedSpeechRecords:state.rawRecords,missingLanguage:state.missingLanguage,unreadableText:state.invalidText,complete:state.cursor===null&&!state.truncated,truncated:state.truncated,sourceRecords,associationUnavailable:state.scope.kind==='topic'&&!state.scope.dates.length,xmlBytes:state.xmlBytes},nextPage:state.cursor?state.page+1:null,sources:state.sources,computedAt:new Date(this.clock()).toISOString()};
+    return state.result;
+  }
+}

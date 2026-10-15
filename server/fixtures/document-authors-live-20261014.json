@@ -1,0 +1,451 @@
+{
+  "attribution": "European Parliament Open Data API v2, CC BY 4.0",
+  "documents": [
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/parliamentary-questions/E-10-2026-003031?format=application/ld+json",
+      "fetchedAt": "2026-10-14T08:59:58.278445+00:00",
+      "work": {
+        "id": "eli/dl/doc/E-10-2026-003031",
+        "identifier": "E-10-2026-003031",
+        "work_type": "def/ep-document-types/QUESTION_WRITTEN",
+        "creator": [
+          "person/204413",
+          "person/257043",
+          "person/96812",
+          "person/257103",
+          "person/257237",
+          "person/122978",
+          "person/256824",
+          "person/233862",
+          "person/210480",
+          "person/256813",
+          "person/256887",
+          "person/256885",
+          "person/256985",
+          "person/256823",
+          "person/197414",
+          "person/256997",
+          "person/257257",
+          "person/124691",
+          "person/257044",
+          "person/257259",
+          "person/257301",
+          "person/40599",
+          "person/257023",
+          "person/256994",
+          "person/256905",
+          "person/204332",
+          "person/197702",
+          "person/256829",
+          "person/197466",
+          "person/256934"
+        ],
+        "workHadParticipation": [
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256994",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256994"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_204413",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/204413"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256905",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256905"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256997",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256997"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257237",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257237"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_124691",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/124691"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_233862",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/233862"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_96812",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/96812"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257301",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257301"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256823",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256823"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_122978",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/122978"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257023",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257023"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256813",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256813"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256885",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256885"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257043",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257043"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_197466",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/197466"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_197414",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/197414"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256934",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256934"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256829",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256829"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257044",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257044"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257103",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257103"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_210480",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/210480"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256824",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256824"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_204332",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/204332"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_40599",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/40599"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_197702",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/197702"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256985",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256985"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256887",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256887"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257257",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257257"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257259",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257259"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_COM",
+            "type": "Participation",
+            "had_participant_organization": [
+              "org/COM"
+            ],
+            "participation_role": "def/ep-roles/ADDRESSEE"
+          }
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/plenary-documents/B-10-2026-0422?format=application/ld+json",
+      "fetchedAt": "2026-10-14T08:59:59.146459+00:00",
+      "work": {
+        "id": "eli/dl/doc/B-10-2026-0422",
+        "identifier": "B-10-2026-0422",
+        "work_type": "def/ep-document-types/RESOLUTION_MOTION",
+        "creator": [
+          "person/256959"
+        ],
+        "workHadParticipation": [
+          {
+            "id": "eli/dl/participation/B-10-2026-0422_256959",
+            "type": "Participation",
+            "activity_date": "2026-09-17",
+            "had_participant_person": [
+              "person/256959"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_role": "def/ep-roles/AUTHOR",
+            "politicalGroup": "org/ESN"
+          }
+        ]
+      }
+    }
+  ],
+  "roster": {
+    "sourceUrl": "https://data.europarl.europa.eu/api/v2/meps/show-current?format=application/ld+json",
+    "fetchedAt": "2026-10-14T09:00:13.381029+00:00",
+    "members": [
+      {
+        "id": 122978,
+        "name": "Alicia HOMS GINEL"
+      },
+      {
+        "id": 124691,
+        "name": "Costas MAVRIDES"
+      },
+      {
+        "id": 197414,
+        "name": "Loucas FOURLAS"
+      },
+      {
+        "id": 197466,
+        "name": "Jutta PAULUS"
+      },
+      {
+        "id": 197702,
+        "name": "Lina GÁLVEZ"
+      },
+      {
+        "id": 204332,
+        "name": "Barry ANDREWS"
+      },
+      {
+        "id": 204413,
+        "name": "Marcos ROS SEMPERE"
+      },
+      {
+        "id": 210480,
+        "name": "Marta TEMIDO"
+      },
+      {
+        "id": 233862,
+        "name": "Matjaž NEMEC"
+      },
+      {
+        "id": 256813,
+        "name": "Vladimir PREBILIČ"
+      },
+      {
+        "id": 256823,
+        "name": "Nikolas FARANTOURIS"
+      },
+      {
+        "id": 256824,
+        "name": "Yannis MANIATIS"
+      },
+      {
+        "id": 256829,
+        "name": "Sakis ARNAOUTOGLOU"
+      },
+      {
+        "id": 256885,
+        "name": "Bruno TOBBACK"
+      },
+      {
+        "id": 256887,
+        "name": "Wouter BEKE"
+      },
+      {
+        "id": 256905,
+        "name": "Eric SARGIACOMO"
+      },
+      {
+        "id": 256934,
+        "name": "Daniel ATTARD"
+      },
+      {
+        "id": 256959,
+        "name": "Alexander SELL"
+      },
+      {
+        "id": 256985,
+        "name": "Michalis HADJIPANTELA"
+      },
+      {
+        "id": 256994,
+        "name": "Idoia MENDIA"
+      },
+      {
+        "id": 256997,
+        "name": "Sandra GÓMEZ LÓPEZ"
+      },
+      {
+        "id": 257023,
+        "name": "Per CLAUSEN"
+      },
+      {
+        "id": 257043,
+        "name": "Maravillas ABADÍA JOVER"
+      },
+      {
+        "id": 257044,
+        "name": "Rasmus NORDQVIST"
+      },
+      {
+        "id": 257103,
+        "name": "Ştefan MUŞOIU"
+      },
+      {
+        "id": 257237,
+        "name": "Regina DOHERTY"
+      },
+      {
+        "id": 257257,
+        "name": "Hristo PETROV"
+      },
+      {
+        "id": 257259,
+        "name": "Nikola MINCHEV"
+      },
+      {
+        "id": 257301,
+        "name": "Cynthia NÍ MHURCHÚ"
+      },
+      {
+        "id": 40599,
+        "name": "Sirpa PIETIKÄINEN"
+      },
+      {
+        "id": 96812,
+        "name": "Juan Fernando LÓPEZ AGUILAR"
+      }
+    ]
+  }
+}

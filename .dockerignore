@@ -1,0 +1,16 @@
+.git
+.github
+node_modules
+dist
+var
+cache
+index
+.env
+.env.*
+.playwright-cli
+output
+coverage
+*.log
+*.sqlite*
+*.tsbuildinfo
+.DS_Store

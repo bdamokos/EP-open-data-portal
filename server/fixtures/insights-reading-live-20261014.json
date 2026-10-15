@@ -1,0 +1,2702 @@
+{
+  "scope": "Projected actual official API fields, plus original English speaker header. Speech body omitted. Not a production dataset.",
+  "questions": [
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/parliamentary-questions/E-10-2026-003996?format=application%2Fld%2Bjson",
+      "fetchedAt": 1791992070761,
+      "payload": {
+        "data": [
+          {
+            "id": "eli/dl/doc/E-10-2026-003996",
+            "type": "Work",
+            "parliamentary_term": "org/ep-10",
+            "document_date": "2026-10-02",
+            "is_realized_by": [
+              {
+                "id": "eli/dl/doc/E-10-2026-003996/en",
+                "type": "Expression",
+                "is_embodied_by": [
+                  {
+                    "id": "eli/dl/doc/E-10-2026-003996/en/pdf",
+                    "type": "Manifestation",
+                    "is_exemplified_by": "distribution/reds_iMaQp/E-10-2026-003996/E-10-2026-003996_en.pdf",
+                    "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                    "issued": "2026-10-13T12:32:40+02:00",
+                    "byteSize": "11066"
+                  },
+                  {
+                    "id": "eli/dl/doc/E-10-2026-003996/en/docx",
+                    "type": "Manifestation",
+                    "is_exemplified_by": "distribution/reds_iMaQp/E-10-2026-003996/E-10-2026-003996_en.docx",
+                    "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                    "issued": "2026-10-13T12:32:40+02:00",
+                    "byteSize": "11066"
+                  }
+                ],
+                "language": "http://publications.europa.eu/resource/authority/language/ENG",
+                "title": {
+                  "en": "Monitoring of the use of EU funds in Togo in light of ongoing human rights violations"
+                },
+                "title_alternative": {
+                  "en": "Question for written answer E-003996/2026 - to the Vice-President of the Commission / High Representative of the Union for Foreign Affairs and Security Policy - Rule 144 - Seán Kelly (PPE)"
+                }
+              }
+            ],
+            "work_type": "def/ep-document-types/QUESTION_WRITTEN",
+            "creator": [
+              "person/96668"
+            ],
+            "identifier": "E-10-2026-003996",
+            "publisher": "org/EU_PARLIAMENT",
+            "title_dcterms": {
+              "en": "Monitoring of the use of EU funds in Togo in light of ongoing human rights violations"
+            },
+            "epNumber": "PE796.838",
+            "identifierYear": "2026",
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/ENG"
+            ],
+            "workHadParticipation": [
+              {
+                "id": "eli/dl/participation/E-10-2026-003996_HRVP",
+                "type": "Participation",
+                "had_participant_organization": [
+                  "org/HRVP"
+                ],
+                "participation_role": "def/ep-roles/ADDRESSEE"
+              },
+              {
+                "id": "eli/dl/participation/E-10-2026-003996_96668",
+                "type": "Participation",
+                "had_participant_person": [
+                  "person/96668"
+                ],
+                "participation_role": "def/ep-roles/AUTHOR"
+              }
+            ]
+          }
+        ],
+        "@context": [
+          {
+            "data": "@graph",
+            "@base": "https://data.europarl.europa.eu/"
+          },
+          "https://data.europarl.europa.eu/api/v2/context.jsonld"
+        ]
+      }
+    },
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/parliamentary-questions/E-10-2026-003158?format=application%2Fld%2Bjson",
+      "fetchedAt": 1791993991952,
+      "payload": {
+        "data": [
+          {
+            "id": "eli/dl/doc/E-10-2026-003158",
+            "type": "Work",
+            "parliamentary_term": "org/ep-10",
+            "document_date": "2026-07-29",
+            "is_realized_by": [
+              {
+                "id": "eli/dl/doc/E-10-2026-003158/en",
+                "type": "Expression",
+                "is_embodied_by": [
+                  {
+                    "id": "eli/dl/doc/E-10-2026-003158/en/docx",
+                    "type": "Manifestation",
+                    "is_exemplified_by": "distribution/reds_iMaQp/E-10-2026-003158/E-10-2026-003158_en.docx",
+                    "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                    "issued": "2026-08-06T11:40:40+02:00",
+                    "byteSize": "10860"
+                  },
+                  {
+                    "id": "eli/dl/doc/E-10-2026-003158/en/pdf",
+                    "type": "Manifestation",
+                    "is_exemplified_by": "distribution/reds_iMaQp/E-10-2026-003158/E-10-2026-003158_en.pdf",
+                    "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                    "issued": "2026-08-06T11:40:40+02:00",
+                    "byteSize": "10860"
+                  }
+                ],
+                "language": "http://publications.europa.eu/resource/authority/language/ENG",
+                "title": {
+                  "en": "Transparency, human rights safeguards and public oversight of Global Gateway projects in Colombia"
+                },
+                "title_alternative": {
+                  "en": "Question for written answer E-003158/2026 - to the Commission - Rule 144 - Cristina Guarda (Verts/ALE)"
+                }
+              },
+              {
+                "id": "eli/dl/doc/E-10-2026-003158/it",
+                "type": "Expression",
+                "is_embodied_by": [
+                  {
+                    "id": "eli/dl/doc/E-10-2026-003158/it/docx",
+                    "type": "Manifestation",
+                    "is_exemplified_by": "distribution/reds_iMaQp/E-10-2026-003158/E-10-2026-003158_it.docx",
+                    "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                    "issued": "2026-08-06T11:40:40+02:00",
+                    "byteSize": "10943"
+                  },
+                  {
+                    "id": "eli/dl/doc/E-10-2026-003158/it/pdf",
+                    "type": "Manifestation",
+                    "is_exemplified_by": "distribution/reds_iMaQp/E-10-2026-003158/E-10-2026-003158_it.pdf",
+                    "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                    "issued": "2026-08-06T11:40:40+02:00",
+                    "byteSize": "10943"
+                  }
+                ],
+                "language": "http://publications.europa.eu/resource/authority/language/ITA",
+                "title": {
+                  "it": "Trasparenza, garanzie in materia di diritti umani e controllo pubblico dei progetti Global Gateway in Colombia"
+                },
+                "title_alternative": {
+                  "it": "Interrogazione con richiesta di risposta scritta E-003158/2026 - alla Commissione - Articolo 144 del regolamento - Cristina Guarda (Verts/ALE)"
+                }
+              }
+            ],
+            "work_type": "def/ep-document-types/QUESTION_WRITTEN",
+            "creator": [
+              "person/257130"
+            ],
+            "identifier": "E-10-2026-003158",
+            "publisher": "org/EU_PARLIAMENT",
+            "title_dcterms": {
+              "it": "Trasparenza, garanzie in materia di diritti umani e controllo pubblico dei progetti Global Gateway in Colombia",
+              "en": "Transparency, human rights safeguards and public oversight of Global Gateway projects in Colombia"
+            },
+            "epNumber": "PE791.836",
+            "identifierYear": "2026",
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/ENG"
+            ],
+            "workHadParticipation": [
+              {
+                "id": "eli/dl/participation/E-10-2026-003158_COM",
+                "type": "Participation",
+                "had_participant_organization": [
+                  "org/COM"
+                ],
+                "participation_role": "def/ep-roles/ADDRESSEE"
+              },
+              {
+                "id": "eli/dl/participation/E-10-2026-003158_257130",
+                "type": "Participation",
+                "had_participant_person": [
+                  "person/257130"
+                ],
+                "participation_role": "def/ep-roles/AUTHOR"
+              }
+            ]
+          }
+        ],
+        "@context": [
+          {
+            "data": "@graph",
+            "@base": "https://data.europarl.europa.eu/"
+          },
+          "https://data.europarl.europa.eu/api/v2/context.jsonld"
+        ]
+      }
+    }
+  ],
+  "report": {
+    "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/A-10-2026-0254?format=application%2Fld%2Bjson",
+    "fetchedAt": 1791992284369,
+    "payload": {
+      "data": [
+        {
+          "id": "eli/dl/doc/A-10-2026-0254",
+          "type": "Work",
+          "adopts": [
+            "eli/dl/doc/LIBE-PR-789005"
+          ],
+          "parliamentary_term": "org/ep-10",
+          "document_date": "2026-09-29",
+          "is_about": [
+            "http://eurovoc.europa.eu/c_af502da0",
+            "http://eurovoc.europa.eu/5535",
+            "http://eurovoc.europa.eu/2300",
+            "http://eurovoc.europa.eu/2835",
+            "http://eurovoc.europa.eu/4359",
+            "http://eurovoc.europa.eu/453",
+            "http://eurovoc.europa.eu/5595",
+            "http://eurovoc.europa.eu/3526",
+            "http://eurovoc.europa.eu/5283",
+            "http://eurovoc.europa.eu/1633",
+            "http://eurovoc.europa.eu/447472",
+            "http://eurovoc.europa.eu/2272",
+            "http://eurovoc.europa.eu/5432"
+          ],
+          "is_realized_by": [
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/ga",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/ga/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_ga.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-06T15:34:12+02:00",
+                  "byteSize": "108393"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/ga/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_ga.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-06T15:34:12+02:00",
+                  "byteSize": "108393"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/GLE",
+              "title": {
+                "ga": "TUARASCÁIL ar an dréacht le haghaidh Treoir ón gComhairle lena leasaítear Treoir (AE) 2015/637 maidir leis na bearta comhordaithe agus comhair chun an chosaint chonsalach a éascú do shaoránaigh den Aontas nach bhfuil ionadaíocht acu i dtríú tíortha agus Treoir (AE) 2019/997 lena mbunaítear Doiciméad Taistil Éigeandála AE"
+              },
+              "title_alternative": {
+                "ga": "TUARASCÁIL - ar an dréacht le haghaidh Treoir ón gComhairle lena leasaítear Treoir (AE) 2015/637 maidir leis na bearta comhordaithe agus comhair chun an chosaint chonsalach a éascú do shaoránaigh den Aontas nach bhfuil ionadaíocht acu i dtríú tíortha agus Treoir (AE) 2019/997 lena mbunaítear Doiciméad Taistil Éigeandála AE - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - an Coiste um Shaoirsí Sibhialta, um Cheartas agus um Ghnóthaí Baile - Rapóirtéir don tuairim: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/da",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/da/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_da.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T16:24:12+02:00",
+                  "byteSize": "133405"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/da/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_da.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T16:24:12+02:00",
+                  "byteSize": "133405"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/DAN",
+              "title": {
+                "da": "BETÆNKNING om forslag til Rådets direktiv om ændring af Rådets direktiv (EU) 2015/637 om koordinations- og samarbejdsforanstaltninger for at lette konsulær beskyttelse af ikkerepræsenterede unionsborgere i tredjelande og direktiv (EU) 2019/997 om indførelse af et EU-nødpas"
+              },
+              "title_alternative": {
+                "da": "BETÆNKNING - om forslag til Rådets direktiv om ændring af Rådets direktiv (EU) 2015/637 om koordinations- og samarbejdsforanstaltninger for at lette konsulær beskyttelse af ikkerepræsenterede unionsborgere i tredjelande og direktiv (EU) 2019/997 om indførelse af et EU-nødpas - (COM(2023)0930 - C10-0027/2026 - 2023/0441(CNS)) - Udvalget om Borgernes Rettigheder og Retlige og Indre Anliggender - Ordfører: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/it",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/it/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_it.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T14:14:12+02:00",
+                  "byteSize": "127170"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/it/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_it.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T14:14:12+02:00",
+                  "byteSize": "127170"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/ITA",
+              "title": {
+                "it": "RELAZIONE sulla proposta di direttiva del Consiglio che modifica la direttiva (UE) 2015/637 sulle misure di coordinamento e cooperazione per facilitare la tutela consolare dei cittadini dell'Unione non rappresentati nei paesi terzi e la direttiva (UE) 2019/997 che istituisce un documento di viaggio provvisorio dell'UE"
+              },
+              "title_alternative": {
+                "it": "RELAZIONE - sulla proposta di direttiva del Consiglio che modifica la direttiva (UE) 2015/637 sulle misure di coordinamento e cooperazione per facilitare la tutela consolare dei cittadini dell'Unione non rappresentati nei paesi terzi e la direttiva (UE) 2019/997 che istituisce un documento di viaggio provvisorio dell'UE - (05760/2026 - C10-0027/2026 - 2023/0441(CNS)) - Commissione per le libertà civili, la giustizia e gli affari interni - Relatrice: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/cs",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/cs/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_cs.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T13:54:12+02:00",
+                  "byteSize": "127187"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/cs/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_cs.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T13:54:12+02:00",
+                  "byteSize": "127187"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/CES",
+              "title": {
+                "cs": "ZPRÁVA o návrhu směrnice Rady, kterou se mění směrnice (EU) 2015/637 o opatřeních v oblasti koordinace a spolupráce s cílem usnadnit konzulární ochranu nezastoupených občanů Unie ve třetích zemích a směrnice (EU) 2019/997, kterou se zavádí náhradní cestovní doklad EU"
+              },
+              "title_alternative": {
+                "cs": "ZPRÁVA - o návrhu směrnice Rady, kterou se mění směrnice (EU) 2015/637 o opatřeních v oblasti koordinace a spolupráce s cílem usnadnit konzulární ochranu nezastoupených občanů Unie ve třetích zemích a směrnice (EU) 2019/997, kterou se zavádí náhradní cestovní doklad EU - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Výbor pro občanské svobody, spravedlnost a vnitřní věci - Zpravodajka: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/sv",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/sv/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_sv.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T14:24:12+02:00",
+                  "byteSize": "127011"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/sv/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_sv.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T14:24:12+02:00",
+                  "byteSize": "127011"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/SWE",
+              "title": {
+                "sv": "BETÄNKANDE om utkastet till rådets direktiv om ändring av direktiv (EU) 2015/637 om samordnings- och samarbetsåtgärder för underlättande av konsulärt skydd till icke-företrädda unionsmedborgare i tredjeländer och direktiv (EU) 2019/997 om införande av en provisorisk EU-resehandling"
+              },
+              "title_alternative": {
+                "sv": "BETÄNKANDE - om utkastet till rådets direktiv om ändring av direktiv (EU) 2015/637 om samordnings- och samarbetsåtgärder för underlättande av konsulärt skydd till icke-företrädda unionsmedborgare i tredjeländer och direktiv (EU) 2019/997 om införande av en provisorisk EU-resehandling - (05760/2026 - C10-0027/2026 - 2023/0441(CNS)) - Utskottet för medborgerliga fri- och rättigheter samt rättsliga och inrikes frågor - Föredragande: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/hu",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/hu/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_hu.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T16:34:12+02:00",
+                  "byteSize": "132563"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/hu/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_hu.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T16:34:12+02:00",
+                  "byteSize": "132563"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/HUN",
+              "title": {
+                "hu": "JELENTÉS a harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelmét elősegítő koordinációs és együttműködési intézkedésekről szóló (EU) 2015/637 irányelv és az uniós ideiglenes úti okmány létrehozásáról szóló (EU) 2019/997 irányelv módosításáról szóló tanácsi irányelv tervezetéről"
+              },
+              "title_alternative": {
+                "hu": "JELENTÉS - a harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelmét elősegítő koordinációs és együttműködési intézkedésekről szóló (EU) 2015/637 irányelv és az uniós ideiglenes úti okmány létrehozásáról szóló (EU) 2019/997 irányelv módosításáról szóló tanácsi irányelv tervezetéről - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Állampolgári Jogi, Bel- és Igazságügyi Bizottság - Előadó: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/fi",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/fi/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_fi.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-02T16:34:12+02:00",
+                  "byteSize": "128989"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/fi/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_fi.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-02T16:34:12+02:00",
+                  "byteSize": "128989"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/FIN",
+              "title": {
+                "fi": "MIETINTÖ esityksestä neuvoston direktiiviksi yhteensovittamis- ja yhteistyötoimenpiteistä edustusta vailla oleville unionin kansalaisille kolmansissa maissa annettavan konsuliviranomaisten suojelun helpottamiseksi annetun direktiivin (EU) 2015/637 ja EU:n tilapäisen matkustusasiakirjan laatimisesta annetun direktiivin (EU) 2019/997 muuttamisesta"
+              },
+              "title_alternative": {
+                "fi": "MIETINTÖ - esityksestä neuvoston direktiiviksi yhteensovittamis- ja yhteistyötoimenpiteistä edustusta vailla oleville unionin kansalaisille kolmansissa maissa annettavan konsuliviranomaisten suojelun helpottamiseksi annetun direktiivin (EU) 2015/637 ja EU:n tilapäisen matkustusasiakirjan laatimisesta annetun direktiivin (EU) 2019/997 muuttamisesta - (05760/2026 - C10-0027/2026 - 2023/0441(CNS)) - Kansalaisvapauksien sekä oikeus- ja sisäasioiden valiokunta - Esittelijä: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/ro",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/ro/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_ro.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T18:34:12+02:00",
+                  "byteSize": "130556"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/ro/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_ro.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T18:34:12+02:00",
+                  "byteSize": "130556"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/RON",
+              "title": {
+                "ro": "RAPORT referitor la proiectul de directivă a Consiliului de modificare a Directivei (UE) 2015/637 privind măsurile de coordonare și cooperare pentru facilitarea protecției consulare a cetățenilor nereprezentați ai Uniunii în țările terțe și a Directivei (UE) 2019/997 de instituire a unui document de călătorie provizoriu al UE"
+              },
+              "title_alternative": {
+                "ro": "RAPORT - referitor la proiectul de directivă a Consiliului de modificare a Directivei (UE) 2015/637 privind măsurile de coordonare și cooperare pentru facilitarea protecției consulare a cetățenilor nereprezentați ai Uniunii în țările terțe și a Directivei (UE) 2019/997 de instituire a unui document de călătorie provizoriu al UE - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Comisia pentru libertăți civile, justiție și afaceri interne - Raportoare pentru aviz: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/nl",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/nl/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_nl.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T15:34:12+02:00",
+                  "byteSize": "136168"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/nl/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_nl.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T15:34:12+02:00",
+                  "byteSize": "136168"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/NLD",
+              "title": {
+                "nl": "VERSLAG over het ontwerp van richtlijn van de Raad tot wijziging van Richtlijn (EU) 2015/637 betreffende de coördinatie- en samenwerkingsmaatregelen ter vergemakkelijking van de consulaire bescherming van niet-vertegenwoordigde burgers van de Unie in derde landen en van Richtlijn (EU) 2019/997 tot vaststelling van een EU-noodreisdocument"
+              },
+              "title_alternative": {
+                "nl": "VERSLAG - over het ontwerp van richtlijn van de Raad tot wijziging van Richtlijn (EU) 2015/637 betreffende de coördinatie- en samenwerkingsmaatregelen ter vergemakkelijking van de consulaire bescherming van niet-vertegenwoordigde burgers van de Unie in derde landen en van Richtlijn (EU) 2019/997 tot vaststelling van een EU-noodreisdocument - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Commissie burgerlijke vrijheden, justitie en binnenlandse zaken - Rapporteur: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/lt",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/lt/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_lt.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T16:34:12+02:00",
+                  "byteSize": "136568"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/lt/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_lt.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T16:34:12+02:00",
+                  "byteSize": "136568"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/LIT",
+              "title": {
+                "lt": "PRANEŠIMAS dėl Tarybos direktyvos, kuria iš dalies keičiama Direktyva (ES) 2015/637 dėl koordinavimo ir bendradarbiavimo priemonių, skirtų neatstovaujamų Sąjungos piliečių konsulinei apsaugai trečiosiose šalyse palengvinti, ir Direktyva (ES) 2019/997/EB, kuria nustatomas ES laikinasis kelionės dokumentas, projekto"
+              },
+              "title_alternative": {
+                "lt": "PRANEŠIMAS - dėl Tarybos direktyvos, kuria iš dalies keičiama Direktyva (ES) 2015/637 dėl koordinavimo ir bendradarbiavimo priemonių, skirtų neatstovaujamų Sąjungos piliečių konsulinei apsaugai trečiosiose šalyse palengvinti, ir Direktyva (ES) 2019/997/EB, kuria nustatomas ES laikinasis kelionės dokumentas, projekto - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Piliečių laisvių, teisingumo ir vidaus reikalų komitetas - Pranešėja: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/hr",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/hr/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_hr.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-02T12:44:13+02:00",
+                  "byteSize": "129852"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/hr/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_hr.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-02T12:44:13+02:00",
+                  "byteSize": "129852"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/HRV",
+              "title": {
+                "hr": "IZVJEŠĆE o Nacrtu direktive Vijeća o izmjeni Direktive (EU) 2015/637 o mjerama koordinacije i suradnje za olakšavanje pružanja konzularne zaštite građanima Unije bez predstavništva u trećim zemljama i Direktive (EU) 2019/997 o uspostavljanju privremene putne isprave EU-a"
+              },
+              "title_alternative": {
+                "hr": "IZVJEŠĆE - o Nacrtu direktive Vijeća o izmjeni Direktive (EU) 2015/637 o mjerama koordinacije i suradnje za olakšavanje pružanja konzularne zaštite građanima Unije bez predstavništva u trećim zemljama i Direktive (EU) 2019/997 o uspostavljanju privremene putne isprave EU-a - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Odbor za građanske slobode, pravosuđe i unutarnje poslove - Izvjestiteljica: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/de",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/de/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_de.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T16:04:12+02:00",
+                  "byteSize": "143000"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/de/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_de.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T16:04:12+02:00",
+                  "byteSize": "143000"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/DEU",
+              "title": {
+                "de": "BERICHT über den Entwurf einer Richtlinie des Rates zur Änderung der Richtlinie (EU) 2015/637 über Koordinierungs- und Kooperationsmaßnahmen zur Erleichterung des konsularischen Schutzes von nicht vertretenen Unionsbürgern in Drittländern und der Richtlinie (EU) 2019/997 zur Festlegung eines EU-Rückkehrausweises"
+              },
+              "title_alternative": {
+                "de": "BERICHT - über den Entwurf einer Richtlinie des Rates zur Änderung der Richtlinie (EU) 2015/637 über Koordinierungs- und Kooperationsmaßnahmen zur Erleichterung des konsularischen Schutzes von nicht vertretenen Unionsbürgern in Drittländern und der Richtlinie (EU) 2019/997 zur Festlegung eines EU-Rückkehrausweises - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Ausschuss für bürgerliche Freiheiten, Justiz und Inneres - Berichterstatterin: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/et",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/et/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_et.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-02T15:44:12+02:00",
+                  "byteSize": "127786"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/et/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_et.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-02T15:44:12+02:00",
+                  "byteSize": "127786"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/EST",
+              "title": {
+                "et": "RAPORT nõukogu direktiivi eelnõu kohta, millega muudetakse direktiivi (EL) 2015/637, mis käsitleb koordineerimis- ja koostöömeetmeid, millega hõlbustatakse liidu esindamata kodanike konsulaarkaitset kolmandates riikides, ning direktiivi (EL) 2019/997, millega kehtestatakse ELi tagasipöördumistunnistus"
+              },
+              "title_alternative": {
+                "et": "RAPORT - nõukogu direktiivi eelnõu kohta, millega muudetakse direktiivi (EL) 2015/637, mis käsitleb koordineerimis- ja koostöömeetmeid, millega hõlbustatakse liidu esindamata kodanike konsulaarkaitset kolmandates riikides, ning direktiivi (EL) 2019/997, millega kehtestatakse ELi tagasipöördumistunnistus - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Kodanikuvabaduste, justiits- ja siseasjade komisjon - Raportöör: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/es",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/es/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_es.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-02T15:04:12+02:00",
+                  "byteSize": "129149"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/es/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_es.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-02T15:04:12+02:00",
+                  "byteSize": "129149"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/SPA",
+              "title": {
+                "es": "INFORME sobre el proyecto de Directiva del Consejo por la que se modifica la Directiva (UE) 2015/637, sobre las medidas de coordinación y cooperación para facilitar la protección consular de ciudadanos de la Unión no representados en terceros países, y la Directiva (UE) 2019/997, por la que se establece un documento provisional de viaje de la UE"
+              },
+              "title_alternative": {
+                "es": "INFORME - sobre el proyecto de Directiva del Consejo por la que se modifica la Directiva (UE) 2015/637, sobre las medidas de coordinación y cooperación para facilitar la protección consular de ciudadanos de la Unión no representados en terceros países, y la Directiva (UE) 2019/997, por la que se establece un documento provisional de viaje de la UE - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Comisión de Libertades Civiles, Justicia y Asuntos de Interior - Ponente: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/pt",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/pt/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_pt.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T12:44:12+02:00",
+                  "byteSize": "126475"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/pt/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_pt.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T12:44:12+02:00",
+                  "byteSize": "126475"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/POR",
+              "title": {
+                "pt": "RELATÓRIO sobre o projeto de diretiva do Conselho que altera a Diretiva (UE) 2015/637 relativa a medidas de coordenação e cooperação para facilitar a proteção consular dos cidadãos da União não representados em países terceiros e a Diretiva (UE) 2019/997 que cria um título de viagem provisório da UE"
+              },
+              "title_alternative": {
+                "pt": "RELATÓRIO - sobre o projeto de diretiva do Conselho que altera a Diretiva (UE) 2015/637 relativa a medidas de coordenação e cooperação para facilitar a proteção consular dos cidadãos da União não representados em países terceiros e a Diretiva (UE) 2019/997 que cria um título de viagem provisório da UE - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Comissão das Liberdades Cívicas, da Justiça e dos Assuntos Internos - Relatora: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/el",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/el/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_el.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T17:34:12+02:00",
+                  "byteSize": "147672"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/el/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_el.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T17:34:12+02:00",
+                  "byteSize": "147672"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/ELL",
+              "title": {
+                "el": "ΕΚΘΕΣΗ σχετικά με το σχέδιο οδηγίας του Συμβουλίου για την τροποποίηση της οδηγίας (ΕΕ) 2015/637 περί των μέτρων συντονισμού και συνεργασίας προς διευκόλυνση της προξενικής προστασίας για μη αντιπροσωπευόμενους πολίτες της Ένωσης σε τρίτες χώρες και της οδηγίας (ΕΕ) 2019/997 για τη θέσπιση προσωρινού ταξιδιωτικού εγγράφου της ΕΕ"
+              },
+              "title_alternative": {
+                "el": "ΕΚΘΕΣΗ - σχετικά με το σχέδιο οδηγίας του Συμβουλίου για την τροποποίηση της οδηγίας (ΕΕ) 2015/637 περί των μέτρων συντονισμού και συνεργασίας προς διευκόλυνση της προξενικής προστασίας για μη αντιπροσωπευόμενους πολίτες της Ένωσης σε τρίτες χώρες και της οδηγίας (ΕΕ) 2019/997 για τη θέσπιση προσωρινού ταξιδιωτικού εγγράφου της ΕΕ - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Επιτροπή Πολιτικών Ελευθεριών, Δικαιοσύνης και Εσωτερικών Υποθέσεων - Εισηγήτρια: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/pl",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/pl/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_pl.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T12:04:12+02:00",
+                  "byteSize": "142562"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/pl/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_pl.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T12:04:12+02:00",
+                  "byteSize": "142562"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/POL",
+              "title": {
+                "pl": "SPRAWOZDANIE w sprawie projektu dyrektywy Rady zmieniającej dyrektywę (UE) 2015/637 w sprawie środków koordynacji i współpracy mających ułatwić ochronę konsularną niereprezentowanych obywateli Unii w państwach trzecich oraz dyrektywę (UE) 2019/997 ustanawiającą unijny tymczasowy dokument podróży"
+              },
+              "title_alternative": {
+                "pl": "SPRAWOZDANIE - w sprawie projektu dyrektywy Rady zmieniającej dyrektywę (UE) 2015/637 w sprawie środków koordynacji i współpracy mających ułatwić ochronę konsularną niereprezentowanych obywateli Unii w państwach trzecich oraz dyrektywę (UE) 2019/997 ustanawiającą unijny tymczasowy dokument podróży - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Komisja Wolności Obywatelskich, Sprawiedliwości i Spraw Wewnętrznych - Sprawozdawczyni: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/en",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/en/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_en.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-09-29T20:34:10+02:00",
+                  "byteSize": "132531"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/en/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_en.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-09-29T20:34:10+02:00",
+                  "byteSize": "132531"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/ENG",
+              "title": {
+                "en": "REPORT on the draft for a Council directive amending Directive (EU) 2015/637 on the coordination and cooperation measures to facilitate consular protection for unrepresented citizens of the Union in third countries and Directive (EU) 2019/997 establishing an EU Emergency Travel Document"
+              },
+              "title_alternative": {
+                "en": "REPORT - on the draft for a Council directive amending Directive (EU) 2015/637 on the coordination and cooperation measures to facilitate consular protection for unrepresented citizens of the Union in third countries and Directive (EU) 2019/997 establishing an EU Emergency Travel Document - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Committee on Civil Liberties, Justice and Home Affairs - Rapporteur: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/lv",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/lv/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_lv.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-01T15:54:14+02:00",
+                  "byteSize": "122828"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/lv/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_lv.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-01T15:54:14+02:00",
+                  "byteSize": "122828"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/LAV",
+              "title": {
+                "lv": "ZIŅOJUMS par priekšlikumu Padomes direktīvai, ar kuru groza Padomes Direktīvu (ES) 2015/637 par koordinācijas un sadarbības pasākumiem, ar ko veicina nepārstāvēto Savienības pilsoņu konsulāro aizsardzību trešās valstīs, un Direktīvu (ES) 2019/997, ar ko izveido ES pagaidu ceļošanas dokumentu"
+              },
+              "title_alternative": {
+                "lv": "ZIŅOJUMS - par priekšlikumu Padomes direktīvai, ar kuru groza Padomes Direktīvu (ES) 2015/637 par koordinācijas un sadarbības pasākumiem, ar ko veicina nepārstāvēto Savienības pilsoņu konsulāro aizsardzību trešās valstīs, un Direktīvu (ES) 2019/997, ar ko izveido ES pagaidu ceļošanas dokumentu - (05760/2026 - C10-0027/2026 - 2023/0441(CNS)) - Pilsoņu brīvību, tieslietu un iekšlietu komiteja - Referente: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/sk",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/sk/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_sk.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T10:34:12+02:00",
+                  "byteSize": "129674"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/sk/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_sk.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T10:34:12+02:00",
+                  "byteSize": "129674"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/SLK",
+              "title": {
+                "sk": "SPRÁVA o návrhu smernice Rady, ktorou sa mení smernica (EÚ) 2015/637 o opatreniach koordinácie a spolupráce na uľahčenie konzulárnej ochrany nezastúpených občanov Únie v tretích krajinách a smernica (EÚ) 2019/997, ktorou sa zavádza náhradný cestovný doklad EÚ"
+              },
+              "title_alternative": {
+                "sk": "SPRÁVA - o návrhu smernice Rady, ktorou sa mení smernica (EÚ) 2015/637 o opatreniach koordinácie a spolupráce na uľahčenie konzulárnej ochrany nezastúpených občanov Únie v tretích krajinách a smernica (EÚ) 2019/997, ktorou sa zavádza náhradný cestovný doklad EÚ - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Výbor pre občianske slobody, spravodlivosť a vnútorné veci - Spravodajkyňa: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/bg",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/bg/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_bg.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T13:04:12+02:00",
+                  "byteSize": "139001"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/bg/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_bg.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T13:04:12+02:00",
+                  "byteSize": "139001"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/BUL",
+              "title": {
+                "bg": "ДОКЛАД относно проекта на директива на Съвета за изменение на Директива (ЕС) 2015/637 относно мерките за координация и сътрудничество за улесняване на консулската закрила на непредставени граждани на Съюза в трети държави и Директива (ЕС) 2019/997 за временния документ за пътуване на ЕС"
+              },
+              "title_alternative": {
+                "bg": "ДОКЛАД - относно проекта на директива на Съвета за изменение на Директива (ЕС) 2015/637 относно мерките за координация и сътрудничество за улесняване на консулската закрила на непредставени граждани на Съюза в трети държави и Директива (ЕС) 2019/997 за временния документ за пътуване на ЕС - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Комисия по граждански свободи, правосъдие и вътрешни работи - Докладчик: Лена Дюпон"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/sl",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/sl/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_sl.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T15:44:12+02:00",
+                  "byteSize": "126093"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/sl/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_sl.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T15:44:12+02:00",
+                  "byteSize": "126093"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/SLV",
+              "title": {
+                "sl": "POROČILO o osnutku direktive Sveta o spremembi Direktive (EU) 2015/637 o ukrepih za usklajevanje in sodelovanje, potrebnih za lažje zagotavljanje konzularne zaščite državljanom Unije brez predstavništva v tretjih državah, ter Direktive (EU) 2019/997 o vzpostavitvi potne listine EU za vrnitev"
+              },
+              "title_alternative": {
+                "sl": "POROČILO - o osnutku direktive Sveta o spremembi Direktive (EU) 2015/637 o ukrepih za usklajevanje in sodelovanje, potrebnih za lažje zagotavljanje konzularne zaščite državljanom Unije brez predstavništva v tretjih državah, ter Direktive (EU) 2019/997 o vzpostavitvi potne listine EU za vrnitev - (05760/2026 - C10-0027/2026 - 2023/0441(CNS)) - Odbor za državljanske svoboščine, pravosodje in notranje zadeve - Poročevalka: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/fr",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/fr/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_fr.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T11:34:12+02:00",
+                  "byteSize": "142913"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/fr/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_fr.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T11:34:12+02:00",
+                  "byteSize": "142913"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/FRA",
+              "title": {
+                "fr": "RAPPORT sur le projet de directive du Conseil modifiant la directive (UE) 2015/637 établissant les mesures de coordination et de coopération nécessaires pour faciliter la protection consulaire des citoyens de l’Union non représentés dans des pays tiers et la directive (UE) 2019/997 établissant un titre de voyage provisoire de l’Union européenne"
+              },
+              "title_alternative": {
+                "fr": "RAPPORT - sur le projet de directive du Conseil modifiant la directive (UE) 2015/637 établissant les mesures de coordination et de coopération nécessaires pour faciliter la protection consulaire des citoyens de l’Union non représentés dans des pays tiers et la directive (UE) 2019/997 établissant un titre de voyage provisoire de l’Union européenne - (05760/2026- C10-0027/2026 - 2023/0441(CNS)) - Commission des libertés civiles, de la justice et des affaires intérieures - Rapporteure: Lena Düpont"
+              }
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254/mt",
+              "type": "Expression",
+              "is_embodied_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/mt/pdf",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_mt.pdf",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                  "issued": "2026-10-05T15:54:12+02:00",
+                  "byteSize": "131504"
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254/mt/docx",
+                  "type": "Manifestation",
+                  "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0254/A-10-2026-0254_mt.docx",
+                  "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                  "issued": "2026-10-05T15:54:12+02:00",
+                  "byteSize": "131504"
+                }
+              ],
+              "language": "http://publications.europa.eu/resource/authority/language/MLT",
+              "title": {
+                "mt": "RAPPORT dwar l-abbozz għal Direttiva tal-Kunsill li temenda d-Direttiva (UE) 2015/637 dwar il-miżuri ta’ koordinazzjoni u kooperazzjoni biex tiġi ffaċilitata l-protezzjoni konsulari għal ċittadini mhux rappreżentati tal-Unjoni f’pajjiżi terzi u d-Direttiva (UE) 2019/997 li tistabbilixxi Dokument Provviżorju tal-Ivvjaġġar tal-UE"
+              },
+              "title_alternative": {
+                "mt": "RAPPORT - dwar l-abbozz għal Direttiva tal-Kunsill li temenda d-Direttiva (UE) 2015/637 dwar il-miżuri ta’ koordinazzjoni u kooperazzjoni biex tiġi ffaċilitata l-protezzjoni konsulari għal ċittadini mhux rappreżentati tal-Unjoni f’pajjiżi terzi u d-Direttiva (UE) 2019/997 li tistabbilixxi Dokument Provviżorju tal-Ivvjaġġar tal-UE - (COM(2023)0930 - C10-0027/2026 - 2023/0441(CNS)) - Kumitat għal-Libertajiet Ċivili, il-Ġustizzja u l-Intern - Rapporteur: Lena Düpont"
+              }
+            }
+          ],
+          "work_type": "def/ep-document-types/REPORT_PLENARY",
+          "creator": [
+            "person/99945",
+            "org/LIBE"
+          ],
+          "identifier": "A-10-2026-0254",
+          "publisher": "org/EU_PARLIAMENT",
+          "title_dcterms": {
+            "fr": "RAPPORT sur le projet de directive du Conseil modifiant la directive (UE) 2015/637 établissant les mesures de coordination et de coopération nécessaires pour faciliter la protection consulaire des citoyens de l’Union non représentés dans des pays tiers et la directive (UE) 2019/997 établissant un titre de voyage provisoire de l’Union européenne",
+            "ro": "RAPORT referitor la proiectul de directivă a Consiliului de modificare a Directivei (UE) 2015/637 privind măsurile de coordonare și cooperare pentru facilitarea protecției consulare a cetățenilor nereprezentați ai Uniunii în țările terțe și a Directivei (UE) 2019/997 de instituire a unui document de călătorie provizoriu al UE",
+            "it": "RELAZIONE sulla proposta di direttiva del Consiglio che modifica la direttiva (UE) 2015/637 sulle misure di coordinamento e cooperazione per facilitare la tutela consolare dei cittadini dell'Unione non rappresentati nei paesi terzi e la direttiva (UE) 2019/997 che istituisce un documento di viaggio provvisorio dell'UE",
+            "hu": "JELENTÉS a harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelmét elősegítő koordinációs és együttműködési intézkedésekről szóló (EU) 2015/637 irányelv és az uniós ideiglenes úti okmány létrehozásáról szóló (EU) 2019/997 irányelv módosításáról szóló tanácsi irányelv tervezetéről",
+            "nl": "VERSLAG over het ontwerp van richtlijn van de Raad tot wijziging van Richtlijn (EU) 2015/637 betreffende de coördinatie- en samenwerkingsmaatregelen ter vergemakkelijking van de consulaire bescherming van niet-vertegenwoordigde burgers van de Unie in derde landen en van Richtlijn (EU) 2019/997 tot vaststelling van een EU-noodreisdocument",
+            "de": "BERICHT über den Entwurf einer Richtlinie des Rates zur Änderung der Richtlinie (EU) 2015/637 über Koordinierungs- und Kooperationsmaßnahmen zur Erleichterung des konsularischen Schutzes von nicht vertretenen Unionsbürgern in Drittländern und der Richtlinie (EU) 2019/997 zur Festlegung eines EU-Rückkehrausweises",
+            "bg": "ДОКЛАД относно проекта на директива на Съвета за изменение на Директива (ЕС) 2015/637 относно мерките за координация и сътрудничество за улесняване на консулската закрила на непредставени граждани на Съюза в трети държави и Директива (ЕС) 2019/997 за временния документ за пътуване на ЕС",
+            "cs": "ZPRÁVA o návrhu směrnice Rady, kterou se mění směrnice (EU) 2015/637 o opatřeních v oblasti koordinace a spolupráce s cílem usnadnit konzulární ochranu nezastoupených občanů Unie ve třetích zemích a směrnice (EU) 2019/997, kterou se zavádí náhradní cestovní doklad EU",
+            "en": "REPORT on the draft for a Council directive amending Directive (EU) 2015/637 on the coordination and cooperation measures to facilitate consular protection for unrepresented citizens of the Union in third countries and Directive (EU) 2019/997 establishing an EU Emergency Travel Document",
+            "sl": "POROČILO o osnutku direktive Sveta o spremembi Direktive (EU) 2015/637 o ukrepih za usklajevanje in sodelovanje, potrebnih za lažje zagotavljanje konzularne zaščite državljanom Unije brez predstavništva v tretjih državah, ter Direktive (EU) 2019/997 o vzpostavitvi potne listine EU za vrnitev",
+            "mt": "RAPPORT dwar l-abbozz għal Direttiva tal-Kunsill li temenda d-Direttiva (UE) 2015/637 dwar il-miżuri ta’ koordinazzjoni u kooperazzjoni biex tiġi ffaċilitata l-protezzjoni konsulari għal ċittadini mhux rappreżentati tal-Unjoni f’pajjiżi terzi u d-Direttiva (UE) 2019/997 li tistabbilixxi Dokument Provviżorju tal-Ivvjaġġar tal-UE",
+            "hr": "IZVJEŠĆE o Nacrtu direktive Vijeća o izmjeni Direktive (EU) 2015/637 o mjerama koordinacije i suradnje za olakšavanje pružanja konzularne zaštite građanima Unije bez predstavništva u trećim zemljama i Direktive (EU) 2019/997 o uspostavljanju privremene putne isprave EU-a",
+            "fi": "MIETINTÖ esityksestä neuvoston direktiiviksi yhteensovittamis- ja yhteistyötoimenpiteistä edustusta vailla oleville unionin kansalaisille kolmansissa maissa annettavan konsuliviranomaisten suojelun helpottamiseksi annetun direktiivin (EU) 2015/637 ja EU:n tilapäisen matkustusasiakirjan laatimisesta annetun direktiivin (EU) 2019/997 muuttamisesta",
+            "da": "BETÆNKNING om forslag til Rådets direktiv om ændring af Rådets direktiv (EU) 2015/637 om koordinations- og samarbejdsforanstaltninger for at lette konsulær beskyttelse af ikkerepræsenterede unionsborgere i tredjelande og direktiv (EU) 2019/997 om indførelse af et EU-nødpas",
+            "pt": "RELATÓRIO sobre o projeto de diretiva do Conselho que altera a Diretiva (UE) 2015/637 relativa a medidas de coordenação e cooperação para facilitar a proteção consular dos cidadãos da União não representados em países terceiros e a Diretiva (UE) 2019/997 que cria um título de viagem provisório da UE",
+            "et": "RAPORT nõukogu direktiivi eelnõu kohta, millega muudetakse direktiivi (EL) 2015/637, mis käsitleb koordineerimis- ja koostöömeetmeid, millega hõlbustatakse liidu esindamata kodanike konsulaarkaitset kolmandates riikides, ning direktiivi (EL) 2019/997, millega kehtestatakse ELi tagasipöördumistunnistus",
+            "lt": "PRANEŠIMAS dėl Tarybos direktyvos, kuria iš dalies keičiama Direktyva (ES) 2015/637 dėl koordinavimo ir bendradarbiavimo priemonių, skirtų neatstovaujamų Sąjungos piliečių konsulinei apsaugai trečiosiose šalyse palengvinti, ir Direktyva (ES) 2019/997/EB, kuria nustatomas ES laikinasis kelionės dokumentas, projekto",
+            "el": "ΕΚΘΕΣΗ σχετικά με το σχέδιο οδηγίας του Συμβουλίου για την τροποποίηση της οδηγίας (ΕΕ) 2015/637 περί των μέτρων συντονισμού και συνεργασίας προς διευκόλυνση της προξενικής προστασίας για μη αντιπροσωπευόμενους πολίτες της Ένωσης σε τρίτες χώρες και της οδηγίας (ΕΕ) 2019/997 για τη θέσπιση προσωρινού ταξιδιωτικού εγγράφου της ΕΕ",
+            "pl": "SPRAWOZDANIE w sprawie projektu dyrektywy Rady zmieniającej dyrektywę (UE) 2015/637 w sprawie środków koordynacji i współpracy mających ułatwić ochronę konsularną niereprezentowanych obywateli Unii w państwach trzecich oraz dyrektywę (UE) 2019/997 ustanawiającą unijny tymczasowy dokument podróży",
+            "ga": "TUARASCÁIL ar an dréacht le haghaidh Treoir ón gComhairle lena leasaítear Treoir (AE) 2015/637 maidir leis na bearta comhordaithe agus comhair chun an chosaint chonsalach a éascú do shaoránaigh den Aontas nach bhfuil ionadaíocht acu i dtríú tíortha agus Treoir (AE) 2019/997 lena mbunaítear Doiciméad Taistil Éigeandála AE",
+            "es": "INFORME sobre el proyecto de Directiva del Consejo por la que se modifica la Directiva (UE) 2015/637, sobre las medidas de coordinación y cooperación para facilitar la protección consular de ciudadanos de la Unión no representados en terceros países, y la Directiva (UE) 2019/997, por la que se establece un documento provisional de viaje de la UE",
+            "lv": "ZIŅOJUMS par priekšlikumu Padomes direktīvai, ar kuru groza Padomes Direktīvu (ES) 2015/637 par koordinācijas un sadarbības pasākumiem, ar ko veicina nepārstāvēto Savienības pilsoņu konsulāro aizsardzību trešās valstīs, un Direktīvu (ES) 2019/997, ar ko izveido ES pagaidu ceļošanas dokumentu",
+            "sk": "SPRÁVA o návrhu smernice Rady, ktorou sa mení smernica (EÚ) 2015/637 o opatreniach koordinácie a spolupráce na uľahčenie konzulárnej ochrany nezastúpených občanov Únie v tretích krajinách a smernica (EÚ) 2019/997, ktorou sa zavádza náhradný cestovný doklad EÚ",
+            "sv": "BETÄNKANDE om utkastet till rådets direktiv om ändring av direktiv (EU) 2015/637 om samordnings- och samarbetsåtgärder för underlättande av konsulärt skydd till icke-företrädda unionsmedborgare i tredjeländer och direktiv (EU) 2019/997 om införande av en provisorisk EU-resehandling"
+          },
+          "label": "A10-0254/2026",
+          "notation_publicRegister": "P10_A(2026)0254",
+          "epNumber": "PE789.005",
+          "epNumberVersion": "0200",
+          "identifierYear": "2026",
+          "isAboutDirectoryCode": [
+            "http://publications.europa.eu/resource/authority/dir-eu-legal-act/1910",
+            "http://publications.europa.eu/resource/authority/dir-eu-legal-act/2020"
+          ],
+          "isAboutSubjectMatter": [
+            "http://publications.europa.eu/resource/authority/subject-matter/ELSJ",
+            "http://publications.europa.eu/resource/authority/subject-matter/LCP",
+            "http://publications.europa.eu/resource/authority/subject-matter/CIT"
+          ],
+          "originalLanguage": [
+            "http://publications.europa.eu/resource/authority/language/ENG"
+          ],
+          "workHadParticipation": [
+            {
+              "id": "eli/dl/participation/A-10-2026-0254_99945",
+              "type": "Participation",
+              "activity_date": "2026-09-29",
+              "had_participant_person": [
+                "person/99945"
+              ],
+              "parliamentary_term": "org/ep-10",
+              "participation_in_name_of": "org/LIBE",
+              "participation_role": "def/ep-roles/RAPPORTEUR",
+              "politicalGroup": "org/PPE",
+              "precedenceOrder": 2101
+            },
+            {
+              "id": "eli/dl/participation/A-10-2026-0254_LIBE",
+              "type": "Participation",
+              "had_participant_organization": [
+                "org/LIBE"
+              ],
+              "participation_role": "def/ep-roles/AUTHOR"
+            }
+          ],
+          "inverse_foresees_change_of": [
+            {
+              "id": "eli/dl/doc/A-10-2026-0254-AM-001-038",
+              "type": "Work",
+              "foresees_change_of": "eli/dl/doc/A-10-2026-0254",
+              "parliamentary_term": "org/ep-10",
+              "document_date": "2026-10-05",
+              "is_realized_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/cs",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/cs/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_cs.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-06T10:45:00+02:00",
+                      "byteSize": "49559"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/cs/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_cs.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-06T10:45:00+02:00",
+                      "byteSize": "49559"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/CES",
+                  "title": {
+                    "cs": "Pozměňovací návrh 001-038 - Lena Düpont - Zpráva A10-0254/2026 - Konzulární ochrana nezastoupených občanů Unie ve třetích zemích"
+                  },
+                  "title_alternative": {
+                    "cs": "Pozměňovací návrh 001-038 - Lena Düpont - Zpráva A10-0254/2026 - Konzulární ochrana nezastoupených občanů Unie ve třetích zemích"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/hu",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/hu/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_hu.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-06T11:15:00+02:00",
+                      "byteSize": "48826"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/hu/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_hu.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-06T11:15:00+02:00",
+                      "byteSize": "48826"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/HUN",
+                  "title": {
+                    "hu": "Módosítás 001-038 - Lena Düpont - Jelentés A10-0254/2026 - A harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelme"
+                  },
+                  "title_alternative": {
+                    "hu": "Módosítás 001-038 - Lena Düpont - Jelentés A10-0254/2026 - A harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelme"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/es",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/es/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_es.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-06T15:29:00+02:00",
+                      "byteSize": "47475"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/es/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_es.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-06T15:29:00+02:00",
+                      "byteSize": "47475"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/SPA",
+                  "title": {
+                    "es": "Enmienda 001-038 - Lena Düpont - Informe A10-0254/2026 - Protección consular de ciudadanos de la Unión no representados en terceros países"
+                  },
+                  "title_alternative": {
+                    "es": "Enmienda 001-038 - Lena Düpont - Informe A10-0254/2026 - Protección consular de ciudadanos de la Unión no representados en terceros países"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/fr",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/fr/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_fr.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-06T10:45:00+02:00",
+                      "byteSize": "48101"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/fr/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_fr.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-06T10:45:00+02:00",
+                      "byteSize": "48101"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/FRA",
+                  "title": {
+                    "fr": "Amendement 001-038 - Lena Düpont - Rapport A10-0254/2026 - Protection consulaire des citoyens de l’Union non représentés dans des pays tiers"
+                  },
+                  "title_alternative": {
+                    "fr": "Amendement 001-038 - Lena Düpont - Rapport A10-0254/2026 - Protection consulaire des citoyens de l’Union non représentés dans des pays tiers"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/it",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/it/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_it.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-06T11:03:00+02:00",
+                      "byteSize": "43934"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/it/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_it.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-06T11:03:00+02:00",
+                      "byteSize": "43934"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/ITA",
+                  "title": {
+                    "it": "Emendamento 001-038 - Lena Düpont - Relazione A10-0254/2026 - Tutela consolare dei cittadini dell'Unione non rappresentati nei paesi terzi"
+                  },
+                  "title_alternative": {
+                    "it": "Emendamento 001-038 - Lena Düpont - Relazione A10-0254/2026 - Tutela consolare dei cittadini dell'Unione non rappresentati nei paesi terzi"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/et",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/et/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_et.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-06T13:01:00+02:00",
+                      "byteSize": "47347"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-001-038/et/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-001-038/A-10-2026-0254-AM-001-038_et.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-06T13:01:00+02:00",
+                      "byteSize": "47347"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/EST",
+                  "title": {
+                    "et": "Muudatusettepanek 001-038 - Lena Düpont - Raport A10-0254/2026 - Liidu esindamata kodanike konsulaarkaitse kolmandates riikides"
+                  },
+                  "title_alternative": {
+                    "et": "Muudatusettepanek 001-038 - Lena Düpont - Raport A10-0254/2026 - Liidu esindamata kodanike konsulaarkaitse kolmandates riikides"
+                  }
+                }
+              ],
+              "work_type": "def/ep-document-types/AMENDMENT_LIST",
+              "identifier": "A-10-2026-0254-AM-001-038",
+              "publisher": "org/EU_PARLIAMENT",
+              "title_dcterms": {
+                "sk": "Pozmeňujúci návrh 001-038 - Lena Düpont - Správa A10-0254/2026 - Konzulárna ochrana nezastúpených občanov Únie v tretích krajinách",
+                "de": "Änderungsantrag 001-038 - Lena Düpont - Bericht A10-0254/2026 - Konsularischer Schutz von nicht vertretenen Unionsbürgern in Drittländern",
+                "lt": "Pakeitimas 001-038 - Lena Düpont - Pranešimas A10-0254/2026 - Neatstovaujamų Sąjungos piliečių konsulinė apsauga trečiosiose šalyse",
+                "sl": "Predlog spremembe 001-038 - Lena Düpont - Poročilo A10-0254/2026 - Konzularna zaščita državljanom Unije brez predstavništva v tretjih državah",
+                "it": "Emendamento 001-038 - Lena Düpont - Relazione A10-0254/2026 - Tutela consolare dei cittadini dell'Unione non rappresentati nei paesi terzi",
+                "cs": "Pozměňovací návrh 001-038 - Lena Düpont - Zpráva A10-0254/2026 - Konzulární ochrana nezastoupených občanů Unie ve třetích zemích",
+                "mt": "Emenda 001-038 - Lena Düpont - Rapport A10-0254/2026 - Il-protezzjoni konsulari għal ċittadini mhux rappreżentati tal-Unjoni f’pajjiżi terzi",
+                "pl": "Poprawka 001-038 - Lena Düpont - Sprawozdanie A10-0254/2026 - Ochrona konsularna niereprezentowanych obywateli Unii w państwach trzecich",
+                "ro": "Amendamentul 001-038 - Lena Düpont - Raport A10-0254/2026 - Protecția consulară a cetățenilor nereprezentați ai Uniunii în țările terțe",
+                "da": "Ændringsforslag 001-038 - Lena Düpont - Betænkning A10-0254/2026 - Konsulær beskyttelse af ikkerepræsenterede unionsborgere i tredjelande",
+                "en": "Amendment 001-038 - Lena Düpont - Report A10-0254/2026 - Consular protection for unrepresented citizens of the Union in third countries",
+                "fi": "Tarkistus 001-038 - Lena Düpont - Mietintö A10-0254/2026 - Edustusta vailla oleville unionin kansalaisille kolmansissa maissa annettava konsuliviranomaisten suojelu",
+                "el": "Τροπολογία 001-038 - Lena Düpont - Έκθεση A10-0254/2026 - Προξενική προστασία για μη αντιπροσωπευόμενους πολίτες της Ένωσης σε τρίτες χώρες",
+                "es": "Enmienda 001-038 - Lena Düpont - Informe A10-0254/2026 - Protección consular de ciudadanos de la Unión no representados en terceros países",
+                "hu": "Módosítás 001-038 - Lena Düpont - Jelentés A10-0254/2026 - A harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelme",
+                "hr": "Amandman 001-038 - Lena Düpont - Izvješće A10-0254/2026 - Konzularna zaštita za građane Unije bez predstavništva u trećim zemljama",
+                "nl": "Amendement 001-038 - Lena Düpont - Verslag A10-0254/2026 - Consulaire bescherming van niet-vertegenwoordigde burgers van de Unie in derde landen",
+                "fr": "Amendement 001-038 - Lena Düpont - Rapport A10-0254/2026 - Protection consulaire des citoyens de l’Union non représentés dans des pays tiers",
+                "sv": "Ändringsförslag 001-038 - Lena Düpont - Betänkande A10-0254/2026 - Konsulärt skydd till icke-företrädda unionsmedborgare i tredjeländer",
+                "lv": "Grozījums 001-038 - Lena Düpont - Ziņojums A10-0254/2026 - Nepārstāvēto Savienības pilsoņu konsulārā aizsardzība trešās valstīs",
+                "ga": "Leasú 001-038 - Lena Düpont - Tuarascáil A10-0254/2026 - Cosaint chonsalach do shaoránaigh den Aontas nach bhfuil ionadaíocht acu i dtríú tíortha",
+                "bg": "Изменение 001-038 - Лена Дюпон - Доклад A10-0254/2026 - Консулска закрила на непредставени граждани на Съюза в трети държави",
+                "et": "Muudatusettepanek 001-038 - Lena Düpont - Raport A10-0254/2026 - Liidu esindamata kodanike konsulaarkaitse kolmandates riikides",
+                "pt": "Alteração 001-038 - Lena Düpont - Relatório A10-0254/2026 - Proteção consular dos cidadãos da União não representados em países terceiros"
+              },
+              "identifierYear": "2026",
+              "itemNumberBegin": 1,
+              "itemNumberEnd": 38,
+              "numbering": 1
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254-AM-039-040",
+              "type": "Work",
+              "foresees_change_of": "eli/dl/doc/A-10-2026-0254",
+              "parliamentary_term": "org/ep-10",
+              "document_date": "2026-09-30",
+              "is_realized_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/es",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/es/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_es.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T12:08:08+02:00",
+                      "byteSize": "42841"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/es/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_es.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T12:08:08+02:00",
+                      "byteSize": "42841"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/SPA",
+                  "title": {
+                    "es": "A10-0254/39 - Enmienda 39 - Assita Kanko - en nombre del Grupo ECR - Informe A10-0254/2026 - Lena Düpont - Medidas para facilitar la protección consular de ciudadanos de la Unión no representados en terceros países  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "es": "A10-0254/39 - Enmienda 39 - Assita Kanko - en nombre del Grupo ECR - Informe A10-0254/2026 - Lena Düpont - Medidas para facilitar la protección consular de ciudadanos de la Unión no representados en terceros países  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/pl",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/pl/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_pl.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T16:28:08+02:00",
+                      "byteSize": "43113"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/pl/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_pl.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T16:28:08+02:00",
+                      "byteSize": "43113"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/POL",
+                  "title": {
+                    "pl": "A10-0254/39 - Poprawka 39 - Assita Kanko - w imieniu grupy ECR - Sprawozdanie A10-0254/2026 - Lena Düpont - Środki koordynacji i współpracy mające ułatwić ochronę konsularną niereprezentowanych obywateli Unii w państwach trzecich  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "pl": "A10-0254/39 - Poprawka 39 - Assita Kanko - w imieniu grupy ECR - Sprawozdanie A10-0254/2026 - Lena Düpont - Środki koordynacji i współpracy mające ułatwić ochronę konsularną niereprezentowanych obywateli Unii w państwach trzecich  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/fi",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/fi/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_fi.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-02T17:14:08+02:00",
+                      "byteSize": "43057"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/fi/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_fi.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-02T17:14:08+02:00",
+                      "byteSize": "43057"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/FIN",
+                  "title": {
+                    "fi": "A10-0254/39 - Tarkistus 39 - Assita Kanko - ECR-ryhmän puolesta - Mietintö A10-0254/2026 - Lena Düpont - Toimenpiteet edustusta vaille oleville unionin kansalaisille kolmansissa maissa annettavan konsuliviranomaisten suojelun helpottamiseksi  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "fi": "A10-0254/39 - Tarkistus 39 - Assita Kanko - ECR-ryhmän puolesta - Mietintö A10-0254/2026 - Lena Düpont - Toimenpiteet edustusta vaille oleville unionin kansalaisille kolmansissa maissa annettavan konsuliviranomaisten suojelun helpottamiseksi  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/sv",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/sv/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_sv.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T15:32:10+02:00",
+                      "byteSize": "42741"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/sv/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_sv.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T15:32:10+02:00",
+                      "byteSize": "42741"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/SWE",
+                  "title": {
+                    "sv": "A10-0254/39 - Ändringsförslag 39 - Assita Kanko - för ECR-gruppen - Betänkande A10-0254/2026 - Lena Düpont - Åtgärder för underlättande av konsulärt skydd till icke-företrädda unionsmedborgare i tredjeländer  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "sv": "A10-0254/39 - Ändringsförslag 39 - Assita Kanko - för ECR-gruppen - Betänkande A10-0254/2026 - Lena Düpont - Åtgärder för underlättande av konsulärt skydd till icke-företrädda unionsmedborgare i tredjeländer  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/it",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/it/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_it.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T15:36:08+02:00",
+                      "byteSize": "43198"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/it/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_it.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T15:36:08+02:00",
+                      "byteSize": "43198"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/ITA",
+                  "title": {
+                    "it": "A10-0254/39 - Emendamento 39 - Assita Kanko - a nome del gruppo ECR - Relazione A10-0254/2026 - Lena Düpont - Misure per facilitare la tutela consolare dei cittadini dell'Unione non rappresentati nei paesi terzi  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "it": "A10-0254/39 - Emendamento 39 - Assita Kanko - a nome del gruppo ECR - Relazione A10-0254/2026 - Lena Düpont - Misure per facilitare la tutela consolare dei cittadini dell'Unione non rappresentati nei paesi terzi  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/lv",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/lv/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_lv.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T16:44:08+02:00",
+                      "byteSize": "42957"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/lv/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_lv.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T16:44:08+02:00",
+                      "byteSize": "42957"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/LAV",
+                  "title": {
+                    "lv": "A10-0254/39 - Grozījums Nr. 39 - Assita Kanko - ECR grupas vārdā - Ziņojums A10-0254/2026 - Lena Düpont - Pasākumi, ar ko veicina nepārstāvēto Savienības pilsoņu konsulāro aizsardzību trešās valstīs  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "lv": "A10-0254/39 - Grozījums Nr. 39 - Assita Kanko - ECR grupas vārdā - Ziņojums A10-0254/2026 - Lena Düpont - Pasākumi, ar ko veicina nepārstāvēto Savienības pilsoņu konsulāro aizsardzību trešās valstīs  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/ro",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/ro/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_ro.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-02T14:42:08+02:00",
+                      "byteSize": "42849"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/ro/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_ro.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-02T14:42:08+02:00",
+                      "byteSize": "42849"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/RON",
+                  "title": {
+                    "ro": "A10-0254/39 - Amendamentul 39 - Assita Kanko - în numele Grupului ECR - Raport A10-0254/2026 - Lena Düpont - Protecția consulară a cetățenilor nereprezentați ai Uniunii în țările terțe  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "ro": "A10-0254/39 - Amendamentul 39 - Assita Kanko - în numele Grupului ECR - Raport A10-0254/2026 - Lena Düpont - Protecția consulară a cetățenilor nereprezentați ai Uniunii în țările terțe  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/hr",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/hr/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_hr.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T09:42:08+02:00",
+                      "byteSize": "43170"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/hr/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_hr.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T09:42:08+02:00",
+                      "byteSize": "43170"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/HRV",
+                  "title": {
+                    "hr": "A10-0254/39 - Amandman 39 - Assita Kanko - u ime Kluba zastupnika ECR-a - Izvješće A10-0254/2026 - Lena Düpont - Mjere za olakšavanje pružanja konzularne zaštite građanima Unije bez predstavništva u trećim zemljama  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "hr": "A10-0254/39 - Amandman 39 - Assita Kanko - u ime Kluba zastupnika ECR-a - Izvješće A10-0254/2026 - Lena Düpont - Mjere za olakšavanje pružanja konzularne zaštite građanima Unije bez predstavništva u trećim zemljama  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/sl",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/sl/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_sl.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T15:32:10+02:00",
+                      "byteSize": "42622"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/sl/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_sl.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T15:32:10+02:00",
+                      "byteSize": "42622"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/SLV",
+                  "title": {
+                    "sl": "A10-0254/39 - Predlog spremembe 39 - Assita Kanko - v imenu skupine ECR - Poročilo A10-0254/2026 - Lena Düpont - Ukrepi za lažje zagotavljanje konzularne zaščite državljanom Unije brez predstavništva v tretjih državah  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "sl": "A10-0254/39 - Predlog spremembe 39 - Assita Kanko - v imenu skupine ECR - Poročilo A10-0254/2026 - Lena Düpont - Ukrepi za lažje zagotavljanje konzularne zaščite državljanom Unije brez predstavništva v tretjih državah  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/pt",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/pt/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_pt.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T11:00:08+02:00",
+                      "byteSize": "43238"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/pt/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_pt.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T11:00:08+02:00",
+                      "byteSize": "43238"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/POR",
+                  "title": {
+                    "pt": "A10-0254/39 - Alteração 39 - Assita Kanko - em nome do Grupo ECR - Relatório A10-0254/2026 - Lena Düpont - Proteção consular dos cidadãos da União não representados em países terceiros  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "pt": "A10-0254/39 - Alteração 39 - Assita Kanko - em nome do Grupo ECR - Relatório A10-0254/2026 - Lena Düpont - Proteção consular dos cidadãos da União não representados em países terceiros  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/fr",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/fr/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_fr.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T11:26:09+02:00",
+                      "byteSize": "42603"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/fr/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_fr.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T11:26:09+02:00",
+                      "byteSize": "42603"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/FRA",
+                  "title": {
+                    "fr": "A10-0254/39 - Amendement 39 - Assita Kanko - au nom du groupe ECR - Rapport A10-0254/2026 - Lena Düpont - Mesures nécessaires pour faciliter la protection consulaire des citoyens de l’Union non représentés dans des pays tiers  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "fr": "A10-0254/39 - Amendement 39 - Assita Kanko - au nom du groupe ECR - Rapport A10-0254/2026 - Lena Düpont - Mesures nécessaires pour faciliter la protection consulaire des citoyens de l’Union non représentés dans des pays tiers  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/hu",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/hu/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_hu.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T10:34:08+02:00",
+                      "byteSize": "43237"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-039-040/hu/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-039-040/A-10-2026-0254-AM-039-040_hu.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T10:34:08+02:00",
+                      "byteSize": "43237"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/HUN",
+                  "title": {
+                    "hu": "A10-0254/39 - Módosítás 39 - Assita Kanko - az ECR képviselőcsoport nevében - Jelentés A10-0254/2026 - Lena Düpont - A harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelmét elősegítő intézkedések  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "hu": "A10-0254/39 - Módosítás 39 - Assita Kanko - az ECR képviselőcsoport nevében - Jelentés A10-0254/2026 - Lena Düpont - A harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelmét elősegítő intézkedések  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                }
+              ],
+              "work_type": "def/ep-document-types/AMENDMENT_LIST",
+              "identifier": "A-10-2026-0254-AM-039-040",
+              "publisher": "org/EU_PARLIAMENT",
+              "title_dcterms": {
+                "hr": "A10-0254/39 - Amandman 39 - Assita Kanko - u ime Kluba zastupnika ECR-a - Izvješće A10-0254/2026 - Lena Düpont - Mjere za olakšavanje pružanja konzularne zaštite građanima Unije bez predstavništva u trećim zemljama  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "lv": "A10-0254/39 - Grozījums Nr. 39 - Assita Kanko - ECR grupas vārdā - Ziņojums A10-0254/2026 - Lena Düpont - Pasākumi, ar ko veicina nepārstāvēto Savienības pilsoņu konsulāro aizsardzību trešās valstīs  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "hu": "A10-0254/39 - Módosítás 39 - Assita Kanko - az ECR képviselőcsoport nevében - Jelentés A10-0254/2026 - Lena Düpont - A harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelmét elősegítő intézkedések  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "sk": "A10-0254/39 - Pozmeňujúci návrh 39 - Assita Kanko - v mene skupiny ECR - Správa A10-0254/2026 - Lena Düpont - Opatrenia na uľahčenie konzulárnej ochrany nezastúpených občanov Únie v tretích krajinách  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "ga": "A10-0254/39 - Leasú 39 - Assita Kanko - thar ceann an Ghrúpa ECR - Tuarascáil A10-0254/2026 - Lena Düpont - Bearta chun an chosaint chonsalach a éascú do shaoránaigh den Aontas nach bhfuil ionadaíocht acu i dtríú tíortha  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "pl": "A10-0254/39 - Poprawka 39 - Assita Kanko - w imieniu grupy ECR - Sprawozdanie A10-0254/2026 - Lena Düpont - Środki koordynacji i współpracy mające ułatwić ochronę konsularną niereprezentowanych obywateli Unii w państwach trzecich  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "ro": "A10-0254/39 - Amendamentul 39 - Assita Kanko - în numele Grupului ECR - Raport A10-0254/2026 - Lena Düpont - Protecția consulară a cetățenilor nereprezentați ai Uniunii în țările terțe  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "es": "A10-0254/39 - Enmienda 39 - Assita Kanko - en nombre del Grupo ECR - Informe A10-0254/2026 - Lena Düpont - Medidas para facilitar la protección consular de ciudadanos de la Unión no representados en terceros países  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "pt": "A10-0254/39 - Alteração 39 - Assita Kanko - em nome do Grupo ECR - Relatório A10-0254/2026 - Lena Düpont - Proteção consular dos cidadãos da União não representados em países terceiros  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "et": "A10-0254/39 - Muudatusettepanek 39 - Assita Kanko - fraktsiooni ECR nimel - Raport A10-0254/2026 - Lena Düpont - Meetmed, millega hõlbustatakse liidu esindamata kodanike konsulaarkaitset kolmandates riikides  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "da": "A10-0254/39 - Ændringsforslag 39 - Assita Kanko - for ECR-Gruppen - Betænkning A10-0254/2026 - Lena Düpont - Foranstaltninger for at lette konsulær beskyttelse af ikkerepræsenterede unionsborgere i tredjelande  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "bg": "A10-0254/39 - Изменение 39 - Асита Канко - от името на групата ECR - Доклад A10-0254/2026 - Лена Дюпон - Мерки за улесняване на консулската закрила на непредставени граждани на Съюза в трети държави  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "el": "A10-0254/39 - Τροπολογία 39 - Assita Kanko - εξ ονόματος της Ομάδας ECR - Έκθεση A10-0254/2026 - Lena Düpont - Μέτρα για τη διευκόλυνση της προξενικής προστασίας για μη αντιπροσωπευόμενους πολίτες της Ένωσης σε τρίτες χώρες  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "mt": "A10-0254/39 - Emenda 39 - Assita Kanko - f’isem il-Grupp ECR - Rapport A10-0254/2026 - Lena Düpont - Miżuri biex tiġi ffaċilitata l-protezzjoni konsulari għal ċittadini mhux rappreżentati tal-Unjoni f’pajjiżi terzi  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "cs": "A10-0254/39 - Pozměňovací návrh 39 - Assita Kanko - za skupinu ECR - Zpráva A10-0254/2026 - Lena Düpont - Konzulární ochrana nezastoupených občanů Unie ve třetích zemích - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "fr": "A10-0254/39 - Amendement 39 - Assita Kanko - au nom du groupe ECR - Rapport A10-0254/2026 - Lena Düpont - Mesures nécessaires pour faciliter la protection consulaire des citoyens de l’Union non représentés dans des pays tiers  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "fi": "A10-0254/39 - Tarkistus 39 - Assita Kanko - ECR-ryhmän puolesta - Mietintö A10-0254/2026 - Lena Düpont - Toimenpiteet edustusta vaille oleville unionin kansalaisille kolmansissa maissa annettavan konsuliviranomaisten suojelun helpottamiseksi  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "lt": "A10-0254/39 - Pakeitimas 39 - Assita Kanko - ECR frakcijos vardu - Pranešimas A10-0254/2026 - Lena Düpont - Priemonės, skirtos neatstovaujamų Sąjungos piliečių konsulinei apsaugai trečiosiose šalyse palengvinti  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "it": "A10-0254/39 - Emendamento 39 - Assita Kanko - a nome del gruppo ECR - Relazione A10-0254/2026 - Lena Düpont - Misure per facilitare la tutela consolare dei cittadini dell'Unione non rappresentati nei paesi terzi  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "de": "A10-0254/39 - Änderungsantrag 39 - Assita Kanko - im Namen der ECR-Fraktion - Bericht A10-0254/2026 - Lena Düpont - Maßnahmen zur Erleichterung des konsularischen Schutzes von nicht vertretenen Unionsbürgern in Drittländern  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "sv": "A10-0254/39 - Ändringsförslag 39 - Assita Kanko - för ECR-gruppen - Betänkande A10-0254/2026 - Lena Düpont - Åtgärder för underlättande av konsulärt skydd till icke-företrädda unionsmedborgare i tredjeländer  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "nl": "A10-0254/39 - Amendement 39 - Assita Kanko - namens de ECR-Fractie - Verslag A10-0254/2026 - Lena Düpont - Consulaire bescherming van niet-vertegenwoordigde burgers van de Unie in derde landen  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "sl": "A10-0254/39 - Predlog spremembe 39 - Assita Kanko - v imenu skupine ECR - Poročilo A10-0254/2026 - Lena Düpont - Ukrepi za lažje zagotavljanje konzularne zaščite državljanom Unije brez predstavništva v tretjih državah  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+              },
+              "epNumber": "PE788.300",
+              "identifierYear": "2026",
+              "itemNumberBegin": 39,
+              "itemNumberEnd": 40,
+              "numbering": 39,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/ENG"
+              ]
+            },
+            {
+              "id": "eli/dl/doc/A-10-2026-0254-AM-041-042",
+              "type": "Work",
+              "foresees_change_of": "eli/dl/doc/A-10-2026-0254",
+              "parliamentary_term": "org/ep-10",
+              "document_date": "2026-09-30",
+              "is_realized_by": [
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/da",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/da/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_da.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T12:56:08+02:00",
+                      "byteSize": "41729"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/da/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_da.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T12:56:08+02:00",
+                      "byteSize": "41729"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/DAN",
+                  "title": {
+                    "da": "A10-0254/41 - Ændringsforslag 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - for S&D-Gruppen - Betænkning A10-0254/2026 - Lena Düpont - Foranstaltninger for at lette konsulær beskyttelse af ikkerepræsenterede unionsborgere i tredjelande  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "da": "A10-0254/41 - Ændringsforslag 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - for S&D-Gruppen - Betænkning A10-0254/2026 - Lena Düpont - Foranstaltninger for at lette konsulær beskyttelse af ikkerepræsenterede unionsborgere i tredjelande  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/pl",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/pl/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_pl.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T16:28:08+02:00",
+                      "byteSize": "43040"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/pl/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_pl.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T16:28:08+02:00",
+                      "byteSize": "43040"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/POL",
+                  "title": {
+                    "pl": "A10-0254/41 - Poprawka 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - w imieniu grupy S&D - Sprawozdanie A10-0254/2026 - Lena Düpont - Środki koordynacji i współpracy mające ułatwić ochronę konsularną niereprezentowanych obywateli Unii w państwach trzecich  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "pl": "A10-0254/41 - Poprawka 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - w imieniu grupy S&D - Sprawozdanie A10-0254/2026 - Lena Düpont - Środki koordynacji i współpracy mające ułatwić ochronę konsularną niereprezentowanych obywateli Unii w państwach trzecich  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/el",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/el/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_el.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T16:28:08+02:00",
+                      "byteSize": "43337"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/el/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_el.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T16:28:08+02:00",
+                      "byteSize": "43337"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/ELL",
+                  "title": {
+                    "el": "A10-0254/41 - Τροπολογία 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - εξ ονόματος της Ομάδας S&D - Έκθεση A10-0254/2026 - Lena Düpont - Μέτρα για τη διευκόλυνση της προξενικής προστασίας για μη αντιπροσωπευόμενους πολίτες της Ένωσης σε τρίτες χώρες  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "el": "A10-0254/41 - Τροπολογία 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - εξ ονόματος της Ομάδας S&D - Έκθεση A10-0254/2026 - Lena Düpont - Μέτρα για τη διευκόλυνση της προξενικής προστασίας για μη αντιπροσωπευόμενους πολίτες της Ένωσης σε τρίτες χώρες  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/ro",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/ro/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_ro.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T10:16:08+02:00",
+                      "byteSize": "41821"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/ro/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_ro.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T10:16:08+02:00",
+                      "byteSize": "41821"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/RON",
+                  "title": {
+                    "ro": "A10-0254/41 - Amendamentul 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - în numele Grupului S&D - Raport A10-0254/2026 - Lena Düpont - Măsuri de facilitare a protecției consulare a cetățenilor nereprezentați ai Uniunii în țările terțe  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "ro": "A10-0254/41 - Amendamentul 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - în numele Grupului S&D - Raport A10-0254/2026 - Lena Düpont - Măsuri de facilitare a protecției consulare a cetățenilor nereprezentați ai Uniunii în țările terțe  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/pt",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/pt/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_pt.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T10:54:08+02:00",
+                      "byteSize": "42505"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/pt/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_pt.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T10:54:08+02:00",
+                      "byteSize": "42505"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/POR",
+                  "title": {
+                    "pt": "A10-0254/41 - Alteração 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - em nome do Grupo S&D - Relatório A10-0254/2026 - Lena Düpont - Proteção consular dos cidadãos da União não representados em países terceiros  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "pt": "A10-0254/41 - Alteração 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - em nome do Grupo S&D - Relatório A10-0254/2026 - Lena Düpont - Proteção consular dos cidadãos da União não representados em países terceiros  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/bg",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/bg/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_bg.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T15:42:09+02:00",
+                      "byteSize": "42112"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/bg/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_bg.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T15:42:09+02:00",
+                      "byteSize": "42112"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/BUL",
+                  "title": {
+                    "bg": "A10-0254/41 - Изменение 41 - Марина Калюранд, Ана Катарина Мендеш, Биргит Зипел - от името на групата S&D - Доклад A10-0254/2026 - Лена Дюпон - Мерки за улесняване на консулската закрила на непредставени граждани на Съюза в трети държави  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "bg": "A10-0254/41 - Изменение 41 - Марина Калюранд, Ана Катарина Мендеш, Биргит Зипел - от името на групата S&D - Доклад A10-0254/2026 - Лена Дюпон - Мерки за улесняване на консулската закрила на непредставени граждани на Съюза в трети държави  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/sl",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/sl/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_sl.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-05T12:00:08+02:00",
+                      "byteSize": "42913"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/sl/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_sl.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-05T12:00:08+02:00",
+                      "byteSize": "42913"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/SLV",
+                  "title": {
+                    "sl": "A10-0254/41 - Predlog spremembe 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - v imenu skupine S&D - Poročilo A10-0254/2026 - Lena Düpont - Ukrepi za lažje zagotavljanje konzularne zaščite državljanom Unije brez predstavništva v tretjih državah  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "sl": "A10-0254/41 - Predlog spremembe 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - v imenu skupine S&D - Poročilo A10-0254/2026 - Lena Düpont - Ukrepi za lažje zagotavljanje konzularne zaščite državljanom Unije brez predstavništva v tretjih državah  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                },
+                {
+                  "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/nl",
+                  "type": "Expression",
+                  "is_embodied_by": [
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/nl/docx",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_nl.docx",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                      "issued": "2026-10-03T18:56:08+02:00",
+                      "byteSize": "41892"
+                    },
+                    {
+                      "id": "eli/dl/doc/A-10-2026-0254-AM-041-042/nl/pdf",
+                      "type": "Manifestation",
+                      "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0254-AM-041-042/A-10-2026-0254-AM-041-042_nl.pdf",
+                      "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                      "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                      "issued": "2026-10-03T18:56:08+02:00",
+                      "byteSize": "41892"
+                    }
+                  ],
+                  "language": "http://publications.europa.eu/resource/authority/language/NLD",
+                  "title": {
+                    "nl": "A10-0254/41 - Amendement 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - namens de S&D-Fractie - Verslag A10-0254/2026 - Lena Düpont - Consulaire bescherming van niet-vertegenwoordigde burgers van de Unie in derde landen  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  },
+                  "title_alternative": {
+                    "nl": "A10-0254/41 - Amendement 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - namens de S&D-Fractie - Verslag A10-0254/2026 - Lena Düpont - Consulaire bescherming van niet-vertegenwoordigde burgers van de Unie in derde landen  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+                  }
+                }
+              ],
+              "work_type": "def/ep-document-types/AMENDMENT_LIST",
+              "identifier": "A-10-2026-0254-AM-041-042",
+              "publisher": "org/EU_PARLIAMENT",
+              "title_dcterms": {
+                "lv": "A10-0254/41 - Grozījums Nr. 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - S&D grupas vārdā - Ziņojums A10-0254/2026 - Lena Düpont - Pasākumi, ar ko veicina nepārstāvēto Savienības pilsoņu konsulāro aizsardzību trešās valstīs  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "sk": "A10-0254/41 - Pozmeňujúci návrh 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - v mene skupiny S&D - Správa A10-0254/2026 - Lena Düpont - Opatrenia na uľahčenie konzulárnej ochrany nezastúpených občanov Únie v tretích krajinách  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "lt": "A10-0254/41 - Pakeitimas 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - S&D frakcijos vardu - Pranešimas A10-0254/2026 - Lena Düpont - Priemonės, skirtos neatstovaujamų Sąjungos piliečių konsulinei apsaugai trečiosiose šalyse palengvinti  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "el": "A10-0254/41 - Τροπολογία 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - εξ ονόματος της Ομάδας S&D - Έκθεση A10-0254/2026 - Lena Düpont - Μέτρα για τη διευκόλυνση της προξενικής προστασίας για μη αντιπροσωπευόμενους πολίτες της Ένωσης σε τρίτες χώρες  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "fr": "A10-0254/41 - Amendement 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - au nom du groupe S&D - Rapport A10-0254/2026 - Lena Düpont - Mesures pour faciliter la protection consulaire des citoyens de l’Union non représentés dans des pays tiers  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "de": "A10-0254/41 - Änderungsantrag 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - im Namen der S&D-Fraktion - Bericht A10-0254/2026 - Lena Düpont - Maßnahmen zur Erleichterung des konsularischen Schutzes von nicht vertretenen Unionsbürgern in Drittländern  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "es": "A10-0254/41 - Enmienda 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - en nombre del Grupo S&D - Informe A10-0254/2026 - Lena Düpont - Medidas para facilitar la protección consular de ciudadanos de la Unión no representados en terceros países  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "et": "A10-0254/41 - Muudatusettepanek 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - fraktsiooni S&D nimel - Raport A10-0254/2026 - Lena Düpont - Meetmed, millega hõlbustatakse liidu esindamata kodanike konsulaarkaitset kolmandates riikides  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "it": "A10-0254/41 - Emendamento 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - a nome del gruppo S&D - Report A10-0254/2026 - Lena Düpont - Misure per facilitare la tutela consolare dei cittadini dell'Unione non rappresentati nei paesi terzi  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "pl": "A10-0254/41 - Poprawka 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - w imieniu grupy S&D - Sprawozdanie A10-0254/2026 - Lena Düpont - Środki koordynacji i współpracy mające ułatwić ochronę konsularną niereprezentowanych obywateli Unii w państwach trzecich  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "pt": "A10-0254/41 - Alteração 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - em nome do Grupo S&D - Relatório A10-0254/2026 - Lena Düpont - Proteção consular dos cidadãos da União não representados em países terceiros  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "sv": "A10-0254/41 - Ändringsförslag 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - för S&D-gruppen - Betänkande A10-0254/2026 - Lena Düpont - Åtgärder för underlättande av konsulärt skydd till icke-företrädda unionsmedborgare i tredjeländer  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "nl": "A10-0254/41 - Amendement 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - namens de S&D-Fractie - Verslag A10-0254/2026 - Lena Düpont - Consulaire bescherming van niet-vertegenwoordigde burgers van de Unie in derde landen  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "sl": "A10-0254/41 - Predlog spremembe 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - v imenu skupine S&D - Poročilo A10-0254/2026 - Lena Düpont - Ukrepi za lažje zagotavljanje konzularne zaščite državljanom Unije brez predstavništva v tretjih državah  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "hu": "A10-0254/41 - Módosítás 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - az S&D képviselőcsoport nevében - Jelentés A10-0254/2026 - Lena Düpont - A harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelmét elősegítő intézkedések  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "hr": "A10-0254/41 - Amandman 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - u ime Kluba zastupnika S&D-a - Izvješće A10-0254/2026 - Lena Düpont - Mjere za olakšavanje pružanja konzularne zaštite građanima Unije bez predstavništva u trećim zemljama  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "da": "A10-0254/41 - Ændringsforslag 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - for S&D-Gruppen - Betænkning A10-0254/2026 - Lena Düpont - Foranstaltninger for at lette konsulær beskyttelse af ikkerepræsenterede unionsborgere i tredjelande  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "ro": "A10-0254/41 - Amendamentul 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - în numele Grupului S&D - Raport A10-0254/2026 - Lena Düpont - Măsuri de facilitare a protecției consulare a cetățenilor nereprezentați ai Uniunii în țările terțe  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "cs": "A10-0254/41 - Pozměňovací návrh 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - za skupinu S&D - Zpráva A10-0254/2026 - Lena Düpont - Opatření k usnadnění konzulární ochrany nezastoupených občanů Unie ve třetích zemích  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "fi": "A10-0254/41 - Tarkistus 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - S&D-ryhmän puolesta - Mietintö A10-0254/2026 - Lena Düpont - Toimenpiteet edustusta vaille oleville unionin kansalaisille kolmansissa maissa annettavan konsuliviranomaisten suojelun helpottamiseksi  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "bg": "A10-0254/41 - Изменение 41 - Марина Калюранд, Ана Катарина Мендеш, Биргит Зипел - от името на групата S&D - Доклад A10-0254/2026 - Лена Дюпон - Мерки за улесняване на консулската закрила на непредставени граждани на Съюза в трети държави  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "mt": "A10-0254/41 - Emenda 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - f’isem il-Grupp S&D - Rapport A10-0254/2026 - Lena Düpont - Miżuri biex tiġi ffaċilitata l-protezzjoni konsulari għal ċittadini mhux rappreżentati tal-Unjoni f’pajjiżi terzi  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))",
+                "ga": "A10-0254/41 - Leasú 41 - Marina Kaljurand, Ana Catarina Mendes, Birgit Sippel - thar ceann an Ghrúpa S&D - Tuarascáil A10-0254/2026 - Lena Düpont - Bearta chun an chosaint chonsalach a éascú do shaoránaigh den Aontas nach bhfuil ionadaíocht acu i dtríú tíortha  - (05760/2026 - C10-0027/2026 - 2023/0441(CNS))"
+              },
+              "epNumber": "PE788.300",
+              "identifierYear": "2026",
+              "itemNumberBegin": 41,
+              "itemNumberEnd": 42,
+              "numbering": 41,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/ENG"
+              ]
+            }
+          ],
+          "inverse_decided_on_a_realization_of": [
+            {
+              "id": "eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-8-3",
+              "decided_on_a_realization_of": [
+                "eli/dl/doc/A-10-2026-0254"
+              ]
+            }
+          ],
+          "inverse_created_a_realization_of": [
+            "eli/dl/proc/2023-0441"
+          ],
+          "inverse_based_on_a_realization_of": [
+            "eli/dl/event/2023-0441-DEPOT-2026-09-29",
+            "eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-49",
+            "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993167"
+          ]
+        }
+      ],
+      "@context": [
+        {
+          "data": "@graph",
+          "@base": "https://data.europarl.europa.eu/"
+        },
+        "https://data.europarl.europa.eu/api/v2/context.jsonld"
+      ]
+    }
+  },
+  "procedure": {
+    "url": "https://data.europarl.europa.eu/api/v2/procedures/2023-0441?format=application%2Fld%2Bjson",
+    "fetchedAt": 1791992284641,
+    "payload": {
+      "data": [
+        {
+          "id": "eli/dl/proc/2023-0441",
+          "type": "Process",
+          "consists_of": [
+            {
+              "id": "eli/dl/event/JURI-PA-759733-DEPOT-2024-03-05",
+              "type": "Activity",
+              "activity_date": "2024-03-05",
+              "activity_id": "JURI-PA-759733-DEPOT-2024-03-05",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/JURI-PA-759733"
+              ],
+              "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_OPINION",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2023-0441-DEPOT-2026-09-29",
+              "type": "Activity",
+              "activity_date": "2026-09-29",
+              "activity_id": "2023-0441-DEPOT-2026-09-29",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/A-10-2026-0254"
+              ],
+              "had_activity_type": "def/ep-activities/TABLING_PLENARY",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2023-0441-DEC-ADCP-AFET-2024-03-20",
+              "type": "Decision",
+              "activity_date": "2024-03-20",
+              "activity_id": "2023-0441-DEC-ADCP-AFET-2024-03-20",
+              "decided_on_a_realization_of": [
+                "eli/dl/doc/AFET-AD-758853"
+              ],
+              "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_OPINION",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2023-0441-ANPRO-2024-03-14",
+              "type": "Activity",
+              "activity_date": "2024-03-14",
+              "activity_id": "2023-0441-ANPRO-2024-03-14",
+              "had_activity_type": "def/ep-activities/REFERRAL",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2023-0441-DEC-ADCP-JURI-2024-04-08",
+              "type": "Decision",
+              "activity_date": "2024-04-08",
+              "activity_id": "2023-0441-DEC-ADCP-JURI-2024-04-08",
+              "decided_on_a_realization_of": [
+                "eli/dl/doc/JURI-AD-759733"
+              ],
+              "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_OPINION",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2023-0441-DEC-ADCP-2024-04-18",
+              "type": "Decision",
+              "activity_date": "2024-04-18",
+              "activity_id": "2023-0441-DEC-ADCP-2024-04-18",
+              "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_OPINION",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/MTG-PL-2024-04-24-PVCRE-ITM-7-23",
+              "type": "Activity",
+              "activity_date": "2024-04-24",
+              "activity_id": "MTG-PL-2024-04-24-PVCRE-ITM-7-23",
+              "had_activity_type": "def/ep-activities/PLENARY_VOTE",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "recorded_in_a_realization_of": [
+                "eli/dl/doc/CRE-9-2024-04-24-ITM-007-23",
+                "eli/dl/doc/PV-9-2024-04-24-ITM-007-23"
+              ]
+            },
+            {
+              "id": "eli/dl/event/A-10-2026-0254-AM-001-038-DEPOT-2026-10-05",
+              "type": "Activity",
+              "activity_date": "2026-10-05",
+              "activity_id": "A-10-2026-0254-AM-001-038-DEPOT-2026-10-05",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/A-10-2026-0254-AM-001-038"
+              ],
+              "had_activity_type": "def/ep-activities/TABLING_PLENARY"
+            },
+            {
+              "id": "eli/dl/event/AFET-PA-758853-DEPOT-2024-02-21",
+              "type": "Activity",
+              "activity_date": "2024-02-21",
+              "activity_id": "AFET-PA-758853-DEPOT-2024-02-21",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/AFET-PA-758853"
+              ],
+              "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_OPINION",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/A-10-2026-0254-AM-039-040-DEPOT-2026-09-30",
+              "type": "Activity",
+              "activity_date": "2026-09-30",
+              "activity_id": "A-10-2026-0254-AM-039-040-DEPOT-2026-09-30",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/A-10-2026-0254-AM-039-040"
+              ],
+              "had_activity_type": "def/ep-activities/TABLING_PLENARY",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/LIBE-AM-789972-DEPOT-2026-06-12",
+              "type": "Activity",
+              "activity_date": "2026-06-12",
+              "activity_id": "LIBE-AM-789972-DEPOT-2026-06-12",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/LIBE-AM-789972"
+              ],
+              "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_AMENDMENT",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993167",
+              "type": "Activity",
+              "activity_date": "2026-10-07",
+              "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993167",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/A-10-2026-0254"
+              ],
+              "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+              "recorded_in_a_realization_of": [
+                "eli/dl/doc/PV-10-2026-10-07-VOT-ITM-003"
+              ]
+            },
+            {
+              "id": "eli/dl/event/LIBE-PR-759050-DEPOT-2024-03-05",
+              "type": "Activity",
+              "activity_date": "2024-03-05",
+              "activity_id": "LIBE-PR-759050-DEPOT-2024-03-05",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/LIBE-PR-759050"
+              ],
+              "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_REPORT",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2023-0441-DEPOT-2024-04-19",
+              "type": "Activity",
+              "activity_date": "2024-04-19",
+              "activity_id": "2023-0441-DEPOT-2024-04-19",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/A-9-2024-0178"
+              ],
+              "had_activity_type": "def/ep-activities/TABLING_PLENARY",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-8-3",
+              "type": "Activity",
+              "activity_date": "2026-10-07",
+              "activity_id": "MTG-PL-2026-10-07-PVCRE-ITM-8-3",
+              "had_activity_type": "def/ep-activities/PLENARY_VOTE",
+              "recorded_in_a_realization_of": [
+                "eli/dl/doc/CRE-10-2026-10-07-ITM-008-03",
+                "eli/dl/doc/PV-10-2026-10-07-ITM-008-03"
+              ]
+            },
+            {
+              "id": "eli/dl/event/2023-0441-ANPRO-2026-03-09",
+              "type": "Activity",
+              "activity_date": "2026-03-09",
+              "activity_id": "2023-0441-ANPRO-2026-03-09",
+              "had_activity_type": "def/ep-activities/REFERRAL",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2023-0441-DEC-ADCP-AFET-2026-05-05",
+              "type": "Decision",
+              "activity_date": "2026-05-05",
+              "activity_id": "2023-0441-DEC-ADCP-AFET-2026-05-05",
+              "decided_on_a_realization_of": [
+                "eli/dl/doc/AFET-AD-787925"
+              ],
+              "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_OPINION",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/A-10-2026-0254-AM-041-042-DEPOT-2026-09-30",
+              "type": "Activity",
+              "activity_date": "2026-09-30",
+              "activity_id": "A-10-2026-0254-AM-041-042-DEPOT-2026-09-30",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/A-10-2026-0254-AM-041-042"
+              ],
+              "had_activity_type": "def/ep-activities/TABLING_PLENARY",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/MTG-PL-2024-04-24-VOT-ITM-946247",
+              "type": "Activity",
+              "activity_date": "2024-04-24",
+              "activity_id": "MTG-PL-2024-04-24-VOT-ITM-946247",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/A-9-2024-0178"
+              ],
+              "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+              "recorded_in_a_realization_of": [
+                "eli/dl/doc/PV-9-2024-04-24-VOT-ITM-023"
+              ]
+            },
+            {
+              "id": "eli/dl/event/2023-0441-DEC-DCPL-2024-04-24",
+              "type": "Decision",
+              "activity_date": "2024-04-24",
+              "activity_id": "2023-0441-DEC-DCPL-2024-04-24",
+              "decided_on_a_realization_of": [
+                "eli/dl/doc/TA-9-2024-0336"
+              ],
+              "had_activity_type": "def/ep-activities/PLENARY_DECISION",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/LIBE-PR-789005-DEPOT-2026-05-22",
+              "type": "Activity",
+              "activity_date": "2026-05-22",
+              "activity_id": "LIBE-PR-789005-DEPOT-2026-05-22",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/LIBE-PR-789005"
+              ],
+              "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_REPORT",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2023-0441-DEC-DCPL-2026-10-07",
+              "type": "Decision",
+              "activity_date": "2026-10-07",
+              "activity_id": "2023-0441-DEC-DCPL-2026-10-07",
+              "decided_on_a_realization_of": [
+                "eli/dl/doc/TA-10-2026-0330"
+              ],
+              "had_activity_type": "def/ep-activities/PLENARY_AMEND",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2023-0441-DEC-ADCP-2026-09-28",
+              "type": "Decision",
+              "activity_date": "2026-09-28",
+              "activity_id": "2023-0441-DEC-ADCP-2026-09-28",
+              "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_REPORT",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            }
+          ],
+          "created_a_realization_of": [
+            "eli/dl/doc/AFET-PA-758853",
+            "eli/dl/doc/TA-9-2024-0336",
+            "eli/dl/doc/AFET-AD-758853",
+            "eli/dl/doc/TA-10-2026-0330",
+            "eli/dl/doc/A-10-2026-0254",
+            "eli/dl/doc/AFET-AD-787925",
+            "eli/dl/doc/SP-2024-394-TA-9-2024-0336",
+            "eli/dl/doc/JURI-AD-759733",
+            "eli/dl/doc/LIBE-PR-789005",
+            "eli/dl/doc/LIBE-PR-759050",
+            "eli/dl/doc/JURI-PA-759733"
+          ],
+          "current_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+          "had_participation": [
+            {
+              "id": "eli/dl/participation/2023-0441-AVI-AFET",
+              "type": "Participation",
+              "had_participant_organization": [
+                "org/AFET"
+              ],
+              "participation_role": "def/ep-roles/COMMITTEE_OPINION"
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-129073-2026-04-27",
+              "type": "Participation",
+              "activity_date": "2026-04-27",
+              "had_participant_person": [
+                "person/129073"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW_OPINION",
+              "politicalGroup": "org/RENEW",
+              "precedenceOrder": 105
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-190574-2026-05-04",
+              "type": "Participation",
+              "activity_date": "2026-05-04",
+              "had_participant_person": [
+                "person/190574"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW_OPINION",
+              "politicalGroup": "org/ESN",
+              "precedenceOrder": 108
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMCP-99945-LIBE-2026-03-18",
+              "type": "Participation",
+              "activity_date": "2026-03-18",
+              "had_participant_person": [
+                "person/99945"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_in_name_of": "org/LIBE",
+              "participation_role": "def/ep-roles/RAPPORTEUR",
+              "politicalGroup": "org/PPE",
+              "precedenceOrder": 2101
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-197772-2026-05-12",
+              "type": "Participation",
+              "activity_date": "2026-05-12",
+              "had_participant_person": [
+                "person/197772"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/VERTS-ALE",
+              "precedenceOrder": 2106
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-197772-2024-02-14",
+              "type": "Participation",
+              "activity_date": "2024-02-14",
+              "had_participant_person": [
+                "person/197772"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-9",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/VERTS-ALE",
+              "precedenceOrder": 6
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMCP-197722-AFET-2024-02-20",
+              "type": "Participation",
+              "activity_date": "2024-02-20",
+              "had_participant_person": [
+                "person/197722"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-9",
+              "participation_in_name_of": "org/AFET",
+              "participation_role": "def/ep-roles/RAPPORTEUR_OPINION",
+              "politicalGroup": "org/S-D",
+              "precedenceOrder": 102
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMCP-124738-JURI-2024-02-13",
+              "type": "Participation",
+              "activity_date": "2024-02-13",
+              "had_participant_person": [
+                "person/124738"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-9",
+              "participation_in_name_of": "org/JURI",
+              "participation_role": "def/ep-roles/RAPPORTEUR_OPINION",
+              "politicalGroup": "org/ID",
+              "precedenceOrder": 2000
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMCP-98582-LIBE-2024-01-31",
+              "type": "Participation",
+              "activity_date": "2024-01-31",
+              "had_participant_person": [
+                "person/98582"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-9",
+              "participation_in_name_of": "org/LIBE",
+              "participation_role": "def/ep-roles/RAPPORTEUR",
+              "politicalGroup": "org/PPE",
+              "precedenceOrder": 2101
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-197491-2024-01-26",
+              "type": "Participation",
+              "activity_date": "2024-01-26",
+              "had_participant_person": [
+                "person/197491"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-9",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/S-D",
+              "precedenceOrder": 2
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-197491-2026-04-27",
+              "type": "Participation",
+              "activity_date": "2026-04-27",
+              "had_participant_person": [
+                "person/197491"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/S-D",
+              "precedenceOrder": 2102
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-AHE-AFET",
+              "type": "Participation",
+              "had_participant_organization": [
+                "org/AFET"
+              ],
+              "participation_role": "def/ep-roles/COMMITTEE_OPINION_ASSOCIATED"
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-AVI-JURI",
+              "type": "Participation",
+              "had_participant_organization": [
+                "org/JURI"
+              ],
+              "participation_role": "def/ep-roles/COMMITTEE_OPINION"
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-197772-2026-04-27",
+              "type": "Participation",
+              "activity_date": "2026-04-27",
+              "had_participant_person": [
+                "person/197772"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW_OPINION",
+              "politicalGroup": "org/VERTS-ALE",
+              "precedenceOrder": 106
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-MHE-LIBE",
+              "type": "Participation",
+              "had_participant_organization": [
+                "org/LIBE"
+              ],
+              "participation_role": "def/ep-roles/COMMITTEE_LEAD"
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-197469-2026-03-21",
+              "type": "Participation",
+              "activity_date": "2026-03-21",
+              "had_participant_person": [
+                "person/197469"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/ECR",
+              "precedenceOrder": 2104
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-131507-2024-02-06",
+              "type": "Participation",
+              "activity_date": "2024-02-06",
+              "had_participant_person": [
+                "person/131507"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-9",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/THE-LEFT",
+              "precedenceOrder": 7
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-AVI-DEVE",
+              "type": "Participation",
+              "had_participant_organization": [
+                "org/DEVE"
+              ],
+              "participation_role": "def/ep-roles/COMMITTEE_OPINION"
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-197469-2024-01-31",
+              "type": "Participation",
+              "activity_date": "2024-01-31",
+              "had_participant_person": [
+                "person/197469"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-9",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/ECR",
+              "precedenceOrder": 4
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-124700-2024-01-26",
+              "type": "Participation",
+              "activity_date": "2024-01-26",
+              "had_participant_person": [
+                "person/124700"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-9",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/RENEW",
+              "precedenceOrder": 5
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-192254-2026-04-24",
+              "type": "Participation",
+              "activity_date": "2026-04-24",
+              "had_participant_person": [
+                "person/192254"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/PFE",
+              "precedenceOrder": 2103
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-257050-2026-04-10",
+              "type": "Participation",
+              "activity_date": "2026-04-10",
+              "had_participant_person": [
+                "person/257050"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW_OPINION",
+              "politicalGroup": "org/PFE",
+              "precedenceOrder": 103
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-256970-2026-06-03",
+              "type": "Participation",
+              "activity_date": "2026-06-03",
+              "had_participant_person": [
+                "person/256970"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/RENEW",
+              "precedenceOrder": 2105
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-MAIN-LIBE",
+              "type": "Participation",
+              "had_participant_organization": [
+                "org/LIBE"
+              ],
+              "participation_role": "def/ep-roles/COMMITTEE_LEAD"
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMCP-197722-AFET-2026-04-08",
+              "type": "Participation",
+              "activity_date": "2026-04-08",
+              "had_participant_person": [
+                "person/197722"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_in_name_of": "org/AFET",
+              "participation_role": "def/ep-roles/RAPPORTEUR_OPINION",
+              "politicalGroup": "org/S-D",
+              "precedenceOrder": 102
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-257127-2026-05-11",
+              "type": "Participation",
+              "activity_date": "2026-05-11",
+              "had_participant_person": [
+                "person/257127"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/THE-LEFT",
+              "precedenceOrder": 2107
+            },
+            {
+              "id": "eli/dl/participation/2023-0441-NMSR-2341-2026-05-11",
+              "type": "Participation",
+              "activity_date": "2026-05-11",
+              "had_participant_person": [
+                "person/2341"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW_OPINION",
+              "politicalGroup": "org/PPE",
+              "precedenceOrder": 101
+            }
+          ],
+          "process_id": "2023-0441",
+          "process_title": {
+            "lv": "Pasākumi, ar ko veicina nepārstāvēto Savienības pilsoņu konsulāro aizsardzību trešās valstīs",
+            "sk": "Opatrenia na uľahčenie konzulárnej ochrany nezastúpených občanov Únie v tretích krajinách",
+            "fr": "Mesures de coordination et de coopération destinées à faciliter la protection consulaire des citoyens de l’Union non représentés dans des pays tiers",
+            "pt": "Medidas para facilitar a proteção consular dos cidadãos da União não representados em países terceiros",
+            "hu": "A harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelmét elősegítő intézkedések",
+            "el": "Μέτρα για τη διευκόλυνση της προξενικής προστασίας για μη αντιπροσωπευόμενους πολίτες της Ένωσης σε τρίτες χώρες",
+            "sl": "Ukrepi za lažje zagotavljanje konzularne zaščite državljanom Unije brez predstavništva v tretjih državah",
+            "lt": "Priemonės, skirtos neatstovaujamų Sąjungos piliečių konsulinei apsaugai trečiosiose šalyse palengvinti",
+            "es": "Medidas para facilitar la protección consular de ciudadanos de la Unión no representados en terceros países",
+            "ro": "Măsuri de facilitarea protecției consulare a cetățenilor nereprezentați ai Uniunii în țările terțe",
+            "de": "Maßnahmen zur Erleichterung des konsularischen Schutzes von nicht vertretenen Unionsbürgern in Drittländern",
+            "it": "Misure per facilitare la tutela consolare dei cittadini dell'Unione non rappresentati nei paesi terzi",
+            "en": "Measures to facilitate consular protection for unrepresented citizens of the Union in third countries ",
+            "bg": "Мерки за улесняване на консулската закрила на непредставени граждани на Съюза в трети държави",
+            "et": "Meetmed, millega hõlbustatakse liidu esindamata kodanike konsulaarkaitset kolmandates riikides",
+            "pl": "Środki koordynacji i współpracy mające ułatwić ochronę konsularną niereprezentowanych obywateli Unii w państwach trzecich",
+            "nl": "Maatregelen ter vergemakkelijking van de consulaire bescherming van niet-vertegenwoordigde burgers van de Unie in derde landen",
+            "ga": "Bearta chun cosaint chonsalach a éascú do shaoránaigh den Aontas nach bhfuil ionadaíocht acu i dtríú tíortha",
+            "fi": "Toimenpiteet edustusta vailla oleville unionin kansalaisille kolmansissa maissa annettavan konsuliviranomaisten suojelun helpottamiseksi",
+            "da": "Foranstaltninger for at lette konsulær beskyttelse af ikkerepræsenterede unionsborgere i tredjelande",
+            "hr": "Mjere za olakšavanje pružanja konzularne zaštite građanima Unije bez predstavništva u trećim zemljama",
+            "sv": "Åtgärder för underlättande av konsulärt skydd till icke-företrädda unionsmedborgare i tredjeländer",
+            "cs": "Opatření k usnadnění konzulární ochrany nezastoupených občanů Unie ve třetích zemích",
+            "mt": "Miżuri biex tiġi ffaċilitata l-protezzjoni konsulari għal ċittadini mhux rappreżentati tal-Unjoni f'pajjiżi terzi"
+          },
+          "process_type": "def/ep-procedure-types/CNS",
+          "was_scheduled_in": [
+            {
+              "id": "eli/dl/event/MTG-PL-2024-04-24-OJ-ITM-V-155",
+              "type": "ForeseenActivity",
+              "activity_date": "2024-04-24",
+              "activity_id": "MTG-PL-2024-04-24-OJ-ITM-V-155",
+              "documented_by_a_realization_of": [
+                "eli/dl/doc/OJQ-9-2024-04-24"
+              ],
+              "had_activity_type": "def/ep-activities/PLENARY_VOTE",
+              "notation_agendaPoint": "V-155"
+            },
+            {
+              "id": "eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-49",
+              "type": "ForeseenActivity",
+              "activity_date": "2026-10-07",
+              "activity_id": "MTG-PL-2026-10-07-OJ-ITM-V-49",
+              "documented_by_a_realization_of": [
+                "eli/dl/doc/OJQ-10-2026-10-07"
+              ],
+              "had_activity_type": "def/ep-activities/PLENARY_VOTE",
+              "notation_agendaPoint": "V-49"
+            }
+          ],
+          "label": "2023/0441(CNS)",
+          "identifierYear": "2023"
+        }
+      ],
+      "@context": [
+        {
+          "data": "@graph",
+          "@base": "https://data.europarl.europa.eu/"
+        },
+        "https://data.europarl.europa.eu/api/v2/context.jsonld"
+      ]
+    }
+  },
+  "speaker": {
+    "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-10-08-OTH-2017098340003?include-output=xml_fragment&format=application%2Fld%2Bjson",
+    "fetchedAt": 1791992073402,
+    "activity": {
+      "id": "eli/dl/event/MTG-PL-2026-10-08-OTH-2017098340003",
+      "activity_id": "MTG-PL-2026-10-08-OTH-2017098340003",
+      "had_participation": {
+        "id": "eli/dl/participation/MTG-PL-2026-10-08-OTH-2017098340003_4465",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/4465"
+        ],
+        "participation_role": "def/ep-roles/SPEAKER"
+      }
+    },
+    "headerXml": "<oralStatements><speech><from xml:lang=\"en\" xml:space=\"preserve\"><person refersTo=\"epdata:person/4465\">Raffaele Fitto</person>, <role refersTo=\"\">Executive Vice-President of the Commission</role>.</from></speech></oralStatements>"
+  }
+}

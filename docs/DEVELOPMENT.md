@@ -1,0 +1,22 @@
+# Development
+
+Use the Node version in `.nvmrc`. The frontend entry is `src/main.tsx`. Navigation uses query parameters at the application root. Static serving is limited to the root page, `index.html` and `assets/`; unknown paths return 404 instead of absorbing another application’s namespace.
+
+The adapter binds to loopback by default and does not implement accounts. Browser data requests omit cookies and authorization. A reverse proxy must overwrite forwarded headers before `TRUST_PROXY=true` is enabled. Site routing, access controls, host configuration and credentials belong outside this repository.
+
+## Container
+
+```sh
+docker build -t parliament-explorer .
+docker run --rm -p 127.0.0.1:8790:8790 parliament-explorer
+```
+
+The image runs as an unprivileged user and includes only built assets, runtime modules and production dependencies. Tests, fixtures, server declarations, documentation and local state are excluded. The build accepts `NODE_IMAGE` for an immutable base-image reference and `APP_REVISION` for the source label and response header.
+
+For persistent data, mount a writable cache directory at `/data/cache` and an index directory at `/data/index`, owned by UID 1000. Set `ACTIVITY_INDEX_ENABLED=true` to enable history indexing. Use only one index writer. Preserve retained data when replacing a container; do not reset generations or bulk-download sources as a release check.
+
+## Verification
+
+Run the checks in [Contributing](../CONTRIBUTING.md). Verify the directory, a profile, question/answer reading, speech-cloud reading and highlights, named vote/country joins, language selection, Following, and mobile layouts. Inspect screenshots as well as measurements.
+
+Local test examples intentionally omit parts of the archive, portraits and demographics. Keep fixture limits separate from live counts. Test external media through the official public player after an explicit Play, including the requested language and actual decoded audio.

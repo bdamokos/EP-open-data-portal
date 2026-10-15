@@ -1,0 +1,49 @@
+import {createHash,randomUUID} from 'node:crypto';
+import {readFile,writeFile,rename,mkdir,readdir,stat,unlink} from 'node:fs/promises';
+import path from 'node:path';
+
+// Reproducible assembled responses live separately from raw ODP records and index state.
+export class InsightViewCache {
+  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes});this.cache=new Map();this.pending=new Map();this.failures=new Map();this.bytes=0;}
+  key(value){return createHash('sha256').update(JSON.stringify(value)).digest('hex');}
+  async stored(key) {
+    if(this.cache.has(key))return this.cache.get(key);
+    if(!this.directory)return null;
+    try {const name=path.join(this.directory,key+'.json'),info=await stat(name);if(info.size>4*1024*1024)return null;const record=JSON.parse(await readFile(name,'utf8'));if(record.key!==key||!Number.isFinite(record.at)||!record.value)return null;this.remember(key,record);return record;}catch{return null;}
+  }
+  remember(key,record) {
+    const bytes=Buffer.byteLength(JSON.stringify(record));if(bytes>4*1024*1024)return;
+    const previous=this.cache.get(key);if(previous)this.bytes-=previous.bytes;
+    this.cache.delete(key);this.cache.set(key,{...record,bytes});this.bytes+=bytes;
+    while(this.cache.size>this.maxEntries||this.bytes>this.maxBytes){const oldest=this.cache.keys().next().value;this.bytes-=this.cache.get(oldest).bytes;this.cache.delete(oldest);}
+  }
+  async save(key,value) {
+    const record={key,at:this.clock(),value};this.remember(key,record);
+    if(!this.directory||Buffer.byteLength(JSON.stringify(record))>4*1024*1024)return record;
+    const name=path.join(this.directory,key+'.json'),temp=name+'.'+randomUUID()+'.tmp';
+    try {await mkdir(this.directory,{recursive:true});await writeFile(temp,JSON.stringify(record));await rename(temp,name);await this.prune();}catch{/* Disk cache is reproducible; a write failure must not hide available data. */}finally{await unlink(temp).catch(()=>{});}
+    return record;
+  }
+  async prune() {
+    const names=(await readdir(this.directory)).filter(n=>/^[a-f0-9]{64}\.json$/.test(n));
+    const files=await Promise.all(names.map(async name=>{const info=await stat(path.join(this.directory,name));return {name,at:info.mtimeMs,bytes:info.size};}));files.sort((a,b)=>b.at-a.at);
+    let bytes=0;for(let i=0;i<files.length;i++){bytes+=files[i].bytes;if(i>=this.maxEntries||bytes>64*1024*1024)await unlink(path.join(this.directory,files[i].name)).catch(()=>{});}
+  }
+  refresh(key,load) {
+    if(this.pending.has(key))return this.pending.get(key);
+    const promise=new Promise(resolve=>setImmediate(resolve)).then(load).then(value=>this.save(key,value)).then(record=>{this.failures.delete(key);return record;}).catch(error=>{this.failures.set(key,{at:this.clock(),error:error.message});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
+    this.pending.set(key,promise);return promise;
+  }
+  async get(value,load) {
+    const key=this.key(value);let old=await this.stored(key);
+    // A concurrent disk miss may finish after another reader has saved the view.
+    old ||= this.cache.get(key)||null;
+    const failure=this.failures.get(key);
+    if(old) {
+      const stale=this.clock()-old.at>this.freshMs;
+      if(stale&&(!failure||this.clock()-failure.at>60_000))void this.refresh(key,load).catch(()=>{});
+      return {...old.value,viewCache:{computedAt:new Date(old.at).toISOString(),stale,refreshInProgress:this.pending.has(key),refreshError:failure?.error||null}};
+    }
+    const record=await this.refresh(key,load);return {...record.value,viewCache:{computedAt:new Date(record.at).toISOString(),stale:false,refreshInProgress:false,refreshError:null}};
+  }
+}

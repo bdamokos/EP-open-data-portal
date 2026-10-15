@@ -1,0 +1,2073 @@
+{
+  "speeches": {
+    "url": "https://data.europarl.europa.eu/api/v2/speeches?person-id=125065&parliamentary-term=10&activity-type=PLENARY_DEBATE_SPEECH&sitting-date=2025-10-16&sitting-date-end=2026-10-15&include-output=xml_fragment&language=en&sort-by=sitting-date%3Adesc&limit=50&offset=0&format=application%2Fld%2Bjson",
+    "fetchedAt": 1792049653006,
+    "payload": {
+      "data": [
+        {
+          "id": "eli/dl/event/MTG-PL-2025-12-16-OTH-2017051882620",
+          "type": "Activity",
+          "activity_date": "2025-12-16",
+          "activity_end_date": "2025-12-16T14:28:50.774+01:00",
+          "activity_id": "MTG-PL-2025-12-16-OTH-2017051882620",
+          "activity_label": {
+            "en": "EU Defence Readiness (joint debate)"
+          },
+          "activity_start_date": "2025-12-16T14:27:29.014+01:00",
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+          "had_participation": {
+            "id": "eli/dl/participation/MTG-PL-2025-12-16-OTH-2017051882620_125065",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/125065"
+            ],
+            "participation_role": "def/ep-roles/SPEAKER"
+          },
+          "recorded_in_a_realization_of": [
+            {
+              "id": "eli/dl/doc/CRE-10-2025-12-16-OTH-2017051882620",
+              "type": "WorkSubdivision",
+              "is_part_of": "eli/dl/doc/CRE-10-2025-12-16-ITM-009",
+              "number": "2-0230-0000",
+              "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+              "identifier": "CRE-10-2025-12-16-OTH-2017051882620",
+              "notation_speechId": "2017051882620",
+              "numbering": 202,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/ELL"
+              ],
+              "api:xmlFragment": {
+                "en": "<oralStatements><speech endTime=\"2025-12-16T14:28:50.774\" startTime=\"2025-12-16T14:27:29.014\" xml:lang=\"el-t-en-mtec\"><from xml:lang=\"el-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/125065\">Ελισσάβετ Βόζεμπεργκ-Βρυωνίδη</person> (<organization refersTo=\"epdata:org/7018\">PPE</organization>).</from><blockContainer><p xml:space=\"preserve\">Mr President, Commissioner, ladies and gentlemen, we have built peace. However, Russian violations of the airspace of the Union and repeated Turkish provocations against Greece and Cyprus send a clear message. Europe must defend itself. Military mobility, the foundation of a common European defence and security, will play a key role in shielding the Union and strengthening our deterrent capacity and, above all, our military autonomy. The Committee on Transport welcomes the legislative package and the tenfold increase in the proposed budget in the next multiannual framework.</p><p xml:space=\"preserve\">There should be no cuts. Only adequate funding ensures modern dual-use infrastructure and the removal of administrative and technical barriers to the seamless transfer of equipment and personnel within the European Union. It also highlights the central role of ports as military mobility hubs and the need to upgrade them through increased funding.</p><p xml:space=\"preserve\">Colleagues, defence and security in the Union are in our hands. We have a responsibility to respond to this historic challenge.</p></blockContainer></speech></oralStatements>"
+              }
+            }
+          ],
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2025-12-16-PVCRE-ITM-9"
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-01-20-OTH-2017056446197",
+          "type": "Activity",
+          "activity_date": "2026-01-20",
+          "activity_end_date": "2026-01-20T12:19:08.321+01:00",
+          "activity_id": "MTG-PL-2026-01-20-OTH-2017056446197",
+          "activity_label": {
+            "en": "Presentation of the programme of activities of the Cyprus Presidency (continuation of debate)"
+          },
+          "activity_start_date": "2026-01-20T12:17:59.17+01:00",
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+          "had_participation": {
+            "id": "eli/dl/participation/MTG-PL-2026-01-20-OTH-2017056446197_125065",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/125065"
+            ],
+            "participation_role": "def/ep-roles/SPEAKER"
+          },
+          "recorded_in_a_realization_of": [
+            {
+              "id": "eli/dl/doc/CRE-10-2026-01-20-OTH-2017056446197",
+              "type": "WorkSubdivision",
+              "is_part_of": "eli/dl/doc/CRE-10-2026-01-20-ITM-006",
+              "number": "2-0116-0000",
+              "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+              "identifier": "CRE-10-2026-01-20-OTH-2017056446197",
+              "notation_speechId": "2017056446197",
+              "numbering": 114,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/ELL"
+              ],
+              "api:xmlFragment": {
+                "en": "<oralStatements><speech endTime=\"2026-01-20T12:19:08.321\" startTime=\"2026-01-20T12:17:59.17\" xml:lang=\"el-t-en-mtec\"><from xml:lang=\"el-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/125065\">Ελισσάβετ Βόζεμπεργκ-Βρυωνίδη</person> (<organization refersTo=\"epdata:org/7018\">PPE</organization>).</from><blockContainer><p xml:space=\"preserve\">Madam President, Commissioner, Mr President, welcome. The martyred Cyprus, which has endured illegal invasion and occupation for more than fifty years, is taking office at a critical time when the Union is suffering from geopolitical changes and dramatic conflicts. We must rise to the occasion dynamically, in response to the revisionist forces threatening our borders, with an autonomous common European defence policy.</p><p xml:space=\"preserve\">In my Committee on Transport, we are working – to this end – on the necessary legislation on military mobility. At the same time, in the European Parliament, we are working intensively to meet key demands from European citizens, including air passenger rights, maritime safety, migration and improving the quality of life.</p><p xml:space=\"preserve\">Mr. President of the Republic of Cyprus, good luck! We are confident that your leadership and determination will make a decisive contribution to our challenging work.</p></blockContainer></speech></oralStatements>"
+              }
+            }
+          ],
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-01-20-PVCRE-ITM-6"
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-01-21-OTH-2017057061118",
+          "type": "Activity",
+          "activity_date": "2026-01-21",
+          "activity_end_date": "2026-01-21T14:37:04.135+01:00",
+          "activity_id": "MTG-PL-2026-01-21-OTH-2017057061118",
+          "activity_label": {
+            "en": "Restoring control of migration: returns, visa policy and third-country cooperation (topical debate)"
+          },
+          "activity_start_date": "2026-01-21T14:35:29.615+01:00",
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+          "had_participation": {
+            "id": "eli/dl/participation/MTG-PL-2026-01-21-OTH-2017057061118_125065",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/125065"
+            ],
+            "participation_role": "def/ep-roles/SPEAKER"
+          },
+          "recorded_in_a_realization_of": [
+            {
+              "id": "eli/dl/doc/CRE-10-2026-01-21-OTH-2017057061118",
+              "type": "WorkSubdivision",
+              "is_part_of": "eli/dl/doc/CRE-10-2026-01-21-ITM-011",
+              "number": "3-0199-0000",
+              "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+              "identifier": "CRE-10-2026-01-21-OTH-2017057061118",
+              "notation_speechId": "2017057061118",
+              "numbering": 179,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/ELL"
+              ],
+              "api:xmlFragment": {
+                "en": "<oralStatements><speech endTime=\"2026-01-21T14:37:04.135\" startTime=\"2026-01-21T14:35:29.615\" xml:lang=\"el-t-en-mtec\"><from xml:lang=\"el-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/125065\">Ελισσάβετ Βόζεμπεργκ-Βρυωνίδη</person> (<organization refersTo=\"epdata:org/7018\">PPE</organization>).</from><blockContainer><p xml:space=\"preserve\">Mr President, the new Pact on Asylum and Migration is a major European success. But it's not enough. There are new facts. For our migration policy to be credible, it must be complemented by an effective system of returns, without which it cannot be sustainable. A strong legal and operational framework, simplification of procedures and effective cooperation with third countries are needed. Where such cooperation does not work, concrete consequences should be envisaged. The Union should use all available tools to build strong and mutually beneficial relations to ensure the implementation of readmission decisions and to prevent irregular arrivals. Consider also setting up return centres outside Europe.</p><p xml:space=\"preserve\">My country, Greece, a key gateway, has shown that effective border management is possible. In 2025 we had 13,000 fewer arrivals, while in December last year alone there were almost 1,000 returns, double the annual average. With uniform rules, a proportionate sharing of responsibilities for all members and a common system of returns, we can effectively protect our borders, strengthen the security of citizens and ensure fair, and above all humane, management of migration.</p></blockContainer></speech></oralStatements>"
+              }
+            }
+          ],
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-01-21-PVCRE-ITM-11"
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-02-10-OTH-2017061122195",
+          "type": "Activity",
+          "activity_date": "2026-02-10",
+          "activity_end_date": "2026-02-10T18:05:26.515+01:00",
+          "activity_id": "MTG-PL-2026-02-10-OTH-2017061122195",
+          "activity_label": {
+            "en": "Presentation of the action plan against cyberbullying (debate)"
+          },
+          "activity_start_date": "2026-02-10T18:03:46.553+01:00",
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+          "had_participation": {
+            "id": "eli/dl/participation/MTG-PL-2026-02-10-OTH-2017061122195_125065",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/125065"
+            ],
+            "participation_role": "def/ep-roles/SPEAKER"
+          },
+          "recorded_in_a_realization_of": [
+            {
+              "id": "eli/dl/doc/CRE-10-2026-02-10-OTH-2017061122195",
+              "type": "WorkSubdivision",
+              "is_part_of": "eli/dl/doc/CRE-10-2026-02-10-ITM-013",
+              "number": "2-0415-0000",
+              "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+              "identifier": "CRE-10-2026-02-10-OTH-2017061122195",
+              "notation_speechId": "2017061122195",
+              "numbering": 393,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/ELL"
+              ],
+              "api:xmlFragment": {
+                "en": "<oralStatements><speech endTime=\"2026-02-10T18:05:26.515\" startTime=\"2026-02-10T18:03:46.553\" xml:lang=\"el-t-en-mtec\"><from xml:lang=\"el-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/125065\">Ελισσάβετ Βόζεμπεργκ-Βρυωνίδη</person> (<organization refersTo=\"epdata:org/7018\">PPE</organization>).</from><blockContainer><p xml:space=\"preserve\">Mr President, ladies and gentlemen, the action plan to combat cyberbullying is a crucial step in protecting young people online. Cyberbullying knows no limits, it's a scourge. It is reinforced by anonymity and is now a social pathogen with serious consequences for the mental health, dignity and lives of thousands of children and young people. When one in six young people is a victim, treatment is a one-way street. The criminalisation of cyberbullying with the cooperation of all Member States here and now. Above all, however, emphasis is needed on prevention and early intervention, as new technologies, such as artificial intelligence and virtual reality, are constantly emerging.</p><p xml:space=\"preserve\">We must invest directly in the digital education of young people and parents and in the training of teachers. To guarantee a safe online environment for our children in the future. And platforms must finally be obliged to comply with the provisions stemming from the Digital Services Act on the protection of minors. They have a responsibility. Colleagues, we have intervened on cyberbullying with serious resolutions in 2021, 2022, 2023 and 2025 with an own-initiative report. But the problem is present, it is evolving and it is very serious and dangerous. Tackling it effectively requires a combination of joint actions by all Member States. It is not a choice, it is our duty to young people and future generations.</p></blockContainer></speech></oralStatements>"
+              }
+            }
+          ],
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-02-10-PVCRE-ITM-13"
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-05-19-OTH-2017076890094",
+          "type": "Activity",
+          "activity_date": "2026-05-19",
+          "activity_end_date": "2026-05-19T23:08:07.346+02:00",
+          "activity_id": "MTG-PL-2026-05-19-OTH-2017076890094",
+          "activity_label": {
+            "en": "Commemoration of the genocide of Armenians and Greeks in Pontos and Asia Minor (debate)"
+          },
+          "activity_start_date": "2026-05-19T23:05:54.158+02:00",
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+          "had_participation": {
+            "id": "eli/dl/participation/MTG-PL-2026-05-19-OTH-2017076890094_125065",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/125065"
+            ],
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/SPEAKER"
+          },
+          "recorded_in_a_realization_of": [
+            {
+              "id": "eli/dl/doc/CRE-10-2026-05-19-OTH-2017076890094",
+              "type": "WorkSubdivision",
+              "is_part_of": "eli/dl/doc/CRE-10-2026-05-19-ITM-018",
+              "number": "2-0571-0000",
+              "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+              "identifier": "CRE-10-2026-05-19-OTH-2017076890094",
+              "notation_speechId": "2017076890094",
+              "numbering": 567,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/ELL"
+              ],
+              "api:xmlFragment": {
+                "en": "<oralStatements><speech endTime=\"2026-05-19T23:08:07.346\" startTime=\"2026-05-19T23:05:54.158\" xml:lang=\"el-t-en-mtec\"><from xml:lang=\"el-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/125065\">Ελισσάβετ Βόζεμπεργκ-Βρυωνίδη</person>, <role refersTo=\"\">on behalf of the Group <organization refersTo=\"epdata:org/7018\">PPE</organization></role>.</from><blockContainer><p xml:space=\"preserve\"><recordedTime time=\"2026-05-19T23:05:56.948+02:00\" type=\"startEvent\"/>Mr President, ladies and gentlemen, today is a historic date. May 19th is for Greece the terrible memory of the systematic extermination of the Pontic Greeks. It is a day of national remembrance for the atrocities, torture, uprooting and annihilation of a thriving Greek population with a strong national identity from Turkey, which always consciously serves a revisionist policy of contempt for international law. Tragic events have been indelibly imprinted in world history and have long been a deep wound at the heart of humanism. Recording historical truth is a foundation for democracy. That is why the victims are asking for vindication stemming from the code of our European values.<recordedTime time=\"2026-05-19T23:06:45.718+02:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-05-19T23:06:46.188+02:00\" type=\"startEvent\"/>Today we address the European Parliament, the leading democratic institution, with directly elected representatives from the millions of European citizens. We ask that he rise to the occasion, responding to a just and moral demand of all Greeks. We call on the European Union and all Member States to recognise the genocide of the Greeks of Pontus and Asia Minor. International recognition of genocide is a continuing duty to victims and future generations to preserve historical memory and defend democracy, peace and human dignity.<recordedTime time=\"2026-05-19T23:07:29.478+02:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-05-19T23:07:30.098+02:00\" type=\"startEvent\"/>Ladies and gentlemen, today, when peace and security are being challenged by painful conflicts in our neighbourhood and unpredictable international circumstances, I ask you to join our voice with the just request of my country: Recognize the genocide of the Pontic Greeks. Recognition in itself is a serious act of responsibility and is the due resounding response to all those who despise international law, peace, freedom, justice and the value of human life.<recordedTime time=\"2026-05-19T23:08:05.948+02:00\" type=\"endEvent\"/></p></blockContainer></speech></oralStatements>"
+              }
+            }
+          ],
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-05-19-PVCRE-ITM-18"
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-06-16-OTH-2017081995043",
+          "type": "Activity",
+          "activity_date": "2026-06-16",
+          "activity_end_date": "2026-06-16T16:55:09.973+02:00",
+          "activity_id": "MTG-PL-2026-06-16-OTH-2017081995043",
+          "activity_label": {
+            "en": "2025 Commission report on Türkiye (debate)"
+          },
+          "activity_start_date": "2026-06-16T16:53:49.175+02:00",
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+          "had_participation": {
+            "id": "eli/dl/participation/MTG-PL-2026-06-16-OTH-2017081995043_125065",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/125065"
+            ],
+            "participation_role": "def/ep-roles/SPEAKER"
+          },
+          "recorded_in_a_realization_of": [
+            {
+              "id": "eli/dl/doc/CRE-10-2026-06-16-OTH-2017081995043",
+              "type": "WorkSubdivision",
+              "is_part_of": "eli/dl/doc/CRE-10-2026-06-16-ITM-016",
+              "number": "2-0376-0000",
+              "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+              "identifier": "CRE-10-2026-06-16-OTH-2017081995043",
+              "notation_speechId": "2017081995043",
+              "numbering": 367,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/ELL"
+              ],
+              "api:xmlFragment": {
+                "en": "<oralStatements><speech endTime=\"2026-06-16T16:55:09.973\" startTime=\"2026-06-16T16:53:49.175\" xml:lang=\"el-t-en-mtec\"><from xml:lang=\"el-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/125065\">Ελισσάβετ Βόζεμπεργκ-Βρυωνίδη</person> (<organization refersTo=\"epdata:org/7018\">PPE</organization>).</from><blockContainer><p xml:space=\"preserve\"><recordedTime time=\"2026-06-16T16:53:50.435+02:00\" type=\"startEvent\"/>Mr President, the report on Turkey clearly reflects European concerns about the deterioration of human rights and violations of international law. Nevertheless, Turkey not only does not change its stance, but with constant provocative actions and statements, it promotes its revisionist policy and adheres to the doctrine of the blue homeland, while praising illegally occupied Cyprus.<recordedTime time=\"2026-06-16T16:54:19.345+02:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-06-16T16:54:19.345+02:00\" type=\"startEvent\"/>At the same time, it attempts to challenge the sovereignty of 152 Greek islands, islets and rocky islets in the Aegean, and only on June 7 harassed transport aircraft of the defence ministers of Greece, France and the Netherlands travelling to Cyprus for the informal meeting of the European Union.<recordedTime time=\"2026-06-16T16:54:39.555+02:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-06-16T16:54:39.555+02:00\" type=\"startEvent\"/>Colleagues, it has been shown that Turkey's behaviour does not produce progress. It consciously ignores resolutions, decisions and European ideals. We must safeguard our values and interests by now changing a policy that has failed, with new, brave decisions, even a review of the pre-accession funds. There is an urgent need to force Turkey to finally meet its obligations.<recordedTime time=\"2026-06-16T16:55:09.045+02:00\" type=\"endEvent\"/></p></blockContainer></speech></oralStatements>"
+              }
+            }
+          ],
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-06-16-PVCRE-ITM-16"
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-08-OTH-2017098235205",
+          "type": "Activity",
+          "activity_date": "2026-10-08",
+          "activity_end_date": "2026-10-08T09:10:08.471+02:00",
+          "activity_id": "MTG-PL-2026-10-08-OTH-2017098235205",
+          "activity_label": {
+            "en": "Escalations in the Eastern Mediterranean and the Aegean following persistent Turkish provocations (debate)"
+          },
+          "activity_start_date": "2026-10-08T09:08:24.188+02:00",
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+          "had_participation": {
+            "id": "eli/dl/participation/MTG-PL-2026-10-08-OTH-2017098235205_125065",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/125065"
+            ],
+            "participation_in_name_of": "org/PPE",
+            "participation_role": "def/ep-roles/SPEAKER"
+          },
+          "recorded_in_a_realization_of": [
+            {
+              "id": "eli/dl/doc/CRE-10-2026-10-08-OTH-2017098235205",
+              "type": "WorkSubdivision",
+              "is_part_of": "eli/dl/doc/CRE-10-2026-10-08-ITM-003",
+              "number": "4-0010-0000",
+              "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+              "identifier": "CRE-10-2026-10-08-OTH-2017098235205",
+              "notation_speechId": "2017098235205",
+              "numbering": 6,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/ELL"
+              ],
+              "api:xmlFragment": {
+                "en": "<oralStatements><speech endTime=\"2026-10-08T09:10:08.471\" startTime=\"2026-10-08T09:08:24.188\" xml:lang=\"el-t-en-mtec\"><from xml:lang=\"el-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/125065\">Ελισσάβετ Βόζεμπεργκ-Βρυωνίδη</person>, <role refersTo=\"\">on behalf of the Group <organization refersTo=\"epdata:org/7018\">PPE</organization></role>.</from><blockContainer><p xml:space=\"preserve\"><recordedTime time=\"2026-10-08T09:08:24.608+02:00\" type=\"startEvent\"/>Mr President, today's debate on Turkish provocations is not a repetition of previous ones. Turkey is daily escalating its provocative behavior towards Greece with continuous violations of airspace and actions that undermine security and stability in the region. On August 15, Ankara announced the establishment of two illegal marine parks in international waters and in an area within the Greek continental shelf. It immediately plans to legislate the Blue Homeland, challenging Greek sovereignty over 152 islands and islets in the Aegean. He was against the Greek prime minister who visited Kastelorizo and insists on illegal claims for the demilitarization of the Greek islands. It systematically threatens my country with war if it exercises its legal right to extend its territorial waters beyond 6 miles. And it went so far as to herald aggressive actions if the electrical interconnection between Greece and Cyprus proceeds without its permission.<recordedTime time=\"2026-10-08T09:09:32.488+02:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-10-08T09:09:32.488+02:00\" type=\"startEvent\"/>I ask you colleagues, is Turkey a reliable strategic partner when it threatens Member States of the European Union? How do we respond to a revisionist force challenging the security and external borders of the Union, in defiance of international law?<recordedTime time=\"2026-10-08T09:09:47.518+02:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-10-08T09:09:47.518+02:00\" type=\"startEvent\"/>Commissioner, today we rightly demand from the European Union serious sanctions against Turkey and an explicit statement that an attack on Greece is understood as an attack on the entire European family. Only as such can it be treated.<recordedTime time=\"2026-10-08T09:10:03.308+02:00\" type=\"endEvent\"/></p></blockContainer></speech></oralStatements>"
+              }
+            }
+          ],
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-08-PVCRE-ITM-3"
+          ]
+        }
+      ],
+      "@context": [
+        {
+          "data": "@graph",
+          "@base": "https://data.europarl.europa.eu/"
+        },
+        "https://data.europarl.europa.eu/api/v2/context.jsonld"
+      ],
+      "searchResults": {
+        "hits": [
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-08-OTH-2017098235205"
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-06-16-OTH-2017081995043"
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-05-19-OTH-2017076890094"
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-02-10-OTH-2017061122195"
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-01-21-OTH-2017057061118"
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-01-20-OTH-2017056446197"
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2025-12-16-OTH-2017051882620"
+          }
+        ]
+      },
+      "meta": {
+        "total": 7
+      }
+    }
+  },
+  "procedure": {
+    "url": "https://data.europarl.europa.eu/api/v2/procedures/2025-0407?format=application%2Fld%2Bjson",
+    "fetchedAt": 1792049653187,
+    "payload": {
+      "data": [
+        {
+          "id": "eli/dl/proc/2025-0407",
+          "type": "Process",
+          "consists_of": [
+            {
+              "id": "eli/dl/event/2025-0407-DEC-ADCP-2026-06-03",
+              "type": "Decision",
+              "activity_date": "2026-06-03",
+              "activity_id": "2025-0407-DEC-ADCP-2026-06-03",
+              "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_REPORT",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/A-10-2026-0174-AM-001-002-DEPOT-2026-07-02",
+              "type": "Activity",
+              "activity_date": "2026-07-02",
+              "activity_id": "A-10-2026-0174-AM-001-002-DEPOT-2026-07-02",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/A-10-2026-0174-AM-001-002"
+              ],
+              "had_activity_type": "def/ep-activities/TABLING_PLENARY",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2025-0407-PUB-2026-07-17",
+              "type": "Activity",
+              "activity_date": "2026-07-17",
+              "activity_id": "2025-0407-PUB-2026-07-17",
+              "had_activity_type": "def/ep-activities/PUBLICATION_OFFICIAL_JOURNAL"
+            },
+            {
+              "id": "eli/dl/event/2025-0407-SIGN-2026-07-14",
+              "type": "Activity",
+              "activity_date": "2026-07-14",
+              "activity_id": "2025-0407-SIGN-2026-07-14",
+              "had_activity_type": "def/ep-activities/SIGNATURE"
+            },
+            {
+              "id": "eli/dl/event/2025-0407-ANPRO-2026-01-27",
+              "type": "Activity",
+              "activity_date": "2026-01-27",
+              "activity_id": "2025-0407-ANPRO-2026-01-27",
+              "had_activity_type": "def/ep-activities/REFERRAL",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2025-0407-DEC-DCPL-2026-07-07",
+              "type": "Decision",
+              "activity_date": "2026-07-07",
+              "activity_id": "2025-0407-DEC-DCPL-2026-07-07",
+              "decided_on_a_realization_of": [
+                "eli/dl/doc/TA-10-2026-0241"
+              ],
+              "had_activity_type": "def/ep-activities/PLENARY_ADOPT_POSITION",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/TRAN-AM-787943-DEPOT-2026-05-06",
+              "type": "Activity",
+              "activity_date": "2026-05-06",
+              "activity_id": "TRAN-AM-787943-DEPOT-2026-05-06",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/TRAN-AM-787943"
+              ],
+              "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_AMENDMENT",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/MTG-PL-2026-07-07-PVCRE-ITM-7-10",
+              "type": "Activity",
+              "activity_date": "2026-07-07",
+              "activity_id": "MTG-PL-2026-07-07-PVCRE-ITM-7-10",
+              "had_activity_type": "def/ep-activities/PLENARY_VOTE",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "recorded_in_a_realization_of": [
+                "eli/dl/doc/PV-10-2026-07-07-ITM-007-10",
+                "eli/dl/doc/CRE-10-2026-07-07-ITM-007-10"
+              ]
+            },
+            {
+              "id": "eli/dl/event/TRAN-PR-785404-DEPOT-2026-04-13",
+              "type": "Activity",
+              "activity_date": "2026-04-13",
+              "activity_id": "TRAN-PR-785404-DEPOT-2026-04-13",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/TRAN-PR-785404"
+              ],
+              "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_REPORT",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/MTG-PL-2026-07-07-VOT-ITM-992913",
+              "type": "Activity",
+              "activity_date": "2026-07-07",
+              "activity_id": "MTG-PL-2026-07-07-VOT-ITM-992913",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/A-10-2026-0174"
+              ],
+              "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+              "recorded_in_a_realization_of": [
+                "eli/dl/doc/PV-10-2026-07-07-VOT-ITM-010"
+              ]
+            },
+            {
+              "id": "eli/dl/event/2025-0407-DEC-ADCP-JURI-2026-05-05",
+              "type": "Decision",
+              "activity_date": "2026-05-05",
+              "activity_id": "2025-0407-DEC-ADCP-JURI-2026-05-05",
+              "decided_on_a_realization_of": [
+                "eli/dl/doc/JURI-AL-788004"
+              ],
+              "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_OPINION",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            },
+            {
+              "id": "eli/dl/event/2025-0407-DEPOT-2026-06-15",
+              "type": "Activity",
+              "activity_date": "2026-06-15",
+              "activity_id": "2025-0407-DEPOT-2026-06-15",
+              "based_on_a_realization_of": [
+                "eli/dl/doc/A-10-2026-0174"
+              ],
+              "had_activity_type": "def/ep-activities/TABLING_PLENARY",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+            }
+          ],
+          "created_a_realization_of": [
+            "eli/dl/doc/TRAN-PR-785404",
+            "eli/dl/doc/C-10-2026-0184",
+            "eli/dl/doc/JURI-AL-788004",
+            "eli/dl/doc/A-10-2026-0174",
+            "eli/dl/doc/SP-2026-08-26-TA-10-2026-0241",
+            "eli/dl/doc/TA-10-2026-0241"
+          ],
+          "current_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+          "had_participation": [
+            {
+              "id": "eli/dl/participation/2025-0407-NMSR-124884-2026-03-12",
+              "type": "Participation",
+              "activity_date": "2026-03-12",
+              "had_participant_person": [
+                "person/124884"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/ECR",
+              "precedenceOrder": 1504
+            },
+            {
+              "id": "eli/dl/participation/2025-0407-NMSR-256833-2026-02-18",
+              "type": "Participation",
+              "activity_date": "2026-02-18",
+              "had_participant_person": [
+                "person/256833"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/VERTS-ALE",
+              "precedenceOrder": 1506
+            },
+            {
+              "id": "eli/dl/participation/2025-0407-OLB-JURI",
+              "type": "Participation",
+              "had_participant_organization": [
+                "org/JURI"
+              ],
+              "participation_role": "def/ep-roles/COMMITTEE_OPINION_LEGAL_BASIS"
+            },
+            {
+              "id": "eli/dl/participation/2025-0407-NMCP-257073-JURI-2025-12-11",
+              "type": "Participation",
+              "activity_date": "2025-12-11",
+              "had_participant_person": [
+                "person/257073"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_in_name_of": "org/JURI",
+              "participation_role": "def/ep-roles/RAPPORTEUR_OPINION",
+              "politicalGroup": "org/ECR",
+              "precedenceOrder": 2004
+            },
+            {
+              "id": "eli/dl/participation/2025-0407-NMSR-197699-2026-03-11",
+              "type": "Participation",
+              "activity_date": "2026-03-11",
+              "had_participant_person": [
+                "person/197699"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/THE-LEFT",
+              "precedenceOrder": 1507
+            },
+            {
+              "id": "eli/dl/participation/2025-0407-NMSR-197670-2026-03-10",
+              "type": "Participation",
+              "activity_date": "2026-03-10",
+              "had_participant_person": [
+                "person/197670"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/S-D",
+              "precedenceOrder": 1502
+            },
+            {
+              "id": "eli/dl/participation/2025-0407-MAIN-TRAN",
+              "type": "Participation",
+              "had_participant_organization": [
+                "org/TRAN"
+              ],
+              "participation_role": "def/ep-roles/COMMITTEE_LEAD"
+            },
+            {
+              "id": "eli/dl/participation/2025-0407-NMCP-125065-TRAN-2026-02-04",
+              "type": "Participation",
+              "activity_date": "2026-02-04",
+              "had_participant_person": [
+                "person/125065"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_in_name_of": "org/TRAN",
+              "participation_role": "def/ep-roles/RAPPORTEUR",
+              "politicalGroup": "org/PPE",
+              "precedenceOrder": 1501
+            },
+            {
+              "id": "eli/dl/participation/2025-0407-NMSR-198176-2026-03-11",
+              "type": "Participation",
+              "activity_date": "2026-03-11",
+              "had_participant_person": [
+                "person/198176"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/PFE",
+              "precedenceOrder": 1503
+            },
+            {
+              "id": "eli/dl/participation/2025-0407-NMSR-256891-2026-02-26",
+              "type": "Participation",
+              "activity_date": "2026-02-26",
+              "had_participant_person": [
+                "person/256891"
+              ],
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "parliamentary_term": "org/ep-10",
+              "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+              "politicalGroup": "org/RENEW",
+              "precedenceOrder": 1505
+            }
+          ],
+          "process_id": "2025-0407",
+          "process_title": {
+            "de": "Ermächtigung Österreichs, seine bestehende bilaterale Vereinbarung über den Straßenverkehr mit der Schweiz zur Genehmigung von Kabotagebeförderungen bei der Bereitstellung von grenzüberschreitenden Personenkraftverkehrsleistungen mit Kraftomnibussen in der Grenzregion der beiden Länder zu ändern",
+            "nl": "Machtiging van Oostenrijk om zijn bilaterale overeenkomst met Zwitserland inzake wegvervoer te wijzigen zodat cabotageactiviteiten worden toegestaan tijdens het verrichten van internationale personenvervoerdiensten over de weg per touringcar en autobus in de grensgebieden tussen beide landen",
+            "sl": "Pooblastilo Avstriji, da spremeni svoj obstoječi dvostranski sporazum o cestnem prevozu s Švico, da se dovoli kabotaža pri opravljanju mednarodnih avtobusnih prevozov potnikov v obmejnih regijah obeh držav",
+            "pt": "Habilitar a Áustria a alterar o seu atual acordo bilateral de transporte rodoviário com a Suíça com vista a autorizar as operações de cabotagem no decurso da prestação de serviços de transporte rodoviário internacional de passageiros em autocarro nas regiões fronteiriças entre os dois países",
+            "et": "Austriale volituste andmine muuta olemasolevat Šveitsiga sõlmitud kahepoolset maanteetranspordi lepingut, et lubada kabotaažvedusid rahvusvaheliste bussiveoteenuste osutamisel kahe riigi vahelistel piirialadel",
+            "es": "Concesión a Austria de la facultad para modificar su acuerdo bilateral existente de transporte por carretera con Suiza, con el fin de autorizar las operaciones de cabotaje durante la prestación de servicios de transporte internacional de viajeros por carretera en autocar y autobús en las regiones fronterizas entre ambos países",
+            "it": "Autorizzazione per l'Austria a modificare il suo accordo bilaterale con la Svizzera sul trasporto su strada al fine di autorizzare operazioni di cabotaggio nell'ambito della fornitura di servizi di trasporto internazionale su strada di passeggeri a mezzo autobus nelle regioni frontaliere tra i due paesi",
+            "lt": "Įgaliojimų Austrijai iš dalies pakeisti dabartinį dvišalį kelių transporto susitarimą su Šveicarija, kad teikiant tarptautinio keleivių vežimo kelių transportu paslaugas tolimojo susisiekimo ir miesto autobusais šių dviejų šalių pasienio regionuose būtų leidžiama vykdyti kabotažo operacijas, suteikimas",
+            "mt": "L-għoti tas-setgħa lill-Awstrija li temenda l-ftehim bilaterali eżistenti tagħha dwar it-trasport bit-triq mal-Iżvizzera bil-għan li tawtorizza l-operazzjonijiet ta’ kabotaġġ waqt l-għoti ta’ servizzi tat-trasport internazzjonali bit-triq tal-passiġġieri bil-kowċ u bix-xarabank fir-reġjuni ta’ mal-fruntiera bejn iż-żewġ pajjiżi",
+            "lv": "Lēmums pilnvarot Austriju grozīt tās spēkā esošo divpusējo autotransporta nolīgumu ar Šveici, lai atļautu kabotāžas pārvadājumus, kad pierobežas reģionos starp abām valstīm tiek sniegti starptautiski pasažieru autopārvadājumu pakalpojumi ar autobusiem",
+            "sk": "Splnomocnenie Rakúska zmeniť jeho dvojstrannú dohodu o cestnej doprave so Švajčiarskom s cieľom povoliť kabotážnu prepravu počas prevádzkovania medzinárodnej cestnej osobnej autokarovej a autobusovej dopravy v pohraničných regiónoch medzi týmito dvoma krajinami",
+            "pl": "Upoważnienie Austrii do zmiany jej obowiązującej dwustronnej umowy o transporcie drogowym ze Szwajcarią w celu dopuszczenia przewozów kabotażowych w regionach przygranicznych w ramach świadczenia międzynarodowych usług przewozu drogowego osób autokarem i autobusem między tymi dwoma państwami",
+            "el": "Εξουσιοδότηση της Αυστρίας να τροποποιήσει την ισχύουσα διμερή συμφωνία οδικών μεταφορών με την Ελβετία με σκοπό να επιτραπούν οι υπηρεσίες ενδομεταφορών στο πλαίσιο της εκτέλεσης διεθνών οδικών επιβατικών μεταφορών με πούλμαν και λεωφορεία στις παραμεθόριες περιοχές μεταξύ των δύο χωρών",
+            "fr": "Habiliter l’Autriche à modifier son accord bilatéral existant de transport routier avec la Suisse en vue d’autoriser les transports de cabotage lors de la prestation de services de transport international routier de voyageurs par autocars et autobus dans les régions frontalières entre les deux pays",
+            "sv": "Bemyndigande för Österrike att ändra sitt befintliga bilaterala avtal om vägtransporter med Schweiz i syfte att tillåta cabotagetrafik vid internationella persontransporter med buss i de båda ländernas gränsregioner",
+            "hr": "Davanje ovlasti Austriji za izmjenu njezina postojećeg bilateralnog sporazuma o cestovnom prijevozu sa Švicarskom kako bi se dozvolila kabotaža prilikom pružanja usluga međunarodnog cestovnog prijevoza putnika običnim i turističkim autobusima u pograničnim regijama tih dviju zemalja",
+            "cs": "Zmocnění Rakouska ke změně své stávající dvoustranné dohody o silniční dopravě se Švýcarskem za účelem povolení kabotáže v rámci provozování mezinárodní osobní silniční autokarové a autobusové dopravy v příhraničních oblastech mezi oběma zeměmi",
+            "ga": "Cumhacht a thabhairt don Ostair an comhaontú déthaobhach um iompar de bhóthar atá aici cheana leis an Eilvéis a leasú d’fhonn oibríochtaí cabatáiste a údarú le linn seirbhísí iompair idirnáisiúnta de bhóthar do phaisinéirí i gcóiste agus i mbus a bheith á soláthar i réigiúin na teorann idir an dá thír",
+            "bg": "Оправомощаване на Австрия да измени съществуващото си двустранно споразумение с Швейцария относно автомобилния транспорт с цел да бъдат разрешени каботажните превози при предоставянето на услуги за международен автобусен превоз на пътници в граничните региони на двете държави",
+            "fi": "Itävallan valtuuttaminen muuttamaan Sveitsin kanssa tekemäänsä kahdenvälistä tieliikennesopimusta kabotaasiliikenteen sallimiseksi linja-autolla harjoitettavan maanteiden kansainvälisen henkilöliikenteen yhteydessä näiden kahden maan välisillä raja-alueilla",
+            "en": "Empowering Austria to amend its existing bilateral road transport agreement with Switzerland with a view to authorising cabotage operations in the course of the provision of international road passenger transport services by coach and bus in the border regions between the two countries",
+            "ro": "Împuternicire a Austriei să modifice Acordul bilateral existent privind transportul rutier încheiat cu Elveția, în vederea autorizării operațiunilor de cabotaj în cursul furnizării de servicii de transport rutier internațional de călători cu autocarul și autobuzul în regiunile de frontieră dintre cele două țări",
+            "da": "Bemyndigelse af Østrig til at ændre sin eksisterende bilaterale aftale om vejtransport med Schweiz med henblik på at tillade cabotagekørsel i forbindelse med udøvelse af international personbefordring ad vej med bus i grænseregionerne mellem de to lande",
+            "hu": "Ausztriának a Svájccal kötött, közúti szállításról szóló meglévő kétoldalú megállapodásának a két ország között, a határ menti régiókban autóbusszal végzett nemzetközi közúti személyszállítási szolgáltatások nyújtása során folytatott kabotázsműveletek engedélyezése céljából történő módosítására való felhatalmazása"
+          },
+          "process_type": "def/ep-procedure-types/COD",
+          "was_scheduled_in": [
+            {
+              "id": "eli/dl/event/MTG-PL-2026-07-07-OJ-ITM-V-45",
+              "type": "ForeseenActivity",
+              "activity_date": "2026-07-07",
+              "activity_id": "MTG-PL-2026-07-07-OJ-ITM-V-45",
+              "documented_by_a_realization_of": [
+                "eli/dl/doc/OJQ-10-2026-07-07"
+              ],
+              "had_activity_type": "def/ep-activities/PLENARY_VOTE",
+              "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+              "notation_agendaPoint": "V-45"
+            }
+          ],
+          "label": "2025/0407(COD)",
+          "identifierYear": "2025"
+        }
+      ],
+      "@context": [
+        {
+          "data": "@graph",
+          "@base": "https://data.europarl.europa.eu/"
+        },
+        "https://data.europarl.europa.eu/api/v2/context.jsonld"
+      ]
+    }
+  },
+  "topics": {
+    "head": {
+      "link": [],
+      "vars": [
+        "reference",
+        "dossier",
+        "work",
+        "concept",
+        "label"
+      ]
+    },
+    "results": {
+      "distinct": false,
+      "ordered": true,
+      "bindings": [
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/3064"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "frontier region"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/3064"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "el",
+            "value": "παραμεθόρια περιοχή"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/3462"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "bilateral agreement"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/3462"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "el",
+            "value": "διμερής συμφωνία"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/4324"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Switzerland"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/4324"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "el",
+            "value": "Ελβετία"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/4353"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Austria"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/4353"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "el",
+            "value": "Αυστρία"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/4511"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "carriage of passengers"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/4511"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "el",
+            "value": "μεταφορά επιβατών"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/4197"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "bus"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/4197"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "el",
+            "value": "λεωφορείο"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/5870"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "revision of an agreement"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/5870"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "el",
+            "value": "αναθεώρηση συμφωνίας"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/5209"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "road cabotage"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/5209"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "el",
+            "value": "οδικές ενδομεταφορές"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/4520"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "international road transport"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/4520"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "el",
+            "value": "διεθνείς οδικές μεταφορές"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/6200"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Tyrol"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/6200"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "el",
+            "value": "Τιρόλο"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/6201"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Vorarlberg"
+          }
+        },
+        {
+          "reference": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#string",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/f93ae93b-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "concept": {
+            "type": "uri",
+            "value": "http://eurovoc.europa.eu/6201"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "el",
+            "value": "Βόραρλμπεργκ"
+          }
+        }
+      ]
+    }
+  },
+  "guest": {
+    "url": "https://data.europarl.europa.eu/api/v2/meps/4465?format=application%2Fld%2Bjson",
+    "fetchedAt": 1792050391552,
+    "payload": {
+      "data": [
+        {
+          "id": "person/4465",
+          "type": "Person",
+          "identifier": "4465",
+          "label": "Raffaele FITTO",
+          "notation_codictPersonId": "4465",
+          "bday": "1969-08-28",
+          "hasGender": "http://publications.europa.eu/resource/authority/human-sex/MALE",
+          "hasHonorificPrefix": "http://publications.europa.eu/resource/authority/honorific/MR",
+          "hasMembership": [
+            {
+              "id": "membership/4465-f-148217",
+              "type": "Membership",
+              "identifier": "4465-f-148217",
+              "notation_codictFunctionId": "148217",
+              "memberDuring": {
+                "id": "time-period/20150519-20150520",
+                "type": "PeriodOfTime",
+                "endDate": "2015-05-20",
+                "startDate": "2015-05-19"
+              },
+              "organization": "org/4275",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/EU_POLITICAL_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-148226",
+              "type": "Membership",
+              "identifier": "4465-f-148226",
+              "notation_codictFunctionId": "148226",
+              "memberDuring": {
+                "id": "time-period/20150521-20161212",
+                "type": "PeriodOfTime",
+                "endDate": "2016-12-12",
+                "startDate": "2015-05-21"
+              },
+              "organization": "org/4275",
+              "role": "def/ep-roles/MEMBER_BUREAU",
+              "membershipClassification": "def/ep-entities/EU_POLITICAL_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-161783",
+              "type": "Membership",
+              "identifier": "4465-f-161783",
+              "notation_codictFunctionId": "161783",
+              "memberDuring": {
+                "id": "time-period/20200914-20220119",
+                "type": "PeriodOfTime",
+                "endDate": "2022-01-19",
+                "startDate": "2020-09-14"
+              },
+              "organization": "org/6180",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_SUB",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-148223",
+              "type": "Membership",
+              "identifier": "4465-f-148223",
+              "notation_codictFunctionId": "148223",
+              "memberDuring": {
+                "id": "time-period/20150520-20170118",
+                "type": "PeriodOfTime",
+                "endDate": "2017-01-18",
+                "startDate": "2015-05-20"
+              },
+              "organization": "org/3949",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-100231",
+              "type": "Membership",
+              "identifier": "4465-f-100231",
+              "notation_codictFunctionId": "100231",
+              "memberDuring": {
+                "id": "time-period/19990721-20000620",
+                "type": "PeriodOfTime",
+                "endDate": "2000-06-20",
+                "startDate": "1999-07-21"
+              },
+              "organization": "org/985",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-149509",
+              "type": "Membership",
+              "identifier": "4465-f-149509",
+              "notation_codictFunctionId": "149509",
+              "memberDuring": {
+                "id": "time-period/20170119-20190701",
+                "type": "PeriodOfTime",
+                "endDate": "2019-07-01",
+                "startDate": "2017-01-19"
+              },
+              "organization": "org/4957",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-141335",
+              "type": "Membership",
+              "identifier": "4465-f-141335",
+              "notation_codictFunctionId": "141335",
+              "memberDuring": {
+                "id": "time-period/20140701-20151206",
+                "type": "PeriodOfTime",
+                "endDate": "2015-12-06",
+                "startDate": "2014-07-01"
+              },
+              "organization": "org/4077",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/NATIONAL_POLITICAL_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-97384",
+              "type": "Membership",
+              "identifier": "4465-f-97384",
+              "notation_codictFunctionId": "97384",
+              "memberDuring": {
+                "id": "time-period/19990720-20000620",
+                "type": "PeriodOfTime",
+                "endDate": "2000-06-20",
+                "startDate": "1999-07-20"
+              },
+              "organization": "org/638",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/NATIONAL_POLITICAL_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-144466",
+              "type": "Membership",
+              "identifier": "4465-f-144466",
+              "notation_codictFunctionId": "144466",
+              "memberDuring": {
+                "id": "time-period/20140701-20150623",
+                "type": "PeriodOfTime",
+                "endDate": "2015-06-23",
+                "startDate": "2014-07-01"
+              },
+              "organization": "org/3957",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-163068",
+              "type": "Membership",
+              "identifier": "4465-f-163068",
+              "notation_codictFunctionId": "163068",
+              "memberDuring": {
+                "id": "time-period/20201007-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2020-10-07"
+              },
+              "organization": "org/6296",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/WORKING_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-164828",
+              "type": "Membership",
+              "identifier": "4465-f-164828",
+              "notation_codictFunctionId": "164828",
+              "memberDuring": {
+                "id": "time-period/20220120-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2022-01-20"
+              },
+              "organization": "org/6349",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-146460",
+              "type": "Membership",
+              "identifier": "4465-f-146460",
+              "notation_codictFunctionId": "146460",
+              "memberDuring": {
+                "id": "time-period/20140714-20150518",
+                "type": "PeriodOfTime",
+                "endDate": "2015-05-18",
+                "startDate": "2014-07-14"
+              },
+              "organization": "org/4194",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-162647",
+              "type": "Membership",
+              "identifier": "4465-f-162647",
+              "notation_codictFunctionId": "162647",
+              "memberDuring": {
+                "id": "time-period/20200616-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2020-06-16"
+              },
+              "organization": "org/6292",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/WORKING_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-158297",
+              "type": "Membership",
+              "identifier": "4465-f-158297",
+              "notation_codictFunctionId": "158297",
+              "memberDuring": {
+                "id": "time-period/20190702-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2019-07-02"
+              },
+              "organization": "org/5156",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/GOVERNING_BODY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-150579",
+              "type": "Membership",
+              "identifier": "4465-f-150579",
+              "notation_codictFunctionId": "150579",
+              "memberDuring": {
+                "id": "time-period/20170119-20190701",
+                "type": "PeriodOfTime",
+                "endDate": "2019-07-01",
+                "startDate": "2017-01-19"
+              },
+              "organization": "org/4968",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-148219",
+              "type": "Membership",
+              "identifier": "4465-f-148219",
+              "notation_codictFunctionId": "148219",
+              "memberDuring": {
+                "id": "time-period/20150520-20190701",
+                "type": "PeriodOfTime",
+                "endDate": "2019-07-01",
+                "startDate": "2015-05-20"
+              },
+              "organization": "org/4205",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY_ASSEMBLY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-155251",
+              "type": "Membership",
+              "identifier": "4465-f-155251",
+              "notation_codictFunctionId": "155251",
+              "memberDuring": {
+                "id": "time-period/20190702-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2019-07-02"
+              },
+              "organization": "org/5445",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/NATIONAL_POLITICAL_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-159854",
+              "type": "Membership",
+              "identifier": "4465-f-159854",
+              "notation_codictFunctionId": "159854",
+              "memberDuring": {
+                "id": "time-period/20190702-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2019-07-02"
+              },
+              "organization": "org/5144",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY_ASSEMBLY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-156752",
+              "type": "Membership",
+              "identifier": "4465-f-156752",
+              "notation_codictFunctionId": "156752",
+              "memberDuring": {
+                "id": "time-period/20190702-20210323",
+                "type": "PeriodOfTime",
+                "endDate": "2021-03-23",
+                "startDate": "2019-07-02"
+              },
+              "organization": "org/5085",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-144842",
+              "type": "Membership",
+              "identifier": "4465-f-144842",
+              "notation_codictFunctionId": "144842",
+              "memberDuring": {
+                "id": "time-period/20140701-20150518",
+                "type": "PeriodOfTime",
+                "endDate": "2015-05-18",
+                "startDate": "2014-07-01"
+              },
+              "organization": "org/3963",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-149331",
+              "type": "Membership",
+              "identifier": "4465-f-149331",
+              "notation_codictFunctionId": "149331",
+              "memberDuring": {
+                "id": "time-period/20161213-20190701",
+                "type": "PeriodOfTime",
+                "endDate": "2019-07-01",
+                "startDate": "2016-12-13"
+              },
+              "organization": "org/4275",
+              "role": "def/ep-roles/CHAIR_VICE",
+              "membershipClassification": "def/ep-entities/EU_POLITICAL_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-148225",
+              "type": "Membership",
+              "identifier": "4465-f-148225",
+              "notation_codictFunctionId": "148225",
+              "memberDuring": {
+                "id": "time-period/20150520-20170118",
+                "type": "PeriodOfTime",
+                "endDate": "2017-01-18",
+                "startDate": "2015-05-20"
+              },
+              "organization": "org/3946",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-166901",
+              "type": "Membership",
+              "identifier": "4465-f-166901",
+              "notation_codictFunctionId": "166901",
+              "memberDuring": {
+                "id": "time-period/20220120-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2022-01-20"
+              },
+              "organization": "org/6354",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-100423",
+              "type": "Membership",
+              "identifier": "4465-f-100423",
+              "notation_codictFunctionId": "100423",
+              "memberDuring": {
+                "id": "time-period/19991006-20000620",
+                "type": "PeriodOfTime",
+                "endDate": "2000-06-20",
+                "startDate": "1999-10-06"
+              },
+              "organization": "org/999",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-148222",
+              "type": "Membership",
+              "identifier": "4465-f-148222",
+              "notation_codictFunctionId": "148222",
+              "memberDuring": {
+                "id": "time-period/20150520-20190701",
+                "type": "PeriodOfTime",
+                "endDate": "2019-07-01",
+                "startDate": "2015-05-20"
+              },
+              "organization": "org/4181",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-156323",
+              "type": "Membership",
+              "identifier": "4465-f-156323",
+              "notation_codictFunctionId": "156323",
+              "memberDuring": {
+                "id": "time-period/20190702-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2019-07-02"
+              },
+              "organization": "org/5148",
+              "role": "def/ep-roles/PRESIDENT_CO",
+              "membershipClassification": "def/ep-entities/EU_POLITICAL_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-161281",
+              "type": "Membership",
+              "identifier": "4465-f-161281",
+              "notation_codictFunctionId": "161281",
+              "memberDuring": {
+                "id": "time-period/20200212-20200526",
+                "type": "PeriodOfTime",
+                "endDate": "2020-05-26",
+                "startDate": "2020-02-12"
+              },
+              "organization": "org/5125",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-100230",
+              "type": "Membership",
+              "identifier": "4465-f-100230",
+              "notation_codictFunctionId": "100230",
+              "memberDuring": {
+                "id": "time-period/19990721-20000620",
+                "type": "PeriodOfTime",
+                "endDate": "2000-06-20",
+                "startDate": "1999-07-21"
+              },
+              "organization": "org/976",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-162731",
+              "type": "Membership",
+              "identifier": "4465-f-162731",
+              "notation_codictFunctionId": "162731",
+              "memberDuring": {
+                "id": "time-period/20200217-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2020-02-17"
+              },
+              "organization": "org/6291",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/WORKING_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-166356",
+              "type": "Membership",
+              "identifier": "4465-f-166356",
+              "notation_codictFunctionId": "166356",
+              "memberDuring": {
+                "id": "time-period/20220120-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2022-01-20"
+              },
+              "organization": "org/6366",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-148218",
+              "type": "Membership",
+              "identifier": "4465-f-148218",
+              "notation_codictFunctionId": "148218",
+              "memberDuring": {
+                "id": "time-period/20150520-20170118",
+                "type": "PeriodOfTime",
+                "endDate": "2017-01-18",
+                "startDate": "2015-05-20"
+              },
+              "organization": "org/3950",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-156432",
+              "type": "Membership",
+              "identifier": "4465-f-156432",
+              "notation_codictFunctionId": "156432",
+              "memberDuring": {
+                "id": "time-period/20190702-20211213",
+                "type": "PeriodOfTime",
+                "endDate": "2021-12-13",
+                "startDate": "2019-07-02"
+              },
+              "organization": "org/5081",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-157527",
+              "type": "Membership",
+              "identifier": "4465-f-157527",
+              "notation_codictFunctionId": "157527",
+              "memberDuring": {
+                "id": "time-period/20190702-20220119",
+                "type": "PeriodOfTime",
+                "endDate": "2022-01-19",
+                "startDate": "2019-07-02"
+              },
+              "organization": "org/5092",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-148605",
+              "type": "Membership",
+              "identifier": "4465-f-148605",
+              "notation_codictFunctionId": "148605",
+              "memberDuring": {
+                "id": "time-period/20151207-20190701",
+                "type": "PeriodOfTime",
+                "endDate": "2019-07-01",
+                "startDate": "2015-12-07"
+              },
+              "organization": "org/4925",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/NATIONAL_POLITICAL_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-100223",
+              "type": "Membership",
+              "identifier": "4465-f-100223",
+              "notation_codictFunctionId": "100223",
+              "memberDuring": {
+                "id": "time-period/19990720-20000620",
+                "type": "PeriodOfTime",
+                "endDate": "2000-06-20",
+                "startDate": "1999-07-20"
+              },
+              "organization": "org/ep-5",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/EU_INSTITUTION",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-100232",
+              "type": "Membership",
+              "identifier": "4465-f-100232",
+              "notation_codictFunctionId": "100232",
+              "memberDuring": {
+                "id": "time-period/19990720-20000620",
+                "type": "PeriodOfTime",
+                "endDate": "2000-06-20",
+                "startDate": "1999-07-20"
+              },
+              "organization": "org/994",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/EU_POLITICAL_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-146273",
+              "type": "Membership",
+              "identifier": "4465-f-146273",
+              "notation_codictFunctionId": "146273",
+              "memberDuring": {
+                "id": "time-period/20140714-20150519",
+                "type": "PeriodOfTime",
+                "endDate": "2015-05-19",
+                "startDate": "2014-07-14"
+              },
+              "organization": "org/4189",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-155248",
+              "type": "Membership",
+              "identifier": "4465-f-155248",
+              "notation_codictFunctionId": "155248",
+              "memberDuring": {
+                "id": "time-period/20190702-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2019-07-02"
+              },
+              "organization": "org/ep-9",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/EU_INSTITUTION",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-156823",
+              "type": "Membership",
+              "identifier": "4465-f-156823",
+              "notation_codictFunctionId": "156823",
+              "memberDuring": {
+                "id": "time-period/20190702-20220119",
+                "type": "PeriodOfTime",
+                "endDate": "2022-01-19",
+                "startDate": "2019-07-02"
+              },
+              "organization": "org/5086",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-148221",
+              "type": "Membership",
+              "identifier": "4465-f-148221",
+              "notation_codictFunctionId": "148221",
+              "memberDuring": {
+                "id": "time-period/20150520-20190701",
+                "type": "PeriodOfTime",
+                "endDate": "2019-07-01",
+                "startDate": "2015-05-20"
+              },
+              "organization": "org/4180",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-161280",
+              "type": "Membership",
+              "identifier": "4465-f-161280",
+              "notation_codictFunctionId": "161280",
+              "memberDuring": {
+                "id": "time-period/20200212-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2020-02-12"
+              },
+              "organization": "org/5129",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-141336",
+              "type": "Membership",
+              "identifier": "4465-f-141336",
+              "notation_codictFunctionId": "141336",
+              "memberDuring": {
+                "id": "time-period/20140701-20150518",
+                "type": "PeriodOfTime",
+                "endDate": "2015-05-18",
+                "startDate": "2014-07-01"
+              },
+              "organization": "org/4273",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/EU_POLITICAL_GROUP",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-m-15296",
+              "type": "Membership",
+              "represents": [
+                "http://publications.europa.eu/resource/authority/country/ITA"
+              ],
+              "identifier": "4465-m-15296",
+              "notation_codictMandateId": "15296",
+              "memberDuring": {
+                "id": "time-period/20140701-20190701",
+                "type": "PeriodOfTime",
+                "endDate": "2019-07-01",
+                "startDate": "2014-07-01"
+              },
+              "organization": "org/ep-8",
+              "role": "def/ep-roles/MEMBER_PARLIAMENT",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-164699",
+              "type": "Membership",
+              "identifier": "4465-f-164699",
+              "notation_codictFunctionId": "164699",
+              "memberDuring": {
+                "id": "time-period/20211018-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2021-10-18"
+              },
+              "organization": "org/6344",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/DELEGATION_JOINT_COMMITTEE",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-159147",
+              "type": "Membership",
+              "identifier": "4465-f-159147",
+              "notation_codictFunctionId": "159147",
+              "memberDuring": {
+                "id": "time-period/20190702-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2019-07-02"
+              },
+              "organization": "org/5120",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-141333",
+              "type": "Membership",
+              "identifier": "4465-f-141333",
+              "notation_codictFunctionId": "141333",
+              "memberDuring": {
+                "id": "time-period/20140701-20190701",
+                "type": "PeriodOfTime",
+                "endDate": "2019-07-01",
+                "startDate": "2014-07-01"
+              },
+              "organization": "org/ep-8",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/EU_INSTITUTION",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-m-16588",
+              "type": "Membership",
+              "represents": [
+                "http://publications.europa.eu/resource/authority/country/ITA"
+              ],
+              "identifier": "4465-m-16588",
+              "notation_codictMandateId": "16588",
+              "memberDuring": {
+                "id": "time-period/20190702-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2019-07-02"
+              },
+              "organization": "org/ep-9",
+              "role": "def/ep-roles/MEMBER_PARLIAMENT",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-167480",
+              "type": "Membership",
+              "identifier": "4465-f-167480",
+              "notation_codictFunctionId": "167480",
+              "memberDuring": {
+                "id": "time-period/20220324-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2022-03-24"
+              },
+              "organization": "org/6415",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_TEMPORARY",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-149842",
+              "type": "Membership",
+              "identifier": "4465-f-149842",
+              "notation_codictFunctionId": "149842",
+              "memberDuring": {
+                "id": "time-period/20170119-20190701",
+                "type": "PeriodOfTime",
+                "endDate": "2019-07-01",
+                "startDate": "2017-01-19"
+              },
+              "organization": "org/4961",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-m-13548",
+              "type": "Membership",
+              "represents": [
+                "http://publications.europa.eu/resource/authority/country/ITA"
+              ],
+              "identifier": "4465-m-13548",
+              "notation_codictMandateId": "13548",
+              "memberDuring": {
+                "id": "time-period/19990720-20000620",
+                "type": "PeriodOfTime",
+                "endDate": "2000-06-20",
+                "startDate": "1999-07-20"
+              },
+              "organization": "org/ep-5",
+              "role": "def/ep-roles/MEMBER_PARLIAMENT",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-166905",
+              "type": "Membership",
+              "identifier": "4465-f-166905",
+              "notation_codictFunctionId": "166905",
+              "memberDuring": {
+                "id": "time-period/20220120-20220605",
+                "type": "PeriodOfTime",
+                "endDate": "2022-06-05",
+                "startDate": "2022-01-20"
+              },
+              "organization": "org/6358",
+              "role": "def/ep-roles/MEMBER",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+              "contactPoint": []
+            },
+            {
+              "id": "membership/4465-f-166641",
+              "type": "Membership",
+              "identifier": "4465-f-166641",
+              "notation_codictFunctionId": "166641",
+              "memberDuring": {
+                "id": "time-period/20220120-20221012",
+                "type": "PeriodOfTime",
+                "endDate": "2022-10-12",
+                "startDate": "2022-01-20"
+              },
+              "organization": "org/6370",
+              "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+              "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_SUB",
+              "contactPoint": []
+            }
+          ],
+          "citizenship": "http://publications.europa.eu/resource/authority/country/ITA",
+          "placeOfBirth": "Maglie",
+          "familyName": "Fitto",
+          "givenName": "Raffaele",
+          "img": "https://www.europarl.europa.eu/mepphoto/4465.jpg",
+          "sortLabel": "FITTO",
+          "upperFamilyName": "FITTO",
+          "upperGivenName": "RAFFAELE"
+        }
+      ],
+      "@context": [
+        {
+          "data": "@graph",
+          "@base": "https://data.europarl.europa.eu/"
+        },
+        "https://data.europarl.europa.eu/api/v2/context.jsonld"
+      ]
+    }
+  },
+  "provenance": "Official public sources read 2026-10-15; selected records, not a production dataset."
+}

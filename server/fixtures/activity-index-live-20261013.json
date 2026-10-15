@@ -1,0 +1,619 @@
+{
+  "verifiedAt": "2026-10-13T15:09:40.550Z",
+  "attribution": "European Parliament Open Data API v2, CC BY 4.0",
+  "documents": [
+    {
+      "endpoint": "/plenary-documents/A-10-2026-0049",
+      "work": {
+        "id": "eli/dl/doc/A-10-2026-0049",
+        "identifier": "A-10-2026-0049",
+        "work_type": "def/ep-document-types/REPORT_PLENARY",
+        "parliamentary_term": "org/ep-10",
+        "document_date": "2026-03-10",
+        "title_dcterms": {
+          "hu": "AJÁNLÁS az Egyesült Nemzetek Szervezetének a hajók bírósági értékesítésének nemzetközi hatásairól szóló egyezménye Európai Unió nevében történő megkötéséről szóló tanácsi határozat tervezetéről",
+          "cs": "DOPORUČENÍ k návrhu rozhodnutí Rady o uzavření, jménem Evropské unie, Úmluvy Organizace spojených národů o mezinárodních účincích soudního prodeje lodí",
+          "lt": "REKOMENDACIJA dėl Tarybos sprendimo dėl Jungtinių Tautų konvencijos dėl priverstinio laivų pardavimo teismo sprendimu tarptautinių pasekmių sudarymo Europos Sąjungos vardu projekto",
+          "bg": "ПРЕПОРЪКА относно проекта на решение на Съвета за сключване от името на Европейския съюз на Конвенцията на Организацията на обединените нации относно международното действие на публичната продан на кораби",
+          "lv": "IETEIKUMS par projektu Padomes lēmumam par to, lai Savienības vārdā noslēgtu Apvienoto Nāciju Organizācijas Konvenciju par kuģu pārdošanas tiesas ceļā starptautiskajām sekām",
+          "de": "EMPFEHLUNG zu dem Entwurf eines Beschlusses des Rates über den Abschluss des Übereinkommens der Vereinten Nationen über die internationalen Wirkungen von Zwangsveräußerungen von Schiffen im Namen der Europäischen Union",
+          "ga": "MOLADH ar an ndréachtchinneadh ón gComhairle maidir le tabhairt i gcrích, thar ceann an Aontais Eorpaigh, Choinbhinsiún na Náisiún Aontaithe maidir leis na hÉifeachtaí Idirnáisiúnta a bhaineann le Díol Breithiúnach Long",
+          "mt": "RAKKOMANDAZZJONI dwar l-abbozz ta’ deċiżjoni tal-Kunsill dwar il-konklużjoni, f’isem l-Unjoni Ewropea, tal-Konvenzjoni tan-Nazzjonijiet Uniti dwar l-Effetti Internazzjonali tal-Bejgħ Ġudizzjarju ta’ Bastimenti",
+          "fr": "RECOMMENDATION on the draft Council decision on the conclusion, on behalf of the European Union, of the United Nations Convention on the International Effects of Judicial Sales of Ships",
+          "en": "RECOMMENDATION on the draft Council decision on the conclusion, on behalf of the European Union, of the United Nations Convention on the International Effects of Judicial Sales of Ships",
+          "nl": "AANBEVELING over het ontwerpbesluit van de Raad betreffende de sluiting, namens de Europese Unie, van het Verdrag van de Verenigde Naties inzake de internationale gevolgen van de gerechtelijke verkoop van schepen",
+          "el": "ΣΥΣΤΑΣΗ σχετικά με το σχέδιο απόφασης του Συμβουλίου για τη σύναψη, εξ ονόματος της Ευρωπαϊκής Ένωσης, της σύμβασης των Ηνωμένων Εθνών για τα διεθνή αποτελέσματα των δικαστικών πωλήσεων πλοίων",
+          "fi": "SUOSITUS esityksestä neuvoston päätökseksi alusten pakkomyynnin kansainvälisistä vaikutuksista tehdyn Yhdistyneiden kansakuntien yleissopimuksen tekemisestä Euroopan unionin puolesta",
+          "et": "SOOVITUS nõukogu otsuse eelnõu kohta, mis käsitleb Euroopa Liidu nimel laevade sundmüügi rahvusvahelisi tagajärgi käsitleva Ühinenud Rahvaste Organisatsiooni konventsiooni sõlmimist",
+          "sk": "ODPORÚČANIE k návrhu rozhodnutia Rady o uzavretí v mene Európskej únie Dohovoru Organizácie Spojených národov o medzinárodných účinkoch súdom nariadeného predaja lodí",
+          "it": "RACCOMANDAZIONE concernente il progetto di decisione del Consiglio relativa alla conclusione, a nome dell'Unione europea, della convenzione delle Nazioni Unite sugli effetti internazionali delle vendite giudiziarie di navi",
+          "pl": "ZALECENIE w sprawie projektu decyzji Rady w sprawie zawarcia, w imieniu Unii Europejskiej, Konwencji Narodów Zjednoczonych w sprawie skutków międzynarodowych sądowej sprzedaży statków",
+          "sv": "REKOMMENDATION om förslaget till rådets beslut om ingående, på Europeiska unionens vägnar, av Förenta nationernas konvention om internationell verkan av exekutiva försäljningar av fartyg",
+          "sl": "PRIPOROČILO o osnutku sklepa Sveta o sklenitvi, v imenu Evropske unije, Konvencije Združenih narodov o mednarodnih učinkih sodne prodaje ladij",
+          "ro": "RECOMANDARE referitoare la proiectul de decizie a Consiliului privind încheierea, în numele Uniunii Europene, a Convenției Organizației Națiunilor Unite privind efectele internaționale ale vânzării silite a navelor",
+          "pt": "RECOMENDAÇÃO sobre o projeto de decisão do Conselho relativa à celebração, em nome da União Europeia, da Convenção das Nações Unidas sobre os Efeitos Internacionais das Vendas Judiciais de Navios",
+          "es": "RECOMENDACIÓN sobre el proyecto de Decisión del Consejo relativa a la celebración, en nombre de la Unión Europea, de la Convención de las Naciones Unidas sobre los Efectos Internacionales de las Ventas Judiciales de Buques",
+          "da": "HENSTILLING om udkast til Rådets afgørelse om indgåelse på Den Europæiske Unions vegne af De Forenede Nationers konvention om de internationale virkninger af tvangssalg af skibe",
+          "hr": "PREPORUKA o Nacrtu odluke Vijeća o sklapanju, u ime Europske unije, Konvencije Ujedinjenih naroda o međunarodnim učincima sudske prodaje brodova"
+        },
+        "label": "A10-0049/2026",
+        "workHadParticipation": [
+          {
+            "id": "eli/dl/participation/A-10-2026-0049_256981",
+            "type": "Participation",
+            "activity_date": "2026-03-10",
+            "had_participant_person": [
+              "person/256981"
+            ],
+            "parliamentary_term": "org/ep-10",
+            "participation_in_name_of": "org/JURI",
+            "participation_role": "def/ep-roles/RAPPORTEUR",
+            "politicalGroup": "org/PFE",
+            "precedenceOrder": 2010
+          },
+          {
+            "id": "eli/dl/participation/A-10-2026-0049_JURI",
+            "type": "Participation",
+            "had_participant_organization": [
+              "org/JURI"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          }
+        ],
+        "creator": [
+          "person/256981",
+          "org/JURI"
+        ],
+        "inverse_created_a_realization_of": [
+          "eli/dl/proc/2025-0233"
+        ],
+        "originalLanguage": [
+          "http://publications.europa.eu/resource/authority/language/ENG"
+        ],
+        "is_realized_by": [
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/SPA",
+            "title": {
+              "es": "RECOMENDACIÓN sobre el proyecto de Decisión del Consejo relativa a la celebración, en nombre de la Unión Europea, de la Convención de las Naciones Unidas sobre los Efectos Internacionales de las Ventas Judiciales de Buques"
+            },
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0049/es/pdf",
+                "type": "Manifestation",
+                "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0049/A-10-2026-0049_es.pdf",
+                "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "issued": "2026-03-13T11:24:12+01:00",
+                "byteSize": "57785"
+              },
+              {
+                "id": "eli/dl/doc/A-10-2026-0049/es/docx",
+                "type": "Manifestation",
+                "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0049/A-10-2026-0049_es.docx",
+                "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-03-13T11:24:12+01:00",
+                "byteSize": "57785"
+              }
+            ]
+          }
+        ],
+        "inverse_answers_to": []
+      }
+    },
+    {
+      "endpoint": "/parliamentary-questions/E-10-2026-003031",
+      "work": {
+        "id": "eli/dl/doc/E-10-2026-003031",
+        "identifier": "E-10-2026-003031",
+        "work_type": "def/ep-document-types/QUESTION_WRITTEN",
+        "parliamentary_term": "org/ep-10",
+        "document_date": "2026-07-16",
+        "title_dcterms": {
+          "fr": "Assurer la poursuite du programme «Pavillon bleu» conformément à la directive (UE) 2024/825",
+          "pt": "Garantir a prossecução do programa Bandeira Azul no âmbito da Diretiva (UE) 2024/825",
+          "sl": "Zagotavljanje neprekinjenega delovanja programa Modra zastava v skladu z Direktivo (EU) 2024/825",
+          "bg": "Осигуряване на непрекъснатото функциониране на програмата „Син флаг“ съгласно Директива (ЕС) 2024/825",
+          "en": "Ensuring the continued operation of the Blue Flag Programme under Directive (EU) 2024/825",
+          "ro": "Asigurarea funcționării în continuare a Programului Steagul albastru în temeiul Directivei (UE) 2024/825",
+          "el": "Διασφάλιση της αδιάλειπτης λειτουργίας του προγράμματος «Γαλάζια Σημαία» δυνάμει της οδηγίας (ΕΕ) 2024/825",
+          "nl": "Voortzetting van het blauwe-vlagprogramma in het kader van Richtlijn (EU) 2024/825",
+          "mt": "Niżguraw li jitkompla l-Programm tal-Bandiera Blu skont id-Direttiva (UE) 2024/825",
+          "fi": "Blue Flag -ohjelman toiminnan jatkumisen varmistaminen direktiivin (EU) 2024/825 mukaisesti",
+          "ga": "Feidhmiú leanúnach Chlár na Brataí Goirme a áirithiú faoi Threoir (AE) 2024/825",
+          "da": "Opretholdelsen af Blåt Flag-programmet under direktiv (EU) 2024/825",
+          "es": "Garantía de continuidad del funcionamiento del programa Bandera Azul en virtud de la Directiva (UE) 2024/825",
+          "de": "Sicherstellung der Fortführung des Europäische Kampagne für die blaue Flagge im Rahmen der Richtlinie (EU) 2024/825"
+        },
+        "workHadParticipation": [
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257259",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257259"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256994",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256994"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_204413",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/204413"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256905",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256905"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256997",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256997"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257237",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257237"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_124691",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/124691"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_233862",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/233862"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_96812",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/96812"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257301",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257301"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256823",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256823"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_122978",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/122978"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257023",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257023"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256813",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256813"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256885",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256885"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257043",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257043"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_197466",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/197466"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_197414",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/197414"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256934",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256934"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256829",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256829"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257044",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257044"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257103",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257103"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_210480",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/210480"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256824",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256824"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_204332",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/204332"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_40599",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/40599"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_197702",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/197702"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256985",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256985"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_256887",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/256887"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_257257",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257257"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/E-10-2026-003031_COM",
+            "type": "Participation",
+            "had_participant_organization": [
+              "org/COM"
+            ],
+            "participation_role": "def/ep-roles/ADDRESSEE"
+          }
+        ],
+        "creator": [
+          "person/204413",
+          "person/257043",
+          "person/96812",
+          "person/257103",
+          "person/257237",
+          "person/122978",
+          "person/256824",
+          "person/233862",
+          "person/210480",
+          "person/256813",
+          "person/256887",
+          "person/256885",
+          "person/256985",
+          "person/256823",
+          "person/197414",
+          "person/256997",
+          "person/257257",
+          "person/124691",
+          "person/257044",
+          "person/257259",
+          "person/257301",
+          "person/40599",
+          "person/257023",
+          "person/256994",
+          "person/256905",
+          "person/204332",
+          "person/197702",
+          "person/256829",
+          "person/197466",
+          "person/256934"
+        ],
+        "originalLanguage": [
+          "http://publications.europa.eu/resource/authority/language/ENG"
+        ],
+        "is_realized_by": [
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/SPA",
+            "title": {
+              "es": "Garantía de continuidad del funcionamiento del programa Bandera Azul en virtud de la Directiva (UE) 2024/825"
+            },
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/E-10-2026-003031/es/pdf",
+                "type": "Manifestation",
+                "is_exemplified_by": "distribution/reds_iMaQp/E-10-2026-003031/E-10-2026-003031_es.pdf",
+                "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "issued": "2026-07-28T10:14:41+02:00",
+                "byteSize": "11572"
+              },
+              {
+                "id": "eli/dl/doc/E-10-2026-003031/es/docx",
+                "type": "Manifestation",
+                "is_exemplified_by": "distribution/reds_iMaQp/E-10-2026-003031/E-10-2026-003031_es.docx",
+                "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-07-28T10:14:41+02:00",
+                "byteSize": "11572"
+              }
+            ]
+          }
+        ],
+        "inverse_answers_to": [
+          {
+            "id": "eli/dl/doc/E-10-2026-003031-ASW",
+            "identifier": "E-10-2026-003031-ASW",
+            "work_type": "def/ep-document-types/QUESTION_WRITTEN_ANSWER",
+            "parliamentary_term": "org/ep-10",
+            "document_date": "2026-09-18",
+            "title_dcterms": {
+              "mt": "Answer for question E-003031/26",
+              "nl": "Answer for question E-003031/26",
+              "es": "Answer for question E-003031/26",
+              "de": "Answer for question E-003031/26",
+              "fi": "Answer for question E-003031/26",
+              "pt": "Answer for question E-003031/26",
+              "bg": "Answer for question E-003031/26",
+              "en": "Answer for question E-003031/26",
+              "ga": "Answer for question E-003031/26",
+              "el": "Answer for question E-003031/26",
+              "fr": "Answer for question E-003031/26",
+              "sl": "Answer for question E-003031/26",
+              "ro": "Answer for question E-003031/26",
+              "da": "Answer for question E-003031/26"
+            },
+            "workHadParticipation": [
+              {
+                "id": "eli/dl/participation/E-10-2026-003031-ASW_COM",
+                "type": "Participation",
+                "had_participant_organization": [
+                  "org/EU_COMMISSION"
+                ],
+                "participation_role": "def/ep-roles/AUTHOR"
+              }
+            ],
+            "creator": [
+              "org/EU_COMMISSION"
+            ],
+            "is_realized_by": [
+              {
+                "language": "http://publications.europa.eu/resource/authority/language/SPA",
+                "title": {
+                  "es": "Answer for question E-003031/26"
+                },
+                "is_embodied_by": [
+                  {
+                    "id": "eli/dl/doc/E-10-2026-003031-ASW/es/pdf",
+                    "type": "Manifestation",
+                    "is_exemplified_by": "distribution/reds_iMaQp_Asw/E-10-2026-003031-ASW/E-10-2026-003031-ASW-FF_es.pdf",
+                    "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                    "issued": "2026-09-30T19:00:59+02:00",
+                    "byteSize": "93183"
+                  },
+                  {
+                    "id": "eli/dl/doc/E-10-2026-003031-ASW/es/docx",
+                    "type": "Manifestation",
+                    "is_exemplified_by": "distribution/reds_iMaQp_Asw/E-10-2026-003031-ASW/E-10-2026-003031-ASW_es.docx",
+                    "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                    "issued": "2026-09-18T14:22:41+02:00",
+                    "byteSize": "19712"
+                  }
+                ]
+              }
+            ],
+            "inverse_answers_to": []
+          }
+        ]
+      }
+    }
+  ],
+  "procedure": {
+    "endpoint": "/procedures/2025-0233",
+    "work": {
+      "id": "eli/dl/proc/2025-0233",
+      "had_participation": [
+        {
+          "id": "eli/dl/participation/2025-0233-NMCP-256981-JURI-2025-12-03",
+          "type": "Participation",
+          "activity_date": "2025-12-03",
+          "had_participant_person": [
+            "person/256981"
+          ],
+          "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+          "parliamentary_term": "org/ep-10",
+          "participation_in_name_of": "org/JURI",
+          "participation_role": "def/ep-roles/RAPPORTEUR",
+          "politicalGroup": "org/PFE",
+          "precedenceOrder": 2003
+        },
+        {
+          "id": "eli/dl/participation/2025-0233-NMSR-257043-2026-01-14",
+          "type": "Participation",
+          "activity_date": "2026-01-14",
+          "had_participant_person": [
+            "person/257043"
+          ],
+          "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+          "parliamentary_term": "org/ep-10",
+          "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+          "politicalGroup": "org/PPE",
+          "precedenceOrder": 2001
+        },
+        {
+          "id": "eli/dl/participation/2025-0233-NMSR-257085-2026-01-15",
+          "type": "Participation",
+          "activity_date": "2026-01-15",
+          "had_participant_person": [
+            "person/257085"
+          ],
+          "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+          "parliamentary_term": "org/ep-10",
+          "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+          "politicalGroup": "org/S-D",
+          "precedenceOrder": 2002
+        },
+        {
+          "id": "eli/dl/participation/2025-0233-NMSR-256807-2026-01-14",
+          "type": "Participation",
+          "activity_date": "2026-01-14",
+          "had_participant_person": [
+            "person/256807"
+          ],
+          "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+          "parliamentary_term": "org/ep-10",
+          "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+          "politicalGroup": "org/RENEW",
+          "precedenceOrder": 2005
+        },
+        {
+          "id": "eli/dl/participation/2025-0233-MAIN-JURI",
+          "type": "Participation",
+          "had_participant_organization": [
+            "org/JURI"
+          ],
+          "participation_role": "def/ep-roles/COMMITTEE_LEAD"
+        },
+        {
+          "id": "eli/dl/participation/2025-0233-NMSR-257073-2026-02-03",
+          "type": "Participation",
+          "activity_date": "2026-02-03",
+          "had_participant_person": [
+            "person/257073"
+          ],
+          "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
+          "parliamentary_term": "org/ep-10",
+          "participation_role": "def/ep-roles/RAPPORTEUR_SHADOW",
+          "politicalGroup": "org/ECR",
+          "precedenceOrder": 2004
+        }
+      ],
+      "consists_of": [
+        {
+          "id": "eli/dl/event/2025-0233-DEPOT-2026-03-10",
+          "type": "Activity",
+          "activity_date": "2026-03-10",
+          "activity_id": "2025-0233-DEPOT-2026-03-10",
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0049"
+          ],
+          "had_activity_type": "def/ep-activities/TABLING_PLENARY",
+          "occured_at_stage": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1"
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987072",
+          "type": "Activity",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-VOT-ITM-987072",
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0049"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-03-26-VOT-ITM-017"
+          ]
+        }
+      ]
+    }
+  }
+}

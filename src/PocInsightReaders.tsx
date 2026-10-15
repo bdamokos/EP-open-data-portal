@@ -1,0 +1,32 @@
+import {publicationBody} from './publication-body.mjs';
+import {useEffect,useMemo,useState} from 'react';
+import {useData} from './pocData';
+import type {PublicationDocument,SpeechDetail,Speech} from './pocTypes';
+import {PocSpeechPlayer} from './PocSpeechPlayer';
+import {humanDate} from './PocInsightCharts';
+import {speechHighlightParts} from './pocSpeechHighlight.mjs';
+
+const languageName=(code:string,language:string)=>{try{return new Intl.DisplayNames([language],{type:'language'}).of(code)||code.toUpperCase();}catch{return code.toUpperCase();}};
+function LanguageControl({available,actual,requested,onChange,label}:{available:string[];actual:string|null;requested:string;onChange:(language:string)=>void;label:string}) {
+  return <>{available.length>1&&<select aria-label={label} value={actual||requested} onChange={event=>onChange(event.target.value)}>{available.map(code=><option key={code} value={code}>{code.toUpperCase()}</option>)}</select>}{actual&&actual!==requested&&<small className="insight-language-fallback">{languageName(requested,requested)} unavailable · showing {languageName(actual,requested)}</small>}</>;
+}
+export function InsightQuestionReader({id,member,language,heading='Question',includeAnswers=false}:{id:string;member?:string|null;language:string;heading?:string;includeAnswers?:boolean}) {
+  const [selected,setSelected]=useState(language);useEffect(()=>setSelected(language),[language,id]);
+  const state=useData<PublicationDocument>(`document/${encodeURIComponent(id)}?${member?'member='+member+'&':''}lang=${selected}`),text=state.data?.selectedDocumentId===id?state.data.selectedText:null;
+  const body=publicationBody(text?.paragraphs||[],id,text?.textLanguage);
+  const files=id.endsWith('-ASW')?state.data?.answers.find(answer=>answer.id===id)?.files||[]:state.data?.files||[];
+  const matchingFiles=files.filter(file=>file.language===(text?.textLanguage||selected)),shownFiles=matchingFiles.length?matchingFiles:files,download=shownFiles.find(file=>file.format==='PDF')||shownFiles[0];
+  return <section className="insight-inline-reader" id={'insight-document-'+id}><div className="insight-reader-heading"><h3>{heading}</h3>{text&&<LanguageControl available={text.availableTextLanguages} actual={text.textLanguage} requested={selected} onChange={setSelected} label={heading+' language'}/>}</div>{!text&&state.loading&&<p role="status">Loading text…</p>}{state.error&&<p>Text temporarily unavailable.</p>}{text?.status==='available'?<div className="insight-reader-text" lang={text.textLanguage||undefined}>{body.paragraphs.map((paragraph,index)=><p key={index}>{paragraph}</p>)}</div>:text&&<p>Text unavailable.{download&&<> <a href={download.url} target="_blank" rel="noreferrer">Open {download.format}{download.language?' · '+download.language.toUpperCase():''} ↗</a></>}</p>}{text&&<details className="insight-reader-source"><summary>Document</summary>{body.header.map((paragraph,index)=><p key={index}>{paragraph}</p>)}<p>{text.translationType==='original'?'Original text':'Translation method not specified'}</p>{text.sourceUrl&&<a href={text.sourceUrl} target="_blank" rel="noreferrer">{text.sourceFormat||'Document'} ↗</a>}{shownFiles.filter(file=>file.url!==text.sourceUrl).map(file=><a key={file.url} href={file.url} target="_blank" rel="noreferrer">{file.format}{file.language?' · '+file.language.toUpperCase():''} ↗</a>)}</details>}{includeAnswers&&state.data?.answers.map(answer=><InsightQuestionReader key={answer.id} id={answer.id} member={member} language={language} heading="Answer"/>)}{includeAnswers&&state.data&&!state.data.answers.length&&<p className="insight-secondary">No answer published.</p>}</section>;
+}
+function paragraphs(xml:string|null) {
+  if(!xml)return [];const doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.querySelector('parsererror'))return [];
+  return [...doc.getElementsByTagNameNS('*','p')].map(node=>{const timed=[...node.getElementsByTagNameNS('*','time')];return (timed.length?timed.map(word=>word.textContent||'').join(' '):node.textContent||'').replace(/\s+([,.;:!?])/g,'$1').trim();}).filter(Boolean);
+}
+export function InsightSpeechReader({id,language,onSpeakers,highlight}:{id:string;language:string;highlight?:string|null;onSpeakers?:(people:{id:string;name:string;role:string|null}[])=>void}) {
+  const [selected,setSelected]=useState(language);useEffect(()=>setSelected(language),[language,id]);
+  const state=useData<SpeechDetail>(`speech/${encodeURIComponent(id)}?lang=${selected}`),speech=state.data?.id===id?state.data:null,text=useMemo(()=>paragraphs(speech?.xml||null),[speech?.xml]);
+  const highlighted=useMemo(()=>text.map(paragraph=>speechHighlightParts(paragraph,highlight)),[text,highlight]);
+  useEffect(()=>{if(speech?.id===id&&speech.speakers?.length)onSpeakers?.(speech.speakers);},[id,speech,onSpeakers]);
+  const source=speech as Speech|undefined;
+  return <section className="insight-inline-reader"><div className="insight-reader-heading"><h3>{speech?.speakers?.map(person=>person.name).join(', ')||'Speech'}</h3>{speech&&<LanguageControl available={speech.availableTextLanguages} actual={speech.textLanguage} requested={selected} onChange={setSelected} label="Speech language"/>}{speech?.translationType==='machine'&&<small className="insight-machine-label">Machine translation</small>}</div>{speech?.speakers?.some(person=>person.role)&&<p className="insight-secondary">{speech.speakers.map(person=>person.role).filter(Boolean).join(' · ')}</p>}{state.loading&&!speech&&<p role="status">Loading speech…</p>}{(state.error||state.data&&state.data.id!==id)&&<p>Speech temporarily unavailable.</p>}{text.length>0?<div className="insight-reader-text" lang={speech?.textLanguage||undefined}>{highlighted.map((parts,i)=><p key={i}>{parts.map((part,j)=>part.match?<mark key={j}>{part.text}</mark>:part.text)}</p>)}</div>:speech&&<p>Transcript unavailable.</p>}{speech?.websiteUrl&&<a className="insight-source-document" href={speech.websiteUrl} target="_blank" rel="noreferrer">Parliament’s transcript ↗</a>}{source&&source.kind==='PLENARY_DEBATE_SPEECH'&&source.start&&source.end&&<PocSpeechPlayer speech={source} lang={language}/>}</section>;
+    }

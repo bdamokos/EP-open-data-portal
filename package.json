@@ -1,0 +1,33 @@
+{
+  "name": "parliament-explorer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "dev:api": "node --watch server/index.mjs",
+    "build": "tsc -b && vite build",
+    "check": "tsc -b --pretty false",
+    "test": "node --test src/*.test.mjs server/*.test.mjs",
+    "test:server": "node --test server/*.test.mjs",
+    "test:frontend": "node --test src/*.test.mjs",
+    "preview": "vite preview --host 127.0.0.1",
+    "start": "node server/index.mjs"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.11.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.7"
+  },
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}
