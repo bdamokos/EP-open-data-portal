@@ -6,9 +6,10 @@ import {countryCode,countryQuestions,memberCountry} from './insights-countries.m
 import { odpLanguage } from './odp.mjs';
 import { analyzeQuestions, questionFromSource, demographicStats, memberPeople,personId,questionTrend } from './insights-model.mjs';
 import {cachedEnglishQuestionBodies} from './insights-phrases.mjs';
+import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
+export {brusselsDay} from './analysis-period.mjs';
 
-export const INSIGHTS_LIMITS = Object.freeze({ days:365,questions:5000,page:50,offset:5000,cacheEntries:4,cacheBytes:32*1024*1024,cacheMs:60_000 });
-export const brusselsDay = (now=Date.now()) => new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));
+export const INSIGHTS_LIMITS = Object.freeze({ termStart:CURRENT_TERM_START,questions:5000,page:50,offset:5000,cacheEntries:4,cacheBytes:32*1024*1024,cacheMs:60_000 });
 function strictDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value;
 }
@@ -23,10 +24,12 @@ export function insightQuery(search, {now=Date.now(),kind='questions'}={}) {
     return {language,sitting,topic,vote};
   }
   function integer(key,fallback,min,max) { const raw=search.get(key);const n=raw==null?fallback:Number(raw);if(raw!=null&&!/^\d+$/.test(raw)||!Number.isSafeInteger(n)||n<min||n>max)throw new HttpError(400,'invalid_query',`${key} must be ${min}–${max}.`);return n; }
-  const days=integer('days',90,1,INSIGHTS_LIMITS.days),end=search.get('end')||brusselsDay(now);
+  const end=search.get('end')||brusselsDay(now);
   if(!strictDate(end)||end>brusselsDay(now))throw new HttpError(400,'invalid_date','Choose a valid end date on or before today.');
+  if(end<CURRENT_TERM_START)throw new HttpError(400,'invalid_date','The window must fall within parliamentary term 10.');
+  const termDays=1+(Date.parse(end)-Date.parse(CURRENT_TERM_START))/86400_000;
+  const days=search.get('days')==='term'?termDays:integer('days',90,1,termDays);
   const start=new Date(Date.parse(end+'T12:00:00Z')-(days-1)*86400_000).toISOString().slice(0,10);
-  if(start<'2024-07-16')throw new HttpError(400,'invalid_date','The window must fall within parliamentary term 10.');
   const from=search.get('from'),to=search.get('to');
   if(Boolean(from)!==Boolean(to)||from&&(!strictDate(from)||!strictDate(to)||from<start||to>end||from>to))throw new HttpError(400,'invalid_range','Choose a date range inside the analysis period.');
   const cluster=search.get('cluster'),word=search.get('word'),country=search.get('country');
