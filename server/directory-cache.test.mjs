@@ -55,7 +55,31 @@ test('a completed source refresh replaces saved names without clearing loaded me
   const f=await fixture(7*3600000);
   try {
     const fresh={...f.records[0].payload.data[0],givenName:'Updated'};
-    const out=run(f.directory,`globalThis.fetch=async url=>new URL(url).pathname.endsWith('/meps/show-current')?new Response(JSON.stringify({data:[${JSON.stringify(fresh)}]}),{headers:{'content-type':'application/json'}}):new Promise(()=>{});const {odpDirectory}=await import(${moduleUrl});const first=await odpDirectory();let loaded;for(let i=0;i<25;i++){loaded=await odpDirectory();if(loaded.index.complete)break;await new Promise(r=>setTimeout(r,10));}await new Promise(r=>setTimeout(r,30));const now=Date.now();Date.now=()=>now+61000;const during=await odpDirectory();await new Promise(r=>setTimeout(r,50));const after=await odpDirectory();console.log(JSON.stringify({first,during,after}));process.exit(0);`);
+    const out=run(f.directory,`
+      globalThis.fetch=async url=>new URL(url).pathname.endsWith('/meps/show-current')
+        ?new Response(JSON.stringify({data:[${JSON.stringify(fresh)}]}),{headers:{'content-type':'application/json'}})
+        :new Promise(()=>{});
+      const {odpDirectory,odp}=await import(${moduleUrl});
+      const first=await odpDirectory();
+      let loaded;
+      for(let i=0;i<25;i++){
+        loaded=await odpDirectory();if(loaded.index.complete)break;
+        await new Promise(resolve=>setTimeout(resolve,10));
+      }
+      // Join the actual source refresh before triggering a new projection.
+      // Short fixed sleeps race disk I/O and concurrent test files on CI.
+      await odp('/meps/show-current',{limit:1000,offset:0});
+      const now=Date.now();Date.now=()=>now+61000;
+      const during=await odpDirectory();
+      let after;
+      const deadline=performance.now()+2000;
+      do {
+        after=await odpDirectory();
+        if(after.members[0].firstName==='Updated')break;
+        await new Promise(resolve=>setTimeout(resolve,10));
+      }while(performance.now()<deadline);
+      console.log(JSON.stringify({first,during,after}));process.exit(0);
+    `);
     assert.equal(out.first.members[0].firstName,'Maravillas');
     assert.equal(out.during.members[0].firstName,'Maravillas','last good projection remains visible during replacement');
     assert.equal(out.after.members[0].firstName,'Updated');
