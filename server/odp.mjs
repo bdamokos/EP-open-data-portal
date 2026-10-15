@@ -7,6 +7,7 @@ import { transcriptLanguage } from "./transcript-language.mjs";
 import { speechWebsite, languageCode } from "./ep-links.mjs";
 import { UpstreamQueue } from './upstream-queue.mjs';
 import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
+import {PortraitCache} from './portrait-cache.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
@@ -701,42 +702,7 @@ export async function preloadOdp() {
   return odpDirectory();
 }
 
-const portraits = new Map();
-const portraitJobs = new Map();
+const portraits = new PortraitCache();
 export async function odpPortrait(id) {
-  if (portraits.has(id)) return portraits.get(id);
-  if (portraitJobs.has(id)) return portraitJobs.get(id);
-  const job = (async () => {
-    const p = await odpProfile(id);
-    const url = new URL(p.imageUrl);
-    if (
-      url.origin !== "https://www.europarl.europa.eu" ||
-      !/^\/mepphoto\/[0-9]+\.jpg$/.test(url.pathname)
-    )
-      throw new HttpError(404, "portrait_unavailable", "Portrait unavailable.");
-    const r = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; Parliament-Explorer/0.1)",
-        Accept: "image/*",
-      },
-      signal: AbortSignal.timeout(12000),
-      redirect: "error",
-    });
-    if (!r.ok || !r.headers.get("content-type")?.startsWith("image/"))
-      throw new HttpError(502, "portrait_unavailable", "Portrait unavailable.");
-    const body = Buffer.from(await r.arrayBuffer());
-    if (body.length > 2 * 1024 * 1024)
-      throw new HttpError(502, "portrait_size", "Portrait too large.");
-    const image = { body, contentType: r.headers.get("content-type") };
-    portraits.set(id, image);
-    if (portraits.size > 120) portraits.delete(portraits.keys().next().value);
-    return image;
-  })();
-  portraitJobs.set(id, job);
-  try {
-    return await job;
-  } finally {
-    portraitJobs.delete(id);
-  }
+  return portraits.get(id, async (memberId, {priority}) => (await odpProfile(memberId, false, {priority})).imageUrl);
 }
