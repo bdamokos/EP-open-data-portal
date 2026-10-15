@@ -33,3 +33,11 @@ test('malformed links cannot create invalid country names, unbounded pagination 
   assert.equal(readExplorerParam(new URLSearchParams({'hot-period':'unexpected:value'}),'hot-period','sitting:MTG-PL-2026-10-08'),'sitting:MTG-PL-2026-10-08');
   assert.equal(readExplorerParam(new URLSearchParams({'q-days':'123'}),'q-days',90,[7,30,90,180,365]),90);
 });
+test('current-term periods survive saved question and timeline links alongside numeric presets',()=>{
+  for(const [key,view,fallback,allowed] of [['q-days','questions',90,[7,30,90,180,365,'term']],['trend-days','legislation',180,[90,180,365,'term']]]) {
+    const saved=explorerParams(new URLSearchParams({[key]:'term'}),view);
+    assert.equal(readExplorerParam(saved,key,fallback,allowed),'term');
+    assert.equal(readExplorerParam(new URLSearchParams({[key]:'365'}),key,fallback,allowed),365);
+    assert.equal(readExplorerParam(new URLSearchParams({[key]:'all'}),key,fallback,allowed),fallback);
+  }
+});

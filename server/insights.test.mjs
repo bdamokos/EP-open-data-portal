@@ -71,7 +71,21 @@ test('current unique-person denominator excludes people outside roster; absent g
 test('strict query rejects unknown/repeated parameters, invalid dates/windows and over-limit paging',()=>{
   const q=s=>insightQuery(new URLSearchParams(s),{now:now()});
   assert.equal(q('days=90').start,'2026-07-17');assert.equal(q('days=1&end=2026-07-16').start,'2026-07-16');
-  for(const s of ['days=366','days=-1','days=30&days=30','end=2026-02-30','end=2026-10-15','foo=1','offset=5001','lang=xx','end=2024-07-16&days=2','cluster=bad','word=%3Cscript%3E'])assert.throws(()=>q(s),e=>e.status===400,s);
+  for(const s of ['days=822','days=-1','days=30&days=30','end=2026-02-30','end=2026-10-15','foo=1','offset=5001','lang=xx','end=2024-07-16&days=2','cluster=bad','word=%3Cscript%3E'])assert.throws(()=>q(s),e=>e.status===400,s);
+});
+test('analysis periods cover the full current term without a fixed day cap',()=>{
+  const q=s=>insightQuery(new URLSearchParams(s),{now:now()});
+  const term=q('days=term');
+  assert.equal(term.start,'2024-07-16');assert.equal(term.end,'2026-10-14');assert.equal(term.days,821);
+  assert.equal(q('days=366').start,'2025-10-14');assert.equal(q('days=821').start,term.start);
+  assert.equal(q('days=term&end=2024-07-16').days,1);
+  assert.equal(q('days=term&end=2024-12-31').start,term.start);
+  assert.equal(q('days=term&from=2024-07-16&to=2024-07-17').from,term.start);
+  const midnight=insightQuery(new URLSearchParams('days=term'),{now:Date.parse('2026-10-14T22:30:00Z')});
+  assert.equal(midnight.end,'2026-10-15');assert.equal(midnight.days,822);
+  const leap=insightQuery(new URLSearchParams('days=term&end=2028-03-01'),{now:Date.parse('2028-03-01T12:00:00Z')});
+  assert.equal(leap.start,term.start);assert(leap.days>1000);
+  for(const s of ['days=all','days=term&days=90','days=term&end=2024-07-15','days=term&end=2026-02-30','days=term&end=2026-10-15','days=term&from=2024-07-15&to=2024-07-16','days=9007199254740992'])assert.throws(()=>q(s),e=>e.status===400,s);
 });
 test('saved aggregation filters QUESTION document_date, deduplicates coauthors, never selects answers, and cannot change SQL state',async()=>{
   const dir=mkdtempSync(path.join(os.tmpdir(),'insights-test-')),store=new ActivityStore(dir,{clock:now});

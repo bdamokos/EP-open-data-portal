@@ -10,6 +10,8 @@ Portrait requests check a bounded local binary cache before resolving the member
 
 Anonymous checks on 15 October 2026 returned public content from the MEP API, OEIL procedure and first-reading summary pages, Publications Office SPARQL, Multimedia Centre recording metadata and the published player code. The public player’s metadata connection returned a matching `PUBLISHED` recording and its language map without authentication. These checks establish access to the sampled records; they do not promise permanent endpoint availability or complete archives. The machine-readable dated observations are in `public-source-checks.json`.
 
+The current-term date-range check on 15 October 2026 used the same anonymous Open Data API, with a one-record response limit. It confirmed that a July 2024–October 2026 speech request succeeds; the removed 365-day limit belonged to this application's controls and shared query validator. The exact request and sampled identifier are in `date-range-check.json`. Wider question and procedure windows read the existing index; MEP speech clouds retain their selected-view pagination and coverage budgets. No source, authentication method, cache writer or index writer was added.
+
 Generic interface labels are app-owned; country and language display names use the browser’s internationalization data. Portrait and favicon fallbacks are app-owned SVGs. The application uses system fonts and carries no inherited institutional font binaries or copied dataset assets.
 
 No production cache or database was copied into the initial repository. Git history starts with the standalone source. Hosting access controls and private Git authentication are separate from parliamentary data acquisition and remain outside source control.
