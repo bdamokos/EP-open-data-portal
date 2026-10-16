@@ -100,6 +100,9 @@ export interface ActivityPage {
 }
 export interface DocumentFile { url: string; language: string | null; format: string; byteSize?: number | null }
 export interface CoAuthor { id:number; name:string|null; personUri:string; profileAvailable:boolean; role:'AUTHOR'|'QUESTION_AUTHOR'; sourceDocumentId:string; relationships:string[] }
+export interface DocumentNote { id: string; label: string; text: string; links: string[]; linkSpans?: { start: number; end: number; url: string }[] }
+export interface DocumentLink { paragraph: number; start: number; end: number; url: string }
+export interface NoteAnchor { paragraph: number; offset: number; note: string; label: string }
 export interface PublicationDocument {
   coAuthors?: CoAuthor[];
   coAuthorSource?: { documentApiUrl:string; documentFetchedAt:string; rosterApiUrl:string; rosterFetchedAt:string|null };
@@ -127,6 +130,10 @@ export interface PublicationDocument {
     reason: string | null;
     extraction: 'official-docx-paragraphs' | null;
     nextRetryAt?: string | null;
+    notesStatus?: 'extracted' | 'not-extracted';
+    notes?: DocumentNote[];
+    noteAnchors?: NoteAnchor[];
+    documentLinks?: DocumentLink[];
   };
 }
 export interface SpeechPage {
