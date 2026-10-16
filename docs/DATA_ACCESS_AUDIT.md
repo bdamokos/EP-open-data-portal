@@ -32,6 +32,8 @@ The plenary-history follow-up on 15 October 2026 checked anonymous `/meetings?ye
 
 Reference cards use the existing anonymous SPARQL endpoint, Open Data API and OEIL pages through the shared validated source client and cache owner. Keys are validated against fixed patterns before any query is built, so callers supply neither query text nor host. EUR-Lex and footnote link targets are only outbound links; the adapter never fetches them. The 15 October 2026 checks are in `public-source-checks.json`.
 
+The optional full-text corpus uses the same anonymous Open Data API speech endpoint and the official DOCX distributions already linked from index records, through the existing allowlisted downloader. It adds no source, credential or proxy route. It has its own leased writer and opens the activity index read-only. See [Full-text corpus](PUBLIC_DATA.md#full-text-corpus).
+
 Generic interface labels are app-owned; country and language display names use the browser’s internationalization data. Portrait and favicon fallbacks are app-owned SVGs. The application uses system fonts and carries no inherited institutional font binaries or copied dataset assets.
 
 Chair-only exclusions in the agenda contributor list reuse transcript headers from the existing bounded speech cloud and reader requests. The classification is scoped to exact speech/person IDs and does not infer participation from a person's office or speech length. The dated public header examples omit body text. No new source, request fan-out, authentication, cache writer or index writer is introduced.
