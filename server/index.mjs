@@ -13,8 +13,18 @@ import {speechMedia} from './mmc.mjs';
 import {outsideDirectory,outsideSpeaker,outsideQuery} from './outside-store.mjs';
 
 import {SpeechInterventions,INTERVENTION_LIMITS} from './speech-intervention-service.mjs';
+import {OfficialContextSources} from './official-context.mjs';
+import {EurovocCatalog} from './eurovoc.mjs';
+import {ProcedureContext,procedureContextQuery,REFERENCE_SUMMARY_ORDER} from './procedure-context.mjs';
+import {LegalReferences,referencesQuery} from './legal-references.mjs';
 const interventions=new SpeechInterventions();
 let stopIndex=()=>{};let insightService;
+// One owner per official-source cache directory, shared by insights and reading-time references.
+let officialContext;
+function official() {
+  if(!officialContext){const sources=new OfficialContextSources(),catalog=new EurovocCatalog(sources);officialContext={sources,catalog,procedures:new ProcedureContext(sources,catalog),references:new LegalReferences(sources)};}
+  return officialContext;
+}
 function positiveId(value) {
   const raw = String(value || "");
   if (!/^[1-9][0-9]*$/.test(raw)) {
@@ -77,9 +87,12 @@ async function handleApi(request,response,url,apiPrefix){
       result=segments[2]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[2],query);
     }
     else if (segments.length === 3 && segments[1] === 'insights') {
-      insightService ??= createInsights(activityIndex().store);
+      insightService ??= createInsights(activityIndex().store,{officialSources:official().sources,eurovocCatalog:official().catalog});
       result = await insightService.query(segments[2], url.searchParams);
     }
+    else if (segments.length === 2 && segments[1] === 'references') result = await official().references.query(referencesQuery(url.searchParams));
+    // Dossier summaries for reading references do not depend on the activity index.
+    else if (segments.length === 2 && segments[1] === 'reference-summary') result = await official().procedures.query({...procedureContextQuery(url.searchParams),order:REFERENCE_SUMMARY_ORDER});
     else if (segments.length === 3 && segments[1] === 'activity-index' && segments[2] === 'status') {
       if ([...url.searchParams.keys()].some(key => key!=='lang' || url.searchParams.getAll(key).length!==1)) throw new HttpError(400,'invalid_query','Unsupported or repeated status query parameter.');
       result = activityIndexStatus();

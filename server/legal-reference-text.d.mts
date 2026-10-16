@@ -1,0 +1,16 @@
+export type ReferenceKind='eli'|'cellar'|'celex'|'act'|'document'|'procedure'|'question';
+export type FoundReference={start:number;end:number;key:string;kind:ReferenceKind;text:string};
+export function referenceKey(value:string):string|null;
+export function documentCelexCandidates(key:string):string[];
+export function questionCandidates(key:string):string[];
+export function findReferences(text:string):FoundReference[];
+export function referenceSegments(text:string):{text:string;ref?:FoundReference}[];
+export function referenceKeys(texts:string[],limit?:number):string[];
+export function eurLexUrl(celex:string,language?:string):string;
+export function cellarProcedureReference(value:string|null|undefined):string|null;
+export type LinkSpan={start:number;end:number;url:string};
+export type LinkedPart={text:string;from:number;to:number;href?:string|null;ref?:FoundReference&{via:'text'|'hyperlink';url?:string}};
+export function referenceFromUrl(url:string):{key:string;kind:ReferenceKind}|null;
+export function linkedSegments(text:string,links?:LinkSpan[]):LinkedPart[];
+export function noteReferenceKeys(note:{text:string;links?:string[];linkSpans?:LinkSpan[]}|null|undefined):string[];
+export function noteReferences(note:{text:string;links?:string[];linkSpans?:LinkSpan[]}|null|undefined):{linked:string[];cited:string[]};
