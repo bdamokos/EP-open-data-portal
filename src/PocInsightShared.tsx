@@ -9,7 +9,7 @@ import {DataNotice} from './components/DataNotice';
 
 export const countryName=(code:string,language='en')=>{try{return /^[A-Z]{2}$/.test(code)?new Intl.DisplayNames([language],{type:'region'}).of(code==='EL'?'GR':code)||code:code;}catch{return code;}};
 export const roleName=(role:string)=>({RAPPORTEUR:'Rapporteur',RAPPORTEUR_SHADOW:'Shadow rapporteur',RAPPORTEUR_OPINION:'Opinion rapporteur',RAPPORTEUR_SHADOW_OPINION:'Shadow opinion rapporteur',AUTHOR:'Author',QUESTION_AUTHOR:'Question author',AGENDA_CONTRIBUTOR:'Agenda contributor',SPEAKER:'Speaker',PRESIDING:'Chairing the sitting',WRITTEN_STATEMENT:'Written statement'} as Record<string,string>)[role]||role.toLowerCase().replaceAll('_',' ');
-export function InsightShell({title,description,view,children,onBack,onNavigate,onSaved,compactNotice=false}:InsightProps&{title:string;description?:string;view:'legislation'|'questions'|'outside';children:ReactNode;compactNotice?:boolean}) {
+export function InsightShell({title,description,view,children,onBack,onNavigate,onSaved,compactNotice=false}:InsightProps&{title:string;description?:string;view:'legislation'|'questions'|'outside'|'amendments';children:ReactNode;compactNotice?:boolean}) {
   return <main className="poc-insights"><ParliamentHeader view={view} onMembers={onBack} onNavigate={onNavigate} onSaved={onSaved}/><section className="insight-intro"><h1>{title}</h1>{description&&<p>{description}</p>}</section>{children}{compactNotice?<details className="insight-compact-notice"><summary>About this site</summary><DataNotice className="insight-data-notice"/></details>:<DataNotice className="insight-data-notice"/>}</main>;
 }
 export function InsightStatus({loading,error,retry}:{loading:boolean;error:string|null;retry:()=>void}) {

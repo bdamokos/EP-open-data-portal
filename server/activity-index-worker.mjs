@@ -1,6 +1,9 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { stat } from 'node:fs/promises';
 import { ODP_BASE, boundedUpstream, backoffUpstream } from './odp.mjs';
+import { amendmentTask, scheduleAmendments, prepareAmendments, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
+import { projectAmendmentDecisions, projectAmendmentSplits } from './amendments.mjs';
+import { nextAmendmentTask } from './amendments-store.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
 import { HttpError } from './http-utils.mjs';
@@ -62,8 +65,9 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
   },{priority:'background'});
 }
 export class ActivityWorker {
-  constructor(store,{fetchRecord=apiFetch,clock=Date.now,budget=1000,maxDuration=90*60_000,diskLimit=1024*1024*1024}={}) {
+  constructor(store,{fetchRecord=apiFetch,clock=Date.now,budget=1000,maxDuration=90*60_000,diskLimit=1024*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml}={}) {
     this.store=store;this.fetchRecord=fetchRecord;this.clock=clock;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
+    this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;
   }
   due() { const s=this.store.status();return Boolean(this.store.get('working') || !s.complete || day(Date.parse(s.lastSuccessfulRefresh))!==day(this.clock()) && hour(this.clock())>=3); }
@@ -90,7 +94,9 @@ export class ActivityWorker {
   }
   async task(task) {
     const {generation,body}=task;
-    if(task.kind.startsWith('outside-')) {
+    if(task.kind.startsWith('amendment-')) {
+      await amendmentTask(this,task);
+    } else if(task.kind.startsWith('outside-')) {
       await this.outsideTask(task);
     } else if(task.kind==='roster') {
       const r=await this.request('/meps/show-current',{limit:1000,offset:body.offset});
@@ -188,6 +194,7 @@ export class ActivityWorker {
       const {rows}=documentRows(projected,body.endpoint,r.fetchedAt,proc);
       this.store.putSource(generation,body.endpoint,'document',projected,r.fetchedAt,rows);this.store.finishTask(task);
       if(isMotion(projected))this.scheduleMotionOutcomes(generation,projected);
+      scheduleAmendments(this,generation,projected,r.fetchedAt,body.endpoint);
     } else if(task.kind==='motion-outcomes') {
       await this.loadMotionOutcomes(task);
     } else if(task.kind==='procedure') {
@@ -340,10 +347,12 @@ export class ActivityWorker {
     for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,String(value));
     const sources=[...body.sources,{url:url.href,fetchedAt:record.fetchedAt,language:body.stage==='decisions'?'en':null}];
     const project=body.stage==='results'?projectMotionResults:projectMotionDecisions;
-    const nodes=project(record.payload.data,body.sittingId);
+    const amendmentNodes=body.stage==='decisions'?new Map(projectAmendmentDecisions(record.payload.data,body.sittingId).map(node=>[node.id,node])):null;
+    const nodes=project(record.payload.data,body.sittingId).map(node=>amendmentNodes?{...node,...amendmentNodes.get(node.id)}:node);
+    const splits=body.stage==='results'?[...new Map([...(body.splits || []),...projectAmendmentSplits(record.payload.data,body.sittingId)].map(node=>[node.id,node])).values()]:body.splits || [];
     const field=body.stage==='results'?'results':'decisions';
     const merged=[...new Map([...body[field],...nodes].map(node=>[node.id,node])).values()];
-    const next={...body,[field]:merged,sources};
+    const next={...body,[field]:merged,sources,splits};
     const coverage=motionVoteCoverage(next.results,next.decisions);
     const missing=body.stage==='results'?coverage.missingResultIds:coverage.missingDecisionIds;
     const grew=merged.length>body[field].length;
@@ -364,12 +373,14 @@ export class ActivityWorker {
     coverage.missingResultIds=[...new Set([...coverage.missingResultIds,...(saved?.work.results || []).map(result=>result.id).filter(id=>!resultIds.has(id))])];
     const truncated=Boolean(coverage.missingResultIds.length || coverage.missingDecisionIds.length);
     const lastRefreshFailure=truncated?{attemptedAt:record.fetchedAt,coverage,sources}:null;
-    const replacement=truncated && saved && !saved.work.truncated ? {...saved.work,lastRefreshFailure} : {
-      results:next.results,decisions:next.decisions,sources,
+    let replacement=truncated && saved && !saved.work.truncated ? {...saved.work,lastRefreshFailure} : {
+      results:next.results,decisions:next.decisions,splitRequests:next.splits,sources,
       resultsUrl:body.resultsUrl,resultsFetchedAt:body.resultsFetchedAt,decisionsUrl:firstDecisionSource.url,decisionsFetchedAt:record.fetchedAt,
       coverage,truncated,lastRefreshFailure,
     };
+    replacement=parseSavedSplits(this,replacement);
     this.store.putSource(generation,key,'motion-outcomes',replacement,truncated && saved && !saved.work.truncated?saved.fetchedAt:record.fetchedAt);
+    refreshSittingTargets(this,generation,body.sittingId,replacement);
     this.store.finishTask(task);
   }
   refreshReportJoins(generation,procedureId) {
@@ -406,6 +417,7 @@ export class ActivityWorker {
     try {
       const cycle=this.store.beginCycle();if(!cycle.initialized)await this.initialize(cycle);
       this.initializeOutside(cycle);
+      prepareAmendments(this,cycle);
       // An unavailable historical detail must not stop next-day catalogue/feed
       // catch-up while its durable retry keeps the generation incomplete.
       this.catchUp(this.store.get('working'));
@@ -431,9 +443,10 @@ export class ActivityWorker {
       while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration) {
         const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
         if(size>this.diskLimit){this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
-        const task=this.store.nextTask(cycle.generation);
+        const ordinaryTask=this.store.nextTask(cycle.generation),amendmentJob=nextAmendmentTask(this.store,cycle.generation);
+        const task=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
         if(!task){const counts=this.store.taskCounts(cycle.generation);if(counts.total===counts.completed){if(this.catchUp(this.store.get('working')))continue;this.finalize(cycle.generation);}break;}
-        try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(this.failOutside(task,error))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare('UPDATE tasks SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?').run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
+        try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(this.failOutside(task,error)||failAmendmentTask(this,task,error))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
       }
     } finally {clearInterval(heartbeat);this.store.release();this.running=false;}
   }

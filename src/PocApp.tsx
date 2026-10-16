@@ -36,6 +36,8 @@ import { transcriptLanguage } from "../server/transcript-language.mjs";
 import { useData } from "./pocData";
 import { PocSpeechPlayer } from "./PocSpeechPlayer";
 import { PocLegislation } from './PocLegislation';
+import {PocAmendments,PocAmendmentsPage} from './PocAmendments';
+import {AmendmentTrailLink} from './AmendmentTrailLink';
 import { PocQuestionTopics } from './PocQuestionTopics';
 import {PocOutsideVoices} from './PocOutsideVoices';
 import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './pocCoAuthors.mjs';
@@ -170,6 +172,7 @@ function PublicationText({ sourceId, member, lang, heading, includeAnswers = fal
   const languageName=(code:string)=>{try{return new Intl.DisplayNames([lang],{type:'language'}).of(code)||code.toUpperCase();}catch{return code.toUpperCase();}};
   return <section className="poc-document-text" id={'document-'+sourceId} aria-live="polite">
     <div className="poc-reader-heading"><h3>{heading}</h3>{question&&<a href={"#document-"+question.id} title={question.title}>Read question</a>}{text?.availableTextLanguages.length ? <select aria-label={`${heading} language`} title={text.translationType==='original'?'Original text':'Translation method not specified'} value={text.textLanguage||requestedLanguage} onChange={event=>setRequestedLanguage(event.target.value)}>{text.availableTextLanguages.map(code=><option key={code} value={code}>{code.toUpperCase()}</option>)}</select> : null}{text?.textLanguage&&text.textLanguage!==requestedLanguage&&<small>{languageName(requestedLanguage)} unavailable · showing {languageName(text.textLanguage)}</small>}</div>
+    {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}>Amendments to this document</AmendmentTrailLink>}
     {state.loading&&!text&&<p role="status">Loading text…</p>}{state.error&&<p>Text temporarily unavailable.</p>}
     {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="poc-transcript" lang={text.textLanguage||undefined}>{body.paragraphs.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===body.start+index)} links={documentLinks.filter(link=>link.paragraph===body.start+index)} notePrefix={notePrefix}/></p>)}<DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&<p>Text unavailable. Download the document below.</p>}
     {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang}/><details className="poc-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details></>}
@@ -184,6 +187,7 @@ function JoinedDetails({ item, lang, member }: { item: JoinedActivity; lang: str
   if (item.recordKind === "speech") return <Detail speech={{id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null}} lang={lang} />;
   return <div className="poc-speech-detail">
     {!hasText&&<p><strong>{item.relatedJointMotions?.length && item.provenance.role==="AUTHOR" ? "Author of the original motion" : roles[item.provenance.role] || item.provenance.role}</strong>{item.provenance.stage ? ` · ${item.provenance.stage === "RDG1" ? "First reading" : item.provenance.stage === "RDG2" ? "Second reading" : item.provenance.stage}` : ""}</p>}
+    {!hasText&&<AmendmentTrailLink document={item.sourceId} language={lang}>Amendments to this document</AmendmentTrailLink>}
     <PocMotionOutcome outcome={item.resolutionOutcome} related={item.relatedJointMotions} reference={item.reference} sourceId={item.sourceId} language={lang}/>
     {(item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer') && <>
       {item.recordKind!=='answer'&&<SaveButton item={{kind:'question',id:item.sourceId,title:item.title,memberId:String(member),date:item.date,baseline:item.answerIds?{answerIds:item.answerIds}:undefined}}/>}
@@ -364,12 +368,12 @@ export default function PocApp() {
   const [speechLink, setSpeechLink] = useState(initial.get("speech"));
   const [activityLink, setActivityLink] = useState(initial.get("activity"));
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
-  const [view, setView] = useState<'legislation'|'questions'|'outside'|'saved'|null>(
-    ['legislation','questions','outside','saved'].includes(initial.get('view') || '')
-      ? initial.get('view') as 'legislation'|'questions'|'outside'|'saved' : null,
+  const [view, setView] = useState<'legislation'|'questions'|'outside'|'amendments'|'saved'|null>(
+    ['legislation','questions','outside','amendments','saved'].includes(initial.get('view') || '')
+      ? initial.get('view') as 'legislation'|'questions'|'outside'|'amendments'|'saved' : null,
   );
   const [tab, setTab] = useState(
-    ["profile", "activities"].includes(initial.get("module") || "") ? initial.get("module")! : "speeches",
+    ["profile", "activities", "amendments"].includes(initial.get("module") || "") ? initial.get("module")! : "speeches",
   );
   const directoryState = useData<Directory>(view==='outside'?null:"directory");
   const directory = directoryState.data;
@@ -475,17 +479,17 @@ export default function PocApp() {
     const url=new URL(location.href);
     // Country on the member wall is deliberately not an explorer default.
     url.searchParams.delete('country');
-    for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend|ov)-/.test(key))url.searchParams.delete(key);
+    for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend|ov|am)-/.test(key))url.searchParams.delete(key);
     next?url.searchParams.set('view',next):url.searchParams.delete('view');
     history.pushState(null,'',url);setView(next);
   }
   useEffect(()=>{
     const restore=()=>{
       const query=new URLSearchParams(location.search),next=query.get('view');
-      const restored=['legislation','questions','outside','saved'].includes(next||'')?next as typeof view:null;
+      const restored=['legislation','questions','outside','amendments','saved'].includes(next||'')?next as typeof view:null;
       setView(restored);setMember(/^\d+$/.test(query.get('member')||'')?Number(query.get('member')):null);
       if(!restored){setCountry(filterCountry(query.get('country')));setCommittee(query.get('committee')||'');setGroup(query.get('group')||'');}
-      setTab(['profile','activities'].includes(query.get('module')||'')?query.get('module')!:'speeches');
+      setTab(['profile','activities','amendments'].includes(query.get('module')||'')?query.get('module')!:'speeches');
       setSpeechLink(query.get('speech'));setActivityLink(query.get('activity'));setActivityCategory(query.get('activity-category')||'');
     };
     window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);
@@ -500,9 +504,9 @@ export default function PocApp() {
   const showMembers = () => {
     navigateView(null);setMember(null);setSpeechLink(null);setActivityLink(null);
   };
-  if (view === 'legislation' || view === 'questions' || view === 'outside') {
+  if (view === 'legislation' || view === 'questions' || view === 'outside' || view === 'amendments') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
-    return view==='legislation' ? <PocLegislation {...props}/> : view==='outside' ? <PocOutsideVoices {...props}/> : <PocQuestionTopics {...props}/>;
+    return view==='amendments' ? <PocAmendmentsPage {...props}/> : view==='legislation' ? <PocLegislation {...props}/> : view==='outside' ? <PocOutsideVoices {...props}/> : <PocQuestionTopics {...props}/>;
   }
   return (
     <main className="poc" lang={lang}>
@@ -540,20 +544,23 @@ export default function PocApp() {
                 <SaveButton item={{kind:'mep',id:String(member),title:[profile.data?.firstName||selected?.firstName,profile.data?.lastName||selected?.lastName].filter(Boolean).join(' ')}}/>
               </div>
             </div>
-            <nav className="poc-tabs">
+            <nav className="poc-tabs" aria-label="MEP sections">
               <button
                 className={tab === "profile" ? "selected" : ""}
+                aria-current={tab === 'profile' ? 'page' : undefined}
                 onClick={() => setTab("profile")}
               >
                 {c.profile}
               </button>
               <button
                 className={tab === "speeches" ? "selected" : ""}
+                aria-current={tab === 'speeches' ? 'page' : undefined}
                 onClick={() => setTab("speeches")}
               >
                 {c.speeches}
               </button>
-              <button className={tab === "activities" ? "selected" : ""} onClick={() => setTab("activities")}>{c.activities}</button>
+              <button className={tab === "activities" ? "selected" : ""} aria-current={tab === 'activities' ? 'page' : undefined} onClick={() => setTab("activities")}>{c.activities}</button>
+              <button className={tab === "amendments" ? "selected" : ""} aria-current={tab === 'amendments' ? 'page' : undefined} onClick={() => setTab("amendments")}>Amendments</button>
             </nav>
             <div className="poc-profile-body">
               {tab === "speeches" ? (
@@ -563,7 +570,7 @@ export default function PocApp() {
                   initialSpeech={speechLink}
                   onOpen={setSpeechLink}
                 />
-              ) : tab === "activities" ? <Activities id={member} lang={lang} initialActivity={activityLink} onOpen={setActivityLink} category={activityCategory} onCategory={setActivityCategory} /> : (
+              ) : tab === "amendments" ? <PocAmendments key={member} member={member} language={lang} onMember={openInsightMember} heading="Amendments tabled"/> : tab === "activities" ? <Activities id={member} lang={lang} initialActivity={activityLink} onOpen={setActivityLink} category={activityCategory} onCategory={setActivityCategory} /> : (
                 <>
                   {profile.loading && <p role="status">Loading profile…</p>}
                   {profile.error && (

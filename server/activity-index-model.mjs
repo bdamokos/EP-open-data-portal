@@ -43,10 +43,16 @@ export function documentFiles(work) {
   }));
 }
 export function projectDocument(w) {
-  const result = Object.fromEntries(['id','identifier','label','work_type','parliamentary_term','document_date','title_dcterms','workHadParticipation','creator','inverse_created_a_realization_of','based_on','originalLanguage'].filter(k => w[k] !== undefined).map(k => [k,w[k]]));
+  const result = Object.fromEntries(['id','identifier','label','work_type','parliamentary_term','document_date','title_dcterms','workHadParticipation','creator','inverse_created_a_realization_of','based_on','originalLanguage','foresees_change_of','itemNumberBegin','itemNumberEnd','numbering','is_about','isAboutSubjectMatter','isAboutDirectoryCode'].filter(k => w[k] !== undefined).map(k => [k,w[k]]));
   result.is_realized_by = array(w.is_realized_by).map(e => ({ language:e.language, title:e.title,
     is_embodied_by:array(e.is_embodied_by).map(m => ({format:m.format,byteSize:m.byteSize,is_exemplified_by:m.is_exemplified_by})) }));
   result.inverse_answers_to = array(w.inverse_answers_to).filter(a => a && typeof a === 'object').map(projectDocument);
+  if (['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].includes(tail(w.work_type))) {
+    result.amendmentLinksVersion = 1;
+    result.inverse_foresees_change_of = array(w.inverse_foresees_change_of).filter(ref=>ref && typeof ref==='object').map(projectDocument);
+    result.inverse_based_on_a_realization_of = array(w.inverse_based_on_a_realization_of).map(ref => ref?.id || ref);
+    result.inverse_decided_on_a_realization_of = array(w.inverse_decided_on_a_realization_of).map(ref => ref?.id || ref);
+  }
   if (['RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].includes(tail(w.work_type))) {
     result.motionLinksVersion = 1;
     result.inverse_based_on_a_realization_of = array(w.inverse_based_on_a_realization_of).map(ref => ref?.id || ref);

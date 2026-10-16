@@ -17,7 +17,7 @@ const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500}
 const memory=new Map(),pending=new Map(),failures=new Map();
 const DOCX_PARTS=['word/document.xml','word/styles.xml','word/numbering.xml','word/settings.xml','word/_rels/document.xml.rels','word/footnotes.xml','word/_rels/footnotes.xml.rels','word/endnotes.xml','word/_rels/endnotes.xml.rels'];
 // Read only standard text, style, numbering, note and relationship parts. No archive paths are written to disk.
-function docxParts(buffer) {
+export function docxParts(buffer) {
   if(buffer.length>MAX_FILE || buffer.length<22)throw new Error('DOCX size is unsupported.');
   let end=-1;
   for(let i=buffer.length-22;i>=Math.max(0,buffer.length-65557);i--)if(buffer.readUInt32LE(i)===0x06054b50){end=i;break;}
@@ -180,7 +180,7 @@ export function allowedDownload(value) {
     ((u.hostname==='data.europarl.europa.eu' && u.pathname.startsWith('/distribution/')) || (u.hostname==='redmapl3.europarl.europa.eu' && u.pathname.startsWith('/RedmapFront/media/')))
     && u.pathname.endsWith('.docx');}catch{return false;}
 }
-export async function downloadDocx(sourceUrl) {
+export async function downloadDocxBuffer(sourceUrl) {
   let url=sourceUrl;
   for(let hop=0;hop<4;hop++) {
     if(!allowedDownload(url))throw new Error('Unapproved official document download URL.');
@@ -192,9 +192,13 @@ export async function downloadDocx(sourceUrl) {
     if(!/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw new Error('Unexpected document download format.');}
     const chunks=[];let size=0;
     for await(const chunk of response){size+=chunk.length;if(size>MAX_FILE){response.destroy();throw new Error('Official document exceeds 8 MiB.');}chunks.push(chunk);}
-    return {...docxContent(Buffer.concat(chunks)),resolvedSourceUrl:url};
+    return {buffer:Buffer.concat(chunks),resolvedSourceUrl:url};
   }
   throw new Error('Too many document download redirects.');
+}
+export async function downloadDocx(sourceUrl) {
+  const {buffer,resolvedSourceUrl}=await downloadDocxBuffer(sourceUrl);
+  return {...docxContent(buffer),resolvedSourceUrl};
 }
 
 const validSpan=(span,text)=>Number.isInteger(span?.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&typeof span.url==='string'&&/^https?:\/\//i.test(span.url);
