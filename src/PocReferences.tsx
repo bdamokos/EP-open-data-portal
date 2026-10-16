@@ -1,5 +1,5 @@
 import {PocSourceLink} from './PocSourceLink';
-import {createContext,useCallback,useContext,useEffect,useId,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
+import {Fragment,createContext,useCallback,useContext,useEffect,useId,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {linkedSegments,noteReferences,referenceKeys,type LinkSpan} from '../server/legal-reference-text.mjs';
 import {useData} from './pocData';
 import {humanDate} from './PocInsightCharts';
@@ -15,7 +15,7 @@ type Summary={reference:string;title:string;language:string;summary:null|{id:str
 type Evidence={status:'hyperlink';url:string}|{status:'confirmed'|'other'|'from-note';note:string;noteId:string;others?:string[]};
 type OpenCard={key:string;text:string;trigger:HTMLElement;pinned:boolean;evidence?:Evidence};
 type OpenQuestion={id:string;trigger:HTMLElement};
-type Scope={references:Map<string,ResolvedReference>;noteKeys:Map<string,{linked:string[];cited:string[]}>;notePrefix:string;open:OpenCard|null;show:(card:OpenCard)=>void;hoverEnd:()=>void;cardId:string};
+type Scope={references:Map<string,ResolvedReference>;noteKeys:Map<string,{linked:string[];cited:string[]}>;notePrefix:string;textLanguage:string|null;open:OpenCard|null;show:(card:OpenCard)=>void;hoverEnd:()=>void;cardId:string};
 const ReferenceScopeContext=createContext<Scope|null>(null);
 
 // The current term began on 16 July 2024. Older acts are described, not claimed as indexed activity.
@@ -60,7 +60,7 @@ const allFound=(scope:Scope,noteId:string)=>{const note=scope.noteKeys.get(noteI
 const noteIdentifies=(scope:Scope,noteId:string)=>{const note=scope.noteKeys.get(noteId);if(!note)return null;const links=distinctFound(scope,note.linked);const found=links.length?links:distinctFound(scope,note.cited);return found.length===1?found[0]:null;};
 
 // Wraps one reader. Opened question readers appear below the text, so reading stays in place.
-export function ReferenceScope({texts,language,children,renderQuestion,notes=[],notePrefix=''}:{texts:string[];language:string;children:ReactNode;renderQuestion?:(id:string)=>ReactNode;notes?:DocumentNote[];notePrefix?:string}) {
+export function ReferenceScope({texts,language,textLanguage=null,children,renderQuestion,notes=[],notePrefix=''}:{texts:string[];language:string;textLanguage?:string|null;children:ReactNode;renderQuestion?:(id:string)=>ReactNode;notes?:DocumentNote[];notePrefix?:string}) {
   const lookup=useReferenceLookup(texts,language),references=lookup.references;
   const noteKeys=useMemo(()=>new Map(notes.map(note=>[note.id,noteReferences(note)])),[notes]);
   const [open,setOpen]=useState<OpenCard|null>(null),[question,setQuestion]=useState<OpenQuestion|null>(null);
@@ -88,20 +88,20 @@ export function ReferenceScope({texts,language,children,renderQuestion,notes=[],
   const reference=open?references.get(open.key):undefined;
   useEffect(()=>{if(!open){focusedCard.current=null;return;}if(open.pinned&&card.current&&focusedCard.current!==open){focusedCard.current=open;card.current.focus({preventScroll:true});card.current.scrollIntoView({block:'nearest'});}},[open,position,reference]);
   useLayoutEffect(()=>{if(question)questionReader.current?.focus({preventScroll:true});},[question]);
-  const scope=useMemo(()=>({references,noteKeys,notePrefix,open,show,hoverEnd,cardId}),[references,noteKeys,notePrefix,open,show,hoverEnd,cardId]);
+  const scope=useMemo(()=>({references,noteKeys,notePrefix,textLanguage,open,show,hoverEnd,cardId}),[references,noteKeys,notePrefix,textLanguage,open,show,hoverEnd,cardId]);
   return <ReferenceScopeContext.Provider value={scope}><div className="legal-reference-scope" ref={wrapper} role="group" aria-label="Document text and references" tabIndex={-1}>
     {children}
-    {lookup.unavailable&&<p className="legal-reference-retry" role="status">Reference details are temporarily unavailable. <button type="button" className="legal-reference-text-button" disabled={lookup.loading} onClick={lookup.retry}>{lookup.loading?'Retrying references…':'Retry references'}</button></p>}
-    {open&&reference&&position&&<div ref={card} id={cardId} className="legal-reference-card" role="dialog" aria-label={open.text} tabIndex={-1} style={position}
+    {lookup.unavailable&&<p lang="en" className="legal-reference-retry" role="status">Reference details are temporarily unavailable. <button type="button" className="legal-reference-text-button" disabled={lookup.loading} onClick={lookup.retry}>{lookup.loading?'Retrying references…':'Retry references'}</button></p>}
+    {open&&reference&&position&&<div ref={card} id={cardId} className="legal-reference-card" lang={open.trigger.closest('[lang]')?.getAttribute('lang')??''} role="dialog" aria-label={open.text} tabIndex={-1} style={position}
       onPointerEnter={()=>window.clearTimeout(timer.current)} onPointerLeave={event=>{if(event.pointerType==='mouse')hoverEnd();}}>
-      <ReferenceCard reference={reference} text={open.text} language={language} evidence={open.evidence} notePrefix={notePrefix} references={references} onQuestion={renderQuestion?id=>{setQuestion({id,trigger:open.trigger});close();}:undefined}/>
-      <button type="button" className="legal-reference-close" aria-label="Close" onClick={()=>close(true)}>×</button>
+      <ReferenceCard reference={reference} text={open.text} textLanguage={open.trigger.closest('[lang]')?.getAttribute('lang')??''} language={language} evidence={open.evidence} notePrefix={notePrefix} references={references} onQuestion={renderQuestion?id=>{setQuestion({id,trigger:open.trigger});close();}:undefined}/>
+      <button type="button" lang="en" className="legal-reference-close" aria-label="Close" onClick={()=>close(true)}>×</button>
     </div>}
-    {question&&renderQuestion&&<div className="legal-reference-question" ref={questionReader} role="region" aria-label="Referenced question" tabIndex={-1}><button type="button" className="legal-reference-text-button" onClick={()=>{returnToReference(question.trigger,wrapper.current);setQuestion(null);}}>Close referenced question</button>{renderQuestion(question.id)}</div>}
+    {question&&renderQuestion&&<div lang="en" className="legal-reference-question" ref={questionReader} role="region" aria-label="Referenced question" tabIndex={-1}><button type="button" className="legal-reference-text-button" onClick={()=>{returnToReference(question.trigger,wrapper.current);setQuestion(null);}}>Close referenced question</button>{renderQuestion(question.id)}</div>}
   </div></ReferenceScopeContext.Provider>;
 }
 
-function ReferenceCard({reference,text,language,onQuestion,evidence,notePrefix,references}:{reference:ResolvedReference;text:string;language:string;onQuestion?:(id:string)=>void;evidence?:Evidence;notePrefix:string;references:Map<string,ResolvedReference>}) {
+function ReferenceCard({reference,text,textLanguage,language,onQuestion,evidence,notePrefix,references}:{reference:ResolvedReference;text:string;textLanguage:string;language:string;onQuestion?:(id:string)=>void;evidence?:Evidence;notePrefix:string;references:Map<string,ResolvedReference>}) {
   const procedure=reference.kind==='procedure'?reference.procedure:reference.procedure||null;
   const [summaryOpen,setSummaryOpen]=useState(reference.kind==='procedure');
   useEffect(()=>setSummaryOpen(reference.kind==='procedure'),[reference.key]);
@@ -109,12 +109,13 @@ function ReferenceCard({reference,text,language,onQuestion,evidence,notePrefix,r
   const kind=reference.kind==='question'?questionType[reference.id?.[0]||'E']:reference.kind==='procedure'?'Legislative procedure':celex.startsWith('1')?'EU Treaty':reference.kind==='act'?'EU law · '+(actType[celex[5]]||'Act'):documentType[sector]||'EU document';
   const status=reference.kind==='act'&&reference.inForce!==null&&reference.inForce!==undefined?(reference.inForce?'In force':'No longer in force'):null;
   const older=reference.date&&reference.date<TERM_START&&reference.kind!=='question'?'Before the current term':null;
+  const metadata=[{text:displayDate(reference.date,language),language},{text:procedure&&reference.kind!=='procedure'?'Procedure '+procedure:null,language:'en'},{text:older,language:'en'}].filter(item=>item.text);
   return <>
-    <p className="legal-reference-kind">{[kind,status].filter(Boolean).join(' · ')}</p>
-    {reference.kind!=='procedure'&&<p className="legal-reference-title" lang={reference.titleLanguage||undefined}>{reference.title||text}</p>}
-    <p className="legal-reference-meta">{[displayDate(reference.date,language),procedure&&reference.kind!=='procedure'?'Procedure '+procedure:null,older].filter(Boolean).join(' · ')}</p>
-    {reference.stale&&<p className="legal-reference-meta">Saved description{reference.source?.fetchedAt?' from '+displayDate(reference.source.fetchedAt,language):''}; a newer check of the official source is pending.</p>}
-    <div className="legal-reference-actions">
+    <p lang="en" className="legal-reference-kind">{[kind,status].filter(Boolean).join(' · ')}</p>
+    {reference.kind!=='procedure'&&<p className="legal-reference-title" lang={reference.title?reference.titleLanguage??'':textLanguage}>{reference.title||text}</p>}
+    <p lang="en" className="legal-reference-meta">{metadata.map((item,index)=><Fragment key={index}>{index?' · ':''}<span lang={item.language}>{item.text}</span></Fragment>)}</p>
+    {reference.stale&&<p lang="en" className="legal-reference-meta">Saved description{reference.source?.fetchedAt?<> from <span lang={language}>{displayDate(reference.source.fetchedAt,language)}</span></>:''}; a newer check of the official source is pending.</p>}
+    <div lang="en" className="legal-reference-actions">
       {reference.kind==='question'&&reference.id&&onQuestion&&<button type="button" onClick={()=>onQuestion(reference.id!)}>{reference.answerIds?.length?'Read question and answer':'Read question'}</button>}
       {procedure&&reference.kind!=='procedure'&&<button type="button" aria-expanded={summaryOpen} onClick={()=>setSummaryOpen(value=>!value)}>{summaryOpen?'Hide dossier summary':'Dossier summary'}</button>}
       {reference.eurLexUrl&&<a href={reference.eurLexUrl} target="_blank" rel="noreferrer">EUR-Lex ↗</a>}
@@ -122,30 +123,30 @@ function ReferenceCard({reference,text,language,onQuestion,evidence,notePrefix,r
     </div>
     {evidence&&<EvidenceNote evidence={evidence} notePrefix={notePrefix} references={references}/>}
     {procedure&&summaryOpen&&<DossierSummary reference={procedure} language={language} showTitle={reference.kind==='procedure'}/>}
-    {reference.source&&<p className="legal-reference-source">{reference.source.name}{reference.celex?' · CELEX '+reference.celex:''}</p>}
+    {reference.source&&<p lang="en" className="legal-reference-source">{reference.source.name}{reference.celex?' · CELEX '+reference.celex:''}</p>}
   </>;
 }
 
 const shortLabel=(reference:ResolvedReference|undefined,key:string)=>{const title=reference?.title||reference?.celex||key.replace(/^[a-z]+:/,'');return title.length>90?title.slice(0,88)+'…':title;};
 function EvidenceNote({evidence,notePrefix,references}:{evidence:Evidence;notePrefix:string;references:Map<string,ResolvedReference>}) {
-  if(evidence.status==='hyperlink'){let host='';try{host=new URL(evidence.url).hostname;}catch{}return <p className="legal-reference-evidence">The document links this text to {host||'this source'}.</p>;}
+  if(evidence.status==='hyperlink'){let host='';try{host=new URL(evidence.url).hostname;}catch{}return <p lang="en" className="legal-reference-evidence">The document links this text to {host||'this source'}.</p>;}
   const note=<a href={`#${notePrefix}-note-${evidence.noteId}`}>footnote {evidence.note}</a>;
-  if(evidence.status==='confirmed')return <p className="legal-reference-evidence is-confirmed"><span aria-hidden="true">✓ </span>The document’s {note} gives the same identifier.</p>;
-  if(evidence.status==='from-note')return <p className="legal-reference-evidence is-confirmed">Identified by the document’s {note}.</p>;
-  return <p className="legal-reference-evidence">The document’s {note} points to {(evidence.others||[]).map(key=>shortLabel(references.get(key),key)).join('; ')}.</p>;
+  if(evidence.status==='confirmed')return <p lang="en" className="legal-reference-evidence is-confirmed"><span aria-hidden="true">✓ </span>The document’s {note} gives the same identifier.</p>;
+  if(evidence.status==='from-note')return <p lang="en" className="legal-reference-evidence is-confirmed">Identified by the document’s {note}.</p>;
+  return <p lang="en" className="legal-reference-evidence">The document’s {note} points to {(evidence.others||[]).map((key,index)=><Fragment key={key}>{index?'; ':''}<span lang={references.get(key)?.title?references.get(key)?.titleLanguage??'':''}>{shortLabel(references.get(key),key)}</span></Fragment>)}.</p>;
 }
 
 function DossierSummary({reference,language,showTitle}:{reference:string;language:string;showTitle:boolean}) {
   const [expanded,setExpanded]=useState(false);
   const {data,loading,error,retry}=useData<Summary>('reference-summary?'+new URLSearchParams({reference,lang:language}));
-  if(loading&&!data)return <p className="legal-reference-summary" role="status">Loading dossier summary…</p>;
-  if(!data)return <p className="legal-reference-summary">{error?<>The Legislative Observatory summary is temporarily unavailable. <button type="button" className="legal-reference-text-button" onClick={retry}>Try again</button></>:null}</p>;
+  if(loading&&!data)return <p lang="en" className="legal-reference-summary" role="status">Loading dossier summary…</p>;
+  if(!data)return <p lang="en" className="legal-reference-summary">{error?<>The Legislative Observatory summary is temporarily unavailable. <button type="button" className="legal-reference-text-button" onClick={retry}>Try again</button></>:null}</p>;
   const blocks=data.summary?.blocks||[],shown=expanded?blocks:blocks.slice(0,2);
-  return <section className="legal-reference-summary" aria-label={'Dossier summary '+reference}>
-    {showTitle&&<p className="legal-reference-title">{data.title}</p>}
+  return <section lang="en" className="legal-reference-summary" aria-label={'Dossier summary '+reference}>
+    {showTitle&&<p className="legal-reference-title" lang={data.language??''}>{data.title}</p>}
     {data.summary?<>
-      <p className="legal-reference-meta">{stageName(data.summary.stage)} · {displayDate(data.summary.date,language)}{data.language!==language?' · '+(new Intl.DisplayNames([language],{type:'language'}).of(data.language)||data.language):''}{data.summary.method?' · '+data.summary.method:''}</p>
-      <div lang={data.language}>{shown.map((block,index)=>block.kind==='heading'?<h4 key={index}>{block.text}</h4>:<p key={index}>{block.text}</p>)}</div>
+      <p className="legal-reference-meta">{stageName(data.summary.stage)} · <span lang={language}>{displayDate(data.summary.date,language)}</span>{data.language!==language?<> · <span lang={language}>{new Intl.DisplayNames([language],{type:'language'}).of(data.language)||data.language}</span></>:''}{data.summary.method?' · '+data.summary.method:''}</p>
+      <div lang={data.language??''}>{shown.map((block,index)=>block.kind==='heading'?<h4 key={index}>{block.text}</h4>:<p key={index}>{block.text}</p>)}</div>
       <div className="legal-reference-actions">{blocks.length>2&&<button type="button" aria-expanded={expanded} onClick={()=>setExpanded(value=>!value)}>{expanded?'Show less':'Continue reading'}</button>}<a className="legal-reference-secondary" href={data.summary.source.url} target="_blank" rel="noreferrer">Legislative Observatory ↗</a></div>
     </>:<p className="legal-reference-meta">The Legislative Observatory publishes no summary for {reference}.</p>}
   </section>;
@@ -160,10 +161,10 @@ function ReferenceButton({refKey,text,evidence,className='legal-ref',label}:{ref
     onPointerLeave={event=>{window.clearTimeout(hover.current);if(event.pointerType==='mouse')scope.hoverEnd();}}>{text}</button>;
 }
 const urlPattern=/\bhttps?:\/\/[^\s<>"]+[^\s<>".,;:)]/g;
-function plain(text:string,linkify:boolean,key:string) {
+function plain(text:string,linkify:boolean,key:string,language:string) {
   if(!linkify)return text;
   const parts:ReactNode[]=[];let cursor=0;
-  for(const match of text.matchAll(urlPattern)){if(match.index>cursor)parts.push(text.slice(cursor,match.index));parts.push(<PocSourceLink key={key+'-'+match.index} url={match[0]} compact>{match[0]}</PocSourceLink>);cursor=match.index+match[0].length;}
+  for(const match of text.matchAll(urlPattern)){if(match.index>cursor)parts.push(text.slice(cursor,match.index));parts.push(<PocSourceLink key={key+'-'+match.index} url={match[0]} contentLanguage={language} compact>{match[0]}</PocSourceLink>);cursor=match.index+match[0].length;}
   if(cursor<text.length)parts.push(text.slice(cursor));
   return parts;
 }
@@ -171,7 +172,7 @@ function plain(text:string,linkify:boolean,key:string) {
 function NoteMark({anchor,notePrefix}:{anchor:NoteAnchor;notePrefix:string}) {
   const scope=useContext(ReferenceScopeContext),key=scope?noteIdentifies(scope,anchor.note):null;
   if(key)return <sup className="legal-note-mark"><ReferenceButton refKey={key} text={anchor.label} className="legal-ref legal-note-ref" label={'Note '+anchor.label+': '+shortLabel(scope!.references.get(key),key)} evidence={{status:'from-note',note:anchor.label,noteId:anchor.note}}/></sup>;
-  return <sup className="legal-note-mark"><a href={`#${notePrefix}-note-${anchor.note}`} aria-label={'Note '+anchor.label}>{anchor.label}</a></sup>;
+  return <sup className="legal-note-mark"><a lang="en" href={`#${notePrefix}-note-${anchor.note}`} aria-label={'Note '+anchor.label}>{anchor.label}</a></sup>;
 }
 // Renders text unchanged. Document hyperlinks and resolved references become controls; footnote markers keep their exact offsets.
 export function ReferenceText({text,start=0,anchors=[],links=[],final=true,notePrefix='',linkify=false}:{text:string;start?:number;anchors?:NoteAnchor[];links?:(LinkSpan|DocumentLink)[];final?:boolean;notePrefix?:string;linkify?:boolean}) {
@@ -194,21 +195,21 @@ export function ReferenceText({text,start=0,anchors=[],links=[],final=true,noteP
   for(const part of parts) {
     if(part.linked||part.href) {
       while(next<marks.length&&marks[next].at<=part.from)mark();
-      nodes.push(part.linked?<ReferenceButton key={'ref-'+part.from} refKey={part.ref!.key} text={part.text} evidence={evidenceFor(part)}/>:<PocSourceLink key={'link-'+part.from} url={part.href!} compact>{part.text}</PocSourceLink>);
+      nodes.push(part.linked?<ReferenceButton key={'ref-'+part.from} refKey={part.ref!.key} text={part.text} evidence={evidenceFor(part)}/>:<PocSourceLink key={'link-'+part.from} url={part.href!} contentLanguage={scope?.textLanguage??''} compact>{part.text}</PocSourceLink>);
       continue;
     }
     let local=part.from;
-    while(next<marks.length&&marks[next].at<part.to){const at=Math.max(marks[next].at,local);if(at>local)nodes.push(plain(text.slice(local,at),linkify,String(local)));local=at;mark();}
-    if(local<part.to)nodes.push(plain(text.slice(local,part.to),linkify,String(local)));
+    while(next<marks.length&&marks[next].at<part.to){const at=Math.max(marks[next].at,local);if(at>local)nodes.push(plain(text.slice(local,at),linkify,String(local),scope?.textLanguage??''));local=at;mark();}
+    if(local<part.to)nodes.push(plain(text.slice(local,part.to),linkify,String(local),scope?.textLanguage??''));
   }
   while(next<marks.length)mark();
   return <>{nodes}</>;
 }
 export function DocumentNotes({notes,prefix}:{notes:DocumentNote[];prefix:string}) {
   if(!notes.length)return null;
-  return <details className="legal-notes" open><summary>Notes · {notes.length}</summary><ol>{notes.map(note=><li key={note.id} id={`${prefix}-note-${note.id}`} value={/^\d+$/.test(note.label)?Number(note.label):undefined}>
+  return <details className="legal-notes" open><summary lang="en">Notes · {notes.length}</summary><ol>{notes.map(note=><li key={note.id} id={`${prefix}-note-${note.id}`} value={/^\d+$/.test(note.label)?Number(note.label):undefined}>
     <span className="legal-note-label">{/^\d+$/.test(note.label)?null:note.label+' '}</span><ReferenceText text={note.text} links={note.linkSpans||[]} linkify/>
-    {note.links.filter(link=>!note.text.includes(link)&&!(note.linkSpans||[]).some(span=>span.url===link)).map(link=><span key={link}> <PocSourceLink url={link} compact>Link ↗</PocSourceLink></span>)}
+    {note.links.filter(link=>!note.text.includes(link)&&!(note.linkSpans||[]).some(span=>span.url===link)).map(link=><span key={link} lang="en"> <PocSourceLink url={link} compact>Link ↗</PocSourceLink></span>)}
   </li>)}</ol></details>;
 }
 // Every text and link target in a reader, so one lookup covers the body, its notes and their hyperlinks.
