@@ -28,14 +28,15 @@ async function checkPortraitMotion(page) {
         const viewport = element.getBoundingClientRect();
         const portrait = element.closest('.portrait').getBoundingClientRect();
         const caption = element.closest('.portrait__label').getBoundingClientRect();
+        const clipsVertically = getComputedStyle(element).overflowY !== 'visible';
         const bounds = [...range.getClientRects()];
         return {
           text: text.textContent,
           lines: bounds.length,
           visible: bounds.length > 0 && bounds.every(r =>
             r.left >= viewport.left - .5 && r.right <= viewport.right + .5
-            && r.top >= Math.max(portrait.top, caption.top) - .5
-            && r.bottom <= Math.min(portrait.bottom, caption.bottom) + .5),
+            && r.top >= Math.max(portrait.top, caption.top, clipsVertically ? viewport.top : -Infinity) - .5
+            && r.bottom <= Math.min(portrait.bottom, caption.bottom, clipsVertically ? viewport.bottom : Infinity) + .5),
           animation: getComputedStyle(track).animationName,
           transform: getComputedStyle(track).transform,
           copies: [...track.children].filter(child => getComputedStyle(child).display !== 'none').length,
