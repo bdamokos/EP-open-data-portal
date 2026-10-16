@@ -119,6 +119,30 @@ test('a same-query busy response and retry keep the previous matching results vi
   assert.equal(view.find('.poc-search-result h4'),title);
 });
 
+test('answer card dates follow document dates for document search and question dates for grouped questions',async t=>{
+  const question='E-10-2026-000001',answer=question+'-ASW';
+  const answerHit={...english,sourceId:answer,kind:'answer',parentId:question,date:'2026-06-01'};
+  const view=await setup(t,{query:'fixture-fts-search=energy&fixture-fts-text-lang=en&fixture-fts-sort=newest',respond:call=>{
+    if(!call.url.pathname.endsWith('/corpus/search'))return;
+    const grouped=call.body.group==='question';
+    return Response.json({total:1,limit:20,offset:0,nextOffset:null,truncated:false,coverage:{complete:false},results:[{sourceId:grouped?question:answer,kind:grouped?'question':'answer',parentId:grouped?null:question,date:'2026-06-01',questionDate:'2026-05-01',answerDate:'2026-06-01',title:'Energy policy question and institutional answer',reference:question,hits:[answerHit]}]});
+  }});
+  const formatted=value=>new Intl.DateTimeFormat('en',{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(value+'T12:00:00Z'));
+  const headingDate=()=>view.find('.poc-search-result > .poc-search-meta > span:last-child').textContent;
+  await view.render({kinds:['answer'],group:'document',dateBasis:'document',from:'2026-06-01',to:'2026-06-30'});
+  assert.equal(view.searches().at(-1).body.sort,'newest');
+  assert.equal(view.searches().at(-1).body.dateBasis,'document');
+  assert.equal(view.searches().at(-1).body.from,'2026-06-01');
+  assert.equal(view.searches().at(-1).body.to,'2026-06-30');
+  assert.equal(headingDate(),formatted('2026-06-01'),'a June answer must show its June publication date at the top of its document card');
+  assert.match(view.find('.poc-search-match > .poc-search-meta').textContent,/Match in institutional answer/);
+  await view.render({kinds:['answer'],group:'question',dateBasis:'question',from:'2026-05-01',to:'2026-05-31'});
+  assert.equal(view.searches().at(-1).body.group,'question');
+  assert.equal(view.searches().at(-1).body.dateBasis,'question');
+  assert.equal(headingDate(),formatted('2026-05-01'),'a grouped question card must keep the parent question date');
+  assert.match(view.find('.poc-search-match > .poc-search-meta').textContent,new RegExp(formatted('2026-06-01')),'the matched answer still displays its own June publication date');
+});
+
 test('changing interface language preserves explicit search language and selected hit identity',async t=>{
   const view=await setup(t,{query:'fixture-fts-search=energy&fixture-fts-text-lang=all'});
   await view.render();await view.select('.poc-search-versions select',french.sourceKey);await view.click('Read speech');
