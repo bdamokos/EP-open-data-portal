@@ -8,6 +8,7 @@ import {speechParagraphText,speechWordTokens,speechWordStopwords,speechWordLangu
 import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
 import {transcriptLanguage} from './transcript-language.mjs';
 import {phraseModel} from './insights-phrases.mjs';
+import {sharedRequest,waitForRequest} from './request-budget.mjs';
 
 // A week scales the total page and XML budgets by its number of held sittings (at most five).
 export const CLOUD_LIMITS=Object.freeze({pageSize:50,pages:20,xmlBytes:4*1024*1024,weekSittings:5,queries:6,cacheMs:30*60_000});
@@ -73,10 +74,10 @@ export class SpeechCloudInsights {
     const {page,...selection}=query,key=JSON.stringify([this.store.status().servingGeneration,selection]);let state=this.states.get(key);
     if(state&&this.clock()-state.at>CLOUD_LIMITS.cacheMs){this.states.delete(key);state=null;}
     if(!state) {state={at:this.clock(),scope:null,cursor:{date:0,offset:0},page:-1,records:new Map(),seen:new Set(),scans:new Map(),sourceIssues:new Set(),duplicates:0,sources:[],rawRecords:0,missingLanguage:0,invalidText:0,xmlBytes:0,truncated:false,pending:null,result:null};this.states.set(key,state);while(this.states.size>CLOUD_LIMITS.queries)this.states.delete(this.states.keys().next().value);}
-    if(state.pending)await state.pending;
+    if(state.pending)await waitForRequest(state.pending);
     if(state.result&&(state.page>=page||state.cursor===null))return state.result;
-    const job=this.build(state,query,page);state.pending=job;
-    try{return await job;}finally{state.pending=null;}
+    const job=sharedRequest(()=>this.build(state,query,page)).finally(()=>{if(state.pending===job)state.pending=null;});state.pending=job;
+    return waitForRequest(job);
   }
   async build(state,query,page) {
     state.scope??=await this.scope(query);

@@ -9,7 +9,7 @@ import { UpstreamQueue, retryAfterSeconds } from './upstream-queue.mjs';
 import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
-import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget} from './request-budget.mjs';
+import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest} from './request-budget.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
@@ -137,20 +137,24 @@ export async function odp(
         release();release=null;
       }
       if(retryAfter&&!response.ok)throw Object.assign(new HttpError(503,'odp_rate_limited','Parliament is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:Date.now()+retryAfter*1000});
-      if (!response.ok)
+      if (!response.ok) {
+        await response.body?.cancel();
         throw new HttpError(
           502,
           "odp_unavailable",
           `Parliament data is unavailable (${response.status}). Please try again.`,
         );
+      }
       if (response.status === 204)
         throw new HttpError(502, "odp_no_content", "Parliament supplied no content for this request.");
-      if (!response.headers.get("content-type")?.includes("json"))
+      if (!response.headers.get("content-type")?.includes("json")) {
+        await response.body?.cancel();
         throw new HttpError(
           502,
           "odp_invalid",
           "Parliament returned an unexpected response.",
         );
+      }
       const parts=[];let bytes=0;
       for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>12*1024*1024)throw new HttpError(502,'odp_size','Parliament response exceeded the allowed size.');parts.push(chunk);}
       budget.signal?.throwIfAborted();
@@ -278,9 +282,9 @@ async function directoryData() {
       Date.now() - directoryCheckedAt < 60_000)
   )
     return directory;
-  if (directoryPromise) return directory || directoryPromise;
+  if (directoryPromise) return directory || waitForRequest(directoryPromise);
   directoryCheckedAt = Date.now();
-  directoryPromise = (async () => {
+  directoryPromise = sharedRequest(async () => {
     const [roster, bodies] = await Promise.all([
       list("/meps/show-current"),
       list("/corporate-bodies/show-current"),
@@ -331,7 +335,7 @@ async function directoryData() {
       error: null,
     };
     return directory;
-  })().catch(error => {
+  },120_000).catch(error => {
     directoryError = String(error.message);
     throw error;
   }).finally(() => {
@@ -341,7 +345,7 @@ async function directoryData() {
     void directoryPromise.catch(() => {});
     return directory;
   }
-  return directoryPromise;
+  return waitForRequest(directoryPromise);
 }
 export async function odpProfile(id, force = false, {priority='interactive'}={}) {
   const record = await odp(
