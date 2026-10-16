@@ -6,6 +6,7 @@ import {serveStatic} from './static-files.mjs';
 import {odpDirectory,odpProfile,odpSpeeches,odpSpeech,odpLanguage,odpPortrait} from './odp.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
+import {motionComparison} from './motion-comparison.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
 import {CATEGORIES} from './activity-index-model.mjs';
@@ -70,7 +71,7 @@ async function handleApi(request,response,url,apiPrefix){
  if(!endpoint||endpoint==='healthz'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:1,...(!endpoint?{endpoints:['healthz','poc']}:{}),time:new Date().toISOString()});return;}
   if (endpoint === "poc") {
     requireMethod(request, ["GET", "HEAD"]);
-    const queryKeys={directory:['lang'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang']};
+    const queryKeys={directory:['lang'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang'],'motion-comparison':['lang','joint','stage']};
     if(Object.hasOwn(queryKeys,segments[1]))requireQuery(url.searchParams,queryKeys[segments[1]]);
     const language = odpLanguage(url.searchParams.get("lang") || "en");
     if (segments.length === 3 && segments[1] === "portrait") {
@@ -84,7 +85,10 @@ async function handleApi(request,response,url,apiPrefix){
       return;
     }
     let result;
-    if (segments[1] === 'outside' && segments.length === 3) {
+    if(segments[1]==='motion-comparison' && segments.length===3) {
+      result=await motionComparison(segments[2],url.searchParams.get('joint'),{stage:url.searchParams.get('stage') || 'original-joint',language});
+    }
+    else if (segments[1] === 'outside' && segments.length === 3) {
       const query=outsideQuery(url.searchParams), store=activityIndex().store;
       result=segments[2]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[2],query);
     }

@@ -8,9 +8,10 @@ import {execFileSync} from 'node:child_process';
 import {deflateRawSync} from 'node:zlib';
 import {docxParagraphs,docxContent,allowedDownload,documentText,documentNotes} from './document-text.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
+import {motionBody,compareMotionBodies} from './motion-diff.mjs';
 
-function zip(xml,styles) {
-  const entries=[['word/document.xml',xml],...(styles===undefined?[]:[['word/styles.xml',styles]])],locals=[],directory=[];let offset=0;
+function zip(xml,styles,extra={}) {
+  const entries=[['word/document.xml',xml],...(styles===undefined?[]:[['word/styles.xml',styles]]),...Object.entries(extra)],locals=[],directory=[];let offset=0;
   for(const [filename,xml] of entries) {
     const name=Buffer.from(filename),body=Buffer.from(xml),compressed=deflateRawSync(body);
     const local=Buffer.alloc(30);local.writeUInt32LE(0x04034b50);local.writeUInt16LE(8,8);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(name.length,26);
@@ -35,6 +36,19 @@ test('official motion hides translation tags and metadata while preserving visib
   assert(paragraphs.includes('(D105447/07 – 2026/2824(RPS))'));
   assert(paragraphs.includes('The European Parliament,'));
   assert(!/[<>{}]/.test(paragraphs.join('\n')));
+});
+test('official English joint and adopted excerpts retain their literal decimal separators across split runs',async()=>{
+  const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-comparison-excerpts-live-20261016.json',import.meta.url),'utf8'));
+  const texts=fixture.documents.map(doc=>docxContent(zip(doc.documentXml,doc.stylesXml)));
+  assert.match(texts[0].paragraphs.join(' '),/59\.58/);assert.match(texts[1].paragraphs.join(' '),/59,58/);
+  for(const doc of fixture.documents){assert.match(doc.stylesXml,/en-GB/);assert.doesNotMatch(doc.documentXml,/fldSimple|fldChar/);}
+  const bodies=texts.map(text=>motionBody(text,'en'));
+  assert(bodies.every(body=>body.status==='available'));
+  const diff=compareMotionBodies(bodies[0].blocks,bodies[1].blocks);
+  assert.equal(diff.summary.changed,2);assert.equal(diff.summary.added,0);assert.equal(diff.summary.removed,0);
+  const decimal=diff.rows.find(row=>row.before?.label==='C');
+  assert.equal(decimal.segments.filter(part=>part.type==='removed').map(part=>part.text).join(''),'.');
+  assert.equal(decimal.segments.filter(part=>part.type==='added').map(part=>part.text).join(''),',');
 });
 test('hidden runs follow style inheritance and direct on/off overrides without stripping visible angle brackets or braces',()=>{
   const styles='<w:styles xmlns:w="urn:word"><w:style w:styleId="Hidden"><w:rPr><w:vanish/></w:rPr></w:style><w:style w:styleId="Derived"><w:basedOn w:val="Hidden"/></w:style><w:style w:styleId="Toggled"><w:basedOn w:val="Hidden"/><w:rPr><w:vanish/></w:rPr></w:style></w:styles>';
@@ -93,9 +107,9 @@ test('DOCX footnotes are returned separately with exact marker positions and hyp
   const content=docxContent(zipEntries({'word/document.xml':document,'word/footnotes.xml':footnotes,'word/_rels/footnotes.xml.rels':rels}));
   assert.deepEqual(content.paragraphs,['the EMFA with Regulation 139/2004 on concentrations.','Second and again']);
   const celexLink='https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52024DC0225';
-  assert.deepEqual(content.notes,[{id:'3',label:'1',text:'OJ L 24, 29.1.2004, ELI: http://data.europa.eu/eli/reg/2004/139/oj.',links:[],linkSpans:[]},{id:'4',label:'2',text:'Communication',links:[celexLink],linkSpans:[{start:0,end:13,url:celexLink}]}]);
+  assert.deepEqual(content.notes,[{id:'3',label:'1',text:'OJ L 24, 29.1.2004, ELI: http://data.europa.eu/eli/reg/2004/139/oj.',links:[],linkSpans:[]},{id:'4',label:'1',text:'Communication',links:[celexLink],linkSpans:[{start:0,end:13,url:celexLink}]}]);
   assert.deepEqual(content.links,[]);
-  assert.deepEqual(content.anchors,[{paragraph:0,offset:33,note:'3',label:'1'},{paragraph:1,offset:6,note:'4',label:'2'},{paragraph:1,offset:16,note:'3',label:'1'}]);
+  assert.deepEqual(content.anchors,[{paragraph:0,offset:33,note:'3',label:'1'},{paragraph:1,offset:6,note:'4',label:'1'},{paragraph:1,offset:16,note:'3',label:'1'}]);
   assert.deepEqual(docxContent(zipEntries({'word/document.xml':document})).notes,[]);
   // Body hyperlinks keep their exact span; a link without text or with a non-web target is not kept.
   const linked=`<w:document ${w}><w:body><w:p><w:r><w:t xml:space="preserve"> See </w:t></w:r><w:hyperlink r:id="rId1"><w:r><w:t>the GDPR</w:t></w:r></w:hyperlink><w:r><w:t> and </w:t></w:r><w:hyperlink r:id="rId2"><w:r><w:t>this file</w:t></w:r></w:hyperlink><w:hyperlink r:id="rId1"/></w:p></w:body></w:document>`;
@@ -179,7 +193,7 @@ test('document text coalesces cold reads, persists actual language and serves la
     let calls=0;const download=async()=>{calls++;await new Promise(r=>setTimeout(r,10));return {paragraphs:['Actual answer text']};};
     const [a,b]=await Promise.all([documentText(work,'en',{directory:dir,download}),documentText(work,'ga',{directory:dir,download})]);
     assert.equal(calls,1);assert.equal(a.textLanguage,'ga');assert.equal(a.translationType,'unspecified');assert.equal(a.status,'available');assert.deepEqual(a.paragraphs,b.paragraphs);
-    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,4);
+    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,6);
     const clock=()=>Date.now()+2*86400000;
     const stale=await documentText(work,'en',{directory:dir,clock,download:async()=>{throw new Error('upstream500');}});
     assert(stale.stale);assert.deepEqual(stale.paragraphs,a.paragraphs);
@@ -194,7 +208,7 @@ test('old extracted text is refreshed on demand and current extraction survives 
     await mkdir(path.join(dir,'document-text-v1'));
     const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
     const paragraphs=docxParagraphs(zip(fixture.documentXml,fixture.stylesXml));
-    for(const version of [undefined,1,2,3]) {
+    for(const version of [undefined,1,2,3,4,5]) {
       const url=`https://data.europarl.europa.eu/distribution/upgrade-${Date.now()}-${version}/motion.docx`;
       const work={identifier:fixture.sourceId,is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
       const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');
@@ -202,12 +216,84 @@ test('old extracted text is refreshed on demand and current extraction survives 
       await writeFile(file,JSON.stringify(old));let calls=0;
       const result=await documentText(work,'en',{directory:dir,download:async()=>{calls++;return {paragraphs};}});
       assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);assert.equal(calls,1);
-      assert.equal(JSON.parse(await readFile(file,'utf8')).extractionVersion,4);
+      assert.equal(JSON.parse(await readFile(file,'utf8')).extractionVersion,6);
       const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});const result=await documentText(${JSON.stringify(work)},'en',{directory:${JSON.stringify(dir)},download:async()=>{throw new Error('Unexpected redownload');}});console.log(JSON.stringify(result));`;
       const restarted=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{encoding:'utf8',timeout:5000}));
       assert.equal(restarted.status,'available');assert.deepEqual(restarted.paragraphs,paragraphs);
     }
   }finally{await rm(dir,{recursive:true,force:true});}
+});
+test('automatic recital and operative numbering includes style inheritance, overrides and list restarts',()=>{
+  const numbering='<w:numbering xmlns:w="urn:word"><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="upperLetter"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:abstractNum w:abstractNumId="2"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:num w:numId="41"><w:abstractNumId w:val="1"/></w:num><w:num w:numId="42"><w:abstractNumId w:val="2"/></w:num><w:num w:numId="43"><w:abstractNumId w:val="2"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="7"/></w:lvlOverride></w:num></w:numbering>';
+  const styles='<w:styles xmlns:w="urn:word"><w:style w:styleId="Recital"><w:pPr><w:numPr><w:numId w:val="41"/></w:numPr></w:pPr></w:style><w:style w:styleId="Inherited"><w:basedOn w:val="Recital"/><w:pPr><w:numPr><w:ilvl w:val="0"/></w:numPr></w:pPr></w:style></w:styles>';
+  const p=(properties,text)=>`<w:p><w:pPr>${properties}</w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
+  const num=id=>`<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${id}"/></w:numPr>`;
+  const xml='<w:document xmlns:w="urn:word"><w:body>'+p('<w:pStyle w:val="Inherited"/>','First recital')+p(num(41),'Second recital')+p(num(42),'First paragraph')+p(num(43),'Restarted paragraph')+p(num(42),'Second paragraph')+'</w:body></w:document>';
+  assert.deepEqual(docxContent(zip(xml,styles,{'word/numbering.xml':numbering})),{paragraphs:['A.\tFirst recital','B.\tSecond recital','1.\tFirst paragraph','7.\tRestarted paragraph','2.\tSecond paragraph'],notes:[],anchors:[],links:[],extractionWarnings:[]});
+  const unsupported=docxContent(zip(xml,styles,{'word/numbering.xml':numbering.replace('upperLetter','chicago')}));
+  assert(unsupported.extractionWarnings.length);
+  assert.throws(()=>docxContent(zip(xml,styles,{'word/numbering.xml':'<!DOCTYPE x><w:numbering/>'})));
+});
+test('footnotes retain visible text, multiple paragraphs and exact references without hidden translation markers',()=>{
+  const xml='<w:document xmlns:w="urn:word"><w:p><w:r><w:t>Body</w:t><w:footnoteReference w:id="2"/></w:r></w:p></w:document>';
+  const notes='<w:footnotes xmlns:w="urn:word"><w:footnote w:type="separator" w:id="-1"/><w:footnote w:id="2"><w:p><w:r><w:footnoteRef/><w:t>Public citation.</w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t>hidden</w:t></w:r></w:p><w:p><w:r><w:t>Second paragraph.</w:t></w:r></w:p></w:footnote></w:footnotes>';
+  assert.deepEqual(docxContent(zip(xml,undefined,{'word/footnotes.xml':notes})),{paragraphs:['Body'],notes:[{id:'2',label:'1',text:'Public citation.\nSecond paragraph.',links:[],linkSpans:[]}],anchors:[{paragraph:0,offset:4,note:'2',label:'1'}],links:[],extractionWarnings:[]});
+  assert.match(docxContent(zip(xml)).extractionWarnings[0],/missing/);
+  assert.throws(()=>docxContent(zip(xml,undefined,{'word/footnotes.xml':'<broken>'})));
+});
+test('empty list items consume their source number without shifting later references or citation offsets',()=>{
+  const numbering='<w:numbering><w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>';
+  const props='<w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr>';
+  const xml=`<w:document xmlns:w="urn:word" xmlns:r="urn:rels"><w:body><w:p>${props}</w:p><w:p>${props}<w:hyperlink r:id="r1"><w:r><w:t>Second item</w:t></w:r></w:hyperlink><w:r><w:footnoteReference w:id="1"/></w:r></w:p><w:p>${props}<w:r><w:t>Third item</w:t></w:r></w:p></w:body></w:document>`;
+  const rels='<Relationships><Relationship Id="r1" TargetMode="External" Target="https://eur-lex.europa.eu/eli/reg/2016/679/oj"/></Relationships>';
+  const notes='<w:footnotes><w:footnote w:id="1"><w:p><w:r><w:t>Source</w:t></w:r></w:p></w:footnote></w:footnotes>';
+  const text=docxContent(zip(xml,undefined,{'word/numbering.xml':numbering,'word/_rels/document.xml.rels':rels,'word/footnotes.xml':notes}));
+  assert.deepEqual(text.paragraphs,['2.\tSecond item','3.\tThird item']);assert.deepEqual(text.extractionWarnings,[]);
+  assert.equal(text.paragraphs[0].slice(text.links[0].start,text.links[0].end),'Second item');
+  assert.equal(text.anchors[0].offset,text.links[0].end);
+});
+test('footnotes and endnotes retain independent published formats, starts, repeated references and custom marks',()=>{
+  const refs='<w:footnoteReference w:id="1"/><w:endnoteReference w:id="1"/><w:footnoteReference w:customMarkFollows="1" w:id="3"/><w:t>*</w:t><w:footnoteReference w:id="2"/><w:endnoteReference w:id="2"/><w:footnoteReference w:id="1"/>';
+  const xml=`<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>Body</w:t>${refs}</w:r></w:p></w:body></w:document>`;
+  const note=kind=>`<w:${kind}s>`+[1,2,3].map(id=>`<w:${kind} w:id="${id}"><w:p><w:r><w:t>Source ${id}</w:t></w:r></w:p></w:${kind}>`).join('')+`</w:${kind}s>`;
+  const settings='<w:settings><w:footnotePr><w:numFmt w:val="decimal"/><w:numStart w:val="4"/></w:footnotePr><w:endnotePr><w:numFmt w:val="lowerRoman"/></w:endnotePr></w:settings>';
+  const text=docxContent(zip(xml,undefined,{'word/settings.xml':settings,'word/footnotes.xml':note('footnote'),'word/endnotes.xml':note('endnote')}));
+  assert.deepEqual(text.notes.map(n=>[n.id,n.label]),[['1','4'],['endnote:1','i'],['3','*'],['2','5'],['endnote:2','ii']]);
+  assert.deepEqual(text.anchors.map(a=>a.label),['4','i','*','5','ii','4']);assert.deepEqual(text.extractionWarnings,[]);
+  const plain=docxContent(zip(xml,undefined,{'word/footnotes.xml':note('footnote'),'word/endnotes.xml':note('endnote')}));
+  assert.deepEqual(plain.anchors.map(a=>a.label),['1','1','*','2','2','1']);
+});
+test('section note overrides end at their boundary, restart separately and inherit document settings',()=>{
+  const section='<w:sectPr><w:footnotePr><w:numFmt w:val="upperLetter"/><w:numStart w:val="4"/><w:numRestart w:val="eachSect"/></w:footnotePr></w:sectPr>';
+  const p=(id,end='')=>`<w:p><w:pPr>${end}</w:pPr><w:r><w:t>Body</w:t><w:footnoteReference w:id="${id}"/><w:endnoteReference w:id="${id}"/></w:r></w:p>`;
+  const xml=`<w:document xmlns:w="urn:word"><w:body>${p(1,section)}${p(2,section)}${p(3)}<w:sectPr/></w:body></w:document>`;
+  const settings='<w:settings><w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr><w:endnotePr><w:numFmt w:val="lowerRoman"/><w:numStart w:val="2"/></w:endnotePr></w:settings>';
+  const note=kind=>`<w:${kind}s>`+[1,2,3].map(id=>`<w:${kind} w:id="${id}"><w:p><w:r><w:t>Source ${id}</w:t></w:r></w:p></w:${kind}>`).join('')+`</w:${kind}s>`;
+  const text=docxContent(zip(xml,undefined,{'word/settings.xml':settings,'word/footnotes.xml':note('footnote'),'word/endnotes.xml':note('endnote')}));
+  assert.deepEqual(text.anchors.map(a=>a.label),['D','ii','D','iii','5','iv']);assert.deepEqual(text.extractionWarnings,[]);
+});
+test('unreadable note formatting and page restarts leave comparison gaps instead of invented labels',()=>{
+  const xml='<w:document xmlns:w="urn:word"><w:p><w:r><w:t>The European Parliament,</w:t></w:r></w:p><w:p><w:r><w:t>Body</w:t><w:footnoteReference w:id="1"/></w:r></w:p></w:document>';
+  const notes='<w:footnotes><w:footnote w:id="1"><w:p><w:r><w:t>Source</w:t></w:r></w:p></w:footnote></w:footnotes>';
+  for(const properties of ['<w:numFmt w:val="chicago"/>','<w:numRestart w:val="eachPage"/>','<w:numStart w:val="9007199254740992"/>']) {
+    const text=docxContent(zip(xml,undefined,{'word/settings.xml':`<w:settings><w:footnotePr>${properties}</w:footnotePr></w:settings>`,'word/footnotes.xml':notes}));
+    assert.equal(text.anchors[0].label,'?');assert(text.extractionWarnings.length);assert.equal(motionBody(text,'en').status,'unavailable');
+  }
+  assert.throws(()=>docxContent(zip(xml,undefined,{'word/settings.xml':'<!DOCTYPE x><w:settings/>'})));
+});
+test('automatic numbering preserves citation spans and anchors, and footnote/endnote IDs remain distinct',()=>{
+  const xml='<w:document xmlns:w="urn:word" xmlns:r="urn:rels"><w:p><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>Text </w:t></w:r><w:hyperlink r:id="rId1"><w:r><w:t>CELEX</w:t></w:r></w:hyperlink><w:r><w:footnoteReference w:id="2"/><w:t> end</w:t><w:endnoteReference w:id="2"/></w:r></w:p></w:document>';
+  const numbering='<w:numbering xmlns:w="urn:word"><w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>';
+  const note=kind=>`<w:${kind}s xmlns:w="urn:word"><w:${kind} w:type="normal" w:id="2"><w:p><w:r><w:t>${kind} citation</w:t></w:r></w:p></w:${kind}></w:${kind}s>`;
+  const rels='<Relationships><Relationship Id="rId1" Target="https://eur-lex.europa.eu/eli/reg/2016/679/oj" TargetMode="External"/></Relationships>';
+  const text=docxContent(zip(xml,undefined,{'word/numbering.xml':numbering,'word/_rels/document.xml.rels':rels,'word/footnotes.xml':note('footnote'),'word/endnotes.xml':note('endnote')}));
+  assert.equal(text.paragraphs[0],'1.\tText CELEX end');
+  assert.equal(text.paragraphs[0].slice(text.links[0].start,text.links[0].end),'CELEX');
+  assert.equal(text.anchors[0].offset,text.links[0].end);
+  assert.deepEqual(text.notes.map(note=>note.id),['2','endnote:2']);
+  assert.deepEqual(text.extractionWarnings,[]);
+  assert.equal(documentNotes(text).notesStatus,'extracted');
+  assert.equal(motionBody({paragraphs:['The European Parliament,','1.\tBody'],notesStatus:'not-extracted'},'en').status,'unavailable');
 });
 test('failed extraction upgrade reports the gap and retains the previous disk record',async()=>{
   const dir=await mkdtemp(path.join(os.tmpdir(),'document-upgrade-failure-'));
