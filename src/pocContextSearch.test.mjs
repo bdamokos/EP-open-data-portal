@@ -50,6 +50,54 @@ test('question text search keeps country and dates while visual topic filters re
   assert.equal(new URL(location.href).searchParams.get('q-range'),'2026-10-05_2026-10-11');
 });
 
+test('question country and date gestures reset restored text results without changing genuine Back state',async t=>{
+  const ids={IT:'E-10-2026-000001',HU:'E-10-2026-000002',FR:'E-10-2026-000003'},read=JSON.stringify([ids.IT,'fr']);
+  const initial=new URLSearchParams({view:'questions','q-days':'365','q-until':'2026-10-11','q-country':'IT','q-fts-search':'water','q-fts-text-lang':'fr','q-fts-sort':'newest','q-fts-page':'3','q-fts-read':read});
+  const window=new Window({url:'http://localhost/?'+initial});
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,CSS:window.CSS,requestAnimationFrame:window.requestAnimationFrame.bind(window),cancelAnimationFrame:window.cancelAnimationFrame.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  let vite,root;const searches=[],readerRequests=[];
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  const stats={uniqueCurrentMeps:0,denominator:0,referenceDate:'2026-10-11',dimensions:{country:[],group:[],gender:[],age:[]}};
+  const record=id=>({sourceId:id,sourceKey:'fr',kind:'question',parentId:null,date:'2026-09-15',language:'fr',translationType:'original',sourceUrl:'https://www.europarl.europa.eu/doceo/document/'+id+'_EN.html',sha256:'fixture-hash',snippet:'\u0002Water\u0003 policy',body:id===ids.IT?'Italian saved reader':'Another saved reader',fetchedAt:'2026-10-15T12:00:00Z',checkedAt:'2026-10-15T12:00:00Z'});
+  t.mock.method(globalThis,'fetch',async(input,options={})=>{
+    const url=new URL(input,window.location.href),params=url.searchParams;
+    if(url.pathname.endsWith('/insights/questions')){
+      const end=params.get('end')||'2026-10-11',days=Number(params.get('days')||90),start=new Date(Date.parse(end+'T12:00:00Z')-(days-1)*86400_000).toISOString().slice(0,10);
+      return Response.json({window:{start,end},counts:{selectedQuestions:0},selection:{},stats,selectedStats:stats,clusters:[],words:[],questions:[],nextOffset:null,facets:{countries:Object.keys(ids).map(code=>({code,count:0,authors:0}))},analysis:{unassignedQuestions:0,missingEnglishTitles:0},coverage:{indexComplete:false,truncated:false}});
+    }
+    if(url.pathname.endsWith('/corpus/search')){
+      const body=JSON.parse(options.body);searches.push(body);const id=ids[body.country]||ids.IT;
+      return Response.json({total:61,limit:20,offset:body.offset,nextOffset:null,truncated:false,coverage:{complete:false},results:[{sourceId:id,kind:'question',date:'2026-09-15',questionDate:'2026-09-15',title:'Water policy',reference:id,hits:[record(id)]}]});
+    }
+    if(url.pathname.endsWith('/corpus/text')){readerRequests.push({id:params.get('source-id'),key:params.get('source-key')});return Response.json(record(params.get('source-id')));}
+    throw new Error('Unexpected request: '+url);
+  });
+  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {PocQuestionTopics}=await vite.ssrLoadModule('/src/PocQuestionTopics.tsx');
+  const {createRoot}=await import('react-dom/client');
+  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const query=()=>new URL(location.href).searchParams;
+  async function select(selector,value){await act(async()=>{const node=container.querySelector(selector);assert(node,'Missing '+selector);node.focus();node.value=value;node.dispatchEvent(new window.Event('change',{bubbles:true}));});}
+  function cleared(){assert.equal(query().has('q-fts-page'),false);assert.equal(query().has('q-fts-read'),false);assert.equal(container.querySelector('.poc-search-reader'),null);for(const [key,value] of [['q-fts-search','water'],['q-fts-text-lang','fr'],['q-fts-sort','newest']])assert.equal(query().get(key),value);}
+  async function focusStays(selector){const control=container.querySelector(selector);await act(async()=>{await new Promise(resolve=>window.setTimeout(resolve,25));});assert.equal(document.activeElement,control,'changing '+selector+' must not move focus to the search field');}
+  async function back(){await act(async()=>{const restored=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history.back();await restored;});assert.equal(query().get('q-country'),'IT');assert.equal(query().get('q-fts-page'),'3');assert.equal(query().get('q-fts-read'),read);assert.equal(searches.at(-1).country,'IT');assert.equal(searches.at(-1).offset,60);assert.match(container.querySelector('.poc-search-body')?.textContent||'',/Italian saved reader/);}
+  await act(async()=>root.render(createElement(PocQuestionTopics,{language:'en',onBack(){}})));
+  assert.equal(query().get('q-fts-page'),'3');assert.equal(query().get('q-fts-read'),read);assert.equal(searches.at(-1).offset,60);assert.deepEqual(readerRequests,[{id:ids.IT,key:'fr'}]);
+  const panel=container.querySelector('.poc-search-panel'),exposedAnalytics=[];
+  const observer=new window.MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.nodeType===1&&(node.matches('.insight-question-dimensions')||node.querySelector('.insight-question-dimensions')))exposedAnalytics.push(node);});observer.observe(container,{childList:true,subtree:true});t.after(()=>observer.disconnect());
+  await select('[data-question-country]','HU');cleared();assert(searches.filter(search=>search.country==='HU').every(search=>search.offset===0));await focusStays('[data-question-country]');
+  await back();const beforeFrance=searches.length,beforeReaders=readerRequests.length;
+  await select('[data-question-country]','FR');cleared();assert.equal(searches.at(-1).country,'FR');assert(searches.slice(beforeFrance).every(search=>search.country==='FR'&&search.offset===0),'a new country after Back must never request the restored page');assert.equal(readerRequests.length,beforeReaders);await focusStays('[data-question-country]');
+  await back();let before=searches.length;
+  await act(async()=>{const input=container.querySelector('.insight-controls input[type="date"]');input.focus();Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'2026-10-10');input.dispatchEvent(new window.InputEvent('input',{bubbles:true}));});
+  cleared();assert.equal(query().get('q-until'),'2026-10-10');assert(searches.slice(before).every(search=>search.offset===0&&search.to==='2026-10-10'));assert.equal(readerRequests.length,beforeReaders);await focusStays('.insight-controls input[type="date"]');
+  await back();before=searches.length;await select('.insight-controls select','30');
+  cleared();assert.equal(query().get('q-days'),'30');assert(searches.slice(before).every(search=>search.offset===0&&search.from==='2026-09-12'));assert.equal(readerRequests.length,beforeReaders);await focusStays('.insight-controls select');
+  assert.equal(container.querySelector('.poc-search-panel'),panel,'scope gestures keep the open panel mounted');assert.equal(exposedAnalytics.length,0,'scope changes must not briefly expose the visual exploration');
+});
+
 test('a large plenary cloud searches by exact period and country while delayed hydration preserves a restored page and reader',async t=>{
   const speech='MTG-PL-2026-10-07-OTH-123',read=JSON.stringify([speech,'fr']);
   const query=new URLSearchParams({'view':'legislation','agenda-fts-search':'energy','agenda-fts-text-lang':'fr','agenda-fts-page':'3','agenda-fts-read':read});
