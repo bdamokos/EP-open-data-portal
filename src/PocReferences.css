@@ -22,6 +22,8 @@ button.legal-ref:focus-visible {outline:3px solid var(--accessibility-orange);ou
 .legal-reference-summary p {font-size:14px;}
 :is(.poc,.poc-insights,.insight-inline-reader) button.legal-reference-text-button {min-height:0;padding:0;background:none;color:inherit;text-decoration:underline;font:inherit;}
 .legal-reference-question {margin-top:12px;}
+.legal-reference-retry {font-size:13px;line-height:1.5;margin:10px 0;}
+.legal-reference-retry button.legal-reference-text-button {min-height:36px;padding:4px 0;}
 .legal-reference-question > button.legal-reference-text-button {font-size:14px;}
 .legal-notes {margin:14px 0 6px;padding-top:8px;border-top:1px solid color-mix(in srgb,currentColor 25%,transparent);font-size:14px;line-height:1.5;max-width:78ch;}
 .legal-notes summary {cursor:pointer;font-weight:bold;}
