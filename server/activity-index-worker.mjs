@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { ODP_BASE, boundedUpstream, backoffUpstream } from './odp.mjs';
 import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
 import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
-import { nextAmendmentTask, amendmentGeneration, amendmentsCopy } from './amendments-store.mjs';
+import { nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker } from './amendments-store.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
@@ -98,16 +98,19 @@ export class ActivityWorker {
       const completed=new Map((saved.completed || []).filter(task=>task.key.includes(':'+today)).map(task=>[task.key,task]));
       for(const task of incoming)if(!pending.has(task.key))pending.set(task.key,{...task,done:0});
       for(const [key] of pending)if(queued.get(key)?.done===0)pending.delete(key);
+      const reclaimable=task=>{
+        const marker=amendmentCompletionMarker(task,today);return task.done===1&&(!marker||completed.has(marker.key)||completed.size<CONTINUATION_LIMIT);
+      };
       const forget=task=>{
-        if(task.done===1 && task.kind==='motion-outcomes' && task.key.includes(':'+today))completed.set(task.key,{key:task.key,kind:task.kind,sittingId:JSON.parse(task.body).sittingId});
+        const marker=amendmentCompletionMarker(task,today);if(marker)completed.set(marker.key,marker);
         this.store.db.prepare('DELETE FROM amendment_jobs WHERE generation=? AND key=?').run(generation,task.key);queued.delete(task.key);
       };
       const admit=this.store.db.prepare('INSERT OR REPLACE INTO amendment_jobs VALUES (?,?,?,?,?,?,?,?,?)');
       for(const task of [...pending.values()].sort((a,b)=>(a.retry_at>this.clock())-(b.retry_at>this.clock()) || b.priority-a.priority)) {
-        if(queued.get(task.key)?.done===1)forget(queued.get(task.key));
+        if(queued.get(task.key)?.done===1){if(!reclaimable(queued.get(task.key)))continue;forget(queued.get(task.key));}
         if(queued.size>=200) {
           const reserve=[...pending.values()].filter(progressed).length-Number(progressed(task));
-          const reclaim=[...queued.values()].find(row=>row.done===1) || (task.retry_at<=this.clock() && reserve<CONTINUATION_LIMIT?[...queued.values()].find(row=>row.retry_at>this.clock()):null);
+          const reclaim=[...queued.values()].find(reclaimable) || (task.retry_at<=this.clock() && reserve<CONTINUATION_LIMIT?[...queued.values()].find(row=>row.done===0&&row.retry_at>this.clock()):null);
           if(reclaim){if(reclaim.done===0)pending.set(reclaim.key,reclaim);forget(reclaim);}
         }
         if(queued.size>=200)continue;

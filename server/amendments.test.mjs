@@ -28,7 +28,7 @@ const part=(number,description)=>({id:'eli/dl/doc/'+sitting+'-VOT-ITM-123-SPLIT-
 const request=(parts)=>({id:'eli/dl/event/'+sitting+'-VOT-ITM-123-SPLIT-1',had_activity_type:'def/ep-activities/REQUEST_VOTE_SPLIT',created_a_realization_of:parts});
 const coverage={complete:true,gaps:[],lastUpdated:earlier};
 const metadata={id:targetId,date:tabled,titles:target.title_dcterms,procedureIds:['2025-0233']};
-const row=(number,extra={})=>({id:targetId+'-AM-'+number,targetDocumentId:targetId,number,date:tabled,titles:target.title_dcterms,procedureIds:['2025-0233'],authors:[],decisions:[],gaps:[],...extra});
+const row=(number,extra={})=>({id:targetId+'-AM-'+number,targetDocumentId:targetId,number,date:tabled,proposerDate:tabled,proposerDateBasis:'individual-amendment-document',documentDate:tabled,textParserVersion:AMENDMENT_EXTRACTION_VERSION,titles:target.title_dcterms,procedureIds:['2025-0233'],authors:[],decisions:[],gaps:[],...extra});
 const completeSitting=(sittingId=sitting)=>({
   amendmentVersion:AMENDMENTS_VERSION,amendmentProjectionVersion:2,splitRequests:[],coverage:{missingResultIds:[],missingDecisionIds:[]},truncated:false,lastRefreshFailure:null,
   results:[{id:'eli/dl/event/'+sittingId+'-VOT-ITM-123',consists_of:['eli/dl/event/'+sittingId+'-DEC-1'],sittingResultIds:[]}],
@@ -1449,6 +1449,187 @@ test('a parser migration retains supported proposer provenance independently of 
   }
 });
 
+test('cached legacy wording and unsupported author links are sanitized immediately without rewriting rollback evidence',t=>{
+  for(const mode of ['legacy-single','legacy-variants','current-empty']) {
+    const {store,generation}=setup(t),oldSource={url:'https://data.europarl.europa.eu/distribution/example/cached_v6_en.docx',fetchedAt:earlier,language:'en'};
+    saveAmendmentRows(store,generation,metadata,[row(1)],coverage);
+    const unsupportedAuthor={name:'Alex Common',personId:'101',method:'full_name',status:'resolved',evidence:[]};
+    const legacy={listId,originalText:'Apparent complete original',proposedText:'Apparent complete proposal',textParserVersion:'6',textIntegrity:'complete',documentDate:null,listDocumentDate:null,proposerDate:target.document_date,proposerDateBasis:null,authors:[unsupportedAuthor],gaps:[],sources:[oldSource],wordingSource:oldSource};
+    const valid={listId:targetId+'-AM-001-002',originalText:'',proposedText:'',textParserVersion:AMENDMENT_EXTRACTION_VERSION,textIntegrity:'complete',proposerDate:tabled,proposerDateBasis:'individual-amendment-document',documentDate:tabled,authors:[],gaps:[],sources:[oldSource]};
+    const cached=row(1,mode==='legacy-single'?legacy:mode==='current-empty'?valid:{...legacy,listId:null,originalText:null,proposedText:null,authors:[],conflicted:true,variants:[legacy,valid]});
+    const raw=JSON.stringify(cached);
+    store.db.prepare('UPDATE amendments SET body=? WHERE generation=? AND id=?').run(raw,generation,cached.id);
+    const page=amendmentsPage(store,{document:targetId}),[item]=page.items;
+    if(mode==='current-empty') {
+      assert.equal(item.originalText,'');assert.equal(item.proposedText,'');assert.equal(item.textIntegrity,'complete');assert.equal(page.coverage.complete,true);
+    } else {
+      const record=mode==='legacy-variants'?item.variants[0]:item;
+      assert.equal(record.originalText,null);assert.equal(record.proposedText,null);assert.equal(record.textIntegrity,'incomplete');
+      assert.equal(record.proposerDate,null);assert.equal(record.proposerDateBasis,null);assert.equal(record.authors[0].personId,null);assert.equal(record.authors[0].status,'missing_proposer_date');
+      assert.equal(page.coverage.complete,false);assert(page.coverage.gaps.some(gap=>/wording|parser|unverified/i.test(gap)));
+      if(mode==='legacy-variants'){assert.equal(item.variants[1].originalText,'');assert.equal(item.variants[1].proposedText,'');}
+    }
+    assert.equal(amendmentsPage(store,{member:'101'}).total,0);
+    assert.equal(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,cached.id).body,raw);
+  }
+});
+
+test('rebuilding or delaying a failed extraction cannot serve apparently complete wording from parser v6',async t=>{
+  for(const legacyLocation of ['extraction','record']) {
+    const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001';
+    const oldUrl='https://data.europarl.europa.eu/distribution/example/apparent_complete_v6_en.docx',newUrl='https://data.europarl.europa.eu/distribution/example/failed_v7_en.docx';
+    const published=list([amendment(1)],{id:'eli/dl/doc/'+singleListId,identifier:singleListId,foresees_change_of:[target.id],files:[{format:'DOCX',language:'en',url:newUrl}]});
+    published.extraction={...published.extraction,parserVersion:legacyLocation==='extraction'?'6':AMENDMENT_EXTRACTION_VERSION,amendments:published.extraction.amendments.map(amendment=>({...amendment,...(legacyLocation==='record'?{wordingParserVersion:'6'}:{})})),sourceUrl:oldUrl,gaps:[]};
+    store.putSource(generation,'/plenary-documents/'+targetId,'document',{...target,inverse_foresees_change_of:[published]},earlier);
+    store.putSource(generation,'amendment:list:'+singleListId,'amendment-list',published,earlier);
+    const sourceBefore=store.db.prepare('SELECT body FROM sources WHERE generation=? AND key=?').get(generation,'amendment:list:'+singleListId).body;
+    const assertWithheld=()=>{
+      const page=amendmentsPage(store,{document:targetId}),[item]=page.items;
+      assert.equal(item.originalText,null);assert.equal(item.proposedText,null);assert.equal(item.textIntegrity,'incomplete');assert.equal(page.coverage.complete,false);
+    };
+    rebuildAmendmentTarget(worker,generation,targetId);assertWithheld();
+    enqueueAmendment(store,generation,'delayed-v7-extraction','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
+    assertWithheld();
+    worker.downloadAmendmentDocx=async()=>{throw new Error('Offline failed refresh');};
+    await assert.rejects(worker.task(nextAmendmentTask(store,generation)),/Offline failed refresh/);
+    rebuildAmendmentTarget(worker,generation,targetId);assertWithheld();
+    assert.equal(store.db.prepare('SELECT body FROM sources WHERE generation=? AND key=?').get(generation,'amendment:list:'+singleListId).body,sourceBefore);
+    worker.downloadAmendmentDocx=async()=>({buffer:comparisonDocx([['Damaged fresh original','Damaged fresh proposal'],['Unsupported','Extra','Column']],{author:null})});
+    await worker.task(nextAmendmentTask(store,generation));
+    assertWithheld();
+    assert.equal(store.source(generation,'amendment:list:'+singleListId).work.extraction.amendments[0].wordingRetained,false);
+  }
+});
+
+test('cached unsupported and invalid calendar dates agree between API sanitation and the member filter',t=>{
+  for(const [proposerDate,proposerDateBasis] of [[target.document_date,null],['2026-02-30','individual-amendment-document']]) {
+    const {store,generation}=setup(t);
+    saveAmendmentRows(store,generation,metadata,[row(1)],coverage);
+    const cached=row(1,{documentDate:null,listDocumentDate:null,proposerDate,proposerDateBasis,authors:[{name:'Alex Common',personId:'101',status:'resolved',evidence:[]}],originalText:'Current original',proposedText:'Current proposal'}),raw=JSON.stringify(cached);
+    store.db.prepare('UPDATE amendments SET body=? WHERE generation=? AND id=?').run(raw,generation,cached.id);
+    const [item]=amendmentsPage(store,{document:targetId}).items;
+    assert.equal(item.proposerDate,null);assert.equal(item.proposerDateBasis,null);assert.equal(item.authors[0].personId,null);assert.equal(item.authors[0].status,'missing_proposer_date');
+    assert.equal(item.originalText,'Current original');assert.equal(item.proposedText,'Current proposal');
+    assert.equal(amendmentsPage(store,{member:'101'}).total,0);
+    assert.equal(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,cached.id).body,raw);
+  }
+});
+
+test('saving retained proposer evidence preserves an unknown date rather than borrowing fresh documentary dates',t=>{
+  const {store,generation}=setup(t),oldSource={url:'https://data.europarl.europa.eu/distribution/example/unknown_proposer_date_en.docx',fetchedAt:earlier,language:'en'},freshDate='2026-10-06';
+  const accepted=row(1,{listId,documentDate:null,listDocumentDate:null,proposerDate:null,proposerDateBasis:null,authors:[{name:'Alex Common',personId:null,status:'missing_proposer_date',evidence:[]}],proposerSource:oldSource});
+  saveAmendmentRows(store,generation,metadata,[accepted],{...coverage,complete:false});
+  saveAmendmentRows(store,generation,metadata,[row(1,{listId,date:freshDate,documentDate:freshDate,listDocumentDate:freshDate,proposerDate:freshDate,proposerDateBasis:'individual-amendment-document',authors:[],proposerSource:{url:'https://data.europarl.europa.eu/distribution/example/fresh_without_proposers_en.docx',fetchedAt,language:'en'}})],coverage);
+  const persisted=JSON.parse(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,accepted.id).body);
+  assert.equal(persisted.proposerDate,null);assert.equal(persisted.proposerDateBasis,null);assert.equal(persisted.proposerRetained,true);assert.deepEqual(persisted.proposerSource,oldSource);
+  assert.equal(persisted.authors[0].personId,null);assert.equal(persisted.authors[0].status,'missing_proposer_date');
+  const [item]=amendmentsPage(store,{document:targetId}).items;
+  assert.equal(item.documentDate,freshDate);assert.equal(item.proposerDate,null);assert.equal(item.authors[0].personId,null);assert.equal(amendmentsPage(store,{member:'101'}).total,0);
+});
+
+test('a report date cannot substitute for missing amendment proposer dates, including conflicting variants',t=>{
+  for(const conflicting of [false,true]) {
+    const {store,worker,generation}=setup(t),firstId=targetId+'-AM-001-001',secondId=targetId+'-AM-001-002';
+    const undated=id=>list([amendment(1,{date:null,proposerDate:null,authors:['Alex Common']})],{id:'eli/dl/doc/'+id,identifier:id,document_date:null,foresees_change_of:[target.id]});
+    const lists=[undated(firstId),...(conflicting?[undated(secondId)]:[])];
+    store.putSource(generation,'/plenary-documents/'+targetId,'document',{...target,inverse_foresees_change_of:lists},earlier);
+    for(const published of lists)store.putSource(generation,'amendment:list:'+published.identifier,'amendment-list',published,earlier);
+    store.putSource(generation,'amendment:roster:'+target.document_date,'amendment-roster',{members:[{id:'101',givenName:'Alex',familyName:'Common'}],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+target.document_date,fetchedAt:earlier}]},earlier);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    const [item]=amendmentsPage(store,{document:targetId}).items;
+    assert.equal(item.proposerDate,null);assert.equal(amendmentsPage(store,{member:'101'}).total,0);
+    for(const record of conflicting?item.variants:[item]) {
+      assert.equal(record.documentDate,null);assert.equal(record.listDocumentDate,null);assert.equal(record.proposerDate,null);assert.equal(record.proposerDateBasis,null);
+      assert.equal(record.authors[0].name,'Alex Common');assert.equal(record.authors[0].personId,null);assert.equal(record.authors[0].status,'missing_proposer_date');
+      assert(record.gaps.some(gap=>/proposer.*date/i.test(gap)&&/missing|unavailable|not recorded/i.test(gap)));
+    }
+    const persisted=JSON.parse(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,item.id).body);
+    for(const record of conflicting?persisted.variants:[persisted]){assert.equal(record.proposerDate,null);assert.equal(record.proposerDateBasis,null);assert.equal(record.authors[0].personId,null);}
+  }
+});
+
+test('an undated parser migration cannot persist a report-derived proposer date from a cached row or variant',async t=>{
+  for(const conflicting of [false,true]) {
+    const {store,worker,generation}=setup(t),firstId=targetId+'-AM-001-001',secondId=targetId+'-AM-001-002';
+    const oldUrl='https://data.europarl.europa.eu/distribution/example/no_proposer_date_old_en.docx',newUrl='https://data.europarl.europa.eu/distribution/example/no_proposer_date_new_en.docx';
+    const oldSource={url:oldUrl,fetchedAt:earlier,language:'en'},oldParserVersion=String(Number(AMENDMENT_EXTRACTION_VERSION)-1);
+    const baseline=extractAmendments(comparisonDocx([['Old original','Old proposal']],{author:'Alex Common',date:null}),{listId:firstId,targetDocumentId:targetId,language:'en',sourceUrl:oldUrl,fetchedAt:earlier});
+    const makeList=id=>({...list([]),id:'eli/dl/doc/'+id,identifier:id,document_date:null,foresees_change_of:[target.id],files:[{format:'DOCX',language:'en',url:newUrl}],extraction:{...baseline,parserVersion:oldParserVersion}});
+    const lists=[makeList(firstId),...(conflicting?[makeList(secondId)]:[])];
+    store.putSource(generation,'/plenary-documents/'+targetId,'document',{...target,inverse_foresees_change_of:lists},earlier);
+    for(const published of lists)store.putSource(generation,'amendment:list:'+published.identifier,'amendment-list',published,earlier);
+    // An earlier model cached its report-date presentation fallback before a
+    // roster was available. It is not dated amendment proposer evidence.
+    const cachedVariant=id=>({listId:id,date:target.document_date,documentDate:null,listDocumentDate:null,proposerDate:target.document_date,proposerDateBasis:null,proposerSource:oldSource,authors:[],originalText:'Old original',proposedText:'Old proposal',textParserVersion:oldParserVersion,gaps:[],sources:[oldSource]});
+    saveAmendmentRows(store,generation,metadata,[row(1,{...cachedVariant(firstId),...(conflicting?{listId:null,conflicted:true,variants:lists.map(published=>cachedVariant(published.identifier))}:{})})],{...coverage,complete:false});
+    store.putSource(generation,'amendment:roster:'+target.document_date,'amendment-roster',{members:[{id:'101',givenName:'Alex',familyName:'Common'}],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+target.document_date,fetchedAt:earlier}]},earlier);
+    worker.downloadAmendmentDocx=async()=>({buffer:comparisonDocx([['Fresh original','Fresh proposal']],{author:null,date:null})});
+    enqueueAmendment(store,generation,'undated-migration','amendment-extract',{listId:firstId,targetDocumentId:targetId});
+    await worker.task(nextAmendmentTask(store,generation));
+    const refreshed=store.source(generation,'amendment:list:'+firstId).work.extraction.amendments[0];
+    assert.equal(refreshed.proposerDate,null);assert.deepEqual(refreshed.authors,['Alex Common']);assert.equal(refreshed.proposerRetained,true);
+    const [item]=amendmentsPage(store,{document:targetId}).items;
+    assert.equal(item.proposerDate,null);assert.equal(amendmentsPage(store,{member:'101'}).total,0);
+    for(const record of conflicting?item.variants:[item]) {
+      assert.equal(record.proposerDate,null);assert.equal(record.proposerDateBasis,null);assert.equal(record.authors[0].personId,null);assert.equal(record.authors[0].status,'missing_proposer_date');
+      assert(record.gaps.some(gap=>/proposer.*date/i.test(gap)&&/missing|unavailable|not recorded/i.test(gap)));
+    }
+    const persisted=JSON.parse(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,item.id).body);
+    for(const record of conflicting?persisted.variants:[persisted]){assert.equal(record.proposerDate,null);assert.equal(record.proposerDateBasis,null);assert.equal(record.authors[0].personId,null);}
+  }
+});
+
+test('finishing a dated roster rebuilds the target that retains its older proposer date after fresh dates change',async t=>{
+  const {store,worker,generation}=setup(t),freshDate='2026-10-06',singleListId=targetId+'-AM-001-001';
+  const oldSource={url:'https://data.europarl.europa.eu/distribution/example/retained_proposer_old_en.docx',fetchedAt:earlier,language:'en'};
+  const published=list([amendment(1,{authors:['Alex Common'],date:freshDate,proposerDate:tabled,proposerDateBasis:'individual-amendment-document',proposerRetained:true,proposerSource:oldSource})],{id:'eli/dl/doc/'+singleListId,identifier:singleListId,document_date:freshDate,foresees_change_of:[target.id]});
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',{...target,inverse_foresees_change_of:[published]},earlier);
+  store.putSource(generation,'amendment:list:'+singleListId,'amendment-list',published,earlier);
+  store.putSource(generation,'amendment:roster:'+freshDate,'amendment-roster',{members:[{id:'102',givenName:'Alex',familyName:'Common'}],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+freshDate,fetchedAt:earlier}]},earlier);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  assert.equal(amendmentsPage(store,{document:targetId}).items[0].authors[0].personId,null);
+  const offsets=[];
+  worker.fetchRecord=async(endpoint,params)=>{
+    assert.equal(endpoint,'/meps/show-current');assert.equal(params['mandate-date'],tabled);offsets.push(params.offset);
+    return {fetchedAt,payload:{data:params.offset?[]:[{identifier:'101',givenName:'Alex',familyName:'Common'}]}};
+  };
+  enqueueAmendment(store,generation,'retained-proposer-roster','amendment-roster',{date:tabled,offset:0,members:[],sources:[]},114);
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(store.source(generation,'amendment:roster:'+tabled),undefined);
+  assert.equal(amendmentsPage(store,{document:targetId}).items[0].authors[0].personId,null);
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.deepEqual(offsets,[0,1]);
+  const [item]=amendmentsPage(store,{document:targetId}).items;
+  assert.equal(item.authors[0].personId,'101');assert.equal(item.proposerDate,tabled);assert.equal(item.proposerDateBasis,'individual-amendment-document');assert.deepEqual(item.proposerSource,oldSource);
+  assert.equal(item.documentDate,freshDate);assert.equal(item.listDocumentDate,freshDate);assert.equal(item.proposerRetained,true);
+  assert.equal(item.authors[0].evidence.find(evidence=>evidence.type==='full_name').date,tabled);
+  assert.equal(amendmentsPage(store,{member:'101'}).total,1);assert.equal(amendmentsPage(store,{member:'102'}).total,0);
+});
+
+test('an accepted proposer snapshot cannot lend its date to a different source URL or retrieval',async t=>{
+  for(const changed of ['url','fetchedAt']) {
+    const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001',freshDate='2026-10-06';
+    const oldSource={url:'https://data.europarl.europa.eu/distribution/example/proposer_snapshot_old_en.docx',fetchedAt:earlier,language:'en'};
+    const observedSource={...oldSource,...(changed==='url'?{url:'https://data.europarl.europa.eu/distribution/example/proposer_snapshot_replaced_en.docx'}:{fetchedAt})};
+    const downloadUrl='https://data.europarl.europa.eu/distribution/example/proposer_snapshot_refresh_en.docx';
+    store.putSource(generation,'/plenary-documents/'+targetId,'document',target,earlier);
+    const published=list([amendment(1,{authors:['Alex Common'],date:null})],{id:'eli/dl/doc/'+singleListId,identifier:singleListId,document_date:freshDate,files:[{format:'DOCX',language:'en',url:downloadUrl}]});
+    published.extraction={...published.extraction,sourceUrl:observedSource.url,fetchedAt:observedSource.fetchedAt};
+    store.putSource(generation,'amendment:list:'+singleListId,'amendment-list',published,observedSource.fetchedAt);
+    saveAmendmentRows(store,generation,metadata,[row(1,{listId:singleListId,documentDate:null,listDocumentDate:tabled,proposerDate:tabled,proposerDateBasis:'amendment-list-metadata',proposerSource:oldSource,authors:[{name:'Alex Common',personId:'101',status:'resolved',evidence:[]}]})],coverage);
+    for(const [date,id] of [[tabled,'101'],[freshDate,'102']])store.putSource(generation,'amendment:roster:'+date,'amendment-roster',{members:[{id,givenName:'Alex',familyName:'Common'}],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+date,fetchedAt:earlier}]},earlier);
+    worker.downloadAmendmentDocx=async()=>({buffer:comparisonDocx([['Fresh original','Fresh proposal']],{author:null,date:null})});
+    enqueueAmendment(store,generation,'changed-proposer-snapshot','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
+    await worker.task(nextAmendmentTask(store,generation));
+    const [item]=amendmentsPage(store,{document:targetId}).items;
+    assert.equal(item.authors[0].personId,'102',changed);assert.equal(item.proposerDate,freshDate);assert.equal(item.proposerDateBasis,'amendment-list-metadata');
+    assert.deepEqual(item.proposerSource,observedSource);assert.equal(item.proposerRetained,true);
+    assert.equal(amendmentsPage(store,{member:'101'}).total,0);assert.equal(amendmentsPage(store,{member:'102'}).total,1);
+    const persisted=JSON.parse(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,item.id).body);
+    assert.equal(persisted.proposerDate,freshDate);assert.equal(persisted.authors[0].personId,'102');
+  }
+});
+
 test('an undated proposer retains the original list-date mandate basis across metadata changes and incompatible wording migration',async t=>{
   for(const evidenceKind of ['dated-roster','mandate-profile']) {
     const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001',newListDate='2026-10-06';
@@ -1473,11 +1654,14 @@ test('an undated proposer retains the original list-date mandate basis across me
     assert.equal(item.listDocumentDate,newListDate);assert.equal(item.documentDate,null);assert.equal(item.date,newListDate);
     assert.equal(item.authors[0].personId,'101');assert.equal(amendmentsPage(store,{member:'102'}).total,0);
     assert.equal(item.proposerDate,tabled);assert.equal(item.proposerRetained,true);
+    assert.equal(item.proposerDateBasis,'amendment-list-metadata');
     assert.deepEqual(item.proposerSource,{url:oldUrl,fetchedAt:earlier,language:'en'});
     const matched=item.authors[0].evidence.find(evidence=>evidence.type==='full_name'&&evidence.personId===101);
     assert.equal(matched.date,tabled);assert(matched.activeMandate);
     if(evidenceKind==='mandate-profile')assert.equal(new URL(matched.sourceUrl).pathname,'/api/v2/meps/101');
     else assert(item.authors[0].evidence.some(evidence=>evidence.type==='dated_roster'&&evidence.mandateObservedOn===tabled));
+    const persisted=JSON.parse(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,item.id).body);
+    assert.equal(persisted.proposerDate,tabled);assert.equal(persisted.proposerDateBasis,'amendment-list-metadata');assert.equal(persisted.authors[0].personId,'101');
   }
 });
 

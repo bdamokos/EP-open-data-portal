@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {deflateRawSync} from 'node:zlib';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {AMENDMENT_LINKS_VERSION,projectDocument,documentRows} from './activity-index-model.mjs';
@@ -10,7 +11,7 @@ import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendme
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {SPLIT_PARSER_VERSION} from './amendment-splits.mjs';
 import {amendmentsPage,enqueueAmendment,saveAmendmentRows} from './amendments-store.mjs';
-import {scheduleSittingOutcomes} from './amendments-worker.mjs';
+import {scheduleAmendments,prepareAmendments,scheduleSittingOutcomes} from './amendments-worker.mjs';
 
 const target='A-10-2026-0254',date='2026-10-16',stamp=date+'T16:00:00.000Z';
 const report={id:'eli/dl/doc/'+target,identifier:target,work_type:'def/ep-document-types/REPORT_PLENARY',parliamentary_term:['org/ep-10'],document_date:date,title_dcterms:{en:'Accepted report'},workHadParticipation:[{participation_role:'def/ep-roles/RAPPORTEUR',had_participant_person:['person/1']}],inverse_foresees_change_of:[]};
@@ -286,4 +287,112 @@ test('dependencies created on failure and abort exits are durable before the wri
     assert(saved);assert.equal(JSON.parse(saved.body).offset,750);assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(generation,dependency),undefined);
     assert.equal(store.get('working'),null);assert.equal(store.status().exclusiveWriterActive,false);assert.equal(pending(store),true);
   }
+});
+
+function discoveryReport() {
+  const listId=target+'-AM-001-001',url='https://data.europarl.europa.eu/distribution/example/new-amendment.docx';
+  return {listId,url,work:projectDocument({...report,inverse_foresees_change_of:[{id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',document_date:date,foresees_change_of:['eli/dl/doc/'+target],is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:url}]}]}]})};
+}
+function discoveryDocx() {
+  const p=text=>'<w:p><w:r><w:t>'+text.replaceAll('<','&lt;').replaceAll('>','&gt;')+'</w:t></w:r></w:p>';
+  const row=values=>'<w:tr>'+values.map(value=>'<w:tc>'+p(value)+'</w:tc>').join('')+'</w:tr>';
+  const xml='<w:document xmlns:w="urn:word"><w:body>'+p('<Amend><Date>16.10.2026</Date><NumAm>1</NumAm>')+p('<Article>Article 1</Article>')+'<w:tbl>'+row(['Text proposed by the Commission','Amendment'])+row(['Accepted original','New proposed wording'])+'</w:tbl>'+p('</Amend>')+'</w:body></w:document>';
+  const name=Buffer.from('word/document.xml'),body=Buffer.from(xml),compressed=deflateRawSync(body),local=Buffer.alloc(30),central=Buffer.alloc(46),end=Buffer.alloc(22);
+  local.writeUInt32LE(0x04034b50);local.writeUInt16LE(8,8);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(name.length,26);
+  central.writeUInt32LE(0x02014b50);central.writeUInt16LE(8,10);central.writeUInt32LE(compressed.length,20);central.writeUInt32LE(body.length,24);central.writeUInt16LE(name.length,28);
+  end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(central.length+name.length,12);end.writeUInt32LE(local.length+name.length+compressed.length,16);
+  return Buffer.concat([local,name,compressed,central,name,end]);
+}
+function discoveryFetch(calls) {
+  return async(endpoint,params)=>{assert.equal(endpoint,'/meps/show-current');assert.equal(params['mandate-date'],date);calls.push(params.offset);return {payload:{data:params.offset===0?[{identifier:'1',givenName:'Example',familyName:'Member'}]:[]},fetchedAt:stamp};};
+}
+
+test('200 completed jobs allow actual scheduling and preparation to execute a new extraction and dated roster',async t=>{
+  for(const mode of ['schedule','prepare']) {
+    const {store,worker,generation,write,clock}=setup(t,{budget:3}),{work,listId,url}=discoveryReport();
+    const coreKey='core:held-for-retry';
+    write(()=>{
+      store.putSource(generation,'/plenary-documents/'+target,'document',work,stamp);
+      for(let index=0;index<200;index++){const key='completed:'+index;enqueueAmendment(store,generation,key,'amendment-reparse',{sourceKey},10);store.finishTask({...job(store,key,generation),amendmentJob:true});}
+      store.enqueue(generation,coreKey,'catalog',{endpoint:'/plenary-documents',params:{year:2026},offset:750},100);
+      store.db.prepare('UPDATE tasks SET attempts=3,retry_at=?,error=? WHERE generation=? AND key=?').run(clock()+60_000,'Existing core retry',generation,coreKey);
+      if(mode==='schedule')scheduleAmendments(worker,generation,work,stamp,'/plenary-documents/'+target);
+      else {store.updateCycle({amendmentsPreparedDay:'2026-10-15'});prepareAmendments(worker,store.get('working'));}
+    });
+    const coreBefore=store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,coreKey),calls=[];let downloads=0;
+    assert.equal(pending(store),true);assert.equal(job(store,'amendment:extract:'+listId,generation).done,0);assert.equal(job(store,'amendment:roster:'+date,generation).done,0);
+    worker.fetchRecord=discoveryFetch(calls);worker.downloadAmendmentDocx=async actual=>{assert.equal(actual,url);downloads++;return {buffer:discoveryDocx()};};
+    await worker.run();
+    assert.equal(downloads,1);assert.deepEqual(calls,[0,1]);assert(store.source(generation,'amendment:roster:'+date));
+    const page=amendmentsPage(store,{document:target});assert.equal(page.items[0].proposedText,'New proposed wording');assert(!page.coverage.gaps.includes('Amendment text extraction is pending.'));assert.equal(page.coverage.pending,false);
+    assert.deepEqual(store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,coreKey),coreBefore);assert.equal(store.get('working').generation,generation);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs WHERE generation=?').get(generation).n,200);
+  }
+});
+
+test('a fully pending queue durably defers newly scheduled work through legacy generation advancement',async t=>{
+  const {store,worker,generation,write,clock,publish}=setup(t,{budget:3}),{work,listId,url}=discoveryReport(),expected=new Map();
+  write(()=>{
+    store.putSource(generation,'/plenary-documents/'+target,'document',work,stamp);
+    for(let index=0;index<200;index++) {
+      const key='retained:'+index;enqueueAmendment(store,generation,key,'amendment-reparse',{sourceKey,offset:250+index},10);
+      store.db.prepare('UPDATE amendment_jobs SET attempts=2,retry_at=?,error=? WHERE generation=? AND key=?').run(clock()+60_000,'Retained retry',generation,key);expected.set(key,job(store,key,generation));
+    }
+  });publish();
+  write(()=>scheduleAmendments(worker,generation,work,stamp,'/plenary-documents/'+target));
+  const checkpoint=store.source(generation,'amendment:continuations').work;
+  assert.equal(checkpoint.tasks.length,2);assert.equal(pending(store),true);assert.equal(worker.due(),true);
+  write(()=>store.transaction(()=>assert.equal(enqueueAmendment(store,generation,'amendment:extract:'+listId,'amendment-extract',{listId,targetDocumentId:target},112,true),true)));
+  assert.deepEqual(store.source(generation,'amendment:continuations').work,checkpoint);
+  write(()=>{
+    store.db.prepare('INSERT INTO sources SELECT 4,key,kind,body,fetched_at,seen FROM sources WHERE generation=?').run(generation);
+    store.db.prepare('DELETE FROM sources WHERE generation<>4').run();store.db.prepare('DELETE FROM tasks').run();store.set('active',4);store.set('sequence',4);
+  });
+  const calls=[];worker.fetchRecord=discoveryFetch(calls);worker.downloadAmendmentDocx=async actual=>{assert.equal(actual,url);return {buffer:discoveryDocx()};};
+  await worker.run();
+  assert.deepEqual(calls,[0,1]);assert.equal(store.source(4,'amendment:list:'+listId).work.extraction.amendments[0].proposedText,'New proposed wording');assert(store.source(4,'amendment:roster:'+date));
+  const saved=store.source(4,'amendment:continuations')?.work;
+  for(const [key,row] of expected){const retained=job(store,key,4)||saved?.tasks.find(task=>task.key===key);assert(retained,key);for(const field of ['body','attempts','retry_at','error'])assert.equal(retained[field],row[field],key+':'+field);}
+  assert.equal(store.get('active'),4);assert.equal(store.get('working'),null);assert.equal(store.get('sequence'),4);assert.equal(store.get('schema'),1);assert.equal(pending(store),true);
+});
+
+test('admission saturation exposes a capacity gap without replacing full saved cursor records',t=>{
+  const {store,worker,generation,write,clock,publish}=setup(t),snapshots=[];
+  write(()=>{
+    for(let index=0;index<200;index++) {
+      const key='pending:'+index;enqueueAmendment(store,generation,key,'amendment-reparse',{sourceKey,offset:index},10);
+      store.db.prepare('UPDATE amendment_jobs SET attempts=2,retry_at=?,error=? WHERE generation=? AND key=?').run(clock()+60_000,'Queue cursor',generation,key);
+      snapshots.push({generation,key:'snapshot:'+index,kind:'amendment-reparse',body:JSON.stringify({sourceKey,offset:1000+index}),priority:10,done:0,attempts:3,retry_at:clock()+60_000,error:'Snapshot cursor'});
+    }
+    store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:snapshots,discovery:[],completed:[]},stamp);
+  });publish();
+  write(()=>assert.equal(enqueueAmendment(store,generation,'new:discovery','amendment-extract',{listId:target+'-AM-002-002',targetDocumentId:target},112),false));
+  const checkpoint=store.source(generation,'amendment:continuations').work,page=amendmentsPage(store,{document:target});
+  assert.deepEqual(checkpoint.tasks,snapshots);assert.equal(checkpoint.capacityGap.count,1);assert(page.coverage.gaps.includes(checkpoint.capacityGap.message));assert.equal(page.coverage.pending,true);assert.equal(page.coverage.complete,false);
+  assert.equal(store.source(generation,'/plenary-documents/'+target).work.amendmentLinksVersion,undefined);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs WHERE generation=?').get(generation).n,200);
+});
+
+test('reclamation preserves current-day sitting dedup and never overflows its completion-marker reserve',async t=>{
+  const {store,worker,generation,write,publish}=setup(t,{budget:1}),completed=[];
+  const sitting='MTG-PL-2026-03-22',key='motion-outcomes:'+sitting+':'+date;
+  write(()=>{
+    for(let index=0;index<200;index++) {
+      const sittingId='MTG-PL-'+new Date(Date.parse('2026-03-22')+index*86_400_000).toISOString().slice(0,10),taskKey='motion-outcomes:'+sittingId+':'+date;
+      enqueueAmendment(store,generation,taskKey,'motion-outcomes',{sittingId},10);store.finishTask({...job(store,taskKey,generation),amendmentJob:true});
+      const previousSitting='MTG-PL-'+new Date(Date.parse('2025-01-01')+index*86_400_000).toISOString().slice(0,10);
+      completed.push({key:'motion-outcomes:'+previousSitting+':'+date,kind:'motion-outcomes',sittingId:previousSitting});
+    }
+    assert.equal(enqueueAmendment(store,generation,'new:slot','amendment-reparse',{sourceKey},100),true);
+  });
+  let checkpoint=store.source(generation,'amendment:continuations').work;
+  assert(checkpoint.completed.some(task=>task.key===key));write(()=>assert.equal(scheduleSittingOutcomes(worker,generation,sitting),false));
+  write(()=>{
+    store.db.prepare('DELETE FROM amendment_jobs WHERE generation=? AND key=?').run(generation,'new:slot');
+    enqueueAmendment(store,generation,key,'motion-outcomes',{sittingId:sitting},10);store.finishTask({...job(store,key,generation),amendmentJob:true});
+    store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:[],discovery:[],completed},stamp);
+    assert.equal(enqueueAmendment(store,generation,'reserve:pending','amendment-reparse',{sourceKey},100),true);
+  });publish();
+  await worker.run();checkpoint=store.source(generation,'amendment:continuations').work;
+  assert.deepEqual(checkpoint.completed,completed);assert.equal(checkpoint.tasks.length,1);assert.equal(job(store,key,generation).done,1);assert.equal(pending(store),true);
+  write(()=>assert.equal(scheduleSittingOutcomes(worker,generation,sitting),false));assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs WHERE generation=?').get(generation).n,200);
 });

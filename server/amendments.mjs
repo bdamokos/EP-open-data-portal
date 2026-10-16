@@ -5,6 +5,25 @@ import { HttpError } from './http-utils.mjs';
 export const AMENDMENTS_VERSION = 1;
 export const AMENDMENT_SITTING_PROJECTION_VERSION = 2;
 export const AMENDMENT_LIMITS = Object.freeze({ listsPerTarget:64, sittingsPerTarget:64, amendmentsPerList:500, text:60000, failures:20000, upgradeTargets:100, page:50 });
+export const PROPOSER_DATE_BASES = Object.freeze(['individual-amendment-document','amendment-list-document','amendment-list-metadata']);
+export function validAmendmentDate(value) {
+  return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
+}
+// Indexed presentation dates may fall back to a report date. Only documentary
+// amendment/list dates, or an explicitly preserved proposer basis, support links.
+export function amendmentProposerDate(record,{documentDate=record?.documentDate,listDate=record?.listDocumentDate}={}) {
+  const documented=validAmendmentDate(documentDate)?documentDate:null,listed=validAmendmentDate(listDate)?listDate:null;
+  const documentBasis=record?.dateBasis==='amendment-list-document'?'amendment-list-document':'individual-amendment-document';
+  if(record?.proposerDate!=null) {
+    const date=record.proposerDate;if(!validAmendmentDate(date))return null;
+    if(PROPOSER_DATE_BASES.includes(record.proposerDateBasis))return {date,basis:record.proposerDateBasis};
+    if(date===documented)return {date,basis:documentBasis};
+    if(date===listed)return {date,basis:'amendment-list-metadata'};
+    return null;
+  }
+  if(record?.proposerRetained)return null;
+  return documented?{date:documented,basis:documentBasis}:listed?{date:listed,basis:'amendment-list-metadata'}:null;
+}
 const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','symbol-text-loss','non-text-content','vertical-text-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
 export function amendmentTextLosses(extraction,amendment) {
   const oversized=['originalText','proposedText'].some(field=>typeof amendment?.[field]==='string'&&amendment[field].length>AMENDMENT_LIMITS.text);
