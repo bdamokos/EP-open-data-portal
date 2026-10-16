@@ -253,7 +253,8 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
     if(!moveToResults.current)return;
     moveToResults.current=false;
     resultsHeading.current?.focus({preventScroll:true});
-    resultsHeading.current?.closest(".poc-profile-body")?.scrollTo({top:0});
+    const body=resultsHeading.current?.closest(".poc-profile-body");
+    if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else resultsHeading.current?.scrollIntoView({block:"start"});
   },[category,categoriesOpen,offset]);
   useEffect(()=>{
     if(state.data?.cache.complete || open)return;
