@@ -1,4 +1,5 @@
-import {useEffect,useState,useSyncExternalStore} from 'react';
+import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
+import {PocStatus} from './PocStatus';
 import {api,expireActivityReads} from './pocData';
 import {createSavedStore,savedKey,savedLinks,type SavedItem,type SavedStates} from './pocBookmarks.mjs';
 import {humanDate} from './PocInsightCharts';
@@ -7,14 +8,20 @@ try{storage=window.localStorage;}catch{}
 const store=createSavedStore(storage,()=>listeners.forEach(listener=>listener()));
 window.addEventListener('storage',event=>{if(event.key==='ep.bookmarks.v1'||event.key===null)store.reload();});
 export function useSaved(){return useSyncExternalStore(callback=>{listeners.add(callback);return()=>listeners.delete(callback);},store.snapshot);}
-let pending:Promise<void>|null=null,lastCheck=0;
+type SavedCheck={data:SavedStates;requestedKey:string};
+let pending:Promise<SavedCheck>|null=null,lastCheck=0;
 export function checkSaved(language:string,force=false) {
   if(pending)return pending;
   if(!force&&Date.now()-lastCheck<5*60_000)return Promise.resolve();
   const items=store.snapshot().items;if(!items.length)return Promise.resolve();
   const params=new URLSearchParams({lang:language});for(const [kind,key] of [['question','questions'],['mep','members']] as const){const ids=items.filter(item=>item.kind===kind).map(item=>item.id);if(ids.length)params.set(key,ids.join(','));}
   const requestedKey=items.map(savedKey).sort().join(',');const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),12_000);
-  pending=api<SavedStates>('insights/saved?'+params,ctrl.signal).then(data=>{expireActivityReads();store.observe(data);lastCheck=Date.now();}).finally(()=>{clearTimeout(timer);pending=null;if(store.snapshot().items.map(savedKey).sort().join(',')!==requestedKey)void checkSaved(language,true).catch(()=>{});});return pending;
+  pending=api<SavedStates>('insights/saved?'+params,ctrl.signal).then(data=>{expireActivityReads();store.observe(data);lastCheck=Date.now();return {data,requestedKey};}).finally(()=>{clearTimeout(timer);pending=null;if(store.snapshot().items.map(savedKey).sort().join(',')!==requestedKey)void checkSaved(language,true).catch(()=>{});});return pending;
+}
+function savedCheckMessage(items:SavedItem[],data:SavedStates) {
+  const unread=items.filter(item=>item.updated).length;
+  const unavailable=items.filter(item=>!(item.kind==='question'?data.questions:data.members).some(state=>state.id===item.id&&state.status==='available')).length;
+  return ['Check finished.',unread?`${unread} followed ${unread===1?'item has':'items have'} unread updates.`:'No unread updates are currently recorded.',unavailable?`Update information is unavailable for ${unavailable} followed ${unavailable===1?'item':'items'}.`:'',data.coverage?.indexComplete===true?'':'The saved index is incomplete.'].filter(Boolean).join(' ');
 }
 export function useSavedChecks(language:string) {
   const {items}=useSaved(),key=items.map(savedKey).sort().join(',');
@@ -31,13 +38,21 @@ export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:bool
 }
 export function PocSaved({language,onBack,onMember}:{language:string;onBack:()=>void;onMember:(id:number,sourceId?:string)=>void}) {
   const saved=useSaved(),items=saved.items,[checking,setChecking]=useState(false),[error,setError]=useState('');
-  const check=()=>{setChecking(true);setError('');checkSaved(language,true).catch(e=>setError((e as Error).message)).finally(()=>setChecking(false));};
+  const key=items.map(savedKey).sort().join(','),context=language+':'+key,request=useRef(0),active=useRef(false);
+  const [attempt,setAttempt]=useState(0),[completion,setCompletion]=useState<{items:SavedItem[];message:string}|null>(null);
+  useEffect(()=>{active.current=true;setChecking(false);setError('');setCompletion(null);return()=>{active.current=false;request.current++;};},[context]);
+  const check=()=>{
+    const token=++request.current;setAttempt(token);setChecking(true);setError('');setCompletion(null);
+    const current=()=>active.current&&request.current===token&&store.snapshot().items.map(savedKey).sort().join(',')===key;
+    void checkSaved(language,true).then(result=>{if(!current()||!result||result.requestedKey!==key)return;const settled=store.snapshot().items;setCompletion({items:settled,message:savedCheckMessage(settled,result.data)});}).catch(e=>{if(current()){setError((e as Error).message);setCompletion({items:store.snapshot().items,message:'Could not check for updates. Saved items are still shown.'});}}).finally(()=>{if(current())setChecking(false);});
+  };
   return <section className="poc-saved-view" lang="en">
+    <PocStatus scope={`saved-check:${context}:${attempt}`} message={completion?.items===items?completion.message:null} pending={checking}/>
     <button onClick={onBack}>← Back</button>
     <div className="poc-saved-heading"><h1>Following</h1><button onClick={check} disabled={checking||!items.length}>{checking?'Checking…':'Check for updates'}</button></div>
     <p className="poc-saved-caption">MEPs and questions you follow on this device.</p>
     {!saved.persistent&&<p role="alert">Browser storage is unavailable. Your follows will last until this page closes.</p>}
-    {error&&<p role="alert">{error}</p>}
+    {error&&<p>{error}</p>}
     {!items.length&&<p>Follow a MEP or save a question to see new activity and answers here.</p>}
     <div className="poc-saved-items">{items.map(item=><article key={savedKey(item)}>
       <div className="poc-saved-heading"><h3 lang={item.titleLanguage||''}>{item.title}</h3><SaveButton item={item} compact/></div>
