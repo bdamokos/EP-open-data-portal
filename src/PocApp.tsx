@@ -408,22 +408,6 @@ export default function PocApp() {
   const memberOpener=useRef<number|null>(null);
   const viewOpener=useRef<{node:HTMLElement|null;headerIndex:number}|null>(null);
   const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
-  useLayoutEffect(()=>{
-    const intent=pendingDestination.current;
-    if(!intent||intent.view!==view||intent.member!==member)return;
-    pendingDestination.current=null;
-    // Selected speech links already hand focus to the exact item once it mounts.
-    if(!view&&member&&speechLink&&!intent.opener)return;
-    const page=document.querySelector<HTMLElement>('main.poc,main.poc-insights');
-    const portrait=intent.portrait!=null?page?.querySelector<HTMLElement>(`[data-member-id="${intent.portrait}"] .portrait--button`):null;
-    const opener=intent.opener;
-    const returned=opener?.node?.isConnected?opener.node:opener&&opener.headerIndex>=0?page?.querySelectorAll<HTMLElement>('.parliament-header nav button')[opener.headerIndex]:null;
-    const target=portrait||returned||page?.querySelector<HTMLElement>('h1');
-    if(!target)return;
-    if(target.tagName==='H1')target.tabIndex=-1;
-    target.focus({preventScroll:true});
-    if(portrait||returned)target.scrollIntoView({block:'nearest'});
-  },[view,member,speechLink]);
   const directoryState = useData<Directory>(view==='outside'?null:"directory");
   const directory = directoryState.data;
   const error = directoryState.error;
@@ -452,6 +436,23 @@ export default function PocApp() {
     const contentTop=page.scrollTop+body.getBoundingClientRect().top-page.getBoundingClientRect().top-tabs.offsetHeight;
     if(page.scrollTop>contentTop)page.scrollTo({top:contentTop});
   }, [member, tab, view, speechLink, activityLink]);
+  // Apply the destination after the existing responsive scroll policy has settled.
+  useEffect(()=>{
+    const intent=pendingDestination.current;
+    if(!intent||intent.view!==view||intent.member!==member)return;
+    pendingDestination.current=null;
+    // Selected speech links already hand focus to the exact item once it mounts.
+    if(!view&&member&&speechLink&&!intent.opener)return;
+    const page=document.querySelector<HTMLElement>('main.poc,main.poc-insights');
+    const portrait=intent.portrait!=null?page?.querySelector<HTMLElement>(`[data-member-id="${intent.portrait}"] .portrait--button`):null;
+    const opener=intent.opener;
+    const returned=opener?.node?.isConnected?opener.node:opener&&opener.headerIndex>=0?page?.querySelectorAll<HTMLElement>('.parliament-header nav button')[opener.headerIndex]:null;
+    const target=portrait||returned||page?.querySelector<HTMLElement>('h1');
+    if(!target)return;
+    if(target.tagName==='H1')target.tabIndex=-1;
+    target.focus({preventScroll:true});
+    if(portrait||returned)target.scrollIntoView({block:'nearest'});
+  },[view,member,speechLink]);
   useEffect(() => {
     const timer=window.setInterval(directoryState.retry,directory?.index.complete ? 60_000 : 10_000);
     return ()=>window.clearInterval(timer);

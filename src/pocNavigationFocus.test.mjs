@@ -54,12 +54,16 @@ async function harness(t,query='',delay=false) {
 test('member destination and Back restore the remounted exact portrait while retaining filters',async t=>{
   const h=await harness(t),input=h.container.querySelector('.poc-filters input');
   input.focus();await act(async()=>{Object.getOwnPropertyDescriptor(h.window.HTMLInputElement.prototype,'value').set.call(input,'Mika');input.dispatchEvent(new h.window.Event('input',{bubbles:true}));});
-  const original=h.container.querySelector('[data-member-id="257043"] button');
+  const original=h.container.querySelector('[data-member-id="257043"] button'),main=h.container.querySelector('main.poc'),order=[];
+  Object.defineProperties(main,{scrollHeight:{value:1000,configurable:true},clientHeight:{value:100,configurable:true}});
+  main.scrollTo=()=>order.push('existing page reset');
+  t.mock.method(h.window.HTMLElement.prototype,'scrollIntoView',function(){if(this.matches('.portrait--button'))order.push('returned portrait reveal');});
   await h.click(original);
   assert.equal(document.activeElement,h.container.querySelector('.poc-profile h1'));
   assert.equal(document.activeElement.getAttribute('aria-label'),'Mika Aaltola');
   assert.equal(original.isConnected,false);
-  await h.click(h.container.querySelector('.poc-back'));
+  order.length=0;await h.click(h.container.querySelector('.poc-back'));
+  assert.deepEqual(order,['existing page reset','returned portrait reveal'],'the established responsive scroll cannot hide the returned control afterwards');
   const returned=h.container.querySelector('[data-member-id="257043"] button');
   assert.equal(document.activeElement,returned);assert.notEqual(returned,original);
   assert.equal(h.container.querySelector('.poc-filters input').value,'Mika');
