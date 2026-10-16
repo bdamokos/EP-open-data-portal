@@ -41,6 +41,8 @@ Question topics use titles and bounded already-cached English bodies. Repeated p
 
 Speech clouds use supplied body text in the selected language. Counts describe distinct speeches mentioning a term; a single-speech cloud uses occurrences. Clicking a term opens exact source IDs and highlights literal whole words or phrases without rewriting the text. Machine translations are labelled. Absent translations are not generated.
 
+The plenary sitting catalogue pages through the official `/meetings` metadata for every year from 2024 through the current Brussels year, then keeps every sitting on or after 16 July 2024. Agenda, plenary word-cloud and participation sitting/week selectors share this catalogue; neither past sittings nor published upcoming sittings have a count cap. Only the selected sitting or week loads its details. If Parliament supplies no historical agenda, the selected date and full catalogue remain accessible with an unavailable-agenda message. A complete catalogue means the official list was paged to its end, not that agendas, speeches or the saved activity archive are complete. The API supports comma-separated years; a 15 October 2026 check returned 157 meetings across 2024–2026 in four pages (50, 50, 50, 7).
+
 Plenary participation uses actual named voters and exact speech-parent links. Unavailable observations are null rather than fabricated zeroes. Whole-sitting pagination compares unique IDs with declared totals and reports partial coverage for overlaps or missing records.
 
 ## Saved examples and supporting data

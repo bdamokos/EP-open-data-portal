@@ -5,8 +5,9 @@ import { canonical,demographicStats,memberPeople } from './insights-model.mjs';
 import { savedMetadata,brusselsDay } from './insights-store.mjs';
 import { agendaTopics,classifyProcedure,topicRoles,topicVotes,finalVotePatterns,refs,committeeEvent } from './insights-legislation-model.mjs';
 import {speakerNameIsSpecific} from './speech-speakers.mjs';
+import {CURRENT_TERM_START} from './analysis-period.mjs';
 
-export const LEGISLATION_LIMITS=Object.freeze({cataloguePages:2,sittings:16,agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
+export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -29,26 +30,33 @@ export class LegislationInsights {
     })();this.pending.set(key,job);try{return await job;}catch(error){this.failures.set(key,{at:this.clock(),error});while(this.failures.size>24)this.failures.delete(this.failures.keys().next().value);throw error;}finally{this.pending.delete(key);}
   }
   async catalogue() {
-    const year=Number(brusselsDay(this.clock()).slice(0,4)),nodes=[],sources=[];let complete=false;
-    for(let page=0;page<LEGISLATION_LIMITS.cataloguePages;page++) {
-      const r=await this.record('/meetings',{year,limit:50,offset:page*50});nodes.push(...r.payload.data);sources.push({apiUrl:r.url,fetchedAt:new Date(r.fetchedAt).toISOString()});if(r.payload.data.length<50){complete=true;break;}
+    const today=brusselsDay(this.clock()),year=Number(today.slice(0,4)),years=Array.from({length:year-Number(CURRENT_TERM_START.slice(0,4))+1},(_,i)=>Number(CURRENT_TERM_START.slice(0,4))+i),nodes=new Map(),sources=[];
+    for(let offset=0;;offset+=50) {
+      let r;
+      try{r=await this.record('/meetings',{year:years.join(','),limit:50,offset});}
+      catch(error){if(offset>0&&error.code==='odp_no_content')break;throw error;}
+      const before=nodes.size;
+      for(const node of r.payload.data)nodes.set(node.activity_id,node);
+      sources.push({apiUrl:r.url,fetchedAt:new Date(r.fetchedAt).toISOString()});
+      if(r.payload.data.length<50)break;
+      if(nodes.size===before)throw new HttpError(502,'insights_catalogue_paging','Parliament repeated a meetings page; the full sitting history could not be read.');
     }
-    const today=brusselsDay(this.clock());const all=[...new Map(nodes.filter(n=>tail(n.had_activity_type)==='PLENARY_SITTING').map(n=>[n.activity_id,n])).values()];
-    const upcoming=all.filter(n=>n.activity_date>today).sort((a,b)=>a.activity_date.localeCompare(b.activity_date)).slice(0,4);
-    const past=all.filter(n=>n.activity_date<=today).sort((a,b)=>b.activity_date.localeCompare(a.activity_date)).slice(0,LEGISLATION_LIMITS.sittings-upcoming.length);
+    const all=[...nodes.values()].filter(n=>tail(n.had_activity_type)==='PLENARY_SITTING'&&n.activity_date>=CURRENT_TERM_START);
+    const upcoming=all.filter(n=>n.activity_date>today).sort((a,b)=>a.activity_date.localeCompare(b.activity_date));
+    const past=all.filter(n=>n.activity_date<=today).sort((a,b)=>b.activity_date.localeCompare(a.activity_date));
     const sittings=[...past,...upcoming];
-    return {sittings,sources,complete,year};
+    return {sittings,sources,complete:true,year,years,start:CURRENT_TERM_START};
   }
   async query(query) {
     const status=this.store.status();if(!status.currentMeps||!status.servingGeneration)throw new HttpError(503,'insights_loading','The saved MEP index is not available yet.');
     const catalogue=await this.catalogue();const sitting=catalogue.sittings.find(s=>s.activity_id===(query.sitting||catalogue.sittings[0]?.activity_id));
-    if(!sitting)throw new HttpError(404,'sitting_not_found','Choose a sitting from the recent official catalogue.');
+    if(!sitting)throw new HttpError(404,'sitting_not_found','Choose a listed sitting from the current parliamentary term.');
     const today=brusselsDay(this.clock()),phase=sitting.activity_date>today?'upcoming':sitting.activity_date===today?'today':'past';
     if(phase==='upcoming'&&query.vote)throw new HttpError(400,'vote_not_held','This plenary vote has not taken place.');
     const meeting={payload:{data:[sitting]}};const agendaNodes=[],agendaSources=[];let agendaComplete=false,agendaError=null;
     for(let page=0;page<LEGISLATION_LIMITS.agendaPages;page++) {
       try {const r=await this.record('/meetings/'+sitting.activity_id+'/foreseen-activities',{limit:50,offset:page*50});agendaNodes.push(...r.payload.data);agendaSources.push({apiUrl:r.url,fetchedAt:new Date(r.fetchedAt).toISOString()});if(r.payload.data.length<50){agendaComplete=true;break;}}
-      catch(error){if(phase!=='upcoming')throw error;agendaError=error.message;break;}
+      catch(error){agendaError=error.message;break;}
     }
     const foreseen={url:agendaSources[0]?.apiUrl||'https://data.europarl.europa.eu/api/v2/meetings/'+sitting.activity_id+'/foreseen-activities',fetchedAt:agendaSources[0]?.fetchedAt||null,payload:{data:agendaNodes}};
     const topics=agendaTopics(meeting,foreseen).slice(0,LEGISLATION_LIMITS.agendaTopics);
@@ -131,7 +139,7 @@ export class LegislationInsights {
     }
     return {version:1,view:'legislation',requestedLanguage:query.language,sitting:{id:sitting.activity_id,phase,date:sitting.activity_date,title:sitting.activity_label?.[query.language]||sitting.activity_label?.en||sitting.activity_id,agendaDocumentIds:array(sitting.documented_by_a_realization_of).map(tail)},
       sittings:catalogue.sittings.map(s=>({id:s.activity_id,phase:s.activity_date>today?'upcoming':s.activity_date===today?'today':'past',date:s.activity_date,title:s.activity_label?.[query.language]||s.activity_label?.en||s.activity_id})),topics:topics.map(localize),detail,
-      coverage:{indexComplete:status.complete,servingGeneration:status.servingGeneration,rosterFetchedAt:status.rosterFetchedAt,lastSuccessfulRefresh:status.lastSuccessfulRefresh,pendingSpeechRecoveries:status.pendingSpeechRecoveries?.count||0,catalogueYear:catalogue.year,catalogueComplete:catalogue.complete,agendaComplete,agendaError,scope:'Recent catalogue-listed plenary sittings, with exact agenda/document/procedure joins. This is activity in a selected sitting, not an assertion that each procedure remains open or legislative.',sources:[...catalogue.sources,...agendaSources]},
+      coverage:{indexComplete:status.complete,servingGeneration:status.servingGeneration,rosterFetchedAt:status.rosterFetchedAt,lastSuccessfulRefresh:status.lastSuccessfulRefresh,pendingSpeechRecoveries:status.pendingSpeechRecoveries?.count||0,catalogueYear:catalogue.year,catalogueYears:catalogue.years,catalogueStart:catalogue.start,catalogueComplete:catalogue.complete,agendaComplete,agendaError,scope:'Current-term catalogue-listed plenary sittings, with exact agenda/document/procedure joins. This is activity in a selected sitting, not an assertion that each procedure remains open or legislative.',sources:[...catalogue.sources,...agendaSources]},
       attribution:'European Parliament Open Data API v2, CC BY 4.0',limits:LEGISLATION_LIMITS};
   }
 }
