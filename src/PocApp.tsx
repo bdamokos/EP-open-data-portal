@@ -44,6 +44,7 @@ import { PocQuestionTopics } from './PocQuestionTopics';
 import {PocOutsideVoices} from './PocOutsideVoices';
 import {PocStatus} from './PocStatus';
 import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './pocCoAuthors.mjs';
+import {selectLanguageText} from './pocLanguage.mjs';
 
 const normalize = (s: string) =>
   s
@@ -51,10 +52,7 @@ const normalize = (s: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase();
 const title = (s: Speech, lang: string) =>
-  s.titles[lang] ||
-  s.titles.en ||
-  Object.values(s.titles)[0] ||
-  "Plenary contribution";
+  selectLanguageText(s.titles,lang,"Plenary contribution");
 const date = (s: string, lang: string) =>
   new Intl.DateTimeFormat(lang, {
     day: "numeric",
@@ -71,7 +69,7 @@ const time = (s: string, lang: string) =>
   }).format(new Date(s));
 function ErrorView({ message, retry }: { message: string; retry: () => void }) {
   return (
-    <div className="poc-notice" role="alert">
+    <div className="poc-notice" role="alert" lang="en">
       <p>{message}</p>
       <button onClick={event=>{
         if(document.activeElement===event.currentTarget){
@@ -108,20 +106,20 @@ function Detail({ speech, lang }: { speech: Speech; lang: string }) {
     [state.data?.xml],
   );
   return (
-    <div className="poc-speech-detail">
+    <div className="poc-speech-detail" lang={lang}>
       <PocStatus scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={state.error||!state.data?null:text.error?'Parliament returned transcript text that could not be read.':text.paragraphs.length?'Transcript loaded.':'No transcript text is available from Parliament’s API for this contribution.'}/>
       <PocSpeechPlayer speech={speech} lang={lang} />
       <InterventionBadges value={state.data?.intervention}/>
       <PocSpeechContext key={speech.id} id={speech.id} language={lang}/>
-      <div className="poc-section-title"><h3>{c.transcript}</h3>{text.paragraphs.length>0&&<PocFindInText key={speech.id+':'+lang} label="Find in speech" target={transcriptText}/>}</div>
-      {speech.websiteUrl && <p className="poc-source-link"><a href={speech.websiteUrl} target="_blank" rel="noreferrer">Speech on Parliament’s website ↗</a>{" "}<small>Original {speech.websiteLanguage?.toUpperCase()}</small></p>}
-      {state.loading && !state.data && <p role="status">Loading transcript…</p>}
+      <div className="poc-section-title" lang="en"><h3 lang={lang}>{c.transcript}</h3>{text.paragraphs.length>0&&<PocFindInText key={speech.id+':'+lang} label="Find in speech" target={transcriptText}/>}</div>
+      {speech.websiteUrl && <p className="poc-source-link" lang="en"><a href={speech.websiteUrl} target="_blank" rel="noreferrer">Speech on Parliament’s website ↗</a>{" "}<small>Original <span lang="">{speech.websiteLanguage?.toUpperCase()}</span></small></p>}
+      {state.loading && !state.data && <p role="status" lang="en">Loading transcript…</p>}
       {state.error && <ErrorView message={state.error} retry={state.retry} />}
       {state.data && (
         <>
-          {state.data.textCache?.stale && <small>Showing saved transcript.{state.data.textCache.refreshInProgress ? " A refresh is running in the background." : state.data.textCache.refreshError ? " The last refresh failed." : ""}</small>}
-          <div className="poc-text-meta">
-            {state.data.textLanguage?.toUpperCase() || "Text unavailable"}
+          {state.data.textCache?.stale && <small lang="en">Showing saved transcript.{state.data.textCache.refreshInProgress ? " A refresh is running in the background." : state.data.textCache.refreshError ? " The last refresh failed." : ""}</small>}
+          <div className="poc-text-meta" lang="en">
+            {state.data.textLanguage ? <span lang="">{state.data.textLanguage.toUpperCase()}</span> : "Text unavailable"}
             {state.data.translationType === "machine" || text.machine
               ? " · Parliament machine translation"
               : state.data.translationType === "original"
@@ -132,19 +130,19 @@ function Detail({ speech, lang }: { speech: Speech; lang: string }) {
               : ""}
           </div>
           {text.error ? (
-            <p>Parliament returned transcript text that could not be read.</p>
+            <p lang="en">Parliament returned transcript text that could not be read.</p>
           ) : text.paragraphs.length ? (
             <div
               className="poc-transcript"
               ref={transcriptText}
-              lang={state.data.textLanguage || undefined}
+              lang={state.data.textLanguage || ""}
             >
               {text.paragraphs.map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
             </div>
           ) : (
-            <p>
+            <p lang="en">
               No transcript text is available from Parliament’s API for this
               contribution.
             </p>
@@ -159,38 +157,39 @@ function PublicationFiles({ files, lang }: { files: DocumentFile[]; lang: string
   const [selected, setSelected] = useState(lang);
   const fileKey=files.map(f => `${f.url}|${f.language}`).join(",");
   useEffect(() => setSelected(languages.includes(lang) ? lang : languages[0] || "und"), [lang, fileKey]);
-  if (!files.length) return <p>No downloadable files were returned for this document.</p>;
-  return <div className="poc-publication-files">
-    <label>Document language <select aria-label="Document language" value={selected} onChange={e => setSelected(e.target.value)}>{languages.map(l => <option value={l} key={l}>{l === "und" ? "Language unavailable" : l.toUpperCase()}</option>)}</select></label>
+  if (!files.length) return <p lang="en">No downloadable files were returned for this document.</p>;
+  return <div className="poc-publication-files" lang="en">
+    <label>Document language <select aria-label="Document language" value={selected} onChange={e => setSelected(e.target.value)}>{languages.map(l => <option lang={l === "und" ? "en" : ""} value={l} key={l}>{l === "und" ? "Language unavailable" : l.toUpperCase()}</option>)}</select></label>
     {!languages.includes(lang) && <small>Files in the interface language are unavailable. Choose an available language.</small>}
-    <p>{files.filter(f => (f.language || "und") === selected).map((f,i) => <a key={f.url + i} href={f.url} target="_blank" rel="noreferrer">{f.format} · {f.language?.toUpperCase() || "Language unavailable"} ↗</a>)}</p>
+    <p>{files.filter(f => (f.language || "und") === selected).map((f,i) => <a key={f.url + i} href={f.url} target="_blank" rel="noreferrer"><span lang="">{f.format}</span> · <span lang={f.language ? "" : "en"}>{f.language?.toUpperCase() || "Language unavailable"}</span> ↗</a>)}</p>
   </div>;
 }
 function AuthorMention({text,authors,lang,anchors,links,notePrefix}:{text:string;authors?:CoAuthor[];lang:string;anchors?:NoteAnchor[];links?:DocumentLink[];notePrefix?:string}) {
   const parts=coAuthorSegments(text,authors);let start=0;
-  return <>{parts.map((part,index)=>{const from=start;start+=part.text.length;return part.id ? <a key={index} className="poc-author-link" href={coAuthorProfileUrl(location.pathname,lang,part.id)}>{part.text}</a> : anchors ? <ReferenceText key={index} text={part.text} start={from} final={index===parts.length-1} anchors={anchors} links={links} notePrefix={notePrefix}/> : part.text;})}</>;
+  return <>{parts.map((part,index)=>{const from=start;start+=part.text.length;return part.id ? <a key={index} lang="" className="poc-author-link" href={coAuthorProfileUrl(location.pathname,lang,part.id)}>{part.text}</a> : anchors ? <ReferenceText key={index} text={part.text} start={from} final={index===parts.length-1} anchors={anchors} links={links} notePrefix={notePrefix}/> : part.text;})}</>;
 }
 function CoAuthors({authors,lang,member}:{authors?:CoAuthor[];lang:string;member:number}) {
   const people=linkedCoAuthors(authors);
   if(!people.length)return null;
-  return <details className="poc-coauthors"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id}>{person.id===member ? <strong>{person.name}</strong> : <a href={coAuthorProfileUrl(location.pathname,lang,person.id)}>{person.name}</a>}</li>)}</ul></details>;
+  return <details className="poc-coauthors" lang="en"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id} lang="">{person.id===member ? <strong>{person.name}</strong> : <a href={coAuthorProfileUrl(location.pathname,lang,person.id)}>{person.name}</a>}</li>)}</ul></details>;
 }
-function PublicationText({ sourceId, member, lang, heading, includeAnswers = false,question }: { sourceId: string; member: number; lang: string; heading: string; includeAnswers?: boolean;question?:{id:string;title?:string} }) {
+function PublicationText({ sourceId, member, lang, heading, headingDate, includeAnswers = false,question }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string} }) {
   const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang]);
   const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`);
   const text=state.data?.selectedDocumentId===sourceId ? state.data.selectedText : null;
   const files=sourceId.endsWith('-ASW')?state.data?.answers.find(answer=>answer.id===sourceId)?.files||[]:state.data?.files||[];
   const body=publicationBody(text?.paragraphs||[],sourceId,text?.textLanguage),notePrefix='notes'+useId().replace(/[^A-Za-z0-9_-]/g,'');
   const notes=text?.notes||[],anchors=body.exact?text?.noteAnchors||[]:[],documentLinks=body.exact?text?.documentLinks||[]:[];
-  const languageName=(code:string)=>{try{return new Intl.DisplayNames([lang],{type:'language'}).of(code)||code.toUpperCase();}catch{return code.toUpperCase();}};
-  return <section className="poc-document-text" id={'document-'+sourceId}>
+  const languageName=(code:string)=>{try{const text=new Intl.DisplayNames([lang],{type:'language'}).of(code);return {text:text||code.toUpperCase(),language:text&&text!==code?lang:''};}catch{return {text:code.toUpperCase(),language:''};}};
+  const requestedName=languageName(requestedLanguage),textName=languageName(text?.textLanguage||requestedLanguage);
+  return <section className="poc-document-text" lang="en" id={'document-'+sourceId}>
     <PocStatus scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={state.error?`${heading}: Text temporarily unavailable.`:state.data?`${heading}: ${text?.status==='available'?'Text loaded.':'Text unavailable.'}`:null}/>
-    <div className="poc-reader-heading"><h3>{heading}</h3>{question&&<a href={"#document-"+question.id} title={question.title}>Read question</a>}{text?.availableTextLanguages.length ? <select aria-label={`${heading} language`} title={text.translationType==='original'?'Original text':'Translation method not specified'} value={text.textLanguage||requestedLanguage} onChange={event=>setRequestedLanguage(event.target.value)}>{text.availableTextLanguages.map(code=><option key={code} value={code}>{code.toUpperCase()}</option>)}</select> : null}{text?.textLanguage&&text.textLanguage!==requestedLanguage&&<small>{languageName(requestedLanguage)} unavailable · showing {languageName(text.textLanguage)}</small>}</div>
+    <div className="poc-reader-heading"><h3>{headingDate ? <>Answer · <span lang={lang}>{date(headingDate,lang)}</span></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang="en">Read question</span></a>}{text?.availableTextLanguages.length ? <select aria-label={`${heading} language`} title={text.translationType==='original'?'Original text':'Translation method not specified'} value={text.textLanguage||requestedLanguage} onChange={event=>setRequestedLanguage(event.target.value)}>{text.availableTextLanguages.map(code=><option lang="" key={code} value={code}>{code.toUpperCase()}</option>)}</select> : null}{text?.textLanguage&&text.textLanguage!==requestedLanguage&&<small><span lang={requestedName.language}>{requestedName.text}</span> unavailable · showing <span lang={textName.language}>{textName.text}</span></small>}</div>
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}>Amendments to this document</AmendmentTrailLink>}
     {state.loading&&!text&&<p role="status">Loading text…</p>}{state.error&&<p>Text temporarily unavailable.</p>}
-    {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="poc-transcript" lang={text.textLanguage||undefined}>{body.paragraphs.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===body.start+index)} links={documentLinks.filter(link=>link.paragraph===body.start+index)} notePrefix={notePrefix}/></p>)}<DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&<p>Text unavailable. Download the document below.</p>}
-    {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/><details className="poc-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details></>}
-    {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={"Answer"+(answer.date?" · "+date(answer.date,lang):"")}/>)}
+    {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="poc-transcript" lang={text.textLanguage||""}>{body.paragraphs.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===body.start+index)} links={documentLinks.filter(link=>link.paragraph===body.start+index)} notePrefix={notePrefix}/></p>)}<DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&<p>Text unavailable. Download the document below.</p>}
+    {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/><details className="poc-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details></>}
+    {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={"Answer"+(answer.date?" · "+date(answer.date,lang):"")} headingDate={answer.date}/>)}
     {includeAnswers&&state.data&&!state.data.answers.length&&<p>No answer published.</p>}
   </section>;
 }
@@ -199,16 +198,16 @@ function JoinedDetails({ item, lang, member }: { item: JoinedActivity; lang: str
   const document=useData<PublicationDocument>(item.recordKind!=='speech' && !hasText ? `document/${item.sourceId}?member=${member}&lang=${lang}` : null);
   const roles: Record<string,string> = {AUTHOR:"Author",QUESTION_AUTHOR:"Author of the question",RAPPORTEUR:"Rapporteur",RAPPORTEUR_SHADOW:"Shadow rapporteur",RAPPORTEUR_OPINION:"Opinion rapporteur",RAPPORTEUR_SHADOW_OPINION:"Shadow opinion rapporteur",SPEAKER:"Plenary contribution"};
   if (item.recordKind === "speech") return <Detail speech={{id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null}} lang={lang} />;
-  return <div className="poc-speech-detail">
-    {!hasText&&<p><strong>{item.relatedJointMotions?.length && item.provenance.role==="AUTHOR" ? "Author of the original motion" : roles[item.provenance.role] || item.provenance.role}</strong>{item.provenance.stage ? ` · ${item.provenance.stage === "RDG1" ? "First reading" : item.provenance.stage === "RDG2" ? "Second reading" : item.provenance.stage}` : ""}</p>}
-    {!hasText&&<AmendmentTrailLink document={item.sourceId} language={lang}>Amendments to this document</AmendmentTrailLink>}
+  return <div className="poc-speech-detail" lang={lang}>
+    {!hasText&&<p lang="en"><strong lang={roles[item.provenance.role] ? "en" : ""}>{item.relatedJointMotions?.length && item.provenance.role==="AUTHOR" ? "Author of the original motion" : roles[item.provenance.role] || item.provenance.role}</strong>{item.provenance.stage ? <> · <span lang={['RDG1','RDG2'].includes(item.provenance.stage) ? "en" : ""}>{item.provenance.stage === "RDG1" ? "First reading" : item.provenance.stage === "RDG2" ? "Second reading" : item.provenance.stage}</span></> : ""}</p>}
+    {!hasText&&<span lang="en"><AmendmentTrailLink document={item.sourceId} language={lang}>Amendments to this document</AmendmentTrailLink></span>}
     <PocMotionOutcome outcome={item.resolutionOutcome} related={item.relatedJointMotions} reference={item.reference} sourceId={item.sourceId} language={lang}/>
     {(item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer') && <>
-      {item.recordKind!=='answer'&&<SaveButton item={{kind:'question',id:item.sourceId,title:item.title,memberId:String(member),date:item.date,baseline:item.answerIds?{answerIds:item.answerIds}:undefined}}/>}
+      {item.recordKind!=='answer'&&<SaveButton item={{kind:'question',id:item.sourceId,title:item.title,titleLanguage:item.titleLanguage,memberId:String(member),date:item.date,baseline:item.answerIds?{answerIds:item.answerIds}:undefined}}/>}
       <PublicationText sourceId={item.sourceId} member={member} lang={lang} heading={item.recordKind==='answer' ? 'Answer' : 'Question'} includeAnswers={item.recordKind!=='answer'} question={item.recordKind==='answer'&&item.relatedQuestionId?{id:item.relatedQuestionId,title:item.relatedQuestionTitle}:undefined} />
       {item.recordKind==='answer' && item.relatedQuestionId && <PublicationText sourceId={item.relatedQuestionId} member={member} lang={lang} heading="Linked question" />}
     </>}
-    {!hasText && <section aria-label={item.relatedJointMotions?.length ? 'Original motion document' : 'Document'}>
+    {!hasText && <section lang="en" aria-label={item.relatedJointMotions?.length ? 'Original motion document' : 'Document'}>
       {!!item.relatedJointMotions?.length && <h3>Original motion document</h3>}
       <CoAuthors authors={document.data?.coAuthors} lang={lang} member={member}/>
       <PublicationFiles files={item.files} lang={lang}/>
@@ -225,18 +224,19 @@ function LinkedActivityFallback({ sourceId, member, lang, complete }: { sourceId
   const matched=answer || (document.data?.id===sourceId ? document.data : null);
   const authored=document.data?.roles.includes("AUTHOR");
   const speechAuthor=contribution.data?.participants.includes(String(member));
-  return <aside className="poc-notice">
+  const matchedTitle=selectLanguageText(matched?.titles,lang,matched?.id||'', '');
+  return <aside className="poc-notice" lang="en">
     <PocStatus scope={`linked:${sourceId}:${member}:${lang}:${check}`} pending={document.loading||contribution.loading} message={document.error||contribution.error?null:!check?!sourceId?'This older link could not be matched to an API source identifier.':complete?'This item is outside this MEP’s saved activity index.':'This item has not been indexed for this MEP yet.':document.data&&!matched?'The API did not return the exact linked document or answer.':matched||contribution.data?'Linked source available.':null}/>
-    <strong>Linked activity {sourceId || "identifier not recognised"}</strong>
+    <strong>Linked activity <span lang={sourceId ? "" : "en"}>{sourceId || "identifier not recognised"}</span></strong>
     <p>{!sourceId ? "This older link could not be matched to an API source identifier." : complete ? "This item is outside this MEP’s saved activity index. No category or MEP relationship is inferred from the link." : "This item has not been indexed for this MEP yet. Saved activities remain available while the term 10 load continues."}</p>
     {sourceId && !check && <button onClick={() => setCheck(true)}>Check this source with Parliament</button>}
     {(document.loading || contribution.loading) && <p role="status">Loading the linked source…</p>}
     {document.error && <ErrorView message={document.error} retry={document.retry} />}
     {contribution.error && <ErrorView message={contribution.error} retry={contribution.retry} />}
     {matched && <>
-      <h3>{matched.titles[lang] || matched.titles.en || Object.values(matched.titles)[0] || matched.id}</h3>
-      {matched.date && <p>{date(matched.date,lang)}{answer ? " · Answer" : ""}</p>}
-      <p>{answer && authored ? "The API links this answer to a question authored by this MEP." : document.data!.roles.length ? `The document records these roles for this MEP: ${document.data!.roles.join(", ")}.` : "The document source is available. A relationship to this MEP has not been established."}</p>
+      <h3 lang={matchedTitle.language}>{matchedTitle.text}</h3>
+      {matched.date && <p><span lang={lang}>{date(matched.date,lang)}</span>{answer ? " · Answer" : ""}</p>}
+      <p>{answer && authored ? "The API links this answer to a question authored by this MEP." : document.data!.roles.length ? <>The document records these roles for this MEP: <span lang="">{document.data!.roles.join(", ")}</span>.</> : "The document source is available. A relationship to this MEP has not been established."}</p>
       <PublicationText sourceId={sourceId!} member={member} lang={lang} heading={answer ? 'Answer' : /^[EPO]-/.test(sourceId!) ? 'Question' : 'Document text'} includeAnswers={!answer && /^[EPO]-/.test(sourceId!)} />
       {answer && document.data!.id!==sourceId && <PublicationText sourceId={document.data!.id} member={member} lang={lang} heading="Linked question" />}
       <PublicationFiles files={matched.files} lang={lang} />
@@ -283,8 +283,8 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
   const choose=(value:string)=>{moveToResults.current=true;setCategoriesOpen(false);onCategory(value);setOffset(0);onOpen(null);};
   const coverage=category ? page?.categoryCoverage[category] : null;
   const selectedLabel=category ? page?.categories[category] || category : "All activities";
-  return <section className="poc-activities">
-    <div className="poc-section-title"><h2>{c.activities}</h2>
+  return <section className="poc-activities" lang="en">
+    <div className="poc-section-title"><h2 lang={lang}>{c.activities}</h2>
     <PocTextSearch prefix="mep-activity-fts" label="Search this MEP’s text" language={lang} member={id} kinds={['speech','question','answer']} from="2024-07-16" scopeNote="Searches this MEP’s saved speeches, questions and linked answers for the current term. Reports and other activity categories are outside this text collection."/></div>
     {page && <>
       <div className="poc-category-selection">
@@ -312,7 +312,7 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
       {items.map(item=>{
         const key=`${item.category}:${item.sourceId}`;
         return <article className="poc-speech" id={`publication-${item.id}`} key={key}>
-          <button className="poc-speech-toggle" aria-expanded={isOpen(item)} onClick={()=>{const next=isOpen(item)?null:key;onOpen(next);}}><span><small>{item.recordKind === "answer" ? "Answer" : item.category === "written-questions" ? "Written question" : item.category === "oral-questions" ? "Oral question" : item.categoryLabel} · {date(item.date,lang)}</small><strong>{item.title}</strong>{item.recordKind!=="answer"&&item.answerStatus&&<QuestionStatus answered={item.answerStatus==="answered"}/>} {item.resolutionOutcome&&<MotionStatuses outcome={item.resolutionOutcome} related={item.relatedJointMotions} sourceId={item.sourceId}/>}</span><b aria-hidden="true">{isOpen(item)?"−":"+"}</b></button>
+          <button className="poc-speech-toggle" aria-expanded={isOpen(item)} onClick={()=>{const next=isOpen(item)?null:key;onOpen(next);}}><span><small><span>{item.recordKind === "answer" ? "Answer" : item.category === "written-questions" ? "Written question" : item.category === "oral-questions" ? "Oral question" : item.categoryLabel} · <time lang={lang} dateTime={item.date}>{date(item.date,lang)}</time></span></small><strong lang={item.titleLanguage||""}>{item.title}</strong>{item.recordKind!=="answer"&&item.answerStatus&&<QuestionStatus answered={item.answerStatus==="answered"}/>} {item.resolutionOutcome&&<MotionStatuses outcome={item.resolutionOutcome} related={item.relatedJointMotions} sourceId={item.sourceId}/>}</span><b aria-hidden="true">{isOpen(item)?"−":"+"}</b></button>
 
           {isOpen(item) && <JoinedDetails item={item} lang={lang} member={id} />}
         </article>;
@@ -322,7 +322,7 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
         <p>{page.cache.complete ? "The saved history is available." : "Saved results are shown now. The term 10 history is incomplete; some source records are awaiting retry."}{page.cache.stale && page.cache.complete ? " The daily update is pending." : ""}</p>
         {page.cache.lastError && <p>An upstream request failed. Saved results remain available.</p>}
         {!category && page.unclassifiedMotionCount>0 && <p>Some motions lack a verified rule basis and remain unclassified.</p>}
-        <small>{page.cache.lastSuccessfulRefresh ? `Last completed refresh: ${date(page.cache.lastSuccessfulRefresh,lang)}. ` : ""}Questions appear by the question date, with answers attached. New answers appear as updates in Following.</small>
+        <small>{page.cache.lastSuccessfulRefresh ? <>Last completed refresh: <span lang={lang}>{date(page.cache.lastSuccessfulRefresh,lang)}</span>. </> : ""}Questions appear by the question date, with answers attached. New answers appear as updates in Following.</small>
       </details>
     </>}
     {open && state.error && !state.data && <LinkedActivityFallback key={sourceId} sourceId={sourceId} member={id} lang={lang} complete={false} />}
@@ -359,23 +359,23 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     setOffset(next);onOpen(null);
   };
   useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){target.scrollIntoView({block:'start'});target.querySelector<HTMLButtonElement>('.poc-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data]);
-  return <section>
-    <div className="poc-section-title"><h2 ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2><PocTextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" scopeNote="Searches saved speech text for this MEP in the current term. Transcript and language coverage may be incomplete."/></div>
+  return <section lang={lang}>
+    <div className="poc-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2><PocTextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" scopeNote="Searches saved speech text for this MEP in the current term. Transcript and language coverage may be incomplete."/></div>
     <PocInterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches}/>
     <PocSpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setSpeechLanguage(language);onOpen(speech);}}/>
-    <div className="poc-section-title"><span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span></div>
-    {state.loading && !state.data && <p role="status">Loading saved speeches…</p>}
+    <div className="poc-section-title" lang="en"><span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span></div>
+    {state.loading && !state.data && <p role="status" lang="en">Loading saved speeches…</p>}
     {state.error && <ErrorView message={state.error} retry={state.retry} />}
-    {state.data && !items.length && <p className="poc-notice">{state.data.cache.complete ? "No indexed plenary contributions were found for this MEP." : "No plenary contributions have been loaded for this MEP yet."}</p>}
-    {initialSpeech && pinned.loading && <p role="status">Checking the saved linked speech…</p>}
+    {state.data && !items.length && <p className="poc-notice" lang="en">{state.data.cache.complete ? "No indexed plenary contributions were found for this MEP." : "No plenary contributions have been loaded for this MEP yet."}</p>}
+    {initialSpeech && pinned.loading && <p role="status" lang="en">Checking the saved linked speech…</p>}
     {initialSpeech && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
     {initialSpeech && state.data && !pinned.loading && !items.some(item=>item.sourceId===initialSpeech) && <LinkedActivityFallback key={initialSpeech} sourceId={initialSpeech} member={id} lang={lang} complete={state.data.cache.complete} />}
-    {items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId),speech={...base,...enriched,titles:{...base.titles,...enriched?.titles}};const open=initialSpeech===speech.id;return <article className="poc-speech" key={item.id} id={`speech-${speech.id}`}>
-      <button className="poc-speech-toggle" onClick={()=>{setSpeechLanguage(null);onOpen(open ? null : speech.id);}} aria-expanded={open}><span>{date(speech.date,lang)} · {speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT' ? 'Written statement' : 'Plenary speech'}{speech.start ? ` · ${time(speech.start,lang)} Brussels` : ''}</span><strong>{title(speech,lang)}</strong><small>{speech.reference}<b>{open ? '−' : '+'}</b></small></button>
+    {items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId),speech={...base,...enriched,titles:{...base.titles,...enriched?.titles}};const open=initialSpeech===speech.id,speechTitle=title(speech,lang);return <article className="poc-speech" key={item.id} id={`speech-${speech.id}`}>
+      <button className="poc-speech-toggle" lang="en" onClick={()=>{setSpeechLanguage(null);onOpen(open ? null : speech.id);}} aria-expanded={open}><span><span lang={lang}>{date(speech.date,lang)}</span> · {speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT' ? 'Written statement' : 'Plenary speech'}{speech.start ? <> · <span lang={lang}>{time(speech.start,lang)}</span> Brussels</> : ''}</span><strong lang={speechTitle.language}>{speechTitle.text}</strong><small><span lang="">{speech.reference}</span><b>{open ? '−' : '+'}</b></small></button>
       {!open&&<div className="poc-speech-list-badges"><InterventionBadges value={speech.intervention}/></div>}
       {open && <Detail speech={speech} lang={speechLanguage||lang} />}
     </article>})}
-    {state.data && <div className="poc-category-top">{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
+    {state.data && <div className="poc-category-top" lang="en">{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
   </section>;
 }
 export default function PocApp() {
@@ -523,7 +523,8 @@ export default function PocApp() {
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || `MEP ${member}`;
   const pageTitle = view==='legislation' ? null : view ? {questions:'Questions',outside:'Outside voices',amendments:'Amendments',saved:'Following'}[view]
     : member ? `${memberName} · ${tab==='profile'?c.profile:tab==='activities'?c.activities:tab==='amendments'?'Amendments':c.speeches}` : c.title;
-  useEffect(()=>{if(pageTitle)document.title = `${pageTitle} — Parliament explorer`;},[pageTitle]);
+  const pageTitleLanguage=view||member&&tab==='amendments'?'en':lang;
+  useEffect(()=>{if(pageTitle)document.title = `${pageTitle} — Parliament explorer`;document.querySelector('title')?.setAttribute('lang',pageTitleLanguage);},[pageTitle,pageTitleLanguage]);
   const roleName = (value: string) =>
     value === "MEMBER_SUBSTITUTE"
       ? label("substitute", c.substitutes)
@@ -590,6 +591,7 @@ export default function PocApp() {
         {view === 'saved' ? <PocSaved language={lang} onBack={leaveSaved} onMember={openInsightMember}/> : member ? (
           <section className="poc-profile">
             <button
+              lang={lang}
               className="poc-back"
               onClick={leaveMember}
             >
@@ -605,18 +607,18 @@ export default function PocApp() {
                 />
               )}
               <div>
-                <h1 tabIndex={-1} aria-label={memberName}>
+                <h1 lang="" tabIndex={-1} aria-label={memberName}>
                   {profile.data?.firstName || selected?.firstName}
                   <br />
                   {profile.data?.lastName || selected?.lastName}
                 </h1>
-                <p>
+                <p lang="">
                   {selected?.countryCode} · {selected?.groupCode}
                 </p>
                 <SaveButton item={{kind:'mep',id:String(member),title:[profile.data?.firstName||selected?.firstName,profile.data?.lastName||selected?.lastName].filter(Boolean).join(' ')}}/>
               </div>
             </div>
-            <nav className="poc-tabs" aria-label="MEP sections">
+            <nav className="poc-tabs" aria-label="MEP sections" lang={lang}>
               <button
                 className={tab === "profile" ? "selected" : ""}
                 aria-pressed={tab === "profile"}
@@ -632,7 +634,7 @@ export default function PocApp() {
                 {c.speeches}
               </button>
               <button className={tab === "activities" ? "selected" : ""} aria-pressed={tab === "activities"} onClick={() => setTab("activities")}>{c.activities}</button>
-              <button className={tab === "amendments" ? "selected" : ""} aria-pressed={tab === "amendments"} onClick={() => setTab("amendments")}>Amendments</button>
+              <button lang="en" className={tab === "amendments" ? "selected" : ""} aria-pressed={tab === "amendments"} onClick={() => setTab("amendments")}>Amendments</button>
             </nav>
             <div className="poc-profile-body">
               {tab === "speeches" ? (
@@ -644,57 +646,55 @@ export default function PocApp() {
                 />
               ) : tab === "amendments" ? <PocAmendments key={member} member={member} language={lang} onMember={openInsightMember} heading="Amendments tabled"/> : tab === "activities" ? <Activities id={member} lang={lang} initialActivity={activityLink} onOpen={setActivityLink} category={activityCategory} onCategory={setActivityCategory} /> : (
                 <>
-                  {profile.loading && <p role="status">Loading profile…</p>}
+                  {profile.loading && <p role="status" lang="en">Loading profile…</p>}
                   {profile.error && (
                     <ErrorView message={profile.error} retry={profile.retry} />
                   )}{" "}
                   {profile.data && (
                     <>
-                      <h2>{c.profile}</h2>
+                      <h2 lang={lang}>{c.profile}</h2>
                       {profile.data.birthDate && (
-                        <p>
-                          Born {date(profile.data.birthDate, lang)}
+                        <p lang="en">
+                          Born <span lang={lang}>{date(profile.data.birthDate, lang)}</span>
                           {profile.data.birthPlace
-                            ? ` · ${profile.data.birthPlace}`
+                            ? <> · <span lang="">{profile.data.birthPlace}</span></>
                             : ""}
                         </p>
                       )}
                       {profile.data.email && (
                         <p>
-                          <a href={`mailto:${profile.data.email}`}>
+                          <a lang="" href={`mailto:${profile.data.email}`}>
                             {profile.data.email}
                           </a>
                         </p>
                       )}
-                      <h2>{c.committee}</h2>
+                      <h2 lang={lang}>{c.committee}</h2>
                       {!profile.data.memberships?.some(m => m.current && directory?.committees.some(b => b.id === m.id)) && (
-                        <p>No active committee memberships were returned.</p>
+                        <p lang="en">No active committee memberships were returned.</p>
                       )}
                       {orderedMemberships(profile.data.memberships||[],directory?.committees||[]).map((m, i) => {
                         const body = directory?.committees.find(
                           (b) => b.id === m.id,
                         );
+                        // This view intentionally has no first-entry name fallback.
+                        const bodyName=body?.names[lang] ? {text:body.names[lang],language:lang} : body?.names.en ? {text:body.names.en,language:'en'} : {text:m.classification.replaceAll("_", " ").toLowerCase(),language:''};
                         return (
                           <div
                             className={`poc-membership ${m.current ? "" : "poc-historical"}`}
                             key={i}
                           >
                             <strong>
-                              {body?.code || m.id} · {roleName(m.role)}
+                              <span lang="">{body?.code || m.id}</span> · <span lang={['MEMBER_SUBSTITUTE','MEMBER','CHAIR','CHAIR_VICE'].includes(m.role) ? lang : ''}>{roleName(m.role)}</span>
                             </strong>
-                            <p>
-                              {body?.names[lang] ||
-                                body?.names.en ||
-                                m.classification
-                                  .replaceAll("_", " ")
-                                  .toLowerCase()}
+                            <p lang={bodyName.language}>
+                              {bodyName.text}
                             </p>
-                            <small>
+                            <small lang={lang}>
                               {m.start
                                 ? date(m.start, lang)
-                                : "Start date unavailable"}{" "}
+                                : <span lang="en">Start date unavailable</span>}{" "}
                               — {m.end ? date(m.end, lang) : c.ongoing}
-                              {m.current ? "" : " · Historical / future"}
+                              {m.current ? "" : <span lang="en"> · Historical / future</span>}
                             </small>
                           </div>
                         );
@@ -707,9 +707,9 @@ export default function PocApp() {
           </section>
         ) : (
           <section className="poc-wall">
-            <h1>{c.title}</h1>
+            <h1 lang={lang}>{c.title}</h1>
             <div className="poc-filters">
-              <label>
+              <label lang={lang}>
                 {c.committee}
                 <select
                   value={committee}
@@ -717,19 +717,20 @@ export default function PocApp() {
                 >
                   <option value="">{c.all}</option>
                   {committee && !directory?.committees.some(b => b.id === committee) && (
-                    <option value={committee}>Checking committee {committee}…</option>
+                    <option lang="en" value={committee}>Checking committee {committee}…</option>
                   )}
                   {directory?.committees.map((b) => (
-                    <option key={b.id} value={b.id}>
+                    <option lang={b.names[lang]?lang:b.names.en?'en':''} key={b.id} value={b.id}>
                       {b.code} · {b.names[lang] || b.names.en}
                     </option>
                   ))}
                 </select>
               </label>
               <div className="poc-filter-line">
-                <label>
+                <label lang="en">
                   Membership
                   <select
+                    lang={lang}
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
                   >
@@ -738,43 +739,43 @@ export default function PocApp() {
                     <option value="substitute">{c.substitutes}</option>
                   </select>
                 </label>
-                <label>
+                <label lang={lang}>
                   {label("country", "Country")}
                   <select
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
                   >
-                    <option value="">All</option>
+                    <option lang="en" value="">All</option>
                     {Array.from(
                       new Set(directory?.members.map((m) => filterCountry(m.countryCode))),
                     )
                       .filter(Boolean)
                       .sort()
-                      .map((v) => (
-                        <option key={v} value={v}>
-                          {countryName(lang,v)}
-                        </option>
-                      ))}
+                      .map((v) => {
+                        const name=countryName(lang,v);
+                        return <option lang={name===v?'':lang} key={v} value={v}>{name}</option>;
+                      })}
                   </select>
                 </label>
-                <label>
+                <label lang={lang}>
                   {label("political_group", "Political group")}
                   <select
                     value={group}
                     onChange={(e) => setGroup(e.target.value)}
                   >
-                    <option value="">All</option>
+                    <option lang="en" value="">All</option>
                     {Array.from(
                       new Set(directory?.members.map((m) => m.groupCode)),
                     )
                       .sort()
                       .map((v) => (
-                        <option key={v}>{v}</option>
+                        <option lang="" key={v}>{v}</option>
                       ))}
                   </select>
                 </label>
               </div>
               <input
+                lang={lang}
                 aria-label={c.search}
                 placeholder={c.search}
                 value={search}
@@ -789,17 +790,18 @@ export default function PocApp() {
               />
             )}{" "}
             {!directory && !error && (
-              <p role="status">Loading current MEPs and committees…</p>
+              <p role="status" lang="en">Loading current MEPs and committees…</p>
             )}
             {directory && (
               <>
                 <div className="poc-results">
                   <strong>{unavailable ? "—" : filtered.length}</strong>
-                  <span>
+                  <span lang={lang}>
                     {c.members}{" "}
-                    <small>Current at {date(directory.day, lang)}</small>
+                    <small lang="en">Current at <time lang={lang} dateTime={directory.day}>{date(directory.day, lang)}</time></small>
                   </span>
                   <button
+                    lang={lang}
                     onClick={() => {
                       setCommittee("");
                       setCountry("");
@@ -812,14 +814,14 @@ export default function PocApp() {
                   </button>
                 </div>
                 {directory.sync?.error && (
-                  <div className="poc-index" role="status">
+                  <div className="poc-index" role="status" lang="en">
                     Update feed unavailable. Showing cached profiles; last
                     successful feed check:{" "}
-                    {directory.sync.lastSuccess || "not yet completed"}.
+                    <span lang={directory.sync.lastSuccess ? "" : "en"}>{directory.sync.lastSuccess || "not yet completed"}</span>.
                   </div>
                 )}
                 {!directory.index.complete && (
-                  <div className="poc-index" role="status">
+                  <div className="poc-index" role="status" lang="en">
                     {directory.index.error ||
                       `Loading committee memberships: ${directory.index.loaded} / ${directory.index.total}.`}
                     {unavailable && (
@@ -838,7 +840,7 @@ export default function PocApp() {
                 {!unavailable && (
                   <div className="poc-portraits" data-portrait-scroll-root>
                     {filtered.map((m, index) => (
-                      <div className="poc-portrait-item" key={m.id} data-member-id={m.id}>
+                      <div className="poc-portrait-item" lang="" key={m.id} data-member-id={m.id}>
                         <Portrait
                           member={{
                             ...m,
@@ -861,20 +863,19 @@ export default function PocApp() {
                           <small>
                             {m.memberships
                               ?.filter((v) => v.current && v.id === committee)
-                              .map((v) => roleName(v.role))
-                              .join(" · ")}
+                              .map((v,index) => <span key={index} lang={['MEMBER_SUBSTITUTE','MEMBER','CHAIR','CHAIR_VICE'].includes(v.role) ? lang : ''}>{index>0 ? " · " : ""}{roleName(v.role)}</span>)}
                           </small>
                         )}
                       </div>
                     ))}
-                    {!filtered.length && <p>No MEPs match these filters.</p>}
+                    {!filtered.length && <p lang="en">No MEPs match these filters.</p>}
                   </div>
                 )}
               </>
             )}
           </section>
         )}
-        <footer className="poc-footer">
+        <footer className="poc-footer" lang="en">
           <label>
             Language
             <select
@@ -883,7 +884,7 @@ export default function PocApp() {
               onChange={(e) => setLang(e.target.value)}
             >
               {pocLanguages.map((code) => (
-                <option key={code} value={code}>
+                <option lang={code} key={code} value={code}>
                   {languageName(code)}
                 </option>
               ))}
