@@ -136,7 +136,7 @@
   .insight-trend-detail { order:1; }
 }
 
-.poc-insights [tabindex="-1"]:focus { outline:3px solid #fff200; outline-offset:4px; }
+.poc-insights [tabindex="-1"]:focus { outline:3px solid var(--focus-outline-color,var(--selected-yellow,#fff200)); outline-offset:4px; }
 .poc-insights .insight-country-map path:focus-visible { outline:none; stroke:#fff200; stroke-width:3px; }
 
 @media(max-width:680px) { .poc-insights .insight-topic-trends>.insight-section-heading>button { order:2; flex-basis:100%; } }
