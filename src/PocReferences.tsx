@@ -26,7 +26,12 @@ const questionType:Record<string,string>={E:'Written question',P:'Priority quest
 const stageName=(stage:string)=>({'first-reading':'First reading','parliament-decision':'Parliament’s decision','final-act':'Final act',proposal:'Commission proposal',document:'Summary'} as Record<string,string>)[stage]||'Summary';
 const displayDate=(value:string|null|undefined,language:string)=>value?humanDate(value,language):null;
 const finePointer=()=>typeof matchMedia==='function'&&matchMedia('(hover: hover) and (pointer: fine)').matches;
-const connectedFocusTarget=(element:HTMLElement|null|undefined)=>Boolean(element?.isConnected&&!element.closest('[hidden],[inert],[aria-hidden="true"]')&&!element.matches(':disabled'));
+function connectedFocusTarget(element:HTMLElement|null|undefined) {
+  if(!element?.isConnected||element.closest('[hidden],[inert],[aria-hidden="true"]')||element.matches(':disabled'))return false;
+  // A closed disclosure retains its DOM, but only its first summary stays visible.
+  for(let parent=element.parentElement;parent;parent=parent.parentElement)if(parent.matches('details:not([open])')&&!parent.querySelector(':scope > summary')?.contains(element))return false;
+  return true;
+}
 function returnToReference(trigger:HTMLElement|undefined,scope:HTMLElement|null) {
   const heading=scope?.closest('section,article')?.querySelector<HTMLElement>('h1,h2,h3,h4,h5,h6');
   const target=[trigger,heading,scope].find(connectedFocusTarget);

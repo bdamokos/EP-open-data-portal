@@ -10,7 +10,7 @@ const citation='E-003031/2026',text='See question '+citation+'.';
 const resolved=id=>({key:'question:E-2026-'+id.slice(-6),kind:'question',status:'found',id,title:'Official question '+id});
 const documentResponse=(id,paragraphs)=>({id,selectedDocumentId:id,files:[],answers:[],selectedText:{status:'available',paragraphs,textLanguage:'en',availableTextLanguages:['en','fr'],translationType:'original'}});
 
-async function reader(t,{heading=true}={}) {
+async function reader(t,{heading=true,citationInNotes=false}={}) {
   const window=new Window({url:'http://localhost/'}),requests=[],scrolls=[];
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,matchMedia:()=>({matches:true}),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -25,15 +25,17 @@ async function reader(t,{heading=true}={}) {
     return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {ReferenceScope,ReferenceText}=await vite.ssrLoadModule('/src/PocReferences.tsx');
+  const {ReferenceScope,ReferenceText,DocumentNotes}=await vite.ssrLoadModule('/src/PocReferences.tsx');
   const {InsightQuestionReader}=await vite.ssrLoadModule('/src/PocInsightReaders.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const notes=citationInNotes?[{id:'1',label:'1',text,links:[]}]:[];
   const render=(showCitation=true)=>act(async()=>root.render(createElement(heading?'section':'div',null,
     heading&&createElement('h3',null,'Original document'),
     createElement('button',{id:'retained'},'Retained document control'),
-    createElement(ReferenceScope,{texts:[text],language:'en',renderQuestion:id=>createElement(InsightQuestionReader,{id,language:'en',heading:'Referenced question',includeAnswers:true})},
-      createElement('p',null,showCitation?createElement(ReferenceText,{text}):'Updated document text without that citation.')))));
+    createElement(ReferenceScope,{texts:[text],notes,language:'en',renderQuestion:id=>createElement(InsightQuestionReader,{id,language:'en',heading:'Referenced question',includeAnswers:true})},
+      createElement('p',null,citationInNotes?'Original document body.':showCitation?createElement(ReferenceText,{text}):'Updated document text without that citation.'),
+      citationInNotes&&showCitation&&createElement(DocumentNotes,{notes,prefix:'focus-notes'})))));
   const click=element=>act(async()=>{assert(element,'Missing action');element.focus();element.click();});
   const findButton=(label,scope=container)=>[...scope.querySelectorAll('button')].find(button=>button.textContent===label);
   const finish=(id,paragraphs,{error=false}={})=>act(async()=>{
@@ -116,6 +118,19 @@ test('a disappeared citation without a local heading returns to the labelled con
   assert.equal(document.activeElement,h.container.querySelector('.legal-reference-scope'));
   assert.equal(document.activeElement.getAttribute('aria-label'),'Document text and references');
   assert.equal(document.activeElement.tabIndex,-1);
+});
+
+test('closing a referenced question from collapsed Notes returns to a visible local fallback',async t=>{
+  const h=await reader(t,{citationInNotes:true}),citation=h.citation(),notes=h.container.querySelector('details.legal-notes');
+  assert.equal(notes.open,true);assert(notes.contains(citation));
+  await h.open(citation);await h.click(h.findButton('Read question'));
+  await act(async()=>{notes.open=false;});
+  assert.equal(citation.isConnected,true,'collapsing Notes retains the original citation node');
+  await h.click(h.container.querySelector('.legal-reference-question > button'));
+  assert(document.activeElement===h.container.querySelector('h3'),'the return target must be visible outside collapsed Notes');
+  assert.equal(notes.open,false,'focus recovery preserves the chosen disclosure state');
+  assert.equal(h.scrolls.length,1,'focus recovery adds no scroll operation');
+  assert.equal(citation.textContent,'E-003031/2026','the exact cited identifier remains intact');
 });
 
 test('light reference scope, citations, reader destinations and cards use blue focus throughout the cascade',async t=>{
