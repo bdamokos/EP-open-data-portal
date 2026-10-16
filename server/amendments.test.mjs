@@ -6,6 +6,7 @@ import path from 'node:path';
 import { deflateRawSync } from 'node:zlib';
 import { ActivityStore } from './activity-index-store.mjs';
 import { ActivityWorker } from './activity-index-worker.mjs';
+import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 import { AMENDMENTS_VERSION, amendmentLists, amendmentOutcome, amendmentQuery, amendmentReference } from './amendments.mjs';
 import { amendmentFailures, amendmentsPage, enqueueAmendment, nextAmendmentTask, recordSplitResults, saveAmendmentRows } from './amendments-store.mjs';
 import { failAmendmentTask, parseSavedSplits, prepareAmendments, rebuildAmendmentTarget, refreshSittingTargets, scheduleAmendments } from './amendments-worker.mjs';
@@ -18,7 +19,7 @@ import { boundedUpstream, upstreamStatus } from './odp.mjs';
 const targetId='A-10-2026-0254', otherTarget='B-10-2026-0254', sitting='MTG-PL-2026-10-07';
 const tabled='2026-10-02', fetchedAt='2026-10-16T17:00:00.000Z', earlier='2026-10-15T17:00:00.000Z';
 const sourceUrl='https://data.europarl.europa.eu/api/v2/meetings/'+sitting+'/vote-results?format=application%2Fld%2Bjson';
-const target={id:'eli/dl/doc/'+targetId,identifier:targetId,work_type:'def/ep-document-types/REPORT_PLENARY',document_date:tabled,title_dcterms:{en:'A public report',fr:'Un rapport public'},inverse_created_a_realization_of:['eli/dl/proc/2025-0233'],inverse_based_on_a_realization_of:['eli/dl/event/'+sitting+'-VOT-ITM-123'],isAboutSubjectMatter:['http://publications.europa.eu/resource/authority/subject-matter/ENV']};
+const target={id:'eli/dl/doc/'+targetId,identifier:targetId,amendmentLinksVersion:AMENDMENT_LINKS_VERSION,work_type:'def/ep-document-types/REPORT_PLENARY',document_date:tabled,title_dcterms:{en:'A public report',fr:'Un rapport public'},inverse_created_a_realization_of:['eli/dl/proc/2025-0233'],inverse_based_on_a_realization_of:['eli/dl/event/'+sitting+'-VOT-ITM-123'],isAboutSubjectMatter:['http://publications.europa.eu/resource/authority/subject-matter/ENV']};
 const listId=targetId+'-AM-001-004';
 const amendment=(number,extra={})=>({number,authors:[],targetLabel:'Article '+number,originalText:'Original '+number,proposedText:'Proposal '+number,date:tabled,language:'en',gaps:[],...extra});
 const list=(amendments,extra={})=>({id:'eli/dl/doc/'+listId,identifier:listId,targetDocumentId:targetId,document_date:tabled,work_type:'def/ep-document-types/AMENDMENT_LIST',extraction:{amendments,gaps:[],language:'en',sourceUrl:'https://data.europarl.europa.eu/distribution/example/amendments_en.docx',fetchedAt:earlier,parserVersion:AMENDMENT_EXTRACTION_VERSION},...extra});
@@ -619,6 +620,86 @@ test('request-level split parse failures are retained even when the request has 
   assert.equal(amendmentFailures(store,{status:'resolved'}).total,1);
 });
 
+test('missing component IDs retain distinct durable literals rather than overwriting each other or request-level failures',t=>{
+  const {store,worker}=setup(t);
+  const first=part(1,'‘First literal without an ID’'),second=part(2,'‘Second literal without an ID’');
+  delete first.id;delete second.id;
+  const malformed=request([first,second]);
+  parseSavedSplits(worker,{splitRequests:[malformed],sources:[{url:sourceUrl,fetchedAt:earlier}]});
+  let failures=amendmentFailures(store,{status:'unresolved'}).items;
+  assert.equal(failures.length,2);assert.equal(new Set(failures.map(failure=>failure.registryPartKey)).size,2);
+  assert(failures.every(failure=>failure.code==='missing_part_id'&&failure.partId===null&&failure.originalPartId===null&&failure.recordKind==='component'));
+  assert.deepEqual(failures.map(failure=>failure.rawDescription).sort(),[first.expressionContent.en,second.expressionContent.en].sort());
+  const identities=failures.map(failure=>failure.registryPartKey).sort();
+  parseSavedSplits(worker,{splitRequests:[malformed],sources:[{url:sourceUrl,fetchedAt}]});
+  failures=amendmentFailures(store,{status:'unresolved'}).items;
+  assert.deepEqual(failures.map(failure=>failure.registryPartKey).sort(),identities);
+  assert(failures.every(failure=>failure.count===2&&failure.firstOccurrence===earlier));
+  parseSavedSplits(worker,{splitRequests:[request([])],sources:[{url:sourceUrl,fetchedAt}]});
+  failures=amendmentFailures(store,{status:'all'}).items;
+  assert.equal(failures.length,3);assert.equal(new Set(failures.map(failure=>failure.registryPartKey)).size,3);
+  assert.equal(failures.filter(failure=>failure.code==='missing_parts').length,1);
+  assert.equal(failures.filter(failure=>failure.code==='missing_part_id').length,2);
+  assert.equal(failures.find(failure=>failure.recordKind==='request').registryPartKey,'__request__');
+  assert(failures.every(failure=>failure.originalPartId===null));
+});
+
+test('paginated motion ingestion preserves the exact split request page through plans, serving parts and durable failures',async t=>{
+  const {store,worker,generation}=setup(t);
+  seedTarget(store,generation,[amendment(1)]);
+  const firstAt='2026-10-16T16:58:00.000Z',secondAt='2026-10-16T16:59:00.000Z';
+  const split=request([part(1,'‘A selected clause’'),part(2,'Apply unpublished instructions')]);
+  const resultIds=Array.from({length:51},(_,index)=>'eli/dl/event/'+sitting+'-VOT-ITM-'+(100+index));
+  const decisions=[decision(1,['eli/dl/doc/'+targetId+'-AM-1',split.created_a_realization_of[0].id],'ADOPTED'),decision(2,['eli/dl/doc/'+targetId+'-AM-1',split.created_a_realization_of[1].id],'REJECTED')].map(vote=>({...vote,had_activity_type:'def/ep-activities/PLENARY_OUTCOME'}));
+  const results=resultIds.map((id,index)=>({id,had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',activity_date:'2026-10-07',based_on_a_realization_of:[target.id],consists_of:index===0?decisions.map(vote=>vote.id):[],inverse_consists_of:index===0?[{id:'eli/dl/event/'+sitting,consists_of:resultIds}]:[]}));
+  const calls=[];
+  worker.fetchRecord=async(endpoint,params)=>{
+    calls.push([endpoint,params.offset]);
+    if(endpoint.endsWith('/vote-results')) {
+      assert([0,50].includes(params.offset));
+      return {fetchedAt:params.offset===0?firstAt:secondAt,payload:{data:params.offset===0?results.slice(0,50):[results[50],split]}};
+    }
+    assert.equal(endpoint,'/meetings/'+sitting+'/decisions');assert.equal(params['filter-output'],'voters');
+    return {fetchedAt,payload:{data:decisions}};
+  };
+  store.enqueue(generation,'paginated-sitting','motion-outcomes',{sittingId:sitting,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]},113);
+  await worker.task(store.nextTask(generation));
+  assert.equal(store.nextTask(generation).body.offset,50);
+  await worker.task(store.nextTask(generation));
+  assert.equal(store.nextTask(generation).body.stage,'decisions');
+  await worker.task(store.nextTask(generation));
+  assert.deepEqual(calls,[['/meetings/'+sitting+'/vote-results',0],['/meetings/'+sitting+'/vote-results',50],['/meetings/'+sitting+'/decisions',0]]);
+  const saved=store.source(generation,motionSourceKey(sitting)).work;
+  const page=saved.sources.find(source=>source.url.includes('/vote-results?')&&new URL(source.url).searchParams.get('offset')==='50');
+  const expected={url:page.url,fetchedAt:secondAt};
+  assert.equal(saved.truncated,false);assert.equal(saved.results.length,51);
+  assert.deepEqual(saved.splitRequests[0].source,expected);
+  assert.deepEqual(saved.parsedSplits[0].source,expected);
+  assert(saved.parsedSplits[0].parts.every(component=>JSON.stringify(component.source)===JSON.stringify(expected)));
+  const failure=amendmentFailures(store,{status:'unresolved'}).items.find(item=>item.partId===split.created_a_realization_of[1].id);
+  assert.equal(failure.sourceUrl,page.url);assert.equal(failure.fetchedAt,secondAt);
+  assert.deepEqual(failure.source,expected);assert.deepEqual(failure.sourceCandidates,[]);assert.equal(failure.provenance,'exact');
+  const [item]=amendmentsPage(store,{document:targetId}).items;
+  assert.equal(item.splitParts.length,2);
+  assert(item.splitParts.every(component=>JSON.stringify(component.source)===JSON.stringify(expected)));
+});
+
+test('legacy multi-page split requests expose unknown provenance and candidate pages instead of choosing the first page',t=>{
+  const {store,worker}=setup(t);
+  const pages=[{url:sourceUrl+'&offset=0',fetchedAt:earlier},{url:sourceUrl+'&offset=50',fetchedAt}];
+  const split=request([part(1,'‘A selected clause’'),part(2,'Apply unpublished instructions')]);
+  const parsed=parseSavedSplits(worker,{splitRequests:[split],sources:[...pages,{url:sourceUrl.replace('/vote-results?','/decisions?'),fetchedAt}]});
+  const [result]=parsed.parsedSplits;
+  assert.equal(result.source,null);assert.equal(result.provenance,'unavailable');assert.deepEqual(result.sourceCandidates,pages);
+  assert(result.parts.every(component=>component.source===null));
+  const failure=amendmentFailures(store,{status:'unresolved'}).items[0];
+  assert.equal(failure.source,null);assert.equal(failure.sourceUrl,null);assert.equal(failure.fetchedAt,null);
+  assert.equal(failure.provenance,'unavailable');assert.deepEqual(failure.sourceCandidates,pages);
+  const single={...split,id:split.id+'-SINGLE'};
+  const [one]=parseSavedSplits(worker,{splitRequests:[single],sources:[pages[0]]}).parsedSplits;
+  assert.deepEqual(one.source,pages[0]);assert.equal(one.provenance,'single-page');
+});
+
 test('repeated unparsed components retain the literal source and first occurrence',t=>{
   const {store,worker,advance}=setup(t);
   const split=request([part(1,'Apply the chairman’s unpublished oral instructions')]);
@@ -776,12 +857,17 @@ function docx(xml) {
   const end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(central.length+name.length,12);end.writeUInt32LE(local.length+name.length+compressed.length,16);
   return Buffer.concat([local,name,compressed,central,name,end]);
 }
-function comparisonDocx(rows,{author='Bruno Gonçalves',language='en',wrapSecondRow=false}={}) {
+function comparisonDocx(rows,{author='Bruno Gonçalves',language='en',wrapSecondRow=false,symbolInFirstCell=false,wholeBodyAlternatives=false}={}) {
   const escape=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const paragraph=value=>'<w:p><w:r><w:t>'+escape(value)+'</w:t></w:r></w:p>';
   const tableRow=cells=>'<w:tr>'+cells.map(value=>'<w:tc>'+paragraph(value)+'</w:tc>').join('')+'</w:tr>';
-  const comparisonRows=rows.map((cells,index)=>wrapSecondRow&&index===1?'<w:sdt><w:sdtContent>'+tableRow(cells)+'</w:sdtContent></w:sdt>':tableRow(cells)).join('');
-  return docx('<w:document xmlns:w="urn:word"><w:body>'+paragraph('<Amend><Date>2.10.2026</Date><NumAm>1</NumAm>')+(author?paragraph('<Members>'+author+'</Members>'):'')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+tableRow(['Text proposed by the Commission',language==='fr'?'Amendement':'Amendment'])+comparisonRows+'</w:tbl>'+paragraph('</Amend>')+'</w:body></w:document>');
+  const comparisonRows=rows.map((cells,index)=>{
+    const xml=symbolInFirstCell&&index===0?tableRow(cells).replace('</w:t>','</w:t><w:sym w:font="Symbol" w:char="F061"/>'):tableRow(cells);
+    return wrapSecondRow&&index===1?'<w:sdt><w:sdtContent>'+xml+'</w:sdtContent></w:sdt>':xml;
+  }).join('');
+  const section=paragraph('<Amend><Date>2.10.2026</Date><NumAm>1</NumAm>')+(author?paragraph('<Members>'+author+'</Members>'):'')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+tableRow(['Text proposed by the Commission',language==='fr'?'Amendement':'Amendment'])+comparisonRows+'</w:tbl>'+paragraph('</Amend>');
+  const content=wholeBodyAlternatives?'<compat:AlternateContent><compat:Choice Requires="w14">'+section+'</compat:Choice><compat:Fallback>'+section+'</compat:Fallback></compat:AlternateContent>':section;
+  return docx('<w:document xmlns:w="urn:word" xmlns:compat="http://schemas.openxmlformats.org/markup-compatibility/2006"><w:body>'+content+'</w:body></w:document>');
 }
 
 test('oversized legal columns are withheld together instead of being exposed as shortened complete text',t=>{
@@ -845,6 +931,34 @@ test('newly detected wrapped comparison loss cannot restore an apparently comple
   assert.equal(saved.fetchedAt,fetchedAt);assert.equal(saved.work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
   assert.equal(item.originalText,null);assert.equal(item.proposedText,null);assert.equal(item.textIntegrity,'incomplete');
   assert.equal(page.coverage.complete,false);
+});
+
+test('v5 symbol loss and whole-body alternate branches cannot resurrect v4 cached wording during migration',async t=>{
+  for(const scenario of ['symbol','whole-alternative']) {
+    const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001';
+    const oldUrl='https://data.europarl.europa.eu/distribution/example/'+scenario+'_v4_en.docx',newUrl='https://data.europarl.europa.eu/distribution/example/'+scenario+'_v5_en.docx';
+    const apparent=amendment(1,{originalText:'Cached original with omitted content',proposedText:'Cached proposed text'});
+    store.putSource(generation,'/plenary-documents/'+targetId,'document',target,earlier);
+    store.putSource(generation,'amendment:list:'+singleListId,'amendment-list',{...list([]),id:'eli/dl/doc/'+singleListId,identifier:singleListId,files:[{format:'DOCX',language:'en',url:newUrl}],extraction:{amendments:[apparent],gaps:[],sourceUrl:oldUrl,fetchedAt:earlier,language:'en',parserVersion:'4'}},earlier);
+    saveAmendmentRows(store,generation,metadata,[row(1,{listId:singleListId,originalText:apparent.originalText,proposedText:apparent.proposedText,textIntegrity:'complete',textParserVersion:'4',splitParts:[],sources:[{url:oldUrl,fetchedAt:earlier}]})],coverage);
+    const damaged=comparisonDocx([['Visible original','Visible proposal']],scenario==='symbol'?{symbolInFirstCell:true}:{wholeBodyAlternatives:true});
+    const parsed=extractAmendments(damaged,{listId:singleListId,targetDocumentId:targetId,language:'en',sourceUrl:newUrl,fetchedAt});
+    if(scenario==='symbol') {
+      assert(parsed.gaps.some(gap=>gap.code==='symbol-text-loss'&&gap.number===1));
+      assert.equal(parsed.amendments[0].originalText,null);assert.equal(parsed.amendments[0].proposedText,null);
+    } else {
+      assert.deepEqual(parsed.amendments,[]);
+      assert(parsed.gaps.some(gap=>gap.code==='comparison-structure'&&gap.scope==='document'));
+    }
+    worker.downloadAmendmentDocx=async()=>({buffer:damaged});
+    enqueueAmendment(store,generation,'v5-migration','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
+    await worker.task(nextAmendmentTask(store,generation));
+    const saved=store.source(generation,'amendment:list:'+singleListId),page=amendmentsPage(store,{document:targetId}),[item]=page.items;
+    assert.equal(saved.fetchedAt,fetchedAt);assert.equal(saved.work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+    assert.equal(saved.work.extraction.previousParserVersion,'4');
+    assert.equal(item.originalText,null);assert.equal(item.proposedText,null);assert.equal(item.textIntegrity,'incomplete');
+    assert.equal(page.coverage.complete,false);
+  }
 });
 
 test('retained conflicted variants cannot restore incompatible wording when a parser migration loses the amendment number',t=>{
@@ -1043,6 +1157,29 @@ test('fresh conflicting or inactive author evidence clears an accepted link whil
     } else {
       assert.equal(item.authors[0].status,status);
       assert.deepEqual(item.authors[0].evidence,fresh[0].evidence);
+    }
+  }
+});
+
+test('an explicit committee proposer correction clears individual author links while missing proposer evidence retains history',t=>{
+  for(const committeeCorrection of [true,false]) {
+    const {store,worker,generation}=setup(t);
+    seedTarget(store,generation,[amendment(1,{authors:['Alex Common']})]);
+    store.putSource(generation,'amendment:roster:'+tabled,'amendment-roster',{members:[{id:'101',givenName:'Alex',familyName:'Common'}],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+tabled,fetchedAt:earlier}]},earlier);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    assert.equal(amendmentsPage(store,{member:'101'}).total,1);
+    const committee='Committee on the Environment, Climate and Food Safety';
+    const corrected=amendment(1,{authors:[],...(committeeCorrection?{committeeProposer:committee}:{}),gaps:committeeCorrection?[]:[{code:'authors-unavailable',message:'No proposer evidence was available in this extraction.'}]});
+    store.putSource(generation,'amendment:list:'+listId,'amendment-list',list([corrected]),fetchedAt);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    const [item]=amendmentsPage(store,{document:targetId}).items;
+    assert.equal(amendmentsPage(store,{member:'101'}).total,committeeCorrection?0:1);
+    if(committeeCorrection) {
+      assert.deepEqual(item.authors,[]);assert.equal(item.committeeProposer,committee);
+    } else {
+      assert.equal(item.authors[0].personId,'101');assert.equal(item.committeeProposer,null);
+      assert(item.retainedComponents.includes('authors'));
+      assert(item.gaps.some(gap=>gap.includes('retained')));
     }
   }
 });

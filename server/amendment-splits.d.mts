@@ -19,6 +19,7 @@ export type SplitPlan = SplitSelector & {
 };
 export type SplitPart = {
   id:string|null;
+  componentIndex?:number;
   number:number|null;
   description:string|null;
   rawDescription:string|null;
@@ -37,6 +38,8 @@ export type SplitFailure = SplitFailureReason & {
   parserVersion:string;
   sourceUrl:string|null;
   fetchedAt:string|null;
+  scope?:'request'|'component';
+  componentIndex?:number;
   rawDescription?:string;
   sourceDescriptions?:Record<string,unknown>;
 };

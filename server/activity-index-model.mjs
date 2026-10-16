@@ -1,5 +1,7 @@
 import { languageCode, speechWebsite } from './ep-links.mjs';
 
+export const AMENDMENT_LINKS_VERSION = 2;
+
 export const CATEGORIES = Object.freeze({
   'plenary-contributions': 'Contributions to plenary debates',
   'reports-rapporteur': 'Reports - as rapporteur',
@@ -48,8 +50,12 @@ export function projectDocument(w) {
     is_embodied_by:array(e.is_embodied_by).map(m => ({format:m.format,byteSize:m.byteSize,is_exemplified_by:m.is_exemplified_by})) }));
   result.inverse_answers_to = array(w.inverse_answers_to).filter(a => a && typeof a === 'object').map(projectDocument);
   if (['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].includes(tail(w.work_type))) {
-    result.amendmentLinksVersion = 1;
-    result.inverse_foresees_change_of = array(w.inverse_foresees_change_of).filter(ref=>ref && typeof ref==='object').map(projectDocument);
+    result.amendmentLinksVersion = AMENDMENT_LINKS_VERSION;
+    // An omitted or unavailable relationship is not an observed empty set.
+    // Keep exact URI-only references as well as expanded list documents.
+    if(w.inverse_foresees_change_of!=null)result.inverse_foresees_change_of=array(w.inverse_foresees_change_of)
+      .filter(ref=>typeof ref==='string'||ref&&typeof ref==='object')
+      .map(ref=>typeof ref==='string'?ref:projectDocument(ref));
     result.inverse_based_on_a_realization_of = array(w.inverse_based_on_a_realization_of).map(ref => ref?.id || ref);
     result.inverse_decided_on_a_realization_of = array(w.inverse_decided_on_a_realization_of).map(ref => ref?.id || ref);
   }

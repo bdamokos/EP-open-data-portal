@@ -33,29 +33,38 @@ export function amendmentsPrune(db,generation,old) {
 }
 export function recordSplitResults(store,result) {
   store.assertWriter();
-  const failures=new Map((result.failures || []).map(failure=>[String(failure.partId),failure]));
-  const parts=[...(result.parts || [])];
-  if(parts.length && !(result.failures || []).some(failure=>failure.partId==null) && store.db.prepare('SELECT 1 FROM amendment_split_failures WHERE request_id=? AND part_id=?').get(result.requestId,'__request__'))parts.push({id:'__request__',language:parts[0].language,requestFailure:true});
-  for(const failure of result.failures || [])if(!parts.some(part=>String(part.id)===String(failure.partId)))parts.push({id:failure.partId ?? '__request__',description:failure.description,language:failure.language,requestFailure:true});
-  for(const part of parts) {
-    const requestId=result.requestId,partId=part.id ?? '__request__',language=part.language || 'en';
-    const prior=store.db.prepare('SELECT body FROM amendment_split_failures WHERE request_id=? AND part_id=? AND language=?').get(requestId,partId,language);
-    const old=prior?parse(prior.body):null, failure=failures.get(String(partId)) || (part.requestFailure?failures.get('null'):null);
+  const failures=result.failures || [],used=new Set();
+  const entries=(result.parts || []).map(part=>{
+    const failure=failures.find(item=>!used.has(item)&&(part.id!=null?item.partId===part.id:item.partId==null&&item.scope!=='request'&&(item.componentIndex!=null?item.componentIndex===part.componentIndex:item.rawDescription===part.rawDescription)));
+    if(failure)used.add(failure);
+    return {part,failure,kind:'component'};
+  });
+  for(const failure of failures)if(!used.has(failure))entries.push({part:{id:failure.partId,componentIndex:failure.componentIndex,description:failure.description,rawDescription:failure.rawDescription,sourceDescriptions:failure.sourceDescriptions,language:failure.language},failure,kind:failure.partId!=null||failure.scope==='component'?'component':'request'});
+  const requestKey=result.requestId || '__unidentified_request__:'+createHash('sha256').update(JSON.stringify((result.parts || []).map(part=>[part.componentIndex,part.rawDescription,part.sourceDescriptions]))).digest('hex');
+  if((result.parts || []).length&&!entries.some(entry=>entry.kind==='request')&&store.db.prepare('SELECT 1 FROM amendment_split_failures WHERE request_id=? AND part_id=?').get(requestKey,'__request__'))entries.push({part:{id:null,language:result.parts[0].language},failure:null,kind:'request'});
+  for(const {part,failure,kind} of entries) {
+    const requestId=result.requestId ?? null,language=part.language || 'en';
+    const partId=kind==='request'?null:part.id ?? null;
+    const registryPartKey=kind==='request'?'__request__':partId || '__component__:'+String(part.componentIndex ?? 'unknown')+':'+createHash('sha256').update(JSON.stringify([part.rawDescription ?? part.description ?? null,part.sourceDescriptions || null])).digest('hex');
+    const prior=store.db.prepare('SELECT body FROM amendment_split_failures WHERE request_id=? AND part_id=? AND language=?').get(requestKey,registryPartKey,language);
+    const old=prior?parse(prior.body):null;
     if(!failure&&!old)continue;
     if(!old && store.db.prepare('SELECT COUNT(*) AS n FROM amendment_split_failures').get().n>=AMENDMENT_LIMITS.failures) {
       store.set('amendmentFailureCapacityReached',true);continue;
     }
-    const at=failure?.fetchedAt || result.fetchedAt || new Date(store.clock()).toISOString();
-    const description=String(failure?.description || part.description || '').slice(0,65537);
+    const sourceField=key=>Object.hasOwn(failure || {},key)?failure[key]:Object.hasOwn(result,key)?result[key]:old?.[key] ?? null;
+    const sourceUrl=sourceField('sourceUrl'),fetchedAt=sourceField('fetchedAt');
+    const at=fetchedAt || new Date(store.clock()).toISOString();
+    const description=String(failure?.description ?? part.description ?? '').slice(0,65537);
     const rawDescription=typeof (failure?.rawDescription ?? part.rawDescription)==='string'?(failure?.rawDescription ?? part.rawDescription).slice(0,65537):null;
     const signature=createHash('sha256').update(JSON.stringify({description,rawDescription,sourceDescriptions:failure?.sourceDescriptions || part.sourceDescriptions || null})).digest('hex');
-    const body={...old,...failure,...(rawDescription!=null?{rawDescription}:{}),requestId,partId,description,language,parserVersion:SPLIT_PARSER_VERSION,
-      sourceUrl:failure?.sourceUrl || result.sourceUrl || old?.sourceUrl || null,fetchedAt:at,
-      firstOccurrence:old?.firstOccurrence || at,lastOccurrence:at,originalPartId:part.requestFailure?null:partId,count:(old?.count || 0)+(failure?1:0),
+    const body={...old,...failure,...(rawDescription!=null?{rawDescription}:{}),requestId,partId,registryPartKey,recordKind:kind,componentIndex:part.componentIndex ?? null,description,language,parserVersion:SPLIT_PARSER_VERSION,
+      sourceUrl,fetchedAt,source:sourceField('source'),sourceCandidates:sourceField('sourceCandidates') || [],provenance:sourceField('provenance'),
+      firstOccurrence:old?.firstOccurrence || at,lastOccurrence:at,originalPartId:partId,count:(old?.count || 0)+(failure?1:0),
       status:failure?'unresolved':'resolved',code:failure?.code || old?.code || null,reason:failure?.message || old?.reason || null,
       sourceDescriptionHash:signature,...(!failure?{resolvedAt:at}:{resolvedAt:null}),
     };
-    store.db.prepare('INSERT OR REPLACE INTO amendment_split_failures VALUES (?,?,?,?)').run(requestId,partId,language,JSON.stringify(body));
+    store.db.prepare('INSERT OR REPLACE INTO amendment_split_failures VALUES (?,?,?,?)').run(requestKey,registryPartKey,language,JSON.stringify(body));
   }
 }
 export function saveAmendmentRows(store,generation,target,rows,coverage,{observedDecisionIds=[],freshSplitParts=[],invalidatedTextListIds=[],textParserVersion=null,currentListIds=null,listRelationshipsKnown=null}={}) {
@@ -87,7 +96,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
         if(['originalText','proposedText'].includes(field)&&(incoming.textIntegrity==='incomplete'||old.textIntegrity==='incomplete'||invalidBaseline(old)||amendmentTextLosses(null,old).length))continue;
         if(incoming[field]==null&&old[field]!=null){incoming[field]=old[field];stale.push(field);}
       }
-      if(!incoming.conflicted && !incoming.authors?.length && old.authors?.length){incoming.authors=old.authors;stale.push('authors');}
+      if(!incoming.conflicted && !incoming.committeeProposer && !incoming.authors?.length && old.authors?.length){incoming.authors=old.authors;stale.push('authors');}
       else incoming.authors=(incoming.authors || []).map(author=>{
         const accepted=(old.authors || []).find(item=>item.name===author.name&&item.personId!=null);
         // Missing inputs can retain an accepted link, but an explicit fresh
@@ -107,7 +116,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
     }
     // A newly parsed exact component can update a retained decision without
     // inventing a binding to any other component, target or namespace.
-    const splitGaps=new Set(['A split component has no indexed description.','A split description could not be parsed; the failure is retained for a future parser update.','Split descriptions are parsed as selection plans; exact wording spans have not been validated.']);
+    const splitGaps=new Set(['A split component has no indexed description.','A split description could not be parsed; the failure is retained for a future parser update.','Split descriptions are parsed as selection plans; exact wording spans have not been validated.','The split description has no exact recorded source page; candidate page provenance is retained.']);
     for(const row of merged.values()) {
       const partIds=new Set((row.decisions || []).map(decision=>decision.partId).filter(Boolean));
       const parts=new Map((row.splitParts || []).filter(part=>partIds.has(part.id)).map(part=>[part.id,part]));
@@ -119,6 +128,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
         if(!part)row.gaps.push('A split component has no indexed description.');
         else if(part.status==='unresolved')row.gaps.push('A split description could not be parsed; the failure is retained for a future parser update.');
         else row.gaps.push('Split descriptions are parsed as selection plans; exact wording spans have not been validated.');
+        if(part&&!part.source?.url){row.gaps.push('The split description has no exact recorded source page; candidate page provenance is retained.');extraGaps.add('Some split descriptions have no exact recorded source page.');}
         if(!part||part.status==='unresolved')extraGaps.add('Some split components have incomplete description or parsing evidence.');
       }
       row.sources=[...new Map([...(row.sources || []),...row.splitParts.map(part=>part.source).filter(source=>source?.url)].map(source=>[source.url+':'+(source.language || '')+':'+source.fetchedAt,source])).values()];
@@ -136,15 +146,14 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
         extraGaps.add('Some amendment variant wording is withheld because its complete extraction could not be verified.');
         return {...variant,originalText:null,proposedText:null,textIntegrity:'incomplete',gaps:[...new Set([...(variant.gaps || []),...losses.map(gap=>gap.message || gap.code),...(incompatible?['Earlier wording has no verified baseline compatible with the current document parser and is withheld.']:[])])]};
       });
-      if(currentLists&&row.listId&&!currentLists.has(row.listId)) {
+      if(listRelationshipsKnown!==false&&currentLists&&row.listId&&!currentLists.has(row.listId)) {
         row.listRelationship='absent-current-relationship';
         row.gaps.push('This amendment list is absent from the current target relationships; its earlier evidence is retained.');
         extraGaps.add('A previously indexed amendment list is absent from the current target relationships; its evidence is retained.');
       }
       if(listRelationshipsKnown===false) {
-        if(row.listId)row.listRelationship='unverified';
-        row.gaps.push('The current amendment-list relationship is unavailable; this list evidence is unverified and retained.');
-        row.variants=(row.variants || []).map(variant=>({...variant,listRelationship:'unverified',gaps:[...new Set([...(variant.gaps || []),'The current amendment-list relationship is unavailable; this list evidence is unverified and retained.'])]}));
+        if(row.listId&&!currentLists?.has(row.listId)){row.listRelationship='unverified';row.gaps.push('The current amendment-list relationship is unavailable; this list evidence is unverified and retained.');}
+        if(row.variants?.length)row.variants=row.variants.map(variant=>currentLists?.has(variant.listId)?variant:{...variant,listRelationship:'unverified',gaps:[...new Set([...(variant.gaps || []),'The current amendment-list relationship is unavailable; this list evidence is unverified and retained.'])]});
         extraGaps.add('Current amendment-list relationships are unavailable; previously indexed list evidence is unverified and retained.');
       }
       row.gaps=[...new Set(row.gaps)];
