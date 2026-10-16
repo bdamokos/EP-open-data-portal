@@ -24,3 +24,10 @@ export function waitForRequest(promise,signal=requestSignal()) {
     Promise.resolve(promise).then(value=>finish(resolve,value),error=>finish(reject,error));
   });
 }
+
+// Cache/service loaders have a bounded owner distinct from their first reader.
+export function sharedRequest(operation,timeoutMs=50_000) {
+  const caller=requestSignal();if(caller?.aborted)return Promise.reject(caller.reason);
+  const budget=createRequestBudget(timeoutMs);
+  return runWithRequestSignal(budget.signal,()=>waitForRequest(Promise.resolve().then(()=>operation(budget.signal)),budget.signal)).finally(()=>budget.dispose());
+}

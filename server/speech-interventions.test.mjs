@@ -3,12 +3,32 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {interventionMetadata,buildInterventionSequence} from './speech-interventions.mjs';
 import {SpeechInterventions} from './speech-intervention-service.mjs';
+import {runWithRequestSignal} from './request-budget.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/speech-interventions-live-20261015.json',import.meta.url)));
 const parentId=fixture.parent.activity_id;
 const sequence=activities=>buildInterventionSequence(activities,{parentId,expectedIds:fixture.parent.consists_of});
 const byNumber=n=>fixture.activities.find(a=>a.recorded_in_a_realization_of?.[0]?.numbering===n);
 const clone=value=>structuredClone(value);
 const response=data=>({url:'https://data.europarl.europa.eu/api/v2/speeches',fetchedAt:Date.parse('2026-10-15T22:00:00Z'),payload:{data,meta:{total:data.length},searchResults:{hits:data.map(a=>({id:a.id}))}}});
+
+test('shared sitting and member jobs survive their first reader disconnecting',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()+60000});
+  let finish,sourceSignal,calls=0;
+  t.mock.method(globalThis,'fetch',async(url,{signal})=>{
+    calls++;sourceSignal=signal;const rows=new URL(url).searchParams.has('person-id')?[byNumber(173)]:fixture.activities;
+    return new Promise((resolve,reject)=>{finish=()=>resolve(Response.json(response(rows).payload));signal.addEventListener('abort',()=>reject(signal.reason),{once:true});});
+  });
+  const service=new SpeechInterventions(),reason=new Error('first reader closed');
+  for(const read of [()=>service.sitting('2026-10-06'),()=>service.member('256971')]) {
+    const a=new AbortController(),b=new AbortController();
+    const first=runWithRequestSignal(a.signal,()=>assert.rejects(read(),e=>e===reason));
+    const second=runWithRequestSignal(b.signal,read);
+    t.mock.timers.tick(2100);await new Promise(resolve=>setImmediate(resolve));a.abort(reason);await first;
+    assert.equal(sourceSignal.aborted,false,'a second service reader still owns this source load');
+    finish();const result=await second;assert(result.rows?.length>0||result.coverage.available===1);assert.equal(b.signal.aborted,false);
+  }
+  assert.equal(calls,2,'each shared service job must use one source request');
+});
 
 test('partial debate failure retains cooldown and retries the failed sitting on the next context read',async()=>{
   let attempts=0;const retryAt=Date.now()+60000;

@@ -67,8 +67,8 @@ export async function recentActivities(id, language) {
         }
       } catch { /* Absent or expired reproducible feed cache. */ }
     }
-    const record = await boundedUpstream(async () => {
-      const response = await fetch(url, { headers: { Accept: "application/rss+xml, application/xml", "User-Agent": "Mozilla/5.0 (compatible; MEP-Committee-Speeches-PoC/0.3)" }, signal: AbortSignal.timeout(25_000), redirect: "error" });
+    const record = await boundedUpstream(async signal => {
+      const response = await fetch(url, { headers: { Accept: "application/rss+xml, application/xml", "User-Agent": "Mozilla/5.0 (compatible; MEP-Committee-Speeches-PoC/0.3)" }, signal: AbortSignal.any([AbortSignal.timeout(25_000),...(signal?[signal]:[])]), redirect: "error" });
       if (response.status !== 200 || !/xml/.test(response.headers.get("content-type") || "")) {
         await response.body?.cancel();
         throw new HttpError(502, "activity_feed_unavailable", "Parliament’s activity feed is unavailable. Please try again.");

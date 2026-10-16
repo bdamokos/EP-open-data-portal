@@ -1,6 +1,7 @@
 import {createHash,randomUUID} from 'node:crypto';
 import {readFile,writeFile,rename,mkdir,readdir,stat,unlink} from 'node:fs/promises';
 import path from 'node:path';
+import {sharedRequest,waitForRequest,requestSignal} from './request-budget.mjs';
 
 // Reproducible assembled responses live separately from raw ODP records and index state.
 export class InsightViewCache {
@@ -31,11 +32,12 @@ export class InsightViewCache {
   }
   refresh(key,load) {
     if(this.pending.has(key))return this.pending.get(key);
-    const promise=new Promise(resolve=>setImmediate(resolve)).then(load).then(value=>this.save(key,value)).then(record=>{this.failures.delete(key);return record;}).catch(error=>{this.failures.set(key,{at:this.clock(),error:error.message});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
+    const promise=sharedRequest(async()=>{await new Promise(resolve=>setImmediate(resolve));const value=await load();requestSignal()?.throwIfAborted();return this.save(key,value);}).then(record=>{this.failures.delete(key);return record;}).catch(error=>{this.failures.set(key,{at:this.clock(),error:error.message});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
     this.pending.set(key,promise);return promise;
   }
   async get(value,load) {
     const key=this.key(value);let old=await this.stored(key);
+    requestSignal()?.throwIfAborted();
     // A concurrent disk miss may finish after another reader has saved the view.
     old ||= this.cache.get(key)||null;
     const failure=this.failures.get(key);
@@ -44,6 +46,6 @@ export class InsightViewCache {
       if(stale&&(!failure||this.clock()-failure.at>60_000))void this.refresh(key,load).catch(()=>{});
       return {...old.value,viewCache:{computedAt:new Date(old.at).toISOString(),stale,refreshInProgress:this.pending.has(key),refreshError:failure?.error||null}};
     }
-    const record=await this.refresh(key,load);return {...record.value,viewCache:{computedAt:new Date(record.at).toISOString(),stale:false,refreshInProgress:false,refreshError:null}};
+    const record=await waitForRequest(this.refresh(key,load));return {...record.value,viewCache:{computedAt:new Date(record.at).toISOString(),stale:false,refreshInProgress:false,refreshError:null}};
   }
 }

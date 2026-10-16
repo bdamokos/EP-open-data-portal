@@ -27,6 +27,24 @@ function run(directory,script) {
   return JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{env:{...process.env,ODP_CACHE_DIR:directory},encoding:'utf8',timeout:8000}));
 }
 const moduleUrl=JSON.stringify(new URL('./odp.mjs',import.meta.url).href);
+test('a cold directory load retains its independent owner after its first reader leaves',async()=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'directory-readers-'));
+  try {
+    await writeFile(path.join(directory,'sync-state.json'),JSON.stringify({lastSuccess:new Date().toISOString(),lastAttempt:new Date(Date.now()+86400000).toISOString()}));
+    const out=run(directory,`
+      const {odpDirectory}=await import(${moduleUrl});
+      const {runWithRequestSignal}=await import(${JSON.stringify(new URL('./request-budget.mjs',import.meta.url).href)});
+      let ready,finish,sourceSignal,calls=0;const started=new Promise(resolve=>ready=resolve);
+      globalThis.fetch=async(url,{signal})=>{calls++;if(new URL(url).pathname.endsWith('/meps/show-current')){sourceSignal=signal;ready();return new Promise(resolve=>finish=()=>resolve(Response.json({data:[]})));}return Response.json({data:[]});};
+      const a=new AbortController(),b=new AbortController();
+      const first=runWithRequestSignal(a.signal,()=>odpDirectory()).then(()=>null,error=>error.message);
+      await started;const second=runWithRequestSignal(b.signal,()=>odpDirectory());a.abort(new Error('reader closed'));
+      const rejected=await first,sourceAborted=sourceSignal.aborted;finish();const result=await second;
+      console.log(JSON.stringify({rejected,sourceAborted,members:result.members.length,calls}));process.exit(0);
+    `);
+    assert.equal(out.rejected,'reader closed');assert.equal(out.sourceAborted,false);assert.equal(out.members,0);assert.equal(out.calls,2);
+  }finally{await rm(directory,{recursive:true,force:true});}
+});
 test('a cold process serves the expired saved directory without waiting for Parliament refresh',async()=>{
   const f=await fixture(7*3600000);
   try {
