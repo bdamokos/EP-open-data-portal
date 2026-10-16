@@ -327,3 +327,50 @@ test('local find includes resolved source citation buttons and preserves their r
   assert.equal(view.calls.length,1,'only the saved legal-reference lookup is needed');
   assert.equal(view.searches().length,0);
 });
+
+for(const [family,url] of [
+  ['procedure','https://data.europarl.europa.eu/api/v2/procedures/2025-0407'],
+  ['speech','https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-10-07-OTH-123'],
+])test('local find includes '+family+' source-linked document text while excluding auxiliary source controls',async t=>{
+  const text='The climate transition proposal applies.';
+  const view=await setup(t,{highlights:true,respond:call=>{
+    if(!call.url.pathname.endsWith('/source-record'))return;
+    assert.equal(call.url.searchParams.get('url'),url);assert.equal(call.url.searchParams.get('lang'),'en');
+    return Response.json({sourceUrl:url,requestUrl:url+'?format=application%2Fld%2Bjson',fetchedAt:'2026-10-16T12:00:00Z',stale:false,refreshError:null,collection:false,limited:false,records:[{title:'Exact '+family+' fixture',websiteUrl:null}],payload:{data:[{id:family==='procedure'?'eli/dl/proc/2025-0407':'eli/dl/event/MTG-PL-2026-10-07-OTH-123',process_title:{en:'Exact '+family+' fixture'}}]}});
+  }});
+  view.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
+  view.window.HTMLDialogElement.prototype.close=function(){this.open=false;};
+  const {ReferenceScope,ReferenceText}=await view.loadModule('/src/PocReferences.tsx');
+  const {PocSourceLink}=await view.loadModule('/src/PocSourceLink.tsx');
+  function SourceLinkedReader(){const target=useRef(null);return createElement('section',null,
+    createElement(view.PocFindInText,{target,label:'Find in source-linked text'}),
+    createElement(ReferenceScope,{texts:[text,url],language:'en'},createElement('div',{ref:target,id:'source-linked-reader'},
+      createElement('p',{id:'source-linked-paragraph'},createElement(ReferenceText,{text,links:[{start:4,end:31,url}]})),
+      createElement('p',null,createElement(PocSourceLink,{url:'https://data.europarl.europa.eu/api/v2/procedures/2025-0407',reference:'2025/0407(COD)',compact:true},'Supplementary procedure')),
+      createElement('button',{type:'button'},'Refresh reader controls'))));}
+  await act(async()=>view.root.render(createElement(SourceLinkedReader)));
+  const primary=view.find('button.source-primary'),paragraph=view.find('#source-linked-paragraph'),markup=paragraph.innerHTML;
+  assert.equal(primary.textContent,'climate transition proposal');
+  assert.equal(view.find('button.source-read:not(.source-primary)').textContent,'Read data');
+  assert.equal(view.calls.length,0,'rendering source links must not fetch upstream data');
+  await view.click('Find in source-linked text');await view.input('input[type="search"]','climate transition');await view.flushFrames();
+  assert.equal(view.find('[role="status"]').textContent,'1 / 1');
+  const matches=[...view.registry.entries()].find(([key])=>!key.endsWith('active'))?.[1]?.ranges;
+  assert.equal(matches.length,1);assert.equal(matches[0].toString(),'climate transition');
+  assert.equal(matches[0].startContainer.parentElement.closest('button.source-primary'),primary);
+  assert.equal(view.find('button.source-primary'),primary);assert.equal(paragraph.innerHTML,markup);
+  for(const controlText of ['Read data','Refresh reader']){
+    await view.input('input[type="search"]',controlText);await view.flushFrames();
+    assert.equal(view.find('[role="status"]').textContent,'No matches',controlText+' is a control label, not document text');
+  }
+  await view.input('input[type="search"]','climate transition');await view.flushFrames();
+  await act(async()=>primary.click());
+  const dialog=view.window.document.querySelector('dialog.source-dialog');assert(dialog?.open);
+  assert.equal(view.calls.length,1);assert.equal(view.calls[0].url.searchParams.get('url'),url);
+  assert.equal(dialog.querySelector('.source-actions a').href,url);assert.equal(dialog.querySelector('.source-record-content h3').textContent,'Exact '+family+' fixture');
+  assert.equal(view.find('button.source-primary'),primary);assert.equal(primary.getAttribute('aria-expanded'),'true');
+  await act(async()=>dialog.querySelector('button.source-close').click());await view.flushFrames();
+  assert.equal(view.window.document.querySelector('dialog.source-dialog'),null);assert.equal(view.window.document.activeElement,primary);
+  assert.equal(view.find('button.source-primary'),primary);assert.equal(primary.getAttribute('aria-expanded'),'false');assert.equal(paragraph.innerHTML,markup);
+  assert.equal(view.calls.length,1);assert.equal(view.searches().length,0);
+});
