@@ -116,7 +116,7 @@ async function handleApi(request,response,url,apiPrefix){
       if (kind!==null && !['speech','question','answer'].includes(kind)) throw new HttpError(400,'invalid_kind','Unknown corpus kind.');
       if (textLanguage!==null && !/^[a-z]{2,3}$/.test(textLanguage)) throw new HttpError(400,'invalid_language','Invalid text language.');
       for (const date of [from,to]) if (date!==null && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)))) throw new HttpError(400,'invalid_date','Use YYYY-MM-DD dates.');
-      result = corpusSearch({query:value('q'),kind,language:textLanguage,member:value('member')===null?null:positiveId(value('member')),from,to,
+      result = await corpusSearch({query:value('q'),kind,language:textLanguage,member:value('member')===null?null:positiveId(value('member')),from,to,
         limit:integer('limit',20,CORPUS_LIMITS.searchLimit,1),offset:integer('offset',0,CORPUS_LIMITS.searchOffset)});
     }
     else if (segments.length === 3 && segments[1] === 'latest-activities') {

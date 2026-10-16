@@ -15,6 +15,8 @@ The image runs as an unprivileged user and includes only built assets, runtime m
 
 For persistent data, mount a writable cache directory at `/data/cache` and an index directory at `/data/index`, owned by UID 1000. Set `ACTIVITY_INDEX_ENABLED=true` to enable history indexing. Use only one index writer. The optional full-text corpus (`CORPUS_ENABLED=true`, `CORPUS_DIR`) needs its own persistent directory and disk budget (`CORPUS_MAX_DISK_MIB`); a full term with all languages needs roughly 10–15 GB. It has one leased writer and reads the index without writing to it. Preserve retained data when replacing a container; do not reset generations or bulk-download sources as a release check.
 
+Corpus search and status scans use read-only worker threads, with one query at a time and a five-second response deadline. Busy or slow queries return HTTP 503. Search pagination stops at offset 1,000; `truncated: true` indicates more matches beyond the accessible pages. Narrow the language, date, kind or member filters to inspect those matches.
+
 ## Verification
 
 Run the checks in [Contributing](../CONTRIBUTING.md). Verify the directory, a profile, question/answer reading, speech-cloud reading and highlights, named vote/country joins, language selection, Following, and mobile layouts. Inspect screenshots as well as measurements.
