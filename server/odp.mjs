@@ -93,7 +93,8 @@ export async function odp(
       void odp(endpoint,params,{force:true,ttl,daily,priority:'background'}).catch(()=>{});
     return {...stored,stale:true,refreshInProgress:pending.has(key),refreshError:failure?.message || null};
   }
-  if (pending.has(key)) return pending.get(key);
+  const shared=pending.get(key);
+  if(shared)return priority!=='background'&&shared.priority==='background'?upstreamQueue.joinBackground(shared.promise):shared.promise;
   const job = (async () => {
     let release;
     try {
@@ -163,7 +164,7 @@ export async function odp(
       release?.();
     }
   })();
-  pending.set(key, job);
+  pending.set(key, {promise:job,priority});
   try {
     return await job;
   } finally {

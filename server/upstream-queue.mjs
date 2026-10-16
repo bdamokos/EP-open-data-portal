@@ -9,7 +9,19 @@ export class UpstreamQueue {
   constructor({ interval=2100, maximum=2, backgroundMaximum=1, interactiveWaitMs=10_000 }={}) {
     this.interval=interval;this.maximum=maximum;this.backgroundMaximum=backgroundMaximum;
     this.interactiveWaitMs=interactiveWaitMs;
-    this.active=0;this.background=0;this.nextStart=0;this.cooldownUntil=0;this.waiters=[];this.timer=null;
+    this.active=0;this.background=0;this.nextStart=0;this.cooldownUntil=0;this.waiters=[];this.joiners=new Set();this.timer=null;
+  }
+  joinBackground(promise) {
+    if(this.cooldownUntil>Date.now())return Promise.reject(this.unavailable());
+    return new Promise((resolve,reject)=>{
+      let timer;
+      const finish=(settle,value)=>{clearTimeout(timer);this.joiners.delete(fail);settle(value);};
+      const fail=()=>finish(reject,this.unavailable());
+      this.joiners.add(fail);timer=setTimeout(fail,this.interactiveWaitMs);
+      // Only this reader stops waiting. The shared background request keeps its
+      // owner, retry budget and cache write, including when the reader times out.
+      promise.then(value=>finish(resolve,value),error=>finish(reject,error));
+    });
   }
   acquire(priority='interactive') {
     return new Promise((resolve,reject)=>{
@@ -29,6 +41,7 @@ export class UpstreamQueue {
   backoff(seconds) {
     this.cooldownUntil=Math.max(this.cooldownUntil,Date.now()+seconds*1000);
     this.nextStart=Math.max(this.nextStart,this.cooldownUntil);
+    for(const fail of this.joiners)fail();
     this.waiters=this.waiters.filter(waiter=>{
       if(waiter.priority==='background')return true;
       clearTimeout(waiter.timer);waiter.reject(this.unavailable());return false;

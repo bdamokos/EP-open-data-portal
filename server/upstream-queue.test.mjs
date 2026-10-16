@@ -49,6 +49,15 @@ test('admission timeout removes abandoned interactive work before it can fetch',
   assert.equal(q.active,0);
 });
 
+test('joining background work has a bounded wait without cancelling the shared result',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:1000});
+  const q=new UpstreamQueue({interactiveWaitMs:100});let finish;
+  const shared=new Promise(resolve=>finish=resolve);
+  const timedOut=assert.rejects(q.joinBackground(shared),e=>e.code==='upstream_busy');
+  t.mock.timers.tick(100);await timedOut;assert.equal(q.joiners.size,0);
+  const joined=q.joinBackground(shared);finish('saved');assert.equal(await joined,'saved');assert.equal(q.joiners.size,0);
+});
+
 test('ODP shares cold reads, exposes 429 cooldown, serves cached data and retries after it expires',async t=>{
   t.mock.timers.enable({apis:['Date','setTimeout'],now:Date.parse('2026-10-16T16:00:00Z')});
   let calls=0;
@@ -78,4 +87,23 @@ test('ODP shares cold reads, exposes 429 cooldown, serves cached data and retrie
   t.mock.timers.tick(2100);await new Promise(resolve=>setImmediate(resolve));
   for(let attempt=0;attempt<2;attempt++){t.mock.timers.tick(30000);await new Promise(resolve=>setImmediate(resolve));}
   await exhausted;assert.equal(calls,8,'background retry budget is three attempts');
+});
+
+test('an interactive profile joining a background retry receives cooldown immediately and later reuses its result',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:Date.parse('2026-10-16T17:00:00Z')});
+  let calls=0,finish;
+  t.mock.method(globalThis,'fetch',async()=>{
+    calls++;
+    if(calls===1)return new Promise(resolve=>finish=resolve);
+    return Response.json({data:[{identifier:'99999'}]});
+  });
+  const background=odp('/meps/99999',{}, {priority:'background'});
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,1);
+  const joined=assert.rejects(odp('/meps/99999'),e=>e.status===503&&e.retryAfter===300);
+  finish(new Response('limited',{status:429,headers:{'Retry-After':'300'}}));
+  await joined;
+  await assert.rejects(odp('/meps/99999'),e=>e.code==='upstream_busy'&&e.retryAfter===300);
+  assert.equal(calls,1,'interactive readers must not start a duplicate request');
+  t.mock.timers.tick(300000);const saved=await background;
+  assert.equal(await odp('/meps/99999'),saved);assert.equal(calls,2);
 });
