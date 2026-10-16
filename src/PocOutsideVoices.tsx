@@ -1,6 +1,6 @@
 import {PocSourceLink} from './PocSourceLink';
 import {PocStatus} from './PocStatus';
-import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {useData} from './pocData';
 import {useExplorerParam} from './pocExplorerUrl';
 import {InsightShell,InsightStatus} from './PocInsightShared';
@@ -95,6 +95,7 @@ export function PocOutsideVoices({language='en',...props}:InsightProps) {
     const fallback=[...root.current?.querySelectorAll<HTMLElement>('.ov-person-heading h2,input[type="search"],.ov-back')||[]].find(availableFocusTarget);
     const exact=saved?.node,target=availableFocusTarget(exact)?exact:equivalent||fallback;
     target?.focus({preventScroll:true});
+    if(target&&(target===exact||target===equivalent))target.scrollIntoView({block:'nearest'});
   };
   const closePanel=()=>{panelReturn.current=true;setPanel(null);};
   const backToDirectory=()=>{destination.current={person:null,from:document.activeElement instanceof HTMLElement?document.activeElement:null,returnTo:directoryOpener.current};setPerson(null);};
@@ -102,14 +103,15 @@ export function PocOutsideVoices({language='en',...props}:InsightProps) {
   const detail=useData<OutsideDetail>(person&&/^[1-9]\d{0,12}$/.test(person)?`outside/${person}?lang=${language}&term=all`:null);
   const panelData=useData<OutsideDetail>(panel?`outside/${panel.id}?lang=${language}&term=all`:null);
   useEffect(()=>{document.querySelector('.poc-insights')?.scrollTo({top:0});},[person]);
-  useLayoutEffect(()=>{
+  // The existing person scroll reset must finish before explicit return focus.
+  useEffect(()=>{
     const intent=destination.current;if(!intent)return;
     destination.current=null;if(intent.person!==person)return;
     if(document.activeElement!==document.body&&document.activeElement!==intent.from)return;
     if('returnTo' in intent)restoreOpener(intent.returnTo||null);
     else (root.current?.querySelector<HTMLElement>('.ov-person-heading h2')||root.current?.querySelector<HTMLElement>('.ov-back'))?.focus({preventScroll:true});
   },[person,detail.data,panel]);
-  useLayoutEffect(()=>{if(!panel&&panelReturn.current){panelReturn.current=false;restoreOpener(opener.current);}},[panel]);
+  useEffect(()=>{if(!panel&&panelReturn.current){panelReturn.current=false;restoreOpener(opener.current);}},[panel]);
   const activeData=panel?panelData:person?detail:directory;
   useEffect(()=>{if(activeData.error||activeData.data&&(activeData.data.coverage.complete||!activeData.data.coverage.pending))return;const timer=setInterval(activeData.retry,15000);return()=>clearInterval(timer);},[activeData.error,activeData.data?.coverage.complete,activeData.data?.coverage.pending,activeData.retry]);
   useEffect(()=>{if(!panel)return;close.current?.focus();const key=(event:KeyboardEvent)=>{if(event.key==='Escape'){if([...drawer.current?.querySelectorAll<HTMLElement>('.legal-reference-card')||[]].some(availableFocusTarget))return;event.preventDefault();closePanel();}if(event.key==='Tab'&&drawer.current){const focusable=drawerFocusables(drawer.current);const first=focusable[0],last=focusable.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}};document.addEventListener('keydown',key);return()=>document.removeEventListener('keydown',key);},[panel]);

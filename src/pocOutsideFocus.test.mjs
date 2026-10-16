@@ -15,7 +15,10 @@ async function harness(t,query='?view=outside') {
   // Happy DOM has no layout. Every unhidden local fixture control has a box;
   // the production selector still performs its visibility/negative-index checks.
   window.HTMLElement.prototype.getClientRects=function(){return this.closest('[hidden]')?[]:[{width:20,height:20}];};
-  const scrolls=[];window.scrollTo=(...args)=>scrolls.push(args);window.HTMLElement.prototype.scrollTo=function(options){scrolls.push(options);};
+  const scrolls=[],focusScrollEvents=[],nativeFocus=window.HTMLElement.prototype.focus;
+  window.HTMLElement.prototype.focus=function(options){focusScrollEvents.push({kind:'focus',element:this,options});nativeFocus.call(this,options);};
+  window.scrollTo=(...args)=>scrolls.push(args);window.HTMLElement.prototype.scrollTo=function(options){scrolls.push(options);focusScrollEvents.push({kind:'reset',element:this,options});};
+  window.HTMLElement.prototype.scrollIntoView=function(options){focusScrollEvents.push({kind:'reveal',element:this,options});};
   let vite,root;const extraRoots=[];
   t.after(async()=>{for(const nested of extraRoots)await act(async()=>nested.unmount());if(root)await act(async()=>root.unmount());for(const request of requests)if(!request.finished)request.resolve(Response.json({}));if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const directory={term:'10',people:['42','43'].map(id=>detail(id).person),coverage};
@@ -29,7 +32,7 @@ async function harness(t,query='?view=outside') {
   const navigate=query=>act(async()=>{history.replaceState(null,'','/'+query);window.dispatchEvent(new window.PopStateEvent('popstate'));});
   const key=(key,shiftKey=false)=>act(async()=>{const event=new window.KeyboardEvent('keydown',{key,shiftKey,bubbles:true,cancelable:true});document.activeElement.dispatchEvent(event);return event;});
   const mountReference=async()=>{const host=document.createElement('div');container.querySelector('.ov-drawer .ov-contribution').append(host);const nested=createRoot(host);extraRoots.push(nested);const text='See question E-003031/2026.';await act(async()=>nested.render(createElement(ReferenceScope,{texts:[text],language:'en'},createElement('p',null,createElement(ReferenceText,{text})))));return host.querySelector('button.legal-ref');};
-  return {window,container,requests,scrolls,button,click,finish,navigate,key,mountReference};
+  return {window,container,requests,scrolls,focusScrollEvents,button,click,finish,navigate,key,mountReference};
 }
 
 test('speaker intent focuses a retained pending Back control, arrival keeps it, and Back restores the exact directory speaker',async t=>{
@@ -109,6 +112,27 @@ test('opening the current speaker from its drawer consumes focus intent before a
   const retained=h.container.querySelector('.ov-tabs button');retained.focus();
   await act(async()=>{assert.equal(polls.size,1);[...polls][0].run();});assert.equal(h.requests.length,2,'incomplete coverage still starts its existing deferred refresh');assert.equal(document.activeElement,retained,'starting the refresh preserves the chosen control');
   retained.blur();assert.equal(document.activeElement,document.body);
-  await h.finish('42');assert(document.activeElement===document.body,'later completion cannot revive the consumed drawer navigation intent');
+  h.focusScrollEvents.length=0;await h.finish('42');assert(document.activeElement===document.body,'later completion cannot revive the consumed drawer navigation intent');assert.equal(h.focusScrollEvents.length,0,'later completion cannot refocus or reveal a consumed destination');
   assert.equal(h.container.querySelector('.ov-person-heading h2'),dataHeading);
+});
+
+
+test('returning to an exact speaker resets the established scroll first, then focuses and reveals that control once',async t=>{
+  const h=await harness(t);await h.click('Fixture speaker 43');
+  h.focusScrollEvents.length=0;await h.finish('43');assert.equal(h.focusScrollEvents.length,0,'speaker arrival introduces neither focus nor scroll');
+  h.focusScrollEvents.length=0;await h.click('← All speakers');const returned=h.container.querySelector('[data-ov-focus="person:43"]');
+  assert(document.activeElement===returned);const reset=h.focusScrollEvents.findIndex(event=>event.kind==='reset'&&event.element.classList.contains('poc-insights')),focus=h.focusScrollEvents.findIndex(event=>event.kind==='focus'&&event.element===returned),reveal=h.focusScrollEvents.findIndex(event=>event.kind==='reveal'&&event.element===returned);
+  assert(reset>=0&&focus>reset,'the existing person scroll reset must finish before exact-opener focus restoration');assert(reveal>focus,'the returned control is revealed after restoration');
+  assert.deepEqual(h.focusScrollEvents[reset].options,{top:0});assert.deepEqual(h.focusScrollEvents[reveal].options,{block:'nearest'});
+  assert.equal(h.focusScrollEvents.filter(event=>event.kind==='reveal').length,1,'the explicit exact return reveals only its own control');
+});
+
+test('drawer return reveals its exact opener while a person-changing Back resets scroll before fallback focus',async t=>{
+  const h=await harness(t),mark=h.container.querySelector('[data-ov-focus="mark:43:'+day+'"]');await h.click(mark);await h.finish('43');h.focusScrollEvents.length=0;
+  await h.click(h.container.querySelector('[aria-label="Close speeches"]'));assert(document.activeElement===mark);assert.equal(h.focusScrollEvents.filter(event=>event.kind==='reset').length,0,'ordinary drawer close keeps the existing scroll position');
+  const reveal=h.focusScrollEvents.find(event=>event.kind==='reveal');assert(reveal?.element===mark);assert.deepEqual(reveal.options,{block:'nearest'});
+  await h.click('Fixture speaker 43');await h.click(h.container.querySelector('.ov-appearance-cards button'));h.focusScrollEvents.length=0;
+  await h.navigate('?view=outside');const fallback=h.container.querySelector('input[type="search"]');assert(document.activeElement===fallback);
+  const reset=h.focusScrollEvents.findIndex(event=>event.kind==='reset'&&event.element.classList.contains('poc-insights')),focus=h.focusScrollEvents.findIndex(event=>event.kind==='focus'&&event.element===fallback);
+  assert(reset>=0&&focus>reset,'a person-changing Back completes its existing reset before drawer fallback focus');assert.equal(h.focusScrollEvents.filter(event=>event.kind==='reveal').length,0,'fallback focus does not introduce an exact-opener reveal');
 });
