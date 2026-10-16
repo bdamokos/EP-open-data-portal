@@ -80,3 +80,5 @@ Numbered debate subitems retain their full parent IDs. Blue-card counter-replies
 Committee labels come from the public corporate-bodies API. Country terminology comes from the Publications Office’s public authority scheme. Map geometry is Natural Earth public-domain data, simplified locally; it makes no runtime map request. Word filtering uses MIT-licensed stopword lists and app-owned parliamentary exclusions.
 
 Production caches, activity databases, recording catalogues, user following lists and private hosting configuration are not included in the repository.
+
+Questions in the MEP activity feed are listed once at their original document date. Answers remain linked by the exact source relationship, retain their own dates in the reader, and are excluded from MEP activity totals. Following checks the saved index for new answers to questions by followed MEPs and individually saved questions; these are labelled as answer updates.

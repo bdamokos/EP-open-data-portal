@@ -166,7 +166,7 @@ function PublicationText({ sourceId, member, lang, heading, includeAnswers = fal
     {state.loading&&!text&&<p role="status">Loading text…</p>}{state.error&&<p>Text temporarily unavailable.</p>}
     {text?.status==='available'?<div className="poc-transcript" lang={text.textLanguage||undefined}>{body.paragraphs.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}</div>:text&&<p>Text unavailable. Download the document below.</p>}
     {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang}/><details className="poc-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details></>}
-    {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading="Answer"/>)}
+    {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={"Answer"+(answer.date?" · "+date(answer.date,lang):"")}/>)}
     {includeAnswers&&state.data&&!state.data.answers.length&&<p>No answer published.</p>}
   </section>;
 }
@@ -179,6 +179,7 @@ function JoinedDetails({ item, lang, member }: { item: JoinedActivity; lang: str
     <PocMotionOutcome outcome={item.resolutionOutcome} related={item.relatedJointMotions} language={lang}/>
     {!hasText&&<p><strong>{roles[item.provenance.role] || item.provenance.role}</strong>{item.provenance.stage ? ` · ${item.provenance.stage === "RDG1" ? "First reading" : item.provenance.stage === "RDG2" ? "Second reading" : item.provenance.stage}` : ""}</p>}
     {(item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer') && <>
+      {item.recordKind!=='answer'&&<SaveButton item={{kind:'question',id:item.sourceId,title:item.title,memberId:String(member),date:item.date,baseline:item.answerIds?{answerIds:item.answerIds}:undefined}}/>}
       <PublicationText sourceId={item.sourceId} member={member} lang={lang} heading={item.recordKind==='answer' ? 'Answer' : 'Question'} includeAnswers={item.recordKind!=='answer'} question={item.recordKind==='answer'&&item.relatedQuestionId?{id:item.relatedQuestionId,title:item.relatedQuestionTitle}:undefined} />
       {item.recordKind==='answer' && item.relatedQuestionId && <PublicationText sourceId={item.relatedQuestionId} member={member} lang={lang} heading="Linked question" />}
     </>}
@@ -290,7 +291,7 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
         <p>{page.cache.complete ? "The saved history is available." : "Saved results are shown now. The term 10 history is incomplete; some source records are awaiting retry."}{page.cache.stale && page.cache.complete ? " The daily update is pending." : ""}</p>
         {page.cache.lastError && <p>An upstream request failed. Saved results remain available.</p>}
         {!category && page.unclassifiedMotionCount>0 && <p>Some motions lack a verified rule basis and remain unclassified.</p>}
-        <small>{page.cache.lastSuccessfulRefresh ? `Last completed refresh: ${date(page.cache.lastSuccessfulRefresh,lang)}. ` : ""}Lists use the activity or document date; answers use their own date.</small>
+        <small>{page.cache.lastSuccessfulRefresh ? `Last completed refresh: ${date(page.cache.lastSuccessfulRefresh,lang)}. ` : ""}Questions appear by the question date, with answers attached. New answers appear as updates in Following.</small>
       </details>
     </>}
     {open && state.error && !state.data && <LinkedActivityFallback key={sourceId} sourceId={sourceId} member={id} lang={lang} complete={false} />}

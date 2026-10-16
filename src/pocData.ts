@@ -15,6 +15,7 @@ export async function api<T>(route: string, signal?: AbortSignal): Promise<T> {
   return data;
 }
 const client = createPocClient(api, { timeoutFor: route => route.startsWith('speech-context/') ? 60_000 : /^(speech\/|document\/)/.test(route) ? 35_000 : route.startsWith("speech-media/") ? 30_000 : 8_000 });
+export function expireActivityReads() { client.expireMatching(route=>/^(document\/|latest-activities\/)/.test(route)); }
 export function useData<T>(route: string | null) {
   const [state, setState] = useState<{
     route: string | null;
