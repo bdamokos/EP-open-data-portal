@@ -17,6 +17,15 @@ export function amendmentReference(value) {
   const id=tail(canonical), match=id.match(/^((?:A|B|RC)-10-\d{4}-\d{4,6})-AM-(\d{1,5})$/);
   return match && Number(match[2])>0 ? { id, targetDocumentId:match[1], number:Number(match[2]) } : null;
 }
+export function hasDecisionReferenceSet(decision) {
+  // An absent/empty relationship or a split fragment alone cannot contradict
+  // an accepted amendment binding. Require a recognized whole text or exact
+  // individual amendment reference before replacing that decision's subjects.
+  return array(decision.decided_on_a_realization_of).some(value=>{
+    const ref=canonicalEPReference(value);if(!ref?.startsWith('eli/dl/doc/'))return false;
+    return Boolean(amendmentReference(ref)||amendmentTarget(tail(ref))||/^TA-10-\d{4}-\d{4,6}$/.test(tail(ref)));
+  });
+}
 export function amendmentLists(work) {
   const id=work?.identifier || tail(work?.id);
   return array(work?.inverse_foresees_change_of).filter(item=>item && typeof item==='object' && tail(item.work_type)==='AMENDMENT_LIST' && array(item.foresees_change_of).some(ref=>canonicalEPReference(ref)==='eli/dl/doc/'+id));
@@ -69,7 +78,7 @@ export function amendmentQuery(params,{failures=false}={}) {
   return {...result,document,procedure,member,outcome};
 }
 export function targetMetadata(work,fetchedAt,endpoint) {
-  return {id:work.identifier || tail(work.id),date:work.document_date || null,titles:work.title_dcterms || {},procedureIds:procedureIds(work),
+  return {id:work.identifier || tail(work.id),date:work.document_date || null,titles:work.title_dcterms || {},procedureIds:procedureIds(work),sittingIds:amendmentSittings(work),
     // Subject codes remain exact public codes. No semantic topic inference is made.
     topics:array(work.isAboutSubjectMatter).map(id=>({id:String(id),label:tail(id),basis:'dossier'})),
     sources:[{url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?format=application%2Fld%2Bjson',fetchedAt,language:null}]};

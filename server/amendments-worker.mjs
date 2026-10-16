@@ -5,7 +5,7 @@ import { downloadDocxBuffer } from './document-text.mjs';
 import { extractAmendments, AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { resolveAmendmentAuthors, votingAliases } from './amendment-authors.mjs';
 import { parseSplitRequest, SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
-import { AMENDMENTS_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentLists, amendmentReference, amendmentSittings, amendmentDecision, targetMetadata } from './amendments.mjs';
+import { AMENDMENTS_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentLists, amendmentReference, amendmentSittings, amendmentDecision, hasDecisionReferenceSet, targetMetadata } from './amendments.mjs';
 import { recordSplitResults, saveAmendmentRows, enqueueAmendment } from './amendments-store.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 const DAY=86400000;
@@ -71,7 +71,14 @@ export function parseSavedSplits(worker,work) {
 }
 export function refreshSittingTargets(worker,generation,sittingId,work) {
   const targets=new Set((work.decisions || []).flatMap(decision=>array(decision.decided_on_a_realization_of).map(amendmentReference).filter(Boolean).map(ref=>ref.targetDocumentId)));
-  for(const id of targets)if(worker.store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id);
+  const linked=worker.store.db.prepare("SELECT id FROM amendment_targets AS target WHERE generation=? AND EXISTS(SELECT 1 FROM json_each(target.body,'$.sittingIds') AS sitting WHERE sitting.value=?)").all(generation,sittingId);
+  for(const {id} of linked)targets.add(id);
+  // Older snapshots do not yet carry compact sitting links. Their accepted
+  // decisions identify the affected targets until the next local rebuild.
+  const legacy=worker.store.db.prepare("SELECT DISTINCT amendment.target AS id FROM amendments AS amendment JOIN amendment_targets AS target ON target.generation=amendment.generation AND target.id=amendment.target WHERE amendment.generation=? AND json_type(target.body,'$.sittingIds') IS NULL AND EXISTS(SELECT 1 FROM json_each(amendment.body,'$.decisions') AS decision WHERE json_extract(decision.value,'$.sittingId')=?)").all(generation,sittingId);
+  for(const {id} of legacy)targets.add(id);
+  const observedDecisionIds=work.amendmentVersion===AMENDMENTS_VERSION?(work.decisions || []).filter(hasDecisionReferenceSet).map(decision=>tail(decision.id)):[];
+  for(const id of targets)if(worker.store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,{observedDecisionIds});
 }
 const normalizedName=value=>String(value || '').normalize('NFC').trim().replace(/\s+/gu,' ').toLocaleLowerCase('und');
 function scheduleMandateProfiles(worker,generation,targetId,lists,aliases) {
@@ -95,9 +102,9 @@ function rosterMembers(worker,generation,date) {
   // These intervals describe one observed mandate day, not a whole mandate.
   return {members:[...(saved?.work.members || []).map(member=>({...member,mandates:[{start:date,end:date}]})),...worker.store.sources(generation,'amendment-member').filter(source=>source.fetchedAt.slice(0,10)>=date).map(source=>source.work)],source:saved?.work.sources || []};
 }
-export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false}={}) {
+export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,observedDecisionIds=[]}={}) {
   const store=worker.store,saved=store.source(generation,targetKey(id));if(!saved)return;
-  const target=targetMetadata(saved.work,saved.fetchedAt,targetKey(id)),rows=new Map(),gaps=[];
+  const target=targetMetadata(saved.work,saved.fetchedAt,targetKey(id)),rows=new Map(),gaps=[],observed=new Set(observedDecisionIds);
   const lists=store.db.prepare("SELECT body,fetched_at FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=?").all(generation,id).map(row=>({work:JSON.parse(row.body),fetchedAt:row.fetched_at}));
   const sittingSources=amendmentSittings(saved.work).map(sittingId=>({sittingId,record:store.source(generation,motionSourceKey(sittingId))}));
   const aliases=sittingSources.flatMap(({sittingId})=>store.source(generation,'amendment:aliases:'+sittingId)?.work.aliases || []);
@@ -145,6 +152,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false}={}
       return reference?[[reference,{...part,id:reference,requestId:request.requestId,grounding:'not_attempted'}]]:[];
     })));
     for(const decision of record.work.decisions || []) {
+      if(hasDecisionReferenceSet(decision))observed.add(tail(decision.id));
       const references=array(decision.decided_on_a_realization_of),amendments=references.map(amendmentReference).filter(ref=>ref?.targetDocumentId===id);
       const splitRefs=references.filter(ref=>/-SPLIT-\d+-\d+$/.test(tail(ref)));
       for(const ref of amendments) {
@@ -175,7 +183,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false}={}
   }
   if([...rows.values()].some(row=>row.gaps.some(gap=>gap!=='Split descriptions are parsed as selection plans; exact wording spans have not been validated.')))gaps.push('Some amendment records have incomplete text, authorship, identity or outcome evidence.');
   const uniqueGaps=[...new Set(gaps)];
-  saveAmendmentRows(store,generation,target,[...rows.values()],{complete:!uniqueGaps.length&&rows.size>0,gaps:uniqueGaps,lastUpdated:new Date(worker.clock()).toISOString(),parserVersion:SPLIT_PARSER_VERSION});
+  saveAmendmentRows(store,generation,target,[...rows.values()],{complete:!uniqueGaps.length&&rows.size>0,gaps:uniqueGaps,lastUpdated:new Date(worker.clock()).toISOString(),parserVersion:SPLIT_PARSER_VERSION},{observedDecisionIds:[...observed]});
 }
 async function downloadVotingXml(url) {
   const parsed=new URL(url);
@@ -205,9 +213,12 @@ export async function amendmentTask(worker,task) {
     for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
     const old=saved.work.extraction,previousNumbers=new Set((old?.amendments || []).map(amendment=>String(amendment.number)));
     const missing=[...previousNumbers].filter(number=>!extraction.amendments.some(amendment=>String(amendment.number)===number));
+    const acceptedText=new Set((old?.amendments || []).filter(amendment=>typeof amendment.originalText==='string'||typeof amendment.proposedText==='string').map(amendment=>String(amendment.number)));
+    const textLossCodes=new Set(['comparison-header','comparison-columns','nested-table','text-unavailable']);
+    const textLosses=extraction.gaps.filter(gap=>gap.code==='numbering-warning'&&acceptedText.size || textLossCodes.has(gap.code)&&acceptedText.has(String(gap.number))).map(gap=>({code:gap.code,number:gap.number ?? null,message:gap.message}));
     const next={...saved.work,extraction:{...extraction,parserVersion:AMENDMENT_EXTRACTION_VERSION,sourceUrl:file.url,fetchedAt,language:file.language}};
     // Parsing loss is a failed refresh; retain previous accepted text with its date.
-    if(old && missing.length)next.extraction={...old,lastRefreshFailure:{attemptedAt:fetchedAt,missingAmendmentNumbers:missing,sourceUrl:file.url}};
+    if(old && (missing.length || textLosses.length))next.extraction={...old,lastRefreshFailure:{attemptedAt:fetchedAt,missingAmendmentNumbers:missing,textLosses,sourceUrl:file.url}};
     store.putSource(generation,sourceKey(body.listId),'amendment-list',next,next.extraction.fetchedAt);
     rebuildAmendmentTarget(worker,generation,body.targetDocumentId);
   } else if(task.kind==='amendment-roster') {

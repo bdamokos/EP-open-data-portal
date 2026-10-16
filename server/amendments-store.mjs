@@ -58,17 +58,26 @@ export function recordSplitResults(store,result) {
     store.db.prepare('INSERT OR REPLACE INTO amendment_split_failures VALUES (?,?,?,?)').run(requestId,partId,language,JSON.stringify(body));
   }
 }
-export function saveAmendmentRows(store,generation,target,rows,coverage) {
+export function saveAmendmentRows(store,generation,target,rows,coverage,{observedDecisionIds=[]}={}) {
   store.transaction(()=>{
     store.assertWriter();
     const prior=store.db.prepare('SELECT id,body FROM amendments WHERE generation=? AND target=?').all(generation,target.id);
     const merged=new Map(rows.map(row=>[row.id,row]));
+    const observed=new Set(observedDecisionIds);
     let retained=false;
     // Copying a generation preserves accepted components. A missing list,
     // author mapping or decision is a gap, never evidence that it disappeared.
     for(const previous of prior) {
       const old=parse(previous.body),incoming=merged.get(previous.id);
-      if(!incoming){retained=true;merged.set(previous.id,{...old,gaps:[...new Set([...(old.gaps || []),'Source was absent from the latest partial refresh.'])]});continue;}
+      if(!incoming){
+        retained=true;
+        const decisions=(old.decisions || []).filter(decision=>!observed.has(decision.id));
+        const partIds=new Set(decisions.map(decision=>decision.partId).filter(Boolean));
+        const splitParts=(old.splitParts || []).filter(part=>partIds.has(part.id));
+        const changed=decisions.length!==(old.decisions || []).length;
+        merged.set(previous.id,{...old,decisions,splitParts,gaps:[...new Set([...(old.gaps || []),'Source was absent from the latest partial refresh.',...(changed?['A refreshed decision no longer references this amendment.']:[])])]});
+        continue;
+      }
       const stale=[];
       for(const field of incoming.conflicted?[]:['originalText','proposedText','targetLabel','language','listId','justification','onBehalfOf'])if(incoming[field]==null&&old[field]!=null){incoming[field]=old[field];stale.push(field);}
       if(!incoming.conflicted && !incoming.authors?.length && old.authors?.length){incoming.authors=old.authors;stale.push('authors');}
@@ -83,13 +92,16 @@ export function saveAmendmentRows(store,generation,target,rows,coverage) {
       const currentDecisionIds=new Set((incoming.decisions || []).map(decision=>decision.id));
       // A published decision node's reference set is atomic. Its current parts
       // replace prior bindings; only entirely absent decisions are retained.
-      for(const decision of old.decisions || [])if(!currentDecisionIds.has(decision.id)){decisions.set(decisionKey(decision),decision);stale.push('decisions');}
+      for(const decision of old.decisions || [])if(!currentDecisionIds.has(decision.id)&&!observed.has(decision.id)){decisions.set(decisionKey(decision),decision);stale.push('decisions');}
       incoming.decisions=[...decisions.values()];
+      const retainedPartIds=new Set(incoming.decisions.filter(decision=>!currentDecisionIds.has(decision.id)).map(decision=>decision.partId).filter(Boolean));
+      incoming.splitParts=[...new Map([...(old.splitParts || []).filter(part=>retainedPartIds.has(part.id)),...(incoming.splitParts || [])].map(part=>[part.id,part])).values()];
       if(stale.length){retained=true;incoming.retainedComponents=[...new Set(stale)];incoming.gaps=[...new Set([...(incoming.gaps || []),'Some previously accepted components are retained because the latest refresh is incomplete.'])];incoming.sources=[...new Map([...(incoming.sources || []),...(old.sources || [])].map(source=>[source.url+':'+source.fetchedAt,source])).values()];}
     }
     const put=store.db.prepare('INSERT OR REPLACE INTO amendments VALUES (?,?,?,?,?,?)');
     for(const row of merged.values())put.run(generation,row.id,target.id,row.date || target.date || '',amendmentOutcome(row.decisions),JSON.stringify({...row,outcome:amendmentOutcome(row.decisions)}));
-    store.db.prepare('INSERT OR REPLACE INTO amendment_targets VALUES (?,?,?)').run(generation,target.id,JSON.stringify({...target,...coverage,...(retained?{complete:false,gaps:[...(coverage.gaps || []),'Previously accepted amendment components are retained after an incomplete refresh.']}: {})}));
+    const sittingIds=[...new Set([...(target.sittingIds || []),...[...merged.values()].flatMap(row=>(row.decisions || []).map(decision=>decision.sittingId).filter(Boolean))])];
+    store.db.prepare('INSERT OR REPLACE INTO amendment_targets VALUES (?,?,?)').run(generation,target.id,JSON.stringify({...target,...coverage,sittingIds,...(retained?{complete:false,gaps:[...(coverage.gaps || []),'Previously accepted amendment components are retained after an incomplete refresh.']}: {})}));
   });
 }
 export function amendmentFailureSummary(store) {

@@ -8,10 +8,10 @@ import { ActivityStore } from './activity-index-store.mjs';
 import { ActivityWorker } from './activity-index-worker.mjs';
 import { AMENDMENTS_VERSION, amendmentLists, amendmentOutcome, amendmentQuery, amendmentReference } from './amendments.mjs';
 import { amendmentFailures, amendmentsPage, enqueueAmendment, nextAmendmentTask, recordSplitResults, saveAmendmentRows } from './amendments-store.mjs';
-import { failAmendmentTask, parseSavedSplits, prepareAmendments, rebuildAmendmentTarget, scheduleAmendments } from './amendments-worker.mjs';
+import { failAmendmentTask, parseSavedSplits, prepareAmendments, rebuildAmendmentTarget, refreshSittingTargets, scheduleAmendments } from './amendments-worker.mjs';
 import { SPLIT_PARSER_VERSION, parseSplitRequest } from './amendment-splits.mjs';
 import { resolveAmendmentAuthors } from './amendment-authors.mjs';
-import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
+import { AMENDMENT_EXTRACTION_VERSION, extractAmendments } from './amendment-documents.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 
 const targetId='A-10-2026-0254', otherTarget='B-10-2026-0254', sitting='MTG-PL-2026-10-07';
@@ -124,6 +124,107 @@ test('a refreshed decision replaces its prior split bindings while entirely abse
   assert(!item.decisions.some(vote=>vote.partId===documentPartId));
   assert.equal(item.decisions.find(vote=>vote.id===sitting+'-DEC-2').outcome,'REJECTED');
   assert(item.gaps.includes('A split component has no indexed description.'));
+});
+
+test('fresh split parsing takes precedence when a retained absent decision references the same component',t=>{
+  for(const previous of [{status:'unresolved',plan:null},{status:'parsed',plan:{type:'text',quote:'Old selection'}}]) {
+    const {store,generation}=setup(t),partId=part(1,'unused').id;
+    const oldPart={id:partId,number:1,description:'Old description',...previous};
+    saveAmendmentRows(store,generation,metadata,[row(1,{decisions:[{id:sitting+'-DEC-2',outcome:'REJECTED',partId}],splitParts:[oldPart],sources:[]})],coverage);
+    const freshPart={id:partId,number:1,description:'Fresh description',status:'parsed',plan:{type:'text',quote:'Fresh selection'}};
+    saveAmendmentRows(store,generation,metadata,[row(1,{decisions:[{id:sitting+'-DEC-1',outcome:'ADOPTED',partId}],splitParts:[freshPart],sources:[]})],coverage);
+    const [item]=amendmentsPage(store,{document:targetId}).items;
+    assert.deepEqual(item.decisions.map(vote=>vote.id).sort(),[sitting+'-DEC-1',sitting+'-DEC-2']);
+    assert.equal(item.outcome,'mixed');
+    assert.deepEqual(item.splitParts,[freshPart]);
+    assert(item.retainedComponents.includes('decisions'));
+  }
+});
+
+test('a fresh decision moving between amendment numbers invalidates its old binding even when old wording is retained',t=>{
+  for(const missingOldText of [false,true]) {
+    const {store,worker,generation}=setup(t);
+    seedTarget(store,generation,[amendment(1),amendment(2),amendment(3)]);
+    const oldPart=part(1,'‘old selected wording’');
+    const original=parseSavedSplits(worker,{sources:[{url:sourceUrl,fetchedAt:earlier}],splitRequests:[request([oldPart])],decisions:[decision(1,['eli/dl/doc/'+targetId+'-AM-1',oldPart.id],'ADOPTED'),decision(2,['eli/dl/doc/'+targetId+'-AM-3'],'REJECTED')]});
+    store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',original,earlier);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    assert.equal(amendmentsPage(store,{document:targetId}).items[0].outcome,'ADOPTED');
+    assert.equal(amendmentsPage(store,{document:targetId}).items[0].splitParts[0].id,oldPart.id);
+    if(missingOldText)store.putSource(generation,'amendment:list:'+listId,'amendment-list',list([amendment(2),amendment(3)]),fetchedAt);
+    const refreshed={...original,decisions:[decision(1,['eli/dl/doc/'+targetId+'-AM-2'],'LAPSED')]};
+    store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',refreshed,fetchedAt);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    const byNumber=new Map(amendmentsPage(store,{document:targetId}).items.map(item=>[item.number,item]));
+    assert.equal(byNumber.get(1).proposedText,'Proposal 1');
+    assert.equal(byNumber.get(1).outcome,'unavailable');assert.deepEqual(byNumber.get(1).decisions,[]);
+    assert.deepEqual(byNumber.get(1).splitParts,[]);
+    assert.equal(byNumber.get(2).outcome,'LAPSED');
+    assert.deepEqual(byNumber.get(2).decisions.map(vote=>vote.id),[sitting+'-DEC-1']);
+    assert.equal(byNumber.get(3).outcome,'REJECTED');
+    assert.deepEqual(byNumber.get(3).decisions.map(vote=>vote.id),[sitting+'-DEC-2']);
+  }
+});
+
+test('a fresh sitting decision moving to another target also rebuilds the previously referenced target',t=>{
+  for(const legacyTargetMetadata of [false,true]) {
+    const {store,worker,generation}=setup(t);
+    seedTarget(store,generation,[amendment(1)]);
+    const secondTarget={...target,id:'eli/dl/doc/'+otherTarget,identifier:otherTarget};
+    store.putSource(generation,'/plenary-documents/'+otherTarget,'document',secondTarget,earlier);
+    const secondListId=otherTarget+'-AM-001-001';
+    store.putSource(generation,'amendment:list:'+secondListId,'amendment-list',list([amendment(1,{proposedText:'Other target wording'})],{id:'eli/dl/doc/'+secondListId,identifier:secondListId,targetDocumentId:otherTarget}),earlier);
+    const original=parseSavedSplits(worker,{sources:[{url:sourceUrl,fetchedAt:earlier}],splitRequests:[],decisions:[decision(1,['eli/dl/doc/'+targetId+'-AM-1'],'ADOPTED')]});
+    store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',original,earlier);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    rebuildAmendmentTarget(worker,generation,otherTarget);
+    if(legacyTargetMetadata) {
+      const previous=JSON.parse(store.db.prepare('SELECT body FROM amendment_targets WHERE generation=? AND id=?').get(generation,targetId).body);
+      delete previous.sittingIds;
+      store.db.prepare('UPDATE amendment_targets SET body=? WHERE generation=? AND id=?').run(JSON.stringify(previous),generation,targetId);
+    }
+    const refreshed={...original,decisions:[decision(1,['eli/dl/doc/'+otherTarget+'-AM-1'],'LAPSED')]};
+    store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',refreshed,fetchedAt);
+    refreshSittingTargets(worker,generation,sitting,refreshed);
+    const [oldItem]=amendmentsPage(store,{document:targetId}).items,[newItem]=amendmentsPage(store,{document:otherTarget}).items;
+    assert.equal(oldItem.proposedText,'Proposal 1');
+    assert.equal(oldItem.outcome,'unavailable');assert.deepEqual(oldItem.decisions,[]);
+    assert.equal(newItem.proposedText,'Other target wording');assert.equal(newItem.outcome,'LAPSED');
+    assert.deepEqual(newItem.decisions.map(vote=>vote.id),[sitting+'-DEC-1']);
+  }
+});
+
+test('missing or unrecognised decision relationships retain accepted bindings while an explicit whole-document reference clears them',t=>{
+  const cases=[
+    ['missing',undefined,true],
+    ['empty',[],true],
+    ['foreign URI',['https://unrelated.example/eli/dl/doc/'+targetId+'-AM-2'],true],
+    ['bare fragment',[targetId+'-AM-2'],true],
+    ['split component only',[part(1,'unused').id],true],
+    ['explicit whole document',['eli/dl/doc/'+targetId],false],
+  ];
+  for(const [label,references,retain] of cases) {
+    const {store,worker,generation}=setup(t);
+    seedTarget(store,generation,[amendment(1)]);
+    const original=parseSavedSplits(worker,{sources:[{url:sourceUrl,fetchedAt:earlier}],splitRequests:[],decisions:[decision(1,['eli/dl/doc/'+targetId+'-AM-1'],'ADOPTED')]});
+    store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',original,earlier);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    const freshDecision=decision(1,references,'REJECTED');
+    if(references===undefined)delete freshDecision.decided_on_a_realization_of;
+    const refreshed={...original,decisions:[freshDecision]};
+    store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',refreshed,fetchedAt);
+    refreshSittingTargets(worker,generation,sitting,refreshed);
+    const page=amendmentsPage(store,{document:targetId}),[item]=page.items;
+    assert.equal(item.proposedText,'Proposal 1',label);
+    assert.equal(item.outcome,retain?'ADOPTED':'unavailable',label);
+    assert.equal(item.decisions.length,retain?1:0,label);
+    if(retain) {
+      assert.equal(item.decisions[0].id,sitting+'-DEC-1',label);
+      assert(item.retainedComponents.includes('decisions'),label);
+      assert(page.coverage.gaps.some(gap=>gap.includes('retained')),label);
+      assert.equal(page.coverage.complete,false,label);
+    }
+  }
 });
 
 test('voting aliases from the exact linked sitting resolve authors on their earlier tabling date',t=>{
@@ -383,6 +484,59 @@ function docx(xml) {
   const end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(central.length+name.length,12);end.writeUInt32LE(local.length+name.length+compressed.length,16);
   return Buffer.concat([local,name,compressed,central,name,end]);
 }
+function comparisonDocx(rows,{author='Bruno Gonçalves',language='en'}={}) {
+  const escape=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  const paragraph=value=>'<w:p><w:r><w:t>'+escape(value)+'</w:t></w:r></w:p>';
+  const tableRow=cells=>'<w:tr>'+cells.map(value=>'<w:tc>'+paragraph(value)+'</w:tc>').join('')+'</w:tr>';
+  return docx('<w:document xmlns:w="urn:word"><w:body>'+paragraph('<Amend><Date>2.10.2026</Date><NumAm>1</NumAm>')+(author?paragraph('<Members>'+author+'</Members>'):'')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+tableRow(['Text proposed by the Commission',language==='fr'?'Amendement':'Amendment'])+rows.map(tableRow).join('')+'</w:tbl>'+paragraph('</Amend>')+'</w:body></w:document>');
+}
+
+test('losing a comparison row within the same amendment retains its full accepted columns and source date',async t=>{
+  const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001';
+  const oldUrl='https://data.europarl.europa.eu/distribution/example/accepted_en.docx',newUrl='https://data.europarl.europa.eu/distribution/example/refreshed_en.docx';
+  const accepted=extractAmendments(comparisonDocx([['Before one','After one'],['Before two','After two']]),{listId:singleListId,targetDocumentId:targetId,language:'en',sourceUrl:oldUrl,fetchedAt:earlier});
+  const degraded=comparisonDocx([['Changed one','Changed proposal one'],['Before two','After two','Unsupported extra column']]);
+  const fresh=extractAmendments(degraded,{listId:singleListId,targetDocumentId:targetId,language:'en',sourceUrl:newUrl,fetchedAt});
+  assert.equal(fresh.amendments[0].number,1);assert.equal(fresh.amendments[0].proposedText,'Changed proposal one');
+  assert(fresh.gaps.some(gap=>gap.code==='comparison-columns'&&gap.number===1));
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',target,earlier);
+  store.putSource(generation,'amendment:list:'+singleListId,'amendment-list',{...list([]),id:'eli/dl/doc/'+singleListId,identifier:singleListId,files:[{format:'DOCX',language:'en',url:newUrl}],extraction:{...accepted,sourceUrl:oldUrl,fetchedAt:earlier,language:'en',parserVersion:AMENDMENT_EXTRACTION_VERSION}},earlier);
+  worker.downloadAmendmentDocx=async()=>({buffer:degraded});
+  enqueueAmendment(store,generation,'degraded-comparison','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
+  await worker.task(nextAmendmentTask(store,generation));
+  const saved=store.source(generation,'amendment:list:'+singleListId);
+  assert.equal(saved.fetchedAt,earlier);assert.equal(saved.work.extraction.fetchedAt,earlier);
+  assert.equal(saved.work.extraction.sourceUrl,oldUrl);
+  assert.equal(saved.work.extraction.amendments[0].originalText,'Before one\nBefore two');
+  assert.equal(saved.work.extraction.amendments[0].proposedText,'After one\nAfter two');
+  assert.equal(saved.work.extraction.lastRefreshFailure.attemptedAt,fetchedAt);
+  assert.equal(saved.work.extraction.lastRefreshFailure.sourceUrl,newUrl);
+  const [item]=amendmentsPage(store,{document:targetId}).items;
+  assert.equal(item.originalText,'Before one\nBefore two');assert.equal(item.proposedText,'After one\nAfter two');
+  assert(item.sources.some(source=>source.url===oldUrl&&source.fetchedAt===earlier));
+});
+
+test('missing authors or non-English text alone do not reject otherwise complete refreshed columns',async t=>{
+  for(const options of [{author:null,language:'en'},{author:'Bruno Gonçalves',language:'fr'}]) {
+    const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001';
+    const oldUrl='https://data.europarl.europa.eu/distribution/example/accepted_en.docx',newUrl='https://data.europarl.europa.eu/distribution/example/refreshed_'+options.language+'.docx';
+    const accepted=extractAmendments(comparisonDocx([['Before one','After one'],['Before two','After two']]),{listId:singleListId,targetDocumentId:targetId,language:'en',sourceUrl:oldUrl,fetchedAt:earlier});
+    const complete=comparisonDocx([['Fresh original one','Fresh proposal one'],['Fresh original two','Fresh proposal two']],options);
+    store.putSource(generation,'/plenary-documents/'+targetId,'document',target,earlier);
+    store.putSource(generation,'amendment:list:'+singleListId,'amendment-list',{...list([]),id:'eli/dl/doc/'+singleListId,identifier:singleListId,files:[{format:'DOCX',language:options.language,url:newUrl}],extraction:{...accepted,sourceUrl:oldUrl,fetchedAt:earlier,language:'en',parserVersion:AMENDMENT_EXTRACTION_VERSION}},earlier);
+    worker.downloadAmendmentDocx=async()=>({buffer:complete});
+    enqueueAmendment(store,generation,'complete-comparison','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
+    await worker.task(nextAmendmentTask(store,generation));
+    const saved=store.source(generation,'amendment:list:'+singleListId);
+    assert.equal(saved.fetchedAt,fetchedAt);assert.equal(saved.work.extraction.sourceUrl,newUrl);
+    assert.equal(saved.work.extraction.lastRefreshFailure,undefined);
+    assert.equal(saved.work.extraction.amendments[0].originalText,'Fresh original one\nFresh original two');
+    assert.equal(saved.work.extraction.amendments[0].proposedText,'Fresh proposal one\nFresh proposal two');
+    assert.equal(saved.work.extraction.amendments[0].language,options.language);
+    if(!options.author)assert(saved.work.extraction.gaps.some(gap=>gap.code==='authors-unavailable'));
+    if(options.language==='fr')assert(amendmentsPage(store,{document:targetId}).items[0].gaps.some(gap=>gap.includes('English amendment text is unavailable')));
+  }
+});
 
 test('a partial extraction refresh retains accepted wording and dates and reports the failed refresh',async t=>{
   const {store,worker,generation}=setup(t);
