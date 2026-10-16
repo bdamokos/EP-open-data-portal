@@ -123,7 +123,7 @@ test('OPEN summary-stage cases retain native controls, exact mixed copy and cons
     assert.equal(option.getAttribute('lang'),language==='en'?'en':'');
     assert.equal(select.closest('label').querySelector('span').textContent,'Summary stage');
     assert.equal(select.hasAttribute('aria-labelledby'),false,'the native labelling mechanism stays unchanged');
-    t.diagnostic(JSON.stringify({assessment:language==='en'?'English control case':'OPEN; neutral lang is not a mixed-language fix',optionName:option.textContent,constituents:[{text:'First reading',language:'en'},{text:date,language}],effectiveLang:effectiveLanguage(option),selectName:'Summary stage',selectEffectiveLang:effectiveLanguage(select)}));
+    t.diagnostic(JSON.stringify({assessment:language==='en'?'English control case':'OPEN; empty lang means unknown, not a mixed-language fix',optionName:option.textContent,constituents:[{text:'First reading',language:'en'},{text:date,language}],effectiveLang:effectiveLanguage(option),selectName:'Summary stage',selectEffectiveLang:effectiveLanguage(select)}));
   });
 });
 

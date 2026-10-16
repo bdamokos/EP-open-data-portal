@@ -175,7 +175,7 @@ for(const language of ['en','hu','fr']) {
         assert(!body.textContent.includes(fixture.paragraphs[0]),'the existing recognised-header split stays intact');
         const save=rows[index].querySelector('.poc-save-button');
         // OPEN: keep the original flat name: English prefix + French title.
-        assert.equal(save.getAttribute('aria-label'),'Save question · Titre de la question');assert.equal(save.getAttribute('aria-labelledby'),null);assert.equal(effectiveLanguage(save),'','neutral language records the unresolved mixture, rather than resolving it');
+        assert.equal(save.getAttribute('aria-label'),'Save question · Titre de la question');assert.equal(save.getAttribute('aria-labelledby'),null);assert.equal(effectiveLanguage(save),'','unknown language records the unresolved case and does not resolve its known language changes');
         const answer=reader.querySelector('#document-'+answerId),answerHeading='Answer · '+date('2026-10-02',language);
         assert.equal(answer.querySelector('h3').textContent,answerHeading);assert.equal(effectiveLanguage(answer.querySelector('h3 span')),language);
         // OPEN: this existing flat name mixes English with a localized date.

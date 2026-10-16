@@ -60,7 +60,7 @@ test('insight controls and charts restore selected Intl language inside English 
     assert.equal(h.container.querySelectorAll('svg [role="button"]').length,1);
     const option=h.container.querySelector('.insight-week-select option[value="2026-10-01"]');
     assert.equal(option.textContent,`${date('2026-10-01',language)}–${date('2026-10-07',language)} · 3 questions, 8 total`);
-    assert.equal(option.getAttribute('lang'),language==='en'?'en':'','mixed native option remains neutral without copy changes');
+    assert.equal(option.getAttribute('lang'),language==='en'?'en':'','mixed native option remains unknown without copy changes');
     await act(async()=>h.container.querySelector('svg [role="button"]').dispatchEvent(new h.window.FocusEvent('focusin',{bubbles:true})));
     const shownDate=h.container.querySelector('.insight-chart-caption span[lang]');
     assert.equal(effectiveLanguage(shownDate),language);

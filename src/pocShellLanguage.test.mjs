@@ -49,7 +49,7 @@ for(const locale of ['en','hu','fr'])test(`English shell and Following preserve 
   assert.equal(effectiveLanguage(links[1].querySelector('span')),'');
   const save=h.container.querySelector('.poc-save-button');
   assert.equal(save.getAttribute('aria-label'),'Saved question · Titre français','the existing mixed accessible name is preserved for the open AT assessment');
-  assert.equal(save.getAttribute('lang'),'','neutral metadata does not claim to fix a known mixed-language name');
+  assert.equal(save.getAttribute('lang'),'','unknown language overrides inheritance and does not fix a known mixed-language name');
   assert.equal(save.hasAttribute('aria-labelledby'),false,'the human decision preserves the existing naming mechanism');
   const before=JSON.parse(window.localStorage.getItem('ep.bookmarks.v1'));
   await h.click(links[0]);
@@ -81,7 +81,7 @@ test('country-map visible locale boundaries preserve its exact mixed accessible 
   assert.equal(effectiveLanguage(h.container.querySelector('figcaption span')),'hu');
   const target=h.container.querySelector('[data-country="HU"]');
   assert.equal(target.getAttribute('aria-label'),'Magyarország: 1 question');
-  assert.equal(effectiveLanguage(target),'','neutral language is recorded, not accepted as resolving the known mixed name');
+  assert.equal(effectiveLanguage(target),'','unknown language is recorded, not accepted as resolving the known mixed name');
   assert.equal(target.getAttribute('role'),'button');assert.equal(target.getAttribute('tabindex'),'0');
 });
 
