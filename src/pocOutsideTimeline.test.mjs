@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {clusterOutsideDays} from './pocOutsideTimeline.mjs';
+import {clusterOutsideDays,filterOutsidePeople} from './pocOutsideTimeline.mjs';
 const day=(date,count=1)=>({date,contributions:count,itemIds:Array.from({length:count},(_,i)=>date+':'+i),formal:false,legislative:false});
 test('adjacent commissioner dates share one pointer target without losing either sitting',()=>{
   const result=clusterOutsideDays([day('2026-01-20',2),day('2026-01-21',2),day('2026-10-06')],'2024-07-16','2026-10-15',776);
@@ -16,4 +16,19 @@ test('monthly activity cannot chain into one cluster spanning an entire year',()
   const marks=clusterOutsideDays(days,'2024-07-16','2026-10-15',747);
   assert(marks.length>=6);assert(marks.every(mark=>mark.dates.length<=2));
   assert(marks.slice(1).every((mark,i)=>mark.x-marks[i].x>=34));
+});
+
+test('repeat appearances include two agenda items on one day and exclude repeated speeches in one item',()=>{
+  const one={id:'1',name:'Guest',capacity:'other',days:[day('2025-03-11',1)]};
+  const multi={id:'2',name:'Commissioner',capacity:'commission',days:[day('2025-03-11',2)]};
+  const speeches={...one,id:'3',days:[{...day('2025-03-11'),contributions:3}]};
+  const result=filterOutsidePeople([one,multi,speeches],{repeat:true});
+  assert.deepEqual(result.map(person=>person.id),['2']);assert.equal(result[0].sittingDays,1);assert.equal(result[0].appearances,2);
+});
+test('event and capacity filters recompute repeat appearances from the selected exact items',()=>{
+  const person={id:'42',name:'Mária Guest',capacity:'commission',days:[{...day('2025-03-11',3),items:[{id:'debate-1',kind:'PLENARY_DEBATE',legislative:true},{id:'debate-2',kind:'PLENARY_DEBATE',legislative:false},{id:'formal',kind:'PLENARY_ACTIVITY',legislative:false}]}]};
+  assert.equal(filterOutsidePeople([person],{kind:'special',repeat:true}).length,0);
+  const result=filterOutsidePeople([person],{kind:'debate',group:'commission',repeat:true,search:'Maria'});
+  assert.equal(result.length,1);assert.equal(result[0].appearances,2);assert.deepEqual(result[0].days[0].itemIds,['debate-1','debate-2']);
+  assert.equal(filterOutsidePeople([person],{group:'leaders'}).length,0);
 });

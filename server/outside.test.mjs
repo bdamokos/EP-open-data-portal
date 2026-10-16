@@ -166,6 +166,41 @@ test('historical member metadata is discarded after the dated-roster check',with
   assert.equal(store.source(generation,'/speeches/'+row.activity.activity_id),undefined);
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM outside_contributions').get().n,0);
 }));
+test('a nameless historical English fallback stays retryable and can recover in the next generation',withStore(async(store,generation)=>{
+  const row=fixture.contributions.find(r=>r.activity.activity_date==='2021-11-24');
+  const nameless=structuredClone(row.activity);nameless.inverse_consists_of=[];
+  for(const doc of nameless.recorded_in_a_realization_of)delete doc['api:xmlFragment'];
+  roster(store,generation,'2021-11-24');
+  store.putSource(generation,'outside:state','outside-state',{version:1},saved.fetchedAt);
+  let activity=nameless,requests=0;
+  const worker=new ActivityWorker(store,{fetchRecord:async()=>{requests++;return {payload:{data:[activity]},fetchedAt:saved.fetchedAt};}});
+  worker.saveSpeech(generation,nameless,saved.fetchedAt,true);
+  const original=store.nextTask(generation);await worker.task(original);worker.finishOutsideGap(original);
+  const english=store.nextTask(generation);assert.equal(english.body.language,'en');
+  for(let attempts=0;attempts<3;attempts++){
+    const task={...english,attempts};
+    const error=await worker.task(task).then(()=>assert.fail('A nameless final fallback must retry'),error=>error);
+    assert.match(error.message,/no usable name for person\/227855/);
+    assert.equal(worker.failOutside(task,error),attempts===2);
+  }
+  assert.equal(requests,4);assert.equal(store.taskCounts(generation).completed,2);
+  assert.equal(outsideDirectory(store,{term:'all',language:'en'}).coverage.gaps,1);
+  store.publish(generation);
+  const next=store.beginCycle();worker.initializeOutside(next);
+  const retry=store.nextTask(next.generation);assert.equal(retry.key,english.key);
+  activity={...row.activity,inverse_consists_of:[]};await worker.task(retry);worker.finishOutsideGap(retry);
+  store.publish(next.generation);
+  assert.equal(outsideSpeaker(store,'227855',{language:'en'}).person.name,'Sviatlana Tsikhanouskaya');
+  assert.equal(outsideDirectory(store,{term:'all',language:'en'}).coverage.gaps,0);
+}));
+test('one named participant cannot hide another outside participant with no header',withStore((store,generation)=>{
+  const row=fixture.contributions.find(r=>r.activity.activity_date==='2021-11-24');
+  const activity=structuredClone(row.activity);activity.had_participation.had_participant_person.push('person/999999');
+  roster(store,generation,'2021-11-24');new ActivityWorker(store).saveSpeech(generation,activity,row.retrievedAt,true);
+  assert.equal(store.nextTask(generation).kind,'outside-detail');
+  assert.equal(outsideSpeaker(store,'227855',{language:'en'}).person.name,'Sviatlana Tsikhanouskaya');
+  assert.equal(outsideSpeaker(store,'999999',{language:'en'}).person.name,'Speaker 999999');
+}));
 test('HTTP outside-speaker routes read the index and enforce query, method and origin rules',async()=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'outside-http-'));
   process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=directory;
