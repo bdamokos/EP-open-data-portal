@@ -1,0 +1,82 @@
+{
+  "projection": "Two complete public procedural records from the Baerbock formal sitting; source XML retained verbatim.",
+  "sources": [
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-02-10-OTH-2017061087457?include-output=xml_fragment&language=en&format=application%2Fld%2Bjson",
+      "fetchedAt": "2026-10-16T18:27:19.559423+00:00"
+    },
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-02-10-PVCRE-CHA-4?include-output=xml_fragment&language=en&format=application%2Fld%2Bjson",
+      "fetchedAt": "2026-10-16T18:27:38.835337+00:00"
+    }
+  ],
+  "activities": [
+    {
+      "id": "eli/dl/event/MTG-PL-2026-02-10-OTH-2017061087457",
+      "type": "Activity",
+      "activity_date": "2026-02-10",
+      "activity_id": "MTG-PL-2026-02-10-OTH-2017061087457",
+      "activity_label": {
+        "en": "Formal sitting – Address by Annalena Baerbock, President of the UN General Assembly"
+      },
+      "had_activity_type": "def/ep-activities/PROCEEDING_ACTIVITY",
+      "recorded_in_a_realization_of": [
+        {
+          "id": "eli/dl/doc/CRE-10-2026-02-10-OTH-2017061087457",
+          "type": "WorkSubdivision",
+          "is_part_of": "eli/dl/doc/CRE-10-2026-02-10-ITM-005",
+          "number": "2-0159-0000",
+          "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+          "identifier": "CRE-10-2026-02-10-OTH-2017061087457",
+          "notation_speechId": "2017061087457",
+          "numbering": 157,
+          "originalLanguage": [
+            "http://publications.europa.eu/resource/authority/language/ENG"
+          ],
+          "api:xmlFragment": {
+            "en": "<communication><narrative xml:lang=\"en\">(The sitting was briefly suspended)</narrative></communication>"
+          }
+        }
+      ],
+      "inverse_consists_of": [
+        "eli/dl/event/MTG-PL-2026-02-10-PVCRE-ITM-5"
+      ]
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-02-10-PVCRE-CHA-4",
+      "type": "Activity",
+      "activity_date": "2026-02-10",
+      "activity_id": "MTG-PL-2026-02-10-PVCRE-CHA-4",
+      "had_activity_type": "def/ep-activities/MEETING_NAME_CHAIR",
+      "had_participation": {
+        "id": "eli/dl/participation/MTG-PL-2026-02-10-PVCRE-CHA-4_125027",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/125027"
+        ],
+        "participation_role": "def/ep-roles/CHAIR"
+      },
+      "recorded_in_a_realization_of": [
+        {
+          "id": "eli/dl/doc/CRE-10-2026-02-10-OTH-2017061087454",
+          "type": "WorkSubdivision",
+          "is_part_of": "eli/dl/doc/CRE-10-2026-02-10-ITM-006",
+          "number": "2-0161-0000",
+          "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+          "identifier": "CRE-10-2026-02-10-OTH-2017061087454",
+          "notation_speechId": "2017061087454",
+          "numbering": 158,
+          "originalLanguage": [
+            "http://publications.europa.eu/resource/authority/language/SPA"
+          ],
+          "api:xmlFragment": {
+            "en": "<communication xml:lang=\"es-t-en-mtec\"><heading xml:space=\"preserve\">PRESIDELS: <person refersTo=\"epdata:person/125027\">ESTEBAN GONZÁLEZ PONS</person></heading><subheading><role refersTo=\"epdata:def/ep-roles/PRESIDENT_VICE\">Vice-President</role></subheading></communication>"
+          }
+        }
+      ],
+      "inverse_consists_of": [
+        "eli/dl/event/MTG-PL-2026-02-10-PVCRE-ITM-5"
+      ]
+    }
+  ]
+}
