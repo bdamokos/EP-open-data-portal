@@ -77,6 +77,12 @@ test('check errors retain diagnostics, announce politely and repeat on explicit 
   assert.equal(messages.length,2);assert.equal(h.requests.length,2);
 });
 
+test('Following with no items keeps native disabled behavior and makes no check request',async t=>{
+  const h=await harness(t,[]);await h.render();const button=h.button();
+  assert.equal(button.disabled,true);assert.equal(button.getAttribute('aria-disabled'),null);
+  await act(async()=>button.click());await settle();assert.equal(h.requests.length,0);assert.equal(h.status().textContent,'');
+});
+
 test('background checks and superseded language, membership, acknowledgement and unmounted completions stay silent',async t=>{
   const h=await harness(t);await h.render();const messages=record(h,t);
   let background;await act(async()=>{background=h.background();});await h.respond(0);await background;await settle();assert.equal(h.status().textContent,'');assert.equal(messages.length,0);
