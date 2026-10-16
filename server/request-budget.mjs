@@ -6,6 +6,7 @@ export const requestSignal=()=>requests.getStore();
 export const runWithRequestSignal=(signal,operation)=>requests.run(signal,operation);
 export const cancelledRequest=()=>new HttpError(499,'request_cancelled','The reader closed this request.');
 export const requestTimeout=()=>Object.assign(new HttpError(503,'request_timeout','This data request took too long. Please try again.'),{retryAfter:1});
+export const isLocalRequestFailure=error=>['upstream_busy','request_cancelled','request_timeout'].includes(error?.code);
 
 export function createRequestBudget(timeoutMs=30_000) {
   const controller=new AbortController();

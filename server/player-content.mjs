@@ -1,8 +1,9 @@
-import { readFile, mkdir, writeFile, rename } from 'node:fs/promises';
+import {readFile} from 'node:fs/promises';
+import {writeCacheFile} from './cache-publication.mjs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { boundedUpstream } from './odp.mjs';
-import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
+import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 
 // Public ContentEvent interface used by Parliament's published player. No event
 // password, cookie or browser Origin is supplied; only published records qualify.
@@ -79,17 +80,16 @@ async function refresh(id, directory, key, fetchContent, priority) {
     const record = { url: CONTENT_SOCKET_URL, namespace: '/content', event: 'join:event', fetchedAt: new Date().toISOString(), payload };
     if (Buffer.byteLength(JSON.stringify(record)) > LIMIT) throw new Error('Player content metadata exceeded size limit.');
     if (directory) {
-      await mkdir(path.join(directory, 'content'), { recursive: true });
       const file = path.join(directory, 'content', id + '.json');
-      const temporary = file + '.' + process.pid + '.tmp';
-      await writeFile(temporary, JSON.stringify(record)); await rename(temporary, file);
+      await writeCacheFile(file,JSON.stringify(record),{signal});
     }
+    signal.throwIfAborted();
     memory.delete(key); memory.set(key, record);
     if (memory.size > 256) memory.delete(memory.keys().next().value);
     failures.delete(key);
     return { ...record, stale: false, refreshError: null };
   }, { priority,signal })).catch(error => {
-    failures.set(key, { retryAt: Date.now() + 3600000, message: String(error.message).slice(0, 200) });
+    if(!isLocalRequestFailure(error))failures.set(key, { retryAt: Date.now() + 3600000, message: String(error.message).slice(0, 200) });
     throw error;
   }).finally(() => pending.delete(key));
   pending.set(key, operation); return waitForRequest(operation);

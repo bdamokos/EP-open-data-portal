@@ -6,7 +6,7 @@ import { savedMetadata,brusselsDay } from './insights-store.mjs';
 import { agendaTopics,classifyProcedure,topicRoles,topicVotes,finalVotePatterns,refs,committeeEvent } from './insights-legislation-model.mjs';
 import {speakerNameIsSpecific} from './speech-speakers.mjs';
 import {CURRENT_TERM_START} from './analysis-period.mjs';
-import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
+import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
 export const LEGISLATION_VIEW_VERSION='plenary-weeks-v3';
@@ -30,7 +30,7 @@ export class LegislationInsights {
     const job=sharedRequest(async()=>{const value=await this.request(endpoint,params,{priority:'interactive',staleWhileRevalidate:true});requestSignal()?.throwIfAborted();if(!Array.isArray(value.payload?.data))throw new HttpError(502,'insights_source_shape','Parliament returned an unreadable insight source.');
       if(Buffer.byteLength(JSON.stringify(value.payload))>LEGISLATION_LIMITS.rawBytes)throw new HttpError(502,'insights_source_size','Parliament source exceeds the bounded insight response size.');
       this.cache.set(key,{at:this.clock(),value});this.failures.delete(key);while(this.cache.size>LEGISLATION_LIMITS.cacheEntries)this.cache.delete(this.cache.keys().next().value);return value;
-    }).catch(error=>{this.failures.set(key,{at:this.clock(),error});while(this.failures.size>24)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
+    }).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error});while(this.failures.size>24)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
     this.pending.set(key,job);return waitForRequest(job);
   }
   async catalogue() {

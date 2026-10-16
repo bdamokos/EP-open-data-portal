@@ -1,6 +1,7 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { createHash } from "node:crypto";
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import {readFile} from "node:fs/promises";
+import {writeCacheFile} from './cache-publication.mjs';
 import path from "node:path";
 import { HttpError } from "./http-utils.mjs";
 import { boundedUpstream, odp, odpProfile } from "./odp.mjs";
@@ -88,7 +89,8 @@ export async function recentActivities(id, language) {
     signal.throwIfAborted();
     rssCache.set(url, { fetchedAt: record.fetchedAt, result });
     if (rssCache.size > 500) rssCache.delete(rssCache.keys().next().value);
-    if (name) { await mkdir(cacheDir, { recursive: true }); await writeFile(name, JSON.stringify(record)).catch(() => {}); }
+    if (name)await writeCacheFile(name,JSON.stringify(record),{signal}).catch(()=>{});
+    signal.throwIfAborted();
     return result;
   }).finally(() => rssPending.delete(url));
   rssPending.set(url, job);

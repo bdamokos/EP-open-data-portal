@@ -2,7 +2,7 @@ import {mkdir, open, readdir, rename, stat, unlink, writeFile} from 'node:fs/pro
 import {createHash, randomUUID} from 'node:crypto';
 import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
-import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
+import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 
 const IMAGE_LIMIT = 2 * 1024 * 1024;
 const HEADER_LIMIT = 4096;
@@ -121,11 +121,14 @@ export class PortraitCache {
 
   async save(id, image) {
     if (!this.directory) return;
+    const signal=requestSignal();
     // Serialize pruning and writes so parallel downloads cannot exceed the budget.
     const operation = this.writes.then(async () => {
       let temporary;
       try {
+        signal?.throwIfAborted();
         await this.initialize();
+        signal?.throwIfAborted();
         const {body, ...metadata} = image;
         const header = Buffer.from(JSON.stringify({...metadata, version: 1, sha256: digest(body)}));
         const prefix = Buffer.alloc(4); prefix.writeUInt32BE(header.length);
@@ -135,12 +138,15 @@ export class PortraitCache {
         // file also fits inside the budget; a failed refresh cannot erase it.
         const previousSize = this.files.get(id)?.size || 0;
         if (!await this.trim(data.length, this.files.has(id) ? 0 : 1, id)) return;
+        signal?.throwIfAborted();
         temporary = path.join(this.directory, `.${id}.${randomUUID()}.tmp`);
         await writeFile(temporary, data, {flag: 'wx'});
+        signal?.throwIfAborted();
         await rename(temporary, path.join(this.directory, `${id}.portrait`));
         temporary = null;
+        signal?.throwIfAborted();
         this.files.set(id, {size: data.length, savedAt: this.clock()}); this.diskBytes += data.length - previousSize;
-      } catch { this.diskError(); }
+      } catch {if(signal?.aborted)throw signal.reason;this.diskError();}
       finally { if (temporary) await unlink(temporary).catch(() => {}); }
     });
     this.writes = operation.catch(() => {});
@@ -186,6 +192,7 @@ export class PortraitCache {
         await this.save(id, image);
         return image;
     }).catch(error=>{
+        if(isLocalRequestFailure(error))throw error;
         this.failures.delete(id);
         this.failures.set(id, {error, retryAt: this.clock() + this.retryMs});
         if (this.failures.size > 120) this.failures.delete(this.failures.keys().next().value);
