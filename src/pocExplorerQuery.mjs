@@ -25,7 +25,7 @@ export function explorerParams(query,view,member) {
   const result=new URLSearchParams();
   const ownsMember=member===undefined||Boolean(member&&query.get('member')===String(member));
   const prefix=view==='questions'?/^q-/:view==='legislation'?/^(pl|agenda|hot|cloud|dossier|trend)-/:view==='outside'?/^ov-/:view===null&&ownsMember?/^mep-(speech|activity)-fts-/:null;
-  for(const [key,value] of query)if(/^global-fts-(search|text-lang|page|read|kind|sort)$/.test(key)||prefix?.test(key)){
+  for(const [key,value] of query)if(/^global-fts-(search|text-lang|page|read|kind|sort|closed)$/.test(key)||prefix?.test(key)){
     if(key.endsWith('-country')){const country=readExplorerParam(query,key,null);if(country)result.set(key,country);}
     else result.set(key,value);
   }

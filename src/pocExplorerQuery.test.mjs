@@ -58,10 +58,10 @@ test('outside-speaker links retain their own filters and validate identity and m
   assert.equal(readExplorerParam(new URLSearchParams('ov-month=2025-13'),'ov-month',null),null);
 });
 test('global full-text navigation survives every explorer while contextual searches stay with their owner',()=>{
-  const query=new URLSearchParams('global-fts-search=climate&global-fts-text-lang=fr&global-fts-page=2&global-fts-read=MTG-PL-example&global-fts-kind=question&global-fts-sort=newest&q-fts-search=water&q-fts-read=P-10-2025-000001&agenda-fts-search=energy&dossier-fts-search=emissions&mep-speech-fts-search=transport&mep-activity-fts-search=rail');
+  const query=new URLSearchParams('global-fts-search=climate&global-fts-text-lang=fr&global-fts-page=2&global-fts-read=MTG-PL-example&global-fts-kind=question&global-fts-sort=newest&global-fts-closed=1&q-fts-search=water&q-fts-read=P-10-2025-000001&agenda-fts-search=energy&dossier-fts-search=emissions&mep-speech-fts-search=transport&mep-activity-fts-search=rail');
   for(const view of [null,'questions','legislation','outside','saved']){
     const saved=explorerParams(query,view);
-    for(const key of ['global-fts-search','global-fts-text-lang','global-fts-page','global-fts-read','global-fts-kind','global-fts-sort'])assert.equal(saved.get(key),query.get(key));
+    for(const key of ['global-fts-search','global-fts-text-lang','global-fts-page','global-fts-read','global-fts-kind','global-fts-sort','global-fts-closed'])assert.equal(saved.get(key),query.get(key));
     assert.equal(saved.has('q-fts-search'),view==='questions');
     assert.equal(saved.has('agenda-fts-search'),view==='legislation');
     assert.equal(saved.has('dossier-fts-search'),view==='legislation');

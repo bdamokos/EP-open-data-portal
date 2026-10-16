@@ -13,7 +13,7 @@ type Response={total:number;offset:number;limit:number;nextOffset:number|null;tr
 type StoredText=Hit&{body:string;highlightedBody?:string;highlightRanges?:{start:number;end:number}[];highlightsTruncated?:boolean;fetchedAt:string;checkedAt:string};
 export interface TextSearchProps {
   prefix:string;label:string;language:string;kinds?:Kind[];member?:number|string;country?:string;from?:string;to?:string;
-  sourceIds?:string[];group?:'document'|'question';dateBasis?:'document'|'question';scopeNote?:string;disabledReason?:string;
+  sourceIds?:string[];scopeIdentity?:string;group?:'document'|'question';dateBasis?:'document'|'question';scopeNote?:string;disabledReason?:string;
   className?:string;onActiveChange?:(active:boolean)=>void;
 }
 const languages=['bg','cs','da','de','el','en','es','et','fi','fr','ga','hr','hu','it','lt','lv','mt','nl','pl','pt','ro','sk','sl','sv'];
@@ -42,14 +42,15 @@ function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity
   </section>;
 }
 
-export function PocTextSearch({prefix,label,language,kinds,member,country,from,to,sourceIds,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange}:TextSearchProps) {
+export function PocTextSearch({prefix,label,language,kinds,member,country,from,to,sourceIds,scopeIdentity,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange}:TextSearchProps) {
   const [query,setQuery]=useExplorerParam<string>(prefix+'-search','');
   const [textLanguage,setTextLanguage]=useExplorerParam<string>(prefix+'-text-lang','');
   const [page,setPage]=useExplorerParam<number>(prefix+'-page',0);
   const [read,setRead]=useExplorerParam<string>(prefix+'-read','');
   const [field,setField]=useExplorerParam<string>(prefix+'-kind','');
   const [sort,setSort]=useExplorerParam<string>(prefix+'-sort','relevance',['relevance','newest']);
-  const [open,setOpen]=useState(Boolean(query||read)),[draft,setDraft]=useState(query),[attempt,setAttempt]=useState(0);
+  const [closed,setClosed]=useExplorerParam<string>(prefix+'-closed','',['','1']);
+  const [open,setOpen]=useState(closed!=='1'&&Boolean(query||read)),[draft,setDraft]=useState(query),[attempt,setAttempt]=useState(0);
   const [state,setState]=useState<{key:string;data:Response|null;loading:boolean;error:string|null}>({key:'',data:null,loading:false,error:null});
   const [variants,setVariants]=useState<Record<string,string>>({});
   const input=useRef<HTMLInputElement>(null),toggle=useRef<HTMLButtonElement>(null),panel=useId();
@@ -57,16 +58,19 @@ export function PocTextSearch({prefix,label,language,kinds,member,country,from,t
   const allowedKinds=kinds?.length?kinds:['speech','question','answer'];
   const actualKinds=allowedKinds.includes(field as Kind)?[field]:allowedKinds;
   const searchedLanguage=textLanguage||(languages.includes(language)?language:'en');
-  const scope=JSON.stringify({member,country,from,to,sourceIds:sourceIds===undefined?undefined:[...new Set(sourceIds)].sort(),kinds:allowedKinds,group,dateBasis});
-  const previousScope=useRef(scope),previousLanguage=useRef(searchedLanguage);
-  useEffect(()=>{if(previousScope.current!==scope){previousScope.current=scope;setPage(0);setRead('');setVariants({});}},[scope,setPage,setRead]);
-  useEffect(()=>{if(previousLanguage.current!==searchedLanguage){previousLanguage.current=searchedLanguage;setPage(0);setRead('');}},[searchedLanguage,setPage,setRead]);
+  const scope=JSON.stringify({member,country,kinds:allowedKinds,group,dateBasis,...(scopeIdentity===undefined?{from,to,sourceIds:sourceIds===undefined?undefined:[...new Set(sourceIds)].sort()}:{identity:scopeIdentity})});
+  const navigationKey=()=>{const url=new URL(location.href);url.searchParams.sort();return url.pathname+url.search+url.hash;};
+  const restoredHistory=useRef<string|null>(null),previousScope=useRef({key:scope,ready:!disabledReason});
+  useEffect(()=>{const restored=()=>{restoredHistory.current=navigationKey();};window.addEventListener('popstate',restored);return()=>window.removeEventListener('popstate',restored);},[]);
+  const scopeChanging=previousScope.current.ready&&previousScope.current.key!==scope&&restoredHistory.current!==navigationKey();
+  useEffect(()=>{const previous=previousScope.current;previousScope.current={key:scope,ready:!disabledReason};if(previous.ready&&previous.key!==scope&&restoredHistory.current!==navigationKey()){setPage(0);setRead('');setVariants({});}},[scope,disabledReason,setPage,setRead]);
   useEffect(()=>setDraft(query),[query]);
-  useEffect(()=>{if(query)setOpen(true);},[query]);
+  const previousNavigation=useRef({query,read,closed});
+  useEffect(()=>{const previous=previousNavigation.current;previousNavigation.current={query,read,closed};if(closed==='1')setOpen(false);else if(query&&query!==previous.query||read&&read!==previous.read||previous.closed==='1'&&(query||read))setOpen(true);},[query,read,closed]);
   useEffect(()=>{callback.current?.(open);return()=>callback.current?.(false);},[open]);
   useEffect(()=>{if(open){const frame=window.requestAnimationFrame(()=>input.current?.focus({preventScroll:true}));return()=>window.cancelAnimationFrame(frame);}},[open]);
   const request=JSON.stringify({query,kinds:actualKinds,language:searchedLanguage==='all'?undefined:searchedLanguage,uiLanguage:language,member,country,from,to,sourceIds,group,dateBasis,sort,limit:20,offset:page*20});
-  const activeRequest=open&&Boolean(query)&&!disabledReason&&previousScope.current===scope;
+  const activeRequest=open&&Boolean(query)&&!disabledReason&&!scopeChanging;
   useEffect(()=>{
     if(!activeRequest)return;
     const controller=new AbortController();let current=true;
@@ -86,16 +90,16 @@ export function PocTextSearch({prefix,label,language,kinds,member,country,from,t
   },[request,activeRequest,attempt]);
   const data=state.key===request?state.data:null,loading=activeRequest&&(state.key!==request||state.loading),error=state.key===request?state.error:null;
   const selected=parseTextReadKey(read),allHits=data?.results.flatMap(r=>r.hits)||[],selectedHit=allHits.find(hit=>textReadKey(hit)===read);
-  function close(){setOpen(false);setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
-  function submit(event:React.FormEvent){event.preventDefault();const next=draft.trim();if(!textLanguage)setTextLanguage(searchedLanguage);setQuery(next);setPage(0);setRead('');setVariants({});if(next===query)setAttempt(v=>v+1);}
+  function close(){setOpen(false);setClosed(query?'1':'');setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
+  function submit(event:React.FormEvent){event.preventDefault();const next=draft.trim();setClosed('');if(!textLanguage)setTextLanguage(searchedLanguage);setQuery(next);setPage(0);setRead('');setVariants({});if(next===query)setAttempt(v=>v+1);}
   return <div className={'poc-text-search '+(open?'is-open ':'')+className} onKeyDown={event=>{if(event.key==='Escape'&&open){event.stopPropagation();close();}}}>
-    <button ref={toggle} type="button" className="poc-search-icon" aria-label={label} title={label} aria-expanded={open} aria-controls={panel} onClick={()=>open?close():setOpen(true)}><Magnifier/>{query&&!open&&<span className="poc-search-dot"/>}</button>
+    <button ref={toggle} type="button" className="poc-search-icon" aria-label={label} title={label} aria-expanded={open} aria-controls={panel} onClick={()=>{if(open)close();else{setClosed('');setOpen(true);}}}><Magnifier/>{query&&!open&&<span className="poc-search-dot"/>}</button>
     {open&&<section className="poc-search-panel" id={panel} aria-label={label}>
       <header className="poc-search-heading"><h3>{label}</h3><button type="button" className="poc-search-icon" aria-label="Close text search" title="Close text search" onClick={close}><CloseIcon/></button></header>
       <form onSubmit={submit}><div className="poc-search-input"><label className="poc-search-field"><span className="poc-search-sr">Words or exact phrase</span><input ref={input} type="search" value={draft} onChange={e=>setDraft(e.target.value)} maxLength={200} placeholder="Words or “exact phrase”" aria-describedby={panel+'-hint'}/></label><button type="submit" className="poc-search-icon" aria-label="Run text search" title="Search" disabled={Boolean(disabledReason)||loading}><Magnifier/></button></div>
       <p id={panel+'-hint'} className="poc-search-hint">All words · Use quotes for a phrase</p>
       <div className="poc-search-facets"><label>Text language<select value={searchedLanguage} onChange={e=>{setTextLanguage(e.target.value);setPage(0);setRead('');}}>{languages.map(code=><option value={code} key={code}>{languageName(code,language)}</option>)}<option value="all">All available languages</option></select></label>
-      {allowedKinds.length>1&&<label>Search in<select value={actualKinds.length===1?actualKinds[0]:''} onChange={e=>{setField(e.target.value);setPage(0);setRead('');}}><option value="">{group==='question'?'Questions and answers':'Speeches, questions and answers'}</option>{allowedKinds.map(kind=><option key={kind} value={kind}>{kind==='answer'?'Answer text':kind==='question'?'Question text':'Speech text'}</option>)}</select></label>}
+      {allowedKinds.length>1&&<label>Search in<select value={actualKinds.length===1?actualKinds[0]:''} onChange={e=>{setField(e.target.value);setPage(0);setRead('');}}><option value="">{group==='question'?'Questions + answers':'All text types'}</option>{allowedKinds.map(kind=><option key={kind} value={kind}>{kind==='answer'?'Answer text':kind==='question'?'Question text':'Speech text'}</option>)}</select></label>}
       <label>Order<select value={sort} onChange={e=>{setSort(e.target.value);setPage(0);setRead('');}}><option value="relevance">Best match</option><option value="newest">Newest first</option></select></label></div></form>
       {scopeNote&&<p className="poc-search-scope">{scopeNote}</p>}
       {(from||to)&&<p className="poc-search-hint">{dateBasis==='question'?'Question date':'Publication date'}: {dateLabel(from,language)||'start'} — {dateLabel(to,language)||'present'}</p>}
@@ -132,10 +136,16 @@ export function PocFindInText({target,label='Find in this text',onOpen}:{target:
   const highlightApi=()=>({registry:(globalThis.CSS as unknown as {highlights?:Map<string,unknown>})?.highlights,Highlight:(globalThis as unknown as {Highlight?:new(...ranges:Range[])=>unknown}).Highlight});
   useEffect(()=>{
     if(!open||!query.trim()||!target.current){setRanges([]);return;}
-    const frame=window.requestAnimationFrame(()=>{const element=target.current;if(!element)return;const walker=document.createTreeWalker(element,window.NodeFilter.SHOW_TEXT),nodes:{node:Text;start:number;end:number}[]=[];let node,text='';
-      while((node=walker.nextNode())){const parent=node.parentElement;if(!parent||parent.closest('button,script,style,[hidden]'))continue;const value=node.textContent||'';nodes.push({node:node as Text,start:text.length,end:text.length+value.length});text+=value;}
+    let frame=0;const update=()=>{window.cancelAnimationFrame(frame);frame=window.requestAnimationFrame(()=>{const element=target.current;if(!element)return;const walker=document.createTreeWalker(element,window.NodeFilter.SHOW_TEXT|window.NodeFilter.SHOW_ELEMENT),nodes:{node:Text;start:number;end:number}[]=[];let node,text='',lastBlock:Element|null=null;
+      while((node=walker.nextNode())){
+        if(node.nodeType===window.Node.ELEMENT_NODE){if((node as Element).tagName==='BR'&&!(node as Element).closest('[hidden]'))text+=' ';continue;}
+        const parent=node.parentElement;if(!parent||parent.closest('button,script,style,[hidden]'))continue;
+        const block=parent.closest('p,div,h1,h2,h3,h4,h5,h6,li,blockquote,section,article,td,th,pre,dt,dd,figcaption');
+        if(lastBlock&&block!==lastBlock&&text&&!/\s$/.test(text))text+=' ';
+        lastBlock=block;const value=node.textContent||'';nodes.push({node:node as Text,start:text.length,end:text.length+value.length});text+=value;
+      }
       const found=findTextOffsets(text,query).flatMap(hit=>{const start=nodes.find(n=>n.end>hit.start),end=nodes.find(n=>n.end>=hit.end);if(!start||!end)return [];const range=document.createRange();range.setStart(start.node,hit.start-start.start);range.setEnd(end.node,hit.end-end.start);return [range];});setRanges(found);setIndex(0);
-    });return()=>window.cancelAnimationFrame(frame);
+    });};update();const observer=new window.MutationObserver(update);observer.observe(target.current,{childList:true,characterData:true,subtree:true});return()=>{window.cancelAnimationFrame(frame);observer.disconnect();};
   },[open,query,target]);
   useEffect(()=>{if(open){const frame=window.requestAnimationFrame(()=>input.current?.focus({preventScroll:true}));return()=>window.cancelAnimationFrame(frame);}},[open]);
   useEffect(()=>{const {registry,Highlight}=highlightApi();if(registry&&Highlight&&open){registry.set(highlightId,new Highlight(...ranges));if(active)registry.set(highlightId+'active',new Highlight(active));}
