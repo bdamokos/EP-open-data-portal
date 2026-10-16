@@ -92,6 +92,6 @@ test('existing answer rows receive the parent subject without reindexing or chan
     const person=original.work.workHadParticipation.find(p=>p.participation_role.endsWith('/AUTHOR')).had_participant_person[0].split('/').at(-1);store.setMembers([{id:person,name:'Actual author'}]);
     const rows=documentRows(original.work,original.endpoint,'2026-10-13T00:00:00Z').rows;for(const row of rows)if(row.recordKind==='answer')row.titles={en:'Answer for question E-000000/26'};
     store.putSource(generation,original.endpoint,'document',projectDocument(original.work),'2026-10-13T00:00:00Z',rows);
-    store.db.exec('PRAGMA query_only=ON');const answer=store.page(person,{language:'en'}).items.find(row=>row.recordKind==='answer');assert.equal(answer.title,original.work.title_dcterms.en);assert.equal(answer.relatedQuestionId,original.work.identifier);
+    store.db.exec('PRAGMA query_only=ON');const answer=store.page(person,{language:'en',sourceId:original.work.identifier+'-ASW'}).selectedItems.find(row=>row.recordKind==='answer');assert.equal(answer.title,original.work.title_dcterms.en);assert.equal(answer.relatedQuestionId,original.work.identifier);
   }finally{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(dir,{recursive:true,force:true});}
 });

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -9,12 +9,16 @@ import {deflateRawSync} from 'node:zlib';
 import {docxParagraphs,docxContent,allowedDownload,documentText,documentNotes} from './document-text.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 
-function zip(xml) {
-  const name=Buffer.from('word/document.xml'),body=Buffer.from(xml),compressed=deflateRawSync(body);
-  const local=Buffer.alloc(30);local.writeUInt32LE(0x04034b50);local.writeUInt16LE(8,8);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(name.length,26);
-  const central=Buffer.alloc(46);central.writeUInt32LE(0x02014b50);central.writeUInt16LE(8,10);central.writeUInt32LE(compressed.length,20);central.writeUInt32LE(body.length,24);central.writeUInt16LE(name.length,28);
-  const end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(46+name.length,12);end.writeUInt32LE(30+name.length+compressed.length,16);
-  return Buffer.concat([local,name,compressed,central,name,end]);
+function zip(xml,styles) {
+  const entries=[['word/document.xml',xml],...(styles===undefined?[]:[['word/styles.xml',styles]])],locals=[],directory=[];let offset=0;
+  for(const [filename,xml] of entries) {
+    const name=Buffer.from(filename),body=Buffer.from(xml),compressed=deflateRawSync(body);
+    const local=Buffer.alloc(30);local.writeUInt32LE(0x04034b50);local.writeUInt16LE(8,8);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(name.length,26);
+    const central=Buffer.alloc(46);central.writeUInt32LE(0x02014b50);central.writeUInt16LE(8,10);central.writeUInt32LE(compressed.length,20);central.writeUInt32LE(body.length,24);central.writeUInt16LE(name.length,28);
+    central.writeUInt32LE(offset,42);locals.push(local,name,compressed);directory.push(central,name);offset+=local.length+name.length+compressed.length;
+  }
+  const central=Buffer.concat(directory),end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(entries.length,8);end.writeUInt16LE(entries.length,10);end.writeUInt32LE(central.length,12);end.writeUInt32LE(offset,16);
+  return Buffer.concat([...locals,central,end]);
 }
 test('DOCX extraction preserves paragraph/run breaks and omits deleted text and field instructions',()=>{
   const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>Question &amp; answer</w:t></w:r><w:r><w:br/><w:t>Second line</w:t></w:r><w:del><w:r><w:t>deleted</w:t></w:r></w:del><w:r><w:instrText>HYPERLINK secret-field</w:instrText></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Table paragraph</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>';
@@ -22,6 +26,52 @@ test('DOCX extraction preserves paragraph/run breaks and omits deleted text and 
   assert.throws(()=>docxParagraphs(Buffer.from('not zip')));
   assert.throws(()=>docxParagraphs(zip('<!DOCTYPE x><w:document xmlns:w="urn:word"/>')));
   assert.throws(()=>docxParagraphs(zip('<w:document xmlns:w="urn:word"><w:p>'+('a'.repeat(4*1024*1024))+'</w:p></w:document>')));
+});
+test('official motion hides translation tags and metadata while preserving visible headings, author, date and reference',async()=>{
+  const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
+  const paragraphs=docxParagraphs(zip(fixture.documentXml,fixture.stylesXml));
+  assert.deepEqual(paragraphs.slice(0,7),['European Parliament','2024-2029','Plenary sitting','B10\u20110431/2026','1.10.2026','MOTION FOR A RESOLUTION','pursuant to Rule 115(2) and (3) and (4)(c) of the Rules of Procedure']);
+  assert(paragraphs.includes('Pietro Fiocchi'));assert(paragraphs.includes('on behalf of the ECR Group'));
+  assert(paragraphs.includes('(D105447/07 – 2026/2824(RPS))'));
+  assert(paragraphs.includes('The European Parliament,'));
+  assert(!/[<>{}]/.test(paragraphs.join('\n')));
+});
+test('hidden runs follow style inheritance and direct on/off overrides without stripping visible angle brackets or braces',()=>{
+  const styles='<w:styles xmlns:w="urn:word"><w:style w:styleId="Hidden"><w:rPr><w:vanish/></w:rPr></w:style><w:style w:styleId="Derived"><w:basedOn w:val="Hidden"/></w:style><w:style w:styleId="Toggled"><w:basedOn w:val="Hidden"/><w:rPr><w:vanish/></w:rPr></w:style></w:styles>';
+  const run=(properties,text)=>`<w:r><w:rPr>${properties}</w:rPr><w:t>${text}</w:t></w:r>`;
+  const hidden=['','true','on','1'].map(value=>run(`<w:vanish${value?` w:val="${value}"`:''}/>`, 'hidden')).join('');
+  const visible=['false','off','0'].map(value=>run(`<w:rStyle w:val="Derived"/><w:vanish w:val="${value}"/>`,'visible ')).join('');
+  const xml=`<w:document xmlns:w="urn:word"><w:body><w:p>${hidden}${run('<w:rStyle w:val="Derived"/>','{ECR}')}${visible}${run('<w:rStyle w:val="Toggled"/>','toggled ')}${run('','&lt;Titre&gt; &lt; 5 &amp; {visible}')}<w:r><w:tab/><w:noBreakHyphen/><w:softHyphen/><w:br/><w:t>next line</w:t></w:r></w:p></w:body></w:document>`;
+  assert.deepEqual(docxParagraphs(zip(xml,styles)),['visible visible visible toggled <Titre> < 5 & {visible}\t\u2011\u00ad\nnext line']);
+});
+test('paragraph styles and document defaults supply inherited hidden text with run overrides',()=>{
+  const styles='<w:styles xmlns:w="urn:word"><w:docDefaults><w:rPrDefault><w:rPr><w:vanish/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"/><w:style w:styleId="Visible"><w:basedOn w:val="Normal"/><w:rPr><w:vanish/></w:rPr></w:style></w:styles>';
+  const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>hidden</w:t></w:r><w:r><w:rPr><w:vanish w:val="0"/></w:rPr><w:t>override</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="Visible"/></w:pPr><w:r><w:t>visible paragraph</w:t></w:r></w:p></w:body></w:document>';
+  assert.deepEqual(docxParagraphs(zip(xml,styles)),['override','visible paragraph']);
+});
+test('the default character style applies to unstyled runs while explicit styles and visibility overrides take precedence',()=>{
+  const styles='<w:styles xmlns:w="urn:word"><w:style w:styleId="Base"><w:rPr><w:vanish/></w:rPr></w:style><w:style w:type="character" w:default="1" w:styleId="DefaultHidden"><w:basedOn w:val="Base"/></w:style><w:style w:type="character" w:styleId="Visible"/></w:styles>';
+  const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>&lt;Titre&gt;</w:t></w:r><w:r><w:rPr/><w:t>{ECR}</w:t></w:r><w:r><w:rPr><w:rStyle w:val="Visible"/></w:rPr><w:t>explicit visible </w:t></w:r><w:r><w:rPr><w:vanish w:val="0"/></w:rPr><w:t>direct visible</w:t></w:r></w:p></w:body></w:document>';
+  assert.deepEqual(docxParagraphs(zip(xml,styles)),['explicit visible direct visible']);
+});
+test('deep shared style chains preserve toggles across repeated runs and different paragraph visibility',()=>{
+  const depth=4096;
+  const chain=Array.from({length:depth},(_,i)=>`<w:style w:styleId="S${i}">${i?`<w:basedOn w:val="S${i-1}"/>`:''}${i===0||i===depth/2?'<w:rPr><w:vanish/></w:rPr>':''}</w:style>`).join('');
+  const styles=`<w:styles xmlns:w="urn:word">${chain}<w:style w:styleId="HiddenParagraph"><w:rPr><w:vanish/></w:rPr></w:style></w:styles>`;
+  const runs=`<w:r><w:rPr><w:rStyle w:val="S${depth-1}"/></w:rPr><w:t>A</w:t></w:r>`.repeat(4000);
+  const xml=`<w:document xmlns:w="urn:word"><w:body><w:p>${runs}</w:p><w:p><w:pPr><w:pStyle w:val="HiddenParagraph"/></w:pPr>${runs}<w:r><w:rPr><w:vanish w:val="0"/></w:rPr><w:t>override</w:t></w:r></w:p><w:p><w:r><w:rPr><w:rStyle w:val="S${depth/2-1}"/></w:rPr><w:t>hidden</w:t></w:r><w:r><w:t>tail</w:t></w:r></w:p></w:body></w:document>`;
+  assert.deepEqual(docxParagraphs(zip(xml,styles)),['A'.repeat(4000),'override','tail']);
+});
+test('cyclic style inheritance fails explicitly instead of depending on style lookup order',()=>{
+  const xml='<w:document xmlns:w="urn:word"><w:p><w:r><w:rPr><w:rStyle w:val="A"/></w:rPr><w:t>text</w:t></w:r></w:p></w:document>';
+  for(const links of [[['A','A']],[['A','B'],['B','A']]]) {
+    const styles='<w:styles xmlns:w="urn:word">'+links.map(([id,parent])=>`<w:style w:styleId="${id}"><w:basedOn w:val="${parent}"/><w:rPr><w:vanish/></w:rPr></w:style>`).join('')+'</w:styles>';
+    assert.throws(()=>docxParagraphs(zip(xml,styles)),/Cyclic DOCX style inheritance/);
+  }
+});
+test('style XML receives the same validation and shared decompression bound as document XML',()=>{
+  const xml='<w:document xmlns:w="urn:word"><w:p><w:r><w:t>visible</w:t></w:r></w:p></w:document>';
+  for(const styles of ['<!DOCTYPE x><w:styles xmlns:w="urn:word"/>','<w:styles>','<w:styles>'+('a'.repeat(4*1024*1024))+'</w:styles>'])assert.throws(()=>docxParagraphs(zip(xml,styles)));
 });
 function zipEntries(entries) {
   const locals=[],centrals=[];let offset=0;
@@ -56,10 +106,20 @@ test('DOCX footnotes are returned separately with exact marker positions and hyp
   // Records saved before footnote extraction keep their text and report notes as not extracted.
   assert.deepEqual(documentNotes({schemaVersion:1,paragraphs:['Text']}),{notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[]});
   const note={id:'1',label:'1',text:'n',links:[],linkSpans:[]};
-  assert.equal(documentNotes({extractionVersion:3,paragraphs:['Text'],notes:[note],anchors:[{paragraph:3,offset:0,note:'1',label:'1'}],links:[]}).notesStatus,'not-extracted');
-  assert.equal(documentNotes({extractionVersion:2,paragraphs:['Text'],notes:[note],anchors:[],links:[]}).notesStatus,'not-extracted');
-  assert.equal(documentNotes({extractionVersion:3,paragraphs:['Text'],notes:[note],anchors:[],links:[{paragraph:0,start:0,end:9,url:'https://x.eu'}]}).notesStatus,'not-extracted');
-  assert.deepEqual(documentNotes({extractionVersion:3,paragraphs:['Text'],notes:[note],anchors:[{paragraph:0,offset:4,note:'1',label:'1'}],links:[{paragraph:0,start:0,end:4,url:'https://x.eu'}]}).documentLinks,[{paragraph:0,start:0,end:4,url:'https://x.eu'}]);
+  assert.equal(documentNotes({extractionVersion:4,paragraphs:['Text'],notes:[note],anchors:[{paragraph:3,offset:0,note:'1',label:'1'}],links:[]}).notesStatus,'not-extracted');
+  assert.equal(documentNotes({extractionVersion:4,paragraphs:['Text'],notes:[note],anchors:[],links:[{paragraph:0,start:0,end:9,url:'https://x.eu'}]}).notesStatus,'not-extracted');
+  assert.deepEqual(documentNotes({extractionVersion:4,paragraphs:['Text'],notes:[note],anchors:[{paragraph:0,offset:4,note:'1',label:'1'}],links:[{paragraph:0,start:0,end:4,url:'https://x.eu'}]}).documentLinks,[{paragraph:0,start:0,end:4,url:'https://x.eu'}]);
+});
+test('hidden styles apply inside footnotes, around markers and inside hyperlinks',()=>{
+  const w='xmlns:w="urn:word" xmlns:r="urn:rel"';
+  const styles='<w:styles xmlns:w="urn:word"><w:style w:styleId="Tag"><w:rPr><w:vanish/></w:rPr></w:style></w:styles>';
+  const document=`<w:document ${w}><w:body><w:p><w:r><w:rPr><w:rStyle w:val="Tag"/></w:rPr><w:t>&lt;Titre&gt;</w:t></w:r><w:r><w:t>Text</w:t></w:r><w:r><w:footnoteReference w:id="1"/></w:r></w:p></w:body></w:document>`;
+  const footnotes=`<w:footnotes ${w}><w:footnote w:id="1"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:rPr><w:rStyle w:val="Tag"/></w:rPr><w:t>{EN}</w:t></w:r><w:hyperlink r:id="rId1"><w:r><w:t>GDPR</w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t>hidden</w:t></w:r></w:hyperlink></w:p></w:footnote></w:footnotes>`;
+  const rels='<Relationships xmlns="urn:pkg"><Relationship Id="rId1" Target="http://data.europa.eu/eli/reg/2016/679/oj" TargetMode="External"/></Relationships>';
+  const content=docxContent(zipEntries({'word/document.xml':document,'word/styles.xml':styles,'word/footnotes.xml':footnotes,'word/_rels/footnotes.xml.rels':rels}));
+  assert.deepEqual(content.paragraphs,['Text']);
+  assert.deepEqual(content.anchors,[{paragraph:0,offset:4,note:'1',label:'1'}]);
+  assert.deepEqual(content.notes,[{id:'1',label:'1',text:'GDPR',links:['http://data.europa.eu/eli/reg/2016/679/oj'],linkSpans:[{start:0,end:4,url:'http://data.europa.eu/eli/reg/2016/679/oj'}]}]);
 });
 test('body text sharing a run with a footnote reference is kept, and only custom labels are stripped from notes',()=>{
   const w='xmlns:w="urn:word"';
@@ -108,12 +168,47 @@ test('document text coalesces cold reads, persists actual language and serves la
     let calls=0;const download=async()=>{calls++;await new Promise(r=>setTimeout(r,10));return {paragraphs:['Actual answer text']};};
     const [a,b]=await Promise.all([documentText(work,'en',{directory:dir,download}),documentText(work,'ga',{directory:dir,download})]);
     assert.equal(calls,1);assert.equal(a.textLanguage,'ga');assert.equal(a.translationType,'unspecified');assert.equal(a.status,'available');assert.deepEqual(a.paragraphs,b.paragraphs);
-    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);
+    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,4);
     const clock=()=>Date.now()+2*86400000;
     const stale=await documentText(work,'en',{directory:dir,clock,download:async()=>{throw new Error('upstream500');}});
     assert(stale.stale);assert.deepEqual(stale.paragraphs,a.paragraphs);
     await new Promise(r=>setTimeout(r,2200));
     const after=await documentText(work,'en',{directory:dir,clock,download:async()=>{throw new Error('must not immediately retry');}});
     assert.equal(after.status,'available');assert.equal(after.refreshError,'upstream500');assert.deepEqual(after.paragraphs,a.paragraphs);
+  }finally{await rm(dir,{recursive:true,force:true});}
+});
+test('old extracted text is refreshed on demand and current extraction survives a process restart',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'document-upgrade-test-'));
+  try {
+    await mkdir(path.join(dir,'document-text-v1'));
+    const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
+    const paragraphs=docxParagraphs(zip(fixture.documentXml,fixture.stylesXml));
+    for(const version of [undefined,1,2,3]) {
+      const url=`https://data.europarl.europa.eu/distribution/upgrade-${Date.now()}-${version}/motion.docx`;
+      const work={identifier:fixture.sourceId,is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
+      const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');
+      const old={schemaVersion:1,extractionVersion:version,sourceId:fixture.sourceId,sourceUrl:url,fetchedAt:new Date().toISOString(),paragraphs:['<Date>{01/10/2026}1.10.2026</Date>']};
+      await writeFile(file,JSON.stringify(old));let calls=0;
+      const result=await documentText(work,'en',{directory:dir,download:async()=>{calls++;return {paragraphs};}});
+      assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);assert.equal(calls,1);
+      assert.equal(JSON.parse(await readFile(file,'utf8')).extractionVersion,4);
+      const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});const result=await documentText(${JSON.stringify(work)},'en',{directory:${JSON.stringify(dir)},download:async()=>{throw new Error('Unexpected redownload');}});console.log(JSON.stringify(result));`;
+      const restarted=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{encoding:'utf8',timeout:5000}));
+      assert.equal(restarted.status,'available');assert.deepEqual(restarted.paragraphs,paragraphs);
+    }
+  }finally{await rm(dir,{recursive:true,force:true});}
+});
+test('failed extraction upgrade reports the gap and retains the previous disk record',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'document-upgrade-failure-'));
+  try {
+    await mkdir(path.join(dir,'document-text-v1'));
+    const url=`https://data.europarl.europa.eu/distribution/failed-upgrade-${Date.now()}/motion.docx`;
+    const work={identifier:'B-10-2026-0431',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
+    const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');
+    const old={schemaVersion:1,sourceUrl:url,fetchedAt:new Date().toISOString(),paragraphs:['<Titre>old text</Titre>']};
+    await writeFile(file,JSON.stringify(old));
+    const result=await documentText(work,'en',{directory:dir,download:async()=>{throw new Error('upstream unavailable');}});
+    assert.equal(result.status,'error');assert.deepEqual(result.paragraphs,[]);assert.equal(result.reason,'upstream unavailable');
+    assert.deepEqual(JSON.parse(await readFile(file,'utf8')),old);
   }finally{await rm(dir,{recursive:true,force:true});}
 });

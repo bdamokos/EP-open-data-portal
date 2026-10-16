@@ -10,6 +10,8 @@ import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} f
 import {createInsights} from './insights.mjs';
 import {CATEGORIES} from './activity-index-model.mjs';
 import {speechMedia} from './mmc.mjs';
+import {outsideDirectory,outsideSpeaker,outsideQuery} from './outside-store.mjs';
+
 import {SpeechInterventions,INTERVENTION_LIMITS} from './speech-intervention-service.mjs';
 import {OfficialContextSources} from './official-context.mjs';
 import {EurovocCatalog} from './eurovoc.mjs';
@@ -80,7 +82,11 @@ async function handleApi(request,response,url,apiPrefix){
       return;
     }
     let result;
-    if (segments.length === 3 && segments[1] === 'insights') {
+    if (segments[1] === 'outside' && segments.length === 3) {
+      const query=outsideQuery(url.searchParams), store=activityIndex().store;
+      result=segments[2]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[2],query);
+    }
+    else if (segments.length === 3 && segments[1] === 'insights') {
       insightService ??= createInsights(activityIndex().store,{officialSources:official().sources,eurovocCatalog:official().catalog});
       result = await insightService.query(segments[2], url.searchParams);
     }

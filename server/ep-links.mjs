@@ -7,8 +7,9 @@ export function speechWebsite(doc) {
   const match = String(doc.identifier || doc.id || "").match(/CRE-(\d+)-(\d{4}-\d{2}-\d{2})-(?:OTH|INT)-(\d+)$/);
   const value = doc.originalLanguage || doc.originalLanguageURI || [];
   const language = (Array.isArray(value) ? value : [value]).map(languageCode).find(Boolean);
+  const reference=match && match[3].length<=8 && /^\d+-\d+-\d+$/.test(String(doc.number || '')) ? doc.number : match?.[3];
   return match && language ? {
-    websiteUrl: `https://www.europarl.europa.eu/doceo/document/CRE-${match[1]}-${match[2]}-INT-${match[3]}_${language.toUpperCase()}.html`,
+    websiteUrl: `https://www.europarl.europa.eu/doceo/document/CRE-${match[1]}-${match[2]}-INT-${reference}_${language.toUpperCase()}.html`,
     websiteLanguage: language,
   } : { websiteUrl: null, websiteLanguage: null };
 }
