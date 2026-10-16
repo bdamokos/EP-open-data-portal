@@ -38,8 +38,8 @@ export function PocMotionComparison({originalId,jointId,language}:{originalId:st
   const availableLanguages=data?.availableLanguages??previousLanguages?.values??[];
   const showLanguage=Boolean(availableLanguages.length||previousLanguages?.shown);
   useEffect(()=>{if(data)languageCatalog.current={scope:languageScope,values:data.availableLanguages,shown:showLanguage};},[data,languageScope,showLanguage]);
-  const displayedLanguage=data?.textLanguage||selectedLanguage;
-  const languageValue=availableLanguages.includes(displayedLanguage)?displayedLanguage:'';
+  const actualLanguage=data?.textLanguage;
+  const languageValue=actualLanguage&&availableLanguages.includes(actualLanguage)?actualLanguage:availableLanguages.includes(selectedLanguage)?selectedLanguage:'';
   const rows=data?.rows.filter(row=>showUnchanged || row.kind!=='unchanged' || row.referenceChanged) || [];
   const stale=data?.sources.some(source=>source.stale || source.refreshError) || data?.documents.some(doc=>doc.stale || doc.refreshError);
   const requestedName=languageName(selectedLanguage,language),actualName=languageName(data?.textLanguage||selectedLanguage,language);
