@@ -28,12 +28,16 @@ export function usePortraitImage(url: string, fallback: string, lazy = true) {
     let observer: IntersectionObserver | undefined;
     if (!lazy || !('IntersectionObserver' in window)) start();
     else if (imageRef.current) {
+      // Expand the scrolling wall itself: viewport margins cannot extend past
+      // an intervening overflow container's clip.
+      const root = imageRef.current.closest<HTMLElement>('[data-portrait-scroll-root]');
+      const margin = root ? Math.max(800, root.clientHeight * 2) : 200;
       observer = new IntersectionObserver(entries => {
         if (entries.some(entry => entry.isIntersecting)) {
           observer?.disconnect();
           start();
         }
-      }, {rootMargin: '200px'});
+      }, {root, rootMargin: `${margin}px 0px`});
       observer.observe(imageRef.current);
     }
     return () => {
