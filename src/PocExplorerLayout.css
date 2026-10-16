@@ -81,11 +81,7 @@
   .insight-legislation-grid { gap:0; }
 }
 @media(max-width:680px) {
-  .poc-insights { padding-inline:16px; }
-  .insight-header { gap:10px; padding:14px 0; }
-  .insight-header>span { font-size:14px; }
-  .insight-header nav { gap:8px; }
-  .poc-insights .insight-header nav button { font-size:14px; padding:8px 10px; flex:1; }
+  .poc-insights { --insight-gutter:16px; }
   .insight-intro { padding-top:20px; }
   .insight-intro h1 { margin-bottom:14px; }
   .insight-mode-nav { gap:3px 13px; margin-bottom:18px; }

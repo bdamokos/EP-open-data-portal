@@ -4,7 +4,8 @@ import {PocSpeechCloud} from './PocSpeechCloud';
 import {InterventionBadges,PocSpeechContext,PocInterventionStatistics} from './PocSpeechInterventions';
 import {publicationBody} from './publication-body.mjs';
 import {orderedMemberships} from './pocMemberships.mjs';
-import {PocSaved,SaveButton,SavedNav,useSavedChecks} from './PocSaved';
+import {PocSaved,SaveButton,useSavedChecks} from './PocSaved';
+import {ParliamentHeader} from './ParliamentHeader';
 import {QuestionStatus} from './PocQuestionStatus';
 import {MotionStatuses,PocMotionOutcome} from './PocMotionOutcome';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -496,23 +497,16 @@ export default function PocApp() {
     setSpeechLink(speech ? sourceId! : null);
     setActivityLink(sourceId && !speech ? sourceId : null);
   };
+  const showMembers = () => {
+    navigateView(null);setMember(null);setSpeechLink(null);setActivityLink(null);
+  };
   if (view === 'legislation' || view === 'questions' || view === 'outside') {
-    const props={language:lang,onBack:()=>{navigateView(null);setMember(null);},onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
+    const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
     return view==='legislation' ? <PocLegislation {...props}/> : view==='outside' ? <PocOutsideVoices {...props}/> : <PocQuestionTopics {...props}/>;
   }
   return (
     <main className="poc" lang={lang}>
-        <header className="poc-header">
-          <span>
-            EUROPEAN PARLIAMENT
-          </span>
-          <nav className="poc-explorer-nav" aria-label="Explore Parliament">
-            <button onClick={() => navigateView('legislation')}>Plenary agenda</button>
-            <button onClick={() => navigateView('questions')}>Questions</button>
-            <button onClick={() => navigateView('outside')}>Outside voices</button>
-            <SavedNav onClick={()=>navigateView('saved')}/>
-          </nav>
-        </header>
+        <ParliamentHeader view={view==='saved'?'saved':'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')}/>
         {view === 'saved' ? <PocSaved language={lang} onBack={()=>navigateView(null)} onMember={openInsightMember}/> : member ? (
           <section className="poc-profile">
             <button
