@@ -20,10 +20,14 @@ test('procedural notes explain later contributions without speech controls, whil
   const procedures=JSON.parse(readFileSync(new URL('../server/fixtures/speech-procedures-live-20261016.json',import.meta.url)));
   const speech=n=>fixture.activities.find(a=>a.recorded_in_a_realization_of?.[0]?.numbering===n);
   const row=activity=>({...speechSummary(activity),replyTo:null,exchangeId:null});
-  const first=row(speech(172)),last=row(speech(179)),notes=procedures.activities.map(row),calls=[];
+  const first=row(speech(172)),last=row(speech(179)),unconfirmed=row(speech(180)),notes=procedures.activities.map(row),calls=[];
+  const unmatched=structuredClone(procedures.activities[1]);unmatched.had_participation.had_participant_person=['person/999999'];
+  const unmatchedRow=row(unmatched);
+  // Older cached responses can still contain the unverified heading text.
+  unmatchedRow.intervention.narrative='ESTEBAN GONZÁLEZ PONS PRESIDELS: · Vice-President';
   t.mock.method(globalThis,'fetch',async url=>{
     calls.push(String(url));assert(String(url).includes('speech-context/'),'procedural notes must not fetch individual speech pages');
-    const records=String(url).includes(first.id)?[first,...notes,last]:[first,last,...notes];
+    const records=String(url).includes(first.id)?[first,...notes,last]:String(url).includes(last.id)?[first,last,...notes]:[first,unmatchedRow,unconfirmed];
     return Response.json({speechId:first.id,unavailable:false,debates:[{id:fixture.parent.activity_id,titles:{en:'Debate'},records,exchanges:[],coverage:{complete:true,available:4,expected:4,missingIds:[]}}]});
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
@@ -44,7 +48,13 @@ test('procedural notes explain later contributions without speech controls, whil
   assert.equal(container.querySelectorAll('.intervention-sequence>li').length,2);
   assert(!container.textContent.includes('briefly suspended'));assert(!container.textContent.includes('ESTEBAN'));
   assert(!container.textContent.includes('records available'),'intentional display omission must not imply missing source records');
-  assert.equal(calls.length,2);
+  await act(async()=>root.render(createElement(PocSpeechContext,{key:unconfirmed.id,id:unconfirmed.id,language:'en'})));
+  await act(async()=>container.querySelector('button').click());
+  const unknownChair=container.querySelectorAll('.intervention-sequence>li')[1];
+  assert.equal(unknownChair.textContent,'Chair change · identity unconfirmed');
+  assert(!container.textContent.includes('ESTEBAN'));assert(!container.textContent.includes('PRESIDELS'));
+  assert.equal(unknownChair.querySelector('button,a'),null);
+  assert.equal(calls.length,3);
 });
 
 test('failed debate sections offer a real retry that bypasses the partial-result cache and recovers',async t=>{
