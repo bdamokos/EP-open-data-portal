@@ -1,5 +1,6 @@
 import { HttpError } from "./http-utils.mjs";
-import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
+import {readFile,writeFile} from "node:fs/promises";
+import {writeCacheFile} from './cache-publication.mjs';
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
@@ -173,10 +174,9 @@ export async function odp(
       cache.set(key, record);
       if (cache.size > 1800) cache.delete(cache.keys().next().value);
       if (cacheDir) {
-        await mkdir(cacheDir, { recursive: true });
-        const temp=filename(key)+'.'+process.pid+'.tmp';
-        await writeFile(temp, JSON.stringify(record)).then(()=>rename(temp,filename(key))).catch(() => {});
+        await writeCacheFile(filename(key),JSON.stringify(record),{signal:budget.signal}).catch(()=>{});
       }
+      budget.signal?.throwIfAborted();
       return record;
     } catch(error) {
       if(!budget.signal?.aborted)refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});

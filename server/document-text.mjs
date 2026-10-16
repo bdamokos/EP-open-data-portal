@@ -1,13 +1,14 @@
 import { inflateRawSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
-import { readFile,mkdir,writeFile,rename } from 'node:fs/promises';
+import {readFile} from 'node:fs/promises';
+import {writeCacheFile} from './cache-publication.mjs';
 import path from 'node:path';
 import https from 'node:https';
 import { XMLParser,XMLValidator } from 'fast-xml-parser';
 import { boundedUpstream } from './odp.mjs';
 import { documentFiles,array,tail } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
-import {sharedRequest,waitForRequest,requestSignal} from './request-budget.mjs';
+import {sharedRequest,waitForRequest,requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 import {numberingLabels} from './docx-numbering.mjs';
 import {noteNumbering} from './docx-note-numbering.mjs';
 
@@ -224,9 +225,10 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
     if(pending.has(key))return pending.get(key);
     const job=sharedRequest(signal=>boundedUpstream(async()=>{
       const result=await download(key,{signal});signal.throwIfAborted();const record={schemaVersion:1,extractionVersion:EXTRACTION_VERSION,sourceId:work.identifier || tail(work.id),sourceUrl:key,fetchedAt:new Date(clock()).toISOString(),...result};
-      if(file){await mkdir(path.dirname(file),{recursive:true});const temp=file+'.'+process.pid+'.tmp';await writeFile(temp,JSON.stringify(record));await rename(temp,file);}
+      if(file)await writeCacheFile(file,JSON.stringify(record),{signal});
+      signal.throwIfAborted();
       memory.set(key,record);if(memory.size>100)memory.delete(memory.keys().next().value);failures.delete(key);return record;
-    },{priority,signal})).catch(error=>{failures.set(key,{retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
+    },{priority,signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(key,{retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
     pending.set(key,job);return job;
   };
   const failure=failures.get(key);
@@ -234,5 +236,5 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   if(saved){const stale=clock()-Date.parse(saved.fetchedAt)>=DAY;if(stale && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
   try {const record=await waitForRequest(refresh('interactive'));return present(record);}
-  catch(error){requestSignal()?.throwIfAborted();return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(failures.get(key)?.retryAt||clock()+30000).toISOString()};}
+  catch(error){requestSignal()?.throwIfAborted();return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString()};}
 }

@@ -1,10 +1,11 @@
-import { readFile, mkdir, writeFile, rename } from 'node:fs/promises';
+import {readFile} from 'node:fs/promises';
+import {writeCacheFile} from './cache-publication.mjs';
 import path from 'node:path';
 import { boundedUpstream, odp, speechSummary } from './odp.mjs';
 import { activityIndex } from './activity-index-worker.mjs';
 import { HttpError } from './http-utils.mjs';
 import { playerContent, playerAudioMapping } from './player-content.mjs';
-import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
+import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 
 export const MMC_BASE = 'https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0';
 const DAY = 86400000;
@@ -76,13 +77,12 @@ async function freshDetail(id, directory) {
     memory.set(id, record);
     failures.delete(id);
     if (directory) {
-      await mkdir(path.join(directory, 'recordings'), { recursive: true });
       const filename = path.join(directory, 'recordings', id + '.json');
-      await writeFile(filename + '.tmp', JSON.stringify(record));
-      await rename(filename + '.tmp', filename);
+      await writeCacheFile(filename,JSON.stringify(record),{signal});
     }
+    signal.throwIfAborted();
     return { ...record, stale: false };
-  },{signal})).catch(error=>{failures.set(id,{retryAt:Date.now()+3600000,message:String(error.message).slice(0,200)});throw error;}).finally(() => pending.delete(id));
+  },{signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(id,{retryAt:Date.now()+3600000,message:String(error.message).slice(0,200)});throw error;}).finally(() => pending.delete(id));
   pending.set(id, task);
   return waitForRequest(task);
 }
