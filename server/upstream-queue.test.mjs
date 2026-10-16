@@ -58,6 +58,18 @@ test('joining background work has a bounded wait without cancelling the shared r
   const joined=q.joinBackground(shared);finish('saved');assert.equal(await joined,'saved');assert.equal(q.joiners.size,0);
 });
 
+test('aborted readers leave queued admission and shared joins without cancelling another reader',async()=>{
+  const q=new UpstreamQueue({interval:0,maximum:1}),release=await q.acquire();
+  const queuedController=new AbortController(),joinController=new AbortController(),reason=new Error('reader disconnected');
+  const queued=assert.rejects(q.acquire('interactive',{signal:queuedController.signal}),e=>e===reason);
+  queuedController.abort(reason);await queued;assert.equal(q.waiters.length,0);assert.equal(q.active,1);
+  await assert.rejects(q.acquire('interactive',{signal:queuedController.signal}),e=>e===reason);
+  let complete;const shared=new Promise(resolve=>complete=resolve),survivor=q.joinBackground(shared);
+  const detached=assert.rejects(q.joinBackground(shared,{signal:joinController.signal}),e=>e===reason);
+  joinController.abort(reason);await detached;assert.equal(q.joiners.size,1);
+  complete('saved');assert.equal(await survivor,'saved');assert.equal(q.joiners.size,0);release();assert.equal(q.active,0);
+});
+
 test('ODP shares cold reads, exposes 429 cooldown, serves cached data and retries after it expires',async t=>{
   t.mock.timers.enable({apis:['Date','setTimeout'],now:Date.parse('2026-10-16T16:00:00Z')});
   let calls=0;
