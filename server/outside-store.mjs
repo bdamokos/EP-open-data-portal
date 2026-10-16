@@ -1,7 +1,9 @@
-import { outsidePerson } from './outside-model.mjs';
+import { outsidePerson, outsideCapacity } from './outside-model.mjs';
 import { HttpError } from './http-utils.mjs';
 
 const parse = value => JSON.parse(value);
+// Capacity is derived from retained source text, including records indexed by older code.
+const classified = row => ({...row,header:row.header?{...row.header,capacity:outsideCapacity(row.header.role)}:null});
 export function outsideSchema(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS outside_contributions (generation INTEGER, speech TEXT, person TEXT, date TEXT, body TEXT, PRIMARY KEY(generation,speech,person));
     CREATE INDEX IF NOT EXISTS outside_person ON outside_contributions(generation,person,date DESC);
@@ -45,7 +47,7 @@ function generationOf(store) {
 }
 function rowsFor(store, generation, {term='all',person=null}={}) {
   const rows = store.db.prepare("SELECT body FROM outside_contributions WHERE generation=?" + (person?' AND person=?':'') + (term!=='all'?" AND json_extract(body,'$.term')=?":'') + ' ORDER BY date DESC,speech LIMIT 50001').all(generation,...(person?[person]:[]),...(term!=='all'?[Number(term)]:[]));
-  return {rows:rows.slice(0,50000).map(row => parse(row.body)),truncated:rows.length>50000};
+  return {rows:rows.slice(0,50000).map(row => classified(parse(row.body))),truncated:rows.length>50000};
 }
 function agendasFor(store, generation, ids) {
   return new Map([...ids].map(id => {
@@ -93,7 +95,7 @@ export function outsideSpeaker(store, person, query) {
   const agendas = agendasFor(store,generation,new Set(rows.flatMap(row => row.parentIds)));
   const coSpeeches = new Map();
   for (const date of new Set(rows.map(row => row.date))) for (const item of store.db.prepare('SELECT body FROM outside_contributions WHERE generation=? AND date=?').all(generation,date)) {
-    const row = parse(item.body);
+    const row = classified(parse(item.body));
     if (row.personId !== person && row.parentIds.some(id => agendas.has(id))) coSpeeches.set(row.id + '|' + row.personId,row);
   }
   return {person:outsidePerson(rows,agendas,query.language),contributions:rows.map(row=>publicContribution(row,query.language)),agendas:[...agendas.values()].filter(Boolean).map(agenda=>({...agenda,titles:localizedTitles(agenda.titles,query.language)})),coSpeakers:[...coSpeeches.values()].map(row=>publicContribution(row,query.language)),coverage:outsideCoverage(store,generation,truncated)};

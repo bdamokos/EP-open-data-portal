@@ -77,6 +77,28 @@ async function harness(t,details,query='?view=outside',sourceData=null) {
 const sourceIds=container=>[...new Set([...container.querySelectorAll('.ov-evidence dl')].map(dl=>dl.querySelector('dd').textContent))].sort();
 const contributionIds=detail=>detail.contributions.map(c=>c.id).sort();
 
+test('only populated capacity buttons appear and stale empty-group links show all speakers',async t=>{
+  const detail=speaker('42','Current guest',[speech('2026-10-07','01',[item('2026-10-07',4)])]);
+  const {container,click}=await harness(t,[detail],'?view=outside&ov-group=parliaments');
+  assert.deepEqual([...container.querySelectorAll('.ov-groups button')].map(n=>n.textContent),['All speakers','Other speakers']);
+  assert.equal(container.querySelector('.ov-groups button[aria-pressed=true]').textContent,'All speakers');
+  assert.equal(container.querySelector('.ov-results strong').textContent,'1');
+  await click('Other speakers');assert.equal(container.querySelector('.ov-results strong').textContent,'1');
+});
+
+test('historical URL filters cannot broaden directory, speaker or day-panel requests',async t=>{
+  const detail=speaker('42','Current guest',[speech('2026-10-07','01',[item('2026-10-07',4)])]);
+  const {container,calls,click,navigate}=await harness(t,[detail],'?view=outside&ov-term=9');
+  assert(![...container.querySelectorAll('label')].some(n=>n.textContent.startsWith('Term')));
+  assert(calls.some(u=>u.pathname.endsWith('/directory')));
+  await act(async()=>container.querySelector('.ov-mark').click());
+  assert(container.querySelector('[role=dialog]'));
+  await act(async()=>container.querySelector('[aria-label="Close speeches"]').click());
+  await navigate('?view=outside&ov-term=all');await click('Current guest');
+  assert(container.querySelector('.ov-person-heading'));
+  assert(calls.filter(u=>u.pathname.includes('/outside/')).every(u=>u.searchParams.get('term')==='10'));
+});
+
 test('month controls preserve all 11 monthly counts, unlinked speeches and equivalent filtering',async t=>{
   const detail=speaker('42','Monthly guest',[
     speech('2025-12-15','01',[item('2025-12-15',1)]),
