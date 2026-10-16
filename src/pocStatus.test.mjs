@@ -46,6 +46,24 @@ test('settled results suppress unchanged polling and clear invalidated counts wi
   assert.equal(updates,1);assert.match(status.textContent,/No indexed speakers.*Partial coverage/);
 });
 
+test('returning to an earlier filter never restores its announcement before the debounce settles',async t=>{
+  for(const oncePerScope of [false,true])await t.test(String(oncePerScope),async t=>{
+    const h=await harness(t),{PocStatus}=await h.load('/src/PocStatus.tsx');
+    const render=scope=>h.render(createElement(PocStatus,{scope,message:scope+' results',oncePerScope,delay:30}));
+    await render('A');await wait(40);
+    const status=h.container.querySelector('[role="status"]'),messages=[];
+    assert.equal(status.textContent,'A results');
+    const observer=new h.window.MutationObserver(()=>{if(status.textContent)messages.push(status.textContent);});
+    observer.observe(status,{subtree:true,childList:true,characterData:true});t.after(()=>observer.disconnect());
+    await render('B');await render('A');
+    assert.equal(status.textContent,'','returning to A must wait for a fresh debounce');
+    await render('C');await wait(40);
+    assert.deepEqual(messages,['C results'],'A and B were superseded before settling');
+    await render('A');assert.equal(status.textContent,'');await wait(40);
+    assert.equal(status.textContent,'A results','a settled return to A is announced normally');
+  });
+});
+
 test('pending requests cancel queued success, and a repeated explicit reader failure is announced again',async t=>{
   const h=await harness(t),{PocStatus}=await h.load('/src/PocStatus.tsx');
   const render=props=>h.render(createElement(PocStatus,{scope:'reader',delay:10,...props}));

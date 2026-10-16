@@ -7,7 +7,11 @@ const hidden:CSSProperties={position:'absolute',width:1,height:1,padding:0,margi
 export function PocStatus({scope,message,pending=false,delay=350,oncePerScope=false}:{scope:string;message:string|null;pending?:boolean;delay?:number;oncePerScope?:boolean}) {
   const [announcement,setAnnouncement]=useState({scope:'',message:''});
   const last=useRef<{scope:string;message:string}|null>(null);
+  const currentScope=useRef(scope);
   useEffect(()=>{
+    if(currentScope.current!==scope){
+      currentScope.current=scope;last.current=null;setAnnouncement({scope,message:''});
+    }
     if(pending){
       if(!oncePerScope){last.current=null;setAnnouncement(previous=>previous.message?{scope,message:''}:previous);}
       return;
