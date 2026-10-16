@@ -88,10 +88,12 @@ export async function odp(
     try {
       const oldName=Buffer.from(key).toString('base64url')+'.json';
       const raw=await readFile(filename(key),'utf8').catch(e=>oldName.length<=255?readFile(path.join(cacheDir,oldName),'utf8'):Promise.reject(e));
+      signal?.throwIfAborted();
       const record=JSON.parse(raw);
       if(record.url===key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data)) {stored=record;cache.set(key,record);}
     } catch { /* Missing or invalid reproducible cache. */ }
   }
+  signal?.throwIfAborted();
   if (
     !force &&
     stored &&

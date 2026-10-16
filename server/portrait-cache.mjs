@@ -2,7 +2,7 @@ import {mkdir, open, readdir, rename, stat, unlink, writeFile} from 'node:fs/pro
 import {createHash, randomUUID} from 'node:crypto';
 import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
-import {sharedRequest,waitForRequest} from './request-budget.mjs';
+import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 
 const IMAGE_LIMIT = 2 * 1024 * 1024;
 const HEADER_LIMIT = 4096;
@@ -101,6 +101,7 @@ export class PortraitCache {
       const info = await file.stat();
       if (info.size > IMAGE_LIMIT + HEADER_LIMIT + 4) return null;
       const data = await file.readFile();
+      requestSignal()?.throwIfAborted();
       const headerLength = data.length >= 4 ? data.readUInt32BE(0) : 0;
       if (!headerLength || headerLength > HEADER_LIMIT || headerLength + 4 >= data.length) return null;
       const header = JSON.parse(data.subarray(4, 4 + headerLength).toString('utf8'));
@@ -224,6 +225,7 @@ export class PortraitCache {
       let image = this.memory.get(id);
       if (image) this.remember(id, image);
       else image = await this.read(id);
+      requestSignal()?.throwIfAborted();
       if (!image) return this.refresh(id, resolveSource);
       if (this.clock() - image.fetchedAt >= this.freshMs) {
         // A retained portrait stays visible during a refresh or an upstream outage.

@@ -4,7 +4,7 @@ import { boundedUpstream, odp, speechSummary } from './odp.mjs';
 import { activityIndex } from './activity-index-worker.mjs';
 import { HttpError } from './http-utils.mjs';
 import { playerContent, playerAudioMapping } from './player-content.mjs';
-import {sharedRequest,waitForRequest} from './request-budget.mjs';
+import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 
 export const MMC_BASE = 'https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0';
 const DAY = 86400000;
@@ -88,11 +88,13 @@ async function freshDetail(id, directory) {
 }
 
 export async function recordingDetail(id, directory) {
+  requestSignal()?.throwIfAborted();
   if (!idPattern.test(id)) throw new Error('Invalid recording identifier.');
   let saved = memory.get(id);
   if (!saved && directory) {
     try { saved = await smallJson(path.join(directory, 'recordings', id + '.json')); } catch { /* Cold cache. */ }
   }
+  requestSignal()?.throwIfAborted();
   if (saved && saved.url === MMC_BASE + '/media/' + id && officialEmbed(saved.payload?.resultJSON?.content, id) && Number.isFinite(Date.parse(saved.fetchedAt))) {
     memory.set(id, saved);
     const stale = Date.now() - Date.parse(saved.fetchedAt) >= DAY;
