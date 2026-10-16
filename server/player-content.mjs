@@ -1,7 +1,9 @@
-import { readFile, mkdir, writeFile, rename } from 'node:fs/promises';
+import {readFile} from 'node:fs/promises';
+import {writeCacheFile} from './cache-publication.mjs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { boundedUpstream } from './odp.mjs';
+import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 
 // Public ContentEvent interface used by Parliament's published player. No event
 // password, cookie or browser Origin is supplied; only published records qualify.
@@ -71,29 +73,30 @@ function cacheRecordValid(record, id) {
 }
 
 async function refresh(id, directory, key, fetchContent, priority) {
-  if (pending.has(key)) return pending.get(key);
-  const operation = boundedUpstream(async () => {
+  if (pending.has(key)) return waitForRequest(pending.get(key));
+  const operation = sharedRequest(signal=>boundedUpstream(async () => {
     const payload = validatePlayerContent(await fetchContent(id), id);
+    signal.throwIfAborted();
     const record = { url: CONTENT_SOCKET_URL, namespace: '/content', event: 'join:event', fetchedAt: new Date().toISOString(), payload };
     if (Buffer.byteLength(JSON.stringify(record)) > LIMIT) throw new Error('Player content metadata exceeded size limit.');
     if (directory) {
-      await mkdir(path.join(directory, 'content'), { recursive: true });
       const file = path.join(directory, 'content', id + '.json');
-      const temporary = file + '.' + process.pid + '.tmp';
-      await writeFile(temporary, JSON.stringify(record)); await rename(temporary, file);
+      await writeCacheFile(file,JSON.stringify(record),{signal});
     }
+    signal.throwIfAborted();
     memory.delete(key); memory.set(key, record);
     if (memory.size > 256) memory.delete(memory.keys().next().value);
     failures.delete(key);
     return { ...record, stale: false, refreshError: null };
-  }, { priority }).catch(error => {
-    failures.set(key, { retryAt: Date.now() + 3600000, message: String(error.message).slice(0, 200) });
+  }, { priority,signal })).catch(error => {
+    if(!isLocalRequestFailure(error))failures.set(key, { retryAt: Date.now() + 3600000, message: String(error.message).slice(0, 200) });
     throw error;
   }).finally(() => pending.delete(key));
-  pending.set(key, operation); return operation;
+  pending.set(key, operation); return waitForRequest(operation);
 }
 
 export async function playerContent(id, directory, { fetchContent = fetchPlayerContent } = {}) {
+  requestSignal()?.throwIfAborted();
   if (!validId(id)) throw new Error('Invalid recording identifier.');
   const key = (directory || '') + '|' + id;
   let saved = memory.get(key);
@@ -103,6 +106,7 @@ export async function playerContent(id, directory, { fetchContent = fetchPlayerC
       if (Buffer.byteLength(text) <= LIMIT) saved = JSON.parse(text);
     } catch { /* Missing or malformed cache requires a normal public query. */ }
   }
+  requestSignal()?.throwIfAborted();
   if (cacheRecordValid(saved, id)) {
     const stale = Date.now() - Date.parse(saved.fetchedAt) >= DAY;
     memory.set(key, saved);
