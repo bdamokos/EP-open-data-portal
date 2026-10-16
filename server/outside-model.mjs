@@ -22,7 +22,7 @@ export function outsideCapacity(role) {
   if (/president.in.office.{0,20}council|council.{0,20}presiden|tanacs soros elnoke|president.{0,15}conseil|ratsprasiden|uachtaran-in-oifig sa chomhairle/i.test(value)) return 'council';
   if (/commission|kommission|comision|komisj|bizottsag|komisar|kummissjoni/i.test(value)) return 'commission';
   if (/speaker.{0,50}(?:parliament|rada)|president.{0,50}(?:parliament|assembly|assemblee)/i.test(value)) return 'parliaments';
-  if (/prime minister|premier ministre|primeiro.ministro|head of (?:state|government)|president[ea]? (?:of |de |da |de la |of the )(?:republic|republique|republica)\b|taoiseach|chancellor|miniszterelnok|\b(?:king|queen|grand duke|emperor|emir|sultan|roi|reine|rey|reina|rei|konig|konigin) (?:of|de|do|da|von)\b/i.test(value)) return 'leaders';
+  if (/prime minister|premier ministre|primeiro.ministro|head of (?:state|government)|president[ea]? (?:of |de |da |de la |of the )(?:republic|republique|republica)\b|president de l['’]ukraine\b|taoiseach|chancellor|miniszterelnok|\b(?:king|queen|grand duke|emperor|emir|sultan|roi|reine|rey|reina|rei|konig|konigin) (?:of|de|do|da|von)\b/i.test(value)) return 'leaders';
   const country=value.match(/^president of (.+?)\s*[.,]?$/)?.[1];
   if (country && (countries.has(country) || countries.has(country.replace(/^the /,'')))) return 'leaders';
   return 'other';
