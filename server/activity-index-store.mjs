@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles } from './activity-index-model.mjs';
+import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 
@@ -216,10 +216,12 @@ export class ActivityStore {
             const id=joint.work.identifier, files=documentFiles(joint.work);
             const file=files.find(file=>file.language===language && file.format==='PDF') || files.find(file=>file.language==='en' && file.format==='PDF');
             const titles=joint.work.title_dcterms || {};
+            const authors=documentRows(joint.work,joint.key,joint.fetchedAt).rows;
             return {sourceId:id,reference:motionReference(id),title:titles[language]||titles.en||id,outcome:outcome(joint),
+              memberAuthorship:authors.some(author=>author.mepId===String(mep))?'recorded':'not-recorded',
               url:file?.url || 'https://data.europarl.europa.eu/eli/dl/doc/'+id};
           });
-          return {...localize(row,language),resolutionOutcome:outcome(source),relatedJointMotions};
+          return {...localize(row,language),reference:motionReference(row.sourceId),resolutionOutcome:outcome(source),relatedJointMotions};
         }
       }
       if(row.recordKind==='answer'&&row.relatedQuestionId) {
