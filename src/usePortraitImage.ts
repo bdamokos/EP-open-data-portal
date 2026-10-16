@@ -5,6 +5,7 @@ type State = {url: string; src: string; phase: 'loading'|'ready'|'loaded'|'error
 
 export function usePortraitImage(url: string, fallback: string, lazy = true) {
   const imageRef = useRef<HTMLImageElement>(null);
+  const startRef = useRef<(() => void) | null>(null);
   const [state, setState] = useState<State>({url, src: fallback, phase: 'loading'});
   const managed = isManagedPortrait(url);
   const current = state.url === url ? state : {url, src: fallback, phase: 'loading' as const};
@@ -13,10 +14,12 @@ export function usePortraitImage(url: string, fallback: string, lazy = true) {
     if (!managed) return;
     const controller = new AbortController();
     let objectUrl = '', started = false;
+    let observer: IntersectionObserver | undefined;
     setState({url, src: fallback, phase: 'loading'});
     const start = () => {
       if (started || controller.signal.aborted) return;
       started = true;
+      observer?.disconnect();
       portraitLoader.load(url, {signal: controller.signal}).then(blob => {
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
@@ -25,8 +28,8 @@ export function usePortraitImage(url: string, fallback: string, lazy = true) {
         if (error.name !== 'AbortError' && !controller.signal.aborted) setState({url, src: fallback, phase: 'error'});
       });
     };
-    let observer: IntersectionObserver | undefined;
-    if (!lazy || !('IntersectionObserver' in window)) start();
+    startRef.current = start;
+    if (!('IntersectionObserver' in window)) start();
     else if (imageRef.current) {
       // Expand the scrolling wall itself: viewport margins cannot extend past
       // an intervening overflow container's clip.
@@ -34,18 +37,24 @@ export function usePortraitImage(url: string, fallback: string, lazy = true) {
       const margin = root ? Math.max(800, root.clientHeight * 2) : 200;
       observer = new IntersectionObserver(entries => {
         if (entries.some(entry => entry.isIntersecting)) {
-          observer?.disconnect();
           start();
         }
       }, {root, rootMargin: `${margin}px 0px`});
       observer.observe(imageRef.current);
     }
     return () => {
+      startRef.current = null;
       observer?.disconnect();
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, fallback, lazy, managed]);
+  }, [url, fallback, managed]);
+
+  // Priority changes may start a waiting request, but must not discard an
+  // existing request or blob when filtering moves a card within the wall.
+  useEffect(() => {
+    if (!lazy && managed) startRef.current?.();
+  }, [lazy, url, fallback, managed]);
 
   return {
     imageRef,
