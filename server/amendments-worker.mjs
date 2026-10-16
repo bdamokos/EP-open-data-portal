@@ -51,12 +51,14 @@ export function scheduleAmendments(worker,generation,work,fetchedAt,endpoint) {
     const date=list.document_date;
     if(/^\d{4}-\d{2}-\d{2}$/.test(date || '')&&!worker.store.source(generation,rosterKey(date)))enqueueAmendment(worker.store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
   }
-  for(const sittingId of amendmentSittings(work)) {
+  rebuildAmendmentTarget(worker,generation,id,{listLimit:lists.length>limited.length});
+  const priorTarget=worker.store.db.prepare('SELECT body FROM amendment_targets WHERE generation=? AND id=?').get(generation,id);
+  const discovered=priorTarget?JSON.parse(priorTarget.body).discoveredSittingIds || []:[];
+  for(const sittingId of new Set([...amendmentSittings(work),...discovered])) {
     scheduleSittingOutcomes(worker,generation,sittingId);
     const aliasKey='amendment:aliases:'+sittingId;
     if(!worker.store.source(generation,aliasKey))enqueueAmendment(worker.store,generation,aliasKey,'amendment-aliases',{sittingId},108);
   }
-  rebuildAmendmentTarget(worker,generation,id,{listLimit:lists.length>limited.length});
 }
 export function prepareAmendments(worker,cycle) {
   const {generation}=cycle,store=worker.store;
@@ -90,7 +92,8 @@ export function parseSavedSplits(worker,work) {
   return {...work,parsedSplits,...(Array.isArray(work.splitRequests)&&array(work.decisions).every(decision=>Object.hasOwn(decision,'decided_on_a_realization_of'))?{amendmentVersion:AMENDMENTS_VERSION}:{}),splitParserVersion:SPLIT_PARSER_VERSION};
 }
 export function refreshSittingTargets(worker,generation,sittingId,work) {
-  const targets=new Set((work.decisions || []).flatMap(decision=>array(decision.decided_on_a_realization_of).map(amendmentReference).filter(Boolean).map(ref=>ref.targetDocumentId)));
+  const directTargets=new Set((work.decisions || []).flatMap(decision=>array(decision.decided_on_a_realization_of).map(amendmentReference).filter(Boolean).map(ref=>ref.targetDocumentId)));
+  const targets=new Set(directTargets);
   const linked=worker.store.db.prepare("SELECT id FROM amendment_targets AS target WHERE generation=? AND EXISTS(SELECT 1 FROM json_each(target.body,'$.sittingIds') AS sitting WHERE sitting.value=?)").all(generation,sittingId);
   for(const {id} of linked)targets.add(id);
   // Older snapshots do not yet carry compact sitting links. Their accepted
@@ -98,7 +101,7 @@ export function refreshSittingTargets(worker,generation,sittingId,work) {
   const legacy=worker.store.db.prepare("SELECT DISTINCT amendment.target AS id FROM amendments AS amendment JOIN amendment_targets AS target ON target.generation=amendment.generation AND target.id=amendment.target WHERE amendment.generation=? AND json_type(target.body,'$.sittingIds') IS NULL AND EXISTS(SELECT 1 FROM json_each(amendment.body,'$.decisions') AS decision WHERE json_extract(decision.value,'$.sittingId')=?)").all(generation,sittingId);
   for(const {id} of legacy)targets.add(id);
   const observedDecisionIds=work.amendmentVersion===AMENDMENTS_VERSION?(work.decisions || []).filter(hasDecisionReferenceSet).map(decision=>tail(decision.id)):[];
-  for(const id of targets)if(worker.store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,{observedDecisionIds});
+  for(const id of targets)if(worker.store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,{observedDecisionIds,discoveredSittingIds:directTargets.has(id)?[sittingId]:[]});
 }
 const normalizedName=value=>String(value || '').normalize('NFC').trim().replace(/\s+/gu,' ').toLocaleLowerCase('und');
 function scheduleMandateProfiles(worker,generation,targetId,lists,aliases) {
@@ -122,18 +125,40 @@ function rosterMembers(worker,generation,date) {
   // These intervals describe one observed mandate day, not a whole mandate.
   return {members:[...(saved?.work.members || []).map(member=>({...member,mandates:[{start:date,end:date}]})),...worker.store.sources(generation,'amendment-member').filter(source=>source.fetchedAt.slice(0,10)>=date).map(source=>source.work)],source:saved?.work.sources || []};
 }
-export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,observedDecisionIds=[]}={}) {
+function cachedDirectSittings(store,generation,targetId) {
+  const reference='eli/dl/doc/'+targetId+'-AM-%';
+  const candidates=store.db.prepare(`SELECT key,body FROM sources AS source WHERE generation=? AND kind='motion-outcomes'
+    AND json_extract(source.body,'$.amendmentVersion')=? AND EXISTS(
+      SELECT 1 FROM json_each(source.body,'$.decisions') AS decision,
+        json_each(decision.value,'$.decided_on_a_realization_of') AS reference
+      WHERE reference.type='text' AND (reference.value LIKE ? OR reference.value LIKE ? OR reference.value LIKE ?))
+    ORDER BY key DESC LIMIT ?`).all(generation,AMENDMENTS_VERSION,reference,'https://data.europarl.europa.eu/'+reference,'http://data.europarl.europa.eu/'+reference,AMENDMENT_LIMITS.sittingsPerTarget+1);
+  return {limited:candidates.length>AMENDMENT_LIMITS.sittingsPerTarget,sittingIds:candidates.slice(0,AMENDMENT_LIMITS.sittingsPerTarget).filter(source=>array(JSON.parse(source.body).decisions).some(decision=>array(decision.decided_on_a_realization_of).some(value=>amendmentReference(value)?.targetDocumentId===targetId))).map(source=>source.key.replace(/^motion-outcomes:/,'')).filter(id=>/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(id))};
+}
+export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,observedDecisionIds=[],discoveredSittingIds=[]}={}) {
   const store=worker.store,saved=store.source(generation,targetKey(id));if(!saved)return;
+  const priorTarget=store.db.prepare('SELECT body FROM amendment_targets WHERE generation=? AND id=?').get(generation,id);
+  const cachedDirect=cachedDirectSittings(store,generation,id);
+  const discovered=[...new Set([...(priorTarget?JSON.parse(priorTarget.body).discoveredSittingIds || []:[]),...cachedDirect.sittingIds,...discoveredSittingIds])];
   const target=targetMetadata(saved.work,saved.fetchedAt,targetKey(id)),rows=new Map(),gaps=[],observed=new Set(observedDecisionIds);
-  const lists=store.db.prepare("SELECT body,fetched_at FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=?").all(generation,id).map(row=>({work:JSON.parse(row.body),fetchedAt:row.fetched_at}));
-  const sittingSources=amendmentSittings(saved.work).map(sittingId=>({sittingId,record:store.source(generation,motionSourceKey(sittingId))}));
+  target.discoveredSittingIds=discovered;
+  const relationshipsKnown=Object.hasOwn(saved.work,'inverse_foresees_change_of');
+  const currentListIds=[...new Set([...amendmentLists(saved.work).map(idOf),...array(saved.work.inverse_foresees_change_of).map(canonicalEPReference).filter(ref=>ref?.startsWith('eli/dl/doc/')).map(tail)])];
+  const currentLists=new Set(currentListIds);
+  const lists=store.db.prepare("SELECT body,fetched_at FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=?").all(generation,id).map(row=>{const work=JSON.parse(row.body);return {work,fetchedAt:row.fetched_at,current:!relationshipsKnown||currentLists.has(idOf(work))};}).sort((a,b)=>Number(b.current)-Number(a.current));
+  const sittingSources=[...new Set([...amendmentSittings(saved.work),...discovered])].map(sittingId=>({sittingId,record:store.source(generation,motionSourceKey(sittingId))}));
+  target.sittingIds=sittingSources.map(source=>source.sittingId);
   const aliases=sittingSources.flatMap(({sittingId})=>store.source(generation,'amendment:aliases:'+sittingId)?.work.aliases || []);
   scheduleMandateProfiles(worker,generation,id,lists,aliases);
   const base=(amendmentId,number)=>({id:amendmentId,number,listId:null,targetDocumentId:id,title:target.titles.en || id,titles:target.titles,date:target.date,procedureIds:target.procedureIds,targetLabel:null,originalText:null,proposedText:null,language:null,authors:[],decisions:[],splitParts:[],topics:target.topics,sources:[...target.sources],gaps:[],identifierBasis:'derived-from-exact-target-and-number',officialIds:[]});
+  if(cachedDirect.limited)gaps.push('This target exceeds the cached direct-decision sitting discovery limit.');
+  if(!relationshipsKnown)gaps.push('Current amendment-list relationships are unavailable; previously indexed list evidence is unverified and retained.');
   if(listLimit || amendmentLists(saved.work).length>AMENDMENT_LIMITS.listsPerTarget)gaps.push('This target exceeds the amendment-list processing limit.');
   if(!lists.length)gaps.push('No published amendment list is indexed for this target.');
-  for(const {work:list} of lists) {
+  const invalidatedTextListIds=lists.filter(({work:list})=>list.extraction?.previousParserVersion&&list.extraction.previousParserVersion!==AMENDMENT_EXTRACTION_VERSION).map(({work})=>idOf(work));
+  for(const {work:list,current} of lists) {
     const extraction=list.extraction,date=list.document_date || target.date;
+    if(!current)gaps.push('A previously indexed amendment list is absent from the current target relationships; its evidence is retained.');
     if(!extraction){gaps.push('Amendment text extraction is pending.');continue;}
     gaps.push(...(extraction.gaps || []).map(gap=>typeof gap==='string'?gap:gap.message || gap.reason || gap.code || 'Document extraction is incomplete.'));
     if(extraction.lastRefreshFailure)gaps.push('An amendment-list refresh was incomplete; previously accepted wording is retained.');
@@ -144,19 +169,22 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
       const activeIds=new Set(roster.members.map(member=>String(member.id)));
       const datedAliases=aliases.filter(alias=>activeIds.has(String(alias.personId).replace(/^person\//,'')));
       const textLosses=amendmentTextLosses(extraction,amendment);
-      Object.assign(row,{listId:idOf(list),date:amendment.date || date,targetLabel:text(amendment.targetLabel),originalText:textLosses.length?null:text(amendment.originalText),proposedText:textLosses.length?null:text(amendment.proposedText),textIntegrity:textLosses.length?'incomplete':typeof amendment.originalText==='string'&&typeof amendment.proposedText==='string'?'complete':'unavailable',textParserVersion:extraction.parserVersion,language:amendment.language || extraction.language,onBehalfOf:amendment.onBehalfOf || null,committeeProposer:amendment.committeeProposer || null,documentDate:amendment.documentDate || amendment.date || null,listDocumentDate:list.document_date || null,dateBasis:amendment.dateBasis || (amendment.date?'individual-amendment-document':'amendment-list-document'),justification:text(amendment.justification)});
+      Object.assign(row,{listId:idOf(list),listRelationship:!relationshipsKnown?'unverified':current?'current':'absent-current-relationship',date:amendment.date || date,targetLabel:text(amendment.targetLabel),originalText:textLosses.length?null:typeof amendment.originalText==='string'?amendment.originalText:null,proposedText:textLosses.length?null:typeof amendment.proposedText==='string'?amendment.proposedText:null,textIntegrity:textLosses.length?'incomplete':typeof amendment.originalText==='string'&&typeof amendment.proposedText==='string'?'complete':'unavailable',textParserVersion:extraction.parserVersion,language:amendment.language || extraction.language,onBehalfOf:amendment.onBehalfOf || null,committeeProposer:amendment.committeeProposer || null,documentDate:amendment.documentDate || amendment.date || null,listDocumentDate:list.document_date || null,dateBasis:amendment.dateBasis || (amendment.date?'individual-amendment-document':'amendment-list-document'),justification:text(amendment.justification)});
       row.authors=resolveAmendmentAuthors(amendment.authors || [],{members:roster.members,aliases:datedAliases,date:authorDate,relatedSittingDates:sittingSources.map(({sittingId})=>sittingId.slice(7))}).map(author=>({...author,personId:author.personId==null?null:String(author.personId).replace(/^person\//,''),evidence:[...(author.evidence || []),...(roster.source.length?[{type:'dated_roster',sources:roster.source,mandateObservedOn:authorDate}]:[])]}));
       row.sources.push(...(amendment.sources || []),{url:extraction.sourceUrl,fetchedAt:extraction.fetchedAt,language:extraction.language});
       row.gaps.push(...(amendment.gaps || []).map(gap=>typeof gap==='string'?gap:gap.message || gap.code || 'Amendment extraction is incomplete.'));
       row.gaps.push(...textLosses.map(gap=>gap.message || gap.code));
+      if(!relationshipsKnown)row.gaps.push('The current amendment-list relationship is unavailable; this list evidence is unverified and retained.');
+      if(!current)row.gaps.push('This amendment list is absent from the current target relationships; its earlier evidence is retained.');
       if(!row.authors.length)row.gaps.push('Individual amendment authors are not recorded in the extracted source.');
       if(row.authors.some(author=>!author.personId))row.gaps.push('Some author identities are unresolved.');
       if(row.language!=='en')row.gaps.push('English amendment text is unavailable; the published source language is retained.');
       const previous=rows.get(amendmentId);
       if(previous){
-        const variant=value=>({listId:value.listId,date:value.date,language:value.language,targetLabel:value.targetLabel,originalText:value.originalText,proposedText:value.proposedText,authors:value.authors,onBehalfOf:value.onBehalfOf,committeeProposer:value.committeeProposer,documentDate:value.documentDate,listDocumentDate:value.listDocumentDate,dateBasis:value.dateBasis,justification:value.justification,sources:value.sources});
+        const variant=value=>({listId:value.listId,listRelationship:value.listRelationship,date:value.date,language:value.language,targetLabel:value.targetLabel,originalText:value.originalText,proposedText:value.proposedText,textIntegrity:value.textIntegrity,textParserVersion:value.textParserVersion,authors:value.authors,onBehalfOf:value.onBehalfOf,committeeProposer:value.committeeProposer,documentDate:value.documentDate,listDocumentDate:value.listDocumentDate,dateBasis:value.dateBasis,justification:value.justification,sources:[...value.sources],gaps:[...value.gaps]});
         row.variants=[...(previous.variants || [variant(previous)]),variant(row)];
-        row.conflicted=true;row.listId=null;row.originalText=null;row.proposedText=null;row.authors=[];row.language=null;row.targetLabel=null;row.onBehalfOf=null;row.justification=null;
+        row.conflicted=true;row.listRelationship='conflicting-variants';row.listId=null;row.originalText=null;row.proposedText=null;row.authors=[];row.language=null;row.targetLabel=null;row.onBehalfOf=null;row.justification=null;
+        row.gaps.push(...previous.gaps);
         row.gaps.push('Multiple amendment lists contain this number; wording and authorship are withheld because no revision precedence is established.');
         gaps.push('Conflicting amendment-list variants are retained; displayed wording and authorship are withheld.');
         row.sources.push(...previous.sources);
@@ -164,6 +192,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
       rows.set(amendmentId,row);
     }
   }
+  const freshSplitParts=new Map();
   for(const {sittingId,record} of sittingSources) {
     if(!record){gaps.push('Linked sitting decisions are pending.');continue;}
     if(record.work.truncated || record.work.lastRefreshFailure)gaps.push('A linked sitting has incomplete or failed decision coverage.');
@@ -171,8 +200,9 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
     const source=record.work.sources?.find(item=>item.url.includes('/decisions?')) || {url:record.work.decisionsUrl,fetchedAt:record.work.decisionsFetchedAt};
     const parts=new Map((record.work.parsedSplits || []).flatMap(request=>request.parts.flatMap(part=>{
       const reference=canonicalEPReference(part.id);
-      return reference?[[reference,{...part,id:reference,requestId:request.requestId,grounding:'not_attempted'}]]:[];
+      return reference?[[reference,{...part,id:reference,requestId:request.requestId,grounding:'not_attempted',parserVersion:record.work.splitParserVersion,source:record.work.sources?.find(source=>source.url.includes('/vote-results?')) || null}]]:[];
     })));
+    for(const [reference,part] of parts)freshSplitParts.set(reference,part);
     for(const decision of record.work.decisions || []) {
       if(hasDecisionReferenceSet(decision))observed.add(tail(decision.id));
       const references=array(decision.decided_on_a_realization_of),amendments=references.map(amendmentReference).filter(ref=>ref?.targetDocumentId===id);
@@ -205,7 +235,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   }
   if([...rows.values()].some(row=>row.gaps.some(gap=>gap!=='Split descriptions are parsed as selection plans; exact wording spans have not been validated.')))gaps.push('Some amendment records have incomplete text, authorship, identity or outcome evidence.');
   const uniqueGaps=[...new Set(gaps)];
-  saveAmendmentRows(store,generation,target,[...rows.values()],{complete:!uniqueGaps.length&&rows.size>0,gaps:uniqueGaps,lastUpdated:new Date(worker.clock()).toISOString(),parserVersion:SPLIT_PARSER_VERSION},{observedDecisionIds:[...observed]});
+  saveAmendmentRows(store,generation,target,[...rows.values()],{complete:!uniqueGaps.length&&rows.size>0,gaps:uniqueGaps,lastUpdated:new Date(worker.clock()).toISOString(),parserVersion:SPLIT_PARSER_VERSION},{observedDecisionIds:[...observed],freshSplitParts:[...freshSplitParts.values()],invalidatedTextListIds,textParserVersion:AMENDMENT_EXTRACTION_VERSION,currentListIds:relationshipsKnown?currentListIds:null,listRelationshipsKnown:relationshipsKnown});
 }
 async function downloadVotingXml(url,{signal}={}) {
   signal?.throwIfAborted();
@@ -239,11 +269,12 @@ export async function amendmentTask(worker,task) {
     for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
     const old=saved.work.extraction,previousNumbers=new Set((old?.amendments || []).map(amendment=>String(amendment.number)));
     const missing=[...previousNumbers].filter(number=>!extraction.amendments.some(amendment=>String(amendment.number)===number));
-    const acceptedText=new Set((old?.amendments || []).filter(amendment=>(typeof amendment.originalText==='string'||typeof amendment.proposedText==='string')&&!amendmentTextLosses(old,amendment).length).map(amendment=>String(amendment.number)));
+    const compatibleBaseline=old?.parserVersion===AMENDMENT_EXTRACTION_VERSION;
+    const acceptedText=new Set((compatibleBaseline?old?.amendments || []:[]).filter(amendment=>typeof amendment.originalText==='string'&&typeof amendment.proposedText==='string'&&!amendmentTextLosses(old,amendment).length).map(amendment=>String(amendment.number)));
     const textLosses=[...new Map(extraction.amendments.filter(amendment=>acceptedText.has(String(amendment.number))).flatMap(amendment=>amendmentTextLosses(extraction,amendment).map(gap=>[amendment.number+':'+gap.code,{code:gap.code,number:gap.number ?? null,message:gap.message}]))).values()];
-    const next={...saved.work,extraction:{...extraction,parserVersion:AMENDMENT_EXTRACTION_VERSION,sourceUrl:file.url,fetchedAt,language:file.language}};
+    const next={...saved.work,extraction:{...extraction,parserVersion:AMENDMENT_EXTRACTION_VERSION,...(old&&!compatibleBaseline?{previousParserVersion:old.parserVersion || 'unknown'}:{}),sourceUrl:file.url,fetchedAt,language:file.language}};
     // Parsing loss is a failed refresh; retain previous accepted text with its date.
-    if(old && (missing.length || textLosses.length))next.extraction={...old,lastRefreshFailure:{attemptedAt:fetchedAt,missingAmendmentNumbers:missing,textLosses,sourceUrl:file.url}};
+    if(old && compatibleBaseline && (missing.length || textLosses.length))next.extraction={...old,lastRefreshFailure:{attemptedAt:fetchedAt,missingAmendmentNumbers:missing,textLosses,sourceUrl:file.url}};
     store.putSource(generation,sourceKey(body.listId),'amendment-list',next,next.extraction.fetchedAt);
     rebuildAmendmentTarget(worker,generation,body.targetDocumentId);
   } else if(task.kind==='amendment-roster') {

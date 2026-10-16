@@ -2,9 +2,16 @@ import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='3';
+export const AMENDMENT_EXTRACTION_VERSION='4';
 
-const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','nested-table','text-unavailable','numbering-warning']);
+const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-structure','nested-table','text-unavailable','numbering-warning']);
+const TABLE_MARKERS=new Set(['w:bookmarkStart','w:bookmarkEnd','w:commentRangeStart','w:commentRangeEnd','w:permStart','w:permEnd','w:proofErr','w:moveFromRangeStart','w:moveFromRangeEnd','w:moveToRangeStart','w:moveToRangeEnd']);
+function unsupportedChildren(nodes,allowed) {
+  return (nodes||[]).some(node=>Object.entries(node).some(([key,value])=>key!==':@'&&!TABLE_MARKERS.has(key)&&!allowed.has(key)&&(key!=='#text'||String(value).trim())));
+}
+const TABLE_CHILDREN=new Set(['w:tblPr','w:tblGrid','w:tr']);
+const ROW_CHILDREN=new Set(['w:tblPrEx','w:trPr','w:tc']);
+const CELL_CHILDREN=new Set(['w:tcPr','w:p','w:tbl']);
 
 const child=(nodes,key)=>nodes?.find(node=>Object.hasOwn(node,key));
 const children=(nodes,key)=>child(nodes,key)?.[key];
@@ -61,7 +68,8 @@ function documentBlocks(parts,warnings) {
     const prefix=label(props);if(prefix&&text)text=prefix+'\t'+text;
     size+=raw.length+text.length;
     if(++count>20000||size>4*1024*1024)throw new Error('Amendment document text exceeds the supported size.');
-    return {raw,text,paragraphStyle:property(props,'w:pStyle')||style.paragraph||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(JSON.stringify(nodes))};
+    const structure=JSON.stringify(nodes);
+    return {raw,text,paragraphStyle:property(props,'w:pStyle')||style.paragraph||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),unsupportedBody:/"(?:mc:AlternateContent|w:altChunk|w:contentPart|w:subDoc|w:object)"/.test(structure)};
   };
   const blocks=[];
   const paragraphs=nodes=>{
@@ -76,11 +84,20 @@ function documentBlocks(parts,warnings) {
     for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
       if(key==='w:p')blocks.push({kind:'paragraph',...paragraph(value)});
       else if(key==='w:tbl') {
-        const rows=value.filter(n=>n['w:tr']).map(row=>row['w:tr'].filter(n=>n['w:tc']).map(cell=>{
-          const content=paragraphs(cell['w:tc']);
-          return {text:content.map(p=>p.text).filter(Boolean).join('\n'),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"')};
-        }));
-        blocks.push({kind:'table',rows});
+        // Only direct rows/cells have a supported comparison layout. Content
+        // controls, custom XML and alternate branches may wrap legal content;
+        // report those structures instead of silently dropping or flattening
+        // them into the surrounding row (including nested-table descendants).
+        let unsupported=unsupportedChildren(value,TABLE_CHILDREN);
+        const rows=value.filter(n=>n['w:tr']).map(row=>{
+          unsupported ||= unsupportedChildren(row['w:tr'],ROW_CHILDREN);
+          return row['w:tr'].filter(n=>n['w:tc']).map(cell=>{
+            const content=paragraphs(cell['w:tc']);
+            unsupported ||= unsupportedChildren(cell['w:tc'],CELL_CHILDREN)||content.some(p=>p.unsupportedBody);
+            return {text:content.map(p=>p.text).filter(Boolean).join('\n'),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"')};
+          });
+        });
+        blocks.push({kind:'table',rows,unsupported});
       } else if(key!==':@'&&Array.isArray(value))walk(value);
     }
   };
@@ -150,6 +167,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const before=[],after=[];let comparableRows=0,hasTable=false;
     for(const table of group.filter(b=>b.kind==='table')) {
       hasTable=true;
+      if(table.unsupported)gap('comparison-structure',number,'The comparison contains unsupported wrapped or embedded row/cell content; its wording is withheld.');
       let headerConfirmed=false;
       for(const cells of table.rows) {
         if(cells.some(c=>c.nested)){gap('nested-table',number,'A nested comparison table is unsupported.');continue;}
