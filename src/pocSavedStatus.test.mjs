@@ -41,7 +41,8 @@ function record(h,t) {
 test('explicit Following checks announce settled current unread state once, preserve focus and repeat a later deliberate result',async t=>{
   const h=await harness(t);await h.render();const button=h.button(),messages=record(h,t);
   assert.equal(h.status().textContent,'');assert.equal(h.status().getAttribute('aria-live'),'polite');assert.equal(h.status().lang,'en');
-  await h.check();assert.equal(button.textContent,'Checking…');assert.equal(button.disabled,true);await settle();assert.equal(h.status().textContent,'');
+  await h.check();assert.equal(button.textContent,'Checking…');assert.equal(button.getAttribute('aria-disabled'),'true');assert.equal(button.disabled,false);assert.equal(document.activeElement,button);
+  await h.check();assert.equal(h.requests.length,1,'busy button remains focusable while guarding repeated activation');await settle();assert.equal(h.status().textContent,'');
   assert.equal(h.requests[0].url.searchParams.get('members'),'257043');
   const changed=response([state({revision:'new',total:2,activityIds:['A-10-2026-000001','A-10-2026-000002']})]);
   await h.respond(0,changed);assert.equal(button.textContent,'Check for updates');await settle();
