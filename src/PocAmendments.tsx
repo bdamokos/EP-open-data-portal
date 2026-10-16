@@ -4,7 +4,7 @@ import {useExplorerParam} from './pocExplorerUrl';
 import {InsightShell,insightMemberHref} from './PocInsightShared';
 import type {InsightProps} from './PocInsightTypes';
 import type {Amendment,AmendmentDecision,AmendmentFailurePage,AmendmentPage,AmendmentSource,AmendmentSplit,AmendmentVariant} from './PocAmendmentTypes';
-import {amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentFailureKey,amendmentFailureLabel,amendmentOutcomeLabel,amendmentPlanSummary,amendmentRoute,publicAmendmentSource} from './pocAmendmentModel.mjs';
+import {amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentFailureKey,amendmentFailureLabel,amendmentOutcomeLabel,amendmentPlanSummary,amendmentRoute,publicAmendmentSource} from './pocAmendmentModel.mjs';
 import type {Directory} from './pocTypes';
 import './PocAmendments.css';
 
@@ -26,8 +26,8 @@ function Outcome({value}:{value?:string|null}) {
   return <span className="poc-amendment-outcome" data-outcome={value||'unavailable'}>{amendmentOutcomeLabel(value)}</span>;
 }
 function Decision({item,decision,language}:{item:Amendment;decision:AmendmentDecision;language:string}) {
-  const source=publicAmendmentSource(decision.source),hasTotals=decision.totals&&['for','against','abstaining'].some(key=>typeof decision.totals?.[key as keyof NonNullable<AmendmentDecision['totals']>]==='number');
-  return <li className="poc-amendment-decision"><div className="poc-amendment-decision-heading"><strong>{amendmentDecisionScope(item,decision)}</strong><Outcome value={decision.outcome}/></div><p className="poc-amendment-meta">{[decision.date?'Decision date '+dateLabel(decision.date,language):null,methods[decision.method||'']||decision.method].filter(Boolean).join(' · ')}</p>{hasTotals&&<dl className="poc-amendment-totals">{([['for','For'],['against','Against'],['abstaining','Abstentions']] as const).map(([key,label])=><div key={key}><dt>{label}</dt><dd>{decision.totals?.[key]?.toLocaleString(language)??'Unavailable'}</dd></div>)}</dl>}{source&&<a href={source} target="_blank" rel="noreferrer">Official decision data ↗</a>}</li>;
+  const source=decision.provenance==='unavailable'?null:publicAmendmentSource(decision.source),hasTotals=decision.totals&&['for','against','abstaining'].some(key=>typeof decision.totals?.[key as keyof NonNullable<AmendmentDecision['totals']>]==='number');
+  return <li className="poc-amendment-decision"><div className="poc-amendment-decision-heading"><strong>{amendmentDecisionScope(item,decision)}</strong><Outcome value={decision.outcome}/></div><p className="poc-amendment-meta">{[decision.date?'Decision date '+dateLabel(decision.date,language):null,methods[decision.method||'']||decision.method].filter(Boolean).join(' · ')}</p>{hasTotals&&<dl className="poc-amendment-totals">{([['for','For'],['against','Against'],['abstaining','Abstentions']] as const).map(([key,label])=><div key={key}><dt>{label}</dt><dd>{decision.totals?.[key]?.toLocaleString(language)??'Unavailable'}</dd></div>)}</dl>}{source&&<a href={source} target="_blank" rel="noreferrer">Official decision data ↗</a>}{!source&&(decision.provenance==='unavailable'||Boolean(decision.sourceCandidates?.length))&&<p className="poc-amendment-secondary">Exact decision source page unavailable.</p>}</li>;
 }
 function SplitDescription({description,language,sourceDescriptions,rawDescription,code}:{description?:string|null;language?:string|null;sourceDescriptions?:Record<string,string>;rawDescription?:string|null;code?:string|null}) {
   if(description?.trim())return <blockquote lang={language||undefined}>{description}</blockquote>;
@@ -44,13 +44,13 @@ function SplitDescription({description,language,sourceDescriptions,rawDescriptio
 function SplitPart({part,item,language}:{part:AmendmentSplit;item:Amendment;language:string}) {
   const decisions=(item.decisions||[]).filter(decision=>amendmentDecisionPart(item.splitParts||[],decision)?.id===part.id);
   const plan=amendmentPlanSummary(part.plan),failed=Boolean(part.failure)||['failed','unparsed','unresolved','unsupported','failure','error'].includes(part.status||'');
-  return <li className="poc-amendment-part"><h5>{part.number!=null?'Part '+part.number:part.id||'Unidentified split component'}</h5><SplitDescription description={part.description} language={part.language} rawDescription={part.rawDescription} sourceDescriptions={part.sourceDescriptions} code={typeof part.failure==='object'?part.failure?.code:null}/>{failed?<p className="poc-amendment-gap">This split description could not be parsed automatically. The source description is retained for future parser updates.{part.failure&&<> <span>{typeof part.failure==='string'?part.failure:part.failure.message||part.failure.code}</span></>}</p>:plan.length?<div className="poc-amendment-selection"><strong>Recognised selection</strong><ul>{plan.map((line,index)=><li key={index}>{line}</li>)}</ul><small>This describes the split; it does not reconstruct the final adopted text.</small></div>:<p className="poc-amendment-secondary">A readable selection plan is unavailable.</p>}{decisions.length?<ul className="poc-amendment-decisions">{decisions.map(decision=><Decision key={decision.id} item={item} decision={decision} language={language}/>)}</ul>:<p className="poc-amendment-secondary">Outcome unavailable for this part.</p>}</li>;
+  return <li className="poc-amendment-part"><h5>{part.number!=null?'Part '+part.number:part.id||'Unidentified split component'}</h5><SplitDescription description={part.description} language={part.language} rawDescription={part.rawDescription} sourceDescriptions={part.sourceDescriptions} code={typeof part.failure==='object'?part.failure?.code:null}/>{failed?<p className="poc-amendment-gap">This split description could not be parsed automatically. The source description is retained for future parser updates.{part.failure&&<> <span>{typeof part.failure==='string'?part.failure:part.failure.message||part.failure.code}</span></>}</p>:plan.length?<div className="poc-amendment-selection"><strong>Recognised selection</strong><ul>{plan.map((line,index)=><li key={index}>{line}</li>)}</ul><small>This describes the split; it does not reconstruct the final adopted text.</small></div>:<p className="poc-amendment-secondary">A readable selection plan is unavailable.</p>}{decisions.length?<ul className="poc-amendment-decisions">{decisions.map(decision=><Decision key={amendmentDecisionKey(decision)} item={item} decision={decision} language={language}/>)}</ul>:<p className="poc-amendment-secondary">Outcome unavailable for this part.</p>}</li>;
 }
 function AmendmentWording({item}:{item:AmendmentVariant}) {
-  return <div className="poc-amendment-texts" lang={item.language||undefined}>
+  return <>{item.wordingRetained&&<p className="poc-amendment-secondary">Showing previously indexed wording. Proposer information and document metadata have separate source records.</p>}<div className="poc-amendment-texts" lang={item.wordingSource?.language||item.language||undefined}>
     <section><h5>Original text</h5>{item.originalText!==null&&item.originalText!==undefined?<p>{item.originalText===''?'No original text (insertion).':item.originalText}</p>:<p className="poc-amendment-secondary">Original text unavailable in the extracted document.</p>}</section>
     <section><h5>Proposed text</h5>{item.proposedText!==null&&item.proposedText!==undefined?<p>{item.proposedText===''?'Text deleted.':item.proposedText}</p>:<p className="poc-amendment-secondary">Proposed text unavailable in the extracted document.</p>}</section>
-  </div>;
+  </div></>;
 }
 function AmendmentSources({sources,language}:{sources:AmendmentSource[];language:string}) {
   const available=sources.filter(source=>publicAmendmentSource(source));
@@ -59,6 +59,14 @@ function AmendmentSources({sources,language}:{sources:AmendmentSource[];language
     {source.fetchedAt!==undefined&&source.fetchedAt!==null&&<small> · retrieved {dateLabel(source.fetchedAt,language)||'date unavailable'}</small>}
     {source.date&&<small> · {documentDateLabel(source,language)}</small>}
   </li>)}</ul>:<p>Official source link unavailable.</p>;
+}
+function ComponentSource({source,label,language}:{source?:AmendmentSource|null;label:string;language:string}) {
+  const url=publicAmendmentSource(source);
+  if(!source)return null;
+  return <p className="poc-amendment-meta">{label}: {url?<a href={url} target="_blank" rel="noreferrer">official document{source.language?' · '+source.language.toUpperCase():''} ↗</a>:'link unavailable'}{source.fetchedAt!=null?' · retrieved '+(dateLabel(source.fetchedAt,language)||'date unavailable'):''}</p>;
+}
+function ComponentSources({item,language}:{item:AmendmentVariant;language:string}) {
+  return <><ComponentSource source={item.wordingSource} label={item.wordingRetained?'Retained wording source':'Wording source'} language={language}/><ComponentSource source={item.proposerSource} label={item.proposerRetained?'Retained proposer source':'Proposer source'} language={language}/><ComponentSource source={item.metadataSource} label="Document metadata source" language={language}/></>;
 }
 function AmendmentAuthors({item,language,onMember}:{item:Amendment;language:string;onMember?:InsightProps['onMember']}) {
   const authors=item.authors||[],onBehalfOf=onBehalfLabel(item.onBehalfOf);
@@ -83,7 +91,7 @@ function SourceVariants({item,language}:{item:Amendment;language:string}) {
       {variant.authors?.length?<p>Named in this source: {variant.authors.map(author=>author.name).join(', ')}</p>:null}
       {variant.committeeProposer&&<p>Committee proposer in this source: {variant.committeeProposer}</p>}
       {onBehalfLabel(variant.onBehalfOf)&&<p>On behalf of {onBehalfLabel(variant.onBehalfOf)}</p>}
-      <AmendmentWording item={variant}/><AmendmentSources sources={variant.sources||[]} language={language}/>
+      <AmendmentWording item={variant}/><ComponentSources item={variant} language={language}/><AmendmentSources sources={variant.sources||[]} language={language}/>
     </section>)}</details>:null}
   </div>;
 }
@@ -92,14 +100,16 @@ function AmendmentCard({item,language,onMember}:{item:Amendment;language:string;
   const authors=item.authors||[];
   return <article className="poc-amendment-card" id={'amendment-'+item.id}>
     <header><div><p className="poc-amendment-reference">{item.targetDocumentId||'Target document unavailable'}{item.listId&&<span> · {item.listId}</span>}</p><h4>Amendment {item.number??item.id}</h4>{item.title&&<p className="poc-amendment-title">{item.title}</p>}</div><Outcome value={item.outcome}/></header>
-    {!item.conflicted&&<><p className="poc-amendment-target">{item.targetLabel||'Target provision unavailable'}</p><p className="poc-amendment-meta">{[documentDateLabel(item,language),item.language?item.language.toUpperCase()+' · source language':'Source language unavailable',splitParts.length?'Split amendment · '+splitParts.length+' parts':null].filter(Boolean).join(' · ')}</p></>}
+    {!item.conflicted&&<><p className="poc-amendment-target">{item.targetLabel||'Target provision unavailable'}</p><p className="poc-amendment-meta">{[documentDateLabel(item,language),(item.metadataSource?.language||item.language)?(item.metadataSource?.language||item.language)!.toUpperCase()+' · document language':'Document language unavailable',splitParts.length?'Split amendment · '+splitParts.length+' parts':null].filter(Boolean).join(' · ')}</p></>}
     <SourceVariants item={item} language={language}/>
     <AmendmentAuthors item={item} language={language} onMember={onMember}/>
+    {!item.conflicted&&item.proposerRetained&&<p className="poc-amendment-secondary">Proposer information is retained from an earlier indexed source.</p>}
     {!item.conflicted&&<details className="poc-amendment-wording"><summary>Compare original and proposed text</summary><AmendmentWording item={item}/></details>}
-    {(decisions.length>0||splitParts.length>0)?<details className="poc-amendment-voting"><summary>Decisions{splitParts.length?' and split parts':''} · {decisions.length} recorded</summary>{splitParts.length>0&&<ol className="poc-amendment-parts">{splitParts.map((part,index)=><SplitPart key={part.id||JSON.stringify([part.componentIndex??index,part.rawDescription??part.description??null])} part={part} item={item} language={language}/>)}</ol>}{whole.length>0&&<ul className="poc-amendment-decisions">{whole.map(decision=><Decision key={decision.id} item={item} decision={decision} language={language}/>)}</ul>}</details>:<p className="poc-amendment-secondary">No outcome is recorded in the available sources.</p>}
+    {(decisions.length>0||splitParts.length>0)?<details className="poc-amendment-voting"><summary>Decisions{splitParts.length?' and split parts':''} · {decisions.length} recorded</summary>{splitParts.length>0&&<ol className="poc-amendment-parts">{splitParts.map((part,index)=><SplitPart key={part.id||JSON.stringify([part.componentIndex??index,part.rawDescription??part.description??null])} part={part} item={item} language={language}/>)}</ol>}{whole.length>0&&<ul className="poc-amendment-decisions">{whole.map(decision=><Decision key={amendmentDecisionKey(decision)} item={item} decision={decision} language={language}/>)}</ul>}</details>:<p className="poc-amendment-secondary">No outcome is recorded in the available sources.</p>}
     <details className="poc-amendment-evidence"><summary>Sources and coverage{item.gaps?.length?' · '+item.gaps.length+' gaps':''}</summary><p className="poc-amendment-reference">{item.id}</p>
       {item.identifierBasis==='derived-from-exact-target-and-number'&&<p>Dataset key derived from the exact target document and amendment number.</p>}
       {item.officialIds?.length?<p className="poc-amendment-reference">Official references: {item.officialIds.join(', ')}</p>:null}
+      {!item.conflicted&&<ComponentSources item={item} language={language}/>}
       <AmendmentSources sources={item.sources||[]} language={language}/>
       {item.topics?.length?<ul>{item.topics.map(topic=><li key={topic.id}>{topic.label} <small>· {topic.basis==='dossier'?'dossier subject':'target provision'}</small></li>)}</ul>:null}
       {item.gaps?.length?<ul className="poc-amendment-gap">{item.gaps.map((gap,index)=><li key={index}>{gapLabel(gap)}</li>)}</ul>:null}

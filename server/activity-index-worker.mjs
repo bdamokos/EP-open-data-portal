@@ -1,8 +1,9 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { ODP_BASE, boundedUpstream, backoffUpstream } from './odp.mjs';
 import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
-import { projectAmendmentDecisions, projectAmendmentSplits } from './amendments.mjs';
+import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
 import { nextAmendmentTask } from './amendments-store.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
@@ -341,23 +342,28 @@ export class ActivityWorker {
     const sources=[...body.sources,{url:url.href,fetchedAt:record.fetchedAt,language:body.stage==='decisions'?'en':null}];
     const project=body.stage==='results'?projectMotionResults:projectMotionDecisions;
     const amendmentNodes=body.stage==='decisions'?new Map(projectAmendmentDecisions(record.payload.data,body.sittingId).map(node=>[node.id,node])):null;
-    const nodes=project(record.payload.data,body.sittingId).map(node=>amendmentNodes?{...node,...amendmentNodes.get(node.id)}:node);
-    const splits=body.stage==='results'?[...new Map([...(body.splits || []),...projectAmendmentSplits(record.payload.data,body.sittingId).map(node=>({...node,source:{url:url.href,fetchedAt:record.fetchedAt}}))].map(node=>[node.id,node])).values()]:body.splits || [];
+    const pageSource={url:url.href,fetchedAt:record.fetchedAt};
+    const nodes=project(record.payload.data,body.sittingId).map(node=>amendmentNodes?{...node,...amendmentNodes.get(node.id),source:pageSource}:node);
+    const priorSplits=(body.splits || []).map((node,index)=>node.id||node.observationKey?node:{...node,observationKey:'__legacy_request__:'+createHash('sha256').update(JSON.stringify([index,node])).digest('hex')});
+    const pageSplits=body.stage==='results'?projectAmendmentSplits(record.payload.data,body.sittingId).map(node=>({...node,...(!node.id?{observationKey:'__unidentified_request__:'+createHash('sha256').update(JSON.stringify([url.href,node.observationIndex,node])).digest('hex')}:{ }),source:pageSource})):[];
+    const splits=[...new Map([...priorSplits,...pageSplits].map(node=>[node.id || node.observationKey,node])).values()];
+    if(splits.length>5000)throw new Error('Split request source exceeded its record budget.');
     const field=body.stage==='results'?'results':'decisions';
     const merged=[...new Map([...body[field],...nodes].map(node=>[node.id,node])).values()];
-    const next={...body,[field]:merged,sources,splits};
+    const projectionKnown=body.amendmentProjectionVersion===AMENDMENT_SITTING_PROJECTION_VERSION||body.stage==='results'&&body.offset===0&&!body.results.length&&!(body.splits || []).length;
+    const next={...body,[field]:merged,sources,splits,...(projectionKnown?{amendmentProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION}:{})};
     const coverage=motionVoteCoverage(next.results,next.decisions);
     const missing=body.stage==='results'?coverage.missingResultIds:coverage.missingDecisionIds;
-    const grew=merged.length>body[field].length;
+    const grew=merged.length>body[field].length || body.stage==='results'&&splits.length>(body.splits || []).length;
     const capped=merged.length>5000 || body.offset>=950;
     if(merged.length>5000)throw new Error('Motion vote source exceeded its record budget.');
     // The decisions API currently ignores limit and returns the whole sitting.
     // Compare exact declared children, never graph length or the requested limit.
-    if(!capped && grew && (missing.length || body.stage==='results' && nodes.length>=50)) {
+    if(!capped && grew && (missing.length || body.stage==='results' && nodes.length+pageSplits.length>=50)) {
       this.store.taskProgress(task,{...next,offset:body.offset+Math.max(50,nodes.length)});return;
     }
     if(body.stage==='results') {
-      this.store.taskProgress(task,{...next,stage:'decisions',offset:0,resultsUrl:sources[0].url,resultsFetchedAt:record.fetchedAt});return;
+      this.store.taskProgress(task,{...next,stage:'decisions',offset:0,splitProjectionTruncated:Boolean(capped&&nodes.length+pageSplits.length>=50),resultsUrl:sources[0].url,resultsFetchedAt:record.fetchedAt});return;
     }
     const firstDecisionSource=sources.find(source=>source.url.includes('/decisions?'));
     const key=motionSourceKey(body.sittingId), saved=this.store.source(generation,key);
@@ -367,7 +373,7 @@ export class ActivityWorker {
     const truncated=Boolean(coverage.missingResultIds.length || coverage.missingDecisionIds.length);
     const lastRefreshFailure=truncated?{attemptedAt:record.fetchedAt,coverage,sources}:null;
     let replacement=truncated && saved && !saved.work.truncated ? {...saved.work,lastRefreshFailure} : {
-      results:next.results,decisions:next.decisions,splitRequests:next.splits,sources,
+      results:next.results,decisions:next.decisions,splitRequests:next.splits,sources,splitProjectionTruncated:Boolean(next.splitProjectionTruncated),...(projectionKnown?{amendmentProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION}:{}),
       resultsUrl:body.resultsUrl,resultsFetchedAt:body.resultsFetchedAt,decisionsUrl:firstDecisionSource.url,decisionsFetchedAt:record.fetchedAt,
       coverage,truncated,lastRefreshFailure,
     };

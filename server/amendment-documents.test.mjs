@@ -50,7 +50,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'5');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'6');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -192,6 +192,88 @@ test('hidden and deleted font symbols do not invalidate supported visible compar
   const xml=body(metadata()+table(row(cell('<w:p>'+run('Rate')+symbols+run(' applies')+'</w:p>'),cell(p('Proposed wording'))))+p('</Amend>'));
   const result=extractAmendments(archive(xml),options);
   assert.equal(result.amendments[0].originalText,'Rate applies');assert.equal(result.amendments[0].proposedText,'Proposed wording');assert.deepEqual(result.gaps,[]);
+});
+
+const math='<m:oMath><m:sSup><m:e><m:r><m:t>x</m:t></m:r></m:e><m:sup><m:r><m:t>2</m:t></m:r></m:sup></m:sSup></m:oMath>';
+const drawing='<w:drawing><wp:inline><a:graphic><a:graphicData><a:blip r:embed="formula1"/></a:graphicData></a:graphic></wp:inline></w:drawing>';
+const mathematicalBody=text=>body(text).replace('xmlns:w="urn:word"','xmlns:w="urn:word" xmlns:m="urn:math" xmlns:wp="urn:drawing" xmlns:a="urn:graphic" xmlns:v="urn:vml" xmlns:r="urn:relationships"');
+const formattedRun=(properties,text)=>'<w:r><w:rPr>'+properties+'</w:rPr><w:t>'+escape(text)+'</w:t></w:r>';
+
+test('visible equations, formula images and embedded objects cannot become plain or omitted legal wording',()=>{
+  const cases=[
+    ['OMML exponent',math],
+    ['drawing formula','<w:r>'+drawing+'</w:r>'],
+    ['VML formula','<w:r><w:pict><v:shape><v:imagedata r:id="formula2"/></v:shape></w:pict></w:r>'],
+    ['embedded formula','<w:r><w:object><v:shape/></w:object></w:r>'],
+  ];
+  for(const [description,formula] of cases)for(const prefix of ['',row(cell(p('First original')),cell(p('First proposal')))]) {
+    const formulaParagraph='<w:p>'+run('The value ')+formula+run(' applies.')+'</w:p>';
+    const xml=mathematicalBody(metadata()+table(prefix,row(cell(formulaParagraph),cell(p('Proposed wording'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('A complete insertion.'))))+p('</Amend>'));
+    const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+    const affected=result.amendments.find(amendment=>amendment.number===1);
+    assert.equal(affected.originalText,null,description);assert.equal(affected.proposedText,null,description);
+    assert(affected.gaps.some(gap=>gap.code==='non-text-content'&&gap.number===1&&gap.sourceUrl===options.sourceUrl),description);
+    const intact=result.amendments.find(amendment=>amendment.number===2);
+    assert.equal(intact.originalText,'');assert.equal(intact.proposedText,'A complete insertion.');assert.deepEqual(intact.gaps,[]);
+  }
+});
+
+test('superscript, subscript and raised text cannot silently turn 10 and 3 into 103',()=>{
+  for(const properties of ['<w:vertAlign w:val="superscript"/>','<w:vertAlign w:val="subscript"/>','<w:position w:val="6"/>'])for(const prefix of ['',row(cell(p('First original')),cell(p('First proposal')))]) {
+    const xml=body(metadata()+table(prefix,row(cell('<w:p>'+run('10')+formattedRun(properties,'3')+'</w:p>'),cell(p('Proposed wording'))))+p('</Amend>'));
+    const result=extractAmendments(archive(xml),options);
+    assert.equal(result.amendments[0].originalText,null);assert.equal(result.amendments[0].proposedText,null);
+    assert(result.amendments[0].gaps.some(gap=>gap.code==='vertical-text-loss'&&gap.number===1));
+  }
+});
+
+test('inherited character, paragraph and default baseline formatting remains explicit text loss',()=>{
+  const cases=[
+    {styles:'<w:style w:styleId="Super"><w:rPr><w:vertAlign w:val="superscript"/></w:rPr></w:style><w:style w:styleId="Inherited"><w:basedOn w:val="Super"/></w:style>',paragraph:'<w:p>'+run('10')+formattedRun('<w:rStyle w:val="Inherited"/>','3')+'</w:p>'},
+    {styles:'<w:style w:styleId="Raised"><w:rPr><w:position w:val="6"/></w:rPr></w:style><w:style w:styleId="Inherited"><w:basedOn w:val="Raised"/></w:style>',paragraph:'<w:p>'+run('10')+formattedRun('<w:rStyle w:val="Inherited"/>','3')+'</w:p>'},
+    {styles:'<w:style w:styleId="Super"><w:rPr><w:vertAlign w:val="superscript"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Inherited"><w:basedOn w:val="Super"/></w:style>',paragraph:'<w:p><w:pPr><w:pStyle w:val="Inherited"/></w:pPr>'+run('103')+'</w:p>'},
+    {styles:'<w:docDefaults><w:rPrDefault><w:rPr><w:vertAlign w:val="subscript"/></w:rPr></w:rPrDefault></w:docDefaults>',paragraph:p('103')},
+    {styles:'<w:style w:type="character" w:default="1" w:styleId="DefaultRaised"><w:rPr><w:position w:val="6"/></w:rPr></w:style>',paragraph:p('103')},
+  ];
+  for(const {styles,paragraph} of cases) {
+    const xml=body(metadata()+table(row(cell(paragraph),cell(p('Proposed wording'))))+p('</Amend>'));
+    const result=extractAmendments(archive(xml,'<w:styles>'+styles+'</w:styles>'),options);
+    assert.equal(result.amendments[0].originalText,null);assert.equal(result.amendments[0].proposedText,null);
+    assert(result.amendments[0].gaps.some(gap=>gap.code==='vertical-text-loss'&&gap.number===1));
+  }
+});
+
+test('explicit and inherited baseline resets keep supported text instead of retaining superscript styling',()=>{
+  const styles='<w:styles><w:style w:styleId="Super"><w:rPr><w:vertAlign w:val="superscript"/></w:rPr></w:style><w:style w:styleId="Reset"><w:basedOn w:val="Super"/><w:rPr><w:vertAlign w:val="baseline"/></w:rPr></w:style><w:style w:styleId="Raised"><w:rPr><w:position w:val="6"/></w:rPr></w:style></w:styles>';
+  const cases=[
+    '<w:p>'+run('10')+formattedRun('<w:rStyle w:val="Super"/><w:vertAlign w:val="baseline"/>','3')+'</w:p>',
+    '<w:p>'+run('10')+formattedRun('<w:rStyle w:val="Reset"/>','3')+'</w:p>',
+    '<w:p>'+run('10')+formattedRun('<w:rStyle w:val="Raised"/><w:position w:val="0"/>','3')+'</w:p>',
+    '<w:p><w:pPr><w:pStyle w:val="Super"/></w:pPr>'+formattedRun('<w:vertAlign w:val="baseline"/>','103')+'</w:p>',
+  ];
+  for(const paragraph of cases) {
+    const result=extractAmendments(archive(body(metadata()+table(row(cell(paragraph),cell(p('Proposed wording'))))+p('</Amend>')),styles),options);
+    assert.equal(result.amendments[0].originalText,'103');assert.equal(result.amendments[0].proposedText,'Proposed wording');assert.deepEqual(result.gaps,[]);
+  }
+});
+
+test('hidden and deleted math, drawings and vertical text leave supported visible wording unchanged',()=>{
+  const hidden='<w:r><w:rPr><w:vanish/><w:vertAlign w:val="superscript"/></w:rPr><w:t>3</w:t>'+drawing+math+'<w:object/></w:r>';
+  const deleted='<w:del>'+formattedRun('<w:vertAlign w:val="subscript"/>','3')+'<w:r>'+drawing+'</w:r>'+math+'</w:del>';
+  const paragraph='<w:p>'+run('Rate')+hidden+deleted+run(' applies')+'</w:p>';
+  const result=extractAmendments(archive(mathematicalBody(metadata()+table(row(cell(paragraph),cell(p('Proposed wording'))))+p('</Amend>'))),options);
+  assert.equal(result.amendments[0].originalText,'Rate applies');assert.equal(result.amendments[0].proposedText,'Proposed wording');assert.deepEqual(result.gaps,[]);
+});
+
+test('body-level mathematical blocks are numbered when scoped and explicitly document-level when unscoped',()=>{
+  const block='<m:oMathPara>'+math+'</m:oMathPara>';
+  const scoped=extractAmendments(archive(mathematicalBody(metadata()+block+table(row(cell(p('Original')),cell(p('Proposal'))))+p('</Amend>'))),options);
+  assert.equal(scoped.amendments[0].originalText,null);assert.equal(scoped.amendments[0].proposedText,null);
+  assert(scoped.amendments[0].gaps.some(gap=>gap.code==='non-text-content'&&gap.number===1));
+  const unscoped=extractAmendments(archive(mathematicalBody(block)),options);
+  assert.deepEqual(unscoped.amendments,[]);
+  assert(unscoped.gaps.some(gap=>gap.code==='non-text-content'&&gap.number==null&&gap.scope==='document'&&gap.sourceUrl===options.sourceUrl));
+  assert(unscoped.gaps.some(gap=>gap.code==='amendments-unavailable'));
 });
 
 test('ordinary table properties and positional annotation markers do not invalidate supported columns',()=>{

@@ -40,7 +40,7 @@ export function recordSplitResults(store,result) {
     return {part,failure,kind:'component'};
   });
   for(const failure of failures)if(!used.has(failure))entries.push({part:{id:failure.partId,componentIndex:failure.componentIndex,description:failure.description,rawDescription:failure.rawDescription,sourceDescriptions:failure.sourceDescriptions,language:failure.language},failure,kind:failure.partId!=null||failure.scope==='component'?'component':'request'});
-  const requestKey=result.requestId || '__unidentified_request__:'+createHash('sha256').update(JSON.stringify((result.parts || []).map(part=>[part.componentIndex,part.rawDescription,part.sourceDescriptions]))).digest('hex');
+  const requestKey=result.requestId || result.observationKey || '__unidentified_request__:'+createHash('sha256').update(JSON.stringify((result.parts || []).map(part=>[part.componentIndex,part.rawDescription,part.sourceDescriptions]))).digest('hex');
   if((result.parts || []).length&&!entries.some(entry=>entry.kind==='request')&&store.db.prepare('SELECT 1 FROM amendment_split_failures WHERE request_id=? AND part_id=?').get(requestKey,'__request__'))entries.push({part:{id:null,language:result.parts[0].language},failure:null,kind:'request'});
   for(const {part,failure,kind} of entries) {
     const requestId=result.requestId ?? null,language=part.language || 'en';
@@ -58,7 +58,7 @@ export function recordSplitResults(store,result) {
     const description=String(failure?.description ?? part.description ?? '').slice(0,65537);
     const rawDescription=typeof (failure?.rawDescription ?? part.rawDescription)==='string'?(failure?.rawDescription ?? part.rawDescription).slice(0,65537):null;
     const signature=createHash('sha256').update(JSON.stringify({description,rawDescription,sourceDescriptions:failure?.sourceDescriptions || part.sourceDescriptions || null})).digest('hex');
-    const body={...old,...failure,...(rawDescription!=null?{rawDescription}:{}),requestId,partId,registryPartKey,recordKind:kind,componentIndex:part.componentIndex ?? null,description,language,parserVersion:SPLIT_PARSER_VERSION,
+    const body={...old,...failure,...(rawDescription!=null?{rawDescription}:{}),requestId,registryRequestKey:requestKey,partId,registryPartKey,recordKind:kind,componentIndex:part.componentIndex ?? null,description,language,parserVersion:SPLIT_PARSER_VERSION,
       sourceUrl,fetchedAt,source:sourceField('source'),sourceCandidates:sourceField('sourceCandidates') || [],provenance:sourceField('provenance'),
       firstOccurrence:old?.firstOccurrence || at,lastOccurrence:at,originalPartId:partId,count:(old?.count || 0)+(failure?1:0),
       status:failure?'unresolved':'resolved',code:failure?.code || old?.code || null,reason:failure?.message || old?.reason || null,
@@ -93,10 +93,12 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
       }
       const stale=[];
       for(const field of incoming.conflicted?[]:['originalText','proposedText','targetLabel','language','listId','justification','onBehalfOf']){
+        if(field==='onBehalfOf'&&!incoming.proposerRetained&&(incoming.authors?.length||incoming.committeeProposer))continue;
         if(['originalText','proposedText'].includes(field)&&(incoming.textIntegrity==='incomplete'||old.textIntegrity==='incomplete'||invalidBaseline(old)||amendmentTextLosses(null,old).length))continue;
-        if(incoming[field]==null&&old[field]!=null){incoming[field]=old[field];stale.push(field);}
+        if(incoming[field]==null&&old[field]!=null){incoming[field]=old[field];incoming.fieldSources={...(incoming.fieldSources || {}),[field]:old.fieldSources?.[field] || (['originalText','proposedText','language'].includes(field)?old.wordingSource:old.metadataSource) || null};stale.push(field);}
       }
-      if(!incoming.conflicted && !incoming.committeeProposer && !incoming.authors?.length && old.authors?.length){incoming.authors=old.authors;stale.push('authors');}
+      if(!incoming.conflicted && !incoming.committeeProposer && !incoming.authors?.length && old.authors?.length){incoming.authors=old.authors;incoming.proposerSource=old.proposerSource || old.metadataSource || null;incoming.proposerRetained=true;incoming.proposerDate=old.proposerDate || old.documentDate || old.date || null;stale.push('authors');}
+      else if(!incoming.conflicted&&!old.conflicted&&!incoming.committeeProposer&&!incoming.authors?.length&&old.committeeProposer){incoming.committeeProposer=old.committeeProposer;incoming.proposerSource=old.proposerSource || old.metadataSource || null;incoming.proposerRetained=true;incoming.proposerDate=old.proposerDate || old.documentDate || old.date || null;stale.push('committee proposer');}
       else incoming.authors=(incoming.authors || []).map(author=>{
         const accepted=(old.authors || []).find(item=>item.name===author.name&&item.personId!=null);
         // Missing inputs can retain an accepted link, but an explicit fresh
@@ -118,6 +120,8 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
     // inventing a binding to any other component, target or namespace.
     const splitGaps=new Set(['A split component has no indexed description.','A split description could not be parsed; the failure is retained for a future parser update.','Split descriptions are parsed as selection plans; exact wording spans have not been validated.','The split description has no exact recorded source page; candidate page provenance is retained.']);
     for(const row of merged.values()) {
+      row.gaps=(row.gaps || []).filter(gap=>gap!=='An amendment decision has no exact recorded source page; candidate page provenance is retained.');
+      if((row.decisions || []).some(decision=>!decision.source?.url)){row.gaps.push('An amendment decision has no exact recorded source page; candidate page provenance is retained.');extraGaps.add('Some amendment decisions have no exact recorded source page.');}
       const partIds=new Set((row.decisions || []).map(decision=>decision.partId).filter(Boolean));
       const parts=new Map((row.splitParts || []).filter(part=>partIds.has(part.id)).map(part=>[part.id,part]));
       for(const id of partIds)if(freshParts.has(id))parts.set(id,freshParts.get(id));
@@ -134,7 +138,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
       row.sources=[...new Map([...(row.sources || []),...row.splitParts.map(part=>part.source).filter(source=>source?.url)].map(source=>[source.url+':'+(source.language || '')+':'+source.fetchedAt,source])).values()];
       const textLosses=amendmentTextLosses(null,row);
       if(invalidBaseline(row)||textLosses.length) {
-        row.originalText=null;row.proposedText=null;row.textIntegrity='incomplete';
+        row.originalText=null;row.proposedText=null;row.textIntegrity='incomplete';row.wordingRetained=false;
         row.gaps.push(...textLosses.map(gap=>gap.message || gap.code));
         if(invalidBaseline(row))row.gaps.push('Earlier wording has no verified baseline compatible with the current document parser and is withheld.');
         extraGaps.add('Some amendment wording is withheld because its complete extraction could not be verified.');
@@ -144,7 +148,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
         if(!incompatible&&!losses.length)return variant;
         row.gaps.push('Some retained amendment variants have unverified wording, which is withheld.');
         extraGaps.add('Some amendment variant wording is withheld because its complete extraction could not be verified.');
-        return {...variant,originalText:null,proposedText:null,textIntegrity:'incomplete',gaps:[...new Set([...(variant.gaps || []),...losses.map(gap=>gap.message || gap.code),...(incompatible?['Earlier wording has no verified baseline compatible with the current document parser and is withheld.']:[])])]};
+        return {...variant,originalText:null,proposedText:null,textIntegrity:'incomplete',wordingRetained:false,gaps:[...new Set([...(variant.gaps || []),...losses.map(gap=>gap.message || gap.code),...(incompatible?['Earlier wording has no verified baseline compatible with the current document parser and is withheld.']:[])])]};
       });
       if(listRelationshipsKnown!==false&&currentLists&&row.listId&&!currentLists.has(row.listId)) {
         row.listRelationship='absent-current-relationship';
