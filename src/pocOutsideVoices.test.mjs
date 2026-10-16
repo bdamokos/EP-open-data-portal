@@ -35,7 +35,7 @@ function speaker(id,name,rows,classifications={}) {
   return {person,contributions,agendas,coSpeakers:[],coverage};
 }
 
-async function harness(t,details,query='?view=outside') {
+async function harness(t,details,query='?view=outside',sourceData=null) {
   const window=new Window({url:'http://localhost/'+query});
   const globals={window,document:window.document,location:window.location,history:window.history,
     Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,
@@ -52,6 +52,7 @@ async function harness(t,details,query='?view=outside') {
   const calls=[];
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);calls.push(url);
+    if(url.pathname==='/api/poc/source-record'&&sourceData)return Response.json(sourceData);
     if(url.pathname==='/api/poc/outside/directory')return Response.json({term:url.searchParams.get('term'),people:details.map(d=>d.person),coverage});
     const detail=details.find(d=>url.pathname==='/api/poc/outside/'+d.person.id);
     if(detail)return Response.json(detail);
@@ -189,4 +190,23 @@ test('timeline names and visible legislative cues follow all classifications, fi
   assert.equal(mark('Combined guest').getAttribute('aria-label'),'Combined guest, 15 Jan 2025: 1 agenda item, legislative file');
   assert.match(mark('Combined guest').textContent,/L/);
   assert.equal(mark('Combined guest').classList.contains('ov-special'),false);
+});
+
+test('Escape closes only the source reader inside an Outside voices drawer',async t=>{
+  const detail=speaker('42','Source reader guest',[speech('2026-10-07','01',[item('2026-10-07',4)])]);
+  const url='https://data.europarl.europa.eu/api/v2/speeches/'+detail.contributions[0].id+'?format=application%2Fld%2Bjson';
+  detail.contributions[0].source={url,fetchedAt:source.fetchedAt};
+  const sourceData={sourceUrl:url,requestUrl:url,fetchedAt:source.fetchedAt,stale:false,collection:false,limited:false,records:[{title:'Guest contribution',websiteUrl:null}],payload:{data:[{id:'eli/dl/event/'+detail.contributions[0].id}]}};
+  const {window,container}=await harness(t,[detail],'?view=outside&ov-person=42',sourceData);
+  window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};window.HTMLDialogElement.prototype.close=function(){this.open=false;};
+  await act(async()=>container.querySelector('.ov-appearance-cards button').click());assert(container.querySelector('.ov-drawer'));
+  const evidence=container.querySelector('.ov-drawer .ov-evidence');evidence.open=true;
+  const trigger=evidence.querySelector('button.source-read');assert(trigger);
+  await act(async()=>trigger.click());const dialog=document.querySelector('dialog.source-dialog');assert(dialog?.open);
+  await act(async()=>dialog.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true})));
+  assert(container.querySelector('.ov-drawer'),'Escape does not reach the containing drawer listener');
+  await act(async()=>dialog.dispatchEvent(new window.Event('cancel',{cancelable:true})));
+  assert.equal(document.querySelector('dialog.source-dialog'),null);assert(container.querySelector('.ov-drawer'));assert.equal(document.activeElement,trigger);
+  await act(async()=>container.querySelector('.ov-drawer').dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true})));
+  assert.equal(container.querySelector('.ov-drawer'),null,'a subsequent Escape still closes the drawer');
 });
