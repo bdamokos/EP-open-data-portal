@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {sourceTarget,humanSourceUrl,sourceLanguages} from './source-links.mjs';
 import {createSourceReader} from './source-record.mjs';
 const base='https://data.europarl.europa.eu/api/v2';
@@ -45,4 +46,22 @@ test('the complete response stays within one MiB without duplicating records',as
 });
 test('source languages include nested maps without treating identifiers as languages',()=>{
   assert.deepEqual(sourceLanguages({id:'eli/dl/proc/2025-0407',activity_label:{en:'English'},nested:[{text:{fr:'Français',hu:'Magyar'}}],identifier:{id:'record-id'}}),['en','fr','hu']);
+});
+test('existing Outside evidence filters survive the reader request and collection cap',async()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/outside-speakers-20261016.json',import.meta.url)));
+  const urls=[...new Set(fixture.contributions.map(row=>row.sourceUrl))];
+  assert(urls.some(url=>url.includes('language-filter=hu')));
+  assert(urls.some(url=>url.includes('title=')&&url.includes('search-language=')));
+  for(const url of urls)assert(sourceTarget(url),url);
+  for(const url of urls){
+    if(!sourceTarget(url).collection)continue;
+    const original=new URL(url);let actual;
+    const read=createSourceReader({request:async(endpoint,params)=>{actual={endpoint,params};return {url:base+endpoint,fetchedAt:Date.now(),payload:{data:[]}};}});
+    const data=await read(url);
+    assert.equal(actual.endpoint,'/speeches');assert.equal(data.sourceUrl,url);
+    const expected=Object.fromEntries(original.searchParams);delete expected.format;expected.limit=Math.min(25,Number(expected.limit)||25);
+    assert.deepEqual(actual.params,expected,url);
+    assert.equal(humanSourceUrl(url),null,'a website search is not the exact source result');
+  }
+  for(const query of ['language-filter=invalid','search-language=EN','title=','title=%20','title=x&title=y','language-filter=en&language-filter=hu','search-language=en&search-language=fr','title=%00'])assert.equal(sourceTarget(base+'/speeches?'+query),null,query);
 });

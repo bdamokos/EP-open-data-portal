@@ -5,7 +5,7 @@ const languages=new Set(SOURCE_LANGUAGES);
 const documentId=/^(?:[EPOAB]-\d+-\d{4}-\d+(?:-ASW)?|(?:RC|TA)-\d+-\d{4}-\d+|[A-Z]{3,5}-(?:AD|AL|AM|PA|PR)-\d+(?:-\d+)*)$/;
 const familyId={procedures:/^\d{4}-\d{4}[A-Z]?$/,meps:/^[1-9]\d{0,8}$/,speeches:/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]{1,80}$/,events:/^[A-Z0-9-]{1,150}$/,meetings:/^MTG-PL-\d{4}-\d{2}-\d{2}$/,
   'plenary-documents':/^(?:A|B|RC)-\d+-\d{4}-\d+$/,'parliamentary-questions':/^[EPO]-\d+-\d{4}-\d+(?:-ASW)?$/,'committee-documents':/^[A-Z]{3,5}-(?:AD|AL|AM|PA|PR)-\d+(?:-\d+)*$/,'adopted-texts':/^TA-\d+-\d{4}-\d+$/};
-const filters=new Set(['format','language','include-output','parliamentary-term','person-id','sitting-date','sitting-date-end','activity-type','sort-by','limit','offset','mandate-date','year','vote-method']);
+const filters=new Set(['format','language','language-filter','search-language','title','include-output','parliamentary-term','person-id','sitting-date','sitting-date-end','activity-type','sort-by','limit','offset','mandate-date','year','vote-method']);
 
 // This is a record reader, not an arbitrary URL proxy. Preserve the original
 // query for provenance; the server separately bounds collection reads.
@@ -29,6 +29,8 @@ export function sourceTarget(value) {
   for(const [key,val] of url.searchParams){
     if(!filters.has(key)||url.searchParams.getAll(key).length!==1||val.length>300||/[\x00-\x1f]/.test(val))return null;
     if(key==='format'&&!['application/ld+json','application/rdf+xml','text/turtle'].includes(val))return null;
+    if(['language-filter','search-language'].includes(key)&&!languages.has(val))return null;
+    if(key==='title'&&!val.trim())return null;
     if(['limit','offset'].includes(key)&&(!/^(0|[1-9]\d{0,5})$/.test(val)||key==='limit'&&Number(val)<1||key==='offset'&&Number(val)>10000))return null;
   }
   return {url:originalUrl,endpoint:url.pathname.slice('/api/v2'.length),family,id:id||null,collection:!id||id==='show-current'||Boolean(relation),params:Object.fromEntries(url.searchParams)};
