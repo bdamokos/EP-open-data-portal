@@ -1,0 +1,53 @@
+{
+  "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches?sitting-date=2026-10-07&sitting-date-end=2026-10-07&parliamentary-term=10&activity-type=PLENARY_DEBATE_SPEECH&include-output=xml_fragment&language=en&sort-by=sitting-date%3Aasc%2Cvideo-start-time%3Aasc%2Cnumbering%3Aasc&limit=3&offset=0&format=application%2Fld%2Bjson",
+  "retrievedAt": "2026-10-15T21:43:32.367Z",
+  "language": "en",
+  "processing": "Only exact activity identity, participation, and transcript headers retained; body text omitted.",
+  "examples": [
+    {
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-10-07-OTH-2017097974616",
+        "activity_id": "MTG-PL-2026-10-07-OTH-2017097974616",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-10-07-OTH-2017097974616_96756",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/96756"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        }
+      },
+      "headerXml": "<oralStatements><speech endTime=\"2026-10-07T09:01:00\" startTime=\"2026-10-07T09:00:17\" xml:lang=\"de-t-en-mtec\"><from xml:lang=\"de-t-en-mtec\"><person refersTo=\"epdata:person/96756\">Die Präsidentin</person>.</from></speech></oralStatements>"
+    },
+    {
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-10-07-OTH-2017097974617",
+        "activity_id": "MTG-PL-2026-10-07-OTH-2017097974617",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-10-07-OTH-2017097974617_96756",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/96756"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        }
+      },
+      "headerXml": "<oralStatements><speech endTime=\"2026-10-07T09:01:25.583\" startTime=\"2026-10-07T09:01:00\" xml:lang=\"de-t-en-mtec\"><from xml:lang=\"de-t-en-mtec\"><person refersTo=\"epdata:person/96756\">Die Präsidentin</person>.</from></speech></oralStatements>"
+    },
+    {
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-10-07-OTH-2017097974618",
+        "activity_id": "MTG-PL-2026-10-07-OTH-2017097974618",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-10-07-OTH-2017097974618_275105",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/275105"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        }
+      },
+      "headerXml": "<oralStatements><speech endTime=\"2026-10-07T09:07:00.184\" startTime=\"2026-10-07T09:01:25.583\" xml:lang=\"en\"><from xml:lang=\"en\" xml:space=\"preserve\"><person refersTo=\"epdata:person/275105\">Thomas Byrne</person>, <role refersTo=\"\">President-in-Office of the Council</role>.</from></speech></oralStatements>"
+    }
+  ]
+}

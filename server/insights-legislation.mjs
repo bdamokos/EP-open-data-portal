@@ -8,6 +8,7 @@ import {speakerNameIsSpecific} from './speech-speakers.mjs';
 import {CURRENT_TERM_START} from './analysis-period.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
+export const LEGISLATION_VIEW_VERSION='contributors-v2';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -108,7 +109,8 @@ export class LegislationInsights {
       const speechRows=selectedContributions.length?this.store.db.prepare(`SELECT body FROM items WHERE generation=? AND category='plenary-contributions' AND source_id IN (${selectedContributions.map(()=>'?').join(',')}) LIMIT 1000`).all(status.servingGeneration,...selectedContributions).map(r=>JSON.parse(r.body)):[];
       const speeches=[...new Map(speechRows.map(r=>[r.sourceId,r])).values()].map(row=>({sourceId:row.sourceId,date:row.date,title:row.titles?.[query.language]||row.titles?.en||row.reference,kind:row.speechKind,start:row.start,end:row.end,people:memberPeople(speechRows.filter(r=>r.sourceId===row.sourceId).map(r=>r.mepId),members,metadata),provenance:row.provenance}));
       const participantIds=[...roles.map(r=>r.id),...speechRows.map(r=>String(r.mepId))];
-      const people=memberPeople(participantIds,members,metadata);
+      const people=memberPeople(participantIds,members,metadata).map(person=>({...person,
+        demographics:person.currentMep?Object.fromEntries(Object.entries(demographicStats([person.id],members,metadata,sitting.activity_date).dimensions).map(([key,rows])=>[key,rows[0].label])):null}));
       // Resolve only guests actually linked to selected contributions, never the roster or voters.
       const guests=new Set(speeches.flatMap(speech=>speech.people.filter(person=>!person.currentMep&&!speakerNameIsSpecific(person.name)).map(person=>person.id)));
       for(const id of [...guests].slice(0,4))try {
