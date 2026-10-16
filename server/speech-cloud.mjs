@@ -53,22 +53,22 @@ export class SpeechCloudInsights {
   async scope(query) {
     if(query.member) {
       if(!this.store.db.prepare('SELECT id FROM members WHERE id=?').get(query.member))throw new HttpError(404,'member_not_found','This MEP is not in the current roster.');
-      return {kind:'member',dates:[{start:query.start,end:query.end}],ids:null,phase:'past',title:null};
+      return {kind:'member',dates:[{start:query.start,end:query.end}],ids:null,phase:'past',title:null,titleLanguage:null};
     }
     const catalogue=await this.legislation.catalogue(),today=brusselsDay(this.clock());
     if(query.week) {
       const end=new Date(Date.parse(query.week+'T12:00:00Z')+6*86400_000).toISOString().slice(0,10),sittings=catalogue.sittings.filter(s=>s.activity_date>=query.week&&s.activity_date<=end).sort((a,b)=>a.activity_date.localeCompare(b.activity_date));
       if(!sittings.length||sittings.length>CLOUD_LIMITS.weekSittings)throw new HttpError(404,'sitting_not_found','Choose a listed plenary week.');
       const held=sittings.filter(s=>s.activity_date<=today);
-      return {kind:'week',dates:held.map(s=>({start:s.activity_date,end:s.activity_date})),ids:null,phase:held.length?'past':'upcoming',title:null};
+      return {kind:'week',dates:held.map(s=>({start:s.activity_date,end:s.activity_date})),ids:null,phase:held.length?'past':'upcoming',title:null,titleLanguage:null};
     }
     const sitting=catalogue.sittings.find(s=>s.activity_id===query.sitting);
     if(!sitting)throw new HttpError(404,'sitting_not_found','Choose a listed sitting.');
     const upcoming=sitting.activity_date>today;
-    if(!query.topic)return {kind:'sitting',dates:upcoming?[]:[{start:sitting.activity_date,end:sitting.activity_date}],ids:null,phase:upcoming?'upcoming':'past',title:sitting.activity_label?.[query.language]||sitting.activity_label?.en||null};
+    if(!query.topic)return {kind:'sitting',dates:upcoming?[]:[{start:sitting.activity_date,end:sitting.activity_date}],ids:null,phase:upcoming?'upcoming':'past',title:sitting.activity_label?.[query.language]||sitting.activity_label?.en||null,titleLanguage:sitting.activity_label?.[query.language]?query.language:sitting.activity_label?.en?'en':null};
     const response=await this.legislation.query({language:query.language,sitting:query.sitting,topic:query.topic,vote:null});
     const sources=response.detail.coverage.speechAssociations.sources;
-    return {kind:'topic',dates:[...new Set(sources.map(s=>s.eventDate))].sort().map(date=>({start:date,end:date})),ids:new Set(sources.flatMap(s=>s.contributionIds)),people:new Map(response.detail.people.map(person=>[person.id,person])),phase:upcoming?'upcoming':'past',title:response.detail.title};
+    return {kind:'topic',dates:[...new Set(sources.map(s=>s.eventDate))].sort().map(date=>({start:date,end:date})),ids:new Set(sources.flatMap(s=>s.contributionIds)),people:new Map(response.detail.people.map(person=>[person.id,person])),phase:upcoming?'upcoming':'past',title:response.detail.title,titleLanguage:response.detail.titleLanguage??null};
   }
   async query(query) {
     requestSignal()?.throwIfAborted();
@@ -128,7 +128,7 @@ export class SpeechCloudInsights {
         if(state.xmlBytes+Buffer.byteLength(xml)>limits.xmlBytes){state.sourceIssues.add('xml-byte-limit');state.cursor=null;break;}
         const text=speechParagraphText(xml);if(!text){state.invalidText++;continue;}state.xmlBytes+=Buffer.byteLength(xml);
         const headers=speechSpeakers(activity,xml),info=transcriptLanguage(xml);
-        state.records.set(id,{id,date:activity.activity_date,title:activity.activity_label?.[query.language]||activity.activity_label?.en||'Speech',text,machineTranslation:info.machine,people:people.map(id=>{const known=members.get(id)||state.scope.people?.get(id),header=headers.find(p=>p.id===id);return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),role:header?.role||(header&&!meaningfulSpeakerName(header.name)?(/president|chair/i.test(header.name)?'Chairing the sitting':null):null)};})});
+        state.records.set(id,{id,date:activity.activity_date,title:activity.activity_label?.[query.language]||activity.activity_label?.en||'Speech',titleLanguage:activity.activity_label?.[query.language]?query.language:'en',text,machineTranslation:info.machine,people:people.map(id=>{const known=members.get(id)||state.scope.people?.get(id),header=headers.find(p=>p.id===id);return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),role:header?.role||(header&&!meaningfulSpeakerName(header.name)?(/president|chair/i.test(header.name)?'Chairing the sitting':null):null)};})});
       }
       state.page++;
       if(shortPage||noProgress)state.cursor=null;
@@ -143,7 +143,7 @@ export class SpeechCloudInsights {
     const records=[...state.records.values()];
     const scans=[...state.scans.values()],sourceRecords={unique:scans.reduce((sum,scan)=>sum+scan.ids.size,0),declared:scans.every(scan=>scan.totals.size===1)?scans.reduce((sum,scan)=>sum+[...scan.totals][0],0):null,duplicates:state.duplicates,issues:[...state.sourceIssues]};
     state.truncated=state.sourceIssues.size>0;
-    state.result={view:'speech-cloud',scope:{kind:state.scope.kind,member:query.member,sitting:query.sitting,week:query.week,topic:query.topic,title:state.scope.title,phase:state.scope.phase},language:query.language,availableAnalysisLanguages:speechWordLanguages,window:{start:state.scope.dates[0]?.start||null,end:state.scope.dates.at(-1)?.end||null,days:query.days},country:query.country,words:analyzeSpeechCloud(records,query.language),speeches:records.map(({text,...speech})=>speech),coverage:{transcripts:records.length,matchedSpeechRecords:state.rawRecords,missingLanguage:state.missingLanguage,unreadableText:state.invalidText,complete:state.cursor===null&&!state.truncated,truncated:state.truncated,sourceRecords,associationUnavailable:state.scope.kind==='topic'&&!state.scope.dates.length,xmlBytes:state.xmlBytes},nextPage:state.cursor?state.page+1:null,sources:state.sources,computedAt:new Date(this.clock()).toISOString()};
+    state.result={view:'speech-cloud',scope:{kind:state.scope.kind,member:query.member,sitting:query.sitting,week:query.week,topic:query.topic,title:state.scope.title,titleLanguage:state.scope.titleLanguage,phase:state.scope.phase},language:query.language,availableAnalysisLanguages:speechWordLanguages,window:{start:state.scope.dates[0]?.start||null,end:state.scope.dates.at(-1)?.end||null,days:query.days},country:query.country,words:analyzeSpeechCloud(records,query.language),speeches:records.map(({text,...speech})=>speech),coverage:{transcripts:records.length,matchedSpeechRecords:state.rawRecords,missingLanguage:state.missingLanguage,unreadableText:state.invalidText,complete:state.cursor===null&&!state.truncated,truncated:state.truncated,sourceRecords,associationUnavailable:state.scope.kind==='topic'&&!state.scope.dates.length,xmlBytes:state.xmlBytes},nextPage:state.cursor?state.page+1:null,sources:state.sources,computedAt:new Date(this.clock()).toISOString()};
     return state.result;
   }
 }

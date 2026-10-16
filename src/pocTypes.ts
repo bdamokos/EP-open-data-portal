@@ -52,6 +52,8 @@ export interface Intervention {
   headerAvailable:boolean;
   catchMarker:'start'|'end'|null;
   narrative:string|null;
+  procedureKind:'note'|'chair-change'|null;
+  chair:{id:string;name:string;role:string|null}|null;
   numbering:number|null;
   parentIds:string[];
   evidence:string|null;

@@ -3,6 +3,49 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
+import {readFileSync} from 'node:fs';
+import {speechSummary} from '../server/odp.mjs';
+
+test('procedural notes explain later contributions without speech controls, while trailing notes are omitted',async t=>{
+  const window=new Window({url:'http://localhost/'});
+  const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  let vite,root;
+  t.after(async()=>{
+    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
+  });
+  const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/speech-interventions-live-20261015.json',import.meta.url)));
+  const procedures=JSON.parse(readFileSync(new URL('../server/fixtures/speech-procedures-live-20261016.json',import.meta.url)));
+  const speech=n=>fixture.activities.find(a=>a.recorded_in_a_realization_of?.[0]?.numbering===n);
+  const row=activity=>({...speechSummary(activity),replyTo:null,exchangeId:null});
+  const first=row(speech(172)),last=row(speech(179)),notes=procedures.activities.map(row),calls=[];
+  t.mock.method(globalThis,'fetch',async url=>{
+    calls.push(String(url));assert(String(url).includes('speech-context/'),'procedural notes must not fetch individual speech pages');
+    const records=String(url).includes(first.id)?[first,...notes,last]:[first,last,...notes];
+    return Response.json({speechId:first.id,unavailable:false,debates:[{id:fixture.parent.activity_id,titles:{en:'Debate'},records,exchanges:[],coverage:{complete:true,available:4,expected:4,missingIds:[]}}]});
+  });
+  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {PocSpeechContext}=await vite.ssrLoadModule('/src/PocSpeechInterventions.tsx');
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  await act(async()=>root.render(createElement(PocSpeechContext,{key:first.id,id:first.id,language:'en'})));
+  await act(async()=>container.querySelector('button').click());
+  const entries=[...container.querySelectorAll('.intervention-sequence>li')];
+  assert.equal(entries.length,4);assert.match(entries[1].textContent,/The sitting was briefly suspended/);
+  assert.match(entries[2].textContent,/Chair: ESTEBAN GONZÁLEZ PONS · Vice-President/);
+  for(const entry of entries.slice(1,3)) {
+    assert.equal(entry.querySelector('button,a,.intervention-badge'),null);
+    assert(!entry.textContent.includes('Contribution'));assert(!entry.textContent.includes('Speech'));
+  }
+  assert.equal(container.querySelectorAll('.intervention-read').length,2);
+  await act(async()=>root.render(createElement(PocSpeechContext,{key:last.id,id:last.id,language:'en'})));
+  await act(async()=>container.querySelector('button').click());
+  assert.equal(container.querySelectorAll('.intervention-sequence>li').length,2);
+  assert(!container.textContent.includes('briefly suspended'));assert(!container.textContent.includes('ESTEBAN'));
+  assert(!container.textContent.includes('records available'),'intentional display omission must not imply missing source records');
+  assert.equal(calls.length,2);
+});
 
 test('failed debate sections offer a real retry that bypasses the partial-result cache and recovers',async t=>{
   const window=new Window({url:'http://localhost/'});
