@@ -50,7 +50,7 @@ async function setup(t,{query='',respond,highlights=false}={}) {
   const submit=()=>act(async()=>find('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
   const searches=()=>calls.filter(call=>call.url.pathname.endsWith('/corpus/search'));
   const texts=()=>calls.filter(call=>call.url.pathname.endsWith('/corpus/text'));
-  return {...module,window,root,container,calls,registry,render,find,button,click,flushFrames,input,select,submit,searches,texts};
+  return {...module,window,root,container,calls,registry,render,find,button,click,flushFrames,input,select,submit,searches,texts,loadModule:path=>vite.ssrLoadModule(path)};
 }
 
 test('text search stays collapsed without requests, opens with focus, and posts exact context including an empty scope',async t=>{
@@ -261,4 +261,45 @@ test('local find separates paragraphs and line breaks while preserving words spl
   assert.equal(view.find('#inline-energy'),link);assert.equal(body.innerHTML,original);
   const all=[...view.registry.entries()].find(([key])=>!key.endsWith('active'))?.[1];
   assert.equal(all.ranges[0].toString(),'energy');
+});
+
+test('local find includes resolved source citation buttons and preserves their reference-dialog behaviour',async t=>{
+  const text='Article 5 of Regulation (EU) 2024/1689 applies.';
+  const reference={key:'celex:32024R1689',kind:'act',status:'found',celex:'32024R1689',title:'Artificial Intelligence Act',titleLanguage:'en',date:'2024-06-13',inForce:true,eurLexUrl:'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689',source:{name:'Saved EUR-Lex fixture',url:'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689',fetchedAt:'2026-10-08T12:00:00Z'}};
+  const view=await setup(t,{highlights:true,respond:call=>{
+    if(call.url.pathname.endsWith('/references')){
+      assert.equal(call.url.searchParams.get('keys'),reference.key);
+      return Response.json({references:[reference]});
+    }
+  }});
+  const {ReferenceScope,ReferenceText}=await view.loadModule('/src/PocReferences.tsx');
+  let unrelatedClicks=0;
+  function ReferenceReader(){const target=useRef(null);return createElement('section',null,
+    createElement(view.PocFindInText,{target,label:'Find in cited document'}),
+    createElement(ReferenceScope,{texts:[text],language:'en'},createElement('div',{ref:target,id:'citation-reader'},
+      createElement('p',{id:'citation-paragraph'},createElement(ReferenceText,{text})),
+      createElement('button',{id:'unrelated-reader-action',type:'button',onClick:()=>unrelatedClicks++},'Refresh reader controls'))));}
+  await act(async()=>view.root.render(createElement(ReferenceReader)));
+  const citation=view.find('button.legal-ref'),paragraph=view.find('#citation-paragraph'),markup=paragraph.innerHTML;
+  assert.equal(citation.textContent,'Regulation (EU) 2024/1689');
+  await view.click('Find in cited document');await view.input('input[type="search"]','2024/1689');await view.flushFrames();
+  assert.equal(view.find('[role="status"]').textContent,'1 / 1');
+  const matches=[...view.registry.entries()].find(([key])=>!key.endsWith('active'))?.[1]?.ranges;
+  assert.equal(matches.length,1);assert.equal(matches[0].toString(),'2024/1689');
+  assert.equal(matches[0].startContainer.parentElement.closest('button.legal-ref'),citation);
+  assert.equal(view.find('button.legal-ref'),citation);assert.equal(paragraph.innerHTML,markup);
+  await view.input('input[type="search"]','Refresh reader');await view.flushFrames();
+  assert.equal(view.find('[role="status"]').textContent,'No matches','unrelated UI button labels are not document text');
+  await act(async()=>view.find('#unrelated-reader-action').click());assert.equal(unrelatedClicks,1);
+  await view.input('input[type="search"]','2024/1689');await view.flushFrames();
+  await act(async()=>citation.click());
+  assert.equal(view.find('button.legal-ref'),citation);assert.equal(citation.getAttribute('aria-expanded'),'true');
+  assert.match(view.find('[role="dialog"]').textContent,/Artificial Intelligence Act/);
+  assert.equal(view.find('[role="dialog"] a').href,reference.eurLexUrl);
+  await view.click('Close');
+  assert.equal(view.container.querySelector('[role="dialog"]'),null);
+  assert.equal(view.find('button.legal-ref'),citation);assert.equal(citation.getAttribute('aria-expanded'),'false');
+  assert.equal(paragraph.innerHTML,markup);
+  assert.equal(view.calls.length,1,'only the saved legal-reference lookup is needed');
+  assert.equal(view.searches().length,0);
 });

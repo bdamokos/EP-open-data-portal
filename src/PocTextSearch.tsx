@@ -139,7 +139,8 @@ export function PocFindInText({target,label='Find in this text',onOpen}:{target:
     let frame=0;const update=()=>{window.cancelAnimationFrame(frame);frame=window.requestAnimationFrame(()=>{const element=target.current;if(!element)return;const walker=document.createTreeWalker(element,window.NodeFilter.SHOW_TEXT|window.NodeFilter.SHOW_ELEMENT),nodes:{node:Text;start:number;end:number}[]=[];let node,text='',lastBlock:Element|null=null;
       while((node=walker.nextNode())){
         if(node.nodeType===window.Node.ELEMENT_NODE){if((node as Element).tagName==='BR'&&!(node as Element).closest('[hidden]'))text+=' ';continue;}
-        const parent=node.parentElement;if(!parent||parent.closest('button,script,style,[hidden]'))continue;
+        // Legal-reference buttons contain source text and must remain searchable.
+        const parent=node.parentElement;if(!parent||parent.closest('button:not(.legal-ref),script,style,[hidden]'))continue;
         const block=parent.closest('p,div,h1,h2,h3,h4,h5,h6,li,blockquote,section,article,td,th,pre,dt,dd,figcaption');
         if(lastBlock&&block!==lastBlock&&text&&!/\s$/.test(text))text+=' ';
         lastBlock=block;const value=node.textContent||'';nodes.push({node:node as Text,start:text.length,end:text.length+value.length});text+=value;
