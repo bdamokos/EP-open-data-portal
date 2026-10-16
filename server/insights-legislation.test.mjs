@@ -17,6 +17,28 @@ const members=new Map([...new Set(fixture.decisions.payload.data.flatMap(v=>[...
 const metadata=new Map();
 const meeting={payload:{data:[fixture.meetings.payload.data.find(n=>n.activity_id==='MTG-PL-2026-10-07')]}};
 const topics=agendaTopics(meeting,fixture.foreseen);
+test('weekly agendas retain each exact sitting, source and unavailable day without loading other weeks',async()=>{
+  const clock=()=>Date.parse('2026-10-15T12:00:00Z'),calls=[];
+  const nodes=['2026-10-06','2026-10-07','2026-10-08','2026-10-19'].map(date=>JSON.parse(JSON.stringify(meeting.payload.data[0]).replaceAll('2026-10-07',date)));
+  const service=new LegislationInsights({status:()=>({currentMeps:1,servingGeneration:1})},{clock,request:async(endpoint)=>{
+    calls.push(endpoint);
+    if(endpoint.includes('2026-10-06'))throw new Error('Agenda not supplied');
+    const payload=endpoint==='/meetings'?{data:nodes}:JSON.parse(JSON.stringify(fixture.foreseen.payload).replaceAll('2026-10-07',endpoint.includes('2026-10-08')?'2026-10-08':'2026-10-07'));
+    return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:clock(),payload};
+  }});
+  const q=value=>insightQuery(new URLSearchParams(value),{kind:'legislation',now:clock()});
+  const result=await service.query(q('week=latest'));
+  assert.equal(result.week,'2026-10-05');assert.equal(result.agendaSittings.length,3);
+  assert.equal(result.coverage.agendaComplete,false);assert.match(result.coverage.agendaError,/2026-10-06/);
+  assert(result.topics.some(t=>t.sittingId==='MTG-PL-2026-10-07'));
+  assert(result.topics.some(t=>t.sittingId==='MTG-PL-2026-10-08'));
+  assert(result.topics.every(t=>t.id.startsWith(t.sittingId+'-')));
+  assert.deepEqual(calls,['/meetings',...nodes.slice(0,3).map(s=>'/meetings/'+s.activity_id+'/foreseen-activities')]);
+  assert(result.coverage.sources.some(s=>s.apiUrl.includes('2026-10-08')));
+  assert.equal((await service.query(q('week=2026-10-05'))).topics.length,result.topics.length);
+  await assert.rejects(service.query(q('week=2026-10-12')),e=>e.status===404);
+  for(const value of ['week=','week=2026-10-06','week=2026-02-30','week=latest&sitting=MTG-PL-2026-10-07','week=2026-10-05&topic=foo','week=2026-10-05&vote=foo'])assert.throws(()=>q(value),e=>e.status===400,value);
+});
 test('plenary catalogue retains all current-term sittings across years and pages, including every published future sitting',async()=>{
   const node=date=>({activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'});
   const dates=Array.from({length:155},(_,i)=>new Date(Date.parse('2024-07-15T12:00:00Z')+i*86400_000).toISOString().slice(0,10));

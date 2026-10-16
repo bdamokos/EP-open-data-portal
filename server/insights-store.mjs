@@ -14,14 +14,16 @@ function strictDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value;
 }
 export function insightQuery(search, {now=Date.now(),kind='questions'}={}) {
-  const allowed=new Set(kind==='questions'?['lang','days','end','from','to','cluster','word','country','limit','offset']:['lang','sitting','topic','vote']);
+  const allowed=new Set(kind==='questions'?['lang','days','end','from','to','cluster','word','country','limit','offset']:['lang','sitting','week','topic','vote']);
   for(const key of search.keys()) if(!allowed.has(key)||search.getAll(key).length!==1) throw new HttpError(400,'invalid_query','Unsupported or repeated insight parameter.');
   const language=odpLanguage(search.get('lang')||'en');
   if(kind!=='questions') {
     const sitting=search.get('sitting');if(sitting&&!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(sitting))throw new HttpError(400,'invalid_sitting','Choose a catalogue-listed plenary sitting.');
     const topic=search.get('topic'),vote=search.get('vote');
+    const week=search.get('week');
+    if(search.has('week')&&(week!=='latest'&&(!strictDate(week)||new Date(week).getUTCDay()!==1)||sitting||topic||vote))throw new HttpError(400,'invalid_week','Choose a plenary week or a single sitting item.');
     if([topic,vote].some(v=>v && (!/^[A-Za-z0-9:/_.-]{1,180}$/.test(v))))throw new HttpError(400,'invalid_selection','Invalid topic or vote identifier.');
-    return {language,sitting,topic,vote};
+    return {language,sitting,week,topic,vote};
   }
   function integer(key,fallback,min,max) { const raw=search.get(key);const n=raw==null?fallback:Number(raw);if(raw!=null&&!/^\d+$/.test(raw)||!Number.isSafeInteger(n)||n<min||n>max)throw new HttpError(400,'invalid_query',`${key} must be ${min}–${max}.`);return n; }
   const end=search.get('end')||brusselsDay(now);

@@ -420,6 +420,13 @@ export class ActivityWorker {
         for(const procedure of this.store.iterateSources(cycle.generation,'procedure'))this.refreshReportJoins(cycle.generation,tail(procedure.key));
         this.store.updateCycle({reportJoinsReady:true});
       }
+      if(!this.store.get('working').procedureTitlesQueued) {
+        // Upgrade saved procedures within the existing worker/request budget, ahead of bulk catalogues.
+        // Explicit null records an unavailable upstream title, so later cycles do not refetch it just for this upgrade.
+        const untitled=this.store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='procedure' AND json_type(body,'$.process_title') IS NULL").all(cycle.generation);
+        for(const {key} of untitled)this.store.enqueue(cycle.generation,key,'procedure',{endpoint:key},104,true);
+        this.store.updateCycle({procedureTitlesQueued:true});
+      }
       this.store.updateCycle({phase:cycle.initial?'backfilling':'refreshing'});
       while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration) {
         const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);

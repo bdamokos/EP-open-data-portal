@@ -8,14 +8,19 @@ type Row={id:string;title:string;date:string;sittingId:string;upcoming:boolean;s
 type Response={topics:Row[];series:({date:string}&Record<Metric,number|null>)[];window:{start:string;end:string};coverage:{topicsWithSpeechLinks:number;topics:number;gaps:{kind:string;sitting:string}[]}};
 type Sitting={id:string;date:string;phase?:string};
 export function plenaryMonday(date:string){const day=new Date(date+'T12:00:00Z');day.setUTCDate(day.getUTCDate()-(day.getUTCDay()+6)%7);return day.toISOString().slice(0,10);}
+// Plenary views default to the whole week of the most recent held sitting; single sittings remain selectable.
+export const latestHeldSitting=(sittings:Sitting[])=>[...sittings].filter(s=>s.phase!=='upcoming').sort((a,b)=>b.date.localeCompare(a.date))[0]||sittings[0];
+export const weekPeriod=(sitting:Sitting|undefined)=>sitting?'week:'+plenaryMonday(sitting.date):'';
+export function PlenaryPeriodSelect({value,sittings,language,onChange}:{value:string;sittings:Sitting[];language:string;onChange:(period:string)=>void}) {
+  const weeks=[...new Set(sittings.map(s=>plenaryMonday(s.date)))].sort().reverse(),upcoming=(week:string)=>sittings.filter(s=>plenaryMonday(s.date)===week).every(s=>s.phase==='upcoming');
+  return <label>Period<select value={value} onChange={event=>onChange(event.target.value)}><optgroup label="Plenary weeks">{weeks.map(week=><option key={week} value={'week:'+week}>Week of {humanDate(week,language)}{upcoming(week)?' · upcoming':''}</option>)}</optgroup><optgroup label="Single sittings">{sittings.map(s=><option key={s.id} value={'sitting:'+s.id}>{humanDate(s.date,language)}{s.phase==='upcoming'?' · upcoming':''}</option>)}</optgroup></select></label>;
+}
 export function PocParticipation({language,sittings,onTopic}:{language:string;sittings:Sitting[];onTopic:(sitting:string,topic:string)=>void}) {
-  const latest=[...sittings].filter(s=>s.phase!=='upcoming').sort((a,b)=>b.date.localeCompare(a.date))[0]||sittings[0];
-  const [period,setPeriod]=useExplorerParam('hot-period','sitting:'+(latest?.id||'')),[metric,setMetric]=useExplorerParam<Metric>('hot-rank','speakers',['speakers','voters','amendmentVotes']),[country,setCountry]=useExplorerParam<string|null>('hot-country',null),[search,setSearch]=useExplorerParam<string>('hot-search','');
+  const [period,setPeriod]=useExplorerParam('hot-period',weekPeriod(latestHeldSitting(sittings))),[metric,setMetric]=useExplorerParam<Metric>('hot-rank','speakers',['speakers','voters','amendmentVotes']),[country,setCountry]=useExplorerParam<string|null>('hot-country',null),[search,setSearch]=useExplorerParam<string>('hot-search','');
   const [kind,value]=[period.slice(0,period.indexOf(':')),period.slice(period.indexOf(':')+1)];
   const params=new URLSearchParams({lang:language,...(country?{country}:{}),[kind]:value});
   const state=useInsightData<Response>(value?'insights/participation?'+params:null),data=state.data;
   const labels:Record<Metric,string>={speakers:'MEPs speaking',voters:'MEPs voting',amendmentVotes:'Amendment roll-calls'};
-  const weeks=[...new Set(sittings.map(s=>plenaryMonday(s.date)))].sort().reverse();
   const rows=data?[...data.topics].filter(row=>row.title.toLocaleLowerCase(language).includes(search.toLocaleLowerCase(language))).sort((a,b)=>(b[metric]??-1)-(a[metric]??-1)||a.title.localeCompare(b.title)):[];
   const bins=data?.series||[],hasActivity=data?.topics.some(row=>row[metric]!==null),future=kind==='sitting'&&sittings.find(s=>s.id===value)?.phase==='upcoming'||Boolean(data?.topics.length&&data.topics.every(row=>row.upcoming));
   const max=Math.max(1,...bins.map(bin=>bin[metric]||0)),x=(i:number)=>20+i/Math.max(1,bins.length-1)*620,y=(count:number)=>135-count/max*115;
@@ -23,7 +28,7 @@ export function PocParticipation({language,sittings,onTopic}:{language:string;si
   function chooseCountry(code:string|null){setCountry(code);if(code&&metric==='amendmentVotes')setMetric('speakers');}
   return <section className="insight-participation">
     <div className="insight-controls insight-participation-controls">
-      <label>Period<select value={period} onChange={event=>setPeriod(event.target.value)}><optgroup label="Sittings">{sittings.map(s=><option key={s.id} value={'sitting:'+s.id}>{humanDate(s.date,language)}{s.phase==='upcoming'?' · upcoming':''}</option>)}</optgroup><optgroup label="Whole weeks">{weeks.map(week=><option key={week} value={'week:'+week}>Week of {humanDate(week,language)}</option>)}</optgroup></select></label>
+      <PlenaryPeriodSelect value={period} sittings={sittings} language={language} onChange={setPeriod}/>
       <CountryFilter country={country} onChange={chooseCountry} language={language}/>
       <label>Rank by<select value={metric} onChange={event=>setMetric(event.target.value as Metric)}>{Object.entries({speakers:'Speakers',voters:'Voters',amendmentVotes:'Roll-calls'}).map(([key,label])=><option key={key} value={key} disabled={Boolean(country&&key==='amendmentVotes')}>{label}</option>)}</select></label>
       <label className="insight-participation-search">Find an agenda item<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search titles"/></label>
