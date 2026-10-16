@@ -161,9 +161,11 @@ export interface RelatedJointMotion {
   sourceId:string;
   reference:string;
   title:string;
-  url:string;
+  url:string|null;
   outcome:MotionOutcome;
   memberAuthorship?:'recorded'|'not-recorded';
+  documentFormat?:'PDF'|'DOCX'|null;
+  documentLanguage?:string|null;
 }
 export interface JoinedActivity {
   id: string;
