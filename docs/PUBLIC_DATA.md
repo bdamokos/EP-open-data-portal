@@ -45,9 +45,23 @@ The plenary sitting catalogue pages through the official `/meetings` metadata fo
 
 Plenary participation uses actual named voters and exact speech-parent links. Unavailable observations are null rather than fabricated zeroes. Whole-sitting pagination compares unique IDs with declared totals and reports partial coverage for overlaps or missing records.
 
+### Outside voices
+
+The Outside voices view uses oral `/speeches` records from terms 9 and 10. The existing activity worker shares its current-term speech catalogue and adds bounded monthly term-9 queries. It compares each speaker with `/meps/show-current?mandate-date=YYYY-MM-DD`, retaining the exact dated roster queries. It does not use today's roster to classify older contributions. Historical MEP speech metadata is discarded after that check; historical outside-speaker records remain. Written statements stay outside this view.
+
+Only outside candidates load speaker headers through `/speeches/{id}?include-output=xml_fragment&language=mul`, with an English fallback when no identity is returned. Exact person references in the XML must match the API participation. Original-language tags take precedence over translated headers; original roles can still conflict. Names, raw roles, XML language tags, request URLs and retrieval dates are retained separately from derived capacity groups. Groups use documented source-role patterns, with unmatched roles under Other speakers; same-day disagreements remain visible. Language-filtered detail responses retain the catalogue's titles and the separate header source. Speech text and recording lookup remain on demand in the existing reader.
+
+Agenda items follow `speech.inverse_consists_of → event.activity_id`, including `PLENARY_ACTIVITY` formal and special events. Dossier links use exact procedure URIs in the actual event's `inverse_consists_of` or its `inverse_was_scheduled_in` relationship. COD/CNS are legislative; other or unavailable procedure types remain distinct. Speeches, distinct person-by-agenda appearances and sitting days are separate measures. Repeat appearances are recorded speeches, not invitation counts. Committee prepared statements and hearings are not counted as plenary speeches.
+
+The public API's compact metadata and headers are saved by the existing single leased worker and generation mechanism. Reading the directory or a speaker page makes no upstream request. Header, historical-catalogue, roster and agenda failures retry three times, then remain explicit gaps for the next generation to retry; they do not permanently prevent ordinary activity publication. Unnamed speakers, unlinked contributions, pending tasks, source gaps and the 50,000-record response selection limit keep coverage partial. The interface has one short coverage label, with sources on demand.
+
+Older website speech references use the published hyphenated document number where the numeric notation is the legacy short form. Verified examples are `CRE-9-2021-11-24-INT-3-103-0000_EN.html` and `CRE-9-2023-09-13-INT-3-110-0000_EN.html`; modern numeric references are preserved. No archive-wide changeover date is assumed.
+
 ## Saved examples and supporting data
 
 `server/fixtures` contains bounded public API responses and public OEIL HTML for tests. Each example retains source attribution or provenance. Public API records can contain identifiers named `notation_codictPersonId` or similar; these are fields returned by the open API, not calls to another service.
+
+`outside-speakers-20261016.json` contains compact projections of 20 public speech observations, exact agenda records and four dated rosters, retrieved 15–16 October 2026. Speech bodies are omitted from the projected XML header fragments. Every observation retains its original public request URL and retrieval time. The test fixture is not a runtime catalogue.
 
 Committee labels come from the public corporate-bodies API. Country terminology comes from the Publications Office’s public authority scheme. Map geometry is Natural Earth public-domain data, simplified locally; it makes no runtime map request. Word filtering uses MIT-licensed stopword lists and app-owned parliamentary exclusions.
 

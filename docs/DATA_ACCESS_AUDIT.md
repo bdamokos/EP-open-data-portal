@@ -1,5 +1,13 @@
 # Data access audit
 
+## Outside voices, 16 October 2026
+
+- Uses the existing anonymous Open Data API v2 fetcher, upstream queue, 12 MiB response bound, request budget, writer lease and persistent task cursors. No authenticated service, private export, production cache copy or second source/index writer was added.
+- Retains compact oral-speech metadata, exact person/agenda/procedure identifiers, original speaker headers and XML language tags, dated MEP roster IDs, source URLs and retrieval timestamps. Term-9 member speech metadata is removed after roster classification. Speech bodies are read only on demand through the existing reader.
+- The same generation stores `outside_contributions` and the supporting source observations. An older accepted generation stays readable during refresh. A first upgrade can serve the new partial speaker generation while existing activity views retain their accepted generation. Existing speech cursors and core missing-graph-node retries remain intact. Optional outside context failures become recorded gaps after three attempts and retry next generation.
+- `/api/poc/outside/directory` and `/api/poc/outside/{person-id}` only read the index. Terms are 9, 10 or all. The speaker UI requests all indexed terms; directory filters remain scoped in the URL. A 50,000-row selection limit, source gaps, missing identities and missing parent links keep coverage partial. No invitation register or committee-wide person resolution is claimed.
+- Header identity requires the exact API participant reference. Capacity groups are derived from source role text, not names or today's job title; original source conflicts remain visible. Subjects follow exact agenda links and verified procedure types. Public-source fixture tests cover a former-MEP false positive, the original-English Szłapka conflict, mixed-language XML, special events, cross-term guests and legacy transcript URLs. Browser validation uses an isolated subset of saved public observations, never the production index.
+
 The standalone application has no credential-dependent parliamentary data adapter. All external information reads use the public sources listed in [Public data sources](PUBLIC_DATA.md).
 
 The extraction excludes authenticated CODICT SOAP access, CMS database exports and their fallback rosters/profiles/news, NewsHub integration, local exhibition media, and the UDP display bridge. Their configuration, credentials, export scripts, routes, assets and dependencies are absent. The frontend has one application entry and no link to another application.

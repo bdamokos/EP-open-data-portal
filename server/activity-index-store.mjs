@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize } from './activity-index-model.mjs';
+import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 
 const parse = value => value == null ? null : JSON.parse(value);
 export class ActivityStore {
@@ -22,6 +23,7 @@ export class ActivityStore {
       CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, body TEXT);
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
     if (this.get('schema') !== 1) throw new Error('Unsupported activity-index schema.');
+    outsideSchema(this.db);
   }
   get(key) { return parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value); }
   set(key,value) { this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value)); }
@@ -55,6 +57,7 @@ export class ActivityStore {
         this.set('previous',null);
         this.db.prepare('INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
+        outsideCopy(this.db,generation,active);
       }
       const cycle={ generation, initial:!active, startedAt:new Date(this.clock()).toISOString(), phase:'discovering', error:null, requests:0 };
       this.set('working',cycle);return cycle;
@@ -124,6 +127,7 @@ export class ActivityStore {
       this.set('lastSuccess',new Date(this.clock()).toISOString());this.set('unresolved',unresolved);
       // Retain the immediately previous generation for recovery; cache is reproducible public data.
       for (const table of ['sources','items','tasks']) this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,old || generation);
+      outsidePrune(this.db,generation,old);
     });
   }
   status() {

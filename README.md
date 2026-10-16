@@ -2,6 +2,8 @@
 
 Explore Members of the European Parliament, written questions, plenary debates, votes and legislative dossiers. Word clouds lead to the underlying speeches, with the selected words highlighted. Questions can be explored by topic, time and author country. Following MEPs is stored in the browser.
 
+Outside voices follows Commissioners and other non-MEP speakers through plenary timelines, repeat appearances, speeches and linked dossiers. It uses dated MEP membership and the existing activity index, with historical coverage filling in through the same bounded worker.
+
 See the [project vision](VISION.md) for the proof of concept’s purpose, approach to public data and future directions.
 
 ## Run locally
