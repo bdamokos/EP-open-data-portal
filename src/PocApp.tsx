@@ -168,10 +168,10 @@ function AuthorMention({text,authors,lang,anchors,links,notePrefix}:{text:string
   const parts=coAuthorSegments(text,authors);let start=0;
   return <>{parts.map((part,index)=>{const from=start;start+=part.text.length;return part.id ? <a key={index} className="poc-author-link" href={coAuthorProfileUrl(location.pathname,lang,part.id)}>{part.text}</a> : anchors ? <ReferenceText key={index} text={part.text} start={from} final={index===parts.length-1} anchors={anchors} links={links} notePrefix={notePrefix}/> : part.text;})}</>;
 }
-function CoAuthors({authors,lang}:{authors?:CoAuthor[];lang:string}) {
+function CoAuthors({authors,lang,member}:{authors?:CoAuthor[];lang:string;member:number}) {
   const people=linkedCoAuthors(authors);
   if(!people.length)return null;
-  return <details className="poc-coauthors"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id}><a href={coAuthorProfileUrl(location.pathname,lang,person.id)}>{person.name}</a></li>)}</ul></details>;
+  return <details className="poc-coauthors"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id}>{person.id===member ? <strong>{person.name}</strong> : <a href={coAuthorProfileUrl(location.pathname,lang,person.id)}>{person.name}</a>}</li>)}</ul></details>;
 }
 function PublicationText({ sourceId, member, lang, heading, includeAnswers = false,question }: { sourceId: string; member: number; lang: string; heading: string; includeAnswers?: boolean;question?:{id:string;title?:string} }) {
   const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang]);
@@ -186,7 +186,7 @@ function PublicationText({ sourceId, member, lang, heading, includeAnswers = fal
     <div className="poc-reader-heading"><h3>{heading}</h3>{question&&<a href={"#document-"+question.id} title={question.title}>Read question</a>}{text?.availableTextLanguages.length ? <select aria-label={`${heading} language`} title={text.translationType==='original'?'Original text':'Translation method not specified'} value={text.textLanguage||requestedLanguage} onChange={event=>setRequestedLanguage(event.target.value)}>{text.availableTextLanguages.map(code=><option key={code} value={code}>{code.toUpperCase()}</option>)}</select> : null}{text?.textLanguage&&text.textLanguage!==requestedLanguage&&<small>{languageName(requestedLanguage)} unavailable · showing {languageName(text.textLanguage)}</small>}</div>
     {state.loading&&!text&&<p role="status">Loading text…</p>}{state.error&&<p>Text temporarily unavailable.</p>}
     {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="poc-transcript" lang={text.textLanguage||undefined}>{body.paragraphs.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===body.start+index)} links={documentLinks.filter(link=>link.paragraph===body.start+index)} notePrefix={notePrefix}/></p>)}<DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&<p>Text unavailable. Download the document below.</p>}
-    {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang}/><details className="poc-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details></>}
+    {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/><details className="poc-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details></>}
     {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={"Answer"+(answer.date?" · "+date(answer.date,lang):"")}/>)}
     {includeAnswers&&state.data&&!state.data.answers.length&&<p>No answer published.</p>}
   </section>;
@@ -206,7 +206,7 @@ function JoinedDetails({ item, lang, member }: { item: JoinedActivity; lang: str
     </>}
     {!hasText && <section aria-label={item.relatedJointMotions?.length ? 'Original motion document' : 'Document'}>
       {!!item.relatedJointMotions?.length && <h3>Original motion document</h3>}
-      <CoAuthors authors={document.data?.coAuthors} lang={lang}/>
+      <CoAuthors authors={document.data?.coAuthors} lang={lang} member={member}/>
       <PublicationFiles files={item.files} lang={lang}/>
     </section>}
 

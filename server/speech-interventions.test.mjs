@@ -4,12 +4,61 @@ import {readFileSync} from 'node:fs';
 import {interventionMetadata,buildInterventionSequence} from './speech-interventions.mjs';
 import {SpeechInterventions} from './speech-intervention-service.mjs';
 import {runWithRequestSignal} from './request-budget.mjs';
+import {speechSummary} from './odp.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/speech-interventions-live-20261015.json',import.meta.url)));
+const procedures=JSON.parse(readFileSync(new URL('./fixtures/speech-procedures-live-20261016.json',import.meta.url)));
 const parentId=fixture.parent.activity_id;
 const sequence=activities=>buildInterventionSequence(activities,{parentId,expectedIds:fixture.parent.consists_of});
 const byNumber=n=>fixture.activities.find(a=>a.recorded_in_a_realization_of?.[0]?.numbering===n);
 const clone=value=>structuredClone(value);
 const response=data=>({url:'https://data.europarl.europa.eu/api/v2/speeches',fetchedAt:Date.parse('2026-10-15T22:00:00Z'),payload:{data,meta:{total:data.length},searchResults:{hits:data.map(a=>({id:a.id}))}}});
+
+test('live suspension and chair-change records are procedural notes with exact chair identity and no speech URL',()=>{
+  const [suspension,chairChange]=procedures.activities;
+  const note=interventionMetadata(suspension),chair=interventionMetadata(chairChange);
+  assert.equal(note.type,'procedure');assert.equal(note.procedureKind,'note');
+  assert.equal(note.narrative,'(The sitting was briefly suspended)');assert.equal(note.speaker,null);
+  assert.equal(chair.type,'procedure');assert.equal(chair.procedureKind,'chair-change');
+  assert.deepEqual(chair.chair,{id:'125027',name:'ESTEBAN GONZÁLEZ PONS',role:'Vice-President'});
+  assert.equal(chair.speaker,null,'a presiding heading is not a speech');
+  assert.equal(chair.evidence,'api:xmlFragment/communication/heading/person');
+  for(const activity of procedures.activities) {
+    const row=speechSummary(activity);
+    assert.equal(row.websiteUrl,null);assert.equal(row.websiteLanguage,null);
+  }
+  assert.match(speechSummary(byNumber(172)).websiteUrl,/\/CRE-.+-INT-.+\.html$/);
+});
+
+test('unreadable procedural text and unmatched chair identities never become fabricated speakers or speech links',()=>{
+  for(const original of procedures.activities) {
+    const activity=clone(original);delete activity.recorded_in_a_realization_of[0]['api:xmlFragment'];
+    const meta=interventionMetadata(activity);
+    assert.equal(meta.type,'procedure');assert.equal(meta.narrative,null);assert.equal(meta.chair,null);
+    assert.equal(speechSummary(activity).websiteUrl,null);
+  }
+  const chairChange=clone(procedures.activities[1]);chairChange.had_participation.had_participant_person=['person/999999'];
+  assert.equal(interventionMetadata(chairChange).chair,null,'the heading identity must match the API participation');
+  for(const xml of ['<communication>broken','<!DOCTYPE x [<!ENTITY x SYSTEM "file:///secret">]><communication>&x;</communication>']) {
+    chairChange.recorded_in_a_realization_of[0]['api:xmlFragment'].en=xml;
+    const meta=interventionMetadata(chairChange);assert.equal(meta.type,'procedure');assert.equal(meta.chair,null);assert.equal(meta.narrative,null);
+  }
+});
+
+test('procedural records retain exact membership and coverage, and interrupt implicit reply chains',()=>{
+  for(const procedural of procedures.activities) {
+    const rows=[clone(byNumber(172)),clone(procedural),clone(byNumber(173)),clone(byNumber(174))];
+    rows.forEach((row,index)=>{
+      row.inverse_consists_of=['eli/dl/event/'+parentId];
+      row.recorded_in_a_realization_of[0].numbering=172+index;
+    });
+    const result=buildInterventionSequence(rows,{parentId,expectedIds:rows.map(row=>row.id)});
+    assert.equal(result.exchanges.length,0,'a suspension or chair change is an exchange boundary');
+    assert.equal(result.records.length,4);assert.equal(result.coverage.complete,true);
+    assert.deepEqual(result.coverage.missingIds,[]);
+    const foreign=clone(procedural);foreign.inverse_consists_of=['eli/dl/event/MTG-PL-2026-02-10-PVCRE-ITM-6'];
+    assert.equal(buildInterventionSequence([foreign],{parentId,expectedIds:[foreign.id]}).records.length,0);
+  }
+});
 
 test('shared sitting and member jobs survive their first reader disconnecting',async t=>{
   t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()+60000});

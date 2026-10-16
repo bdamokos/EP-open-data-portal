@@ -442,8 +442,9 @@ export function speechSummary(activity) {
   const doc =
     activity.recorded_in_a_realization_of?.find((x) => typeof x === "object") ||
     {};
+  const intervention=interventionMetadata(activity);
   return {
-    ...speechWebsite(doc),
+    ...(intervention.type==='procedure'?{websiteUrl:null,websiteLanguage:null}:speechWebsite(doc)),
     id: activity.activity_id,
     date: activity.activity_date,
     start: activity.activity_start_date || null,
@@ -453,7 +454,7 @@ export function speechSummary(activity) {
     reference: doc.number || "",
     originalLanguages: doc.originalLanguage || doc.originalLanguageURI || [],
     participants: activity.had_participation?.had_participant_person || [],
-    intervention: interventionMetadata(activity),
+    intervention,
   };
 }
 export function orderedSpeeches(payload) {
