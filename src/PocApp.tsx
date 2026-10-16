@@ -12,6 +12,7 @@ import {MotionStatuses,PocMotionOutcome} from './PocMotionOutcome';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from "./PocReferences";
 import { Portrait } from "./components/Portrait";
+import './pocFocus.css';
 import { DataNotice } from "./components/DataNotice";
 import { API_ROOT } from "./api";
 import { interfaceLabel, countryName, languageName } from "./interfaceLabels.mjs";
@@ -70,7 +71,14 @@ function ErrorView({ message, retry }: { message: string; retry: () => void }) {
   return (
     <div className="poc-notice" role="alert">
       <p>{message}</p>
-      <button onClick={retry}>Try again</button>
+      <button onClick={event=>{
+        if(document.activeElement===event.currentTarget){
+          const scope=event.currentTarget.closest('section,article,main');
+          const target=scope?.querySelector<HTMLElement>('.poc-speech-toggle,h1,h2,h3')||scope?.parentElement?.closest('section,main')?.querySelector<HTMLElement>('h1,h2,h3');
+          if(target){if(/^H[1-6]$/.test(target.tagName))target.tabIndex=-1;target.focus({preventScroll:true});}
+        }
+        retry();
+      }}>Try again</button>
     </div>
   );
 }
@@ -324,14 +332,23 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
   const focusedSpeech=useRef<string|null>(null);
+  const resultsHeading=useRef<HTMLHeadingElement>(null);
+  const speechOrigin=useRef<{key:string;owner:Element|null}|null>(null);
+  useLayoutEffect(()=>{
+    const intent=initialSpeech?{key:id+':'+initialSpeech,owner:document.activeElement}:null;
+    speechOrigin.current=intent;
+    const cancel=(event:FocusEvent)=>{if(event.target!==intent?.owner)speechOrigin.current=null;};
+    document.addEventListener('focusin',cancel);
+    return()=>{document.removeEventListener('focusin',cancel);speechOrigin.current=null;};
+  },[id,initialSpeech]);
   const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}&category=plenary-contributions`);
   const pinned=useData<JoinedActivityPage>(initialSpeech && state.data && !state.data.items.some(item=>item.sourceId===initialSpeech) ? `latest-activities/${id}?lang=${lang}&limit=10&category=plenary-contributions&source-id=${encodeURIComponent(initialSpeech)}` : null);
   useEffect(()=>{setOffset(0);setSpeechLanguage(null);},[id,lang]);
   useEffect(()=>{setEnrichedSpeeches([]);},[id]);
   const items=state.data ? [...(pinned.data?.selectedItems || []).filter(item=>!state.data!.items.some(row=>row.id===item.id)),...state.data.items].filter(item=>item.recordKind==='speech') : [];
-  useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;target.scrollIntoView({block:'start'});target.querySelector<HTMLButtonElement>('.poc-speech-toggle')?.focus({preventScroll:true});focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data]);
+  useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){target.scrollIntoView({block:'start'});target.querySelector<HTMLButtonElement>('.poc-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data]);
   return <section>
-    <div className="poc-section-title"><h2>{c.speeches}</h2><PocTextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" scopeNote="Searches saved speech text for this MEP in the current term. Transcript and language coverage may be incomplete."/></div>
+    <div className="poc-section-title"><h2 ref={resultsHeading} tabIndex={-1}>{c.speeches}</h2><PocTextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" scopeNote="Searches saved speech text for this MEP in the current term. Transcript and language coverage may be incomplete."/></div>
     <PocInterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches}/>
     <PocSpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setSpeechLanguage(language);onOpen(speech);}}/>
     <div className="poc-section-title"><span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span></div>
@@ -346,7 +363,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
       {!open&&<div className="poc-speech-list-badges"><InterventionBadges value={speech.intervention}/></div>}
       {open && <Detail speech={speech} lang={speechLanguage||lang} />}
     </article>})}
-    {state.data && <div className="poc-category-top">{offset>0 && <button onClick={()=>{setOffset(Math.max(0,offset-10));onOpen(null);}}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>{setOffset(state.data!.nextOffset!);onOpen(null);}}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
+    {state.data && <div className="poc-category-top">{offset>0 && <button onClick={()=>{resultsHeading.current?.focus({preventScroll:true});setOffset(Math.max(0,offset-10));onOpen(null);}}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>{resultsHeading.current?.focus({preventScroll:true});setOffset(state.data!.nextOffset!);onOpen(null);}}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
   </section>;
 }
 export default function PocApp() {
@@ -380,6 +397,24 @@ export default function PocApp() {
   const [tab, setTab] = useState(
     ["profile", "activities"].includes(initial.get("module") || "") ? initial.get("module")! : "speeches",
   );
+  const memberOpener=useRef<number|null>(null);
+  const viewOpener=useRef<{node:HTMLElement|null;headerIndex:number}|null>(null);
+  const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
+  useLayoutEffect(()=>{
+    const intent=pendingDestination.current;
+    if(!intent||intent.view!==view||intent.member!==member)return;
+    pendingDestination.current=null;
+    // Selected speech links already hand focus to the exact item once it mounts.
+    if(!view&&member&&speechLink&&!intent.opener)return;
+    const page=document.querySelector<HTMLElement>('main.poc,main.poc-insights');
+    const portrait=intent.portrait!=null?page?.querySelector<HTMLElement>(`[data-member-id="${intent.portrait}"] .portrait--button`):null;
+    const opener=intent.opener;
+    const returned=opener?.node?.isConnected?opener.node:opener&&opener.headerIndex>=0?page?.querySelectorAll<HTMLElement>('.parliament-header nav button')[opener.headerIndex]:null;
+    const target=portrait||returned||page?.querySelector<HTMLElement>('h1');
+    if(!target)return;
+    if(target.tagName==='H1')target.tabIndex=-1;
+    target.focus({preventScroll:true});
+  },[view,member,speechLink]);
   const directoryState = useData<Directory>(view==='outside'?null:"directory");
   const directory = directoryState.data;
   const error = directoryState.error;
@@ -487,6 +522,9 @@ export default function PocApp() {
             : value.toLowerCase().replaceAll("_", " ");
   function navigateView(next:typeof view) {
     if(next===view)return;
+    const active=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    viewOpener.current={node:active,headerIndex:active?Array.from(document.querySelectorAll('.parliament-header nav button')).indexOf(active):-1};
+    pendingDestination.current={view:next,member:next?member:null};
     const url=new URL(location.href);
     // Country on the member wall is deliberately not an explorer default.
     url.searchParams.delete('country');
@@ -496,6 +534,7 @@ export default function PocApp() {
   }
   useEffect(()=>{
     const restore=()=>{
+      pendingDestination.current=null;
       const query=new URLSearchParams(location.search),next=query.get('view');
       const restored=['legislation','questions','outside','saved'].includes(next||'')?next as typeof view:null;
       setView(restored);setMember(/^\d+$/.test(query.get('member')||'')?Number(query.get('member')):null);
@@ -507,6 +546,8 @@ export default function PocApp() {
   },[]);
   const openInsightMember = (id: number, sourceId?: string) => {
     navigateView(null);setMember(id);setActivityCategory('');
+    memberOpener.current=null;
+    pendingDestination.current={view:null,member:id};
     const speech=Boolean(sourceId?.startsWith('MTG-PL-'));
     setTab(sourceId ? speech ? 'speeches' : 'activities' : 'profile');
     setSpeechLink(speech ? sourceId! : null);
@@ -514,6 +555,16 @@ export default function PocApp() {
   };
   const showMembers = () => {
     navigateView(null);setMember(null);setSpeechLink(null);setActivityLink(null);
+    pendingDestination.current={view:null,member:null};
+  };
+  const leaveMember=()=>{
+    pendingDestination.current={view:null,member:null,portrait:memberOpener.current};
+    setMember(null);setSpeechLink(null);setActivityLink(null);
+  };
+  const leaveSaved=()=>{
+    const opener=viewOpener.current;
+    navigateView(null);
+    pendingDestination.current={view:null,member,opener};
   };
   if (view === 'legislation' || view === 'questions' || view === 'outside') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
@@ -522,15 +573,11 @@ export default function PocApp() {
   return (
     <main className="poc" lang={lang}>
         <ParliamentHeader view={view==='saved'?'saved':'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>
-        {view === 'saved' ? <PocSaved language={lang} onBack={()=>navigateView(null)} onMember={openInsightMember}/> : member ? (
+        {view === 'saved' ? <PocSaved language={lang} onBack={leaveSaved} onMember={openInsightMember}/> : member ? (
           <section className="poc-profile">
             <button
               className="poc-back"
-              onClick={() => {
-                setMember(null);
-                setSpeechLink(null);
-                setActivityLink(null);
-              }}
+              onClick={leaveMember}
             >
               ← {c.back}
             </button>
@@ -544,7 +591,7 @@ export default function PocApp() {
                 />
               )}
               <div>
-                <h1>
+                <h1 tabIndex={-1} aria-label={memberName}>
                   {profile.data?.firstName || selected?.firstName}
                   <br />
                   {profile.data?.lastName || selected?.lastName}
@@ -776,7 +823,7 @@ export default function PocApp() {
                 {!unavailable && (
                   <div className="poc-portraits" data-portrait-scroll-root>
                     {filtered.map((m, index) => (
-                      <div className="poc-portrait-item" key={m.id}>
+                      <div className="poc-portrait-item" key={m.id} data-member-id={m.id}>
                         <Portrait
                           member={{
                             ...m,
@@ -787,6 +834,8 @@ export default function PocApp() {
                           labelled
                           eager={index < 18}
                           onClick={() => {
+                            memberOpener.current=m.id;
+                            pendingDestination.current={view:null,member:m.id};
                             setMember(m.id);
                             setSpeechLink(null);
                             setActivityLink(null);
