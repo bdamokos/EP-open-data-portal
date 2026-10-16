@@ -60,7 +60,7 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
     if (xml) return {xml:text,fetchedAt:new Date().toISOString()};
     const payload=JSON.parse(text);if(!Array.isArray(payload.data))throw new Error('EP API returned an invalid data array.');
     return {payload,fetchedAt:new Date().toISOString()};
-  },{priority:'background'});
+  },{priority:'background',signal});
 }
 export class ActivityWorker {
   constructor(store,{fetchRecord=apiFetch,clock=Date.now,budget=1000,maxDuration=90*60_000,diskLimit=1024*1024*1024}={}) {

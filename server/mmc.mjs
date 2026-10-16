@@ -4,6 +4,7 @@ import { boundedUpstream, odp, speechSummary } from './odp.mjs';
 import { activityIndex } from './activity-index-worker.mjs';
 import { HttpError } from './http-utils.mjs';
 import { playerContent, playerAudioMapping } from './player-content.mjs';
+import {sharedRequest,waitForRequest} from './request-budget.mjs';
 
 export const MMC_BASE = 'https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0';
 const DAY = 86400000;
@@ -61,14 +62,15 @@ export function officialEmbed(detail, id) {
 }
 
 async function freshDetail(id, directory) {
-  if (pending.has(id)) return pending.get(id);
-  const task = boundedUpstream(async () => {
+  if (pending.has(id)) return waitForRequest(pending.get(id));
+  const task = sharedRequest(signal=>boundedUpstream(async () => {
     const url = MMC_BASE + '/media/' + id;
-    const response = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'Parliament-Explorer/0.1 (public recording metadata)' }, signal: AbortSignal.timeout(25000), redirect: 'error' });
-    if (!response.ok) throw new Error(`Multimedia recording details unavailable (${response.status}).`);
+    const response = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'Parliament-Explorer/0.1 (public recording metadata)' }, signal: AbortSignal.any([signal,AbortSignal.timeout(25000)]), redirect: 'error' });
+    if (!response.ok) {await response.body?.cancel();throw new Error(`Multimedia recording details unavailable (${response.status}).`);}
     const text = await response.text();
     if (Buffer.byteLength(text) > 2 * 1024 * 1024) throw new Error('Multimedia metadata exceeded size limit.');
     const payload = JSON.parse(text), detail = payload.resultJSON?.content;
+    signal.throwIfAborted();
     if (!officialEmbed(detail, id) || !Number.isFinite(Date.parse(detail.meetingStartDate)) || Date.parse(detail.meetingEndDate) <= Date.parse(detail.meetingStartDate)) throw new Error('Multimedia returned invalid recording details.');
     const record = { url, fetchedAt: new Date().toISOString(), payload };
     memory.set(id, record);
@@ -80,9 +82,9 @@ async function freshDetail(id, directory) {
       await rename(filename + '.tmp', filename);
     }
     return { ...record, stale: false };
-  }).catch(error=>{failures.set(id,{retryAt:Date.now()+3600000,message:String(error.message).slice(0,200)});throw error;}).finally(() => pending.delete(id));
+  },{signal})).catch(error=>{failures.set(id,{retryAt:Date.now()+3600000,message:String(error.message).slice(0,200)});throw error;}).finally(() => pending.delete(id));
   pending.set(id, task);
-  return task;
+  return waitForRequest(task);
 }
 
 export async function recordingDetail(id, directory) {

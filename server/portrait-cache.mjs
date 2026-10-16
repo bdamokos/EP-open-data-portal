@@ -2,6 +2,7 @@ import {mkdir, open, readdir, rename, stat, unlink, writeFile} from 'node:fs/pro
 import {createHash, randomUUID} from 'node:crypto';
 import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
+import {sharedRequest,waitForRequest} from './request-budget.mjs';
 
 const IMAGE_LIMIT = 2 * 1024 * 1024;
 const HEADER_LIMIT = 4096;
@@ -145,11 +146,11 @@ export class PortraitCache {
     await operation;
   }
 
-  async download(id, resolveSource, {priority = 'interactive'} = {}) {
-    const sourceUrl = officialPortrait(await resolveSource(id, {priority}));
+  async download(id, resolveSource, {priority = 'interactive',signal} = {}) {
+    const sourceUrl = officialPortrait(await waitForRequest(resolveSource(id, {priority}),signal));signal?.throwIfAborted();
     const response = await this.fetchImpl(sourceUrl, {
       headers: {'User-Agent': 'Mozilla/5.0 (compatible; Parliament-Explorer/0.1)', Accept: 'image/jpeg'},
-      redirect: 'error', signal: AbortSignal.timeout(12000),
+      redirect: 'error', signal: AbortSignal.any([AbortSignal.timeout(12000),...(signal?[signal]:[])]),
     });
     const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase();
     if (!response.ok || contentType !== 'image/jpeg' || !response.body) {
@@ -178,19 +179,17 @@ export class PortraitCache {
     this.backgroundQueue.delete(id);
     const failure = this.failures.get(id);
     if (failure && this.clock() < failure.retryAt) return Promise.reject(failure.error);
-    const job = (async () => {
-      try {
-        const image = await this.download(id, resolveSource, options);
+    const job = sharedRequest(async signal => {
+        const image = await this.download(id, resolveSource, {...options,signal});signal.throwIfAborted();
         this.remember(id, image); this.failures.delete(id);
         await this.save(id, image);
         return image;
-      } catch (error) {
+    }).catch(error=>{
         this.failures.delete(id);
         this.failures.set(id, {error, retryAt: this.clock() + this.retryMs});
         if (this.failures.size > 120) this.failures.delete(this.failures.keys().next().value);
         throw error;
-      } finally { this.refreshes.delete(id); }
-    })();
+    }).finally(()=>{if(this.refreshes.get(id)===job)this.refreshes.delete(id);});
     this.refreshes.set(id, job);
     return job;
   }
@@ -220,8 +219,8 @@ export class PortraitCache {
 
   get(id, resolveSource) {
     if (!Number.isSafeInteger(id) || id < 1) return Promise.reject(new HttpError(400, 'invalid_id', 'id must be a positive integer'));
-    if (this.pending.has(id)) return this.pending.get(id);
-    const job = (async () => {
+    if (this.pending.has(id)) return waitForRequest(this.pending.get(id));
+    const job = sharedRequest(async () => {
       let image = this.memory.get(id);
       if (image) this.remember(id, image);
       else image = await this.read(id);
@@ -231,8 +230,8 @@ export class PortraitCache {
         this.scheduleRefresh(id, resolveSource);
       }
       return image;
-    })().finally(() => this.pending.delete(id));
+    }).finally(() => this.pending.delete(id));
     this.pending.set(id, job);
-    return job;
+    return waitForRequest(job);
   }
 }

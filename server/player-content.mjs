@@ -2,6 +2,7 @@ import { readFile, mkdir, writeFile, rename } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { boundedUpstream } from './odp.mjs';
+import {sharedRequest,waitForRequest} from './request-budget.mjs';
 
 // Public ContentEvent interface used by Parliament's published player. No event
 // password, cookie or browser Origin is supplied; only published records qualify.
@@ -71,9 +72,10 @@ function cacheRecordValid(record, id) {
 }
 
 async function refresh(id, directory, key, fetchContent, priority) {
-  if (pending.has(key)) return pending.get(key);
-  const operation = boundedUpstream(async () => {
+  if (pending.has(key)) return waitForRequest(pending.get(key));
+  const operation = sharedRequest(signal=>boundedUpstream(async () => {
     const payload = validatePlayerContent(await fetchContent(id), id);
+    signal.throwIfAborted();
     const record = { url: CONTENT_SOCKET_URL, namespace: '/content', event: 'join:event', fetchedAt: new Date().toISOString(), payload };
     if (Buffer.byteLength(JSON.stringify(record)) > LIMIT) throw new Error('Player content metadata exceeded size limit.');
     if (directory) {
@@ -86,11 +88,11 @@ async function refresh(id, directory, key, fetchContent, priority) {
     if (memory.size > 256) memory.delete(memory.keys().next().value);
     failures.delete(key);
     return { ...record, stale: false, refreshError: null };
-  }, { priority }).catch(error => {
+  }, { priority,signal })).catch(error => {
     failures.set(key, { retryAt: Date.now() + 3600000, message: String(error.message).slice(0, 200) });
     throw error;
   }).finally(() => pending.delete(key));
-  pending.set(key, operation); return operation;
+  pending.set(key, operation); return waitForRequest(operation);
 }
 
 export async function playerContent(id, directory, { fetchContent = fetchPlayerContent } = {}) {
