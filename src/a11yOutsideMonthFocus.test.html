@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Outside month focus regression</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import {createElement} from 'react';
+      import {createRoot} from 'react-dom/client';
+      import './PocApp.tsx';
+      import './base.css';
+      import {PocOutsideVoices} from './PocOutsideVoices.tsx';
+
+      // Serve locally at desktop and 320px, with ?months=88 for a long range.
+      // Press a real Tab before focusMonth(); synthetic key events cannot set
+      // :focus-visible. Tab/Shift+Tab through first, middle and last months at
+      // both scroll ends. inspect(), results and the root element's dataset expose the
+      // regression without adding UI that changes the product's geometry.
+      // For the already-visible edge case, focus the middle month's preceding
+      // button, await alignMonth('middle', 'end'), then press a real Tab. Do not
+      // scroll again before verifying: native focus reveal must preserve the ring.
+      const url = new URL(location.href);
+      const monthCount = Number(url.searchParams.get('months') || 11);
+      if (![11, 88].includes(monthCount)) throw new Error('Use 11 or 88 fixture months');
+      url.searchParams.set('ov-person', '42');
+      url.searchParams.set('ov-term', 'all');
+      url.searchParams.delete('ov-tab');
+      url.searchParams.delete('ov-month');
+      history.replaceState(null, '', url);
+
+      const source = {url: 'https://example.test/public-fixture', fetchedAt: '2026-10-16T12:00:00Z'};
+      const coverage = {complete: true, pending: 0, unresolved: 0, gaps: 0, truncated: false, initialized: true, generation: 1, updatedAt: source.fetchedAt, tasks: [], source: 'synthetic public-shaped fixture'};
+      const first = monthCount === 88 ? '2019-07-01' : '2024-12-01';
+      const months = Array.from({length: monthCount}, (_, index) => {
+        const value = new Date(first + 'T12:00:00Z');
+        value.setUTCMonth(value.getUTCMonth() + index);
+        return value.toISOString().slice(0, 7);
+      });
+      const contributions = months.map((month, index) => {
+        const date = month + '-10';
+        return {
+          id: `MTG-PL-${date}-INT-fixture-42-${index + 1}`, personId: '42', date,
+          term: date < '2024-07-16' ? 9 : 10, start: date + 'T12:00:00Z', end: null,
+          titles: {en: `Synthetic public agenda ${index + 1}`},
+          parentIds: [`ITM-${date}-fixture-${index + 1}`], documentId: null,
+          parentDocumentId: null, reference: 'synthetic fixture', originalLanguages: ['en'],
+          websiteUrl: null, websiteLanguage: 'en',
+          header: {personId: '42', name: 'Month focus fixture speaker', role: 'Guest speaker', languageTag: 'en', original: true, capacity: 'other'},
+          source, rosterSource: {date, sources: [source]},
+        };
+      });
+      const agendas = contributions.map(contribution => ({
+        id: contribution.parentIds[0], date: contribution.date, titles: contribution.titles,
+        kind: 'PLENARY_DEBATE', procedureIds: [], procedures: [], source,
+      }));
+      const person = {
+        id: '42', name: 'Month focus fixture speaker', role: 'Guest speaker', capacity: 'other',
+        contributions: contributions.length, appearances: agendas.length, unlinkedContributions: 0,
+        sittingDays: contributions.length, first: contributions[0].date, last: contributions.at(-1).date,
+        terms: [...new Set(contributions.map(contribution => contribution.term))],
+        days: contributions.map(contribution => ({
+          date: contribution.date, contributions: 1, itemIds: contribution.parentIds,
+          formal: false, legislative: false,
+          items: [{id: contribution.parentIds[0], kind: 'PLENARY_DEBATE', legislative: false}],
+        })),
+        roles: ['Guest speaker'], roleConflicts: [],
+      };
+      const detail = {person, contributions, agendas, coSpeakers: [], coverage};
+      const calls = [];
+      window.fetch = async input => {
+        const request = new URL(input instanceof Request ? input.url : input, location.href);
+        calls.push(request.pathname + request.search);
+        if (request.origin !== location.origin) throw new Error('External request blocked: ' + request.origin);
+        if (request.pathname === '/api/poc/outside/directory') return Response.json({term: request.searchParams.get('term'), people: [person], coverage});
+        if (request.pathname === '/api/poc/outside/42') return Response.json(detail);
+        throw new Error('Unexpected fixture request: ' + request.pathname + request.search);
+      };
+
+      const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+      const buttons = () => [...document.querySelectorAll('.ov-monthly button')];
+      const scroller = () => document.querySelector('.ov-monthly-scroll');
+      const results = [];
+      let inputSource = 'browser';
+      let requestedFocusSource = null;
+      document.addEventListener('keydown', event => {
+        if (event.isTrusted && event.key === 'Tab') inputSource = 'keyboard';
+      }, true);
+      document.addEventListener('pointerdown', event => {
+        if (event.isTrusted) inputSource = 'pointer';
+      }, true);
+      const bounds = rect => ({left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height});
+      const at = position => {
+        const all = buttons();
+        const index = position === 'first' ? 0 : position === 'middle' ? Math.floor(all.length / 2) : position === 'last' ? all.length - 1 : position;
+        if (!Number.isInteger(index) || !all[index]) throw new Error('Unknown month position: ' + position);
+        return all[index];
+      };
+      const inspect = () => {
+        const container = scroller();
+        if (!container) throw new Error('Monthly chart has not rendered');
+        const rect = container.getBoundingClientRect();
+        const style = getComputedStyle(container);
+        const paddingBoxRight = rect.right - parseFloat(style.borderRightWidth);
+        const paddingBoxBottom = rect.bottom - parseFloat(style.borderBottomWidth);
+        const clip = {left: rect.left + container.clientLeft, top: rect.top + container.clientTop};
+        const verticalOverflow = container.scrollHeight > container.clientHeight + 0.5;
+        // Chromium's empty stable scrollbar gutter reduces clientWidth without
+        // clipping painted/hit-testable content. Use the padding box unless an
+        // actual scrollbar occupies that edge; never enlarge the edge tolerance.
+        clip.right = verticalOverflow ? clip.left + container.clientWidth : paddingBoxRight;
+        const horizontalOverflow = container.scrollWidth > clip.right - clip.left + 0.5;
+        clip.bottom = horizontalOverflow ? clip.top + container.clientHeight : paddingBoxBottom;
+        return {
+          viewport: {width: innerWidth, height: innerHeight},
+          scroller: {rect: bounds(rect), clip, verticalOverflow, horizontalOverflow, scrollLeft: container.scrollLeft, scrollWidth: container.scrollWidth, clientWidth: container.clientWidth},
+          months: buttons().map((button, index) => {
+            const style = getComputedStyle(button), rect = button.getBoundingClientRect();
+            const width = parseFloat(style.outlineWidth), offset = parseFloat(style.outlineOffset);
+            const spread = width + offset;
+            return {
+              index, month: months[index], label: button.getAttribute('aria-label'), tick: button.querySelector('small').textContent,
+              disabled: button.disabled, active: document.activeElement === button, focusVisible: button.matches(':focus-visible'),
+              rect: bounds(rect), outline: {width, offset, style: style.outlineStyle, color: style.outlineColor, left: rect.left - spread, top: rect.top - spread, right: rect.right + spread, bottom: rect.bottom + spread},
+            };
+          }),
+          selectValues: [...document.querySelector('.ov-month-filter select').options].map(option => option.value),
+        };
+      };
+      const verifyFocusedMonth = (source = 'manual') => {
+        const geometry = inspect();
+        const active = geometry.months.find(month => month.active);
+        const record = {source, timestamp: performance.now(), ...geometry, focused: active || null, passed: false};
+        try {
+          if (!active) throw new Error('A monthly button must have actual focus');
+          if (!active.focusVisible) throw new Error('A visible focus outline is required; press a real Tab first');
+          if (active.rect.width < 24 || active.rect.height < 24) throw new Error('Monthly target is below 24px');
+          if (active.outline.width !== 3 || active.outline.offset < -active.outline.width || active.outline.style !== 'solid') throw new Error('Expected a complete 3px solid focus outline');
+          if (active.outline.color !== 'rgb(30, 108, 255)') throw new Error('The light-surface focus token did not win');
+          const clip = geometry.scroller.clip, epsilon = 0.5;
+          const clipped = ['left', 'top'].filter(edge => active.outline[edge] < clip[edge] - epsilon)
+            .concat(['right', 'bottom'].filter(edge => active.outline[edge] > clip[edge] + epsilon));
+          if (clipped.length) throw new Error(`Month ${active.month} outline clipped at ${clipped.join(', ')}`);
+          record.passed = true;
+          document.documentElement.dataset.focusStatus = 'passed';
+          document.title = 'PASS: Outside month focus regression';
+          return record;
+        } catch (error) {
+          record.error = error.message;
+          document.documentElement.dataset.focusStatus = 'failed';
+          document.title = 'FAIL: Outside month focus regression';
+          throw error;
+        } finally {
+          results.push(record);
+        }
+      };
+      const fixture = window.outsideMonthFocusFixture = {
+        ready: false, months, calls, results, inspect, verifyFocusedMonth,
+        button: at,
+        async scrollTo(edge) {
+          const container = scroller();
+          if (!container || !['start', 'end'].includes(edge)) throw new Error('Use scrollTo("start" or "end") after ready');
+          container.scrollLeft = edge === 'start' ? 0 : container.scrollWidth;
+          await frame(); await frame();
+          return inspect();
+        },
+        async alignMonth(position, edge = 'end') {
+          if (!['start', 'end'].includes(edge)) throw new Error('Use alignMonth(position, "start" or "end")');
+          const container = scroller(), rect = at(position).getBoundingClientRect();
+          const clip = inspect().scroller.clip;
+          container.scrollLeft += edge === 'start' ? rect.left - clip.left : rect.right - clip.right;
+          await frame(); await frame();
+          return inspect();
+        },
+        async focusMonth(position, {preventScroll = false} = {}) {
+          requestedFocusSource = 'programmatic';
+          try { at(position).focus({preventScroll}); } finally { requestedFocusSource = null; }
+          await frame(); await frame();
+          return verifyFocusedMonth('programmatic');
+        },
+      };
+      document.addEventListener('focusin', event => {
+        if (!event.target.matches?.('.ov-monthly button')) return;
+        const target = event.target;
+        const source = requestedFocusSource || inputSource;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (document.activeElement !== target) return;
+          try { verifyFocusedMonth(source); } catch (error) { console.error(error); }
+        }));
+      });
+      const observer = new MutationObserver(() => {
+        if (buttons().length !== monthCount) return;
+        const geometry = inspect();
+        if (geometry.selectValues.join(',') !== ['', ...months].join(',')) throw new Error('Native selector lost a month');
+        if (geometry.months.some(month => month.disabled || !month.tick.includes(month.month.slice(0, 4)))) throw new Error('A month or its full year label is missing');
+        fixture.ready = true;
+        document.documentElement.dataset.fixtureStatus = 'ready';
+        observer.disconnect();
+      });
+      observer.observe(document.getElementById('root'), {childList: true, subtree: true});
+      createRoot(document.getElementById('root')).render(createElement(PocOutsideVoices, {language: 'en', onBack() {}}));
+    </script>
+  </body>
+</html>
