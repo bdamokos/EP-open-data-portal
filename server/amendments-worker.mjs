@@ -207,18 +207,21 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   const uniqueGaps=[...new Set(gaps)];
   saveAmendmentRows(store,generation,target,[...rows.values()],{complete:!uniqueGaps.length&&rows.size>0,gaps:uniqueGaps,lastUpdated:new Date(worker.clock()).toISOString(),parserVersion:SPLIT_PARSER_VERSION},{observedDecisionIds:[...observed]});
 }
-async function downloadVotingXml(url) {
+async function downloadVotingXml(url,{signal}={}) {
+  signal?.throwIfAborted();
   const parsed=new URL(url);
   if(parsed.protocol!=='https:'||parsed.hostname!=='data.europarl.europa.eu'||parsed.port||parsed.username||parsed.password||parsed.search||parsed.hash||!/^\/distribution\/.+\.xml$/.test(parsed.pathname))throw new Error('Unapproved official voting XML URL.');
-  const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'application/xml,application/octet-stream','User-Agent':'Parliament-Explorer/0.1 (public voting aliases)'},signal:AbortSignal.timeout(45000)},resolve).on('error',reject));
+  const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'application/xml,application/octet-stream','User-Agent':'Parliament-Explorer/0.1 (public voting aliases)'},signal:AbortSignal.any([AbortSignal.timeout(45000),...(signal?[signal]:[])])},resolve).on('error',reject));
   if(response.statusCode!==200){response.resume();throw new Error(`Official voting XML unavailable (${response.statusCode}).`);}
   if(!/(?:xml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw new Error('Unexpected official voting XML format.');}
   const chunks=[];let bytes=0;
   for await(const chunk of response){bytes+=chunk.length;if(bytes>20*1024*1024){response.destroy();throw new Error('Official voting XML exceeds 20 MiB.');}chunks.push(chunk);}
+  signal?.throwIfAborted();
   return Buffer.concat(chunks).toString('utf8');
 }
 export async function amendmentTask(worker,task) {
-  const {generation,body}=task,store=worker.store;
+  const {generation,body}=task,store=worker.store,signal=worker.controller.signal;
+  signal.throwIfAborted();
   if(task.kind==='amendment-reparse') {
     const source=store.source(generation,body.sourceKey);if(!source)throw new Error('Saved split request source is unavailable.');
     const updated=parseSavedSplits(worker,source.work);
@@ -229,7 +232,8 @@ export async function amendmentTask(worker,task) {
     const files=saved.work.files || documentFiles(saved.work),file=files.find(file=>file.format==='DOCX'&&file.language==='en') || files.find(file=>file.format==='DOCX');
     if(!file)throw new Error('No published DOCX is available for this amendment list.');
     worker.requests++;const cycle=store.get('working');if(cycle)store.updateCycle({requests:(cycle.requests || 0)+1});
-    const downloaded=await boundedUpstream(()=>worker.downloadAmendmentDocx(file.url),{priority:'background'});
+    const downloaded=await boundedUpstream(admittedSignal=>worker.downloadAmendmentDocx(file.url,{signal:admittedSignal}),{priority:'background',signal});
+    signal.throwIfAborted();
     const fetchedAt=new Date(worker.clock()).toISOString(),extraction=extractAmendments(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt});
     if(!Array.isArray(extraction.amendments)||extraction.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Amendment extraction exceeded its record budget.');
     for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
@@ -282,7 +286,8 @@ export async function amendmentTask(worker,task) {
     }
     const file=body.file;
     worker.requests++;const cycle=store.get('working');if(cycle)store.updateCycle({requests:(cycle.requests || 0)+1});
-    const xml=await boundedUpstream(()=>worker.downloadVotingXml(file.url),{priority:'background'});
+    const xml=await boundedUpstream(admittedSignal=>worker.downloadVotingXml(file.url,{signal:admittedSignal}),{priority:'background',signal});
+    signal.throwIfAborted();
     const fetchedAt=new Date(worker.clock()).toISOString(),aliases=votingAliases(xml,{sourceUrl:file.url,fetchedAt,sittingDate:date});
     store.putSource(generation,'amendment:aliases:'+body.sittingId,'amendment-aliases',{aliases,sources:[body.documentSource,{url:file.url,fetchedAt}]},fetchedAt);
     const sitting=store.source(generation,motionSourceKey(body.sittingId));if(sitting)refreshSittingTargets(worker,generation,body.sittingId,sitting.work);
