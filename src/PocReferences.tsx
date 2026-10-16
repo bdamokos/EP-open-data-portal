@@ -1,3 +1,4 @@
+import {PocSourceLink} from './PocSourceLink';
 import {createContext,useCallback,useContext,useEffect,useId,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {linkedSegments,noteReferences,referenceKeys,type LinkSpan} from '../server/legal-reference-text.mjs';
 import {useData} from './pocData';
@@ -146,7 +147,7 @@ const urlPattern=/\bhttps?:\/\/[^\s<>"]+[^\s<>".,;:)]/g;
 function plain(text:string,linkify:boolean,key:string) {
   if(!linkify)return text;
   const parts:ReactNode[]=[];let cursor=0;
-  for(const match of text.matchAll(urlPattern)){if(match.index>cursor)parts.push(text.slice(cursor,match.index));parts.push(<a key={key+'-'+match.index} href={match[0]} target="_blank" rel="noreferrer">{match[0]}</a>);cursor=match.index+match[0].length;}
+  for(const match of text.matchAll(urlPattern)){if(match.index>cursor)parts.push(text.slice(cursor,match.index));parts.push(<PocSourceLink key={key+'-'+match.index} url={match[0]} compact>{match[0]}</PocSourceLink>);cursor=match.index+match[0].length;}
   if(cursor<text.length)parts.push(text.slice(cursor));
   return parts;
 }
@@ -177,7 +178,7 @@ export function ReferenceText({text,start=0,anchors=[],links=[],final=true,noteP
   for(const part of parts) {
     if(part.linked||part.href) {
       while(next<marks.length&&marks[next].at<=part.from)mark();
-      nodes.push(part.linked?<ReferenceButton key={'ref-'+part.from} refKey={part.ref!.key} text={part.text} evidence={evidenceFor(part)}/>:<a key={'link-'+part.from} href={part.href!} target="_blank" rel="noreferrer">{part.text}</a>);
+      nodes.push(part.linked?<ReferenceButton key={'ref-'+part.from} refKey={part.ref!.key} text={part.text} evidence={evidenceFor(part)}/>:<PocSourceLink key={'link-'+part.from} url={part.href!} compact>{part.text}</PocSourceLink>);
       continue;
     }
     let local=part.from;
@@ -191,7 +192,7 @@ export function DocumentNotes({notes,prefix}:{notes:DocumentNote[];prefix:string
   if(!notes.length)return null;
   return <details className="legal-notes" open><summary>Notes · {notes.length}</summary><ol>{notes.map(note=><li key={note.id} id={`${prefix}-note-${note.id}`} value={/^\d+$/.test(note.label)?Number(note.label):undefined}>
     <span className="legal-note-label">{/^\d+$/.test(note.label)?null:note.label+' '}</span><ReferenceText text={note.text} links={note.linkSpans||[]} linkify/>
-    {note.links.filter(link=>!note.text.includes(link)&&!(note.linkSpans||[]).some(span=>span.url===link)).map(link=><span key={link}> <a href={link} target="_blank" rel="noreferrer">Link ↗</a></span>)}
+    {note.links.filter(link=>!note.text.includes(link)&&!(note.linkSpans||[]).some(span=>span.url===link)).map(link=><span key={link}> <PocSourceLink url={link} compact>Link ↗</PocSourceLink></span>)}
   </li>)}</ol></details>;
 }
 // Every text and link target in a reader, so one lookup covers the body, its notes and their hyperlinks.
