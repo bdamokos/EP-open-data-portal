@@ -1,3 +1,4 @@
+import {PocSourceLink} from './PocSourceLink';
 import {useState} from 'react';
 import {useData} from './pocData';
 import './PocMotionComparison.css';
@@ -57,7 +58,7 @@ export function PocMotionComparison({originalId,jointId,language}:{originalId:st
           </article>)}</div>
           <p className="poc-diff-explanation">Cover pages and author lists are excluded. Layout whitespace is normalised; wording, punctuation and footnotes are retained. A text comparison does not identify who negotiated a change.</p>
         </>}
-        <details className="poc-diff-sources"><summary>Sources & retrieval dates</summary>{data.documents.map(doc=><p key={doc.id}>{doc.reference} · text retrieved {doc.fetchedAt || 'date unavailable'}{doc.translationType!=='original'?' · Translation method unspecified':''}</p>)}{data.sources.map(source=><p key={source.url}><a href={source.url} target="_blank" rel="noreferrer">Official source record ↗</a> · {source.fetchedAt}</p>)}</details>
+        <details className="poc-diff-sources"><summary>Sources & retrieval dates</summary>{data.documents.map(doc=><p key={doc.id}>{doc.reference} · text retrieved {doc.fetchedAt || 'date unavailable'}{doc.translationType!=='original'?' · Translation method unspecified':''}</p>)}{data.sources.map(source=><p key={source.url}><PocSourceLink url={source.url} language={language}>Official source record ↗</PocSourceLink> · {source.fetchedAt}</p>)}</details>
       </>}
     </div>
   </section>;
