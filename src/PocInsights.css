@@ -188,6 +188,11 @@
 .insight-participants {margin:28px 0;}
 .insight-dossier-links {display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:16px 0;}
 .poc-insights .insight-dossier-links button,.poc-insights .insight-document-links button {font-size:15px;}
+.insight-dossier-finder>form.insight-controls {margin-bottom:10px;}
+.insight-dossier-finder>form.insight-controls label {flex:0 1 360px;}
+.insight-dossier-finder>#dossier-reference-hint {margin:0 0 24px;}
+.poc-insights .insight-dossier-finder>#dossier-reference-hint .insight-text-button {padding:0;color:inherit;font-size:inherit;}
+.insight-dossier-finder input[aria-invalid="true"] {outline:2px solid #ffb4a8;outline-offset:1px;}
 .insight-upcoming-label {color:var(--insight-muted);}
 .insight-speech-panel {margin:28px 0;padding-top:22px;border-top:1px solid var(--insight-line);}
 .insight-speech-picker {display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;max-height:210px;overflow:auto;margin:14px 0;}
