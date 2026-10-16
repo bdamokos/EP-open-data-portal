@@ -4,6 +4,16 @@ const children=(nodes,key)=>child(nodes,key)?.[key];
 const attribute=(node,key)=>node?.[':@']?.['@_w:'+key];
 const property=(nodes,key)=>attribute(child(nodes,key),'val');
 
+export function formatNumber(value,kind,warnings) {
+  if(Number.isSafeInteger(value)&&value>=0) {
+    if(kind==='decimal')return String(value);
+    if(kind==='decimalZero')return String(value).padStart(2,'0');
+    if(['upperLetter','lowerLetter'].includes(kind)&&value>0){let result='';for(let n=value;n>0;n=Math.floor((n-1)/26))result=String.fromCharCode(65+(n-1)%26)+result;return kind==='lowerLetter'?result.toLowerCase():result;}
+    if(['upperRoman','lowerRoman'].includes(kind)&&value>0&&value<4000){let result='',n=value;for(const [size,digits] of [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']])while(n>=size){result+=digits;n-=size;}return kind==='lowerRoman'?result.toLowerCase():result;}
+  }
+  warnings.add('Some automatic numbering uses an unsupported format or value.');return '';
+}
+
 export function numberingLabels(numberingXml,stylesXml,warnings) {
   const parser=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false});
   const styles=children(stylesXml?parser.parse(stylesXml):[],'w:styles') || [];
@@ -34,16 +44,9 @@ export function numberingLabels(numberingXml,stylesXml,warnings) {
     const state=counters.get(number.id) || [];state[level]=(state[level] ?? def.start-1)+1;
     for(let i=level+1;i<state.length;i++)if(definition(i)?.restart!=='0')state[i]=undefined;
     counters.set(number.id,state);
-    const format=(value,kind)=>{
-      if(kind==='decimal')return String(value);
-      if(kind==='decimalZero')return String(value).padStart(2,'0');
-      if(['upperLetter','lowerLetter'].includes(kind)&&value>0){let result='';for(let n=value;n>0;n=Math.floor((n-1)/26))result=String.fromCharCode(65+(n-1)%26)+result;return kind==='lowerLetter'?result.toLowerCase():result;}
-      if(['upperRoman','lowerRoman'].includes(kind)&&value>0&&value<4000){let result='',n=value;for(const [size,digits] of [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']])while(n>=size){result+=digits;n-=size;}return kind==='lowerRoman'?result.toLowerCase():result;}
-      warnings.add('Some automatic paragraph numbering uses an unsupported format.');return '';
-    };
     if(def.format==='bullet')return '•';
     if(!['decimal','decimalZero','upperLetter','lowerLetter','upperRoman','lowerRoman'].includes(def.format))warnings.add('Some automatic paragraph numbering uses an unsupported format.');
     if(typeof def.pattern!=='string'){warnings.add('Some automatic paragraph numbering could not be read.');return '';}
-    return def.pattern.replace(/%([1-9])/g,(_,digit)=>{const i=Number(digit)-1,d=definition(i);if(!d){warnings.add('Some automatic paragraph numbering could not be read.');return '';}return format(state[i] ?? d.start,d.format);});
+    return def.pattern.replace(/%([1-9])/g,(_,digit)=>{const i=Number(digit)-1,d=definition(i);if(!d){warnings.add('Some automatic paragraph numbering could not be read.');return '';}return formatNumber(state[i] ?? d.start,d.format,warnings);});
   };
 }

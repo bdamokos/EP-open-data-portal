@@ -8,13 +8,14 @@ import { boundedUpstream } from './odp.mjs';
 import { documentFiles,array,tail } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
 import {numberingLabels} from './docx-numbering.mjs';
+import {noteNumbering} from './docx-note-numbering.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
-// 5: automatic numbering, endnotes and completeness gaps, retaining v4 citation spans.
-const EXTRACTION_VERSION=5;
+// 6: empty list items and independent, source-formatted footnote/endnote numbering.
+const EXTRACTION_VERSION=6;
 const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500});
 const memory=new Map(),pending=new Map(),failures=new Map();
-const DOCX_PARTS=['word/document.xml','word/styles.xml','word/numbering.xml','word/_rels/document.xml.rels','word/footnotes.xml','word/_rels/footnotes.xml.rels','word/endnotes.xml','word/_rels/endnotes.xml.rels'];
+const DOCX_PARTS=['word/document.xml','word/styles.xml','word/numbering.xml','word/settings.xml','word/_rels/document.xml.rels','word/footnotes.xml','word/_rels/footnotes.xml.rels','word/endnotes.xml','word/_rels/endnotes.xml.rels'];
 // Read only standard text, style, numbering, note and relationship parts. No archive paths are written to disk.
 function docxParts(buffer) {
   if(buffer.length>MAX_FILE || buffer.length<22)throw new Error('DOCX size is unsupported.');
@@ -121,10 +122,11 @@ function paragraphsOf(nodes,context,result=[]) {
     if(key==='w:p'){
       const out={text:'',marks:[],spans:[]};
       inline(value,context.style.styledHidden(property(children(value,'w:pPr'),'w:pStyle') || context.style.defaultParagraph,context.style.defaults),out,context);
-      const label=out.text.trim()?context.numberLabel?.(children(value,'w:pPr')):null;
-      if(label){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}}
+      const properties=children(value,'w:pPr'),label=context.numberLabel?.(properties),section=context.section;
+      if(context.section!==undefined&&children(properties,'w:sectPr'))context.section++;
+      if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}}
       const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
-      if(text)result.push({text,marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start)});
+      if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start)});
     }
     else if(key!==':@'&&Array.isArray(value))paragraphsOf(value,context,result);
   }
@@ -134,7 +136,8 @@ function paragraphsOf(nodes,context,result=[]) {
 export function docxContent(buffer) {
   const parts=docxParts(buffer),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set();
   const numberLabel=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),warnings);
-  const body=paragraphsOf(parser().parse(parts.get('word/document.xml')),{style,numberLabel,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
+  const document=parser().parse(parts.get('word/document.xml')),noteLabel=noteNumbering(document,parts.get('word/settings.xml'),warnings);
+  const body=paragraphsOf(document,{style,numberLabel,section:0,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
   if(!body.length || body.length>20000 || body.map(p=>p.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
   const supplied=new Map();
   for(const kind of ['footnote','endnote'])if(parts.has('word/'+kind+'s.xml')) {
@@ -148,15 +151,16 @@ export function docxContent(buffer) {
       supplied.set(key,{text,truncated:offset-1>NOTE_LIMITS.text,spans:spans.filter(span=>span.end<=text.length).slice(0,NOTE_LIMITS.links)});
     }
   }
-  const notes=[],anchors=[];
+  const notes=[],anchors=[],labels=new Map();
   body.forEach((paragraph,index)=>{for(const mark of paragraph.marks) {
     if(!['w:footnoteReference','w:endnoteReference'].includes(mark.kind))continue;
     const id=(mark.kind==='w:endnoteReference'?'endnote:':'')+mark.id;
+    if(!labels.has(id))labels.set(id,mark.label||noteLabel(mark.kind,paragraph.section,mark.custom));
     if(!supplied.has(id)){warnings.add('A referenced footnote or endnote is missing.');continue;}
     let note=notes.find(n=>n.id===id);
     if(!note){
       if(notes.length>=NOTE_LIMITS.notes){warnings.add('The referenced notes exceed the supported note count.');continue;}
-      const label=mark.label||String(notes.length+1),source=supplied.get(id);
+      const label=labels.get(id),source=supplied.get(id);
       if(source.truncated)warnings.add('A referenced note exceeds the supported text size.');
       if(!source.text)warnings.add('A referenced footnote or endnote is empty.');
       // A custom mark repeats its label as ordinary footnote text; automatic numbering does not.
