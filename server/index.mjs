@@ -1,11 +1,13 @@
 import http from 'node:http';
+import {performance} from 'node:perf_hooks';
 import {pathToFileURL} from 'node:url';
 import {apiPrefixes,config} from './config.mjs';
 import {assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} from './http-utils.mjs';
 import {serveStatic} from './static-files.mjs';
-import {odpDirectory,odpProfile,odpSpeeches,odpSpeech,odpLanguage,odpPortrait} from './odp.mjs';
+import {odpDirectory,odpProfile,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,upstreamStatus} from './odp.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
+import {motionComparison} from './motion-comparison.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
 import {CATEGORIES} from './activity-index-model.mjs';
@@ -13,6 +15,7 @@ import {speechMedia} from './mmc.mjs';
 import {outsideDirectory,outsideSpeaker,outsideQuery} from './outside-store.mjs';
 import {corpusSearch,corpusStatus,startCorpus} from './corpus-worker.mjs';
 import {CORPUS_LIMITS} from './corpus-store.mjs';
+import {createRequestBudget,runWithRequestSignal,waitForRequest,cancelledRequest} from './request-budget.mjs';
 
 import {SpeechInterventions,INTERVENTION_LIMITS} from './speech-intervention-service.mjs';
 import {OfficialContextSources} from './official-context.mjs';
@@ -70,7 +73,7 @@ async function handleApi(request,response,url,apiPrefix){
  if(!endpoint||endpoint==='healthz'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:1,...(!endpoint?{endpoints:['healthz','poc']}:{}),time:new Date().toISOString()});return;}
   if (endpoint === "poc") {
     requireMethod(request, ["GET", "HEAD"]);
-    const queryKeys={directory:['lang'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang']};
+    const queryKeys={directory:['lang'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang'],'motion-comparison':['lang','joint','stage']};
     if(Object.hasOwn(queryKeys,segments[1]))requireQuery(url.searchParams,queryKeys[segments[1]]);
     const language = odpLanguage(url.searchParams.get("lang") || "en");
     if (segments.length === 3 && segments[1] === "portrait") {
@@ -84,7 +87,10 @@ async function handleApi(request,response,url,apiPrefix){
       return;
     }
     let result;
-    if (segments[1] === 'outside' && segments.length === 3) {
+    if(segments[1]==='motion-comparison' && segments.length===3) {
+      result=await motionComparison(segments[2],url.searchParams.get('joint'),{stage:url.searchParams.get('stage') || 'original-joint',language});
+    }
+    else if (segments[1] === 'outside' && segments.length === 3) {
       const query=outsideQuery(url.searchParams), store=activityIndex().store;
       result=segments[2]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[2],query);
     }
@@ -170,13 +176,21 @@ async function handleApi(request,response,url,apiPrefix){
  throw new HttpError(404,'not_found','The requested API endpoint does not exist.');
 }
 export async function handleRequest(request, response) {
+  const started=performance.now(),eventLoop=performance.eventLoopUtilization();let route='/';
+  response.explorerStartedAt=started;
   try {
     const url = new URL(request.url || "/", "http://localhost");
+    route=url.pathname;
     const apiPrefix = apiPrefixes.find(
       (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
     );
     if (apiPrefix) {
-      await handleApi(request, response, url, apiPrefix);
+      const extended=/\/poc\/(?:speech-context|motion-comparison)\//.test(url.pathname);
+      const budget=createRequestBudget(extended?50_000:30_000);
+      const closed=()=>{if(!response.writableEnded)budget.abort(cancelledRequest());};
+      response.once('close',closed);
+      try {await runWithRequestSignal(budget.signal,()=>waitForRequest(handleApi(request,response,url,apiPrefix)));}
+      finally {budget.dispose();response.removeListener('close',closed);}
       return;
     }
 
@@ -191,6 +205,8 @@ export async function handleRequest(request, response) {
     }
     throw new HttpError(404, "not_found", "The requested resource does not exist");
   } catch (error) {
+    if(error.code==='request_timeout')console.warn('[request-budget]',JSON.stringify({code:error.code,route,elapsedMs:Math.round(performance.now()-started),upstream:upstreamStatus(),eventLoopUtilization:performance.eventLoopUtilization(eventLoop).utilization}));
+    if(response.destroyed||response.writableEnded)return;
     if (!response.headersSent) {
       sendError(request, response, error);
     } else if (!response.writableEnded) {

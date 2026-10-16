@@ -5,16 +5,18 @@ import { createHash } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
 import { transcriptLanguage } from "./transcript-language.mjs";
 import { speechWebsite, languageCode } from "./ep-links.mjs";
-import { UpstreamQueue } from './upstream-queue.mjs';
+import { UpstreamQueue, retryAfterSeconds } from './upstream-queue.mjs';
 import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
+import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget} from './request-budget.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
 const cache = new Map();
 const pending = new Map();
 const upstreamQueue = new UpstreamQueue();
+export const upstreamStatus=()=>upstreamQueue.snapshot();
 const refreshFailures = new Map();
 const cacheDir = process.env.ODP_CACHE_DIR;
 const allowedLanguages = new Set(
@@ -31,13 +33,13 @@ export function odpLanguage(value) {
     );
   return value;
 }
-const slot = priority => upstreamQueue.acquire(priority);
-export async function boundedUpstream(operation, {priority='interactive'}={}) {
-  const release = await slot(priority);
-  try { return await operation(); } finally { release(); }
+const slot = (priority,signal) => upstreamQueue.acquire(priority,{signal});
+export async function boundedUpstream(operation, {priority='interactive',signal=priority==='background'?undefined:requestSignal()}={}) {
+  const release = await slot(priority,signal);
+  try { signal?.throwIfAborted();return await operation(signal); } finally { release(); }
 }
 export function backoffUpstream(seconds) {
-  upstreamQueue.backoff(Math.min(120, Math.max(30, seconds)));
+  upstreamQueue.backoff(Math.min(1800, Math.max(30, seconds)));
 }
 const firstString = (value) =>
   typeof value === "string"
@@ -59,11 +61,21 @@ const dayOf = (timestamp) =>
     day: "2-digit",
   }).format(new Date(timestamp));
 const today = () => dayOf(Date.now());
+function observeSource(entry,priority,signal) {
+  if(priority==='background'){entry.backgroundOwner=true;return entry.promise;}
+  entry.readers++;
+  const read=entry.priority==='background'?upstreamQueue.joinBackground(entry.promise,{signal}):waitForRequest(entry.promise,signal);
+  return read.finally(()=>{
+    entry.readers--;
+    if(!entry.settled&&!entry.backgroundOwner&&entry.readers===0)entry.budget.abort(signal?.reason||cancelledRequest());
+  });
+}
 export async function odp(
   endpoint,
   params = {},
-  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, priority='interactive' } = {},
+  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
+  signal?.throwIfAborted();
   const url = new URL(ODP_BASE + endpoint);
   for (const [key, value] of Object.entries({
     ...params,
@@ -93,30 +105,38 @@ export async function odp(
       void odp(endpoint,params,{force:true,ttl,daily,priority:'background'}).catch(()=>{});
     return {...stored,stale:true,refreshInProgress:pending.has(key),refreshError:failure?.message || null};
   }
-  if (pending.has(key)) return pending.get(key);
-  const job = (async () => {
-    const release = await slot(priority);
+  signal?.throwIfAborted();
+  const shared=pending.get(key);
+  if(shared)return observeSource(shared,priority,signal);
+  // Cold interactive work includes admission and body in one bounded job.
+  // Background retries retain their owner while waiting through upstream pauses.
+  const budget=priority==='background'?{signal:undefined,abort:()=>{},dispose:()=>{}}:createRequestBudget(30_000);
+  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,settled:false,promise:null};
+  const job = runWithRequestSignal(undefined,async () => {
+    let release;
     try {
       let response;
+      let retryAfter;
       for (let attempt = 0; attempt < (priority==='background'?3:1); attempt++) {
+        release = await slot(priority,budget.signal);
         response = await fetch(url, {
           headers: {
             Accept: "application/ld+json",
             "User-Agent":
               "Parliament-Explorer/0.1 (public parliamentary data)",
           },
-          signal: AbortSignal.timeout(25_000),
+          signal: budget.signal?AbortSignal.any([budget.signal,AbortSignal.timeout(25_000)]):AbortSignal.timeout(25_000),
+          redirect: 'error',
         });
+        retryAfter=undefined;
         if (response.status !== 429 && response.status !== 503) break;
-        const seconds = Math.min(
-          120,
-          Math.max(30, Number(response.headers.get("retry-after")) || 60),
-        );
+        const seconds = retryAfterSeconds(response.headers.get("retry-after"));
+        retryAfter=seconds;
         backoffUpstream(seconds);
         await response.body?.cancel();
-        if (priority==='background' && attempt < 2)
-          await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+        release();release=null;
       }
+      if(retryAfter&&!response.ok)throw Object.assign(new HttpError(503,'odp_rate_limited','Parliament is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:Date.now()+retryAfter*1000});
       if (!response.ok)
         throw new HttpError(
           502,
@@ -131,13 +151,10 @@ export async function odp(
           "odp_invalid",
           "Parliament returned an unexpected response.",
         );
-      const text = await response.text();
-      if (text.length > 12 * 1024 * 1024)
-        throw new HttpError(
-          502,
-          "odp_size",
-          "Parliament response exceeded the allowed size.",
-        );
+      const parts=[];let bytes=0;
+      for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>12*1024*1024)throw new HttpError(502,'odp_size','Parliament response exceeded the allowed size.');parts.push(chunk);}
+      budget.signal?.throwIfAborted();
+      const text=Buffer.concat(parts).toString('utf8');
       const payload = JSON.parse(text);
       if (!Array.isArray(payload.data))
         throw new HttpError(
@@ -156,18 +173,16 @@ export async function odp(
       }
       return record;
     } catch(error) {
-      refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});
+      if(!budget.signal?.aborted)refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});
       throw error;
     } finally {
-      release();
+      release?.();
+      entry.settled=true;budget.dispose();
     }
-  })();
-  pending.set(key, job);
-  try {
-    return await job;
-  } finally {
-    pending.delete(key);
-  }
+  });
+  entry.promise=job.finally(()=>{if(pending.get(key)===entry)pending.delete(key);});
+  pending.set(key,entry);
+  return observeSource(entry,priority,signal);
 }
 async function list(endpoint, params = {}) {
   const nodes = [];
