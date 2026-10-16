@@ -8,6 +8,7 @@ import { transcriptLanguage } from './transcript-language.mjs';
 import { allowedDownload, downloadDocx } from './document-text.mjs';
 import { CorpusStore, CORPUS_LIMITS } from './corpus-store.mjs';
 import { HttpError } from './http-utils.mjs';
+import { CorpusReader } from './corpus-reader.mjs';
 
 const DAY=24*60*60_000;
 const day=t=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
@@ -78,12 +79,14 @@ export class CorpusWorker {
     const now=this.clock(), today=day(now);
     // Widening the language policy must revisit months already read under `primary`.
     const widened=this.languages==='all' && this.store.get('speechLanguages')==='primary';
+    if(widened){this.store.set('backfilledAt',null);this.store.set('phase','backfilling');}
     for(const range of speechWindows(today)) {
       const key='speeches:'+range.start.slice(0,7), body={start:range.start,end:range.end,offset:0,limit:this.pageSize};
       if(this.store.enqueue(key,'speeches',body,PRIORITY.speeches))continue;
+      if(widened){this.store.resetTask(key,body,PRIORITY.speeches);continue;}
       const task=this.store.task(key);
       const recent=now-Date.parse(range.end)<RECHECK_WINDOW || range.end===today;
-      if(task.done && (widened || recent && now-(task.done_at||0)>=(range.end>=day(now-7*DAY)?DAY:RECHECK_EVERY)))this.store.reopen(key,body,PRIORITY.speeches);
+      if(task.done && recent && now-(task.done_at||0)>=(range.end>=day(now-7*DAY)?DAY:RECHECK_EVERY))this.store.reopen(key,body,PRIORITY.speeches);
     }
     this.store.set('speechLanguages',this.languages);
     const index=this.store.indexState();
@@ -123,7 +126,11 @@ export class CorpusWorker {
       for(const {id,node} of matched) {
         if(!SPEECH_ID.test(id))throw new Error('EP speech identifier was invalid.');
         // A search reference without its graph node becomes a durable detail fetch.
-        if(!node?.activity_id){this.store.enqueue('speech:'+id,'speech',{id},PRIORITY.speech);continue;}
+        if(!node?.activity_id){
+          const key='speech:'+id;
+          if(!this.store.enqueue(key,'speech',{id},PRIORITY.speech))this.store.reopen(key,{id},PRIORITY.speech);
+          continue;
+        }
         const {document,texts}=speechTexts(node,url.href,record.fetchedAt);
         this.store.putDocument(document,this.keep(texts));
       }
@@ -194,18 +201,18 @@ export function corpus() {
     interval:bounded('CORPUS_REQUEST_INTERVAL_MS',1000,250,60_000),
     languages,diskLimit,
   });
-  service={store,worker,diskLimit};return service;
+  service={store,worker,diskLimit,reader:new CorpusReader(directory,{indexFile})};return service;
 }
 export async function corpusStatus() {
-  const {store,diskLimit}=corpus();
-  return store.status({diskBytes:await store.diskBytes(),diskLimit});
+  const {store,diskLimit,reader}=corpus();
+  return reader.query('status',{diskBytes:await store.diskBytes(),diskLimit});
 }
-export function corpusSearch(params) {
-  const {store}=corpus();
-  const result=store.search(params);
+export async function corpusSearch(params) {
+  const {reader}=corpus();
+  const result=await reader.query('search',params);
   if(!result)throw new HttpError(400,'invalid_query',`Enter 1–${CORPUS_LIMITS.queryTerms} words or quoted phrases (at most ${CORPUS_LIMITS.queryLength} characters).`);
   if(result.unavailable)throw new HttpError(503,'activity_index_loading',result.unavailable);
-  return {...result,coverage:store.coverage()};
+  return result;
 }
 export function startCorpus() {
   if(process.env.CORPUS_ENABLED!=='true')return ()=>{};

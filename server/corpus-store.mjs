@@ -25,12 +25,13 @@ export function corpusQuery(input) {
 }
 
 export class CorpusStore {
-  constructor(directory,{indexFile=null,clock=Date.now}={}) {
-    mkdirSync(directory,{recursive:true});
-    this.clock=clock;this.owner=randomUUID();
+  constructor(directory,{indexFile=null,clock=Date.now,readOnly=false}={}) {
+    if(!readOnly)mkdirSync(directory,{recursive:true});
+    this.clock=clock;this.owner=randomUUID();this.readOnly=readOnly;
     this.filename=path.join(directory,'corpus-v1.sqlite');
-    this.db=new DatabaseSync(this.filename);
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;
+    this.db=new DatabaseSync(this.filename,{readOnly});
+    if(readOnly)this.db.exec('PRAGMA busy_timeout=250; PRAGMA query_only=ON;');
+    else this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS lease (id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT, expires INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS documents (
@@ -102,6 +103,10 @@ export class CorpusStore {
   reopen(key,body,priority) {
     this.assertWriter();
     this.db.prepare('UPDATE tasks SET done=0,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE key=? AND done=1').run(JSON.stringify(body),priority,key);
+  }
+  resetTask(key,body,priority) {
+    this.assertWriter();
+    this.db.prepare('UPDATE tasks SET done=0,done_at=NULL,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE key=?').run(JSON.stringify(body),priority,key);
   }
   task(key){const row=this.db.prepare('SELECT * FROM tasks WHERE key=?').get(key);return row && {...row,body:parse(row.body)};}
   nextTask(){const row=this.db.prepare('SELECT * FROM tasks WHERE done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(this.clock());return row && {...row,body:parse(row.body)};}
@@ -190,12 +195,13 @@ export class CorpusStore {
     const sql=`FROM texts_fts JOIN texts t ON t.id=texts_fts.rowid JOIN documents d ON d.id=t.document_id WHERE ${where.join(' AND ')}`;
     const total=this.db.prepare('SELECT COUNT(*) AS n '+sql).get(...params).n;
     const rows=this.db.prepare(`SELECT d.source_id,d.kind,d.parent_id,d.date,t.language,t.translation_type,t.source_format,t.source_url,t.fetched_at,
-      snippet(texts_fts,0,'\u0002','\u0003','…',24) AS snippet ${sql} ORDER BY bm25(texts_fts),d.date DESC,d.source_id LIMIT ? OFFSET ?`).all(...params,limit,offset);
+      snippet(texts_fts,0,'\u0002','\u0003','…',24) AS snippet ${sql} ORDER BY texts_fts.rank LIMIT ? OFFSET ?`).all(...params,limit,offset);
     const members=generation==null?null:this.db.prepare('SELECT DISTINCT mep FROM idx.items WHERE generation=? AND source_id=? ORDER BY mep');
-    return {total,limit,offset,nextOffset:offset+rows.length<total?offset+rows.length:null,query:match,
+    const next=offset+rows.length,more=next<total;
+    return {total,limit,offset,nextOffset:more&&next<=CORPUS_LIMITS.searchOffset?next:null,truncated:more&&next>CORPUS_LIMITS.searchOffset,query:match,
       hits:rows.map(row=>({sourceId:row.source_id,kind:row.kind,parentId:row.parent_id,date:row.date,language:row.language,translationType:row.translation_type,
         sourceFormat:row.source_format,sourceUrl:row.source_url,fetchedAt:row.fetched_at,snippet:row.snippet,
         memberIds:members?members.all(generation,row.source_id).map(item=>Number(item.mep)):null}))};
   }
-  close(){this.release();this.db.close();}
+  close(){if(!this.readOnly)this.release();this.db.close();}
 }
