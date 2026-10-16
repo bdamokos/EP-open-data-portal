@@ -468,6 +468,17 @@ export function chooseTranscript(docs, language) {
       .filter((x) => x && typeof x === "object")
       .map((d) => d["api:xmlFragment"] || {}),
   );
+  const sourceKeys=Object.fromEntries(Object.keys(fragments).map(key=>[key,key]));
+  // Some originals are stored under `mul` even when the XML identifies one
+  // actual language. Expose that language to the reader without losing its key.
+  if(typeof fragments.mul==='string') {
+    const info=transcriptLanguage(fragments.mul);
+    const actual=info.tags.length===1&&allowedLanguages.has(info.tags[0])&&!info.machine?info.tags[0]:null;
+    if(actual) {
+      if(!fragments[actual] || transcriptLanguage(fragments[actual]).machine){fragments[actual]=fragments.mul;sourceKeys[actual]='mul';}
+      delete fragments.mul;delete sourceKeys.mul;
+    }
+  }
   const entries = Object.entries(fragments).filter(
     ([, xml]) => typeof xml === "string" && xml,
   );
@@ -503,6 +514,7 @@ export function chooseTranscript(docs, language) {
     availableTextLanguages: Object.keys(fragments).filter(
       (k) => typeof fragments[k] === "string" && fragments[k],
     ),
+    ...(textLanguage&&sourceKeys[textLanguage]!==textLanguage?{sourceFragmentKey:sourceKeys[textLanguage]}:{}),
   };
 }
 export async function odpSpeech(id, language) {
