@@ -1,6 +1,7 @@
 import {filterCountry,matchesCountry} from './pocCountries.mjs';
 import {explorerParams} from './pocExplorerUrl';
 import {PocSpeechCloud} from './PocSpeechCloud';
+import {PocFindInText,PocTextSearch} from './PocTextSearch';
 import {InterventionBadges,PocSpeechContext,PocInterventionStatistics} from './PocSpeechInterventions';
 import {publicationBody} from './publication-body.mjs';
 import {orderedMemberships} from './pocMemberships.mjs';
@@ -87,6 +88,7 @@ export function transcript(xml: string | null) {
 }
 function Detail({ speech, lang }: { speech: Speech; lang: string }) {
   const c = pocCopy(lang);
+  const transcriptText=useRef<HTMLDivElement>(null);
   const state = useData<SpeechDetail>(
     `speech/${encodeURIComponent(speech.id)}?lang=${lang}`,
   );
@@ -99,7 +101,7 @@ function Detail({ speech, lang }: { speech: Speech; lang: string }) {
       <PocSpeechPlayer speech={speech} lang={lang} />
       <InterventionBadges value={state.data?.intervention}/>
       <PocSpeechContext key={speech.id} id={speech.id} language={lang}/>
-      <h3>{c.transcript}</h3>
+      <div className="poc-section-title"><h3>{c.transcript}</h3>{text.paragraphs.length>0&&<PocFindInText key={speech.id+':'+lang} label="Find in speech" target={transcriptText}/>}</div>
       {speech.websiteUrl && <p className="poc-source-link"><a href={speech.websiteUrl} target="_blank" rel="noreferrer">Speech on Parliament’s website ↗</a>{" "}<small>Original {speech.websiteLanguage?.toUpperCase()}</small></p>}
       {state.loading && !state.data && <p role="status">Loading transcript…</p>}
       {state.error && <ErrorView message={state.error} retry={state.retry} />}
@@ -122,6 +124,7 @@ function Detail({ speech, lang }: { speech: Speech; lang: string }) {
           ) : text.paragraphs.length ? (
             <div
               className="poc-transcript"
+              ref={transcriptText}
               lang={state.data.textLanguage || undefined}
             >
               {text.paragraphs.map((p, i) => (
@@ -265,7 +268,8 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
   const coverage=category ? page?.categoryCoverage[category] : null;
   const selectedLabel=category ? page?.categories[category] || category : "All activities";
   return <section className="poc-activities">
-    <h2>{c.activities}</h2>
+    <div className="poc-section-title"><h2>{c.activities}</h2>
+    <PocTextSearch prefix="mep-activity-fts" label="Search this MEP’s text" language={lang} member={id} kinds={['speech','question','answer']} from="2024-07-16" scopeNote="Searches this MEP’s saved speeches, questions and linked answers for the current term. Reports and other activity categories are outside this text collection."/></div>
     {page && <>
       <div className="poc-category-selection">
         <button aria-expanded={categoriesOpen} aria-controls="activity-categories" onClick={()=>setCategoriesOpen(value=>!value)}>{categoriesOpen ? "Close categories" : "Change category"}</button>
@@ -323,9 +327,10 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const items=state.data ? [...(pinned.data?.selectedItems || []).filter(item=>!state.data!.items.some(row=>row.id===item.id)),...state.data.items].filter(item=>item.recordKind==='speech') : [];
   useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;target.scrollIntoView({block:'start'});target.querySelector<HTMLButtonElement>('.poc-speech-toggle')?.focus({preventScroll:true});focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data]);
   return <section>
-    <PocInterventionStatistics key={id} member={id} onItems={setEnrichedSpeeches}/>
-    <PocSpeechCloud key={id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setSpeechLanguage(language);onOpen(speech);}}/>
-    <div className="poc-section-title"><h2>{c.speeches}</h2><span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span></div>
+    <div className="poc-section-title"><h2>{c.speeches}</h2><PocTextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" scopeNote="Searches saved speech text for this MEP in the current term. Transcript and language coverage may be incomplete."/></div>
+    <PocInterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches}/>
+    <PocSpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setSpeechLanguage(language);onOpen(speech);}}/>
+    <div className="poc-section-title"><span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span></div>
     {state.loading && !state.data && <p role="status">Loading saved speeches…</p>}
     {state.error && <ErrorView message={state.error} retry={state.retry} />}
     {state.data && !items.length && <p className="poc-notice">{state.data.cache.complete ? "No indexed plenary contributions were found for this MEP." : "No plenary contributions have been loaded for this MEP yet."}</p>}
@@ -417,7 +422,7 @@ export default function PocApp() {
   }, [directory, committee, country, group]);
   useEffect(() => {
     const u = new URL(location.href);
-    const ownParams=explorerParams(u.searchParams,view);
+    const ownParams=explorerParams(u.searchParams,view,member);
     u.search = new URLSearchParams({
       ...Object.fromEntries(ownParams),
       poc: "1",
@@ -433,6 +438,7 @@ export default function PocApp() {
       ...(!view && member && activityCategory ? { "activity-category": activityCategory } : {}),
     }).toString();
     history.replaceState(null, "", u);
+    window.dispatchEvent(new Event('poc-explorer-query'));
     document.documentElement.lang = lang;
   }, [lang, member, tab, committee, role, country, group, view, speechLink, activityLink, activityCategory]);
   const filtered = useMemo(
@@ -480,7 +486,7 @@ export default function PocApp() {
     const url=new URL(location.href);
     // Country on the member wall is deliberately not an explorer default.
     url.searchParams.delete('country');
-    for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend|ov)-/.test(key))url.searchParams.delete(key);
+    for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend|ov|mep-speech-fts|mep-activity-fts)-/.test(key))url.searchParams.delete(key);
     next?url.searchParams.set('view',next):url.searchParams.delete('view');
     history.pushState(null,'',url);setView(next);
   }
@@ -511,7 +517,7 @@ export default function PocApp() {
   }
   return (
     <main className="poc" lang={lang}>
-        <ParliamentHeader view={view==='saved'?'saved':'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')}/>
+        <ParliamentHeader view={view==='saved'?'saved':'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>
         {view === 'saved' ? <PocSaved language={lang} onBack={()=>navigateView(null)} onMember={openInsightMember}/> : member ? (
           <section className="poc-profile">
             <button

@@ -6,9 +6,12 @@ import { array, tail, documentFiles } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
 import { transcriptLanguage } from './transcript-language.mjs';
 import { allowedDownload, downloadDocx } from './document-text.mjs';
-import { CorpusStore, CORPUS_LIMITS } from './corpus-store.mjs';
+import { CorpusStore, CORPUS_LIMITS, corpusQuery } from './corpus-store.mjs';
 import { HttpError } from './http-utils.mjs';
 import { CorpusReader } from './corpus-reader.mjs';
+import { countryCode } from './insights-countries.mjs';
+import { savedMetadata } from './insights-store.mjs';
+import { config } from './config.mjs';
 
 const DAY=24*60*60_000;
 const day=t=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
@@ -209,10 +212,66 @@ export async function corpusStatus() {
 }
 export async function corpusSearch(params) {
   const {reader}=corpus();
-  const result=await reader.query('search',params);
+  // The activity roster currently saves IDs/names only. Reuse the exact cached
+  // public roster metadata used by Questions; an empty members map avoids all
+  // per-person cache reads, and this helper never fetches upstream.
+  const metadata=params.country?await savedMetadata({members:new Map()}):null;
+  const countryMemberIds=metadata?[...metadata].filter(([,person])=>countryCode(person['api:country-of-representation'])===params.country).map(([id])=>id):null;
+  const countryMetadataIds=metadata?[...metadata].filter(([,person])=>countryCode(person['api:country-of-representation'])).map(([id])=>id):null;
+  const result=await reader.query('search',{...params,countryMemberIds,countryMetadataIds});
   if(!result)throw new HttpError(400,'invalid_query',`Enter 1–${CORPUS_LIMITS.queryTerms} words or quoted phrases (at most ${CORPUS_LIMITS.queryLength} characters).`);
   if(result.unavailable)throw new HttpError(503,'activity_index_loading',result.unavailable);
   return result;
+}
+export async function corpusText(params) {
+  const result=await corpus().reader.query('text',{...params,
+    highlightBytes:Math.min(CORPUS_LIMITS.highlightBytes,Math.floor(config.jsonResponseLimitBytes/4)),
+    highlightRangeLimit:Math.min(CORPUS_LIMITS.highlightRanges,Math.floor(config.jsonResponseLimitBytes/128))});
+  if(!result)throw new HttpError(404,'corpus_text_unavailable','This exact text variant is not stored in the corpus.');
+  if(Buffer.byteLength(JSON.stringify(result))+1>config.jsonResponseLimitBytes)throw new HttpError(413,'corpus_text_too_large','This stored text exceeds the supported reading response size. Open its official source.');
+  return result;
+}
+
+// Shared validation for URL queries and the read-only POST search. Validate
+// before opening a corpus, so malformed scopes cannot silently become global.
+export function corpusSearchOptions(input) {
+  const allowed=['query','kind','kinds','language','uiLanguage','member','country','from','to','limit','offset','group','dateBasis','sort','sourceIds'];
+  if(!input || Array.isArray(input) || typeof input!=='object' || Object.keys(input).some(key=>!allowed.includes(key)))throw new HttpError(400,'invalid_query','Unsupported search options.');
+  if(typeof input.query!=='string' || !corpusQuery(input.query))throw new HttpError(400,'invalid_query',`Enter 1–${CORPUS_LIMITS.queryTerms} words or quoted phrases (at most ${CORPUS_LIMITS.queryLength} characters).`);
+  const value=name=>input[name]??null;
+  const enumValue=(name,choices,fallback=null)=>{
+    const selected=value(name)??fallback;
+    if(selected!==null&&!choices.includes(selected))throw new HttpError(400,'invalid_query',`Invalid ${name}.`);
+    return selected;
+  };
+  const kind=enumValue('kind',['speech','question','answer']);
+  const kinds=value('kinds');
+  if(kinds!==null && (!Array.isArray(kinds)||kinds.length>3||kinds.some(kind=>!['speech','question','answer'].includes(kind))||new Set(kinds).size!==kinds.length) || kind!==null&&kinds!==null)throw new HttpError(400,'invalid_kind','Choose either a corpus kind or a set of corpus kinds.');
+  const sourceIds=value('sourceIds');
+  if(sourceIds!==null && (!Array.isArray(sourceIds)||sourceIds.length>CORPUS_LIMITS.sourceIds||sourceIds.some(id=>typeof id!=='string'||!/^[A-Z0-9-]{1,100}$/.test(id))))throw new HttpError(400,'invalid_source_id',`Use at most ${CORPUS_LIMITS.sourceIds} exact source identifiers.`);
+  const language=value('language'),uiLanguage=value('uiLanguage')??'en';
+  if(language!==null&&(typeof language!=='string'||!/^[a-z]{2,3}$/.test(language)) || typeof uiLanguage!=='string'||!/^[a-z]{2,3}$/.test(uiLanguage))throw new HttpError(400,'invalid_language','Invalid text or interface language.');
+  const date=name=>{
+    const selected=value(name);
+    if(selected!==null && (typeof selected!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(selected)||!Number.isFinite(Date.parse(selected))||new Date(selected).toISOString().slice(0,10)!==selected))throw new HttpError(400,'invalid_date','Use valid YYYY-MM-DD dates.');
+    return selected;
+  };
+  const from=date('from'),to=date('to');
+  if(from&&to&&from>to)throw new HttpError(400,'invalid_date','The start date must not be after the end date.');
+  const integer=(name,fallback,min,max)=>{
+    const selected=value(name)??fallback;
+    if(typeof selected!=='number'||!Number.isSafeInteger(selected)||selected<min||selected>max)throw new HttpError(400,'invalid_query',`Invalid ${name}.`);
+    return selected;
+  };
+  const member=value('member');
+  if(member!==null && (typeof member!=='number'||!Number.isSafeInteger(member)||member<1))throw new HttpError(400,'invalid_id','member must be a positive integer.');
+  const selectedCountry=value('country');
+  if(selectedCountry!==null && (typeof selectedCountry!=='string'||!countryCode(selectedCountry)))throw new HttpError(400,'invalid_country','Choose a country of representation.');
+  const group=enumValue('group',['document','question'],'document');
+  return {query:input.query,kind,kinds,language,uiLanguage,member,country:selectedCountry===null?null:countryCode(selectedCountry),from,to,
+    limit:integer('limit',20,1,CORPUS_LIMITS.searchLimit),offset:integer('offset',0,0,CORPUS_LIMITS.searchOffset),group,
+    dateBasis:enumValue('dateBasis',['document','question'],group==='question'?'question':'document'),sort:enumValue('sort',['relevance','newest'],'relevance'),
+    sourceIds:sourceIds===null?null:[...new Set(sourceIds)]};
 }
 export function startCorpus() {
   if(process.env.CORPUS_ENABLED!=='true')return ()=>{};
