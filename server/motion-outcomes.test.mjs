@@ -100,10 +100,46 @@ test('saved activity pages enrich original and joint records, including a pinned
   const person=originalRows[0].mep;store.setMembers([{id:person,name:'Source author'}]);
   const page=store.page(person,{sourceId:'B-10-2026-0441',limit:1});
   const original=page.selectedItems.find(item=>item.sourceId==='B-10-2026-0441');
+  assert.equal(original.reference,'B10-0441/2026');
   assert.equal(original.resolutionOutcome.status,'lapsed');assert.equal(original.date,'2026-10-05');
   assert.equal(original.relatedJointMotions[0].sourceId,'RC-10-2026-0441');assert.equal(original.relatedJointMotions[0].outcome.status,'adopted');
+  assert.equal(original.relatedJointMotions[0].memberAuthorship,'recorded');
   assert.match(original.relatedJointMotions[0].url,/^https:\/\/data\.europarl\.europa\.eu\/distribution\//);
   assert.equal(page.cache.complete,false);
+});
+test('a replacement relationship never transfers original authorship to the joint text',t=>{
+  const store=storeTest(t),cycle=seed(store);
+  const person=store.db.prepare('SELECT mep FROM items WHERE source_id=?').get('B-10-2026-0441').mep;
+  store.setMembers([{id:person,name:'Source author'}]);
+  const joint=work('RC-10-2026-0441');joint.creator=[];joint.workHadParticipation=[];
+  const endpoint='/plenary-documents/'+joint.identifier;
+  store.putSource(cycle.generation,endpoint,'document',joint,fixture.retrievedAt,documentRows(joint,endpoint,fixture.retrievedAt).rows);
+  const page=store.page(person,{sourceId:'B-10-2026-0441'});
+  const original=page.selectedItems.find(item=>item.sourceId==='B-10-2026-0441');
+  assert.equal(original.relatedJointMotions[0].memberAuthorship,'not-recorded');
+  assert.equal(page.items.some(item=>item.sourceId===joint.identifier),false);
+});
+test('joint downloads retain DOCX-only files and label fallback languages, with no machine-record fallback',async t=>{
+  for(const variant of ['docx-only','other-language','no-files'])await t.test(variant,t=>{
+    const store=storeTest(t),cycle=seed(store);
+    const person=store.db.prepare('SELECT mep FROM items WHERE source_id=?').get('B-10-2026-0441').mep;
+    store.setMembers([{id:person,name:'Source author'}]);
+    const joint=work('RC-10-2026-0441');
+    for(const expression of joint.is_realized_by) {
+      expression.is_embodied_by=variant==='no-files'?[]:expression.is_embodied_by.filter(file=>file.format.endsWith('/DOCX'));
+      if(variant==='other-language')expression.language='http://publications.europa.eu/resource/authority/language/FRA';
+    }
+    const endpoint='/plenary-documents/'+joint.identifier;
+    store.putSource(cycle.generation,endpoint,'document',joint,fixture.retrievedAt,documentRows(joint,endpoint,fixture.retrievedAt).rows);
+    const page=store.page(person,{sourceId:'B-10-2026-0441',language:'hu'});
+    const related=page.selectedItems.find(item=>item.sourceId==='B-10-2026-0441').relatedJointMotions[0];
+    if(variant==='no-files') {
+      assert.equal(related.url,null);assert.equal(related.documentFormat,null);assert.equal(related.documentLanguage,null);
+    } else {
+      assert.match(related.url,/\.docx$/);assert.equal(related.documentFormat,'DOCX');
+      assert.equal(related.documentLanguage,variant==='other-language'?'fr':'en');
+    }
+  });
 });
 test('both filtered motion categories retain the outcome badge data',t=>{
   const store=storeTest(t),cycle=store.beginCycle();
