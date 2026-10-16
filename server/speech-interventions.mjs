@@ -18,7 +18,7 @@ export function interventionMetadata(activity) {
   if(typeof xml==='string'&&xml.length<=2*1024*1024&&!/<!DOCTYPE|<!ENTITY/i.test(xml)&&XMLValidator.validate(xml)===true) {
     try {root=parser.parse(xml);}catch{ /* Retain missing metadata as such. */ }
   }
-  const statement=Object.values(root?.oralStatements||root?.writtenStatements||{}).flatMap(array).find(node=>node?.from);
+  const [statementKind,statement]=Object.entries(root?.oralStatements||root?.writtenStatements||{}).flatMap(([kind,nodes])=>array(nodes).map(node=>[kind,node])).find(([,node])=>node?.from)||[];
   const from=statement?.from;
   const people=speechPeople(activity);
   const speaker=array(from?.person).find(p=>people.includes(String(p?.['@_refersTo']||'').match(/^(?:epdata:)?person\/(\d+)$/)?.[1]));
@@ -36,7 +36,10 @@ export function interventionMetadata(activity) {
   if(String(activity.had_activity_type).endsWith('/PLENARY_DEBATE_WRITTEN_STATEMENT'))type='written';
   else if(catchMarker||['PROCEEDING_ACTIVITY','MEETING_NAME_CHAIR'].includes(kind))type='procedure';
   else if(from&&speaker) {
-    if(/blue card/.test(normalized))type=/\b(?:reaction|counter ?reply)\b/.test(normalized)?'blue-card-reaction':/\b(?:answer|reply|response)\b/.test(normalized)?'blue-card-answer':/\bquestion\b/.test(normalized)?'blue-card-question':/\b(?:speech|intervention)\b/.test(normalized)?'blue-card-intervention':'blue-card';
+    // Machine translation can collapse both Dutch answers and reactions to "Blue Card Response".
+    // The published XML retains <answer> for answers and <speech> for these reactions.
+    if(normalized==='blue card response'&&statementKind==='speech'&&/-t-en-.*\bmtec\b/i.test(String(statement['@_xml:lang']||from['@_xml:lang']||'')))type='blue-card-reaction';
+    else if(/blue card/.test(normalized))type=/\b(?:reaction|counter ?reply)\b/.test(normalized)?'blue-card-reaction':/\b(?:answer|reply|response)\b/.test(normalized)?'blue-card-answer':/\bquestion\b/.test(normalized)?'blue-card-question':/\b(?:speech|intervention)\b/.test(normalized)?'blue-card-intervention':'blue-card';
     else if(/blau(?:e|en) karte/.test(normalized))type=/\b(?:antwort|erwiderung)\b/.test(normalized)?'blue-card-answer':/\breaktion\b/.test(normalized)?'blue-card-reaction':/\bfrage\b/.test(normalized)?'blue-card-question':'blue-card';
     else if(/catch the eye/.test(normalized))type='catch-the-eye';
     else if(!from.organization&&!from.role&&!process&&speaker&&chairLabels.has(normalize(text(speaker).normalize('NFD').replace(/\p{M}/gu,''))))type='chair';

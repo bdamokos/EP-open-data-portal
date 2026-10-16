@@ -7,11 +7,35 @@ import {runWithRequestSignal} from './request-budget.mjs';
 import {speechSummary} from './odp.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/speech-interventions-live-20261015.json',import.meta.url)));
 const procedures=JSON.parse(readFileSync(new URL('./fixtures/speech-procedures-live-20261016.json',import.meta.url)));
+const responses=JSON.parse(readFileSync(new URL('./fixtures/blue-card-response-20261016.json',import.meta.url)));
 const parentId=fixture.parent.activity_id;
 const sequence=activities=>buildInterventionSequence(activities,{parentId,expectedIds:fixture.parent.consists_of});
 const byNumber=n=>fixture.activities.find(a=>a.recorded_in_a_realization_of?.[0]?.numbering===n);
 const clone=value=>structuredClone(value);
 const response=data=>({url:'https://data.europarl.europa.eu/api/v2/speeches',fetchedAt:Date.parse('2026-10-15T22:00:00Z'),payload:{data,meta:{total:data.length},searchResults:{hits:data.map(a=>({id:a.id}))}}});
+
+test('machine-translated responses retain the original Dutch question, answer and reaction sequence',async()=>{
+  const rows=responses.observations.map(o=>clone(o.activity)),parent=speechIdFromParent(rows[0]);
+  const expected=['speech','blue-card-question','blue-card-answer','blue-card-reaction','blue-card-reaction'];
+  assert.deepEqual(rows.map(a=>interventionMetadata(a).type),expected);
+  assert.match(rows[3].recorded_in_a_realization_of[0]['api:xmlFragment'].nl,/blauwe kaart.*reactie/);
+  assert.match(rows[4].recorded_in_a_realization_of[0]['api:xmlFragment'].nl,/blauwe kaart.*reactie/);
+  // Sitting/member pages return English only. Individual readers also contain the originals.
+  for(const a of rows)delete a.recorded_in_a_realization_of[0]['api:xmlFragment'].nl;
+  assert.deepEqual(rows.map(a=>interventionMetadata(a).type),expected);
+  const sequence=buildInterventionSequence(rows,{parentId:parent,expectedIds:rows.map(a=>a.id)});
+  assert.equal(sequence.coverage.complete,true);assert.equal(sequence.exchanges.length,1);
+  assert.deepEqual(sequence.exchanges[0].ids,rows.map(a=>a.activity_id));
+  assert.deepEqual(sequence.records.map(r=>r.replyTo),[null,...rows.slice(0,-1).map(a=>a.activity_id)]);
+  for(const [member,counts] of [['96940',[1,1]],['256978',[0,1]]]) {
+    const own=rows.filter(a=>interventionMetadata(a).speaker.id===member);
+    const stats=await new SpeechInterventions({request:async()=>response(own)}).member(member);
+    assert.deepEqual([stats.counts.blueAnswers,stats.counts.blueReactions],counts);
+  }
+  const native=clone(rows[3]);native.recorded_in_a_realization_of[0]['api:xmlFragment'].en=native.recorded_in_a_realization_of[0]['api:xmlFragment'].en.replaceAll('nl-t-en-mtec','en');
+  assert.equal(interventionMetadata(native).type,'blue-card-answer','the translation fallback must not rewrite an original English response');
+});
+const speechIdFromParent=a=>a.inverse_consists_of[0].split('/').at(-1);
 
 test('live suspension and chair-change records are procedural notes with exact chair identity and no speech URL',()=>{
   const [suspension,chairChange]=procedures.activities;
