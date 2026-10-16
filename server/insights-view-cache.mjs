@@ -10,7 +10,7 @@ export class InsightViewCache {
   async stored(key) {
     if(this.cache.has(key))return this.cache.get(key);
     if(!this.directory)return null;
-    try {const name=path.join(this.directory,key+'.json'),info=await stat(name);if(info.size>4*1024*1024)return null;const record=JSON.parse(await readFile(name,'utf8'));if(record.key!==key||!Number.isFinite(record.at)||!record.value)return null;this.remember(key,record);return record;}catch{return null;}
+    try {const name=path.join(this.directory,key+'.json'),info=await stat(name);if(info.size>4*1024*1024)return null;const record=JSON.parse(await readFile(name,'utf8'));requestSignal()?.throwIfAborted();if(record.key!==key||!Number.isFinite(record.at)||!record.value)return null;this.remember(key,record);return record;}catch{return null;}
   }
   remember(key,record) {
     const bytes=Buffer.byteLength(JSON.stringify(record));if(bytes>4*1024*1024)return;

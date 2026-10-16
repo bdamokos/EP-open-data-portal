@@ -209,6 +209,7 @@ export function documentNotes(record) {
   return valid?{notesStatus:'extracted',notes:record.notes,noteAnchors:record.anchors,documentLinks:record.links}:{notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[]};
 }
 export async function documentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now}={}) {
+  requestSignal()?.throwIfAborted();
   const files=documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
   const languages=[...new Set(files.map(f=>f.language).filter(Boolean))];
   const originals=array(work.originalLanguage).map(languageCode);
@@ -217,7 +218,8 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
   const key=chosen.url,file=directory && path.join(directory,'document-text-v1',createHash('sha256').update(key).digest('hex')+'.json');
   let saved=memory.get(key);
-  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));if(record.schemaVersion===1 && record.extractionVersion===EXTRACTION_VERSION && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;memory.set(key,record);}}catch{}
+  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===EXTRACTION_VERSION && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;memory.set(key,record);}}catch{}
+  requestSignal()?.throwIfAborted();
   const refresh=priority=> {
     if(pending.has(key))return pending.get(key);
     const job=sharedRequest(signal=>boundedUpstream(async()=>{

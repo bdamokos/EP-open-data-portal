@@ -2,7 +2,7 @@ import { readFile, mkdir, writeFile, rename } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { boundedUpstream } from './odp.mjs';
-import {sharedRequest,waitForRequest} from './request-budget.mjs';
+import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 
 // Public ContentEvent interface used by Parliament's published player. No event
 // password, cookie or browser Origin is supplied; only published records qualify.
@@ -96,6 +96,7 @@ async function refresh(id, directory, key, fetchContent, priority) {
 }
 
 export async function playerContent(id, directory, { fetchContent = fetchPlayerContent } = {}) {
+  requestSignal()?.throwIfAborted();
   if (!validId(id)) throw new Error('Invalid recording identifier.');
   const key = (directory || '') + '|' + id;
   let saved = memory.get(key);
@@ -105,6 +106,7 @@ export async function playerContent(id, directory, { fetchContent = fetchPlayerC
       if (Buffer.byteLength(text) <= LIMIT) saved = JSON.parse(text);
     } catch { /* Missing or malformed cache requires a normal public query. */ }
   }
+  requestSignal()?.throwIfAborted();
   if (cacheRecordValid(saved, id)) {
     const stale = Date.now() - Date.parse(saved.fetchedAt) >= DAY;
     memory.set(key, saved);
