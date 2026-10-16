@@ -74,7 +74,7 @@ export interface SpeechExchange {id:string;originalId:string;ids:string[];pairs:
 export interface SpeechSequenceRow extends Speech {intervention:Intervention;exchangeId:string|null;replyTo:string|null}
 export interface SpeechContext {
   speechId:string;intervention:Intervention;unavailable:boolean;sources:{url:string;fetchedAt:string;stale:boolean}[];
-  debates:{id:string;titles:Record<string,string>;records:SpeechSequenceRow[];exchanges:SpeechExchange[];error?:string;coverage:{complete:boolean;expected:number|null;available:number;missingIds:string[]};sources?:{url:string;fetchedAt:string;stale:boolean}[]}[];
+  debates:{id:string;titles:Record<string,string>;records:SpeechSequenceRow[];exchanges:SpeechExchange[];error?:string;retryAt?:number;coverage:{complete:boolean;expected:number|null;available:number;missingIds:string[]};sources?:{url:string;fetchedAt:string;stale:boolean}[]}[];
 }
 export interface InterventionStatistics {
   restarted?:boolean;
@@ -117,6 +117,7 @@ export interface PublicationDocument {
   selectedText?: {
     status: 'available' | 'unavailable' | 'error';
     paragraphs: string[];
+    extractionWarnings?: string[];
     textLanguage: string | null;
     requestedLanguage: string;
     availableTextLanguages: string[];
