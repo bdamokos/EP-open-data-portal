@@ -9,19 +9,33 @@ export function topicTrendsQuery(search,{now=Date.now()}={}) {
   const query=insightQuery(new URLSearchParams([...search].filter(([key])=>!['page','concept'].includes(key))),{now});return {language:query.language,start:query.start,end:query.end,days:query.days,page:Number(page),concept:concept?'http://eurovoc.europa.eu/'+concept:null};
 }
 const eventKind=type=>type==='PLENARY_DEBATE'?'debates':type==='PLENARY_VOTE'?'votes':String(type).startsWith('COMMITTEE_')?'committee':null;
-export function savedProcedureEvents(store,{start,end}) {
+// Milestones are read only from exact activity types in the saved record; no
+// type means no adoption is recorded there, not that the dossier is still open.
+const milestones=[['PUBLICATION_OFFICIAL_JOURNAL','published'],['SIGNATURE','signed'],['PLENARY_ADOPT_POSITION','parliament-position']];
+export function procedureStatus(work,asOf) {
+  const events=array(work.consists_of);
+  for(const [type,state] of milestones){const dates=events.filter(event=>tail(event.had_activity_type)===type).map(event=>event.activity_date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date||'')&&(!asOf||date<=asOf)).sort();if(dates.length)return {state,date:dates.at(-1)};}
+  return {state:'none',date:null};
+}
+export function procedureTitle(work,language) {
+  const titles=work.process_title&&typeof work.process_title==='object'?work.process_title:{},titleLanguage=typeof titles[language]==='string'&&titles[language].trim()?language:typeof titles.en==='string'&&titles.en.trim()?'en':null;
+  return {title:titleLanguage?titles[titleLanguage].trim():null,titleLanguage};
+}
+export function savedProcedureEvents(store,{start,end,language='en'}) {
   const generation=store.status().servingGeneration;
   const rows=store.db.prepare("SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind='procedure' ORDER BY key").all(generation);
   const procedures=[];
   for(const row of rows) {
     const id=row.key.match(/^\/procedures\/(\d{4}-\d{4}[A-Z]?)$/)?.[1];if(!id)continue;
     const work=JSON.parse(row.body);if(tail(work.id)!==id)continue;
+    const timestamp=/^\d+(\.\d+)?$/.test(row.fetched_at||'')?Number(row.fetched_at):Date.parse(row.fetched_at);
+    const fetchedAt=Number.isFinite(timestamp)?new Date(timestamp).toISOString():null;
     const events=array(work.consists_of).flatMap(event=>{
       const kind=eventKind(tail(event.had_activity_type)),eventId=tail(event.id),date=event.activity_date;
       if(!kind||!/^eli\/dl\/event\/[A-Z0-9-]{1,150}$/.test(String(event.id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''))||!/^\d{4}-\d{2}-\d{2}$/.test(date||'')||date<start||date>end)return [];
       return [{id:eventId,date,kind,procedureId:id}];
     });
-    if(events.length)procedures.push({id,events,fetchedAt:row.fetched_at});
+    if(events.length)procedures.push({id,events,fetchedAt,...procedureTitle(work,language),status:procedureStatus(work,fetchedAt?.slice(0,10))});
   }
   return {procedures:procedures.slice(0,600),truncated:procedures.length>600};
 }
@@ -45,7 +59,9 @@ export function topicTimeline(procedures,mappings,{start,end,concept}) {
     const latest=events.sort((a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id)).slice(0,50).map(event=>({...event,procedures:event.procedures.slice(0,5),additionalProcedures:Math.max(0,event.procedures.length-5)}));
     return {id:topic.id,label:topic.label,language:topic.language,dossiers:topic.dossiers.size,eventCount:topic.events.size,eventsTruncated:topic.events.size>50,series:[...series.values()],events:latest};
   });
-  return {weeks,topicLimitReached:ranked.length>120,topics:shown};
+  const listed=new Set(shown.flatMap(topic=>topic.events.flatMap(event=>event.procedures.map(p=>p.id))));
+  const dossiers=Object.fromEntries(procedures.filter(p=>listed.has(p.id)).map(p=>[p.id,{reference:mappings.get(p.id).reference,title:p.title??null,titleLanguage:p.titleLanguage??null,status:p.status||{state:'none',date:null},fetchedAt:p.fetchedAt??null}]));
+  return {weeks,topicLimitReached:ranked.length>120,topics:shown,dossiers};
 }
 export class TopicTrends {
   constructor(store,catalog,{clock=Date.now}={}){Object.assign(this,{store,catalog,clock});this.states=new Map();}
