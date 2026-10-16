@@ -97,6 +97,17 @@ The public API's compact metadata and headers are saved by the existing single l
 Older website speech references use the published hyphenated document number where the numeric notation is the legacy short form. Verified examples are `CRE-9-2021-11-24-INT-3-103-0000_EN.html` and `CRE-9-2023-09-13-INT-3-110-0000_EN.html`; modern numeric references are preserved. No archive-wide changeover date is assumed.
 
 
+## Full-text corpus
+
+With `CORPUS_ENABLED=true`, one leased background worker stores current-term texts in `corpus-v1.sqlite`, separate from the activity index's refresh generations:
+
+- Speeches come from the `/speeches` list with `include-output=xml_fragment`, read month by month in pages of up to 25. Oversized pages are retried at half size. A search reference without its record is fetched individually.
+- Question and answer texts are extracted from the official DOCX distributions listed by the saved index records, using the same bounded extractor as reading view. The original languages and English are fetched before other languages.
+
+Each text keeps the exact source ID, fragment key or file language, source URL, retrieval and last-check times, a SHA-256 digest and its translation status. Speech XML is kept zstd-compressed. A fragment marked `mtec` is recorded as machine translation; most non-original speech languages are. `CORPUS_LANGUAGES=primary` keeps only originals and English. Speech months from the last 120 days are rechecked weekly, and the current week daily, because translations arrive later. Unchanged text is not rewritten. Question records are rediscovered from the index every six hours. Requests are spaced by `CORPUS_REQUEST_INTERVAL_MS` and use the shared background upstream queue.
+
+Search uses SQLite FTS5 with Unicode tokenisation. Latin-script diacritics are folded, but Greek accents are not. User input is limited to quoted words and phrases. Member filters and member IDs join exact `source_id` values to the attached activity index: speakers for speeches, authors for questions and answers. Results carry their coverage state, and backfilling results are labelled incomplete. Collection stops at `CORPUS_MAX_DISK_MIB`; there is no eviction yet.
+
 ## Saved examples and supporting data
 
 `server/fixtures` contains bounded public API responses and public OEIL HTML for tests. Each example retains source attribution or provenance. Public API records can contain identifiers named `notation_codictPersonId` or similar; these are fields returned by the open API, not calls to another service.
