@@ -1,6 +1,6 @@
 import {XMLParser} from 'fast-xml-parser';
 import path from 'node:path';
-import {UpstreamQueue} from './upstream-queue.mjs';
+import {UpstreamQueue,retryAfterSeconds} from './upstream-queue.mjs';
 import {HttpError} from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest} from './request-budget.mjs';
@@ -27,7 +27,12 @@ export class OfficialContextSources {
   async schedule(operation,{origin,priority='interactive',signal}) {
     let queue=this.queues.get(origin);
     if(!queue){queue=new UpstreamQueue();this.queues.set(origin,queue);}
-    const release=await queue.acquire(priority,{signal});
+    let release;
+    try{release=await queue.acquire(priority,{signal});}
+    catch(error){
+      if(error?.code==='upstream_busy')throw Object.assign(new HttpError(503,'official_source_busy','The official source is busy. Please try again after the pause.'),{retryAfter:error.retryAfter,retryAt:error.retryAt});
+      throw error;
+    }
     try{signal?.throwIfAborted();return await waitForRequest(operation(),signal);}finally{release();}
   }
   async get(input) {
@@ -45,6 +50,11 @@ export class OfficialContextSources {
           const redirected=officialSourceUrl(new URL(next,target));
           if(redirected.origin!==source.origin)throw new HttpError(502,'official_redirect','The source redirected to a different origin.');
           target=redirected.href;
+        }
+        if([429,503].includes(response?.status)){
+          const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));
+          this.queues.get(source.origin)?.backoff(retryAfter);await response.body?.cancel();
+          throw Object.assign(new HttpError(503,'official_source_limited','The official source is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:Date.now()+retryAfter*1000});
         }
         if(!response?.ok||response.status===202)throw new HttpError(502,'official_source_unavailable','The official source is temporarily unavailable.');
         const json=url.includes('/webapi/'),type=response.headers.get('content-type')||'';

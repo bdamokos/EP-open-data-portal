@@ -78,3 +78,14 @@ test('official redirects cannot borrow another origin admission pool',async()=>{
   }});
   await assert.rejects(reader.get(po+'?query=cross-origin'),/different origin/);assert.equal(calls,1);
 });
+
+test('an official source cooldown stays with its own origin and prevents premature retries',async()=>{
+  let poCalls=0,oeilCalls=0;
+  const reader=new OfficialContextSources({directory:null,fetchSource:async url=>{
+    if(url.startsWith(po)){poCalls++;return new Response(null,{status:429,headers:{'retry-after':'45'}});}
+    oeilCalls++;return new Response('<main>Summary</main>',{headers:{'content-type':'text/html'}});
+  }});
+  await assert.rejects(reader.get(po+'?query=limited'),error=>error.code==='official_source_limited'&&error.retryAfter===45);
+  await assert.rejects(reader.get(po+'?query=next'),error=>error.code==='official_source_busy'&&error.retryAfter>0);
+  assert.equal(poCalls,1);await reader.get(oeil+'?reference=2025/0407(COD)');assert.equal(oeilCalls,1);
+});
