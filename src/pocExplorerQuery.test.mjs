@@ -70,3 +70,33 @@ test('amendment links retain their own dossier filters and reject malformed auth
   assert.equal(readExplorerParam(new URLSearchParams({'am-offset':'1000000'}),'am-offset',0),1000000);
   for(const value of ['-1','20.5','1000001'])assert.equal(readExplorerParam(new URLSearchParams({'am-offset':value}),'am-offset',0),0);
 });
+test('global full-text navigation survives every explorer while contextual searches stay with their owner',()=>{
+  const query=new URLSearchParams('global-fts-search=climate&global-fts-text-lang=fr&global-fts-page=2&global-fts-read=MTG-PL-example&global-fts-kind=question&global-fts-sort=newest&global-fts-closed=1&q-fts-search=water&q-fts-read=P-10-2025-000001&agenda-fts-search=energy&dossier-fts-search=emissions&mep-speech-fts-search=transport&mep-activity-fts-search=rail');
+  for(const view of [null,'questions','legislation','outside','saved']){
+    const saved=explorerParams(query,view);
+    for(const key of ['global-fts-search','global-fts-text-lang','global-fts-page','global-fts-read','global-fts-kind','global-fts-sort','global-fts-closed'])assert.equal(saved.get(key),query.get(key));
+    assert.equal(saved.has('q-fts-search'),view==='questions');
+    assert.equal(saved.has('agenda-fts-search'),view==='legislation');
+    assert.equal(saved.has('dossier-fts-search'),view==='legislation');
+    assert.equal(saved.has('mep-speech-fts-search'),view===null);
+    assert.equal(saved.has('mep-activity-fts-search'),view===null);
+  }
+});
+test('full-text pagination rejects invalid or unbounded URL pages',()=>{
+  for(const prefix of ['global-fts','q-fts','agenda-fts','dossier-fts','mep-speech-fts','mep-activity-fts']){
+    assert.equal(readExplorerParam(new URLSearchParams({[prefix+'-page']:'3'}),prefix+'-page',0),3);
+    assert.equal(readExplorerParam(new URLSearchParams({[prefix+'-page']:'50'}),prefix+'-page',0),50);
+    for(const value of ['-1','1.5','Infinity','51','10000','broken'])assert.equal(readExplorerParam(new URLSearchParams({[prefix+'-page']:value}),prefix+'-page',0),0);
+  }
+});
+test('member full-text state is cleared when navigating to a different member or the wall',()=>{
+  const query=new URLSearchParams('member=42&mep-speech-fts-search=transport&mep-speech-fts-read=MTG-PL-example&mep-activity-fts-search=rail&global-fts-search=climate');
+  assert.equal(explorerParams(query,null,42).get('mep-speech-fts-search'),'transport');
+  for(const member of [43,null]){
+    const saved=explorerParams(query,null,member);
+    assert.equal(saved.has('mep-speech-fts-search'),false);
+    assert.equal(saved.has('mep-speech-fts-read'),false);
+    assert.equal(saved.has('mep-activity-fts-search'),false);
+    assert.equal(saved.get('global-fts-search'),'climate');
+  }
+});
