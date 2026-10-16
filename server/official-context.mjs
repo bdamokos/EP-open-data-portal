@@ -1,8 +1,9 @@
 import {XMLParser} from 'fast-xml-parser';
 import path from 'node:path';
-import {boundedUpstream} from './odp.mjs';
+import {UpstreamQueue,retryAfterSeconds} from './upstream-queue.mjs';
 import {HttpError} from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
+import {requestSignal,runWithRequestSignal,waitForRequest} from './request-budget.mjs';
 
 export function officialSourceUrl(value) {
   const url=new URL(value);
@@ -18,25 +19,50 @@ async function limitedText(response,maximum) {
   return Buffer.concat(parts).toString('utf8');
 }
 export class OfficialContextSources {
-  constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run=boundedUpstream}={}) {
-    Object.assign(this,{clock,fetchSource,run});this.cache=new InsightViewCache({clock,directory,freshMs:6*60*60_000,maxEntries:32,maxBytes:24*1024*1024});
+  constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run}={}) {
+    Object.assign(this,{clock,fetchSource});this.queues=new Map();
+    this.run=run||((operation,options)=>this.schedule(operation,options));
+    this.cache=new InsightViewCache({clock,directory,freshMs:6*60*60_000,maxEntries:32,maxBytes:24*1024*1024});
+  }
+  async schedule(operation,{origin,priority='interactive',signal}) {
+    let queue=this.queues.get(origin);
+    if(!queue){queue=new UpstreamQueue();this.queues.set(origin,queue);}
+    let release;
+    try{release=await queue.acquire(priority,{signal});}
+    catch(error){
+      if(error?.code==='upstream_busy')throw Object.assign(new HttpError(503,'upstream_busy','The official source is busy. Please try again after the pause.'),{retryAfter:error.retryAfter,retryAt:error.retryAt});
+      throw error;
+    }
+    try{signal?.throwIfAborted();return await waitForRequest(operation(),signal);}finally{release();}
   }
   async get(input) {
-    const url=officialSourceUrl(input).href;
-    const record=await this.cache.get(['official-context-v1',url],()=>this.run(async()=>{
-      let target=url,response;
-      for(let attempt=0;attempt<3;attempt++) {
-        response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':'MEP-Committee-Speeches-PoC/0.1 (official legislative context)'},redirect:'manual',signal:AbortSignal.timeout(20_000)});
-        if(![301,302,303,307,308].includes(response.status))break;
-        const next=response.headers.get('location');await response.body?.cancel();if(!next)throw new HttpError(502,'official_redirect','The source redirect is incomplete.');
-        target=officialSourceUrl(new URL(next,target)).href;
-      }
-      if(!response?.ok||response.status===202)throw new HttpError(502,'official_source_unavailable','The official source is temporarily unavailable.');
-      const json=url.includes('/webapi/'),type=response.headers.get('content-type')||'';
-      if(json?!type.includes('json'):!type.includes('html'))throw new HttpError(502,'official_source_type','The source returned an unexpected document.');
-      const text=await limitedText(response,json?3*1024*1024:1024*1024);
-      return {url,fetchedAt:new Date(this.clock()).toISOString(),...(json?{data:JSON.parse(text)}:{html:text})};
-    },{priority:'interactive'}));
+    requestSignal()?.throwIfAborted();
+    const source=officialSourceUrl(input),url=source.href;
+    const record=await waitForRequest(this.cache.get(['official-context-v1',url],()=>runWithRequestSignal(undefined,()=>{
+      // The cache owns one budget across admission, redirects and body reads.
+      const signal=AbortSignal.timeout(20_000);
+      return this.run(async()=>{
+        let target=url,response;
+        for(let attempt=0;attempt<3;attempt++) {
+          response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':'MEP-Committee-Speeches-PoC/0.1 (official legislative context)'},redirect:'manual',signal});
+          if(![301,302,303,307,308].includes(response.status))break;
+          const next=response.headers.get('location');await response.body?.cancel();if(!next)throw new HttpError(502,'official_redirect','The source redirect is incomplete.');
+          const redirected=officialSourceUrl(new URL(next,target));
+          if(redirected.origin!==source.origin)throw new HttpError(502,'official_redirect','The source redirected to a different origin.');
+          target=redirected.href;
+        }
+        if([429,503].includes(response?.status)){
+          const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));
+          this.queues.get(source.origin)?.backoff(retryAfter);await response.body?.cancel();
+          throw Object.assign(new HttpError(503,'official_source_limited','The official source is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:Date.now()+retryAfter*1000});
+        }
+        if(!response?.ok||response.status===202)throw new HttpError(502,'official_source_unavailable','The official source is temporarily unavailable.');
+        const json=url.includes('/webapi/'),type=response.headers.get('content-type')||'';
+        if(json?!type.includes('json'):!type.includes('html'))throw new HttpError(502,'official_source_type','The source returned an unexpected document.');
+        const text=await limitedText(response,json?3*1024*1024:1024*1024);
+        return {url,fetchedAt:new Date(this.clock()).toISOString(),...(json?{data:JSON.parse(text)}:{html:text})};
+      },{priority:'interactive',origin:source.origin,signal});
+    })));
     if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw new HttpError(502,'official_source_identity','The saved official source could not be verified.');
     return record;
   }
