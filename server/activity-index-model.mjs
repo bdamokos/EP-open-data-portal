@@ -47,6 +47,11 @@ export function projectDocument(w) {
   result.is_realized_by = array(w.is_realized_by).map(e => ({ language:e.language, title:e.title,
     is_embodied_by:array(e.is_embodied_by).map(m => ({format:m.format,byteSize:m.byteSize,is_exemplified_by:m.is_exemplified_by})) }));
   result.inverse_answers_to = array(w.inverse_answers_to).filter(a => a && typeof a === 'object').map(projectDocument);
+  if (['RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].includes(tail(w.work_type))) {
+    result.motionLinksVersion = 1;
+    result.inverse_based_on_a_realization_of = array(w.inverse_based_on_a_realization_of).map(ref => ref?.id || ref);
+    result.is_derivative_of = array(w.is_derivative_of).map(ref => ref?.id || ref);
+  }
   return result;
 }
 export function projectProcedure(p) {
