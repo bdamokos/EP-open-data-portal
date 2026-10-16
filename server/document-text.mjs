@@ -136,7 +136,7 @@ export function docxContent(buffer) {
   if(parts.has('word/footnotes.xml')) {
     const context={style,links:externalLinks(parts.get('word/_rels/footnotes.xml.rels'))};
     for(const node of children(parser().parse(parts.get('word/footnotes.xml')),'w:footnotes')||[]) {
-      if(!node['w:footnote']||attribute(node,'type'))continue;
+      if(!node['w:footnote']||!['normal',undefined].includes(attribute(node,'type')))continue;
       const paragraphs=paragraphsOf(node['w:footnote'],context),spans=[];let offset=0;
       for(const part of paragraphs){spans.push(...part.spans.map(span=>({...span,start:span.start+offset,end:span.end+offset})));offset+=part.text.length+1;}
       const text=paragraphs.map(p=>p.text).join('\n').slice(0,NOTE_LIMITS.text);
