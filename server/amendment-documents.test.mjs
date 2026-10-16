@@ -50,7 +50,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'4');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'5');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -144,6 +144,54 @@ test('wrapped comparison rows, cells and embedded body content cannot disappear 
     const intact=result.amendments.find(amendment=>amendment.number===2);
     assert.equal(intact.originalText,'',description);assert.equal(intact.proposedText,'A complete insertion.',description);assert.deepEqual(intact.gaps,[]);
   }
+});
+
+test('body-level choice and fallback comparison tables are never concatenated, even after a supported table',()=>{
+  const alternatives='<mc:AlternateContent><mc:Choice Requires="w14">'+table(row(cell(p('Selected original')),cell(p('Selected proposal'))))+'</mc:Choice><mc:Fallback>'+table(row(cell(p('Fallback original')),cell(p('Fallback proposal'))))+'</mc:Fallback></mc:AlternateContent>';
+  for(const prefix of ['',table(row(cell(p('First supported original')),cell(p('First supported proposal'))))]) {
+    const xml=body(metadata()+prefix+alternatives+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('A complete insertion.'))))+p('</Amend>')).replace('xmlns:w="urn:word"','xmlns:w="urn:word" xmlns:mc="urn:compatibility"');
+    const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+    const affected=result.amendments.find(amendment=>amendment.number===1);
+    assert.equal(affected.originalText,null);assert.equal(affected.proposedText,null);
+    assert(affected.gaps.some(gap=>gap.code==='comparison-structure'&&gap.number===1));
+    const intact=result.amendments.find(amendment=>amendment.number===2);
+    assert.equal(intact.originalText,'');assert.equal(intact.proposedText,'A complete insertion.');assert.deepEqual(intact.gaps,[]);
+  }
+});
+
+test('whole alternate amendment branches do not invent identities and retain document-level unavailable evidence',()=>{
+  const section=(number,label)=>metadata(number)+table(row(cell(p(label+' original')),cell(p(label+' proposal'))))+p('</Amend>');
+  const alternatives='<compat:AlternateContent><compat:Choice Requires="w14">'+section(1,'Selected')+'</compat:Choice><compat:Fallback>'+section(1,'Fallback')+'</compat:Fallback></compat:AlternateContent>';
+  for(const prefix of ['',section(2,'Supported')]) {
+    const xml=body(prefix+alternatives).replace('xmlns:w="urn:word"','xmlns:w="urn:word" xmlns:compat="urn:compatibility"');
+    const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+    assert(!result.amendments.some(amendment=>amendment.number===1));
+    assert(result.gaps.some(gap=>gap.code==='comparison-structure'&&gap.number==null&&gap.scope==='document'&&gap.sourceUrl===options.sourceUrl));
+    assert(result.gaps.some(gap=>gap.code==='list-coverage'));
+    if(prefix)assert.equal(result.amendments[0].originalText,'Supported original');
+    else {assert.deepEqual(result.amendments,[]);assert(result.gaps.some(gap=>gap.code==='amendments-unavailable'));}
+  }
+});
+
+test('a visible legacy font symbol withholds legal wording on first ingestion and after supported rows',()=>{
+  const symbol='<w:r><w:sym w:font="Symbol" w:char="F061"/></w:r>';
+  const symbolParagraph='<w:p>'+run('Rate')+symbol+run(' applies')+'</w:p>';
+  for(const prefix of ['',row(cell(p('First original row')),cell(p('First proposed row')))]) {
+    const xml=body(metadata()+table(prefix,row(cell(symbolParagraph),cell(p('Proposed wording'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));
+    const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+    const affected=result.amendments.find(amendment=>amendment.number===1);
+    assert.equal(affected.originalText,null);assert.equal(affected.proposedText,null);
+    assert(affected.gaps.some(gap=>gap.code==='symbol-text-loss'&&gap.number===1&&gap.sourceUrl===options.sourceUrl));
+    const intact=result.amendments.find(amendment=>amendment.number===2);
+    assert.equal(intact.originalText,'');assert.equal(intact.proposedText,'Supported insertion.');assert.deepEqual(intact.gaps,[]);
+  }
+});
+
+test('hidden and deleted font symbols do not invalidate supported visible comparison text',()=>{
+  const symbols='<w:r><w:rPr><w:vanish/></w:rPr><w:sym w:font="Symbol" w:char="F061"/></w:r><w:del><w:r><w:sym w:font="Symbol" w:char="F062"/></w:r></w:del>';
+  const xml=body(metadata()+table(row(cell('<w:p>'+run('Rate')+symbols+run(' applies')+'</w:p>'),cell(p('Proposed wording'))))+p('</Amend>'));
+  const result=extractAmendments(archive(xml),options);
+  assert.equal(result.amendments[0].originalText,'Rate applies');assert.equal(result.amendments[0].proposedText,'Proposed wording');assert.deepEqual(result.gaps,[]);
 });
 
 test('ordinary table properties and positional annotation markers do not invalidate supported columns',()=>{

@@ -2,9 +2,10 @@ import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='4';
+export const AMENDMENT_EXTRACTION_VERSION='5';
 
-const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-structure','nested-table','text-unavailable','numbering-warning']);
+const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-structure','nested-table','symbol-text-loss','text-unavailable','numbering-warning']);
+const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
 const TABLE_MARKERS=new Set(['w:bookmarkStart','w:bookmarkEnd','w:commentRangeStart','w:commentRangeEnd','w:permStart','w:permEnd','w:proofErr','w:moveFromRangeStart','w:moveFromRangeEnd','w:moveToRangeStart','w:moveToRangeEnd']);
 function unsupportedChildren(nodes,allowed) {
   return (nodes||[]).some(node=>Object.entries(node).some(([key,value])=>key!==':@'&&!TABLE_MARKERS.has(key)&&!allowed.has(key)&&(key!=='#text'||String(value).trim())));
@@ -41,19 +42,27 @@ function visibility(xml) {
   };
   return {defaults,hidden,paragraph:defaultId('paragraph'),character:defaultId('character')};
 }
-function inline(nodes,style,hidden,raw=false) {
+function inline(nodes,style,hidden,raw=false,losses=new Set()) {
   let out='';
   for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
     if(key==='w:r') {
       const props=children(value,'w:rPr');
       const omit=enabled(child(props,'w:vanish'))??style.hidden(property(props,'w:rStyle')||style.character,hidden);
-      if(raw||!omit)out+=inline(value,style,false,raw);
+      if(raw||!omit)out+=inline(value,style,false,raw,losses);
+    } else if(alternateBranch(key)) {
+      if(!raw)losses.add('comparison-structure');
+      // Choice and fallback are mutually exclusive; the extractor does not
+      // implement the compatibility feature negotiation needed to select one.
+    } else if(key==='w:sym') {
+      // A legacy font character (e.g. Symbol/F061) is not a Unicode code point.
+      // Omitting it would change the legal text; no font mapping is guessed.
+      if(!raw)losses.add('symbol-text-loss');
     } else if(key==='#text')out+=String(value);
     else if(key==='w:tab')out+='\t';
     else if(key==='w:br'||key==='w:cr')out+='\n';
     else if(key==='w:noBreakHyphen')out+='‑';
     else if(key==='w:softHyphen')out+='­';
-    else if(![':@','w:pPr','w:rPr','w:del','w:moveFrom','w:instrText'].includes(key)&&Array.isArray(value))out+=inline(value,style,hidden,raw);
+    else if(![':@','w:pPr','w:rPr','w:del','w:moveFrom','w:instrText'].includes(key)&&Array.isArray(value))out+=inline(value,style,hidden,raw,losses);
   }
   return out;
 }
@@ -64,12 +73,12 @@ function documentBlocks(parts,warnings) {
   const paragraph=nodes=>{
     const props=children(nodes,'w:pPr'),hidden=style.hidden(property(props,'w:pStyle')||style.paragraph,style.defaults);
     const raw=clean(inline(nodes,style,hidden,true));
-    let text=clean(inline(nodes,style,hidden));
+    const losses=new Set();let text=clean(inline(nodes,style,hidden,false,losses));
     const prefix=label(props);if(prefix&&text)text=prefix+'\t'+text;
     size+=raw.length+text.length;
     if(++count>20000||size>4*1024*1024)throw new Error('Amendment document text exceeds the supported size.');
     const structure=JSON.stringify(nodes);
-    return {raw,text,paragraphStyle:property(props,'w:pStyle')||style.paragraph||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),unsupportedBody:/"(?:mc:AlternateContent|w:altChunk|w:contentPart|w:subDoc|w:object)"/.test(structure)};
+    return {raw,text,paragraphStyle:property(props,'w:pStyle')||style.paragraph||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')||/"(?:w:altChunk|w:contentPart|w:subDoc|w:object)"/.test(structure)};
   };
   const blocks=[];
   const paragraphs=nodes=>{
@@ -82,7 +91,8 @@ function documentBlocks(parts,warnings) {
   };
   const walk=nodes=>{
     for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
-      if(key==='w:p')blocks.push({kind:'paragraph',...paragraph(value)});
+      if(alternateBranch(key))blocks.push({kind:'unsupported',code:'comparison-structure',message:'Alternative document branches cannot be selected reliably; their content and any amendment identities inside them are unavailable.'});
+      else if(key==='w:p')blocks.push({kind:'paragraph',...paragraph(value)});
       else if(key==='w:tbl') {
         // Only direct rows/cells have a supported comparison layout. Content
         // controls, custom XML and alternate branches may wrap legal content;
@@ -94,7 +104,7 @@ function documentBlocks(parts,warnings) {
           return row['w:tr'].filter(n=>n['w:tc']).map(cell=>{
             const content=paragraphs(cell['w:tc']);
             unsupported ||= unsupportedChildren(cell['w:tc'],CELL_CHILDREN)||content.some(p=>p.unsupportedBody);
-            return {text:content.map(p=>p.text).filter(Boolean).join('\n'),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"')};
+            return {text:content.map(p=>p.text).filter(Boolean).join('\n'),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),symbolLoss:content.some(p=>p.symbolLoss),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"')};
           });
         });
         blocks.push({kind:'table',rows,unsupported});
@@ -125,7 +135,7 @@ const groupNumber=group=>group?.filter(b=>b.kind==='paragraph').map(b=>numberIn(
 /** Extract individual amendments without flattening the original/proposed columns. */
 export function extractAmendments(buffer,{listId,targetDocumentId,language=null,sourceUrl=null,fetchedAt=null}={}) {
   const warnings=new Set(),blocks=documentBlocks(docxParts(buffer),warnings),groups=[],gaps=[];
-  const gap=(code,number,message)=>gaps.push({code,...(number==null?{}:{number}),message,sourceUrl});
+  const gap=(code,number,message,details={})=>gaps.push({code,...(number==null?{}:{number}),message,sourceUrl,...details});
   let active=null,tagged=false;const cover=[];
   const finish=()=>{if(active?.length)groups.push(active);active=null;tagged=false;};
   for(const block of blocks) {
@@ -138,6 +148,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       else if(!groups.length)cover.push(block);
       if(/<\/Amend>/.test(block.raw))finish();
     } else if(active)active.push(block);
+    else if(block.kind==='unsupported')gap(block.code,null,block.message,{scope:'document'});
   }
   finish();
   const coverRaw=cover.map(b=>b.raw).join('\n');
@@ -152,6 +163,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     if(!number){gap('number-unavailable',null,'An amendment block has no supported individual amendment number.');continue;}
     const numbers=new Set([...raw.matchAll(/<NumAm>\s*([1-9]\d*)\s*<\/NumAm>/g)].map(match=>Number(match[1])));
     if(numbers.size>1){gap('number-conflict',number,'The amendment block contains conflicting individual amendment numbers; its content is withheld.');continue;}
+    for(const unsupported of group.filter(block=>block.kind==='unsupported'))gap(unsupported.code,number,unsupported.message);
     const authors=[...new Set(field(raw,'Members').flatMap(names=>names.split(/[,;\n]+/).map(clean).filter(Boolean)))];
     const onBehalfOf=field(raw,'AuNomDe').map(metadata).filter(Boolean).join('; ')||null;
     const targetParts=field(raw,'Article');
@@ -171,6 +183,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       let headerConfirmed=false;
       for(const cells of table.rows) {
         if(cells.some(c=>c.nested)){gap('nested-table',number,'A nested comparison table is unsupported.');continue;}
+        if(cells.some(c=>c.symbolLoss))gap('symbol-text-loss',number,'A visible font-encoded symbol cannot be decoded reliably; comparison wording is withheld.');
         if(cells.every(c=>!c.text))continue;
         if(!headerConfirmed) {
           if(cells.length===2&&heading(cells[1].text)){headerConfirmed=true;continue;}

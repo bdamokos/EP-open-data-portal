@@ -342,7 +342,7 @@ export class ActivityWorker {
     const project=body.stage==='results'?projectMotionResults:projectMotionDecisions;
     const amendmentNodes=body.stage==='decisions'?new Map(projectAmendmentDecisions(record.payload.data,body.sittingId).map(node=>[node.id,node])):null;
     const nodes=project(record.payload.data,body.sittingId).map(node=>amendmentNodes?{...node,...amendmentNodes.get(node.id)}:node);
-    const splits=body.stage==='results'?[...new Map([...(body.splits || []),...projectAmendmentSplits(record.payload.data,body.sittingId)].map(node=>[node.id,node])).values()]:body.splits || [];
+    const splits=body.stage==='results'?[...new Map([...(body.splits || []),...projectAmendmentSplits(record.payload.data,body.sittingId).map(node=>({...node,source:{url:url.href,fetchedAt:record.fetchedAt}}))].map(node=>[node.id,node])).values()]:body.splits || [];
     const field=body.stage==='results'?'results':'decisions';
     const merged=[...new Map([...body[field],...nodes].map(node=>[node.id,node])).values()];
     const next={...body,[field]:merged,sources,splits};

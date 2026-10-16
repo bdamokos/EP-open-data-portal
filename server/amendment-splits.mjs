@@ -2,7 +2,7 @@ import { XMLParser, XMLValidator } from 'fast-xml-parser';
 
 // Increment when the grammar or its binding rules change, so stored failures can
 // be retried. Recognition produces selectors, never source offsets or final text.
-export const SPLIT_PARSER_VERSION = '1';
+export const SPLIT_PARSER_VERSION = '2';
 const MAX_DESCRIPTION_BYTES = 64 * 1024, MAX_PARTS = 256, MAX_QUOTES = 64, MAX_ALTERNATIVES = 64, MAX_DEPTH = 16;
 const xmlParser = new XMLParser({preserveOrder:true, ignoreAttributes:true, parseTagValue:false, trimValues:false, processEntities:false, cdataPropName:'#cdata'});
 const array = value => value == null ? [] : Array.isArray(value) ? value : [value];
@@ -213,13 +213,13 @@ export function parseSplitRequest(request, {sourceUrl=null,fetchedAt=null,langua
   const record = (part, code, message) => {
     const failure = {code,message};
     if (part) { part.status='unresolved'; part.plan=null; part.failure=failure; }
-    failures.push({requestId,partId:part?.id ?? null,description:part?.description ?? null,language,parserVersion:SPLIT_PARSER_VERSION,code,message,sourceUrl,fetchedAt,...(part?.rawDescription != null ? {rawDescription:part.rawDescription} : {}),...(part?.sourceDescriptions ? {sourceDescriptions:part.sourceDescriptions} : {})});
+    failures.push({requestId,partId:part?.id ?? null,description:part?.description ?? null,language,parserVersion:SPLIT_PARSER_VERSION,code,message,sourceUrl,fetchedAt,...(!part?{scope:'request'}:part.id==null?{scope:'component',componentIndex:part.componentIndex}:{}),...(part?.rawDescription != null ? {rawDescription:part.rawDescription} : {}),...(part?.sourceDescriptions ? {sourceDescriptions:part.sourceDescriptions} : {})});
   };
   const rawParts = array(request?.created_a_realization_of);
   if (!rawParts.length) { record(null,'missing_parts','The split request contains no component records.'); return {requestId,parts,failures}; }
   if (rawParts.length > MAX_PARTS) { record(null,'too_many_parts','The split request exceeds the component limit.'); return {requestId,parts,failures}; }
   const seen = new Map();
-  for (const raw of rawParts) {
+  for (const [componentIndex,raw] of rawParts.entries()) {
     const id = typeof raw?.id === 'string' && raw.id ? raw.id : null;
     const number = partNumber(raw), rawDescription = raw?.expressionContent?.[language];
     const fingerprint = JSON.stringify([raw?.number,raw?.numbering,rawDescription]);
@@ -228,7 +228,7 @@ export function parseSplitRequest(request, {sourceUrl=null,fetchedAt=null,langua
       if (first.fingerprint !== fingerprint && !first.conflicting) { first.conflicting=true; first.part.conflictingDescriptions=[first.part.rawDescription,typeof rawDescription === 'string' ? rawDescription : null]; }
       continue;
     }
-    const part = {id,number,description:typeof rawDescription === 'string' ? rawDescription : null,rawDescription:typeof rawDescription === 'string' ? rawDescription : null,language,plan:null,status:'unresolved',failure:null};
+    const part = {id,...(!id?{componentIndex}:{}),number,description:typeof rawDescription === 'string' ? rawDescription : null,rawDescription:typeof rawDescription === 'string' ? rawDescription : null,language,plan:null,status:'unresolved',failure:null};
     if (typeof rawDescription !== 'string' && raw?.expressionContent && typeof raw.expressionContent === 'object') part.sourceDescriptions={...raw.expressionContent};
     parts.push(part); if (id) seen.set(id,{part,fingerprint,conflicting:false});
   }
