@@ -10,7 +10,7 @@ import { UpstreamQueue, retryAfterSeconds } from './upstream-queue.mjs';
 import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
-import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest} from './request-budget.mjs';
+import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
@@ -179,7 +179,7 @@ export async function odp(
       budget.signal?.throwIfAborted();
       return record;
     } catch(error) {
-      if(!budget.signal?.aborted)refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});
+      if(!budget.signal?.aborted&&!isLocalRequestFailure(error))refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});
       throw error;
     } finally {
       release?.();
