@@ -5,11 +5,10 @@ import {InsightShell,InsightStatus} from './PocInsightShared';
 import {InsightSpeechReader} from './PocInsightReaders';
 import type {InsightProps} from './PocInsightTypes';
 import type {OutsideAgenda,OutsideContribution,OutsideCoverage,OutsideDetail,OutsideDirectory,OutsidePerson} from './PocOutsideTypes';
-import {clusterOutsideDays} from './pocOutsideTimeline.mjs';
+import {clusterOutsideDays,filterOutsidePeople} from './pocOutsideTimeline.mjs';
 import './PocOutsideVoices.css';
 
 const groups:Record<string,string>={commission:'Commission',council:'Council presidency',eu:'Other EU institutions',leaders:'Heads of state & government',parliaments:'Other parliaments',other:'Other speakers'};
-const normalize=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const date=(s:string,language:string)=>new Intl.DateTimeFormat(language==='en'?'en-GB':language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(s+'T12:00:00Z'));
 const month=(s:string,language:string)=>new Intl.DateTimeFormat(language,{month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(s.slice(0,7)+'-01T12:00:00Z'));
 const time=(s:string|null,language:string)=>s&&Number.isFinite(Date.parse(s))?new Intl.DateTimeFormat(language,{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Europe/Brussels'}).format(new Date(s)):null;
@@ -87,10 +86,7 @@ export function PocOutsideVoices({language='en',...props}:InsightProps) {
   const openPerson=(id:string)=>{setPanel(null);setPerson(id);setTab('timeline');setMonth(null);window.scrollTo(0,0);};
   const openDays=(id:string,dates:string[])=>{opener.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setPanel({id,dates});};
   const closePanel=()=>{setPanel(null);opener.current?.focus();};
-  const people=useMemo(()=> (directory.data?.people||[]).map(p=>{
-    const days=p.days.map(d=>{if(kind==='all')return d;const items=(d.items||[]).filter(item=>item.kind===(kind==='special'?'PLENARY_ACTIVITY':'PLENARY_DEBATE'));return {...d,items,itemIds:items.map(item=>item.id),formal:items.some(item=>item.kind==='PLENARY_ACTIVITY'),legislative:items.some(item=>item.legislative)};}).filter(d=>kind==='all'||d.itemIds.length);
-    return {...p,days,unlinkedContributions:kind==='all'?p.unlinkedContributions:0,appearances:days.reduce((sum,d)=>sum+d.itemIds.length,0),sittingDays:days.length};
-  }).filter(p=>p.sittingDays&&(group==='all'||p.capacity===group)&&(repeat==='0'||p.sittingDays>1)&&(!search||normalize(p.name+' '+p.id).includes(normalize(search)))),[directory.data,kind,group,repeat,search]);
+  const people=useMemo(()=>filterOutsidePeople(directory.data?.people||[],{kind,group,repeat:repeat==='1',search}),[directory.data,kind,group,repeat,search]);
   const bounds=people.flatMap(p=>p.days.map(d=>d.date)).sort();
   const start=term==='10'?'2024-07-16':bounds[0]||'2019-07-02',end=bounds.at(-1)||new Date().toISOString().slice(0,10);
   return <InsightShell {...props} language={language} view="outside" title="Outside voices" compactNotice><div className="ov">

@@ -266,8 +266,11 @@ export class ActivityWorker {
       const url=new URL(ODP_BASE+endpoint);for(const [key,value]of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,String(value));
       const existing=this.store.source(generation,endpoint);
       this.saveSpeech(generation,activity,r.fetchedAt,existing?.work.outside?.term===9,url.href);
-      const projected=this.store.source(generation,endpoint)?.work.outside;
-      if(!body.language && !projected?.headers.some(header=>header.name))this.store.enqueue(generation,'outside:english:'+body.id,'outside-detail',{id:body.id,language:'en'},102);
+      const unnamed=this.store.db.prepare("SELECT person FROM outside_contributions WHERE generation=? AND speech=? AND json_extract(body,'$.header.name') IS NULL").all(generation,body.id).map(row=>row.person);
+      if(unnamed.length) {
+        if(!body.language)this.store.enqueue(generation,'outside:english:'+body.id,'outside-detail',{id:body.id,language:'en'},102);
+        else throw new Error('Outside speech header has no usable name for '+unnamed.map(id=>'person/'+id).join(', ')+'.');
+      }
     } else if(task.kind==='outside-agenda') {
       const endpoint='/events/'+body.id;
       const r=await this.request(endpoint);

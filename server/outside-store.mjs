@@ -29,7 +29,7 @@ export function recordOutside(store, generation, speech) {
   const put = store.db.prepare('INSERT OR REPLACE INTO outside_contributions VALUES (?,?,?,?,?)');
   const candidates = speech.participants.filter(id => !members.has(id));
   for (const personId of candidates) put.run(generation,speech.id,personId,speech.date,JSON.stringify({...speech,personId,header:speech.headers.find(header => header.personId === personId) || null,rosterSource:{date:speech.date,sources:roster.work.sources}}));
-  if (candidates.length && !speech.headerChecked) store.enqueue(generation,'outside:detail:' + speech.id,'outside-detail',{id:speech.id},102);
+  if (candidates.some(id=>!speech.headers.find(header=>header.personId===id)?.name)) store.enqueue(generation,'outside:detail:' + speech.id,'outside-detail',{id:speech.id},102);
   if (candidates.length) for (const id of speech.parentIds) if (!store.source(generation,'outside:agenda:' + id)) store.enqueue(generation,'outside:agenda:' + id,'outside-agenda',{id},101);
 }
 
