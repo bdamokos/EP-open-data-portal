@@ -21,6 +21,7 @@ test('live suspension and chair-change records are procedural notes with exact c
   assert.equal(chair.type,'procedure');assert.equal(chair.procedureKind,'chair-change');
   assert.deepEqual(chair.chair,{id:'125027',name:'ESTEBAN GONZÁLEZ PONS',role:'Vice-President'});
   assert.equal(chair.speaker,null,'a presiding heading is not a speech');
+  assert.equal(chair.narrative,null,'the structured chair must not be duplicated as a reordered heading');
   assert.equal(chair.evidence,'api:xmlFragment/communication/heading/person');
   for(const activity of procedures.activities) {
     const row=speechSummary(activity);
@@ -38,6 +39,10 @@ test('unreadable procedural text and unmatched chair identities never become fab
   }
   const chairChange=clone(procedures.activities[1]);chairChange.had_participation.had_participant_person=['person/999999'];
   assert.equal(interventionMetadata(chairChange).chair,null,'the heading identity must match the API participation');
+  assert.equal(interventionMetadata(chairChange).narrative,null,'an unmatched heading must not reappear as fallback text');
+  const fragment=chairChange.recorded_in_a_realization_of[0]['api:xmlFragment'];
+  fragment.en=fragment.en.replace('</communication>','<narrative>ESTEBAN GONZÁLEZ PONS</narrative></communication>');
+  assert.equal(interventionMetadata(chairChange).narrative,null,'chair-change narratives must not bypass the identity check');
   for(const xml of ['<communication>broken','<!DOCTYPE x [<!ENTITY x SYSTEM "file:///secret">]><communication>&x;</communication>']) {
     chairChange.recorded_in_a_realization_of[0]['api:xmlFragment'].en=xml;
     const meta=interventionMetadata(chairChange);assert.equal(meta.type,'procedure');assert.equal(meta.chair,null);assert.equal(meta.narrative,null);
