@@ -16,7 +16,7 @@ import {speechMedia} from './mmc.mjs';
 import {outsideDirectory,outsideSpeaker,outsideQuery} from './outside-store.mjs';
 import {corpusSearch,corpusStatus,corpusText,corpusSearchOptions,startCorpus} from './corpus-worker.mjs';
 import {CORPUS_LIMITS,corpusQuery} from './corpus-store.mjs';
-import {createRequestBudget,runWithRequestSignal,waitForRequest,cancelledRequest} from './request-budget.mjs';
+import {createRequestBudget,runWithRequestSignal,waitForRequest,cancelledRequest,requestSignal} from './request-budget.mjs';
 
 import {SpeechInterventions,INTERVENTION_LIMITS} from './speech-intervention-service.mjs';
 import {OfficialContextSources} from './official-context.mjs';
@@ -70,21 +70,24 @@ async function corpusSearchBody(request) {
   if(!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(String(request.headers['content-type']||'')))throw new HttpError(415,'invalid_content_type','Use application/json for corpus search.');
   const length=request.headers['content-length'];
   if(length!==undefined && (!/^\d+$/.test(length)||Number(length)>CORPUS_LIMITS.requestBytes))throw new HttpError(413,'request_too_large','The search request exceeds 128 KiB.');
-  return await new Promise((resolve,reject)=>{
-    const chunks=[];let bytes=0,failed=false;
-    request.on('data',chunk=>{
-      if(failed)return;
+  const signal=requestSignal();signal?.throwIfAborted();
+  let cleanup;
+  const body=new Promise((resolve,reject)=>{
+    const chunks=[];let bytes=0;
+    const onData=chunk=>{
       bytes+=chunk.length;
-      if(bytes>CORPUS_LIMITS.requestBytes){failed=true;reject(new HttpError(413,'request_too_large','The search request exceeds 128 KiB.'));return;}
+      if(bytes>CORPUS_LIMITS.requestBytes){reject(new HttpError(413,'request_too_large','The search request exceeds 128 KiB.'));return;}
       chunks.push(chunk);
-    });
-    request.once('error',reject);
-    request.once('end',()=>{
-      if(failed)return;
+    };
+    const onEnd=()=>{
       try{resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));}
       catch{reject(new HttpError(400,'invalid_json','The search body must be valid JSON.'));}
-    });
+    };
+    cleanup=()=>{request.removeListener('data',onData);request.removeListener('error',reject);request.removeListener('end',onEnd);};
+    request.on('data',onData);request.once('error',reject);request.once('end',onEnd);
   });
+  try{return await waitForRequest(body,signal);}
+  finally{cleanup();}
 }
 
 async function handleApi(request,response,url,apiPrefix){
@@ -138,7 +141,9 @@ async function handleApi(request,response,url,apiPrefix){
       if ([...url.searchParams.keys()].some(key => !allowed.has(key) || url.searchParams.getAll(key).length !== 1)) throw new HttpError(400,'invalid_query','Unsupported or repeated search query parameter.');
       if(request.method==='POST') {
         requireQuery(url.searchParams,['lang']);
-        result=await corpusSearch(corpusSearchOptions({uiLanguage:language,...await corpusSearchBody(request)}));
+        const body=await corpusSearchBody(request);
+        requestSignal()?.throwIfAborted();
+        result=await corpusSearch(corpusSearchOptions({uiLanguage:language,...body}));
       } else {
       const value = name => url.searchParams.get(name);
       const integer = (name,fallback,max,min=0) => {
