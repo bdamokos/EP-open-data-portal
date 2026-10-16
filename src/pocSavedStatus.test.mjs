@@ -84,16 +84,20 @@ test('Following with no items keeps native disabled behavior and makes no check 
 });
 
 test('a deliberate check after follows change awaits the matching queued refresh, even when the obsolete request fails',async t=>{
-  const h=await harness(t);await h.render();const messages=record(h,t);
-  for(const [index,id,oldStatus] of [[0,'12345',200],[2,'67890',503]]){
+  const h=await harness(t);await h.render();const messages=record(h,t);let previousId='257043';
+  for(const [index,id,oldStatus,currentStatus] of [[0,'12345',200,200],[2,'67890',503,200],[4,'54321',200,503]]){
     await h.check();await h.replace([member({id})]);await h.check();const button=h.button();
     assert.equal(h.requests.length,index+1,'the old shared request is still pending');
+    assert.equal(h.requests[index].url.searchParams.get('members'),previousId);
     await h.respond(index,oldStatus===200?response():{error:{message:'Obsolete failed check'}},oldStatus);
     assert.equal(h.requests.length,index+2);assert.equal(button.getAttribute('aria-disabled'),'true');assert.equal(h.status().textContent,'');assert.doesNotMatch(h.container.textContent,/Obsolete failed check/);
-    await h.respond(index+1,response([state({id,revision:'new',total:2})]));await settle();
-    assert.equal(h.status().textContent,'Check finished. 1 followed item has unread updates.');assert.equal(button.getAttribute('aria-disabled'),null);assert.equal(document.activeElement,button);assert.equal(h.saved()[0].id,id);
+    assert.equal(h.requests[index+1].url.searchParams.get('members'),id);assert.equal(h.requests[index+1].url.searchParams.get('lang'),'en');
+    assert.equal(h.saved()[0].id,id);assert.equal(h.saved()[0].updated,false);assert.equal(h.saved()[0].current.revision,'old');assert.equal(h.container.querySelector('.poc-update-label'),null,'an old request cannot report the new follow as checked or unread');
+    await h.respond(index+1,currentStatus===200?response([state({id,revision:'new',total:2})]):{error:{message:'Current follow check failed'}},currentStatus);await settle();
+    assert.equal(h.status().textContent,currentStatus===200?'Check finished. 1 followed item has unread updates.':'Could not check for updates. Saved items are still shown.');assert.equal(button.getAttribute('aria-disabled'),null);assert.equal(document.activeElement,button);assert.equal(h.saved()[0].id,id);
+    assert.equal(h.saved()[0].baseline.revision,'old');assert.equal(h.saved()[0].updated,currentStatus===200);assert.equal(h.saved()[0].current.revision,currentStatus===200?'new':'old');previousId=id;
   }
-  assert.equal(messages.length,2);
+  assert.equal(messages.length,3);
 });
 
 test('background checks and superseded language, membership, acknowledgement and unmounted completions stay silent',async t=>{
