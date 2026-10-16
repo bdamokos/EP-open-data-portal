@@ -27,7 +27,8 @@ export function interventionMetadata(activity) {
   const chairPerson=kind==='MEETING_NAME_CHAIR'?array(communication?.heading).flatMap(heading=>array(heading?.person)).find(p=>people.includes(String(p?.['@_refersTo']||'').match(/^(?:epdata:)?person\/(\d+)$/)?.[1])):null;
   const chair=chairPerson?{id:String(chairPerson['@_refersTo']).split('/').at(-1),name:text(chairPerson).trim(),role:text(communication?.subheading).trim()||null}:null;
   const process=array(from?.process).map(text).join(' ').trim();
-  const normalized=normalize(process),narrative=text(communication?.narrative).trim(),marker=normalize(narrative);
+  // Chair identities are exposed only through the ID-checked structured field.
+  const normalized=normalize(process),narrative=kind==='MEETING_NAME_CHAIR'?'':text(communication?.narrative).trim(),marker=normalize(narrative);
   const catchMarker=/^(?:end of )?(?:catch the eye(?: procedure)?|on demand interventions)$/.test(marker)?(marker.startsWith('end of ')?'end':'start'):null;
   const groupUris=[...new Set(array(activity.had_participation).flatMap(p=>array(p.participation_in_name_of)).map(v=>String(v?.id||v||'')).filter(v=>/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?org\/[A-Z0-9_]+$/.test(v)))];
   const onBehalfOf=groupUris.map(uri=>{const id=uri.split('/').at(-1);return {id,uri,label:groupLabels[id]||id,politicalGroup:id!=='NI'&&Object.hasOwn(groupLabels,id),source:'participation_in_name_of'};});
@@ -42,7 +43,7 @@ export function interventionMetadata(activity) {
     else type=process?'unclassified':'speech';
   }
   return {type,process:process||null,speaker: speaker?{id:String(speaker['@_refersTo']).split('/').at(-1),name:text(speaker).trim()}:null,onBehalfOf,
-    headerAvailable:Boolean(from&&speaker),catchMarker,narrative:narrative||(kind==='MEETING_NAME_CHAIR'?[text(communication?.heading).trim(),text(communication?.subheading).trim()].filter(Boolean).join(' · '):null)||null,
+    headerAvailable:Boolean(from&&speaker),catchMarker,narrative:narrative||null,
     procedureKind:type==='procedure'?(kind==='MEETING_NAME_CHAIR'?'chair-change':'note'):null,chair,
     numbering:docs.find(d=>Number.isSafeInteger(d.numbering))?.numbering??null,
     parentIds:[...new Set(array(activity.inverse_consists_of).map(speechId).filter(Boolean))],
