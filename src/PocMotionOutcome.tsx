@@ -27,7 +27,8 @@ function VoteDetails({outcome,language}:{outcome:MotionOutcome;language:string})
     {outcome.status==='unavailable' && <p className="poc-motion-explanation">No verified final outcome is available for this text.</p>}
   </>;
 }
-function readableDocumentUrl(value:string) {
+function readableDocumentUrl(value:string|null) {
+  if(!value)return null;
   try {
     const url=new URL(value);
     return url.protocol==='https:' && url.hostname==='data.europarl.europa.eu' && /^\/distribution\/.+\.(pdf|docx)$/i.test(url.pathname) ? url.href : null;
@@ -50,7 +51,7 @@ export function PocMotionOutcome({outcome,related=[],reference,sourceId,language
         <MotionStatus outcome={motion.outcome}/>
         <VoteDetails outcome={motion.outcome} language={language}/>
         {motion.memberAuthorship && <p className="poc-motion-explanation">{motion.memberAuthorship==='recorded' ? 'This MEP is also listed as an author of this joint motion.' : 'No authorship is recorded for this MEP on this joint motion.'}</p>}
-        {url && <a className="poc-motion-document-link" href={url} target="_blank" rel="noreferrer" title={motion.title}>Read joint motion ↗</a>}
+        {url && <a className="poc-motion-document-link" href={url} target="_blank" rel="noreferrer" title={motion.title}>Read joint motion{motion.documentFormat ? ` (${motion.documentFormat}${motion.documentLanguage ? ' · '+motion.documentLanguage.toUpperCase() : ''})` : ''} ↗</a>}
       </section>;
     })}
   </section>;

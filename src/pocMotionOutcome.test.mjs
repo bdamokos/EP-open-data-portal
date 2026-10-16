@@ -78,11 +78,17 @@ test('motion cards keep each exact text and its outcome separate, with readable 
     assert.deepEqual([...sections[1].querySelectorAll('dd')].map(node=>node.textContent),['1','2','—']);
   });
   await t.test('machine records and missing document URLs produce no clickable fallback',()=>{
-    for(const url of ['', 'https://data.europarl.europa.eu/eli/dl/doc/RC-10-2026-0441','https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-08/decisions?format=application%2Fld%2Bjson']) {
+    for(const url of [null, '', 'https://data.europarl.europa.eu/eli/dl/doc/RC-10-2026-0441','https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-08/decisions?format=application%2Fld%2Bjson']) {
       const node=render(PocMotionOutcome,{...props,related:[{...joint,url}]});
       assert.equal(node.querySelector('a'),null);
       assert.match(node.textContent,/RC-B10-0441\/2026/);
       assert.match(node.textContent,/Adopted/);
     }
+  });
+  await t.test('a readable DOCX remains linked with its actual download language',()=>{
+    const url=joint.url.replace('_en.pdf','_fr.docx');
+    const node=render(PocMotionOutcome,{...props,related:[{...joint,url,documentFormat:'DOCX',documentLanguage:'fr'}]});
+    assert.equal(node.querySelector('a').href,url);
+    assert.match(node.querySelector('a').textContent,/Read joint motion \(DOCX · FR\)/);
   });
 });
