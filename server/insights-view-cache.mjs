@@ -1,7 +1,8 @@
-import {createHash,randomUUID} from 'node:crypto';
-import {readFile,writeFile,rename,mkdir,readdir,stat,unlink} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {readFile,readdir,stat,unlink} from 'node:fs/promises';
 import path from 'node:path';
-import {sharedRequest,waitForRequest,requestSignal} from './request-budget.mjs';
+import {sharedRequest,waitForRequest,requestSignal,isLocalRequestFailure} from './request-budget.mjs';
+import {writeCacheFile} from './cache-publication.mjs';
 
 // Reproducible assembled responses live separately from raw ODP records and index state.
 export class InsightViewCache {
@@ -10,7 +11,7 @@ export class InsightViewCache {
   async stored(key) {
     if(this.cache.has(key))return this.cache.get(key);
     if(!this.directory)return null;
-    try {const name=path.join(this.directory,key+'.json'),info=await stat(name);if(info.size>4*1024*1024)return null;const record=JSON.parse(await readFile(name,'utf8'));if(record.key!==key||!Number.isFinite(record.at)||!record.value)return null;this.remember(key,record);return record;}catch{return null;}
+    try {const name=path.join(this.directory,key+'.json'),info=await stat(name);if(info.size>4*1024*1024)return null;const record=JSON.parse(await readFile(name,'utf8'));requestSignal()?.throwIfAborted();if(record.key!==key||!Number.isFinite(record.at)||!record.value)return null;this.remember(key,record);return record;}catch{return null;}
   }
   remember(key,record) {
     const bytes=Buffer.byteLength(JSON.stringify(record));if(bytes>4*1024*1024)return;
@@ -19,10 +20,12 @@ export class InsightViewCache {
     while(this.cache.size>this.maxEntries||this.bytes>this.maxBytes){const oldest=this.cache.keys().next().value;this.bytes-=this.cache.get(oldest).bytes;this.cache.delete(oldest);}
   }
   async save(key,value) {
+    requestSignal()?.throwIfAborted();
     const record={key,at:this.clock(),value};this.remember(key,record);
     if(!this.directory||Buffer.byteLength(JSON.stringify(record))>4*1024*1024)return record;
-    const name=path.join(this.directory,key+'.json'),temp=name+'.'+randomUUID()+'.tmp';
-    try {await mkdir(this.directory,{recursive:true});await writeFile(temp,JSON.stringify(record));await rename(temp,name);await this.prune();}catch{/* Disk cache is reproducible; a write failure must not hide available data. */}finally{await unlink(temp).catch(()=>{});}
+    const name=path.join(this.directory,key+'.json');
+    try {await writeCacheFile(name,JSON.stringify(record));await this.prune();}catch{/* Disk cache is reproducible; a write failure must not hide available data. */}
+    requestSignal()?.throwIfAborted();
     return record;
   }
   async prune() {
@@ -32,7 +35,7 @@ export class InsightViewCache {
   }
   refresh(key,load) {
     if(this.pending.has(key))return this.pending.get(key);
-    const promise=sharedRequest(async()=>{await new Promise(resolve=>setImmediate(resolve));const value=await load();requestSignal()?.throwIfAborted();return this.save(key,value);}).then(record=>{this.failures.delete(key);return record;}).catch(error=>{this.failures.set(key,{at:this.clock(),error:error.message});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
+    const promise=sharedRequest(async()=>{await new Promise(resolve=>setImmediate(resolve));const value=await load();requestSignal()?.throwIfAborted();return this.save(key,value);}).then(record=>{this.failures.delete(key);return record;}).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error:error.message});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
     this.pending.set(key,promise);return promise;
   }
   async get(value,load) {

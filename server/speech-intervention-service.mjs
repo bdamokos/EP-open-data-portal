@@ -1,7 +1,7 @@
 import {odp,speechSummary} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {interventionMetadata,buildInterventionSequence,speechId,speechPeople} from './speech-interventions.mjs';
-import {sharedRequest,waitForRequest} from './request-budget.mjs';
+import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 
 const source=record=>({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale)});
 const validId=id=>/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id||'');
@@ -17,6 +17,7 @@ export class SpeechInterventions {
       const rows=new Map(),sources=[],issues=new Set();let total=null,ended=false;
       for(let page=0;page<INTERVENTION_LIMITS.sittingPages;page++) {
         const record=await this.request('/speeches',{'sitting-date':day,'include-output':'xml_fragment',language:'en','sort-by':'numbering:asc',limit:INTERVENTION_LIMITS.sittingPage,offset:page*INTERVENTION_LIMITS.sittingPage},{staleWhileRevalidate:true});
+        requestSignal()?.throwIfAborted();
         sources.push(source(record));const declared=record.payload.meta?.total;
         if(!Number.isSafeInteger(declared)||declared<0)issues.add('total-unavailable');
         else {if(total!==null&&total!==declared)issues.add('total-changed');total=declared;}
@@ -55,6 +56,7 @@ export class SpeechInterventions {
     return {speechId:id,intervention:meta,debates,unavailable:parentIds.length===0,sources:[source(record)]};
   }
   async member(id,page=0) {
+    requestSignal()?.throwIfAborted();
     const key=String(id);let state=this.members.get(key),restarted=false;
     if(state&&this.clock()-state.at>=INTERVENTION_LIMITS.cacheMs){this.members.delete(key);state=null;}
     if(!state){
@@ -67,6 +69,7 @@ export class SpeechInterventions {
     if(!state.ended&&page>state.page) {
       const job=sharedRequest(async()=>{
         const record=await this.request('/speeches',{'person-id':id,'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','include-output':'xml_fragment',language:'en','sort-by':'sitting-date:desc,numbering:desc',limit:INTERVENTION_LIMITS.memberPage,offset:page*INTERVENTION_LIMITS.memberPage},{staleWhileRevalidate:true});
+        requestSignal()?.throwIfAborted();
         state.sources.push(source(record));const total=record.payload.meta?.total;
         if(!Number.isSafeInteger(total)||total<0)state.issues.add('total-unavailable');else {if(state.total!==null&&state.total!==total)state.issues.add('total-changed');state.total=total;}
         const hitIds=Array.isArray(record.payload.searchResults?.hits)?new Set(record.payload.searchResults.hits.map(h=>speechId(h.id))):null;

@@ -1,5 +1,6 @@
 import { HttpError } from "./http-utils.mjs";
-import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
+import {readFile,writeFile} from "node:fs/promises";
+import {writeCacheFile} from './cache-publication.mjs';
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
@@ -88,10 +89,12 @@ export async function odp(
     try {
       const oldName=Buffer.from(key).toString('base64url')+'.json';
       const raw=await readFile(filename(key),'utf8').catch(e=>oldName.length<=255?readFile(path.join(cacheDir,oldName),'utf8'):Promise.reject(e));
+      signal?.throwIfAborted();
       const record=JSON.parse(raw);
       if(record.url===key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data)) {stored=record;cache.set(key,record);}
     } catch { /* Missing or invalid reproducible cache. */ }
   }
+  signal?.throwIfAborted();
   if (
     !force &&
     stored &&
@@ -171,10 +174,9 @@ export async function odp(
       cache.set(key, record);
       if (cache.size > 1800) cache.delete(cache.keys().next().value);
       if (cacheDir) {
-        await mkdir(cacheDir, { recursive: true });
-        const temp=filename(key)+'.'+process.pid+'.tmp';
-        await writeFile(temp, JSON.stringify(record)).then(()=>rename(temp,filename(key))).catch(() => {});
+        await writeCacheFile(filename(key),JSON.stringify(record),{signal:budget.signal}).catch(()=>{});
       }
+      budget.signal?.throwIfAborted();
       return record;
     } catch(error) {
       if(!budget.signal?.aborted)refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});
