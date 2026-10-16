@@ -1,6 +1,7 @@
 import {filterCountry,matchesCountry} from './pocCountries.mjs';
 import {explorerParams} from './pocExplorerUrl';
 import {PocSpeechCloud} from './PocSpeechCloud';
+import {InterventionBadges,PocSpeechContext,PocInterventionStatistics} from './PocSpeechInterventions';
 import {publicationBody} from './publication-body.mjs';
 import {orderedMemberships} from './pocMemberships.mjs';
 import {PocSaved,SaveButton,SavedNav,useSavedChecks} from './PocSaved';
@@ -91,6 +92,8 @@ function Detail({ speech, lang }: { speech: Speech; lang: string }) {
   return (
     <div className="poc-speech-detail" aria-live="polite">
       <PocSpeechPlayer speech={speech} lang={lang} />
+      <InterventionBadges value={state.data?.intervention}/>
+      <PocSpeechContext key={speech.id} id={speech.id} language={lang}/>
       <h3>{c.transcript}</h3>
       {speech.websiteUrl && <p className="poc-source-link"><a href={speech.websiteUrl} target="_blank" rel="noreferrer">Speech on Parliament’s website ↗</a>{" "}<small>Original {speech.websiteLanguage?.toUpperCase()}</small></p>}
       {state.loading && !state.data && <p role="status">Loading transcript…</p>}
@@ -299,13 +302,16 @@ function speechSummary(item: JoinedActivity): Speech {
 function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;initialSpeech:string|null;onOpen:(id:string|null)=>void }) {
   const c=pocCopy(lang);
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
+  const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
   const focusedSpeech=useRef<string|null>(null);
   const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}&category=plenary-contributions`);
   const pinned=useData<JoinedActivityPage>(initialSpeech && state.data && !state.data.items.some(item=>item.sourceId===initialSpeech) ? `latest-activities/${id}?lang=${lang}&limit=10&category=plenary-contributions&source-id=${encodeURIComponent(initialSpeech)}` : null);
   useEffect(()=>{setOffset(0);setSpeechLanguage(null);},[id,lang]);
+  useEffect(()=>{setEnrichedSpeeches([]);},[id]);
   const items=state.data ? [...(pinned.data?.selectedItems || []).filter(item=>!state.data!.items.some(row=>row.id===item.id)),...state.data.items].filter(item=>item.recordKind==='speech') : [];
   useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;target.scrollIntoView({block:'start'});target.querySelector<HTMLButtonElement>('.poc-speech-toggle')?.focus({preventScroll:true});focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data]);
   return <section>
+    <PocInterventionStatistics key={id} member={id} onItems={setEnrichedSpeeches}/>
     <PocSpeechCloud key={id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setSpeechLanguage(language);onOpen(speech);}}/>
     <div className="poc-section-title"><h2>{c.speeches}</h2><span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span></div>
     {state.loading && !state.data && <p role="status">Loading saved speeches…</p>}
@@ -314,8 +320,9 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     {initialSpeech && pinned.loading && <p role="status">Checking the saved linked speech…</p>}
     {initialSpeech && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
     {initialSpeech && state.data && !pinned.loading && !items.some(item=>item.sourceId===initialSpeech) && <LinkedActivityFallback key={initialSpeech} sourceId={initialSpeech} member={id} lang={lang} complete={state.data.cache.complete} />}
-    {items.map(item=>{const speech=speechSummary(item);const open=initialSpeech===speech.id;return <article className="poc-speech" key={item.id} id={`speech-${speech.id}`}>
+    {items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId),speech={...base,...enriched,titles:{...base.titles,...enriched?.titles}};const open=initialSpeech===speech.id;return <article className="poc-speech" key={item.id} id={`speech-${speech.id}`}>
       <button className="poc-speech-toggle" onClick={()=>{setSpeechLanguage(null);onOpen(open ? null : speech.id);}} aria-expanded={open}><span>{date(speech.date,lang)} · {speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT' ? 'Written statement' : 'Plenary speech'}{speech.start ? ` · ${time(speech.start,lang)} Brussels` : ''}</span><strong>{title(speech,lang)}</strong><small>{speech.reference}<b>{open ? '−' : '+'}</b></small></button>
+      {!open&&<div className="poc-speech-list-badges"><InterventionBadges value={speech.intervention}/></div>}
       {open && <Detail speech={speech} lang={speechLanguage||lang} />}
     </article>})}
     {state.data && <div className="poc-category-top">{offset>0 && <button onClick={()=>{setOffset(Math.max(0,offset-10));onOpen(null);}}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>{setOffset(state.data!.nextOffset!);onOpen(null);}}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}

@@ -10,6 +10,8 @@ import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} f
 import {createInsights} from './insights.mjs';
 import {CATEGORIES} from './activity-index-model.mjs';
 import {speechMedia} from './mmc.mjs';
+import {SpeechInterventions,INTERVENTION_LIMITS} from './speech-intervention-service.mjs';
+const interventions=new SpeechInterventions();
 let stopIndex=()=>{};let insightService;
 function positiveId(value) {
   const raw = String(value || "");
@@ -90,6 +92,17 @@ async function handleApi(request,response,url,apiPrefix){
       const sourceId=url.searchParams.get('source-id');
       if(sourceId!==null && !/^[A-Z0-9-]{1,100}$/.test(sourceId))throw new HttpError(400,'invalid_source_id','Invalid source identifier.');
       result=questionStatuses(activityIndex().store,latestActivities(positiveId(segments[2]),{language,category,sourceId,limit:integer('limit',10,50),offset:integer('offset',0,1000000)}));
+    }
+    else if (segments.length === 3 && segments[1] === 'speech-context') {
+      requireQuery(url.searchParams,['lang']);
+      if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]{1,80}$/.test(segments[2]))throw new HttpError(400,'invalid_speech','Invalid speech identifier.');
+      result=await interventions.context(segments[2]);
+    }
+    else if (segments.length === 3 && segments[1] === 'speech-statistics') {
+      requireQuery(url.searchParams,['lang','page']);
+      const page=url.searchParams.get('page')||'0';
+      if(!/^(0|[1-9]\d?)$/.test(page)||Number(page)>=INTERVENTION_LIMITS.memberPages)throw new HttpError(400,'invalid_page','Invalid statistics page.');
+      result=await interventions.member(positiveId(segments[2]),Number(page));
     }
     else if (segments.length === 3 && segments[1] === 'speech-media') {
       if (!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]{1,80}$/.test(segments[2])) throw new HttpError(400,'invalid_speech','Invalid speech identifier.');

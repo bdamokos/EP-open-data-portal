@@ -8,6 +8,7 @@ import { speechWebsite, languageCode } from "./ep-links.mjs";
 import { UpstreamQueue } from './upstream-queue.mjs';
 import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
+import {interventionMetadata} from './speech-interventions.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
@@ -431,6 +432,7 @@ export function speechSummary(activity) {
     reference: doc.number || "",
     originalLanguages: doc.originalLanguage || doc.originalLanguageURI || [],
     participants: activity.had_participation?.had_participant_person || [],
+    intervention: interventionMetadata(activity),
   };
 }
 export function orderedSpeeches(payload) {
