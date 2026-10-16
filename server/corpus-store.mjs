@@ -59,6 +59,7 @@ export class CorpusStore {
         body TEXT NOT NULL, raw BLOB, UNIQUE(document_id,source_key));
       CREATE INDEX IF NOT EXISTS text_language ON texts(language,document_id);
       CREATE INDEX IF NOT EXISTS text_source_url ON texts(source_url);
+      CREATE INDEX IF NOT EXISTS text_status_metadata ON texts(document_id,language,chars);
       CREATE VIRTUAL TABLE IF NOT EXISTS texts_fts USING fts5(body, content='texts', content_rowid='id', tokenize='unicode61 remove_diacritics 2');
       CREATE TRIGGER IF NOT EXISTS texts_ai AFTER INSERT ON texts BEGIN INSERT INTO texts_fts(rowid,body) VALUES (NEW.id,NEW.body); END;
       CREATE TRIGGER IF NOT EXISTS texts_ad AFTER DELETE ON texts BEGIN INSERT INTO texts_fts(texts_fts,rowid,body) VALUES ('delete',OLD.id,OLD.body); END;
@@ -67,6 +68,8 @@ export class CorpusStore {
       CREATE TABLE IF NOT EXISTS tasks (key TEXT PRIMARY KEY, kind TEXT NOT NULL, body TEXT NOT NULL, priority INTEGER NOT NULL,
         done INTEGER NOT NULL DEFAULT 0, done_at INTEGER, attempts INTEGER NOT NULL DEFAULT 0, retry_at INTEGER NOT NULL DEFAULT 0, error TEXT);
       CREATE INDEX IF NOT EXISTS task_next ON tasks(done,priority DESC,retry_at);
+      CREATE INDEX IF NOT EXISTS task_status_counts ON tasks(kind,done,error);
+      CREATE INDEX IF NOT EXISTS task_status_error ON tasks(done,retry_at DESC,key,error,attempts) WHERE done=0 AND error IS NOT NULL;
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
     if(this.get('schema')!==1)throw new Error('Unsupported corpus schema.');
     this.indexFile=indexFile;this.indexAttached=false;this.attachIndex();
@@ -201,9 +204,11 @@ export class CorpusStore {
   async diskBytes() {
     return (await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
   }
-  status({diskBytes=null,diskLimit=null}={}) {
+  status(params={}){return this.snapshot(()=>this.statusSnapshot(params));}
+  statusSnapshot({diskBytes=null,diskLimit=null}={}) {
     const documents=Object.fromEntries(this.db.prepare('SELECT kind,COUNT(*) AS n FROM documents GROUP BY kind').all().map(row=>[row.kind,row.n]));
-    const withText=Object.fromEntries(this.db.prepare('SELECT d.kind,COUNT(DISTINCT d.id) AS n FROM documents d JOIN texts t ON t.document_id=d.id GROUP BY d.kind').all().map(row=>[row.kind,row.n]));
+    // Probe once per document; language variants must not multiply this count.
+    const withText=Object.fromEntries(this.db.prepare('SELECT d.kind,COUNT(*) AS n FROM documents d WHERE EXISTS (SELECT 1 FROM texts t WHERE t.document_id=d.id) GROUP BY d.kind').all().map(row=>[row.kind,row.n]));
     const texts=this.db.prepare('SELECT d.kind,t.language,COUNT(*) AS n,SUM(t.chars) AS chars FROM texts t JOIN documents d ON d.id=t.document_id GROUP BY d.kind,t.language ORDER BY d.kind,t.language').all();
     const tasks=this.db.prepare('SELECT kind,COUNT(*) AS total,SUM(done=1) AS done,SUM(done=0 AND error IS NOT NULL) AS retrying FROM tasks GROUP BY kind').all();
     const lastError=this.db.prepare('SELECT key,error,attempts,retry_at FROM tasks WHERE done=0 AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get();

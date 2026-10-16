@@ -39,8 +39,8 @@ test('comparison is lazy and stage/language changes never display stale wording,
   await change(1,'fr');assert.equal(calls.at(-1).searchParams.get('lang'),'fr');assert.equal(container.querySelector('.poc-diff-rows').lang,'fr');
   await change(0,'joint-adopted');assert.equal(pending.length,1);assert.equal(container.querySelector('del'),null);assert.match(container.textContent,/Loading the linked texts/);
   await act(async()=>pending.shift().resolve(Response.json({error:{message:'Temporary source failure'}},{status:503})));
-  assert.match(container.querySelector('[role="alert"]').textContent,/Temporary source failure/);
-  await act(async()=>container.querySelector('[role="alert"] button').click());assert.equal(pending.length,1);
+  assert.match(container.querySelector('.poc-diff-error').textContent,/Temporary source failure/);
+  await act(async()=>container.querySelector('.poc-diff-error button').click());assert.equal(pending.length,1);
   await act(async()=>pending.shift().resolve(Response.json({...comparison('joint-adopted','fr'),status:'unavailable',reason:'No published adopted text explicitly links to this joint motion.',summary:null,rows:[]})));
   assert.match(container.textContent,/No published adopted text explicitly links/);assert.equal(container.querySelector('.poc-diff-row'),null);
   await change(0,'original-joint');assert.equal(container.querySelectorAll('.poc-diff-row').length,1,'returning to the saved stage resets the unchanged filter');
