@@ -2,6 +2,10 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {LegalReferences} from './legal-references.mjs';
 import {runWithRequestSignal} from './request-budget.mjs';
+import fs from 'node:fs/promises';
+import {syncBuiltinESMExports} from 'node:module';
+import os from 'node:os';
+import path from 'node:path';
 
 test('one reference budget stops later source batches and retains last-good metadata',async()=>{
   let calls=0,questions=0;
@@ -25,4 +29,33 @@ test('reference question fan-out stops on reader abort with at most two term can
   }});
   const result=await runWithRequestSignal(reader.signal,()=>service.query({keys:['question:E-2024-001234','question:E-2025-001235','question:E-2025-001236'],language:'en'}));
   assert.equal(questions,2);assert(result.references.every(reference=>reference.status==='unavailable'));
+});
+
+test('a timed-out disk lookup cannot hide a later fresh memory reference in either key order',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'reference-cache-order-'));
+  let sourceCalls=0;
+  const service=new LegalReferences({get:async()=>{sourceCalls++;throw new Error('no source work after the budget');}},{directory,requestBudgetMs:25});
+  const slow='celex:32016R0679',cached='celex:32021R2116',fetchedAt='2026-10-15T00:00:00Z';
+  const good={key:cached,kind:'act',status:'found',celex:'32021R2116',title:'Saved official title',source:{fetchedAt}};
+  await service.cache.save(service.cacheKey(cached,'en'),good);
+  const savedAt=service.cache.cache.get(service.cacheKey(cached,'en')).at;
+  const slowKey=service.cacheKey(slow,'en'),file=path.join(directory,slowKey+'.json');
+  await fs.writeFile(file,JSON.stringify({key:slowKey,at:savedAt,value:{...good,key:slow,celex:'32016R0679'}}));
+  const realRead=fs.readFile,releases=[];let reachedRead;
+  const mock=t.mock.method(fs,'readFile',async(name,...args)=>{
+    const data=await realRead(name,...args);
+    if(String(name)===file)await new Promise(resolve=>{releases.push(resolve);reachedRead();});
+    return data;
+  });syncBuiltinESMExports();
+  t.after(async()=>{for(const release of releases)release();await new Promise(resolve=>setImmediate(resolve));mock.mock.restore();syncBuiltinESMExports();await fs.rm(directory,{recursive:true,force:true});});
+  for(const keys of [[slow,cached],[cached,slow]]){
+    const started=new Promise(resolve=>reachedRead=resolve),pending=service.query({keys,language:'en'});
+    await started;t.mock.timers.tick(25);const result=await pending;
+    assert.deepEqual(result.references.find(reference=>reference.key===cached),good,'available memory remains found with original provenance');
+    assert.equal(result.references.find(reference=>reference.key===slow).status,'unavailable');
+    for(const release of releases.splice(0))release();await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(service.cache.cache.get(service.cacheKey(cached,'en')).at,savedAt,'a deadline does not renew freshness');
+  }
+  assert.equal(sourceCalls,0);
 });
