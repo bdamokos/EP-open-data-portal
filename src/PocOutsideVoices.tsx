@@ -10,7 +10,7 @@ import type {OutsideAgenda,OutsideContribution,OutsideCoverage,OutsideDetail,Out
 import {clusterOutsideDays,filterOutsidePeople} from './pocOutsideTimeline.mjs';
 import './PocOutsideVoices.css';
 
-const groups:Record<string,string>={commission:'Commission',council:'Council presidency',eu:'Other EU institutions',leaders:'Heads of state & government',parliaments:'Other parliaments',other:'Other speakers'};
+const groups:Record<string,string>={commission:'Commission',council:'Council presidency',eu:'Other EU institutions',leaders:'Heads of state & government',parliaments:'Other parliaments',international:'International organisations',other:'Other speakers'};
 const date=(s:string,language:string)=>new Intl.DateTimeFormat(language==='en'?'en-GB':language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(s+'T12:00:00Z'));
 const month=(s:string,language:string)=>new Intl.DateTimeFormat(language,{month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(s.slice(0,7)+'-01T12:00:00Z'));
 const time=(s:string|null,language:string)=>s&&Number.isFinite(Date.parse(s))?new Intl.DateTimeFormat(language,{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Europe/Brussels'}).format(new Date(s)):null;
@@ -26,7 +26,7 @@ const availableFocusTarget=(element:HTMLElement|null|undefined):element is HTMLE
 const drawerFocusables=(element:HTMLElement)=>[...element.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],summary,select:not([disabled]),input:not([disabled]),textarea:not([disabled]),iframe,[tabindex]')].filter(target=>!target.matches(':disabled')&&!(target.hasAttribute('tabindex')&&target.tabIndex<0)&&availableFocusTarget(target));
 
 function Sources({coverage}:{coverage?:OutsideCoverage}) {
-  return <details className="ov-sources"><summary>Sources & coverage{coverage&&!coverage.complete?' · partial':''}</summary><p>Plenary speeches, terms 9–10. Counts cover indexed contributions.</p>{coverage?.updatedAt&&<p>Updated {new Date(coverage.updatedAt).toLocaleDateString()}{coverage.truncated?' · result limit reached':''}</p>}<a href="https://data.europarl.europa.eu/en/developer-corner/opendata-api" target="_blank" rel="noreferrer">European Parliament Open Data ↗</a></details>;
+  return <details className="ov-sources"><summary>Sources & coverage{coverage&&!coverage.complete?' · partial':''}</summary><p>Plenary speeches, 2024–present. Counts cover indexed contributions.</p>{coverage?.updatedAt&&<p>Updated {new Date(coverage.updatedAt).toLocaleDateString()}{coverage.truncated?' · result limit reached':''}</p>}<a href="https://data.europarl.europa.eu/en/developer-corner/opendata-api" target="_blank" rel="noreferrer">European Parliament Open Data ↗</a></details>;
 }
 function Evidence({contribution:c,language}:{contribution:OutsideContribution;language:string}) {
   const source=c.headerSource||c.source;
@@ -78,7 +78,7 @@ function Speaker({data,language,tab,setTab,monthFilter,setMonth,onPerson,onDays}
 }
 
 export function PocOutsideVoices({language='en',...props}:InsightProps) {
-  const [term,setTerm]=useExplorerParam<string>('ov-term','10',['9','10','all']);
+  const term='10';
   const [person,setPerson]=useExplorerParam<string|null>('ov-person',null);
   const [tab,setTab]=useExplorerParam<string>('ov-tab','timeline',['timeline','appearances','dossiers']);
   const [monthFilter,setMonth]=useExplorerParam<string|null>('ov-month',null);
@@ -100,8 +100,8 @@ export function PocOutsideVoices({language='en',...props}:InsightProps) {
   const closePanel=()=>{panelReturn.current=true;setPanel(null);};
   const backToDirectory=()=>{destination.current={person:null,from:document.activeElement instanceof HTMLElement?document.activeElement:null,returnTo:directoryOpener.current};setPerson(null);};
   const directory=useData<OutsideDirectory>(`outside/directory?lang=${language}&term=${term}`);
-  const detail=useData<OutsideDetail>(person&&/^[1-9]\d{0,12}$/.test(person)?`outside/${person}?lang=${language}&term=all`:null);
-  const panelData=useData<OutsideDetail>(panel?`outside/${panel.id}?lang=${language}&term=all`:null);
+  const detail=useData<OutsideDetail>(person&&/^[1-9]\d{0,12}$/.test(person)?`outside/${person}?lang=${language}&term=10`:null);
+  const panelData=useData<OutsideDetail>(panel?`outside/${panel.id}?lang=${language}&term=10`:null);
   useEffect(()=>{document.querySelector('.poc-insights')?.scrollTo({top:0});},[person]);
   // The existing person scroll reset must finish before explicit return focus.
   useEffect(()=>{
@@ -118,14 +118,16 @@ export function PocOutsideVoices({language='en',...props}:InsightProps) {
   useEffect(()=>{const restore=()=>{if(panelOpen.current){panelReturn.current=true;setPanel(null);}};window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);},[]);
   const openPerson=(id:string)=>{const from=document.activeElement instanceof HTMLElement?document.activeElement:null;if(!person)directoryOpener.current=panel?opener.current:captureOpener();destination.current={person:id,from};panelReturn.current=false;setPanel(null);setPerson(id);setTab('timeline');setMonth(null);window.scrollTo(0,0);};
   const openDays=(id:string,dates:string[])=>{opener.current=captureOpener();setPanel({id,dates});};
-  const people=useMemo(()=>filterOutsidePeople(directory.data?.people||[],{kind,group,repeat:repeat==='1',search}),[directory.data,kind,group,repeat,search]);
+  const availableGroups=useMemo(()=>new Set((directory.data?.people||[]).map(p=>p.capacity)),[directory.data]);
+  const activeGroup=availableGroups.has(group)?group:'all';
+  const people=useMemo(()=>filterOutsidePeople(directory.data?.people||[],{kind,group:activeGroup,repeat:repeat==='1',search}),[directory.data,kind,activeGroup,repeat,search]);
   const bounds=people.flatMap(p=>p.days.map(d=>d.date)).sort();
-  const start=term==='10'?'2024-07-16':bounds[0]||'2019-07-02',end=bounds.at(-1)||new Date().toISOString().slice(0,10);
+  const start='2024-07-16',end=bounds.at(-1)||new Date().toISOString().slice(0,10);
   return <InsightShell {...props} language={language} view="outside" title="Outside voices" compactNotice><div className="ov" ref={root}>
     {person?<><button className="ov-back" onClick={backToDirectory}>← All speakers</button><InsightStatus loading={detail.loading} error={detail.error} retry={detail.retry}/>{detail.data&&<Speaker data={detail.data} language={language} tab={tab} setTab={setTab} monthFilter={monthFilter} setMonth={setMonth} onPerson={openPerson} onDays={openDays}/>}</>:<>
       <PocStatus scope={JSON.stringify([language,term,kind,group,repeat,search])} pending={directory.loading||Boolean(panel)} oncePerScope message={!directory.data||directory.error?null:(people.length?`${people.length} indexed ${people.length===1?'speaker matches':'speakers match'}.`:directory.data.coverage.initialized?'No indexed speakers match.':'Speakers are not indexed yet.')+(!directory.data.coverage.complete?' Partial coverage.':'')}/>
-      <div className="ov-filters"><label>Speaker<input type="search" placeholder="Name or person ID" value={search} onChange={event=>setSearch(event.target.value)}/></label><label>Term<select value={term} onChange={event=>setTerm(event.target.value)}><option value="10">2024–present</option><option value="9">2019–2024</option><option value="all">All indexed terms</option></select></label><label>Event<select value={kind} onChange={event=>setKind(event.target.value)}><option value="all">All events</option><option value="debate">Debates</option><option value="special">Special events</option></select></label><label className="ov-check"><input type="checkbox" checked={repeat==='1'} onChange={event=>setRepeat(event.target.checked?'1':'0')}/>Repeat appearances</label></div>
-      <div className="ov-groups" aria-label="Speaking capacity">{[['all','All speakers'],...Object.entries(groups)].map(([id,label])=><button key={id} aria-pressed={group===id} onClick={()=>setGroup(id)}>{label}</button>)}</div><InsightStatus loading={directory.loading&&!directory.data} error={directory.error} retry={directory.retry}/>
+      <div className="ov-filters"><label>Speaker<input type="search" placeholder="Name or person ID" value={search} onChange={event=>setSearch(event.target.value)}/></label><label>Event<select value={kind} onChange={event=>setKind(event.target.value)}><option value="all">All events</option><option value="debate">Debates</option><option value="special">Special events</option></select></label><label className="ov-check"><input type="checkbox" checked={repeat==='1'} onChange={event=>setRepeat(event.target.checked?'1':'0')}/>Repeat appearances</label></div>
+      <div className="ov-groups" aria-label="Speaking capacity">{[['all','All speakers'],...Object.entries(groups).filter(([id])=>availableGroups.has(id))].map(([id,label])=><button key={id} aria-pressed={activeGroup===id} onClick={()=>setGroup(id)}>{label}</button>)}</div><InsightStatus loading={directory.loading&&!directory.data} error={directory.error} retry={directory.retry}/>
       {directory.data&&<><div className="ov-results"><strong>{people.length}</strong> speakers{!directory.data.coverage.complete&&<small>Partial coverage</small>}</div><div className="ov-legend"><span>■ Contributions</span><span>◇ Special event</span><span className="ov-legislative"><b className="ov-law-symbol" aria-hidden="true">L</b> Legislative file</span></div>{people.length?<Presence people={people} language={language} start={start} end={end} onPerson={openPerson} onDays={openDays}/>:<p className="ov-empty">{directory.data.coverage.initialized?'No indexed speakers match.':'Speakers are not indexed yet.'}</p>}<Sources coverage={directory.data.coverage}/></>}
     </>}
     {panel&&<><div className="ov-scrim" onClick={closePanel}/><div className="ov-drawer" ref={drawer} role="dialog" aria-modal="true" aria-labelledby="ov-panel-title"><header><div><small>{panel.dates.length===1?'Sitting day':`${panel.dates.length} sitting days`}</small><h2 id="ov-panel-title">{panelData.data?.person.name||'Speeches'}</h2></div><button ref={close} aria-label="Close speeches" onClick={closePanel}>Close</button></header><InsightStatus loading={panelData.loading} error={panelData.error} retry={panelData.retry}/>{panelData.data&&<><DayItems data={panelData.data} dates={panel.dates} language={language} onPerson={openPerson}/><button className="ov-open-person" onClick={()=>openPerson(panel.id)}>Open speaker page →</button></>}</div></>}
