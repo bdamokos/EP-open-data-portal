@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { setImmediate as yieldToEventLoop } from 'node:timers/promises';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { ODP_BASE, boundedUpstream } from './odp.mjs';
 import { apiFetch, speechWindows } from './activity-index-worker.mjs';
@@ -20,11 +21,12 @@ const SPEECH_TYPES='PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT';
 // Verbatim translations are added for weeks after a sitting; recheck recent months.
 const RECHECK_WINDOW=120*DAY, RECHECK_EVERY=7*DAY, DISCOVER_EVERY=6*60*60_000;
 const PRIORITY={speeches:60,speech:61,primaryDocument:50,otherDocument:10};
+const FRAGMENT_LIMIT=2*1024*1024;
 
 // Paragraph text of a transcript fragment, one paragraph per line. The XML
 // itself is retained (compressed) so headers can be re-derived later.
 export function fragmentText(xml) {
-  if(typeof xml!=='string' || Buffer.byteLength(xml)>2*1024*1024 || /<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml)!==true)return '';
+  if(typeof xml!=='string' || Buffer.byteLength(xml)>FRAGMENT_LIMIT || /<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml)!==true)return '';
   // Order-preserving parse: spoken transcripts wrap each word in a timed element
   // and keep the separating spaces as text between elements.
   const tree=new XMLParser({preserveOrder:true,ignoreAttributes:true,removeNSPrefix:true,parseTagValue:false,trimValues:false}).parse(xml),paragraphs=[];
@@ -34,20 +36,31 @@ export function fragmentText(xml) {
 }
 // Every language fragment of one speech. The supplied fragment key is kept
 // exactly; `mul` resolves to the single language its XML declares, if any.
-export function speechTexts(activity,sourceUrl,fetchedAt) {
+function* speechTextSteps(activity,sourceUrl,fetchedAt) {
   const docs=array(activity.recorded_in_a_realization_of).filter(doc=>doc && typeof doc==='object');
   const fragments=Object.entries(Object.assign({},...docs.map(doc=>doc['api:xmlFragment']||{}))).filter(([,xml])=>typeof xml==='string' && xml);
   const declared=docs.flatMap(doc=>array(doc.originalLanguage||doc.originalLanguageURI)).map(languageCode).filter(Boolean);
-  const infos=fragments.map(([key,xml])=>[key,xml,transcriptLanguage(xml)]);
+  const infos=[];
+  for(const [key,xml] of fragments) {
+    // Text extraction already rejects oversized fragments. Apply the same
+    // bound before the separate language parser allocates its XML tree.
+    if(Buffer.byteLength(xml)<=FRAGMENT_LIMIT)infos.push([key,xml,transcriptLanguage(xml)]);
+    yield;
+  }
   const originals=declared.length?declared:[...new Set(infos.flatMap(([, ,info])=>info.tags.filter(tag=>tag.includes('-t-')).map(tag=>tag.split('-t-')[0].slice(0,2))))];
-  const texts=infos.flatMap(([key,xml,info])=>{
+  const texts=[];
+  for(const [key,xml,info] of infos) {
     const tags=[...new Set(info.tags.filter(tag=>!tag.includes('-t-')).map(tag=>tag.slice(0,2)))];
     const language=key==='mul'&&tags.length===1?tags[0]:key;
     const body=fragmentText(xml);
-    if(!body)return [];
-    return [{sourceKey:key,language,translationType:info.machine?'machine':originals.includes(language)?'original':'unspecified',sourceFormat:'xml-fragment',sourceUrl,fetchedAt,body,raw:xml}];
-  });
+    if(body)texts.push({sourceKey:key,language,translationType:info.machine?'machine':originals.includes(language)?'original':'unspecified',sourceFormat:'xml-fragment',sourceUrl,fetchedAt,body,raw:xml});
+    yield;
+  }
   return {document:{sourceId:activity.activity_id,kind:'speech',date:activity.activity_date||null,term:10,originalLanguages:[...new Set(declared)]},texts};
+}
+export function speechTexts(activity,sourceUrl,fetchedAt) {
+  const steps=speechTextSteps(activity,sourceUrl,fetchedAt);
+  for(;;){const step=steps.next();if(step.done)return step.value;}
 }
 // Question and answer DOCX files listed by a saved index record.
 export function questionFiles(work,policy='all') {
@@ -77,8 +90,17 @@ export class CorpusWorker {
   }
   // `primary` keeps originals and English; `all` also keeps every translation.
   keep(texts){return this.languages==='all'?texts:texts.filter(text=>text.translationType==='original'||text.language==='en');}
+  async checkpoint() {
+    await yieldToEventLoop();
+    if(this.stopped)throw new Error('Corpus worker stopped.');
+    this.store.assertWriter();
+  }
+  async extractSpeech(activity,sourceUrl,fetchedAt) {
+    const steps=speechTextSteps(activity,sourceUrl,fetchedAt);
+    for(;;){const step=steps.next();if(step.done)return step.value;await this.checkpoint();}
+  }
   // Month windows for speeches; question and answer files from the saved index.
-  discover() {
+  async discover() {
     const now=this.clock(), today=day(now);
     // Widening the language policy must revisit months already read under `primary`.
     const widened=this.languages==='all' && this.store.get('speechLanguages')==='primary';
@@ -96,12 +118,16 @@ export class CorpusWorker {
     if(index.generation==null)return;
     const discovered=this.store.get('discoveredAt'), sameIndex=this.store.get('discoveredGeneration')===index.generation && this.store.get('discoveredPublished')===index.published;
     if(discovered && sameIndex && this.store.get('documentLanguages')===this.languages && now-Date.parse(discovered)<DISCOVER_EVERY)return;
-    const sources=this.store.db.prepare(`SELECT body FROM idx.sources WHERE generation=? AND kind='document' AND key LIKE '/parliamentary-questions/%'`);
+    // Explicit binary bounds let the existing (generation,key) index seek
+    // directly to question records instead of scanning unrelated source bodies.
+    const sources=this.store.db.prepare(`SELECT body FROM idx.sources WHERE generation=? AND kind='document' AND key>='/parliamentary-questions/' AND key<'/parliamentary-questions0' AND key LIKE '/parliamentary-questions/%'`);
     for(const row of sources.iterate(index.generation)) {
+      let files=0;
       for(const file of questionFiles(JSON.parse(row.body),this.languages)) {
-        if(this.store.hasText(file.url))continue;
-        this.store.enqueue('docx:'+file.url,'docx',file,file.primary?PRIORITY.primaryDocument:PRIORITY.otherDocument);
+        if(!this.store.hasText(file.url))this.store.enqueue('docx:'+file.url,'docx',file,file.primary?PRIORITY.primaryDocument:PRIORITY.otherDocument);
+        if(++files%8===0)await this.checkpoint();
       }
+      await this.checkpoint();
     }
     this.store.set('discoveredAt',new Date(now).toISOString());this.store.set('documentLanguages',this.languages);
     this.store.set('discoveredGeneration',index.generation);this.store.set('discoveredPublished',index.published);
@@ -134,8 +160,9 @@ export class CorpusWorker {
           if(!this.store.enqueue(key,'speech',{id},PRIORITY.speech))this.store.reopen(key,{id},PRIORITY.speech);
           continue;
         }
-        const {document,texts}=speechTexts(node,url.href,record.fetchedAt);
+        const {document,texts}=await this.extractSpeech(node,url.href,record.fetchedAt);
         this.store.putDocument(document,this.keep(texts));
+        await this.checkpoint();
       }
       this.store.taskProgress(task,{...body,offset:body.offset+matched.length,lastPage:signature});
     } else if(task.kind==='speech') {
@@ -145,7 +172,7 @@ export class CorpusWorker {
       const record=await this.fetchRecord('/speeches/'+body.id,params,{signal:this.controller.signal});
       const activity=record.payload.data.find(node=>node.activity_id===body.id);
       if(!activity)throw new Error(`Speech ${body.id} has no matching detail record.`);
-      const {document,texts}=speechTexts(activity,ODP_BASE+'/speeches/'+body.id+'?include-output=xml_fragment&format=application%2Fld%2Bjson',record.fetchedAt);
+      const {document,texts}=await this.extractSpeech(activity,ODP_BASE+'/speeches/'+body.id+'?include-output=xml_fragment&format=application%2Fld%2Bjson',record.fetchedAt);
       this.store.putDocument(document,this.keep(texts));this.store.finishTask(task);
     } else if(task.kind==='docx') {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');
@@ -161,8 +188,8 @@ export class CorpusWorker {
     this.running=true;const started=this.clock();let requests=0;
     const heartbeat=setInterval(()=>{if(!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
     try {
-      this.discover();
       this.store.set('phase',this.store.get('backfilledAt')?'refreshing':'backfilling');
+      await this.discover();
       while(!this.stopped && requests<this.budget && this.clock()-started<this.maxDuration) {
         if(await this.store.diskBytes()>this.diskLimit){this.store.set('phase','paused: disk limit reached');break;}
         const task=this.store.nextTask();
@@ -182,7 +209,8 @@ export class CorpusWorker {
         catch(error){if(this.stopped)break;this.store.failTask(task,error,error.retryAfter||0);}
       }
       this.store.set('lastRunAt',new Date(this.clock()).toISOString());
-    } finally {clearInterval(heartbeat);this.store.release();this.running=false;}
+    } catch(error) {if(!this.stopped)throw error;}
+    finally {clearInterval(heartbeat);this.store.release();this.running=false;}
   }
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}
 }
