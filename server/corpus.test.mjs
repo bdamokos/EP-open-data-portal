@@ -376,11 +376,37 @@ test('stopped speech ingestion resumes the saved page without duplicating commit
   } finally {polling=false;s.cleanup();}
 });
 
-test('oversized XML is excluded before language parsing while bounded fragments retain provenance',()=>{
+test('oversized XML bodies are excluded while bounded fragments retain declared provenance',()=>{
   const xml='<oralStatements xml:lang="fr"><p>'+'x'.repeat(2*1024*1024)+'</p></oralStatements>';
   const result=speechTexts(speech('MTG-PL-2026-07-08-OTH-1',{fr:xml,en:fragment('en','Ocean policy.')}),'https://example.test/list',fetchedAt);
   assert.deepEqual(result.texts.map(text=>[text.sourceKey,text.translationType]),[['en','original']]);
   assert.deepEqual(result.document.originalLanguages,['en']);
+});
+
+test('oversized translations preserve inferred original provenance and primary-language ingestion',async()=>{
+  const s=stores(),id='MTG-PL-2026-07-08-OTH-1';
+  const activity=speech(id,{fr:fragment('fr','Politique océanique.'),en:fragment('en','x'.repeat(2*1024*1024),'fr-t-en-mtec')});
+  activity.recorded_in_a_realization_of[0].originalLanguage=[];
+  const expected=speechTexts(activity,'https://example.test/list',fetchedAt);
+  assert.deepEqual(expected.texts.map(text=>[text.language,text.translationType]),[['fr','original']]);
+  const task={key:'page',kind:'speeches',body:{start:'2026-07-01',end:'2026-07-31',offset:0,limit:25}};
+  const worker=new CorpusWorker(s.corpus,{clock:instant,interval:0,languages:'primary',fetchRecord:async()=>({payload:{data:[activity]},fetchedAt})});
+  try {
+    s.corpus.enqueue(task.key,task.kind,task.body,60);await worker.task(task);
+    assert.equal(s.corpus.task(task.key).body.offset,1);
+    const texts=s.corpus.db.prepare('SELECT language,translation_type FROM texts').all();
+    assert.deepEqual(texts.map(text=>[text.language,text.translation_type]),[['fr','original']]);
+    assert.equal(s.corpus.raw(id,'fr'),expected.texts[0].raw);
+  } finally {s.cleanup();}
+});
+
+test('metadata extraction ignores language-looking text in oversized comments and CDATA',()=>{
+  const activity=speech('MTG-PL-2026-07-08-OTH-1',{
+    fr:fragment('fr','Politique océanique.'),
+    en:'<oralStatements xml:lang="en"><!-- <x xml:lang="fr-t-en-mtec"/> --><p><![CDATA[<x xml:lang="fr-t-en-mtec"/>]]>'+'x'.repeat(2*1024*1024)+'</p></oralStatements>',
+  });
+  activity.recorded_in_a_realization_of[0].originalLanguage=[];
+  assert.deepEqual(speechTexts(activity,'https://example.test/list',fetchedAt).texts.map(text=>[text.language,text.translationType]),[['fr','unspecified']]);
 });
 
 const putText=(store,sourceId,kind,date,sourceKey,body,extra={})=>store.putDocument({sourceId,kind,date,parentId:extra.parentId||null,term:10},
