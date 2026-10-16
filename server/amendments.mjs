@@ -3,8 +3,9 @@ import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
 export const AMENDMENTS_VERSION = 1;
+export const AMENDMENT_SITTING_PROJECTION_VERSION = 2;
 export const AMENDMENT_LIMITS = Object.freeze({ listsPerTarget:64, sittingsPerTarget:64, amendmentsPerList:500, text:60000, failures:20000, upgradeTargets:100, page:50 });
-const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','symbol-text-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
+const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','symbol-text-loss','non-text-content','vertical-text-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
 export function amendmentTextLosses(extraction,amendment) {
   const oversized=['originalText','proposedText'].some(field=>typeof amendment?.[field]==='string'&&amendment[field].length>AMENDMENT_LIMITS.text);
   return [...array(extraction?.gaps),...array(amendment?.gaps),...(oversized?[{code:'wording-too-large',number:amendment.number,message:'Amendment wording exceeds the 60,000-character column limit; both columns are unavailable.'}]:[])].filter(gap=>textLossCodes.has(gap?.code) &&
@@ -51,12 +52,12 @@ export function projectAmendmentDecisions(nodes,sittingId) {
   }));
 }
 export function projectAmendmentSplits(nodes,sittingId) {
-  return nodes.filter(node=>tail(node.had_activity_type)==='REQUEST_VOTE_SPLIT' && canonicalEPReference(node.id)?.startsWith('eli/dl/event/'+sittingId+'-VOT-ITM-')).map(node=>({
-    id:refs(node.id)[0],activity_id:node.activity_id,activity_label:labels(node.activity_label),had_activity_type:node.had_activity_type,
+  return nodes.flatMap((node,observationIndex)=>tail(node.had_activity_type)==='REQUEST_VOTE_SPLIT' && (node.id==null||node.id===''||canonicalEPReference(node.id)?.startsWith('eli/dl/event/'+sittingId+'-VOT-ITM-'))?[{
+    id:refs(node.id)[0] || null,...(!node.id?{observationIndex}:{}),activity_id:node.activity_id,activity_label:labels(node.activity_label),had_activity_type:node.had_activity_type,
     created_a_realization_of:array(node.created_a_realization_of).filter(part=>part && typeof part==='object').slice(0,257).map(part=>({
       id:refs(part.id)[0],number:part.number,numbering:part.numbering,expressionContent:labels(part.expressionContent,65537),
     })),
-  }));
+  }]:[]);
 }
 export function amendmentDecision(node,sittingId,source) {
   const outcome=tail(node.decision_outcome), number=value=>Number.isSafeInteger(Number(value))&&Number(value)>=0?Number(value):null;

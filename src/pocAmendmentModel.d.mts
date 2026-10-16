@@ -8,6 +8,7 @@ export function amendmentRoute(options?:{document?:string|null;procedure?:string
 export function amendmentHref(path:string,options?:{document?:string|null;procedure?:string|null;member?:string|number|null;language?:string}):string;
 export function amendmentGroups(items:Amendment[],by?:string):{id:string;label:string;basis:string;items:Amendment[]}[];
 export function amendmentDecisionScope(item:Amendment,decision:AmendmentDecision):string;
+export function amendmentDecisionKey(decision:AmendmentDecision):string;
 export function amendmentDecisionPart(parts:AmendmentSplit[],decision:AmendmentDecision):AmendmentSplit|null;
 export function publicAmendmentSource(value:unknown):string|null;
 export function amendmentPlanSummary(plan:unknown):string[];

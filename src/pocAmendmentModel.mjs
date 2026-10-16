@@ -3,7 +3,7 @@ export const amendmentOutcomeLabel = value => outcomes[value] || outcomes.unavai
 export const supportedAmendmentTarget = value => typeof value==='string'&&/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(value);
 export function amendmentFailureKey(failure) {
   const component=failure.registryPartKey??failure.partId??[failure.recordKind??failure.scope??'unknown',failure.componentIndex??null,failure.description??null,failure.rawDescription??null,failure.sourceDescriptions??null];
-  return JSON.stringify([failure.requestId??null,component,failure.language??null]);
+  return JSON.stringify([failure.registryRequestKey??failure.requestId??failure.observationKey??null,component,failure.language??null]);
 }
 export function amendmentFailureLabel(failure) {
   if(failure.partId)return failure.partId;
@@ -48,6 +48,9 @@ export function amendmentDecisionScope(item,decision) {
   if(decision.collective||decision.amendmentIds?.length>1)return 'Collective decision';
   if(item.splitParts?.length)return 'Amendment decision';
   return 'Whole amendment';
+}
+export function amendmentDecisionKey(decision) {
+  return JSON.stringify([decision.id,decision.partId??null,decision.partId?null:decision.partNumber??null]);
 }
 export function amendmentDecisionPart(parts,decision) {
   // An explicit ID always takes precedence, including when that ID is not indexed.

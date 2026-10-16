@@ -2,10 +2,15 @@ import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='5';
+export const AMENDMENT_EXTRACTION_VERSION='6';
 
-const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-structure','nested-table','symbol-text-loss','text-unavailable','numbering-warning']);
+const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-structure','nested-table','non-text-content','symbol-text-loss','vertical-text-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
+const nonTextContent=key=>/(?:^|:)(?:oMath|oMathPara)$/.test(key)||['w:drawing','w:pict','w:object','w:altChunk','w:contentPart','w:subDoc'].includes(key);
+const CONTENT_LOSSES={
+  'non-text-content':'Visible mathematical, drawing or embedded content cannot be represented reliably as plain wording; its wording is withheld.',
+  'vertical-text-loss':'Visible text uses superscript, subscript or a shifted baseline that cannot be represented reliably as plain wording; its wording is withheld.',
+};
 const TABLE_MARKERS=new Set(['w:bookmarkStart','w:bookmarkEnd','w:commentRangeStart','w:commentRangeEnd','w:permStart','w:permEnd','w:proofErr','w:moveFromRangeStart','w:moveFromRangeEnd','w:moveToRangeStart','w:moveToRangeEnd']);
 function unsupportedChildren(nodes,allowed) {
   return (nodes||[]).some(node=>Object.entries(node).some(([key,value])=>key!==':@'&&!TABLE_MARKERS.has(key)&&!allowed.has(key)&&(key!=='#text'||String(value).trim())));
@@ -26,8 +31,9 @@ const enabled=node=>node?!['0','false','off'].includes(String(attribute(node,'va
 // metadata, but apply Word visibility when extracting the comparison columns.
 function visibility(xml) {
   const styles=children(xml?parser().parse(xml):[],'w:styles')||[];
-  const byId=new Map(styles.filter(n=>n['w:style']).map(n=>[attribute(n,'styleId'),{parent:property(n['w:style'],'w:basedOn'),toggle:enabled(child(children(n['w:style'],'w:rPr'),'w:vanish'))===true}]));
-  const defaults=enabled(child(children(children(children(styles,'w:docDefaults'),'w:rPrDefault'),'w:rPr'),'w:vanish'))??false;
+  const byId=new Map(styles.filter(n=>n['w:style']).map(n=>{const props=children(n['w:style'],'w:rPr');return [attribute(n,'styleId'),{parent:property(n['w:style'],'w:basedOn'),toggle:enabled(child(props,'w:vanish'))===true,vertical:property(props,'w:vertAlign'),position:property(props,'w:position')}];}));
+  const defaultProps=children(children(children(styles,'w:docDefaults'),'w:rPrDefault'),'w:rPr');
+  const defaults=enabled(child(defaultProps,'w:vanish'))??false;
   const defaultId=type=>attribute(styles.find(n=>n['w:style']&&attribute(n,'type')===type&&['1','true','on'].includes(String(attribute(n,'default')))),'styleId');
   const cache=new Map();
   const hidden=(id,inherited)=>{
@@ -40,15 +46,34 @@ function visibility(xml) {
     for(const key of chain.reverse()){toggle=toggle!==byId.get(key).toggle;cache.set(key,toggle);}
     return inherited!==toggle;
   };
-  return {defaults,hidden,paragraph:defaultId('paragraph'),character:defaultId('character')};
+  const propertyCaches=new Map();
+  const inheritedProperty=(id,key,inherited)=>{
+    if(!propertyCaches.has(key))propertyCaches.set(key,new Map());
+    const cache=propertyCaches.get(key),chain=[],seen=new Set();
+    while(byId.has(id)&&!cache.has(id)) {
+      if(seen.has(id))throw new Error('Cyclic DOCX style inheritance is unsupported.');
+      seen.add(id);chain.push(id);id=byId.get(id).parent;
+    }
+    let value=cache.get(id);
+    for(const styleId of chain.reverse()){value=byId.get(styleId)[key]??value;cache.set(styleId,value);}
+    return value??inherited;
+  };
+  return {defaults,hidden,inheritedProperty,defaultVertical:property(defaultProps,'w:vertAlign')??'baseline',defaultPosition:property(defaultProps,'w:position')??'0',paragraph:defaultId('paragraph'),character:defaultId('character')};
 }
-function inline(nodes,style,hidden,raw=false,losses=new Set()) {
+function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'baseline',position:'0'}) {
   let out='';
   for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
     if(key==='w:r') {
       const props=children(value,'w:rPr');
       const omit=enabled(child(props,'w:vanish'))??style.hidden(property(props,'w:rStyle')||style.character,hidden);
-      if(raw||!omit)out+=inline(value,style,false,raw,losses);
+      if(raw||!omit) {
+        const id=property(props,'w:rStyle')||style.character;
+        const vertical=property(props,'w:vertAlign')??style.inheritedProperty(id,'vertical',format.vertical);
+        const position=property(props,'w:position')??style.inheritedProperty(id,'position',format.position);
+        const text=inline(value,style,false,raw,losses,{vertical,position});
+        if(!raw&&text.trim()&&(vertical!=='baseline'||!Number.isFinite(Number(position))||Number(position)!==0))losses.add('vertical-text-loss');
+        out+=text;
+      }
     } else if(alternateBranch(key)) {
       if(!raw)losses.add('comparison-structure');
       // Choice and fallback are mutually exclusive; the extractor does not
@@ -57,12 +82,14 @@ function inline(nodes,style,hidden,raw=false,losses=new Set()) {
       // A legacy font character (e.g. Symbol/F061) is not a Unicode code point.
       // Omitting it would change the legal text; no font mapping is guessed.
       if(!raw)losses.add('symbol-text-loss');
+    } else if(nonTextContent(key)) {
+      if(!raw)losses.add('non-text-content');
     } else if(key==='#text')out+=String(value);
     else if(key==='w:tab')out+='\t';
     else if(key==='w:br'||key==='w:cr')out+='\n';
     else if(key==='w:noBreakHyphen')out+='‑';
     else if(key==='w:softHyphen')out+='­';
-    else if(![':@','w:pPr','w:rPr','w:del','w:moveFrom','w:instrText'].includes(key)&&Array.isArray(value))out+=inline(value,style,hidden,raw,losses);
+    else if(![':@','w:pPr','w:rPr','w:del','w:moveFrom','w:instrText'].includes(key)&&Array.isArray(value))out+=inline(value,style,hidden,raw,losses,format);
   }
   return out;
 }
@@ -72,13 +99,15 @@ function documentBlocks(parts,warnings) {
   let count=0,size=0;
   const paragraph=nodes=>{
     const props=children(nodes,'w:pPr'),hidden=style.hidden(property(props,'w:pStyle')||style.paragraph,style.defaults);
-    const raw=clean(inline(nodes,style,hidden,true));
-    const losses=new Set();let text=clean(inline(nodes,style,hidden,false,losses));
+    const id=property(props,'w:pStyle')||style.paragraph;
+    const format={vertical:style.inheritedProperty(id,'vertical',style.defaultVertical),position:style.inheritedProperty(id,'position',style.defaultPosition)};
+    const raw=clean(inline(nodes,style,hidden,true,new Set(),format));
+    const losses=new Set();let text=clean(inline(nodes,style,hidden,false,losses,format));
     const prefix=label(props);if(prefix&&text)text=prefix+'\t'+text;
     size+=raw.length+text.length;
     if(++count>20000||size>4*1024*1024)throw new Error('Amendment document text exceeds the supported size.');
     const structure=JSON.stringify(nodes);
-    return {raw,text,paragraphStyle:property(props,'w:pStyle')||style.paragraph||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')||/"(?:w:altChunk|w:contentPart|w:subDoc|w:object)"/.test(structure)};
+    return {raw,text,paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
   };
   const blocks=[];
   const paragraphs=nodes=>{
@@ -91,7 +120,9 @@ function documentBlocks(parts,warnings) {
   };
   const walk=nodes=>{
     for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
+      if(['w:del','w:moveFrom','w:instrText','w:rPr','w:pPr'].includes(key))continue;
       if(alternateBranch(key))blocks.push({kind:'unsupported',code:'comparison-structure',message:'Alternative document branches cannot be selected reliably; their content and any amendment identities inside them are unavailable.'});
+      else if(nonTextContent(key))blocks.push({kind:'unsupported',code:'non-text-content',message:CONTENT_LOSSES['non-text-content']});
       else if(key==='w:p')blocks.push({kind:'paragraph',...paragraph(value)});
       else if(key==='w:tbl') {
         // Only direct rows/cells have a supported comparison layout. Content
@@ -104,7 +135,7 @@ function documentBlocks(parts,warnings) {
           return row['w:tr'].filter(n=>n['w:tc']).map(cell=>{
             const content=paragraphs(cell['w:tc']);
             unsupported ||= unsupportedChildren(cell['w:tc'],CELL_CHILDREN)||content.some(p=>p.unsupportedBody);
-            return {text:content.map(p=>p.text).filter(Boolean).join('\n'),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),symbolLoss:content.some(p=>p.symbolLoss),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"')};
+            return {text:content.map(p=>p.text).filter(Boolean).join('\n'),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),losses:[...new Set(content.flatMap(p=>p.losses))],symbolLoss:content.some(p=>p.symbolLoss),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"')};
           });
         });
         blocks.push({kind:'table',rows,unsupported});
@@ -145,7 +176,10 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       if(explicit||(!tagged&&number&&existing&&number!==existing))finish();
       if(explicit||(!active&&number)){active=[];tagged=explicit;}
       if(active)active.push(block);
-      else if(!groups.length)cover.push(block);
+      else {
+        if(!groups.length)cover.push(block);
+        for(const code of block.losses||[])if(CONTENT_LOSSES[code])gap(code,null,CONTENT_LOSSES[code],{scope:'document'});
+      }
       if(/<\/Amend>/.test(block.raw))finish();
     } else if(active)active.push(block);
     else if(block.kind==='unsupported')gap(block.code,null,block.message,{scope:'document'});
@@ -164,6 +198,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const numbers=new Set([...raw.matchAll(/<NumAm>\s*([1-9]\d*)\s*<\/NumAm>/g)].map(match=>Number(match[1])));
     if(numbers.size>1){gap('number-conflict',number,'The amendment block contains conflicting individual amendment numbers; its content is withheld.');continue;}
     for(const unsupported of group.filter(block=>block.kind==='unsupported'))gap(unsupported.code,number,unsupported.message);
+    for(const block of group.filter(block=>block.kind==='paragraph'))for(const code of block.losses||[])if(CONTENT_LOSSES[code])gap(code,number,CONTENT_LOSSES[code]);
     const authors=[...new Set(field(raw,'Members').flatMap(names=>names.split(/[,;\n]+/).map(clean).filter(Boolean)))];
     const onBehalfOf=field(raw,'AuNomDe').map(metadata).filter(Boolean).join('; ')||null;
     const targetParts=field(raw,'Article');
@@ -184,6 +219,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       for(const cells of table.rows) {
         if(cells.some(c=>c.nested)){gap('nested-table',number,'A nested comparison table is unsupported.');continue;}
         if(cells.some(c=>c.symbolLoss))gap('symbol-text-loss',number,'A visible font-encoded symbol cannot be decoded reliably; comparison wording is withheld.');
+        for(const code of Object.keys(CONTENT_LOSSES))if(cells.some(cell=>cell.losses.includes(code)))gap(code,number,CONTENT_LOSSES[code]);
         if(cells.every(c=>!c.text))continue;
         if(!headerConfirmed) {
           if(cells.length===2&&heading(cells[1].text)){headerConfirmed=true;continue;}

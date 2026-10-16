@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {amendmentDecisionPart,amendmentDecisionScope,amendmentFailureKey,amendmentFailureLabel,amendmentGroups,amendmentHref,amendmentOutcomeLabel,amendmentPlanSummary,amendmentProcedure,amendmentRoute,publicAmendmentSource,supportedAmendmentTarget} from './pocAmendmentModel.mjs';
+import {amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentFailureKey,amendmentFailureLabel,amendmentGroups,amendmentHref,amendmentOutcomeLabel,amendmentPlanSummary,amendmentProcedure,amendmentRoute,publicAmendmentSource,supportedAmendmentTarget} from './pocAmendmentModel.mjs';
 
 test('amendment trail targets match the supported current-term plenary report and motion contract',()=>{
   for(const id of ['A-10-2026-0254','B-10-2026-0424','RC-10-2026-0441','A-10-2026-12345','B-10-2026-123456'])assert.equal(supportedAmendmentTarget(id),true,id);
@@ -56,6 +56,12 @@ test('whole, collective and split decisions remain distinct and unavailable is n
   assert.equal(amendmentOutcomeLabel(null),'Outcome unavailable');
   assert.equal(amendmentOutcomeLabel('mixed'),'Mixed outcomes');
 });
+test('decision rendering identity includes each exact split component even without its description',()=>{
+  const first={id:'same-decision',partId:'eli/dl/doc/request-SPLIT-1-1'},second={id:'same-decision',partId:'eli/dl/doc/request-SPLIT-1-2'};
+  assert.notEqual(amendmentDecisionKey(first),amendmentDecisionKey(second));
+  assert.equal(amendmentDecisionKey(first),amendmentDecisionKey({...first,outcome:'REJECTED'}));
+  assert.notEqual(amendmentDecisionKey(first),amendmentDecisionKey({id:first.id}));
+});
 test('split binding always respects exact IDs and only falls back to unique part numbers',()=>{
   const first={id:'request-one-part-1',number:1},second={id:'request-two-part-1',number:1},third={id:'request-two-part-2',number:2};
   const parts=[first,second,third];
@@ -76,6 +82,9 @@ test('failure registry keys remain distinct and stable without presenting local 
   assert.equal(amendmentFailureLabel(request),'Split request failure');
   assert.equal(amendmentFailureLabel({...first,partId:'eli/dl/doc/exact-part'}),'eli/dl/doc/exact-part');
   assert.notEqual(amendmentFailureKey({...first,registryPartKey:undefined}),amendmentFailureKey({...second,registryPartKey:undefined}),'legacy unidentified components can use their source position');
+  const unknownRequest={requestId:null,partId:null,registryPartKey:'__request__',recordKind:'request',language:'en'};
+  assert.notEqual(amendmentFailureKey({...unknownRequest,registryRequestKey:'local-request-one'}),amendmentFailureKey({...unknownRequest,registryRequestKey:'local-request-two'}),'unidentified requests can share a component key without sharing their local request identity');
+  assert.equal(amendmentFailureLabel({...unknownRequest,registryRequestKey:'local-request-one'}),'Split request failure','a local request registry key is not an official ID');
 });
 test('split selection summaries preserve exclusions, occurrences and deletion edit semantics',()=>{
   const plan={type:'difference',base:{type:'all'},except:{type:'union',items:[{type:'text',quote:'carbon leakage',occurrences:[2]},{type:'delete_operation',quote:'existing safeguard'}]},grounding:'not_attempted'};
