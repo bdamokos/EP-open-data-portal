@@ -84,11 +84,12 @@ export function outsidePerson(rows, agendas = new Map(), language = 'en') {
     }
     days.set(row.date, day);
   }
-  const role = named.toReversed().find(row => row.header?.role && row.header.capacity === capacity)?.header.role || null;
+  const roleHeader = named.toReversed().find(row => row.header?.role && row.header.capacity === capacity)?.header;
+  const role = roleHeader?.role || null;
   const dailyCapacities=new Map();
   for(const row of ordered)if(row.header?.capacity){const counts=dailyCapacities.get(row.date)||new Map();counts.set(row.header.capacity,(counts.get(row.header.capacity)||0)+1);dailyCapacities.set(row.date,counts);}
   const conflicts=ordered.filter(row=>{const counts=dailyCapacities.get(row.date);if(!row.header?.capacity || !counts || counts.size<2)return false;const largest=Math.max(...counts.values());return counts.get(row.header.capacity)<largest || [...counts.values()].filter(count=>count===largest).length>1;}).map(row=>row.id);
-  return {id:ordered[0].personId, name:named.at(-1)?.header.name || `Speaker ${ordered[0].personId}`, role, capacity, contributions:ordered.length, appearances:appearances.size, unlinkedContributions:ordered.filter(row => !row.parentIds.length).length,
+  return {id:ordered[0].personId, name:named.at(-1)?.header.name || `Speaker ${ordered[0].personId}`, role, roleLanguageTag:roleHeader?.languageTag || null, capacity, contributions:ordered.length, appearances:appearances.size, unlinkedContributions:ordered.filter(row => !row.parentIds.length).length,
     sittingDays:days.size, first:ordered[0].date, last:ordered.at(-1).date, terms:[...new Set(ordered.map(row => row.term))], days:[...days.values()],
     roleConflicts:conflicts,
     roles:[...new Set(ordered.map(row => row.header?.role).filter(Boolean))], language};

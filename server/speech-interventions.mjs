@@ -22,14 +22,18 @@ export function interventionMetadata(activity) {
   const from=statement?.from;
   const people=speechPeople(activity);
   const speaker=array(from?.person).find(p=>people.includes(String(p?.['@_refersTo']||'').match(/^(?:epdata:)?person\/(\d+)$/)?.[1]));
+  const kind=String(activity.had_activity_type).split('/').at(-1);
+  const communication=root?.communication;
+  const chairPerson=kind==='MEETING_NAME_CHAIR'?array(communication?.heading).flatMap(heading=>array(heading?.person)).find(p=>people.includes(String(p?.['@_refersTo']||'').match(/^(?:epdata:)?person\/(\d+)$/)?.[1])):null;
+  const chair=chairPerson?{id:String(chairPerson['@_refersTo']).split('/').at(-1),name:text(chairPerson).trim(),role:text(communication?.subheading).trim()||null}:null;
   const process=array(from?.process).map(text).join(' ').trim();
-  const normalized=normalize(process),narrative=text(root?.communication?.narrative).trim(),marker=normalize(narrative);
+  const normalized=normalize(process),narrative=text(communication?.narrative).trim(),marker=normalize(narrative);
   const catchMarker=/^(?:end of )?(?:catch the eye(?: procedure)?|on demand interventions)$/.test(marker)?(marker.startsWith('end of ')?'end':'start'):null;
   const groupUris=[...new Set(array(activity.had_participation).flatMap(p=>array(p.participation_in_name_of)).map(v=>String(v?.id||v||'')).filter(v=>/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?org\/[A-Z0-9_]+$/.test(v)))];
   const onBehalfOf=groupUris.map(uri=>{const id=uri.split('/').at(-1);return {id,uri,label:groupLabels[id]||id,politicalGroup:id!=='NI'&&Object.hasOwn(groupLabels,id),source:'participation_in_name_of'};});
   let type='unclassified';
   if(String(activity.had_activity_type).endsWith('/PLENARY_DEBATE_WRITTEN_STATEMENT'))type='written';
-  else if(catchMarker)type='procedure';
+  else if(catchMarker||['PROCEEDING_ACTIVITY','MEETING_NAME_CHAIR'].includes(kind))type='procedure';
   else if(from&&speaker) {
     if(/blue card/.test(normalized))type=/\b(?:reaction|counter ?reply)\b/.test(normalized)?'blue-card-reaction':/\b(?:answer|reply|response)\b/.test(normalized)?'blue-card-answer':/\bquestion\b/.test(normalized)?'blue-card-question':/\b(?:speech|intervention)\b/.test(normalized)?'blue-card-intervention':'blue-card';
     else if(/blau(?:e|en) karte/.test(normalized))type=/\b(?:antwort|erwiderung)\b/.test(normalized)?'blue-card-answer':/\breaktion\b/.test(normalized)?'blue-card-reaction':/\bfrage\b/.test(normalized)?'blue-card-question':'blue-card';
@@ -38,9 +42,11 @@ export function interventionMetadata(activity) {
     else type=process?'unclassified':'speech';
   }
   return {type,process:process||null,speaker: speaker?{id:String(speaker['@_refersTo']).split('/').at(-1),name:text(speaker).trim()}:null,onBehalfOf,
-    headerAvailable:Boolean(from&&speaker),catchMarker,narrative:narrative||null,numbering:docs.find(d=>Number.isSafeInteger(d.numbering))?.numbering??null,
+    headerAvailable:Boolean(from&&speaker),catchMarker,narrative:narrative||(kind==='MEETING_NAME_CHAIR'?[text(communication?.heading).trim(),text(communication?.subheading).trim()].filter(Boolean).join(' · '):null)||null,
+    procedureKind:type==='procedure'?(kind==='MEETING_NAME_CHAIR'?'chair-change':'note'):null,chair,
+    numbering:docs.find(d=>Number.isSafeInteger(d.numbering))?.numbering??null,
     parentIds:[...new Set(array(activity.inverse_consists_of).map(speechId).filter(Boolean))],
-    evidence:type==='unclassified'?null:catchMarker?'api:xmlFragment/communication/narrative':type==='written'?'had_activity_type':'api:xmlFragment/from'};
+    evidence:type==='unclassified'?null:type==='procedure'?(chair?'api:xmlFragment/communication/heading/person':narrative?'api:xmlFragment/communication/narrative':'had_activity_type'):type==='written'?'had_activity_type':'api:xmlFragment/from'};
 }
 
 // Exact debate membership and document numbering establish the sequence. Never bridge a missing row.

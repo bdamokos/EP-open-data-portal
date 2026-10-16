@@ -4,6 +4,12 @@ import {documentFiles} from './activity-index-model.mjs';
 import {questionFromSource} from './insights-model.mjs';
 import {odpLanguage} from './odp.mjs';
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+function selectedTitle(titles,language,fallback) {
+  if(titles?.[language])return {title:titles[language],titleLanguage:language};
+  if(titles?.en)return {title:titles.en,titleLanguage:'en'};
+  const first=Object.entries(titles||{})[0];
+  return first?.[1]?{title:first[1],titleLanguage:first[0]||null}:{title:fallback,titleLanguage:null};
+}
 export function savedQuery(search) {
   for(const key of search.keys())if(!['lang','questions','members'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated saved-item query.');
   const list=(key,pattern)=>{const value=search.get(key);if(!value)return [];const ids=value.split(',');if(ids.length>100||ids.some(id=>!pattern.test(id))||new Set(ids).size!==ids.length)throw new HttpError(400,'invalid_selection','Choose up to 100 distinct saved items.');return ids;};
@@ -19,9 +25,9 @@ export function savedStates(store,query) {
     const files=work=>documentFiles(work).map(file=>[file.language,file.format,file.url,file.byteSize??null]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
     const answerFiles=(source.work.inverse_answers_to||[]).filter(work=>work&&typeof work==='object').map(work=>[work.identifier||work.id,files(work)]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
     const titles=Object.fromEntries(Object.entries(q.titles).sort(([a],[b])=>a.localeCompare(b)));
-    const title=q.titles[query.language]||q.titles.en||Object.values(q.titles)[0]||id;
-    const latest=answers.map(answer=>({id:answer.id,date:answer.date||'',title,recordKind:'answer'})).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).slice(0,10);
-    return {id,status:'available',title,latest,date:q.date,memberId:q.authors[0]?.id||null,answers,revision:digest([titles,q.date,answers,q.authors.map(a=>a.id).sort(),files(source.work),answerFiles]),sourceFetchedAt:source.fetchedAt};
+    const selected=selectedTitle(q.titles,query.language,id);
+    const latest=answers.map(answer=>({id:answer.id,date:answer.date||'',...selected,recordKind:'answer'})).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).slice(0,10);
+    return {id,status:'available',...selected,latest,date:q.date,memberId:q.authors[0]?.id||null,answers,revision:digest([titles,q.date,answers,q.authors.map(a=>a.id).sort(),files(source.work),answerFiles]),sourceFetchedAt:source.fetchedAt};
   });
   const members=query.members.map(id=>{
     const record=store.db.prepare('SELECT body FROM members WHERE id=?').get(id);if(!record)return {id,status:'outside-roster'};
@@ -31,7 +37,7 @@ export function savedStates(store,query) {
       const body=JSON.parse(row.body);
       const question=body.recordKind==='answer'&&body.relatedQuestionId?store.source(generation,'/parliamentary-questions/'+body.relatedQuestionId)?.work:null;
       const titles=question?.title_dcterms||body.relatedQuestionTitles||body.titles;
-      return {id:row.source_id,date:row.date,title:titles?.[query.language]||titles?.en||Object.values(titles||{})[0]||body.reference||row.source_id,recordKind:body.recordKind,...(body.relatedQuestionId?{relatedQuestionId:body.relatedQuestionId}:{})};
+      return {id:row.source_id,date:row.date,...selectedTitle(titles,query.language,body.reference||row.source_id),recordKind:body.recordKind,...(body.relatedQuestionId?{relatedQuestionId:body.relatedQuestionId}:{})};
     };
     const activities=store.db.prepare('SELECT source_id,MAX(date) AS date,body FROM items WHERE generation=? AND mep=?'+activityOnly+' GROUP BY source_id ORDER BY date DESC,source_id DESC LIMIT 10').all(generation,id).map(present);
     // Membership and revision cover every saved answer; only rich preview titles are bounded.
