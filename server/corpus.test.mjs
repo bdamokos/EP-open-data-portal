@@ -115,7 +115,7 @@ test('worker pages speeches, halves oversized pages, recovers missing graph node
     const status=s.corpus.status();
     assert.equal(status.complete,true);
     assert.equal(status.documents.answer.withText,1);
-    assert.equal(status.languages,'primary');
+    assert.deepEqual(status.languages,{speeches:'primary',documents:'primary'});
   } finally {s.cleanup();}
 });
 
@@ -139,4 +139,43 @@ test('backfill is not complete until question files were discovered from the ind
     assert.equal(corpus.status().complete,false);
     assert.equal(corpus.status().phase,'waiting for activity index');
   } finally {corpus.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('a partial initial index generation does not complete the backfill',async()=>{
+  const s=stores();
+  s.index.db.exec("DELETE FROM meta WHERE key='active'; INSERT INTO meta VALUES ('working','{\"generation\":1}')");
+  const worker=new CorpusWorker(s.corpus,{fetchRecord:async()=>({payload:{data:[]},fetchedAt}),download:async()=>({paragraphs:['Text']}),clock:instant,interval:0,diskLimit:1024**3});
+  try {
+    await worker.run();
+    assert.equal(s.corpus.status().documents.question.withText,1);
+    assert.equal(s.corpus.coverage().complete,false);
+    s.index.db.exec("UPDATE meta SET value='1' WHERE key='working'; INSERT INTO meta VALUES ('active','1')");
+    await worker.run();
+    assert.equal(s.corpus.coverage().complete,true);
+  } finally {s.cleanup();}
+});
+
+test('same text from a replacement file updates its link without a new row',()=>{
+  const s=stores();
+  try {
+    const put=url=>s.corpus.putDocument({sourceId:'E-10-2026-000001',kind:'question',date:'2026-05-01',term:10},
+      [{sourceKey:'en',language:'en',translationType:'unspecified',sourceFormat:'docx',sourceUrl:url,fetchedAt,body:'Same text.',raw:null}]);
+    put(docx('E-10-2026-000001','en'));put(docx('E-10-2026-000001-REV','en'));
+    assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM texts').get().n,1);
+    assert.equal(s.corpus.hasText(docx('E-10-2026-000001-REV','en')),true);
+    assert.equal(s.corpus.search({query:'same'}).hits[0].sourceUrl,docx('E-10-2026-000001-REV','en'));
+  } finally {s.cleanup();}
+});
+
+test('widening the language policy reopens every finished speech month',async()=>{
+  const s=stores();
+  const empty=async()=>({payload:{data:[]},fetchedAt});
+  try {
+    await new CorpusWorker(s.corpus,{fetchRecord:empty,download:async()=>({paragraphs:['Text']}),clock:instant,interval:0,languages:'primary',diskLimit:1024**3}).run();
+    assert.equal(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='speeches' AND done=0").get().n,0);
+    const wide=new CorpusWorker(s.corpus,{fetchRecord:empty,clock:instant,interval:0,languages:'all',diskLimit:1024**3});
+    assert.equal(s.corpus.acquire(),true);wide.discover();
+    assert.equal(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='speeches' AND done=0").get().n,s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='speeches'").get().n);
+    assert.ok(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='docx' AND done=0").get().n>0,'non-primary question files are queued');
+  } finally {s.cleanup();}
 });

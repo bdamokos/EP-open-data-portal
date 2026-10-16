@@ -76,25 +76,29 @@ export class CorpusWorker {
   // Month windows for speeches; question and answer files from the saved index.
   discover() {
     const now=this.clock(), today=day(now);
+    // Widening the language policy must revisit months already read under `primary`.
+    const widened=this.languages==='all' && this.store.get('speechLanguages')==='primary';
     for(const range of speechWindows(today)) {
       const key='speeches:'+range.start.slice(0,7), body={start:range.start,end:range.end,offset:0,limit:this.pageSize};
       if(this.store.enqueue(key,'speeches',body,PRIORITY.speeches))continue;
       const task=this.store.task(key);
       const recent=now-Date.parse(range.end)<RECHECK_WINDOW || range.end===today;
-      if(task.done && recent && now-(task.done_at||0)>=(range.end>=day(now-7*DAY)?DAY:RECHECK_EVERY))this.store.reopen(key,body,PRIORITY.speeches);
+      if(task.done && (widened || recent && now-(task.done_at||0)>=(range.end>=day(now-7*DAY)?DAY:RECHECK_EVERY)))this.store.reopen(key,body,PRIORITY.speeches);
     }
-    const discovered=this.store.get('discoveredAt');
-    if(discovered && now-Date.parse(discovered)<DISCOVER_EVERY)return;
-    const generation=this.store.indexGeneration();
-    if(generation==null)return;
+    this.store.set('speechLanguages',this.languages);
+    const index=this.store.indexState();
+    if(index.generation==null)return;
+    const discovered=this.store.get('discoveredAt'), sameIndex=this.store.get('discoveredGeneration')===index.generation && this.store.get('discoveredPublished')===index.published;
+    if(discovered && sameIndex && this.store.get('documentLanguages')===this.languages && now-Date.parse(discovered)<DISCOVER_EVERY)return;
     const sources=this.store.db.prepare(`SELECT body FROM idx.sources WHERE generation=? AND kind='document' AND key LIKE '/parliamentary-questions/%'`);
-    for(const row of sources.iterate(generation)) {
+    for(const row of sources.iterate(index.generation)) {
       for(const file of questionFiles(JSON.parse(row.body),this.languages)) {
         if(this.store.hasText(file.url))continue;
         this.store.enqueue('docx:'+file.url,'docx',file,file.primary?PRIORITY.primaryDocument:PRIORITY.otherDocument);
       }
     }
-    this.store.set('discoveredAt',new Date(now).toISOString());this.store.set('languages',this.languages);
+    this.store.set('discoveredAt',new Date(now).toISOString());this.store.set('documentLanguages',this.languages);
+    this.store.set('discoveredGeneration',index.generation);this.store.set('discoveredPublished',index.published);
   }
   async task(task) {
     const {body}=task;
@@ -154,8 +158,9 @@ export class CorpusWorker {
         const task=this.store.nextTask();
         if(!task) {
           if(!this.store.db.prepare('SELECT 1 FROM tasks WHERE done=0 LIMIT 1').get()) {
-            // Complete only after question files were discovered from a loaded index.
-            if(this.store.get('discoveredAt')) {
+            // Complete only after question files were discovered from a published
+            // index generation; a partial initial index may still lack questions.
+            if(this.store.get('discoveredPublished')) {
               if(!this.store.get('backfilledAt'))this.store.set('backfilledAt',new Date(this.clock()).toISOString());
               this.store.set('phase','ready');
             } else this.store.set('phase','waiting for activity index');
@@ -200,8 +205,7 @@ export function corpusSearch(params) {
   const result=store.search(params);
   if(!result)throw new HttpError(400,'invalid_query',`Enter 1–${CORPUS_LIMITS.queryTerms} words or quoted phrases (at most ${CORPUS_LIMITS.queryLength} characters).`);
   if(result.unavailable)throw new HttpError(503,'activity_index_loading',result.unavailable);
-  const status=store.status();
-  return {...result,coverage:{complete:status.complete,phase:status.phase,note:status.coverage,documents:status.documents}};
+  return {...result,coverage:store.coverage()};
 }
 export function startCorpus() {
   if(process.env.CORPUS_ENABLED!=='true')return ()=>{};
