@@ -61,7 +61,13 @@ function ConnectedText({id,language}:{id:string;language:string}) {
     {state.data&&<><p className="intervention-caption">{state.data.textLanguage?.toUpperCase()}{state.data.translationType==='machine'?' · Machine translation':''}</p>{paragraphs.length?paragraphs.map((p,i)=><p key={i}>{p}</p>):<p>Transcript unavailable.</p>}{state.data.websiteUrl&&<a href={state.data.websiteUrl} target="_blank" rel="noreferrer">Parliament’s transcript ↗</a>}</>}
   </div>;
 }
-function Sequence({debate,speechId,language}:{debate:SpeechContext['debates'][number];speechId:string;language:string}) {
+function SequenceError({message,retryAt,loading,retry}:{message:string;retryAt?:number;loading:boolean;retry:()=>void}) {
+  const [now,setNow]=useState(Date.now);
+  useEffect(()=>{setNow(Date.now());if(!retryAt)return;const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[retryAt]);
+  const seconds=Math.max(0,Math.ceil(((retryAt||0)-now)/1000));
+  return <div className="intervention-error"><p>{message}</p><button onClick={retry} disabled={loading||seconds>0}>{loading?'Retrying sequence…':seconds>0?`Retry sequence in ${seconds}s`:'Retry sequence'}</button>{loading&&<p role="status">Loading debate sequence…</p>}</div>;
+}
+function Sequence({debate,speechId,language,loading,retry}:{debate:SpeechContext['debates'][number];speechId:string;language:string;loading:boolean;retry:()=>void}) {
   const [full,setFull]=useState(false),[reading,setReading]=useState<string|null>(null);
   const readingRef=useRef<HTMLDivElement>(null),readingId=useId();
   const exchange=debate.exchanges.find(e=>e.ids.includes(speechId)),ids=new Set(exchange?.ids||[]);
@@ -71,7 +77,7 @@ function Sequence({debate,speechId,language}:{debate:SpeechContext['debates'][nu
   return <section className="intervention-debate">
     <div className="intervention-sequence-heading"><h4>{exchange&&!full?'Blue-card exchange':'Debate sequence'}</h4>{exchange&&<button onClick={()=>setFull(value=>!value)}>{full?'Show exchange':'Show full debate'}</button>}</div>
     <p className="intervention-caption">{debate.titles[language]||debate.titles.en||debate.id}</p>
-    {debate.error?<p>{debate.error}</p>:<ol className="intervention-sequence">{rows.map(row=><li key={row.id} className={(row.id===speechId?'is-current ':'')+(row.exchangeId?'is-exchange':'')}>
+    {debate.error?<SequenceError message={debate.error} retryAt={debate.retryAt} loading={loading} retry={retry}/>:<ol className="intervention-sequence">{rows.map(row=><li key={row.id} className={(row.id===speechId?'is-current ':'')+(row.exchangeId?'is-exchange':'')}>
       <div className="intervention-sequence-node"><InterventionIcon type={row.intervention.type}/></div>
       <div className="intervention-sequence-entry">
         {row.intervention.type==='procedure'?<p className="intervention-caption">{row.intervention.narrative}</p>:<>
@@ -91,7 +97,7 @@ export function PocSpeechContext({id,language}:{id:string;language:string}) {
   const state=useData<SpeechContext>(open?`speech-context/${id}?lang=${language}`:null);
   const controlId=useId();
   return <div className="intervention-context"><button className="intervention-context-toggle" onClick={()=>setOpen(value=>!value)} aria-expanded={open} aria-controls={controlId}>Debate & exchanges <span aria-hidden="true">{open?'−':'+'}</span></button>{open&&<div id={controlId}>
-    {state.loading&&!state.data&&<p role="status">Loading debate sequence…</p>}{state.error&&<p>{state.error} <button onClick={state.retry}>Retry sequence</button></p>}
-    {state.data&&<>{state.data.unavailable&&<p>No debate is linked to this contribution.</p>}{state.data.debates.map(debate=><Sequence key={debate.id} debate={debate} speechId={id} language={language}/>)}</>}
+    {state.loading&&!state.data&&<p role="status">Loading debate sequence…</p>}{state.error&&<SequenceError message={state.error} retryAt={state.retryAt} loading={state.loading} retry={state.retry}/>}
+    {state.data&&<>{state.data.unavailable&&<p>No debate is linked to this contribution.</p>}{state.data.debates.map(debate=><Sequence key={debate.id} debate={debate} speechId={id} language={language} loading={state.loading} retry={state.retry}/>)}</>}
   </div>}</div>;
 }

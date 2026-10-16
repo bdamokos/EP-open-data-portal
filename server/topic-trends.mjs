@@ -1,4 +1,5 @@
 import {HttpError} from './http-utils.mjs';
+import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 import {insightQuery} from './insights-store.mjs';
 import {array,tail} from './activity-index-model.mjs';
 
@@ -66,17 +67,19 @@ export function topicTimeline(procedures,mappings,{start,end,concept}) {
 export class TopicTrends {
   constructor(store,catalog,{clock=Date.now}={}){Object.assign(this,{store,catalog,clock});this.states=new Map();}
   async query(query) {
+    requestSignal()?.throwIfAborted();
     const {page,...selection}=query,key=JSON.stringify([this.store.status().servingGeneration,selection]);let state=this.states.get(key);
     if(state&&this.clock()-state.at>30*60_000){this.states.delete(key);state=null;}
     if(!state){state={at:this.clock(),...savedProcedureEvents(this.store,selection),page:-1,result:null,pending:null};this.states.set(key,state);while(this.states.size>4)this.states.delete(this.states.keys().next().value);}
-    if(state.pending)await state.pending;if(state.result&&!state.result.coverage.sourceError&&(state.page>=page||state.result.nextPage===null))return state.result;
-    const job=(async()=>{
+    if(state.pending)await waitForRequest(state.pending);if(state.result&&!state.result.coverage.sourceError&&(state.page>=page||state.result.nextPage===null))return state.result;
+    const job=sharedRequest(async()=>{
       const ids=state.procedures.map(p=>p.id),known=await this.catalog.known(ids,query.language),missing=ids.filter(id=>!known.has(id)||known.get(id).stale);let sourceError=false;
       if(missing.length)try{for(const [id,mapping] of await this.catalog.load(missing.slice(0,50),query.language))known.set(id,mapping);}catch{sourceError=true;}
+      requestSignal()?.throwIfAborted();
       if(!sourceError)state.page++;
       const remaining=ids.filter(id=>!known.has(id)||known.get(id).stale).length,mapped=[...known.values()].filter(value=>value.state==='mapped').length;
       const timeline=topicTimeline(state.procedures,known,query);
       state.result={view:'topic-trends',language:query.language,window:{start:query.start,end:query.end,days:query.days},...timeline,coverage:{procedures:ids.length,mapped,unmapped:[...known.values()].filter(v=>v.state!=='mapped').length,pending:remaining,sourceError,truncated:state.truncated,indexComplete:this.store.status().complete},savedSources:state.procedures.map(p=>({id:p.id,fetchedAt:p.fetchedAt})),nextPage:remaining&&!sourceError&&state.page<11?state.page+1:null,sources:[...new Map([...known.values()].filter(v=>v.source).map(v=>[v.source.url,v.source])).values()],computedAt:new Date(this.clock()).toISOString()};return state.result;
-    })().finally(()=>state.pending=null);state.pending=job;return job;
+    }).finally(()=>state.pending=null);state.pending=job;return waitForRequest(job);
   }
 }

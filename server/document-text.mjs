@@ -1,12 +1,14 @@
 import { inflateRawSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
-import { readFile,mkdir,writeFile,rename } from 'node:fs/promises';
+import {readFile} from 'node:fs/promises';
+import {writeCacheFile} from './cache-publication.mjs';
 import path from 'node:path';
 import https from 'node:https';
 import { XMLParser,XMLValidator } from 'fast-xml-parser';
 import { boundedUpstream } from './odp.mjs';
 import { documentFiles,array,tail } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
+import {sharedRequest,waitForRequest,requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 import {numberingLabels} from './docx-numbering.mjs';
 import {noteNumbering} from './docx-note-numbering.mjs';
 
@@ -180,13 +182,14 @@ export function allowedDownload(value) {
     ((u.hostname==='data.europarl.europa.eu' && u.pathname.startsWith('/distribution/')) || (u.hostname==='redmapl3.europarl.europa.eu' && u.pathname.startsWith('/RedmapFront/media/')))
     && u.pathname.endsWith('.docx');}catch{return false;}
 }
-export async function downloadDocxBuffer(sourceUrl) {
+export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal()}={}) {
   let url=sourceUrl;
   for(let hop=0;hop<4;hop++) {
+    signal?.throwIfAborted();
     if(!allowedDownload(url))throw new Error('Unapproved official document download URL.');
     // This published distribution route returns 500 to Node fetch but a normal
     // 302 to Node HTTPS/Python. Use standard HTTPS without browser impersonation.
-    const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'*/*','User-Agent':'EP-Exhibition-PoC/0.1'},signal:AbortSignal.timeout(25000)},resolve).on('error',reject));
+    const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'*/*','User-Agent':'EP-Exhibition-PoC/0.1'},signal:AbortSignal.any([AbortSignal.timeout(25000),...(signal?[signal]:[])])},resolve).on('error',reject));
     if([301,302,303,307,308].includes(response.statusCode)){const target=response.headers.location;response.resume();if(!target)throw new Error('Invalid document redirect.');url=new URL(target,url).href;continue;}
     if(response.statusCode!==200){response.resume();throw new Error(`Official document download unavailable (${response.statusCode}).`);}
     if(!/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw new Error('Unexpected document download format.');}
@@ -196,8 +199,8 @@ export async function downloadDocxBuffer(sourceUrl) {
   }
   throw new Error('Too many document download redirects.');
 }
-export async function downloadDocx(sourceUrl) {
-  const {buffer,resolvedSourceUrl}=await downloadDocxBuffer(sourceUrl);
+export async function downloadDocx(sourceUrl,options={}) {
+  const {buffer,resolvedSourceUrl}=await downloadDocxBuffer(sourceUrl,options);
   return {...docxContent(buffer),resolvedSourceUrl};
 }
 
@@ -211,6 +214,7 @@ export function documentNotes(record) {
   return valid?{notesStatus:'extracted',notes:record.notes,noteAnchors:record.anchors,documentLinks:record.links}:{notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[]};
 }
 export async function documentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now}={}) {
+  requestSignal()?.throwIfAborted();
   const files=documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
   const languages=[...new Set(files.map(f=>f.language).filter(Boolean))];
   const originals=array(work.originalLanguage).map(languageCode);
@@ -219,20 +223,22 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
   const key=chosen.url,file=directory && path.join(directory,'document-text-v1',createHash('sha256').update(key).digest('hex')+'.json');
   let saved=memory.get(key);
-  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));if(record.schemaVersion===1 && record.extractionVersion===EXTRACTION_VERSION && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;memory.set(key,record);}}catch{}
+  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===EXTRACTION_VERSION && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;memory.set(key,record);}}catch{}
+  requestSignal()?.throwIfAborted();
   const refresh=priority=> {
     if(pending.has(key))return pending.get(key);
-    const job=boundedUpstream(async()=>{
-      const result=await download(key),record={schemaVersion:1,extractionVersion:EXTRACTION_VERSION,sourceId:work.identifier || tail(work.id),sourceUrl:key,fetchedAt:new Date(clock()).toISOString(),...result};
-      if(file){await mkdir(path.dirname(file),{recursive:true});const temp=file+'.'+process.pid+'.tmp';await writeFile(temp,JSON.stringify(record));await rename(temp,file);}
+    const job=sharedRequest(signal=>boundedUpstream(async()=>{
+      const result=await download(key,{signal});signal.throwIfAborted();const record={schemaVersion:1,extractionVersion:EXTRACTION_VERSION,sourceId:work.identifier || tail(work.id),sourceUrl:key,fetchedAt:new Date(clock()).toISOString(),...result};
+      if(file)await writeCacheFile(file,JSON.stringify(record),{signal});
+      signal.throwIfAborted();
       memory.set(key,record);if(memory.size>100)memory.delete(memory.keys().next().value);failures.delete(key);return record;
-    },{priority}).catch(error=>{failures.set(key,{retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
+    },{priority,signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(key,{retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
     pending.set(key,job);return job;
   };
   const failure=failures.get(key);
   const present=record=>({...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
   if(saved){const stale=clock()-Date.parse(saved.fetchedAt)>=DAY;if(stale && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
-  try {const record=await refresh('interactive');return present(record);}
-  catch(error){return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(failures.get(key).retryAt).toISOString()};}
+  try {const record=await waitForRequest(refresh('interactive'));return present(record);}
+  catch(error){requestSignal()?.throwIfAborted();return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString()};}
 }
