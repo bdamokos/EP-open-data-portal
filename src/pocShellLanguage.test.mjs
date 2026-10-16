@@ -22,6 +22,26 @@ async function harness(t,{locale='hu',query='',items=[],respond=()=>{throw Error
   return {window,container,calls,load:path=>vite.ssrLoadModule(path),render:element=>act(async()=>root.render(element)),click:node=>act(async()=>node.click())};
 }
 
+test('question save controls update with the UI locale without changing source titles or saved records',async t=>{
+  const item={kind:'question',id:'E-10-2026-003031',title:'Titre français',titleLanguage:'fr',memberId:'257043'};
+  const h=await harness(t,{items:[item]});const {SaveButton}=await h.load('/src/PocSaved.tsx');
+  const before=window.localStorage.getItem('ep.bookmarks.v1');
+  for(const [language,label] of [['hu','Mentett kérdés'],['fr','Question enregistrée'],['en','Saved question']]) {
+    await h.render(createElement(SaveButton,{item,language}));
+    const button=h.container.querySelector('button'),visible=button.querySelector('span[lang]');
+    assert.equal(visible.textContent,label);assert.equal(visible.lang,language);
+    assert.equal(button.getAttribute('aria-label'),label+' · Titre français');
+    assert.equal(button.lang,language==='fr'?'fr':'');assert.equal(button.getAttribute('aria-pressed'),'true');
+    assert.equal(window.localStorage.getItem('ep.bookmarks.v1'),before,'changing the locale is not a bookmark write');
+  }
+  await h.render(createElement(SaveButton,{item,language:'hu'}));
+  await h.click(h.container.querySelector('button'));
+  const button=h.container.querySelector('button');
+  assert.equal(button.getAttribute('aria-label'),'Kérdés mentése · Titre français');
+  assert.equal(button.getAttribute('aria-pressed'),'false');assert.equal(button.querySelector('span[lang]').lang,'hu');
+  assert.deepEqual(JSON.parse(window.localStorage.getItem('ep.bookmarks.v1')).items,[]);
+});
+
 test('title fallback language follows the selected dictionary key, including equal text and empty first entries',()=>{
   assert.deepEqual(selectLanguageText({en:'Same',hu:'Same'},'hu','Fallback'),{text:'Same',language:'hu'});
   assert.deepEqual(selectLanguageText({en:'English'},'fr','Fallback'),{text:'English',language:'en'});
@@ -48,9 +68,12 @@ for(const locale of ['en','hu','fr'])test(`English shell and Following preserve 
   assert.equal(effectiveLanguage(links[0].querySelector('small')),locale);
   assert.equal(effectiveLanguage(links[1].querySelector('span')),'');
   const save=h.container.querySelector('.poc-save-button');
-  assert.equal(save.getAttribute('aria-label'),'Saved question · Titre français','the existing mixed accessible name is preserved for the open AT assessment');
-  assert.equal(save.getAttribute('lang'),'','unknown language overrides inheritance and does not fix a known mixed-language name');
-  assert.equal(save.hasAttribute('aria-labelledby'),false,'the human decision preserves the existing naming mechanism');
+  const savedLabel={en:'Saved question',hu:'Mentett kérdés',fr:'Question enregistrée'}[locale];
+  assert.equal(save.getAttribute('aria-label'),savedLabel+' · Titre français','the selected UI locale governs the prefix, not the source title language');
+  assert.equal(save.getAttribute('lang'),locale==='fr'?'fr':'','a known matching title is homogeneous; differing languages remain explicit');
+  const legacy=h.container.querySelectorAll('.poc-save-button')[1];
+  assert.equal(legacy.getAttribute('lang'),'','translating a prefix does not supply missing source-title metadata');
+  assert.equal(save.hasAttribute('aria-labelledby'),false,'the native button keeps its existing naming mechanism');
   const before=JSON.parse(window.localStorage.getItem('ep.bookmarks.v1'));
   await h.click(links[0]);
   const after=JSON.parse(window.localStorage.getItem('ep.bookmarks.v1'));
