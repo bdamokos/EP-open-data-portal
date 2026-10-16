@@ -732,8 +732,8 @@ export default function PocApp() {
                   </div>
                 )}
                 {!unavailable && (
-                  <div className="poc-portraits">
-                    {filtered.map((m) => (
+                  <div className="poc-portraits" data-portrait-scroll-root>
+                    {filtered.map((m, index) => (
                       <div className="poc-portrait-item" key={m.id}>
                         <Portrait
                           member={{
@@ -743,6 +743,7 @@ export default function PocApp() {
                               : publicUrl("assets/portrait-placeholder.svg"),
                           }}
                           labelled
+                          eager={index < 18}
                           onClick={() => {
                             setMember(m.id);
                             setSpeechLink(null);
