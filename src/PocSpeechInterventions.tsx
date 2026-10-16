@@ -4,10 +4,10 @@ import {api,useData} from './pocData';
 import type {Intervention,InterventionStatistics,Speech,SpeechContext,SpeechDetail,SpeechSequenceRow} from './pocTypes';
 import './PocSpeechInterventions.css';
 
-const labels:Record<Intervention['type'],string>={speech:'Speech',written:'Written statement',chair:'Chair',procedure:'Procedure','catch-the-eye':'Catch the eye','blue-card-question':'Blue-card question','blue-card-intervention':'Blue-card intervention','blue-card-answer':'Blue-card answer','blue-card-reaction':'Blue-card reaction','blue-card':'Blue card',unclassified:'Speech'};
+const labels:Record<Intervention['type'],string>={speech:'Speech',written:'Written statement',chair:'Chair',procedure:'Procedure','catch-the-eye':'Catch the eye','blue-card-question':'Blue-card question','blue-card-intervention':'Blue-card intervention','blue-card-answer':'Blue-card answer','blue-card-reaction':'Blue-card reaction','blue-card':'Blue card',unclassified:'Unclassified'};
 export function InterventionIcon({type}:{type:Intervention['type']}) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="intervention-icon">
-    {type==='catch-the-eye'?<><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></>:type.startsWith('blue-card')?<><rect x="3" y="3" width="13" height="18" rx="2" fill="currentColor" fillOpacity=".12"/>{type==='blue-card-question'?<><path d="M7 8a2.5 2.5 0 0 1 5 0c0 2-2.5 1.5-2.5 4"/><path d="M9.5 16h.01"/></>:type==='blue-card-answer'?<path d="m21 8-5 4 5 4m-5-4h6"/>:<path d="m18 7 4 4-4 4m4-4h-5"/>}</>:type==='written'?<><path d="M6 3h9l4 4v14H6Z"/><path d="M14 3v5h5M9 12h7m-7 4h5"/></>:<><path d="M4 4h16v12H10l-5 4v-4H4Z"/><path d="M8 8h8m-8 4h5"/></>}
+    {type==='procedure'?<path d="M8 5h12M8 12h12M8 19h12M4 5h.01M4 12h.01M4 19h.01"/>:type==='catch-the-eye'?<><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></>:type.startsWith('blue-card')?<><rect x="3" y="3" width="13" height="18" rx="2" fill="currentColor" fillOpacity=".12"/>{type==='blue-card-question'?<><path d="M7 8a2.5 2.5 0 0 1 5 0c0 2-2.5 1.5-2.5 4"/><path d="M9.5 16h.01"/></>:type==='blue-card-answer'?<path d="m21 8-5 4 5 4m-5-4h6"/>:<path d="m18 7 4 4-4 4m4-4h-5"/>}</>:type==='written'?<><path d="M6 3h9l4 4v14H6Z"/><path d="M14 3v5h5M9 12h7m-7 4h5"/></>:<><path d="M4 4h16v12H10l-5 4v-4H4Z"/><path d="M8 8h8m-8 4h5"/></>}
   </svg>;
 }
 export function InterventionBadges({value}:{value?:Intervention}) {
@@ -71,7 +71,10 @@ function Sequence({debate,speechId,language,loading,retry}:{debate:SpeechContext
   const [full,setFull]=useState(false),[reading,setReading]=useState<string|null>(null);
   const readingRef=useRef<HTMLDivElement>(null),readingId=useId();
   const exchange=debate.exchanges.find(e=>e.ids.includes(speechId)),ids=new Set(exchange?.ids||[]);
-  const rows=full||!exchange?debate.records:debate.records.filter(row=>ids.has(row.id));
+  const selectedRows=full||!exchange?debate.records:debate.records.filter(row=>ids.has(row.id));
+  // Procedural notes explain the next contribution, rather than extending a finished debate.
+  const lastContribution=selectedRows.reduce((last,row,index)=>row.intervention.type==='procedure'?last:index,-1);
+  const rows=selectedRows.slice(0,lastContribution+1);
   useEffect(()=>{if(reading){readingRef.current?.focus({preventScroll:true});readingRef.current?.scrollIntoView({block:'nearest'});}},[reading]);
   const time=(row:SpeechSequenceRow)=>row.start?new Intl.DateTimeFormat(language,{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Brussels'}).format(new Date(row.start)):null;
   return <section className="intervention-debate">
@@ -80,7 +83,7 @@ function Sequence({debate,speechId,language,loading,retry}:{debate:SpeechContext
     {debate.error?<SequenceError message={debate.error} retryAt={debate.retryAt} loading={loading} retry={retry}/>:<ol className="intervention-sequence">{rows.map(row=><li key={row.id} className={(row.id===speechId?'is-current ':'')+(row.exchangeId?'is-exchange':'')}>
       <div className="intervention-sequence-node"><InterventionIcon type={row.intervention.type}/></div>
       <div className="intervention-sequence-entry">
-        {row.intervention.type==='procedure'?<p className="intervention-caption">{row.intervention.narrative}</p>:<>
+        {row.intervention.type==='procedure'?<p className="intervention-caption">{row.intervention.chair?<>Chair: <strong>{row.intervention.chair.name}</strong>{row.intervention.chair.role&&<> · {row.intervention.chair.role}</>}</>:row.intervention.narrative||(row.intervention.procedureKind==='chair-change'?'Chair change · text unavailable':'Procedural note · text unavailable')}</p>:<>
           <button className="intervention-read" onClick={()=>setReading(value=>value===row.id?null:row.id)} aria-expanded={reading===row.id} aria-controls={reading===row.id?readingId:undefined}><span>{row.intervention.speaker?.name||'Contribution'}</span><small>{time(row)}{row.id===speechId?' · Current speech':''}</small></button>
           {row.id===exchange?.originalId&&<span className="intervention-reply">Original speech</span>}
           <InterventionBadges value={row.intervention}/>
