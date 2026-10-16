@@ -86,12 +86,15 @@ export class CorpusStore {
   }
   release(){this.db.prepare('DELETE FROM lease WHERE id=1 AND owner=?').run(this.owner);}
 
-  // Serving generation of the attached activity index, or null before its first load.
-  indexGeneration() {
-    if(!this.attachIndex())return null;
+  // Serving generation of the attached activity index, or null before its first
+  // load. `published` is false while only an initial partial generation exists.
+  indexState() {
+    if(!this.attachIndex())return {generation:null,published:false};
     const value=key=>parse(this.db.prepare('SELECT value FROM idx.meta WHERE key=?').get(key)?.value);
-    return value('active') || value('working')?.generation || null;
+    const active=value('active');
+    return {generation:active || value('working')?.generation || null,published:Boolean(active)};
   }
+  indexGeneration(){return this.indexState().generation;}
   enqueue(key,kind,body,priority) {
     this.assertWriter();
     return this.db.prepare('INSERT OR IGNORE INTO tasks(key,kind,body,priority) VALUES (?,?,?,?)').run(key,kind,JSON.stringify(body),priority).changes===1;
@@ -124,11 +127,12 @@ export class CorpusStore {
       const existing=this.db.prepare('SELECT id,sha256 FROM texts WHERE document_id=? AND source_key=?');
       const insert=this.db.prepare(`INSERT INTO texts(document_id,language,source_key,translation_type,source_format,source_url,fetched_at,checked_at,sha256,chars,body,raw) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
       const update=this.db.prepare(`UPDATE texts SET language=?,translation_type=?,source_format=?,source_url=?,fetched_at=?,checked_at=?,sha256=?,chars=?,body=?,raw=? WHERE id=?`);
-      const confirm=this.db.prepare('UPDATE texts SET checked_at=?,translation_type=? WHERE id=?');
+      // Same text from a replacement file: keep the body and its FTS entry, update the link.
+      const confirm=this.db.prepare('UPDATE texts SET checked_at=?,translation_type=?,language=?,source_format=?,source_url=? WHERE id=?');
       for(const text of texts) {
         const hash=sha((text.raw ?? text.body)), old=existing.get(id,text.sourceKey);
         const raw=text.raw==null?null:zstdCompressSync(Buffer.from(text.raw));
-        if(old?.sha256===hash){confirm.run(text.fetchedAt,text.translationType,old.id);continue;}
+        if(old?.sha256===hash){confirm.run(text.fetchedAt,text.translationType,text.language,text.sourceFormat,text.sourceUrl,old.id);continue;}
         const values=[text.language,text.translationType,text.sourceFormat,text.sourceUrl,text.fetchedAt,text.fetchedAt,hash,text.body.length,text.body,raw];
         if(old)update.run(...values,old.id);
         else insert.run(id,text.language,text.sourceKey,text.translationType,text.sourceFormat,text.sourceUrl,text.fetchedAt,text.fetchedAt,hash,text.body.length,text.body,raw);
@@ -140,6 +144,12 @@ export class CorpusStore {
     return row?.raw ? zstdDecompressSync(row.raw).toString('utf8') : null;
   }
 
+  // Cheap coverage for every search response; full counts stay in status().
+  coverage() {
+    const backfilledAt=this.get('backfilledAt');
+    return {complete:Boolean(backfilledAt),backfilledAt,phase:this.get('phase')||'waiting',
+      note:backfilledAt?'Initial backfill finished; recent sittings and new questions are rechecked.':'Backfilling: counts and search results are incomplete.'};
+  }
   async diskBytes() {
     return (await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
   }
@@ -157,7 +167,7 @@ export class CorpusStore {
       texts:texts.map(row=>({kind:row.kind,language:row.language,count:row.n,characters:row.chars})),
       tasks:Object.fromEntries(tasks.map(row=>[row.kind,{total:row.total,done:row.done,retrying:row.retrying}])),
       lastError:lastError?{key:lastError.key,error:lastError.error,attempts:lastError.attempts,nextRetryAt:new Date(lastError.retry_at).toISOString()}:null,
-      discoveredAt:this.get('discoveredAt'),lastRunAt:this.get('lastRunAt'),languages:this.get('languages')||null,
+      discoveredAt:this.get('discoveredAt'),lastRunAt:this.get('lastRunAt'),languages:{speeches:this.get('speechLanguages')||null,documents:this.get('documentLanguages')||null},
       diskBytes,diskLimitBytes:diskLimit,indexAttached:this.indexAttached,exclusiveWriterActive:Boolean(lease && lease.expires>this.clock()),
       dataSource:'European Parliament Open Data API v2 (speech XML fragments; official question and answer DOCX distributions)',attribution:'European Parliament, CC BY 4.0'};
   }
