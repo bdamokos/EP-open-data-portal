@@ -5,7 +5,9 @@
 .poc-insights button {cursor:pointer; border:1px solid var(--insight-line); border-radius:4px; padding:9px 15px; background:transparent; text-align:left;}
 .poc-insights button:disabled {opacity:.45;cursor:default;}
 .poc-insights button[aria-pressed=true],.poc-insights button[aria-current=page] {color:var(--selected-yellow,#fff200);border-color:currentColor;}
-.poc-insights button:focus-visible,.poc-insights a:focus-visible,.poc-insights input:focus-visible,.poc-insights select:focus-visible,.poc-insights summary:focus-visible {outline:3px solid var(--selected-yellow,#fff200);outline-offset:4px;}
+.poc-insights button:focus-visible,.poc-insights a:focus-visible,.poc-insights input:focus-visible,.poc-insights select:focus-visible,.poc-insights summary:focus-visible {outline:3px solid var(--focus-outline-color,var(--selected-yellow,#fff200));outline-offset:4px;}
+/* These shared components have dark surfaces in the insight views. */
+.poc-insights .poc-video,.poc-insights .poc-video .poc-notice,.poc-insights .poc-cloud {--focus-outline-color:var(--selected-yellow,#fff200);}
 .poc-insights a {color:inherit;text-underline-offset:4px;}
 .poc-insights h1 {font-size:clamp(32px,4vw,58px);line-height:1.06;letter-spacing:-.025em;margin:12px 0 18px;}
 .poc-insights h2 {font-size:clamp(24px,2.2vw,32px);line-height:1.2;margin:0 0 18px;}
