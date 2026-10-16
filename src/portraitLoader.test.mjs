@@ -18,7 +18,7 @@ function clock() {
   return {
     now: () => time,
     wait: ms => new Promise(resolve => timers.push({at: time + ms, resolve})),
-    async advance(ms) {
+    async advance(ms, afterWake) {
       const end = time + ms;
       for (;;) {
         timers.sort((a, b) => a.at - b.at);
@@ -26,6 +26,7 @@ function clock() {
         time = timers[0].at;
         const due = timers.filter(timer => timer.at <= time);
         for (const timer of due) {timers.splice(timers.indexOf(timer), 1); timer.resolve();}
+        afterWake?.(); afterWake = null;
         await flush();
       }
       time = end;
@@ -85,6 +86,29 @@ test('one rate response pauses all portrait starts and resumes them without a re
   const resumed = calls.slice(3).map(call => call.at);
   assert.equal(resumed[0], 4_000);
   assert(resumed.every((at, index) => !index || at - resumed[index - 1] >= 250));
+});
+
+test('a pacing wake cannot start a request after a simultaneous response establishes cooldown', async () => {
+  const time = clock(), first = deferred(), events = [];
+  let firstAttempt = true;
+  const loader = createPortraitLoader({...time, fetchImpl: url => {
+    events.push({kind: 'fetch', url, at: time.now()});
+    if (url === path(1) && firstAttempt) {firstAttempt = false; return first.promise;}
+    return Promise.resolve(image());
+  }});
+  const pending = Array.from({length: 5}, (_, i) => loader.load(path(i + 1)));
+  await flush();
+  // Resolve a pacing timer and an active response in the same turn, before
+  // their promise continuations run. Admission and dispatch must stay atomic.
+  await time.advance(250, () => first.resolve({ok: false, status: 429,
+    headers: {get: () => {events.push({kind: 'cooldown', at: time.now()}); return '2';}},
+    arrayBuffer: async () => new ArrayBuffer(0),
+  }));
+  const limitedAt = events.findIndex(event => event.kind === 'cooldown');
+  assert(limitedAt >= 0);
+  assert(events.slice(limitedAt + 1).every(event => event.kind !== 'fetch'), 'no fetch may follow the rate response before its deadline');
+  await time.advance(3_000); await Promise.all(pending);
+  assert(events.slice(limitedAt + 1).filter(event => event.kind === 'fetch').every(event => event.at >= 2_250));
 });
 
 test('a detached response still protects the queue and honours an HTTP-date cooldown', async () => {
