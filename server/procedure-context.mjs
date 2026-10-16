@@ -10,10 +10,10 @@ export function procedureContextQuery(search) {
 }
 export class ProcedureContext {
   constructor(sources,catalog){Object.assign(this,{sources,catalog});}
-  async query({reference,language,summary}) {
+  async query({reference,language,summary,order=['first-reading','parliament-decision','final-act','proposal','document']}) {
     const sourceLanguage=language==='fr'?'fr':'en',url='https://oeil.europarl.europa.eu/oeil/'+sourceLanguage+'/procedure-file?'+new URLSearchParams({reference});
     const page=await this.sources.get(url),procedure=parseProcedurePage(page.html,reference,sourceLanguage);
-    const selected=summary?procedure.summaries.find(s=>s.id===summary):['first-reading','parliament-decision','final-act','proposal','document'].map(stage=>procedure.summaries.find(s=>s.stage===stage)).find(Boolean);
+    const selected=summary?procedure.summaries.find(s=>s.id===summary):order.map(stage=>procedure.summaries.find(s=>s.stage===stage)).find(Boolean);
     if(summary&&!selected)throw new HttpError(400,'summary_not_linked','This summary is not linked to the procedure.');
     let text=null;
     if(selected){const body=await this.sources.get(selected.url),parsed=parseSummaryPage(body.html,reference);if(selected.date&&parsed.date!==selected.date)throw new HttpError(502,'summary_date','The summary date does not match the procedure.');text={...selected,...parsed,source:{url:body.url,fetchedAt:body.fetchedAt,stale:Boolean(body.viewCache?.stale)}};}
@@ -22,3 +22,5 @@ export class ProcedureContext {
     return {view:'procedure-context',reference,title:procedure.title,language:sourceLanguage,summaries:procedure.summaries,summary:text,subjects:procedure.subjects,topics:topics?.concepts||[],topicState:topics?.state||'unavailable',topicError,source:{url:page.url,fetchedAt:page.fetchedAt,stale:Boolean(page.viewCache?.stale)}};
   }
 }
+// A cited act is best described by its final-act summary, then by the proposal.
+export const REFERENCE_SUMMARY_ORDER=Object.freeze(['final-act','proposal','first-reading','parliament-decision','document']);
