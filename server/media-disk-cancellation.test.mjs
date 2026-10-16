@@ -18,7 +18,11 @@ for(const [index,kind] of ['recording','player','document'].entries())test(`${ki
   t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()+180_000*(index+1)});
   let finish,upstream=0,blocked=false;
   const mock=t.mock.method(fs,'readFile',(file,...args)=>{
-    if(String(file).startsWith(directory)&&!blocked){blocked=true;return new Promise((resolve,reject)=>finish=()=>reject(Object.assign(new Error('cache absent'),{code:'ENOENT'})));}
+    if(String(file).startsWith(directory)){
+      const absent=()=>Object.assign(new Error('cache absent'),{code:'ENOENT'});
+      if(!blocked){blocked=true;return new Promise((resolve,reject)=>finish=()=>reject(absent()));}
+      return Promise.reject(absent());
+    }
     return realRead(file,...args);
   });syncBuiltinESMExports();
   t.after(()=>{mock.mock.restore();syncBuiltinESMExports();});
@@ -32,10 +36,8 @@ for(const [index,kind] of ['recording','player','document'].entries())test(`${ki
   const a=new AbortController(),reason=cancelledRequest();
   const first=runWithRequestSignal(a.signal,()=>assert.rejects(read(),e=>e===reason));
   await turn();assert(finish);a.abort(reason);finish();await first;assert.equal(upstream,0);
-  const second=read();
-  for(let i=0;i<10&&upstream===0;i++){await turn();t.mock.timers.tick(2100);}
+  const result=await read();
   assert.equal(upstream,1,'reader B must reach the source rather than a cached cancellation');
-  const result=await second;
   assert(kind==='document'?result.status==='available':Boolean(result.payload));
   assert.equal(upstream,1);
 });
