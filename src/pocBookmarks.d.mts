@@ -1,5 +1,5 @@
-export type SavedActivity={id:string;date:string;title:string;recordKind?:string;relatedQuestionId?:string};
-export type SavedItem={kind:'question'|'mep';id:string;title:string;memberId?:string|null;date?:string|null;savedAt?:number;updated?:boolean;newAnswer?:boolean;newActivity?:boolean;availability?:string;checkedAt?:number;baseline?:{activityVersion?:number;revision?:string;answerIds?:string[];total?:number;latestIds?:string[]};current?:SavedItem['baseline'];latest?:SavedActivity[];unreadAnswers?:SavedActivity[]};
+export type SavedActivity={id:string;date:string;title:string;titleLanguage?:string|null;recordKind?:string;relatedQuestionId?:string};
+export type SavedItem={kind:'question'|'mep';id:string;title:string;titleLanguage?:string|null;memberId?:string|null;date?:string|null;savedAt?:number;updated?:boolean;newAnswer?:boolean;newActivity?:boolean;availability?:string;checkedAt?:number;baseline?:{activityVersion?:number;revision?:string;answerIds?:string[];total?:number;latestIds?:string[]};current?:SavedItem['baseline'];latest?:SavedActivity[];unreadAnswers?:SavedActivity[]};
 export type SavedStates={questions:any[];members:any[];checkedAt:string;coverage:{indexComplete:boolean}};
 export const SAVED_KEY:string;
 export function savedKey(item:SavedItem):string;
