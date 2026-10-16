@@ -1,6 +1,15 @@
 const outcomes = {ADOPTED:'Adopted',REJECTED:'Rejected',LAPSED:'Lapsed',WITHDRAWN:'Withdrawn',mixed:'Mixed outcomes',unavailable:'Outcome unavailable'};
 export const amendmentOutcomeLabel = value => outcomes[value] || outcomes.unavailable;
 export const supportedAmendmentTarget = value => typeof value==='string'&&/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(value);
+export function amendmentFailureKey(failure) {
+  const component=failure.registryPartKey??failure.partId??[failure.recordKind??failure.scope??'unknown',failure.componentIndex??null,failure.description??null,failure.rawDescription??null,failure.sourceDescriptions??null];
+  return JSON.stringify([failure.requestId??null,component,failure.language??null]);
+}
+export function amendmentFailureLabel(failure) {
+  if(failure.partId)return failure.partId;
+  if(failure.recordKind==='request'||failure.scope==='request')return 'Split request failure';
+  return 'Unidentified split component'+(Number.isInteger(failure.componentIndex)&&failure.componentIndex>=0?' '+(failure.componentIndex+1):'');
+}
 export function amendmentProcedure(value) {
   let reference=String(value||'').trim();
   if(/^https?:\/\//i.test(reference)){try{reference=new URL(reference).searchParams.get('reference')||reference;}catch{/* Keep invalid input for the API's explicit validation. */}}
@@ -44,7 +53,7 @@ export function amendmentDecisionPart(parts,decision) {
   // An explicit ID always takes precedence, including when that ID is not indexed.
   if(decision.partId)return parts.find(part=>part.id===decision.partId)||null;
   if(decision.partNumber===undefined||decision.partNumber===null)return null;
-  const candidates=parts.filter(part=>part.number!==undefined&&part.number!==null&&String(part.number)===String(decision.partNumber));
+  const candidates=parts.filter(part=>part.id&&part.number!==undefined&&part.number!==null&&String(part.number)===String(decision.partNumber));
   return candidates.length===1?candidates[0]:null;
 }
 export function publicAmendmentSource(value) {
