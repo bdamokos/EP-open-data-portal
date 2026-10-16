@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentHref,amendmentOutcomeLabel,amendmentPlanSummary,amendmentProcedure,amendmentRoute,publicAmendmentSource} from './pocAmendmentModel.mjs';
+import {amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentHref,amendmentOutcomeLabel,amendmentPlanSummary,amendmentProcedure,amendmentRoute,publicAmendmentSource,supportedAmendmentTarget} from './pocAmendmentModel.mjs';
+
+test('amendment trail targets match the supported current-term plenary report and motion contract',()=>{
+  for(const id of ['A-10-2026-0254','B-10-2026-0424','RC-10-2026-0441','A-10-2026-12345','B-10-2026-123456'])assert.equal(supportedAmendmentTarget(id),true,id);
+  for(const id of ['JURI-AL-788004','TA-10-2026-0254','P10_TA(2026)0254','A-9-2023-0001','B-11-2030-0001','A-10-2026-0254-AM-001-004','A-10-2026-123','A-10-2026-1234567','a-10-2026-0254',null])assert.equal(supportedAmendmentTarget(id),false,String(id));
+});
 
 test('amendment filters round-trip exact document and author identities without a language-specific dossier reference',()=>{
   const route=amendmentRoute({document:'RC-10-2026-0441',procedure:'2025/0407(COD)',member:197818,outcome:'mixed',offset:20,language:'hu'});

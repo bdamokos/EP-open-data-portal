@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { AMENDMENT_LIMITS, amendmentOutcome } from './amendments.mjs';
+import { AMENDMENT_LIMITS, amendmentOutcome, amendmentTextLosses } from './amendments.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 const parse=value=>JSON.parse(value);
 export function amendmentsSchema(db) {
@@ -58,12 +58,16 @@ export function recordSplitResults(store,result) {
     store.db.prepare('INSERT OR REPLACE INTO amendment_split_failures VALUES (?,?,?,?)').run(requestId,partId,language,JSON.stringify(body));
   }
 }
-export function saveAmendmentRows(store,generation,target,rows,coverage,{observedDecisionIds=[]}={}) {
+export function saveAmendmentRows(store,generation,target,rows,coverage,{observedDecisionIds=[],freshSplitParts=[],invalidatedTextListIds=[],textParserVersion=null,currentListIds=null,listRelationshipsKnown=null}={}) {
   store.transaction(()=>{
     store.assertWriter();
     const prior=store.db.prepare('SELECT id,body FROM amendments WHERE generation=? AND target=?').all(generation,target.id);
     const merged=new Map(rows.map(row=>[row.id,row]));
     const observed=new Set(observedDecisionIds);
+    const invalidatedLists=new Set(invalidatedTextListIds),currentLists=currentListIds===null?null:new Set(currentListIds);
+    const freshParts=new Map(freshSplitParts.map(part=>[part.id,part]));
+    const invalidBaseline=row=>invalidatedLists.has(row.listId)&&row.textParserVersion!==textParserVersion;
+    const extraGaps=new Set();
     let retained=false;
     // Copying a generation preserves accepted components. A missing list,
     // author mapping or decision is a gap, never evidence that it disappeared.
@@ -80,7 +84,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
       }
       const stale=[];
       for(const field of incoming.conflicted?[]:['originalText','proposedText','targetLabel','language','listId','justification','onBehalfOf']){
-        if(['originalText','proposedText'].includes(field)&&(incoming.textIntegrity==='incomplete'||old.textIntegrity==='incomplete'))continue;
+        if(['originalText','proposedText'].includes(field)&&(incoming.textIntegrity==='incomplete'||old.textIntegrity==='incomplete'||invalidBaseline(old)||amendmentTextLosses(null,old).length))continue;
         if(incoming[field]==null&&old[field]!=null){incoming[field]=old[field];stale.push(field);}
       }
       if(!incoming.conflicted && !incoming.authors?.length && old.authors?.length){incoming.authors=old.authors;stale.push('authors');}
@@ -101,10 +105,54 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
       incoming.splitParts=[...new Map([...(old.splitParts || []).filter(part=>retainedPartIds.has(part.id)),...(incoming.splitParts || [])].map(part=>[part.id,part])).values()];
       if(stale.length){retained=true;incoming.retainedComponents=[...new Set(stale)];incoming.gaps=[...new Set([...(incoming.gaps || []),'Some previously accepted components are retained because the latest refresh is incomplete.'])];incoming.sources=[...new Map([...(incoming.sources || []),...(old.sources || [])].map(source=>[source.url+':'+source.fetchedAt,source])).values()];}
     }
+    // A newly parsed exact component can update a retained decision without
+    // inventing a binding to any other component, target or namespace.
+    const splitGaps=new Set(['A split component has no indexed description.','A split description could not be parsed; the failure is retained for a future parser update.','Split descriptions are parsed as selection plans; exact wording spans have not been validated.']);
+    for(const row of merged.values()) {
+      const partIds=new Set((row.decisions || []).map(decision=>decision.partId).filter(Boolean));
+      const parts=new Map((row.splitParts || []).filter(part=>partIds.has(part.id)).map(part=>[part.id,part]));
+      for(const id of partIds)if(freshParts.has(id))parts.set(id,freshParts.get(id));
+      row.splitParts=[...parts.values()];
+      row.gaps=(row.gaps || []).filter(gap=>!splitGaps.has(gap)&&!((row.decisions || []).length&&gap==='No explicit amendment outcome is indexed.'));
+      for(const id of partIds) {
+        const part=parts.get(id);
+        if(!part)row.gaps.push('A split component has no indexed description.');
+        else if(part.status==='unresolved')row.gaps.push('A split description could not be parsed; the failure is retained for a future parser update.');
+        else row.gaps.push('Split descriptions are parsed as selection plans; exact wording spans have not been validated.');
+        if(!part||part.status==='unresolved')extraGaps.add('Some split components have incomplete description or parsing evidence.');
+      }
+      row.sources=[...new Map([...(row.sources || []),...row.splitParts.map(part=>part.source).filter(source=>source?.url)].map(source=>[source.url+':'+(source.language || '')+':'+source.fetchedAt,source])).values()];
+      const textLosses=amendmentTextLosses(null,row);
+      if(invalidBaseline(row)||textLosses.length) {
+        row.originalText=null;row.proposedText=null;row.textIntegrity='incomplete';
+        row.gaps.push(...textLosses.map(gap=>gap.message || gap.code));
+        if(invalidBaseline(row))row.gaps.push('Earlier wording has no verified baseline compatible with the current document parser and is withheld.');
+        extraGaps.add('Some amendment wording is withheld because its complete extraction could not be verified.');
+      }
+      if(row.variants?.length)row.variants=row.variants.map(variant=>{
+        const losses=amendmentTextLosses(null,{...variant,number:row.number}),incompatible=invalidBaseline(variant);
+        if(!incompatible&&!losses.length)return variant;
+        row.gaps.push('Some retained amendment variants have unverified wording, which is withheld.');
+        extraGaps.add('Some amendment variant wording is withheld because its complete extraction could not be verified.');
+        return {...variant,originalText:null,proposedText:null,textIntegrity:'incomplete',gaps:[...new Set([...(variant.gaps || []),...losses.map(gap=>gap.message || gap.code),...(incompatible?['Earlier wording has no verified baseline compatible with the current document parser and is withheld.']:[])])]};
+      });
+      if(currentLists&&row.listId&&!currentLists.has(row.listId)) {
+        row.listRelationship='absent-current-relationship';
+        row.gaps.push('This amendment list is absent from the current target relationships; its earlier evidence is retained.');
+        extraGaps.add('A previously indexed amendment list is absent from the current target relationships; its evidence is retained.');
+      }
+      if(listRelationshipsKnown===false) {
+        if(row.listId)row.listRelationship='unverified';
+        row.gaps.push('The current amendment-list relationship is unavailable; this list evidence is unverified and retained.');
+        row.variants=(row.variants || []).map(variant=>({...variant,listRelationship:'unverified',gaps:[...new Set([...(variant.gaps || []),'The current amendment-list relationship is unavailable; this list evidence is unverified and retained.'])]}));
+        extraGaps.add('Current amendment-list relationships are unavailable; previously indexed list evidence is unverified and retained.');
+      }
+      row.gaps=[...new Set(row.gaps)];
+    }
     const put=store.db.prepare('INSERT OR REPLACE INTO amendments VALUES (?,?,?,?,?,?)');
     for(const row of merged.values())put.run(generation,row.id,target.id,row.date || target.date || '',amendmentOutcome(row.decisions),JSON.stringify({...row,outcome:amendmentOutcome(row.decisions)}));
     const sittingIds=[...new Set([...(target.sittingIds || []),...[...merged.values()].flatMap(row=>(row.decisions || []).map(decision=>decision.sittingId).filter(Boolean))])];
-    store.db.prepare('INSERT OR REPLACE INTO amendment_targets VALUES (?,?,?)').run(generation,target.id,JSON.stringify({...target,...coverage,sittingIds,...(retained?{complete:false,gaps:[...(coverage.gaps || []),'Previously accepted amendment components are retained after an incomplete refresh.']}: {})}));
+    store.db.prepare('INSERT OR REPLACE INTO amendment_targets VALUES (?,?,?)').run(generation,target.id,JSON.stringify({...target,...coverage,sittingIds,...(retained||extraGaps.size?{complete:false,gaps:[...new Set([...(coverage.gaps || []),...extraGaps,...(retained?['Previously accepted amendment components are retained after an incomplete refresh.']:[])])]}: {})}));
   });
 }
 export function amendmentFailureSummary(store) {

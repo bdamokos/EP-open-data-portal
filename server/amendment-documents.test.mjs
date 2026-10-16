@@ -50,7 +50,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'3');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'4');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -118,6 +118,39 @@ test('first ingestion withholds both columns after a lost row and attaches the n
     const intact=result.amendments.find(amendment=>amendment.number===2);
     assert.equal(intact.originalText,'');assert.equal(intact.proposedText,'A complete insertion.');assert.deepEqual(intact.gaps,[]);
   }
+});
+
+test('wrapped comparison rows, cells and embedded body content cannot disappear behind a complete first row',()=>{
+  const supported=row(cell(p('First original row')),cell(p('First proposed row')));
+  const contentControl=content=>`<w:sdt><w:sdtPr><w:tag w:val="source-control"/></w:sdtPr><w:sdtContent>${content}</w:sdtContent></w:sdt>`;
+  const second=row(cell(p('Second original row')),cell(p('Second proposed row')));
+  const variants=[
+    ['content-controlled row',contentControl(second)],
+    ['custom XML row',`<w:customXml>${second}</w:customXml>`],
+    ['content-controlled cell',row(contentControl(cell(p('Second original row'))),cell(p('Second proposed row')))],
+    ['custom XML cell',row(cell(p('Second original row')),`<w:customXml>${cell(p('Second proposed row'))}</w:customXml>`)],
+    ['content-controlled cell paragraphs',row(cell(contentControl(p('Second original row'))),cell(p('Second proposed row')))],
+    ['unsupported external cell body',row(cell('<w:altChunk r:id="external-body"/>'),cell(p('Second proposed row')))],
+    ['alternate row branches',`<mc:AlternateContent><mc:Choice Requires="w14">${second}</mc:Choice><mc:Fallback>${second}</mc:Fallback></mc:AlternateContent>`],
+    ['alternate inline branches',row(cell('<w:p><mc:AlternateContent><mc:Choice Requires="w14">'+run('Second original row')+'</mc:Choice><mc:Fallback>'+run('Fallback original')+'</mc:Fallback></mc:AlternateContent></w:p>'),cell(p('Second proposed row')))],
+  ];
+  for(const [description,wrapped] of variants) {
+    const xml=body(metadata()+table(supported,wrapped)+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('A complete insertion.'))))+p('</Amend>')).replace('xmlns:w="urn:word"','xmlns:w="urn:word" xmlns:r="urn:relationships" xmlns:mc="urn:compatibility"');
+    const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+    const affected=result.amendments.find(amendment=>amendment.number===1);
+    assert.equal(affected.originalText,null,description);assert.equal(affected.proposedText,null,description);
+    assert(affected.gaps.some(gap=>gap.code==='comparison-structure'&&gap.number===1&&gap.sourceUrl===options.sourceUrl),description);
+    assert(result.gaps.some(gap=>gap.code==='comparison-structure'&&gap.number===1),description);
+    const intact=result.amendments.find(amendment=>amendment.number===2);
+    assert.equal(intact.originalText,'',description);assert.equal(intact.proposedText,'A complete insertion.',description);assert.deepEqual(intact.gaps,[]);
+  }
+});
+
+test('ordinary table properties and positional annotation markers do not invalidate supported columns',()=>{
+  const header=row(cell(p('Motion for a resolution')),cell(p('Amendment')));
+  const comparison='<w:tbl><w:tblPr/><w:tblGrid/><w:bookmarkStart w:id="1"/>'+header+'<w:tr><w:trPr/><w:tblPrEx/><w:commentRangeStart w:id="2"/><w:tc><w:tcPr/>'+p('Original')+'</w:tc><w:tc><w:tcPr/>'+p('Proposal')+'</w:tc><w:commentRangeEnd w:id="2"/></w:tr><w:bookmarkEnd w:id="1"/></w:tbl>';
+  const result=extractAmendments(archive(body(metadata()+comparison+p('</Amend>'))),options);
+  assert.equal(result.amendments[0].originalText,'Original');assert.equal(result.amendments[0].proposedText,'Proposal');assert.deepEqual(result.gaps,[]);
 });
 
 test('an unscoped numbering failure withholds wording and exposes the document-scoped gap on every amendment',()=>{

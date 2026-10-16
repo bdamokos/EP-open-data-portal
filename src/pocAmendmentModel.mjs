@@ -1,5 +1,6 @@
 const outcomes = {ADOPTED:'Adopted',REJECTED:'Rejected',LAPSED:'Lapsed',WITHDRAWN:'Withdrawn',mixed:'Mixed outcomes',unavailable:'Outcome unavailable'};
 export const amendmentOutcomeLabel = value => outcomes[value] || outcomes.unavailable;
+export const supportedAmendmentTarget = value => typeof value==='string'&&/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(value);
 export function amendmentProcedure(value) {
   let reference=String(value||'').trim();
   if(/^https?:\/\//i.test(reference)){try{reference=new URL(reference).searchParams.get('reference')||reference;}catch{/* Keep invalid input for the API's explicit validation. */}}
