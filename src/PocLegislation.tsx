@@ -40,8 +40,8 @@ function VoteView({vote,language,onMember,country}:{country:string|null;vote:Nam
 }
 function SittingCloud({sitting,sittings,agendaPeriod,language}:{agendaPeriod:string;sitting:string;sittings:LegislationResponse['sittings'];language:string}) {
   const [country,setCountry]=useExplorerParam<string|null>('cloud-country',null);
-  // A sitting chosen in the agenda opens the cloud on its plenary week.
-  const [period,setPeriod]=useExplorerParam('cloud-period',agendaPeriod.startsWith('week:')?agendaPeriod:weekPeriod(sittings.find(s=>s.id===sitting)||latestHeldSitting(sittings))),[kind,value]=[period.slice(0,period.indexOf(':')),period.slice(period.indexOf(':')+1)];
+  // Explicit sitting links retain their day; unselected visits default to the latest plenary week.
+  const [period,setPeriod]=useExplorerParam('cloud-period',agendaPeriod.startsWith('week:')?agendaPeriod:sitting?'sitting:'+sitting:weekPeriod(latestHeldSitting(sittings))),[kind,value]=[period.slice(0,period.indexOf(':')),period.slice(period.indexOf(':')+1)];
   return <section className="insight-sitting-cloud">{country&&<div className="insight-active-filters"><button onClick={()=>setCountry(null)}>MEPs elected in {countryName(country,language)} ×</button></div>}<PocSpeechCloud title={false} controls={<><PlenaryPeriodSelect value={period} sittings={sittings} language={language} onChange={setPeriod}/><CountryFilter country={country} onChange={setCountry} language={language}/></>} {...(kind==='week'?{week:value}:{sitting:value})} country={country} interfaceLanguage={language}/></section>;
 }
 function TopicVotes({detail,route,country,language,onMember}:{detail:NonNullable<LegislationResponse['detail']>;route:string;country:string|null;language:string;onMember:InsightProps['onMember']}) {
