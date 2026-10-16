@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
 import { transcriptLanguage } from "./transcript-language.mjs";
 import { speechWebsite, languageCode } from "./ep-links.mjs";
-import { UpstreamQueue } from './upstream-queue.mjs';
+import { UpstreamQueue, retryAfterSeconds } from './upstream-queue.mjs';
 import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
@@ -37,7 +37,7 @@ export async function boundedUpstream(operation, {priority='interactive'}={}) {
   try { return await operation(); } finally { release(); }
 }
 export function backoffUpstream(seconds) {
-  upstreamQueue.backoff(Math.min(120, Math.max(30, seconds)));
+  upstreamQueue.backoff(Math.min(1800, Math.max(30, seconds)));
 }
 const firstString = (value) =>
   typeof value === "string"
@@ -95,10 +95,12 @@ export async function odp(
   }
   if (pending.has(key)) return pending.get(key);
   const job = (async () => {
-    const release = await slot(priority);
+    let release;
     try {
       let response;
+      let retryAfter;
       for (let attempt = 0; attempt < (priority==='background'?3:1); attempt++) {
+        release = await slot(priority);
         response = await fetch(url, {
           headers: {
             Accept: "application/ld+json",
@@ -107,16 +109,15 @@ export async function odp(
           },
           signal: AbortSignal.timeout(25_000),
         });
+        retryAfter=undefined;
         if (response.status !== 429 && response.status !== 503) break;
-        const seconds = Math.min(
-          120,
-          Math.max(30, Number(response.headers.get("retry-after")) || 60),
-        );
+        const seconds = retryAfterSeconds(response.headers.get("retry-after"));
+        retryAfter=seconds;
         backoffUpstream(seconds);
         await response.body?.cancel();
-        if (priority==='background' && attempt < 2)
-          await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+        release();release=null;
       }
+      if(retryAfter&&!response.ok)throw Object.assign(new HttpError(503,'odp_rate_limited','Parliament is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:Date.now()+retryAfter*1000});
       if (!response.ok)
         throw new HttpError(
           502,
@@ -159,7 +160,7 @@ export async function odp(
       refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});
       throw error;
     } finally {
-      release();
+      release?.();
     }
   })();
   pending.set(key, job);
