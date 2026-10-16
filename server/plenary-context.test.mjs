@@ -9,7 +9,7 @@ import {SpeechCloudInsights,speechCloudQuery,analyzeSpeechCloud,meaningfulSpeake
 import {OfficialContextSources,officialSourceUrl,parseProcedurePage,parseSummaryPage} from './official-context.mjs';
 import {parseEurovoc,eurovocQuery,EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext,procedureContextQuery} from './procedure-context.mjs';
-import {TopicTrends,topicTrendsQuery,savedProcedureEvents,topicTimeline} from './topic-trends.mjs';
+import {TopicTrends,topicTrendsQuery,savedProcedureEvents,topicTimeline,procedureTitle,procedureStatus} from './topic-trends.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {QuestionInsights,insightQuery} from './insights-store.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/plenary-context-live-20261015.json',import.meta.url)));
@@ -115,9 +115,38 @@ test('EuroVoc catalogue coalesces identical batches and persists reproducible pe
 });
 test('saved timeline keeps votes, debates and committee work separate and deduplicates shared events',()=>storeFor(async(store,generation)=>{
   const raw=fixture.procedure.payload.data[0];store.putSource(generation,'/procedures/2025-0407','procedure',projectProcedure(raw),fixture.procedure.fetchedAt,[]);store.db.exec('PRAGMA query_only=ON');
-  const query=topicTrendsQuery(new URLSearchParams('days=term'),{now:now()}),saved=savedProcedureEvents(store,query);assert.equal(query.start,'2024-07-16');assert.equal(query.days,822);assert.equal(saved.procedures.length,1);assert.equal(saved.procedures[0].events.filter(e=>e.kind==='votes').length,1);assert.equal(saved.procedures[0].events.filter(e=>e.kind==='committee').length,4);
+  const query=topicTrendsQuery(new URLSearchParams('days=term'),{now:now()}),saved=savedProcedureEvents(store,query);assert.equal(query.start,'2024-07-16');assert.equal(query.days,822);assert.equal(saved.procedures.length,1);assert.equal(saved.procedures[0].fetchedAt,new Date(fixture.procedure.fetchedAt).toISOString());assert.equal(saved.procedures[0].events.filter(e=>e.kind==='votes').length,1);assert.equal(saved.procedures[0].events.filter(e=>e.kind==='committee').length,4);
   const mapping=parseEurovoc(fixture.topics,['2025-0407'],'en'),timeline=topicTimeline([...saved.procedures,...saved.procedures],mapping,query);assert.equal(timeline.topics.length,11);assert.equal(timeline.topics[0].events.length,5);assert.equal(timeline.topics[0].series.reduce((sum,s)=>sum+s.votes,0),1);assert.equal(timeline.topics[0].series.reduce((sum,s)=>sum+s.committee,0),4);
   const service=new TopicTrends(store,{known:async()=>mapping},{clock:now});const result=await service.query(query);assert.equal(result.coverage.mapped,1);assert.equal(result.nextPage,null);assert.equal(result.savedSources.length,1);
+}));
+test('procedure titles retain complete localized text and adoption uses only recorded dated milestones',()=>{
+  const title='Official title '.repeat(60),work={process_title:{en:title,fr:'Titre officiel'}};
+  assert.deepEqual(procedureTitle(projectProcedure(work),'fr'),{title:'Titre officiel',titleLanguage:'fr'});
+  assert.deepEqual(procedureTitle(projectProcedure(work),'hu'),{title:title.trim(),titleLanguage:'en'});
+  assert.deepEqual(procedureTitle({process_title:{fr:'Titre'}},'hu'),{title:null,titleLanguage:null});
+  assert.equal(projectProcedure({}).process_title,null);
+  const event=(type,date)=>({had_activity_type:'def/ep-activities/'+type,activity_date:date});
+  const events=[event('PLENARY_VOTE','2026-02-01'),event('PLENARY_ADOPT_POSITION','2026-02-02'),event('SIGNATURE','2026-03-01'),event('PUBLICATION_OFFICIAL_JOURNAL','2026-03-03')];
+  assert.deepEqual(procedureStatus({consists_of:events},'2026-03-04'),{state:'published',date:'2026-03-03'});
+  assert.deepEqual(procedureStatus({consists_of:events},'2026-03-02'),{state:'signed',date:'2026-03-01'});
+  assert.deepEqual(procedureStatus({consists_of:events},'2026-02-28'),{state:'parliament-position',date:'2026-02-02'});
+  assert.deepEqual(procedureStatus({consists_of:events},'2026-02-01'),{state:'none',date:null});
+  assert.deepEqual(procedureStatus({consists_of:[event('PUBLICATION_OFFICIAL_JOURNAL',null),event('PLENARY_VOTE','2026-02-01')]}),{state:'none',date:null});
+});
+test('public procedure examples distinguish a published act from Parliament’s position',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/procedure-milestones-live-20261016.json',import.meta.url)));
+  assert.deepEqual(fixture.records.map(record=>procedureStatus(projectProcedure(record.work),record.fetchedAt.slice(0,10))),[{state:'published',date:'2026-07-17'},{state:'parliament-position',date:'2026-09-16'}]);
+});
+test('timeline metadata uses exact saved dossier identity and latest saved milestone outside the activity window',()=>storeFor(async(store,generation)=>{
+  const raw=structuredClone(fixture.procedure.payload.data[0]);
+  raw.process_title={en:'Exact saved title',fr:'Titre enregistré'};
+  raw.consists_of.push({had_activity_type:'def/ep-activities/PUBLICATION_OFFICIAL_JOURNAL',activity_date:'2026-10-01'});
+  store.putSource(generation,'/procedures/2025-0407','procedure',projectProcedure(raw),'2026-10-15T08:00:00Z',[]);
+  const query=topicTrendsQuery(new URLSearchParams('days=term&end=2026-07-10&lang=fr'),{now:now()}),saved=savedProcedureEvents(store,query),mapping=parseEurovoc(fixture.topics,['2025-0407'],'fr');
+  const timeline=topicTimeline(saved.procedures,mapping,query),dossier=timeline.dossiers['2025-0407'];
+  assert.equal(dossier.reference,'2025/0407(COD)');assert.equal(dossier.title,'Titre enregistré');assert.equal(dossier.titleLanguage,'fr');
+  assert.deepEqual(dossier.status,{state:'published',date:'2026-10-01'});assert.equal(dossier.fetchedAt,'2026-10-15T08:00:00.000Z');
+  assert.deepEqual(Object.keys(timeline.dossiers),['2025-0407']);
 }));
 test('question activity badges use saved exact question-answer links and do not change source state',()=>storeFor(async(store,generation)=>{
   const source=activityFixture.documents.find(d=>d.endpoint.startsWith('/parliamentary-questions'));store.putSource(generation,source.endpoint,'document',projectDocument(source.work),activityFixture.verifiedAt,[]);store.db.exec('PRAGMA query_only=ON');const id=source.work.identifier;
