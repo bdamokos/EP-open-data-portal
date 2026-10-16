@@ -1,6 +1,8 @@
-import type {Amendment,AmendmentDecision,AmendmentSplit} from './PocAmendmentTypes';
+import type {Amendment,AmendmentDecision,AmendmentFailure,AmendmentSplit} from './PocAmendmentTypes';
 export function amendmentOutcomeLabel(value?:string|null):string;
 export function supportedAmendmentTarget(value:unknown):boolean;
+export function amendmentFailureKey(failure:AmendmentFailure):string;
+export function amendmentFailureLabel(failure:AmendmentFailure):string;
 export function amendmentProcedure(value?:string|null):string;
 export function amendmentRoute(options?:{document?:string|null;procedure?:string|null;member?:string|number|null;outcome?:string|null;offset?:number;language?:string;limit?:number}):string;
 export function amendmentHref(path:string,options?:{document?:string|null;procedure?:string|null;member?:string|number|null;language?:string}):string;

@@ -24,10 +24,15 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   const missingEnglish=parseSplitRequest({id:'eli/dl/event/language-SPLIT-1',had_activity_type:'def/ep-activities/REQUEST_VOTE_SPLIT',created_a_realization_of:[{id:'eli/dl/doc/language-SPLIT-1-1',number:'1',numbering:1,expressionContent:{fr:frenchDescription}}]},{language:'en',sourceUrl:'https://data.europarl.europa.eu/fixture',fetchedAt:'2026-10-16T12:00:00Z'});
   assert.equal(missingEnglish.failures[0].code,'missing_language');
   amendment.splitParts.push(missingEnglish.parts[0]);
+  const unidentifiedFailures=[
+    {requestId:'eli/dl/event/unidentified-request',partId:null,registryPartKey:'__component__:0:one',recordKind:'component',componentIndex:0,description:'First unidentified component',language:'en',code:'missing_part_id',source:null,sourceCandidates:[{url:'https://data.europarl.europa.eu/candidate'}],provenance:'unavailable'},
+    {requestId:'eli/dl/event/unidentified-request',partId:null,registryPartKey:'__component__:1:two',recordKind:'component',componentIndex:1,description:'Second unidentified component',language:'en',code:'missing_part_id'},
+    {requestId:null,partId:null,registryPartKey:'__request__',recordKind:'request',componentIndex:null,description:'Request without an official identifier',language:'en',code:'missing_request_id'},
+  ];
   const calls=[];
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);calls.push(url);
-    if(url.pathname.endsWith('/amendments/failures'))return Response.json({items:[{requestId:'request-two',partId:'request-two-part-1',description:'A future unrecognised form',language:'en',code:'unsupported_syntax',message:'Description not recognised.',parserVersion:'v1',occurrences:2,status:'unresolved'},{...missingEnglish.failures[0],description:'',occurrences:1,status:'unresolved'}],total:2,offset:0,limit:10});
+    if(url.pathname.endsWith('/amendments/failures'))return Response.json({items:[{requestId:'request-two',partId:'request-two-part-1',description:'A future unrecognised form',language:'en',code:'unsupported_syntax',message:'Description not recognised.',parserVersion:'v1',occurrences:2,status:'unresolved'},{...missingEnglish.failures[0],description:'',occurrences:1,status:'unresolved'},...unidentifiedFailures],total:5,offset:0,limit:10});
     assert(url.pathname.endsWith('/amendments'));
     assert.equal(url.searchParams.get('document'),'B-10-2026-0424');
     return Response.json({items:[amendment,{id:'AM-delete',number:115,originalText:'Texte supprimé',proposedText:'',outcome:'ADOPTED',language:'fr'},{id:'AM-unavailable',number:116,originalText:null,proposedText:null,outcome:'unavailable'},
@@ -82,4 +87,8 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   assert.equal(missingFailure.querySelector('pre').lang,'fr');
   assert.equal(missingFailure.querySelector('pre').textContent,frenchDescription);
   assert.equal(missingFailure.querySelector('img'),null);
+  const failureHeadings=[...failureDetails.querySelectorAll('.poc-amendment-failure-list>li>strong')].map(heading=>heading.textContent);
+  assert.deepEqual(failureHeadings.slice(-3),['Unidentified split component 1','Unidentified split component 2','Split request failure']);
+  assert.match(failureDetails.textContent,/Official request identifier unavailable/);
+  assert.doesNotMatch(failureDetails.textContent,/__component__|__request__/,'local registry keys are never presented as official IDs');
 });

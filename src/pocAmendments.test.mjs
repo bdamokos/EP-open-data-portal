@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentHref,amendmentOutcomeLabel,amendmentPlanSummary,amendmentProcedure,amendmentRoute,publicAmendmentSource,supportedAmendmentTarget} from './pocAmendmentModel.mjs';
+import {amendmentDecisionPart,amendmentDecisionScope,amendmentFailureKey,amendmentFailureLabel,amendmentGroups,amendmentHref,amendmentOutcomeLabel,amendmentPlanSummary,amendmentProcedure,amendmentRoute,publicAmendmentSource,supportedAmendmentTarget} from './pocAmendmentModel.mjs';
 
 test('amendment trail targets match the supported current-term plenary report and motion contract',()=>{
   for(const id of ['A-10-2026-0254','B-10-2026-0424','RC-10-2026-0441','A-10-2026-12345','B-10-2026-123456'])assert.equal(supportedAmendmentTarget(id),true,id);
@@ -63,6 +63,19 @@ test('split binding always respects exact IDs and only falls back to unique part
   assert.equal(amendmentDecisionPart(parts,{partId:'different-request-part-1',partNumber:1}),null);
   assert.equal(amendmentDecisionPart(parts,{partNumber:1}),null);
   assert.equal(amendmentDecisionPart(parts,{partNumber:2}),third);
+  assert.equal(amendmentDecisionPart([{id:null,number:3,componentIndex:0}],{partNumber:3}),null,'a missing official component identity never becomes a binding');
+});
+test('failure registry keys remain distinct and stable without presenting local keys as official component IDs',()=>{
+  const first={requestId:'eli/dl/event/request',partId:null,registryPartKey:'__component__:0:one',recordKind:'component',componentIndex:0,language:'en'};
+  const second={...first,registryPartKey:'__component__:1:two',componentIndex:1};
+  const request={...first,registryPartKey:'__request__',recordKind:'request',componentIndex:null};
+  assert.equal(new Set([first,second,request].map(amendmentFailureKey)).size,3);
+  assert.deepEqual([second,first].map(amendmentFailureKey).reverse(),[first,second].map(amendmentFailureKey),'row order does not define registry identity');
+  assert.equal(amendmentFailureLabel(first),'Unidentified split component 1');
+  assert.equal(amendmentFailureLabel(second),'Unidentified split component 2');
+  assert.equal(amendmentFailureLabel(request),'Split request failure');
+  assert.equal(amendmentFailureLabel({...first,partId:'eli/dl/doc/exact-part'}),'eli/dl/doc/exact-part');
+  assert.notEqual(amendmentFailureKey({...first,registryPartKey:undefined}),amendmentFailureKey({...second,registryPartKey:undefined}),'legacy unidentified components can use their source position');
 });
 test('split selection summaries preserve exclusions, occurrences and deletion edit semantics',()=>{
   const plan={type:'difference',base:{type:'all'},except:{type:'union',items:[{type:'text',quote:'carbon leakage',occurrences:[2]},{type:'delete_operation',quote:'existing safeguard'}]},grounding:'not_attempted'};
