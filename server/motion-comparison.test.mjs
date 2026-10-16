@@ -72,6 +72,18 @@ test('body extraction excludes covers while preserving citations, numbered refer
   assert.equal(motionBody({paragraphs:['The European Parliament,',...Array(DIFF_LIMITS.paragraphs+1).fill('1. Body')]},'en').status,'unavailable');
 });
 const block=(label,text,kind='paragraph')=>({index:Number(label)-1,kind,label,text});
+test('matching translated cover headings are excluded using the following resolution structure',()=>{
+  for(const [language,heading] of [['cs','Evropský parlament'],['da','Europa-Parlamentet'],['et','Euroopa Parlament'],['hr','Europski parlament'],['lv','Eiropas Parlaments'],['hu','Az Európai Parlament'],['mt','Il-Parlament Ewropew'],['fi','Euroopan parlamentti'],['sv','Europaparlamentet']]) {
+    const body=motionBody({paragraphs:[heading,'2024-2029','B10-0441/2026','6.10.2026','Cover title','Author',heading+',','–\tPublic citation.','A.\tPublic recital.','1.\tPublic paragraph.']},language);
+    assert.equal(body.status,'available',language);
+    assert.deepEqual(body.blocks.map(b=>[b.kind,b.text]),[['citation','Public citation.'],['recital','Public recital.'],['paragraph','Public paragraph.']],language);
+  }
+});
+test('plain headings require resolution structure and competing body boundaries remain explicit gaps',()=>{
+  assert.equal(motionBody({paragraphs:['Evropský parlament','2024-2029','Cover title','Author']},'cs').status,'unavailable');
+  assert.equal(motionBody({paragraphs:['Evropský parlament','1. Public paragraph.']},'cs').status,'available');
+  assert.equal(motionBody({paragraphs:['Evropský parlament,','– First candidate.','Evropský parlament,','1. Second candidate.']},'cs').status,'unavailable');
+});
 test('alignment retains renumbered/moved exact passages and leaves ambiguous rewrites separate',()=>{
   const result=compareMotionBodies([block('1','Calls for public access.'),block('2','Supports independent observers.')],[block('1','Supports independent observers.'),block('2','Calls for public access.')]);
   assert.equal(result.summary.unchanged,2);assert.equal(result.summary.referenceChanged,2);assert.equal(result.summary.removed,0);

@@ -14,7 +14,15 @@ export function motionBody(text,language) {
     for(const anchor of anchors.filter(a=>a.paragraph===index).sort((a,b)=>b.offset-a.offset))marked=marked.slice(0,anchor.offset)+'['+anchor.label+']'+marked.slice(anchor.offset);
     return marked;
   }),opening=openings[language];
-  const start=opening?paragraphs.findIndex(p=>normalize(p).replace(/[,;:]$/,'').toLocaleLowerCase(language)===opening.toLocaleLowerCase(language)):-1;
+  // Some translations use the same Parliament heading on the cover and in the body.
+  // Require a following citation/recital/operative item and one unambiguous boundary.
+  const normalized=paragraphs.map(normalize),starts=[];
+  if(opening)for(let i=0;i<normalized.length;i++) {
+    if(normalized[i].replace(/[,;:]$/,'').toLocaleLowerCase(language)!==opening.toLocaleLowerCase(language))continue;
+    let next=i+1;while(next<normalized.length&&!normalized[next])next++;
+    if(/^(?:[–—−\-•]\s*\S|(?:\d+|[A-Z]{1,3})[.)]\s+\S)/u.test(normalized[next] || ''))starts.push(i);
+  }
+  const start=starts.length===1?starts[0]:-1;
   if(start<0)return {status:'unavailable',reason:'The resolution body could not be separated from the cover material in this language.'};
   if(text.notesStatus==='not-extracted')return {status:'unavailable',reason:'The document notes have not been extracted for this saved text.'};
   if(text.extractionWarnings?.length)return {status:'unavailable',reason:text.extractionWarnings.join(' ')};
