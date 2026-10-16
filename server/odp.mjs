@@ -122,6 +122,8 @@ export async function odp(
           "odp_unavailable",
           `Parliament data is unavailable (${response.status}). Please try again.`,
         );
+      if (response.status === 204)
+        throw new HttpError(502, "odp_no_content", "Parliament supplied no content for this request.");
       if (!response.headers.get("content-type")?.includes("json"))
         throw new HttpError(
           502,
