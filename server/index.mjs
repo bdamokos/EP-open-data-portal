@@ -11,6 +11,8 @@ import {createInsights} from './insights.mjs';
 import {CATEGORIES} from './activity-index-model.mjs';
 import {speechMedia} from './mmc.mjs';
 import {outsideDirectory,outsideSpeaker,outsideQuery} from './outside-store.mjs';
+import {corpusSearch,corpusStatus,startCorpus} from './corpus-worker.mjs';
+import {CORPUS_LIMITS} from './corpus-store.mjs';
 
 import {SpeechInterventions,INTERVENTION_LIMITS} from './speech-intervention-service.mjs';
 import {OfficialContextSources} from './official-context.mjs';
@@ -18,7 +20,7 @@ import {EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext,procedureContextQuery,REFERENCE_SUMMARY_ORDER} from './procedure-context.mjs';
 import {LegalReferences,referencesQuery} from './legal-references.mjs';
 const interventions=new SpeechInterventions();
-let stopIndex=()=>{};let insightService;
+let stopIndex=()=>{};let stopCorpus=()=>{};let insightService;
 // One owner per official-source cache directory, shared by insights and reading-time references.
 let officialContext;
 function official() {
@@ -96,6 +98,26 @@ async function handleApi(request,response,url,apiPrefix){
     else if (segments.length === 3 && segments[1] === 'activity-index' && segments[2] === 'status') {
       if ([...url.searchParams.keys()].some(key => key!=='lang' || url.searchParams.getAll(key).length!==1)) throw new HttpError(400,'invalid_query','Unsupported or repeated status query parameter.');
       result = activityIndexStatus();
+    }
+    else if (segments.length === 3 && segments[1] === 'corpus' && segments[2] === 'status') {
+      if ([...url.searchParams.keys()].some(key => key!=='lang' || url.searchParams.getAll(key).length!==1)) throw new HttpError(400,'invalid_query','Unsupported or repeated status query parameter.');
+      result = await corpusStatus();
+    }
+    else if (segments.length === 3 && segments[1] === 'corpus' && segments[2] === 'search') {
+      const allowed = new Set(['lang','q','kind','text-lang','member','from','to','limit','offset']);
+      if ([...url.searchParams.keys()].some(key => !allowed.has(key) || url.searchParams.getAll(key).length !== 1)) throw new HttpError(400,'invalid_query','Unsupported or repeated search query parameter.');
+      const value = name => url.searchParams.get(name);
+      const integer = (name,fallback,max,min=0) => {
+        const text=value(name) ?? String(fallback), number=Number(text);
+        if (!/^(0|[1-9]\d*)$/.test(text) || number>max || number<min) throw new HttpError(400,'invalid_query',`Invalid ${name}.`);
+        return number;
+      };
+      const kind=value('kind'), textLanguage=value('text-lang'), from=value('from'), to=value('to');
+      if (kind!==null && !['speech','question','answer'].includes(kind)) throw new HttpError(400,'invalid_kind','Unknown corpus kind.');
+      if (textLanguage!==null && !/^[a-z]{2,3}$/.test(textLanguage)) throw new HttpError(400,'invalid_language','Invalid text language.');
+      for (const date of [from,to]) if (date!==null && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)))) throw new HttpError(400,'invalid_date','Use YYYY-MM-DD dates.');
+      result = await corpusSearch({query:value('q'),kind,language:textLanguage,member:value('member')===null?null:positiveId(value('member')),from,to,
+        limit:integer('limit',20,CORPUS_LIMITS.searchLimit,1),offset:integer('offset',0,CORPUS_LIMITS.searchOffset)});
     }
     else if (segments.length === 3 && segments[1] === 'latest-activities') {
       const allowed = new Set(['lang','category','limit','offset','source-id']);
@@ -192,6 +214,7 @@ export function startServer() {
 
 function shutDown(signal) {
   stopIndex();
+  stopCorpus();
   console.log(`[parliament-explorer] received ${signal}; shutting down`);
   const forceTimer = setTimeout(() => {
     process.exitCode = 1;
@@ -214,4 +237,5 @@ if (isEntryPoint) {
   process.on("SIGTERM", () => shutDown("SIGTERM"));
   startServer();
   stopIndex = startActivityIndex();
+  stopCorpus = startCorpus();
 }
