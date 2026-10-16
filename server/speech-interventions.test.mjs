@@ -10,6 +10,20 @@ const byNumber=n=>fixture.activities.find(a=>a.recorded_in_a_realization_of?.[0]
 const clone=value=>structuredClone(value);
 const response=data=>({url:'https://data.europarl.europa.eu/api/v2/speeches',fetchedAt:Date.parse('2026-10-15T22:00:00Z'),payload:{data,meta:{total:data.length},searchResults:{hits:data.map(a=>({id:a.id}))}}});
 
+test('partial debate failure retains cooldown and retries the failed sitting on the next context read',async()=>{
+  let attempts=0;const retryAt=Date.now()+60000;
+  const service=new SpeechInterventions({request:async endpoint=>{
+    if(endpoint.startsWith('/speeches/'))return response([byNumber(173)]);
+    if(endpoint.startsWith('/events/'))return response([fixture.parent]);
+    if(++attempts===1)throw Object.assign(new Error('Parliament is temporarily limiting requests.'),{retryAt});
+    return response(fixture.activities);
+  }});
+  const first=await service.context(byNumber(173).activity_id);
+  assert.equal(first.debates[0].retryAt,retryAt);assert.equal(first.debates[0].coverage.complete,false);
+  const recovered=await service.context(byNumber(173).activity_id);
+  assert.equal(recovered.debates[0].error,undefined);assert(recovered.debates[0].records.length>0);assert.equal(attempts,2);
+});
+
 test('live headers separate blue-card questions, answers and reactions, while group mandates use JSON IDs',()=>{
   assert.equal(interventionMetadata(byNumber(173)).type,'blue-card-question');
   assert.equal(interventionMetadata(byNumber(174)).type,'blue-card-answer');

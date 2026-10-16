@@ -49,7 +49,7 @@ export class SpeechInterventions {
         const sitting=await this.sitting(activity.activity_date);
         const sequence=buildInterventionSequence(sitting.rows,{parentId,expectedIds:parent.consists_of||[]});
         debates.push({id:parentId,titles:parent.activity_label||{},...sequence,records:sequence.records.map(({activity,...row})=>({...speechSummary(activity),...row})),sources:[source(event),...sitting.sources],sittingCoverage:sitting.coverage});
-      }catch(error){debates.push({id:parentId,titles:{},records:[],exchanges:[],coverage:{complete:false,expected:null,available:0,missingIds:[]},error:String(error.message)});}
+      }catch(error){debates.push({id:parentId,titles:{},records:[],exchanges:[],coverage:{complete:false,expected:null,available:0,missingIds:[]},error:String(error.message),...(Number.isFinite(error.retryAt)?{retryAt:error.retryAt}:{})});}
     }
     return {speechId:id,intervention:meta,debates,unavailable:parentIds.length===0,sources:[source(record)]};
   }

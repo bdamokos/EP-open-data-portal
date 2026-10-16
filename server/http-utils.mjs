@@ -85,5 +85,7 @@ export function sendError(request, response, error) {
   const status = error instanceof HttpError ? error.status : 500;
   const code = error instanceof HttpError ? error.code : "internal_error";
   const message = error instanceof HttpError ? error.message : "The request could not be completed";
-  sendJson(request, response, status, { error: { code, message } });
+  const retryAfter=Number.isFinite(error.retryAfter)?Math.max(1,Math.ceil(error.retryAfter)):undefined;
+  if(retryAfter)response.setHeader('Retry-After',String(retryAfter));
+  sendJson(request, response, status, { error: { code, message, ...(retryAfter?{retryAfter,retryAt:Date.now()+retryAfter*1000}:{}) } });
 }

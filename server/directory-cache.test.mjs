@@ -24,7 +24,7 @@ async function fixture(age) {
   return {directory,fetchedAt,records};
 }
 function run(directory,script) {
-  return JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{env:{...process.env,ODP_CACHE_DIR:directory},encoding:'utf8',timeout:5000}));
+  return JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{env:{...process.env,ODP_CACHE_DIR:directory},encoding:'utf8',timeout:8000}));
 }
 const moduleUrl=JSON.stringify(new URL('./odp.mjs',import.meta.url).href);
 test('a cold process serves the expired saved directory without waiting for Parliament refresh',async()=>{
@@ -58,7 +58,7 @@ test('a completed source refresh replaces saved names without clearing loaded me
     const out=run(f.directory,`
       globalThis.fetch=async url=>new URL(url).pathname.endsWith('/meps/show-current')
         ?new Response(JSON.stringify({data:[${JSON.stringify(fresh)}]}),{headers:{'content-type':'application/json'}})
-        :new Promise(()=>{});
+        :new Response(JSON.stringify({data:${JSON.stringify(f.records[1].payload.data)}}),{headers:{'content-type':'application/json'}});
       const {odpDirectory,odp}=await import(${moduleUrl});
       const first=await odpDirectory();
       let loaded;
@@ -67,12 +67,13 @@ test('a completed source refresh replaces saved names without clearing loaded me
         await new Promise(resolve=>setTimeout(resolve,10));
       }
       // Join the actual source refresh before triggering a new projection.
-      // Keep this serverless child alive while the queue's unref'ed timer waits.
+      // Either parallel disk read can enter the shared queue first. Allow its
+      // 2.1-second spacing, and complete the other source instead of holding its slot.
       let refreshDeadline;
       try {
         await Promise.race([
           odp('/meps/show-current',{limit:1000,offset:0}),
-          new Promise((_,reject)=>{refreshDeadline=setTimeout(()=>reject(new Error('Source refresh did not finish')),2000);}),
+          new Promise((_,reject)=>{refreshDeadline=setTimeout(()=>reject(new Error('Source refresh did not finish')),4500);}),
         ]);
       }finally{clearTimeout(refreshDeadline);}
       const now=Date.now();Date.now=()=>now+61000;

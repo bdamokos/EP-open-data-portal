@@ -10,7 +10,7 @@ export async function api<T>(route: string, signal?: AbortSignal): Promise<T> {
   });
   const data = await r.json().catch(() => null);
   if (!r.ok)
-    throw Object.assign(new Error(data?.error?.message || `The data service is unavailable (${r.status}).`), { status: r.status });
+    throw Object.assign(new Error(data?.error?.message || `The data service is unavailable (${r.status}).`), { status: r.status, retryAt: data?.error?.retryAt });
   if (!data) throw new Error("The data service returned an unreadable response.");
   return data;
 }
@@ -21,6 +21,7 @@ export function useData<T>(route: string | null) {
     route: string | null;
     data: T | null;
     error: string | null;
+    retryAt?: number;
     loading: boolean;
   }>({ route, data: route ? client.peek<T>(route) : null, error: null, loading: Boolean(route) });
   const [retry, setRetry] = useState(0);
@@ -35,7 +36,7 @@ export function useData<T>(route: string | null) {
       client.get<T>(route, { force })
         .then((data) => { if (active) setState({ route, data, error: null, loading: false }); })
         .catch((e) => {
-          if (active) setState(previous => ({ route, data: e.status === 401 || e.status === 403 ? null : previous.data, error: e.message, loading: false }));
+          if (active) setState(previous => ({ route, data: e.status === 401 || e.status === 403 ? null : previous.data, error: e.message, retryAt: e.retryAt, loading: false }));
         });
     return () => { active = false; };
   }, [route, retry]);
