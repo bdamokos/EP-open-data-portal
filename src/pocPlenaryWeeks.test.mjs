@@ -5,7 +5,7 @@ import {Window} from 'happy-dom';
 import {createServer} from 'vite';
 
 test('all plenary defaults use weeks while exact item links, single days and history keep their scope',async t=>{
-  const window=new Window({url:'http://localhost/?view=legislation'});
+  const window=new Window({url:'http://localhost/?view=legislation&pl-mode=cloud&pl-sitting=MTG-PL-2026-10-07'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
@@ -35,20 +35,26 @@ test('all plenary defaults use weeks while exact item links, single days and his
   const click=async text=>act(async()=>{const button=[...container.querySelectorAll('button')].find(b=>b.textContent===text);assert(button,'Missing '+text);button.click();});
   const choose=async value=>act(async()=>{const select=period();select.value=value;select.dispatchEvent(new window.Event('change',{bubbles:true}));});
   const last=path=>calls.filter(url=>url.pathname.endsWith('/insights/'+path)).at(-1);
+  assert.equal(period().value,'sitting:MTG-PL-2026-10-07');
+  assert.equal(last('speech-cloud').searchParams.get('sitting'),'MTG-PL-2026-10-07');
+  assert.equal(last('speech-cloud').searchParams.has('week'),false,'legacy cloud links must keep their original single-day scope');
+  await act(async()=>{history.replaceState(null,'','/?view=legislation');window.dispatchEvent(new window.Event('popstate'));});
   assert.equal(last('legislation').searchParams.get('week'),'latest');
   assert.equal(period().value,'week:2026-10-05');
   assert.equal(container.querySelectorAll('.insight-agenda h3').length,2);
+  await click('Word cloud');assert.equal(last('speech-cloud').searchParams.get('week'),'2026-10-05');
+  await click('Agenda');
   await click('DebateDebate on 2026-10-08');
   assert.equal(new URL(location.href).searchParams.get('agenda-period'),'week:2026-10-05','opening a topic pins its concrete week for saved links');
   assert.equal(last('legislation').searchParams.get('sitting'),'MTG-PL-2026-10-08');
   assert.equal(container.querySelector('.insight-topic-detail h2').textContent,'Debate on 2026-10-08');
   await choose('sitting:MTG-PL-2026-10-07');
-  assert.equal(last('legislation').searchParams.get('sitting'),'MTG-PL-2026-10-07');
+  assert.equal(period().value,'sitting:MTG-PL-2026-10-07');
   assert.equal(container.querySelectorAll('.insight-agenda button').length,1);
-  await click('Word cloud');assert.equal(last('speech-cloud').searchParams.get('week'),'2026-10-05');
+  await click('Word cloud');assert.equal(period().value,'sitting:MTG-PL-2026-10-07');
   await choose('sitting:MTG-PL-2026-10-08');assert.equal(last('speech-cloud').searchParams.get('sitting'),'MTG-PL-2026-10-08');
   await act(async()=>{const popped=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history.back();await popped;});
-  assert.equal(period().value,'week:2026-10-05');
+  assert.equal(period().value,'sitting:MTG-PL-2026-10-07');
   await click('What’s hot');assert.equal(last('participation').searchParams.get('week'),'2026-10-05');
   await click('Agenda');await choose('week:2026-10-19');await click('Word cloud');
   assert.equal(period().value,'week:2026-10-19');assert.equal(last('speech-cloud').searchParams.get('week'),'2026-10-19');
