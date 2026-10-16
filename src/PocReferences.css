@@ -29,3 +29,7 @@ button.legal-ref:focus-visible {outline:3px solid var(--accessibility-orange);ou
 .legal-notes li {margin-bottom:6px;overflow-wrap:anywhere;scroll-margin-top:12px;}
 .legal-notes li:target {background:color-mix(in srgb,var(--selected-yellow) 30%,transparent);}
 @media(max-width:560px) {.legal-reference-card {font-size:14px;max-height:65vh;}}
+.legal-reference-evidence {font-size:13px;padding:6px 8px;margin:8px 0!important;background:#f1f4f9;border-left:3px solid #9aa9bf;}
+.legal-reference-evidence.is-confirmed {background:#eaf6ee;border-left-color:#2e7d4f;}
+.legal-reference-evidence a {color:inherit;}
+:is(.poc,.poc-insights,.insight-inline-reader) button.legal-note-ref {padding:0 2px;border-bottom-width:1px;}

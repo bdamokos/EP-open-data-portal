@@ -19,44 +19,76 @@ export function referencesQuery(search) {
   if(keys.some(key=>!key))throw new HttpError(400,'invalid_references','A reference key is not recognised.');
   return {keys:[...new Set(keys)],language:odpLanguage(search.get('lang')||'en')};
 }
+const cellarWork=uuid=>`http://publications.europa.eu/resource/cellar/${uuid}`;
+const workFields=wanted=>` OPTIONAL { ?work cdm:work_date_document ?date }
+ OPTIONAL { ?work cdm:resource_legal_in-force ?force }
+ OPTIONAL { ?dossier cdm:dossier_contains_work ?work. ?dossier cdm:procedure_code_interinstitutional_reference_procedure ?proc }
+ OPTIONAL { ?expression cdm:expression_belongs_to_work ?work; cdm:expression_uses_language ?lang; cdm:expression_title ?title. FILTER(?lang IN (${wanted})) }`;
+const wantedLanguages=language=>[...new Set(['ENG',languages[language]||'ENG'])].map(code=>`<${authority}${code}>`).join(',');
 export function celexQuery(celexNumbers,language) {
   if(!celexNumbers.length||celexNumbers.some(celex=>!/^[35]\d{4}[A-Z]{1,2}\d{4}$/.test(celex)))throw new HttpError(400,'invalid_references','Invalid CELEX selection.');
-  const wanted=[...new Set(['ENG',languages[language]||'ENG'])].map(code=>`<${authority}${code}>`).join(',');
   return `PREFIX cdm:<http://publications.europa.eu/ontology/cdm#>
 PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>
 SELECT DISTINCT ?celex ?work ?date ?force ?proc ?lang ?title WHERE {
  VALUES ?celex { ${[...new Set(celexNumbers)].sort().map(celex=>`"${celex}"^^xsd:string`).join(' ')} }
  ?work cdm:resource_legal_id_celex ?celex.
- OPTIONAL { ?work cdm:work_date_document ?date }
- OPTIONAL { ?work cdm:resource_legal_in-force ?force }
- OPTIONAL { ?dossier cdm:dossier_contains_work ?work. ?dossier cdm:procedure_code_interinstitutional_reference_procedure ?proc }
- OPTIONAL { ?expression cdm:expression_belongs_to_work ?work; cdm:expression_uses_language ?lang; cdm:expression_title ?title. FILTER(?lang IN (${wanted})) }
+${workFields(wantedLanguages(language))}
 } LIMIT 2000`;
 }
-// One exact CELEX number must identify one work. Absent fields remain null rather than false.
-export function parseCelex(data,celexNumbers,language) {
+// A Cellar link names the work itself. It must exist as a work; its CELEX number is read, not assumed.
+export function cellarQuery(uuids,language) {
+  if(!uuids.length||uuids.some(uuid=>!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(uuid)))throw new HttpError(400,'invalid_references','Invalid Cellar selection.');
+  return `PREFIX cdm:<http://publications.europa.eu/ontology/cdm#>
+SELECT DISTINCT ?work ?celex ?date ?force ?proc ?lang ?title WHERE {
+ VALUES ?work { ${[...new Set(uuids)].sort().map(uuid=>`<${cellarWork(uuid)}>`).join(' ')} }
+ ?work a cdm:work.
+ OPTIONAL { ?work cdm:resource_legal_id_celex ?celex }
+${workFields(wantedLanguages(language))}
+} LIMIT 2000`;
+}
+function rowsOf(data) {
   const rows=data?.results?.bindings;
   if(!Array.isArray(rows)||rows.length>=2000)throw new HttpError(502,'reference_source_shape','The official reference catalogue could not be read.');
-  const works=new Map(celexNumbers.map(celex=>[celex,new Map()]));
+  return rows;
+}
+function collect(rows,ids,idOf) {
+  const works=new Map(ids.map(id=>[id,new Map()]));
   for(const row of rows) {
-    const celex=row.celex?.value,work=row.work?.value;
-    if(!works.has(celex)||row.work?.type!=='uri'||!/^http:\/\/publications\.europa\.eu\/resource\/cellar\/[a-f0-9-]{36}$/.test(work||''))continue;
-    let item=works.get(celex).get(work);if(!item){item={work,dates:new Set(),force:new Set(),procedures:new Set(),titles:{}};works.get(celex).set(work,item);}
+    const id=idOf(row),work=row.work?.value;
+    if(!works.has(id)||row.work?.type!=='uri'||!/^http:\/\/publications\.europa\.eu\/resource\/cellar\/[a-f0-9-]{36}$/.test(work||''))continue;
+    let item=works.get(id).get(work);if(!item){item={work,celex:new Set(),dates:new Set(),force:new Set(),procedures:new Set(),titles:{}};works.get(id).set(work,item);}
+    if(/^[0-9][0-9A-Z()/._-]{4,40}$/.test(row.celex?.value||''))item.celex.add(row.celex.value);
     if(/^\d{4}-\d{2}-\d{2}$/.test(row.date?.value||''))item.dates.add(row.date.value);
     if(['1','0','true','false'].includes(row.force?.value))item.force.add(['1','true'].includes(row.force.value));
     const procedure=cellarProcedureReference(row.proc?.value);if(procedure)item.procedures.add(procedure);
     const code=String(row.lang?.value||'').replace(authority,''),title=text(row.title?.value);
     if(title&&code&&!item.titles[code])item.titles[code]=title.slice(0,REFERENCE_LIMITS.titleLength);
   }
+  return works;
+}
+// Absent fields remain null rather than false; several values for one field are not chosen between.
+function describe(item,celex,language) {
+  const local=languages[language],title=item.titles[local]||item.titles.ENG||null;
+  return {status:'found',celex,work:item.work,title,titleLanguage:item.titles[local]?language:item.titles.ENG?'en':null,
+    date:item.dates.size===1?[...item.dates][0]:null,inForce:item.force.size===1?[...item.force][0]:null,
+    procedure:item.procedures.size===1?[...item.procedures][0]:null,eurLexUrl:celex?eurLexUrl(celex,language):null};
+}
+// One exact CELEX number must identify one work.
+export function parseCelex(data,celexNumbers,language) {
+  const works=collect(rowsOf(data),celexNumbers,row=>row.celex?.value);
   return new Map(celexNumbers.map(celex=>{
     const found=[...works.get(celex).values()];
-    if(found.length!==1)return [celex,{status:found.length?'ambiguous':'not-found',celex}];
-    const item=found[0],local=languages[language],title=item.titles[local]||item.titles.ENG||null;
-    return [celex,{status:'found',celex,work:item.work,title,titleLanguage:item.titles[local]?language:item.titles.ENG?'en':null,
-      date:item.dates.size===1?[...item.dates][0]:null,inForce:item.force.size===1?[...item.force][0]:null,
-      procedure:item.procedures.size===1?[...item.procedures][0]:null,eurLexUrl:eurLexUrl(celex,language)}];
+    return [celex,found.length===1?describe(found[0],celex,language):{status:found.length?'ambiguous':'not-found',celex}];
   }));
 }
+export function parseCellar(data,uuids,language) {
+  const works=collect(rowsOf(data),uuids,row=>String(row.work?.value||'').split('/').pop());
+  return new Map(uuids.map(uuid=>{
+    const item=works.get(uuid).get(cellarWork(uuid));
+    return [uuid,item?describe(item,item.celex.size===1?[...item.celex][0]:null,language):{status:'not-found',celex:null}];
+  }));
+}
+const kindOf=celex=>/^5/.test(celex||'')?'document':'act';
 function questionTitle(work,language) {
   const titles=work?.title_dcterms||{};
   const value=text(titles[language])||text(titles.en)||text(Object.values(titles)[0]);
@@ -91,6 +123,12 @@ export class LegalReferences {
         resolved.set(key,{key,kind:/^celex:3/.test(key)?'act':'document',...value,source:provenance});
       }
     }catch(error){for(const key of documents)resolved.set(key,{key,kind:/^celex:3/.test(key)?'act':'document',status:'unavailable',reason:String(error.message).slice(0,200)});}
+    const cellar=missing.filter(key=>key.startsWith('cellar:'));
+    if(cellar.length)try {
+      const uuids=cellar.map(key=>key.slice(7)),url=new URL(sparqlEndpoint);url.searchParams.set('query',cellarQuery(uuids,language));url.searchParams.set('format','application/sparql-results+json');
+      const source=await this.sources.get(url.href),parsed=parseCellar(source.data,uuids,language);
+      for(const key of cellar){const value=parsed.get(key.slice(7));resolved.set(key,{key,kind:kindOf(value.celex),...value,source:{name:'Publications Office knowledge graph',url:sparqlEndpoint,fetchedAt:source.fetchedAt}});}
+    }catch(error){for(const key of cellar)resolved.set(key,{key,kind:'act',status:'unavailable',reason:String(error.message).slice(0,200)});}
     for(const key of missing.filter(key=>key.startsWith('question:'))) {
       const outcomes=await Promise.all(questionCandidates(key).map(async id=>{
         try {

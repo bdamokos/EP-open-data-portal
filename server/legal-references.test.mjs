@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {findReferences,referenceSegments,referenceKey,referenceKeys,documentCelexCandidates,questionCandidates,cellarProcedureReference} from './legal-reference-text.mjs';
-import {LegalReferences,parseCelex,referencesQuery,celexQuery} from './legal-references.mjs';
+import {findReferences,referenceSegments,referenceKey,referenceKeys,documentCelexCandidates,questionCandidates,cellarProcedureReference,linkedSegments,noteReferenceKeys,referenceFromUrl} from './legal-reference-text.mjs';
+import {LegalReferences,parseCelex,parseCellar,referencesQuery,celexQuery,cellarQuery} from './legal-references.mjs';
 import {parseSummaryPage} from './official-context.mjs';
 
 const keys=text=>findReferences(text).map(ref=>[ref.key,ref.text]);
@@ -37,6 +37,22 @@ test('segments preserve every character and duplicate keys are requested once',(
   assert.equal(cellarProcedureReference('2012/0011/COD'),'2012/0011(COD)');
   assert.equal(cellarProcedureReference('2012/0011(COD)'),'2012/0011(COD)');
 });
+// Links observed in footnotes of Commission answers E-10-2026-000012, -000013 and -000022 (DOCX and PDF carry the same targets).
+test('document hyperlinks identify their own text span and take precedence over text patterns',()=>{
+  const cellar='https://eur-lex.europa.eu/resource.html?uri=cellar:2bf140bf-a3f8-4ab2-b506-fd71826e6da6.0023.02/DOC_1&format=PDF';
+  assert.deepEqual(referenceFromUrl(cellar),{key:'cellar:2bf140bf-a3f8-4ab2-b506-fd71826e6da6',kind:'cellar'});
+  assert.deepEqual(referenceFromUrl('https://eur-lex.europa.eu/legal-content/EN/TXT/?qid=1767349209985&uri=CELEX%3A32024R1348'),{key:'celex:32024R1348',kind:'celex'});
+  assert.deepEqual(referenceFromUrl('https://eur-lex.europa.eu/eli/reg/2021/2116/oj/eng'),{key:'celex:32021R2116',kind:'eli'});
+  for(const url of ['https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv%3AOJ.LI.2020.433.01.0011.01.ENG','https://www.who.int/europe/publications/i/item/9789289053563','file:///C:/template.dotm'])assert.equal(referenceFromUrl(url),null);
+  const text='Communication on Regulation (EU) 2021/2116, see here.';
+  const parts=linkedSegments(text,[{start:0,end:42,url:'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex:52024DC0225'},{start:48,end:52,url:'https://example.org/page'},{start:40,end:50,url:'https://overlap.example'},{start:3,end:99,url:'https://outside.example'}]);
+  assert.equal(parts.map(part=>part.text).join(''),text);
+  assert.deepEqual(parts.map(part=>[part.text,part.ref?.key||null,part.ref?.via||null,part.href||null]),[
+    ['Communication on Regulation (EU) 2021/2116','celex:52024DC0225','hyperlink','https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex:52024DC0225'],[', see ',null,null,null],['here',null,null,'https://example.org/page'],['.',null,null,null]]);
+  assert.equal(linkedSegments('Click',[{start:0,end:5,url:'javascript:alert(1)'}])[0].href,null);
+  assert.deepEqual(linkedSegments('Regulation (EU) 2021/2116.').map(part=>[part.text,part.ref?.via||null]),[['Regulation (EU) 2021/2116','text'],['.',null]]);
+  assert.deepEqual(noteReferenceKeys({text:'Directive 2002/49/EC of 25 June 2002; see Regulation (EU) 2021/2116.',links:['https://eur-lex.europa.eu/eli/reg/2021/2116/oj/eng'],linkSpans:[{start:0,end:5,url:'https://eur-lex.europa.eu/eli/reg/2021/2116/oj/eng'}]}),['celex:32021R2116','celex:32002L0049']);
+});
 test('reference queries are bounded and validated',()=>{
   assert.deepEqual(referencesQuery(new URLSearchParams({keys:'celex:32016R0679,celex:32016R0679',lang:'hu'})),{keys:['celex:32016R0679'],language:'hu'});
   assert.throws(()=>referencesQuery(new URLSearchParams({keys:'celex:32016R0679,drop table'})),/not recognised/);
@@ -44,6 +60,9 @@ test('reference queries are bounded and validated',()=>{
   assert.throws(()=>referencesQuery(new URLSearchParams('keys=celex:32016R0679&keys=celex:32016R0679')),/repeated/);
   assert.throws(()=>celexQuery(['32016R0679"}'],'en'),/Invalid CELEX/);
   assert.match(celexQuery(['32016R0679'],'hu'),/language\/HUN/);
+  assert.throws(()=>cellarQuery(['2bf140bf> } DROP'],'en'),/Invalid Cellar/);
+  assert.match(cellarQuery(['2bf140bf-a3f8-4ab2-b506-fd71826e6da6'],'en'),/\?work a cdm:work/);
+  assert.equal(referenceKey('cellar:2bf140bf-a3f8-4ab2-b506-fd71826e6da6'),'cellar:2bf140bf-a3f8-4ab2-b506-fd71826e6da6');
 });
 const work='http://publications.europa.eu/resource/cellar/3e485e15-11bd-11e6-ba9a-01aa75ed71a1';
 const uri=value=>({type:'uri',value}),literal=value=>({type:'literal',value});
@@ -62,6 +81,13 @@ test('catalogue rows resolve one work, keep unknown status null and prefer the r
   assert.equal(parsed.get('32020R0001').status,'ambiguous');
   assert.equal(parsed.get('32021R0002').status,'not-found');
   assert.throws(()=>parseCelex({results:{}},['32016R0679'],'en'),/could not be read/);
+});
+test('a Cellar link resolves only to an existing work and reads its CELEX number from the catalogue',()=>{
+  const treaty='http://publications.europa.eu/resource/cellar/2bf140bf-a3f8-4ab2-b506-fd71826e6da6';
+  const parsed=parseCellar({results:{bindings:[{work:uri(treaty),celex:literal('12012M/TXT'),lang:uri('http://publications.europa.eu/resource/authority/language/ENG'),title:literal('Consolidated version of the Treaty on European Union')}]}},['2bf140bf-a3f8-4ab2-b506-fd71826e6da6','00000000-0000-0000-0000-000000000001'],'en');
+  assert.equal(parsed.get('2bf140bf-a3f8-4ab2-b506-fd71826e6da6').celex,'12012M/TXT');
+  assert.equal(parsed.get('2bf140bf-a3f8-4ab2-b506-fd71826e6da6').eurLexUrl,'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:12012M/TXT');
+  assert.equal(parsed.get('00000000-0000-0000-0000-000000000001').status,'not-found');
 });
 test('lookups use exact candidates, verify term-boundary questions and do not cache unavailable results',async()=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'legal-references-'));
