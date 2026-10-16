@@ -25,6 +25,15 @@ test('plenary modes retain distinct country state and timeline context',()=>{
   for(const key of ['agenda-country','hot-country','cloud-country','trend-topic','trend-days','trend-week'])assert.equal(scoped.get(key),query.get(key));
   assert.equal(scoped.has('q-country'),false);
 });
+test('plenary week and single-sitting URLs survive saved links and reject invalid weeks',()=>{
+  for(const key of ['agenda-period','hot-period','cloud-period']) {
+    for(const period of ['week:2026-10-05','sitting:MTG-PL-2026-10-08']) {
+      const params=explorerParams(new URLSearchParams({[key]:period}),'legislation');
+      assert.equal(readExplorerParam(params,key,''),period);
+    }
+    for(const period of ['week:2026-10-06','week:2026-02-30','broken'])assert.equal(readExplorerParam(new URLSearchParams({[key]:period}),key,'fallback'),'fallback');
+  }
+});
 test('malformed links cannot create invalid country names, unbounded pagination or impossible dates',()=>{
   for(const value of ['not-a-country','XX',''])assert.equal(readExplorerParam(new URLSearchParams({'q-country':value}),'q-country',null),null);
   for(const value of ['-25','1.5','Infinity','5001'])assert.equal(readExplorerParam(new URLSearchParams({'q-offset':value}),'q-offset',0),0);

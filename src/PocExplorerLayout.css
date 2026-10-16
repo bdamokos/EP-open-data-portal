@@ -33,6 +33,8 @@
 .insight-speech-select select { width:100%; min-width:0; padding:10px; border:0; border-radius:4px; }
 .insight-legislation-grid { padding-top:8px; }
 .insight-agenda { max-height:min(720px,75dvh); }
+.insight-agenda>div { display:grid; gap:10px; }
+.insight-agenda h3 { margin:14px 0 2px; font-size:16px; }
 .insight-agenda button[aria-pressed=true] { background:#fff2000b; }
 .insight-topic-detail>h2 { max-width:38ch; }
 .insight-vote-totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; margin:24px 0; }

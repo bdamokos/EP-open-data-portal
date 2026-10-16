@@ -23,7 +23,7 @@ function writeParam(key:string,value:string|null) {
 export function useExplorerParam<T extends string|number|null>(key:string,fallback:T,allowed?:readonly T[]) {
   const read=useCallback(()=>readExplorerParam(new URLSearchParams(location.search),key,fallback,allowed),[key,fallback]);
   const [value,setValue]=useState<T>(read),current=useRef(value);current.current=value;
-  useEffect(()=>{const update=()=>setValue(read());window.addEventListener('popstate',update);window.addEventListener(changed,update);return()=>{window.removeEventListener('popstate',update);window.removeEventListener(changed,update);};},[read]);
+  useEffect(()=>{const update=()=>setValue(read());update();window.addEventListener('popstate',update);window.addEventListener(changed,update);return()=>{window.removeEventListener('popstate',update);window.removeEventListener(changed,update);};},[read]);
   const set=useCallback((next:T|((previous:T)=>T))=>{
     const value=typeof next==='function'?next(current.current):next;
     current.current=value;setValue(value);

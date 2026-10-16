@@ -8,7 +8,7 @@ import {speakerNameIsSpecific} from './speech-speakers.mjs';
 import {CURRENT_TERM_START} from './analysis-period.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='contributors-v2';
+export const LEGISLATION_VIEW_VERSION='plenary-weeks-v3';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -48,9 +48,24 @@ export class LegislationInsights {
     const sittings=[...past,...upcoming];
     return {sittings,sources,complete:true,year,years,start:CURRENT_TERM_START};
   }
-  async query(query) {
+  async query(query,savedCatalogue=null) {
     const status=this.store.status();if(!status.currentMeps||!status.servingGeneration)throw new HttpError(503,'insights_loading','The saved MEP index is not available yet.');
-    const catalogue=await this.catalogue();const sitting=catalogue.sittings.find(s=>s.activity_id===(query.sitting||catalogue.sittings[0]?.activity_id));
+    const catalogue=savedCatalogue||await this.catalogue();
+    if(query.week) {
+      const today=brusselsDay(this.clock()),held=catalogue.sittings.filter(s=>s.activity_date<=today).sort((a,b)=>b.activity_date.localeCompare(a.activity_date)),anchor=held[0]||[...catalogue.sittings].sort((a,b)=>a.activity_date.localeCompare(b.activity_date))[0];
+      const monday=anchor&&new Date(anchor.activity_date+'T12:00:00Z');
+      if(monday)monday.setUTCDate(monday.getUTCDate()-(monday.getUTCDay()+6)%7);
+      const week=query.week==='latest'?monday?.toISOString().slice(0,10):query.week;
+      const end=week&&new Date(Date.parse(week+'T12:00:00Z')+6*86400_000).toISOString().slice(0,10);
+      const sittings=catalogue.sittings.filter(s=>s.activity_date>=week&&s.activity_date<=end).sort((a,b)=>a.activity_date.localeCompare(b.activity_date));
+      if(!sittings.length||sittings.length>5)throw new HttpError(404,'sitting_not_found','Choose a listed plenary week.');
+      const days=[];
+      // Only this week's published sittings, using the same bounded daily source reads.
+      for(const sitting of sittings)days.push(await this.query({language:query.language,sitting:sitting.activity_id},catalogue));
+      const base=days[0];
+      return {...base,week,topics:days.flatMap(day=>day.topics.map(topic=>({...topic,sittingId:day.sitting.id}))),agendaSittings:days.map(day=>({...day.sitting,agendaComplete:day.coverage.agendaComplete,agendaError:day.coverage.agendaError})),coverage:{...base.coverage,agendaComplete:days.every(day=>day.coverage.agendaComplete),agendaError:days.filter(day=>day.coverage.agendaError).map(day=>day.sitting.date+': '+day.coverage.agendaError).join('; ')||null,sources:[...new Map(days.flatMap(day=>day.coverage.sources).map(source=>[source.apiUrl,source])).values()]}};
+    }
+    const sitting=catalogue.sittings.find(s=>s.activity_id===(query.sitting||catalogue.sittings[0]?.activity_id));
     if(!sitting)throw new HttpError(404,'sitting_not_found','Choose a listed sitting from the current parliamentary term.');
     const today=brusselsDay(this.clock()),phase=sitting.activity_date>today?'upcoming':sitting.activity_date===today?'today':'past';
     if(phase==='upcoming'&&query.vote)throw new HttpError(400,'vote_not_held','This plenary vote has not taken place.');
