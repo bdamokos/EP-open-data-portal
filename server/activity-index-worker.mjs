@@ -4,6 +4,7 @@ import { ODP_BASE, boundedUpstream, backoffUpstream } from './odp.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
 import { HttpError } from './http-utils.mjs';
+import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
 
 const DAY = 24*60*60_000;
 const day = t => new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
@@ -178,6 +179,9 @@ export class ActivityWorker {
       }
       const {rows}=documentRows(projected,body.endpoint,r.fetchedAt,proc);
       this.store.putSource(generation,body.endpoint,'document',projected,r.fetchedAt,rows);this.store.finishTask(task);
+      if(isMotion(projected))this.scheduleMotionOutcomes(generation,projected);
+    } else if(task.kind==='motion-outcomes') {
+      await this.loadMotionOutcomes(task);
     } else if(task.kind==='procedure') {
       const r=await this.request(body.endpoint), work=r.payload.data[0];if(!work)throw new Error('EP procedure detail was empty.');
       this.store.putSource(generation,body.endpoint,'procedure',projectProcedure(work),r.fetchedAt);
@@ -186,6 +190,71 @@ export class ActivityWorker {
       this.refreshReportJoins(generation,tail(body.endpoint));
       this.store.finishTask(task);
     }
+  }
+  scheduleMotionOutcomes(generation,work) {
+    const today=day(this.clock());
+    for(const sittingId of motionSittings(work)) {
+      const sittingDate=sittingId.slice(7);
+      if(sittingDate>today)continue;
+      const saved=this.store.source(generation,motionSourceKey(sittingId));
+      const ttl=this.clock()-Date.parse(sittingDate)<14*DAY ? 6*60*60_000 : 7*DAY;
+      if(saved && !saved.work.truncated && !saved.work.lastRefreshFailure && this.clock()-Date.parse(saved.fetchedAt)<ttl)continue;
+      this.store.enqueue(generation,motionSourceKey(sittingId)+':'+today,'motion-outcomes',{sittingId,stage:'results',offset:0,results:[],decisions:[],sources:[]},102);
+    }
+  }
+  prepareMotionOutcomes(generation) {
+    for(const source of this.store.iterateSources(generation,'document')) {
+      if(!isMotion(source.work))continue;
+      // Older projections omitted the exact vote and joint-motion relationships.
+      // Upgrade retained motions through the same writer and durable request queue.
+      const recentUnlinked=!motionSittings(source.work).length && this.clock()-Date.parse(source.work.document_date)<45*DAY && this.clock()-Date.parse(source.fetchedAt)>=DAY;
+      if(source.work.motionLinksVersion!==1 || recentUnlinked)this.store.enqueue(generation,source.key,'document',{endpoint:source.key},101,true);
+      else this.scheduleMotionOutcomes(generation,source.work);
+    }
+  }
+  async loadMotionOutcomes(task) {
+    const {generation,body}=task;
+    if(!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(body.sittingId))throw new Error('Invalid motion sitting identifier.');
+    const collection=body.stage==='results'?'vote-results':'decisions';
+    const endpoint='/meetings/'+body.sittingId+'/'+collection;
+    // Include show-of-hands and electronic votes, and retain outcomes without tallies.
+    const params={limit:50,offset:body.offset,...(body.stage==='decisions'?{'filter-output':'voters'}:{})};
+    const record=await this.request(endpoint,params);
+    const url=new URL(ODP_BASE+endpoint);
+    for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,String(value));
+    const sources=[...body.sources,{url:url.href,fetchedAt:record.fetchedAt,language:body.stage==='decisions'?'en':null}];
+    const project=body.stage==='results'?projectMotionResults:projectMotionDecisions;
+    const nodes=project(record.payload.data,body.sittingId);
+    const field=body.stage==='results'?'results':'decisions';
+    const merged=[...new Map([...body[field],...nodes].map(node=>[node.id,node])).values()];
+    const next={...body,[field]:merged,sources};
+    const coverage=motionVoteCoverage(next.results,next.decisions);
+    const missing=body.stage==='results'?coverage.missingResultIds:coverage.missingDecisionIds;
+    const grew=merged.length>body[field].length;
+    const capped=merged.length>5000 || body.offset>=950;
+    if(merged.length>5000)throw new Error('Motion vote source exceeded its record budget.');
+    // The decisions API currently ignores limit and returns the whole sitting.
+    // Compare exact declared children, never graph length or the requested limit.
+    if(!capped && grew && (missing.length || body.stage==='results' && nodes.length>=50)) {
+      this.store.taskProgress(task,{...next,offset:body.offset+Math.max(50,nodes.length)});return;
+    }
+    if(body.stage==='results') {
+      this.store.taskProgress(task,{...next,stage:'decisions',offset:0,resultsUrl:sources[0].url,resultsFetchedAt:record.fetchedAt});return;
+    }
+    const firstDecisionSource=sources.find(source=>source.url.includes('/decisions?'));
+    const key=motionSourceKey(body.sittingId), saved=this.store.source(generation,key);
+    // An empty or reduced result graph must not erase a previously complete sitting.
+    const resultIds=new Set(next.results.map(result=>result.id));
+    coverage.missingResultIds=[...new Set([...coverage.missingResultIds,...(saved?.work.results || []).map(result=>result.id).filter(id=>!resultIds.has(id))])];
+    const truncated=Boolean(coverage.missingResultIds.length || coverage.missingDecisionIds.length);
+    const lastRefreshFailure=truncated?{attemptedAt:record.fetchedAt,coverage,sources}:null;
+    const replacement=truncated && saved && !saved.work.truncated ? {...saved.work,lastRefreshFailure} : {
+      results:next.results,decisions:next.decisions,sources,
+      resultsUrl:body.resultsUrl,resultsFetchedAt:body.resultsFetchedAt,decisionsUrl:firstDecisionSource.url,decisionsFetchedAt:record.fetchedAt,
+      coverage,truncated,lastRefreshFailure,
+    };
+    this.store.putSource(generation,key,'motion-outcomes',replacement,truncated && saved && !saved.work.truncated?saved.fetchedAt:record.fetchedAt);
+    this.store.finishTask(task);
   }
   refreshReportJoins(generation,procedureId) {
     for(const report of this.store.reportsForProcedure(generation,procedureId)) {
@@ -223,6 +292,11 @@ export class ActivityWorker {
       // An unavailable historical detail must not stop next-day catalogue/feed
       // catch-up while its durable retry keeps the generation incomplete.
       this.catchUp(this.store.get('working'));
+      const motionDay=day(this.clock());
+      if(this.store.get('working').motionOutcomesDay!==motionDay) {
+        this.prepareMotionOutcomes(cycle.generation);
+        this.store.updateCycle({motionOutcomesDay:motionDay});
+      }
       if(!this.store.get('working').reportJoinsReady) {
         // Upgrade an existing partial generation from its retained real records,
         // without refetching sources or resetting any durable page cursor.

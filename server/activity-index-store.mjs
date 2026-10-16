@@ -2,9 +2,23 @@ import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize } from './activity-index-model.mjs';
+import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles } from './activity-index-model.mjs';
+import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
 
 const parse = value => value == null ? null : JSON.parse(value);
+const motionReferenceValue = `CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END`;
+const originalMotionRef = `CASE
+  WHEN instr(${motionReferenceValue},'https://data.europarl.europa.eu/')=1 THEN substr(${motionReferenceValue},length('https://data.europarl.europa.eu/')+1)
+  WHEN instr(${motionReferenceValue},'http://data.europarl.europa.eu/')=1 THEN substr(${motionReferenceValue},length('http://data.europarl.europa.eu/')+1)
+  ELSE ${motionReferenceValue} END`;
+const motionLinkSelect = (source,from='') => `SELECT ${source}.generation,${originalMotionRef},${source}.key
+  FROM ${from}json_each(${source}.body,'$.is_derivative_of') AS ref
+  WHERE ${source}.kind='document' AND json_extract(${source}.body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT'
+  AND ${originalMotionRef} LIKE 'eli/dl/doc/B-10-%'`;
+const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
+  FROM motion_links AS link JOIN sources AS source ON source.generation=link.generation AND source.key=link.joint_key
+  WHERE link.generation=? AND link.original_ref=?
+  ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
 export class ActivityStore {
   constructor(directory, { clock = Date.now } = {}) {
     mkdirSync(directory, { recursive: true });
@@ -15,6 +29,19 @@ export class ActivityStore {
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS lease (id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT, expires INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS sources (generation INTEGER, key TEXT, kind TEXT, body TEXT, fetched_at TEXT, seen INTEGER DEFAULT 0, PRIMARY KEY(generation,key));
+      CREATE TABLE IF NOT EXISTS motion_links (generation INTEGER, original_ref TEXT, joint_key TEXT, PRIMARY KEY(generation,original_ref,joint_key));
+      CREATE INDEX IF NOT EXISTS motion_link_source ON motion_links(generation,joint_key);
+      CREATE TRIGGER IF NOT EXISTS motion_links_insert AFTER INSERT ON sources BEGIN
+        DELETE FROM motion_links WHERE generation=NEW.generation AND joint_key=NEW.key;
+        INSERT OR IGNORE INTO motion_links ${motionLinkSelect('NEW')};
+      END;
+      CREATE TRIGGER IF NOT EXISTS motion_links_update AFTER UPDATE OF body,kind ON sources BEGIN
+        DELETE FROM motion_links WHERE generation=OLD.generation AND joint_key=OLD.key;
+        INSERT OR IGNORE INTO motion_links ${motionLinkSelect('NEW')};
+      END;
+      CREATE TRIGGER IF NOT EXISTS motion_links_delete AFTER DELETE ON sources BEGIN
+        DELETE FROM motion_links WHERE generation=OLD.generation AND joint_key=OLD.key;
+      END;
       CREATE TABLE IF NOT EXISTS items (generation INTEGER, source_key TEXT, source_id TEXT, mep TEXT, category TEXT, date TEXT, body TEXT, PRIMARY KEY(generation,source_id,mep,category));
       CREATE INDEX IF NOT EXISTS item_lookup ON items(generation,mep,date DESC,source_id);
       CREATE INDEX IF NOT EXISTS item_source ON items(generation,source_key);
@@ -34,7 +61,14 @@ export class ActivityStore {
     return this.transaction(()=> {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
-      this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl); return true;
+      this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
+      if(this.get('motionLinksIndexVersion')!==1) {
+        this.assertWriter();
+        this.db.exec('INSERT OR IGNORE INTO motion_links '+motionLinkSelect('source','sources AS source, '));
+        this.assertWriter();
+        this.set('motionLinksIndexVersion',1);
+      }
+      return true;
     });
   }
   renew(ttl=90_000) { return this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=? AND expires>?').run(this.clock()+ttl,this.owner,this.clock()).changes===1; }
@@ -63,10 +97,13 @@ export class ActivityStore {
   updateCycle(values) { this.assertWriter();this.set('working',{...this.get('working'),...values}); }
   enqueue(generation,key,kind,body,priority=50,refreshCompleted=false) {
     this.assertWriter();
-    this.db.prepare('INSERT OR IGNORE INTO tasks(generation,key,kind,body,priority) VALUES (?,?,?,?,?)').run(generation,key,kind,JSON.stringify(body),priority);
-    if(refreshCompleted)this.db.prepare('UPDATE tasks SET done=0,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE generation=? AND key=? AND done=1').run(JSON.stringify(body),priority,generation,key);
+    // Older images select only done=0. Leave new task kinds pending for an
+    // outcome-aware worker during rollback; SUM(done) still counts only finished work.
+    const pending=kind==='motion-outcomes'?null:0;
+    this.db.prepare('INSERT OR IGNORE INTO tasks(generation,key,kind,body,priority,done) VALUES (?,?,?,?,?,?)').run(generation,key,kind,JSON.stringify(body),priority,pending);
+    if(refreshCompleted)this.db.prepare('UPDATE tasks SET done=?,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE generation=? AND key=? AND done=1').run(pending,JSON.stringify(body),priority,generation,key);
   }
-  nextTask(generation) { const r=this.db.prepare('SELECT * FROM tasks WHERE generation=? AND done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,this.clock()); return r && {...r,body:parse(r.body)}; }
+  nextTask(generation) { const r=this.db.prepare('SELECT * FROM tasks WHERE generation=? AND (done=0 OR done IS NULL) AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,this.clock()); return r && {...r,body:parse(r.body)}; }
   taskProgress(task,body) { this.assertWriter();this.db.prepare('UPDATE tasks SET body=?,attempts=0,error=NULL,retry_at=0 WHERE generation=? AND key=?').run(JSON.stringify(body),task.generation,task.key); }
   finishTask(task) { this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,error=NULL WHERE generation=? AND key=?').run(task.generation,task.key); }
   failTask(task,error) {
@@ -74,7 +111,7 @@ export class ActivityStore {
     this.db.prepare('UPDATE tasks SET attempts=attempts+1,retry_at=?,error=? WHERE generation=? AND key=?').run(this.clock()+delay,String(error.message).slice(0,350),task.generation,task.key);
     this.updateCycle({phase:'retrying',error:String(error.message).slice(0,350)});
   }
-  taskCounts(generation) { return this.db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(done),0) AS completed,COALESCE(SUM(CASE WHEN done=0 AND error IS NOT NULL THEN 1 ELSE 0 END),0) AS retrying FROM tasks WHERE generation=?').get(generation); }
+  taskCounts(generation) { return this.db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(done),0) AS completed,COALESCE(SUM(CASE WHEN (done=0 OR done IS NULL) AND error IS NOT NULL THEN 1 ELSE 0 END),0) AS retrying FROM tasks WHERE generation=?').get(generation); }
   source(generation,key) { const s=this.db.prepare('SELECT * FROM sources WHERE generation=? AND key=?').get(generation,key);return s && {work:parse(s.body),fetchedAt:s.fetched_at}; }
   sources(generation,kind,workType=null) {
     const rows=this.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind=?'+(workType?" AND json_extract(body,'$.work_type') LIKE ?":'')).all(generation,kind,...(workType?['%/'+workType]:[]));
@@ -92,6 +129,10 @@ export class ActivityStore {
         WHERE (CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END) IN (?,?,?))`;
     for(const source of this.db.prepare(sql).iterate(generation,relative,'https://data.europarl.europa.eu/'+relative,'http://data.europarl.europa.eu/'+relative))
       yield {key:source.key,work:parse(source.body),fetchedAt:source.fetched_at};
+  }
+  relatedJointMotions(generation,id) {
+    return this.db.prepare(relatedJointMotionsSql).all(generation,'eli/dl/doc/'+id)
+      .map(source=>({key:source.key,work:parse(source.body),fetchedAt:source.fetched_at}));
   }
   markSeen(generation,key) { this.assertWriter();this.db.prepare('UPDATE sources SET seen=1 WHERE generation=? AND key=?').run(generation,key); }
   putSource(generation,key,kind,work,fetchedAt,rows=[]) {
@@ -140,7 +181,7 @@ export class ActivityStore {
       refreshInProgress:Boolean(cycle), progress:cycle?this.taskCounts(cycle.generation):null, backgroundRequests:cycle?.requests || 0, lastRefreshRequests:this.get('lastRefreshRequests') || 0,
       pendingSpeechRecoveries:{count:recoveryCount,examples:recoveryExamples},
       sourceCounts:Object.fromEntries(counts.map(c=>[c.kind,c.count])), currentMeps:this.db.prepare('SELECT COUNT(*) AS n FROM members').get().n,
-      rosterFetchedAt:this.get('rosterFetchedAt'), lastError:cycle?.phase==='paused' ? cycle.error : cycle ? this.db.prepare('SELECT error FROM tasks WHERE generation=? AND done=0 AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get(cycle.generation)?.error || null : null, exclusiveWriterActive:Boolean(lease && lease.expires>this.clock()),
+      rosterFetchedAt:this.get('rosterFetchedAt'), lastError:cycle?.phase==='paused' ? cycle.error : cycle ? this.db.prepare('SELECT error FROM tasks WHERE generation=? AND (done=0 OR done IS NULL) AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get(cycle.generation)?.error || null : null, exclusiveWriterActive:Boolean(lease && lease.expires>this.clock()),
       unresolvedJoinCount:(this.get('unresolved') || []).length, unresolvedJoins:(this.get('unresolved') || []).slice(0,100), unresolvedCategories:[...new Set((this.get('unresolved') || []).map(join=>join.category || 'reports-shadow'))], unsupportedCategories:Object.entries(CATEGORY_GAPS).map(([category,reason])=>({category,label:CATEGORIES[category],reason})),
       dataSource:'European Parliament Open Data API v2', attribution:'European Parliament, CC BY 4.0', schedule:'Daily after 03:00 Europe/Brussels; interrupted initial loads resume automatically.' };
   }
@@ -151,8 +192,30 @@ export class ActivityStore {
     const where='generation=? AND mep=?'+(category?' AND category=?':'');
     const params=[generation,String(mep),...(category?[category]:[])];
     const total=this.db.prepare('SELECT COUNT(*) AS n FROM items WHERE '+where).get(...params).n;
+    const sittingSources=new Map(), outcomes=new Map();
+    const outcome=source=>{
+      const id=source.work.identifier || source.work.id;
+      if(!outcomes.has(id))outcomes.set(id,motionOutcome(source.work,source.fetchedAt,sittingId=>{
+        if(!sittingSources.has(sittingId))sittingSources.set(sittingId,this.source(generation,motionSourceKey(sittingId)));
+        return sittingSources.get(sittingId);
+      }));
+      return outcomes.get(id);
+    };
     const present=body=>{
       const row=parse(body);
+      if(row.recordKind==='document' && row.motionType) {
+        const source=this.source(generation,'/plenary-documents/'+row.sourceId);
+        if(source && isMotion(source.work)) {
+          const relatedJointMotions=this.relatedJointMotions(generation,row.sourceId).map(joint=>{
+            const id=joint.work.identifier, files=documentFiles(joint.work);
+            const file=files.find(file=>file.language===language && file.format==='PDF') || files.find(file=>file.language==='en' && file.format==='PDF');
+            const titles=joint.work.title_dcterms || {};
+            return {sourceId:id,reference:motionReference(id),title:titles[language]||titles.en||id,outcome:outcome(joint),
+              url:file?.url || 'https://data.europarl.europa.eu/eli/dl/doc/'+id};
+          });
+          return {...localize(row,language),resolutionOutcome:outcome(source),relatedJointMotions};
+        }
+      }
       if(row.recordKind==='answer'&&row.relatedQuestionId) {
         const question=this.source(generation,'/parliamentary-questions/'+row.relatedQuestionId)?.work;
         const titles=Object.assign({},...(question?.is_realized_by||[]).map(expression=>expression.title||{}),question?.title_dcterms||{});
