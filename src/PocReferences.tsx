@@ -3,6 +3,7 @@ import {Fragment,createContext,useCallback,useContext,useEffect,useId,useLayoutE
 import {linkedSegments,noteReferences,referenceKeys,type LinkSpan} from '../server/legal-reference-text.mjs';
 import {useData} from './pocData';
 import {humanDate} from './PocInsightCharts';
+import {summaryStage} from './pocTerms.mjs';
 import type {DocumentLink,DocumentNote,NoteAnchor} from './pocTypes';
 import './PocReferences.css';
 
@@ -23,7 +24,6 @@ const TERM_START='2024-07-16';
 const actType:Record<string,string>={R:'Regulation',L:'Directive',D:'Decision',F:'Framework decision'};
 const documentType:Record<string,string>={PC:'Commission proposal',DC:'Commission document',SC:'Staff working document',JC:'Joint document'};
 const questionType:Record<string,string>={E:'Written question',P:'Priority question',O:'Oral question'};
-const stageName=(stage:string)=>({'first-reading':'First reading','parliament-decision':'Parliament’s decision','final-act':'Final act',proposal:'Commission proposal',document:'Summary'} as Record<string,string>)[stage]||'Summary';
 const displayDate=(value:string|null|undefined,language:string)=>value?humanDate(value,language):null;
 const finePointer=()=>typeof matchMedia==='function'&&matchMedia('(hover: hover) and (pointer: fine)').matches;
 function connectedFocusTarget(element:HTMLElement|null|undefined) {
@@ -145,7 +145,7 @@ function DossierSummary({reference,language,showTitle}:{reference:string;languag
   return <section lang="en" className="legal-reference-summary" aria-label={'Dossier summary '+reference}>
     {showTitle&&<p className="legal-reference-title" lang={data.language??''}>{data.title}</p>}
     {data.summary?<>
-      <p className="legal-reference-meta">{stageName(data.summary.stage)} · <span lang={language}>{displayDate(data.summary.date,language)}</span>{data.language!==language?<> · <span lang={language}>{new Intl.DisplayNames([language],{type:'language'}).of(data.language)||data.language}</span></>:''}{data.summary.method?' · '+data.summary.method:''}</p>
+      <p className="legal-reference-meta"><span lang={summaryStage(data.summary.stage,language).language}>{summaryStage(data.summary.stage,language).text}</span> · <span lang={language}>{displayDate(data.summary.date,language)}</span>{data.language!==language?<> · <span lang={language}>{new Intl.DisplayNames([language],{type:'language'}).of(data.language)||data.language}</span></>:''}{data.summary.method?' · '+data.summary.method:''}</p>
       <div lang={data.language??''}>{shown.map((block,index)=>block.kind==='heading'?<h4 key={index}>{block.text}</h4>:<p key={index}>{block.text}</p>)}</div>
       <div className="legal-reference-actions">{blocks.length>2&&<button type="button" aria-expanded={expanded} onClick={()=>setExpanded(value=>!value)}>{expanded?'Show less':'Continue reading'}</button>}<a className="legal-reference-secondary" href={data.summary.source.url} target="_blank" rel="noreferrer">Legislative Observatory ↗</a></div>
     </>:<p className="legal-reference-meta">The Legislative Observatory publishes no summary for {reference}.</p>}
