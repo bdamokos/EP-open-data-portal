@@ -42,6 +42,15 @@
 .insight-trend-events {padding:0;list-style:none;}
 .insight-trend-events li {display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;padding:12px 0;border-top:1px solid var(--insight-line);}
 .insight-trend-events time {font-size:15px;padding:12px 0;color:var(--insight-muted);}
-.insight-trend-events li>div {display:flex;gap:8px;flex-wrap:wrap;}
+.insight-trend-events li>div {display:grid;gap:12px;min-width:0;}
+.insight-trend-dossier {min-width:0;}
+.insight-trend-dossier>button {display:grid;gap:8px;text-align:left;width:100%;min-width:0;padding:12px 14px;}
+.insight-trend-dossier-title {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;font-size:17px;line-height:1.45;}
+.insight-trend-dossier>button[aria-expanded=true] .insight-trend-dossier-title {-webkit-line-clamp:unset;}
+.insight-trend-dossier-reference {font-size:13px;color:var(--insight-muted);}
+.insight-trend-dossier-status {font-size:13px;line-height:1.5;color:#b5d9ff;}
+.insight-trend-dossier-status[data-state=published],.insight-trend-dossier-status[data-state=signed] {color:#a6e8bd;}
+.insight-trend-dossier-status[data-state=none] {color:var(--insight-muted);}
+.insight-trend-dossier>a {display:inline-flex;align-items:center;min-height:44px;font-size:13px;color:var(--insight-muted);}
 @media(max-width:1000px){.insight-trends-layout {gap:24px;grid-template-columns:minmax(200px,35%) minmax(0,1fr);}}
-@media(max-width:680px){.insight-trends-layout {grid-template-columns:1fr;}.insight-trend-list {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}.insight-trend-list button {grid-template-columns:minmax(0,1fr) auto;padding:10px 8px;}.insight-trend-list svg {display:none;}.insight-trend-chart text {font-size:24px;}.insight-trend-events li {grid-template-columns:105px minmax(0,1fr);}.insight-official-summary {font-size:16px;}.insight-summary-stage {max-width:100%;}.insight-procedure-context header>div {width:100%;}.insight-topic-trends>.insight-section-heading {align-items:start;}.insight-topic-trends h2 {font-size:26px;}}
+@media(max-width:680px){.insight-trends-layout {grid-template-columns:1fr;}.insight-trend-list {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}.insight-trend-list button {grid-template-columns:minmax(0,1fr) auto;padding:10px 8px;}.insight-trend-list svg {display:none;}.insight-trend-chart text {font-size:24px;}.insight-trend-events li {grid-template-columns:1fr;gap:0;}.insight-trend-events time {padding:0 0 10px;}.insight-official-summary {font-size:16px;}.insight-summary-stage {max-width:100%;}.insight-procedure-context header>div {width:100%;}.insight-topic-trends>.insight-section-heading {align-items:start;}.insight-topic-trends h2 {font-size:26px;}}

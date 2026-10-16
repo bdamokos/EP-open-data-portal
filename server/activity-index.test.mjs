@@ -314,3 +314,26 @@ test('existing partial reports/procedures are joined locally on upgrade without 
     assert.equal(JSON.parse(s.db.prepare("SELECT body FROM tasks WHERE key='recovery'").get().body).offset,500);
   }finally{s.close();rmSync(dir,{recursive:true,force:true});}
 });
+
+test('title projection upgrade queues only legacy procedures, preserves cursors and records absent titles once',async()=> {
+  const dir=temp(),s=new ActivityStore(dir,{clock:instant});
+  try {
+    s.acquire();const {generation}=s.beginCycle();s.updateCycle({initialized:true,reportJoinsReady:true});
+    const key='/procedures/2025-0233';
+    s.putSource(generation,key,'procedure',procedure,fetchedAt);
+    s.enqueue(generation,key,'procedure',{endpoint:key},103);s.finishTask({generation,key});
+    s.putSource(generation,'/procedures/2025-0234','procedure',projectProcedure({...procedure,id:'eli/dl/proc/2025-0234',process_title:{en:'Saved title'}}),fetchedAt);
+    s.putSource(generation,'/procedures/2025-0235','procedure',projectProcedure({...procedure,id:'eli/dl/proc/2025-0235'}),fetchedAt);
+    s.enqueue(generation,'recovery','speeches',{offset:500,recoveryId:'MTG-PL-2026-05-20-OTH-456'},103);s.release();
+    let requests=0;
+    const worker=new ActivityWorker(s,{clock:instant,budget:0,fetchRecord:async endpoint=>{requests++;assert.equal(endpoint,key);return {payload:{data:[procedure]},fetchedAt};}});
+    await worker.run();await worker.run();
+    assert.equal(requests,0);assert.equal(s.get('working').procedureTitlesQueued,true);
+    const tasks=s.db.prepare("SELECT * FROM tasks WHERE generation=? AND kind='procedure'").all(generation);
+    assert.equal(tasks.length,1);assert.equal(tasks[0].done,0);assert.equal(tasks[0].priority,104);
+    assert.equal(JSON.parse(s.db.prepare("SELECT body FROM tasks WHERE key='recovery'").get().body).offset,500);
+    s.acquire();await worker.task({...tasks[0],body:JSON.parse(tasks[0].body)});
+    assert.equal(requests,1);assert.equal(s.source(generation,key).work.process_title,null);
+    assert.equal(s.db.prepare("SELECT json_type(body,'$.process_title') type FROM sources WHERE generation=? AND key=?").get(generation,key).type,'null');
+  } finally {s.close();rmSync(dir,{recursive:true,force:true});}
+});
