@@ -7,7 +7,7 @@ import {AMENDMENT_LINKS_VERSION,projectDocument} from './activity-index-model.mj
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {amendmentsPage} from './amendments-store.mjs';
-import {prepareAmendments,rebuildAmendmentTarget} from './amendments-worker.mjs';
+import {prepareAmendments,rebuildAmendmentTarget,amendmentTask} from './amendments-worker.mjs';
 import {AMENDMENTS_VERSION} from './amendments.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {SPLIT_PARSER_VERSION} from './amendment-splits.mjs';
@@ -67,7 +67,16 @@ test('document worker ingestion keeps unknown list relationships distinct from o
       assert.equal(item.listRelationship,'absent-current-relationship');
     } else {
       assert.deepEqual(projected.inverse_foresees_change_of,[linked.id]);
-      assert.equal(item.listRelationship,'current');
+      assert.equal(item.listRelationship,'unverified');
+      assert.equal(page.coverage.complete,false);assert.equal(page.coverage.pending,true);
+      assert(page.coverage.gaps.some(gap=>gap.includes(listId)&&gap.includes('verification')));
+      const job=store.db.prepare("SELECT * FROM amendment_jobs WHERE generation=? AND kind='amendment-list-detail'").get(generation);
+      assert.equal(JSON.parse(job.body).listId,listId);
+      worker.fetchRecord=async path=>{assert.equal(path,'/documents/'+listId);return {payload:{data:[linked]},fetchedAt:at};};
+      await amendmentTask(worker,{...job,body:JSON.parse(job.body),amendmentJob:true});
+      const verified=amendmentsPage(store,{document:targetId});
+      assert.equal(verified.items[0].listRelationship,'current');
+      assert(!verified.coverage.gaps.some(gap=>gap.includes(listId)&&gap.includes('verification')));
     }
   }
 });

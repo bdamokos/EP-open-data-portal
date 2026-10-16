@@ -31,8 +31,10 @@ test('amendment-list dates remain visible without substituting unknown individua
       {listId:'unknown-list',date:'2099-01-01',...unknownDate},
       {listId:'legacy-list',date:'2026-06-06',dateBasis:'amendment-list-document'},
       {listId:'documentary-date',...documentaryDate},
+      {listId:'legacy-source-date',date:'2026-07-07'},
     ]},
     {...base,id:'documentary-date',number:7,...documentaryDate},
+    {...base,id:'decision-only',number:8,date:'2026-08-08',targetDocumentDate:'2026-08-08',decisions:[{id:'decision-only-vote',date:'2026-10-07',outcome:'ADOPTED'}],sources:[{url:'https://data.europarl.europa.eu/legacy-source',date:'2026-09-09'}]},
   ];
   t.mock.method(globalThis,'fetch',async input=>{
     assert(new URL(input,window.location.href).pathname.endsWith('/amendments'));
@@ -56,6 +58,10 @@ test('amendment-list dates remain visible without substituting unknown individua
   assert.match(variants[2].textContent,/Amendment-list document date Jun 6, 2026/);
   assert.match(variants[3].textContent,/Amendment-list document date Oct 6, 2026/,'the documentary variant date takes precedence over list metadata');
   assert.doesNotMatch(variants[3].textContent,/Oct 7, 2026/);
+  assert.match(variants[4].textContent,/Document date Jul 7, 2026/,'a legacy source variant preserves its own dated evidence');
   assert.match(cards[6].textContent,/Amendment-list document date Oct 6, 2026/,'the documentary card date takes precedence over list metadata');
   assert.doesNotMatch(cards[6].textContent,/Oct 7, 2026/);
+  assert.doesNotMatch(cards[7].textContent,/Aug 8, 2026/,'a decision-only row never borrows its target report date as an amendment date');
+  assert.match(cards[7].textContent,/Decision date Oct 7, 2026/);
+  assert.match(cards[7].textContent,/Document date Sep 9, 2026/,'legacy dated source evidence remains available separately');
 });
