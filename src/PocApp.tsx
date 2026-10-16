@@ -7,7 +7,7 @@ import {orderedMemberships} from './pocMemberships.mjs';
 import {PocSaved,SaveButton,SavedNav,useSavedChecks} from './PocSaved';
 import {QuestionStatus} from './PocQuestionStatus';
 import {MotionStatuses,PocMotionOutcome} from './PocMotionOutcome';
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from "./PocReferences";
 import { Portrait } from "./components/Portrait";
 import { DataNotice } from "./components/DataNotice";
@@ -253,7 +253,8 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
     if(!moveToResults.current)return;
     moveToResults.current=false;
     resultsHeading.current?.focus({preventScroll:true});
-    resultsHeading.current?.closest(".poc-profile-body")?.scrollTo({top:0});
+    const body=resultsHeading.current?.closest(".poc-profile-body");
+    if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else resultsHeading.current?.scrollIntoView({block:"start"});
   },[category,categoriesOpen,offset]);
   useEffect(()=>{
     if(state.data?.cache.complete || open)return;
@@ -376,6 +377,27 @@ export default function PocApp() {
   const c = pocCopy(lang);
   useSavedChecks(lang);
   const label = (key: string, fallback: string) => interfaceLabel(lang,key,fallback);
+  useLayoutEffect(() => {
+    const page=document.querySelector<HTMLElement>(".poc"),tabs=page?.querySelector<HTMLElement>(".poc-tabs");
+    if(!page||!tabs)return;
+    const measure=()=>page.style.setProperty("--poc-tabs-height",`${tabs.getBoundingClientRect().height}px`);
+    measure();
+    const observer=new ResizeObserver(measure);observer.observe(tabs);
+    return ()=>{observer.disconnect();page.style.removeProperty("--poc-tabs-height");};
+  }, [member, view, lang]);
+  const scrolledView = useRef({member,tab,view});
+  useEffect(() => {
+    // Small screens scroll the whole explorer; start new pages at the top and new tabs at their content.
+    const previous=scrolledView.current;scrolledView.current={member,tab,view};
+    const page=document.querySelector<HTMLElement>(".poc");
+    if(!page||page.scrollHeight<=page.clientHeight)return;
+    if(previous.member!==member||previous.view!==view){if(!speechLink&&!activityLink)page.scrollTo({top:0});return;}
+    if(previous.tab===tab||(tab==="speeches"&&speechLink)||(tab==="activities"&&activityLink))return;
+    const body=page.querySelector<HTMLElement>(".poc-profile-body"),tabs=page.querySelector<HTMLElement>(".poc-tabs");
+    if(!body||!tabs||getComputedStyle(tabs).position!=="sticky")return;
+    const contentTop=page.scrollTop+body.getBoundingClientRect().top-page.getBoundingClientRect().top-tabs.offsetHeight;
+    if(page.scrollTop>contentTop)page.scrollTo({top:contentTop});
+  }, [member, tab, view, speechLink, activityLink]);
   useEffect(() => {
     const timer=window.setInterval(directoryState.retry,directory?.index.complete ? 60_000 : 10_000);
     return ()=>window.clearInterval(timer);
