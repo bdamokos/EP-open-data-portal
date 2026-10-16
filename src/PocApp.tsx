@@ -75,7 +75,7 @@ function ErrorView({ message, retry }: { message: string; retry: () => void }) {
         if(document.activeElement===event.currentTarget){
           const scope=event.currentTarget.closest('section,article,main');
           const target=scope?.querySelector<HTMLElement>('.poc-speech-toggle,h1,h2,h3')||scope?.parentElement?.closest('section,main')?.querySelector<HTMLElement>('h1,h2,h3');
-          if(target){if(/^H[1-6]$/.test(target.tagName))target.tabIndex=-1;target.focus({preventScroll:true});}
+          if(target){if(/^H[1-6]$/.test(target.tagName))target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'nearest'});}
         }
         retry();
       }}>Try again</button>
@@ -346,9 +346,17 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   useEffect(()=>{setOffset(0);setSpeechLanguage(null);},[id,lang]);
   useEffect(()=>{setEnrichedSpeeches([]);},[id]);
   const items=state.data ? [...(pinned.data?.selectedItems || []).filter(item=>!state.data!.items.some(row=>row.id===item.id)),...state.data.items].filter(item=>item.recordKind==='speech') : [];
+  const changePage=(next:number)=>{
+    const heading=resultsHeading.current;
+    heading?.focus({preventScroll:true});
+    const body=heading?.closest('.poc-profile-body');
+    // Reuse the activity list's local results-reveal convention.
+    if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else heading?.scrollIntoView({block:'start'});
+    setOffset(next);onOpen(null);
+  };
   useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){target.scrollIntoView({block:'start'});target.querySelector<HTMLButtonElement>('.poc-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data]);
   return <section>
-    <div className="poc-section-title"><h2 ref={resultsHeading} tabIndex={-1}>{c.speeches}</h2><PocTextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" scopeNote="Searches saved speech text for this MEP in the current term. Transcript and language coverage may be incomplete."/></div>
+    <div className="poc-section-title"><h2 ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2><PocTextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" scopeNote="Searches saved speech text for this MEP in the current term. Transcript and language coverage may be incomplete."/></div>
     <PocInterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches}/>
     <PocSpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setSpeechLanguage(language);onOpen(speech);}}/>
     <div className="poc-section-title"><span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span></div>
@@ -363,7 +371,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
       {!open&&<div className="poc-speech-list-badges"><InterventionBadges value={speech.intervention}/></div>}
       {open && <Detail speech={speech} lang={speechLanguage||lang} />}
     </article>})}
-    {state.data && <div className="poc-category-top">{offset>0 && <button onClick={()=>{resultsHeading.current?.focus({preventScroll:true});setOffset(Math.max(0,offset-10));onOpen(null);}}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>{resultsHeading.current?.focus({preventScroll:true});setOffset(state.data!.nextOffset!);onOpen(null);}}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
+    {state.data && <div className="poc-category-top">{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
   </section>;
 }
 export default function PocApp() {
@@ -414,6 +422,7 @@ export default function PocApp() {
     if(!target)return;
     if(target.tagName==='H1')target.tabIndex=-1;
     target.focus({preventScroll:true});
+    if(portrait||returned)target.scrollIntoView({block:'nearest'});
   },[view,member,speechLink]);
   const directoryState = useData<Directory>(view==='outside'?null:"directory");
   const directory = directoryState.data;

@@ -92,9 +92,12 @@ test('Following Back restores its semantic header trigger even after the header 
 test('speech pagination keeps a stable local destination through pending, error and retry without completion focus steals',async t=>{
   const h=await harness(t,'?member=257043&module=speeches',true);
   await h.finish(page());
-  const heading=h.container.querySelector('.poc-profile-body h2');
+  const heading=h.container.querySelector('.poc-profile-body h2'),body=h.container.querySelector('.poc-profile-body'),reveals=[];
+  Object.defineProperties(body,{scrollHeight:{value:1000,configurable:true},clientHeight:{value:100,configurable:true}});
+  body.scrollTo=options=>reveals.push(options);
   await h.click(h.button('Older'));
   assert.equal(document.activeElement,heading);
+  assert.deepEqual(reveals,[{top:0}],'pagination reuses the activity list local reveal rather than leaving its target offscreen');
   assert.equal(h.button('Older'),undefined,'clicked page control is removed during request');
   await h.finish({error:{message:'Page unavailable.'}},503);
   assert.equal(document.activeElement,heading);

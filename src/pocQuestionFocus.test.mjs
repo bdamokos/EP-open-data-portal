@@ -19,7 +19,8 @@ async function harness(t,respond,{query='?view=questions',props={}}={}) {
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let vite,root;
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  const calls=[];
+  const calls=[],reveals=[];
+  t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){reveals.push({target:this,options,focused:document.activeElement});});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,location.href);calls.push(url);
     assert(url.pathname.endsWith('/insights/questions'),'focus tests must not request corpus, media or remote source data');
@@ -34,7 +35,7 @@ async function harness(t,respond,{query='?view=questions',props={}}={}) {
   const click=text=>act(async()=>{const target=button(text);assert(target,'Missing button: '+text);target.focus();target.click();});
   const flushFrames=()=>act(async()=>{const queued=[...frames.values()];frames.clear();queued.forEach(callback=>callback(0));});
   const navigate=query=>act(async()=>{history.replaceState(null,'','/'+query);window.dispatchEvent(new window.PopStateEvent('popstate'));});
-  return {window,container,calls,button,click,flushFrames,navigate,render,component:()=>createElement(PocQuestionTopics,{language:'en',onBack(){},...props}),
+  return {window,container,calls,reveals,button,click,flushFrames,navigate,render,component:()=>createElement(PocQuestionTopics,{language:'en',onBack(){},...props}),
     pageHeading:()=>container.querySelector('.insight-intro h1'),resultHeading:()=>container.querySelector('.insight-question-results h2'),
     status:()=>container.querySelector('[role="status"][aria-live="polite"][aria-atomic="true"]')};
 }
@@ -47,12 +48,16 @@ for(const [label,initialOffset,destination] of [['Next',0,25],['Previous',25,0]]
   assert.equal(document.activeElement,source);await h.click(label);
   assert.equal(source.isConnected,false,'the data-backed pagination really unmounts during the request');
   assert.equal(h.resultHeading(),null);assert.equal(document.activeElement,h.pageHeading());
+  assert.equal(h.reveals.length,0,'the pending heading does not add a scroll policy');
   assert.equal(h.status().textContent,'','no stale page count is published while pending');
   const request=h.calls.at(-1);assert.equal(request.searchParams.get('offset'),String(destination));
   assert.equal(request.searchParams.get('country'),'IT');assert.equal(request.searchParams.get('word'),'water');
   assert.equal(request.searchParams.get('from'),'2026-10-01');assert.equal(request.searchParams.get('to'),'2026-10-11');
   await act(async()=>response.resolve(questions(destination)));
   assert.equal(document.activeElement,h.resultHeading());
+  assert.equal(h.reveals.length,1,'the explicit arrival reveals its destination once');
+  assert.equal(h.reveals[0].target,h.resultHeading());assert.equal(h.reveals[0].focused,h.resultHeading(),'focus precedes the established results reveal');
+  assert.deepEqual(h.reveals[0].options,{block:'start'});
   assert.equal(h.container.querySelector('.insight-question-list h3').textContent,'Exact question '+(destination+1));
   assert.equal(h.container.querySelector('.insight-pagination span').textContent,destination?'26–27 of 27':'1–25 of 27');
   assert.equal(history.length,historyLength+1,'the gesture retains its single existing query-history step');
@@ -63,6 +68,7 @@ for(const [label,initialOffset,destination] of [['Next',0,25],['Previous',25,0]]
   assert.match(h.status().textContent,new RegExp('27 questions match these filters. Showing '+(destination+1)+' to '+(destination?27:25)));
   assert.match(h.status().textContent,/Question archive incomplete/);
   await h.flushFrames();assert.equal(document.activeElement,h.resultHeading(),'no late callback refocuses the removed pagination control');
+  assert.equal(h.reveals.length,1,'settled statuses and late callbacks do not repeat the destination reveal');
 });
 
 test('Questions pagination error and explicit Reload retain orientation without changing the requested offset',async t=>{
@@ -86,10 +92,12 @@ test('a generic destination heading and a retained filter after Reload never bec
   await h.click('Reload');const filter=h.container.querySelector('[data-question-country]');filter.focus();
   await act(async()=>retry.resolve(questions()));
   assert.equal(document.activeElement,filter,'completion does not take focus back from the retained filter');
+  assert.equal(h.reveals.length,0,'canceled Reload arrival never scrolls the results into view');
   const cachedHeading=h.resultHeading();await h.navigate('?view=questions&q-days=180');
   h.pageHeading().focus();await act(async()=>destination.resolve(questions()));await h.flushFrames();
   assert.equal(document.activeElement,h.pageHeading(),'a generic destination focus is never enough to request results focus');
   assert(h.resultHeading());assert.notEqual(h.resultHeading(),cachedHeading);
+  assert.equal(h.reveals.length,0,'a generic destination focus cannot create arrival scrolling');
 });
 
 test('retained filter focus cancels page arrival even if the user later returns to the pending heading',async t=>{
@@ -99,6 +107,7 @@ test('retained filter focus cancels page arrival even if the user later returns 
   await act(async()=>response.resolve(questions(25)));
   assert.equal(document.activeElement,h.pageHeading(),'returning to the heading cannot revive a canceled intent');
   assert.equal(h.container.querySelector('.insight-pagination span').textContent,'26–27 of 27');
+  assert.equal(h.reveals.length,0,'returning to the old anchor cannot revive destination scrolling');
 });
 
 test('a newer country gesture retains its filter and fences old page data and queued scroll restoration',async t=>{
@@ -114,6 +123,7 @@ test('a newer country gesture retains its filter and fences old page data and qu
   main.scrollTop=73;until.focus();await h.flushFrames();
   assert.equal(document.activeElement,until,'a queued filter restoration cannot reclaim focus after another control is chosen');
   assert.equal(main.scrollTop,73,'the canceled restoration cannot undo a newer scroll position');
+  assert.equal(h.reveals.length,0,'a superseded page cannot reveal results from another filter scope');
 });
 
 test('Back restoration, text-search activation and remount do not inherit an old page-focus intent',async t=>{
@@ -130,6 +140,7 @@ test('Back restoration, text-search activation and remount do not inherit an old
     }
     await act(async()=>response.resolve(questions(25)));await h.flushFrames();
     assert.equal(document.activeElement,retained);
+    assert.equal(h.reveals.length,0,'history, text search and remount do not inherit arrival scrolling');
     if(action==='history')assert.equal(h.container.querySelector('.insight-pagination span').textContent,'1–25 of 27');
     if(action==='text-search'){assert.equal(h.resultHeading(),null);assert.equal(h.status().textContent,'','visual result announcements stay separate from full-text search');}
   });
