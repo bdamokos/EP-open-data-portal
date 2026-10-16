@@ -12,6 +12,7 @@ import {CountryMap,countryName} from './PocCountryMap';
 import {QuestionStatus} from './PocQuestionStatus';
 import {matchesCountry} from './pocCountries.mjs';
 import type {InsightProps,QuestionInsightsResponse} from './PocInsightTypes';
+import {PocStatus} from './PocStatus';
 const questionCount=(count:number,language:string)=>count.toLocaleString(language)+' '+(count===1?'question':'questions');
 const authorCount=(count:number,language:string)=>count.toLocaleString(language)+' '+(count===1?'MEP author':'MEP authors');
 const display=(value:string)=>value.split(' · ').map(word=>word==='ai'?'AI':word.replaceAll('-',' ').replace(/^./,c=>c.toUpperCase())).join(' · ');
@@ -43,7 +44,14 @@ export function PocQuestionTopics(props:InsightProps) {
   const countryPeak=Math.max(0,...(data?.facets?.countries.map(f=>f.count)||[])),selectionStart=range?.start||data?.window.start||fallbackStart,selectionEnd=range?.end||data?.window.end||fallbackEnd;
   const selectionDates=selectionStart&&selectionEnd?humanDate(selectionStart,language)+(selectionStart===selectionEnd?'':' — '+humanDate(selectionEnd,language)):'';
   const missingTopic=Boolean(cluster&&error==='That topic is not in this window.');
+  const resultStatus=data&&!loading&&!error?[
+    data.counts.selectedQuestions?`${data.counts.selectedQuestions.toLocaleString('en')} ${data.counts.selectedQuestions===1?'question matches':'questions match'} these filters.`:'No questions match these filters.',
+    data.questions.length?`Showing ${offset+1} to ${offset+data.questions.length}.`:data.counts.selectedQuestions?'No questions shown on this page.':'',
+    !data.coverage.indexComplete?'Question archive incomplete.':'',
+    data.coverage.truncated?'Results limited to the latest 5,000 questions.':'',
+  ].filter(Boolean).join(' '):null;
   return <InsightShell {...props} view="questions" title="Questions">
+    <PocStatus scope={JSON.stringify([params.toString(),textActive])} message={textActive?null:resultStatus} pending={loading||textActive} oncePerScope/>
     <div className="insight-controls"><PocAnalysisPeriod label="Analysis period" value={days} periods={[7,30,90,180,365]} onChange={period=>{setDays(period);if(end&&end<periodEndMinimum(period))setEnd('');changeWindow();}}/><label>MEPs elected in<select data-question-country value={country||''} onChange={e=>{chooseCountry(e.target.value||null);}}><option value="">All countries</option>{[...europeMap].sort((a,b)=>countryName(a.code,language).localeCompare(countryName(b.code,language),language)).map(c=><option key={c.code} value={c.code}>{countryName(c.code,language)}{data?.facets?.countries.find(f=>f.code===c.code)?' ('+questionCount(data!.facets!.countries.find(f=>f.code===c.code)!.count,language)+')':''}</option>)}</select></label><label>Until<input type="date" min={periodEndMinimum(days)} max={brusselsDay()} value={end||data?.window.end||''} onChange={e=>{setEnd(e.target.value);changeWindow();}}/></label>{data&&<span>{humanDate(data.window.start,language)} — {humanDate(data.window.end,language)}</span>}</div>
     <PocTextSearch prefix="q-fts" label="Search question and answer text" language={language} kinds={['question','answer']} group="question" dateBasis="question" from={selectionStart} to={selectionEnd} country={country||undefined} disabledReason={!textScopeReady?'Updating the search selection…':undefined} scopeNote="Searches question and answer text across all topics in the selected period. Close text search to return to the topic, timeline and country visualisations." onActiveChange={setTextActive}/>
     {!textActive&&<div className="insight-active-filters" aria-label="Active filters">{country&&<button aria-label={'Remove filter: MEPs elected in '+countryName(country,language)} onClick={()=>chooseCountry(null)}>MEPs elected in {countryName(country,language)} ×</button>}{(word||cluster)&&<button aria-label={'Remove topic filter: '+label} onClick={reset}>{label} ×</button>}{range&&<button aria-label={'Remove date filter: '+selectionDates} onClick={()=>chooseTime(null)}>{selectionDates} ×</button>}{selected&&<button className="insight-text-button" onClick={()=>{chooseCountry(null);chooseTime(null);reset();}}>Clear all filters</button>}</div>}<InsightStatus loading={loading&&!data} error={missingTopic?null:error} retry={retry}/>
