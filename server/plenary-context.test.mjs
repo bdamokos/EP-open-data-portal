@@ -145,7 +145,7 @@ test('timeline metadata uses exact saved dossier identity and latest saved miles
   const query=topicTrendsQuery(new URLSearchParams('days=term&end=2026-07-10&lang=fr'),{now:now()}),saved=savedProcedureEvents(store,query),mapping=parseEurovoc(fixture.topics,['2025-0407'],'fr');
   const timeline=topicTimeline(saved.procedures,mapping,query),dossier=timeline.dossiers['2025-0407'];
   assert.equal(dossier.reference,'2025/0407(COD)');assert.equal(dossier.title,'Titre enregistré');assert.equal(dossier.titleLanguage,'fr');
-  assert.deepEqual(dossier.status,{state:'published',date:'2026-10-01'});assert.equal(dossier.fetchedAt,'2026-10-15T08:00:00Z');
+  assert.deepEqual(dossier.status,{state:'published',date:'2026-10-01'});assert.equal(dossier.fetchedAt,'2026-10-15T08:00:00.000Z');
   assert.deepEqual(Object.keys(timeline.dossiers),['2025-0407']);
 }));
 test('question activity badges use saved exact question-answer links and do not change source state',()=>storeFor(async(store,generation)=>{
