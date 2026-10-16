@@ -1155,12 +1155,15 @@ function docx(xml) {
   const end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(central.length+name.length,12);end.writeUInt32LE(local.length+name.length+compressed.length,16);
   return Buffer.concat([local,name,compressed,central,name,end]);
 }
-function comparisonDocx(rows,{author='Bruno Gonçalves',language='en',date='2.10.2026',committee=null,extraAmendments=[],wrapSecondRow=false,symbolInFirstCell=false,wholeBodyAlternatives=false}={}) {
+function comparisonDocx(rows,{author='Bruno Gonçalves',language='en',date='2.10.2026',committee=null,extraAmendments=[],wrapSecondRow=false,symbolInFirstCell=false,wholeBodyAlternatives=false,structuralRevision=null}={}) {
   const escape=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const paragraph=value=>'<w:p><w:r><w:t>'+escape(value)+'</w:t></w:r></w:p>';
   const tableRow=cells=>'<w:tr>'+cells.map(value=>'<w:tc>'+paragraph(value)+'</w:tc>').join('')+'</w:tr>';
   const comparisonRows=rows.map((cells,index)=>{
-    const xml=symbolInFirstCell&&index===0?tableRow(cells).replace('</w:t>','</w:t><w:sym w:font="Symbol" w:char="F061"/>'):tableRow(cells);
+    let xml=symbolInFirstCell&&index===0?tableRow(cells).replace('</w:t>','</w:t><w:sym w:font="Symbol" w:char="F061"/>'):tableRow(cells);
+    if(index===rows.length-1&&structuralRevision==='row')xml=xml.replace('<w:tr>','<w:tr><w:trPr><w:del w:id="7" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:trPr>');
+    if(index===rows.length-1&&structuralRevision==='cell')xml=xml.replace('<w:tc>','<w:tc><w:tcPr><w:cellDel w:id="8" w:author="Editor"/></w:tcPr>');
+    if(index===0&&structuralRevision==='historical-cell')xml=xml.replace('<w:tc>','<w:tc><w:tcPr><w:tcW w:w="2400" w:type="dxa"/><w:gridSpan w:val="1"/><w:tcPrChange w:id="9" w:author="Editor"><w:tcPr><w:cellDel w:id="8" w:author="Editor"/></w:tcPr></w:tcPrChange></w:tcPr>');
     return wrapSecondRow&&index===1?'<w:sdt><w:sdtContent>'+xml+'</w:sdtContent></w:sdt>':xml;
   }).join('');
   const heading=tableRow(['Text proposed by the Commission',language==='fr'?'Amendement':'Amendment']);
@@ -1446,6 +1449,65 @@ test('a parser migration retains supported proposer provenance independently of 
       } else {assert.deepEqual(item.authors,[]);assert.equal(item.committeeProposer,committee);}
       assert.equal(store.source(generation,'amendment:list:'+singleListId).work.extraction.amendments[0].proposerDate,tabled);
     }
+  }
+});
+
+test('parser 8 withholds legacy tracked-deletion caches through reads and refreshes while retaining valid proposer evidence',async t=>{
+  assert.notEqual(AMENDMENT_EXTRACTION_VERSION,'7');
+  for(const mode of ['row','cell','variants']) {
+    const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001',secondListId=targetId+'-AM-001-002';
+    const oldSource={url:'https://data.europarl.europa.eu/distribution/example/tracked_deletion_v7_en.docx',fetchedAt:earlier,language:'en'};
+    const freshUrl='https://data.europarl.europa.eu/distribution/example/tracked_deletion_v8_en.docx';
+    const legacyAmendment=amendment(1,{authors:['Alex Common'],originalText:'Visible original\nDeleted original',proposedText:'Visible proposal\nDeleted proposal'});
+    const published=list([],{id:'eli/dl/doc/'+singleListId,identifier:singleListId,foresees_change_of:[target.id],files:[{format:'DOCX',language:'en',url:freshUrl}],extraction:{amendments:[legacyAmendment],parserVersion:'7',gaps:[],language:'en',sourceUrl:oldSource.url,fetchedAt:earlier}});
+    const safeList=list([amendment(1,{authors:['Alex Common'],originalText:'',proposedText:'Safe current proposal'})],{id:'eli/dl/doc/'+secondListId,identifier:secondListId,foresees_change_of:[target.id]});
+    const lists=mode==='variants'?[published,safeList]:[published];
+    store.putSource(generation,'/plenary-documents/'+targetId,'document',{...target,inverse_foresees_change_of:lists},earlier);
+    for(const item of lists)store.putSource(generation,'amendment:list:'+item.identifier,'amendment-list',item,earlier);
+    store.putSource(generation,'amendment:roster:'+tabled,'amendment-roster',{members:[{id:'101',givenName:'Alex',familyName:'Common'}],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+tabled,fetchedAt:earlier}]},earlier);
+    const legacyRow=row(1,{listId:singleListId,textParserVersion:'7',textIntegrity:'complete',originalText:legacyAmendment.originalText,proposedText:legacyAmendment.proposedText,proposerSource:oldSource,wordingSource:oldSource,authors:[{name:'Alex Common',personId:'101',status:'resolved',evidence:[]}],sources:[oldSource]});
+    const safeVariant={...row(1,{listId:secondListId,textIntegrity:'complete',originalText:'',proposedText:'Safe current proposal'}),authors:legacyRow.authors};
+    const cached=mode==='variants'?{...legacyRow,listId:null,originalText:null,proposedText:null,authors:[],conflicted:true,variants:[legacyRow,safeVariant]}:legacyRow;
+    saveAmendmentRows(store,generation,metadata,[row(1)],coverage);
+    store.db.prepare('UPDATE amendments SET body=? WHERE generation=? AND id=?').run(JSON.stringify(cached),generation,cached.id);
+    const sourceBody=store.db.prepare('SELECT body FROM sources WHERE generation=? AND key=?').get(generation,'amendment:list:'+singleListId).body;
+    const indexedBody=store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,cached.id).body;
+    const record=()=>{
+      const page=amendmentsPage(store,{document:targetId}),item=page.items[0];
+      assert.equal(page.coverage.complete,false);
+      return mode==='variants'?item.variants.find(variant=>variant.listId===singleListId):item;
+    };
+    const assertWithheld=()=>{
+      const item=record();assert.equal(item.originalText,null);assert.equal(item.proposedText,null);assert.equal(item.textIntegrity,'incomplete');
+      assert.equal(item.authors[0].personId,'101');assert.equal(item.proposerDate,tabled);assert.equal(item.proposerDateBasis,'individual-amendment-document');
+    };
+    const assertUnchanged=()=>{
+      assert.equal(store.db.prepare('SELECT body FROM sources WHERE generation=? AND key=?').get(generation,'amendment:list:'+singleListId).body,sourceBody);
+      assert.equal(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,cached.id).body,indexedBody);
+    };
+    assertWithheld();amendmentsPage(store,{member:'101'});assertUnchanged();
+    if(mode==='variants') {
+      const safe=amendmentsPage(store,{document:targetId}).items[0].variants.find(variant=>variant.listId===secondListId);
+      assert.equal(safe.originalText,'');assert.equal(safe.proposedText,'Safe current proposal');assert.equal(safe.authors[0].personId,'101');
+    }
+    enqueueAmendment(store,generation,'tracked-deletion-upgrade','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
+    assertWithheld();assertUnchanged();
+    worker.downloadAmendmentDocx=async()=>{throw new Error('Offline v8 refresh failed');};
+    await assert.rejects(worker.task(nextAmendmentTask(store,generation)),/Offline v8 refresh failed/);
+    assertWithheld();assertUnchanged();
+    worker.downloadAmendmentDocx=async()=>({buffer:comparisonDocx([['Visible original','Visible proposal'],['Deleted original','Deleted proposal']],{author:'Alex Common',structuralRevision:mode==='cell'?'cell':'row'})});
+    await worker.task(nextAmendmentTask(store,generation));
+    assertWithheld();
+    const extraction=store.source(generation,'amendment:list:'+singleListId).work.extraction;
+    assert.equal(extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);assert(extraction.gaps.some(gap=>gap.code==='structural-revision'&&gap.number===1));
+    assert(extraction.amendments[0].gaps.some(gap=>gap.code==='structural-revision'&&gap.number===1));
+    assert.equal(extraction.amendments[0].wordingRetained,false);
+    enqueueAmendment(store,generation,'tracked-deletion-safe-refresh','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
+    worker.downloadAmendmentDocx=async()=>({buffer:comparisonDocx([['','Safe current proposal']],{author:'Alex Common',structuralRevision:'historical-cell'})});
+    await worker.task(nextAmendmentTask(store,generation));
+    const safe=record();assert.equal(safe.originalText,'');assert.equal(safe.proposedText,'Safe current proposal');assert.equal(safe.textIntegrity,'complete');
+    assert.equal(safe.authors[0].personId,'101');assert.equal(safe.proposerDate,tabled);assert.equal(safe.proposerDateBasis,'individual-amendment-document');
+    assert.equal(safe.textParserVersion,AMENDMENT_EXTRACTION_VERSION);assert.equal(safe.wordingRetained,false);
   }
 });
 

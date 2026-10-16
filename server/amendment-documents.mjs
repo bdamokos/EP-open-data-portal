@@ -2,9 +2,9 @@ import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='7';
+export const AMENDMENT_EXTRACTION_VERSION='8';
 
-const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-structure','inline-content-loss','nested-table','non-text-content','symbol-text-loss','vertical-text-loss','text-unavailable','numbering-warning']);
+const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-text-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
 const nonTextContent=key=>/(?:^|:)(?:oMath|oMathPara)$/.test(key)||['w:drawing','w:pict','w:object','w:altChunk','w:contentPart','w:subDoc'].includes(key);
 const CONTENT_LOSSES={
@@ -21,6 +21,18 @@ function unsupportedChildren(nodes,allowed) {
 const TABLE_CHILDREN=new Set(['w:tblPr','w:tblGrid','w:tr']);
 const ROW_CHILDREN=new Set(['w:tblPrEx','w:trPr','w:tc']);
 const CELL_CHILDREN=new Set(['w:tcPr','w:p','w:tbl']);
+const STRUCTURAL_REVISIONS=new Set(['w:ins','w:del','w:cellIns','w:cellDel','w:cellMerge','w:moveFrom','w:moveTo']);
+const STRUCTURAL_MOVES=new Set(['w:moveFromRangeStart','w:moveFromRangeEnd','w:moveToRangeStart','w:moveToRangeEnd']);
+const PROPERTY_SNAPSHOTS=new Set(['w:tblPrChange','w:tblPrExChange','w:trPrChange','w:tcPrChange','w:pPrChange','w:rPrChange']);
+function structuralRevision(nodes) {
+  for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
+    if(PROPERTY_SNAPSHOTS.has(key))continue;
+    if(STRUCTURAL_REVISIONS.has(key)||STRUCTURAL_MOVES.has(key))return true;
+    if(key!==':@'&&Array.isArray(value)&&structuralRevision(value))return true;
+  }
+  return false;
+}
+const structuralMove=nodes=>(nodes||[]).some(node=>Object.keys(node).some(key=>STRUCTURAL_MOVES.has(key)));
 
 const child=(nodes,key)=>nodes?.find(node=>Object.hasOwn(node,key));
 const children=(nodes,key)=>child(nodes,key)?.[key];
@@ -142,15 +154,18 @@ function documentBlocks(parts,warnings) {
         // report those structures instead of silently dropping or flattening
         // them into the surrounding row (including nested-table descendants).
         let unsupported=unsupportedChildren(value,TABLE_CHILDREN);
+        let revised=structuralRevision(children(value,'w:tblPr'))||structuralMove(value);
         const rows=value.filter(n=>n['w:tr']).map(row=>{
           unsupported ||= unsupportedChildren(row['w:tr'],ROW_CHILDREN);
+          revised ||= structuralRevision(children(row['w:tr'],'w:trPr'))||structuralRevision(children(row['w:tr'],'w:tblPrEx'))||structuralMove(row['w:tr']);
           return row['w:tr'].filter(n=>n['w:tc']).map(cell=>{
             const content=paragraphs(cell['w:tc']);
             unsupported ||= unsupportedChildren(cell['w:tc'],CELL_CHILDREN)||content.some(p=>p.unsupportedBody);
+            revised ||= structuralRevision(children(cell['w:tc'],'w:tcPr'))||structuralMove(cell['w:tc']);
             return {text:content.map(p=>p.text).filter(Boolean).join('\n'),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),losses:[...new Set(content.flatMap(p=>p.losses))],symbolLoss:content.some(p=>p.symbolLoss),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"')};
           });
         });
-        blocks.push({kind:'table',rows,unsupported});
+        blocks.push({kind:'table',rows,unsupported,revised});
       } else if(key!==':@'&&Array.isArray(value))walk(value);
     }
   };
@@ -227,6 +242,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     for(const table of group.filter(b=>b.kind==='table')) {
       hasTable=true;
       if(table.unsupported)gap('comparison-structure',number,'The comparison contains unsupported wrapped or embedded row/cell content; its wording is withheld.');
+      if(table.revised)gap('structural-revision',number,'The comparison contains tracked structural insertion, deletion, merge or move markers; revision acceptance is unresolved and its wording is withheld.');
       let headerConfirmed=false;
       for(const cells of table.rows) {
         if(cells.some(c=>c.nested)){gap('nested-table',number,'A nested comparison table is unsupported.');continue;}

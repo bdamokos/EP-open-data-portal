@@ -15,8 +15,9 @@ const dateLabel=(value:string|number|null|undefined,language:string)=>{
   return Number.isFinite(time)?new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(time)):null;
 };
 function documentDateLabel(item:AmendmentVariant,language:string) {
-  const legacyValue=Object.hasOwn(item,'documentDate')?item.documentDate:item.date;
-  const value=item.dateBasis==='amendment-list-document'?(item.listDocumentDate||legacyValue):legacyValue;
+  const documentaryDate=dateLabel(item.documentDate,language)?item.documentDate:null;
+  const listDate=item.dateBasis==='amendment-list-document'&&dateLabel(item.listDocumentDate,language)?item.listDocumentDate:null;
+  const value=documentaryDate||listDate||(Object.hasOwn(item,'documentDate')?null:item.date);
   const label=item.dateBasis==='individual-amendment-document'?'Amendment document date':item.dateBasis==='amendment-list-document'?'Amendment-list document date':'Document date';
   return dateLabel(value,language)?label+' '+dateLabel(value,language):null;
 }
