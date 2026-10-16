@@ -50,6 +50,8 @@
 .poc-amendment-totals dt {color:var(--am-muted);}
 .poc-amendment-totals dd {margin:0;font-weight:700;font-size:21px;font-variant-numeric:tabular-nums;}
 .poc-amendments blockquote {border-left:2px solid var(--am-line);margin:14px 0;padding:2px 0 2px 16px;white-space:pre-wrap;overflow-wrap:anywhere;}
+.poc-amendment-source-description {margin:14px 0;}
+.poc-amendment-source-description pre {white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;border-left:2px solid var(--am-line);padding:2px 0 2px 16px;}
 .poc-amendment-selection {background:var(--am-surface);padding:14px;margin:12px 0;}
 .poc-amendment-selection ul {padding-left:20px;}
 .poc-amendment-gap {border-left:3px solid #d49f34;padding:10px 16px;font-size:15px;background:var(--am-surface);}

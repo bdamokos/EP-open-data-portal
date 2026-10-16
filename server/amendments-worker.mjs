@@ -103,7 +103,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false}={}
   const aliases=sittingSources.flatMap(({sittingId})=>store.source(generation,'amendment:aliases:'+sittingId)?.work.aliases || []);
   scheduleMandateProfiles(worker,generation,id,lists,aliases);
   const base=(amendmentId,number)=>({id:amendmentId,number,listId:null,targetDocumentId:id,title:target.titles.en || id,titles:target.titles,date:target.date,procedureIds:target.procedureIds,targetLabel:null,originalText:null,proposedText:null,language:null,authors:[],decisions:[],splitParts:[],topics:target.topics,sources:[...target.sources],gaps:[],identifierBasis:'derived-from-exact-target-and-number',officialIds:[]});
-  if(listLimit)gaps.push('This target exceeds the amendment-list processing limit.');
+  if(listLimit || amendmentLists(saved.work).length>AMENDMENT_LIMITS.listsPerTarget)gaps.push('This target exceeds the amendment-list processing limit.');
   if(!lists.length)gaps.push('No published amendment list is indexed for this target.');
   for(const {work:list} of lists) {
     const extraction=list.extraction,date=list.document_date || target.date;
@@ -140,7 +140,10 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false}={}
     if(record.work.truncated || record.work.lastRefreshFailure)gaps.push('A linked sitting has incomplete or failed decision coverage.');
     if(record.work.amendmentVersion!==AMENDMENTS_VERSION){gaps.push('Linked sitting amendment relationships are pending.');continue;}
     const source=record.work.sources?.find(item=>item.url.includes('/decisions?')) || {url:record.work.decisionsUrl,fetchedAt:record.work.decisionsFetchedAt};
-    const parts=new Map((record.work.parsedSplits || []).flatMap(request=>request.parts.map(part=>[tail(part.id),{...part,requestId:request.requestId,grounding:'not_attempted'}])));
+    const parts=new Map((record.work.parsedSplits || []).flatMap(request=>request.parts.flatMap(part=>{
+      const reference=canonicalEPReference(part.id);
+      return reference?[[reference,{...part,id:reference,requestId:request.requestId,grounding:'not_attempted'}]]:[];
+    })));
     for(const decision of record.work.decisions || []) {
       const references=array(decision.decided_on_a_realization_of),amendments=references.map(amendmentReference).filter(ref=>ref?.targetDocumentId===id);
       const splitRefs=references.filter(ref=>/-SPLIT-\d+-\d+$/.test(tail(ref)));
@@ -151,8 +154,8 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false}={}
         row.officialIds=[...new Set([...(row.officialIds || []),'eli/dl/doc/'+ref.id])];
         const vote=amendmentDecision(decision,sittingId,source);
         if(splitRefs.length)for(const partRef of splitRefs) {
-          const part=parts.get(tail(partRef));
-          row.decisions.push({...vote,partId:part?.id || canonicalEPReference(partRef),partNumber:part?.number || Number(tail(partRef).split('-').at(-1))});
+          const reference=canonicalEPReference(partRef),part=reference?parts.get(reference):null;
+          row.decisions.push({...vote,partId:reference || String(partRef?.id || partRef),partNumber:part?.number || Number(tail(partRef).split('-').at(-1))});
           if(part && !row.splitParts.some(existing=>existing.id===part.id))row.splitParts.push(part);
           if(!part)row.gaps.push('A split component has no indexed description.');
           else if(part.status==='unresolved')row.gaps.push('A split description could not be parsed; the failure is retained for a future parser update.');
