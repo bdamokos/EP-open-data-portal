@@ -51,9 +51,14 @@ function inline(nodes,out,links) {
     else if(key==='w:tab')out.text+='\t';
     else if(key==='w:br'||key==='w:cr')out.text+='\n';
     else if(key==='w:r'&&Array.isArray(value)&&value.some(child=>noteMarks.some(mark=>mark in child))) {
-      const mark=value.find(child=>noteMarks.some(name=>name in child)),kind=noteMarks.find(name=>name in mark),label={text:''};
-      inline(value.filter(child=>child!==mark),label,null);
-      out.marks.push({kind,id:String(attribute(mark,'w:id')??''),label:label.text.trim(),offset:out.text.length});
+      // Children keep their order. Only the text that immediately follows a custom-marked reference is its label.
+      let pending=null;
+      for(const child of value) {
+        const kind=noteMarks.find(name=>name in child);
+        if(kind){pending={kind,id:String(attribute(child,'w:id')??''),label:'',custom:['1','true','on'].includes(String(attribute(child,'w:customMarkFollows'))),offset:out.text.length};out.marks.push(pending);if(!pending.custom)pending=null;continue;}
+        if(pending&&'w:t' in child){const label={text:''};inline([child],label,null);pending.label=label.text.trim();pending=null;continue;}
+        inline([child],out,links);
+      }
     }
     // The linked text span is kept with its target, so the document itself identifies what a link names.
     else if(key==='w:hyperlink'&&links&&Array.isArray(value)){const target=links.get(attribute(node,'r:id')),start=out.text.length;inline(value,out,links);if(target&&out.text.length>start)out.spans.push({start,end:out.text.length,url:target});}
@@ -103,8 +108,8 @@ export function docxContent(buffer) {
     if(!note){
       if(notes.length>=NOTE_LIMITS.notes)continue;
       const label=mark.label||String(notes.length+1),source=supplied.get(mark.id);
-      // Custom marks repeat the label as ordinary footnote text.
-      const text=source.text.startsWith(label)&&/^[\s.)]/.test(source.text.slice(label.length))?source.text.slice(label.length).replace(/^[\s.)]+/,''):source.text,removed=source.text.length-text.length;
+      // A custom mark repeats its label as ordinary footnote text; automatic numbering does not.
+      const text=mark.custom&&mark.label&&source.text.startsWith(label)&&/^[\s.)]/.test(source.text.slice(label.length))?source.text.slice(label.length).replace(/^[\s.)]+/,''):source.text,removed=source.text.length-text.length;
       const linkSpans=source.spans.map(span=>({...span,start:span.start-removed,end:span.end-removed})).filter(span=>span.start>=0);
       note={id:mark.id,label,text,links:[...new Set(source.spans.map(span=>span.url))],linkSpans};notes.push(note);
     }
