@@ -33,6 +33,7 @@ import { useData } from "./pocData";
 import { PocSpeechPlayer } from "./PocSpeechPlayer";
 import { PocLegislation } from './PocLegislation';
 import { PocQuestionTopics } from './PocQuestionTopics';
+import {PocOutsideVoices} from './PocOutsideVoices';
 import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './pocCoAuthors.mjs';
 
 const normalize = (s: string) =>
@@ -353,14 +354,14 @@ export default function PocApp() {
   const [speechLink, setSpeechLink] = useState(initial.get("speech"));
   const [activityLink, setActivityLink] = useState(initial.get("activity"));
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
-  const [view, setView] = useState<'legislation'|'questions'|'saved'|null>(
-    ['legislation','questions','saved'].includes(initial.get('view') || '')
-      ? initial.get('view') as 'legislation'|'questions'|'saved' : null,
+  const [view, setView] = useState<'legislation'|'questions'|'outside'|'saved'|null>(
+    ['legislation','questions','outside','saved'].includes(initial.get('view') || '')
+      ? initial.get('view') as 'legislation'|'questions'|'outside'|'saved' : null,
   );
   const [tab, setTab] = useState(
     ["profile", "activities"].includes(initial.get("module") || "") ? initial.get("module")! : "speeches",
   );
-  const directoryState = useData<Directory>("directory");
+  const directoryState = useData<Directory>(view==='outside'?null:"directory");
   const directory = directoryState.data;
   const error = directoryState.error;
   const profile = useData<PocProfile>(!view && member && tab === "profile" ? `profile/${member}` : null);
@@ -443,14 +444,14 @@ export default function PocApp() {
     const url=new URL(location.href);
     // Country on the member wall is deliberately not an explorer default.
     url.searchParams.delete('country');
-    for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend)-/.test(key))url.searchParams.delete(key);
+    for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend|ov)-/.test(key))url.searchParams.delete(key);
     next?url.searchParams.set('view',next):url.searchParams.delete('view');
     history.pushState(null,'',url);setView(next);
   }
   useEffect(()=>{
     const restore=()=>{
       const query=new URLSearchParams(location.search),next=query.get('view');
-      const restored=['legislation','questions','saved'].includes(next||'')?next as typeof view:null;
+      const restored=['legislation','questions','outside','saved'].includes(next||'')?next as typeof view:null;
       setView(restored);setMember(/^\d+$/.test(query.get('member')||'')?Number(query.get('member')):null);
       if(!restored){setCountry(filterCountry(query.get('country')));setCommittee(query.get('committee')||'');setGroup(query.get('group')||'');}
       setTab(['profile','activities'].includes(query.get('module')||'')?query.get('module')!:'speeches');
@@ -465,9 +466,9 @@ export default function PocApp() {
     setSpeechLink(speech ? sourceId! : null);
     setActivityLink(sourceId && !speech ? sourceId : null);
   };
-  if (view === 'legislation' || view === 'questions') {
+  if (view === 'legislation' || view === 'questions' || view === 'outside') {
     const props={language:lang,onBack:()=>{navigateView(null);setMember(null);},onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
-    return view==='legislation' ? <PocLegislation {...props}/> : <PocQuestionTopics {...props}/>;
+    return view==='legislation' ? <PocLegislation {...props}/> : view==='outside' ? <PocOutsideVoices {...props}/> : <PocQuestionTopics {...props}/>;
   }
   return (
     <main className="poc" lang={lang}>
@@ -478,6 +479,7 @@ export default function PocApp() {
           <nav className="poc-explorer-nav" aria-label="Explore Parliament">
             <button onClick={() => navigateView('legislation')}>Plenary agenda</button>
             <button onClick={() => navigateView('questions')}>Questions</button>
+            <button onClick={() => navigateView('outside')}>Outside voices</button>
             <SavedNav onClick={()=>navigateView('saved')}/>
           </nav>
         </header>

@@ -14,13 +14,15 @@ export function readExplorerParam(query,key,fallback,allowed) {
   if((key.endsWith('-until')||key==='trend-week')&&raw&&!validDate(raw))return fallback;
   if(key==='q-offset'&&(!Number.isInteger(value)||value<0||value>5000))return fallback;
   if(key==='q-range'&&raw){const [start,end,...extra]=raw.split('_');if(extra.length||!validDate(start)||!validDate(end)||start>end)return fallback;}
+  if(key==='ov-person'&&!/^[1-9]\d{0,12}$/.test(raw))return fallback;
+  if(key==='ov-month'&&!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(raw))return fallback;
   if(key==='hot-period'&&!(/^sitting:MTG-PL-\d{4}-\d{2}-\d{2}$/.test(raw)||raw.startsWith('week:')&&validDate(raw.slice(5))))return fallback;
   return value;
 }
 
 export function explorerParams(query,view) {
   const result=new URLSearchParams();
-  const prefix=view==='questions'?/^q-/:view==='legislation'?/^(pl|agenda|hot|cloud|dossier|trend)-/:null;
+  const prefix=view==='questions'?/^q-/:view==='legislation'?/^(pl|agenda|hot|cloud|dossier|trend)-/:view==='outside'?/^ov-/:null;
   if(prefix)for(const [key,value] of query)if(prefix.test(key)){
     if(key.endsWith('-country')){const country=readExplorerParam(query,key,null);if(country)result.set(key,country);}
     else result.set(key,value);
