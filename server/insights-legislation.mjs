@@ -32,7 +32,9 @@ export class LegislationInsights {
   async catalogue() {
     const today=brusselsDay(this.clock()),year=Number(today.slice(0,4)),years=Array.from({length:year-Number(CURRENT_TERM_START.slice(0,4))+1},(_,i)=>Number(CURRENT_TERM_START.slice(0,4))+i),nodes=new Map(),sources=[];
     for(let offset=0;;offset+=50) {
-      const r=await this.record('/meetings',{year:years.join(','),limit:50,offset});
+      let r;
+      try{r=await this.record('/meetings',{year:years.join(','),limit:50,offset});}
+      catch(error){if(offset>0&&error.code==='odp_no_content')break;throw error;}
       const before=nodes.size;
       for(const node of r.payload.data)nodes.set(node.activity_id,node);
       sources.push({apiUrl:r.url,fetchedAt:new Date(r.fetchedAt).toISOString()});
