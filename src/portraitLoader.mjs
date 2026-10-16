@@ -5,23 +5,50 @@ export function isManagedPortrait(url) {
   return portraitPath.test(url);
 }
 
-export function createPortraitLoader({concurrency = 3, maxQueued = 1024, fetchImpl = (...args) => fetch(...args), wait = ms => new Promise(resolve => setTimeout(resolve, ms))} = {}) {
+export function createPortraitLoader({concurrency = 3, maxQueued = 1024, startInterval = 250, fetchImpl = (...args) => fetch(...args), wait = ms => new Promise(resolve => setTimeout(resolve, ms)), now = () => Date.now()} = {}) {
   const queue = [], jobs = new Map();
   let active = 0;
+  let credit = concurrency, refilledAt = now(), pausedUntil = 0;
+
+  function admit(job) {
+    if (!job.listeners.size) throw aborted();
+    const time = now();
+    if (startInterval > 0 && time > refilledAt) {
+      credit = Math.min(concurrency, credit + (time - refilledAt) / startInterval);
+      refilledAt = time;
+    }
+    const pacing = startInterval > 0 && credit < 1 ? Math.max(0, refilledAt - time) + Math.ceil((1 - credit) * startInterval) : 0;
+    const delay = Math.max(pausedUntil - time, pacing);
+    // Check again after each bounded wait: another response can extend the
+    // cooldown, and a filtered/unmounted consumer may no longer need the job.
+    if (delay > 0) return wait(Math.min(delay, 30_000)).then(() => admit(job));
+    if (startInterval > 0) credit--;
+  }
+
+  function pause(response) {
+    const header = response.headers.get('Retry-After');
+    const seconds = header && /^\d+$/.test(header) ? Number(header) : null;
+    const requested = seconds !== null ? seconds * 1000 : header ? Date.parse(header) - now() : 2000;
+    const delay = Math.max(2000, Number.isFinite(requested) ? requested : 2000);
+    pausedUntil = Math.max(pausedUntil, now() + delay);
+    // Refill one start at the deadline, then resume at the normal pace rather
+    // than releasing all waiting retries and new portraits together.
+    credit = 0;
+    refilledAt = pausedUntil - startInterval;
+  }
 
   async function read(job) {
     for (let attempt = 0; ; attempt++) {
+      const admission = admit(job);
+      if (admission) await admission;
+      if (!job.listeners.size) throw aborted();
       const response = await fetchImpl(job.url, {credentials: 'omit', redirect: 'error'});
       if (response.ok) return response.blob();
-      const retry = [429, 503].includes(response.status) && attempt < 2 && job.listeners.size;
+      const limited = [429, 503].includes(response.status);
+      if (limited) pause(response);
+      const retry = limited && attempt < 2 && job.listeners.size;
       await response.arrayBuffer();
       if (!retry) throw new Error(`Portrait request failed (${response.status})`);
-      const header = response.headers.get('Retry-After');
-      const seconds = header && /^\d+$/.test(header) ? Number(header) : null;
-      const requested = seconds !== null ? seconds * 1000 : header ? Date.parse(header) - Date.now() : 2000;
-      const delay = Math.max(2000, Math.min(30000, Number.isFinite(requested) ? requested : 2000));
-      await wait(delay);
-      if (!job.listeners.size) throw aborted();
     }
   }
 
@@ -84,5 +111,6 @@ export function createPortraitLoader({concurrency = 3, maxQueued = 1024, fetchIm
 }
 
 // Shared by the wall, profiles, question authors and plenary/vote cards.
-// Three portrait requests leave room for text and other interactive API reads.
+// Admit the first three immediately, then pace starts even for fast cache hits.
+// Text and other interactive API reads do not wait behind this portrait queue.
 export const portraitLoader = createPortraitLoader();
