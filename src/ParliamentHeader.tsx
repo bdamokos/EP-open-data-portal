@@ -12,8 +12,8 @@ export function ParliamentHeader({view,onMembers,onNavigate,onSaved,language='en
   language?:string;
 }) {
   return <header className="parliament-header">
-    <span className="parliament-brand">EUROPEAN PARLIAMENT</span>
-    <nav aria-label="Explore Parliament">
+    <span className="parliament-brand" lang="en">EUROPEAN PARLIAMENT</span>
+    <nav aria-label="Explore Parliament" lang="en">
       <button aria-current={view==='members'?'page':undefined} onClick={onMembers}>Members</button>
       {(['legislation','questions','outside'] as const).map(destination=><button
         key={destination}

@@ -9,7 +9,7 @@ const methods:Record<string,string> = { VOTE_HAND:'Show of hands', VOTE_ELECTRON
 const voteDate = (value:string,language:string) => new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value));
 
 export function MotionStatus({outcome,subject,label}:{outcome:MotionOutcome;subject?:string;label?:string}) {
-  return <span className="poc-motion-status" data-outcome={outcome.status}>
+  return <span className="poc-motion-status" lang="en" data-outcome={outcome.status}>
     <span aria-hidden="true">{icons[outcome.status]}</span>{label || (subject ? `${subject}: ${labels[outcome.status].toLowerCase()}` : labels[outcome.status])}
   </span>;
 }
@@ -22,9 +22,9 @@ export function MotionStatuses({outcome,related=[],sourceId}:{outcome:MotionOutc
 function VoteDetails({outcome,language}:{outcome:MotionOutcome;language:string}) {
   const voted=outcome.status==='adopted' || outcome.status==='rejected';
   return <>
-    {outcome.status!=='unavailable' && outcome.date && <p className="poc-motion-vote-meta">{voteDate(outcome.date,language)}{voted && methods[outcome.method || ''] ? ` · ${methods[outcome.method!]}` : ''}</p>}
+    {outcome.status!=='unavailable' && outcome.date && <p className="poc-motion-vote-meta"><span lang={language}>{voteDate(outcome.date,language)}</span>{voted && methods[outcome.method || ''] ? ` · ${methods[outcome.method!]}` : ''}</p>}
     {voted && outcome.totals && <dl className="poc-motion-totals">
-      {([['for','For'],['against','Against'],['abstaining','Abstentions']] as const).map(([key,label])=><div key={key}><dt>{label}</dt><dd>{outcome.totals![key]?.toLocaleString(language) ?? '—'}</dd></div>)}
+      {([['for','For'],['against','Against'],['abstaining','Abstentions']] as const).map(([key,label])=><div key={key}><dt>{label}</dt><dd lang={language}>{outcome.totals![key]?.toLocaleString(language) ?? '—'}</dd></div>)}
     </dl>}
     {outcome.status==='unavailable' && <p className="poc-motion-explanation">No verified final outcome is available for this text.</p>}
   </>;
@@ -42,7 +42,7 @@ function CompareWording({originalId,jointId,language}:{originalId:string;jointId
 }
 export function PocMotionOutcome({outcome,related=[],reference,sourceId,language}:{outcome?:MotionOutcome;related?:RelatedJointMotion[];reference:string;sourceId:string;language:string}) {
   if(!outcome && !related.length)return null;
-  return <section className="poc-motion-outcome" aria-label={related.length ? 'Original and joint motion outcomes' : 'Motion outcome'}>
+  return <section className="poc-motion-outcome" lang="en" aria-label={related.length ? 'Original and joint motion outcomes' : 'Motion outcome'}>
     {outcome && <div className="poc-motion-text-outcome">
       <h3>{related.length ? 'Original motion' : sourceId.startsWith('RC-') ? 'Joint motion' : 'Motion'} <span className="poc-motion-reference">{reference}</span></h3>
       <MotionStatus outcome={outcome}/>
@@ -57,7 +57,7 @@ export function PocMotionOutcome({outcome,related=[],reference,sourceId,language
         <MotionStatus outcome={motion.outcome}/>
         <VoteDetails outcome={motion.outcome} language={language}/>
         {motion.memberAuthorship && <p className="poc-motion-explanation">{motion.memberAuthorship==='recorded' ? 'This MEP is also listed as an author of this joint motion.' : 'No authorship is recorded for this MEP on this joint motion.'}</p>}
-        {url && <a className="poc-motion-document-link" href={url} target="_blank" rel="noreferrer" title={motion.title}>Read joint motion{motion.documentFormat ? ` (${motion.documentFormat}${motion.documentLanguage ? ' · '+motion.documentLanguage.toUpperCase() : ''})` : ''} ↗</a>}
+        {url && <a className="poc-motion-document-link" href={url} target="_blank" rel="noreferrer" title={motion.title} lang=""><span lang="en">Read joint motion{motion.documentFormat ? ` (${motion.documentFormat}${motion.documentLanguage ? ' · '+motion.documentLanguage.toUpperCase() : ''})` : ''} ↗</span></a>}
         {sourceId.startsWith('B-')&&<CompareWording originalId={sourceId} jointId={motion.sourceId} language={language}/>}
       </section>;
     })}
