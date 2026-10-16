@@ -220,3 +220,14 @@
 @media(max-width:680px){.poc-speech-words .poc-section-title>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;}.poc-speech-words label,.poc-speech-words select{min-width:0;}.poc-speech-words{--speech-cloud-scale:.6rem;}}
 
 .poc-profile-body a { overflow-wrap:anywhere; }
+
+/* Small or short screens: one page scroll so headers and filters move out of the reading area. */
+@media (max-width:767px), (max-height:560px) {
+  .poc { overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; }
+  .poc-wall, .poc-profile, .poc-saved-view { flex: none; min-height: auto; overflow: visible; }
+  .poc-portraits, .poc-profile-body { overflow: visible; min-height: auto; }
+  .poc-profile { grid-template-rows: auto auto auto; }
+  .poc-tabs { position: sticky; top: 0; z-index: 2; margin-inline: -12px; padding: 8px 12px; background: var(--parliament-blue); }
+  .poc-profile-body [id], .poc-activity-results-title { scroll-margin-top: 72px; }
+  .poc-footer { margin-top: auto; }
+}
