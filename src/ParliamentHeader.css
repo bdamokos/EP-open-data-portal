@@ -1,0 +1,44 @@
+.parliament-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  flex-shrink:0;
+  gap:16px 24px;
+  padding:16px clamp(16px,2.5vw,40px);
+  border-bottom:1px solid #ffffff26;
+  color:#fff;
+  background:var(--parliament-blue,#0c4da2);
+  font:15px/1.4 Arial,Helvetica,sans-serif;
+  overflow-wrap:normal;
+}
+.poc-insights .parliament-header { margin-inline:calc(-1 * var(--insight-gutter)); }
+.parliament-brand { font-size:17px; font-weight:700; }
+.parliament-header nav { display:flex; flex-wrap:wrap; gap:8px; margin-left:auto; }
+.parliament-header nav button {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-height:44px;
+  padding:10px 16px;
+  border:1px solid transparent;
+  border-radius:0;
+  background:var(--signal-blue,#1e6cff);
+  color:#fff;
+  font:inherit;
+  text-align:center;
+  white-space:nowrap;
+  overflow-wrap:normal;
+}
+.parliament-header nav button[aria-current=page] { border-color:var(--selected-yellow,#fff200); color:var(--selected-yellow,#fff200); }
+.parliament-header nav button:hover:not(:disabled) { border-color:#fff; }
+.parliament-header nav button:focus-visible { outline:3px solid var(--selected-yellow,#fff200); outline-offset:3px; }
+.parliament-header nav button small { font-size:13px; }
+.parliament-header .poc-saved-count { margin-left:0; }
+@media(max-width:767px) {
+  .parliament-header { gap:12px; padding:12px 16px; font-size:13px; }
+  .parliament-brand { font-size:13px; }
+  .parliament-header nav { width:100%; }
+  .parliament-header nav button { flex:1 0 auto; padding:8px 10px; }
+}
