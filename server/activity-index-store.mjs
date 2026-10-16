@@ -4,6 +4,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
+import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 
 const parse = value => value == null ? null : JSON.parse(value);
 const motionReferenceValue = `CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END`;
@@ -49,6 +50,7 @@ export class ActivityStore {
       CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, body TEXT);
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
     if (this.get('schema') !== 1) throw new Error('Unsupported activity-index schema.');
+    outsideSchema(this.db);
   }
   get(key) { return parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value); }
   set(key,value) { this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value)); }
@@ -89,6 +91,7 @@ export class ActivityStore {
         this.set('previous',null);
         this.db.prepare('INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
+        outsideCopy(this.db,generation,active);
       }
       const cycle={ generation, initial:!active, startedAt:new Date(this.clock()).toISOString(), phase:'discovering', error:null, requests:0 };
       this.set('working',cycle);return cycle;
@@ -97,13 +100,14 @@ export class ActivityStore {
   updateCycle(values) { this.assertWriter();this.set('working',{...this.get('working'),...values}); }
   enqueue(generation,key,kind,body,priority=50,refreshCompleted=false) {
     this.assertWriter();
-    // Older images select only done=0. Leave new task kinds pending for an
-    // outcome-aware worker during rollback; SUM(done) still counts only finished work.
-    const pending=kind==='motion-outcomes'?null:0;
+    // Older workers select done=0 or NULL. A separate pending sentinel fences
+    // outside-speaker work during rollback and keeps the accepted generation.
+    const outside=kind.startsWith('outside-') || body.outsideOnly || key.startsWith('outside:upgrade:');
+    const pending=outside?-1:kind==='motion-outcomes'?null:0;
     this.db.prepare('INSERT OR IGNORE INTO tasks(generation,key,kind,body,priority,done) VALUES (?,?,?,?,?,?)').run(generation,key,kind,JSON.stringify(body),priority,pending);
     if(refreshCompleted)this.db.prepare('UPDATE tasks SET done=?,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE generation=? AND key=? AND done=1').run(pending,JSON.stringify(body),priority,generation,key);
   }
-  nextTask(generation) { const r=this.db.prepare('SELECT * FROM tasks WHERE generation=? AND (done=0 OR done IS NULL) AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,this.clock()); return r && {...r,body:parse(r.body)}; }
+  nextTask(generation) { const r=this.db.prepare('SELECT * FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,this.clock()); return r && {...r,body:parse(r.body)}; }
   taskProgress(task,body) { this.assertWriter();this.db.prepare('UPDATE tasks SET body=?,attempts=0,error=NULL,retry_at=0 WHERE generation=? AND key=?').run(JSON.stringify(body),task.generation,task.key); }
   finishTask(task) { this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,error=NULL WHERE generation=? AND key=?').run(task.generation,task.key); }
   failTask(task,error) {
@@ -111,7 +115,7 @@ export class ActivityStore {
     this.db.prepare('UPDATE tasks SET attempts=attempts+1,retry_at=?,error=? WHERE generation=? AND key=?').run(this.clock()+delay,String(error.message).slice(0,350),task.generation,task.key);
     this.updateCycle({phase:'retrying',error:String(error.message).slice(0,350)});
   }
-  taskCounts(generation) { return this.db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(done),0) AS completed,COALESCE(SUM(CASE WHEN (done=0 OR done IS NULL) AND error IS NOT NULL THEN 1 ELSE 0 END),0) AS retrying FROM tasks WHERE generation=?').get(generation); }
+  taskCounts(generation) { return this.db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(CASE WHEN done=1 THEN 1 ELSE 0 END),0) AS completed,COALESCE(SUM(CASE WHEN (done IN (-1,0) OR done IS NULL) AND error IS NOT NULL THEN 1 ELSE 0 END),0) AS retrying FROM tasks WHERE generation=?').get(generation); }
   source(generation,key) { const s=this.db.prepare('SELECT * FROM sources WHERE generation=? AND key=?').get(generation,key);return s && {work:parse(s.body),fetchedAt:s.fetched_at}; }
   sources(generation,kind,workType=null) {
     const rows=this.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind=?'+(workType?" AND json_extract(body,'$.work_type') LIKE ?":'')).all(generation,kind,...(workType?['%/'+workType]:[]));
@@ -165,6 +169,7 @@ export class ActivityStore {
       this.set('lastSuccess',new Date(this.clock()).toISOString());this.set('unresolved',unresolved);
       // Retain the immediately previous generation for recovery; cache is reproducible public data.
       for (const table of ['sources','items','tasks']) this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,old || generation);
+      outsidePrune(this.db,generation,old);
     });
   }
   status() {
@@ -181,7 +186,7 @@ export class ActivityStore {
       refreshInProgress:Boolean(cycle), progress:cycle?this.taskCounts(cycle.generation):null, backgroundRequests:cycle?.requests || 0, lastRefreshRequests:this.get('lastRefreshRequests') || 0,
       pendingSpeechRecoveries:{count:recoveryCount,examples:recoveryExamples},
       sourceCounts:Object.fromEntries(counts.map(c=>[c.kind,c.count])), currentMeps:this.db.prepare('SELECT COUNT(*) AS n FROM members').get().n,
-      rosterFetchedAt:this.get('rosterFetchedAt'), lastError:cycle?.phase==='paused' ? cycle.error : cycle ? this.db.prepare('SELECT error FROM tasks WHERE generation=? AND (done=0 OR done IS NULL) AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get(cycle.generation)?.error || null : null, exclusiveWriterActive:Boolean(lease && lease.expires>this.clock()),
+      rosterFetchedAt:this.get('rosterFetchedAt'), lastError:cycle?.phase==='paused' ? cycle.error : cycle ? this.db.prepare('SELECT error FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get(cycle.generation)?.error || null : null, exclusiveWriterActive:Boolean(lease && lease.expires>this.clock()),
       unresolvedJoinCount:(this.get('unresolved') || []).length, unresolvedJoins:(this.get('unresolved') || []).slice(0,100), unresolvedCategories:[...new Set((this.get('unresolved') || []).map(join=>join.category || 'reports-shadow'))], unsupportedCategories:Object.entries(CATEGORY_GAPS).map(([category,reason])=>({category,label:CATEGORIES[category],reason})),
       dataSource:'European Parliament Open Data API v2', attribution:'European Parliament, CC BY 4.0', schedule:'Daily after 03:00 Europe/Brussels; interrupted initial loads resume automatically.' };
   }

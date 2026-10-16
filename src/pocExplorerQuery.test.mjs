@@ -41,3 +41,10 @@ test('current-term periods survive saved question and timeline links alongside n
     assert.equal(readExplorerParam(new URLSearchParams({[key]:'all'}),key,fallback,allowed),fallback);
   }
 });
+test('outside-speaker links retain their own filters and validate identity and month',()=>{
+  const params=new URLSearchParams('ov-term=all&ov-person=227855&ov-tab=appearances&ov-month=2025-03&ov-repeat=1&q-country=IT&member=42');
+  const saved=explorerParams(params,'outside');assert.equal(saved.get('ov-person'),'227855');assert.equal(saved.has('q-country'),false);assert.equal(saved.has('member'),false);
+  assert.equal(readExplorerParam(saved,'ov-month',null),'2025-03');
+  assert.equal(readExplorerParam(new URLSearchParams('ov-person=0'),'ov-person',null),null);
+  assert.equal(readExplorerParam(new URLSearchParams('ov-month=2025-13'),'ov-month',null),null);
+});

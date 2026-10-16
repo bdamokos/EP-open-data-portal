@@ -135,6 +135,7 @@ export interface SpeechPage {
   offset: number;
 }
 export interface SpeechDetail extends Speech {
+  sourceFragmentKey?:string;
   speakers?:{id:string;name:string;role:string|null;nameSource:string}[];
   xml: string | null;
   textLanguage: string | null;
