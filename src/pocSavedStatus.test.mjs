@@ -83,6 +83,19 @@ test('Following with no items keeps native disabled behavior and makes no check 
   await act(async()=>button.click());await settle();assert.equal(h.requests.length,0);assert.equal(h.status().textContent,'');
 });
 
+test('a deliberate check after follows change awaits the matching queued refresh, even when the obsolete request fails',async t=>{
+  const h=await harness(t);await h.render();const messages=record(h,t);
+  for(const [index,id,oldStatus] of [[0,'12345',200],[2,'67890',503]]){
+    await h.check();await h.replace([member({id})]);await h.check();const button=h.button();
+    assert.equal(h.requests.length,index+1,'the old shared request is still pending');
+    await h.respond(index,oldStatus===200?response():{error:{message:'Obsolete failed check'}},oldStatus);
+    assert.equal(h.requests.length,index+2);assert.equal(button.getAttribute('aria-disabled'),'true');assert.equal(h.status().textContent,'');assert.doesNotMatch(h.container.textContent,/Obsolete failed check/);
+    await h.respond(index+1,response([state({id,revision:'new',total:2})]));await settle();
+    assert.equal(h.status().textContent,'Check finished. 1 followed item has unread updates.');assert.equal(button.getAttribute('aria-disabled'),null);assert.equal(document.activeElement,button);assert.equal(h.saved()[0].id,id);
+  }
+  assert.equal(messages.length,2);
+});
+
 test('background checks and superseded language, membership, acknowledgement and unmounted completions stay silent',async t=>{
   const h=await harness(t);await h.render();const messages=record(h,t);
   let background;await act(async()=>{background=h.background();});await h.respond(0);await background;await settle();assert.equal(h.status().textContent,'');assert.equal(messages.length,0);

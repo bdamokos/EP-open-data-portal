@@ -10,6 +10,7 @@ const store=createSavedStore(storage,()=>listeners.forEach(listener=>listener())
 window.addEventListener('storage',event=>{if(event.key==='ep.bookmarks.v1'||event.key===null)store.reload();});
 export function useSaved(){return useSyncExternalStore(callback=>{listeners.add(callback);return()=>listeners.delete(callback);},store.snapshot);}
 type SavedCheck={data:SavedStates;requestedKey:string};
+const requestedKeys=new WeakMap<Promise<unknown>,string>();
 let pending:Promise<SavedCheck>|null=null,lastCheck=0;
 export function checkSaved(language:string,force=false) {
   if(pending)return pending;
@@ -17,7 +18,7 @@ export function checkSaved(language:string,force=false) {
   const items=store.snapshot().items;if(!items.length)return Promise.resolve();
   const params=new URLSearchParams({lang:language});for(const [kind,key] of [['question','questions'],['mep','members']] as const){const ids=items.filter(item=>item.kind===kind).map(item=>item.id);if(ids.length)params.set(key,ids.join(','));}
   const requestedKey=items.map(savedKey).sort().join(',');const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),12_000);
-  pending=api<SavedStates>('insights/saved?'+params,ctrl.signal).then(data=>{expireActivityReads();store.observe(data);lastCheck=Date.now();return {data,requestedKey};}).finally(()=>{clearTimeout(timer);pending=null;if(store.snapshot().items.map(savedKey).sort().join(',')!==requestedKey)void checkSaved(language,true).catch(()=>{});});return pending;
+  pending=api<SavedStates>('insights/saved?'+params,ctrl.signal).then(data=>{expireActivityReads();store.observe(data);lastCheck=Date.now();return {data,requestedKey};}).finally(()=>{clearTimeout(timer);pending=null;if(store.snapshot().items.map(savedKey).sort().join(',')!==requestedKey)void checkSaved(language,true).catch(()=>{});});requestedKeys.set(pending,requestedKey);return pending;
 }
 function savedCheckMessage(items:SavedItem[],data:SavedStates) {
   const unread=items.filter(item=>item.updated).length;
@@ -48,7 +49,18 @@ export function PocSaved({language,onBack,onMember}:{language:string;onBack:()=>
     if(checking)return;
     const token=++request.current;setAttempt(token);setChecking(true);setError('');setCompletion(null);
     const current=()=>active.current&&request.current===token&&store.snapshot().items.map(savedKey).sort().join(',')===key;
-    void checkSaved(language,true).then(result=>{if(!current()||!result||result.requestedKey!==key)return;const settled=store.snapshot().items;setCompletion({items:settled,message:savedCheckMessage(settled,result.data)});}).catch(e=>{if(current()){setError((e as Error).message);setCompletion({items:store.snapshot().items,message:'Could not check for updates. Saved items are still shown.'});}}).finally(()=>{if(current())setChecking(false);});
+    void (async()=>{
+      while(current()){
+        const checked=checkSaved(language,true),matches=requestedKeys.get(checked)===key;
+        try{
+          const result=await checked;if(!current())return;
+          // A changed follow set already queues its matching refresh in checkSaved.
+          // Keep this deliberate attempt attached to that result, including errors.
+          if(!matches)continue;
+          if(result){const settled=store.snapshot().items;setCompletion({items:settled,message:savedCheckMessage(settled,result.data)});}return;
+        }catch(e){if(!current())return;if(!matches)continue;setError((e as Error).message);setCompletion({items:store.snapshot().items,message:'Could not check for updates. Saved items are still shown.'});return;}
+      }
+    })().finally(()=>{if(current())setChecking(false);});
   };
   return <section className="poc-saved-view" lang="en">
     <PocStatus scope={`saved-check:${context}:${attempt}`} message={completion?.items===items?completion.message:null} pending={checking}/>
