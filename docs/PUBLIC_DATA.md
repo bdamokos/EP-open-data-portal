@@ -32,6 +32,22 @@ The public Multimedia Centre site uses `https://api.multimedia.europarl.europa.e
 
 The client verifies the requested audio representation before playback. Missing, ambiguous or mismatched tracks leave the player closed. The adapter downloads metadata, not video segments or an audiovisual archive. Automatic recording-catalogue search is unavailable; a catalogue needs source-page URLs and retrieval dates. Missing catalogue coverage is shown explicitly.
 
+## Source links and record reader
+
+Source links prefer exact official website pages, with **Open original source** retained separately. Anonymous checks on 16 October 2026 verified these mappings:
+
+| Machine-readable source | Preferred website |
+| --- | --- |
+| Procedure | OEIL procedure file, using the exact year, number and procedure type; e.g. `2025/0407(COD)` |
+| Question/answer, plenary report, motion/joint motion, adopted text, committee document | DOCEO HTML page from the exact document identifier and selected language; checked with `E-10-2026-003031`, `A-10-2026-0237`, `RC-10-2026-0441`, `TA-10-2026-0339` and `TRAN-PR-785404` |
+| Individual speech | Supplied DOCEO transcript identity and original language, when available; no translation is inferred |
+| Individual MEP | Official MEP page from the exact person ID |
+| EuroVoc concept | EU Vocabularies concept page with the exact persistent concept URI; the bare concept URI redirects to XML |
+| Filtered/paginated API results, dated MEP rosters, event/meeting metadata | No exact website equivalent verified; retain the query in the record reader. Related transcript pages are not substitutes for source metadata or dated membership |
+| Publications Office SPARQL results | No equivalent website for an arbitrary query; existing legal-reference links use exact EUR-Lex works and procedure summaries use OEIL |
+
+The on-demand reader requests the API's JSON-LD representation through the existing anonymous source adapter and shared cache/queue. It accepts only known Parliament endpoint families and filters, including supported persistent record URIs; it cannot fetch arbitrary hosts or follow supplied context URLs. Collections retain their original filters and offset but cap the reader request and downloadable JSON-LD to 25 records. The original request remains directly accessible. Reader responses are limited to 1 MiB; nested fields expand on demand, with display limits of seven levels and 80 fields per object. Full returned values remain in the download. Retrieval dates, saved-source states, language fallbacks and result limits remain explicit. No new index writer, corpus download or authenticated service is introduced. DOCEO may present its public browser verification challenge; the source reader does not scrape or bypass it.
+
 ## References in questions and answers
 
 Readers recognise exact official numbers: EU acts (pre- and post-2015 forms), ELI, CELEX and Cellar links, COM/SWD/JOIN documents, procedure numbers and question numbers. Fixed numbering rules turn each into a lookup key; titles and name similarity are never used, and unrecognised forms stay plain text. A document hyperlink to an official target identifies its linked text ahead of text patterns. A footnote marker opens a card only when its footnote identifies exactly one work; a citation followed by a footnote is reported as confirmed by it or as pointing elsewhere, never substituted. Answer PDFs carried the same link targets as their DOCX in 21 answers sampled on 16 October 2026, so only DOCX is read.
