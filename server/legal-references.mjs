@@ -115,8 +115,11 @@ export class LegalReferences {
   }
   async resolve({keys,language},signal) {
     const saved=new Map();
+    // Collect every available memory record before a disk wait can expire.
+    for(const key of keys){const record=this.cache.cache.get(this.cacheKey(key,language));if(record?.value?.key===key&&Number.isFinite(record.at))saved.set(key,record);}
     for(const key of keys){
       if(signal.aborted)break;
+      if(saved.has(key))continue;
       try{const record=await waitForRequest(this.cache.stored(this.cacheKey(key,language)),signal);if(record?.value?.key===key)saved.set(key,record);}
       catch(error){if(signal.aborted)break;throw error;}
     }
