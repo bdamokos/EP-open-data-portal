@@ -225,7 +225,7 @@ test('old extracted text is refreshed on demand and current extraction survives 
 });
 test('automatic recital and operative numbering includes style inheritance, overrides and list restarts',()=>{
   const numbering='<w:numbering xmlns:w="urn:word"><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="upperLetter"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:abstractNum w:abstractNumId="2"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:num w:numId="41"><w:abstractNumId w:val="1"/></w:num><w:num w:numId="42"><w:abstractNumId w:val="2"/></w:num><w:num w:numId="43"><w:abstractNumId w:val="2"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="7"/></w:lvlOverride></w:num></w:numbering>';
-  const styles='<w:styles xmlns:w="urn:word"><w:style w:styleId="Recital"><w:pPr><w:numPr><w:numId w:val="41"/></w:numPr></w:pPr></w:style><w:style w:styleId="Inherited"><w:basedOn w:val="Recital"/></w:style></w:styles>';
+  const styles='<w:styles xmlns:w="urn:word"><w:style w:styleId="Recital"><w:pPr><w:numPr><w:numId w:val="41"/></w:numPr></w:pPr></w:style><w:style w:styleId="Inherited"><w:basedOn w:val="Recital"/><w:pPr><w:numPr><w:ilvl w:val="0"/></w:numPr></w:pPr></w:style></w:styles>';
   const p=(properties,text)=>`<w:p><w:pPr>${properties}</w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
   const num=id=>`<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${id}"/></w:numPr>`;
   const xml='<w:document xmlns:w="urn:word"><w:body>'+p('<w:pStyle w:val="Inherited"/>','First recital')+p(num(41),'Second recital')+p(num(42),'First paragraph')+p(num(43),'Restarted paragraph')+p(num(42),'Second paragraph')+'</w:body></w:document>';
