@@ -24,7 +24,7 @@ export function amendmentProposerDate(record,{documentDate=record?.documentDate,
   if(record?.proposerRetained)return null;
   return documented?{date:documented,basis:documentBasis}:listed?{date:listed,basis:'amendment-list-metadata'}:null;
 }
-const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','symbol-text-loss','non-text-content','vertical-text-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
+const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','structural-revision','symbol-text-loss','non-text-content','vertical-text-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
 export function amendmentTextLosses(extraction,amendment) {
   const oversized=['originalText','proposedText'].some(field=>typeof amendment?.[field]==='string'&&amendment[field].length>AMENDMENT_LIMITS.text);
   return [...array(extraction?.gaps),...array(amendment?.gaps),...(oversized?[{code:'wording-too-large',number:amendment.number,message:'Amendment wording exceeds the 60,000-character column limit; both columns are unavailable.'}]:[])].filter(gap=>textLossCodes.has(gap?.code) &&

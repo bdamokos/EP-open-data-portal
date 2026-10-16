@@ -50,7 +50,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'7');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'8');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -320,6 +320,39 @@ test('ordinary table properties and positional annotation markers do not invalid
   const comparison='<w:tbl><w:tblPr/><w:tblGrid/><w:bookmarkStart w:id="1"/>'+header+'<w:tr><w:trPr/><w:tblPrEx/><w:commentRangeStart w:id="2"/><w:tc><w:tcPr/>'+p('Original')+'</w:tc><w:tc><w:tcPr/>'+p('Proposal')+'</w:tc><w:commentRangeEnd w:id="2"/></w:tr><w:bookmarkEnd w:id="1"/></w:tbl>';
   const result=extractAmendments(archive(body(metadata()+comparison+p('</Amend>'))),options);
   assert.equal(result.amendments[0].originalText,'Original');assert.equal(result.amendments[0].proposedText,'Proposal');assert.deepEqual(result.gaps,[]);
+});
+
+test('tracked row and cell revisions cannot silently join accepted comparison wording',()=>{
+  const changedRow=(properties,cells)=>'<w:tr>'+properties+cells+'</w:tr>';
+  const original=cell(p('Revised original')),proposal=cell(p('Revised proposal'));
+  const stamp='w:id="7" w:author="Editor" w:date="2026-10-01T00:00:00Z"';
+  const variants=[
+    ['deleted row',changedRow('<w:trPr><w:del '+stamp+'/></w:trPr>',original+proposal)],
+    ['inserted row',changedRow('<w:trPr><w:ins '+stamp+'/></w:trPr>',original+proposal)],
+    ['deleted cell',row('<w:tc><w:tcPr><w:cellDel '+stamp+'/></w:tcPr>'+p('Revised original')+'</w:tc>',proposal)],
+    ['inserted cell',row(original,'<w:tc><w:tcPr><w:cellIns '+stamp+'/></w:tcPr>'+p('Revised proposal')+'</w:tc>')],
+    ['tracked cell merge',row('<w:tc><w:tcPr><w:cellMerge '+stamp+' w:vMerge="rest" w:vMergeOrig="cont"/></w:tcPr>'+p('Revised original')+'</w:tc>',proposal)],
+    ['moved row','<w:moveFromRangeStart '+stamp+' w:name="move1"/>'+row(original,proposal)+'<w:moveFromRangeEnd w:id="7"/>'],
+    ['moved cell',changedRow('', '<w:moveToRangeStart '+stamp+' w:name="move2"/>'+original+proposal+'<w:moveToRangeEnd w:id="7"/>')],
+  ];
+  for(const [description,revision] of variants)for(const prefix of ['',row(cell(p('Visible original')),cell(p('Visible proposal')))]) {
+    const xml=body(metadata()+table(prefix,revision)+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('A complete insertion.'))))+p('</Amend>'));
+    const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+    const affected=result.amendments.find(amendment=>amendment.number===1);
+    assert.equal(affected.originalText,null,description);assert.equal(affected.proposedText,null,description);
+    assert(affected.gaps.some(gap=>gap.code==='structural-revision'&&gap.number===1&&gap.sourceUrl===options.sourceUrl),description);
+    const intact=result.amendments.find(amendment=>amendment.number===2);
+    assert.equal(intact.originalText,'');assert.equal(intact.proposedText,'A complete insertion.');assert.deepEqual(intact.gaps,[]);
+  }
+});
+
+test('historical property snapshots and ordinary hidden or deleted inline text do not create current structural revisions',()=>{
+  const pastRow='<w:trPr><w:trPrChange w:id="1"><w:trPr><w:del w:id="2"/><w:ins w:id="3"/></w:trPr></w:trPrChange><w:jc w:val="left"/></w:trPr>';
+  const pastCell='<w:tcPr><w:tcPrChange w:id="4"><w:tcPr><w:cellDel w:id="5"/><w:cellIns w:id="6"/><w:cellMerge w:id="7"/></w:tcPr></w:tcPrChange><w:tcW w:w="4000" w:type="dxa"/></w:tcPr>';
+  const inline='<w:p>'+run('Visible')+'<w:r><w:rPr><w:vanish/></w:rPr><w:t> hidden</w:t></w:r><w:del>'+run(' deleted')+'</w:del><w:ins>'+run(' inserted')+'</w:ins><w:moveFrom>'+run(' moved away')+'</w:moveFrom><w:moveTo>'+run(' current')+'</w:moveTo></w:p>';
+  const comparison=table('<w:tr>'+pastRow+'<w:tc>'+pastCell+inline+'</w:tc>'+cell(p('Proposal'))+'</w:tr>');
+  const result=extractAmendments(archive(body(metadata()+comparison+p('</Amend>'))),options);
+  assert.equal(result.amendments[0].originalText,'Visible inserted current');assert.equal(result.amendments[0].proposedText,'Proposal');assert.deepEqual(result.gaps,[]);
 });
 
 test('an unscoped numbering failure withholds wording and exposes the document-scoped gap on every amendment',()=>{

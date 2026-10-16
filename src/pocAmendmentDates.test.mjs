@@ -19,6 +19,7 @@ test('amendment-list dates remain visible without substituting unknown individua
   const base={targetDocumentId:'A-10-2026-0254',outcome:'unavailable',date:'2099-01-01'};
   const listDate={documentDate:null,listDocumentDate:'2026-02-02',dateBasis:'amendment-list-document'};
   const unknownDate={documentDate:null,listDocumentDate:null,dateBasis:'amendment-list-document'};
+  const documentaryDate={documentDate:'2026-10-06',listDocumentDate:'2026-10-07',dateBasis:'amendment-list-document'};
   const items=[
     {...base,id:'known-list',number:1,...listDate},
     {...base,id:'unknown-list',number:2,...unknownDate},
@@ -29,7 +30,9 @@ test('amendment-list dates remain visible without substituting unknown individua
       {listId:'known-list',...listDate},
       {listId:'unknown-list',date:'2099-01-01',...unknownDate},
       {listId:'legacy-list',date:'2026-06-06',dateBasis:'amendment-list-document'},
+      {listId:'documentary-date',...documentaryDate},
     ]},
+    {...base,id:'documentary-date',number:7,...documentaryDate},
   ];
   t.mock.method(globalThis,'fetch',async input=>{
     assert(new URL(input,window.location.href).pathname.endsWith('/amendments'));
@@ -51,4 +54,8 @@ test('amendment-list dates remain visible without substituting unknown individua
   assert.match(variants[0].textContent,/Amendment-list document date Feb 2, 2026/);
   assert.doesNotMatch(variants[1].textContent,/document date|2099/i);
   assert.match(variants[2].textContent,/Amendment-list document date Jun 6, 2026/);
+  assert.match(variants[3].textContent,/Amendment-list document date Oct 6, 2026/,'the documentary variant date takes precedence over list metadata');
+  assert.doesNotMatch(variants[3].textContent,/Oct 7, 2026/);
+  assert.match(cards[6].textContent,/Amendment-list document date Oct 6, 2026/,'the documentary card date takes precedence over list metadata');
+  assert.doesNotMatch(cards[6].textContent,/Oct 7, 2026/);
 });
