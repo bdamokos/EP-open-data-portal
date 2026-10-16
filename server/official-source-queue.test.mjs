@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {OfficialContextSources} from './official-context.mjs';
 import {backoffUpstream} from './odp.mjs';
 import {runWithRequestSignal} from './request-budget.mjs';
+import {UpstreamQueue} from './upstream-queue.mjs';
 
 const po='https://publications.europa.eu/webapi/rdf/sparql';
 const oeil='https://oeil.europarl.europa.eu/oeil/en/procedure-file';
@@ -86,6 +87,27 @@ test('an official source cooldown stays with its own origin and prevents prematu
     oeilCalls++;return new Response('<main>Summary</main>',{headers:{'content-type':'text/html'}});
   }});
   await assert.rejects(reader.get(po+'?query=limited'),error=>error.code==='official_source_limited'&&error.retryAfter===45);
-  await assert.rejects(reader.get(po+'?query=next'),error=>error.code==='official_source_busy'&&error.retryAfter>0);
+  await assert.rejects(reader.get(po+'?query=next'),error=>error.code==='upstream_busy'&&error.retryAfter>0&&/official source/.test(error.message));
   assert.equal(poCalls,1);await reader.get(oeil+'?reference=2025/0407(COD)');assert.equal(oeilCalls,1);
+});
+
+test('local official admission failure leaves a stale source immediately retryable when capacity returns',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()});
+  let calls=0;
+  const url=po+'?query=retry-after-local-admission',reader=new OfficialContextSources({directory:null,fetchSource:async()=>{calls++;return Response.json({label:'fresh'});}});
+  const key=reader.cache.key(['official-context-v1',url]);
+  await reader.cache.save(key,{url,fetchedAt:new Date().toISOString(),data:{label:'saved'}});
+  t.mock.timers.tick(reader.cache.freshMs+1);
+  const queue=new UpstreamQueue({interval:0,maximum:1}),release=await queue.acquire();
+  reader.queues.set(new URL(po).origin,queue);
+  try {
+    assert.equal((await reader.get(url)).data.label,'saved');
+    await until(()=>queue.waiters.length===1);t.mock.timers.tick(queue.interactiveWaitMs);
+    await until(()=>reader.cache.pending.size===0);
+    assert.equal(reader.cache.failures.has(key),false,'local queue pressure must not become a retained source failure');
+    release();
+    assert.equal((await reader.get(url)).data.label,'saved');
+    await until(()=>calls===1);await until(()=>reader.cache.pending.size===0);
+    assert.equal((await reader.get(url)).data.label,'fresh');assert.equal(calls,1);
+  }finally{release();}
 });
