@@ -13,6 +13,7 @@ import { SPLIT_PARSER_VERSION, parseSplitRequest } from './amendment-splits.mjs'
 import { resolveAmendmentAuthors } from './amendment-authors.mjs';
 import { AMENDMENT_EXTRACTION_VERSION, extractAmendments } from './amendment-documents.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
+import { boundedUpstream, upstreamStatus } from './odp.mjs';
 
 const targetId='A-10-2026-0254', otherTarget='B-10-2026-0254', sitting='MTG-PL-2026-10-07';
 const tabled='2026-10-02', fetchedAt='2026-10-16T17:00:00.000Z', earlier='2026-10-15T17:00:00.000Z';
@@ -48,6 +49,91 @@ function seedTarget(store,generation,amendments) {
   store.putSource(generation,'/plenary-documents/'+targetId,'document',target,fetchedAt);
   store.putSource(generation,'amendment:list:'+listId,'amendment-list',list(amendments),earlier);
 }
+function deferred() {
+  let resolve,reject;
+  const promise=new Promise((accept,fail)=>{resolve=accept;reject=fail;});
+  return {promise,resolve,reject};
+}
+async function beforeTimeout(promise,milliseconds=1000) {
+  let timer;
+  try {return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Cancellation did not settle within '+milliseconds+' milliseconds.')),milliseconds);})]);}
+  finally {clearTimeout(timer);}
+}
+function cancellationTask(t,kind) {
+  const context=setup(t),{store,generation}=context;
+  const file={format:kind==='amendment-extract'?'DOCX':'XML',language:'en',url:'https://data.europarl.europa.eu/distribution/example/cancel.'+(kind==='amendment-extract'?'docx':'xml')};
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',target,earlier);
+  store.putSource(generation,'amendment:list:'+listId,'amendment-list',list([],{files:[file],extraction:null}),earlier);
+  const key='cancel:'+kind,body=kind==='amendment-extract'?{listId,targetDocumentId:targetId,offset:700}:{sittingId:sitting,file,documentSource:{url:sourceUrl,fetchedAt:earlier},offset:700};
+  enqueueAmendment(store,generation,key,kind,body,180);
+  store.db.prepare('UPDATE amendment_jobs SET attempts=2,retry_at=?,error=? WHERE generation=? AND key=?').run(Date.parse(fetchedAt)-1,'Retained retry state',generation,key);
+  const task=nextAmendmentTask(store,generation),original=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
+  const sources=store.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? ORDER BY key').all(generation);
+  const response=kind==='amendment-extract'?{buffer:comparisonDocx([['Original wording','Proposed wording']])}:'<PV.RollCallVoteResults Sitting.Date="2026-10-07"/>';
+  return {...context,task,response,download:kind==='amendment-extract'?'downloadAmendmentDocx':'downloadVotingXml',unchanged:()=>{
+    assert.deepEqual(store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key),original);
+    assert.deepEqual(store.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? ORDER BY key').all(generation),sources);
+    assert.equal(amendmentsPage(store).total,0);assert.equal(amendmentFailures(store).total,0);
+  }};
+}
+
+test('worker cancellation rejects late DOCX and XML responses even when a downloader ignores its signal',async t=>{
+  for(const kind of ['amendment-extract','amendment-aliases']) {
+    const {store,worker,task,response,download,unchanged}=cancellationTask(t,kind),started=deferred(),reply=deferred();
+    worker.running=true;
+    worker[download]=async(_url,options={})=>{started.resolve(options.signal);return reply.promise;};
+    const pending=worker.task(task),rejected=assert.rejects(pending,error=>error===worker.controller.signal.reason);
+    const signal=await started.promise;
+    worker.stop();reply.resolve(response);
+    await rejected;
+    assert.equal(signal,worker.controller.signal,kind);
+    unchanged();assert.doesNotThrow(()=>store.assertWriter());
+    worker.running=false;
+  }
+});
+
+test('worker cancellation reaches signal-aware DOCX and XML downloads promptly after admission',async t=>{
+  for(const kind of ['amendment-extract','amendment-aliases']) {
+    const {worker,task,download,unchanged}=cancellationTask(t,kind),started=deferred(),reply=deferred();
+    worker.running=true;
+    worker[download]=async(_url,options={})=>{options.signal?.addEventListener('abort',()=>reply.reject(options.signal.reason),{once:true});started.resolve(options.signal);return reply.promise;};
+    const pending=worker.task(task),rejected=assert.rejects(pending,error=>error===worker.controller.signal.reason);
+    const signal=await started.promise;
+    worker.stop();
+    try {await beforeTimeout(rejected);}
+    finally {reply.reject(worker.controller.signal.reason);await rejected;worker.running=false;}
+    assert.equal(signal,worker.controller.signal,kind);unchanged();
+  }
+});
+
+test('worker cancellation removes a queued amendment download before its downloader starts',async t=>{
+  const {worker,task,download,unchanged}=cancellationTask(t,'amendment-extract'),occupied=deferred(),release=deferred();
+  const blocker=boundedUpstream(async()=>{occupied.resolve();await release.promise;},{priority:'background'});
+  await occupied.promise;
+  const baseline=upstreamStatus().queued;let downloads=0;
+  worker.running=true;worker[download]=async()=>{downloads++;return {buffer:Buffer.alloc(0)};};
+  const pending=worker.task(task),rejected=assert.rejects(pending,error=>error===worker.controller.signal.reason);
+  assert.equal(upstreamStatus().queued,baseline+1);
+  worker.stop();
+  try {await beforeTimeout(rejected);assert.equal(upstreamStatus().queued,baseline);assert.equal(downloads,0);unchanged();}
+  finally {release.resolve();await blocker;await rejected;worker.running=false;}
+});
+
+test('worker run releases its writer lease after cancellation and preserves the pending amendment retry',async t=>{
+  const {store,worker,task,download,generation,unchanged}=cancellationTask(t,'amendment-aliases'),started=deferred();
+  store.putSource(generation,'/plenary-documents/'+otherTarget,'document',{...target,id:'eli/dl/doc/'+otherTarget,identifier:otherTarget},earlier);
+  store.updateCycle({initialized:true,amendmentsPreparedVersion:AMENDMENTS_VERSION,amendmentsPreparedDay:'2026-10-16',splitParserVersion:SPLIT_PARSER_VERSION,motionOutcomesDay:'2026-10-16',reportJoinsReady:true,procedureTitlesQueued:true});
+  worker.initializeOutside=()=>{};worker.catchUp=()=>false;
+  worker[download]=async(_url,{signal}={})=>new Promise((_,reject)=>{signal?.addEventListener('abort',()=>reject(signal.reason),{once:true});started.resolve(signal);});
+  const running=worker.run();
+  assert.equal(await started.promise,worker.controller.signal);
+  worker.stop();await beforeTimeout(running);
+  assert.equal(worker.running,false);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM lease').get().n,0);
+  const saved=store.db.prepare('SELECT body,done,attempts,error,retry_at FROM amendment_jobs WHERE generation=? AND key=?').get(generation,task.key);
+  assert.equal(saved.done,0);assert.equal(saved.attempts,2);assert.equal(saved.error,'Retained retry state');assert.deepEqual(JSON.parse(saved.body),task.body);
+  assert.equal(store.source(generation,'amendment:aliases:'+sitting),undefined);
+  assert.equal(amendmentsPage(store).total,0);assert.equal(amendmentFailures(store).total,0);
+});
 
 test('decision joins use the exact target and amendment URI, preserving collective and split decisions',t=>{
   const {store,worker,generation}=setup(t);

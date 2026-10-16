@@ -2,8 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { deflateRawSync } from 'node:zlib';
+import https from 'node:https';
+import { EventEmitter } from 'node:events';
 import { AMENDMENT_EXTRACTION_VERSION, extractAmendments } from './amendment-documents.mjs';
 import { docxParts, downloadDocxBuffer, downloadDocx } from './document-text.mjs';
+import { amendmentDownloads } from './amendments-worker.mjs';
 
 // In-memory ZIPs keep tests offline while exercising the shared bounded reader.
 function archive(documentXml,stylesXml='') {
@@ -190,4 +193,29 @@ test('invalid archives and XML entities are rejected by the same bounded DOCX re
 
 test('buffer downloader keeps the original official DOCX URL allowlist',async()=>{
   for(const download of [downloadDocxBuffer,downloadDocx])await assert.rejects(download('https://example.com/private.docx'),/Unapproved official document download URL/);
+});
+
+test('raw DOCX, reading-text and voting XML downloads forward caller cancellation to HTTPS', {timeout:1500}, async t=>{
+  let transportSignal,started,request;
+  t.mock.method(https,'get',(url,{signal})=>{
+    assert.match(String(url),/^https:\/\/data\.europarl\.europa\.eu\/distribution\//);
+    transportSignal=signal;request=new EventEmitter();
+    signal.addEventListener('abort',()=>request.emit('error',signal.reason),{once:true});
+    started();return request;
+  });
+  const downloads=[
+    [downloadDocxBuffer,options.sourceUrl],
+    [downloadDocx,options.sourceUrl],
+    [amendmentDownloads.downloadVotingXml,options.sourceUrl.replace(/\.docx$/,'.xml')],
+  ];
+  for(const [download,url] of downloads) {
+    const controller=new AbortController(),reason=new Error('The source owner stopped.');
+    const reached=new Promise(resolve=>started=resolve);
+    const rejected=assert.rejects(download(url,{signal:controller.signal}),error=>error===reason);
+    await reached;
+    assert.equal(transportSignal.aborted,false);
+    controller.abort(reason);
+    await rejected;
+    assert.equal(transportSignal.aborted,true);assert.equal(transportSignal.reason,reason);
+  }
 });
