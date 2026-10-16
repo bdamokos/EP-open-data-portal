@@ -22,7 +22,8 @@ export function useSavedChecks(language:string) {
 }
 export function SaveButton({item,compact=false}:{item:SavedItem;compact?:boolean}) {
   const {items}=useSaved(),saved=items.some(x=>savedKey(x)===savedKey(item)),[error,setError]=useState('');
-  return <><button className={'poc-save-button'+(saved?' is-saved':'')} aria-label={item.kind==='mep'?`${saved?'Unfollow':'Follow'} MEP`:`${saved?'Unsave':'Save'} question`} aria-pressed={saved} title={saved?'Saved in this browser':'Save in this browser'} onClick={()=>{try{store.toggle(item);setError('');}catch(e){setError((e as Error).message);}}}><span aria-hidden="true">{saved?'★':'☆'}</span>{!compact&&<span>{item.kind==='mep'?(saved?'Following':'Follow'):(saved?'Saved':'Save')}</span>}</button>{error&&<small role="alert">{error}</small>}</>;
+  const label=item.kind==='mep'?(saved?'Following':'Follow'):(saved?'Saved':'Save');
+  return <><button className={'poc-save-button'+(saved?' is-saved':'')} aria-label={`${label} ${item.kind==='mep'?'MEP':'question'}${item.title?' · '+item.title:''}`} aria-pressed={saved} title={saved?'Saved in this browser':'Save in this browser'} onClick={()=>{try{store.toggle(item);setError('');}catch(e){setError((e as Error).message);}}}><span aria-hidden="true">{saved?'★':'☆'}</span>{!compact&&<span>{label}</span>}</button>{error&&<small role="alert">{error}</small>}</>;
 }
 export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:boolean}) {
   const saved=useSaved(),items=saved.items,updates=items.filter(item=>item.updated).length;

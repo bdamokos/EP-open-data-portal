@@ -8,7 +8,9 @@
 .poc button, .poc a, .poc select, .poc input { font: inherit; }
 .poc button { padding: 10px 16px; min-height: 44px; color: white; background: var(--signal-blue); }
 .poc button:disabled { opacity: .45; cursor: default; }
-.poc button:focus-visible, .poc select:focus-visible, .poc input:focus-visible, .poc a:focus-visible { outline: 3px solid var(--selected-yellow); outline-offset: 3px; }
+.poc button:focus-visible, .poc select:focus-visible, .poc input:focus-visible, .poc a:focus-visible, .poc summary:focus-visible { outline: 3px solid var(--focus-outline-color,var(--selected-yellow)); outline-offset: 3px; }
+/* Focus follows the surrounding panel, including nested readers and controls. */
+.poc-profile-body, .poc-saved-view, .poc-notice, .poc-video, .poc-cloud { --focus-outline-color:var(--signal-blue,#1e6cff); }
 .poc a { color: inherit; text-underline-offset: 3px; }
 .poc h1 { overflow-wrap: anywhere; font-size: clamp(28px, 3vw, 42px); line-height: 1.1; margin: 0 0 20px; font-weight: 700; }
 .poc h2 { font-size: 25px; line-height: 1.2; margin: 0 0 18px; }

@@ -31,8 +31,8 @@
   white-space:nowrap;
   overflow-wrap:normal;
 }
-.parliament-header nav button[aria-current=page] { border-color:var(--selected-yellow,#fff200); color:var(--selected-yellow,#fff200); }
-.parliament-header nav button:hover:not(:disabled) { border-color:#fff; }
+.parliament-header nav button[aria-current=page],.parliament-header nav button[aria-current=page]:hover { border-color:var(--selected-yellow,#fff200); color:#fff; }
+.parliament-header nav button:hover:not(:disabled):not([aria-current=page]) { border-color:#fff; }
 .parliament-header nav button:focus-visible { outline:3px solid var(--selected-yellow,#fff200); outline-offset:3px; }
 .parliament-header nav button small { font-size:13px; }
 .parliament-header .poc-saved-count { margin-left:0; }
