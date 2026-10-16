@@ -68,3 +68,16 @@ test('an admitted slow rename cannot finish after and overwrite a newer publicat
   assert.equal(await fs.readFile(file,'utf8'),'replacement');assert.equal(renames,2);
   assert.deepEqual(await fs.readdir(directory),['record.json']);
 });
+
+test('an older preparation cannot replace a newer publication from an overlapping cache job',async t=>{
+  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'cache-publication-generation-'));t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+  const file=path.join(directory,'record.json'),realMkdir=fs.mkdir;let finish,reached,blocked=false;
+  const started=new Promise(resolve=>reached=resolve);
+  const mock=t.mock.method(fs,'mkdir',(...args)=>{
+    if(!blocked){blocked=true;return new Promise((resolve,reject)=>{finish=()=>realMkdir(...args).then(resolve,reject);reached();});}
+    return realMkdir(...args);
+  });syncBuiltinESMExports();t.after(()=>{mock.mock.restore();syncBuiltinESMExports();});
+  const first=writeCacheFile(file,'old');await started;
+  assert.equal(await writeCacheFile(file,'new'),true);finish();assert.equal(await first,false);
+  assert.equal(await fs.readFile(file,'utf8'),'new');assert.deepEqual(await fs.readdir(directory),['record.json']);
+});
