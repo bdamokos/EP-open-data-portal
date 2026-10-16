@@ -97,6 +97,12 @@ export function parseSummaryPage(html,reference) {
   if(!date||!body)throw new HttpError(502,'summary_content','The published summary could not be read.');
   // Use the printed date: the site's datetime attribute can contain a different year.
   const blocks=nodes(body).filter(node=>['p','h2','h3','h4','li'].includes(node.tag)&&!nodes(node).some(child=>child!==node&&['p','li'].includes(child.tag))&&!nodes(node).some(child=>child.tag==='a'&&/\/procedure-document-summary\/pdf\?id=/.test(child.attrs?.['@_href']||''))).map(node=>({kind:node.tag.startsWith('h')?'heading':'paragraph',text:text(node)})).filter(block=>block.text);
+  // Older summaries are hard-wrapped text in a division. A line closing a sentence before a capital or list dash starts a paragraph.
+  if(!blocks.length)for(const line of rawText(body).split('\n').map(value=>value.replace(/[\t\r\u00a0 ]+/g,' ').trim()).filter(Boolean)) {
+    const last=blocks.at(-1);
+    if(last&&!(/[.:;!?]$/.test(last.text)&&/^[-–•(A-Z0-9]/.test(line)))last.text+=' '+line;
+    else if(blocks.length<=120)blocks.push({kind:'paragraph',text:line});
+  }
   if(!blocks.length||blocks.length>120||Buffer.byteLength(JSON.stringify(blocks))>64*1024)throw new HttpError(502,'summary_content','The published summary could not be read.');
   return {reference,date,blocks,method:/AI-generated and human-reviewed/i.test(text(body))?'AI-generated and human-reviewed':null};
 }

@@ -7,7 +7,8 @@ import {orderedMemberships} from './pocMemberships.mjs';
 import {PocSaved,SaveButton,SavedNav,useSavedChecks} from './PocSaved';
 import {QuestionStatus} from './PocQuestionStatus';
 import {MotionStatuses,PocMotionOutcome} from './PocMotionOutcome';
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from "./PocReferences";
 import { Portrait } from "./components/Portrait";
 import { DataNotice } from "./components/DataNotice";
 import { API_ROOT } from "./api";
@@ -25,6 +26,8 @@ import type {
   DocumentFile,
   PublicationDocument,
   CoAuthor,
+  NoteAnchor,
+  DocumentLink,
 } from "./pocTypes";
 import "./poc.css";
 import { activitySourceId } from "../server/activity-links.mjs";
@@ -147,8 +150,9 @@ function PublicationFiles({ files, lang }: { files: DocumentFile[]; lang: string
     <p>{files.filter(f => (f.language || "und") === selected).map((f,i) => <a key={f.url + i} href={f.url} target="_blank" rel="noreferrer">{f.format} · {f.language?.toUpperCase() || "Language unavailable"} ↗</a>)}</p>
   </div>;
 }
-function AuthorMention({text,authors,lang}:{text:string;authors?:CoAuthor[];lang:string}) {
-  return <>{coAuthorSegments(text,authors).map((part,index)=>part.id ? <a key={index} className="poc-author-link" href={coAuthorProfileUrl(location.pathname,lang,part.id)}>{part.text}</a> : part.text)}</>;
+function AuthorMention({text,authors,lang,anchors,links,notePrefix}:{text:string;authors?:CoAuthor[];lang:string;anchors?:NoteAnchor[];links?:DocumentLink[];notePrefix?:string}) {
+  const parts=coAuthorSegments(text,authors);let start=0;
+  return <>{parts.map((part,index)=>{const from=start;start+=part.text.length;return part.id ? <a key={index} className="poc-author-link" href={coAuthorProfileUrl(location.pathname,lang,part.id)}>{part.text}</a> : anchors ? <ReferenceText key={index} text={part.text} start={from} final={index===parts.length-1} anchors={anchors} links={links} notePrefix={notePrefix}/> : part.text;})}</>;
 }
 function CoAuthors({authors,lang}:{authors?:CoAuthor[];lang:string}) {
   const people=linkedCoAuthors(authors);
@@ -160,12 +164,13 @@ function PublicationText({ sourceId, member, lang, heading, includeAnswers = fal
   const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`);
   const text=state.data?.selectedDocumentId===sourceId ? state.data.selectedText : null;
   const files=sourceId.endsWith('-ASW')?state.data?.answers.find(answer=>answer.id===sourceId)?.files||[]:state.data?.files||[];
-  const body=publicationBody(text?.paragraphs||[],sourceId,text?.textLanguage);
+  const body=publicationBody(text?.paragraphs||[],sourceId,text?.textLanguage),notePrefix='notes'+useId().replace(/[^A-Za-z0-9_-]/g,'');
+  const notes=text?.notes||[],anchors=body.exact?text?.noteAnchors||[]:[],documentLinks=body.exact?text?.documentLinks||[]:[];
   const languageName=(code:string)=>{try{return new Intl.DisplayNames([lang],{type:'language'}).of(code)||code.toUpperCase();}catch{return code.toUpperCase();}};
   return <section className="poc-document-text" id={'document-'+sourceId} aria-live="polite">
     <div className="poc-reader-heading"><h3>{heading}</h3>{question&&<a href={"#document-"+question.id} title={question.title}>Read question</a>}{text?.availableTextLanguages.length ? <select aria-label={`${heading} language`} title={text.translationType==='original'?'Original text':'Translation method not specified'} value={text.textLanguage||requestedLanguage} onChange={event=>setRequestedLanguage(event.target.value)}>{text.availableTextLanguages.map(code=><option key={code} value={code}>{code.toUpperCase()}</option>)}</select> : null}{text?.textLanguage&&text.textLanguage!==requestedLanguage&&<small>{languageName(requestedLanguage)} unavailable · showing {languageName(text.textLanguage)}</small>}</div>
     {state.loading&&!text&&<p role="status">Loading text…</p>}{state.error&&<p>Text temporarily unavailable.</p>}
-    {text?.status==='available'?<div className="poc-transcript" lang={text.textLanguage||undefined}>{body.paragraphs.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}</div>:text&&<p>Text unavailable. Download the document below.</p>}
+    {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="poc-transcript" lang={text.textLanguage||undefined}>{body.paragraphs.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===body.start+index)} links={documentLinks.filter(link=>link.paragraph===body.start+index)} notePrefix={notePrefix}/></p>)}<DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&<p>Text unavailable. Download the document below.</p>}
     {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang}/><details className="poc-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details></>}
     {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={"Answer"+(answer.date?" · "+date(answer.date,lang):"")}/>)}
     {includeAnswers&&state.data&&!state.data.answers.length&&<p>No answer published.</p>}
@@ -248,7 +253,8 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
     if(!moveToResults.current)return;
     moveToResults.current=false;
     resultsHeading.current?.focus({preventScroll:true});
-    resultsHeading.current?.closest(".poc-profile-body")?.scrollTo({top:0});
+    const body=resultsHeading.current?.closest(".poc-profile-body");
+    if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else resultsHeading.current?.scrollIntoView({block:"start"});
   },[category,categoriesOpen,offset]);
   useEffect(()=>{
     if(state.data?.cache.complete || open)return;
@@ -371,6 +377,27 @@ export default function PocApp() {
   const c = pocCopy(lang);
   useSavedChecks(lang);
   const label = (key: string, fallback: string) => interfaceLabel(lang,key,fallback);
+  useLayoutEffect(() => {
+    const page=document.querySelector<HTMLElement>(".poc"),tabs=page?.querySelector<HTMLElement>(".poc-tabs");
+    if(!page||!tabs)return;
+    const measure=()=>page.style.setProperty("--poc-tabs-height",`${tabs.getBoundingClientRect().height}px`);
+    measure();
+    const observer=new ResizeObserver(measure);observer.observe(tabs);
+    return ()=>{observer.disconnect();page.style.removeProperty("--poc-tabs-height");};
+  }, [member, view, lang]);
+  const scrolledView = useRef({member,tab,view});
+  useEffect(() => {
+    // Small screens scroll the whole explorer; start new pages at the top and new tabs at their content.
+    const previous=scrolledView.current;scrolledView.current={member,tab,view};
+    const page=document.querySelector<HTMLElement>(".poc");
+    if(!page||page.scrollHeight<=page.clientHeight)return;
+    if(previous.member!==member||previous.view!==view){if(!speechLink&&!activityLink)page.scrollTo({top:0});return;}
+    if(previous.tab===tab||(tab==="speeches"&&speechLink)||(tab==="activities"&&activityLink))return;
+    const body=page.querySelector<HTMLElement>(".poc-profile-body"),tabs=page.querySelector<HTMLElement>(".poc-tabs");
+    if(!body||!tabs||getComputedStyle(tabs).position!=="sticky")return;
+    const contentTop=page.scrollTop+body.getBoundingClientRect().top-page.getBoundingClientRect().top-tabs.offsetHeight;
+    if(page.scrollTop>contentTop)page.scrollTo({top:contentTop});
+  }, [member, tab, view, speechLink, activityLink]);
   useEffect(() => {
     const timer=window.setInterval(directoryState.retry,directory?.index.complete ? 60_000 : 10_000);
     return ()=>window.clearInterval(timer);
