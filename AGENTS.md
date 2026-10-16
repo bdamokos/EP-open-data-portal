@@ -11,3 +11,10 @@ Keep QA screenshots, browser captures, evidence bundles and agent work logs outs
 Use one source writer and one index writer. Keep site-specific routing, service configuration, host addresses, credentials and deployment records outside this repository. A push or health check is not user-visible acceptance. Verify the exact live revision and user path; preserve the accepted runtime and data while testing a candidate.
 
 Run npm test, npm run check and npm run build for structural changes. Verify changed UI flows in the browser at mobile and desktop widths. Avoid cold corpus downloads during tests and preserve incomplete-coverage labels.
+
+## Pull requests and deployment
+
+- Keep the user's personal name out of repository files, commit messages and PR text.
+- For this repository, agents have standing authorization to merge and deploy reviewed PRs once required checks are green and actionable review findings are resolved, unless the user explicitly withholds merging or deployment or asks the agent to stop at an earlier stage. Follow project deployment ownership and coordination rules, verify the deployed revision and user-visible outcome, and report the merge commit and deployment result.
+- Complete review before treating a PR as ready. Inspect feedback, implement valid fixes, rerun relevant checks, and resolve actionable review threads. A timed-out or quota-skipped bot run does not count as completed review.
+- If review bots time out or exhaust quota and cannot complete within a reasonable time, use independent T3 reviewers from the opposite model family; for example, switch when quota refill is more than a few hours away. Use Anthropic/Claude reviewers for GPT-authored PRs and GPT reviewers for Anthropic/Claude-authored PRs. Discover current models and delegate reviews through T3. Reviewers must not have authored the changes; require completed reviews of the exact current PR head, address their findings, and obtain further review of substantive fixes. Record the fallback reason, reviewed commit and reviewer model IDs in the PR. These reviews replace the unavailable bot review; required CI and branch protection still apply.
