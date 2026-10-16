@@ -36,6 +36,8 @@ Reference cards use the existing anonymous SPARQL endpoint, Open Data API and OE
 
 The optional full-text corpus uses the same anonymous Open Data API speech endpoint and the official DOCX distributions already linked from index records, through the existing allowlisted downloader. It adds no source, credential or proxy route. It has its own leased writer and opens the activity index read-only. See [Full-text corpus](PUBLIC_DATA.md#full-text-corpus).
 
+Contextual search and exact stored-text reading query that corpus through a bounded read-only connection. POST search carries exact source-ID scopes in a size-limited JSON body; it performs no write or collection request. Question/answer grouping follows saved parent identifiers, and saved titles, authors and current-country labels use exact index joins. No dossier-document ingestion, institutional service, production-cache copy or additional writer is introduced.
+
 Generic interface labels are app-owned; country and language display names use the browser’s internationalization data. Portrait and favicon fallbacks are app-owned SVGs. The application uses system fonts and carries no inherited institutional font binaries or copied dataset assets.
 
 Chair-only exclusions in the agenda contributor list reuse transcript headers from the existing bounded speech cloud and reader requests. The classification is scoped to exact speech/person IDs and does not infer participation from a person's office or speech length. The dated public header examples omit body text. No new source, request fan-out, authentication, cache writer or index writer is introduced.

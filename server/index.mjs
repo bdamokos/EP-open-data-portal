@@ -16,8 +16,8 @@ import { amendmentsPage, amendmentFailures } from './amendments-store.mjs';
 import {CATEGORIES} from './activity-index-model.mjs';
 import {speechMedia} from './mmc.mjs';
 import {outsideDirectory,outsideSpeaker,outsideQuery} from './outside-store.mjs';
-import {corpusSearch,corpusStatus,startCorpus} from './corpus-worker.mjs';
-import {CORPUS_LIMITS} from './corpus-store.mjs';
+import {corpusSearch,corpusStatus,corpusText,corpusSearchOptions,startCorpus} from './corpus-worker.mjs';
+import {CORPUS_LIMITS,corpusQuery} from './corpus-store.mjs';
 import {createRequestBudget,runWithRequestSignal,waitForRequest,cancelledRequest} from './request-budget.mjs';
 
 import {SpeechInterventions,INTERVENTION_LIMITS} from './speech-intervention-service.mjs';
@@ -68,14 +68,36 @@ function requireQuery(searchParams,allowed) {
     throw new HttpError(400,'invalid_query','Unsupported or repeated query parameter.');
 }
 
+async function corpusSearchBody(request) {
+  if(!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(String(request.headers['content-type']||'')))throw new HttpError(415,'invalid_content_type','Use application/json for corpus search.');
+  const length=request.headers['content-length'];
+  if(length!==undefined && (!/^\d+$/.test(length)||Number(length)>CORPUS_LIMITS.requestBytes))throw new HttpError(413,'request_too_large','The search request exceeds 128 KiB.');
+  return await new Promise((resolve,reject)=>{
+    const chunks=[];let bytes=0,failed=false;
+    request.on('data',chunk=>{
+      if(failed)return;
+      bytes+=chunk.length;
+      if(bytes>CORPUS_LIMITS.requestBytes){failed=true;reject(new HttpError(413,'request_too_large','The search request exceeds 128 KiB.'));return;}
+      chunks.push(chunk);
+    });
+    request.once('error',reject);
+    request.once('end',()=>{
+      if(failed)return;
+      try{resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));}
+      catch{reject(new HttpError(400,'invalid_json','The search body must be valid JSON.'));}
+    });
+  });
+}
+
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
  const segments=routeSegments(url.pathname,apiPrefix),endpoint=segments[0]||'';
- if(request.method==='OPTIONS'){setCommonSecurityHeaders(response);response.statusCode=204;response.setHeader('Allow','GET, HEAD, OPTIONS');response.setHeader('Cache-Control','no-store');response.setHeader('Vary','Origin');response.end();return;}
- requireMethod(request,['GET','HEAD']);
+ const isCorpusSearch=segments.length===3&&segments[0]==='poc'&&segments[1]==='corpus'&&segments[2]==='search';
+ if(request.method==='OPTIONS'){setCommonSecurityHeaders(response);response.statusCode=204;response.setHeader('Allow',isCorpusSearch?'GET, HEAD, POST, OPTIONS':'GET, HEAD, OPTIONS');response.setHeader('Cache-Control','no-store');response.setHeader('Vary','Origin');response.end();return;}
+ requireMethod(request,isCorpusSearch?['GET','HEAD','POST']:['GET','HEAD']);
  if(!endpoint||endpoint==='healthz'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:1,...(!endpoint?{endpoints:['healthz','poc']}:{}),time:new Date().toISOString()});return;}
   if (endpoint === "poc") {
-    requireMethod(request, ["GET", "HEAD"]);
+    requireMethod(request,isCorpusSearch?['GET','HEAD','POST']:["GET", "HEAD"]);
     const queryKeys={directory:['lang'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang'],'source-record':['lang','url'],'motion-comparison':['lang','joint','stage']};
     if(Object.hasOwn(queryKeys,segments[1]))requireQuery(url.searchParams,queryKeys[segments[1]]);
     const language = odpLanguage(url.searchParams.get("lang") || "en");
@@ -118,20 +140,31 @@ async function handleApi(request,response,url,apiPrefix){
       result = await corpusStatus();
     }
     else if (segments.length === 3 && segments[1] === 'corpus' && segments[2] === 'search') {
-      const allowed = new Set(['lang','q','kind','text-lang','member','from','to','limit','offset']);
+      const allowed = new Set(['lang','q','kind','kinds','text-lang','member','country','from','to','limit','offset','group','date-basis','sort','source-ids']);
       if ([...url.searchParams.keys()].some(key => !allowed.has(key) || url.searchParams.getAll(key).length !== 1)) throw new HttpError(400,'invalid_query','Unsupported or repeated search query parameter.');
+      if(request.method==='POST') {
+        requireQuery(url.searchParams,['lang']);
+        result=await corpusSearch(corpusSearchOptions({uiLanguage:language,...await corpusSearchBody(request)}));
+      } else {
       const value = name => url.searchParams.get(name);
       const integer = (name,fallback,max,min=0) => {
         const text=value(name) ?? String(fallback), number=Number(text);
         if (!/^(0|[1-9]\d*)$/.test(text) || number>max || number<min) throw new HttpError(400,'invalid_query',`Invalid ${name}.`);
         return number;
       };
-      const kind=value('kind'), textLanguage=value('text-lang'), from=value('from'), to=value('to');
-      if (kind!==null && !['speech','question','answer'].includes(kind)) throw new HttpError(400,'invalid_kind','Unknown corpus kind.');
-      if (textLanguage!==null && !/^[a-z]{2,3}$/.test(textLanguage)) throw new HttpError(400,'invalid_language','Invalid text language.');
-      for (const date of [from,to]) if (date!==null && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)))) throw new HttpError(400,'invalid_date','Use YYYY-MM-DD dates.');
-      result = await corpusSearch({query:value('q'),kind,language:textLanguage,member:value('member')===null?null:positiveId(value('member')),from,to,
-        limit:integer('limit',20,CORPUS_LIMITS.searchLimit,1),offset:integer('offset',0,CORPUS_LIMITS.searchOffset)});
+      result = await corpusSearch(corpusSearchOptions({query:value('q'),kind:value('kind'),kinds:value('kinds')===null?null:value('kinds').split(','),language:value('text-lang'),uiLanguage:language,
+        member:value('member')===null?null:positiveId(value('member')),country:value('country'),from:value('from'),to:value('to'),group:value('group'),dateBasis:value('date-basis'),sort:value('sort'),
+        sourceIds:value('source-ids')===null?null:value('source-ids')===''?[]:value('source-ids').split(','),limit:integer('limit',20,CORPUS_LIMITS.searchLimit,1),offset:integer('offset',0,CORPUS_LIMITS.searchOffset)}));
+      }
+    }
+    else if (segments.length === 3 && segments[1] === 'corpus' && segments[2] === 'text') {
+      requireQuery(url.searchParams,['lang','source-id','source-key','q']);
+      const sourceId=url.searchParams.get('source-id'),sourceKey=url.searchParams.get('source-key');
+      if(!/^[A-Z0-9-]{1,100}$/.test(sourceId||''))throw new HttpError(400,'invalid_source_id','Use an exact source identifier.');
+      if(typeof sourceKey!=='string'||!sourceKey||sourceKey.length>200||/[\u0000-\u001f\u007f]/.test(sourceKey))throw new HttpError(400,'invalid_source_key','Use the exact source key from a corpus search result.');
+      const query=url.searchParams.get('q');
+      if(query!==null&&!corpusQuery(query))throw new HttpError(400,'invalid_query','Use bounded words or quoted phrases for text highlighting.');
+      result=await corpusText({sourceId,sourceKey,query});
     }
     else if (segments.length === 3 && segments[1] === 'latest-activities') {
       const allowed = new Set(['lang','category','limit','offset','source-id']);

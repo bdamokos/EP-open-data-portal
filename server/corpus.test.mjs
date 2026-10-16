@@ -1,12 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { ActivityStore } from './activity-index-store.mjs';
 import { CorpusStore, corpusQuery } from './corpus-store.mjs';
-import { CorpusWorker, fragmentText, questionFiles, speechTexts } from './corpus-worker.mjs';
+import { CorpusWorker, corpus, corpusSearchOptions, fragmentText, questionFiles, speechTexts } from './corpus-worker.mjs';
 import { CorpusReader } from './corpus-reader.mjs';
+import { server } from './index.mjs';
 
 const instant=()=>Date.parse('2026-10-16T10:00:00Z');
 const fetchedAt=new Date(instant()).toISOString();
@@ -112,7 +114,7 @@ test('worker pages speeches, halves oversized pages, recovers missing graph node
     assert.equal(s.corpus.search({query:'recovered'}).hits[0].sourceId,'MTG-PL-2026-07-08-OTH-2');
     assert.equal(s.corpus.search({query:'protection',language:'fr'}).total,0,'primary policy skips machine translations');
     assert.deepEqual(downloads.sort(),[docx('E-10-2026-000001','en'),docx('E-10-2026-000001','fr'),docx('E-10-2026-000001-ASW','en')].sort());
-    assert.equal(s.corpus.search({query:'question text',kind:'question'}).total,2);
+    assert.equal(s.corpus.search({query:'question text',kind:'question'}).total,1,'language variants count as one question');
     const status=s.corpus.status();
     assert.equal(status.complete,true);
     assert.equal(status.documents.answer.withText,1);
@@ -258,4 +260,153 @@ test('read-only queries leave the API event loop free and enforce concurrency an
     const readOnly=new CorpusStore(path.dirname(s.corpus.filename),{readOnly:true});
     try {assert.throws(()=>readOnly.set('changed',true),/readonly/i);}finally{readOnly.close();}
   } finally {s.cleanup();}
+});
+
+const putText=(store,sourceId,kind,date,sourceKey,body,extra={})=>store.putDocument({sourceId,kind,date,parentId:extra.parentId||null,term:10},
+  [{sourceKey,language:extra.language||'en',translationType:extra.translationType||'original',sourceFormat:'docx',sourceUrl:docx(sourceId,sourceKey),fetchedAt,body,raw:null}]);
+
+test('document and question groups paginate before variants and retain exact same-language provenance',()=>{
+  const s=stores(),questionId=question.identifier,answerId=question.inverse_answers_to[0].identifier;
+  try {
+    putText(s.corpus,questionId,'question','2026-05-01','en','Ocean protection');
+    putText(s.corpus,questionId,'question','2026-05-01','mul','Ocean protection',{translationType:'machine'});
+    putText(s.corpus,questionId,'question','2026-05-01','fr','Ocean protection',{language:'fr'});
+    putText(s.corpus,answerId,'answer','2026-06-01','en','Ocean protection',{parentId:questionId});
+    putText(s.corpus,'OTHER-Q','question','2026-07-01','en','Ocean protection');
+    const document=s.corpus.search({query:'ocean',sort:'newest',limit:1});
+    assert.equal(document.total,3);assert.equal(document.results.length,1);assert.equal(document.nextOffset,1);
+    assert.equal(document.results[0].sourceId,'OTHER-Q');
+    const grouped=s.corpus.search({query:'ocean',kinds:['question','answer'],group:'question',sort:'newest',limit:1,offset:1});
+    assert.equal(grouped.total,2);assert.equal(grouped.nextOffset,null);
+    const result=grouped.results[0];
+    assert.equal(result.sourceId,questionId);assert.equal(result.kind,'question');assert.equal(result.date,'2026-05-01');
+    assert.equal(result.questionDate,'2026-05-01');assert.equal(result.answerDate,'2026-06-01');
+    assert.equal(result.hits.length,4);assert.equal(result.hits.filter(hit=>hit.language==='en').length,3);
+    const machine=result.hits.find(hit=>hit.sourceKey==='mul');
+    assert.equal(machine.translationType,'machine');assert.match(machine.sha256,/^[a-f0-9]{64}$/);
+    assert.equal(machine.sourceUrl,docx(questionId,'mul'));
+    assert.deepEqual(s.corpus.search({query:'ocean',sourceIds:[]}).results,[]);
+    assert.equal(s.corpus.search({query:'ocean',sourceIds:[questionId]}).total,1);
+    assert.equal(s.corpus.search({query:'ocean',sourceIds:[questionId],group:'question'}).hits.some(hit=>hit.kind==='answer'),false,'a parent scope never silently broadens to answer documents');
+    assert.equal(s.corpus.search({query:'ocean',kinds:[]}).total,0);
+    const first=s.corpus.search({query:'ocean',group:'question',limit:1}),again=s.corpus.search({query:'ocean',group:'question',limit:1});
+    assert.equal(first.results[0].sourceId,again.results[0].sourceId,'relevance ties are stable');
+  } finally {s.cleanup();}
+});
+
+test('answer-only matches use their exact parent question date and saved title without upstream reads',()=>{
+  const s=stores(),questionId=question.identifier,answerId=question.inverse_answers_to[0].identifier;
+  try {
+    const saved={...question,label:'E-000001/2026',title_dcterms:{en:'Ocean protection',fr:'Protection des océans'},inverse_answers_to:question.inverse_answers_to.map(answer=>({...answer,label:'E-000001/2026(ASW)'}))};
+    s.index.db.prepare('UPDATE sources SET body=? WHERE key=?').run(JSON.stringify(saved),'/parliamentary-questions/'+questionId);
+    s.index.db.prepare('INSERT INTO members VALUES (?,?)').run('43',JSON.stringify({id:'43',name:'Saved author',countryCode:'HU'}));
+    putText(s.corpus,answerId,'answer','2026-06-01','en','Ocean protection',{parentId:questionId});
+    const result=s.corpus.search({query:'ocean',kinds:['question','answer'],group:'question',from:'2026-05-01',to:'2026-05-31',country:'HU',uiLanguage:'fr'});
+    assert.equal(result.total,1);assert.equal(result.results[0].date,'2026-05-01');
+    assert.equal(result.results[0].questionDate,'2026-05-01');assert.equal(result.results[0].answerDate,'2026-06-01');
+    assert.equal(result.results[0].title,'Protection des océans');assert.equal(result.results[0].reference,'E-000001/2026');
+    const answer=s.corpus.search({query:'ocean',group:'document',uiLanguage:'fr'}).results[0];
+    assert.equal(answer.title,'Protection des océans');assert.equal(answer.reference,'E-000001/2026(ASW)');
+    putText(s.corpus,questionId,'question','2026-05-01','en','Ocean question');
+    assert.equal(s.corpus.search({query:'ocean',kind:'question',uiLanguage:'fr'}).results[0].title,'Protection des océans','saved exact-ID title is used even without an author item');
+    assert.deepEqual(result.results[0].people,[{id:43,name:'Saved author',role:'AUTHOR'}]);
+    assert.equal(result.hits[0].people[0].role,'QUESTION_AUTHOR');
+    assert.equal(s.corpus.search({query:'ocean',group:'question',from:'2026-06-01'}).total,0);
+    assert.equal(s.corpus.search({query:'ocean',dateBasis:'document',from:'2026-06-01'}).total,1);
+    assert.equal(s.corpus.search({query:'ocean',country:'IT'}).total,0);
+    assert.equal(s.corpus.coverage().authoritativeComplete,false);
+  } finally {s.cleanup();}
+});
+
+test('stored text reads exact keys, retains markup as text, and highlights with the search tokenizer',async()=>{
+  const s=stores(),id=question.identifier;
+  try {
+    const body='Économie <script>alert("x")</script> & policy';
+    putText(s.corpus,id,'question','2026-05-01','mul',body,{translationType:'machine'});
+    putText(s.corpus,id,'question','2026-05-01','en','Another variant');
+    const hit=s.corpus.search({query:'economie'}).hits[0];
+    const reader=new CorpusReader(path.dirname(s.corpus.filename),{indexFile:s.index.filename});
+    const text=await reader.query('text',{sourceId:id,sourceKey:hit.sourceKey,query:'economie'});
+    assert.equal(text.body,body);assert.equal(text.sourceKey,'mul');assert.equal(text.language,'en');
+    assert.equal(text.sha256,hit.sha256);assert.equal(text.sourceUrl,hit.sourceUrl);assert.equal(text.translationType,'machine');
+    assert.equal(text.highlightedBody,'\u0002Économie\u0003 <script>alert("x")</script> & policy');
+    assert.equal(s.corpus.text({sourceId:id,sourceKey:'missing'}),null);
+    assert.equal(s.corpus.text({sourceId:'UNKNOWN',sourceKey:'mul'}),null);
+    assert.equal(s.corpus.text({sourceId:id,sourceKey:'en',query:'economie'}).highlightedBody,'Another variant');
+    assert.equal('highlightedBody' in s.corpus.text({sourceId:id,sourceKey:'mul'}),false);
+    const longBody='Ocean '+'Ж'.repeat(1_400_000);
+    putText(s.corpus,'LARGE-Q','question','2026-05-01','en',longBody);
+    const long=s.corpus.text({sourceId:'LARGE-Q',sourceKey:'en',query:'ocean'});
+    assert.equal(long.body,longBody);assert.equal('highlightedBody' in long,false);
+    assert.deepEqual(long.highlightRanges,[{start:0,end:5}]);assert.equal(long.highlightsTruncated,false);
+    putText(s.corpus,'MATCHES-Q','question','2026-05-01','en','😀 ocean policy ocean');
+    const ranges=s.corpus.text({sourceId:'MATCHES-Q',sourceKey:'en',query:'ocean',highlightBytes:0,highlightRangeLimit:1});
+    assert.deepEqual(ranges.highlightRanges,[{start:3,end:8}]);assert.equal(ranges.highlightsTruncated,true);
+  } finally {s.cleanup();}
+});
+
+test('search options reject malformed and overlarge scopes without broadening an empty scope',()=>{
+  assert.deepEqual(corpusSearchOptions({query:'ocean',sourceIds:[],kinds:['question','answer'],group:'question',country:'GR'}).sourceIds,[]);
+  assert.equal(corpusSearchOptions({query:'ocean',country:'GR'}).country,'EL');
+  assert.equal(corpusSearchOptions({query:'ocean',group:'question'}).dateBasis,'question');
+  for(const input of [{query:'ocean',sourceIds:'ID'},{query:'ocean',sourceIds:['https://example.test']},{query:'ocean',sourceIds:Array(1001).fill('ID')},
+    {query:'ocean',kinds:['speech','speech']},{query:'ocean',kind:'speech',kinds:['answer']},{query:'ocean',group:'other'},
+    {query:'ocean',sort:'random'},{query:'ocean',dateBasis:'answer'},{query:'ocean',from:'2026-02-30'},{query:'ocean',from:'2026-06-01',to:'2026-05-01'},
+    {query:'ocean',country:'UK'},{query:'ocean',member:'43'},{query:'ocean',limit:51},{query:'ocean',offset:1001},{query:'ocean',unsupported:true},null,[]]){
+    assert.throws(()=>corpusSearchOptions(input),error=>error.status===400,JSON.stringify(input));
+  }
+});
+
+test('HTTP search POST and exact text GET are bounded read-only routes with strict validation',async()=>{
+  const s=stores(),id=question.identifier;
+  const savedEnv=Object.fromEntries(['CORPUS_ENABLED','CORPUS_DIR','ACTIVITY_INDEX_DIR','ODP_CACHE_DIR'].map(key=>[key,process.env[key]]));
+  putText(s.corpus,id,'question','2026-05-01','en','Ocean <b>policy</b>');
+  const answerId=question.inverse_answers_to[0].identifier;
+  putText(s.corpus,answerId,'answer','2026-06-01','en','Ocean institutional answer',{parentId:id});
+  s.index.db.prepare('INSERT INTO members VALUES (?,?)').run('43',JSON.stringify({id:'43',name:'Saved author'}));
+  const cache=path.join(s.dir,'cache');mkdirSync(cache);
+  const url='https://data.europarl.europa.eu/api/v2/meps/show-current?limit=1000&offset=0&format=application%2Fld%2Bjson';
+  writeFileSync(path.join(cache,createHash('sha256').update(url).digest('hex')+'.json'),JSON.stringify({url,fetchedAt:instant(),payload:{data:[{id:'person/43','api:country-of-representation':'HU'}]}}));
+  Object.assign(process.env,{CORPUS_ENABLED:'true',CORPUS_DIR:path.dirname(s.corpus.filename),ACTIVITY_INDEX_DIR:path.dirname(s.index.filename),ODP_CACHE_DIR:cache});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const base=`http://127.0.0.1:${server.address().port}/api/poc/corpus`;
+  const post=body=>fetch(base+'/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  try {
+    const response=await post({query:'ocean',sourceIds:[id],group:'question'});
+    assert.equal(response.status,200);assert.equal((await response.json()).results[0].sourceId,id);
+    const empty=await post({query:'ocean',sourceIds:[]});assert.equal((await empty.json()).total,0);
+    const country=await post({query:'ocean',sourceIds:[answerId],country:'HU',group:'question'});assert.equal((await country.json()).total,1,'country uses existing exact cached roster metadata, without profile fetches');
+    s.index.db.prepare('UPDATE members SET body=? WHERE id=?').run(JSON.stringify({id:'43',name:'Saved author',countryCode:'IT'}),'43');
+    const staleCountry=await post({query:'ocean',sourceIds:[answerId],country:'IT',group:'question'});assert.equal((await staleCountry.json()).total,0,'known cached roster metadata takes precedence over a conflicting saved index country');
+    const get=await fetch(base+'/search?q=ocean&kinds=question,answer&group=question&date-basis=question&sort=newest');
+    assert.equal(get.status,200);assert.equal((await get.json()).total,1);
+    const text=await fetch(base+'/text?source-id='+id+'&source-key=en&q=ocean');
+    assert.equal(text.status,200);assert.equal((await text.json()).highlightedBody,'\u0002Ocean\u0003 <b>policy</b>');
+    assert.equal((await fetch(base+'/text?source-id='+id+'&source-key=fr')).status,404);
+    assert.equal((await fetch(base+'/text?source-id='+id)).status,400);
+    assert.equal((await fetch(base+'/text?source-id='+id+'&source-key=en&source-key=fr')).status,400);
+    assert.equal((await fetch(base+'/search?q=ocean&from=2026-02-30')).status,400);
+    assert.equal((await fetch(base+'/search?q=ocean&q=policy')).status,400);
+    assert.equal((await post({query:'ocean',sourceIds:['INVALID/ID']})).status,400);
+    assert.equal((await fetch(base+'/search',{method:'POST',headers:{'Content-Type':'application/json'},body:'{broken'})).status,400);
+    assert.equal((await fetch(base+'/search',{method:'POST',body:'ocean'})).status,415);
+    assert.equal((await fetch(base+'/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'ocean',padding:'x'.repeat(128*1024)})})).status,413);
+    const chunks=(async function*(){yield 'x'.repeat(64*1024);yield 'x'.repeat(64*1024);yield 'x';})();
+    assert.equal((await fetch(base+'/search',{method:'POST',headers:{'Content-Type':'application/json'},body:chunks,duplex:'half'})).status,413,'chunked requests enforce the same byte limit');
+    assert.equal((await fetch(base+'/search',{method:'POST',headers:{'Origin':'https://other.test','Content-Type':'application/json'},body:'{"query":"ocean"}'})).status,403);
+    assert.equal((await fetch(base+'/text?source-id='+id+'&source-key=en',{method:'POST'})).status,405);
+    assert.match((await fetch(base+'/search',{method:'OPTIONS'})).headers.get('allow'),/POST/);
+    assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0,'HTTP reads schedule no corpus downloads');
+    putText(s.corpus,'LARGE-Q','question','2026-05-01','en','Ocean '+'Ж'.repeat(1_400_000));
+    const large=await fetch(base+'/text?source-id=LARGE-Q&source-key=en&q=ocean');
+    assert.equal(large.status,200);assert.deepEqual((await large.json()).highlightRanges,[{start:0,end:5}]);
+    putText(s.corpus,'OVERSIZED-Q','question','2026-05-01','en','Ocean '+'漢'.repeat(2*1024*1024-6));
+    const oversized=await fetch(base+'/text?source-id=OVERSIZED-Q&source-key=en&q=ocean');
+    assert.equal(oversized.status,413);assert.equal((await oversized.json()).error.code,'corpus_text_too_large','supported extraction can exceed a configured response budget, with an explicit reader-unavailable error');
+  } finally {
+    await new Promise(resolve=>server.close(resolve));
+    corpus().store.close();
+    for(const [key,value] of Object.entries(savedEnv)){if(value===undefined)delete process.env[key];else process.env[key]=value;}
+    s.cleanup();
+  }
 });

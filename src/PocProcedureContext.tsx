@@ -1,4 +1,5 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
+import {PocFindInText} from './PocTextSearch';
 import {useInsightData} from './PocInsightData';
 import {humanDate} from './PocInsightCharts';
 import './PocTopicContext.css';
@@ -10,7 +11,7 @@ type Context={reference:string;title:string;language:string;summaries:{id:string
 const stageName=(stage:string)=>({'first-reading':'First reading','parliament-decision':'Parliament’s decision','final-act':'Final act',proposal:'Commission proposal',document:'Summary'} as Record<string,string>)[stage]||'Summary';
 
 export function PocProcedureContext({reference,language='en',onTopic,showTitle=false}:{reference:string;language?:string;onTopic?:(topic:OfficialTopic)=>void;showTitle?:boolean}) {
-  const [summary,setSummary]=useState(''),[expanded,setExpanded]=useState(false);
+  const [summary,setSummary]=useState(''),[expanded,setExpanded]=useState(false),summaryText=useRef<HTMLDivElement>(null);
   useEffect(()=>{setSummary('');setExpanded(false);},[reference]);
   const params=new URLSearchParams({reference,lang:language});if(summary)params.set('summary',summary);
   const {data,loading,error}=useInsightData<Context>('insights/procedure-context?'+params);
@@ -20,8 +21,8 @@ export function PocProcedureContext({reference,language='en',onTopic,showTitle=f
   return <section className="insight-procedure-context">
     {amendmentLink}
     {showTitle&&<div className="insight-dossier-title"><h2>{data.title}</h2><p>{data.reference}</p></div>}
-    {data.summary&&<><header><h3>Summary</h3><div>{data.summaries.length>1?<label className="insight-summary-stage"><span className="poc-sr-only">Summary stage</span><select value={data.summary.id} onChange={event=>{setSummary(event.target.value);setExpanded(false);}}>{data.summaries.map(item=><option value={item.id} key={item.id}>{stageName(item.stage)}{item.date?' · '+humanDate(item.date,language):''}</option>)}</select></label>:<span>{stageName(data.summary.stage)}</span>}{data.summaries.length===1&&<time>{humanDate(data.summary.date,language)}</time>}</div></header>
-      <div className="insight-official-summary">{displayed.map((block,index)=>block.kind==='heading'?<h4 key={index}>{block.text}</h4>:<p key={index}>{block.text}</p>)}</div>
+    {data.summary&&<><header><div><h3>Summary</h3><PocFindInText key={data.summary.id} label="Find in summary" target={summaryText} onOpen={()=>setExpanded(true)}/></div><div>{data.summaries.length>1?<label className="insight-summary-stage"><span className="poc-sr-only">Summary stage</span><select value={data.summary.id} onChange={event=>{setSummary(event.target.value);setExpanded(false);}}>{data.summaries.map(item=><option value={item.id} key={item.id}>{stageName(item.stage)}{item.date?' · '+humanDate(item.date,language):''}</option>)}</select></label>:<span>{stageName(data.summary.stage)}</span>}{data.summaries.length===1&&<time>{humanDate(data.summary.date,language)}</time>}</div></header>
+      <div className="insight-official-summary" ref={summaryText}>{displayed.map((block,index)=>block.kind==='heading'?<h4 key={index}>{block.text}</h4>:<p key={index}>{block.text}</p>)}</div>
       <div className="insight-summary-footer">{blocks.length>2&&<button onClick={()=>setExpanded(value=>!value)} aria-expanded={expanded}>{expanded?'Show less':'Continue reading'}</button>}<a href={data.summary.source.url} target="_blank" rel="noreferrer">Legislative Observatory ↗</a><small>{new Intl.DisplayNames([language],{type:'language'}).of(data.language)}{data.summary.method?' · '+data.summary.method:''}</small></div>
     </>}
     {data.topics.length>0&&<div className="insight-official-topics"><h4>Topics <small>EuroVoc</small></h4><div>{data.topics.map(topic=>onTopic?<button key={topic.id} onClick={()=>onTopic(topic)}>{topic.label} <span aria-hidden="true">↗</span></button>:<PocSourceLink key={topic.id} url={topic.id} language={language}>{topic.label}</PocSourceLink>)}</div></div>}

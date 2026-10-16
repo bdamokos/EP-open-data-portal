@@ -246,6 +246,8 @@ test('fresh parsed split descriptions update retained votes even when no current
   rebuildAmendmentTarget(worker,generation,targetId);
   const [item]=amendmentsPage(store,{document:targetId}).items;
   assert.deepEqual(item.decisions.map(vote=>vote.id),[sitting+'-DEC-2']);
+  assert.equal(item.outcome,'ADOPTED');
+  assert(!item.gaps.includes('No explicit amendment outcome is indexed.'));
   assert.equal(item.splitParts.length,1);assert.equal(item.splitParts[0].id,oldPart.id);
   assert.equal(item.splitParts[0].status,'parsed');assert.equal(item.splitParts[0].description,'‘Fresh selection’');
   assert.equal(item.splitParts[0].plan.quote,'Fresh selection');
