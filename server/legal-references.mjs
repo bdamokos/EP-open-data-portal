@@ -4,6 +4,7 @@ import {InsightViewCache} from './insights-view-cache.mjs';
 import {odp,odpLanguage} from './odp.mjs';
 import {documentEndpoint} from './activities.mjs';
 import {referenceKey,documentCelexCandidates,questionCandidates,cellarProcedureReference,eurLexUrl} from './legal-reference-text.mjs';
+import {createRequestBudget,requestSignal,runWithRequestSignal,waitForRequest} from './request-budget.mjs';
 
 export const REFERENCE_LIMITS=Object.freeze({keys:40,titleLength:1200,freshMs:7*86400_000,missingFreshMs:86400_000});
 const authority='http://publications.europa.eu/resource/authority/language/';
@@ -101,21 +102,33 @@ class BatchCache extends InsightViewCache {
   async pruneBatch(){return super.prune();}
 }
 export class LegalReferences {
-  constructor(sources,{clock=Date.now,request=odp,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'legal-references-v1')}={}) {
-    Object.assign(this,{sources,clock,request});
+  constructor(sources,{clock=Date.now,request=odp,requestBudgetMs=28_000,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'legal-references-v1')}={}) {
+    Object.assign(this,{sources,clock,request,requestBudgetMs});
     this.cache=new BatchCache({directory,clock,maxEntries:3000,maxBytes:8*1024*1024,freshMs:REFERENCE_LIMITS.freshMs});
   }
   cacheKey(key,language){return this.cache.key(['legal-reference-v1',key,language]);}
   fresh(record){return record&&this.clock()-record.at<(record.value.status==='found'?REFERENCE_LIMITS.freshMs:REFERENCE_LIMITS.missingFreshMs);}
-  async query({keys,language}) {
+  async query(query) {
+    const budget=createRequestBudget(this.requestBudgetMs),parent=requestSignal();
+    const signal=parent?AbortSignal.any([parent,budget.signal]):budget.signal;
+    try{return await runWithRequestSignal(signal,()=>this.resolve(query,signal));}finally{budget.dispose();}
+  }
+  async resolve({keys,language},signal) {
     const saved=new Map();
-    for(const key of keys){const record=await this.cache.stored(this.cacheKey(key,language));if(record?.value?.key===key)saved.set(key,record);}
+    // Collect every available memory record before a disk wait can expire.
+    for(const key of keys){const record=this.cache.cache.get(this.cacheKey(key,language));if(record?.value?.key===key&&Number.isFinite(record.at))saved.set(key,record);}
+    for(const key of keys){
+      if(signal.aborted)break;
+      if(saved.has(key))continue;
+      try{const record=await waitForRequest(this.cache.stored(this.cacheKey(key,language)),signal);if(record?.value?.key===key)saved.set(key,record);}
+      catch(error){if(signal.aborted)break;throw error;}
+    }
     const missing=keys.filter(key=>!this.fresh(saved.get(key))),resolved=new Map();
     const documents=missing.filter(key=>key.startsWith('celex:')||documentCelexCandidates(key).length);
-    if(documents.length)try {
+    if(documents.length&&!signal.aborted)try {
       const candidates=new Map(documents.map(key=>[key,key.startsWith('celex:')?[key.slice(6)]:documentCelexCandidates(key)]));
       const url=new URL(sparqlEndpoint);url.searchParams.set('query',celexQuery([...candidates.values()].flat(),language));url.searchParams.set('format','application/sparql-results+json');
-      const source=await this.sources.get(url.href),parsed=parseCelex(source.data,[...candidates.values()].flat(),language);
+      const source=await waitForRequest(this.sources.get(url.href),signal),parsed=parseCelex(source.data,[...candidates.values()].flat(),language);
       const provenance={name:'Publications Office knowledge graph',url:sparqlEndpoint,fetchedAt:source.fetchedAt},stale=Boolean(source.viewCache?.stale);
       for(const [key,celexNumbers] of candidates) {
         const found=celexNumbers.map(celex=>parsed.get(celex)).filter(item=>item.status!=='not-found');
@@ -124,16 +137,17 @@ export class LegalReferences {
       }
     }catch(error){for(const key of documents)resolved.set(key,{key,kind:/^celex:3/.test(key)?'act':'document',status:'unavailable',reason:String(error.message).slice(0,200)});}
     const cellar=missing.filter(key=>key.startsWith('cellar:'));
-    if(cellar.length)try {
+    if(cellar.length&&!signal.aborted)try {
       const uuids=cellar.map(key=>key.slice(7)),url=new URL(sparqlEndpoint);url.searchParams.set('query',cellarQuery(uuids,language));url.searchParams.set('format','application/sparql-results+json');
-      const source=await this.sources.get(url.href),parsed=parseCellar(source.data,uuids,language);
+      const source=await waitForRequest(this.sources.get(url.href),signal),parsed=parseCellar(source.data,uuids,language);
       const stale=Boolean(source.viewCache?.stale);
       for(const key of cellar){const value=parsed.get(key.slice(7));resolved.set(key,{key,kind:kindOf(value.celex),...value,source:{name:'Publications Office knowledge graph',url:sparqlEndpoint,fetchedAt:source.fetchedAt},...(stale?{stale:true}:{})});}
     }catch(error){for(const key of cellar)resolved.set(key,{key,kind:'act',status:'unavailable',reason:String(error.message).slice(0,200)});}
     for(const key of missing.filter(key=>key.startsWith('question:'))) {
+      if(signal.aborted)break;
       const outcomes=await Promise.all(questionCandidates(key).map(async id=>{
         try {
-          const record=await this.request(documentEndpoint(id),{},{staleWhileRevalidate:true,priority:'interactive'});
+          const record=await waitForRequest(this.request(documentEndpoint(id),{},{staleWhileRevalidate:true,priority:'interactive'}),signal);
           const work=record.payload.data.find(node=>node.identifier===id);
           return work?{id,work,stale:Boolean(record.stale),apiUrl:record.url||'https://data.europarl.europa.eu/api/v2'+documentEndpoint(id),fetchedAt:new Date(record.fetchedAt).toISOString()}:{id,absent:true,stale:Boolean(record.stale)};
         }catch(error){return noRecord(error)?{id,absent:true}:{id,error:String(error.message).slice(0,200)};}
@@ -149,12 +163,17 @@ export class LegalReferences {
     // A procedure number is opened directly; its summary request checks it against OEIL.
     for(const key of missing.filter(key=>key.startsWith('procedure:')))resolved.set(key,{key,kind:'procedure',status:'found',procedure:key.slice(10)});
     // A result built from a stale upstream copy is shown as such and never saved as a fresh result.
-    for(const [key,value] of resolved)if(value.status!=='unavailable'&&!value.stale)await this.cache.save(this.cacheKey(key,language),value);
-    if(resolved.size&&this.cache.directory)await this.cache.pruneBatch().catch(()=>{});
+    for(const [key,value] of resolved){
+      if(signal.aborted)break;
+      if(value.status!=='unavailable'&&!value.stale)try{await waitForRequest(this.cache.save(this.cacheKey(key,language),value),signal);}catch(error){if(signal.aborted)break;throw error;}
+    }
+    if(resolved.size&&this.cache.directory&&!signal.aborted)await waitForRequest(this.cache.pruneBatch(),signal).catch(()=>{});
     const references=keys.map(key=>{
       const value=resolved.get(key);
       if(value?.status==='unavailable'&&saved.has(key))return {...saved.get(key).value,stale:true};
-      return value||saved.get(key).value;
+      if(value)return value;
+      if(saved.has(key))return {...saved.get(key).value,...(!this.fresh(saved.get(key))?{stale:true}:{})};
+      return {key,kind:key.startsWith('question:')?'question':key.startsWith('procedure:')?'procedure':key.startsWith('cellar:')||key.startsWith('celex:3')?'act':'document',status:'unavailable',reason:signal.reason?.message||'Reference details are temporarily unavailable.'};
     });
     return {view:'legal-references',language,references,attribution:'Publications Office of the European Union (EUR-Lex, Cellar) and European Parliament Open Data API v2, CC BY 4.0'};
   }
