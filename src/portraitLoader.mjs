@@ -23,6 +23,9 @@ export function createPortraitLoader({concurrency = 3, maxQueued = 1024, startIn
     // cooldown, and a filtered/unmounted consumer may no longer need the job.
     if (delay > 0) return wait(Math.min(delay, 30_000)).then(() => admit(job));
     if (startInterval > 0) credit--;
+    // Do not yield between checking the shared cooldown and starting HTTP.
+    // Another response may otherwise establish a cooldown in that gap.
+    return fetchImpl(job.url, {credentials: 'omit', redirect: 'error'});
   }
 
   function pause(response) {
@@ -39,10 +42,7 @@ export function createPortraitLoader({concurrency = 3, maxQueued = 1024, startIn
 
   async function read(job) {
     for (let attempt = 0; ; attempt++) {
-      const admission = admit(job);
-      if (admission) await admission;
-      if (!job.listeners.size) throw aborted();
-      const response = await fetchImpl(job.url, {credentials: 'omit', redirect: 'error'});
+      const response = await admit(job);
       if (response.ok) return response.blob();
       const limited = [429, 503].includes(response.status);
       if (limited) pause(response);
