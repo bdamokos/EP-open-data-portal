@@ -2,6 +2,7 @@ import {useEffect,useState,useSyncExternalStore} from 'react';
 import {api,expireActivityReads} from './pocData';
 import {createSavedStore,savedKey,savedLinks,type SavedItem,type SavedStates} from './pocBookmarks.mjs';
 import {humanDate} from './PocInsightCharts';
+import {interfaceTerm,compoundLanguage} from './pocTerms.mjs';
 const listeners=new Set<()=>void>();let storage:Storage|null=null;
 try{storage=window.localStorage;}catch{}
 const store=createSavedStore(storage,()=>listeners.forEach(listener=>listener()));
@@ -20,10 +21,12 @@ export function useSavedChecks(language:string) {
   const {items}=useSaved(),key=items.map(savedKey).sort().join(',');
   useEffect(()=>{void checkSaved(language,true).catch(()=>{});const check=()=>{if(document.visibilityState==='visible')void checkSaved(language).catch(()=>{});};window.addEventListener('focus',check);document.addEventListener('visibilitychange',check);return()=>{window.removeEventListener('focus',check);document.removeEventListener('visibilitychange',check);};},[key,language]);
 }
-export function SaveButton({item,compact=false}:{item:SavedItem;compact?:boolean}) {
+export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;compact?:boolean;language?:string}) {
   const {items}=useSaved(),saved=items.some(x=>savedKey(x)===savedKey(item)),[error,setError]=useState('');
-  const label=item.kind==='mep'?(saved?'Following':'Follow'):(saved?'Saved':'Save');
-  return <><button className={'poc-save-button'+(saved?' is-saved':'')} lang={!item.title||item.titleLanguage==='en'?'en':''} aria-label={`${label} ${item.kind==='mep'?'MEP':'question'}${item.title?' · '+item.title:''}`} aria-pressed={saved} title={saved?'Saved in this browser':'Save in this browser'} onClick={()=>{try{store.toggle(item);setError('');}catch(e){setError((e as Error).message);}}}><span aria-hidden="true">{saved?'★':'☆'}</span>{!compact&&<span lang="en">{label}</span>}</button>{error&&<small role="alert" lang="en">{error}</small>}</>;
+  const label=item.kind==='mep'?{text:saved?'Following':'Follow',language:'en'}:interfaceTerm(saved?'saved-question':'save-question',language);
+  const name=item.kind==='mep'?label.text+' MEP':label.text;
+  const tooltip=item.kind==='mep'?(saved?'Saved in this browser':'Save in this browser'):interfaceTerm(saved?'saved-in-browser':'save-in-browser',language).text;
+  return <><button className={'poc-save-button'+(saved?' is-saved':'')} lang={item.title?compoundLanguage(label.language,item.titleLanguage):label.language} aria-label={`${name}${item.title?' · '+item.title:''}`} aria-pressed={saved} title={tooltip} onClick={()=>{try{store.toggle(item);setError('');}catch(e){setError((e as Error).message);}}}><span aria-hidden="true">{saved?'★':'☆'}</span>{!compact&&<span lang={label.language}>{label.text}</span>}</button>{error&&<small role="alert" lang="en">{error}</small>}</>;
 }
 export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:boolean}) {
   const saved=useSaved(),items=saved.items,updates=items.filter(item=>item.updated).length;
@@ -40,7 +43,7 @@ export function PocSaved({language,onBack,onMember}:{language:string;onBack:()=>
     {error&&<p role="alert">{error}</p>}
     {!items.length&&<p>Follow a MEP or save a question to see new activity and answers here.</p>}
     <div className="poc-saved-items">{items.map(item=><article key={savedKey(item)}>
-      <div className="poc-saved-heading"><h3 lang={item.titleLanguage||''}>{item.title}</h3><SaveButton item={item} compact/></div>
+      <div className="poc-saved-heading"><h3 lang={item.titleLanguage||''}>{item.title}</h3><SaveButton item={item} language={language} compact/></div>
       {item.updated&&<strong className="poc-update-label">{item.newAnswer?(item.newActivity?'New activity and new answer':'New answer'):item.newActivity?'New activity':'Updated'}</strong>}
       {item.availability==='outside-roster'&&<p>No longer on the current roster.</p>}
       {(item.kind==='mep'||item.memberId)&&<button onClick={()=>{item.kind==='mep'?store.markActivityRead(savedKey(item)):store.markRead(savedKey(item));onMember(Number(item.kind==='mep'?item.id:item.memberId),item.kind==='question'?item.id:undefined);}}>{item.kind==='mep'?'Profile':'Read question and answers'}</button>}

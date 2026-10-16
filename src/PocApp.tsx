@@ -6,6 +6,7 @@ import {InterventionBadges,PocSpeechContext,PocInterventionStatistics} from './P
 import {publicationBody} from './publication-body.mjs';
 import {orderedMemberships} from './pocMemberships.mjs';
 import {PocSaved,SaveButton,useSavedChecks} from './PocSaved';
+import {interfaceTerm} from './pocTerms.mjs';
 import {ParliamentHeader} from './ParliamentHeader';
 import {QuestionStatus} from './PocQuestionStatus';
 import {MotionStatuses,PocMotionOutcome} from './PocMotionOutcome';
@@ -119,7 +120,7 @@ function Detail({ speech, lang }: { speech: Speech; lang: string }) {
         <>
           {state.data.textCache?.stale && <small lang="en">Showing saved transcript.{state.data.textCache.refreshInProgress ? " A refresh is running in the background." : state.data.textCache.refreshError ? " The last refresh failed." : ""}</small>}
           <div className="poc-text-meta" lang="en">
-            {state.data.textLanguage ? <span lang="">{state.data.textLanguage.toUpperCase()}</span> : "Text unavailable"}
+            {state.data.textLanguage ? <span lang="">{state.data.textLanguage.toUpperCase()}</span> : text.paragraphs.length ? "Language unspecified" : "Text unavailable"}
             {state.data.translationType === "machine" || text.machine
               ? " · Parliament machine translation"
               : state.data.translationType === "original"
@@ -197,13 +198,14 @@ function JoinedDetails({ item, lang, member }: { item: JoinedActivity; lang: str
   const hasText=item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer';
   const document=useData<PublicationDocument>(item.recordKind!=='speech' && !hasText ? `document/${item.sourceId}?member=${member}&lang=${lang}` : null);
   const roles: Record<string,string> = {AUTHOR:"Author",QUESTION_AUTHOR:"Author of the question",RAPPORTEUR:"Rapporteur",RAPPORTEUR_SHADOW:"Shadow rapporteur",RAPPORTEUR_OPINION:"Opinion rapporteur",RAPPORTEUR_SHADOW_OPINION:"Shadow opinion rapporteur",SPEAKER:"Plenary contribution"};
+  const stage=item.provenance.stage==='RDG1'?interfaceTerm('first-reading',lang):item.provenance.stage==='RDG2'?interfaceTerm('second-reading',lang):{text:item.provenance.stage,language:''};
   if (item.recordKind === "speech") return <Detail speech={{id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null}} lang={lang} />;
   return <div className="poc-speech-detail" lang={lang}>
-    {!hasText&&<p lang="en"><strong lang={roles[item.provenance.role] ? "en" : ""}>{item.relatedJointMotions?.length && item.provenance.role==="AUTHOR" ? "Author of the original motion" : roles[item.provenance.role] || item.provenance.role}</strong>{item.provenance.stage ? <> · <span lang={['RDG1','RDG2'].includes(item.provenance.stage) ? "en" : ""}>{item.provenance.stage === "RDG1" ? "First reading" : item.provenance.stage === "RDG2" ? "Second reading" : item.provenance.stage}</span></> : ""}</p>}
+    {!hasText&&<p lang="en"><strong lang={roles[item.provenance.role] ? "en" : ""}>{item.relatedJointMotions?.length && item.provenance.role==="AUTHOR" ? "Author of the original motion" : roles[item.provenance.role] || item.provenance.role}</strong>{item.provenance.stage ? <> · <span lang={stage.language}>{stage.text}</span></> : ""}</p>}
     {!hasText&&<span lang="en"><AmendmentTrailLink document={item.sourceId} language={lang}>Amendments to this document</AmendmentTrailLink></span>}
     <PocMotionOutcome outcome={item.resolutionOutcome} related={item.relatedJointMotions} reference={item.reference} sourceId={item.sourceId} language={lang}/>
     {(item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer') && <>
-      {item.recordKind!=='answer'&&<SaveButton item={{kind:'question',id:item.sourceId,title:item.title,titleLanguage:item.titleLanguage,memberId:String(member),date:item.date,baseline:item.answerIds?{answerIds:item.answerIds}:undefined}}/>}
+      {item.recordKind!=='answer'&&<SaveButton language={lang} item={{kind:'question',id:item.sourceId,title:item.title,titleLanguage:item.titleLanguage,memberId:String(member),date:item.date,baseline:item.answerIds?{answerIds:item.answerIds}:undefined}}/>}
       <PublicationText sourceId={item.sourceId} member={member} lang={lang} heading={item.recordKind==='answer' ? 'Answer' : 'Question'} includeAnswers={item.recordKind!=='answer'} question={item.recordKind==='answer'&&item.relatedQuestionId?{id:item.relatedQuestionId,title:item.relatedQuestionTitle}:undefined} />
       {item.recordKind==='answer' && item.relatedQuestionId && <PublicationText sourceId={item.relatedQuestionId} member={member} lang={lang} heading="Linked question" />}
     </>}
