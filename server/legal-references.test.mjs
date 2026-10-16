@@ -18,6 +18,14 @@ test('official reference numbers map to exact lookup keys',()=>{
   assert.deepEqual(keys('COM(2023) 139 final, SWD(2025)12 and JOIN(2023) 8'),[['com:2023/139','COM(2023) 139 final'],['swd:2025/12','SWD(2025)12'],['join:2023/8','JOIN(2023) 8']]);
   assert.deepEqual(keys('procedure 2025/0407(COD) and question E-002215/2025, see https://www.europarl.europa.eu/doceo/document/E-10-2025-002215-ASW_EN.html'),[['procedure:2025/0407(COD)','2025/0407(COD)'],['question:E-2025-002215','E-002215/2025'],['question:E-2025-002215','https://www.europarl.europa.eu/doceo/document/E-10-2025-002215-ASW_EN.html']]);
 });
+test('CELEX suffixes are kept and corrigendum ELIs are not read as the act',()=>{
+  assert.deepEqual(keys('https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32011D0812(01)'),[['celex:32011D0812(01)','https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32011D0812(01)']]);
+  assert.deepEqual(keys('https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32011D0812%2801%29&qid=1'),[['celex:32011D0812(01)','https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32011D0812%2801%29&qid=1']]);
+  assert.equal(referenceKey('celex:32011D0812(01)'),'celex:32011D0812(01)');
+  assert.match(celexQuery(['32011D0812(01)'],'en'),/"32011D0812\(01\)"/);
+  assert.deepEqual(keys('http://data.europa.eu/eli/reg/2016/679/oj/eng and https://eur-lex.europa.eu/eli/dir/2019/1937/oj'),[['celex:32016R0679','http://data.europa.eu/eli/reg/2016/679/oj/eng'],['celex:32019L1937','https://eur-lex.europa.eu/eli/dir/2019/1937/oj']]);
+  assert.deepEqual(keys('http://data.europa.eu/eli/reg/2016/679/corrigendum/2018-05-23/oj'),[]);
+});
 test('glued footnote numbers, treaty CELEX numbers and unsupported years are not guessed',()=>{
   // Text saved before footnote extraction can read 139/2004 followed by marker 2.
   assert.deepEqual(keys('Regulation 139/20042 and Regulation (EU) 2021/21162'),[]);
@@ -114,6 +122,17 @@ test('lookups use exact candidates, verify term-boundary questions and do not ca
     // Two existing records for one printed number stay unresolved.
     const both=await new LegalReferences(sources,{request:async endpoint=>({url:'x',fetchedAt:0,payload:{data:[{identifier:endpoint.split('/').pop()}]}}),directory:null}).query({keys:['question:E-2019-000001'],language:'en'});
     assert.equal(both.references[0].status,'ambiguous');
+  }finally{await rm(directory,{recursive:true,force:true});}
+});
+test('results built from a stale upstream copy are labelled and not saved as fresh',async()=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'legal-references-stale-'));
+  try {
+    const answer=(stale)=>({get:async url=>({url,fetchedAt:'2026-10-01T00:00:00.000Z',viewCache:{stale},data:{results:{bindings:[row('32016R0679',{force:literal(stale?'1':'0')})]}}})});
+    const clock=()=>Date.parse('2026-10-15T00:00:00Z');
+    const first=await new LegalReferences(answer(true),{directory,clock,request:async()=>{throw new Error('unused');}}).query({keys:['celex:32016R0679'],language:'en'});
+    assert.equal(first.references[0].stale,true);assert.equal(first.references[0].inForce,true);
+    const second=await new LegalReferences(answer(false),{directory,clock,request:async()=>{throw new Error('unused');}}).query({keys:['celex:32016R0679'],language:'en'});
+    assert.equal(second.references[0].stale,undefined);assert.equal(second.references[0].inForce,false);
   }finally{await rm(directory,{recursive:true,force:true});}
 });
 test('older Legislative Observatory summaries keep hard-wrapped division text as paragraphs',()=>{

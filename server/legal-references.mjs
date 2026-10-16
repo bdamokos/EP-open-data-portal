@@ -26,7 +26,7 @@ const workFields=wanted=>` OPTIONAL { ?work cdm:work_date_document ?date }
  OPTIONAL { ?expression cdm:expression_belongs_to_work ?work; cdm:expression_uses_language ?lang; cdm:expression_title ?title. FILTER(?lang IN (${wanted})) }`;
 const wantedLanguages=language=>[...new Set(['ENG',languages[language]||'ENG'])].map(code=>`<${authority}${code}>`).join(',');
 export function celexQuery(celexNumbers,language) {
-  if(!celexNumbers.length||celexNumbers.some(celex=>!/^[35]\d{4}[A-Z]{1,2}\d{4}$/.test(celex)))throw new HttpError(400,'invalid_references','Invalid CELEX selection.');
+  if(!celexNumbers.length||celexNumbers.some(celex=>!/^[35]\d{4}[A-Z]{1,2}\d{4}(?:\(\d{2}\))?$/.test(celex)))throw new HttpError(400,'invalid_references','Invalid CELEX selection.');
   return `PREFIX cdm:<http://publications.europa.eu/ontology/cdm#>
 PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>
 SELECT DISTINCT ?celex ?work ?date ?force ?proc ?lang ?title WHERE {
@@ -116,38 +116,40 @@ export class LegalReferences {
       const candidates=new Map(documents.map(key=>[key,key.startsWith('celex:')?[key.slice(6)]:documentCelexCandidates(key)]));
       const url=new URL(sparqlEndpoint);url.searchParams.set('query',celexQuery([...candidates.values()].flat(),language));url.searchParams.set('format','application/sparql-results+json');
       const source=await this.sources.get(url.href),parsed=parseCelex(source.data,[...candidates.values()].flat(),language);
-      const provenance={name:'Publications Office knowledge graph',url:sparqlEndpoint,fetchedAt:source.fetchedAt};
+      const provenance={name:'Publications Office knowledge graph',url:sparqlEndpoint,fetchedAt:source.fetchedAt},stale=Boolean(source.viewCache?.stale);
       for(const [key,celexNumbers] of candidates) {
         const found=celexNumbers.map(celex=>parsed.get(celex)).filter(item=>item.status!=='not-found');
         const value=found.length===1?found[0]:{status:found.length?'ambiguous':'not-found',celex:null};
-        resolved.set(key,{key,kind:/^celex:3/.test(key)?'act':'document',...value,source:provenance});
+        resolved.set(key,{key,kind:/^celex:3/.test(key)?'act':'document',...value,source:provenance,...(stale?{stale:true}:{})});
       }
     }catch(error){for(const key of documents)resolved.set(key,{key,kind:/^celex:3/.test(key)?'act':'document',status:'unavailable',reason:String(error.message).slice(0,200)});}
     const cellar=missing.filter(key=>key.startsWith('cellar:'));
     if(cellar.length)try {
       const uuids=cellar.map(key=>key.slice(7)),url=new URL(sparqlEndpoint);url.searchParams.set('query',cellarQuery(uuids,language));url.searchParams.set('format','application/sparql-results+json');
       const source=await this.sources.get(url.href),parsed=parseCellar(source.data,uuids,language);
-      for(const key of cellar){const value=parsed.get(key.slice(7));resolved.set(key,{key,kind:kindOf(value.celex),...value,source:{name:'Publications Office knowledge graph',url:sparqlEndpoint,fetchedAt:source.fetchedAt}});}
+      const stale=Boolean(source.viewCache?.stale);
+      for(const key of cellar){const value=parsed.get(key.slice(7));resolved.set(key,{key,kind:kindOf(value.celex),...value,source:{name:'Publications Office knowledge graph',url:sparqlEndpoint,fetchedAt:source.fetchedAt},...(stale?{stale:true}:{})});}
     }catch(error){for(const key of cellar)resolved.set(key,{key,kind:'act',status:'unavailable',reason:String(error.message).slice(0,200)});}
     for(const key of missing.filter(key=>key.startsWith('question:'))) {
       const outcomes=await Promise.all(questionCandidates(key).map(async id=>{
         try {
           const record=await this.request(documentEndpoint(id),{},{staleWhileRevalidate:true,priority:'interactive'});
           const work=record.payload.data.find(node=>node.identifier===id);
-          return work?{id,work,apiUrl:record.url||'https://data.europarl.europa.eu/api/v2'+documentEndpoint(id),fetchedAt:new Date(record.fetchedAt).toISOString()}:{id,absent:true};
+          return work?{id,work,stale:Boolean(record.stale),apiUrl:record.url||'https://data.europarl.europa.eu/api/v2'+documentEndpoint(id),fetchedAt:new Date(record.fetchedAt).toISOString()}:{id,absent:true,stale:Boolean(record.stale)};
         }catch(error){return noRecord(error)?{id,absent:true}:{id,error:String(error.message).slice(0,200)};}
       }));
       const found=outcomes.filter(outcome=>outcome.work);
       // A failed lookup could hide a second candidate, so it never resolves a term-boundary year.
       if(found.length===1&&!outcomes.some(outcome=>outcome.error)) {
-        const {id,work,apiUrl,fetchedAt}=found[0],answers=Array.isArray(work.inverse_answers_to)?work.inverse_answers_to:[];
-        resolved.set(key,{key,kind:'question',status:'found',id,...questionTitle(work,language),date:work.document_date||null,answerIds:answers.map(a=>a?.identifier).filter(id=>typeof id==='string').slice(0,5),source:{name:'European Parliament Open Data API v2',url:apiUrl,fetchedAt}});
+        const {id,work,apiUrl,fetchedAt}=found[0],stale=outcomes.some(outcome=>outcome.stale),answers=Array.isArray(work.inverse_answers_to)?work.inverse_answers_to:[];
+        resolved.set(key,{key,kind:'question',status:'found',id,...questionTitle(work,language),date:work.document_date||null,answerIds:answers.map(a=>a?.identifier).filter(id=>typeof id==='string').slice(0,5),source:{name:'European Parliament Open Data API v2',url:apiUrl,fetchedAt},...(stale?{stale:true}:{})});
       }
-      else resolved.set(key,{key,kind:'question',status:found.length>1?'ambiguous':outcomes.some(outcome=>outcome.error)?'unavailable':'not-found',id:null});
+      else resolved.set(key,{key,kind:'question',status:found.length>1?'ambiguous':outcomes.some(outcome=>outcome.error)?'unavailable':'not-found',id:null,...(outcomes.some(outcome=>outcome.stale)?{stale:true}:{})});
     }
     // A procedure number is opened directly; its summary request checks it against OEIL.
     for(const key of missing.filter(key=>key.startsWith('procedure:')))resolved.set(key,{key,kind:'procedure',status:'found',procedure:key.slice(10)});
-    for(const [key,value] of resolved)if(value.status!=='unavailable')await this.cache.save(this.cacheKey(key,language),value);
+    // A result built from a stale upstream copy is shown as such and never saved as a fresh result.
+    for(const [key,value] of resolved)if(value.status!=='unavailable'&&!value.stale)await this.cache.save(this.cacheKey(key,language),value);
     if(resolved.size&&this.cache.directory)await this.cache.pruneBatch().catch(()=>{});
     const references=keys.map(key=>{
       const value=resolved.get(key);

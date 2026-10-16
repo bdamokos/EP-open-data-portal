@@ -61,6 +61,15 @@ test('DOCX footnotes are returned separately with exact marker positions and hyp
   assert.equal(documentNotes({extractionVersion:3,paragraphs:['Text'],notes:[note],anchors:[],links:[{paragraph:0,start:0,end:9,url:'https://x.eu'}]}).notesStatus,'not-extracted');
   assert.deepEqual(documentNotes({extractionVersion:3,paragraphs:['Text'],notes:[note],anchors:[{paragraph:0,offset:4,note:'1',label:'1'}],links:[{paragraph:0,start:0,end:4,url:'https://x.eu'}]}).documentLinks,[{paragraph:0,start:0,end:4,url:'https://x.eu'}]);
 });
+test('body text sharing a run with a footnote reference is kept, and only custom labels are stripped from notes',()=>{
+  const w='xmlns:w="urn:word"';
+  const document=`<w:document ${w}><w:body><w:p><w:r><w:t>Body before</w:t><w:footnoteReference w:id="1"/><w:t xml:space="preserve"> after.</w:t></w:r></w:p><w:p><w:r><w:t>Custom</w:t></w:r><w:r><w:footnoteReference w:customMarkFollows="1" w:id="2"/><w:t>*</w:t><w:t xml:space="preserve"> tail</w:t></w:r></w:p></w:body></w:document>`;
+  const footnotes=`<w:footnotes ${w}><w:footnote w:id="1"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> 1.2 million businesses</w:t></w:r></w:p></w:footnote><w:footnote w:id="2"><w:p><w:r><w:t>* Starred note</w:t></w:r></w:p></w:footnote></w:footnotes>`;
+  const content=docxContent(zipEntries({'word/document.xml':document,'word/footnotes.xml':footnotes}));
+  assert.deepEqual(content.paragraphs,['Body before after.','Custom tail']);
+  assert.deepEqual(content.anchors,[{paragraph:0,offset:11,note:'1',label:'1'},{paragraph:1,offset:6,note:'2',label:'*'}]);
+  assert.deepEqual(content.notes.map(note=>note.text),['1.2 million businesses','Starred note']);
+});
 test('document download accepts only API distributions and the observed official redirect host/path',()=>{
   assert(allowedDownload('https://data.europarl.europa.eu/distribution/id/file.docx'));
   assert(allowedDownload('https://redmapl3.europarl.europa.eu/RedmapFront/media/id/file.docx'));

@@ -9,13 +9,15 @@ const questionTerms=year=>year>=2025?[10]:year===2024?[9,10]:year>=2020?[9]:year
 
 const celexKey=(year,letter,number)=>year>=1950&&year<=2099&&Number(number)>0&&Number(number)<=99999?`celex:3${year}${letter}${pad(Number(number),4)}`:null;
 const patterns=[
-  {kind:'eli',pattern:/\bhttps?:\/\/(?:data\.europa\.eu|eur-lex\.europa\.eu)\/eli\/(reg|reg_impl|reg_del|dir|dir_impl|dir_del|dec|dec_impl|dec_del)\/(\d{4})\/(\d{1,4})(?![\d])(?:\/[a-z0-9_/-]*)?/gi,
+  // Only the act itself: a corrigendum or consolidated-version ELI names a different document.
+  {kind:'eli',pattern:/\bhttps?:\/\/(?:data\.europa\.eu|eur-lex\.europa\.eu)\/eli\/(reg|reg_impl|reg_del|dir|dir_impl|dir_del|dec|dec_impl|dec_del)\/(\d{4})\/(\d{1,4})(?:\/oj(?:\/[a-z]{3})?)?(?![\w/])/gi,
     key:m=>celexKey(Number(m[2]),eliLetter[m[1].toLowerCase()],m[3])},
   // A Cellar resource link names one work; an expression or manifestation suffix is ignored.
   {kind:'cellar',pattern:/\bhttps?:\/\/(?:eur-lex\.europa\.eu\/[^\s<>"]*?[?&]uri=cellar(?::|%3A)|publications\.europa\.eu\/resource\/cellar\/)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?![0-9a-f-])[^\s<>"]*/gi,
     key:m=>`cellar:${m[1].toLowerCase()}`},
-  {kind:'celex',pattern:/\bhttps?:\/\/eur-lex\.europa\.eu\/[^\s<>"]*?[?&]uri=celex(?::|%3A)([35]\d{4}[A-Z]{1,2}\d{4})(?![0-9A-Z])[^\s<>"]*/gi,
-    key:m=>`celex:${m[1].toUpperCase()}`},
+  // A suffix such as (01) identifies a different act and stays part of the number.
+  {kind:'celex',pattern:/\bhttps?:\/\/eur-lex\.europa\.eu\/[^\s<>"]*?[?&]uri=celex(?::|%3A)([35]\d{4}[A-Z]{1,2}\d{4})(?:\((\d{2})\)|%28(\d{2})%29)?(?![0-9A-Z(%])[^\s<>"]*/gi,
+    key:m=>`celex:${m[1].toUpperCase()}${m[2]||m[3]?`(${m[2]||m[3]})`:''}`},
   // Post-2015 acts use one year/number sequence: Regulation (EU) 2016/679.
   {kind:'act',pattern:/\b(Regulation|Directive|Decision)\s+\((?:EU|EU,\s*Euratom|Euratom|CFSP)\)\s+(?!No\b)(20\d{2})\/(\d{1,4})(?![\d/])/g,
     key:m=>Number(m[2])>=2015?celexKey(Number(m[2]),actLetter[m[1].toLowerCase()],m[3]):null},
@@ -37,7 +39,7 @@ const patterns=[
 
 export function referenceKey(value) {
   const text=String(value);
-  if(/^celex:[35]\d{4}[A-Z]{1,2}\d{4}$/.test(text))return text;
+  if(/^celex:[35]\d{4}[A-Z]{1,2}\d{4}(?:\(\d{2}\))?$/.test(text))return text;
   if(/^cellar:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(text))return text;
   if(/^(?:com|swd|join):(?:19|20)\d{2}\/[1-9]\d{0,3}$/.test(text))return text;
   if(/^procedure:(?:19|20)\d{2}\/\d{4}[A-Z]?\([A-Z]{3}\)$/.test(text))return text;

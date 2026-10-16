@@ -91,7 +91,7 @@ function ReferenceCard({reference,text,language,onQuestion,evidence,notePrefix,r
     <p className="legal-reference-kind">{[kind,status].filter(Boolean).join(' · ')}</p>
     {reference.kind!=='procedure'&&<p className="legal-reference-title" lang={reference.titleLanguage||undefined}>{reference.title||text}</p>}
     <p className="legal-reference-meta">{[displayDate(reference.date,language),procedure&&reference.kind!=='procedure'?'Procedure '+procedure:null,older].filter(Boolean).join(' · ')}</p>
-    {reference.stale&&<p className="legal-reference-meta">Saved description; the official catalogue is temporarily unavailable.</p>}
+    {reference.stale&&<p className="legal-reference-meta">Saved description{reference.source?.fetchedAt?' from '+displayDate(reference.source.fetchedAt,language):''}; a newer check of the official source is pending.</p>}
     <div className="legal-reference-actions">
       {reference.kind==='question'&&reference.id&&onQuestion&&<button type="button" onClick={()=>onQuestion(reference.id!)}>{reference.answerIds?.length?'Read question and answer':'Read question'}</button>}
       {procedure&&reference.kind!=='procedure'&&<button type="button" aria-expanded={summaryOpen} onClick={()=>setSummaryOpen(value=>!value)}>{summaryOpen?'Hide dossier summary':'Dossier summary'}</button>}
