@@ -21,6 +21,9 @@
 .intervention-context{margin:.8rem 0 1.1rem;border-block:1px solid #d9e1e4}
 .intervention-context-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;padding:.8rem 0;background:transparent;border:0;color:#165a70;text-align:left;font-weight:650!important}
 .intervention-debate{padding:.25rem 0 1rem}
+.intervention-error{margin:.7rem 0;overflow-wrap:anywhere}
+.poc .intervention-error button{background:white;color:#155e71;border:1px solid #becdd2;border-radius:4px;padding:.5rem .75rem;min-height:44px}
+.poc .intervention-error button:disabled{cursor:wait;opacity:.65}
 .intervention-sequence{list-style:none;padding:0!important;margin:1rem 0!important}
 .intervention-sequence>li{display:grid;grid-template-columns:1.7rem minmax(0,1fr);gap:.55rem;padding:0 0 .9rem;position:relative}
 .intervention-sequence>li:not(:last-child):before{content:'';position:absolute;left:.8rem;top:1.6rem;bottom:.1rem;border-left:1px solid #cbd7de}

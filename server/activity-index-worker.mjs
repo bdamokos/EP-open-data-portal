@@ -1,6 +1,7 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { stat } from 'node:fs/promises';
 import { ODP_BASE, boundedUpstream, backoffUpstream } from './odp.mjs';
+import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
 import { HttpError } from './http-utils.mjs';
@@ -50,7 +51,7 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
   return boundedUpstream(async()=> {
     const response=await fetch(url,{headers:{Accept:xml?'application/atom+xml':'application/ld+json','User-Agent':'MEP-Wall-dev-1.0 (joined activity index)'},redirect:'error',signal:AbortSignal.any([AbortSignal.timeout(45_000),...(signal?[signal]:[])])});
     if (response.status===204) return xml ? {xml:'<feed/>',fetchedAt:new Date().toISOString()} : {payload:{data:[]},fetchedAt:new Date().toISOString()};
-    if (!response.ok) { await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;e.retryAfter=Math.min(30*60,Math.max(0,Number(response.headers.get('retry-after')) || 0));if(response.status===429||response.status===503){e.retryAfter=Math.max(30,e.retryAfter);backoffUpstream(e.retryAfter);}throw e; }
+    if (!response.ok) { await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;e.retryAfter=Math.min(1800,Math.max(0,Number(response.headers.get('retry-after'))||0));if(response.status===429||response.status===503){e.retryAfter=retryAfterSeconds(response.headers.get('retry-after'));backoffUpstream(e.retryAfter);}throw e; }
     const contentType=response.headers.get('content-type') || '';
     if (!(xml?/xml/.test(contentType):/json/.test(contentType))) {await response.body?.cancel();throw new Error(`EP API returned unexpected ${contentType || 'missing content type'} at ${endpoint}.`);}
     const chunks=[];let bytes=0;
@@ -59,7 +60,7 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
     if (xml) return {xml:text,fetchedAt:new Date().toISOString()};
     const payload=JSON.parse(text);if(!Array.isArray(payload.data))throw new Error('EP API returned an invalid data array.');
     return {payload,fetchedAt:new Date().toISOString()};
-  },{priority:'background'});
+  },{priority:'background',signal});
 }
 export class ActivityWorker {
   constructor(store,{fetchRecord=apiFetch,clock=Date.now,budget=1000,maxDuration=90*60_000,diskLimit=1024*1024*1024}={}) {

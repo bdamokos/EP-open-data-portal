@@ -2,6 +2,7 @@ import {mkdir, open, readdir, rename, stat, unlink, writeFile} from 'node:fs/pro
 import {createHash, randomUUID} from 'node:crypto';
 import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
+import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 
 const IMAGE_LIMIT = 2 * 1024 * 1024;
 const HEADER_LIMIT = 4096;
@@ -100,6 +101,7 @@ export class PortraitCache {
       const info = await file.stat();
       if (info.size > IMAGE_LIMIT + HEADER_LIMIT + 4) return null;
       const data = await file.readFile();
+      requestSignal()?.throwIfAborted();
       const headerLength = data.length >= 4 ? data.readUInt32BE(0) : 0;
       if (!headerLength || headerLength > HEADER_LIMIT || headerLength + 4 >= data.length) return null;
       const header = JSON.parse(data.subarray(4, 4 + headerLength).toString('utf8'));
@@ -119,11 +121,14 @@ export class PortraitCache {
 
   async save(id, image) {
     if (!this.directory) return;
+    const signal=requestSignal();
     // Serialize pruning and writes so parallel downloads cannot exceed the budget.
     const operation = this.writes.then(async () => {
       let temporary;
       try {
+        signal?.throwIfAborted();
         await this.initialize();
+        signal?.throwIfAborted();
         const {body, ...metadata} = image;
         const header = Buffer.from(JSON.stringify({...metadata, version: 1, sha256: digest(body)}));
         const prefix = Buffer.alloc(4); prefix.writeUInt32BE(header.length);
@@ -133,23 +138,28 @@ export class PortraitCache {
         // file also fits inside the budget; a failed refresh cannot erase it.
         const previousSize = this.files.get(id)?.size || 0;
         if (!await this.trim(data.length, this.files.has(id) ? 0 : 1, id)) return;
+        signal?.throwIfAborted();
         temporary = path.join(this.directory, `.${id}.${randomUUID()}.tmp`);
         await writeFile(temporary, data, {flag: 'wx'});
+        signal?.throwIfAborted();
         await rename(temporary, path.join(this.directory, `${id}.portrait`));
         temporary = null;
+        // An admitted rename can finish after expiry. Account for that completed
+        // mutation before releasing the serialized writer to its next pruning pass.
         this.files.set(id, {size: data.length, savedAt: this.clock()}); this.diskBytes += data.length - previousSize;
-      } catch { this.diskError(); }
+        signal?.throwIfAborted();
+      } catch {if(signal?.aborted)throw signal.reason;this.diskError();}
       finally { if (temporary) await unlink(temporary).catch(() => {}); }
     });
     this.writes = operation.catch(() => {});
     await operation;
   }
 
-  async download(id, resolveSource, {priority = 'interactive'} = {}) {
-    const sourceUrl = officialPortrait(await resolveSource(id, {priority}));
+  async download(id, resolveSource, {priority = 'interactive',signal} = {}) {
+    const sourceUrl = officialPortrait(await waitForRequest(resolveSource(id, {priority}),signal));signal?.throwIfAborted();
     const response = await this.fetchImpl(sourceUrl, {
       headers: {'User-Agent': 'Mozilla/5.0 (compatible; Parliament-Explorer/0.1)', Accept: 'image/jpeg'},
-      redirect: 'error', signal: AbortSignal.timeout(12000),
+      redirect: 'error', signal: AbortSignal.any([AbortSignal.timeout(12000),...(signal?[signal]:[])]),
     });
     const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase();
     if (!response.ok || contentType !== 'image/jpeg' || !response.body) {
@@ -178,19 +188,18 @@ export class PortraitCache {
     this.backgroundQueue.delete(id);
     const failure = this.failures.get(id);
     if (failure && this.clock() < failure.retryAt) return Promise.reject(failure.error);
-    const job = (async () => {
-      try {
-        const image = await this.download(id, resolveSource, options);
+    const job = sharedRequest(async signal => {
+        const image = await this.download(id, resolveSource, {...options,signal});signal.throwIfAborted();
         this.remember(id, image); this.failures.delete(id);
         await this.save(id, image);
         return image;
-      } catch (error) {
+    }).catch(error=>{
+        if(isLocalRequestFailure(error))throw error;
         this.failures.delete(id);
         this.failures.set(id, {error, retryAt: this.clock() + this.retryMs});
         if (this.failures.size > 120) this.failures.delete(this.failures.keys().next().value);
         throw error;
-      } finally { this.refreshes.delete(id); }
-    })();
+    }).finally(()=>{if(this.refreshes.get(id)===job)this.refreshes.delete(id);});
     this.refreshes.set(id, job);
     return job;
   }
@@ -220,19 +229,20 @@ export class PortraitCache {
 
   get(id, resolveSource) {
     if (!Number.isSafeInteger(id) || id < 1) return Promise.reject(new HttpError(400, 'invalid_id', 'id must be a positive integer'));
-    if (this.pending.has(id)) return this.pending.get(id);
-    const job = (async () => {
+    if (this.pending.has(id)) return waitForRequest(this.pending.get(id));
+    const job = sharedRequest(async () => {
       let image = this.memory.get(id);
       if (image) this.remember(id, image);
       else image = await this.read(id);
+      requestSignal()?.throwIfAborted();
       if (!image) return this.refresh(id, resolveSource);
       if (this.clock() - image.fetchedAt >= this.freshMs) {
         // A retained portrait stays visible during a refresh or an upstream outage.
         this.scheduleRefresh(id, resolveSource);
       }
       return image;
-    })().finally(() => this.pending.delete(id));
+    }).finally(() => this.pending.delete(id));
     this.pending.set(id, job);
-    return job;
+    return waitForRequest(job);
   }
 }
