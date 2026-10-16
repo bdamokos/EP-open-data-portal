@@ -9,6 +9,8 @@ test('source links prefer official pages, read data on demand, preserve raw acce
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};window.HTMLDialogElement.prototype.close=function(){this.open=false;};
+  const nativeFocus=window.HTMLElement.prototype.focus;
+  window.HTMLElement.prototype.focus=function(...args){const modal=document.querySelector('dialog[open]');if(modal&&!modal.contains(this))return;return nativeFocus.apply(this,args);};
   let vite,root;const calls=[],revoked=[],oldCreate=URL.createObjectURL,oldRevoke=URL.revokeObjectURL;
   URL.createObjectURL=()=> 'blob:source-test';URL.revokeObjectURL=href=>revoked.push(href);
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();URL.createObjectURL=oldCreate;URL.revokeObjectURL=oldRevoke;for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
