@@ -30,7 +30,7 @@ export class OfficialContextSources {
     let release;
     try{release=await queue.acquire(priority,{signal});}
     catch(error){
-      if(error?.code==='upstream_busy')throw Object.assign(new HttpError(503,'official_source_busy','The official source is busy. Please try again after the pause.'),{retryAfter:error.retryAfter,retryAt:error.retryAt});
+      if(error?.code==='upstream_busy')throw Object.assign(new HttpError(503,'upstream_busy','The official source is busy. Please try again after the pause.'),{retryAfter:error.retryAfter,retryAt:error.retryAt});
       throw error;
     }
     try{signal?.throwIfAborted();return await waitForRequest(operation(),signal);}finally{release();}
