@@ -117,6 +117,7 @@ export interface PublicationDocument {
   selectedText?: {
     status: 'available' | 'unavailable' | 'error';
     paragraphs: string[];
+    extractionWarnings?: string[];
     textLanguage: string | null;
     requestedLanguage: string;
     availableTextLanguages: string[];
