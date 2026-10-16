@@ -63,8 +63,10 @@ function SourceDialog({url,language,close}:{url:string;language:string;close:()=
 
 export function PocSourceLink({url,language='en',reference,websiteUrl,children,compact=false}:{url:string;language?:string;reference?:string;websiteUrl?:string|null;children:ReactNode;compact?:boolean}) {
   const suppliedWebsite=websiteUrl&&/^https:\/\/www\.europarl\.europa\.eu\/doceo\/document\/[A-Z0-9-]+_[A-Z]{2}\.html$/.test(websiteUrl)?websiteUrl:null;
-  const [open,setOpen]=useState(false),trigger=useRef<HTMLButtonElement>(null),target=sourceTarget(url),website=suppliedWebsite||humanSourceUrl(url,{language,reference});
-  const close=()=>{setOpen(false);trigger.current?.focus();};
+  const [open,setOpen]=useState(false),trigger=useRef<HTMLButtonElement>(null),restoreFocus=useRef(false),target=sourceTarget(url),website=suppliedWebsite||humanSourceUrl(url,{language,reference});
+  const close=()=>{restoreFocus.current=true;setOpen(false);};
+  // Outside controls remain inert until the native modal has been removed.
+  useEffect(()=>{if(!open&&restoreFocus.current){restoreFocus.current=false;trigger.current?.focus({preventScroll:true});}},[open]);
   const href=website||safeHref(url);
   if(!target)return href?<span className={'source-link'+(compact?' source-link-compact':'')}><a href={href} target="_blank" rel="noreferrer">{children}</a>{website&&!compact&&<a className="source-raw" href={url} target="_blank" rel="noreferrer">Open original source ↗</a>}</span>:<>{children}</>;
   return <span className={'source-link'+(compact?' source-link-compact':'')}>
