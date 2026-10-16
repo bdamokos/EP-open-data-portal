@@ -9,7 +9,7 @@ import {SpeechCloudInsights,speechCloudQuery,analyzeSpeechCloud,meaningfulSpeake
 import {OfficialContextSources,officialSourceUrl,parseProcedurePage,parseSummaryPage} from './official-context.mjs';
 import {parseEurovoc,eurovocQuery,EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext,procedureContextQuery} from './procedure-context.mjs';
-import {TopicTrends,topicTrendsQuery,savedProcedureEvents,topicTimeline} from './topic-trends.mjs';
+import {TopicTrends,topicTrendsQuery,savedProcedureEvents,topicTimeline,procedureTitle,procedureStatus} from './topic-trends.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {QuestionInsights,insightQuery} from './insights-store.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/plenary-context-live-20261015.json',import.meta.url)));
@@ -23,6 +23,8 @@ test('speech cloud validates exact scope, dates, page limits and countries',()=>
   const q=value=>speechCloudQuery(new URLSearchParams(value),{now:now()});
   assert.equal(q('member=125065&days=365').start,'2025-10-16');assert.equal(q('member=125065&country=GR').country,'EL');
   assert.equal(q('member=125065&days=term').start,'2024-07-16');assert.equal(q('member=125065&days=366').start,'2025-10-15');
+  assert.equal(q('week=2026-10-05').week,'2026-10-05');assert.equal(q('week=2026-10-05&page=99').page,99);
+  for(const value of ['week=2026-10-06','week=2026-02-30','week=2026-10-05&sitting=MTG-PL-2026-10-08','week=2026-10-05&days=90','week=2026-10-05&topic=MTG-PL-2026-10-08-OJ-ITM-D-72','week=2026-10-05&page=100'])assert.throws(()=>q(value),error=>error.status===400,value);
   for(const value of ['','member=125065&sitting=MTG-PL-2026-10-08','member=0','member=125065&days=823','member=125065&page=20','member=125065&lang=mt','member=125065&foo=x','member=125065&member=4465','sitting=MTG-PL-2026-10-08&days=90','sitting=MTG-PL-2026-10-08&topic=MTG-PL-2026-10-07-OJ-ITM-D-72'])assert.throws(()=>q(value),error=>error.status===400,value);
 });
 test('actual Vrionidi speech batch builds seven English transcripts with one request and no SQL writes',()=>storeFor(async store=>{
@@ -48,7 +50,31 @@ test('an unexpectedly short source page cannot claim complete transcript coverag
   const cloud=new SpeechCloudInsights(store,{clock:now,request:async()=>({...fixture.speeches,payload:{...fixture.speeches.payload,meta:{total:80}}})});
   const result=await cloud.query(speechCloudQuery(new URLSearchParams('member=125065&days=365'),{now:now()}));assert.equal(result.coverage.transcripts,7);assert.equal(result.coverage.complete,false);assert.equal(result.coverage.truncated,true);assert.equal(result.nextPage,null);
 }));
+test('a plenary week cloud reads each held sitting day and skips unheld days',()=>storeFor(async store=>{
+  const sittings=['2026-10-05','2026-10-06','2026-10-07','2026-10-08','2026-10-19'].map(date=>({activity_id:'MTG-PL-'+date,activity_date:date})),dates=[];
+  const cloud=new SpeechCloudInsights(store,{clock:()=>Date.parse('2026-10-07T08:00:00Z'),legislation:{catalogue:async()=>({sittings})},request:async(endpoint,params)=>{dates.push([params['sitting-date'],params['sitting-date-end']]);return {...fixture.speeches,payload:{meta:{total:0},data:[]}};}});
+  let result=await cloud.query(speechCloudQuery(new URLSearchParams('week=2026-10-05'),{now:now()}));
+  while(result.nextPage!==null)result=await cloud.query({...speechCloudQuery(new URLSearchParams('week=2026-10-05'),{now:now()}),page:result.nextPage});
+  assert.deepEqual(dates,[['2026-10-05','2026-10-05'],['2026-10-06','2026-10-06'],['2026-10-07','2026-10-07']]);assert.equal(result.scope.kind,'week');assert.deepEqual(result.window,{start:'2026-10-05',end:'2026-10-07',days:null});
+  const upcoming=await cloud.query(speechCloudQuery(new URLSearchParams('week=2026-10-19'),{now:now()}));assert.equal(upcoming.scope.phase,'upcoming');assert.equal(dates.length,3);
+  assert.equal((await cloud.query(speechCloudQuery(new URLSearchParams('week=2026-10-12'),{now:now()})).catch(error=>error)).status,404);
+}));
 const oct8Catalogue={catalogue:async()=>({sittings:[{activity_id:'MTG-PL-2026-10-08',activity_date:'2026-10-08'}]})};
+test('weekly cloud pagination accumulates distinct speeches across day boundaries beyond the single-day page cap',()=>storeFor(async store=>{
+  const days=['2026-10-07','2026-10-08'],calls=[],raw=fixture.speeches.payload.data[0];
+  const cloud=new SpeechCloudInsights(store,{clock:now,legislation:{catalogue:async()=>({sittings:days.map(date=>({activity_id:'MTG-PL-'+date,activity_date:date}))})},request:async(endpoint,params)=>{
+    const date=params['sitting-date'],total=date===days[0]?1000:2;calls.push([date,params.offset]);
+    const data=Array.from({length:Math.min(50,total-params.offset)},(_,i)=>({...raw,activity_id:'MTG-PL-'+date+'-OTH-'+(params.offset+i),activity_date:date,recorded_in_a_realization_of:[{'api:xmlFragment':{en:'<root><p>Climate energy transport.</p></root>'}}]}));
+    return {...fixture.speeches,payload:{meta:{total},data}};
+  }});
+  const query=speechCloudQuery(new URLSearchParams('week=2026-10-05'),{now:now()});let result=await cloud.query(query);
+  while(result.nextPage!==null)result=await cloud.query({...query,page:result.nextPage});
+  assert.equal(calls.length,21);assert.deepEqual(calls.at(-1),['2026-10-08',0]);
+  assert.equal(result.coverage.transcripts,1002);assert.equal(result.coverage.complete,true);
+  assert.equal(result.words.find(term=>term.word==='climate').speechCount,1002);
+  assert.deepEqual(result.coverage.sourceRecords,{unique:1002,declared:1002,duplicates:0,issues:[]});
+  assert(result.speeches.some(s=>s.date===days[1]));assert.equal(store.db.prepare('SELECT COUNT(*) n FROM sources').get().n,0);
+}));
 const oct8Query=()=>speechCloudQuery(new URLSearchParams('sitting=MTG-PL-2026-10-08'),{now:now()});
 test('retained chronological Oct8 pages reconcile 198 distinct IDs with the declared total',()=>storeFor(async store=>{
   store.db.exec('PRAGMA query_only=ON');const offsets=[];
@@ -115,9 +141,38 @@ test('EuroVoc catalogue coalesces identical batches and persists reproducible pe
 });
 test('saved timeline keeps votes, debates and committee work separate and deduplicates shared events',()=>storeFor(async(store,generation)=>{
   const raw=fixture.procedure.payload.data[0];store.putSource(generation,'/procedures/2025-0407','procedure',projectProcedure(raw),fixture.procedure.fetchedAt,[]);store.db.exec('PRAGMA query_only=ON');
-  const query=topicTrendsQuery(new URLSearchParams('days=term'),{now:now()}),saved=savedProcedureEvents(store,query);assert.equal(query.start,'2024-07-16');assert.equal(query.days,822);assert.equal(saved.procedures.length,1);assert.equal(saved.procedures[0].events.filter(e=>e.kind==='votes').length,1);assert.equal(saved.procedures[0].events.filter(e=>e.kind==='committee').length,4);
+  const query=topicTrendsQuery(new URLSearchParams('days=term'),{now:now()}),saved=savedProcedureEvents(store,query);assert.equal(query.start,'2024-07-16');assert.equal(query.days,822);assert.equal(saved.procedures.length,1);assert.equal(saved.procedures[0].fetchedAt,new Date(fixture.procedure.fetchedAt).toISOString());assert.equal(saved.procedures[0].events.filter(e=>e.kind==='votes').length,1);assert.equal(saved.procedures[0].events.filter(e=>e.kind==='committee').length,4);
   const mapping=parseEurovoc(fixture.topics,['2025-0407'],'en'),timeline=topicTimeline([...saved.procedures,...saved.procedures],mapping,query);assert.equal(timeline.topics.length,11);assert.equal(timeline.topics[0].events.length,5);assert.equal(timeline.topics[0].series.reduce((sum,s)=>sum+s.votes,0),1);assert.equal(timeline.topics[0].series.reduce((sum,s)=>sum+s.committee,0),4);
   const service=new TopicTrends(store,{known:async()=>mapping},{clock:now});const result=await service.query(query);assert.equal(result.coverage.mapped,1);assert.equal(result.nextPage,null);assert.equal(result.savedSources.length,1);
+}));
+test('procedure titles retain complete localized text and adoption uses only recorded dated milestones',()=>{
+  const title='Official title '.repeat(60),work={process_title:{en:title,fr:'Titre officiel'}};
+  assert.deepEqual(procedureTitle(projectProcedure(work),'fr'),{title:'Titre officiel',titleLanguage:'fr'});
+  assert.deepEqual(procedureTitle(projectProcedure(work),'hu'),{title:title.trim(),titleLanguage:'en'});
+  assert.deepEqual(procedureTitle({process_title:{fr:'Titre'}},'hu'),{title:null,titleLanguage:null});
+  assert.equal(projectProcedure({}).process_title,null);
+  const event=(type,date)=>({had_activity_type:'def/ep-activities/'+type,activity_date:date});
+  const events=[event('PLENARY_VOTE','2026-02-01'),event('PLENARY_ADOPT_POSITION','2026-02-02'),event('SIGNATURE','2026-03-01'),event('PUBLICATION_OFFICIAL_JOURNAL','2026-03-03')];
+  assert.deepEqual(procedureStatus({consists_of:events},'2026-03-04'),{state:'published',date:'2026-03-03'});
+  assert.deepEqual(procedureStatus({consists_of:events},'2026-03-02'),{state:'signed',date:'2026-03-01'});
+  assert.deepEqual(procedureStatus({consists_of:events},'2026-02-28'),{state:'parliament-position',date:'2026-02-02'});
+  assert.deepEqual(procedureStatus({consists_of:events},'2026-02-01'),{state:'none',date:null});
+  assert.deepEqual(procedureStatus({consists_of:[event('PUBLICATION_OFFICIAL_JOURNAL',null),event('PLENARY_VOTE','2026-02-01')]}),{state:'none',date:null});
+});
+test('public procedure examples distinguish a published act from Parliament’s position',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/procedure-milestones-live-20261016.json',import.meta.url)));
+  assert.deepEqual(fixture.records.map(record=>procedureStatus(projectProcedure(record.work),record.fetchedAt.slice(0,10))),[{state:'published',date:'2026-07-17'},{state:'parliament-position',date:'2026-09-16'}]);
+});
+test('timeline metadata uses exact saved dossier identity and latest saved milestone outside the activity window',()=>storeFor(async(store,generation)=>{
+  const raw=structuredClone(fixture.procedure.payload.data[0]);
+  raw.process_title={en:'Exact saved title',fr:'Titre enregistré'};
+  raw.consists_of.push({had_activity_type:'def/ep-activities/PUBLICATION_OFFICIAL_JOURNAL',activity_date:'2026-10-01'});
+  store.putSource(generation,'/procedures/2025-0407','procedure',projectProcedure(raw),'2026-10-15T08:00:00Z',[]);
+  const query=topicTrendsQuery(new URLSearchParams('days=term&end=2026-07-10&lang=fr'),{now:now()}),saved=savedProcedureEvents(store,query),mapping=parseEurovoc(fixture.topics,['2025-0407'],'fr');
+  const timeline=topicTimeline(saved.procedures,mapping,query),dossier=timeline.dossiers['2025-0407'];
+  assert.equal(dossier.reference,'2025/0407(COD)');assert.equal(dossier.title,'Titre enregistré');assert.equal(dossier.titleLanguage,'fr');
+  assert.deepEqual(dossier.status,{state:'published',date:'2026-10-01'});assert.equal(dossier.fetchedAt,'2026-10-15T08:00:00.000Z');
+  assert.deepEqual(Object.keys(timeline.dossiers),['2025-0407']);
 }));
 test('question activity badges use saved exact question-answer links and do not change source state',()=>storeFor(async(store,generation)=>{
   const source=activityFixture.documents.find(d=>d.endpoint.startsWith('/parliamentary-questions'));store.putSource(generation,source.endpoint,'document',projectDocument(source.work),activityFixture.verifiedAt,[]);store.db.exec('PRAGMA query_only=ON');const id=source.work.identifier;
