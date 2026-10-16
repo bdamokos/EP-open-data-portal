@@ -44,10 +44,30 @@ test('hidden runs follow style inheritance and direct on/off overrides without s
   const xml=`<w:document xmlns:w="urn:word"><w:body><w:p>${hidden}${run('<w:rStyle w:val="Derived"/>','{ECR}')}${visible}${run('<w:rStyle w:val="Toggled"/>','toggled ')}${run('','&lt;Titre&gt; &lt; 5 &amp; {visible}')}<w:r><w:tab/><w:noBreakHyphen/><w:softHyphen/><w:br/><w:t>next line</w:t></w:r></w:p></w:body></w:document>`;
   assert.deepEqual(docxParagraphs(zip(xml,styles)),['visible visible visible toggled <Titre> < 5 & {visible}\t\u2011\u00ad\nnext line']);
 });
-test('paragraph styles and document defaults supply inherited hidden text, with run overrides and bounded style cycles',()=>{
-  const styles='<w:styles xmlns:w="urn:word"><w:docDefaults><w:rPrDefault><w:rPr><w:vanish/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"/><w:style w:styleId="Visible"><w:basedOn w:val="Normal"/><w:rPr><w:vanish/></w:rPr></w:style><w:style w:styleId="Cycle"><w:basedOn w:val="Cycle"/></w:style></w:styles>';
-  const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>hidden</w:t></w:r><w:r><w:rPr><w:vanish w:val="0"/></w:rPr><w:t>override</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="Visible"/></w:pPr><w:r><w:t>visible paragraph</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="Cycle"/></w:pPr><w:r><w:t>hidden cycle</w:t></w:r></w:p></w:body></w:document>';
+test('paragraph styles and document defaults supply inherited hidden text with run overrides',()=>{
+  const styles='<w:styles xmlns:w="urn:word"><w:docDefaults><w:rPrDefault><w:rPr><w:vanish/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"/><w:style w:styleId="Visible"><w:basedOn w:val="Normal"/><w:rPr><w:vanish/></w:rPr></w:style></w:styles>';
+  const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>hidden</w:t></w:r><w:r><w:rPr><w:vanish w:val="0"/></w:rPr><w:t>override</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="Visible"/></w:pPr><w:r><w:t>visible paragraph</w:t></w:r></w:p></w:body></w:document>';
   assert.deepEqual(docxParagraphs(zip(xml,styles)),['override','visible paragraph']);
+});
+test('the default character style applies to unstyled runs while explicit styles and visibility overrides take precedence',()=>{
+  const styles='<w:styles xmlns:w="urn:word"><w:style w:styleId="Base"><w:rPr><w:vanish/></w:rPr></w:style><w:style w:type="character" w:default="1" w:styleId="DefaultHidden"><w:basedOn w:val="Base"/></w:style><w:style w:type="character" w:styleId="Visible"/></w:styles>';
+  const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>&lt;Titre&gt;</w:t></w:r><w:r><w:rPr/><w:t>{ECR}</w:t></w:r><w:r><w:rPr><w:rStyle w:val="Visible"/></w:rPr><w:t>explicit visible </w:t></w:r><w:r><w:rPr><w:vanish w:val="0"/></w:rPr><w:t>direct visible</w:t></w:r></w:p></w:body></w:document>';
+  assert.deepEqual(docxParagraphs(zip(xml,styles)),['explicit visible direct visible']);
+});
+test('deep shared style chains preserve toggles across repeated runs and different paragraph visibility',()=>{
+  const depth=4096;
+  const chain=Array.from({length:depth},(_,i)=>`<w:style w:styleId="S${i}">${i?`<w:basedOn w:val="S${i-1}"/>`:''}${i===0||i===depth/2?'<w:rPr><w:vanish/></w:rPr>':''}</w:style>`).join('');
+  const styles=`<w:styles xmlns:w="urn:word">${chain}<w:style w:styleId="HiddenParagraph"><w:rPr><w:vanish/></w:rPr></w:style></w:styles>`;
+  const runs=`<w:r><w:rPr><w:rStyle w:val="S${depth-1}"/></w:rPr><w:t>A</w:t></w:r>`.repeat(4000);
+  const xml=`<w:document xmlns:w="urn:word"><w:body><w:p>${runs}</w:p><w:p><w:pPr><w:pStyle w:val="HiddenParagraph"/></w:pPr>${runs}<w:r><w:rPr><w:vanish w:val="0"/></w:rPr><w:t>override</w:t></w:r></w:p><w:p><w:r><w:rPr><w:rStyle w:val="S${depth/2-1}"/></w:rPr><w:t>hidden</w:t></w:r><w:r><w:t>tail</w:t></w:r></w:p></w:body></w:document>`;
+  assert.deepEqual(docxParagraphs(zip(xml,styles)),['A'.repeat(4000),'override','tail']);
+});
+test('cyclic style inheritance fails explicitly instead of depending on style lookup order',()=>{
+  const xml='<w:document xmlns:w="urn:word"><w:p><w:r><w:rPr><w:rStyle w:val="A"/></w:rPr><w:t>text</w:t></w:r></w:p></w:document>';
+  for(const links of [[['A','A']],[['A','B'],['B','A']]]) {
+    const styles='<w:styles xmlns:w="urn:word">'+links.map(([id,parent])=>`<w:style w:styleId="${id}"><w:basedOn w:val="${parent}"/><w:rPr><w:vanish/></w:rPr></w:style>`).join('')+'</w:styles>';
+    assert.throws(()=>docxParagraphs(zip(xml,styles)),/Cyclic DOCX style inheritance/);
+  }
 });
 test('style XML receives the same validation and shared decompression bound as document XML',()=>{
   const xml='<w:document xmlns:w="urn:word"><w:p><w:r><w:t>visible</w:t></w:r></w:p></w:document>';
@@ -91,7 +111,7 @@ test('document text coalesces cold reads, persists actual language and serves la
     let calls=0;const download=async()=>{calls++;await new Promise(r=>setTimeout(r,10));return {paragraphs:['Actual answer text']};};
     const [a,b]=await Promise.all([documentText(work,'en',{directory:dir,download}),documentText(work,'ga',{directory:dir,download})]);
     assert.equal(calls,1);assert.equal(a.textLanguage,'ga');assert.equal(a.translationType,'unspecified');assert.equal(a.status,'available');assert.deepEqual(a.paragraphs,b.paragraphs);
-    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,2);
+    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,3);
     const clock=()=>Date.now()+2*86400000;
     const stale=await documentText(work,'en',{directory:dir,clock,download:async()=>{throw new Error('upstream500');}});
     assert(stale.stale);assert.deepEqual(stale.paragraphs,a.paragraphs);
@@ -106,7 +126,7 @@ test('old extracted text is refreshed on demand and current extraction survives 
     await mkdir(path.join(dir,'document-text-v1'));
     const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
     const paragraphs=docxParagraphs(zip(fixture.documentXml,fixture.stylesXml));
-    for(const version of [undefined,1]) {
+    for(const version of [undefined,1,2]) {
       const url=`https://data.europarl.europa.eu/distribution/upgrade-${Date.now()}-${version}/motion.docx`;
       const work={identifier:fixture.sourceId,is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
       const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');
@@ -114,7 +134,7 @@ test('old extracted text is refreshed on demand and current extraction survives 
       await writeFile(file,JSON.stringify(old));let calls=0;
       const result=await documentText(work,'en',{directory:dir,download:async()=>{calls++;return {paragraphs};}});
       assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);assert.equal(calls,1);
-      assert.equal(JSON.parse(await readFile(file,'utf8')).extractionVersion,2);
+      assert.equal(JSON.parse(await readFile(file,'utf8')).extractionVersion,3);
       const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});const result=await documentText(${JSON.stringify(work)},'en',{directory:${JSON.stringify(dir)},download:async()=>{throw new Error('Unexpected redownload');}});console.log(JSON.stringify(result));`;
       const restarted=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{encoding:'utf8',timeout:5000}));
       assert.equal(restarted.status,'available');assert.deepEqual(restarted.paragraphs,paragraphs);
