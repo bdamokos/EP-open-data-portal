@@ -163,6 +163,7 @@ export interface JoinedActivity {
   reference: string;
   files: DocumentFile[];
   answerStatus?: 'answered' | 'awaiting';
+  answerIds?: string[];
   relatedQuestionId?: string;
   relatedQuestionTitle?:string;
   relatedQuestionTitles?:Record<string,string>;
