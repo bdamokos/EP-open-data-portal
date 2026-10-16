@@ -3,6 +3,7 @@ import {useInsightData} from './PocInsightData';
 import {countryName} from './PocCountryMap';
 import {CountryFilter} from './PocCountryFilter';
 import {humanDate} from './PocInsightCharts';
+import {PocStatus} from './PocStatus';
 type Metric='speakers'|'voters'|'amendmentVotes';
 type Row={id:string;title:string;date:string;sittingId:string;upcoming:boolean;speakers:number|null;voters:number|null;amendmentVotes:number|null;rollCalls:number};
 type Response={topics:Row[];series:({date:string}&Record<Metric,number|null>)[];window:{start:string;end:string};coverage:{topicsWithSpeechLinks:number;topics:number;gaps:{kind:string;sitting:string}[]}};
@@ -25,8 +26,14 @@ export function PocParticipation({language,sittings,onTopic}:{language:string;si
   const bins=data?.series||[],hasActivity=data?.topics.some(row=>row[metric]!==null),future=kind==='sitting'&&sittings.find(s=>s.id===value)?.phase==='upcoming'||Boolean(data?.topics.length&&data.topics.every(row=>row.upcoming));
   const max=Math.max(1,...bins.map(bin=>bin[metric]||0)),x=(i:number)=>20+i/Math.max(1,bins.length-1)*620,y=(count:number)=>135-count/max*115;
   const line=bins.map((bin,i)=>bin[metric]===null?'':`${i===0||bins[i-1][metric]===null?'M':'L'}${x(i)},${y(bin[metric]!)}`).join(' ');
+  const resultStatus=data&&!state.loading&&!state.error?[
+    rows.length?`${rows.length.toLocaleString('en')} agenda ${rows.length===1?'item':'items'} in this selection.`:'No agenda items match this selection.',
+    future?'This period has not taken place; activity is unavailable.':!hasActivity?`No saved ${labels[metric].toLowerCase()} for this period.`:rows.some(row=>row[metric]===null)?`Some ${labels[metric].toLowerCase()} are unavailable.`:'',
+    data.coverage.gaps.length?'Partial coverage: some source details are unavailable or exceed this view’s limit.':'',
+  ].filter(Boolean).join(' '):null;
   function chooseCountry(code:string|null){setCountry(code);if(code&&metric==='amendmentVotes')setMetric('speakers');}
   return <section className="insight-participation">
+    <PocStatus scope={JSON.stringify([language,period,country,metric,search])} message={resultStatus} pending={state.loading} oncePerScope/>
     <div className="insight-controls insight-participation-controls">
       <PlenaryPeriodSelect value={period} sittings={sittings} language={language} onChange={setPeriod}/>
       <CountryFilter country={country} onChange={chooseCountry} language={language}/>

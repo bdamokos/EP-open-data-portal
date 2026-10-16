@@ -38,6 +38,7 @@ import { PocSpeechPlayer } from "./PocSpeechPlayer";
 import { PocLegislation } from './PocLegislation';
 import { PocQuestionTopics } from './PocQuestionTopics';
 import {PocOutsideVoices} from './PocOutsideVoices';
+import {PocStatus} from './PocStatus';
 import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './pocCoAuthors.mjs';
 
 const normalize = (s: string) =>
@@ -95,7 +96,8 @@ function Detail({ speech, lang }: { speech: Speech; lang: string }) {
     [state.data?.xml],
   );
   return (
-    <div className="poc-speech-detail" aria-live="polite">
+    <div className="poc-speech-detail">
+      <PocStatus scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={state.error||!state.data?null:text.error?'Parliament returned transcript text that could not be read.':text.paragraphs.length?'Transcript loaded.':'No transcript text is available from Parliament’s API for this contribution.'}/>
       <PocSpeechPlayer speech={speech} lang={lang} />
       <InterventionBadges value={state.data?.intervention}/>
       <PocSpeechContext key={speech.id} id={speech.id} language={lang}/>
@@ -168,7 +170,8 @@ function PublicationText({ sourceId, member, lang, heading, includeAnswers = fal
   const body=publicationBody(text?.paragraphs||[],sourceId,text?.textLanguage),notePrefix='notes'+useId().replace(/[^A-Za-z0-9_-]/g,'');
   const notes=text?.notes||[],anchors=body.exact?text?.noteAnchors||[]:[],documentLinks=body.exact?text?.documentLinks||[]:[];
   const languageName=(code:string)=>{try{return new Intl.DisplayNames([lang],{type:'language'}).of(code)||code.toUpperCase();}catch{return code.toUpperCase();}};
-  return <section className="poc-document-text" id={'document-'+sourceId} aria-live="polite">
+  return <section className="poc-document-text" id={'document-'+sourceId}>
+    <PocStatus scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={state.error?`${heading}: Text temporarily unavailable.`:state.data?`${heading}: ${text?.status==='available'?'Text loaded.':'Text unavailable.'}`:null}/>
     <div className="poc-reader-heading"><h3>{heading}</h3>{question&&<a href={"#document-"+question.id} title={question.title}>Read question</a>}{text?.availableTextLanguages.length ? <select aria-label={`${heading} language`} title={text.translationType==='original'?'Original text':'Translation method not specified'} value={text.textLanguage||requestedLanguage} onChange={event=>setRequestedLanguage(event.target.value)}>{text.availableTextLanguages.map(code=><option key={code} value={code}>{code.toUpperCase()}</option>)}</select> : null}{text?.textLanguage&&text.textLanguage!==requestedLanguage&&<small>{languageName(requestedLanguage)} unavailable · showing {languageName(text.textLanguage)}</small>}</div>
     {state.loading&&!text&&<p role="status">Loading text…</p>}{state.error&&<p>Text temporarily unavailable.</p>}
     {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="poc-transcript" lang={text.textLanguage||undefined}>{body.paragraphs.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===body.start+index)} links={documentLinks.filter(link=>link.paragraph===body.start+index)} notePrefix={notePrefix}/></p>)}<DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&<p>Text unavailable. Download the document below.</p>}
@@ -207,7 +210,8 @@ function LinkedActivityFallback({ sourceId, member, lang, complete }: { sourceId
   const matched=answer || (document.data?.id===sourceId ? document.data : null);
   const authored=document.data?.roles.includes("AUTHOR");
   const speechAuthor=contribution.data?.participants.includes(String(member));
-  return <aside className="poc-notice" aria-live="polite">
+  return <aside className="poc-notice">
+    <PocStatus scope={`linked:${sourceId}:${member}:${lang}:${check}`} pending={document.loading||contribution.loading} message={document.error||contribution.error?null:!check?!sourceId?'This older link could not be matched to an API source identifier.':complete?'This item is outside this MEP’s saved activity index.':'This item has not been indexed for this MEP yet.':document.data&&!matched?'The API did not return the exact linked document or answer.':matched||contribution.data?'Linked source available.':null}/>
     <strong>Linked activity {sourceId || "identifier not recognised"}</strong>
     <p>{!sourceId ? "This older link could not be matched to an API source identifier." : complete ? "This item is outside this MEP’s saved activity index. No category or MEP relationship is inferred from the link." : "This item has not been indexed for this MEP yet. Saved activities remain available while the term 10 load continues."}</p>
     {sourceId && !check && <button onClick={() => setCheck(true)}>Check this source with Parliament</button>}
@@ -709,6 +713,7 @@ export default function PocApp() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+            <PocStatus scope={JSON.stringify([lang,committee,country,group,search,role])} pending={directoryState.loading||unavailable} oncePerScope message={!directory||error||unavailable?null:(filtered.length?`${filtered.length} ${filtered.length===1?'MEP matches':'MEPs match'} these filters.`:'No MEPs match these filters.')+(!directory.index.complete?' Committee memberships are incomplete.':'')}/>
             {error && (
               <ErrorView
                 message={error}
