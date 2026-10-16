@@ -1,27 +1,42 @@
-import {createHash,randomUUID} from 'node:crypto';
-import {readFile,writeFile,rename,mkdir,readdir,stat,unlink} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {readFile,readdir,stat,unlink} from 'node:fs/promises';
 import path from 'node:path';
+import {sharedRequest,waitForRequest,requestSignal,isLocalRequestFailure} from './request-budget.mjs';
+import {writeCacheFile} from './cache-publication.mjs';
 
 // Reproducible assembled responses live separately from raw ODP records and index state.
 export class InsightViewCache {
-  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes});this.cache=new Map();this.pending=new Map();this.failures=new Map();this.bytes=0;}
+  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes});this.cache=new Map();this.pending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;}
   key(value){return createHash('sha256').update(JSON.stringify(value)).digest('hex');}
   async stored(key) {
     if(this.cache.has(key))return this.cache.get(key);
     if(!this.directory)return null;
-    try {const name=path.join(this.directory,key+'.json'),info=await stat(name);if(info.size>4*1024*1024)return null;const record=JSON.parse(await readFile(name,'utf8'));if(record.key!==key||!Number.isFinite(record.at)||!record.value)return null;this.remember(key,record);return record;}catch{return null;}
+    const reads=this.diskReads.get(key)||new Set(),read={superseded:false};
+    this.diskReads.set(key,reads);reads.add(read);
+    try {
+      const name=path.join(this.directory,key+'.json'),info=await stat(name);if(info.size>4*1024*1024)return null;
+      const record=JSON.parse(await readFile(name,'utf8'));requestSignal()?.throwIfAborted();
+      // A publication while this read was pending wins even if memory evicted it.
+      if(read.superseded)return this.cache.get(key)||null;
+      if(record.key!==key||!Number.isFinite(record.at)||!record.value)return null;
+      this.remember(key,record);return record;
+    }catch{return null;}
+    finally {reads.delete(read);if(!reads.size)this.diskReads.delete(key);}
   }
   remember(key,record) {
     const bytes=Buffer.byteLength(JSON.stringify(record));if(bytes>4*1024*1024)return;
+    for(const read of this.diskReads.get(key)||[])read.superseded=true;
     const previous=this.cache.get(key);if(previous)this.bytes-=previous.bytes;
     this.cache.delete(key);this.cache.set(key,{...record,bytes});this.bytes+=bytes;
     while(this.cache.size>this.maxEntries||this.bytes>this.maxBytes){const oldest=this.cache.keys().next().value;this.bytes-=this.cache.get(oldest).bytes;this.cache.delete(oldest);}
   }
   async save(key,value) {
+    requestSignal()?.throwIfAborted();
     const record={key,at:this.clock(),value};this.remember(key,record);
     if(!this.directory||Buffer.byteLength(JSON.stringify(record))>4*1024*1024)return record;
-    const name=path.join(this.directory,key+'.json'),temp=name+'.'+randomUUID()+'.tmp';
-    try {await mkdir(this.directory,{recursive:true});await writeFile(temp,JSON.stringify(record));await rename(temp,name);await this.prune();}catch{/* Disk cache is reproducible; a write failure must not hide available data. */}finally{await unlink(temp).catch(()=>{});}
+    const name=path.join(this.directory,key+'.json');
+    try {await writeCacheFile(name,JSON.stringify(record));await this.prune();}catch{/* Disk cache is reproducible; a write failure must not hide available data. */}
+    requestSignal()?.throwIfAborted();
     return record;
   }
   async prune() {
@@ -31,11 +46,12 @@ export class InsightViewCache {
   }
   refresh(key,load) {
     if(this.pending.has(key))return this.pending.get(key);
-    const promise=new Promise(resolve=>setImmediate(resolve)).then(load).then(value=>this.save(key,value)).then(record=>{this.failures.delete(key);return record;}).catch(error=>{this.failures.set(key,{at:this.clock(),error:error.message});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
+    const promise=sharedRequest(async()=>{await new Promise(resolve=>setImmediate(resolve));const value=await load();requestSignal()?.throwIfAborted();return this.save(key,value);}).then(record=>{this.failures.delete(key);return record;}).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error:error.message});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
     this.pending.set(key,promise);return promise;
   }
   async get(value,load) {
     const key=this.key(value);let old=await this.stored(key);
+    requestSignal()?.throwIfAborted();
     // A concurrent disk miss may finish after another reader has saved the view.
     old ||= this.cache.get(key)||null;
     const failure=this.failures.get(key);
@@ -44,6 +60,6 @@ export class InsightViewCache {
       if(stale&&(!failure||this.clock()-failure.at>60_000))void this.refresh(key,load).catch(()=>{});
       return {...old.value,viewCache:{computedAt:new Date(old.at).toISOString(),stale,refreshInProgress:this.pending.has(key),refreshError:failure?.error||null}};
     }
-    const record=await this.refresh(key,load);return {...record.value,viewCache:{computedAt:new Date(record.at).toISOString(),stale:false,refreshInProgress:false,refreshError:null}};
+    const record=await waitForRequest(this.refresh(key,load));return {...record.value,viewCache:{computedAt:new Date(record.at).toISOString(),stale:false,refreshInProgress:false,refreshError:null}};
   }
 }
