@@ -7,11 +7,15 @@ import { XMLParser,XMLValidator } from 'fast-xml-parser';
 import { boundedUpstream } from './odp.mjs';
 import { documentFiles,array,tail } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
+import {numberingLabels} from './docx-numbering.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
-const EXTRACTION_VERSION=4;
+// 5: automatic numbering, endnotes and completeness gaps, retaining v4 citation spans.
+const EXTRACTION_VERSION=5;
+const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500});
 const memory=new Map(),pending=new Map(),failures=new Map();
-// Read only the standard text, style, numbering and note parts. No archive paths are written to disk.
+const DOCX_PARTS=['word/document.xml','word/styles.xml','word/numbering.xml','word/_rels/document.xml.rels','word/footnotes.xml','word/_rels/footnotes.xml.rels','word/endnotes.xml','word/_rels/endnotes.xml.rels'];
+// Read only standard text, style, numbering, note and relationship parts. No archive paths are written to disk.
 function docxParts(buffer) {
   if(buffer.length>MAX_FILE || buffer.length<22)throw new Error('DOCX size is unsupported.');
   let end=-1;
@@ -27,7 +31,7 @@ function docxParts(buffer) {
     const nameLength=buffer.readUInt16LE(cursor+28),extra=buffer.readUInt16LE(cursor+30),comment=buffer.readUInt16LE(cursor+32),offset=buffer.readUInt32LE(cursor+42);
     const name=buffer.subarray(cursor+46,cursor+46+nameLength).toString('utf8');
     cursor+=46+nameLength+extra+comment;
-    if(!['word/document.xml','word/styles.xml','word/numbering.xml','word/footnotes.xml','word/endnotes.xml'].includes(name))continue;
+    if(!DOCX_PARTS.includes(name))continue;
     total+=size;
     if(parts.has(name) || flags&1 || total>MAX_XML || compressed>MAX_FILE || offset+30>buffer.length || buffer.readUInt32LE(offset)!==0x04034b50)throw new Error('Unsupported DOCX document entry.');
     const start=offset+30+buffer.readUInt16LE(offset+26)+buffer.readUInt16LE(offset+28);
@@ -45,19 +49,26 @@ function docxParts(buffer) {
 const child=(nodes,key)=>nodes?.find(node=>Object.hasOwn(node,key));
 const children=(nodes,key)=>child(nodes,key)?.[key];
 const attribute=(node,key)=>node?.[':@']?.['@_w:'+key];
+const rawAttribute=(node,name)=>node?.[':@']?.['@_'+name];
 const property=(nodes,key)=>attribute(child(nodes,key),'val');
 function hiddenValue(properties) {
   const node=child(properties,'w:vanish');
   return node ? !['0','false','off'].includes(String(attribute(node,'val')).toLowerCase()) : undefined;
 }
-export function docxContent(buffer) {
-  const parts=docxParts(buffer);
-  const parser=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false});
-  const tree=parser.parse(parts.get('word/document.xml'));
-  const styles=children(parts.has('word/styles.xml')?parser.parse(parts.get('word/styles.xml')):[],'w:styles') || [];
+const parser=()=>new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false});
+const noteMarks=['w:footnoteReference','w:footnoteRef','w:endnoteReference','w:endnoteRef'];
+function externalLinks(xml) {
+  const links=new Map();if(!xml)return links;
+  for(const node of children(parser().parse(xml),'Relationships')||[])if(node.Relationship) {
+    const id=rawAttribute(node,'Id'),target=rawAttribute(node,'Target');
+    if(rawAttribute(node,'TargetMode')==='External'&&typeof target==='string'&&target.length<=500&&/^https?:\/\//i.test(target))links.set(id,target);
+  }
+  return links;
+}
+function styleVisibility(stylesXml) {
+  const styles=children(stylesXml?parser().parse(stylesXml):[],'w:styles') || [];
   const byId=new Map(styles.filter(node=>node['w:style']).map(node=>[attribute(node,'styleId'),{
     parent:property(node['w:style'],'w:basedOn'),toggle:hiddenValue(children(node['w:style'],'w:rPr'))===true,
-    numbering:children(children(node['w:style'],'w:pPr'),'w:numPr'),
   }]));
   const defaultStyle=type=>attribute(styles.find(node=>node['w:style'] && attribute(node,'type')===type && ['1','true','on'].includes(String(attribute(node,'default')))),'styleId');
   const defaultParagraph=defaultStyle('paragraph'),defaultCharacter=defaultStyle('character'),styleToggles=new Map();
@@ -76,110 +87,87 @@ export function docxContent(buffer) {
     for(const styleId of chain.reverse()) {toggle=toggle!==byId.get(styleId).toggle;styleToggles.set(styleId,toggle);}
     return inherited!==toggle;
   }
-  const warnings=new Set(),paragraphs=[],footnotes=[],noteReferences=new Map();
-  const numbering=children(parts.has('word/numbering.xml')?parser.parse(parts.get('word/numbering.xml')):[],'w:numbering') || [];
-  const abstracts=new Map(numbering.filter(n=>n['w:abstractNum']).map(n=>[attribute(n,'abstractNumId'),n['w:abstractNum']]));
-  const lists=new Map(numbering.filter(n=>n['w:num']).map(n=>[attribute(n,'numId'),n['w:num']]));
-  const counters=new Map();
-  const notes=new Map();
-  for(const kind of ['footnote','endnote']) {
-    const nodes=children(parts.has('word/'+kind+'s.xml')?parser.parse(parts.get('word/'+kind+'s.xml')):[],'w:'+kind+'s') || [];
-    for(const node of nodes.filter(n=>n['w:'+kind]))if(!attribute(node,'type'))notes.set(kind+':'+attribute(node,'id'),node['w:'+kind]);
-  }
-  function paragraphNumbering(properties) {
-    const direct=children(properties,'w:numPr');
-    let inherited,id=property(properties,'w:pStyle') || defaultParagraph;const seen=new Set();
-    while(byId.has(id)) {
-      if(seen.has(id))throw new Error('Cyclic DOCX style inheritance is unsupported.');
-      seen.add(id);const style=byId.get(id);
-      inherited ??= style.numbering;id=style.parent;
-    }
-    return direct || inherited ? {id:property(direct,'w:numId') ?? property(inherited,'w:numId'),level:property(direct,'w:ilvl') ?? property(inherited,'w:ilvl') ?? '0'} : null;
-  }
-  function listLabel(properties) {
-    const number=paragraphNumbering(properties);
-    if(!number || number.id==='0')return '';
-    const list=lists.get(number.id),abstract=abstracts.get(property(list,'w:abstractNumId')),level=Number(number.level);
-    const definition=index=>{
-      const override=list?.find(n=>n['w:lvlOverride'] && attribute(n,'ilvl')===String(index))?.['w:lvlOverride'];
-      const base=children(override,'w:lvl') || abstract?.find(n=>n['w:lvl'] && attribute(n,'ilvl')===String(index))?.['w:lvl'];
-      return base ? {format:property(base,'w:numFmt'),pattern:property(base,'w:lvlText'),start:Number(property(override,'w:startOverride') ?? property(base,'w:start') ?? 1),restart:property(base,'w:lvlRestart')} : null;
-    };
-    const def=definition(level);
-    if(!Number.isInteger(level) || level<0 || level>8 || !def || !Number.isSafeInteger(def.start) || def.start<0) {warnings.add('Some automatic paragraph numbering could not be read.');return '';}
-    const state=counters.get(number.id) || [];
-    state[level]=(state[level] ?? def.start-1)+1;
-    for(let i=level+1;i<state.length;i++)if(definition(i)?.restart!=='0')state[i]=undefined;
-    counters.set(number.id,state);
-    const format=(value,kind)=>{
-      if(kind==='decimal')return String(value);
-      if(kind==='decimalZero')return String(value).padStart(2,'0');
-      if(['upperLetter','lowerLetter'].includes(kind) && value>0) {
-        let result='';for(let n=value;n>0;n=Math.floor((n-1)/26))result=String.fromCharCode(65+(n-1)%26)+result;
-        return kind==='lowerLetter'?result.toLowerCase():result;
-      }
-      if(['upperRoman','lowerRoman'].includes(kind) && value>0 && value<4000) {
-        let result='',n=value;
-        for(const [size,digits] of [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']])while(n>=size){result+=digits;n-=size;}
-        return kind==='lowerRoman'?result.toLowerCase():result;
-      }
-      warnings.add('Some automatic paragraph numbering uses an unsupported format.');return '';
-    };
-    if(def.format==='bullet')return '•';
-    if(!['decimal','decimalZero','upperLetter','lowerLetter','upperRoman','lowerRoman'].includes(def.format))warnings.add('Some automatic paragraph numbering uses an unsupported format.');
-    if(typeof def.pattern!=='string'){warnings.add('Some automatic paragraph numbering could not be read.');return '';}
-    return def.pattern.replace(/%([1-9])/g,(_,digit)=>{const i=Number(digit)-1,d=definition(i);if(!d){warnings.add('Some automatic paragraph numbering could not be read.');return '';}return format(state[i] ?? d.start,d.format);});
-  }
-  function inline(nodes,hidden) {
-    let text='';
-    for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
-      if(key==='w:r') {
-        const properties=children(value,'w:rPr');
-        const runHidden=hiddenValue(properties) ?? styledHidden(property(properties,'w:rStyle') || defaultCharacter,hidden);
-        if(!runHidden)text+=inline(value,false);
-      }
-      else if(key==='#text')text+=String(value);
-      else if(key==='w:tab')text+='\t';
-      else if(key==='w:br'||key==='w:cr')text+='\n';
-      else if(key==='w:noBreakHyphen')text+='\u2011';
-      else if(key==='w:softHyphen')text+='\u00ad';
-      else if(key==='w:footnoteReference' || key==='w:endnoteReference') {
-        const kind=key==='w:footnoteReference'?'footnote':'endnote',id=attribute(node,'id'),keyId=kind+':'+id;
-        if(attribute(node,'customMarkFollows'))warnings.add('Custom note markers are not supported.');
-        if(!noteReferences.has(keyId))noteReferences.set(keyId,String(noteReferences.size+1));
-        text+='['+noteReferences.get(keyId)+']';
-      }
-      else if(!['w:del','w:instrText','w:pPr','w:rPr'].includes(key) && Array.isArray(value))text+=inline(value,hidden);
-    }
-    return text;
-  }
-  function walk(nodes) {
-    for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
-      if(key==='w:p'){
-        const properties=children(value,'w:pPr'),hidden=styledHidden(property(properties,'w:pStyle') || defaultParagraph,defaults),p=inline(value,hidden).trim();
-        if(p){const label=listLabel(properties);paragraphs.push((label?label+'\t':'')+p);}
-      }
-      else if(Array.isArray(value))walk(value);
-    }
-  }
-  walk(tree);
-  for(const [key,reference] of noteReferences) {
-    const node=notes.get(key);
-    if(!node){warnings.add('A referenced footnote or endnote is missing.');continue;}
-    const noteParagraphs=[];
-    function readNote(nodes) {
-      for(const item of nodes)for(const [name,value] of Object.entries(item)) {
-        if(name==='w:p') {
-          const hidden=styledHidden(property(children(value,'w:pPr'),'w:pStyle') || defaultParagraph,defaults),p=inline(value,hidden).trim();
-          if(p)noteParagraphs.push(p);
-        } else if(Array.isArray(value))readNote(value);
+  return {styledHidden,defaultParagraph,defaultCharacter,defaults};
+}
+// Footnote markers are recorded at their position instead of gluing their number to the text;
+// hyperlinks keep the exact span they cover, so the document itself identifies what a link names.
+function inline(nodes,hidden,out,context) {
+  for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
+    if(key===':@')continue;
+    if(key==='w:r') {
+      const properties=children(value,'w:rPr');
+      if(hiddenValue(properties) ?? context.style.styledHidden(property(properties,'w:rStyle') || context.style.defaultCharacter,hidden))continue;
+      if(!value.some(item=>noteMarks.some(mark=>mark in item))){inline(value,false,out,context);continue;}
+      // Children keep their order. Only the text that immediately follows a custom-marked reference is its label.
+      let pending=null;
+      for(const item of value) {
+        const kind=noteMarks.find(name=>name in item);
+        if(kind){pending={kind,id:String(attribute(item,'id')??''),label:'',custom:['1','true','on'].includes(String(attribute(item,'customMarkFollows'))),offset:out.text.length};out.marks.push(pending);if(!pending.custom)pending=null;continue;}
+        if(pending&&'w:t' in item){const label={text:'',marks:[],spans:[]};inline([item],false,label,context);pending.label=label.text.trim();pending=null;continue;}
+        inline([item],false,out,context);
       }
     }
-    readNote(node);const text=noteParagraphs.join('\n');
-    if(text)footnotes.push({reference,text});else warnings.add('A referenced footnote or endnote is empty.');
+    else if(key==='#text')out.text+=String(value);
+    else if(key==='w:tab')out.text+='\t';
+    else if(key==='w:br'||key==='w:cr')out.text+='\n';
+    else if(key==='w:noBreakHyphen')out.text+='‑';
+    else if(key==='w:softHyphen')out.text+='­';
+    else if(key==='w:hyperlink'&&Array.isArray(value)){const target=context.links.get(rawAttribute(node,'r:id')),start=out.text.length;inline(value,hidden,out,context);if(target&&out.text.length>start)out.spans.push({start,end:out.text.length,url:target});}
+    else if(!['w:del','w:instrText','w:pPr','w:rPr'].includes(key) && Array.isArray(value))inline(value,hidden,out,context);
   }
-  if(!paragraphs.length || paragraphs.length+footnotes.length>20000 || paragraphs.join('\n').length+footnotes.map(n=>n.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
-  return {paragraphs,footnotes,extractionWarnings:[...warnings]};
+}
+function paragraphsOf(nodes,context,result=[]) {
+  for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
+    if(key==='w:p'){
+      const out={text:'',marks:[],spans:[]};
+      inline(value,context.style.styledHidden(property(children(value,'w:pPr'),'w:pStyle') || context.style.defaultParagraph,context.style.defaults),out,context);
+      const label=out.text.trim()?context.numberLabel?.(children(value,'w:pPr')):null;
+      if(label){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}}
+      const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
+      if(text)result.push({text,marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start)});
+    }
+    else if(key!==':@'&&Array.isArray(value))paragraphsOf(value,context,result);
+  }
+  return result;
+}
+// Paragraphs stay plain strings. Footnotes and links are returned separately with exact positions.
+export function docxContent(buffer) {
+  const parts=docxParts(buffer),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set();
+  const numberLabel=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),warnings);
+  const body=paragraphsOf(parser().parse(parts.get('word/document.xml')),{style,numberLabel,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
+  if(!body.length || body.length>20000 || body.map(p=>p.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
+  const supplied=new Map();
+  for(const kind of ['footnote','endnote'])if(parts.has('word/'+kind+'s.xml')) {
+    const context={style,numberLabel,links:externalLinks(parts.get('word/_rels/'+kind+'s.xml.rels'))};
+    for(const node of children(parser().parse(parts.get('word/'+kind+'s.xml')),'w:'+kind+'s')||[]) {
+      if(!node['w:'+kind]||!['normal',undefined].includes(attribute(node,'type')))continue;
+      const paragraphs=paragraphsOf(node['w:'+kind],context),spans=[];let offset=0;
+      for(const part of paragraphs){spans.push(...part.spans.map(span=>({...span,start:span.start+offset,end:span.end+offset})));offset+=part.text.length+1;}
+      const text=paragraphs.map(p=>p.text).join('\n').slice(0,NOTE_LIMITS.text);
+      const key=(kind==='endnote'?'endnote:':'')+String(attribute(node,'id'));
+      supplied.set(key,{text,truncated:offset-1>NOTE_LIMITS.text,spans:spans.filter(span=>span.end<=text.length).slice(0,NOTE_LIMITS.links)});
+    }
+  }
+  const notes=[],anchors=[];
+  body.forEach((paragraph,index)=>{for(const mark of paragraph.marks) {
+    if(!['w:footnoteReference','w:endnoteReference'].includes(mark.kind))continue;
+    const id=(mark.kind==='w:endnoteReference'?'endnote:':'')+mark.id;
+    if(!supplied.has(id)){warnings.add('A referenced footnote or endnote is missing.');continue;}
+    let note=notes.find(n=>n.id===id);
+    if(!note){
+      if(notes.length>=NOTE_LIMITS.notes){warnings.add('The referenced notes exceed the supported note count.');continue;}
+      const label=mark.label||String(notes.length+1),source=supplied.get(id);
+      if(source.truncated)warnings.add('A referenced note exceeds the supported text size.');
+      if(!source.text)warnings.add('A referenced footnote or endnote is empty.');
+      // A custom mark repeats its label as ordinary footnote text; automatic numbering does not.
+      const text=mark.custom&&mark.label&&source.text.startsWith(label)&&/^[\s.)]/.test(source.text.slice(label.length))?source.text.slice(label.length).replace(/^[\s.)]+/,''):source.text,removed=source.text.length-text.length;
+      const linkSpans=source.spans.map(span=>({...span,start:span.start-removed,end:span.end-removed})).filter(span=>span.start>=0);
+      note={id,label,text,links:[...new Set(source.spans.map(span=>span.url))],linkSpans};notes.push(note);
+    }
+    anchors.push({paragraph:index,offset:mark.offset,note:note.id,label:note.label});
+  }});
+  const links=body.flatMap((paragraph,index)=>paragraph.spans.map(span=>({paragraph:index,...span}))).slice(0,NOTE_LIMITS.documentLinks);
+  return {paragraphs:body.map(p=>p.text),notes,anchors,links,extractionWarnings:[...warnings]};
 }
 export const docxParagraphs=buffer=>docxContent(buffer).paragraphs;
 
@@ -205,12 +193,21 @@ export async function downloadDocx(sourceUrl) {
   throw new Error('Too many document download redirects.');
 }
 
+const validSpan=(span,text)=>Number.isInteger(span?.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&typeof span.url==='string'&&/^https?:\/\//i.test(span.url);
+export function documentNotes(record) {
+  const paragraphs=record?.paragraphs||[];
+  const valid=Array.isArray(record?.notes)&&Array.isArray(record.anchors)&&Array.isArray(record.links)
+    &&record.notes.every(n=>typeof n?.id==='string'&&typeof n.label==='string'&&typeof n.text==='string'&&Array.isArray(n.links)&&Array.isArray(n.linkSpans)&&n.linkSpans.every(span=>validSpan(span,n.text)))
+    &&record.anchors.every(a=>Number.isInteger(a?.paragraph)&&a.paragraph>=0&&a.paragraph<paragraphs.length&&Number.isInteger(a.offset)&&a.offset>=0&&a.offset<=paragraphs[a.paragraph].length&&record.notes.some(n=>n.id===a.note))
+    &&record.links.every(link=>Number.isInteger(link?.paragraph)&&link.paragraph>=0&&link.paragraph<paragraphs.length&&validSpan(link,paragraphs[link.paragraph]));
+  return valid?{notesStatus:'extracted',notes:record.notes,noteAnchors:record.anchors,documentLinks:record.links}:{notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[]};
+}
 export async function documentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now}={}) {
   const files=documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
   const languages=[...new Set(files.map(f=>f.language).filter(Boolean))];
   const originals=array(work.originalLanguage).map(languageCode);
   const chosen=files.find(f=>f.language===language) || files.find(f=>originals.includes(f.language)) || files.find(f=>f.language==='en') || files[0];
-  const base={status:'unavailable',paragraphs:[],footnotes:[],extractionWarnings:[],textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
+  const base={status:'unavailable',paragraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
   const key=chosen.url,file=directory && path.join(directory,'document-text-v1',createHash('sha256').update(key).digest('hex')+'.json');
   let saved=memory.get(key);
@@ -225,7 +222,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
     pending.set(key,job);return job;
   };
   const failure=failures.get(key);
-  const present=record=>({...base,status:'available',paragraphs:record.paragraphs,footnotes:record.footnotes || [],extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
+  const present=record=>({...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
   if(saved){const stale=clock()-Date.parse(saved.fetchedAt)>=DAY;if(stale && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
   try {const record=await refresh('interactive');return present(record);}
