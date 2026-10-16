@@ -56,9 +56,20 @@ test('a completed source refresh replaces saved names without clearing loaded me
   try {
     const fresh={...f.records[0].payload.data[0],givenName:'Updated'};
     const out=run(f.directory,`
-      globalThis.fetch=async url=>new URL(url).pathname.endsWith('/meps/show-current')
-        ?new Response(JSON.stringify({data:[${JSON.stringify(fresh)}]}),{headers:{'content-type':'application/json'}})
-        :new Promise(()=>{});
+      const payloads=new Map(${JSON.stringify(f.records.map(record=>[record.url,record.payload]))});
+      let completeRoster;
+      const rosterReady=new Promise(resolve=>{completeRoster=resolve;});
+      globalThis.fetch=async url=>{
+        const payload=payloads.get(String(url));
+        if(!payload)throw new Error('Unexpected fixture request: '+url);
+        if(new URL(url).pathname.endsWith('/meps/show-current')){
+          await rosterReady;
+          return new Response(JSON.stringify({data:[${JSON.stringify(fresh)}]}),{headers:{'content-type':'application/json'}});
+        }
+        // Either saved catalogue may finish reading first. Committee refreshes
+        // must release the shared background slot for the roster refresh.
+        return new Response(JSON.stringify(payload),{headers:{'content-type':'application/json'}});
+      };
       const {odpDirectory,odp}=await import(${moduleUrl});
       const first=await odpDirectory();
       let loaded;
@@ -66,6 +77,7 @@ test('a completed source refresh replaces saved names without clearing loaded me
         loaded=await odpDirectory();if(loaded.index.complete)break;
         await new Promise(resolve=>setTimeout(resolve,10));
       }
+      completeRoster();
       // Join the actual source refresh before triggering a new projection.
       // Keep this serverless child alive while the queue's unref'ed timer waits.
       let refreshDeadline;
