@@ -9,7 +9,7 @@ import { ActivityWorker } from './activity-index-worker.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 import { AMENDMENTS_VERSION, amendmentLists, amendmentOutcome, amendmentQuery, amendmentReference } from './amendments.mjs';
 import { amendmentFailures, amendmentsPage, enqueueAmendment, nextAmendmentTask, recordSplitResults, saveAmendmentRows } from './amendments-store.mjs';
-import { failAmendmentTask, parseSavedSplits, prepareAmendments, rebuildAmendmentTarget, refreshSittingTargets, scheduleAmendments } from './amendments-worker.mjs';
+import { failAmendmentTask, parseSavedSplits, prepareAmendments, rebuildAmendmentTarget, refreshSittingTargets, scheduleAmendments, scheduleSittingOutcomes } from './amendments-worker.mjs';
 import { SPLIT_PARSER_VERSION, parseSplitRequest } from './amendment-splits.mjs';
 import { resolveAmendmentAuthors } from './amendment-authors.mjs';
 import { AMENDMENT_EXTRACTION_VERSION, extractAmendments } from './amendment-documents.mjs';
@@ -605,6 +605,32 @@ test('split failures remain durable across publication and pruning, and a parser
   try {assert.equal(amendmentFailures(reader).total,2);}finally {reader.close();}
 });
 
+test('partial amendment overlays reparse absent retained requests before adopting the current split parser version',t=>{
+  for(const nestedOverlay of [false,true]) {
+    const {store,worker}=setup(t),oldPage={url:sourceUrl+'&offset=50',fetchedAt:earlier},freshPage={url:sourceUrl+'&offset=0',fetchedAt};
+    const retained={...request([part(1,'‘Retained older selector’')]),source:oldPage};
+    const parsed=parseSplitRequest(retained,{sourceUrl:oldPage.url,fetchedAt:earlier});
+    const legacy={...parsed,source:oldPage,sourceUrl:oldPage.url,fetchedAt:earlier,sourceCandidates:[],provenance:'exact',parts:parsed.parts.map(part=>({...part,status:'unresolved',plan:null,source:oldPage})),failures:[{partId:parsed.parts[0].id,description:parsed.parts[0].description,rawDescription:parsed.parts[0].rawDescription,language:'en',code:'legacy_unsupported',message:'The previous grammar did not recognise this selector.'}]};
+    recordSplitResults(store,legacy);
+    const prior={splitRequests:[retained],parsedSplits:[legacy],splitParserVersion:'1',decisions:[],sources:[{url:sourceUrl+'&offset=0',fetchedAt:earlier},oldPage]};
+    const freshRequest={...request([part(1,'Unsupported fresh voting instructions')]),id:retained.id.replace('-SPLIT-1','-SPLIT-2'),source:freshPage};
+    freshRequest.created_a_realization_of[0].id=freshRequest.created_a_realization_of[0].id.replace('-SPLIT-1','-SPLIT-2');
+    const priorWork=nestedOverlay?{...completeSitting(),amendmentEvidence:prior}:prior;
+    const result=parseSavedSplits(worker,{splitRequests:[freshRequest],decisions:[],sources:[freshPage],truncated:true},{priorWork});
+    const evidence=result.amendmentEvidence;
+    assert.equal(evidence.splitParserVersion,SPLIT_PARSER_VERSION);assert.equal(evidence.parsedSplits.length,2);
+    const reparsed=evidence.parsedSplits.find(split=>split.requestId===retained.id);
+    assert.equal(reparsed.parts[0].status,'parsed');assert.deepEqual(reparsed.parts[0].plan,{type:'text',quote:'Retained older selector',grounding:'not_attempted',selectionDomain:'text'});
+    assert.deepEqual(reparsed.source,oldPage);assert.deepEqual(reparsed.parts[0].source,oldPage);assert.equal(reparsed.provenance,'exact');
+    const resolved=amendmentFailures(store,{status:'resolved'}).items;
+    assert.equal(resolved.length,1);assert.equal(resolved[0].requestId,retained.id);assert.equal(resolved[0].parserVersion,SPLIT_PARSER_VERSION);
+    assert.equal(resolved[0].firstOccurrence,earlier);assert.equal(resolved[0].count,1);assert.deepEqual(resolved[0].source,oldPage);
+    const freshFailure=amendmentFailures(store,{status:'unresolved'}).items;
+    assert.equal(freshFailure.length,1);assert.equal(freshFailure[0].requestId,freshRequest.id);assert.equal(freshFailure[0].count,1);
+    assert.deepEqual(freshFailure[0].source,freshPage);
+  }
+});
+
 test('request-level split parse failures are retained even when the request has no components',t=>{
   const {store,worker}=setup(t);
   const split=request([]);
@@ -700,6 +726,37 @@ test('legacy multi-page split requests expose unknown provenance and candidate p
   assert.deepEqual(one.source,pages[0]);assert.equal(one.provenance,'single-page');
 });
 
+test('legacy single-page provenance survives retained split and decision chains while fresh node sources stay exact',t=>{
+  const {store,worker,generation}=setup(t);
+  seedTarget(store,generation,[amendment(1),amendment(2)]);
+  const oldResults={url:sourceUrl+'&offset=0',fetchedAt:earlier},oldDecisions={url:sourceUrl.replace('/vote-results?','/decisions?')+'&offset=0',fetchedAt:earlier};
+  const freshResults={url:sourceUrl+'&offset=50',fetchedAt},freshDecisions={url:sourceUrl.replace('/vote-results?','/decisions?')+'&offset=50',fetchedAt};
+  const oldRequest=request([part(1,'‘Legacy selected clause’'),part(2,'Unsupported legacy instructions')]);
+  const legacy=parseSavedSplits(worker,{...completeSitting(),splitRequests:[oldRequest],sources:[oldResults,oldDecisions],decisions:[decision(1,['eli/dl/doc/'+targetId+'-AM-1',oldRequest.created_a_realization_of[0].id],'ADOPTED')]});
+  assert.equal(legacy.parsedSplits[0].provenance,'single-page');
+  const freshRequest={...request([part(1,'‘Fresh selected clause’')]),id:oldRequest.id.replace('-SPLIT-1','-SPLIT-2'),source:freshResults};
+  freshRequest.created_a_realization_of[0].id=freshRequest.created_a_realization_of[0].id.replace('-SPLIT-1','-SPLIT-2');
+  const fresh={...completeSitting(),splitRequests:[freshRequest],sources:[freshResults,freshDecisions],truncated:true,decisions:[decision(2,['eli/dl/doc/'+targetId+'-AM-2',freshRequest.created_a_realization_of[0].id],'REJECTED',{source:freshDecisions})]};
+  const retained=parseSavedSplits(worker,fresh,{priorWork:legacy});
+  const inferredRequest=retained.amendmentEvidence.splitRequests.find(split=>split.id===oldRequest.id);
+  assert.deepEqual(inferredRequest.source,oldResults);assert.equal(inferredRequest.provenance,'single-page');
+  const reparsed=parseSavedSplits(worker,retained.amendmentEvidence);
+  const chained=parseSavedSplits(worker,{...completeSitting(),splitRequests:[],decisions:[],sources:[],truncated:true},{priorWork:reparsed});
+  const oldParsed=chained.amendmentEvidence.parsedSplits.find(split=>split.requestId===oldRequest.id);
+  assert.deepEqual(oldParsed.source,oldResults);assert.equal(oldParsed.provenance,'single-page');
+  assert(oldParsed.parts.every(component=>component.provenance==='single-page'));
+  const failure=amendmentFailures(store,{status:'unresolved'}).items[0];
+  assert.deepEqual(failure.source,oldResults);assert.equal(failure.provenance,'single-page');
+  store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',chained,fetchedAt);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  const items=new Map(amendmentsPage(store,{document:targetId}).items.map(item=>[item.number,item]));
+  const oldVote=items.get(1).decisions[0],freshVote=items.get(2).decisions[0];
+  assert.deepEqual(oldVote.source,oldDecisions);assert.equal(oldVote.provenance,'single-page');
+  assert.equal(items.get(1).splitParts[0].provenance,'single-page');
+  assert.deepEqual(freshVote.source,freshDecisions);assert.equal(freshVote.provenance,'exact');
+  assert.deepEqual(items.get(2).splitParts[0].source,freshResults);assert.equal(items.get(2).splitParts[0].provenance,'exact');
+});
+
 test('paginated decisions retain the exact later page and retrieval time in the serving amendment decision',async t=>{
   const {store,worker,generation}=setup(t);
   seedTarget(store,generation,[amendment(1)]);
@@ -737,6 +794,58 @@ test('legacy multi-page decision caches expose candidate pages with an unavailab
   const [item]=amendmentsPage(store,{document:targetId}).items,[vote]=item.decisions;
   assert.equal(vote.outcome,'ADOPTED');assert.equal(vote.source,null);
   assert.equal(vote.provenance,'unavailable');assert.deepEqual(vote.sourceCandidates,pages);
+});
+
+test('partial main-motion refreshes retain the accepted core graph while applying independently observed amendment corrections and failures',async t=>{
+  const scenarios=[
+    ['corrected',['eli/dl/doc/'+targetId+'-AM-2']],
+    ['empty',[]],
+    ['foreign',['https://unrelated.example/eli/dl/doc/'+targetId+'-AM-2']],
+    ['unknown',[targetId+'-AM-2']],
+    ['missing',undefined],
+    ['absent',null],
+  ];
+  for(const [mode,references] of scenarios) {
+    const {store,worker,generation}=setup(t);
+    seedTarget(store,generation,[amendment(1),amendment(2),amendment(3)]);
+    const oldDecisionSource={url:sourceUrl.replace('/vote-results?','/decisions?')+'&offset=0',fetchedAt:earlier};
+    const oldDecisions=[decision(1,['eli/dl/doc/'+targetId+'-AM-1'],'ADOPTED',{source:oldDecisionSource}),decision(2,['eli/dl/doc/'+targetId+'-AM-3'],'LAPSED',{source:oldDecisionSource})];
+    const acceptedResults=[{id:'eli/dl/event/'+sitting+'-VOT-ITM-123',consists_of:[oldDecisions[0].id],sittingResultIds:[]},{id:'eli/dl/event/'+sitting+'-VOT-ITM-999',consists_of:[oldDecisions[1].id],sittingResultIds:[]}];
+    const accepted={...completeSitting(),results:acceptedResults,decisions:oldDecisions,parsedSplits:[],sources:[{url:sourceUrl+'&offset=0',fetchedAt:earlier},oldDecisionSource]};
+    store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',accepted,earlier);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    const malformed=request([{...part(1,'‘Fresh observation in a partial graph’'),id:'eli/dl/doc/'+sitting+'-VOT-ITM-123-SPLIT-77-1'}]);delete malformed.id;
+    const freshDecision=decision(1,references,'REJECTED',{had_activity_type:'def/ep-activities/PLENARY_OUTCOME'});
+    if(mode==='missing')delete freshDecision.decided_on_a_realization_of;
+    const freshResult={...acceptedResults[0],had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',activity_date:'2026-10-07',inverse_consists_of:[{id:'eli/dl/event/'+sitting,consists_of:[acceptedResults[0].id]}]};
+    worker.fetchRecord=async endpoint=>({fetchedAt,payload:{data:endpoint.endsWith('/vote-results')?[freshResult,malformed]:mode==='absent'?[]:[freshDecision]}});
+    store.enqueue(generation,'partial-amendment-observation','motion-outcomes',{sittingId:sitting,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]},113);
+    await worker.task(store.nextTask(generation));await worker.task(store.nextTask(generation));
+    const saved=store.source(generation,motionSourceKey(sitting));
+    assert.deepEqual(saved.work.results,acceptedResults,mode);assert.deepEqual(saved.work.decisions,oldDecisions,mode);
+    assert.equal(saved.fetchedAt,earlier);assert(saved.work.lastRefreshFailure,mode);
+    const failure=amendmentFailures(store,{status:'unresolved'}).items[0];
+    assert(failure,'The fresh malformed split must be recorded despite retaining the main-motion graph.');
+    assert.equal(failure.code,'missing_request_id');assert.equal(failure.fetchedAt,fetchedAt);
+    assert.equal(new URL(failure.source.url).pathname,'/api/v2/meetings/'+sitting+'/vote-results');
+    assert.equal(failure.provenance,'exact');
+    for(let rebuild=0;rebuild<2;rebuild++) {
+      const page=amendmentsPage(store,{document:targetId}),items=new Map(page.items.map(item=>[item.number,item]));
+      assert.equal(page.coverage.complete,false);
+      assert.equal(items.get(3).outcome,'LAPSED');assert.deepEqual(items.get(3).decisions.map(vote=>vote.id),[sitting+'-DEC-2']);
+      if(mode==='corrected') {
+        assert.equal(items.get(1).outcome,'unavailable');assert.deepEqual(items.get(1).decisions,[]);
+        assert.equal(items.get(2).outcome,'REJECTED');assert.equal(items.get(2).decisions[0].id,sitting+'-DEC-1');
+        assert.equal(items.get(2).decisions[0].source.fetchedAt,fetchedAt);assert.equal(items.get(2).decisions[0].provenance,'exact');
+        assert.equal(new URL(items.get(2).decisions[0].source.url).pathname,'/api/v2/meetings/'+sitting+'/decisions');
+      } else {
+        assert.equal(items.get(1).outcome,'ADOPTED',mode);assert.equal(items.get(1).decisions[0].source.fetchedAt,earlier);
+        assert.equal(items.get(2).outcome,'unavailable');
+        assert(items.get(1).gaps.includes(mode==='absent'?'An amendment decision is retained because it was absent from the latest source graph.':'A refreshed decision has unavailable amendment references; its accepted binding is retained.'),mode);
+      }
+      rebuildAmendmentTarget(worker,generation,targetId);
+    }
+  }
 });
 
 test('actual split ingestion preserves distinct missing-request observations and excludes explicit foreign IDs',async t=>{
@@ -912,6 +1021,41 @@ test('reports and motions reuse one sitting refresh and do not repeat a complete
   assert.equal(jobs.length,1);assert.equal(jobs[0].done,1);
 });
 
+test('compact discovery and capacity checkpoints keep amendment coverage honest across retained generation fallback',t=>{
+  for(const kind of ['discovery','capacity'])for(const location of ['active','retained-source','new-active-source']) {
+    const {store,generation}=setup(t);
+    saveAmendmentRows(store,generation,metadata,[row(1)],coverage);
+    store.publish(generation);
+    if(location!=='active'){store.set('active',generation+1);store.set('sequence',generation+1);}
+    assert.equal(amendmentsPage(store,{document:targetId}).coverage.complete,true);
+    const checkpoint={tasks:[],discovery:kind==='discovery'?[{key:'deferred:report',kind:'document',endpoint:'/plenary-documents/'+targetId,priority:109}]:[],completed:[],capacityGap:kind==='capacity'?{count:3,message:'Additional untouched amendment discovery exceeded the bounded checkpoint and is deferred to normal catalogue refresh.'}:null};
+    const checkpointGeneration=location==='new-active-source'?generation+1:generation;
+    store.putSource(checkpointGeneration,'amendment:continuations','amendment-continuations',checkpoint,fetchedAt);
+    const page=amendmentsPage(store,{document:targetId});
+    assert.equal(page.coverage.servingGeneration,generation);assert.equal(page.coverage.pending,kind==='discovery',kind+' '+location);
+    assert.equal(page.coverage.complete,false,kind+' '+location);assert.equal(page.items[0].outcome,'unavailable');
+    if(kind==='capacity')assert(page.coverage.gaps.some(gap=>gap.includes(checkpoint.capacityGap.message)),location);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs').get().n,0);
+    assert.deepEqual(store.source(checkpointGeneration,'amendment:continuations').work,checkpoint);
+  }
+});
+
+test('sitting refreshes preserve matching compact discovery and completed checkpoints without suppressing another sitting',t=>{
+  for(const mode of ['discovery','different-sitting','completed']) {
+    const {store,worker,generation}=setup(t);
+    const descriptor={key:motionSourceKey(sitting)+':old-discovery-key',kind:'motion-outcomes',sittingId:mode==='different-sitting'?'MTG-PL-2026-10-06':sitting,priority:72};
+    const checkpoint={tasks:[],discovery:mode==='completed'?[]:[descriptor],completed:mode==='completed'?[{key:motionSourceKey(sitting)+':2026-10-16',kind:'motion-outcomes',sittingId:sitting}]:[],capacityGap:null};
+    store.putSource(generation,'amendment:continuations','amendment-continuations',checkpoint,earlier);
+    const before=store.db.prepare("SELECT body,fetched_at FROM sources WHERE generation=? AND key='amendment:continuations'").get(generation);
+    assert.equal(scheduleSittingOutcomes(worker,generation,sitting),mode==='different-sitting',mode);
+    assert.equal(outcomeJobs(store,generation).length,mode==='different-sitting'?1:0,mode);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs').get().n,0);
+    assert.deepEqual(store.db.prepare("SELECT body,fetched_at FROM sources WHERE generation=? AND key='amendment:continuations'").get(generation),before);
+    if(mode==='different-sitting')assert.equal(JSON.parse(outcomeJobs(store,generation)[0].body).sittingId,sitting);
+  }
+});
+
 test('an existing sitting task under an older amendment key preserves its pagination and retry state',t=>{
   const {store,worker,generation}=setup(t);
   const key=motionSourceKey(sitting)+':amendments:2026-10-15';
@@ -1020,7 +1164,8 @@ function comparisonDocx(rows,{author='Bruno Gonçalves',language='en',date='2.10
     return wrapSecondRow&&index===1?'<w:sdt><w:sdtContent>'+xml+'</w:sdtContent></w:sdt>':xml;
   }).join('');
   const heading=tableRow(['Text proposed by the Commission',language==='fr'?'Amendement':'Amendment']);
-  const section=paragraph('<Amend><Date>'+date+'</Date><NumAm>1</NumAm>')+(author?paragraph('<Members>'+author+'</Members>'):'')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+heading+comparisonRows+'</w:tbl>'+paragraph('</Amend>')+extraAmendments.map(extra=>paragraph('<Amend><Date>'+date+'</Date><NumAm>'+extra.number+'</NumAm>')+(extra.author?paragraph('<Members>'+extra.author+'</Members>'):'')+paragraph('<Article>Article '+extra.number+'</Article>')+'<w:tbl>'+heading+extra.rows.map(tableRow).join('')+'</w:tbl>'+paragraph('</Amend>')).join('');
+  const dateTag=date?'<Date>'+date+'</Date>':'';
+  const section=paragraph('<Amend>'+dateTag+'<NumAm>1</NumAm>')+(author?paragraph('<Members>'+author+'</Members>'):'')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+heading+comparisonRows+'</w:tbl>'+paragraph('</Amend>')+extraAmendments.map(extra=>paragraph('<Amend>'+dateTag+'<NumAm>'+extra.number+'</NumAm>')+(extra.author?paragraph('<Members>'+extra.author+'</Members>'):'')+paragraph('<Article>Article '+extra.number+'</Article>')+'<w:tbl>'+heading+extra.rows.map(tableRow).join('')+'</w:tbl>'+paragraph('</Amend>')).join('');
   const content=wholeBodyAlternatives?'<compat:AlternateContent><compat:Choice Requires="w14">'+section+'</compat:Choice><compat:Fallback>'+section+'</compat:Fallback></compat:AlternateContent>':section;
   return docx('<w:document xmlns:w="urn:word" xmlns:compat="http://schemas.openxmlformats.org/markup-compatibility/2006"><w:body>'+(committee?paragraph('<Committee>'+committee+'</Committee>'):'')+content+'</w:body></w:document>');
 }
@@ -1304,6 +1449,38 @@ test('a parser migration retains supported proposer provenance independently of 
   }
 });
 
+test('an undated proposer retains the original list-date mandate basis across metadata changes and incompatible wording migration',async t=>{
+  for(const evidenceKind of ['dated-roster','mandate-profile']) {
+    const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001',newListDate='2026-10-06';
+    const oldUrl='https://data.europarl.europa.eu/distribution/example/undated_proposer_v6_en.docx',newUrl='https://data.europarl.europa.eu/distribution/example/undated_proposer_v7_en.docx';
+    const baseline=extractAmendments(comparisonDocx([['Legacy complete original','Legacy complete proposal']],{author:'Alex Common',date:null}),{listId:singleListId,targetDocumentId:targetId,language:'en',sourceUrl:oldUrl,fetchedAt:earlier});
+    assert.equal(baseline.amendments[0].date,null);
+    store.putSource(generation,'/plenary-documents/'+targetId,'document',target,earlier);
+    store.putSource(generation,'amendment:list:'+singleListId,'amendment-list',{...list([]),id:'eli/dl/doc/'+singleListId,identifier:singleListId,document_date:tabled,files:[{format:'DOCX',language:'en',url:newUrl}],extraction:{...baseline,sourceUrl:oldUrl,fetchedAt:earlier,language:'en',parserVersion:'6'}},earlier);
+    if(evidenceKind==='dated-roster')for(const [date,id] of [[tabled,'101'],[newListDate,'102']])store.putSource(generation,'amendment:roster:'+date,'amendment-roster',{members:[{id,givenName:'Alex',familyName:'Common'}],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+date,fetchedAt:earlier}]},earlier);
+    else for(const [id,start,end] of [['101','2024-07-16',tabled],['102',newListDate,null]])store.putSource(generation,'amendment:member:'+id,'amendment-member',{id,givenName:'Alex',familyName:'Common',hasMembership:[{role:'def/ep-roles/MEMBER_PARLIAMENT',memberDuring:{startDate:start,...(end?{endDate:end}:{})}}],sourceUrl:'https://data.europarl.europa.eu/api/v2/meps/'+id,fetchedAt:earlier},earlier);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    assert.equal(amendmentsPage(store,{document:targetId}).items[0].authors[0].personId,'101');
+    const old=store.source(generation,'amendment:list:'+singleListId);
+    store.putSource(generation,'amendment:list:'+singleListId,'amendment-list',{...old.work,document_date:newListDate},old.fetchedAt);
+    const fresh=comparisonDocx([['Damaged new row','New proposal'],['Unsupported','Extra','Column']],{author:null,date:null});
+    worker.downloadAmendmentDocx=async()=>({buffer:fresh});
+    enqueueAmendment(store,generation,'undated-proposer-migration','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
+    await worker.task(nextAmendmentTask(store,generation));
+    const [item]=amendmentsPage(store,{document:targetId}).items;
+    assert.notEqual(AMENDMENT_EXTRACTION_VERSION,'6');
+    assert.equal(item.originalText,null);assert.equal(item.proposedText,null);assert.equal(item.textIntegrity,'incomplete');
+    assert.equal(item.listDocumentDate,newListDate);assert.equal(item.documentDate,null);assert.equal(item.date,newListDate);
+    assert.equal(item.authors[0].personId,'101');assert.equal(amendmentsPage(store,{member:'102'}).total,0);
+    assert.equal(item.proposerDate,tabled);assert.equal(item.proposerRetained,true);
+    assert.deepEqual(item.proposerSource,{url:oldUrl,fetchedAt:earlier,language:'en'});
+    const matched=item.authors[0].evidence.find(evidence=>evidence.type==='full_name'&&evidence.personId===101);
+    assert.equal(matched.date,tabled);assert(matched.activeMandate);
+    if(evidenceKind==='mandate-profile')assert.equal(new URL(matched.sourceUrl).pathname,'/api/v2/meps/101');
+    else assert(item.authors[0].evidence.some(evidence=>evidence.type==='dated_roster'&&evidence.mandateObservedOn===tabled));
+  }
+});
+
 test('a failed v3 parse cannot resurrect structurally incomplete wording cached by extractor v2',async t=>{
   const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001';
   const oldUrl='https://data.europarl.europa.eu/distribution/example/partial_v2_en.docx',newUrl='https://data.europarl.europa.eu/distribution/example/refreshed_v3_en.docx';
@@ -1511,7 +1688,7 @@ test('the published amendment-list processing limit remains an explicit gap afte
     const stored={...published,targetDocumentId:targetId,extraction:{amendments:[amendment(index+1,{authors:['Alex Common']})],gaps:[],language:'en',sourceUrl:published.is_realized_by[0].is_embodied_by[0].is_exemplified_by,fetchedAt:earlier,parserVersion:AMENDMENT_EXTRACTION_VERSION}};
     store.putSource(generation,'amendment:list:'+published.identifier,'amendment-list',stored,earlier);
   }
-  store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',{amendmentVersion:AMENDMENTS_VERSION,splitRequests:[],parsedSplits:[],sources:[{url:sourceUrl.replace('/vote-results?','/decisions?'),fetchedAt}],decisions:[decision(1,Array.from({length:64},(_,index)=>'eli/dl/doc/'+targetId+'-AM-'+(index+1)),'ADOPTED')]},fetchedAt);
+  store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',{...completeSitting(),parsedSplits:[],sources:[{url:sourceUrl.replace('/vote-results?','/decisions?'),fetchedAt}],decisions:[decision(1,Array.from({length:64},(_,index)=>'eli/dl/doc/'+targetId+'-AM-'+(index+1)),'ADOPTED')]},fetchedAt);
   store.putSource(generation,'amendment:aliases:'+sitting,'amendment-aliases',{aliases:[]},fetchedAt);
   scheduleAmendments(worker,generation,work,fetchedAt,'/plenary-documents/'+targetId);
   let page=amendmentsPage(store,{document:targetId});

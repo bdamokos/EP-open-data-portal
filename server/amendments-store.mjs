@@ -135,7 +135,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
         if(part&&!part.source?.url){row.gaps.push('The split description has no exact recorded source page; candidate page provenance is retained.');extraGaps.add('Some split descriptions have no exact recorded source page.');}
         if(!part||part.status==='unresolved')extraGaps.add('Some split components have incomplete description or parsing evidence.');
       }
-      row.sources=[...new Map([...(row.sources || []),...row.splitParts.map(part=>part.source).filter(source=>source?.url)].map(source=>[source.url+':'+(source.language || '')+':'+source.fetchedAt,source])).values()];
+      row.sources=[...new Map([...(row.sources || []),...row.splitParts.map(part=>part.source),...(row.decisions || []).map(decision=>decision.source)].filter(source=>source?.url).map(source=>[source.url+':'+(source.language || '')+':'+source.fetchedAt,source])).values()];
       const textLosses=amendmentTextLosses(null,row);
       if(invalidBaseline(row)||textLosses.length) {
         row.originalText=null;row.proposedText=null;row.textIntegrity='incomplete';row.wordingRetained=false;
@@ -195,11 +195,20 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   });
   const records=store.db.prepare('SELECT body FROM amendment_targets WHERE generation=?'+(document?' AND id=?':'')+' LIMIT 10001').all(generation,...(document?[document]:[])).map(record=>parse(record.body));
   const gaps=[...new Set(records.flatMap(record=>record.gaps || []))];
-  const working=store.get('working'),pending=Boolean(working&&store.db.prepare("SELECT 1 FROM amendment_jobs WHERE generation=? AND done<>1 LIMIT 1").get(working.generation));
+  const working=store.get('working'),active=store.get('active');
+  const generations=[...new Set([generation,working?.generation,active].filter(Boolean))];
+  const pending=Boolean(generations.some(id=>store.db.prepare('SELECT 1 FROM amendment_jobs WHERE generation=? AND done<>1 LIMIT 1').get(id)||store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND key='amendment:continuations' AND (json_array_length(json_extract(body,'$.tasks'))>0 OR json_array_length(json_extract(body,'$.discovery'))>0) LIMIT 1").get(id))||[...new Set([working?.generation,active].filter(Boolean))].some(id=>store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND kind IN ('document','motion-outcomes') AND (done IS NULL OR done<>1) LIMIT 1").get(id)));
+  const capacityGaps=generations.flatMap(id=>{
+    const row=store.db.prepare("SELECT json_extract(body,'$.capacityGap') AS gap FROM sources WHERE generation=? AND key='amendment:continuations'").get(id);
+    if(!row?.gap)return [];
+    let detail;try {detail=JSON.parse(row.gap);}catch {detail=null;}
+    return [typeof detail?.message==='string'?detail.message:'Some amendment discovery was deferred after the checkpoint capacity was reached.'];
+  });
+  gaps.push(...new Set(capacityGaps));
   if(!records.length)gaps.push(document?'This document has no indexed amendment records.':'Amendment discovery is incomplete.');
   if(!document)gaps.push('Coverage includes indexed plenary amendment lists; older targets are enriched in bounded batches.');
   const lastUpdated=records.map(record=>record.lastUpdated).filter(Boolean).sort().at(-1) || null;
-  return {items,total,offset,limit,coverage:{complete:Boolean(document&&records.length&&records.every(record=>record.complete)&&!pending),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope:'plenary',servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation)},failures:amendmentFailureSummary(store)};
+  return {items,total,offset,limit,coverage:{complete:Boolean(document&&records.length&&records.every(record=>record.complete)&&!pending&&!capacityGaps.length),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope:'plenary',servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation)},failures:amendmentFailureSummary(store)};
 }
 
 export function enqueueAmendment(store,generation,key,kind,body,priority=105,refreshCompleted=false) {
