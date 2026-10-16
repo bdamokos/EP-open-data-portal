@@ -52,6 +52,28 @@ test('participation announces only settled filters and keeps focus while qualify
   assert.equal(h.calls.length,1,'title filters do not reload public-source data');
 });
 
+test('participation distinguishes unavailable agendas, verified empty agendas and unmatched saved titles',async t=>{
+  const sitting={id:'MTG-PL-2026-10-07',date:'2026-10-07',phase:'past'};
+  const row={id:'exact-saved-agenda-id',title:'Available agenda title',date:sitting.date,sittingId:sitting.id,upcoming:false,speakers:2,voters:null,amendmentVotes:null,rollCalls:0};
+  const agendaGap={kind:'agenda-unavailable',sitting:'MTG-PL-2026-10-08'};
+  const cases=[
+    {name:'no agenda rows retrieved',topics:[],gaps:[agendaGap],search:'',status:/Agenda data is unavailable for this selection\./,visible:'Agenda data is unavailable for this selection.'},
+    {name:'verified empty agenda',topics:[],gaps:[],search:'',status:/No agenda items match this selection\./,visible:'No agenda items available in this view.'},
+    {name:'unmatched title over partial saved agendas',topics:[row],gaps:[agendaGap],search:'absent',status:/No saved agenda titles match this search\. Some agendas are unavailable\./,visible:'No saved agenda titles match this search. Some agendas are unavailable.'},
+  ];
+  for(const fixture of cases)await t.test(fixture.name,async t=>{
+    const h=await harness(t,'/src/PocParticipation.tsx','PocParticipation','?hot-period=week%3A2026-10-05'+(fixture.search?'&hot-search='+fixture.search:''),()=>({window:{start:'2026-10-05',end:'2026-10-11'},series:[{date:sitting.date,speakers:null,voters:null,amendmentVotes:null}],topics:fixture.topics,coverage:{topicsWithSpeechLinks:fixture.topics.length,topics:fixture.topics.length,gaps:fixture.gaps}}),{language:'fr',sittings:[sitting],onTopic(){}});
+    await settled();
+    assert.match(h.status().textContent,fixture.status);
+    const visible=[...h.container.querySelectorAll('p')].find(node=>node.textContent===fixture.visible);assert(visible,'the visible empty state agrees with the announcement');
+    if(fixture.gaps.length){
+      assert.equal(visible.lang,'en','new actual-English source-gap messages are marked');
+      assert.doesNotMatch(h.container.textContent,/No agenda items match|No agenda items available|No agenda titles match|No saved MEPs speaking|0 agenda items/,'unknown agendas cannot establish an empty result or missing activity');
+    }
+    assert.equal(new URL(location.href).searchParams.get('hot-search'),fixture.search||null);
+  });
+});
+
 const trend=(n)=>({id:'http://eurovoc.europa.eu/'+n,label:'Fixture topic '+n,language:'en',dossiers:1,series:[{week:'2026-09-07',debates:1,votes:0,committee:0}],events:[]});
 const trends=(topics,extra={})=>({window:{start:'2026-07-01',end:'2026-09-30'},weeks:['2026-09-07'],topics,nextPage:null,coverage:{procedures:30,mapped:20,unmapped:0,pending:10,sourceError:false,truncated:true,indexComplete:false},...extra});
 
@@ -83,6 +105,22 @@ test('out-of-order timeline responses cannot announce a superseded period',async
 const stats={uniquePeople:3,uniqueCurrentMeps:3,peopleOutsideCurrentRoster:0,denominator:3,referenceDate:'2026-10-16',dimensions:{country:[],group:[],gender:[],age:[]}};
 const question=n=>({id:'E-10-2026-'+String(n).padStart(6,'0'),date:'2026-10-01',kind:'QUESTION_WRITTEN',title:'Exact fixture question '+n,authors:[],answers:[]});
 const questions=(offset=0)=>({window:{start:'2026-07-01',end:'2026-09-30'},counts:{selectedQuestions:42},selection:{},clusters:[],words:[],stats,selectedStats:stats,analysis:{unassignedQuestions:0,missingEnglishTitles:0},coverage:{indexComplete:false,truncated:true},questions:Array.from({length:offset?17:25},(_,i)=>question(offset+i+1)),offset,limit:25,nextOffset:offset?null:25});
+
+test('question topic counts stay silent during text search and announce once when its visual results return',async t=>{
+  const h=await harness(t,'/src/PocQuestionTopics.tsx','PocQuestionTopics','?view=questions',url=>{assert(url.pathname.endsWith('/insights/questions'),'blank text search must not request the text corpus');return questions();});
+  await settled();assert.match(h.status().textContent,/42 questions match these filters/);assert(h.container.querySelector('.insight-question-results'));
+  const status=h.status();h.messages.length=0;
+  await act(async()=>h.container.querySelector('button[aria-label="Search question and answer text"]').click());
+  await settled();
+  assert.equal(h.status(),status);assert.equal(status.textContent,'');assert.equal(h.messages.length,0,'hidden topic results must not announce over text search');
+  assert.equal(h.container.querySelector('.insight-question-results'),null);assert(h.container.querySelector('.poc-search-panel'));
+  await act(async()=>h.container.querySelector('button[aria-label="Close text search"]').click());
+  assert.equal(status.textContent,'','restored topic counts retain their debounce');
+  await settled();
+  assert(h.container.querySelector('.insight-question-results'));assert.equal(h.container.querySelector('.poc-search-panel'),null);
+  assert.match(status.textContent,/42 questions match these filters/);assert.equal(h.messages.length,1);
+  assert.equal(h.calls.length,1,'opening and closing an empty text search preserves the topic data request');
+});
 
 test('question results announce total and page range without moving focus or repeating presentation toggles',async t=>{
   const second=deferred();
