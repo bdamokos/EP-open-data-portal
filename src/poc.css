@@ -228,6 +228,6 @@
   .poc-portraits, .poc-profile-body { overflow: visible; min-height: auto; }
   .poc-profile { grid-template-rows: auto auto auto; }
   .poc-tabs { position: sticky; top: 0; z-index: 2; margin-inline: -12px; padding: 8px 12px; background: var(--parliament-blue); }
-  .poc-profile-body [id], .poc-activity-results-title { scroll-margin-top: 72px; }
+  .poc-profile-body [id], .poc-activity-results-title { scroll-margin-top: calc(var(--poc-tabs-height, 60px) + 12px); }
   .poc-footer { margin-top: auto; }
 }
