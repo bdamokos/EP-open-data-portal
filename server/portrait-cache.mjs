@@ -144,8 +144,10 @@ export class PortraitCache {
         signal?.throwIfAborted();
         await rename(temporary, path.join(this.directory, `${id}.portrait`));
         temporary = null;
-        signal?.throwIfAborted();
+        // An admitted rename can finish after expiry. Account for that completed
+        // mutation before releasing the serialized writer to its next pruning pass.
         this.files.set(id, {size: data.length, savedAt: this.clock()}); this.diskBytes += data.length - previousSize;
+        signal?.throwIfAborted();
       } catch {if(signal?.aborted)throw signal.reason;this.diskError();}
       finally { if (temporary) await unlink(temporary).catch(() => {}); }
     });

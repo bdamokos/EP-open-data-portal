@@ -10,6 +10,8 @@ import {documentText} from './document-text.mjs';
 import {playerContent} from './player-content.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
 import {upstreamStatus} from './odp.mjs';
+import {PortraitCache} from './portrait-cache.mjs';
+import {runWithRequestSignal,requestTimeout} from './request-budget.mjs';
 const turn=()=>new Promise(resolve=>setImmediate(resolve));
 
 for(const [index,kind] of ['document','player','view'].entries())for(const [stageIndex,stage] of ['mkdir','writeFile'].entries())test(`${kind} cannot publish expired data after a newer result during ${stage}`,async t=>{
@@ -80,4 +82,22 @@ test('an older preparation cannot replace a newer publication from an overlappin
   const first=writeCacheFile(file,'old');await started;
   assert.equal(await writeCacheFile(file,'new'),true);finish();assert.equal(await first,false);
   assert.equal(await fs.readFile(file,'utf8'),'new');assert.deepEqual(await fs.readdir(directory),['record.json']);
+});
+
+for(const replacing of [false,true])test(`portrait rename completed after expiry reconciles ${replacing?'replacement':'new file'} accounting before pruning`,async t=>{
+  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'portrait-rename-expiry-'));t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+  const warnings=[],cache=new PortraitCache({directory,maxDiskEntries:1,warn:message=>warnings.push(message)});
+  const image=(id,body)=>({memberId:id,sourceUrl:`https://www.europarl.europa.eu/mepphoto/${id}.jpg`,fetchedAt:Date.now(),contentType:'image/jpeg',body:Buffer.from(body)});
+  if(replacing)await cache.save(1,image(1,'old'));
+  const realRename=fs.rename,controller=new AbortController(),reason=requestTimeout();let finish,reached;
+  const started=new Promise(resolve=>reached=resolve);
+  const mock=t.mock.method(fs,'rename',(from,to)=>to===path.join(directory,'1.portrait')?new Promise((resolve,reject)=>{finish=()=>realRename(from,to).then(resolve,reject);reached();}):realRename(from,to));
+  syncBuiltinESMExports();t.after(()=>{mock.mock.restore();syncBuiltinESMExports();});
+  const expired=assert.rejects(runWithRequestSignal(controller.signal,()=>cache.save(1,image(1,'completed image after expiry'))),error=>error===reason);
+  await started;controller.abort(reason);finish();await expired;
+  assert.equal(cache.files.size,1);assert.equal(cache.diskBytes,(await fs.stat(path.join(directory,'1.portrait'))).size);
+  assert.equal((await cache.read(1)).body.toString(),'completed image after expiry');
+  await cache.save(2,image(2,'next image'));
+  assert.deepEqual([...cache.files.keys()],[2]);assert.deepEqual(await fs.readdir(directory),['2.portrait']);
+  assert.equal(cache.diskBytes,(await fs.stat(path.join(directory,'2.portrait'))).size);assert.deepEqual(warnings,[]);
 });
