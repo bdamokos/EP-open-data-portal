@@ -5,7 +5,7 @@ import { downloadDocxBuffer } from './document-text.mjs';
 import { extractAmendments, AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { resolveAmendmentAuthors, votingAliases } from './amendment-authors.mjs';
 import { parseSplitRequest, SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
-import { AMENDMENTS_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentLists, amendmentReference, amendmentSittings, amendmentDecision, hasDecisionReferenceSet, targetMetadata } from './amendments.mjs';
+import { AMENDMENTS_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentLists, amendmentReference, amendmentSittings, amendmentDecision, amendmentTextLosses, hasDecisionReferenceSet, targetMetadata } from './amendments.mjs';
 import { recordSplitResults, saveAmendmentRows, enqueueAmendment } from './amendments-store.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 const DAY=86400000;
@@ -15,6 +15,27 @@ const targetKey=id=>'/plenary-documents/'+id;
 const idOf=work=>work.identifier || tail(work.id);
 const utcDay=worker=>new Date(worker.clock()).toISOString().slice(0,10);
 const text=value=>typeof value==='string'?value.slice(0,AMENDMENT_LIMITS.text):null;
+const localDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+
+export function scheduleSittingOutcomes(worker,generation,sittingId,{priority=113}={}) {
+  if(!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(sittingId))return false;
+  const today=localDay(worker.clock()),sittingDate=sittingId.slice(7);
+  if(!Number.isFinite(Date.parse(sittingDate))||sittingDate>today)return false;
+  const key=motionSourceKey(sittingId),saved=worker.store.source(generation,key),work=saved?.work;
+  const ttl=worker.clock()-Date.parse(sittingDate)<14*DAY?6*60*60_000:7*DAY;
+  const complete=work && !work.truncated && !work.lastRefreshFailure &&
+    Array.isArray(work.results)&&work.results.length>0 && Array.isArray(work.decisions)&&work.decisions.length>0 &&
+    Array.isArray(work.coverage?.missingResultIds) && Array.isArray(work.coverage?.missingDecisionIds) &&
+    !array(work.coverage?.missingResultIds).length && !array(work.coverage?.missingDecisionIds).length &&
+    work.amendmentVersion===AMENDMENTS_VERSION && Array.isArray(work.splitRequests);
+  if(complete && worker.clock()-Date.parse(saved.fetchedAt)<ttl)return false;
+  // Reuse any pending sitting task, including older key formats, without
+  // resetting its page cursor, retry time or accumulated response graph.
+  const existing=worker.store.db.prepare("SELECT key FROM tasks WHERE generation=? AND kind='motion-outcomes' AND json_extract(body,'$.sittingId')=? AND (done IS NULL OR done<>1 OR key LIKE ?) LIMIT 1").get(generation,sittingId,'%:'+today);
+  if(existing)return false;
+  worker.store.enqueue(generation,key+':'+today,'motion-outcomes',{sittingId,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]},priority);
+  return true;
+}
 
 export function scheduleAmendments(worker,generation,work,fetchedAt,endpoint) {
   const id=idOf(work);if(!amendmentTarget(id))return;
@@ -31,8 +52,7 @@ export function scheduleAmendments(worker,generation,work,fetchedAt,endpoint) {
     if(/^\d{4}-\d{2}-\d{2}$/.test(date || '')&&!worker.store.source(generation,rosterKey(date)))enqueueAmendment(worker.store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
   }
   for(const sittingId of amendmentSittings(work)) {
-    const saved=worker.store.source(generation,motionSourceKey(sittingId));
-    if(!saved?.work.amendmentVersion || saved.work.amendmentVersion!==AMENDMENTS_VERSION || !saved.work.splitRequests)worker.store.enqueue(generation,motionSourceKey(sittingId)+':amendments:'+utcDay(worker),'motion-outcomes',{sittingId,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]},113);
+    scheduleSittingOutcomes(worker,generation,sittingId);
     const aliasKey='amendment:aliases:'+sittingId;
     if(!worker.store.source(generation,aliasKey))enqueueAmendment(worker.store,generation,aliasKey,'amendment-aliases',{sittingId},108);
   }
@@ -43,7 +63,7 @@ export function prepareAmendments(worker,cycle) {
   // One selected public pilot ensures the new view becomes useful during a
   // pre-existing long-running activity backfill. No request is made by readers.
   for(const pilot of ['A-10-2026-0254','B-10-2026-0424'])if(!store.source(generation,targetKey(pilot)))store.enqueue(generation,targetKey(pilot),'document',{endpoint:targetKey(pilot)},109);
-  if(cycle.amendmentsPreparedVersion===AMENDMENTS_VERSION && cycle.amendmentsPreparedDay===utcDay(worker) && cycle.splitParserVersion===SPLIT_PARSER_VERSION)return;
+  if(cycle.amendmentsPreparedVersion===AMENDMENTS_VERSION && cycle.amendmentsPreparedDay===utcDay(worker) && cycle.splitParserVersion===SPLIT_PARSER_VERSION && cycle.amendmentDocumentParserVersion===AMENDMENT_EXTRACTION_VERSION)return;
   const sources=store.db.prepare("SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT') ORDER BY json_extract(body,'$.document_date') DESC,key DESC").all(generation);
   let upgrades=0;
   for(const source of sources) {
@@ -59,7 +79,7 @@ export function prepareAmendments(worker,cycle) {
     if(source.work.splitParserVersion===SPLIT_PARSER_VERSION || !source.work.splitRequests)continue;
     enqueueAmendment(store,generation,'amendment:reparse:'+source.key,'amendment-reparse',{sourceKey:source.key},111,true);
   }
-  store.updateCycle({amendmentsPreparedVersion:AMENDMENTS_VERSION,amendmentsPreparedDay:utcDay(worker),splitParserVersion:SPLIT_PARSER_VERSION});
+  store.updateCycle({amendmentsPreparedVersion:AMENDMENTS_VERSION,amendmentsPreparedDay:utcDay(worker),splitParserVersion:SPLIT_PARSER_VERSION,amendmentDocumentParserVersion:AMENDMENT_EXTRACTION_VERSION});
 }
 export function parseSavedSplits(worker,work) {
   const source=work.sources?.find(source=>source.url.includes('/vote-results?')) || {};
@@ -123,10 +143,12 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
       const authorDate=amendment.date || date,roster=rosterMembers(worker,generation,authorDate);
       const activeIds=new Set(roster.members.map(member=>String(member.id)));
       const datedAliases=aliases.filter(alias=>activeIds.has(String(alias.personId).replace(/^person\//,'')));
-      Object.assign(row,{listId:idOf(list),date:amendment.date || date,targetLabel:text(amendment.targetLabel),originalText:text(amendment.originalText),proposedText:text(amendment.proposedText),language:amendment.language || extraction.language,onBehalfOf:amendment.onBehalfOf || null,committeeProposer:amendment.committeeProposer || null,documentDate:amendment.documentDate || amendment.date || null,listDocumentDate:list.document_date || null,dateBasis:amendment.dateBasis || (amendment.date?'individual-amendment-document':'amendment-list-document'),justification:text(amendment.justification)});
+      const textLosses=amendmentTextLosses(extraction,amendment);
+      Object.assign(row,{listId:idOf(list),date:amendment.date || date,targetLabel:text(amendment.targetLabel),originalText:textLosses.length?null:text(amendment.originalText),proposedText:textLosses.length?null:text(amendment.proposedText),textIntegrity:textLosses.length?'incomplete':typeof amendment.originalText==='string'&&typeof amendment.proposedText==='string'?'complete':'unavailable',textParserVersion:extraction.parserVersion,language:amendment.language || extraction.language,onBehalfOf:amendment.onBehalfOf || null,committeeProposer:amendment.committeeProposer || null,documentDate:amendment.documentDate || amendment.date || null,listDocumentDate:list.document_date || null,dateBasis:amendment.dateBasis || (amendment.date?'individual-amendment-document':'amendment-list-document'),justification:text(amendment.justification)});
       row.authors=resolveAmendmentAuthors(amendment.authors || [],{members:roster.members,aliases:datedAliases,date:authorDate,relatedSittingDates:sittingSources.map(({sittingId})=>sittingId.slice(7))}).map(author=>({...author,personId:author.personId==null?null:String(author.personId).replace(/^person\//,''),evidence:[...(author.evidence || []),...(roster.source.length?[{type:'dated_roster',sources:roster.source,mandateObservedOn:authorDate}]:[])]}));
       row.sources.push(...(amendment.sources || []),{url:extraction.sourceUrl,fetchedAt:extraction.fetchedAt,language:extraction.language});
       row.gaps.push(...(amendment.gaps || []).map(gap=>typeof gap==='string'?gap:gap.message || gap.code || 'Amendment extraction is incomplete.'));
+      row.gaps.push(...textLosses.map(gap=>gap.message || gap.code));
       if(!row.authors.length)row.gaps.push('Individual amendment authors are not recorded in the extracted source.');
       if(row.authors.some(author=>!author.personId))row.gaps.push('Some author identities are unresolved.');
       if(row.language!=='en')row.gaps.push('English amendment text is unavailable; the published source language is retained.');
@@ -213,9 +235,8 @@ export async function amendmentTask(worker,task) {
     for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
     const old=saved.work.extraction,previousNumbers=new Set((old?.amendments || []).map(amendment=>String(amendment.number)));
     const missing=[...previousNumbers].filter(number=>!extraction.amendments.some(amendment=>String(amendment.number)===number));
-    const acceptedText=new Set((old?.amendments || []).filter(amendment=>typeof amendment.originalText==='string'||typeof amendment.proposedText==='string').map(amendment=>String(amendment.number)));
-    const textLossCodes=new Set(['comparison-header','comparison-columns','nested-table','text-unavailable']);
-    const textLosses=extraction.gaps.filter(gap=>gap.code==='numbering-warning'&&acceptedText.size || textLossCodes.has(gap.code)&&acceptedText.has(String(gap.number))).map(gap=>({code:gap.code,number:gap.number ?? null,message:gap.message}));
+    const acceptedText=new Set((old?.amendments || []).filter(amendment=>(typeof amendment.originalText==='string'||typeof amendment.proposedText==='string')&&!amendmentTextLosses(old,amendment).length).map(amendment=>String(amendment.number)));
+    const textLosses=[...new Map(extraction.amendments.filter(amendment=>acceptedText.has(String(amendment.number))).flatMap(amendment=>amendmentTextLosses(extraction,amendment).map(gap=>[amendment.number+':'+gap.code,{code:gap.code,number:gap.number ?? null,message:gap.message}]))).values()];
     const next={...saved.work,extraction:{...extraction,parserVersion:AMENDMENT_EXTRACTION_VERSION,sourceUrl:file.url,fetchedAt,language:file.language}};
     // Parsing loss is a failed refresh; retain previous accepted text with its date.
     if(old && (missing.length || textLosses.length))next.extraction={...old,lastRefreshFailure:{attemptedAt:fetchedAt,missingAmendmentNumbers:missing,textLosses,sourceUrl:file.url}};

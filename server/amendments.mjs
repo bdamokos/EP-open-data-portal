@@ -4,6 +4,11 @@ import { HttpError } from './http-utils.mjs';
 
 export const AMENDMENTS_VERSION = 1;
 export const AMENDMENT_LIMITS = Object.freeze({ listsPerTarget:64, amendmentsPerList:500, text:60000, failures:20000, upgradeTargets:100, page:50 });
+const textLossCodes=new Set(['comparison-header','comparison-columns','nested-table','text-unavailable','numbering-warning']);
+export function amendmentTextLosses(extraction,amendment) {
+  return [...array(extraction?.gaps),...array(amendment?.gaps)].filter(gap=>textLossCodes.has(gap?.code) &&
+    (gap.number!=null?String(gap.number)===String(amendment.number):gap.code==='numbering-warning'));
+}
 export function canonicalEPReference(value) {
   const ref=String(value?.id || value || '').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
   return /^eli\/dl\/(?:doc|event)\/[A-Z0-9-]+$/.test(ref)?ref:null;

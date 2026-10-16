@@ -2,7 +2,9 @@ import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='2';
+export const AMENDMENT_EXTRACTION_VERSION='3';
+
+const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','nested-table','text-unavailable','numbering-warning']);
 
 const child=(nodes,key)=>nodes?.find(node=>Object.hasOwn(node,key));
 const children=(nodes,key)=>child(nodes,key)?.[key];
@@ -150,8 +152,8 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       hasTable=true;
       let headerConfirmed=false;
       for(const cells of table.rows) {
-        if(cells.every(c=>!c.text))continue;
         if(cells.some(c=>c.nested)){gap('nested-table',number,'A nested comparison table is unsupported.');continue;}
+        if(cells.every(c=>!c.text))continue;
         if(!headerConfirmed) {
           if(cells.length===2&&heading(cells[1].text)){headerConfirmed=true;continue;}
           gap('comparison-header',number,'The comparison column headings could not be identified.');break;
@@ -193,5 +195,16 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
   }
   if(!groups.length)gap('amendments-unavailable',null,'No supported individual amendment blocks were found.');
   for(const message of warnings)gap('numbering-warning',null,message);
+  for(const amendment of amendments) {
+    amendment.gaps=gaps.filter(item=>item.number===amendment.number||item.code==='numbering-warning').map(item=>item.number==null?{...item,number:amendment.number,scope:'document'}:{...item});
+    // Losing even one comparison row leaves both legal columns incomplete.
+    // Keep the exact identity and its missing-evidence labels, never a shortened
+    // body that could be mistaken for the whole amendment. Empty supported
+    // cells remain valid; notes and missing author/date metadata are separate.
+    if(amendment.gaps.some(item=>TEXT_LOSS_CODES.has(item.code))) {
+      amendment.originalText=null;
+      amendment.proposedText=null;
+    }
+  }
   return {amendments,gaps};
 }
