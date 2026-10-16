@@ -41,7 +41,7 @@ function exactText(container,selector,text) {
   const node=[...container.querySelectorAll(selector)].find(node=>node.textContent===text);
   assert(node,'Missing '+selector+': '+text);return node;
 }
-async function harness(t,language,{items=speeches,query={},linkedDocument}={}) {
+async function harness(t,language,{items=speeches,query={},linkedDocument,speechResponse}={}) {
   const window=new Window({url:'http://localhost/?'+new URLSearchParams({lang:language,...query})}),unexpected=[],requests=[];
   class ReaderDOMParser extends window.DOMParser {
     parseFromString(...args) {
@@ -72,6 +72,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument}={}) {
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
     if(route?.startsWith('speech/')) {
       const id=route.slice(7),unknown=id===speeches[1].sourceId;
+      if(speechResponse)return Response.json({id,...speechResponse});
       return Response.json({id,xml:'<speech><p>'+(unknown?'Unspecified source transcript.':'Texte français du discours.')+'</p></speech>',textLanguage:unknown?null:'fr',translationType:unknown?'unspecified':'machine',availableTextLanguages:['fr'],textCache:{stale:true,refreshInProgress:false,refreshError:null}});
     }
     if(route?.startsWith('document/')) {
@@ -136,7 +137,7 @@ for(const language of ['en','hu','fr']) {
     assert.equal(effectiveLanguage(detail.querySelector('button[aria-label="Find in speech"]')),'en');
     await h.click(rows[1].querySelector('button'));
     const unknown=rows[1].querySelector('.poc-transcript');assert.equal(effectiveLanguage(unknown.querySelector('p')),'');assert.equal(unknown.textContent,'Unspecified source transcript.');
-    assert.match(rows[1].querySelector('.poc-text-meta').textContent,/Text unavailable/);
+    assert.equal(rows[1].querySelector('.poc-text-meta').textContent,'Language unspecified');
 
     await h.click(exactText(h.container,'.poc-tabs button',c.profile));
     const born=[...h.container.querySelectorAll('.poc-profile-body p')].find(node=>node.textContent.startsWith('Born '));
@@ -198,4 +199,43 @@ test('linked-source fallback keeps the first dictionary entry and an unknown ide
   const title=fallback.querySelector('h3');assert.equal(title.textContent,questionId);assert.equal(effectiveLanguage(title),'');
   assert(fallback.querySelector('#document-'+questionId));
   assert.equal(fallback.querySelector('.poc-publication-files a').href,download);
+});
+
+const readableXml='<speech><p>Exact transcript text.</p><p>Second source paragraph.</p></speech>';
+const transcriptCases=[
+  {name:'readable known language',xml:readableXml,textLanguage:'fr',translationType:'machine',prefix:'FR',provenance:'Parliament machine translation',readable:true},
+  {name:'readable unknown language and unspecified provenance',xml:readableXml,textLanguage:null,translationType:'unspecified',prefix:'Language unspecified',readable:true},
+  {name:'readable unknown language and original provenance',xml:readableXml,textLanguage:null,translationType:'original',prefix:'Language unspecified',provenance:'Original text',readable:true},
+  {name:'readable unknown language and machine provenance',xml:readableXml,textLanguage:null,translationType:'machine',prefix:'Language unspecified',provenance:'Parliament machine translation',readable:true},
+  {name:'readable unknown language with an XML machine marker',xml:readableXml.replace('<speech>','<speech xml:lang="en-t-hu-mtec">'),textLanguage:null,translationType:'unspecified',prefix:'Language unspecified',provenance:'Parliament machine translation',readable:true},
+  {name:'unavailable transcript',xml:null,textLanguage:null,translationType:'unspecified',prefix:'Text unavailable'},
+  {name:'empty transcript with supplied language',xml:'<speech/>',textLanguage:'en',translationType:'original',prefix:'EN',provenance:'Original text'},
+  // Happy DOM exposes a parser-error document directly; the browser fixture
+  // separately exercises native DOMParser with malformed XML.
+  {name:'unreadable transcript with unknown language',xml:'<parsererror>Invalid XML fixture</parsererror>',textLanguage:null,translationType:'unspecified',prefix:'Text unavailable',unreadable:true},
+  {name:'unreadable transcript with supplied language',xml:'<parsererror>Invalid XML fixture</parsererror>',textLanguage:'fr',translationType:'original',prefix:'FR',provenance:'Original text',unreadable:true},
+];
+for(const language of ['en','hu','fr'])test(language+': transcript availability stays distinct from language and provenance',async t=>{
+  for(const scenario of transcriptCases)await t.test(scenario.name,async t=>{
+    const {name,prefix,provenance,readable,unreadable,...response}=scenario;
+    const h=await harness(t,language,{items:[speeches[0]],query:{member:String(member.id),module:'speeches',speech:speeches[0].sourceId},speechResponse:{...response,availableTextLanguages:[]}});
+    const detail=h.container.querySelector('.poc-speech-detail'),metadata=detail.querySelector('.poc-text-meta');
+    assert.equal(effectiveLanguage(metadata),'en');assert(metadata.textContent.startsWith(prefix));
+    if(provenance)assert(metadata.textContent.includes(provenance));
+    else assert.equal(metadata.textContent,prefix,'no language or provenance is inferred from readable text');
+    const body=detail.querySelector('.poc-transcript'),find=detail.querySelector('button[aria-label="Find in speech"]');
+    if(readable){
+      assert.deepEqual([...body.querySelectorAll('p')].map(p=>p.textContent),['Exact transcript text.','Second source paragraph.']);
+      assert.equal(effectiveLanguage(body),response.textLanguage||'');assert(find);
+      assert(!metadata.textContent.includes('Text unavailable'));
+      assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
+      if(!response.textLanguage)assert(!metadata.textContent.includes('Interface-language text unavailable'));
+    }else{
+      assert.equal(body,null);assert.equal(find,null);assert(!metadata.textContent.includes('Language unspecified'));
+      assert(detail.textContent.includes(unreadable?'Parliament returned transcript text that could not be read.':'No transcript text is available from Parliament’s API for this contribution.'));
+    }
+    await h.wait();
+    assert.equal(detail.querySelector('[role="status"][aria-live]').textContent,readable?'Transcript loaded.':unreadable?'Parliament returned transcript text that could not be read.':'No transcript text is available from Parliament’s API for this contribution.');
+    assert(!h.requests.some(route=>route.startsWith('speech-media/')),'opening transcript metadata does not acquire media');
+  });
 });
