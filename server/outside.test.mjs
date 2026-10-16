@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
-import {outsideSpeech,outsideAgenda,outsidePerson} from './outside-model.mjs';
+import {outsideSpeech,outsideAgenda,outsidePerson,outsideCapacity} from './outside-model.mjs';
 import {recordOutside,outsideDirectory,outsideSpeaker,outsideQuery} from './outside-store.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/outside-speakers-20261016.json',import.meta.url),'utf8'));
@@ -19,6 +19,33 @@ function seed(store,generation,contributions=fixture.contributions) {
   for(const row of contributions) {const speech=project(row);roster(store,generation,speech.date);store.putSource(generation,'/speeches/'+speech.id,speech.term===9?'outside-speech':'speech',{id:speech.id,outside:speech},row.retrievedAt);recordOutside(store,generation,speech);}
   for(const row of fixture.agendas)store.putSource(generation,'outside:agenda:'+row.activity.activity_id,'outside-agenda',outsideAgenda(row.activity,row.retrievedAt,row.sourceUrl),row.retrievedAt);
 }
+
+test('reviewed source roles distinguish institutions, national leaders and invited guests',()=>{
+  const cases={
+    eu:['President of the European Council','presidente del Consejo Europeo','President of the European Central Bank','Vice-President of the EIB','President of the Court of Auditors','European Ombudsman'],
+    council:['President-in-Office of the Council','President-in-office in the Council','Uachtarán-in-oifig sa Chomhairle'],
+    commission:['Member of the Commission','Executive Vice-President of the Commission','Vice-President of the Commission / High Representative of the Union for Foreign Affairs and Security Policy','membre de la Commission','Membru tal-Kummissjoni','Vice-président exécutif de la Commission'],
+    leaders:['King of Spain','Presidente da República de Portugal','Premier Ministre du Canada','Prime Minister of Portugal','Prime Minister of Armenia','President of Montenegro','President of Ukraine','President of Ghana'],
+    international:['President of the UN General Assembly','Secretary-General of the United Nations','Secretary General of the Council of Europe'],
+    parliaments:['Speaker of the Verkhovna Rada of Ukraine','President of the National Assembly'],
+    other:['2025 Sakharov Prize laureate','representative of 2025 Sakharov laureate Mzia Amaglobeli','daughter and representative of 2025 Sakharov laureate Andrzej Poczobut','Holocaust survivors','leader of the democratic forces of Belarus','President of a foundation','Guest speaker'],
+  };
+  for(const [expected,roles] of Object.entries(cases))for(const role of roles)assert.equal(outsideCapacity(role),expected,role);
+  assert.equal(outsideCapacity(null),null);
+});
+test('updated rules reclassify persisted headers in directory, detail and co-speakers without rewriting sources',withStore((store,generation)=>{
+  seed(store,generation);
+  const id='227855';
+  store.db.prepare("UPDATE outside_contributions SET body=json_set(body,'$.header.role','King of Spain','$.header.capacity','other') WHERE person=?").run(id);
+  const before=store.db.prepare('SELECT body FROM outside_contributions WHERE person=? ORDER BY speech').all(id);
+  store.db.exec('PRAGMA query_only=ON');
+  assert.equal(outsideDirectory(store,{term:'10',language:'en'}).people.find(p=>p.id===id).capacity,'leaders');
+  const detail=outsideSpeaker(store,id,{term:'10',language:'en'});
+  assert.equal(detail.person.capacity,'leaders');assert(detail.contributions.every(c=>c.header.capacity==='leaders'));
+  assert(outsideSpeaker(store,'266640',{term:'10',language:'en'}).coSpeakers.some(c=>c.personId===id&&c.header.capacity==='leaders'));
+  assert.deepEqual(store.db.prepare('SELECT body FROM outside_contributions WHERE person=? ORDER BY speech').all(id),before);
+  store.db.exec('PRAGMA query_only=OFF');
+}));
 
 test('public headers resolve exact person IDs and mixed-language originals without speech body storage',()=>{
   const speech=project(sample('MTG-PL-2025-10-22-OTH-2017044754053'));
