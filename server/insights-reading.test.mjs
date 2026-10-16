@@ -8,6 +8,30 @@ import {titlePlaces} from './insights-places.mjs';
 import {committeeEvent} from './insights-legislation-model.mjs';
 import {speechSpeakers} from './speech-speakers.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
+import {runWithRequestSignal,requestSignal} from './request-budget.mjs';
+
+test('an assembled view owns its shared source after the first reader disconnects',async()=>{
+  const cache=new InsightViewCache({directory:null}),a=new AbortController(),b=new AbortController(),reason=new Error('reader closed');
+  let finish,owner,loads=0;
+  const load=async()=>{loads++;owner=requestSignal();await new Promise(resolve=>finish=resolve);return {items:['retained']};};
+  const first=runWithRequestSignal(a.signal,()=>assert.rejects(cache.get(['shared-readers'],load),e=>e===reason));
+  const second=runWithRequestSignal(b.signal,()=>cache.get(['shared-readers'],load));
+  await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));
+  a.abort(reason);await first;assert(owner);assert.equal(owner.aborted,false);finish();
+  assert.deepEqual((await second).items,['retained']);assert.equal(loads,1);
+  assert.deepEqual((await cache.get(['shared-readers'],()=>assert.fail('reuse the saved view'))).items,['retained']);
+});
+
+test('an expired shared cache owner releases its entry and cannot overwrite a replacement later',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});
+  const cache=new InsightViewCache({directory:null});let finish;
+  const expired=assert.rejects(cache.get(['late-owner'],()=>new Promise(resolve=>finish=resolve)),e=>e.code==='request_timeout');
+  await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));
+  t.mock.timers.tick(50000);await expired;assert.equal(cache.pending.size,0);
+  assert.deepEqual((await cache.get(['late-owner'],async()=>({items:['replacement']}))).items,['replacement']);
+  finish({items:['expired']});await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual((await cache.get(['late-owner'],()=>assert.fail('retain replacement'))).items,['replacement']);
+});
 import {ActivityStore} from './activity-index-store.mjs';
 import {projectDocument,documentRows} from './activity-index-model.mjs';
 import {createInsights} from './insights.mjs';

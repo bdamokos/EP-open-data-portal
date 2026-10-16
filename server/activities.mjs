@@ -1,12 +1,14 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { createHash } from "node:crypto";
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import {readFile} from "node:fs/promises";
+import {writeCacheFile} from './cache-publication.mjs';
 import path from "node:path";
 import { HttpError } from "./http-utils.mjs";
 import { boundedUpstream, odp, odpProfile } from "./odp.mjs";
 import { languageCode } from "./ep-links.mjs";
 import { documentText } from './document-text.mjs';
 import { documentAuthorIdentities, documentCoAuthors } from './document-authors.mjs';
+import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 
 const rssCache = new Map();
 const rssPending = new Map();
@@ -48,13 +50,14 @@ export function activityFeedUrl(email, language) {
 }
 
 export async function recentActivities(id, language) {
+  requestSignal()?.throwIfAborted();
   const profile = await odpProfile(id);
   const url = activityFeedUrl(profile.email, language);
   if (!url) throw new HttpError(404, "activity_feed_unavailable", "An activity feed could not be resolved for this MEP.");
   const stored = rssCache.get(url);
   if (stored && Date.now() - stored.fetchedAt < TTL) return stored.result;
-  if (rssPending.has(url)) return rssPending.get(url);
-  const job = (async () => {
+  if (rssPending.has(url)) return waitForRequest(rssPending.get(url));
+  const job = sharedRequest(async signal => {
     const cacheDir = process.env.ODP_CACHE_DIR;
     const name = cacheDir && path.join(cacheDir, "rss-" + createHash("sha256").update(url).digest("hex") + ".json");
     if (name) {
@@ -62,13 +65,15 @@ export async function recentActivities(id, language) {
         const record = JSON.parse(await readFile(name, "utf8"));
         if (record.url === url && Date.now() - record.fetchedAt < TTL && typeof record.xml === "string") {
           const result = { items: parseActivities(record.xml).slice(0,25), sourceUrl: url, limit: 25, fetchedAt: new Date(record.fetchedAt).toISOString() };
+          signal.throwIfAborted();
           rssCache.set(url, { fetchedAt: record.fetchedAt, result });
           return result;
         }
       } catch { /* Absent or expired reproducible feed cache. */ }
     }
-    const record = await boundedUpstream(async () => {
-      const response = await fetch(url, { headers: { Accept: "application/rss+xml, application/xml", "User-Agent": "Mozilla/5.0 (compatible; MEP-Committee-Speeches-PoC/0.3)" }, signal: AbortSignal.timeout(25_000), redirect: "error" });
+    signal.throwIfAborted();
+    const record = await boundedUpstream(async signal => {
+      const response = await fetch(url, { headers: { Accept: "application/rss+xml, application/xml", "User-Agent": "Mozilla/5.0 (compatible; MEP-Committee-Speeches-PoC/0.3)" }, signal: AbortSignal.any([AbortSignal.timeout(25_000),...(signal?[signal]:[])]), redirect: "error" });
       if (response.status !== 200 || !/xml/.test(response.headers.get("content-type") || "")) {
         await response.body?.cancel();
         throw new HttpError(502, "activity_feed_unavailable", "Parliament’s activity feed is unavailable. Please try again.");
@@ -76,18 +81,20 @@ export async function recentActivities(id, language) {
       const xml = await response.text();
       if (xml.length > 2 * 1024 * 1024) throw new HttpError(502, "activity_feed_size", "Parliament’s activity feed exceeded the supported size.");
       return { url, fetchedAt: Date.now(), xml };
-    });
+    },{signal});
     let items;
     try { items = parseActivities(record.xml); }
     catch { throw new HttpError(502, "activity_feed_invalid", "Parliament’s activity feed could not be read."); }
     const result = { items: items.slice(0,25), sourceUrl: url, limit: 25, fetchedAt: new Date(record.fetchedAt).toISOString() };
+    signal.throwIfAborted();
     rssCache.set(url, { fetchedAt: record.fetchedAt, result });
     if (rssCache.size > 500) rssCache.delete(rssCache.keys().next().value);
-    if (name) { await mkdir(cacheDir, { recursive: true }); await writeFile(name, JSON.stringify(record)).catch(() => {}); }
+    if (name)await writeCacheFile(name,JSON.stringify(record),{signal}).catch(()=>{});
+    signal.throwIfAborted();
     return result;
-  })();
+  }).finally(() => rssPending.delete(url));
   rssPending.set(url, job);
-  try { return await job; } finally { rssPending.delete(url); }
+  return waitForRequest(job);
 }
 
 export function documentEndpoint(id) {
