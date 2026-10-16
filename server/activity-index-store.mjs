@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles } from './activity-index-model.mjs';
+import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 
@@ -213,13 +213,16 @@ export class ActivityStore {
         const source=this.source(generation,'/plenary-documents/'+row.sourceId);
         if(source && isMotion(source.work)) {
           const relatedJointMotions=this.relatedJointMotions(generation,row.sourceId).map(joint=>{
-            const id=joint.work.identifier, files=documentFiles(joint.work);
-            const file=files.find(file=>file.language===language && file.format==='PDF') || files.find(file=>file.language==='en' && file.format==='PDF');
+            const id=joint.work.identifier, files=documentFiles(joint.work).filter(file=>['PDF','DOCX'].includes(file.format));
+            const preferred=code=>files.find(file=>file.language===code && file.format==='PDF') || files.find(file=>file.language===code);
+            const file=preferred(language) || preferred('en') || files[0];
             const titles=joint.work.title_dcterms || {};
+            const authors=documentRows(joint.work,joint.key,joint.fetchedAt).rows;
             return {sourceId:id,reference:motionReference(id),title:titles[language]||titles.en||id,outcome:outcome(joint),
-              url:file?.url || 'https://data.europarl.europa.eu/eli/dl/doc/'+id};
+              memberAuthorship:authors.some(author=>author.mepId===String(mep))?'recorded':'not-recorded',
+              url:file?.url || null,documentFormat:file?.format || null,documentLanguage:file?.language || null};
           });
-          return {...localize(row,language),resolutionOutcome:outcome(source),relatedJointMotions};
+          return {...localize(row,language),reference:motionReference(row.sourceId),resolutionOutcome:outcome(source),relatedJointMotions};
         }
       }
       if(row.recordKind==='answer'&&row.relatedQuestionId) {
