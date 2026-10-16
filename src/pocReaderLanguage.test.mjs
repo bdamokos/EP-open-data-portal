@@ -112,18 +112,21 @@ test('procedure title, summary, subjects and each EuroVoc label restore source l
   });
 });
 
-test('OPEN summary-stage cases retain native controls, exact mixed copy and constituent language metadata',async t=>{
+test('translated first-reading stages use the selected UI language with localized dates in native options',async t=>{
   for(const language of languages)await t.test(language,async t=>{
     const data=procedureData('fr');data.summaries.push({id:'second',stage:'final-act',date:'2026-04-01'});
     const h=await harness(t,route=>route==='insights/procedure-context'?data:undefined);
     await h.render(el(h.PocProcedureContext,{reference:data.reference,language}));
     const select=h.container.querySelector('.insight-summary-stage select'),option=select.querySelector('option');
     const date=new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date('2026-03-25T12:00:00Z'));
-    assert.equal(option.textContent,'First reading · '+date,'native option copy and date formatting remain unchanged');
-    assert.equal(option.getAttribute('lang'),language==='en'?'en':'');
+    const stage={en:'First reading',hu:'Első olvasat',fr:'Première lecture'}[language];
+    assert.equal(option.textContent,stage+' · '+date,'the stage follows the UI locale, independently of the French source');
+    assert.equal(option.getAttribute('lang'),language);
+    const finalAct=select.querySelectorAll('option')[1];
+    assert.equal(finalAct.getAttribute('lang'),language==='en'?'en':'','an untranslated stage mixed with a localized date remains explicit');
     assert.equal(select.closest('label').querySelector('span').textContent,'Summary stage');
     assert.equal(select.hasAttribute('aria-labelledby'),false,'the native labelling mechanism stays unchanged');
-    t.diagnostic(JSON.stringify({assessment:language==='en'?'English control case':'OPEN; empty lang means unknown, not a mixed-language fix',optionName:option.textContent,constituents:[{text:'First reading',language:'en'},{text:date,language}],effectiveLang:effectiveLanguage(option),selectName:'Summary stage',selectEffectiveLang:effectiveLanguage(select)}));
+    assert.equal(effectiveLanguage(h.container.querySelector('.insight-official-summary')),'fr','UI terminology does not relabel source text');
   });
 });
 
