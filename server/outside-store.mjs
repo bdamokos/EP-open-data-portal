@@ -66,7 +66,7 @@ function publicContribution(row,language) {
   return Object.fromEntries(['id','personId','date','term','start','end','parentIds','documentId','parentDocumentId','reference','originalLanguages','websiteUrl','websiteLanguage','source','headerSource','rosterSource'].map(key=>[key,row[key]]).concat([['titles',localizedTitles(row.titles,language)],['header',row.header?Object.fromEntries(['personId','name','role','languageTag','original','capacity'].map(key=>[key,row.header[key]])):null]]));
 }
 export function outsideCoverage(store, generation, truncated=false) {
-  const counts = store.db.prepare("SELECT kind,COUNT(*) AS total,SUM(done) AS completed FROM tasks WHERE generation=? AND (kind LIKE 'outside-%' OR kind='speeches') GROUP BY kind").all(generation);
+  const counts = store.db.prepare("SELECT kind,COUNT(*) AS total,SUM(CASE WHEN done=1 THEN 1 ELSE 0 END) AS completed FROM tasks WHERE generation=? AND (kind LIKE 'outside-%' OR kind='speeches') GROUP BY kind").all(generation);
   const pending = counts.reduce((sum,row) => sum + row.total - row.completed,0);
   const initialized = Boolean(store.source(generation,'outside:state'));
   const unresolved=store.db.prepare("SELECT COUNT(DISTINCT speech) AS n FROM outside_contributions WHERE generation=? AND (json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0)").get(generation).n;

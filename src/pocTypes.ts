@@ -44,6 +44,18 @@ export interface PocProfile extends PocMember {
   accounts: string[];
   fetchedAt: string;
 }
+export interface Intervention {
+  type:'speech'|'written'|'chair'|'procedure'|'catch-the-eye'|'blue-card-question'|'blue-card-intervention'|'blue-card-answer'|'blue-card-reaction'|'blue-card'|'unclassified';
+  process:string|null;
+  speaker:{id:string;name:string}|null;
+  onBehalfOf:{id:string;uri:string;label:string;politicalGroup:boolean;source:string}[];
+  headerAvailable:boolean;
+  catchMarker:'start'|'end'|null;
+  narrative:string|null;
+  numbering:number|null;
+  parentIds:string[];
+  evidence:string|null;
+}
 export interface Speech {
   id: string;
   date: string;
@@ -56,6 +68,19 @@ export interface Speech {
   participants: string[];
   websiteUrl: string | null;
   websiteLanguage: string | null;
+  intervention?:Intervention;
+}
+export interface SpeechExchange {id:string;originalId:string;ids:string[];pairs:{questionId:string;answerId:string;questionerId:string;respondentId:string}[];basis:string}
+export interface SpeechSequenceRow extends Speech {intervention:Intervention;exchangeId:string|null;replyTo:string|null}
+export interface SpeechContext {
+  speechId:string;intervention:Intervention;unavailable:boolean;sources:{url:string;fetchedAt:string;stale:boolean}[];
+  debates:{id:string;titles:Record<string,string>;records:SpeechSequenceRow[];exchanges:SpeechExchange[];error?:string;coverage:{complete:boolean;expected:number|null;available:number;missingIds:string[]};sources?:{url:string;fetchedAt:string;stale:boolean}[]}[];
+}
+export interface InterventionStatistics {
+  restarted?:boolean;
+  memberId:string;items:Speech[];counts:{groupOrations:number;blueQuestions:number|null;blueAnswers:number|null;blueReactions:number|null;catchTheEye:number|null};
+  groups:{id:string;label:string;count:number}[];coverage:{complete:boolean;available:number;total:number|null;headers:number;unclassified:number;issues:string[]};
+  nextPage:number|null;sources:{url:string;fetchedAt:string;stale:boolean}[];
 }
 export interface Publication {
   id: string;
@@ -121,6 +146,24 @@ export interface SpeechDetail extends Speech {
   fetchedAt: string;
   textCache?: { sourceFetchedAt: string; stale: boolean; refreshInProgress: boolean; refreshError: string | null; availableLanguages: string[]; coverage: 'returned-languages-only' };
 }
+export interface MotionOutcome {
+  status: 'adopted' | 'rejected' | 'lapsed' | 'withdrawn' | 'unavailable';
+  reason?: string;
+  date?: string;
+  method?: string;
+  decisionId?: string;
+  sittingId?: string;
+  totals?: { for:number|null; against:number|null; abstaining:number|null } | null;
+  sources?: { url:string; fetchedAt:string; language:string|null }[];
+  refreshFailure?: { attemptedAt:string; coverage:{missingResultIds:string[];missingDecisionIds:string[]}; sources:{url:string;fetchedAt:string;language:string|null}[] } | null;
+}
+export interface RelatedJointMotion {
+  sourceId:string;
+  reference:string;
+  title:string;
+  url:string;
+  outcome:MotionOutcome;
+}
 export interface JoinedActivity {
   id: string;
   sourceId: string;
@@ -139,6 +182,9 @@ export interface JoinedActivity {
   reference: string;
   files: DocumentFile[];
   answerStatus?: 'answered' | 'awaiting';
+  answerIds?: string[];
+  resolutionOutcome?: MotionOutcome;
+  relatedJointMotions?: RelatedJointMotion[];
   relatedQuestionId?: string;
   relatedQuestionTitle?:string;
   relatedQuestionTitles?:Record<string,string>;

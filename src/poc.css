@@ -205,7 +205,7 @@
 .poc-saved-items .insight-inline-reader {color:#012b5d;}
 .poc-saved-view button {font:inherit;min-height:44px;border:1px solid #7390b3;border-radius:4px;background:white;color:#012b5d;padding:8px 12px;cursor:pointer;}
 .poc-saved-actions {margin-top:16px;}
-.poc-update-label {display:inline-block;background:#e0f5e9;color:#165439;padding:3px 7px;border-radius:4px;margin:10px 0;}
+.poc-update-label {display:inline-block;background:#e0f5e9;color:#165439;padding:3px 7px;border-radius:4px;margin:10px 8px 10px 0;}
 
 .poc-header .poc-saved-count{flex:0;font-size:13px}
 .poc-speech-words{border:1px solid #c6d5e8;padding:20px;margin:20px 0;background:#f3f7fc;border-radius:5px}.poc-speech-words .poc-section-title{align-items:flex-start;flex-wrap:wrap}.poc-speech-words .poc-section-title>div{display:flex;gap:14px;flex-wrap:wrap}.poc-speech-words label{display:grid;gap:5px;font-size:14px}.poc-speech-words select{min-height:44px;max-width:200px}.poc-speech-wordcloud{display:flex;gap:8px 15px;align-items:baseline;justify-content:center;flex-wrap:wrap;padding:20px 0}.poc-speech-wordcloud button{border:0;border-bottom:2px solid transparent;background:none;color:#003366;min-height:44px;padding:5px;cursor:pointer}.poc-speech-wordcloud button[aria-pressed=true]{border-bottom-color:#15509f;color:#000}.poc-speech-wordcloud small{font-size:12px;margin-left:6px;color:#4f6883}.poc-speech-word-caption{color:#526b85;font-size:14px}.poc-speech-word-examples{display:grid;gap:10px;margin-top:16px}.poc-speech-word-examples button{text-align:left;display:grid;gap:5px;padding:12px;min-height:44px}
