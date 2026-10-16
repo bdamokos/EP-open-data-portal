@@ -129,7 +129,7 @@ test('stage and exact motion-pair changes cannot inherit an unrelated language c
   assert.equal(h.container.querySelector('.poc-diff-rows'),null);assert.equal(h.container.querySelector('.poc-diff-documents'),null);
   assert(!h.language()||![...h.language().options].some(option=>option.value==='de'),'an obsolete stage response cannot admit languages for another pair');
   const result=comparison('original-adopted','en',{textLanguage:'it',availableLanguages:['it']});
-  result.documents=result.documents.map((document,index)=>({...document,id:index?'TA-10-2026-0340':nextPair.originalId,reference:index?'TA-10-2026-0340':nextPair.originalId}));
+  result.documents=result.documents.map((document,index)=>{const id=index?'TA-10-2026-0340':nextPair.originalId;return {...document,id,reference:id,title:id,sourceUrl:`https://data.europarl.europa.eu/distribution/example/${id}_it.docx`};});
   await h.finish(current,result);
   assert.deepEqual([...h.language().options].map(option=>option.value),['it']);assert.equal(h.language().value,'it');
   assert.equal(h.container.querySelector('.poc-diff-rows').lang,'it');assert.match(h.container.querySelector('.poc-diff-documents').textContent,/B-10-2026-0449/);
