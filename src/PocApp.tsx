@@ -377,6 +377,18 @@ export default function PocApp() {
   const c = pocCopy(lang);
   useSavedChecks(lang);
   const label = (key: string, fallback: string) => interfaceLabel(lang,key,fallback);
+  const scrolledView = useRef({member,tab,view});
+  useEffect(() => {
+    // Small screens scroll the whole explorer; start new pages at the top and new tabs at their content.
+    const previous=scrolledView.current;scrolledView.current={member,tab,view};
+    const page=document.querySelector<HTMLElement>(".poc");
+    if(!page||page.scrollHeight<=page.clientHeight)return;
+    if(previous.member!==member||previous.view!==view){if(!speechLink&&!activityLink)page.scrollTo({top:0});return;}
+    const body=page.querySelector<HTMLElement>(".poc-profile-body"),tabs=page.querySelector<HTMLElement>(".poc-tabs");
+    if(!body||!tabs||getComputedStyle(tabs).position!=="sticky")return;
+    const contentTop=page.scrollTop+body.getBoundingClientRect().top-page.getBoundingClientRect().top-tabs.offsetHeight;
+    if(page.scrollTop>contentTop)page.scrollTo({top:contentTop});
+  }, [member, tab, view]);
   useEffect(() => {
     const timer=window.setInterval(directoryState.retry,directory?.index.complete ? 60_000 : 10_000);
     return ()=>window.clearInterval(timer);
