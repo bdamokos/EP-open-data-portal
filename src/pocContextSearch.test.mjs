@@ -100,3 +100,72 @@ test('a large plenary cloud searches by exact period and country while delayed h
   assert.equal(new URL(location.href).searchParams.get('agenda-fts-page'),'3');
   assert.equal(new URL(location.href).searchParams.get('agenda-fts-read'),read);
 });
+
+test('explicit plenary navigation clears contextual result positions before remounts while saved links and Back keep them',async t=>{
+  const days=['2026-10-07','2026-10-08','2026-10-14'],sittings=days.map(date=>({id:'MTG-PL-'+date,date,phase:'past'}));
+  const topics=[['A',0],['B',0],['C',1],['D',2]].map(([name,index])=>({id:sittings[index].id+'-OJ-ITM-D-'+name,sittingId:sittings[index].id,date:days[index],title:'Debate '+name,kind:'PLENARY_DEBATE',documentIds:[],procedureIds:[],speech:sittings[index].id+'-OTH-'+name}));
+  const [a,b,c,d]=topics,initialRead=JSON.stringify([a.speech,'fr']);
+  const initial=new URLSearchParams({view:'legislation','pl-sitting':a.sittingId,'agenda-topic':a.id,'agenda-fts-search':'energy','agenda-fts-text-lang':'fr','agenda-fts-sort':'newest','agenda-fts-page':'3','agenda-fts-read':initialRead});
+  const window=new Window({url:'http://localhost/?'+initial});
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  let vite,root,resolvePeriod,resolveCloud,deferPeriod=false;
+  const pending=new Map(),searches=[],textRequests=[];
+  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of pending.values())request.resolve(Response.json(request.data));if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  const stats={denominator:0,uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,referenceDate:days[0],dimensions:{country:[],group:[],gender:[],age:[]}};
+  function legislation(sittingId,topicId){const sitting=sittings.find(day=>day.id===sittingId)||sittings[0],topic=topics.find(item=>item.id===topicId);return {view:'legislation',sitting,sittings,topics:topics.filter(item=>item.sittingId===sitting.id),coverage:{agendaError:null,agendaComplete:true,indexComplete:true},detail:topic?{...topic,phase:'past',procedures:[],committeeWork:[],roles:[],people:[],stats,speeches:[{sourceId:topic.speech,date:topic.date,title:topic.title,kind:'PLENARY_DEBATE_WRITTEN_STATEMENT',start:null,end:null,people:[]}],voteCoverage:{truncated:false},coverage:{gaps:[],roleRowsTruncated:false,speechAssociations:{sources:[],truncated:false}}}:null};}
+  const stored=id=>({sourceId:id,sourceKey:'fr',kind:'speech',parentId:null,date:days[0],language:'fr',translationType:'original',sourceUrl:'https://www.europarl.europa.eu/example/'+id,sha256:'fixture-hash',snippet:'\u0002Energy\u0003 policy',body:'Energy policy',highlightedBody:'\u0002Energy\u0003 policy',fetchedAt:'2026-10-15T12:00:00Z',checkedAt:'2026-10-15T12:00:00Z'});
+  t.mock.method(globalThis,'fetch',async(input,options={})=>{
+    const url=new URL(input,window.location.href),params=url.searchParams;
+    if(url.pathname.endsWith('/insights/legislation')){
+      const data=legislation(params.get('sitting'),params.get('topic'));
+      if(params.has('topic'))return new Promise(resolve=>pending.set(params.get('topic'),{resolve,data}));
+      if(deferPeriod&&params.get('sitting')===c.sittingId){deferPeriod=false;return new Promise(resolve=>{resolvePeriod=()=>resolve(Response.json(data));});}
+      return Response.json(data);
+    }
+    if(url.pathname.endsWith('/insights/speech-cloud'))return new Promise(resolve=>{const date=params.get('sitting')?.slice(7)||c.date;resolveCloud=()=>resolve(Response.json({scope:{kind:'sitting',phase:'past'},language:'en',words:[],speeches:[],coverage:{transcripts:0,matchedSpeechRecords:0,missingLanguage:0,unreadableText:0,complete:true,truncated:false,associationUnavailable:false},window:{start:date,end:date},nextPage:null}));});
+    if(url.pathname.endsWith('/insights/participation'))return Response.json({topics:[{...d,upcoming:false,speakers:1,voters:0,amendmentVotes:0,rollCalls:0}],series:[],window:{start:days[2],end:days[2]},coverage:{gaps:[]}});
+    if(url.pathname.endsWith('/corpus/search')){
+      const body=JSON.parse(options.body);searches.push(body);const id=body.sourceIds?.[0]||(body.from===d.date?d.speech:c.speech);
+      return Response.json({total:61,limit:20,offset:body.offset,nextOffset:null,truncated:false,coverage:{complete:false},results:[{sourceId:id,kind:'speech',date:days[0],title:'Energy policy',reference:id,hits:[stored(id)]}]});
+    }
+    if(url.pathname.endsWith('/corpus/text')){textRequests.push(params.get('source-id'));return Response.json(stored(params.get('source-id')));}
+    if(url.pathname.includes('/speech/'))return Response.json({id:url.pathname.split('/').at(-1),xml:null,speakers:[],availableTextLanguages:[],textLanguage:null});
+    throw new Error('Unexpected request: '+url);
+  });
+  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {PocLegislation}=await vite.ssrLoadModule('/src/PocLegislation.tsx');
+  const {createRoot}=await import('react-dom/client');
+  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const query=()=>new URL(location.href).searchParams;
+  const click=async text=>act(async()=>{const button=[...container.querySelectorAll('button')].find(node=>node.textContent===text||node.querySelector('strong')?.textContent===text);assert(button,'Missing '+text);button.click();});
+  const select=async(selector,value)=>act(async()=>{const node=container.querySelector(selector);assert(node,'Missing '+selector);node.value=value;node.dispatchEvent(new window.Event('change',{bubbles:true}));});
+  const respond=async topic=>{const request=pending.get(topic.id);assert(request,'Expected pending '+topic.title);pending.delete(topic.id);await act(async()=>request.resolve(Response.json(request.data)));};
+  function resetPosition(){assert.equal(query().has('agenda-fts-page'),false);assert.equal(query().has('agenda-fts-read'),false);for(const [key,value] of [['agenda-fts-search','energy'],['agenda-fts-text-lang','fr'],['agenda-fts-sort','newest']])assert.equal(query().get(key),value);}
+  async function restorePosition(speech){await act(async()=>{const url=new URL(location.href);url.searchParams.set('agenda-fts-page','2');url.searchParams.set('agenda-fts-read',JSON.stringify([speech,'fr']));history.replaceState(null,'',url);window.dispatchEvent(new window.Event('popstate'));});}
+  await act(async()=>root.render(createElement(PocLegislation,{language:'en',onBack(){}})));
+  assert.equal(searches.length,0);assert.equal(query().get('agenda-fts-page'),'3');assert.equal(query().get('agenda-fts-read'),initialRead);
+  await respond(a);assert.equal(searches.at(-1).offset,60);assert.equal(query().get('agenda-fts-read'),initialRead);assert(container.querySelector('.poc-search-reader'));
+  const initialTextRequests=textRequests.length;
+  await click(b.title);resetPosition();assert.equal(container.querySelector('.insight-topic-detail .poc-text-search'),null);
+  assert.equal(textRequests.length,initialTextRequests,'loading the next item must not request the old reader');
+  await respond(b);assert.equal(searches.at(-1).offset,0);assert.deepEqual(searches.at(-1).sourceIds,[b.speech]);assert(searches.filter(search=>search.sourceIds?.includes(b.speech)).every(search=>search.offset===0));assert.equal(container.querySelector('.poc-search-reader'),null);
+  assert.equal(window.history.length,2,'topic and contextual resets belong to one Back/Forward step');
+  await act(async()=>{const restored=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history.back();await restored;});
+  assert.equal(query().get('agenda-topic'),a.id);assert.equal(query().get('agenda-fts-page'),'3');assert.equal(query().get('agenda-fts-read'),initialRead);assert.equal(searches.at(-1).offset,60);
+  deferPeriod=true;await select('.insight-controls select','sitting:'+c.sittingId);resetPosition();assert(resolvePeriod);await act(async()=>resolvePeriod());
+  await click(c.title);resetPosition();await respond(c);assert.deepEqual(searches.at(-1).sourceIds,[c.speech]);assert.equal(searches.at(-1).offset,0);
+  await restorePosition(c.speech);assert.equal(query().get('agenda-fts-page'),'2');
+  let before=searches.length,beforeTexts=textRequests.length;
+  await click('Word cloud');resetPosition();assert(resolveCloud);await act(async()=>resolveCloud());
+  assert.equal(searches.at(-1).offset,0);assert.equal(searches.at(-1).from,c.date);assert.equal('sourceIds' in searches.at(-1),false);assert(searches.slice(before).every(search=>search.offset===0));assert.equal(textRequests.length,beforeTexts);assert.equal(container.querySelector('.poc-search-reader'),null);
+  await restorePosition(c.speech);before=searches.length;beforeTexts=textRequests.length;
+  await select('.poc-cloud-controls select','sitting:'+d.sittingId);resetPosition();assert.equal(searches.length,before,'a new cloud period waits for its own dates');await act(async()=>resolveCloud());
+  assert.equal(searches.at(-1).from,d.date);assert(searches.slice(before).every(search=>search.offset===0));assert.equal(textRequests.length,beforeTexts);assert.equal(container.querySelector('.poc-search-reader'),null);
+  await restorePosition(d.speech);before=searches.length;beforeTexts=textRequests.length;
+  await click('Agenda');resetPosition();assert.equal(searches.at(-1).offset,0);assert.deepEqual(searches.at(-1).sourceIds,[c.speech]);assert(searches.slice(before).every(search=>search.offset===0));assert.equal(textRequests.length,beforeTexts);assert.equal(container.querySelector('.poc-search-reader'),null);
+  const unseen='MTG-PL-2026-10-07-OTH-UNSEEN';
+  await click('What’s hot');await restorePosition(unseen);assert.equal(query().get('agenda-fts-page'),'2');beforeTexts=textRequests.length;
+  await click(d.title);resetPosition();await respond(d);assert.equal(searches.at(-1).offset,0);assert.deepEqual(searches.at(-1).sourceIds,[d.speech]);assert.equal(textRequests.length,beforeTexts);assert.equal(textRequests.includes(unseen),false,'programmatic topic navigation must not request a stale independent reader');assert.equal(container.querySelector('.poc-search-reader'),null);
+});
