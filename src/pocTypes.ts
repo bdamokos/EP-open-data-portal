@@ -163,6 +163,7 @@ export interface RelatedJointMotion {
   title:string;
   url:string;
   outcome:MotionOutcome;
+  memberAuthorship?:'recorded'|'not-recorded';
 }
 export interface JoinedActivity {
   id: string;
