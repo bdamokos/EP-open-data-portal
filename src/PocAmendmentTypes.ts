@@ -7,7 +7,7 @@ export type AmendmentDecision = {
   totals?:{for?:number|null;against?:number|null;abstaining?:number|null}|null;
   source?:string|AmendmentSource|null;collective?:boolean;amendmentIds?:string[];
 };
-export type AmendmentSplit = {id:string;number?:number|string|null;description:string;language?:string|null;plan?:Record<string,unknown>|null;status?:string;failure?:{code?:string;message?:string}|string|null};
+export type AmendmentSplit = {id:string;number?:number|string|null;description:string|null;language?:string|null;rawDescription?:string|null;sourceDescriptions?:Record<string,string>;plan?:Record<string,unknown>|null;status?:string;failure?:{code?:string;message?:string}|string|null};
 export type AmendmentVariant = {
   listId?:string|null;date?:string|null;documentDate?:string|null;dateBasis?:string|null;language?:string|null;
   targetLabel?:string|null;originalText?:string|null;proposedText?:string|null;authors?:AmendmentAuthor[];
@@ -27,7 +27,7 @@ export type AmendmentPage = {
   failures?:{total:number;unresolved:number};
 };
 export type AmendmentFailure = {
-  requestId:string;partId:string;description:string;language?:string|null;parserVersion?:string|null;code?:string;message?:string;
+  requestId:string;partId:string;description:string|null;language?:string|null;rawDescription?:string|null;sourceDescriptions?:Record<string,string>;parserVersion?:string|null;code?:string;message?:string;
   sourceUrl?:string|null;fetchedAt?:string|null;firstSeen?:string|null;lastSeen?:string|null;occurrences?:number;status?:string;
   firstOccurrence?:string|null;lastOccurrence?:string|null;count?:number;reason?:string|null;
 };

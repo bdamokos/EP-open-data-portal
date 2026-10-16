@@ -74,11 +74,16 @@ export function saveAmendmentRows(store,generation,target,rows,coverage) {
       if(!incoming.conflicted && !incoming.authors?.length && old.authors?.length){incoming.authors=old.authors;stale.push('authors');}
       else incoming.authors=(incoming.authors || []).map(author=>{
         const accepted=(old.authors || []).find(item=>item.name===author.name&&item.personId!=null);
-        if(author.personId==null&&accepted){stale.push('author identity');return {...accepted,latestResolution:author};}return author;
+        // Missing inputs can retain an accepted link, but an explicit fresh
+        // ambiguity or inactive mandate invalidates that link immediately.
+        if(author.personId==null&&accepted&&['missing','missing_date','missing_mandate'].includes(author.status)){stale.push('author identity');return {...accepted,latestResolution:author};}return author;
       });
       const decisionKey=decision=>decision.id+':'+(decision.partId || '');
       const decisions=new Map((incoming.decisions || []).map(decision=>[decisionKey(decision),decision]));
-      for(const decision of old.decisions || [])if(!decisions.has(decisionKey(decision))){decisions.set(decisionKey(decision),decision);stale.push('decisions');}
+      const currentDecisionIds=new Set((incoming.decisions || []).map(decision=>decision.id));
+      // A published decision node's reference set is atomic. Its current parts
+      // replace prior bindings; only entirely absent decisions are retained.
+      for(const decision of old.decisions || [])if(!currentDecisionIds.has(decision.id)){decisions.set(decisionKey(decision),decision);stale.push('decisions');}
       incoming.decisions=[...decisions.values()];
       if(stale.length){retained=true;incoming.retainedComponents=[...new Set(stale)];incoming.gaps=[...new Set([...(incoming.gaps || []),'Some previously accepted components are retained because the latest refresh is incomplete.'])];incoming.sources=[...new Map([...(incoming.sources || []),...(old.sources || [])].map(source=>[source.url+':'+source.fetchedAt,source])).values()];}
     }
