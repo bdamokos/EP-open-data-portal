@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Navigation hover regression</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import {createElement} from 'react';
+      import {createRoot} from 'react-dom/client';
+      import './PocApp.tsx';
+      import './base.css';
+      import {ParliamentHeader} from './ParliamentHeader.tsx';
+
+      // Run with either ?shell=poc or ?shell=poc-insights. Hover Questions,
+      // then Members with a real pointer; synthetic events cannot set :hover.
+      const shell = new URLSearchParams(location.search).get('shell') || 'poc';
+      if (!['poc', 'poc-insights'].includes(shell)) throw new Error('Unknown shell');
+      const noop = () => {};
+      createRoot(document.getElementById('root')).render(createElement('main', {className: shell},
+        createElement(ParliamentHeader, {view: 'questions', onMembers: noop, onNavigate: noop}),
+        createElement('section', {style: {padding: '24px'}},
+          createElement('h1', null, 'Navigation hover regression'),
+          createElement('p', null, 'Hover Questions, then Members. Check both shells at desktop and mobile widths.'),
+          createElement('p', {id: 'result', role: 'status'}, 'Waiting for both hover states.'),
+        ),
+      ));
+
+      const completed = new Set();
+      document.addEventListener('pointerover', event => {
+        const button = event.target.closest?.('.parliament-header nav button');
+        if (!button || !['Questions', 'Members'].includes(button.textContent)) return;
+        requestAnimationFrame(() => {
+          const result = document.getElementById('result');
+          try {
+            if (!button.matches(':hover')) throw new Error('A real pointer hover is required');
+            const current = document.querySelector('button[aria-current="page"]');
+            const currentStyle = getComputedStyle(current);
+            if (currentStyle.borderColor !== 'rgb(255, 242, 0)') throw new Error('Current-section border lost its yellow cue');
+            if (currentStyle.color !== 'rgb(255, 255, 255)') throw new Error('Current-section text is no longer white');
+            if (button !== current && getComputedStyle(button).borderColor !== 'rgb(255, 255, 255)') {
+              throw new Error('Ordinary hovered navigation border is no longer white');
+            }
+            completed.add(button.textContent);
+            result.dataset.status = completed.size === 2 ? 'passed' : 'pending';
+            result.textContent = completed.size === 2 ? 'Navigation hover regression passed.' : 'One hover state passed; hover the other button.';
+          } catch (error) {
+            result.dataset.status = 'failed';
+            result.textContent = error.message;
+            throw error;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
