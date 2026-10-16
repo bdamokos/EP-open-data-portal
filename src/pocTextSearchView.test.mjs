@@ -131,6 +131,19 @@ test('changing interface language preserves explicit search language and selecte
   assert.equal(new URL(view.window.location.href).searchParams.get('fixture-fts-read'),JSON.stringify([speech,french.sourceKey]));
 });
 
+test('history restoration of text language keeps the restored result page and exact reader',async t=>{
+  const view=await setup(t,{query:'fixture-fts-search=energy&fixture-fts-text-lang=en'});await view.render();
+  const read=JSON.stringify([speech,french.sourceKey]);
+  const restored=new URLSearchParams({'fixture-fts-search':'energy','fixture-fts-text-lang':'fr','fixture-fts-page':'3','fixture-fts-read':read});
+  await act(async()=>{view.window.history.replaceState(null,'','/?'+restored);view.window.dispatchEvent(new view.window.Event('popstate'));});
+  assert.equal(view.searches().at(-1).body.language,'fr');
+  assert.equal(view.searches().at(-1).body.offset,60);
+  assert.equal(new URL(view.window.location.href).searchParams.get('fixture-fts-page'),'3');
+  assert.equal(new URL(view.window.location.href).searchParams.get('fixture-fts-read'),read);
+  assert.equal(view.find('.poc-search-body').lang,'fr');
+  assert.equal(view.find('.poc-search-facets select').value,'fr');
+});
+
 test('a URL-selected language fragment opens independently of the interface-default version',async t=>{
   const query=new URLSearchParams({'fixture-fts-search':'energy','fixture-fts-text-lang':'all','fixture-fts-read':JSON.stringify([speech,french.sourceKey])});
   const view=await setup(t,{query:query.toString()});await view.render();
@@ -148,6 +161,33 @@ test('a saved exact reader link opens without a search query or an unrelated cor
   assert.equal(view.texts()[0].url.searchParams.get('source-key'),french.sourceKey);
   assert.equal(view.texts()[0].url.searchParams.has('q'),false);
   assert.equal(view.find('.poc-search-body').lang,'fr');
+});
+
+test('Back reopens a closed reader-only link without changing the search query',async t=>{
+  const query=new URLSearchParams({'fixture-fts-read':JSON.stringify([speech,french.sourceKey])});
+  const view=await setup(t,{query:query.toString()});await view.render();
+  await view.click('Close text search');await view.flushFrames();
+  assert.equal(view.container.querySelector('.poc-search-panel'),null);
+  await act(async()=>{const restored=new Promise(resolve=>view.window.addEventListener('popstate',resolve,{once:true}));view.window.history.back();await restored;});
+  assert.equal(view.button('Search fixture speeches').getAttribute('aria-expanded'),'true');
+  assert.equal(view.find('.poc-search-body').lang,'fr');
+  assert.equal(view.searches().length,0);
+});
+
+test('an explicitly closed global search stays collapsed across navigation remounts while retaining its query',async t=>{
+  const view=await setup(t,{query:'global-fts-search=energy&global-fts-text-lang=en'});
+  await view.render({prefix:'global-fts',key:'first-header'});
+  assert.equal(view.searches().length,1);
+  await view.click('Close text search');await view.flushFrames();
+  assert.equal(new URL(view.window.location.href).searchParams.get('global-fts-closed'),'1');
+  await view.render({prefix:'global-fts',key:'second-header'});
+  assert.equal(view.container.querySelector('.poc-search-panel'),null);
+  assert.equal(view.searches().length,1,'a header remount must not silently reopen or rerun a closed global query');
+  assert.equal(new URL(view.window.location.href).searchParams.get('global-fts-search'),'energy');
+  await view.click('Search fixture speeches');
+  assert(view.container.querySelector('.poc-search-panel'));
+  assert.equal(view.searches().length,2);
+  assert.equal(new URL(view.window.location.href).searchParams.has('global-fts-closed'),false);
 });
 
 test('changing entity scope clears the old page and reader before requesting the new entity',async t=>{
@@ -183,4 +223,42 @@ test('local find uses CSS highlights without changing React links or footnotes a
   assert.equal(view.registry.size,0);assert.equal(view.container.querySelector('input'),null);
   assert.equal(view.window.document.activeElement,view.button('Find in fixture text'));
   assert.equal(body.innerHTML,markup);assert.equal(view.calls.length,0);
+});
+
+test('local find recomputes live ranges when a React summary collapses and expands',async t=>{
+  const view=await setup(t,{highlights:true});
+  function Summary({expanded}){const target=useRef(null);return createElement('section',null,
+    createElement(view.PocFindInText,{target,label:'Find in summary'}),
+    createElement('div',{ref:target,id:'summary-body'},createElement('p',null,'Énergie in the visible introduction.'),expanded&&createElement('p',{id:'extra-summary'},'Énergie in the expanded summary.')));}
+  await act(async()=>view.root.render(createElement(Summary,{expanded:true})));
+  await view.click('Find in summary');await view.input('input[type="search"]','energie');await view.flushFrames();
+  const ranges=()=>[...view.registry.entries()].find(([key])=>!key.endsWith('active'))?.[1]?.ranges;
+  assert.equal(view.find('[role="status"]').textContent,'1 / 2');
+  const removed=view.find('#extra-summary');await view.click('Next match');
+  await act(async()=>view.root.render(createElement(Summary,{expanded:false})));await view.flushFrames();
+  assert.equal(removed.isConnected,false);
+  assert.equal(view.find('[role="status"]').textContent,'1 / 1');
+  assert.equal(ranges().length,1);assert(ranges().every(range=>range.startContainer.isConnected&&range.endContainer.isConnected));
+  await act(async()=>view.root.render(createElement(Summary,{expanded:true})));await view.flushFrames();
+  assert.equal(view.find('[role="status"]').textContent,'1 / 2');
+  assert.equal(ranges().length,2);assert(ranges().every(range=>range.startContainer.isConnected&&range.endContainer.isConnected));
+});
+
+test('local find separates paragraphs and line breaks while preserving words split by inline links',async t=>{
+  const view=await setup(t,{highlights:true});
+  function Paragraphs(){const target=useRef(null);return createElement('section',null,
+    createElement(view.PocFindInText,{target,label:'Find in structured text'}),
+    createElement('div',{ref:target,id:'structured-text'},createElement('p',null,'water'),createElement('p',null,'policy'),createElement('p',null,'en',createElement('a',{id:'inline-energy',href:'https://example.test/energy'},'er'),'gy'),createElement('p',null,'transport',createElement('br'),'policy')));}
+  await act(async()=>view.root.render(createElement(Paragraphs)));
+  const body=view.find('#structured-text'),original=body.innerHTML,link=view.find('#inline-energy');
+  await view.click('Find in structured text');
+  await view.input('input[type="search"]','waterpolicy');await view.flushFrames();
+  assert.equal(view.find('[role="status"]').textContent,'No matches','adjacent paragraphs must not create a compound word');
+  for(const phrase of ['water policy','transport policy','energy']){
+    await view.input('input[type="search"]',phrase);await view.flushFrames();
+    assert.equal(view.find('[role="status"]').textContent,'1 / 1',phrase+' should match the visible text structure');
+  }
+  assert.equal(view.find('#inline-energy'),link);assert.equal(body.innerHTML,original);
+  const all=[...view.registry.entries()].find(([key])=>!key.endsWith('active'))?.[1];
+  assert.equal(all.ranges[0].toString(),'energy');
 });
