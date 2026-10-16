@@ -147,7 +147,7 @@ test('named vote titles preserve subject-first fallback and never add a first-di
     {subjects:{en:'English subject'},titles:{hu:'Magyar cím'},text:'English subject',lang:'en'},
     {subjects:{fr:'Sujet non sélectionné'},titles:{hu:'Magyar cím',en:'English title'},text:'Magyar cím',lang:'hu'},
     {subjects:{},titles:{en:'English title'},text:'English title',lang:'en'},
-    {subjects:{fr:'Sujet non sélectionné'},titles:{fr:'Titre non sélectionné'},text:'Vote',lang:'en'},
+    {subjects:{fr:'Sujet non sélectionné'},titles:{fr:'Titre non sélectionné'},text:'Szavazás',lang:'hu'},
   ];
   const votes=cases.map((fixture,index)=>({id:'exact-vote-'+index,date:sitting.date,scope:'final-text',outcome:'ADOPTED',subjects:fixture.subjects,titles:fixture.titles,aggregateTotals:{for:2,against:0,abstaining:0},namedVotersAvailable:false,intendedCorrections:{for:[],against:[],abstaining:[]}}));
   const topic={id:'exact-topic',title:'Source français',titleLanguage:'fr',date:sitting.date,kind:'PLENARY_VOTE',documentIds:[]};
@@ -157,6 +157,11 @@ test('named vote titles preserve subject-first fallback and never add a first-di
   assert.equal(effectiveLanguage(h.container.querySelector('.insight-topic-detail h2')),'fr');
   assert.equal(effectiveLanguage(h.container.querySelector('.insight-agenda strong')),'fr');
   assert.equal(effectiveLanguage(h.container.querySelector('.insight-eyebrow span')),'hu');
+  assert.equal(h.container.querySelector('.insight-eyebrow span').textContent,'Szavazás');
+  const agendaOption=h.container.querySelector('.insight-agenda-select option[value="exact-topic"]');
+  assert.equal(agendaOption.textContent,'Szavazás · Source français');assert.equal(effectiveLanguage(agendaOption),'','UI translation does not relabel a French fallback title');
+  const scopeOption=h.container.querySelector('.insight-vote-select option');
+  assert.equal(scopeOption.textContent,'Végleges szöveg · Exact summary');assert.equal(effectiveLanguage(scopeOption),'','vote previews still lack source-title language metadata');
   assert.equal(effectiveLanguage(h.container.querySelector('.insight-mode-nav button')),'en');
   for(const [index,fixture] of cases.entries()) {
     if(index)await act(async()=>{const select=h.container.querySelector('.insight-vote-select select');select.value=votes[index].id;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
@@ -164,6 +169,8 @@ test('named vote titles preserve subject-first fallback and never add a first-di
     assert.equal(title.textContent,fixture.text);
     assert.equal(effectiveLanguage(title),fixture.lang);
     assert.equal(effectiveLanguage(h.container.querySelector('.insight-vote-totals h3')),'en');
+    const scope=h.container.querySelector('.insight-vote-detail .insight-record-meta span');
+    assert.equal(scope.textContent,'Végleges szöveg');assert.equal(effectiveLanguage(scope),'hu');
     assert.equal(h.container.querySelector('.insight-topic-detail h2').textContent,'Source français');
   }
 });
