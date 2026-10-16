@@ -6,15 +6,26 @@ import {writeCacheFile} from './cache-publication.mjs';
 
 // Reproducible assembled responses live separately from raw ODP records and index state.
 export class InsightViewCache {
-  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes});this.cache=new Map();this.pending=new Map();this.failures=new Map();this.bytes=0;}
+  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes});this.cache=new Map();this.pending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;}
   key(value){return createHash('sha256').update(JSON.stringify(value)).digest('hex');}
   async stored(key) {
     if(this.cache.has(key))return this.cache.get(key);
     if(!this.directory)return null;
-    try {const name=path.join(this.directory,key+'.json'),info=await stat(name);if(info.size>4*1024*1024)return null;const record=JSON.parse(await readFile(name,'utf8'));requestSignal()?.throwIfAborted();if(record.key!==key||!Number.isFinite(record.at)||!record.value)return null;this.remember(key,record);return record;}catch{return null;}
+    const reads=this.diskReads.get(key)||new Set(),read={superseded:false};
+    this.diskReads.set(key,reads);reads.add(read);
+    try {
+      const name=path.join(this.directory,key+'.json'),info=await stat(name);if(info.size>4*1024*1024)return null;
+      const record=JSON.parse(await readFile(name,'utf8'));requestSignal()?.throwIfAborted();
+      // A publication while this read was pending wins even if memory evicted it.
+      if(read.superseded)return this.cache.get(key)||null;
+      if(record.key!==key||!Number.isFinite(record.at)||!record.value)return null;
+      this.remember(key,record);return record;
+    }catch{return null;}
+    finally {reads.delete(read);if(!reads.size)this.diskReads.delete(key);}
   }
   remember(key,record) {
     const bytes=Buffer.byteLength(JSON.stringify(record));if(bytes>4*1024*1024)return;
+    for(const read of this.diskReads.get(key)||[])read.superseded=true;
     const previous=this.cache.get(key);if(previous)this.bytes-=previous.bytes;
     this.cache.delete(key);this.cache.set(key,{...record,bytes});this.bytes+=bytes;
     while(this.cache.size>this.maxEntries||this.bytes>this.maxBytes){const oldest=this.cache.keys().next().value;this.bytes-=this.cache.get(oldest).bytes;this.cache.delete(oldest);}
