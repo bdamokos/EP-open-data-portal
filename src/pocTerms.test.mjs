@@ -8,15 +8,28 @@ test('the catalogue covers exactly the 24 UI languages with separate official an
   for(const [key,term] of Object.entries(catalogue.terms)) {
     assert.deepEqual(Object.keys(term.labels).sort(),[...catalogue.languages].sort(),key);
     assert(Object.values(term.labels).every(value=>typeof value==='string'&&value.trim()));
-    if(['first-reading','second-reading','vote','amendment'].includes(key)) {
+    if(['first-reading','second-reading'].includes(key)) {
       assert.equal(term.provenance,'official-published-labels');assert(term.conceptUri);assert(term.fetchedAt);
     } else {
       assert.equal(term.provenance,'machine-translation');assert.equal(term.sourceLanguage,'en');
       assert.equal(term.model,'gpt-6.1-sol');assert.equal(term.humanReviewed,false);
     }
   }
-  assert.equal(catalogue.terms.vote.conceptUri,'http://eurovoc.europa.eu/4750');
-  assert.equal(catalogue.terms.amendment.conceptUri,'http://eurovoc.europa.eu/1558');
+  assert.equal(catalogue.sources.parliamentaryContext.vote.conceptUri,'http://eurovoc.europa.eu/4762');
+  assert.equal(catalogue.sources.parliamentaryContext.amendment.entryId,778614);
+  for(const key of ['vote','amendment'])assert.equal(catalogue.terms[key].conceptUri,undefined,'context references do not turn adapted interface copy into published labels');
+});
+
+test('vote and amendment labels use the parliamentary sense rather than election ballots or generic changes',()=>{
+  for(const [language,vote,amendment] of [
+    ['de','Abstimmung','Änderungsantrag'],['da','Afstemning','Ændringsforslag'],
+    ['lv','Balsošana','Grozījums'],['sv','Omröstning','Ändringsförslag'],
+    ['fi','Äänestys','Tarkistus'],['sk','Hlasovanie','Pozmeňujúci návrh'],
+    ['et','Hääletus','Muudatusettepanek'],
+  ]) {
+    assert.equal(interfaceTerm('vote',language).text,vote);
+    assert.equal(interfaceTerm('amendment',language).text,amendment);
+  }
 });
 
 test('terms follow the requested UI locale and retain an honest English fallback for unsupported languages',()=>{

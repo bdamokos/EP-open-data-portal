@@ -1,5 +1,5 @@
 import {PocSourceLink} from './PocSourceLink';
-import {useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {useData} from './pocData';
 import {PocStatus} from './PocStatus';
 import './PocMotionComparison.css';
@@ -32,6 +32,14 @@ export function PocMotionComparison({originalId,jointId,language}:{originalId:st
   const [attempt,setAttempt]=useState(0);
   const state=useData<Comparison>(`motion-comparison/${encodeURIComponent(originalId)}?joint=${encodeURIComponent(jointId)}&stage=${stage}&lang=${selectedLanguage}`);
   const data=state.data,labels=names[stage],summary=data?.summary;
+  const languageScope=JSON.stringify([originalId,jointId,stage]);
+  const languageCatalog=useRef<{scope:string;values:string[];shown:boolean}|null>(null);
+  const previousLanguages=languageCatalog.current?.scope===languageScope?languageCatalog.current:null;
+  const availableLanguages=data?.availableLanguages??previousLanguages?.values??[];
+  const showLanguage=Boolean(availableLanguages.length||previousLanguages?.shown);
+  useEffect(()=>{if(data)languageCatalog.current={scope:languageScope,values:data.availableLanguages,shown:showLanguage};},[data,languageScope,showLanguage]);
+  const actualLanguage=data?.textLanguage;
+  const languageValue=actualLanguage&&availableLanguages.includes(actualLanguage)?actualLanguage:availableLanguages.includes(selectedLanguage)?selectedLanguage:'';
   const rows=data?.rows.filter(row=>showUnchanged || row.kind!=='unchanged' || row.referenceChanged) || [];
   const stale=data?.sources.some(source=>source.stale || source.refreshError) || data?.documents.some(doc=>doc.stale || doc.refreshError);
   const requestedName=languageName(selectedLanguage,language),actualName=languageName(data?.textLanguage||selectedLanguage,language);
@@ -46,7 +54,7 @@ export function PocMotionComparison({originalId,jointId,language}:{originalId:st
       <label>Stages<select value={stage} onChange={e=>{setStage(e.target.value as Stage);setShowUnchanged(false);}}>
         <option value="original-joint">Original → joint motion</option><option value="original-adopted">Original → adopted text</option><option value="joint-adopted">Joint motion → adopted text</option>
       </select></label>
-      {Boolean(data?.availableLanguages.length)&&<label>Text language<select value={data?.textLanguage || selectedLanguage} onChange={e=>setLanguage(e.target.value)}>{data?.availableLanguages.map(code=>{const name=languageName(code,language);return <option lang={name.language} key={code} value={code}>{name.text}</option>;})}</select></label>}
+      {showLanguage&&<label>Text language<select value={languageValue} onChange={e=>setLanguage(e.target.value)}>{!languageValue&&<option value="" disabled>Unavailable</option>}{availableLanguages.map(code=>{const name=languageName(code,language);return <option lang={name.language} key={code} value={code}>{name.text}</option>;})}</select></label>}
     </div>
     <div>
       {state.loading&&!data&&<p role="status">Loading the linked texts…</p>}
