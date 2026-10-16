@@ -38,6 +38,8 @@ Readers recognise exact official numbers: EU acts (pre- and post-2015 forms), EL
 
 One SPARQL query per reader (at most 40 references) resolves CELEX numbers and Cellar works; a reference links only when exactly one work matches. A missing in-force flag stays unknown. Question numbers in term-change years (2014, 2019, 2024) link only when exactly one candidate exists and no lookup failed. Results are cached in `ODP_CACHE_DIR/legal-references-v1` for seven days (missing: one day); unavailable or stale-source results are labelled and not saved. Dossier summaries come from OEIL for the exact procedure, preferring final-act then proposal summaries. Acts before 16 July 2024 are marked as preceding the current term. Official Journal position links (`uri=uriserv:OJ…`) are not resolved.
 
+Publications Office and OEIL requests have separate admission queues from Parliament, each retaining 2.1-second spacing and two active requests. A source's 20-second budget includes admission, same-origin redirects and body reads; a reference batch shares one 28-second budget and stops further lookups on expiry. A detached reader leaves surviving shared cache work bounded by its source budget. Failed lookups retain readable text and available saved descriptions, with an explicit retry control.
+
 ## Derived views
 
 Analysis periods in questions, topic timelines and MEP speech clouds include **Current term**, from 16 July 2024 through today (Europe/Brussels), or through the chosen Until date where available. Numeric API windows may span any number of days within that term; there is no fixed 365-day maximum. Both boundaries are inclusive. Shorter presets remain available.
