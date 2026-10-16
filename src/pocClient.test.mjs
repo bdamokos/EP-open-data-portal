@@ -35,3 +35,30 @@ test('bounds the cache and clears data when access expires', async () => {
   await assert.rejects(client.get('three', { force: true }), /Sign in/);
   assert.equal(client.peek('three'), null);
 });
+
+test('a Following check can expire activity reads while retaining their visible content and unrelated reads',async()=>{
+  let revision=1;const client=createPocClient(async()=>({revision}));
+  const old=await client.get('latest-activities/1');await client.get('document/question');const speech=await client.get('speech/1');
+  revision=2;client.expireMatching(route=>/^(document\/|latest-activities\/)/.test(route));
+  assert.equal(client.peek('latest-activities/1'),old);assert.equal((await client.get('latest-activities/1')).revision,2);assert.equal((await client.get('document/question')).revision,2);assert.equal(await client.get('speech/1'),speech);
+});
+
+const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
+test('invalidating an in-flight answer read replaces it for both existing and new callers',async()=>{
+  const requests=[];
+  const client=createPocClient((route,signal)=>{const request=deferred();requests.push({...request,signal});return request.promise;});
+  const old=client.get('document/question');await Promise.resolve();
+  client.expireMatching(route=>route.startsWith('document/'));
+  const fresh=client.get('document/question');await Promise.resolve();assert.equal(requests.length,2);assert(requests[0].signal.aborted);
+  requests[0].resolve({answers:[]});await Promise.resolve();
+  assert.equal(client.get('document/question'),fresh,'the superseded completion must not remove its replacement');
+  requests[1].resolve({answers:['new-answer']});
+  assert.deepEqual(await old,{answers:['new-answer']});assert.deepEqual(await fresh,{answers:['new-answer']});assert.deepEqual(client.peek('document/question'),{answers:['new-answer']});
+});
+test('a superseded loader cannot overwrite fresh cached answers or clear them with a late access error',async()=>{
+  const requests=[];const client=createPocClient(()=>{const request=deferred();requests.push(request);return request.promise;});
+  const old=client.get('document/question');await Promise.resolve();client.expireMatching(()=>true);
+  const fresh=client.get('document/question');await Promise.resolve();requests[1].resolve({answers:['fresh']});await fresh;await old;
+  requests[0].reject(Object.assign(new Error('Expired'),{status:401}));await Promise.resolve();await Promise.resolve();
+  assert.deepEqual(await client.get('document/question'),{answers:['fresh']});assert.equal(requests.length,2);
+});

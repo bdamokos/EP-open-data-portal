@@ -134,6 +134,18 @@ test('upgrade preserves old speech cursors and queues each historical month only
   const history=store.db.prepare("SELECT body FROM tasks WHERE generation=? AND key LIKE 'outside:catalog:%'").all(generation).map(row=>JSON.parse(row.body));
   assert.equal(history.length,61);assert(history.some(t=>t.params['sitting-date']==='2019-07-02'));assert(history.some(t=>t.params['sitting-date-end']==='2024-07-15'));
 }));
+test('older workers cannot consume new outside tasks or publish their unfinished generation',withStore((store,generation)=>{
+  store.enqueue(generation,'normal','speeches',{offset:0},100);
+  store.enqueue(generation,'outside:detail:test','outside-detail',{id:'test'},102);
+  store.enqueue(generation,'outside:catalog:test','speeches',{outsideOnly:true},50);
+  store.enqueue(generation,'outside:upgrade:test','speeches',{offset:0},100);
+  const legacy=store.db.prepare('SELECT key FROM tasks WHERE generation=? AND (done=0 OR done IS NULL)').all(generation);
+  assert.deepEqual(legacy.map(row=>row.key),['normal']);
+  assert.equal(store.nextTask(generation).kind,'outside-detail');
+  assert.equal(store.taskCounts(generation).completed,0);
+  assert.equal(outsideDirectory(store,{term:'all',language:'en'}).coverage.pending,4);
+  store.finishTask(store.nextTask(generation));assert.equal(store.taskCounts(generation).completed,1);
+}));
 test('optional context failures retain gaps, permit publication, and retry on the next generation',withStore((store,generation)=>{
   store.putSource(generation,'outside:state','outside-state',{version:1},saved.fetchedAt);
   store.enqueue(generation,'outside:agenda:missing','outside-agenda',{id:'missing'},101);

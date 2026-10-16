@@ -76,13 +76,24 @@ test('failed daily updates retain the last published generation; restart resumes
     assert.equal(s.page('257043').items[0].title,'Unpublished update');assert.equal(s.page('257043').cache.complete,true);
   } finally {s.close();rmSync(dir,{recursive:true,force:true});}
 });
-test('cached pagination uses answer date, stable ties and category filter without upstream access',()=> {
+test('cached pagination groups answers under question dates and excludes them from activity counts',()=> {
   const dir=temp(),s=new ActivityStore(dir,{clock:instant});
   try {s.acquire();const cycle=s.beginCycle();s.setMembers([{id:'257043',name:'MEP'}]);s.putSource(cycle.generation,'/q','document',question,fetchedAt,documentRows(question,'/q',fetchedAt).rows);s.publish(cycle.generation);
-    const p=s.page('257043',{language:'hu',limit:1});assert.equal(p.items[0].recordKind,'answer');assert.equal(p.nextOffset,1);assert.equal(p.items[0].titleLanguage,'es');
-    assert.equal(s.page('257043',{offset:1,limit:1}).items[0].sourceId,question.identifier);
+    const p=s.page('257043',{language:'hu',limit:1});assert.equal(p.items[0].recordKind,'document');assert.equal(p.items[0].date,question.document_date);assert.equal(p.indexedTotal,1);assert.equal(p.categoryCoverage['written-questions'].indexedCount,1);assert.equal(p.nextOffset,null);assert.equal(p.items[0].titleLanguage,'es');
+    assert.equal(s.page('257043',{offset:1,limit:1}).items.length,0);assert.equal(s.page('257043',{sourceId:question.identifier+'-ASW'}).selectedItems[0].recordKind,'answer');
     assert.equal(s.page('257043',{category:'reports-shadow'}).total,0);assert.equal(s.page('42'),null);
   } finally{s.close();rmSync(dir,{recursive:true,force:true});}
+});
+test('a recent answer does not move an older question ahead of newer MEP work',()=>{
+  const dir=temp(),s=new ActivityStore(dir,{clock:instant});
+  try {
+    s.acquire();const {generation}=s.beginCycle();s.setMembers([{id:'257043',name:'MEP'}]);
+    s.putSource(generation,'/q','document',question,fetchedAt,documentRows(question,'/q',fetchedAt).rows);
+    const motion={...report,identifier:'B-10-2026-000001',document_date:'2026-08-01',work_type:'def/ep-document-types/RESOLUTION_MOTION',workHadParticipation:[participant('AUTHOR')],based_on:['eli/dl/doc/RULES-10-2025-01-20-ITM-A114']};
+    s.putSource(generation,'/motion','document',motion,fetchedAt,documentRows(motion,'/motion',fetchedAt).rows);s.publish(generation);
+    const first=s.page('257043',{limit:1});assert.equal(first.items[0].sourceId,motion.identifier);assert.equal(first.nextOffset,1);assert.equal(first.indexedTotal,2);
+    const second=s.page('257043',{limit:1,offset:1});assert.equal(second.items[0].sourceId,question.identifier);assert.equal(second.items[0].date,'2026-06-10');assert.equal(second.nextOffset,null);
+  }finally{s.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('document feeds are identifier inputs, not arbitrary outgoing URLs or HTML descriptions',()=> {
   assert.deepEqual(feedDocuments('<feed><entry><id>https://data.europarl.europa.eu/eli/dl/doc/E-10-2026-003031-ASW</id><updated>2026-10-01</updated></entry><entry><id>https://evil.example/path</id></entry></feed>','/parliamentary-questions'),[{id:'E-10-2026-003031-ASW',updated:'2026-10-01'}]);
@@ -119,7 +130,7 @@ test('HTTP joined endpoints read the persistent cache and validate categories, p
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}`;
   t.after(async()=>{await new Promise(resolve=>server.close(resolve));store.close();rmSync(dir,{recursive:true,force:true});delete process.env.ACTIVITY_INDEX_ENABLED;delete process.env.ACTIVITY_INDEX_DIR;});
   assert.equal((await fetch(base+'/api/poc/activity-index/status')).status,200);
-  const r=await fetch(base+'/api/poc/latest-activities/257043?lang=es&limit=1');assert.equal(r.status,200);assert.equal((await r.json()).items[0].recordKind,'answer');
+  const r=await fetch(base+'/api/poc/latest-activities/257043?lang=es&limit=1');assert.equal(r.status,200);assert.equal((await r.json()).items[0].recordKind,'document');
   for(const suffix of ['?limit=0','?limit=51','?offset=-1','?offset=1e2','?category=unknown','?url=https://evil.example','?limit=1&limit=2'])assert.equal((await fetch(base+'/api/poc/latest-activities/257043'+suffix)).status,400);
   assert.equal((await fetch(base+'/api/poc/latest-activities/257043',{method:'POST'})).status,405);
   assert.equal((await fetch(base+'/api/poc/latest-activities/257043',{headers:{Origin:'https://evil.example'}})).status,403);
@@ -181,7 +192,7 @@ test('selected source outside the first page remains accessible; incomplete and 
   const dir=temp(),s=new ActivityStore(dir,{clock:instant});
   try {s.acquire();const cycle=s.beginCycle();s.setMembers([{id:'257043',name:'MEP'}]);s.putSource(cycle.generation,'/q','document',question,fetchedAt,documentRows(question,'/q',fetchedAt).rows);
     const p=s.page('257043',{limit:1,sourceId:question.identifier});
-    assert.equal(p.items[0].recordKind,'answer');assert.equal(p.selectedItems[0].sourceId,question.identifier);assert.equal(p.selectedItems[0].id,'written-questions:'+question.identifier);assert.equal(p.total,null);
+    assert.equal(p.items[0].recordKind,'document');assert.equal(p.selectedItems[0].sourceId,question.identifier);assert.equal(p.selectedItems[0].id,'written-questions:'+question.identifier);assert.equal(p.total,null);
     assert.equal(p.categoryCoverage['reports-shadow'].total,null);
     s.publish(cycle.generation);
     assert.equal(s.page('257043',{category:'written-vote-explanations'}).total,null);
@@ -196,7 +207,7 @@ test('selected source outside the first page remains accessible; incomplete and 
 test('daily catalog reconciliation removes withdrawn documents only from the unpublished generation',()=> {
   const dir=temp(),s=new ActivityStore(dir,{clock:instant});
   try {s.acquire();let cycle=s.beginCycle();s.setMembers([{id:'257043'}]);s.putSource(cycle.generation,'/q','document',question,fetchedAt,documentRows(question,'/q',fetchedAt).rows);s.publish(cycle.generation);
-    cycle=s.beginCycle();s.pruneUnseenDocuments(cycle.generation);assert.equal(s.page('257043').indexedTotal,2);s.publish(cycle.generation);assert.equal(s.page('257043').indexedTotal,0);
+    cycle=s.beginCycle();s.pruneUnseenDocuments(cycle.generation);assert.equal(s.page('257043').indexedTotal,1);s.publish(cycle.generation);assert.equal(s.page('257043').indexedTotal,0);
   } finally{s.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('search hit IDs control speech indexing; unmatched graph nodes do not become MEP activities',async()=> {

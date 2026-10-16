@@ -19,13 +19,29 @@ export function savedStates(store,query) {
     const files=work=>documentFiles(work).map(file=>[file.language,file.format,file.url,file.byteSize??null]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
     const answerFiles=(source.work.inverse_answers_to||[]).filter(work=>work&&typeof work==='object').map(work=>[work.identifier||work.id,files(work)]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
     const titles=Object.fromEntries(Object.entries(q.titles).sort(([a],[b])=>a.localeCompare(b)));
-    return {id,status:'available',title:q.titles[query.language]||q.titles.en||Object.values(q.titles)[0]||id,date:q.date,memberId:q.authors[0]?.id||null,answers,revision:digest([titles,q.date,answers,q.authors.map(a=>a.id).sort(),files(source.work),answerFiles]),sourceFetchedAt:source.fetchedAt};
+    const title=q.titles[query.language]||q.titles.en||Object.values(q.titles)[0]||id;
+    const latest=answers.map(answer=>({id:answer.id,date:answer.date||'',title,recordKind:'answer'})).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).slice(0,10);
+    return {id,status:'available',title,latest,date:q.date,memberId:q.authors[0]?.id||null,answers,revision:digest([titles,q.date,answers,q.authors.map(a=>a.id).sort(),files(source.work),answerFiles]),sourceFetchedAt:source.fetchedAt};
   });
   const members=query.members.map(id=>{
     const record=store.db.prepare('SELECT body FROM members WHERE id=?').get(id);if(!record)return {id,status:'outside-roster'};
-    const person=JSON.parse(record.body),total=store.db.prepare('SELECT COUNT(DISTINCT source_id) AS n FROM items WHERE generation=? AND mep=?').get(generation,id).n;
-    const latest=store.db.prepare('SELECT source_id,MAX(date) AS date,body FROM items WHERE generation=? AND mep=? GROUP BY source_id ORDER BY date DESC,source_id DESC LIMIT 10').all(generation,id).map(row=>{const body=JSON.parse(row.body);return {id:row.source_id,date:row.date,title:body.titles?.[query.language]||body.titles?.en||body.reference||row.source_id};});
-    return {id,status:'available',name:person.name,total,latest,revision:digest([total,latest.map(x=>[x.id,x.date])])};
+    const person=JSON.parse(record.body),activityOnly=" AND COALESCE(json_extract(body,'$.recordKind'),'document')<>'answer'";
+    const total=store.db.prepare('SELECT COUNT(DISTINCT source_id) AS n FROM items WHERE generation=? AND mep=?'+activityOnly).get(generation,id).n;
+    const present=row=>{
+      const body=JSON.parse(row.body);
+      const question=body.recordKind==='answer'&&body.relatedQuestionId?store.source(generation,'/parliamentary-questions/'+body.relatedQuestionId)?.work:null;
+      const titles=question?.title_dcterms||body.relatedQuestionTitles||body.titles;
+      return {id:row.source_id,date:row.date,title:titles?.[query.language]||titles?.en||Object.values(titles||{})[0]||body.reference||row.source_id,recordKind:body.recordKind,...(body.relatedQuestionId?{relatedQuestionId:body.relatedQuestionId}:{})};
+    };
+    const activities=store.db.prepare('SELECT source_id,MAX(date) AS date,body FROM items WHERE generation=? AND mep=?'+activityOnly+' GROUP BY source_id ORDER BY date DESC,source_id DESC LIMIT 10').all(generation,id).map(present);
+    // Membership and revision cover every saved answer; only rich preview titles are bounded.
+    const answers=store.db.prepare("SELECT source_id,MAX(date) AS date,body FROM items WHERE generation=? AND mep=? AND json_extract(body,'$.recordKind')='answer' GROUP BY source_id ORDER BY date DESC,source_id DESC").all(generation,id).map((row,index)=>{
+      if(index<100)return present(row);
+      const body=JSON.parse(row.body);
+      return {id:row.source_id,date:row.date,relatedQuestionId:body.relatedQuestionId,recordKind:'answer'};
+    });
+    const latest=[...activities,...answers].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).slice(0,10);
+    return {id,status:'available',name:person.name,total,latest,answers,activityIds:activities.map(x=>x.id),revision:digest([total,activities.map(x=>[x.id,x.date]),answers.map(x=>[x.id,x.date])])};
   });
   return {view:'saved',questions,members,checkedAt:new Date().toISOString(),coverage:{indexComplete:status.complete,servingGeneration:generation,rosterFetchedAt:status.rosterFetchedAt,lastSuccessfulRefresh:status.lastSuccessfulRefresh},basis:'Saved activity and question metadata. No text download or upstream fan-out.'};
 }
