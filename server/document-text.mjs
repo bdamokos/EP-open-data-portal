@@ -9,7 +9,7 @@ import { documentFiles,array,tail } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
-const EXTRACTION_VERSION=2;
+const EXTRACTION_VERSION=3;
 const memory=new Map(),pending=new Map(),failures=new Map();
 // Read only standard document/style entries. No archive paths are written to disk.
 function docxParts(buffer) {
@@ -55,16 +55,25 @@ export function docxParagraphs(buffer) {
   const parser=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false});
   const tree=parser.parse(parts.get('word/document.xml'));
   const styles=children(parts.has('word/styles.xml')?parser.parse(parts.get('word/styles.xml')):[],'w:styles') || [];
-  const byId=new Map(styles.filter(node=>node['w:style']).map(node=>[attribute(node,'styleId'),node['w:style']]));
-  const defaultParagraph=attribute(styles.find(node=>node['w:style'] && attribute(node,'type')==='paragraph' && ['1','true','on'].includes(String(attribute(node,'default')))),'styleId');
+  const byId=new Map(styles.filter(node=>node['w:style']).map(node=>[attribute(node,'styleId'),{
+    parent:property(node['w:style'],'w:basedOn'),toggle:hiddenValue(children(node['w:style'],'w:rPr'))===true,
+  }]));
+  const defaultStyle=type=>attribute(styles.find(node=>node['w:style'] && attribute(node,'type')===type && ['1','true','on'].includes(String(attribute(node,'default')))),'styleId');
+  const defaultParagraph=defaultStyle('paragraph'),defaultCharacter=defaultStyle('character'),styleToggles=new Map();
   const defaults=hiddenValue(children(children(children(styles,'w:docDefaults'),'w:rPrDefault'),'w:rPr')) ?? false;
   function styledHidden(id,inherited) {
+    if(styleToggles.has(id))return inherited!==styleToggles.get(id);
+    if(!byId.has(id))return inherited;
     const chain=[],seen=new Set();
-    while(byId.has(id) && !seen.has(id)) {seen.add(id);const style=byId.get(id);chain.push(style);id=property(style,'w:basedOn');}
+    while(byId.has(id) && !styleToggles.has(id)) {
+      if(seen.has(id))throw new Error('Cyclic DOCX style inheritance is unsupported.');
+      seen.add(id);chain.push(id);id=byId.get(id).parent;
+    }
     // In styles, an enabled vanish toggles the inherited value; direct run
     // formatting below is absolute, including an explicit w:val="0".
-    for(const style of chain.reverse())if(hiddenValue(children(style,'w:rPr'))===true)inherited=!inherited;
-    return inherited;
+    let toggle=styleToggles.get(id) ?? false;
+    for(const styleId of chain.reverse()) {toggle=toggle!==byId.get(styleId).toggle;styleToggles.set(styleId,toggle);}
+    return inherited!==toggle;
   }
   const paragraphs=[];
   function inline(nodes,hidden) {
@@ -72,7 +81,7 @@ export function docxParagraphs(buffer) {
     for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
       if(key==='w:r') {
         const properties=children(value,'w:rPr');
-        const runHidden=hiddenValue(properties) ?? styledHidden(property(properties,'w:rStyle'),hidden);
+        const runHidden=hiddenValue(properties) ?? styledHidden(property(properties,'w:rStyle') || defaultCharacter,hidden);
         if(!runHidden)text+=inline(value,false);
       }
       else if(key==='#text')text+=String(value);
