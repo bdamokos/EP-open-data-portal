@@ -29,8 +29,12 @@ const finePointer=()=>typeof matchMedia==='function'&&matchMedia('(hover: hover)
 export function useReferenceLookup(texts:string[],language:string) {
   const joined=texts.join('\u0000');
   const keys=useMemo(()=>referenceKeys(texts),[joined]);
-  const {data}=useData<{references:ResolvedReference[]}>(keys.length?'references?'+new URLSearchParams({keys:keys.join(','),lang:language}):null);
-  return useMemo(()=>new Map((data?.references||[]).map(reference=>[reference.key,reference])),[data]);
+  const state=useData<{references:ResolvedReference[]}>(keys.length?'references?'+new URLSearchParams({keys:keys.join(','),lang:language}):null);
+  const [retrying,setRetrying]=useState(false);
+  useEffect(()=>{if(!state.loading)setRetrying(false);},[state.loading]);
+  const retry=useCallback(()=>{setRetrying(true);state.retry();},[state.retry]);
+  const references=useMemo(()=>new Map((state.data?.references||[]).map(reference=>[reference.key,reference])),[state.data]);
+  return {...state,retry,references,unavailable:retrying||Boolean(state.error)||[...references.values()].some(reference=>reference.status==='unavailable'||reference.stale)};
 }
 const linked=(reference:ResolvedReference|undefined)=>reference?.status==='found';
 // Different keys can name one work, such as COM(2024) 225 and CELEX 52024DC0225.
@@ -42,7 +46,7 @@ const noteIdentifies=(scope:Scope,noteId:string)=>{const note=scope.noteKeys.get
 
 // Wraps one reader. Opened question readers appear below the text, so reading stays in place.
 export function ReferenceScope({texts,language,children,renderQuestion,notes=[],notePrefix=''}:{texts:string[];language:string;children:ReactNode;renderQuestion?:(id:string)=>ReactNode;notes?:DocumentNote[];notePrefix?:string}) {
-  const references=useReferenceLookup(texts,language);
+  const lookup=useReferenceLookup(texts,language),references=lookup.references;
   const noteKeys=useMemo(()=>new Map(notes.map(note=>[note.id,noteReferences(note)])),[notes]);
   const [open,setOpen]=useState<OpenCard|null>(null),[question,setQuestion]=useState<string|null>(null);
   const wrapper=useRef<HTMLDivElement>(null),card=useRef<HTMLDivElement>(null),timer=useRef<number>(0),cardId=useId();
@@ -71,6 +75,7 @@ export function ReferenceScope({texts,language,children,renderQuestion,notes=[],
   const reference=open?references.get(open.key):undefined;
   return <ReferenceScopeContext.Provider value={scope}><div className="legal-reference-scope" ref={wrapper}>
     {children}
+    {lookup.unavailable&&<p className="legal-reference-retry" role="status">Reference details are temporarily unavailable. <button type="button" className="legal-reference-text-button" disabled={lookup.loading} onClick={lookup.retry}>{lookup.loading?'Retrying references…':'Retry references'}</button></p>}
     {open&&reference&&position&&<div ref={card} id={cardId} className="legal-reference-card" role="dialog" aria-label={open.text} tabIndex={-1} style={position}
       onPointerEnter={()=>window.clearTimeout(timer.current)} onPointerLeave={event=>{if(event.pointerType==='mouse')hoverEnd();}}>
       <ReferenceCard reference={reference} text={open.text} language={language} evidence={open.evidence} notePrefix={notePrefix} references={references} onQuestion={renderQuestion?id=>{setQuestion(id);close();}:undefined}/>
