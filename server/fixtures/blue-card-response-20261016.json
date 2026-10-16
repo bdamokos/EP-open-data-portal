@@ -1,0 +1,206 @@
+{
+  "retrievedAt": "2026-10-16T20:45:19.446111+00:00",
+  "description": "Public source headers for the Gerbrandy and Van Lanschot exchange; speech bodies omitted.",
+  "observations": [
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-10-06-OTH-2017097827199?include-output=xml_fragment&format=application%2Fld%2Bjson",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-10-06-OTH-2017097827199",
+        "activity_id": "MTG-PL-2026-10-06-OTH-2017097827199",
+        "activity_date": "2026-10-06",
+        "activity_start_date": "2026-10-06T10:00:00.334+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-10-06-OTH-2017097827199_96940",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/96940"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-06-PVCRE-ITM-3"
+        ],
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-10-06-OTH-2017097827199",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-10-06-ITM-003",
+            "number": "2-0036-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-10-06-OTH-2017097827199",
+            "notation_speechId": "2017097827199",
+            "numbering": 32,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/ENG"
+            ],
+            "api:xmlFragment": {
+              "en": "<oralStatements><speech endTime=\"2026-10-06T10:01:09.954\" startTime=\"2026-10-06T10:00:00.334\" xml:lang=\"en\"><from xml:lang=\"en\" xml:space=\"preserve\"><person refersTo=\"epdata:person/96940\">Gerben-Jan Gerbrandy</person> (<organization refersTo=\"epdata:org/7035\">Renew</organization>).</from></speech><communication /></oralStatements>",
+              "nl": "<oralStatements><speech endTime=\"2026-10-06T10:01:09.954\" startTime=\"2026-10-06T10:00:00.334\" xml:lang=\"en-t-nl-mtec\"><from xml:lang=\"en-t-nl-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/96940\">Gerben-Jan Gerbrandy</person> (<organization refersTo=\"epdata:org/7035\">Renew</organization>).</from></speech><communication /></oralStatements>"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-10-06-OTH-2017097827201?include-output=xml_fragment&format=application%2Fld%2Bjson",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-10-06-OTH-2017097827201",
+        "activity_id": "MTG-PL-2026-10-06-OTH-2017097827201",
+        "activity_date": "2026-10-06",
+        "activity_start_date": "2026-10-06T10:01:22.248+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-10-06-OTH-2017097827201_256978",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/256978"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-06-PVCRE-ITM-3"
+        ],
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-10-06-OTH-2017097827201",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-10-06-ITM-003",
+            "number": "2-0037-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-10-06-OTH-2017097827201",
+            "notation_speechId": "2017097827201",
+            "numbering": 33,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/NLD"
+            ],
+            "api:xmlFragment": {
+              "en": "<oralStatements><question endTime=\"2026-10-06T10:02:05.433\" startTime=\"2026-10-06T10:01:22.248\" xml:lang=\"nl-t-en-mtec\"><from xml:lang=\"nl-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/256978\">Reinier Van Lanschot</person> (<organization refersTo=\"epdata:org/7028\">Verts/ALE</organization>), <process refersTo=\"\">Blue card question</process>.</from></question></oralStatements>",
+              "nl": "<oralStatements><question endTime=\"2026-10-06T10:02:05.433\" startTime=\"2026-10-06T10:01:22.248\" xml:lang=\"nl\"><from xml:lang=\"nl\" xml:space=\"preserve\"><person refersTo=\"epdata:person/256978\">Reinier Van Lanschot</person> (<organization refersTo=\"epdata:org/7028\">Verts/ALE</organization>), <process refersTo=\"\">“blauwe kaart”-vraag</process>.</from></question></oralStatements>"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-10-06-OTH-2017097827203?include-output=xml_fragment&format=application%2Fld%2Bjson",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-10-06-OTH-2017097827203",
+        "activity_id": "MTG-PL-2026-10-06-OTH-2017097827203",
+        "activity_date": "2026-10-06",
+        "activity_start_date": "2026-10-06T10:02:06.473+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-10-06-OTH-2017097827203_96940",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/96940"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-06-PVCRE-ITM-3"
+        ],
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-10-06-OTH-2017097827203",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-10-06-ITM-003",
+            "number": "2-0038-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-10-06-OTH-2017097827203",
+            "notation_speechId": "2017097827203",
+            "numbering": 34,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/NLD"
+            ],
+            "api:xmlFragment": {
+              "en": "<oralStatements><answer endTime=\"2026-10-06T10:02:41.215\" startTime=\"2026-10-06T10:02:06.473\" xml:lang=\"nl-t-en-mtec\"><from xml:lang=\"nl-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/96940\">Gerben-Jan Gerbrandy</person> (<organization refersTo=\"epdata:org/7035\">Renew</organization>), <process refersTo=\"\">Blue Card Response</process>.</from></answer></oralStatements>",
+              "nl": "<oralStatements><answer endTime=\"2026-10-06T10:02:41.215\" startTime=\"2026-10-06T10:02:06.473\" xml:lang=\"nl\"><from xml:lang=\"nl\" xml:space=\"preserve\"><person refersTo=\"epdata:person/96940\">Gerben-Jan Gerbrandy</person> (<organization refersTo=\"epdata:org/7035\">Renew</organization>), <process refersTo=\"\">“blauwe kaart”-antwoord</process>.</from></answer></oralStatements>"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-10-06-OTH-2017097827205?include-output=xml_fragment&format=application%2Fld%2Bjson",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-10-06-OTH-2017097827205",
+        "activity_id": "MTG-PL-2026-10-06-OTH-2017097827205",
+        "activity_date": "2026-10-06",
+        "activity_start_date": "2026-10-06T10:02:45.695+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-10-06-OTH-2017097827205_256978",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/256978"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-06-PVCRE-ITM-3"
+        ],
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-10-06-OTH-2017097827205",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-10-06-ITM-003",
+            "number": "2-0039-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-10-06-OTH-2017097827205",
+            "notation_speechId": "2017097827205",
+            "numbering": 35,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/NLD"
+            ],
+            "api:xmlFragment": {
+              "en": "<oralStatements><speech endTime=\"2026-10-06T10:03:05.063\" startTime=\"2026-10-06T10:02:45.695\" xml:lang=\"nl-t-en-mtec\"><from xml:lang=\"nl-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/256978\">Reinier Van Lanschot</person> (<organization refersTo=\"epdata:org/7028\">Verts/ALE</organization>), <process refersTo=\"\">Blue Card Response</process>.</from></speech></oralStatements>",
+              "nl": "<oralStatements><speech endTime=\"2026-10-06T10:03:05.063\" startTime=\"2026-10-06T10:02:45.695\" xml:lang=\"nl\"><from xml:lang=\"nl\" xml:space=\"preserve\"><person refersTo=\"epdata:person/256978\">Reinier Van Lanschot</person> (<organization refersTo=\"epdata:org/7028\">Verts/ALE</organization>), <process refersTo=\"\">“blauwe kaart”-reactie</process>.</from></speech></oralStatements>"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-10-06-OTH-2017097827206?include-output=xml_fragment&format=application%2Fld%2Bjson",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-10-06-OTH-2017097827206",
+        "activity_id": "MTG-PL-2026-10-06-OTH-2017097827206",
+        "activity_date": "2026-10-06",
+        "activity_start_date": "2026-10-06T10:03:05.063+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-10-06-OTH-2017097827206_96940",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/96940"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-06-PVCRE-ITM-3"
+        ],
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-10-06-OTH-2017097827206",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-10-06-ITM-003",
+            "number": "2-0040-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-10-06-OTH-2017097827206",
+            "notation_speechId": "2017097827206",
+            "numbering": 36,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/NLD"
+            ],
+            "api:xmlFragment": {
+              "en": "<oralStatements><speech endTime=\"2026-10-06T10:03:32.598\" startTime=\"2026-10-06T10:03:05.063\" xml:lang=\"nl-t-en-mtec\"><from xml:lang=\"nl-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/96940\">Gerben-Jan Gerbrandy</person> (<organization refersTo=\"epdata:org/7035\">Renew</organization>), <process refersTo=\"\">Blue Card Response</process>.</from></speech></oralStatements>",
+              "nl": "<oralStatements><speech endTime=\"2026-10-06T10:03:32.598\" startTime=\"2026-10-06T10:03:05.063\" xml:lang=\"nl\"><from xml:lang=\"nl\" xml:space=\"preserve\"><person refersTo=\"epdata:person/96940\">Gerben-Jan Gerbrandy</person> (<organization refersTo=\"epdata:org/7035\">Renew</organization>), <process refersTo=\"\">“blauwe kaart”-reactie</process>.</from></speech></oralStatements>"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
