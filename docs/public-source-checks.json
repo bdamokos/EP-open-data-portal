@@ -111,6 +111,33 @@
       "cookieSent": false,
       "eventPasswordSent": false,
       "publishedValidated": true
+    },
+    {
+      "url": "https://publications.europa.eu/webapi/rdf/sparql?query=PREFIX+cdm%3A%3Chttp%3A%2F%2Fpublications.europa.eu%2Fontology%2Fcdm%23%3E%0APREFIX+xsd%3A%3Chttp%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema%23%3E%0ASELECT+DISTINCT+%3Fcelex+%3Fwork+%3Fdate+%3Fforce+%3Fproc+%3Flang+%3Ftitle+WHERE+%7B%0A+VALUES+%3Fcelex+%7B+%2232016R0679%22%5E%5Exsd%3Astring+%2252025DC0773%22%5E%5Exsd%3Astring+%2252025PC0773%22%5E%5Exsd%3Astring+%7D%0A+%3Fwork+cdm%3Aresource_legal_id_celex+%3Fcelex.%0A+OPTIONAL+%7B+%3Fwork+cdm%3Awork_date_document+%3Fdate+%7D%0A+OPTIONAL+%7B+%3Fwork+cdm%3Aresource_legal_in-force+%3Fforce+%7D%0A+OPTIONAL+%7B+%3Fdossier+cdm%3Adossier_contains_work+%3Fwork.+%3Fdossier+cdm%3Aprocedure_code_interinstitutional_reference_procedure+%3Fproc+%7D%0A+OPTIONAL+%7B+%3Fexpression+cdm%3Aexpression_belongs_to_work+%3Fwork%3B+cdm%3Aexpression_uses_language+%3Flang%3B+cdm%3Aexpression_title+%3Ftitle.+FILTER%28%3Flang+IN+%28%3Chttp%3A%2F%2Fpublications.europa.eu%2Fresource%2Fauthority%2Flanguage%2FENG%3E%29%29+%7D%0A%7D+LIMIT+2000&format=application%2Fsparql-results%2Bjson",
+      "status": 200,
+      "contentType": "application/sparql-results+json",
+      "bytes": 2167,
+      "sha256": "372d1d78c63a9248146f111181f2f4ac77f50a0f841b068de64e6b317be4d63c",
+      "authSent": false,
+      "cookieSent": false,
+      "jsonShape": [
+        "head",
+        "results"
+      ],
+      "validatedContent": true,
+      "observedAt": "2026-10-15T19:57:41.462Z"
+    },
+    {
+      "url": "https://oeil.europarl.europa.eu/oeil/en/document-summary?id=675",
+      "status": 200,
+      "contentType": "text/html;charset=UTF-8",
+      "bytes": 52256,
+      "sha256": "d99c8bae0f8eff343fea86126ce0e20d55b470a889a1e65b6a41ea10b566e07c",
+      "authSent": false,
+      "cookieSent": false,
+      "jsonShape": null,
+      "validatedContent": true,
+      "observedAt": "2026-10-15T19:57:41.682Z"
     }
   ]
 }
