@@ -142,6 +142,7 @@ export interface SpeechPage {
   offset: number;
 }
 export interface SpeechDetail extends Speech {
+  sourceFragmentKey?:string;
   speakers?:{id:string;name:string;role:string|null;nameSource:string}[];
   xml: string | null;
   textLanguage: string | null;
@@ -151,6 +152,24 @@ export interface SpeechDetail extends Speech {
   video: { available: false; reason: string };
   fetchedAt: string;
   textCache?: { sourceFetchedAt: string; stale: boolean; refreshInProgress: boolean; refreshError: string | null; availableLanguages: string[]; coverage: 'returned-languages-only' };
+}
+export interface MotionOutcome {
+  status: 'adopted' | 'rejected' | 'lapsed' | 'withdrawn' | 'unavailable';
+  reason?: string;
+  date?: string;
+  method?: string;
+  decisionId?: string;
+  sittingId?: string;
+  totals?: { for:number|null; against:number|null; abstaining:number|null } | null;
+  sources?: { url:string; fetchedAt:string; language:string|null }[];
+  refreshFailure?: { attemptedAt:string; coverage:{missingResultIds:string[];missingDecisionIds:string[]}; sources:{url:string;fetchedAt:string;language:string|null}[] } | null;
+}
+export interface RelatedJointMotion {
+  sourceId:string;
+  reference:string;
+  title:string;
+  url:string;
+  outcome:MotionOutcome;
 }
 export interface JoinedActivity {
   id: string;
@@ -170,6 +189,9 @@ export interface JoinedActivity {
   reference: string;
   files: DocumentFile[];
   answerStatus?: 'answered' | 'awaiting';
+  answerIds?: string[];
+  resolutionOutcome?: MotionOutcome;
+  relatedJointMotions?: RelatedJointMotion[];
   relatedQuestionId?: string;
   relatedQuestionTitle?:string;
   relatedQuestionTitles?:Record<string,string>;

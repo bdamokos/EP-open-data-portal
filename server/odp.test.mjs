@@ -171,3 +171,12 @@ test("older plain-language fragments use authority metadata for original and lea
   assert.equal(fallback.xml, docs[0]["api:xmlFragment"].es);
   assert.equal(chooseTranscript([{ "api:xmlFragment": { en: docs[0]["api:xmlFragment"].en } }], "ga").translationType, "unspecified");
 });
+test('single-language originals in mul select their XML language before an unrelated translation',async()=>{
+  const {chooseTranscript}=await import('./odp.mjs');
+  const english='<oralStatements><speech><from xml:lang="en"/><p>Original English speech</p></speech></oralStatements>';
+  const docs=[{originalLanguage:['http://publications.europa.eu/resource/authority/language/ENG'],'api:xmlFragment':{de:'<oralStatements><speech xml:lang="en-t-de-mtec"><p>Deutsch</p></speech></oralStatements>',mul:english}}];
+  const requested=chooseTranscript(docs,'en');assert.equal(requested.xml,english);assert.equal(requested.textLanguage,'en');assert.equal(requested.sourceFragmentKey,'mul');assert.equal(requested.translationType,'original');assert.deepEqual(requested.availableTextLanguages,['de','en']);
+  assert.equal(chooseTranscript(docs,'hu').textLanguage,'en');assert.equal(chooseTranscript(docs,'de').translationType,'machine');
+  const mixed=chooseTranscript([{'api:xmlFragment':{mul:'<oralStatements><speech><from xml:lang="en"/><p xml:lang="fr">Deux langues</p></speech></oralStatements>'}}],'en');
+  assert.equal(mixed.textLanguage,'mul');assert(!mixed.sourceFragmentKey);
+});

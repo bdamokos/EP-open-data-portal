@@ -38,7 +38,7 @@ function useCloud(route:string) {
   return {...(state.route===route?state:{route,data:null,loading:true,error:null}),retry:()=>setAttempt(value=>value+1)};
 }
 
-export function PocSpeechCloud({member,sitting,topic,country,interfaceLanguage='en',title,controls,onSpeech,onSpeakers}:{member?:number;sitting?:string;topic?:string;country?:string|null;interfaceLanguage?:string;title?:string|false;controls?:ReactNode;onSpeech?:(id:string,language:string)=>void;onSpeakers?:(people:{id:string;name:string;role:string|null}[])=>void}) {
+export function PocSpeechCloud({member,sitting,topic,country,interfaceLanguage='en',title,controls,onSpeech,onSpeakers,onSpeechSpeakers}:{member?:number;sitting?:string;topic?:string;country?:string|null;interfaceLanguage?:string;title?:string|false;controls?:ReactNode;onSpeech?:(id:string,language:string)=>void;onSpeakers?:(people:{id:string;name:string;role:string|null}[],speechId?:string)=>void;onSpeechSpeakers?:(speeches:{id:string;people:CloudPerson[]}[])=>void}) {
   const [language,setLanguage]=useState('en'),[days,setDays]=useState<AnalysisPeriod>(90),[word,setWord]=useState<string|null>(null),[more,setMore]=useState(false),[reading,setReading]=useState<string|null>(null),examples=useRef<HTMLHeadingElement>(null);
   const reader=useRef<HTMLDivElement>(null),sourceButtons=useRef(new Map<string,HTMLButtonElement>()),readerId=useId();
   const params=new URLSearchParams({lang:language});if(member){params.set('member',String(member));params.set('days',String(days));}else if(sitting)params.set('sitting',sitting);if(topic)params.set('topic',topic);if(country)params.set('country',country);
@@ -46,6 +46,7 @@ export function PocSpeechCloud({member,sitting,topic,country,interfaceLanguage='
   useEffect(()=>{setWord(null);setReading(null);setMore(false);},[member,sitting,topic,country,language,days]);
   useEffect(()=>{if(!reading)return;const frame=requestAnimationFrame(()=>{reader.current?.focus({preventScroll:true});reader.current?.scrollIntoView({block:'start'});});return()=>cancelAnimationFrame(frame);},[reading]);
   useEffect(()=>{if(!data||!onSpeakers)return;const people=[...new Map(data.speeches.flatMap(speech=>speech.people).filter((p):p is CloudPerson&{name:string}=>Boolean(p.name)).map(p=>[p.id,p])).values()];onSpeakers(people);},[data,onSpeakers]);
+  useEffect(()=>{if(data)onSpeechSpeakers?.(data.speeches);},[data,onSpeechSpeakers]);
   const languageLabel=(code:string)=>new Intl.DisplayNames([interfaceLanguage],{type:'language'}).of(code)||code.toUpperCase();
   const initialTerms=member?8:16;
   const frequencies=data?.words.map(term=>data.coverage.transcripts===1?term.occurrences:term.speechCount)||[];
