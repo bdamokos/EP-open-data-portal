@@ -15,7 +15,7 @@ test('source links prefer official pages, read data on demand, preserve raw acce
   URL.createObjectURL=()=> 'blob:source-test';URL.revokeObjectURL=href=>revoked.push(href);
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();URL.createObjectURL=oldCreate;URL.revokeObjectURL=oldRevoke;for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const source='https://data.europarl.europa.eu/api/v2/procedures/2025-0407';let fail=false;
-  t.mock.method(globalThis,'fetch',async input=>{calls.push(String(input));return fail?Response.json({error:{message:'Source unavailable'}},{status:502}):Response.json({sourceUrl:source,requestUrl:source+'?format=application%2Fld%2Bjson',fetchedAt:'2026-10-16T17:00Z',stale:true,collection:false,limited:false,records:[{title:'Exact procedure',websiteUrl:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2025/0407(COD)',value:{id:'eli/dl/proc/2025-0407',process_title:{en:'Exact procedure',fr:'Procédure exacte'},number_of_votes_favor:0,absent:null}}],payload:{data:[{id:'eli/dl/proc/2025-0407'}]}});});
+  t.mock.method(globalThis,'fetch',async input=>{calls.push(String(input));return fail?Response.json({error:{message:'Source unavailable'}},{status:502}):Response.json({sourceUrl:source,requestUrl:source+'?format=application%2Fld%2Bjson',fetchedAt:'2026-10-16T17:00Z',stale:true,collection:false,limited:false,records:[{title:'Exact procedure',websiteUrl:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2025/0407(COD)'}],payload:{data:[{id:'eli/dl/proc/2025-0407',process_title:{en:'Exact procedure',fr:'Procédure exacte'},number_of_votes_favor:0,absent:null,nested:{text:{hu:'Beágyazott magyar szöveg'}}}]}});});
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {PocSourceLink}=await vite.ssrLoadModule('/src/PocSourceLink.tsx'),{createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(PocSourceLink,{url:source,reference:'2025/0407(COD)'},'EP source')));
@@ -23,8 +23,16 @@ test('source links prefer official pages, read data on demand, preserve raw acce
   const trigger=container.querySelector('button');await act(async()=>trigger.click());
   const dialog=document.querySelector('dialog');assert(dialog.open);assert.equal(calls.length,1);assert.match(dialog.textContent,/Saved copy/);assert.match(dialog.textContent,/Not supplied/);assert.match(dialog.textContent,/Number of votes favor0/);assert.equal(dialog.querySelector('[download]').getAttribute('download'),'parliament-source.jsonld');
   const select=dialog.querySelector('select');await act(async()=>{select.value='fr';select.dispatchEvent(new window.Event('change',{bubbles:true}));});assert.equal(dialog.querySelector('h3').textContent,'Procédure exacte');assert.equal(calls.length,1,'language selection does not fetch another source');
+  assert([...select.options].some(option=>option.value==='hu'),'a language appearing only in nested data is selectable');
+  await act(async()=>{select.value='hu';select.dispatchEvent(new window.Event('change',{bubbles:true}));});
+  assert.match(dialog.textContent,/HU title unavailable · showing EN/);
+  const nested=[...dialog.querySelectorAll('dt')].find(node=>node.textContent==='Nested').parentElement.querySelector('details');
+  await act(async()=>{nested.open=true;nested.dispatchEvent(new window.Event('toggle'));});
+  const text=nested.querySelector('details');await act(async()=>{text.open=true;text.dispatchEvent(new window.Event('toggle'));});assert.equal(dialog.querySelector('[lang=hu]').textContent,'Beágyazott magyar szöveg');
   await act(async()=>dialog.querySelector('.source-close').click());assert.equal(document.querySelector('dialog'),null);assert.equal(document.activeElement,trigger);assert.equal(revoked.length,1);
   fail=true;const missing=source.replace('0407','0408');await act(async()=>root.render(createElement(PocSourceLink,{url:missing},'Source')));await act(async()=>container.querySelector('button').click());
   assert.match(document.querySelector('[role=alert]').textContent,/Source unavailable/);assert.equal(document.querySelector('dialog .source-actions a').href,missing);assert.equal(document.querySelector('dialog [download]'),null);
   await act(async()=>document.querySelector('dialog').dispatchEvent(new window.Event('cancel',{cancelable:true})));assert.equal(document.querySelector('dialog'),null);
+  await act(async()=>root.render(createElement(PocSourceLink,{url:'http://eurovoc.europa.eu/3064',compact:true},'Frontier region')));
+  assert.match(container.querySelector('a').href,/op\.europa\.eu/);assert.equal(container.querySelector('.source-raw').href,'http://eurovoc.europa.eu/3064');assert.match(container.textContent,/Open original source/);
 });

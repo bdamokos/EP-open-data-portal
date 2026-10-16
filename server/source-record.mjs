@@ -15,9 +15,11 @@ export function createSourceReader({request=odp}={}) {
     if(data.some(value=>!value||typeof value!=='object'||Array.isArray(value)))throw new HttpError(502,'source_invalid','The source record could not be read.');
     if(!target.collection&&(data.length!==1||!recordMatches(target,data[0])))throw new HttpError(502,'source_identity','The source did not return the requested record.');
     const fetchedAt=new Date(record.fetchedAt).toISOString();
-    return {sourceUrl:target.url,requestUrl:record.url,fetchedAt,stale:Boolean(record.stale),refreshError:record.refreshError||null,
+    const result={sourceUrl:target.url,requestUrl:record.url,fetchedAt,stale:Boolean(record.stale),refreshError:record.refreshError||null,
       collection:target.collection,limited:target.collection&&(Number(target.params.limit)>25||data.length>=25),
-      records:data.map(value=>({title:recordTitle(value,language),websiteUrl:humanSourceUrl(target.url,{language,record:value}),value})),payload:{...record.payload,data}};
+      records:data.map(value=>({title:recordTitle(value,language),websiteUrl:humanSourceUrl(target.url,{language,record:value})})),payload:{...record.payload,data}};
+    if(Buffer.byteLength(JSON.stringify(result)+'\n')>1024*1024)throw new HttpError(502,'source_size','This source is too large for the reader. Open the original source instead.');
+    return result;
   };
 }
 export const sourceRecord=createSourceReader();

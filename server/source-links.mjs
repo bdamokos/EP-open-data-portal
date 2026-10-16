@@ -1,6 +1,7 @@
 import {speechWebsite} from './ep-links.mjs';
 
-const languages=new Set('bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' '));
+export const SOURCE_LANGUAGES='bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ');
+const languages=new Set(SOURCE_LANGUAGES);
 const documentId=/^(?:[EPOAB]-\d+-\d{4}-\d+(?:-ASW)?|(?:RC|TA)-\d+-\d{4}-\d+|[A-Z]{3,5}-(?:AD|AL|AM|PA|PR)-\d+(?:-\d+)*)$/;
 const familyId={procedures:/^\d{4}-\d{4}[A-Z]?$/,meps:/^[1-9]\d{0,8}$/,speeches:/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]{1,80}$/,events:/^[A-Z0-9-]{1,150}$/,meetings:/^MTG-PL-\d{4}-\d{2}-\d{2}$/,
   'plenary-documents':/^(?:A|B|RC)-\d+-\d{4}-\d+$/,'parliamentary-questions':/^[EPO]-\d+-\d{4}-\d+(?:-ASW)?$/,'committee-documents':/^[A-Z]{3,5}-(?:AD|AL|AM|PA|PR)-\d+(?:-\d+)*$/,'adopted-texts':/^TA-\d+-\d{4}-\d+$/};
@@ -82,4 +83,15 @@ export function recordMatches(target,record) {
   const canonical=String(record?.id||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
   const prefix=target.family==='procedures'?'eli/dl/proc/':target.family==='meps'?'person/':['speeches','events','meetings'].includes(target.family)?'eli/dl/event/':'eli/dl/doc/';
   return canonical===prefix+target.id;
+}
+
+export function sourceLanguages(value) {
+  const found=new Set(),pending=[{value,depth:0}];
+  while(pending.length){
+    const {value,depth}=pending.pop();if(!value||typeof value!=='object'||depth>=7)continue;
+    const entries=Object.entries(value);
+    if(entries.length&&entries.every(([key,child])=>languages.has(key)&&typeof child==='string'))for(const [key] of entries)found.add(key);
+    else for(const [,child] of entries)if(child&&typeof child==='object')pending.push({value:child,depth:depth+1});
+  }
+  return [...found].sort();
 }

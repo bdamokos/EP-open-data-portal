@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {sourceTarget,humanSourceUrl} from './source-links.mjs';
+import {sourceTarget,humanSourceUrl,sourceLanguages} from './source-links.mjs';
 import {createSourceReader} from './source-record.mjs';
 const base='https://data.europarl.europa.eu/api/v2';
 
@@ -34,4 +34,15 @@ test('source reader rejects mismatched identities and oversized responses withou
   await assert.rejects(()=>read({data:[{id:'eli/dl/proc/2025-0407',text:'x'.repeat(1024*1024)}]})(base+'/procedures/2025-0407'),error=>error.code==='source_size');
   const data=await read({data:[{id:'eli/dl/proc/2025-0407',process_type:'def/ep-procedure-types/COD',process_title:{en:'Exact procedure',fr:'Procédure exacte'}}]})(base+'/procedures/2025-0407','fr');
   assert.equal(data.records[0].title,'Procédure exacte');assert.match(data.records[0].websiteUrl,/\/fr\/procedure-file/);
+});
+test('the complete response stays within one MiB without duplicating records',async()=>{
+  const make=record=>createSourceReader({request:async()=>({url:base+'/procedures/2025-0407',fetchedAt:Date.now(),payload:{data:[record]}})})(base+'/procedures/2025-0407');
+  const result=await make({id:'eli/dl/proc/2025-0407',text:'x'.repeat(600*1024)});
+  assert(Buffer.byteLength(JSON.stringify(result)+'\n')<1024*1024);assert(!('value' in result.records[0]));assert.equal(result.payload.data[0].text.length,600*1024);
+  const title='x'.repeat(530*1024),record={id:'eli/dl/proc/2025-0407',process_title:{en:title}};
+  assert(Buffer.byteLength(JSON.stringify({data:[record]}))<1024*1024);
+  await assert.rejects(()=>make(record),error=>error.code==='source_size','the final envelope and title metadata count toward the response limit');
+});
+test('source languages include nested maps without treating identifiers as languages',()=>{
+  assert.deepEqual(sourceLanguages({id:'eli/dl/proc/2025-0407',activity_label:{en:'English'},nested:[{text:{fr:'Français',hu:'Magyar'}}],identifier:{id:'record-id'}}),['en','fr','hu']);
 });
