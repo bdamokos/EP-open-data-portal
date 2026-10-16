@@ -1,9 +1,10 @@
-import { array, tail, procedureIds } from './activity-index-model.mjs';
+import { array, tail, procedureIds, documentFiles } from './activity-index-model.mjs';
 import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
 export const AMENDMENTS_VERSION = 1;
 export const AMENDMENT_SITTING_PROJECTION_VERSION = 2;
+export const AMENDMENT_OUTCOME_PROOF_VERSION = 1;
 export const AMENDMENT_LIMITS = Object.freeze({ listsPerTarget:64, sittingsPerTarget:64, amendmentsPerList:500, text:60000, failures:20000, upgradeTargets:100, page:50 });
 export const PROPOSER_DATE_BASES = Object.freeze(['individual-amendment-document','amendment-list-document','amendment-list-metadata']);
 export function validAmendmentDate(value) {
@@ -23,6 +24,25 @@ export function amendmentProposerDate(record,{documentDate=record?.documentDate,
   }
   if(record?.proposerRetained)return null;
   return documented?{date:documented,basis:documentBasis}:listed?{date:listed,basis:'amendment-list-metadata'}:null;
+}
+export function normalizedDocxDescriptor(file) {
+  if(typeof file?.url!=='string'||!file.url)return null;
+  return {url:file.url,language:typeof file.language==='string'?file.language:null,byteSize:file.byteSize!=null&&Number.isSafeInteger(Number(file.byteSize))&&Number(file.byteSize)>=0?Number(file.byteSize):null};
+}
+export function sameDocxDescriptor(a,b) {
+  const left=normalizedDocxDescriptor(a),right=normalizedDocxDescriptor(b);
+  return Boolean(left&&right&&left.url===right.url&&left.language===right.language&&left.byteSize===right.byteSize);
+}
+export function listWordingFreshness(list,{parserVersion,now=Date.now()}={}) {
+  const files=list?.files || documentFiles(list || {}),file=files.find(file=>file.format==='DOCX'&&file.language==='en') || files.find(file=>file.format==='DOCX');
+  const descriptor=normalizedDocxDescriptor(file),proof=list?.extraction?.sourceDescriptor,sourceDescriptor=proof&&Object.hasOwn(proof,'byteSize')?normalizedDocxDescriptor(proof):null,failure=list?.wordingRefreshFailure;
+  const failed=failure&&(sameDocxDescriptor(descriptor,failure.descriptor)||(!descriptor&&!failure.descriptor));
+  const status=failed?'failed':!descriptor||!sourceDescriptor||list?.extraction?.parserVersion!==parserVersion?'unverified':sameDocxDescriptor(descriptor,sourceDescriptor)?'fresh':'pending';
+  return {version:1,status,descriptor,sourceDescriptor,...(failed?{failedAt:failure.failedAt,retryAfter:failure.retryAfter,error:failure.error}:{})};
+}
+export function resolvedAmendmentAuthorId(author) {
+  const id=String(author?.personId ?? '').replace(/^person\//,'');
+  return author?.status==='resolved'&&/^[1-9]\d*$/.test(id)&&Number.isSafeInteger(Number(id))?id:null;
 }
 const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','structural-revision','symbol-text-loss','non-text-content','vertical-text-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
 export function amendmentTextLosses(extraction,amendment) {
@@ -80,7 +100,7 @@ export function projectAmendmentSplits(nodes,sittingId) {
 }
 export function amendmentDecision(node,sittingId,source) {
   const outcome=tail(node.decision_outcome), number=value=>Number.isSafeInteger(Number(value))&&Number(value)>=0?Number(value):null;
-  const amendmentIds=array(node.decided_on_a_realization_of).map(amendmentReference).filter(Boolean).map(ref=>ref.id);
+  const amendmentIds=[...new Set(array(node.decided_on_a_realization_of).map(amendmentReference).filter(Boolean).map(ref=>ref.id))];
   return {id:tail(node.id),amendmentIds,collective:amendmentIds.length>1,sittingId,date:node.activity_date || sittingId.slice(7),outcome:['ADOPTED','REJECTED','LAPSED','WITHDRAWN'].includes(outcome)?outcome:'unavailable',method:tail(node.decision_method)||null,
     reference:node.referenceText?.en || node.activity_label?.en || null,
     totals:[node.number_of_votes_favor,node.number_of_votes_against,node.number_of_votes_abstention].every(value=>value==null)?null:{for:node.number_of_votes_favor==null?null:number(node.number_of_votes_favor),against:node.number_of_votes_against==null?null:number(node.number_of_votes_against),abstaining:node.number_of_votes_abstention==null?null:number(node.number_of_votes_abstention)},source};
@@ -89,6 +109,53 @@ export function amendmentOutcome(decisions) {
   const outcomes=[...new Set(decisions.map(decision=>decision.outcome))];
   if(!outcomes.length || outcomes.includes('unavailable'))return 'unavailable';
   return outcomes.length===1?outcomes[0]:'mixed';
+}
+export const SPLIT_BINDING_GAP='Some recorded split components have incomplete request coverage or amendment bindings; the aggregate amendment outcome is unavailable.';
+const exactComponent=value=>{const ref=canonicalEPReference(value);return ref&&/-SPLIT-\d+-\d+$/.test(tail(ref))?ref:null;};
+const decisionAmendmentIds=decision=>[...new Set(array(decision.amendmentIds).map(value=>amendmentReference(String(value).startsWith('eli/')||/^https?:/.test(String(value))?value:'eli/dl/doc/'+value)?.id).filter(Boolean))];
+// Request component counts describe the source request, not inferred ownership
+// of its siblings. Only a decision naming exactly one amendment binds a part.
+export function checkedAmendmentBindings(record) {
+  const groups=new Map();
+  for(const original of record.decisions || []) {
+    const componentReferences=[...new Set([...array(original.componentReferences),original.partId].filter(Boolean).map(value=>exactComponent(value)||String(value)))];
+    const amendmentIds=decisionAmendmentIds(original),collective=amendmentIds.length>1 || Boolean(original.collective&&amendmentIds.length!==1);
+    let decision={...original,amendmentIds,collective};
+    if(componentReferences.length || original.partNumber!=null || original.componentBinding) {
+      const part=exactComponent(original.partId),single=!collective&&amendmentIds.length===1&&amendmentIds[0]===record.id&&Boolean(part);
+      decision={...decision,componentReferences,componentBinding:collective?'unresolved-collective':single?'single-amendment':'unverified',partId:single?part:null,partNumber:single?original.partNumber ?? null:null};
+    }
+    const key=decision.id+':'+(decision.partId || '');
+    const previous=groups.get(key);
+    groups.set(key,previous?{...decision,componentReferences:[...new Set([...(previous.componentReferences || []),...(decision.componentReferences || [])])],requestCoverages:[...(previous.requestCoverages || []),...(decision.requestCoverages || [])]}:decision);
+  }
+  const decisions=[...groups.values()],owned=new Set(decisions.filter(vote=>vote.componentBinding==='single-amendment').map(vote=>vote.partId));
+  const splitParts=(record.splitParts || []).filter(part=>owned.has(part.id));
+  const recorded=new Set(decisions.flatMap(vote=>vote.componentReferences || [])),proofs=new Map();
+  for(const proof of [...decisions.flatMap(vote=>vote.requestCoverages || []),...splitParts.map(part=>part.requestCoverage)].filter(Boolean)) {
+    const key=proof.requestId || proof.registryRequestKey;
+    if(key)proofs.set(key,proof);
+  }
+  const covered=new Set(),splitCoverage=[];
+  for(const proof of proofs.values()) {
+    const componentIds=[...new Set(array(proof.componentIds).map(exactComponent).filter(Boolean))];
+    const recordedComponentIds=componentIds.filter(id=>recorded.has(id));
+    if(!recordedComponentIds.length)continue;
+    recordedComponentIds.forEach(id=>covered.add(id));
+    const boundComponentIds=componentIds.filter(id=>owned.has(id));
+    const componentCount=Number.isSafeInteger(proof.componentCount)&&proof.componentCount>=0?proof.componentCount:null;
+    const complete=proof.version===AMENDMENT_OUTCOME_PROOF_VERSION&&Boolean(proof.sourceComplete&&proof.requestId)&&componentCount>0&&componentCount===componentIds.length&&boundComponentIds.length===componentCount;
+    splitCoverage.push({requestId:proof.requestId || null,registryRequestKey:proof.registryRequestKey || proof.requestId || null,componentCount,componentIds,recordedComponentCount:recordedComponentIds.length,recordedComponentIds,boundComponentCount:boundComponentIds.length,boundComponentIds,unboundComponentCount:componentCount===null?null:Math.max(0,componentCount-boundComponentIds.length),complete});
+  }
+  for(const id of recorded)if(!covered.has(id))splitCoverage.push({requestId:null,registryRequestKey:null,componentCount:null,componentIds:[],recordedComponentCount:1,recordedComponentIds:[id],boundComponentCount:owned.has(id)?1:0,boundComponentIds:owned.has(id)?[id]:[],unboundComponentCount:null,complete:false});
+  const splitCoverageComplete=splitCoverage.every(proof=>proof.complete)&&!decisions.some(vote=>vote.componentBinding==='unresolved-collective'||vote.componentBinding==='unverified');
+  return {...record,decisions,splitParts,outcomeProofVersion:AMENDMENT_OUTCOME_PROOF_VERSION,splitCoverageComplete,splitCoverage,
+    gaps:[...new Set([...(record.gaps || []).filter(gap=>gap!==SPLIT_BINDING_GAP),...(!splitCoverageComplete?[SPLIT_BINDING_GAP]:[])])]};
+}
+export function amendmentRowOutcome(row) {
+  const split=(row.decisions || []).some(vote=>vote.partId||vote.partNumber!=null||vote.componentBinding||(vote.componentReferences || []).length);
+  if(split&&(row.outcomeProofVersion!==AMENDMENT_OUTCOME_PROOF_VERSION||!row.splitCoverageComplete))return 'unavailable';
+  return amendmentOutcome(row.decisions || []);
 }
 export function amendmentQuery(params,{failures=false}={}) {
   const allowed=failures?['limit','offset','lang','status']:['document','procedure','member','outcome','limit','offset','lang'];
