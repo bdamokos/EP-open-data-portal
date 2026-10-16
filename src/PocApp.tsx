@@ -6,7 +6,7 @@ import {publicationBody} from './publication-body.mjs';
 import {orderedMemberships} from './pocMemberships.mjs';
 import {PocSaved,SaveButton,SavedNav,useSavedChecks} from './PocSaved';
 import {QuestionStatus} from './PocQuestionStatus';
-import {MotionStatus,PocMotionOutcome} from './PocMotionOutcome';
+import {MotionStatuses,PocMotionOutcome} from './PocMotionOutcome';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Portrait } from "./components/Portrait";
 import { DataNotice } from "./components/DataNotice";
@@ -177,15 +177,18 @@ function JoinedDetails({ item, lang, member }: { item: JoinedActivity; lang: str
   const roles: Record<string,string> = {AUTHOR:"Author",QUESTION_AUTHOR:"Author of the question",RAPPORTEUR:"Rapporteur",RAPPORTEUR_SHADOW:"Shadow rapporteur",RAPPORTEUR_OPINION:"Opinion rapporteur",RAPPORTEUR_SHADOW_OPINION:"Shadow opinion rapporteur",SPEAKER:"Plenary contribution"};
   if (item.recordKind === "speech") return <Detail speech={{id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null}} lang={lang} />;
   return <div className="poc-speech-detail">
-    <PocMotionOutcome outcome={item.resolutionOutcome} related={item.relatedJointMotions} language={lang}/>
-    {!hasText&&<p><strong>{roles[item.provenance.role] || item.provenance.role}</strong>{item.provenance.stage ? ` · ${item.provenance.stage === "RDG1" ? "First reading" : item.provenance.stage === "RDG2" ? "Second reading" : item.provenance.stage}` : ""}</p>}
+    {!hasText&&<p><strong>{item.relatedJointMotions?.length && item.provenance.role==="AUTHOR" ? "Author of the original motion" : roles[item.provenance.role] || item.provenance.role}</strong>{item.provenance.stage ? ` · ${item.provenance.stage === "RDG1" ? "First reading" : item.provenance.stage === "RDG2" ? "Second reading" : item.provenance.stage}` : ""}</p>}
+    <PocMotionOutcome outcome={item.resolutionOutcome} related={item.relatedJointMotions} reference={item.reference} sourceId={item.sourceId} language={lang}/>
     {(item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer') && <>
       {item.recordKind!=='answer'&&<SaveButton item={{kind:'question',id:item.sourceId,title:item.title,memberId:String(member),date:item.date,baseline:item.answerIds?{answerIds:item.answerIds}:undefined}}/>}
       <PublicationText sourceId={item.sourceId} member={member} lang={lang} heading={item.recordKind==='answer' ? 'Answer' : 'Question'} includeAnswers={item.recordKind!=='answer'} question={item.recordKind==='answer'&&item.relatedQuestionId?{id:item.relatedQuestionId,title:item.relatedQuestionTitle}:undefined} />
       {item.recordKind==='answer' && item.relatedQuestionId && <PublicationText sourceId={item.relatedQuestionId} member={member} lang={lang} heading="Linked question" />}
     </>}
-    {!hasText && <CoAuthors authors={document.data?.coAuthors} lang={lang} />}
-    {!hasText&&<PublicationFiles files={item.files} lang={lang}/> }
+    {!hasText && <section aria-label={item.relatedJointMotions?.length ? 'Original motion document' : 'Document'}>
+      {!!item.relatedJointMotions?.length && <h3>Original motion document</h3>}
+      <CoAuthors authors={document.data?.coAuthors} lang={lang}/>
+      <PublicationFiles files={item.files} lang={lang}/>
+    </section>}
 
   </div>;
 }
@@ -282,7 +285,7 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
       {items.map(item=>{
         const key=`${item.category}:${item.sourceId}`;
         return <article className="poc-speech" id={`publication-${item.id}`} key={key}>
-          <button className="poc-speech-toggle" aria-expanded={isOpen(item)} onClick={()=>{const next=isOpen(item)?null:key;onOpen(next);}}><span><small>{item.recordKind === "answer" ? "Answer" : item.category === "written-questions" ? "Written question" : item.category === "oral-questions" ? "Oral question" : item.categoryLabel} · {date(item.date,lang)}</small><strong>{item.title}</strong>{item.recordKind!=="answer"&&item.answerStatus&&<QuestionStatus answered={item.answerStatus==="answered"}/>} {item.resolutionOutcome&&<MotionStatus outcome={item.resolutionOutcome}/>}</span><b aria-hidden="true">{isOpen(item)?"−":"+"}</b></button>
+          <button className="poc-speech-toggle" aria-expanded={isOpen(item)} onClick={()=>{const next=isOpen(item)?null:key;onOpen(next);}}><span><small>{item.recordKind === "answer" ? "Answer" : item.category === "written-questions" ? "Written question" : item.category === "oral-questions" ? "Oral question" : item.categoryLabel} · {date(item.date,lang)}</small><strong>{item.title}</strong>{item.recordKind!=="answer"&&item.answerStatus&&<QuestionStatus answered={item.answerStatus==="answered"}/>} {item.resolutionOutcome&&<MotionStatuses outcome={item.resolutionOutcome} related={item.relatedJointMotions} sourceId={item.sourceId}/>}</span><b aria-hidden="true">{isOpen(item)?"−":"+"}</b></button>
 
           {isOpen(item) && <JoinedDetails item={item} lang={lang} member={id} />}
         </article>;
@@ -732,8 +735,8 @@ export default function PocApp() {
                   </div>
                 )}
                 {!unavailable && (
-                  <div className="poc-portraits">
-                    {filtered.map((m) => (
+                  <div className="poc-portraits" data-portrait-scroll-root>
+                    {filtered.map((m, index) => (
                       <div className="poc-portrait-item" key={m.id}>
                         <Portrait
                           member={{
@@ -743,6 +746,7 @@ export default function PocApp() {
                               : publicUrl("assets/portrait-placeholder.svg"),
                           }}
                           labelled
+                          eager={index < 18}
                           onClick={() => {
                             setMember(m.id);
                             setSpeechLink(null);
