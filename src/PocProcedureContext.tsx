@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react';
 import {useInsightData} from './PocInsightData';
 import {humanDate} from './PocInsightCharts';
 import './PocTopicContext.css';
+import {AmendmentTrailLink} from './AmendmentTrailLink';
 
 export type OfficialTopic={id:string;label:string;language:string};
 type Context={reference:string;title:string;language:string;summaries:{id:string;stage:string;date:string|null}[];summary:null|{id:string;stage:string;date:string;blocks:{kind:string;text:string}[];method:string|null;source:{url:string}};subjects:{code:string;label:string}[];topics:OfficialTopic[];source:{url:string}};
@@ -16,6 +17,7 @@ export function PocProcedureContext({reference,language='en',onTopic,showTitle=f
   if(!data)return <section className="insight-procedure-context insight-procedure-fallback">{loading?<p role="status">Loading summary…</p>:error?<p><a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer">Read on Legislative Observatory ↗</a></p>:null}</section>;
   const blocks=data.summary?.blocks||[],displayed=expanded?blocks:blocks.slice(0,2);
   return <section className="insight-procedure-context">
+    <AmendmentTrailLink procedure={reference} language={language}>Amendments for this dossier</AmendmentTrailLink>
     {showTitle&&<div className="insight-dossier-title"><h2>{data.title}</h2><p>{data.reference}</p></div>}
     {data.summary&&<><header><h3>Summary</h3><div>{data.summaries.length>1?<label className="insight-summary-stage"><span className="poc-sr-only">Summary stage</span><select value={data.summary.id} onChange={event=>{setSummary(event.target.value);setExpanded(false);}}>{data.summaries.map(item=><option value={item.id} key={item.id}>{stageName(item.stage)}{item.date?' · '+humanDate(item.date,language):''}</option>)}</select></label>:<span>{stageName(data.summary.stage)}</span>}{data.summaries.length===1&&<time>{humanDate(data.summary.date,language)}</time>}</div></header>
       <div className="insight-official-summary">{displayed.map((block,index)=>block.kind==='heading'?<h4 key={index}>{block.text}</h4>:<p key={index}>{block.text}</p>)}</div>
