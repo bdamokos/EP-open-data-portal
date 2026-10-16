@@ -118,7 +118,7 @@ function Detail({ speech, lang }: { speech: Speech; lang: string }) {
         <>
           {state.data.textCache?.stale && <small lang="en">Showing saved transcript.{state.data.textCache.refreshInProgress ? " A refresh is running in the background." : state.data.textCache.refreshError ? " The last refresh failed." : ""}</small>}
           <div className="poc-text-meta" lang="en">
-            {state.data.textLanguage ? <span lang="">{state.data.textLanguage.toUpperCase()}</span> : "Text unavailable"}
+            {state.data.textLanguage ? <span lang="">{state.data.textLanguage.toUpperCase()}</span> : text.paragraphs.length ? "Language unspecified" : "Text unavailable"}
             {state.data.translationType === "machine" || text.machine
               ? " · Parliament machine translation"
               : state.data.translationType === "original"
