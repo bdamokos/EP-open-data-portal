@@ -4,10 +4,12 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
+import http from 'node:http';
 import { ActivityStore } from './activity-index-store.mjs';
 import { CorpusStore, corpusQuery } from './corpus-store.mjs';
 import { CorpusWorker, corpus, corpusSearchOptions, fragmentText, questionFiles, speechTexts } from './corpus-worker.mjs';
 import { CorpusReader } from './corpus-reader.mjs';
+import { handleRequest } from './index.mjs';
 import { server } from './index.mjs';
 
 const instant=()=>Date.parse('2026-10-16T10:00:00Z');
@@ -22,6 +24,14 @@ const manifestations=(id,languages)=>languages.map(language=>({language:'http://
 const question={id:'eli/dl/doc/E-10-2026-000001',identifier:'E-10-2026-000001',document_date:'2026-05-01',originalLanguage:['http://publications.europa.eu/resource/authority/language/FRA'],
   is_realized_by:manifestations('E-10-2026-000001',['fr','en','de']),
   inverse_answers_to:[{id:'eli/dl/doc/E-10-2026-000001-ASW',identifier:'E-10-2026-000001-ASW',document_date:'2026-06-01',originalLanguage:['http://publications.europa.eu/resource/authority/language/ENG'],is_realized_by:manifestations('E-10-2026-000001-ASW',['en','fr'])}]};
+
+function addQuestions(index,count=120) {
+  const insert=index.db.prepare("INSERT INTO sources VALUES (1,?,'document',?,?,1)");
+  for(let n=2;n<count+2;n++) {
+    const id='E-10-2026-'+String(n).padStart(6,'0');
+    insert.run('/parliamentary-questions/'+id,JSON.stringify({...question,id:'eli/dl/doc/'+id,identifier:id,is_realized_by:manifestations(id,['en','fr','de']),inverse_answers_to:[]}),fetchedAt);
+  }
+}
 
 function stores() {
   const dir=temp(),index=new ActivityStore(path.join(dir,'index'),{clock:instant});
@@ -177,7 +187,7 @@ test('widening the language policy reopens every finished speech month',async()=
     await new CorpusWorker(s.corpus,{fetchRecord:empty,download:async()=>({paragraphs:['Text']}),clock:instant,interval:0,languages:'primary',diskLimit:1024**3}).run();
     assert.equal(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='speeches' AND done=0").get().n,0);
     const wide=new CorpusWorker(s.corpus,{fetchRecord:empty,clock:instant,interval:0,languages:'all',diskLimit:1024**3});
-    assert.equal(s.corpus.acquire(),true);wide.discover();
+    assert.equal(s.corpus.acquire(),true);await wide.discover();
     assert.equal(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='speeches' AND done=0").get().n,s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='speeches'").get().n);
     assert.ok(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='docx' AND done=0").get().n>0,'non-primary question files are queued');
   } finally {s.cleanup();}
@@ -191,12 +201,12 @@ test('language widening restarts partial historical months and clears complete c
     return {payload:{data:params.offset?[]:[speech(id,{en:fragment('en','Ocean policy.'),fr:fragment('fr','Océan politique.','fr-t-en-mtec')})]},fetchedAt};
   };
   try {
-    const primary=new CorpusWorker(s.corpus,{clock:instant,languages:'primary'});primary.discover();
+    const primary=new CorpusWorker(s.corpus,{clock:instant,languages:'primary'});await primary.discover();
     const key='speeches:2024-07',task=s.corpus.task(key);
     s.corpus.taskProgress(task,{...task.body,offset:1,lastPage:id});
     s.corpus.set('backfilledAt',fetchedAt);
     const wide=new CorpusWorker(s.corpus,{fetchRecord,clock:instant,languages:'all',interval:0,budget:500,download:async()=>({paragraphs:['Text']})});
-    wide.discover();
+    await wide.discover();
     assert.equal(s.corpus.task(key).body.offset,0);
     assert.equal(s.corpus.coverage().complete,false);
     assert.equal(s.corpus.coverage().phase,'backfilling');
@@ -260,6 +270,117 @@ test('read-only queries leave the API event loop free and enforce concurrency an
     const readOnly=new CorpusStore(path.dirname(s.corpus.filename),{readOnly:true});
     try {assert.throws(()=>readOnly.set('changed',true),/readonly/i);}finally{readOnly.close();}
   } finally {s.cleanup();}
+});
+
+test('the actual health route responds during initial question-file discovery',async()=>{
+  const s=stores();addQuestions(s.index);
+  const worker=new CorpusWorker(s.corpus,{clock:instant});
+  let incompleteAtResponse=false;
+  const server=http.createServer((request,response)=>{incompleteAtResponse=!s.corpus.get('discoveredAt');void handleRequest(request,response);});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  try {
+    const response=fetch('http://127.0.0.1:'+server.address().port+'/api/healthz');
+    const discovery=worker.discover();
+    const health=await response;
+    assert.equal(health.status,200);assert.equal((await health.json()).ok,true);
+    assert.equal(incompleteAtResponse,true,'health is served before discovery finishes');
+    await discovery;
+    assert.equal(s.corpus.get('discoveredAt'),fetchedAt);
+    assert.equal(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='docx'").get().n,365);
+    assert.equal(s.corpus.renew(),true,'the original writer retains its lease');
+  } finally {await new Promise(resolve=>server.close(resolve));s.cleanup();}
+});
+
+test('speech ingestion serves the event loop between language parses and retains all source data',async()=>{
+  const s=stores(),langs=['en','fr','de'];
+  const data=Array.from({length:3},(_,n)=>speech('MTG-PL-2026-07-08-OTH-'+(n+1),Object.fromEntries(langs.map(lang=>[lang,fragment(lang,'Ocean '+('<w>policy</w> '.repeat(300)),lang==='en'?lang:lang+'-t-en-mtec')]))));
+  const task={key:'page',kind:'speeches',body:{start:'2026-07-01',end:'2026-07-31',offset:0,limit:25}};
+  const worker=new CorpusWorker(s.corpus,{clock:instant,interval:0,fetchRecord:async()=>({payload:{data},fetchedAt})});
+  let ticks=0,running=true;
+  let offsetAtResponse=null;
+  const server=http.createServer((request,response)=>{offsetAtResponse=s.corpus.task(task.key).body.offset;void handleRequest(request,response);});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const heartbeat=()=>{if(running){ticks++;assert.equal(s.corpus.renew(),true);setImmediate(heartbeat);}};
+  try {
+    s.corpus.enqueue(task.key,task.kind,task.body,60);setImmediate(heartbeat);
+    const health=fetch('http://127.0.0.1:'+server.address().port+'/api/healthz');
+    await worker.task(task);running=false;
+    const response=await health;
+    assert.equal(response.status,200);assert.equal((await response.json()).ok,true);
+    assert.equal(offsetAtResponse,0,'health is served before the page advances');
+    assert.ok(ticks>=data.length*langs.length,'heartbeats run throughout the page, including within speech extraction');
+    assert.equal(s.corpus.task(task.key).body.offset,3);
+    assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM texts').get().n,9);
+    for(const activity of data)for(const expected of speechTexts(activity,'https://unused.test',fetchedAt).texts) {
+      assert.equal(s.corpus.raw(activity.activity_id,expected.sourceKey),expected.raw);
+      const actual=s.corpus.db.prepare('SELECT t.body,t.translation_type FROM texts t JOIN documents d ON d.id=t.document_id WHERE d.source_id=? AND t.source_key=?').get(activity.activity_id,expected.sourceKey);
+      assert.equal(actual.body,expected.body);assert.equal(actual.translation_type,expected.translationType);
+    }
+  } finally {running=false;await new Promise(resolve=>server.close(resolve));s.cleanup();}
+});
+
+test('stopping discovery preserves queued work without claiming completion or fetching sources',async()=>{
+  const s=stores();addQuestions(s.index);let fetched=0;
+  const worker=new CorpusWorker(s.corpus,{clock:instant,fetchRecord:async()=>{fetched++;throw new Error('No source fetch expected');}});
+  try {
+    s.corpus.release();setImmediate(()=>worker.stop());await worker.run();
+    assert.equal(fetched,0);assert.equal(s.corpus.get('discoveredAt'),null);
+    assert.equal(s.corpus.coverage().complete,false);
+    const queued=s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='docx'").get().n;
+    assert.ok(queued>0 && queued<365);
+    assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM lease').get().n,0);
+    assert.equal(s.corpus.acquire(),true);
+    await new CorpusWorker(s.corpus,{clock:instant}).discover();
+    assert.equal(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='docx'").get().n,365);
+    assert.equal(s.corpus.get('discoveredAt'),fetchedAt);
+  } finally {s.cleanup();}
+});
+
+test('discovery fences writes after a lease change during an event-loop yield',async()=>{
+  const s=stores();addQuestions(s.index);let now=instant();s.corpus.clock=()=>now;
+  const other=new CorpusStore(path.dirname(s.corpus.filename),{clock:()=>now});
+  const worker=new CorpusWorker(s.corpus,{clock:()=>now});
+  let acquired=false;
+  try {
+    setImmediate(()=>{now+=90_001;acquired=other.acquire();});
+    await assert.rejects(worker.discover(),/lease was lost/);
+    assert.equal(acquired,true);assert.equal(s.corpus.get('discoveredAt'),null);
+    assert.equal(s.corpus.get('documentLanguages'),null);
+    other.assertWriter();
+  } finally {other.close();s.cleanup();}
+});
+
+test('stopped speech ingestion resumes the saved page without duplicating committed texts',async()=>{
+  const s=stores();
+  const data=Array.from({length:3},(_,n)=>speech('MTG-PL-2026-07-08-OTH-'+(n+1),{en:fragment('en','Ocean policy.'),fr:fragment('fr','Ocean policy.','fr-t-en-mtec')}));
+  const options={clock:instant,interval:0,budget:1,fetchRecord:async()=>({payload:{data},fetchedAt})};
+  const worker=new CorpusWorker(s.corpus,options);
+  const task={key:'page',kind:'speeches',body:{start:'2026-07-01',end:'2026-07-31',offset:0,limit:25}};
+  let polling=true;
+  const stopAfterCommit=()=>{
+    if(!polling)return;
+    if(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM texts').get().n){worker.stop();return;}
+    setImmediate(stopAfterCommit);
+  };
+  try {
+    s.corpus.enqueue(task.key,task.kind,task.body,100);s.corpus.release();
+    setImmediate(stopAfterCommit);await worker.run();polling=false;
+    assert.equal(s.corpus.task(task.key).body.offset,0);
+    assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM texts').get().n,2);
+    const first=s.corpus.db.prepare('SELECT id,sha256 FROM texts ORDER BY id').all();
+    await new CorpusWorker(s.corpus,options).run();
+    assert.equal(s.corpus.task(task.key).body.offset,3);
+    assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM texts').get().n,6);
+    assert.deepEqual(s.corpus.db.prepare('SELECT id,sha256 FROM texts ORDER BY id LIMIT 2').all(),first);
+    assert.equal(s.corpus.coverage().complete,false);
+  } finally {polling=false;s.cleanup();}
+});
+
+test('oversized XML is excluded before language parsing while bounded fragments retain provenance',()=>{
+  const xml='<oralStatements xml:lang="fr"><p>'+'x'.repeat(2*1024*1024)+'</p></oralStatements>';
+  const result=speechTexts(speech('MTG-PL-2026-07-08-OTH-1',{fr:xml,en:fragment('en','Ocean policy.')}),'https://example.test/list',fetchedAt);
+  assert.deepEqual(result.texts.map(text=>[text.sourceKey,text.translationType]),[['en','original']]);
+  assert.deepEqual(result.document.originalLanguages,['en']);
 });
 
 const putText=(store,sourceId,kind,date,sourceKey,body,extra={})=>store.putDocument({sourceId,kind,date,parentId:extra.parentId||null,term:10},
