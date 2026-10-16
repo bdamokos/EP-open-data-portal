@@ -5,12 +5,12 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {createServer} from 'vite';
 
 test('shared trail link hides unsupported document links while keeping valid plenary and dossier entry points',async t=>{
-  const original=Object.getOwnPropertyDescriptor(globalThis,'location');
-  Object.defineProperty(globalThis,'location',{value:{pathname:'/explore'},configurable:true,writable:true});
+  const original=Object.getOwnPropertyDescriptor(globalThis,'window');
+  Object.defineProperty(globalThis,'window',{value:{location:{pathname:'/explore'}},configurable:true,writable:true});
   let vite;
   t.after(async()=>{
     if(vite)await vite.close();
-    original?Object.defineProperty(globalThis,'location',original):delete globalThis.location;
+    original?Object.defineProperty(globalThis,'window',original):delete globalThis.window;
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {AmendmentTrailLink}=await vite.ssrLoadModule('/src/AmendmentTrailLink.tsx');
