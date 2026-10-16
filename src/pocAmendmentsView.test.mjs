@@ -53,7 +53,8 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   assert.match(cards[2].textContent,/Original text unavailable/);
   assert.match(cards[2].textContent,/No outcome is recorded/);
   assert.match(container.querySelector('.poc-amendment-coverage').textContent,/partial coverage/);
-  assert.equal(cards[0].querySelector('.poc-amendment-texts').lang,'fr');
+  assert.equal(cards[0].querySelector('.poc-amendment-texts').lang,'en');
+  assert.equal(cards[0].querySelector('.poc-amendment-texts section:nth-child(2) p').lang,'fr');
   const parts=[...cards[0].querySelectorAll('.poc-amendment-part')];
   assert.equal(parts[0].querySelector('blockquote').lang,'en');
   assert.equal(parts[0].querySelectorAll('.poc-amendment-decision').length,1);

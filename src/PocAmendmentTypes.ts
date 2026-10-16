@@ -16,7 +16,7 @@ export type AmendmentVariant = {
   wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;
 };
 export type Amendment = {
-  id:string;number:number|string|null;listId?:string|null;targetDocumentId?:string|null;title?:string|null;date?:string|null;
+  id:string;number:number|string|null;listId?:string|null;targetDocumentId?:string|null;title?:string|null;titles?:Record<string,string>;date?:string|null;
   documentDate?:string|null;listDocumentDate?:string|null;dateBasis?:string|null;committeeProposer?:string|null;conflicted?:boolean;variants?:AmendmentVariant[];
   wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;
   identifierBasis?:string;officialIds?:string[];

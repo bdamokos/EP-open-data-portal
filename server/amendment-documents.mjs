@@ -2,7 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='8';
+export const AMENDMENT_EXTRACTION_VERSION='9';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-text-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -10,6 +10,7 @@ const nonTextContent=key=>/(?:^|:)(?:oMath|oMathPara)$/.test(key)||['w:drawing',
 const CONTENT_LOSSES={
   'inline-content-loss':'Visible ruby or unsupported inline annotation/content cannot be represented reliably as plain wording; its wording is withheld.',
   'non-text-content':'Visible mathematical, drawing or embedded content cannot be represented reliably as plain wording; its wording is withheld.',
+  'structural-revision':'Current paragraph-mark revisions make text boundaries ambiguous; revision acceptance is unresolved and its wording is withheld.',
   'vertical-text-loss':'Visible text uses superscript, subscript or a shifted baseline that cannot be represented reliably as plain wording; its wording is withheld.',
 };
 const TABLE_MARKERS=new Set(['w:bookmarkStart','w:bookmarkEnd','w:commentRangeStart','w:commentRangeEnd','w:permStart','w:permEnd','w:proofErr','w:moveFromRangeStart','w:moveFromRangeEnd','w:moveToRangeStart','w:moveToRangeEnd']);
@@ -126,7 +127,9 @@ function documentBlocks(parts,warnings) {
     const id=property(props,'w:pStyle')||style.paragraph;
     const format={vertical:style.inheritedProperty(id,'vertical',style.defaultVertical),position:style.inheritedProperty(id,'position',style.defaultPosition)};
     const raw=clean(inline(nodes,style,hidden,true,new Set(),format));
-    const losses=new Set();let text=clean(inline(nodes,style,hidden,false,losses,format));
+    const losses=new Set();
+    if(structuralRevision(props))losses.add('structural-revision');
+    let text=clean(inline(nodes,style,hidden,false,losses,format));
     const prefix=label(props);if(prefix&&text)text=prefix+'\t'+text;
     size+=raw.length+text.length;
     if(++count>20000||size>4*1024*1024)throw new Error('Amendment document text exceeds the supported size.');
