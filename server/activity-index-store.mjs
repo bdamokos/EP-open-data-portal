@@ -116,7 +116,7 @@ export class ActivityStore {
   failTask(task,error) {
     this.assertWriter();const delay=Math.min(30*60_000,30_000*2**Math.min(task.attempts,6));
     this.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET attempts=attempts+1,retry_at=?,error=? WHERE generation=? AND key=?`).run(this.clock()+delay,String(error.message).slice(0,350),task.generation,task.key);
-    this.updateCycle({phase:'retrying',error:String(error.message).slice(0,350)});
+    if(this.get('working')?.generation===task.generation)this.updateCycle({phase:'retrying',error:String(error.message).slice(0,350)});
   }
   taskCounts(generation) { return this.db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(CASE WHEN done=1 THEN 1 ELSE 0 END),0) AS completed,COALESCE(SUM(CASE WHEN (done IN (-1,0) OR done IS NULL) AND error IS NOT NULL THEN 1 ELSE 0 END),0) AS retrying FROM tasks WHERE generation=?').get(generation); }
   source(generation,key) { const s=this.db.prepare('SELECT * FROM sources WHERE generation=? AND key=?').get(generation,key);return s && {work:parse(s.body),fetchedAt:s.fetched_at}; }

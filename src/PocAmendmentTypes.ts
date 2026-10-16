@@ -10,14 +10,14 @@ export type AmendmentDecision = {
 export type AmendmentSplitProvenance = {source?:AmendmentSource|null;sourceUrl?:string|null;fetchedAt?:string|number|null;sourceCandidates?:AmendmentSource[];provenance?:'exact'|'single-page'|'unavailable'|null};
 export type AmendmentSplit = AmendmentSplitProvenance & {id:string|null;requestId?:string|null;componentIndex?:number|null;number?:number|string|null;description:string|null;language?:string|null;rawDescription?:string|null;sourceDescriptions?:Record<string,string>;plan?:Record<string,unknown>|null;status?:string;failure?:{code?:string;message?:string}|string|null};
 export type AmendmentVariant = {
-  listId?:string|null;date?:string|null;documentDate?:string|null;dateBasis?:string|null;language?:string|null;
+  listId?:string|null;date?:string|null;documentDate?:string|null;listDocumentDate?:string|null;dateBasis?:string|null;language?:string|null;
   targetLabel?:string|null;originalText?:string|null;proposedText?:string|null;authors?:AmendmentAuthor[];
   committeeProposer?:string|null;onBehalfOf?:string|string[]|null;sources?:AmendmentSource[];justification?:string|null;
   wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;
 };
 export type Amendment = {
   id:string;number:number|string|null;listId?:string|null;targetDocumentId?:string|null;title?:string|null;date?:string|null;
-  documentDate?:string|null;dateBasis?:string|null;committeeProposer?:string|null;conflicted?:boolean;variants?:AmendmentVariant[];
+  documentDate?:string|null;listDocumentDate?:string|null;dateBasis?:string|null;committeeProposer?:string|null;conflicted?:boolean;variants?:AmendmentVariant[];
   wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;
   identifierBasis?:string;officialIds?:string[];
   procedureIds?:string[];targetLabel?:string|null;originalText?:string|null;proposedText?:string|null;language?:string|null;

@@ -50,7 +50,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'6');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'7');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -192,6 +192,45 @@ test('hidden and deleted font symbols do not invalidate supported visible compar
   const xml=body(metadata()+table(row(cell('<w:p>'+run('Rate')+symbols+run(' applies')+'</w:p>'),cell(p('Proposed wording'))))+p('</Amend>'));
   const result=extractAmendments(archive(xml),options);
   assert.equal(result.amendments[0].originalText,'Rate applies');assert.equal(result.amendments[0].proposedText,'Proposed wording');assert.deepEqual(result.gaps,[]);
+});
+
+test('a visible positional tab preserves separation between adjacent legal words',()=>{
+  const paragraph='<w:p>'+run('shall')+'<w:r><w:ptab w:alignment="left" w:relativeTo="indent" w:leader="none"/></w:r>'+run('not apply')+'</w:p>';
+  const result=extractAmendments(archive(body(metadata()+table(row(cell(paragraph),cell(p('A proposal'))))+p('</Amend>'))),options);
+  assert.equal(result.amendments[0].originalText,'shall\tnot apply');assert.equal(result.amendments[0].proposedText,'A proposal');assert.deepEqual(result.gaps,[]);
+});
+
+const ruby='<w:ruby><w:rubyPr/><w:rt><w:r><w:t>2</w:t></w:r></w:rt><w:rubyBase><w:r><w:t>10</w:t></w:r></w:rubyBase></w:ruby>';
+test('ruby annotations and opaque inline content never flatten into complete legal wording',()=>{
+  const opaque=[ruby,'<opaque:content>'+run('not')+'</opaque:content>','<w:pgNum/>'];
+  for(const content of opaque)for(const prefix of ['',row(cell(p('First original')),cell(p('First proposal')))]) {
+    const paragraph='<w:p>'+run('The value ')+content+run(' applies.')+'</w:p>';
+    const xml=body(metadata()+table(prefix,row(cell(paragraph),cell(p('Proposed wording'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('A complete insertion.'))))+p('</Amend>')).replace('xmlns:w="urn:word"','xmlns:w="urn:word" xmlns:opaque="urn:opaque"');
+    const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+    const affected=result.amendments.find(amendment=>amendment.number===1);
+    assert.equal(affected.originalText,null);assert.equal(affected.proposedText,null);
+    assert(affected.gaps.some(gap=>gap.code==='inline-content-loss'&&gap.number===1&&gap.sourceUrl===options.sourceUrl));
+    const intact=result.amendments.find(amendment=>amendment.number===2);
+    assert.equal(intact.originalText,'');assert.equal(intact.proposedText,'A complete insertion.');assert.deepEqual(intact.gaps,[]);
+  }
+});
+
+test('supported visible containers retain text while properties and layout markers remain non-text',()=>{
+  const text=run(' not apply');
+  const wrappers=[`<w:hyperlink>${text}</w:hyperlink>`,`<w:ins>${text}</w:ins>`,`<w:moveTo>${text}</w:moveTo>`,`<w:smartTag><w:smartTagPr/>${text}</w:smartTag>`,`<w:customXml><w:customXmlPr/>${text}</w:customXml>`,`<w:sdt><w:sdtPr><w:alias w:val="metadata"/></w:sdtPr><w:sdtContent>${text}</w:sdtContent><w:sdtEndPr/></w:sdt>`,`<w:fldSimple w:instr="SOURCE FIELD">${text}</w:fldSimple>`];
+  for(const wrapper of wrappers) {
+    const paragraph='<w:p><w:bookmarkStart w:id="1"/>'+run('shall')+'<w:r><w:lastRenderedPageBreak/><w:fldChar w:fldCharType="begin"/><w:instrText>field instruction</w:instrText></w:r>'+wrapper+'<w:bookmarkEnd w:id="1"/></w:p>';
+    const result=extractAmendments(archive(body(metadata()+table(row(cell(paragraph),cell(p('Proposed wording'))))+p('</Amend>'))),options);
+    assert.equal(result.amendments[0].originalText,'shall not apply');assert.equal(result.amendments[0].proposedText,'Proposed wording');assert.deepEqual(result.gaps,[]);
+  }
+});
+
+test('hidden and deleted ruby or opaque inline content do not invalidate visible wording',()=>{
+  const hidden='<w:r><w:rPr><w:vanish/></w:rPr>'+ruby+'<opaque:content>'+run('hidden')+'</opaque:content></w:r>';
+  const paragraph='<w:p>'+run('shall')+hidden+'<w:del>'+ruby+'</w:del>'+run(' not apply')+'</w:p>';
+  const xml=body(metadata()+table(row(cell(paragraph),cell(p('Proposed wording'))))+p('</Amend>')).replace('xmlns:w="urn:word"','xmlns:w="urn:word" xmlns:opaque="urn:opaque"');
+  const result=extractAmendments(archive(xml),options);
+  assert.equal(result.amendments[0].originalText,'shall not apply');assert.equal(result.amendments[0].proposedText,'Proposed wording');assert.deepEqual(result.gaps,[]);
 });
 
 const math='<m:oMath><m:sSup><m:e><m:r><m:t>x</m:t></m:r></m:e><m:sup><m:r><m:t>2</m:t></m:r></m:sup></m:sSup></m:oMath>';

@@ -2,16 +2,19 @@ import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='6';
+export const AMENDMENT_EXTRACTION_VERSION='7';
 
-const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-structure','nested-table','non-text-content','symbol-text-loss','vertical-text-loss','text-unavailable','numbering-warning']);
+const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-structure','inline-content-loss','nested-table','non-text-content','symbol-text-loss','vertical-text-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
 const nonTextContent=key=>/(?:^|:)(?:oMath|oMathPara)$/.test(key)||['w:drawing','w:pict','w:object','w:altChunk','w:contentPart','w:subDoc'].includes(key);
 const CONTENT_LOSSES={
+  'inline-content-loss':'Visible ruby or unsupported inline annotation/content cannot be represented reliably as plain wording; its wording is withheld.',
   'non-text-content':'Visible mathematical, drawing or embedded content cannot be represented reliably as plain wording; its wording is withheld.',
   'vertical-text-loss':'Visible text uses superscript, subscript or a shifted baseline that cannot be represented reliably as plain wording; its wording is withheld.',
 };
 const TABLE_MARKERS=new Set(['w:bookmarkStart','w:bookmarkEnd','w:commentRangeStart','w:commentRangeEnd','w:permStart','w:permEnd','w:proofErr','w:moveFromRangeStart','w:moveFromRangeEnd','w:moveToRangeStart','w:moveToRangeEnd']);
+const INLINE_CONTAINERS=new Set(['w:hyperlink','w:ins','w:moveTo','w:smartTag','w:customXml','w:sdt','w:sdtContent','w:fldSimple']);
+const INLINE_IGNORED=new Set([':@','w:pPr','w:rPr','w:del','w:moveFrom','w:delText','w:instrText','w:smartTagPr','w:customXmlPr','w:sdtPr','w:sdtEndPr','w:lastRenderedPageBreak','w:commentReference','w:annotationRef','w:footnoteReference','w:endnoteReference','w:footnoteRef','w:endnoteRef','w:separator','w:continuationSeparator',...TABLE_MARKERS]);
 function unsupportedChildren(nodes,allowed) {
   return (nodes||[]).some(node=>Object.entries(node).some(([key,value])=>key!==':@'&&!TABLE_MARKERS.has(key)&&!allowed.has(key)&&(key!=='#text'||String(value).trim())));
 }
@@ -84,12 +87,21 @@ function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'
       if(!raw)losses.add('symbol-text-loss');
     } else if(nonTextContent(key)) {
       if(!raw)losses.add('non-text-content');
-    } else if(key==='#text')out+=String(value);
-    else if(key==='w:tab')out+='\t';
+    } else if(key==='w:t') {
+      for(const part of value||[])for(const [tag,text] of Object.entries(part)) {
+        if(tag==='#text')out+=String(text);
+        else if(tag!==':@'&&!raw)losses.add('inline-content-loss');
+      }
+    }
+    else if(key==='w:tab'||key==='w:ptab')out+='\t';
     else if(key==='w:br'||key==='w:cr')out+='\n';
     else if(key==='w:noBreakHyphen')out+='‑';
     else if(key==='w:softHyphen')out+='­';
-    else if(![':@','w:pPr','w:rPr','w:del','w:moveFrom','w:instrText'].includes(key)&&Array.isArray(value))out+=inline(value,style,hidden,raw,losses,format);
+    else if(INLINE_CONTAINERS.has(key)&&Array.isArray(value))out+=inline(value,style,hidden,raw,losses,format);
+    // Cached field-result runs remain visible; empty field delimiters and
+    // source properties are not text. Opaque field/form content is not guessed.
+    else if(key==='w:fldChar'){if(value?.length&&!raw)losses.add('inline-content-loss');}
+    else if(!INLINE_IGNORED.has(key)&&(key!=='#text'||String(value).trim())&&!raw)losses.add('inline-content-loss');
   }
   return out;
 }

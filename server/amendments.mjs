@@ -5,7 +5,7 @@ import { HttpError } from './http-utils.mjs';
 export const AMENDMENTS_VERSION = 1;
 export const AMENDMENT_SITTING_PROJECTION_VERSION = 2;
 export const AMENDMENT_LIMITS = Object.freeze({ listsPerTarget:64, sittingsPerTarget:64, amendmentsPerList:500, text:60000, failures:20000, upgradeTargets:100, page:50 });
-const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','symbol-text-loss','non-text-content','vertical-text-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
+const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','symbol-text-loss','non-text-content','vertical-text-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
 export function amendmentTextLosses(extraction,amendment) {
   const oversized=['originalText','proposedText'].some(field=>typeof amendment?.[field]==='string'&&amendment[field].length>AMENDMENT_LIMITS.text);
   return [...array(extraction?.gaps),...array(amendment?.gaps),...(oversized?[{code:'wording-too-large',number:amendment.number,message:'Amendment wording exceeds the 60,000-character column limit; both columns are unavailable.'}]:[])].filter(gap=>textLossCodes.has(gap?.code) &&
