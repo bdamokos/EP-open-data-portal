@@ -1,3 +1,4 @@
+import {PocSourceLink} from './PocSourceLink';
 import {useEffect,useId,useRef,useState} from 'react';
 import {api,useData} from './pocData';
 import type {Intervention,InterventionStatistics,Speech,SpeechContext,SpeechDetail,SpeechSequenceRow} from './pocTypes';
@@ -44,7 +45,7 @@ export function PocInterventionStatistics({member,onItems}:{member:number;onItem
       <p className="intervention-caption">{result.coverage.available}{result.coverage.total!==null&&result.coverage.available!==result.coverage.total?` of ${result.coverage.total}`:''} contributions counted{state.loading?' · Loading…':!result.coverage.complete?' · Partial coverage':''}</p>
       {result.groups.length>0&&<p className="intervention-group-counts">{result.groups.map(group=><span key={group.id}>{group.label} <strong>{group.count}</strong></span>)}</p>}
       {!state.loading&&result.nextPage!==null&&<button onClick={()=>{setAll(true);setAttempt(a=>a+1);}}>Count all contributions</button>}
-      <details className="intervention-source"><summary>About these counts</summary><p>The total includes every counted speech and written statement, including contributions without a group designation or readable speaker header. Group and blue-card counts are subsets of the total and can overlap.</p><p>Subtotals use Parliament’s speech headers and recorded group designations. Blue cards answered counts replies; reactions are counted separately.</p><p>Group names refer to the designation at the time of the speech.</p>{result.coverage.headers<result.coverage.available&&<p>{result.coverage.available-result.coverage.headers} contributions have no readable English speaker header.</p>}<p>Catch-the-eye sections appear in the debate sequence.</p>{result.sources.map(item=><a key={item.url} href={item.url} target="_blank" rel="noreferrer">Source · {new Date(item.fetchedAt).toLocaleDateString()} ↗</a>)}</details>
+      <details className="intervention-source"><summary>About these counts</summary><p>The total includes every counted speech and written statement, including contributions without a group designation or readable speaker header. Group and blue-card counts are subsets of the total and can overlap.</p><p>Subtotals use Parliament’s speech headers and recorded group designations. Blue cards answered counts replies; reactions are counted separately.</p><p>Group names refer to the designation at the time of the speech.</p>{result.coverage.headers<result.coverage.available&&<p>{result.coverage.available-result.coverage.headers} contributions have no readable English speaker header.</p>}<p>Catch-the-eye sections appear in the debate sequence.</p>{result.sources.map(item=><PocSourceLink key={item.url} url={item.url}>Source · {new Date(item.fetchedAt).toLocaleDateString()}</PocSourceLink>)}</details>
     </>}
     {state.loading&&!result&&<p role="status">Counting contributions…</p>}
     {state.error&&<p>{state.error} <button onClick={()=>setAttempt(a=>a+1)}>Retry counts</button></p>}
@@ -88,7 +89,7 @@ function Sequence({debate,speechId,language,loading,retry}:{debate:SpeechContext
         </>}
       </div>
     </li>)}</ol>}
-    <details className="intervention-source"><summary>Sequence sources</summary><p>Exchanges follow debate order, numbered contributions and speaker IDs. Catch-the-eye speeches sit between the published section markers.</p>{!debate.coverage.complete&&<p>{debate.coverage.available} of {debate.coverage.expected??'unknown'} debate records available. Links stop at missing contributions.</p>}{debate.sources?.map(item=><a key={item.url} href={item.url} target="_blank" rel="noreferrer">Source · {new Date(item.fetchedAt).toLocaleDateString()} ↗</a>)}</details>
+    <details className="intervention-source"><summary>Sequence sources</summary><p>Exchanges follow debate order, numbered contributions and speaker IDs. Catch-the-eye speeches sit between the published section markers.</p>{!debate.coverage.complete&&<p>{debate.coverage.available} of {debate.coverage.expected??'unknown'} debate records available. Links stop at missing contributions.</p>}{debate.sources?.map(item=><PocSourceLink key={item.url} url={item.url} language={language}>Source · {new Date(item.fetchedAt).toLocaleDateString()}</PocSourceLink>)}</details>
   </section>;
 }
 export function PocSpeechContext({id,language}:{id:string;language:string}) {
