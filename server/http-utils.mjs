@@ -51,6 +51,7 @@ export function assertSameOrigin(request) {
 }
 
 export function sendJson(request, response, status, payload, options = {}) {
+  if(response.destroyed||response.writableEnded)return;
   const body = Buffer.from(`${JSON.stringify(payload)}\n`, "utf8");
   if (body.byteLength > config.jsonResponseLimitBytes) {
     throw new HttpError(500, "response_too_large", "The generated response is too large");
@@ -64,6 +65,7 @@ export function sendJson(request, response, status, payload, options = {}) {
   response.setHeader("Cache-Control", options.cacheControl || "no-store");
   response.setHeader("ETag", etag);
   response.setHeader("Vary", "Origin");
+  if(Number.isFinite(response.explorerStartedAt))response.setHeader('Server-Timing',`app;dur=${Math.max(0,performance.now()-response.explorerStartedAt).toFixed(1)}`);
 
   if ((request.method === "GET" || request.method === "HEAD") && request.headers["if-none-match"] === etag) {
     response.statusCode = 304;
