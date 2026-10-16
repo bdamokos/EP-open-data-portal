@@ -50,7 +50,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'8');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'9');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -353,6 +353,31 @@ test('historical property snapshots and ordinary hidden or deleted inline text d
   const comparison=table('<w:tr>'+pastRow+'<w:tc>'+pastCell+inline+'</w:tc>'+cell(p('Proposal'))+'</w:tr>');
   const result=extractAmendments(archive(body(metadata()+comparison+p('</Amend>'))),options);
   assert.equal(result.amendments[0].originalText,'Visible inserted current');assert.equal(result.amendments[0].proposedText,'Proposal');assert.deepEqual(result.gaps,[]);
+});
+
+test('current paragraph-mark revisions cannot turn ambiguous decimal boundaries into accepted wording',()=>{
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'9');
+  for(const marker of ['del','ins','moveFrom','moveTo']) {
+    const first='<w:p><w:pPr><w:rPr><w:'+marker+' w:id="9" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:rPr></w:pPr>'+run('Rate: 1')+'</w:p>';
+    const xml=body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));
+    const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+    const affected=result.amendments.find(amendment=>amendment.number===1);
+    assert.equal(affected.originalText,null,marker);assert.equal(affected.proposedText,null,marker);
+    assert(affected.gaps.some(gap=>gap.code==='structural-revision'&&gap.number===1&&gap.sourceUrl===options.sourceUrl),marker);
+    assert.notEqual(affected.originalText,'Rate: 1\n0%');assert.notEqual(affected.originalText,'Rate: 10%');
+    const intact=result.amendments.find(amendment=>amendment.number===2);
+    assert.equal(intact.originalText,'');assert.equal(intact.proposedText,'Supported insertion.');assert.deepEqual(intact.gaps,[]);
+  }
+});
+
+test('historical paragraph-mark properties and ordinary paragraph boundaries remain supported',()=>{
+  const props='<w:pPr><w:rPr><w:b/><w:rPrChange w:id="1"><w:rPr><w:del w:id="2"/></w:rPr></w:rPrChange></w:rPr><w:pPrChange w:id="3"><w:pPr><w:rPr><w:del w:id="4"/><w:ins w:id="5"/></w:rPr></w:pPr></w:pPrChange></w:pPr>';
+  const first='<w:p>'+props+run('Rate: 1')+'</w:p>';
+  const result=extractAmendments(archive(body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>'))),options);
+  assert.equal(result.amendments[0].originalText,'Rate: 1\n0%');assert.equal(result.amendments[0].proposedText,'A proposal');assert.deepEqual(result.gaps,[]);
+  const ordinary='<w:p>'+run('Rate: 1')+'<w:del>'+run(' removed')+'</w:del>'+run('0%')+'</w:p>';
+  const inlineDeletion=extractAmendments(archive(body(metadata()+table(row(cell(ordinary),cell(p('A proposal'))))+p('</Amend>'))),options);
+  assert.equal(inlineDeletion.amendments[0].originalText,'Rate: 10%');assert.deepEqual(inlineDeletion.gaps,[]);
 });
 
 test('an unscoped numbering failure withholds wording and exposes the document-scoped gap on every amendment',()=>{

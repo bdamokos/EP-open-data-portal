@@ -50,6 +50,26 @@ function seedTarget(store,generation,amendments) {
   store.putSource(generation,'/plenary-documents/'+targetId,'document',target,fetchedAt);
   store.putSource(generation,'amendment:list:'+listId,'amendment-list',list(amendments),earlier);
 }
+function linkedListFixture(t,representation='uri') {
+  const context=setup(t),{store,generation}=context,knownId=targetId+'-AM-001-001',detailId=targetId+'-AM-002-002';
+  const fileUrl='https://data.europarl.europa.eu/distribution/example/discovered_amendment_en.docx';
+  const realization=url=>[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:url}]}];
+  const known=list([amendment(1,{authors:['Alex Common']})],{id:'eli/dl/doc/'+knownId,identifier:knownId,foresees_change_of:[target.id]});
+  known.is_realized_by=realization(known.extraction.sourceUrl);
+  const detail={id:'eli/dl/doc/'+detailId,identifier:detailId,work_type:'def/ep-document-types/AMENDMENT_LIST',document_date:tabled,foresees_change_of:[target.id],is_realized_by:realization(fileUrl)};
+  const reference=representation==='uri'?detail.id:representation==='missing-forward'?{...detail,foresees_change_of:[]}:representation==='wrong-forward'?{...detail,foresees_change_of:['eli/dl/doc/'+otherTarget]}:representation==='foreign-forward'?{...detail,foresees_change_of:['https://unrelated.example/eli/dl/doc/'+targetId]}:detail;
+  const work={...target,inverse_foresees_change_of:[known,reference,...(representation==='conflicting-observations'?[{...detail,foresees_change_of:['eli/dl/doc/'+otherTarget]}]:[])]};
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',work,fetchedAt);
+  store.putSource(generation,'amendment:list:'+knownId,'amendment-list',known,fetchedAt);
+  store.putSource(generation,'amendment:roster:'+tabled,'amendment-roster',{members:[{id:'101',givenName:'Alex',familyName:'Common'}],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+tabled,fetchedAt}]},fetchedAt);
+  const decisionSource={url:sourceUrl.replace('/vote-results?','/decisions?'),fetchedAt};
+  const decisions=[decision(1,['eli/dl/doc/'+targetId+'-AM-1'],'ADOPTED',{source:decisionSource}),decision(2,['eli/dl/doc/'+targetId+'-AM-2'],'ADOPTED',{source:decisionSource})];
+  store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',{...completeSitting(),decisions,parsedSplits:[],splitParserVersion:SPLIT_PARSER_VERSION,sources:[decisionSource]},fetchedAt);
+  store.putSource(generation,'amendment:aliases:'+sitting,'amendment-aliases',{aliases:[]},fetchedAt);
+  saveAmendmentRows(store,generation,metadata,[row(1,{originalText:'Original 1',proposedText:'Proposal 1'})],coverage);
+  return {...context,knownId,detailId,detail,work,fileUrl,detailKey:'amendment:discover:'+targetId+':'+detailId};
+}
+const listDetailJobs=(store,generation)=>store.db.prepare("SELECT * FROM amendment_jobs WHERE generation=? AND kind='amendment-list-detail' ORDER BY key").all(generation);
 function deferred() {
   let resolve,reject;
   const promise=new Promise((accept,fail)=>{resolve=accept;reject=fail;});
@@ -1155,7 +1175,7 @@ function docx(xml) {
   const end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(central.length+name.length,12);end.writeUInt32LE(local.length+name.length+compressed.length,16);
   return Buffer.concat([local,name,compressed,central,name,end]);
 }
-function comparisonDocx(rows,{author='Bruno Gonçalves',language='en',date='2.10.2026',committee=null,extraAmendments=[],wrapSecondRow=false,symbolInFirstCell=false,wholeBodyAlternatives=false,structuralRevision=null}={}) {
+function comparisonDocx(rows,{author='Bruno Gonçalves',language='en',date='2.10.2026',committee=null,extraAmendments=[],wrapSecondRow=false,symbolInFirstCell=false,wholeBodyAlternatives=false,structuralRevision=null,number=1}={}) {
   const escape=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const paragraph=value=>'<w:p><w:r><w:t>'+escape(value)+'</w:t></w:r></w:p>';
   const tableRow=cells=>'<w:tr>'+cells.map(value=>'<w:tc>'+paragraph(value)+'</w:tc>').join('')+'</w:tr>';
@@ -1164,11 +1184,12 @@ function comparisonDocx(rows,{author='Bruno Gonçalves',language='en',date='2.10
     if(index===rows.length-1&&structuralRevision==='row')xml=xml.replace('<w:tr>','<w:tr><w:trPr><w:del w:id="7" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:trPr>');
     if(index===rows.length-1&&structuralRevision==='cell')xml=xml.replace('<w:tc>','<w:tc><w:tcPr><w:cellDel w:id="8" w:author="Editor"/></w:tcPr>');
     if(index===0&&structuralRevision==='historical-cell')xml=xml.replace('<w:tc>','<w:tc><w:tcPr><w:tcW w:w="2400" w:type="dxa"/><w:gridSpan w:val="1"/><w:tcPrChange w:id="9" w:author="Editor"><w:tcPr><w:cellDel w:id="8" w:author="Editor"/></w:tcPr></w:tcPrChange></w:tcPr>');
+    if(index===0&&structuralRevision==='paragraph')xml=xml.replace('<w:p>','<w:p><w:pPr><w:rPr><w:del w:id="10" w:author="Editor"/></w:rPr></w:pPr>').replace('</w:p></w:tc>','</w:p>'+paragraph('0%')+'</w:tc>');
     return wrapSecondRow&&index===1?'<w:sdt><w:sdtContent>'+xml+'</w:sdtContent></w:sdt>':xml;
   }).join('');
   const heading=tableRow(['Text proposed by the Commission',language==='fr'?'Amendement':'Amendment']);
   const dateTag=date?'<Date>'+date+'</Date>':'';
-  const section=paragraph('<Amend>'+dateTag+'<NumAm>1</NumAm>')+(author?paragraph('<Members>'+author+'</Members>'):'')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+heading+comparisonRows+'</w:tbl>'+paragraph('</Amend>')+extraAmendments.map(extra=>paragraph('<Amend>'+dateTag+'<NumAm>'+extra.number+'</NumAm>')+(extra.author?paragraph('<Members>'+extra.author+'</Members>'):'')+paragraph('<Article>Article '+extra.number+'</Article>')+'<w:tbl>'+heading+extra.rows.map(tableRow).join('')+'</w:tbl>'+paragraph('</Amend>')).join('');
+  const section=paragraph('<Amend>'+dateTag+'<NumAm>'+number+'</NumAm>')+(author?paragraph('<Members>'+author+'</Members>'):'')+paragraph('<Article>Article '+number+'</Article>')+'<w:tbl>'+heading+comparisonRows+'</w:tbl>'+paragraph('</Amend>')+extraAmendments.map(extra=>paragraph('<Amend>'+dateTag+'<NumAm>'+extra.number+'</NumAm>')+(extra.author?paragraph('<Members>'+extra.author+'</Members>'):'')+paragraph('<Article>Article '+extra.number+'</Article>')+'<w:tbl>'+heading+extra.rows.map(tableRow).join('')+'</w:tbl>'+paragraph('</Amend>')).join('');
   const content=wholeBodyAlternatives?'<compat:AlternateContent><compat:Choice Requires="w14">'+section+'</compat:Choice><compat:Fallback>'+section+'</compat:Fallback></compat:AlternateContent>':section;
   return docx('<w:document xmlns:w="urn:word" xmlns:compat="http://schemas.openxmlformats.org/markup-compatibility/2006"><w:body>'+(committee?paragraph('<Committee>'+committee+'</Committee>'):'')+content+'</w:body></w:document>');
 }
@@ -1452,22 +1473,23 @@ test('a parser migration retains supported proposer provenance independently of 
   }
 });
 
-test('parser 8 withholds legacy tracked-deletion caches through reads and refreshes while retaining valid proposer evidence',async t=>{
-  assert.notEqual(AMENDMENT_EXTRACTION_VERSION,'7');
-  for(const mode of ['row','cell','variants']) {
+test('current parser withholds legacy structural-revision caches through reads and refreshes while retaining valid proposer evidence',async t=>{
+  assert.notEqual(AMENDMENT_EXTRACTION_VERSION,'7');assert.notEqual(AMENDMENT_EXTRACTION_VERSION,'8');
+  for(const mode of ['row','cell','variants','paragraph','paragraph-variants']) {
+    const paragraphRevision=mode.startsWith('paragraph'),conflicted=mode.includes('variants'),legacyVersion=paragraphRevision?'8':'7';
     const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001',secondListId=targetId+'-AM-001-002';
-    const oldSource={url:'https://data.europarl.europa.eu/distribution/example/tracked_deletion_v7_en.docx',fetchedAt:earlier,language:'en'};
+    const oldSource={url:'https://data.europarl.europa.eu/distribution/example/tracked_deletion_v'+legacyVersion+'_en.docx',fetchedAt:earlier,language:'en'};
     const freshUrl='https://data.europarl.europa.eu/distribution/example/tracked_deletion_v8_en.docx';
-    const legacyAmendment=amendment(1,{authors:['Alex Common'],originalText:'Visible original\nDeleted original',proposedText:'Visible proposal\nDeleted proposal'});
-    const published=list([],{id:'eli/dl/doc/'+singleListId,identifier:singleListId,foresees_change_of:[target.id],files:[{format:'DOCX',language:'en',url:freshUrl}],extraction:{amendments:[legacyAmendment],parserVersion:'7',gaps:[],language:'en',sourceUrl:oldSource.url,fetchedAt:earlier}});
+    const legacyAmendment=amendment(1,{authors:['Alex Common'],originalText:paragraphRevision?'Rate: 1\n0%':'Visible original\nDeleted original',proposedText:paragraphRevision?'Updated rate':'Visible proposal\nDeleted proposal'});
+    const published=list([],{id:'eli/dl/doc/'+singleListId,identifier:singleListId,foresees_change_of:[target.id],files:[{format:'DOCX',language:'en',url:freshUrl}],extraction:{amendments:[legacyAmendment],parserVersion:legacyVersion,gaps:[],language:'en',sourceUrl:oldSource.url,fetchedAt:earlier}});
     const safeList=list([amendment(1,{authors:['Alex Common'],originalText:'',proposedText:'Safe current proposal'})],{id:'eli/dl/doc/'+secondListId,identifier:secondListId,foresees_change_of:[target.id]});
-    const lists=mode==='variants'?[published,safeList]:[published];
+    const lists=conflicted?[published,safeList]:[published];
     store.putSource(generation,'/plenary-documents/'+targetId,'document',{...target,inverse_foresees_change_of:lists},earlier);
     for(const item of lists)store.putSource(generation,'amendment:list:'+item.identifier,'amendment-list',item,earlier);
     store.putSource(generation,'amendment:roster:'+tabled,'amendment-roster',{members:[{id:'101',givenName:'Alex',familyName:'Common'}],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+tabled,fetchedAt:earlier}]},earlier);
-    const legacyRow=row(1,{listId:singleListId,textParserVersion:'7',textIntegrity:'complete',originalText:legacyAmendment.originalText,proposedText:legacyAmendment.proposedText,proposerSource:oldSource,wordingSource:oldSource,authors:[{name:'Alex Common',personId:'101',status:'resolved',evidence:[]}],sources:[oldSource]});
+    const legacyRow=row(1,{listId:singleListId,textParserVersion:legacyVersion,textIntegrity:'complete',originalText:legacyAmendment.originalText,proposedText:legacyAmendment.proposedText,proposerSource:oldSource,wordingSource:oldSource,authors:[{name:'Alex Common',personId:'101',status:'resolved',evidence:[]}],sources:[oldSource]});
     const safeVariant={...row(1,{listId:secondListId,textIntegrity:'complete',originalText:'',proposedText:'Safe current proposal'}),authors:legacyRow.authors};
-    const cached=mode==='variants'?{...legacyRow,listId:null,originalText:null,proposedText:null,authors:[],conflicted:true,variants:[legacyRow,safeVariant]}:legacyRow;
+    const cached=conflicted?{...legacyRow,listId:null,originalText:null,proposedText:null,authors:[],conflicted:true,variants:[legacyRow,safeVariant]}:legacyRow;
     saveAmendmentRows(store,generation,metadata,[row(1)],coverage);
     store.db.prepare('UPDATE amendments SET body=? WHERE generation=? AND id=?').run(JSON.stringify(cached),generation,cached.id);
     const sourceBody=store.db.prepare('SELECT body FROM sources WHERE generation=? AND key=?').get(generation,'amendment:list:'+singleListId).body;
@@ -1475,7 +1497,7 @@ test('parser 8 withholds legacy tracked-deletion caches through reads and refres
     const record=()=>{
       const page=amendmentsPage(store,{document:targetId}),item=page.items[0];
       assert.equal(page.coverage.complete,false);
-      return mode==='variants'?item.variants.find(variant=>variant.listId===singleListId):item;
+      return conflicted?item.variants.find(variant=>variant.listId===singleListId):item;
     };
     const assertWithheld=()=>{
       const item=record();assert.equal(item.originalText,null);assert.equal(item.proposedText,null);assert.equal(item.textIntegrity,'incomplete');
@@ -1486,7 +1508,7 @@ test('parser 8 withholds legacy tracked-deletion caches through reads and refres
       assert.equal(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,cached.id).body,indexedBody);
     };
     assertWithheld();amendmentsPage(store,{member:'101'});assertUnchanged();
-    if(mode==='variants') {
+    if(conflicted) {
       const safe=amendmentsPage(store,{document:targetId}).items[0].variants.find(variant=>variant.listId===secondListId);
       assert.equal(safe.originalText,'');assert.equal(safe.proposedText,'Safe current proposal');assert.equal(safe.authors[0].personId,'101');
     }
@@ -1495,7 +1517,7 @@ test('parser 8 withholds legacy tracked-deletion caches through reads and refres
     worker.downloadAmendmentDocx=async()=>{throw new Error('Offline v8 refresh failed');};
     await assert.rejects(worker.task(nextAmendmentTask(store,generation)),/Offline v8 refresh failed/);
     assertWithheld();assertUnchanged();
-    worker.downloadAmendmentDocx=async()=>({buffer:comparisonDocx([['Visible original','Visible proposal'],['Deleted original','Deleted proposal']],{author:'Alex Common',structuralRevision:mode==='cell'?'cell':'row'})});
+    worker.downloadAmendmentDocx=async()=>({buffer:comparisonDocx(paragraphRevision?[['Rate: 1','Updated rate']]:[['Visible original','Visible proposal'],['Deleted original','Deleted proposal']],{author:'Alex Common',structuralRevision:paragraphRevision?'paragraph':mode==='cell'?'cell':'row'})});
     await worker.task(nextAmendmentTask(store,generation));
     assertWithheld();
     const extraction=store.source(generation,'amendment:list:'+singleListId).work.extraction;
@@ -1544,20 +1566,22 @@ test('rebuilding or delaying a failed extraction cannot serve apparently complet
     published.extraction={...published.extraction,parserVersion:legacyLocation==='extraction'?'6':AMENDMENT_EXTRACTION_VERSION,amendments:published.extraction.amendments.map(amendment=>({...amendment,...(legacyLocation==='record'?{wordingParserVersion:'6'}:{})})),sourceUrl:oldUrl,gaps:[]};
     store.putSource(generation,'/plenary-documents/'+targetId,'document',{...target,inverse_foresees_change_of:[published]},earlier);
     store.putSource(generation,'amendment:list:'+singleListId,'amendment-list',published,earlier);
-    const sourceBefore=store.db.prepare('SELECT body FROM sources WHERE generation=? AND key=?').get(generation,'amendment:list:'+singleListId).body;
     const assertWithheld=()=>{
       const page=amendmentsPage(store,{document:targetId}),[item]=page.items;
       assert.equal(item.originalText,null);assert.equal(item.proposedText,null);assert.equal(item.textIntegrity,'incomplete');assert.equal(page.coverage.complete,false);
     };
     rebuildAmendmentTarget(worker,generation,targetId);assertWithheld();
+    const sourceBefore=store.db.prepare('SELECT body FROM sources WHERE generation=? AND key=?').get(generation,'amendment:list:'+singleListId).body;
     enqueueAmendment(store,generation,'delayed-v7-extraction','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
+    const queued=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,'delayed-v7-extraction');
+    const refresh={...queued,body:JSON.parse(queued.body),amendmentJob:true};
     assertWithheld();
     worker.downloadAmendmentDocx=async()=>{throw new Error('Offline failed refresh');};
-    await assert.rejects(worker.task(nextAmendmentTask(store,generation)),/Offline failed refresh/);
+    await assert.rejects(worker.task(refresh),/Offline failed refresh/);
     rebuildAmendmentTarget(worker,generation,targetId);assertWithheld();
     assert.equal(store.db.prepare('SELECT body FROM sources WHERE generation=? AND key=?').get(generation,'amendment:list:'+singleListId).body,sourceBefore);
     worker.downloadAmendmentDocx=async()=>({buffer:comparisonDocx([['Damaged fresh original','Damaged fresh proposal'],['Unsupported','Extra','Column']],{author:null})});
-    await worker.task(nextAmendmentTask(store,generation));
+    await worker.task(refresh);
     assertWithheld();
     assert.equal(store.source(generation,'amendment:list:'+singleListId).work.extraction.amendments[0].wordingRetained,false);
   }
@@ -1903,11 +1927,155 @@ test('empty pages explicitly report missing coverage and never imply an amendmen
   assert.equal(amendmentOutcome([{outcome:'ADOPTED'},{outcome:'unavailable'}]),'unavailable');
 });
 
+test('linked-list details verify URI-only and inconsistent expanded references before DOCX extraction clears coverage',async t=>{
+  for(const representation of ['uri','missing-forward','wrong-forward','conflicting-observations']) {
+    const {store,worker,generation,detailId,detail,detailKey,fileUrl}=linkedListFixture(t,representation);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    let page=amendmentsPage(store,{document:targetId});
+    assert.equal(page.coverage.complete,false);assert.equal(page.coverage.pending,true);
+    assert(page.coverage.gaps.includes('Linked amendment list '+detailId+' is awaiting exact document-detail verification.'));
+    const jobs=listDetailJobs(store,generation);assert.equal(jobs.length,1);assert.equal(jobs[0].key,detailKey);
+    assert.deepEqual(JSON.parse(jobs[0].body),{listId:detailId,targetDocumentId:targetId});
+    assert.equal(store.source(generation,'amendment:list:'+detailId),undefined);
+    worker.fetchRecord=async endpoint=>{assert.equal(endpoint,'/documents/'+detailId);return {fetchedAt,payload:{data:[detail]}};};
+    await worker.task(nextAmendmentTask(store,generation));
+    const verified=store.source(generation,'amendment:list:'+detailId).work;
+    assert.equal(verified.relationshipEvidence.basis,'list-detail');assert.equal(verified.relationshipEvidence.targetReference,target.id);assert.equal(verified.relationshipEvidence.listReference,detail.id);
+    const extraction=nextAmendmentTask(store,generation);assert.equal(extraction.kind,'amendment-extract');
+    worker.downloadAmendmentDocx=async url=>{assert.equal(url,fileUrl);return {buffer:comparisonDocx([['Original 2','Proposal 2']],{author:'Alex Common',number:2})};};
+    await worker.task(extraction);
+    page=amendmentsPage(store,{document:targetId});
+    assert.equal(page.total,2);assert.equal(page.coverage.pending,false);assert.equal(page.coverage.complete,true,representation+' '+page.coverage.gaps.join(' | '));
+    assert.deepEqual(page.items.map(item=>[item.number,item.proposedText,item.outcome,item.authors[0].personId]),[[1,'Proposal 1','ADOPTED','101'],[2,'Proposal 2','ADOPTED','101']]);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    assert.equal(listDetailJobs(store,generation).filter(job=>job.done!==1).length,0);
+    assert.equal(amendmentsPage(store,{document:targetId}).coverage.complete,true);
+  }
+});
+
+test('cached list wording remains labelled unverified until missing expired or changed relationship evidence is refreshed',async t=>{
+  for(const mode of ['missing-proof','expired-proof','changed-observation','changed-foreign-observation','changed-document-date','changed-docx-url','changed-docx-language','changed-docx-size']) {
+    const metadataChange=mode==='changed-document-date'||mode.startsWith('changed-docx-');
+    const {store,worker,generation,detailId,detail,fileUrl,work,advance}=linkedListFixture(t,mode==='changed-foreign-observation'?'foreign-forward':metadataChange?'missing-forward':'uri');
+    const cached=list([amendment(2,{authors:['Alex Common']})],{...detail,targetDocumentId:targetId,files:[{format:'DOCX',language:'en',url:fileUrl}]});
+    cached.extraction={...cached.extraction,sourceUrl:fileUrl};
+    store.putSource(generation,'amendment:list:'+detailId,'amendment-list',cached,fetchedAt);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    if(mode!=='missing-proof') {
+      worker.fetchRecord=async endpoint=>{assert.equal(endpoint,'/documents/'+detailId);return {fetchedAt,payload:{data:[detail]}};};
+      await worker.task(nextAmendmentTask(store,generation));
+      assert.equal(amendmentsPage(store,{document:targetId}).coverage.complete,true);
+      assert.match(store.source(generation,'amendment:list:'+detailId).work.relationshipEvidence.fingerprint,/^[a-f0-9]{64}$/);
+      if(mode==='expired-proof'){advance(8*24*60*60_000);assert(store.acquire());}
+      else if(mode==='changed-foreign-observation')store.putSource(generation,'/plenary-documents/'+targetId,'document',{...work,inverse_foresees_change_of:work.inverse_foresees_change_of.map(ref=>ref?.id===detail.id?{...detail,foresees_change_of:['https://changed.example/eli/dl/doc/'+targetId]}:ref)},fetchedAt);
+      else if(metadataChange) {
+        const changed=structuredClone(work);
+        const candidate=changed.inverse_foresees_change_of.find(ref=>ref?.id===detail.id);
+        if(mode==='changed-document-date')candidate.document_date='2026-10-06';
+        else if(mode==='changed-docx-url')candidate.is_realized_by[0].is_embodied_by[0].is_exemplified_by=fileUrl.replace('_en.docx','_revised_en.docx');
+        else if(mode==='changed-docx-language')candidate.is_realized_by[0].language='http://publications.europa.eu/resource/authority/language/FRA';
+        else candidate.is_realized_by[0].is_embodied_by[0].byteSize=4096;
+        store.putSource(generation,'/plenary-documents/'+targetId,'document',changed,fetchedAt);
+      }
+      else store.putSource(generation,'/plenary-documents/'+targetId,'document',{...work,inverse_foresees_change_of:[...work.inverse_foresees_change_of,{...detail,foresees_change_of:['eli/dl/doc/'+otherTarget]}]},fetchedAt);
+      rebuildAmendmentTarget(worker,generation,targetId);
+    }
+    const page=amendmentsPage(store,{document:targetId}),retained=page.items.find(item=>item.number===2);
+    assert.equal(retained.proposedText,'Proposal 2');assert.equal(retained.authors[0].personId,'101');assert.equal(retained.outcome,'ADOPTED');
+    assert.equal(retained.listRelationship,'unverified');assert(retained.gaps.some(gap=>/unverified|verification/i.test(gap)));
+    assert.equal(page.coverage.complete,false);assert.equal(page.coverage.pending,true);
+    assert(page.coverage.gaps.includes('Linked amendment list '+detailId+' is awaiting exact document-detail verification.'));
+    assert.equal(listDetailJobs(store,generation).filter(job=>job.done!==1).length,1);
+  }
+});
+
+test('invalid or failing linked-list detail responses never become accepted list metadata or extraction work',async t=>{
+  const invalid=[
+    detail=>({...detail,id:'eli/dl/doc/A-10-2026-9999-AM-002-002'}),
+    detail=>({...detail,id:'eli/dl/event/'+detail.identifier}),
+    detail=>({...detail,id:'https://unrelated.example/eli/dl/doc/'+detail.identifier}),
+    detail=>({...detail,id:undefined}),
+    detail=>({...detail,work_type:'def/ep-document-types/REPORT_PLENARY'}),
+    detail=>({...detail,work_type:'https://unrelated.example/def/ep-document-types/AMENDMENT_LIST'}),
+    detail=>({...detail,foresees_change_of:[]}),
+    detail=>({...detail,foresees_change_of:['eli/dl/doc/'+otherTarget]}),
+    null,
+  ];
+  for(const changed of invalid) {
+    const {store,worker,generation,detailId,detail}=linkedListFixture(t);
+    rebuildAmendmentTarget(worker,generation,targetId);
+    worker.fetchRecord=async()=>{if(!changed)throw new Error('Offline detail failure');return {fetchedAt,payload:{data:[changed(detail)]}};};
+    await assert.rejects(worker.task(nextAmendmentTask(store,generation)),/list|document|target|relation|exact|reference|identifier|type|Offline/i);
+    assert.equal(store.source(generation,'amendment:list:'+detailId),undefined);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM amendment_jobs WHERE generation=? AND kind='amendment-extract' AND json_extract(body,'$.listId')=?").get(generation,detailId).n,0);
+    const page=amendmentsPage(store,{document:targetId});assert.equal(page.coverage.complete,false);assert.equal(page.coverage.pending,true);
+    assert(page.coverage.gaps.includes('Linked amendment list '+detailId+' is awaiting exact document-detail verification.'));
+    assert.equal(page.items.find(item=>item.number===1).proposedText,'Proposal 1');
+  }
+});
+
+test('direct rebuild discovers only the first 64 unique canonical list references and retains accepted rows beyond the bound',t=>{
+  const {store,worker,generation}=setup(t);
+  const ids=Array.from({length:65},(_,index)=>targetId+'-AM-'+String(index+1).padStart(3,'0')+'-'+String(index+1).padStart(3,'0'));
+  const refs=ids.flatMap(id=>['eli/dl/doc/'+id,'https://data.europarl.europa.eu/eli/dl/doc/'+id]);
+  refs.splice(2,0,'eli/dl/event/'+ids[0],'https://unrelated.example/eli/dl/doc/'+ids[1]);
+  const work={...target,inverse_foresees_change_of:refs};
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',work,fetchedAt);
+  saveAmendmentRows(store,generation,metadata,[row(1,{proposedText:'Accepted before bounded discovery'})],coverage);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  const jobs=listDetailJobs(store,generation);assert.equal(jobs.length,64);
+  assert.deepEqual(jobs.map(job=>JSON.parse(job.body).listId).sort(),ids.slice(0,64).sort());
+  const page=amendmentsPage(store,{document:targetId});assert.equal(page.coverage.complete,false);assert.equal(page.coverage.pending,true);
+  assert(page.coverage.gaps.includes('This target exceeds the amendment-list processing limit.'));
+  assert.equal(page.items[0].proposedText,'Accepted before bounded discovery');
+  rebuildAmendmentTarget(worker,generation,targetId);assert.deepEqual(listDetailJobs(store,generation),jobs);
+});
+
+test('linked-list rescheduling and legacy generation adoption preserve accepted pending detail state',t=>{
+  const {store,worker,generation,detailKey,work}=linkedListFixture(t);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  const queued=listDetailJobs(store,generation)[0],body={...JSON.parse(queued.body),checkpoint:'retained detail observation'};
+  store.db.prepare('UPDATE amendment_jobs SET body=?,attempts=3,retry_at=?,error=? WHERE generation=? AND key=?').run(JSON.stringify(body),Date.parse(fetchedAt)+60_000,'Retained detail retry',generation,detailKey);
+  const before=listDetailJobs(store,generation)[0];
+  scheduleAmendments(worker,generation,work,fetchedAt,'/plenary-documents/'+targetId);rebuildAmendmentTarget(worker,generation,targetId);
+  assert.deepEqual(listDetailJobs(store,generation)[0],before);
+  store.publish(generation);
+  store.db.prepare('INSERT INTO sources SELECT 2,key,kind,body,fetched_at,seen FROM sources WHERE generation=?').run(generation);
+  store.set('active',2);store.set('sequence',2);store.set('previous',generation);
+  const adopted=store.beginCycle();assert.equal(adopted.generation,3);
+  rebuildAmendmentTarget(worker,adopted.generation,targetId);
+  const after=listDetailJobs(store,adopted.generation)[0];
+  assert.deepEqual({...after,generation:before.generation},{...before});assert.deepEqual(JSON.parse(after.body),body);
+  assert.equal(amendmentsPage(store,{document:targetId}).items.find(item=>item.number===1).proposedText,'Proposal 1');
+});
+
+test('saturated amendment queues defer linked-list details durably and expose overflow without replacing cursors',t=>{
+  const {store,worker,generation,detailId,detailKey,work}=linkedListFixture(t);
+  for(let index=0;index<200;index++)enqueueAmendment(store,generation,'protected-roster:'+index,'amendment-roster',{date:tabled,offset:index+1,members:[{id:'101'}],sources:[]},100);
+  store.db.prepare('UPDATE amendment_jobs SET attempts=2,retry_at=? WHERE generation=?').run(Date.parse(fetchedAt)+60_000,generation);
+  const before=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? ORDER BY key').all(generation);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  assert.deepEqual(store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? ORDER BY key').all(generation),before);
+  let checkpoint=store.source(generation,'amendment:continuations').work;
+  const deferred=checkpoint.tasks.find(task=>task.key===detailKey);assert.equal(deferred.kind,'amendment-list-detail');assert.deepEqual(JSON.parse(deferred.body),{listId:detailId,targetDocumentId:targetId});
+  assert.equal(amendmentsPage(store,{document:targetId}).coverage.pending,true);
+  const protectedSnapshots=[deferred,...Array.from({length:199},(_,index)=>({generation,key:'protected-snapshot:'+index,kind:'document',body:JSON.stringify({endpoint:'/plenary-documents/'+targetId,offset:index+1}),priority:90,done:0,attempts:2,retry_at:Date.parse(fetchedAt)+60_000,error:'Retained snapshot'}))];
+  store.putSource(generation,'amendment:continuations','amendment-continuations',{...checkpoint,tasks:protectedSnapshots},fetchedAt);
+  const overflowId=targetId+'-AM-003-003';
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',{...work,inverse_foresees_change_of:[...work.inverse_foresees_change_of,'eli/dl/doc/'+overflowId]},fetchedAt);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  checkpoint=store.source(generation,'amendment:continuations').work;
+  assert.equal(checkpoint.tasks.length,200);assert.deepEqual(checkpoint.tasks,protectedSnapshots);assert(checkpoint.capacityGap.count>0);
+  assert.deepEqual(store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? ORDER BY key').all(generation),before);
+  const page=amendmentsPage(store,{document:targetId});assert.equal(page.coverage.complete,false);assert.equal(page.coverage.pending,true);assert(page.coverage.gaps.includes(checkpoint.capacityGap.message));
+  assert.equal(page.items.find(item=>item.number===1).proposedText,'Proposal 1');
+});
+
 test('amendment discovery accepts only explicit list and target relationships',t=>{
   const {store,worker,generation}=setup(t);
   const linked={...list([]),foresees_change_of:[target.id]};
-  const wrong={...linked,identifier:'A-10-2026-9999-AM-001-004',foresees_change_of:['eli/dl/doc/A-10-2026-9999']};
-  const ambiguous={...linked,identifier:'A-10-2026-9998-AM-001-004',foresees_change_of:[]};
+  const wrong={...linked,id:'eli/dl/doc/A-10-2026-9999-AM-001-004',identifier:'A-10-2026-9999-AM-001-004',foresees_change_of:['eli/dl/doc/A-10-2026-9999']};
+  const ambiguous={...linked,id:'eli/dl/doc/A-10-2026-9998-AM-001-004',identifier:'A-10-2026-9998-AM-001-004',foresees_change_of:[]};
   const work={...target,inverse_foresees_change_of:[linked,wrong,ambiguous,'eli/dl/doc/'+listId]};
   assert.deepEqual(amendmentLists(work).map(item=>item.identifier),[listId]);
   store.putSource(generation,'/plenary-documents/'+targetId,'document',work,fetchedAt);
