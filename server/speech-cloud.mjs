@@ -8,7 +8,7 @@ import {speechParagraphText,speechWordTokens,speechWordStopwords,speechWordLangu
 import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
 import {transcriptLanguage} from './transcript-language.mjs';
 import {phraseModel} from './insights-phrases.mjs';
-import {sharedRequest,waitForRequest} from './request-budget.mjs';
+import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 
 // A week scales the total page and XML budgets by its number of held sittings (at most five).
 export const CLOUD_LIMITS=Object.freeze({pageSize:50,pages:20,xmlBytes:4*1024*1024,weekSittings:5,queries:6,cacheMs:30*60_000});
@@ -71,6 +71,7 @@ export class SpeechCloudInsights {
     return {kind:'topic',dates:[...new Set(sources.map(s=>s.eventDate))].sort().map(date=>({start:date,end:date})),ids:new Set(sources.flatMap(s=>s.contributionIds)),people:new Map(response.detail.people.map(person=>[person.id,person])),phase:upcoming?'upcoming':'past',title:response.detail.title};
   }
   async query(query) {
+    requestSignal()?.throwIfAborted();
     const {page,...selection}=query,key=JSON.stringify([this.store.status().servingGeneration,selection]);let state=this.states.get(key);
     if(state&&this.clock()-state.at>CLOUD_LIMITS.cacheMs){this.states.delete(key);state=null;}
     if(!state) {state={at:this.clock(),scope:null,cursor:{date:0,offset:0},page:-1,records:new Map(),seen:new Set(),scans:new Map(),sourceIssues:new Set(),duplicates:0,sources:[],rawRecords:0,missingLanguage:0,invalidText:0,xmlBytes:0,truncated:false,pending:null,result:null};this.states.set(key,state);while(this.states.size>CLOUD_LIMITS.queries)this.states.delete(this.states.keys().next().value);}
@@ -80,15 +81,17 @@ export class SpeechCloudInsights {
     return waitForRequest(job);
   }
   async build(state,query,page) {
-    state.scope??=await this.scope(query);
+    if(!state.scope){const scope=await this.scope(query);requestSignal()?.throwIfAborted();state.scope=scope;}
     const days=['sitting','week'].includes(state.scope.kind)?Math.max(1,state.scope.dates.length):1,limits={pages:CLOUD_LIMITS.pages*days,xmlBytes:CLOUD_LIMITS.xmlBytes*days};
     const members=new Map(this.store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)]));
     const metadata=query.country?await this.loadMetadata({members}):new Map();
+    requestSignal()?.throwIfAborted();
     if(!state.scope.dates.length)state.cursor=null;
     while(state.cursor&&state.page<page) {
       const {date,offset}=state.cursor,window=state.scope.dates[date];
       const params={...(query.member?{'person-id':query.member}:{}),'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH','sitting-date':window.start,'sitting-date-end':window.end,'include-output':'xml_fragment',language:query.language,'sort-by':CLOUD_SORT,limit:CLOUD_LIMITS.pageSize,offset};
       const record=await this.request('/speeches',params,{priority:'interactive',staleWhileRevalidate:true});
+      requestSignal()?.throwIfAborted();
       if(!Array.isArray(record.payload?.data))throw new HttpError(502,'speech_source_shape','Parliament returned unreadable speech text.');
       if(Buffer.byteLength(JSON.stringify(record.payload))>12*1024*1024)throw new HttpError(502,'speech_source_size','Parliament’s speech response is too large.');
       state.sources.push({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale)});

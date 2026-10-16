@@ -8,7 +8,7 @@
 .intervention-stats-heading,.intervention-sequence-heading{display:flex;align-items:center;justify-content:space-between;gap:.7rem;flex-wrap:wrap}
 .intervention-stats-heading h3,.intervention-sequence-heading h4{margin:0;font-size:1rem}
 .intervention-stats-heading>span,.intervention-caption{font-size:.78rem;color:#53636c;line-height:1.6}
-.intervention-stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1.1rem}
+.intervention-stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.8rem;margin-top:1.1rem}
 .intervention-stats-grid>div{display:grid;grid-template-columns:1.2rem 1fr;align-items:center;gap:.2rem .4rem;color:#1b536d}
 .intervention-stats-grid strong{font-size:1.8rem;line-height:1.2;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
 .intervention-stats-grid span{grid-column:1/-1;font-size:.74rem;color:#334850;line-height:1.4}
@@ -44,4 +44,4 @@
 .poc .intervention-stats-heading h3{font-size:1rem;margin:0}
 .poc .intervention-read small{font-size:.72rem;color:#62717d}
 .poc .intervention-source a{color:#155e71}
-@media(max-width:620px){.intervention-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.intervention-statistics{padding:.85rem}.intervention-sequence>li{gap:.5rem}.intervention-sequence-heading h4{font-size:.95rem}}
+@media(max-width:620px){.intervention-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.intervention-stats-grid>div:first-child{grid-column:1/-1}.intervention-statistics{padding:.85rem}.intervention-sequence>li{gap:.5rem}.intervention-sequence-heading h4{font-size:.95rem}}

@@ -1,0 +1,77 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {act, createElement, useState} from 'react';
+import {Window} from 'happy-dom';
+import {createServer} from 'vite';
+
+test('question trends expose measures and retain keyboard and select filtering', async t => {
+  const window = new Window({url: 'http://localhost/'});
+  class ResizeObserver {observe() {} disconnect() {}}
+  const globals = {window, document: window.document, HTMLElement: window.HTMLElement, ResizeObserver, IS_REACT_ACT_ENVIRONMENT: true};
+  const originals = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, {value, configurable: true, writable: true});
+  let vite, root;
+  t.after(async () => {
+    if (root) await act(async () => root.unmount());
+    if (vite) await vite.close();
+    await window.happyDOM.close();
+    for (const [key, descriptor] of originals) descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key];
+  });
+  vite = await createServer({configFile: false, server: {middlewareMode: true, hmr: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
+  const {QuestionTrend} = await vite.ssrLoadModule('/src/PocInsightCharts.tsx');
+  const {createRoot} = await import('react-dom/client');
+  const container = document.createElement('div'); document.body.append(container);
+  root = createRoot(container);
+  const bins = [
+    {start: '2026-10-01', end: '2026-10-07', count: 3, total: 8, share: 37.5},
+    {start: '2026-10-08', end: '2026-10-14', count: 0, total: 5, share: 0},
+    {start: '2026-10-15', end: '2026-10-16', count: 0, total: 0, share: null},
+  ];
+  const changes = [];
+  function Trend({interactive = true, selected = true, language = 'en'}) {
+    const [range, setRange] = useState(null);
+    return createElement(QuestionTrend, {data: {interval: 'week', bins}, language, selected, comparison: true, scope: 'Water', range,
+      onRange: interactive ? value => {changes.push(value); setRange(value);} : undefined});
+  }
+  const render = props => act(async () => root.render(createElement(Trend, props)));
+  const points = () => [...container.querySelectorAll('svg [role="button"]')];
+  const select = () => container.querySelector('select');
+  const press = (element, key) => act(async () => element.dispatchEvent(new window.KeyboardEvent('keydown', {key, bubbles: true, cancelable: true})));
+  const clickMeasure = label => act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === label).click());
+
+  await render();
+  assert.equal(container.querySelector('svg').getAttribute('role'), 'group', 'the chart must expose its interactive descendants');
+  assert.match(container.querySelector('svg').getAttribute('aria-label'), /Water: Question counts by week/);
+  assert.equal(points().length, 3);
+  assert.match(points()[0].getAttribute('aria-label'), /Oct 1, 2026–Oct 7, 2026: 3 questions, 8 total/);
+  assert.equal(container.querySelectorAll('svg path').length, 2, 'count mode retains the all-question baseline');
+  await press(points()[0], 'Enter');
+  assert.deepEqual(changes.at(-1), {start: bins[0].start, end: bins[0].end});
+  assert.equal(points()[0].getAttribute('aria-pressed'), 'true');
+  assert.equal(select().value, bins[0].start);
+  await press(points()[0], ' ');
+  assert.equal(changes.at(-1), null, 'Space clears an already selected period');
+
+  await clickMeasure('Share of questions');
+  assert.match(container.querySelector('svg').getAttribute('aria-label'), /Share of questions/);
+  assert.match(points()[0].getAttribute('aria-label'), /37\.5% of questions\. 3 questions, 8 total/);
+  assert.match(points()[1].getAttribute('aria-label'), /0% of questions\. 0 questions, 5 total/);
+  assert.equal(points().length, 2, 'unavailable share is not plotted as zero');
+  assert.match(select().options[3].textContent, /Share unavailable\. 0 questions, 0 total/);
+  await act(async () => {select().value = bins[2].start; select().dispatchEvent(new window.Event('change', {bubbles: true}));});
+  assert.deepEqual(changes.at(-1), {start: bins[2].start, end: bins[2].end}, 'the alternative selector retains every period, including a missing share');
+  await act(async () => {select().value = ''; select().dispatchEvent(new window.Event('change', {bubbles: true}));});
+  assert.equal(changes.at(-1), null);
+
+  await render({language: 'de'});
+  assert.match(points()[0].getAttribute('aria-label'), /37,5%/);
+  await render({selected: false});
+  assert.match(container.querySelector('svg').getAttribute('aria-label'), /Question counts/);
+  assert.equal(points().length, 3, 'clearing the topic restores count mode');
+
+  await render({interactive: false});
+  assert.equal(points().length, 0, 'read-only trends do not advertise inert filter buttons');
+  assert.equal(container.querySelectorAll('svg [tabindex]').length, 0);
+  assert.match(container.querySelector('svg [role="img"]').getAttribute('aria-label'), /3 questions, 8 total/);
+  assert.equal(select(), null);
+});
