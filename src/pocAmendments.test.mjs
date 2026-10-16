@@ -32,11 +32,16 @@ test('grouping uses supplied exact dossier and target labels without conflating 
     {id:'third',targetLabel:null,topics:[]},
   ];
   assert.equal(amendmentGroups(items).length,3);
-  assert.deepEqual(amendmentGroups(items,'target')[0].items.map(item=>item.id),['first','second']);
+  const targets=amendmentGroups(items,'target');
+  assert.equal(targets.length,3);
+  assert.deepEqual(targets[0].items.map(item=>item.id),['first']);
+  assert.equal(targets[0].label,'A-10-2026-0254 · Article 1');
   const topics=amendmentGroups(items,'topic');
   assert.equal(topics[0].basis,'Dossier subject classification');
   assert.equal(topics[1].label,'Topic unavailable');
   assert.equal(topics.flatMap(group=>group.items).length,items.length);
+  const provisions=items.slice(0,2).map(item=>({...item,topics:[{id:'target:Article 1',label:'Article 1',basis:'target'}]}));
+  assert.equal(amendmentGroups(provisions,'topic').length,2,'a provision label from another document is not the same recorded topic');
 });
 test('whole, collective and split decisions remain distinct and unavailable is never rendered as rejected',()=>{
   assert.equal(amendmentDecisionScope({},{}),'Whole amendment');

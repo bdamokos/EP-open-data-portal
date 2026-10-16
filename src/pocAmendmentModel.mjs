@@ -25,8 +25,8 @@ export function amendmentGroups(items,by='dossier') {
   const groups=new Map();
   for(const item of items) {
     let key,label,basis;
-    if(by==='target'){key=item.targetLabel||'unknown';label=item.targetLabel||'Target provision unavailable';basis='Target provision in the amendment document';}
-    else if(by==='topic') {const topic=item.topics?.[0];key=topic?`${topic.basis}:${topic.id}`:'unknown';label=topic?.label||'Topic unavailable';basis=topic?.basis==='dossier'?'Dossier subject classification':topic?.basis==='target'?'Target provision':'No topic classification recorded';}
+    if(by==='target'){key=JSON.stringify([item.targetDocumentId||null,item.targetLabel||null]);label=[item.targetDocumentId,item.targetLabel||'Target provision unavailable'].filter(Boolean).join(' · ');basis='Target provision in the amendment document';}
+    else if(by==='topic') {const topic=item.topics?.[0];key=topic?JSON.stringify([topic.basis,topic.id,topic.basis==='target'?item.targetDocumentId||null:null]):'unknown';label=topic?.basis==='target'?[item.targetDocumentId,topic.label].filter(Boolean).join(' · '):topic?.label||'Topic unavailable';basis=topic?.basis==='dossier'?'Dossier subject classification':topic?.basis==='target'?'Target provision':'No topic classification recorded';}
     else {const procedure=item.procedureIds?.[0];key=procedure||item.targetDocumentId||'unknown';label=procedure||item.targetDocumentId||'Dossier unavailable';basis=procedure?'Exact procedure reference':'Target document';}
     if(!groups.has(key))groups.set(key,{id:key,label,basis,items:[]});
     groups.get(key).items.push(item);
