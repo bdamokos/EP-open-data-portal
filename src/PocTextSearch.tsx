@@ -1,4 +1,4 @@
-import {useEffect,useId,useRef,useState,type RefObject} from 'react';
+import {useEffect,useId,useRef,useState,type RefObject,type ReactNode} from 'react';
 import {API_ROOT} from './api';
 import {useData} from './pocData';
 import {useExplorerParam} from './pocExplorerUrl';
@@ -13,7 +13,7 @@ type Response={total:number;offset:number;limit:number;nextOffset:number|null;tr
 type StoredText=Hit&{body:string;highlightedBody?:string;highlightRanges?:{start:number;end:number}[];highlightsTruncated?:boolean;fetchedAt:string;checkedAt:string};
 export interface TextSearchProps {
   prefix:string;label:string;language:string;kinds?:Kind[];member?:number|string;country?:string;from?:string;to?:string;
-  sourceIds?:string[];scopeIdentity?:string;group?:'document'|'question';dateBasis?:'document'|'question';scopeNote?:string;disabledReason?:string;
+  sourceIds?:string[];scopeIdentity?:string;group?:'document'|'question';dateBasis?:'document'|'question';scopeNote?:ReactNode;disabledReason?:string;
   className?:string;onActiveChange?:(active:boolean)=>void;
 }
 const languages=['bg','cs','da','de','el','en','es','et','fi','fr','ga','hr','hu','it','lt','lv','mt','nl','pl','pt','ro','sk','sl','sv'];
@@ -25,20 +25,20 @@ function CloseIcon(){return <svg viewBox="0 0 24 24" fill="none" stroke="current
 function Excerpt({text}:{text:string}){return <>{searchSnippetParts(text).map((part,i)=>part.match?<mark key={i}>{part.text}</mark>:<span key={i}>{part.text}</span>)}</>;}
 function Attribution({hit}:{hit:Hit}) {
   const names=hit.people?.map(p=>p.name).filter(Boolean).join(', ');
-  return names?<span>{hit.kind==='answer'?'Answer to a question by ':hit.kind==='question'?'Question by ':'Speaker: '}{names}</span>:hit.kind==='answer'?<span>Answering institution’s text · linked question authorship</span>:null;
+  return names?<span>{hit.kind==='answer'?'Answer to a question by ':hit.kind==='question'?'Question by ':'Speaker: '}<span lang="">{names}</span></span>:hit.kind==='answer'?<span>Answering institution’s text · linked question authorship</span>:null;
 }
 function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity:{sourceId:string;sourceKey:string};query:string;expectedHash?:string;sourceUrl?:string;language:string}) {
   const params=new URLSearchParams({'source-id':identity.sourceId,'source-key':identity.sourceKey});if(query.trim())params.set('q',query);
   const {data,error,loading,retry}=useData<StoredText>('corpus/text?'+params),body=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(!data)return;const frame=window.requestAnimationFrame(()=>body.current?.querySelector('mark')?.scrollIntoView({block:'nearest'}));return()=>window.cancelAnimationFrame(frame);},[data]);
-  return <section className="poc-search-reader" aria-label="Indexed matching text">
+  return <section className="poc-search-reader" lang="en" aria-label="Indexed matching text">
     {loading&&!data&&<p role="status">Opening saved text…</p>}
     {error&&<p role="alert">{error} <button type="button" className="poc-search-link" onClick={retry}>Retry</button>{sourceUrl&&<> · <a href={sourceUrl} target="_blank" rel="noreferrer">Open Parliament source ↗</a></>}</p>}
-    {data&&<><div className="poc-search-meta"><span>{languageName(data.language,language)} · {data.translationType==='machine'?'Parliament machine translation':data.translationType==='original'?'Original text':'Published text'}</span><span>{identity.sourceId}</span></div>
+    {data&&<><div className="poc-search-meta"><span><span lang={language}>{languageName(data.language,language)}</span> · {data.translationType==='machine'?'Parliament machine translation':data.translationType==='original'?'Original text':'Published text'}</span><span>{identity.sourceId}</span></div>
       {expectedHash&&expectedHash!==data.sha256&&<p className="poc-search-status">This text changed after the search. Run the search again for updated excerpts.</p>}
-      <div className="poc-search-body" ref={body} lang={data.language}>{data.highlightRanges?searchRangeParts(data.body,data.highlightRanges).map((part,i)=>part.match?<mark key={i}>{part.text}</mark>:<span key={i}>{part.text}</span>):<Excerpt text={data.highlightedBody??data.body}/>}</div>
+      <div className="poc-search-body" ref={body} lang={data.language||''}>{data.highlightRanges?searchRangeParts(data.body,data.highlightRanges).map((part,i)=>part.match?<mark key={i}>{part.text}</mark>:<span key={i}>{part.text}</span>):<Excerpt text={data.highlightedBody??data.body}/>}</div>
       {data.highlightsTruncated&&<p className="poc-search-hint">Only the first matching passages are highlighted in this long text.</p>}
-      <div className="poc-search-source"><a href={data.sourceUrl} target="_blank" rel="noreferrer">Parliament source ↗</a><span>Retrieved {dateLabel(data.fetchedAt,language)}</span></div></>}
+      <div className="poc-search-source"><a href={data.sourceUrl} target="_blank" rel="noreferrer">Parliament source ↗</a><span>Retrieved <span lang={language}>{dateLabel(data.fetchedAt,language)}</span></span></div></>}
   </section>;
 }
 
@@ -92,31 +92,31 @@ export function PocTextSearch({prefix,label,language,kinds,member,country,from,t
   const selected=disabledReason||scopeChanging?null:parseTextReadKey(read),allHits=data?.results.flatMap(r=>r.hits)||[],selectedHit=allHits.find(hit=>textReadKey(hit)===read);
   function close(){setOpen(false);setClosed(query?'1':'');setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
   function submit(event:React.FormEvent){event.preventDefault();const next=draft.trim();setClosed('');if(!textLanguage)setTextLanguage(searchedLanguage);setQuery(next);setPage(0);setRead('');setVariants({});if(next===query)setAttempt(v=>v+1);}
-  return <div className={'poc-text-search '+(open?'is-open ':'')+className} onKeyDown={event=>{if(event.key==='Escape'&&open){event.stopPropagation();close();}}}>
+  return <div lang="en" className={'poc-text-search '+(open?'is-open ':'')+className} onKeyDown={event=>{if(event.key==='Escape'&&open){event.stopPropagation();close();}}}>
     <button ref={toggle} type="button" className="poc-search-icon" aria-label={label} title={label} aria-expanded={open} aria-controls={panel} onClick={()=>{if(open)close();else{setClosed('');setOpen(true);}}}><Magnifier/>{query&&!open&&<span className="poc-search-dot"/>}</button>
     {open&&<section className="poc-search-panel" id={panel} aria-label={label}>
       <header className="poc-search-heading"><h3>{label}</h3><button type="button" className="poc-search-icon" aria-label="Close text search" title="Close text search" onClick={close}><CloseIcon/></button></header>
       <form onSubmit={submit}><div className="poc-search-input"><label className="poc-search-field"><span className="poc-search-sr">Words or exact phrase</span><input ref={input} type="search" value={draft} onChange={e=>setDraft(e.target.value)} maxLength={200} placeholder="Words or “exact phrase”" aria-describedby={panel+'-hint'}/></label><button type="submit" className="poc-search-icon" aria-label="Run text search" title="Search" disabled={Boolean(disabledReason)||loading}><Magnifier/></button></div>
       <p id={panel+'-hint'} className="poc-search-hint">All words · Use quotes for a phrase</p>
-      <div className="poc-search-facets"><label>Text language<select value={searchedLanguage} onChange={e=>{setTextLanguage(e.target.value);setPage(0);setRead('');}}>{languages.map(code=><option value={code} key={code}>{languageName(code,language)}</option>)}<option value="all">All available languages</option></select></label>
+      <div className="poc-search-facets"><label>Text language<select value={searchedLanguage} onChange={e=>{setTextLanguage(e.target.value);setPage(0);setRead('');}}>{languages.map(code=><option value={code} key={code} lang={language}>{languageName(code,language)}</option>)}<option value="all">All available languages</option></select></label>
       {allowedKinds.length>1&&<label>Search in<select value={actualKinds.length===1?actualKinds[0]:''} onChange={e=>{setField(e.target.value);setPage(0);setRead('');}}><option value="">{group==='question'?'Questions + answers':'All text types'}</option>{allowedKinds.map(kind=><option key={kind} value={kind}>{kind==='answer'?'Answer text':kind==='question'?'Question text':'Speech text'}</option>)}</select></label>}
       <label>Order<select value={sort} onChange={e=>{setSort(e.target.value);setPage(0);setRead('');}}><option value="relevance">Best match</option><option value="newest">Newest first</option></select></label></div></form>
       {scopeNote&&<p className="poc-search-scope">{scopeNote}</p>}
-      {(from||to)&&<p className="poc-search-hint">{dateBasis==='question'?'Question date':'Publication date'}: {dateLabel(from,language)||'start'} — {dateLabel(to,language)||'present'}</p>}
+      {(from||to)&&<p className="poc-search-hint">{dateBasis==='question'?'Question date':'Publication date'}: <span lang={from?language:'en'}>{dateLabel(from,language)||'start'}</span> — <span lang={to?language:'en'}>{dateLabel(to,language)||'present'}</span></p>}
       {disabledReason&&<p role="status" className="poc-search-status">{disabledReason}</p>}
       {loading&&<p role="status" className="poc-search-status">Searching saved text…</p>}
       {error&&<p role="alert" className="poc-search-status">{error} <button className="poc-search-link" type="button" onClick={()=>setAttempt(v=>v+1)}>Retry</button></p>}
       {data&&<div className="poc-search-results" aria-busy={loading}>
-        <p role="status" className="poc-search-count">{data.total.toLocaleString(language)} {group==='question'?(data.total===1?'matching question':'matching questions'):(data.total===1?'matching document':'matching documents')} · {data.coverage.backfillComplete||data.coverage.complete?'Indexed texts only':'Partial text coverage'}</p>
+        <p role="status" className="poc-search-count"><span lang={language}>{data.total.toLocaleString(language)}</span> {group==='question'?(data.total===1?'matching question':'matching questions'):(data.total===1?'matching document':'matching documents')} · {data.coverage.backfillComplete||data.coverage.complete?'Indexed texts only':'Partial text coverage'}</p>
         {!data.total&&<p>No matches in indexed text. Try another phrase, language or period.</p>}
         {data.results.map(result=>{
           const sources=[...new Set(result.hits.map(hit=>hit.sourceId))];
-          return <article className="poc-search-result" key={result.sourceId}><div className="poc-search-meta"><span>{group==='question'?'Question':kindLabel(result.kind)}{result.reference?' · '+result.reference:''}</span><span>{dateLabel(group==='question'?result.questionDate||result.date:result.date,language)}</span></div><h4>{result.title||result.sourceId}</h4>
+          return <article className="poc-search-result" key={result.sourceId}><div className="poc-search-meta"><span>{group==='question'?'Question':kindLabel(result.kind)}{result.reference?' · '+result.reference:''}</span><span lang={language}>{dateLabel(group==='question'?result.questionDate||result.date:result.date,language)}</span></div><h4 lang="">{result.title||result.sourceId}</h4>
           {sources.map(id=>{const versions=result.hits.filter(hit=>hit.sourceId===id),hit=versions.find(h=>textReadKey(h)===read)||versions.find(h=>h.sourceKey===variants[id])||versions.find(h=>h.language===searchedLanguage)||versions.find(h=>h.language===language)||versions[0];if(!hit)return null;const key=textReadKey(hit);return <div className="poc-search-match" key={id}>
-            <div className="poc-search-meta"><span>{hit.kind==='answer'?'Match in institutional answer':hit.kind==='question'?'Match in question text':'Match in speech'}{hit.kind==='answer'&&hit.date?' · '+dateLabel(hit.date,language):''}</span><span>{languageName(hit.language,language)}{hit.translationType==='machine'?' · machine translation':''}</span></div>
-            <div className="poc-search-attribution"><Attribution hit={hit}/></div><p className="poc-search-excerpt"><Excerpt text={hit.snippet}/></p>
+            <div className="poc-search-meta"><span>{hit.kind==='answer'?'Match in institutional answer':hit.kind==='question'?'Match in question text':'Match in speech'}{hit.kind==='answer'&&hit.date?<> · <span lang={language}>{dateLabel(hit.date,language)}</span></>:''}</span><span><span lang={language}>{languageName(hit.language,language)}</span>{hit.translationType==='machine'?' · machine translation':''}</span></div>
+            <div className="poc-search-attribution"><Attribution hit={hit}/></div><p className="poc-search-excerpt" lang={hit.language||''}><Excerpt text={hit.snippet}/></p>
             <div className="poc-search-actions"><button type="button" className="poc-search-link" aria-expanded={read===key} onClick={()=>setRead(read===key?'':key)}>{read===key?'Close text':hit.kind==='speech'?'Read speech':hit.kind==='answer'?'Read answer':'Read question'}</button>
-            {versions.length>1&&<label className="poc-search-versions"><span>Matching versions</span><select value={hit.sourceKey} onChange={event=>{setVariants(previous=>({...previous,[id]:event.target.value}));if(read)setRead('');}}>{versions.map(version=><option value={version.sourceKey} key={version.sourceKey}>{languageName(version.language,language)}{versions.some(v=>v.language===version.language&&v.sourceKey!==version.sourceKey)?' · '+version.sourceKey:''}</option>)}</select></label>}</div>
+            {versions.length>1&&<label className="poc-search-versions"><span>Matching versions</span><select value={hit.sourceKey} onChange={event=>{setVariants(previous=>({...previous,[id]:event.target.value}));if(read)setRead('');}}>{versions.map(version=><option value={version.sourceKey} key={version.sourceKey} lang={language}>{languageName(version.language,language)}{versions.some(v=>v.language===version.language&&v.sourceKey!==version.sourceKey)?' · '+version.sourceKey:''}</option>)}</select></label>}</div>
             {selected&&read===key&&<StoredReader identity={selected} query={query} expectedHash={hit.sha256} sourceUrl={hit.sourceUrl} language={language}/>}</div>;})}</article>;
         })}
         {(page>0||data.nextOffset!==null)&&<nav className="poc-search-pages" aria-label="Search result pages"><button type="button" className="poc-search-link" disabled={!page||loading} onClick={()=>{setPage(Math.max(0,page-1));setRead('');}}>Previous</button><span>Page {page+1}</span><button type="button" className="poc-search-link" disabled={data.nextOffset===null||loading} onClick={()=>{setPage((data.nextOffset||0)/20);setRead('');}}>Next</button></nav>}
@@ -154,7 +154,7 @@ export function PocFindInText({target,label='Find in this text',onOpen}:{target:
     return()=>{registry?.delete(highlightId);registry?.delete(highlightId+'active');const selection=window.getSelection();if(lastSelection.current&&selection?.rangeCount&&selection.getRangeAt(0).compareBoundaryPoints(window.Range.START_TO_START,lastSelection.current)===0)selection.removeAllRanges();lastSelection.current=null;};
   },[ranges,active,open,highlightId]);
   function close(){setOpen(false);setQuery('');setRanges([]);window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
-  return <div className="poc-find-text" onKeyDown={event=>{if(event.key==='Escape'&&open){event.stopPropagation();close();}}}>
+  return <div className="poc-find-text" lang="en" onKeyDown={event=>{if(event.key==='Escape'&&open){event.stopPropagation();close();}}}>
     <button ref={toggle} type="button" className="poc-search-icon" aria-label={label} title={label} aria-expanded={open} aria-controls={id} onClick={()=>{if(open)close();else{onOpen?.();setOpen(true);}}}><Magnifier/></button>
     {open&&<><style>{'::highlight('+highlightId+'){background:#fff2a3;color:#012b5d}::highlight('+highlightId+'active){background:#ffcc33;color:#012b5d}'}</style><div className="poc-find-controls" id={id}>
       <label><span className="poc-search-sr">{label}</span><input ref={input} type="search" aria-label={label} value={query} maxLength={200} placeholder={label} onChange={event=>setQuery(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();setIndex(value=>(value+(event.shiftKey?-1:1)+Math.max(1,ranges.length))%Math.max(1,ranges.length));}}}/></label>
