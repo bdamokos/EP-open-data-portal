@@ -1,10 +1,18 @@
-import {test} from 'node:test';
+import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {createRequestBudget,requestSignal,runWithRequestSignal,waitForRequest} from './request-budget.mjs';
+
+// Configure the static fixture before the helper imports http-utils/config.
+// CI deliberately runs tests before building dist.
+const directory=await mkdtemp(path.join(os.tmpdir(),'request-budget-'));
+await writeFile(path.join(directory,'index.html'),'<h1>Explorer</h1>');
+const previousDist=process.env.EXPLORER_DIST_DIR,previousCache=process.env.ODP_CACHE_DIR;
+process.env.EXPLORER_DIST_DIR=directory;delete process.env.ODP_CACHE_DIR;
+const {createRequestBudget,requestSignal,runWithRequestSignal,waitForRequest,sharedRequest}=await import('./request-budget.mjs');
+after(async()=>{await rm(directory,{recursive:true,force:true});if(previousDist===undefined)delete process.env.EXPLORER_DIST_DIR;else process.env.EXPLORER_DIST_DIR=previousDist;if(previousCache!==undefined)process.env.ODP_CACHE_DIR=previousCache;});
 
 test('one absolute request budget follows async work while detached shared work keeps its owner',async t=>{
   t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});
@@ -20,17 +28,24 @@ test('one absolute request budget follows async work while detached shared work 
   assert.equal(owner.signal.aborted,false);finish('last good');assert.equal(await survivor,'last good');reader.dispose();
 });
 
+test('already-aborted readers consume later source rejection without an unhandled promise',async()=>{
+  const reader=new AbortController(),reason=new Error('reader closed');reader.abort(reason);
+  let rejectSource;const source=new Promise((resolve,reject)=>rejectSource=reject);
+  await assert.rejects(waitForRequest(source,reader.signal),e=>e===reason);
+  rejectSource(new Error('source later failed'));await new Promise(resolve=>setImmediate(resolve));
+  await assert.rejects(waitForRequest(Promise.reject(new Error('source already failed')),reader.signal),e=>e===reason);
+  await runWithRequestSignal(reader.signal,()=>assert.rejects(sharedRequest(()=>assert.fail('closed readers must not start a new loader')),e=>e===reason));
+});
+
 const read=(base,route)=>new Promise((resolve,reject)=>{
   const request=http.get(base+route,response=>{const chunks=[];response.on('data',chunk=>chunks.push(chunk));response.on('end',()=>resolve({status:response.statusCode,body:Buffer.concat(chunks).toString()}));});
   request.on('error',reject);
 });
 
 test('HTTP deadline releases the reader, aborts its unshared cold source and keeps health responsive',async t=>{
-  const directory=await mkdtemp(path.join(os.tmpdir(),'request-budget-'));
-  await writeFile(path.join(directory,'index.html'),'<h1>Explorer</h1>');process.env.EXPLORER_DIST_DIR=directory;
   const {server}=await import('./index.mjs');await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${server.address().port}`;
-  t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await rm(directory,{recursive:true,force:true});delete process.env.EXPLORER_DIST_DIR;});
+  t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));});
   t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()});
   let started,sourceSignal,calls=0,aborted;
   const admitted=new Promise(resolve=>started=resolve);

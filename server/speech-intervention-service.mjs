@@ -1,6 +1,7 @@
 import {odp,speechSummary} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {interventionMetadata,buildInterventionSequence,speechId,speechPeople} from './speech-interventions.mjs';
+import {sharedRequest,waitForRequest} from './request-budget.mjs';
 
 const source=record=>({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale)});
 const validId=id=>/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id||'');
@@ -10,9 +11,9 @@ export class SpeechInterventions {
   constructor({request=odp,clock=Date.now}={}) {this.request=request;this.clock=clock;this.sittings=new Map();this.members=new Map();}
   async sitting(day) {
     let state=this.sittings.get(day);
-    if(state&&this.clock()-state.at<INTERVENTION_LIMITS.cacheMs)return state.promise;
+    if(state&&this.clock()-state.at<INTERVENTION_LIMITS.cacheMs)return waitForRequest(state.promise);
     state={at:this.clock(),promise:null};
-    state.promise=(async()=>{
+    state.promise=sharedRequest(async()=>{
       const rows=new Map(),sources=[],issues=new Set();let total=null,ended=false;
       for(let page=0;page<INTERVENTION_LIMITS.sittingPages;page++) {
         const record=await this.request('/speeches',{'sitting-date':day,'include-output':'xml_fragment',language:'en','sort-by':'numbering:asc',limit:INTERVENTION_LIMITS.sittingPage,offset:page*INTERVENTION_LIMITS.sittingPage},{staleWhileRevalidate:true});
@@ -30,9 +31,9 @@ export class SpeechInterventions {
         if((record.payload.data?.length||0)<INTERVENTION_LIMITS.sittingPage||total!==null&&(page+1)*INTERVENTION_LIMITS.sittingPage>=total){ended=true;break;}
       }
       return {rows:[...rows.values()],sources,coverage:{complete:ended&&issues.size===0&&rows.size===total,available:rows.size,total,issues:[...issues]}};
-    })().catch(error=>{this.sittings.delete(day);throw error;});
+    }).catch(error=>{if(this.sittings.get(day)===state)this.sittings.delete(day);throw error;});
     this.sittings.set(day,state);while(this.sittings.size>INTERVENTION_LIMITS.selections)this.sittings.delete(this.sittings.keys().next().value);
-    return state.promise;
+    return waitForRequest(state.promise);
   }
   async context(id) {
     const record=await this.request('/speeches/'+id,{'include-output':'xml_fragment'},{staleWhileRevalidate:true});
@@ -61,10 +62,10 @@ export class SpeechInterventions {
       if(page>0){page=0;restarted=true;}
       state={at:this.clock(),page:-1,rows:new Map(),sources:[],issues:new Set(),total:null,ended:false,pending:null};this.members.set(key,state);while(this.members.size>INTERVENTION_LIMITS.selections)this.members.delete(this.members.keys().next().value);
     }
-    if(state.pending)await state.pending;
+    if(state.pending)await waitForRequest(state.pending);
     if(page>state.page+1)throw new HttpError(400,'invalid_page','Load the preceding statistics page first.');
     if(!state.ended&&page>state.page) {
-      const job=(async()=>{
+      const job=sharedRequest(async()=>{
         const record=await this.request('/speeches',{'person-id':id,'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','include-output':'xml_fragment',language:'en','sort-by':'sitting-date:desc,numbering:desc',limit:INTERVENTION_LIMITS.memberPage,offset:page*INTERVENTION_LIMITS.memberPage},{staleWhileRevalidate:true});
         state.sources.push(source(record));const total=record.payload.meta?.total;
         if(!Number.isSafeInteger(total)||total<0)state.issues.add('total-unavailable');else {if(state.total!==null&&state.total!==total)state.issues.add('total-changed');state.total=total;}
@@ -76,7 +77,7 @@ export class SpeechInterventions {
         }
         if(hitIds&&[...hitIds].some(id=>!state.rows.has(id)))state.issues.add('missing-hit');
         state.page=page;state.ended=(record.payload.data?.length||0)<INTERVENTION_LIMITS.memberPage||state.total!==null&&(page+1)*INTERVENTION_LIMITS.memberPage>=state.total;
-      })();state.pending=job;try{await job;}finally{state.pending=null;}
+      }).finally(()=>{if(state.pending===job)state.pending=null;});state.pending=job;await waitForRequest(job);
     }
     const rows=[...state.rows.values()],metadata=rows.map(interventionMetadata),count=type=>metadata.filter(m=>m.type===type).length;
     const groupOrations=metadata.filter(m=>m.onBehalfOf.some(g=>g.politicalGroup));
