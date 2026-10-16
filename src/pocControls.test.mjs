@@ -88,13 +88,38 @@ test('member deep links, module selection and restored routes keep meaningful ti
 });
 
 test('initial feature and unavailable member links have titles before data returns',async t=>{
-  for(const [query,title] of [['?view=saved','Following'],['?view=legislation','Plenary agenda'],['?view=questions','Questions'],['?view=outside','Outside voices'],['?member=999&module=activities','MEP 999 · Political activities']]) {
+  for(const [query,title] of [['?view=saved','Following'],['?view=legislation','Plenary agenda'],['?view=legislation&pl-mode=dossier','Dossiers'],['?view=legislation&pl-mode=cloud','Plenary word cloud'],['?view=legislation&pl-mode=participation','What’s hot'],['?view=legislation&pl-mode=trends','Topic timeline'],['?view=legislation&pl-mode=invalid','Plenary agenda'],['?view=questions','Questions'],['?view=outside','Outside voices'],['?member=999&module=activities','MEP 999 · Political activities']]) {
     await t.test(query,async t=>{
       const h=await harness(t,query,()=>{throw Error('Fixture unavailable');});
       const {default:PocApp}=await h.load('/src/PocApp.tsx');await h.render(createElement(PocApp));
       assert.equal(document.title,`${title} — Parliament explorer`);
     });
   }
+});
+
+test('plenary mode titles follow headings, gestures and restored queries without adding history',async t=>{
+  const h=await harness(t,'?view=legislation&pl-mode=dossier');
+  const {default:PocApp}=await h.load('/src/PocApp.tsx');
+  await h.render(createElement(PocApp));
+  assert.equal(document.title,'Dossiers — Parliament explorer');
+  const routes=[];
+  for(const [button,title] of [['Agenda','Plenary agenda'],['Word cloud','Plenary word cloud'],['What’s hot','What’s hot'],['Topic timeline','Topic timeline'],['Dossiers','Dossiers']]) {
+    const length=history.length;
+    await h.click(h.button(button));routes.push(location.href);
+    assert.equal(document.title,`${title} — Parliament explorer`);
+    assert.equal(h.container.querySelector('h1').textContent,title);
+    assert.equal(history.length,length+1,'one mode gesture adds only its existing history entry');
+  }
+  // Simulate the restored browser query; happy-dom truncates forward entries on replaceState.
+  for(const [index,title] of [[1,'Plenary word cloud'],[3,'Topic timeline'],[4,'Dossiers']]) {
+    await act(async()=>{history.replaceState(null,'',routes[index]);window.dispatchEvent(new window.PopStateEvent('popstate'));});
+    assert.equal(document.title,`${title} — Parliament explorer`);
+    assert.equal(h.container.querySelector('h1').textContent,title);
+  }
+  await h.click(h.button('Following'));
+  assert.equal(document.title,'Following — Parliament explorer');
+  await h.click(h.button('Plenary agenda'));
+  assert.equal(document.title,'Plenary agenda — Parliament explorer','returning to plenary resets its mode as before');
 });
 
 test('document disclosures stay related and accurate when documents repeat across agenda and committee events',async t=>{

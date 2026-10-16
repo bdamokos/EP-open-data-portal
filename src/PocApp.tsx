@@ -462,9 +462,9 @@ export default function PocApp() {
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = profile.data?.id === member ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || `MEP ${member}`;
-  const pageTitle = view ? {legislation:'Plenary agenda',questions:'Questions',outside:'Outside voices',saved:'Following'}[view]
+  const pageTitle = view==='legislation' ? null : view ? {questions:'Questions',outside:'Outside voices',saved:'Following'}[view]
     : member ? `${memberName} · ${tab==='profile'?c.profile:tab==='activities'?c.activities:c.speeches}` : c.title;
-  useEffect(()=>{document.title = `${pageTitle} — Parliament explorer`;},[pageTitle]);
+  useEffect(()=>{if(pageTitle)document.title = `${pageTitle} — Parliament explorer`;},[pageTitle]);
   const roleName = (value: string) =>
     value === "MEMBER_SUBSTITUTE"
       ? label("substitute", c.substitutes)
