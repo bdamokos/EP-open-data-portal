@@ -464,6 +464,11 @@ export default function PocApp() {
   );
   const unavailable = Boolean(committee && !directory?.index.complete);
   const selected = directory?.members.find((m) => m.id === member);
+  const titleMember = profile.data?.id === member ? profile.data : selected;
+  const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || `MEP ${member}`;
+  const pageTitle = view==='legislation' ? null : view ? {questions:'Questions',outside:'Outside voices',amendments:'Amendments',saved:'Following'}[view]
+    : member ? `${memberName} · ${tab==='profile'?c.profile:tab==='activities'?c.activities:tab==='amendments'?'Amendments':c.speeches}` : c.title;
+  useEffect(()=>{if(pageTitle)document.title = `${pageTitle} — Parliament explorer`;},[pageTitle]);
   const roleName = (value: string) =>
     value === "MEMBER_SUBSTITUTE"
       ? label("substitute", c.substitutes)
@@ -547,20 +552,20 @@ export default function PocApp() {
             <nav className="poc-tabs" aria-label="MEP sections">
               <button
                 className={tab === "profile" ? "selected" : ""}
-                aria-current={tab === 'profile' ? 'page' : undefined}
+                aria-pressed={tab === "profile"}
                 onClick={() => setTab("profile")}
               >
                 {c.profile}
               </button>
               <button
                 className={tab === "speeches" ? "selected" : ""}
-                aria-current={tab === 'speeches' ? 'page' : undefined}
+                aria-pressed={tab === "speeches"}
                 onClick={() => setTab("speeches")}
               >
                 {c.speeches}
               </button>
-              <button className={tab === "activities" ? "selected" : ""} aria-current={tab === 'activities' ? 'page' : undefined} onClick={() => setTab("activities")}>{c.activities}</button>
-              <button className={tab === "amendments" ? "selected" : ""} aria-current={tab === 'amendments' ? 'page' : undefined} onClick={() => setTab("amendments")}>Amendments</button>
+              <button className={tab === "activities" ? "selected" : ""} aria-pressed={tab === "activities"} onClick={() => setTab("activities")}>{c.activities}</button>
+              <button className={tab === "amendments" ? "selected" : ""} aria-pressed={tab === "amendments"} onClick={() => setTab("amendments")}>Amendments</button>
             </nav>
             <div className="poc-profile-body">
               {tab === "speeches" ? (
