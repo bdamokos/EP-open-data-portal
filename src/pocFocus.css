@@ -1,0 +1,1 @@
+.poc :is(h1,h2,h3,h4,h5,h6)[tabindex="-1"]:focus {outline:3px solid var(--focus-outline-color,var(--selected-yellow,#fff200));outline-offset:4px;}

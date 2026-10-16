@@ -14,6 +14,7 @@ type Summary={reference:string;title:string;language:string;summary:null|{id:str
 // How the document itself supports a reference: its own hyperlink, or the footnote that follows the citation.
 type Evidence={status:'hyperlink';url:string}|{status:'confirmed'|'other'|'from-note';note:string;noteId:string;others?:string[]};
 type OpenCard={key:string;text:string;trigger:HTMLElement;pinned:boolean;evidence?:Evidence};
+type OpenQuestion={id:string;trigger:HTMLElement};
 type Scope={references:Map<string,ResolvedReference>;noteKeys:Map<string,{linked:string[];cited:string[]}>;notePrefix:string;open:OpenCard|null;show:(card:OpenCard)=>void;hoverEnd:()=>void;cardId:string};
 const ReferenceScopeContext=createContext<Scope|null>(null);
 
@@ -25,6 +26,15 @@ const questionType:Record<string,string>={E:'Written question',P:'Priority quest
 const stageName=(stage:string)=>({'first-reading':'First reading','parliament-decision':'Parliament’s decision','final-act':'Final act',proposal:'Commission proposal',document:'Summary'} as Record<string,string>)[stage]||'Summary';
 const displayDate=(value:string|null|undefined,language:string)=>value?humanDate(value,language):null;
 const finePointer=()=>typeof matchMedia==='function'&&matchMedia('(hover: hover) and (pointer: fine)').matches;
+const connectedFocusTarget=(element:HTMLElement|null|undefined)=>Boolean(element?.isConnected&&!element.closest('[hidden],[inert],[aria-hidden="true"]')&&!element.matches(':disabled'));
+function returnToReference(trigger:HTMLElement|undefined,scope:HTMLElement|null) {
+  const heading=scope?.closest('section,article')?.querySelector<HTMLElement>('h1,h2,h3,h4,h5,h6');
+  const target=[trigger,heading,scope].find(connectedFocusTarget);
+  if(!target)return;
+  const temporary=!target.hasAttribute('tabindex')&&!target.matches('button,a[href],input,select,textarea,summary');
+  if(temporary){target.tabIndex=-1;target.addEventListener('blur',()=>target.removeAttribute('tabindex'),{once:true});}
+  target.focus({preventScroll:true});
+}
 
 export function useReferenceLookup(texts:string[],language:string) {
   const joined=texts.join('\u0000');
@@ -48,9 +58,9 @@ const noteIdentifies=(scope:Scope,noteId:string)=>{const note=scope.noteKeys.get
 export function ReferenceScope({texts,language,children,renderQuestion,notes=[],notePrefix=''}:{texts:string[];language:string;children:ReactNode;renderQuestion?:(id:string)=>ReactNode;notes?:DocumentNote[];notePrefix?:string}) {
   const lookup=useReferenceLookup(texts,language),references=lookup.references;
   const noteKeys=useMemo(()=>new Map(notes.map(note=>[note.id,noteReferences(note)])),[notes]);
-  const [open,setOpen]=useState<OpenCard|null>(null),[question,setQuestion]=useState<string|null>(null);
-  const wrapper=useRef<HTMLDivElement>(null),card=useRef<HTMLDivElement>(null),timer=useRef<number>(0),cardId=useId();
-  const close=useCallback((restore=false)=>{setOpen(current=>{if(restore)current?.trigger.focus();return null;});},[]);
+  const [open,setOpen]=useState<OpenCard|null>(null),[question,setQuestion]=useState<OpenQuestion|null>(null);
+  const wrapper=useRef<HTMLDivElement>(null),card=useRef<HTMLDivElement>(null),questionReader=useRef<HTMLDivElement>(null),focusedCard=useRef<OpenCard|null>(null),timer=useRef<number>(0),cardId=useId();
+  const close=useCallback((restore=false)=>{if(restore)returnToReference(open?.trigger,wrapper.current);setOpen(null);},[open]);
   const show=useCallback((next:OpenCard)=>{window.clearTimeout(timer.current);setOpen(current=>current?.pinned&&!next.pinned&&current.key!==next.key?current:next);},[]);
   const hoverEnd=useCallback(()=>{window.clearTimeout(timer.current);timer.current=window.setTimeout(()=>setOpen(current=>current?.pinned?current:null),250);},[]);
   useEffect(()=>()=>window.clearTimeout(timer.current),[]);
@@ -70,18 +80,19 @@ export function ReferenceScope({texts,language,children,renderQuestion,notes=[],
     };
     place();window.addEventListener('resize',place);return()=>window.removeEventListener('resize',place);
   },[open]);
-  useEffect(()=>{if(open?.pinned){card.current?.focus({preventScroll:true});card.current?.scrollIntoView({block:'nearest'});}},[open?.key,open?.pinned,position]);
-  const scope=useMemo(()=>({references,noteKeys,notePrefix,open,show,hoverEnd,cardId}),[references,noteKeys,notePrefix,open,show,hoverEnd,cardId]);
   const reference=open?references.get(open.key):undefined;
-  return <ReferenceScopeContext.Provider value={scope}><div className="legal-reference-scope" ref={wrapper}>
+  useEffect(()=>{if(!open){focusedCard.current=null;return;}if(open.pinned&&card.current&&focusedCard.current!==open){focusedCard.current=open;card.current.focus({preventScroll:true});card.current.scrollIntoView({block:'nearest'});}},[open,position,reference]);
+  useLayoutEffect(()=>{if(question)questionReader.current?.focus({preventScroll:true});},[question]);
+  const scope=useMemo(()=>({references,noteKeys,notePrefix,open,show,hoverEnd,cardId}),[references,noteKeys,notePrefix,open,show,hoverEnd,cardId]);
+  return <ReferenceScopeContext.Provider value={scope}><div className="legal-reference-scope" ref={wrapper} role="group" aria-label="Document text and references" tabIndex={-1}>
     {children}
     {lookup.unavailable&&<p className="legal-reference-retry" role="status">Reference details are temporarily unavailable. <button type="button" className="legal-reference-text-button" disabled={lookup.loading} onClick={lookup.retry}>{lookup.loading?'Retrying references…':'Retry references'}</button></p>}
     {open&&reference&&position&&<div ref={card} id={cardId} className="legal-reference-card" role="dialog" aria-label={open.text} tabIndex={-1} style={position}
       onPointerEnter={()=>window.clearTimeout(timer.current)} onPointerLeave={event=>{if(event.pointerType==='mouse')hoverEnd();}}>
-      <ReferenceCard reference={reference} text={open.text} language={language} evidence={open.evidence} notePrefix={notePrefix} references={references} onQuestion={renderQuestion?id=>{setQuestion(id);close();}:undefined}/>
+      <ReferenceCard reference={reference} text={open.text} language={language} evidence={open.evidence} notePrefix={notePrefix} references={references} onQuestion={renderQuestion?id=>{setQuestion({id,trigger:open.trigger});close();}:undefined}/>
       <button type="button" className="legal-reference-close" aria-label="Close" onClick={()=>close(true)}>×</button>
     </div>}
-    {question&&renderQuestion&&<div className="legal-reference-question"><button type="button" className="legal-reference-text-button" onClick={()=>setQuestion(null)}>Close referenced question</button>{renderQuestion(question)}</div>}
+    {question&&renderQuestion&&<div className="legal-reference-question" ref={questionReader} role="region" aria-label="Referenced question" tabIndex={-1}><button type="button" className="legal-reference-text-button" onClick={()=>{returnToReference(question.trigger,wrapper.current);setQuestion(null);}}>Close referenced question</button>{renderQuestion(question.id)}</div>}
   </div></ReferenceScopeContext.Provider>;
 }
 
