@@ -16,7 +16,7 @@ export function readExplorerParam(query,key,fallback,allowed) {
   if(key==='q-range'&&raw){const [start,end,...extra]=raw.split('_');if(extra.length||!validDate(start)||!validDate(end)||start>end)return fallback;}
   if(key==='ov-person'&&!/^[1-9]\d{0,12}$/.test(raw))return fallback;
   if(key==='ov-month'&&!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(raw))return fallback;
-  if(key==='hot-period'&&!(/^sitting:MTG-PL-\d{4}-\d{2}-\d{2}$/.test(raw)||raw.startsWith('week:')&&validDate(raw.slice(5))))return fallback;
+  if(['agenda-period','hot-period','cloud-period'].includes(key)&&!(/^sitting:MTG-PL-\d{4}-\d{2}-\d{2}$/.test(raw)||raw.startsWith('week:')&&validDate(raw.slice(5))&&new Date(raw.slice(5)).getUTCDay()===1))return fallback;
   return value;
 }
 

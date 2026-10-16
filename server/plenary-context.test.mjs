@@ -23,6 +23,8 @@ test('speech cloud validates exact scope, dates, page limits and countries',()=>
   const q=value=>speechCloudQuery(new URLSearchParams(value),{now:now()});
   assert.equal(q('member=125065&days=365').start,'2025-10-16');assert.equal(q('member=125065&country=GR').country,'EL');
   assert.equal(q('member=125065&days=term').start,'2024-07-16');assert.equal(q('member=125065&days=366').start,'2025-10-15');
+  assert.equal(q('week=2026-10-05').week,'2026-10-05');assert.equal(q('week=2026-10-05&page=99').page,99);
+  for(const value of ['week=2026-10-06','week=2026-02-30','week=2026-10-05&sitting=MTG-PL-2026-10-08','week=2026-10-05&days=90','week=2026-10-05&topic=MTG-PL-2026-10-08-OJ-ITM-D-72','week=2026-10-05&page=100'])assert.throws(()=>q(value),error=>error.status===400,value);
   for(const value of ['','member=125065&sitting=MTG-PL-2026-10-08','member=0','member=125065&days=823','member=125065&page=20','member=125065&lang=mt','member=125065&foo=x','member=125065&member=4465','sitting=MTG-PL-2026-10-08&days=90','sitting=MTG-PL-2026-10-08&topic=MTG-PL-2026-10-07-OJ-ITM-D-72'])assert.throws(()=>q(value),error=>error.status===400,value);
 });
 test('actual Vrionidi speech batch builds seven English transcripts with one request and no SQL writes',()=>storeFor(async store=>{
@@ -48,7 +50,31 @@ test('an unexpectedly short source page cannot claim complete transcript coverag
   const cloud=new SpeechCloudInsights(store,{clock:now,request:async()=>({...fixture.speeches,payload:{...fixture.speeches.payload,meta:{total:80}}})});
   const result=await cloud.query(speechCloudQuery(new URLSearchParams('member=125065&days=365'),{now:now()}));assert.equal(result.coverage.transcripts,7);assert.equal(result.coverage.complete,false);assert.equal(result.coverage.truncated,true);assert.equal(result.nextPage,null);
 }));
+test('a plenary week cloud reads each held sitting day and skips unheld days',()=>storeFor(async store=>{
+  const sittings=['2026-10-05','2026-10-06','2026-10-07','2026-10-08','2026-10-19'].map(date=>({activity_id:'MTG-PL-'+date,activity_date:date})),dates=[];
+  const cloud=new SpeechCloudInsights(store,{clock:()=>Date.parse('2026-10-07T08:00:00Z'),legislation:{catalogue:async()=>({sittings})},request:async(endpoint,params)=>{dates.push([params['sitting-date'],params['sitting-date-end']]);return {...fixture.speeches,payload:{meta:{total:0},data:[]}};}});
+  let result=await cloud.query(speechCloudQuery(new URLSearchParams('week=2026-10-05'),{now:now()}));
+  while(result.nextPage!==null)result=await cloud.query({...speechCloudQuery(new URLSearchParams('week=2026-10-05'),{now:now()}),page:result.nextPage});
+  assert.deepEqual(dates,[['2026-10-05','2026-10-05'],['2026-10-06','2026-10-06'],['2026-10-07','2026-10-07']]);assert.equal(result.scope.kind,'week');assert.deepEqual(result.window,{start:'2026-10-05',end:'2026-10-07',days:null});
+  const upcoming=await cloud.query(speechCloudQuery(new URLSearchParams('week=2026-10-19'),{now:now()}));assert.equal(upcoming.scope.phase,'upcoming');assert.equal(dates.length,3);
+  assert.equal((await cloud.query(speechCloudQuery(new URLSearchParams('week=2026-10-12'),{now:now()})).catch(error=>error)).status,404);
+}));
 const oct8Catalogue={catalogue:async()=>({sittings:[{activity_id:'MTG-PL-2026-10-08',activity_date:'2026-10-08'}]})};
+test('weekly cloud pagination accumulates distinct speeches across day boundaries beyond the single-day page cap',()=>storeFor(async store=>{
+  const days=['2026-10-07','2026-10-08'],calls=[],raw=fixture.speeches.payload.data[0];
+  const cloud=new SpeechCloudInsights(store,{clock:now,legislation:{catalogue:async()=>({sittings:days.map(date=>({activity_id:'MTG-PL-'+date,activity_date:date}))})},request:async(endpoint,params)=>{
+    const date=params['sitting-date'],total=date===days[0]?1000:2;calls.push([date,params.offset]);
+    const data=Array.from({length:Math.min(50,total-params.offset)},(_,i)=>({...raw,activity_id:'MTG-PL-'+date+'-OTH-'+(params.offset+i),activity_date:date,recorded_in_a_realization_of:[{'api:xmlFragment':{en:'<root><p>Climate energy transport.</p></root>'}}]}));
+    return {...fixture.speeches,payload:{meta:{total},data}};
+  }});
+  const query=speechCloudQuery(new URLSearchParams('week=2026-10-05'),{now:now()});let result=await cloud.query(query);
+  while(result.nextPage!==null)result=await cloud.query({...query,page:result.nextPage});
+  assert.equal(calls.length,21);assert.deepEqual(calls.at(-1),['2026-10-08',0]);
+  assert.equal(result.coverage.transcripts,1002);assert.equal(result.coverage.complete,true);
+  assert.equal(result.words.find(term=>term.word==='climate').speechCount,1002);
+  assert.deepEqual(result.coverage.sourceRecords,{unique:1002,declared:1002,duplicates:0,issues:[]});
+  assert(result.speeches.some(s=>s.date===days[1]));assert.equal(store.db.prepare('SELECT COUNT(*) n FROM sources').get().n,0);
+}));
 const oct8Query=()=>speechCloudQuery(new URLSearchParams('sitting=MTG-PL-2026-10-08'),{now:now()});
 test('retained chronological Oct8 pages reconcile 198 distinct IDs with the declared total',()=>storeFor(async store=>{
   store.db.exec('PRAGMA query_only=ON');const offsets=[];
