@@ -89,7 +89,7 @@ export function PocTextSearch({prefix,label,language,kinds,member,country,from,t
     return()=>{current=false;controller.abort();clearTimeout(timer);};
   },[request,activeRequest,attempt]);
   const data=state.key===request?state.data:null,loading=activeRequest&&(state.key!==request||state.loading),error=state.key===request?state.error:null;
-  const selected=parseTextReadKey(read),allHits=data?.results.flatMap(r=>r.hits)||[],selectedHit=allHits.find(hit=>textReadKey(hit)===read);
+  const selected=disabledReason||scopeChanging?null:parseTextReadKey(read),allHits=data?.results.flatMap(r=>r.hits)||[],selectedHit=allHits.find(hit=>textReadKey(hit)===read);
   function close(){setOpen(false);setClosed(query?'1':'');setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
   function submit(event:React.FormEvent){event.preventDefault();const next=draft.trim();setClosed('');if(!textLanguage)setTextLanguage(searchedLanguage);setQuery(next);setPage(0);setRead('');setVariants({});if(next===query)setAttempt(v=>v+1);}
   return <div className={'poc-text-search '+(open?'is-open ':'')+className} onKeyDown={event=>{if(event.key==='Escape'&&open){event.stopPropagation();close();}}}>
