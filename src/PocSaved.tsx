@@ -42,6 +42,7 @@ export function PocSaved({language,onBack,onMember}:{language:string;onBack:()=>
   const [attempt,setAttempt]=useState(0),[completion,setCompletion]=useState<{items:SavedItem[];message:string}|null>(null);
   useEffect(()=>{active.current=true;setChecking(false);setError('');setCompletion(null);return()=>{active.current=false;request.current++;};},[context]);
   const check=()=>{
+    if(checking)return;
     const token=++request.current;setAttempt(token);setChecking(true);setError('');setCompletion(null);
     const current=()=>active.current&&request.current===token&&store.snapshot().items.map(savedKey).sort().join(',')===key;
     void checkSaved(language,true).then(result=>{if(!current()||!result||result.requestedKey!==key)return;const settled=store.snapshot().items;setCompletion({items:settled,message:savedCheckMessage(settled,result.data)});}).catch(e=>{if(current()){setError((e as Error).message);setCompletion({items:store.snapshot().items,message:'Could not check for updates. Saved items are still shown.'});}}).finally(()=>{if(current())setChecking(false);});
@@ -49,7 +50,7 @@ export function PocSaved({language,onBack,onMember}:{language:string;onBack:()=>
   return <section className="poc-saved-view" lang="en">
     <PocStatus scope={`saved-check:${context}:${attempt}`} message={completion?.items===items?completion.message:null} pending={checking}/>
     <button onClick={onBack}>← Back</button>
-    <div className="poc-saved-heading"><h1>Following</h1><button onClick={check} disabled={checking||!items.length}>{checking?'Checking…':'Check for updates'}</button></div>
+    <div className="poc-saved-heading"><h1>Following</h1><button onClick={check} disabled={!items.length} aria-disabled={checking||undefined} style={checking?{opacity:.45,cursor:'default'}:undefined}>{checking?'Checking…':'Check for updates'}</button></div>
     <p className="poc-saved-caption">MEPs and questions you follow on this device.</p>
     {!saved.persistent&&<p role="alert">Browser storage is unavailable. Your follows will last until this page closes.</p>}
     {error&&<p>{error}</p>}
