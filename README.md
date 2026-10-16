@@ -25,6 +25,8 @@ ODP_CACHE_DIR="$PWD/var/cache" ACTIVITY_INDEX_DIR="$PWD/var/index" ACTIVITY_INDE
 
 The indexer starts with bounded requests and retains its progress. Initial coverage is partial and is shown in the interface. Do not run two processes against the same index directory. Cache and index data stay outside Git. `.env.example` lists the available settings; load environment variables through your shell or service manager.
 
+For full-text search, add `CORPUS_ENABLED=true CORPUS_DIR="$PWD/var/corpus"`. A background worker stores speech texts and question/answer texts in `corpus-v1.sqlite`, searchable through `/api/corpus/search` and joined read-only to the activity index; `/api/corpus/status` reports coverage. It pauses at `CORPUS_MAX_DISK_MIB`. See [Public data sources](docs/PUBLIC_DATA.md#full-text-corpus).
+
 When `ODP_CACHE_DIR` is set, requested portraits persist in its `portraits-v1` subdirectory across restarts. Fresh saved images need no profile API or image request. The cache fills on demand and caps image files plus metadata at 128 MiB / 2,048 portraits, removing the oldest saved images as needed. RAM holds at most 8 MiB / 120 portraits. Images refresh after seven days; a saved image stays available during refresh or upstream failure, with failed requests retried after five minutes. Without a writable cache directory, portraits use the bounded RAM cache and a disk failure is logged once. Use one source-cache writer per directory; retain the cache mount when replacing a container.
 
 For frontend development, run `npm run dev:api` and `npm run dev` in separate terminals. Following is browser-local and persists across visits to the same origin.
