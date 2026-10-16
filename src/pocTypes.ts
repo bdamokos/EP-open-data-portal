@@ -181,6 +181,7 @@ export interface JoinedActivity {
   reference: string;
   files: DocumentFile[];
   answerStatus?: 'answered' | 'awaiting';
+  answerIds?: string[];
   resolutionOutcome?: MotionOutcome;
   relatedJointMotions?: RelatedJointMotion[];
   relatedQuestionId?: string;

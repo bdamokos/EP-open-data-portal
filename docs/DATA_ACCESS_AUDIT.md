@@ -25,3 +25,5 @@ Speech intervention classification, exchange reconstruction and MEP speaking sta
 No production cache or database was copied into the initial repository. Git history starts with the standalone source. Hosting access controls and private Git authentication are separate from parliamentary data acquisition and remain outside source control.
 
 `npm test` checks the read-only routing boundary, allowed configuration and absence of authenticated data adapters. Future sources must document their public acquisition path here before being added. Failed public access must remain a reported gap; it must not trigger use of internal credentials or protection bypasses.
+
+Activity grouping and Following answer updates read the existing saved public question/answer relationships. No external source, upstream request, index migration, or additional writer is introduced. Browser follows remain local to the device.

@@ -189,7 +189,8 @@ export class ActivityStore {
     const member=this.db.prepare('SELECT body FROM members WHERE id=?').get(String(mep));
     if (!member) return null;
     const status=this.status(), generation=status.servingGeneration;
-    const where='generation=? AND mep=?'+(category?' AND category=?':'');
+    const activityOnly=" AND COALESCE(json_extract(body,'$.recordKind'),'document')<>'answer'";
+    const where='generation=? AND mep=?'+activityOnly+(category?' AND category=?':'');
     const params=[generation,String(mep),...(category?[category]:[])];
     const total=this.db.prepare('SELECT COUNT(*) AS n FROM items WHERE '+where).get(...params).n;
     const sittingSources=new Map(), outcomes=new Map();
@@ -225,7 +226,7 @@ export class ActivityStore {
     };
     const items=this.db.prepare('SELECT body FROM items WHERE '+where+' ORDER BY date DESC,source_id DESC,category LIMIT ? OFFSET ?').all(...params,limit,offset).map(r=>present(r.body));
     const selectedItems=sourceId?this.db.prepare('SELECT body FROM items WHERE generation=? AND mep=? AND source_id=? ORDER BY category').all(generation,String(mep),sourceId).map(r=>present(r.body)):[];
-    const counts=Object.fromEntries(this.db.prepare('SELECT category,COUNT(*) AS count FROM items WHERE generation=? AND mep=? GROUP BY category').all(generation,String(mep)).map(r=>[r.category,r.count]));
+    const counts=Object.fromEntries(this.db.prepare('SELECT category,COUNT(*) AS count FROM items WHERE generation=? AND mep=?'+activityOnly+' GROUP BY category').all(generation,String(mep)).map(r=>[r.category,r.count]));
     const categoryCoverage=Object.fromEntries(Object.keys(CATEGORIES).map(id=> {
       const reason=CATEGORY_GAPS[id] || (status.unresolvedCategories.includes(id)?id==='reports-shadow'?'Some report-stage joins are unresolved.':'Some source relationships or dates are incomplete.':null) || (['motions','individual-motions'].includes(id) && counts['unclassified-motions']?'Some motions lack a verified EP-rule classification.':null);
       const state=CATEGORY_GAPS[id]?'source-not-verified':!status.complete?'backfilling':reason?'incomplete-joins':'available';
@@ -233,7 +234,7 @@ export class ActivityStore {
     }));
     const exactTotal=category?categoryCoverage[category]?.status==='available':status.complete;
     return { mepId:Number(mep), member:parse(member.body), term:10, requestedLanguage:language, category, total:exactTotal?total:null, indexedTotal:total, offset, limit, nextOffset:offset+items.length<total?offset+items.length:null,
-      order:'source activity/document date descending; source ID and category break ties', cache:status, categories:CATEGORIES, categoryGroups:CATEGORY_GROUPS, categoryCoverage, unclassifiedMotionCount:counts['unclassified-motions'] || 0, selectedItems, items };
+      order:'MEP activity/question date descending; answers remain attached to their question; source ID and category break ties', cache:status, categories:CATEGORIES, categoryGroups:CATEGORY_GROUPS, categoryCoverage, unclassifiedMotionCount:counts['unclassified-motions'] || 0, selectedItems, items };
   }
   close() { this.release();this.db.close(); }
 }
