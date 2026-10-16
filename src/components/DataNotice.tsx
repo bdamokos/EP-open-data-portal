@@ -9,7 +9,7 @@ const links={
 
 // Attribution and reuse terms for the public sources listed in docs/PUBLIC_DATA.md.
 export function DataNotice({className=''}:{className?:string}) {
-  return <details className={`data-notice ${className}`}>
+  return <details className={`data-notice ${className}`} lang="en">
     <summary>Public European Parliament data · Not an official Parliament service</summary>
     <div className="data-notice__body">
       <p>Parliament open data: © European Union – Source: European Parliament, from the <a href={links.openData}>Open Data Portal</a>, licensed under <a href={links.ccBy}>CC BY 4.0</a>.</p>
