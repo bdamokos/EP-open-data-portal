@@ -1,7 +1,7 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { stat } from 'node:fs/promises';
 import { ODP_BASE, boundedUpstream, backoffUpstream } from './odp.mjs';
-import { amendmentTask, scheduleAmendments, prepareAmendments, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
+import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
 import { projectAmendmentDecisions, projectAmendmentSplits } from './amendments.mjs';
 import { nextAmendmentTask } from './amendments-store.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
@@ -315,15 +315,7 @@ export class ActivityWorker {
   }
 
   scheduleMotionOutcomes(generation,work) {
-    const today=day(this.clock());
-    for(const sittingId of motionSittings(work)) {
-      const sittingDate=sittingId.slice(7);
-      if(sittingDate>today)continue;
-      const saved=this.store.source(generation,motionSourceKey(sittingId));
-      const ttl=this.clock()-Date.parse(sittingDate)<14*DAY ? 6*60*60_000 : 7*DAY;
-      if(saved && !saved.work.truncated && !saved.work.lastRefreshFailure && this.clock()-Date.parse(saved.fetchedAt)<ttl)continue;
-      this.store.enqueue(generation,motionSourceKey(sittingId)+':'+today,'motion-outcomes',{sittingId,stage:'results',offset:0,results:[],decisions:[],sources:[]},102);
-    }
+    for(const sittingId of motionSittings(work))scheduleSittingOutcomes(this,generation,sittingId,{priority:102});
   }
   prepareMotionOutcomes(generation) {
     for(const source of this.store.iterateSources(generation,'document')) {

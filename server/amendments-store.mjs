@@ -79,7 +79,10 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
         continue;
       }
       const stale=[];
-      for(const field of incoming.conflicted?[]:['originalText','proposedText','targetLabel','language','listId','justification','onBehalfOf'])if(incoming[field]==null&&old[field]!=null){incoming[field]=old[field];stale.push(field);}
+      for(const field of incoming.conflicted?[]:['originalText','proposedText','targetLabel','language','listId','justification','onBehalfOf']){
+        if(['originalText','proposedText'].includes(field)&&(incoming.textIntegrity==='incomplete'||old.textIntegrity==='incomplete'))continue;
+        if(incoming[field]==null&&old[field]!=null){incoming[field]=old[field];stale.push(field);}
+      }
       if(!incoming.conflicted && !incoming.authors?.length && old.authors?.length){incoming.authors=old.authors;stale.push('authors');}
       else incoming.authors=(incoming.authors || []).map(author=>{
         const accepted=(old.authors || []).find(item=>item.name===author.name&&item.personId!=null);

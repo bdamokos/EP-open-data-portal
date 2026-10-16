@@ -47,7 +47,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'2');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'3');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -93,6 +93,39 @@ test('empty insertion cells and multirow deletions remain distinct from unavaila
   assert.equal(amendments[0].originalText,'');assert.equal(amendments[0].proposedText,'New paragraph.');
   assert.equal(amendments[1].originalText,'First line\nSecond line');assert.equal(amendments[1].proposedText,'deleted');
   assert.deepEqual(gaps,[]);
+  assert.deepEqual(amendments.map(amendment=>amendment.gaps),[[],[]]);
+});
+
+test('first ingestion withholds both columns after a lost row and attaches the numbered evidence gap to its record',()=>{
+  const supported=row(cell(p('First original row')),cell(p('First proposed row')));
+  const unsupported=[
+    {code:'comparison-columns',comparison:table(supported,row(cell(p('Lost original')),cell(p('Lost proposal')),cell(p('Unsupported third cell'))))},
+    // A nested-only row has no flattened outer-cell text. It must still count
+    // as a lost comparison row rather than an ignorable blank separator.
+    {code:'nested-table',comparison:table(supported,row(cell(table(row(cell(p('Nested legal text')),cell(p('Nested proposal'))))),cell(p(''))))},
+    {code:'comparison-header',comparison:table(supported)+'<w:tbl>'+row(cell(p('Unknown original heading')),cell(p('Unknown proposed heading')))+row(cell(p('Lost original')),cell(p('Lost proposal')))+'</w:tbl>'},
+  ];
+  for(const {code,comparison} of unsupported) {
+    const xml=body(metadata()+comparison+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('A complete insertion.'))))+p('</Amend>'));
+    const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+    const affected=result.amendments.find(amendment=>amendment.number===1);
+    assert.equal(affected.originalText,null,code);assert.equal(affected.proposedText,null,code);
+    assert(affected.gaps.some(gap=>gap.code===code&&gap.number===1&&gap.sourceUrl===options.sourceUrl),code);
+    assert.deepEqual(affected.gaps,result.gaps.filter(gap=>gap.number===1));
+    const intact=result.amendments.find(amendment=>amendment.number===2);
+    assert.equal(intact.originalText,'');assert.equal(intact.proposedText,'A complete insertion.');assert.deepEqual(intact.gaps,[]);
+  }
+});
+
+test('an unscoped numbering failure withholds wording and exposes the document-scoped gap on every amendment',()=>{
+  const unsupportedNumbering='<w:p><w:pPr><w:numPr><w:numId w:val="77"/></w:numPr></w:pPr>'+run('A paragraph whose legal number cannot be read.')+'</w:p>';
+  const xml=body(metadata()+table(row(cell(unsupportedNumbering),cell(p('Proposed wording'))))+p('</Amend>')+metadata(2)+table(row(cell(p('Other original')),cell(p('Other proposal'))))+p('</Amend>'));
+  const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+  assert(result.gaps.some(gap=>gap.code==='numbering-warning'&&gap.number==null));
+  for(const amendment of result.amendments) {
+    assert.equal(amendment.originalText,null);assert.equal(amendment.proposedText,null);
+    assert(amendment.gaps.some(gap=>gap.code==='numbering-warning'&&gap.number===amendment.number&&gap.scope==='document'));
+  }
 });
 
 test('a missing proposer is explicit and a rapporteur or responsible group cannot replace one',()=>{
@@ -100,6 +133,8 @@ test('a missing proposer is explicit and a rapporteur or responsible group canno
   const result=extractAmendments(archive(xml),options);
   assert.deepEqual(result.amendments[0].authors,[]);
   assert(result.gaps.some(g=>g.code==='authors-unavailable'&&g.number===1));
+  assert(result.amendments[0].gaps.some(g=>g.code==='authors-unavailable'&&g.number===1));
+  assert.equal(result.amendments[0].originalText,'Old');assert.equal(result.amendments[0].proposedText,'New');
 });
 
 test('duplicate numbers are withheld and partial list coverage is reported',()=>{
@@ -143,6 +178,8 @@ test('unknown column orientation and footnote omissions produce explicit extract
   const footnote='<w:p>'+run('Old')+'<w:r><w:footnoteReference w:id="2"/></w:r></w:p>';
   const notes=extractAmendments(archive(body(metadata()+table(row(cell(footnote),cell(p('New'))))+p('</Amend>'))),options);
   assert(notes.gaps.some(g=>g.code==='notes-unavailable'));
+  assert(notes.amendments[0].gaps.some(g=>g.code==='notes-unavailable'&&g.number===1));
+  assert.equal(notes.amendments[0].originalText,'Old');assert.equal(notes.amendments[0].proposedText,'New');
 });
 
 test('invalid archives and XML entities are rejected by the same bounded DOCX reader',()=>{

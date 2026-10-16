@@ -27,6 +27,12 @@ const request=(parts)=>({id:'eli/dl/event/'+sitting+'-VOT-ITM-123-SPLIT-1',had_a
 const coverage={complete:true,gaps:[],lastUpdated:earlier};
 const metadata={id:targetId,date:tabled,titles:target.title_dcterms,procedureIds:['2025-0233']};
 const row=(number,extra={})=>({id:targetId+'-AM-'+number,targetDocumentId:targetId,number,date:tabled,titles:target.title_dcterms,procedureIds:['2025-0233'],authors:[],decisions:[],gaps:[],...extra});
+const completeSitting=(sittingId=sitting)=>({
+  amendmentVersion:AMENDMENTS_VERSION,splitRequests:[],coverage:{missingResultIds:[],missingDecisionIds:[]},truncated:false,lastRefreshFailure:null,
+  results:[{id:'eli/dl/event/'+sittingId+'-VOT-ITM-123',consists_of:['eli/dl/event/'+sittingId+'-DEC-1'],sittingResultIds:[]}],
+  decisions:[{...decision(1,['eli/dl/doc/'+targetId+'-AM-1'],'ADOPTED'),id:'eli/dl/event/'+sittingId+'-DEC-1'}],
+});
+const outcomeJobs=(store,generation)=>store.db.prepare("SELECT * FROM tasks WHERE generation=? AND kind='motion-outcomes' ORDER BY key").all(generation);
 
 function setup(t) {
   const directory=mkdtempSync(path.join(os.tmpdir(),'amendments-test-'));
@@ -433,6 +439,73 @@ test('amendment work has durable retries without changing legacy task progress o
   store.finishTask(resumed);assert.equal(nextAmendmentTask(store,next.generation),null);
 });
 
+test('report-only sittings refresh stale outcomes using recent and older sitting cache lifetimes',t=>{
+  const cases=[
+    [sitting,5*60*60_000,false],
+    [sitting,7*60*60_000,true],
+    ['MTG-PL-2026-09-01',6*24*60*60_000,false],
+    ['MTG-PL-2026-09-01',8*24*60*60_000,true],
+  ];
+  for(const [sittingId,age,refresh] of cases) {
+    const {store,worker,generation}=setup(t);
+    const work={...target,inverse_based_on_a_realization_of:['eli/dl/event/'+sittingId+'-VOT-ITM-123']};
+    store.putSource(generation,motionSourceKey(sittingId),'motion-outcomes',completeSitting(sittingId),new Date(Date.parse(fetchedAt)-age).toISOString());
+    scheduleAmendments(worker,generation,work,fetchedAt,'/plenary-documents/'+targetId);
+    const jobs=outcomeJobs(store,generation);
+    assert.equal(jobs.length,refresh?1:0,sittingId+' age '+age);
+    if(refresh) {
+      assert.equal(jobs[0].key,motionSourceKey(sittingId)+':2026-10-16');
+      assert.equal(JSON.parse(jobs[0].body).sittingId,sittingId);
+      assert.equal(JSON.parse(jobs[0].body).stage,'results');
+    }
+  }
+});
+
+test('incomplete report sitting caches are refreshed even when their retrieval timestamp is fresh',t=>{
+  const cases=[
+    {truncated:true},
+    {lastRefreshFailure:{attemptedAt:earlier}},
+    {coverage:{missingResultIds:['eli/dl/event/missing-result'],missingDecisionIds:[]}},
+    {coverage:{missingResultIds:[],missingDecisionIds:['eli/dl/event/missing-decision']}},
+    {amendmentVersion:0},
+    {splitRequests:null},
+    {results:[]},
+    {decisions:[]},
+  ];
+  for(const incomplete of cases) {
+    const {store,worker,generation}=setup(t);
+    store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',{...completeSitting(),...incomplete},fetchedAt);
+    scheduleAmendments(worker,generation,target,fetchedAt,'/plenary-documents/'+targetId);
+    assert.equal(outcomeJobs(store,generation).length,1,JSON.stringify(incomplete));
+  }
+});
+
+test('reports and motions reuse one sitting refresh and do not repeat a completed attempt on the same day',t=>{
+  const {store,worker,generation}=setup(t);
+  scheduleAmendments(worker,generation,target,fetchedAt,'/plenary-documents/'+targetId);
+  worker.scheduleMotionOutcomes(generation,{...target,identifier:otherTarget,id:'eli/dl/doc/'+otherTarget,work_type:'def/ep-document-types/RESOLUTION_MOTION'});
+  let jobs=outcomeJobs(store,generation);
+  assert.equal(jobs.length,1);assert.equal(jobs[0].key,motionSourceKey(sitting)+':2026-10-16');
+  store.finishTask(jobs[0]);
+  scheduleAmendments(worker,generation,target,fetchedAt,'/plenary-documents/'+targetId);
+  worker.scheduleMotionOutcomes(generation,target);
+  jobs=outcomeJobs(store,generation);
+  assert.equal(jobs.length,1);assert.equal(jobs[0].done,1);
+});
+
+test('an existing sitting task under an older amendment key preserves its pagination and retry state',t=>{
+  const {store,worker,generation}=setup(t);
+  const key=motionSourceKey(sitting)+':amendments:2026-10-15';
+  const body={sittingId:sitting,stage:'decisions',offset:1000,results:[{id:'saved-result'}],decisions:[{id:'saved-decision'}],splits:[{id:'saved-split'}],sources:[{url:sourceUrl,fetchedAt:earlier}]};
+  store.enqueue(generation,key,'motion-outcomes',body,113);
+  store.db.prepare('UPDATE tasks SET attempts=3,retry_at=?,error=? WHERE generation=? AND key=?').run(Date.parse(fetchedAt)+60_000,'Retained upstream failure',generation,key);
+  const before=outcomeJobs(store,generation);
+  scheduleAmendments(worker,generation,target,fetchedAt,'/plenary-documents/'+targetId);
+  worker.scheduleMotionOutcomes(generation,target);
+  assert.deepEqual(outcomeJobs(store,generation),before);
+  assert.deepEqual(JSON.parse(outcomeJobs(store,generation)[0].body),body);
+});
+
 test('candidate workers recover retained amendment rows and cursors after a legacy worker advances core generations',t=>{
   for(const legacyCreatedWorking of [false,true]) {
     const {store,generation}=setup(t);
@@ -497,7 +570,7 @@ test('losing a comparison row within the same amendment retains its full accepte
   const accepted=extractAmendments(comparisonDocx([['Before one','After one'],['Before two','After two']]),{listId:singleListId,targetDocumentId:targetId,language:'en',sourceUrl:oldUrl,fetchedAt:earlier});
   const degraded=comparisonDocx([['Changed one','Changed proposal one'],['Before two','After two','Unsupported extra column']]);
   const fresh=extractAmendments(degraded,{listId:singleListId,targetDocumentId:targetId,language:'en',sourceUrl:newUrl,fetchedAt});
-  assert.equal(fresh.amendments[0].number,1);assert.equal(fresh.amendments[0].proposedText,'Changed proposal one');
+  assert.equal(fresh.amendments[0].number,1);assert.equal(fresh.amendments[0].proposedText,null);
   assert(fresh.gaps.some(gap=>gap.code==='comparison-columns'&&gap.number===1));
   store.putSource(generation,'/plenary-documents/'+targetId,'document',target,earlier);
   store.putSource(generation,'amendment:list:'+singleListId,'amendment-list',{...list([]),id:'eli/dl/doc/'+singleListId,identifier:singleListId,files:[{format:'DOCX',language:'en',url:newUrl}],extraction:{...accepted,sourceUrl:oldUrl,fetchedAt:earlier,language:'en',parserVersion:AMENDMENT_EXTRACTION_VERSION}},earlier);
@@ -514,6 +587,28 @@ test('losing a comparison row within the same amendment retains its full accepte
   const [item]=amendmentsPage(store,{document:targetId}).items;
   assert.equal(item.originalText,'Before one\nBefore two');assert.equal(item.proposedText,'After one\nAfter two');
   assert(item.sources.some(source=>source.url===oldUrl&&source.fetchedAt===earlier));
+});
+
+test('a failed v3 parse cannot resurrect structurally incomplete wording cached by extractor v2',async t=>{
+  const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001';
+  const oldUrl='https://data.europarl.europa.eu/distribution/example/partial_v2_en.docx',newUrl='https://data.europarl.europa.eu/distribution/example/refreshed_v3_en.docx';
+  const structuralGap={code:'comparison-columns',number:1,message:'A comparison row does not contain exactly two columns.',sourceUrl:oldUrl};
+  const cached=amendment(1,{originalText:'Cached first row only',proposedText:'Cached proposed first row only'});
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',target,earlier);
+  store.putSource(generation,'amendment:list:'+singleListId,'amendment-list',{...list([]),id:'eli/dl/doc/'+singleListId,identifier:singleListId,files:[{format:'DOCX',language:'en',url:newUrl}],extraction:{amendments:[cached],gaps:[structuralGap],sourceUrl:oldUrl,fetchedAt:earlier,language:'en',parserVersion:'2'}},earlier);
+  saveAmendmentRows(store,generation,metadata,[row(1,{originalText:cached.originalText,proposedText:cached.proposedText,splitParts:[],sources:[{url:oldUrl,fetchedAt:earlier}]})],{...coverage,complete:false});
+  const damaged=comparisonDocx([['Fresh first row','Fresh proposed first row'],['Unsupported second row','Second proposal','Extra column']]);
+  worker.downloadAmendmentDocx=async()=>({buffer:damaged});
+  enqueueAmendment(store,generation,'v2-to-v3','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
+  await worker.task(nextAmendmentTask(store,generation));
+  const saved=store.source(generation,'amendment:list:'+singleListId);
+  assert.equal(saved.fetchedAt,fetchedAt);assert.equal(saved.work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+  assert.equal(saved.work.extraction.amendments[0].originalText,null);assert.equal(saved.work.extraction.amendments[0].proposedText,null);
+  assert(saved.work.extraction.gaps.some(gap=>gap.code==='comparison-columns'));
+  const page=amendmentsPage(store,{document:targetId}),[item]=page.items;
+  assert.equal(item.originalText,null);assert.equal(item.proposedText,null);
+  assert.equal(item.textIntegrity,'incomplete');
+  assert.equal(page.coverage.complete,false);
 });
 
 test('missing authors or non-English text alone do not reject otherwise complete refreshed columns',async t=>{
