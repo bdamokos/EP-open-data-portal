@@ -7,14 +7,16 @@ import { XMLParser,XMLValidator } from 'fast-xml-parser';
 import { boundedUpstream } from './odp.mjs';
 import { documentFiles,array,tail } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
+import {numberingLabels} from './docx-numbering.mjs';
+import {noteNumbering} from './docx-note-numbering.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
-// 4: hidden text (v3) together with footnotes and hyperlink spans.
-const EXTRACTION_VERSION=4;
+// 6: empty list items and independent, source-formatted footnote/endnote numbering.
+const EXTRACTION_VERSION=6;
 const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500});
 const memory=new Map(),pending=new Map(),failures=new Map();
-const DOCX_PARTS=['word/document.xml','word/styles.xml','word/_rels/document.xml.rels','word/footnotes.xml','word/_rels/footnotes.xml.rels'];
-// Read only standard document, style, footnote and relationship entries. No archive paths are written to disk.
+const DOCX_PARTS=['word/document.xml','word/styles.xml','word/numbering.xml','word/settings.xml','word/_rels/document.xml.rels','word/footnotes.xml','word/_rels/footnotes.xml.rels','word/endnotes.xml','word/_rels/endnotes.xml.rels'];
+// Read only standard text, style, numbering, note and relationship parts. No archive paths are written to disk.
 function docxParts(buffer) {
   if(buffer.length>MAX_FILE || buffer.length<22)throw new Error('DOCX size is unsupported.');
   let end=-1;
@@ -120,8 +122,11 @@ function paragraphsOf(nodes,context,result=[]) {
     if(key==='w:p'){
       const out={text:'',marks:[],spans:[]};
       inline(value,context.style.styledHidden(property(children(value,'w:pPr'),'w:pStyle') || context.style.defaultParagraph,context.style.defaults),out,context);
+      const properties=children(value,'w:pPr'),label=context.numberLabel?.(properties),section=context.section;
+      if(context.section!==undefined&&children(properties,'w:sectPr'))context.section++;
+      if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}}
       const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
-      if(text)result.push({text,marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start)});
+      if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start)});
     }
     else if(key!==':@'&&Array.isArray(value))paragraphsOf(value,context,result);
   }
@@ -129,36 +134,44 @@ function paragraphsOf(nodes,context,result=[]) {
 }
 // Paragraphs stay plain strings. Footnotes and links are returned separately with exact positions.
 export function docxContent(buffer) {
-  const parts=docxParts(buffer),style=styleVisibility(parts.get('word/styles.xml'));
-  const body=paragraphsOf(parser().parse(parts.get('word/document.xml')),{style,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
+  const parts=docxParts(buffer),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set();
+  const numberLabel=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),warnings);
+  const document=parser().parse(parts.get('word/document.xml')),noteLabel=noteNumbering(document,parts.get('word/settings.xml'),warnings);
+  const body=paragraphsOf(document,{style,numberLabel,section:0,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
   if(!body.length || body.length>20000 || body.map(p=>p.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
   const supplied=new Map();
-  if(parts.has('word/footnotes.xml')) {
-    const context={style,links:externalLinks(parts.get('word/_rels/footnotes.xml.rels'))};
-    for(const node of children(parser().parse(parts.get('word/footnotes.xml')),'w:footnotes')||[]) {
-      if(!node['w:footnote']||!['normal',undefined].includes(attribute(node,'type')))continue;
-      const paragraphs=paragraphsOf(node['w:footnote'],context),spans=[];let offset=0;
+  for(const kind of ['footnote','endnote'])if(parts.has('word/'+kind+'s.xml')) {
+    const context={style,numberLabel,links:externalLinks(parts.get('word/_rels/'+kind+'s.xml.rels'))};
+    for(const node of children(parser().parse(parts.get('word/'+kind+'s.xml')),'w:'+kind+'s')||[]) {
+      if(!node['w:'+kind]||!['normal',undefined].includes(attribute(node,'type')))continue;
+      const paragraphs=paragraphsOf(node['w:'+kind],context),spans=[];let offset=0;
       for(const part of paragraphs){spans.push(...part.spans.map(span=>({...span,start:span.start+offset,end:span.end+offset})));offset+=part.text.length+1;}
       const text=paragraphs.map(p=>p.text).join('\n').slice(0,NOTE_LIMITS.text);
-      supplied.set(String(attribute(node,'id')),{text,spans:spans.filter(span=>span.end<=text.length).slice(0,NOTE_LIMITS.links)});
+      const key=(kind==='endnote'?'endnote:':'')+String(attribute(node,'id'));
+      supplied.set(key,{text,truncated:offset-1>NOTE_LIMITS.text,spans:spans.filter(span=>span.end<=text.length).slice(0,NOTE_LIMITS.links)});
     }
   }
-  const notes=[],anchors=[];
+  const notes=[],anchors=[],labels=new Map();
   body.forEach((paragraph,index)=>{for(const mark of paragraph.marks) {
-    if(mark.kind!=='w:footnoteReference'||!supplied.has(mark.id))continue;
-    let note=notes.find(n=>n.id===mark.id);
+    if(!['w:footnoteReference','w:endnoteReference'].includes(mark.kind))continue;
+    const id=(mark.kind==='w:endnoteReference'?'endnote:':'')+mark.id;
+    if(!labels.has(id))labels.set(id,mark.label||noteLabel(mark.kind,paragraph.section,mark.custom));
+    if(!supplied.has(id)){warnings.add('A referenced footnote or endnote is missing.');continue;}
+    let note=notes.find(n=>n.id===id);
     if(!note){
-      if(notes.length>=NOTE_LIMITS.notes)continue;
-      const label=mark.label||String(notes.length+1),source=supplied.get(mark.id);
+      if(notes.length>=NOTE_LIMITS.notes){warnings.add('The referenced notes exceed the supported note count.');continue;}
+      const label=labels.get(id),source=supplied.get(id);
+      if(source.truncated)warnings.add('A referenced note exceeds the supported text size.');
+      if(!source.text)warnings.add('A referenced footnote or endnote is empty.');
       // A custom mark repeats its label as ordinary footnote text; automatic numbering does not.
       const text=mark.custom&&mark.label&&source.text.startsWith(label)&&/^[\s.)]/.test(source.text.slice(label.length))?source.text.slice(label.length).replace(/^[\s.)]+/,''):source.text,removed=source.text.length-text.length;
       const linkSpans=source.spans.map(span=>({...span,start:span.start-removed,end:span.end-removed})).filter(span=>span.start>=0);
-      note={id:mark.id,label,text,links:[...new Set(source.spans.map(span=>span.url))],linkSpans};notes.push(note);
+      note={id,label,text,links:[...new Set(source.spans.map(span=>span.url))],linkSpans};notes.push(note);
     }
     anchors.push({paragraph:index,offset:mark.offset,note:note.id,label:note.label});
   }});
   const links=body.flatMap((paragraph,index)=>paragraph.spans.map(span=>({paragraph:index,...span}))).slice(0,NOTE_LIMITS.documentLinks);
-  return {paragraphs:body.map(p=>p.text),notes,anchors,links};
+  return {paragraphs:body.map(p=>p.text),notes,anchors,links,extractionWarnings:[...warnings]};
 }
 export const docxParagraphs=buffer=>docxContent(buffer).paragraphs;
 
@@ -198,7 +211,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const languages=[...new Set(files.map(f=>f.language).filter(Boolean))];
   const originals=array(work.originalLanguage).map(languageCode);
   const chosen=files.find(f=>f.language===language) || files.find(f=>originals.includes(f.language)) || files.find(f=>f.language==='en') || files[0];
-  const base={status:'unavailable',paragraphs:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
+  const base={status:'unavailable',paragraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
   const key=chosen.url,file=directory && path.join(directory,'document-text-v1',createHash('sha256').update(key).digest('hex')+'.json');
   let saved=memory.get(key);
@@ -213,8 +226,9 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
     pending.set(key,job);return job;
   };
   const failure=failures.get(key);
-  if(saved){const stale=clock()-Date.parse(saved.fetchedAt)>=DAY;if(stale && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...base,status:'available',paragraphs:saved.paragraphs,...documentNotes(saved),fetchedAt:saved.fetchedAt,stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
+  const present=record=>({...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
+  if(saved){const stale=clock()-Date.parse(saved.fetchedAt)>=DAY;if(stale && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
-  try {const record=await refresh('interactive');return {...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),fetchedAt:record.fetchedAt};}
+  try {const record=await refresh('interactive');return present(record);}
   catch(error){return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(failures.get(key).retryAt).toISOString()};}
 }

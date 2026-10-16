@@ -1,4 +1,6 @@
 import type { MotionOutcome, RelatedJointMotion } from './pocTypes';
+import {useState} from 'react';
+import {PocMotionComparison} from './PocMotionComparison';
 import './PocMotionOutcome.css';
 
 const labels = { adopted:'Adopted', rejected:'Rejected', lapsed:'Lapsed', withdrawn:'Withdrawn', unavailable:'Outcome unavailable' };
@@ -34,6 +36,10 @@ function readableDocumentUrl(value:string|null) {
     return url.protocol==='https:' && url.hostname==='data.europarl.europa.eu' && /^\/distribution\/.+\.(pdf|docx)$/i.test(url.pathname) ? url.href : null;
   } catch { return null; }
 }
+function CompareWording({originalId,jointId,language}:{originalId:string;jointId:string;language:string}) {
+  const [open,setOpen]=useState(false);
+  return <details className="poc-motion-compare" onToggle={event=>setOpen(event.currentTarget.open)}><summary>Compare wording with original motion</summary>{open&&<PocMotionComparison key={`${originalId}:${jointId}:${language}`} originalId={originalId} jointId={jointId} language={language}/>}</details>;
+}
 export function PocMotionOutcome({outcome,related=[],reference,sourceId,language}:{outcome?:MotionOutcome;related?:RelatedJointMotion[];reference:string;sourceId:string;language:string}) {
   if(!outcome && !related.length)return null;
   return <section className="poc-motion-outcome" aria-label={related.length ? 'Original and joint motion outcomes' : 'Motion outcome'}>
@@ -52,6 +58,7 @@ export function PocMotionOutcome({outcome,related=[],reference,sourceId,language
         <VoteDetails outcome={motion.outcome} language={language}/>
         {motion.memberAuthorship && <p className="poc-motion-explanation">{motion.memberAuthorship==='recorded' ? 'This MEP is also listed as an author of this joint motion.' : 'No authorship is recorded for this MEP on this joint motion.'}</p>}
         {url && <a className="poc-motion-document-link" href={url} target="_blank" rel="noreferrer" title={motion.title}>Read joint motion{motion.documentFormat ? ` (${motion.documentFormat}${motion.documentLanguage ? ' · '+motion.documentLanguage.toUpperCase() : ''})` : ''} ↗</a>}
+        {sourceId.startsWith('B-')&&<CompareWording originalId={sourceId} jointId={motion.sourceId} language={language}/>}
       </section>;
     })}
   </section>;
