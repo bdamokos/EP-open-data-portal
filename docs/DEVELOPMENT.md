@@ -17,7 +17,7 @@ For persistent data, mount a writable cache directory at `/data/cache` and an in
 
 Corpus search and status scans use read-only worker threads, with one query at a time and a five-second response deadline. Busy or slow queries return HTTP 503. Search pagination stops at offset 1,000; `truncated: true` indicates more matches beyond the accessible pages. Narrow the language, date, kind or member filters to inspect those matches.
 
-Corpus discovery yields after each question record and every eight file tasks. Speech extraction yields between individual language parses and stored speeches; the existing 2 MiB fragment bound also applies before language parsing. These checkpoints let HTTP handlers and lease renewals run during collection and check cancellation and writer ownership before continuing. Interrupted discovery leaves its completion marker unset; interrupted speech pages retain their previous offset and can be retried without duplicating stored text. No additional writer or schema migration is needed.
+Corpus discovery yields after each question record and every eight file tasks. Speech extraction yields between individual language parses and stored speeches. Language extraction retains only attributes, without building a body tree; oversized fragments still supply provenance while the existing 2 MiB body limit remains. These checkpoints let HTTP handlers and lease renewals run during collection and check cancellation and writer ownership before continuing. Interrupted discovery leaves its completion marker unset; interrupted speech pages retain their previous offset and can be retried without duplicating stored text. No additional writer or schema migration is needed.
 
 ## Verification
 

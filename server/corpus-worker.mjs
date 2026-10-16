@@ -5,7 +5,6 @@ import { ODP_BASE, boundedUpstream } from './odp.mjs';
 import { apiFetch, speechWindows } from './activity-index-worker.mjs';
 import { array, tail, documentFiles } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
-import { transcriptLanguage } from './transcript-language.mjs';
 import { allowedDownload, downloadDocx } from './document-text.mjs';
 import { CorpusStore, CORPUS_LIMITS, corpusQuery } from './corpus-store.mjs';
 import { HttpError } from './http-utils.mjs';
@@ -22,6 +21,20 @@ const SPEECH_TYPES='PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT';
 const RECHECK_WINDOW=120*DAY, RECHECK_EVERY=7*DAY, DISCOVER_EVERY=6*60*60_000;
 const PRIORITY={speeches:60,speech:61,primaryDocument:50,otherDocument:10};
 const FRAGMENT_LIMIT=2*1024*1024;
+
+// Retain only language attributes. Returning false from updateTag discards
+// each parsed node instead of attaching its body/children to an XML tree.
+// Oversized bodies still supply provenance for other, bounded fragments.
+function fragmentLanguages(xml) {
+  if(!xml || /<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml)!==true)return {tags:[],machine:false};
+  const tags=new Set();
+  new XMLParser({ignoreAttributes:false,parseTagValue:false,tagValueProcessor:()=>'',updateTag:(_tag,_path,attributes)=>{
+    const value=attributes?.['@_xml:lang'];
+    if(typeof value==='string' && value)tags.add(value.toLowerCase());
+    return false;
+  }}).parse(xml);
+  return {tags:[...tags],machine:[...tags].some(tag=>/(?:^|-)mtec(?:-|$)/.test(tag))};
+}
 
 // Paragraph text of a transcript fragment, one paragraph per line. The XML
 // itself is retained (compressed) so headers can be re-derived later.
@@ -42,9 +55,7 @@ function* speechTextSteps(activity,sourceUrl,fetchedAt) {
   const declared=docs.flatMap(doc=>array(doc.originalLanguage||doc.originalLanguageURI)).map(languageCode).filter(Boolean);
   const infos=[];
   for(const [key,xml] of fragments) {
-    // Text extraction already rejects oversized fragments. Apply the same
-    // bound before the separate language parser allocates its XML tree.
-    if(Buffer.byteLength(xml)<=FRAGMENT_LIMIT)infos.push([key,xml,transcriptLanguage(xml)]);
+    infos.push([key,xml,fragmentLanguages(xml)]);
     yield;
   }
   const originals=declared.length?declared:[...new Set(infos.flatMap(([, ,info])=>info.tags.filter(tag=>tag.includes('-t-')).map(tag=>tag.split('-t-')[0].slice(0,2))))];
