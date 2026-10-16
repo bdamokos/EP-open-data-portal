@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Portrait name motion fixture</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React, {useState} from 'react';
+      import {createRoot} from 'react-dom/client';
+      import {Portrait} from './components/Portrait.tsx';
+      import './base.css';
+      import './poc.css';
+
+      const h = React.createElement;
+      const names = [
+        ['Marie-Agnes', 'STRACK-ZIMMERMANN'],
+        ['Isabel', 'GARCÍA MUÑOZ'],
+        ['Kinga', 'GÁL'],
+        ['Juan Fernando', 'LÓPEZ AGUILAR'],
+      ];
+      function Fixture() {
+        const [selected, setSelected] = useState('No portrait selected');
+        return h('main', {className: 'poc'},
+          h('section', {className: 'poc-wall'},
+            h('h1', null, 'Portrait names'),
+            h('div', {className: 'poc-portraits'}, names.map(([firstName, lastName], id) =>
+              h('div', {className: 'poc-portrait-item', key: id},
+                h(Portrait, {
+                  member: {id, firstName, lastName, sortName: lastName, gender: 'f', countryCode: 'DE', imageUrl: 'assets/portrait-placeholder.svg'},
+                  labelled: true,
+                  eager: true,
+                  onClick: () => setSelected(`${firstName} ${lastName}`),
+                }),
+              ),
+            )),
+            h('output', {'aria-live': 'polite'}, selected),
+          ),
+        );
+      }
+      createRoot(document.getElementById('root')).render(h(Fixture));
+    </script>
+  </body>
+</html>
