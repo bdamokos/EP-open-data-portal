@@ -27,13 +27,26 @@
   ],
   "sources": {
     "publicationsOffice": {
-      "url": "https://publications.europa.eu/webapi/rdf/sparql?query=SELECT+DISTINCT+%3Fconcept+%3Flabel+WHERE+%7B%0A++++++VALUES+%3Fconcept+%7B+%3Chttp%3A%2F%2Fpublications.europa.eu%2Fresource%2Fauthority%2Fprocedure-phase%2FRDG1%3E+%3Chttp%3A%2F%2Fpublications.europa.eu%2Fresource%2Fauthority%2Fprocedure-phase%2FRDG2%3E+%3Chttp%3A%2F%2Feurovoc.europa.eu%2F4750%3E+%3Chttp%3A%2F%2Feurovoc.europa.eu%2F1558%3E+%7D%0A++++++%3Fconcept+%3Chttp%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore%23prefLabel%3E+%3Flabel+.%0A++++%7D+ORDER+BY+%3Fconcept+%3Flabel&format=application%2Fsparql-results%2Bjson",
-      "description": "SKOS preferred labels for exact procedure-phase and EuroVoc concepts."
+      "url": "https://publications.europa.eu/webapi/rdf/sparql?query=SELECT+DISTINCT+%3Fconcept+%3Flabel+WHERE+%7B+VALUES+%3Fconcept+%7B+%3Chttp%3A%2F%2Fpublications.europa.eu%2Fresource%2Fauthority%2Fprocedure-phase%2FRDG1%3E+%3Chttp%3A%2F%2Fpublications.europa.eu%2Fresource%2Fauthority%2Fprocedure-phase%2FRDG2%3E+%7D+%3Fconcept+%3Chttp%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore%23prefLabel%3E+%3Flabel+.+%7D+ORDER+BY+%3Fconcept+%3Flabel&format=application%2Fsparql-results%2Bjson",
+      "description": "Exact SKOS preferred labels for procedure-phase RDG1 and RDG2."
     },
     "iateCorroboration": [
       "https://iate.europa.eu/entry/result/125813/all",
       "https://iate.europa.eu/entry/result/125872/all"
-    ]
+    ],
+    "parliamentaryContext": {
+      "vote": {
+        "conceptUri": "http://eurovoc.europa.eu/4762",
+        "checkedAt": "2026-10-16T20:26:00.012008+00:00",
+        "use": "Meaning reference for short app-owned parliamentary-vote translations; not a verbatim label source."
+      },
+      "amendment": {
+        "entryId": 778614,
+        "url": "https://iate.europa.eu/em-api/ws/entries/778614?expand=true&trans_lang=en",
+        "checkedAt": "2026-10-16T20:26:00.012008+00:00",
+        "use": "Meaning/variant reference for short app-owned parliamentary-amendment translations; not a verbatim label source."
+      }
+    }
   },
   "terms": {
     "first-reading": {
@@ -65,7 +78,7 @@
       },
       "provenance": "official-published-labels",
       "conceptUri": "http://publications.europa.eu/resource/authority/procedure-phase/RDG1",
-      "fetchedAt": "2026-10-16T19:54:25.995950+00:00"
+      "fetchedAt": "2026-10-16T20:26:00.012008+00:00"
     },
     "second-reading": {
       "labels": {
@@ -96,69 +109,77 @@
       },
       "provenance": "official-published-labels",
       "conceptUri": "http://publications.europa.eu/resource/authority/procedure-phase/RDG2",
-      "fetchedAt": "2026-10-16T19:54:25.995950+00:00"
+      "fetchedAt": "2026-10-16T20:26:00.012008+00:00"
     },
     "vote": {
       "labels": {
-        "bg": "гласуване",
-        "cs": "hlasování",
-        "da": "stemmeafgivning",
-        "de": "Stimmabgabe",
-        "el": "ψηφοφορία",
-        "en": "vote",
-        "es": "votación",
-        "et": "hääletus",
-        "fi": "äänestys",
-        "fr": "vote",
-        "ga": "vóta",
-        "hr": "glasovanje",
-        "hu": "szavazás",
-        "it": "votazione",
-        "lt": "balsavimas",
-        "lv": "balss",
-        "mt": "vot",
-        "nl": "stemming",
-        "pl": "głosowanie",
-        "pt": "votação",
-        "ro": "vot",
-        "sk": "hlasovanie",
-        "sl": "glasovanje",
-        "sv": "röstning"
+        "bg": "Гласуване",
+        "cs": "Hlasování",
+        "da": "Afstemning",
+        "de": "Abstimmung",
+        "el": "Ψηφοφορία",
+        "en": "Vote",
+        "es": "Votación",
+        "et": "Hääletus",
+        "fi": "Äänestys",
+        "fr": "Vote",
+        "ga": "Vótáil",
+        "hr": "Glasovanje",
+        "hu": "Szavazás",
+        "it": "Votazione",
+        "lt": "Balsavimas",
+        "lv": "Balsošana",
+        "mt": "Votazzjoni",
+        "nl": "Stemming",
+        "pl": "Głosowanie",
+        "pt": "Votação",
+        "ro": "Vot",
+        "sk": "Hlasovanie",
+        "sl": "Glasovanje",
+        "sv": "Omröstning"
       },
-      "provenance": "official-published-labels",
-      "conceptUri": "http://eurovoc.europa.eu/4750",
-      "fetchedAt": "2026-10-16T19:54:25.995950+00:00"
+      "provenance": "machine-translation",
+      "sourceLanguage": "en",
+      "sourceText": "Vote",
+      "model": "gpt-6.1-sol",
+      "generatedAt": "2026-10-16",
+      "humanReviewed": false,
+      "context": "A plenary or other parliamentary vote, not an individual election ballot."
     },
     "amendment": {
       "labels": {
-        "bg": "изменение",
-        "cs": "pozměňovací návrh",
-        "da": "ændring",
+        "bg": "Изменение",
+        "cs": "Pozměňovací návrh",
+        "da": "Ændringsforslag",
         "de": "Änderungsantrag",
-        "el": "τροπολογία",
-        "en": "amendment",
-        "es": "enmienda",
-        "et": "muudatus",
-        "fi": "muutos",
-        "fr": "amendement",
-        "ga": "leasú",
-        "hr": "amandman",
-        "hu": "módosítás",
-        "it": "emendamento",
-        "lt": "įstatymo pataisa",
-        "lv": "grozījums",
-        "mt": "emenda",
-        "nl": "amendement",
-        "pl": "poprawka",
-        "pt": "emenda",
-        "ro": "amendament",
-        "sk": "dodatok",
-        "sl": "amandma",
-        "sv": "ändring"
+        "el": "Τροπολογία",
+        "en": "Amendment",
+        "es": "Enmienda",
+        "et": "Muudatusettepanek",
+        "fi": "Tarkistus",
+        "fr": "Amendement",
+        "ga": "Leasú",
+        "hr": "Amandman",
+        "hu": "Módosítás",
+        "it": "Emendamento",
+        "lt": "Pakeitimas",
+        "lv": "Grozījums",
+        "mt": "Emenda",
+        "nl": "Amendement",
+        "pl": "Poprawka",
+        "pt": "Alteração",
+        "ro": "Amendament",
+        "sk": "Pozmeňujúci návrh",
+        "sl": "Predlog spremembe",
+        "sv": "Ändringsförslag"
       },
-      "provenance": "official-published-labels",
-      "conceptUri": "http://eurovoc.europa.eu/1558",
-      "fetchedAt": "2026-10-16T19:54:25.995950+00:00"
+      "provenance": "machine-translation",
+      "sourceLanguage": "en",
+      "sourceText": "Amendment",
+      "model": "gpt-6.1-sol",
+      "generatedAt": "2026-10-16",
+      "humanReviewed": false,
+      "context": "A proposed change to parliamentary text, used as an amendment-vote scope."
     },
     "saved-question": {
       "labels": {
