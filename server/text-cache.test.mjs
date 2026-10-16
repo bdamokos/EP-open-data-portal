@@ -110,6 +110,17 @@ test('DOCX footnotes are returned separately with exact marker positions and hyp
   assert.equal(documentNotes({extractionVersion:4,paragraphs:['Text'],notes:[note],anchors:[],links:[{paragraph:0,start:0,end:9,url:'https://x.eu'}]}).notesStatus,'not-extracted');
   assert.deepEqual(documentNotes({extractionVersion:4,paragraphs:['Text'],notes:[note],anchors:[{paragraph:0,offset:4,note:'1',label:'1'}],links:[{paragraph:0,start:0,end:4,url:'https://x.eu'}]}).documentLinks,[{paragraph:0,start:0,end:4,url:'https://x.eu'}]);
 });
+test('ordinary footnotes accept an explicit normal type and exclude separator types',()=>{
+  const document='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>Body</w:t><w:footnoteReference w:id="1"/></w:r></w:p></w:body></w:document>';
+  for(const type of [undefined,'normal','separator','continuationSeparator','continuationNotice']) {
+    const footnotes=`<w:footnotes xmlns:w="urn:word"><w:footnote w:id="1"${type?` w:type="${type}"`:''}><w:p><w:r><w:footnoteRef/><w:t>Regulation (EU) 2016/679</w:t></w:r></w:p></w:footnote></w:footnotes>`;
+    const content=docxContent(zipEntries({'word/document.xml':document,'word/footnotes.xml':footnotes}));
+    const ordinary=type===undefined||type==='normal';
+    assert.deepEqual(content.paragraphs,['Body']);
+    assert.deepEqual(content.notes,ordinary?[{id:'1',label:'1',text:'Regulation (EU) 2016/679',links:[],linkSpans:[]}]:[],String(type));
+    assert.deepEqual(content.anchors,ordinary?[{paragraph:0,offset:4,note:'1',label:'1'}]:[],String(type));
+  }
+});
 test('hidden styles apply inside footnotes, around markers and inside hyperlinks',()=>{
   const w='xmlns:w="urn:word" xmlns:r="urn:rel"';
   const styles='<w:styles xmlns:w="urn:word"><w:style w:styleId="Tag"><w:rPr><w:vanish/></w:rPr></w:style></w:styles>';
