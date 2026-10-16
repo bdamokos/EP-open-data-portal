@@ -11,6 +11,9 @@ const celexKey=(year,letter,number)=>year>=1950&&year<=2099&&Number(number)>0&&N
 const patterns=[
   {kind:'eli',pattern:/\bhttps?:\/\/(?:data\.europa\.eu|eur-lex\.europa\.eu)\/eli\/(reg|reg_impl|reg_del|dir|dir_impl|dir_del|dec|dec_impl|dec_del)\/(\d{4})\/(\d{1,4})(?![\d])(?:\/[a-z0-9_/-]*)?/gi,
     key:m=>celexKey(Number(m[2]),eliLetter[m[1].toLowerCase()],m[3])},
+  // A Cellar resource link names one work; an expression or manifestation suffix is ignored.
+  {kind:'cellar',pattern:/\bhttps?:\/\/(?:eur-lex\.europa\.eu\/[^\s<>"]*?[?&]uri=cellar(?::|%3A)|publications\.europa\.eu\/resource\/cellar\/)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?![0-9a-f-])[^\s<>"]*/gi,
+    key:m=>`cellar:${m[1].toLowerCase()}`},
   {kind:'celex',pattern:/\bhttps?:\/\/eur-lex\.europa\.eu\/[^\s<>"]*?[?&]uri=celex(?::|%3A)([35]\d{4}[A-Z]{1,2}\d{4})(?![0-9A-Z])[^\s<>"]*/gi,
     key:m=>`celex:${m[1].toUpperCase()}`},
   // Post-2015 acts use one year/number sequence: Regulation (EU) 2016/679.
@@ -35,6 +38,7 @@ const patterns=[
 export function referenceKey(value) {
   const text=String(value);
   if(/^celex:[35]\d{4}[A-Z]{1,2}\d{4}$/.test(text))return text;
+  if(/^cellar:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(text))return text;
   if(/^(?:com|swd|join):(?:19|20)\d{2}\/[1-9]\d{0,3}$/.test(text))return text;
   if(/^procedure:(?:19|20)\d{2}\/\d{4}[A-Z]?\([A-Z]{3}\)$/.test(text))return text;
   const question=text.match(/^question:([EPO])-((?:19|20)\d{2})-(\d{6})$/);
@@ -68,12 +72,41 @@ export function referenceSegments(text) {
   if(cursor<value.length)parts.push({text:value.slice(cursor)});
   return parts;
 }
+// The reference a link target names, when the whole target is one recognised official link.
+export function referenceFromUrl(url) {
+  const value=String(url||''),found=findReferences(value)[0];
+  return found&&found.start===0&&/^[^#\s]*$/.test(value.slice(found.end))?{key:found.key,kind:found.kind}:null;
+}
+const safeHref=url=>/^https?:\/\/[^\s<>"]+$/i.test(String(url||''))?String(url):null;
+// Hyperlinks are the document's own identification of a span, so they take precedence over text patterns.
+export function linkedSegments(text,links=[]) {
+  const value=String(text||''),parts=[];let cursor=0;
+  const spans=links.filter(link=>Number.isInteger(link?.start)&&Number.isInteger(link.end)&&link.start>=0&&link.end>link.start&&link.end<=value.length).sort((a,b)=>a.start-b.start);
+  const plain=(from,to)=>{for(const part of referenceSegments(value.slice(from,to))){parts.push({...part,from:cursor,to:cursor+part.text.length,ref:part.ref?{...part.ref,start:cursor,end:cursor+part.text.length,via:'text'}:undefined});cursor+=part.text.length;}};
+  for(const link of spans) {
+    if(link.start<cursor)continue;
+    if(link.start>cursor)plain(cursor,link.start);
+    const linked=referenceFromUrl(link.url),span=value.slice(link.start,link.end);
+    parts.push({text:span,from:link.start,to:link.end,href:safeHref(link.url),ref:linked?{...linked,start:link.start,end:link.end,text:span,via:'hyperlink',url:link.url}:undefined});
+    cursor=link.end;
+  }
+  if(cursor<value.length)plain(cursor,value.length);
+  return parts;
+}
+// What a footnote identifies: its hyperlink targets, then the citations in its text.
+export function noteReferences(note) {
+  const linked=[],cited=[];
+  for(const url of [...(note?.linkSpans||[]).map(link=>link.url),...(note?.links||[])]){const ref=referenceFromUrl(url);if(ref&&!linked.includes(ref.key))linked.push(ref.key);}
+  for(const ref of findReferences(note?.text||''))if(!linked.includes(ref.key)&&!cited.includes(ref.key))cited.push(ref.key);
+  return {linked,cited};
+}
+export const noteReferenceKeys=note=>{const {linked,cited}=noteReferences(note);return [...linked,...cited];};
 export function referenceKeys(texts,limit=40) {
   const keys=[];
   for(const text of texts)for(const ref of findReferences(text))if(!keys.includes(ref.key)){keys.push(ref.key);if(keys.length>=limit)return keys;}
   return keys;
 }
-export const eurLexUrl=(celex,language='en')=>`https://eur-lex.europa.eu/legal-content/${String(language).toUpperCase()}/TXT/?uri=CELEX:${encodeURIComponent(celex)}`;
+export const eurLexUrl=(celex,language='en')=>`https://eur-lex.europa.eu/legal-content/${String(language).toUpperCase()}/TXT/?uri=CELEX:${encodeURIComponent(celex).replace(/%2F/g,'/').replace(/%28/g,'(').replace(/%29/g,')')}`;
 // Cellar writes 2012/0011/COD; Parliament and OEIL write 2012/0011(COD).
 export function cellarProcedureReference(value) {
   const match=String(value||'').match(/^((?:19|20)\d{2})\/(\d{4}[A-Z]?)[/(]([A-Z]{3})\)?$/);

@@ -10,7 +10,7 @@ import { languageCode } from './ep-links.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
 const memory=new Map(),pending=new Map(),failures=new Map();
-const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10});
+const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500});
 // Read only standard Word entries. No archive paths are written to disk.
 function archiveEntries(buffer,wanted) {
   if(buffer.length>MAX_FILE || buffer.length<22)throw new Error('DOCX size is unsupported.');
@@ -55,16 +55,17 @@ function inline(nodes,out,links) {
       inline(value.filter(child=>child!==mark),label,null);
       out.marks.push({kind,id:String(attribute(mark,'w:id')??''),label:label.text.trim(),offset:out.text.length});
     }
-    else if(key==='w:hyperlink'&&links&&Array.isArray(value)){const target=links.get(attribute(node,'r:id'));if(target&&out.links.length<NOTE_LIMITS.links&&!out.links.includes(target))out.links.push(target);inline(value,out,links);}
+    // The linked text span is kept with its target, so the document itself identifies what a link names.
+    else if(key==='w:hyperlink'&&links&&Array.isArray(value)){const target=links.get(attribute(node,'r:id')),start=out.text.length;inline(value,out,links);if(target&&out.text.length>start)out.spans.push({start,end:out.text.length,url:target});}
     else if(!['w:del','w:instrText','w:pPr','w:rPr'].includes(key) && Array.isArray(value))inline(value,out,links);
   }
 }
 function paragraphsOf(nodes,links,result=[]) {
   for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
     if(key==='w:p'){
-      const out={text:'',marks:[],links:[]};inline(value,out,links);
-      const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length;
-      if(text)result.push({text,links:out.links,marks:out.marks.map(mark=>({...mark,offset:Math.max(0,Math.min(text.length,mark.offset-lead))}))});
+      const out={text:'',marks:[],spans:[]};inline(value,out,links);
+      const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
+      if(text)result.push({text,marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start)});
     }
     else if(key!==':@'&&Array.isArray(value))paragraphsOf(value,links,result);
   }
@@ -80,17 +81,19 @@ function externalLinks(xml) {
 }
 // Paragraphs stay plain strings. Footnotes are returned separately with exact marker positions.
 export function docxContent(buffer) {
-  const entries=archiveEntries(buffer,['word/document.xml','word/footnotes.xml','word/_rels/footnotes.xml.rels']),xml=entries.get('word/document.xml');
+  const entries=archiveEntries(buffer,['word/document.xml','word/_rels/document.xml.rels','word/footnotes.xml','word/_rels/footnotes.xml.rels']),xml=entries.get('word/document.xml');
   if(!xml)throw new Error('Invalid DOCX document XML.');
-  const body=paragraphsOf(parseXml(xml),null);
+  const body=paragraphsOf(parseXml(xml),externalLinks(entries.get('word/_rels/document.xml.rels')));
   if(!body.length || body.length>20000 || body.map(p=>p.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
   const supplied=new Map();
   if(entries.has('word/footnotes.xml')) {
     const links=externalLinks(entries.get('word/_rels/footnotes.xml.rels'));
     for(const root of parseXml(entries.get('word/footnotes.xml')))for(const node of root['w:footnotes']||[]) {
       if(!node['w:footnote']||attribute(node,'w:type'))continue;
-      const parts=paragraphsOf(node['w:footnote'],links);
-      supplied.set(String(attribute(node,'w:id')),{text:parts.map(p=>p.text).join('\n').slice(0,NOTE_LIMITS.text),links:[...new Set(parts.flatMap(p=>p.links))].slice(0,NOTE_LIMITS.links)});
+      const parts=paragraphsOf(node['w:footnote'],links),spans=[];let offset=0;
+      for(const part of parts){spans.push(...part.spans.map(span=>({...span,start:span.start+offset,end:span.end+offset})));offset+=part.text.length+1;}
+      const text=parts.map(p=>p.text).join('\n').slice(0,NOTE_LIMITS.text);
+      supplied.set(String(attribute(node,'w:id')),{text,spans:spans.filter(span=>span.end<=text.length).slice(0,NOTE_LIMITS.links)});
     }
   }
   const notes=[],anchors=[];
@@ -101,12 +104,14 @@ export function docxContent(buffer) {
       if(notes.length>=NOTE_LIMITS.notes)continue;
       const label=mark.label||String(notes.length+1),source=supplied.get(mark.id);
       // Custom marks repeat the label as ordinary footnote text.
-      const text=source.text.startsWith(label)&&/^[\s.)]/.test(source.text.slice(label.length))?source.text.slice(label.length).replace(/^[\s.)]+/,''):source.text;
-      note={id:mark.id,label,...source,text};notes.push(note);
+      const text=source.text.startsWith(label)&&/^[\s.)]/.test(source.text.slice(label.length))?source.text.slice(label.length).replace(/^[\s.)]+/,''):source.text,removed=source.text.length-text.length;
+      const linkSpans=source.spans.map(span=>({...span,start:span.start-removed,end:span.end-removed})).filter(span=>span.start>=0);
+      note={id:mark.id,label,text,links:[...new Set(source.spans.map(span=>span.url))],linkSpans};notes.push(note);
     }
     anchors.push({paragraph:index,offset:mark.offset,note:note.id,label:note.label});
   }});
-  return {paragraphs:body.map(p=>p.text),notes,anchors};
+  const links=body.flatMap((paragraph,index)=>paragraph.spans.map(span=>({paragraph:index,...span}))).slice(0,NOTE_LIMITS.documentLinks);
+  return {paragraphs:body.map(p=>p.text),notes,anchors,links};
 }
 export const docxParagraphs=buffer=>docxContent(buffer).paragraphs;
 
@@ -132,19 +137,23 @@ export async function downloadDocx(sourceUrl) {
   throw new Error('Too many document download redirects.');
 }
 
-// Records saved before footnote extraction keep serving text; their notes are reported as not extracted.
+// Records saved before footnote and hyperlink extraction keep serving text; their notes are reported as not extracted.
+const EXTRACTION_VERSION=3;
+const validSpan=(span,text)=>Number.isInteger(span?.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&typeof span.url==='string'&&/^https?:\/\//i.test(span.url);
 export function documentNotes(record) {
-  const valid=record?.extractionVersion===2&&Array.isArray(record.notes)&&Array.isArray(record.anchors)
-    &&record.notes.every(n=>typeof n?.id==='string'&&typeof n.label==='string'&&typeof n.text==='string'&&Array.isArray(n.links))
-    &&record.anchors.every(a=>Number.isInteger(a?.paragraph)&&a.paragraph>=0&&a.paragraph<record.paragraphs.length&&Number.isInteger(a.offset)&&a.offset>=0&&a.offset<=record.paragraphs[a.paragraph].length&&record.notes.some(n=>n.id===a.note));
-  return valid?{notesStatus:'extracted',notes:record.notes,noteAnchors:record.anchors}:{notesStatus:'not-extracted',notes:[],noteAnchors:[]};
+  const paragraphs=record?.paragraphs||[];
+  const valid=record?.extractionVersion===EXTRACTION_VERSION&&Array.isArray(record.notes)&&Array.isArray(record.anchors)&&Array.isArray(record.links)
+    &&record.notes.every(n=>typeof n?.id==='string'&&typeof n.label==='string'&&typeof n.text==='string'&&Array.isArray(n.links)&&Array.isArray(n.linkSpans)&&n.linkSpans.every(span=>validSpan(span,n.text)))
+    &&record.anchors.every(a=>Number.isInteger(a?.paragraph)&&a.paragraph>=0&&a.paragraph<paragraphs.length&&Number.isInteger(a.offset)&&a.offset>=0&&a.offset<=paragraphs[a.paragraph].length&&record.notes.some(n=>n.id===a.note))
+    &&record.links.every(link=>Number.isInteger(link?.paragraph)&&link.paragraph>=0&&link.paragraph<paragraphs.length&&validSpan(link,paragraphs[link.paragraph]));
+  return valid?{notesStatus:'extracted',notes:record.notes,noteAnchors:record.anchors,documentLinks:record.links}:{notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[]};
 }
 export async function documentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now}={}) {
   const files=documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
   const languages=[...new Set(files.map(f=>f.language).filter(Boolean))];
   const originals=array(work.originalLanguage).map(languageCode);
   const chosen=files.find(f=>f.language===language) || files.find(f=>originals.includes(f.language)) || files.find(f=>f.language==='en') || files[0];
-  const base={status:'unavailable',paragraphs:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
+  const base={status:'unavailable',paragraphs:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
   const key=chosen.url,file=directory && path.join(directory,'document-text-v1',createHash('sha256').update(key).digest('hex')+'.json');
   let saved=memory.get(key);
@@ -152,7 +161,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const refresh=priority=> {
     if(pending.has(key))return pending.get(key);
     const job=boundedUpstream(async()=>{
-      const result=await download(key),record={schemaVersion:1,...(Array.isArray(result.notes)?{extractionVersion:2}:{}),sourceId:work.identifier || tail(work.id),sourceUrl:key,fetchedAt:new Date(clock()).toISOString(),...result};
+      const result=await download(key),record={schemaVersion:1,...(Array.isArray(result.notes)?{extractionVersion:EXTRACTION_VERSION}:{}),sourceId:work.identifier || tail(work.id),sourceUrl:key,fetchedAt:new Date(clock()).toISOString(),...result};
       if(file){await mkdir(path.dirname(file),{recursive:true});const temp=file+'.'+process.pid+'.tmp';await writeFile(temp,JSON.stringify(record));await rename(temp,file);}
       memory.set(key,record);if(memory.size>100)memory.delete(memory.keys().next().value);failures.delete(key);return record;
     },{priority}).catch(error=>{failures.set(key,{retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));

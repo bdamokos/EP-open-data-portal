@@ -42,12 +42,24 @@ test('DOCX footnotes are returned separately with exact marker positions and hyp
   const rels='<Relationships xmlns="urn:pkg"><Relationship Id="rId9" Type="hyperlink" Target="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52024DC0225" TargetMode="External"/><Relationship Id="rId10" Type="hyperlink" Target="javascript:alert(1)" TargetMode="External"/></Relationships>';
   const content=docxContent(zipEntries({'word/document.xml':document,'word/footnotes.xml':footnotes,'word/_rels/footnotes.xml.rels':rels}));
   assert.deepEqual(content.paragraphs,['the EMFA with Regulation 139/2004 on concentrations.','Second and again']);
-  assert.deepEqual(content.notes,[{id:'3',label:'1',text:'OJ L 24, 29.1.2004, ELI: http://data.europa.eu/eli/reg/2004/139/oj.',links:[]},{id:'4',label:'2',text:'Communication',links:['https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52024DC0225']}]);
+  const celexLink='https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52024DC0225';
+  assert.deepEqual(content.notes,[{id:'3',label:'1',text:'OJ L 24, 29.1.2004, ELI: http://data.europa.eu/eli/reg/2004/139/oj.',links:[],linkSpans:[]},{id:'4',label:'2',text:'Communication',links:[celexLink],linkSpans:[{start:0,end:13,url:celexLink}]}]);
+  assert.deepEqual(content.links,[]);
   assert.deepEqual(content.anchors,[{paragraph:0,offset:33,note:'3',label:'1'},{paragraph:1,offset:6,note:'4',label:'2'},{paragraph:1,offset:16,note:'3',label:'1'}]);
   assert.deepEqual(docxContent(zipEntries({'word/document.xml':document})).notes,[]);
+  // Body hyperlinks keep their exact span; a link without text or with a non-web target is not kept.
+  const linked=`<w:document ${w}><w:body><w:p><w:r><w:t xml:space="preserve"> See </w:t></w:r><w:hyperlink r:id="rId1"><w:r><w:t>the GDPR</w:t></w:r></w:hyperlink><w:r><w:t> and </w:t></w:r><w:hyperlink r:id="rId2"><w:r><w:t>this file</w:t></w:r></w:hyperlink><w:hyperlink r:id="rId1"/></w:p></w:body></w:document>`;
+  const bodyRels='<Relationships xmlns="urn:pkg"><Relationship Id="rId1" Target="http://data.europa.eu/eli/reg/2016/679/oj" TargetMode="External"/><Relationship Id="rId2" Target="file:///C:/template.dotm" TargetMode="External"/></Relationships>';
+  const body=docxContent(zipEntries({'word/document.xml':linked,'word/_rels/document.xml.rels':bodyRels}));
+  assert.deepEqual(body.paragraphs,['See the GDPR and this file']);
+  assert.deepEqual(body.links,[{paragraph:0,start:4,end:12,url:'http://data.europa.eu/eli/reg/2016/679/oj'}]);
   // Records saved before footnote extraction keep their text and report notes as not extracted.
-  assert.deepEqual(documentNotes({schemaVersion:1,paragraphs:['Text']}),{notesStatus:'not-extracted',notes:[],noteAnchors:[]});
-  assert.equal(documentNotes({extractionVersion:2,paragraphs:['Text'],notes:[{id:'1',label:'1',text:'n',links:[]}],anchors:[{paragraph:3,offset:0,note:'1',label:'1'}]}).notesStatus,'not-extracted');
+  assert.deepEqual(documentNotes({schemaVersion:1,paragraphs:['Text']}),{notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[]});
+  const note={id:'1',label:'1',text:'n',links:[],linkSpans:[]};
+  assert.equal(documentNotes({extractionVersion:3,paragraphs:['Text'],notes:[note],anchors:[{paragraph:3,offset:0,note:'1',label:'1'}],links:[]}).notesStatus,'not-extracted');
+  assert.equal(documentNotes({extractionVersion:2,paragraphs:['Text'],notes:[note],anchors:[],links:[]}).notesStatus,'not-extracted');
+  assert.equal(documentNotes({extractionVersion:3,paragraphs:['Text'],notes:[note],anchors:[],links:[{paragraph:0,start:0,end:9,url:'https://x.eu'}]}).notesStatus,'not-extracted');
+  assert.deepEqual(documentNotes({extractionVersion:3,paragraphs:['Text'],notes:[note],anchors:[{paragraph:0,offset:4,note:'1',label:'1'}],links:[{paragraph:0,start:0,end:4,url:'https://x.eu'}]}).documentLinks,[{paragraph:0,start:0,end:4,url:'https://x.eu'}]);
 });
 test('document download accepts only API distributions and the observed official redirect host/path',()=>{
   assert(allowedDownload('https://data.europarl.europa.eu/distribution/id/file.docx'));
