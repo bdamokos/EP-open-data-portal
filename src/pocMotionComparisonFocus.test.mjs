@@ -96,6 +96,24 @@ test('requested comparison language and actual fallback remain distinct while na
   await h.wait();assert.match(h.status().textContent,/Text language: EN\./);assert.doesNotMatch(h.status().textContent,/Text language: FR/);
 });
 
+test('unadmitted actual language metadata keeps the valid requested choice without inventing language options',async t=>{
+  for(const actual of ['mul','und'])await t.test(actual,async t=>{
+    const h=await harness(t,{language:'hu'}),admitted=['en','hu','fr'];
+    await h.finish(h.requests[0],comparison('original-joint','hu',{availableLanguages:admitted}));
+    const select=h.language();await h.change(select,'fr');
+    assert.equal(h.requests.at(-1).url.searchParams.get('lang'),'fr');
+    await h.finish(h.requests.at(-1),comparison('original-joint','fr',{textLanguage:actual,availableLanguages:admitted}));
+    assert(h.language()===select);assert(document.activeElement===select);assert.equal(select.value,'fr','the admitted requested choice remains usable when actual metadata is not a selectable language');
+    assert.deepEqual([...select.options].map(option=>option.value),admitted,'neither an unavailable placeholder nor the unadmitted actual code becomes an option');
+    assert.deepEqual([...select.options].map(option=>option.textContent),admitted.map(code=>new Intl.DisplayNames(['hu'],{type:'language'}).of(code)));
+    assert.equal(h.container.querySelector('.poc-diff-rows').lang,actual,'selector validity does not rewrite actual source-language metadata');
+    assert.equal(h.container.querySelector('.poc-diff-documents a').textContent,'Source DOCX · '+actual.toUpperCase()+' ↗');
+    assert.match(h.container.querySelector('.poc-diff-notice').textContent,/is unavailable in both texts\. Showing/);
+    await h.wait();assert.match(h.status().textContent,new RegExp('Text language: '+actual.toUpperCase()+'\\.'));
+    assert(!h.status().textContent.includes(body));
+  });
+});
+
 test('rapid language intent ignores obsolete completion, keeps moved focus, and announces only the latest concise comparison',async t=>{
   const h=await harness(t),announcements=[];
   const status=h.status(),observer=new h.window.MutationObserver(()=>{if(status.textContent)announcements.push(status.textContent);});
