@@ -39,6 +39,7 @@ test('all plenary defaults use weeks while exact item links, single days and his
   assert.equal(period().value,'week:2026-10-05');
   assert.equal(container.querySelectorAll('.insight-agenda h3').length,2);
   await click('DebateDebate on 2026-10-08');
+  assert.equal(new URL(location.href).searchParams.get('agenda-period'),'week:2026-10-05','opening a topic pins its concrete week for saved links');
   assert.equal(last('legislation').searchParams.get('sitting'),'MTG-PL-2026-10-08');
   assert.equal(container.querySelector('.insight-topic-detail h2').textContent,'Debate on 2026-10-08');
   await choose('sitting:MTG-PL-2026-10-07');
