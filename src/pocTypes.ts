@@ -114,6 +114,8 @@ export interface PublicationDocument {
   selectedText?: {
     status: 'available' | 'unavailable' | 'error';
     paragraphs: string[];
+    footnotes?: {reference:string;text:string}[];
+    extractionWarnings?: string[];
     textLanguage: string | null;
     requestedLanguage: string;
     availableTextLanguages: string[];
