@@ -72,7 +72,8 @@ test('a completed source refresh replaces saved names without clearing loaded me
       try {
         await Promise.race([
           odp('/meps/show-current',{limit:1000,offset:0}),
-          new Promise((_,reject)=>{refreshDeadline=setTimeout(()=>reject(new Error('Source refresh did not finish')),2000);}),
+          // A queued source read may wait for the shared 2.1-second request interval.
+          new Promise((_,reject)=>{refreshDeadline=setTimeout(()=>reject(new Error('Source refresh did not finish')),4000);}),
         ]);
       }finally{clearTimeout(refreshDeadline);}
       const now=Date.now();Date.now=()=>now+61000;
