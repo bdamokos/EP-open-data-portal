@@ -94,6 +94,52 @@ test('search joins members through exact index identifiers and filters kind, lan
   } finally {s.cleanup();}
 });
 
+test('status counts documents once and reflects variant, task and character changes',()=>{
+  const s=stores(),id='MTG-PL-2026-07-08-OTH-1';
+  const put=(language,body)=>s.corpus.putDocument({sourceId:id,kind:'speech'},[{sourceKey:language,language,translationType:'original',sourceFormat:'docx',sourceUrl:'https://example.test/'+language,fetchedAt,body,raw:null}]);
+  try {
+    put('en','🌊 Ocean');put('fr','Océan');
+    s.corpus.putDocument({sourceId:'E-10-2026-000002',kind:'question'},[]);
+    s.corpus.enqueue('done','docx',{},50);s.corpus.finishTask(s.corpus.task('done'));
+    s.corpus.enqueue('retry','docx',{},50);s.corpus.failTask(s.corpus.task('retry'),new Error('Synthetic retry'));
+    const first=s.corpus.status();
+    assert.deepEqual(first.documents.speech,{discovered:1,withText:1});
+    assert.deepEqual(first.documents.question,{discovered:1,withText:0});
+    assert.deepEqual(first.tasks.docx,{total:2,done:1,retrying:1});
+    assert.equal(first.texts.find(text=>text.language==='en').characters,'🌊 Ocean'.length);
+    assert.equal(first.lastError.key,'retry');
+    put('en','Longer ocean policy');s.corpus.finishTask(s.corpus.task('retry'));
+    const updated=s.corpus.status();
+    assert.equal(updated.texts.find(text=>text.language==='en').characters,'Longer ocean policy'.length);
+    assert.equal(updated.lastError,null);
+    assert.deepEqual(updated.tasks.docx,{total:2,done:2,retrying:0});
+    s.corpus.db.prepare('DELETE FROM documents WHERE source_id=?').run(id);
+    const deleted=s.corpus.status();
+    assert.deepEqual(deleted.documents.speech,{discovered:0,withText:0});
+    assert.deepEqual(deleted.texts,[]);
+  } finally {s.cleanup();}
+});
+
+test('opening a legacy corpus adds status indexes without changing retained data or retries',()=>{
+  const dir=temp(),original=new CorpusStore(dir,{clock:instant});let upgraded,originalClosed=false;
+  try {
+    original.acquire();
+    original.putDocument(...Object.values(speechTexts(speech('MTG-PL-2026-07-08-OTH-1',{en:fragment('en','Ocean policy.')}),'https://example.test/list',fetchedAt)));
+    original.enqueue('retry','docx',{url:'https://example.test/file'},50);original.failTask(original.task('retry'),new Error('Synthetic retry'));
+    original.db.exec('DROP INDEX text_status_metadata; DROP INDEX task_status_counts; DROP INDEX task_status_error');
+    const rows=original.db.prepare('SELECT * FROM texts').all(),tasks=original.db.prepare('SELECT * FROM tasks').all();
+    const before=original.status();original.close();originalClosed=true;
+    upgraded=new CorpusStore(dir,{clock:instant});
+    assert.equal(upgraded.get('schema'),1);
+    assert.deepEqual(upgraded.db.prepare('SELECT * FROM texts').all(),rows);
+    assert.deepEqual(upgraded.db.prepare('SELECT * FROM tasks').all(),tasks);
+    const after=upgraded.status();
+    for(const key of ['documents','texts','tasks','lastError','coverage'])assert.deepEqual(after[key],before[key]);
+    assert.equal(upgraded.raw('MTG-PL-2026-07-08-OTH-1','en'),fragment('en','Ocean policy.'));
+    assert.equal(upgraded.search({query:'ocean'}).total,1);
+  } finally {if(upgraded)upgraded.close();else if(!originalClosed)original.close();rmSync(dir,{recursive:true,force:true});}
+});
+
 test('question files follow the language policy, originals and English first',()=>{
   const all=questionFiles(question,'all');
   assert.deepEqual(all.map(f=>[f.sourceId,f.language,f.primary]),[
