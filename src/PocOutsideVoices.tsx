@@ -108,7 +108,7 @@ export function PocOutsideVoices({language='en',...props}:InsightProps) {
     if(document.activeElement!==document.body&&document.activeElement!==intent.from)return;
     if('returnTo' in intent)restoreOpener(intent.returnTo||null);
     else (root.current?.querySelector<HTMLElement>('.ov-person-heading h2')||root.current?.querySelector<HTMLElement>('.ov-back'))?.focus({preventScroll:true});
-  },[person,detail.data]);
+  },[person,detail.data,panel]);
   useLayoutEffect(()=>{if(!panel&&panelReturn.current){panelReturn.current=false;restoreOpener(opener.current);}},[panel]);
   const activeData=panel?panelData:person?detail:directory;
   useEffect(()=>{if(activeData.error||activeData.data&&(activeData.data.coverage.complete||!activeData.data.coverage.pending))return;const timer=setInterval(activeData.retry,15000);return()=>clearInterval(timer);},[activeData.error,activeData.data?.coverage.complete,activeData.data?.coverage.pending,activeData.retry]);

@@ -25,7 +25,7 @@ async function harness(t,query='?view=outside') {
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(createElement(PocOutsideVoices,{language:'en',onBack(){}})));
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
   const click=async target=>{const node=typeof target==='string'?button(target):target;assert(node,'Missing button '+target);await act(async()=>{node.focus();node.click();});return node;};
-  const finish=(id,error=false)=>act(async()=>{const request=requests.find(request=>!request.finished&&request.url.pathname.endsWith('/'+id));assert(request,'Missing outside detail '+id);request.finished=true;error?request.reject(new Error('Fixture unavailable.')):request.resolve(Response.json(detail(id)));});
+  const finish=(id,error=false,extra={})=>act(async()=>{const request=requests.find(request=>!request.finished&&request.url.pathname.endsWith('/'+id));assert(request,'Missing outside detail '+id);request.finished=true;error?request.reject(new Error('Fixture unavailable.')):request.resolve(Response.json({...detail(id),...extra}));});
   const navigate=query=>act(async()=>{history.replaceState(null,'','/'+query);window.dispatchEvent(new window.PopStateEvent('popstate'));});
   const key=(key,shiftKey=false)=>act(async()=>{const event=new window.KeyboardEvent('keydown',{key,shiftKey,bubbles:true,cancelable:true});document.activeElement.dispatchEvent(event);return event;});
   const mountReference=async()=>{const host=document.createElement('div');container.querySelector('.ov-drawer .ov-contribution').append(host);const nested=createRoot(host);extraRoots.push(nested);const text='See question E-003031/2026.';await act(async()=>nested.render(createElement(ReferenceScope,{texts:[text],language:'en'},createElement('p',null,createElement(ReferenceText,{text})))));return host.querySelector('button.legal-ref');};
@@ -95,4 +95,20 @@ test('hidden, inert and aria-hidden drawer openers use visible local fallbacks',
   for(const attribute of ['hidden','inert','aria-hidden'])await t.test(attribute,async t=>{
     const h=await harness(t),mark=h.container.querySelector('[data-ov-focus="mark:42:'+day+'"]');await h.click(mark);mark.setAttribute(attribute,attribute==='aria-hidden'?'true':'');await h.click(h.container.querySelector('[aria-label="Close speeches"]'));assert.equal(document.activeElement,h.container.querySelector('input[type="search"]'));assert.notEqual(document.activeElement,mark);
   });
+});
+
+
+test('opening the current speaker from its drawer consumes focus intent before a later deferred refresh',async t=>{
+  const h=await harness(t),polls=new Set(),setInterval=globalThis.setInterval,clearInterval=globalThis.clearInterval;
+  t.mock.method(globalThis,'setInterval',(callback,delay,...args)=>{if(delay!==15000)return setInterval(callback,delay,...args);const timer={run:()=>callback(...args)};polls.add(timer);return timer;});
+  t.mock.method(globalThis,'clearInterval',timer=>{if(!polls.delete(timer))clearInterval(timer);});
+  await h.click('Fixture speaker 42');await h.finish('42',false,{coverage:{...coverage,complete:false,pending:1}});
+  const dataHeading=h.container.querySelector('.ov-person-heading h2');await h.click(h.container.querySelector('.ov-appearance-cards button'));
+  assert.equal(h.requests.length,1,'the drawer reuses the exact cached speaker detail');await h.click('Open speaker page →');
+  assert.equal(h.container.querySelector('.ov-drawer'),null);assert(document.activeElement===dataHeading,'same-speaker navigation consumes the explicit intent when its drawer closes');
+  const retained=h.container.querySelector('.ov-tabs button');retained.focus();
+  await act(async()=>{assert.equal(polls.size,1);[...polls][0].run();});assert.equal(h.requests.length,2,'incomplete coverage still starts its existing deferred refresh');assert.equal(document.activeElement,retained,'starting the refresh preserves the chosen control');
+  retained.blur();assert.equal(document.activeElement,document.body);
+  await h.finish('42');assert(document.activeElement===document.body,'later completion cannot revive the consumed drawer navigation intent');
+  assert.equal(h.container.querySelector('.ov-person-heading h2'),dataHeading);
 });

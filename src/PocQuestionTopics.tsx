@@ -54,7 +54,7 @@ export function PocQuestionTopics(props:InsightProps) {
     const intent=pageFocus.current;if(!intent)return;
     if(intent.route!==route||textActive||document.activeElement!==intent.anchor){pageFocus.current=null;return;}
     if(loading||error||!data)return;
-    pageFocus.current=null;heading.current?.focus({preventScroll:true});
+    pageFocus.current=null;heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'start'});
   },[route,textActive,data,error,loading]);
   // Clear explicit scope gestures in the same URL step; hydration and Back keep their saved position.
   function resetTextPosition(){setTextScopeReady(false);setTextPage(0);setTextRead('');}
