@@ -17,7 +17,7 @@ function scenario() {
   ]),calls=[];
   const request=async endpoint=>{calls.push(endpoint);const node=records.get(endpoint);if(node instanceof Error)throw node;return {payload:{data:node?[node]:[]},fetchedAt:Date.parse('2026-10-16T15:00:00Z'),url:'https://data.europarl.europa.eu/api/v2'+endpoint};};
   const readText=async(node,language)=>({status:'available',textLanguage:language,sourceUrl:`https://data.europarl.europa.eu/distribution/example/${node.identifier}_${language}.docx`,fetchedAt:'2026-10-16T15:00:00Z',
-    paragraphs:['Cover title','The European Parliament,','A.\tWhereas public elections matter;',node.identifier===original?'1.\tCalls for the immediate release of all election monitors;':'1.\tCalls for the immediate and unconditional release of all election monitors;'],footnotes:[]});
+    paragraphs:['Cover title','The European Parliament,','A.\tWhereas public elections matter;',node.identifier===original?'1.\tCalls for the immediate release of all election monitors;':'1.\tCalls for the immediate and unconditional release of all election monitors;'],notes:[]});
   return {records,calls,request,readText,compare:createMotionComparison({request,readText})};
 }
 test('original/joint comparisons require an exact derivative link and fetch no adopted catalogue',async()=>{
@@ -61,12 +61,14 @@ test('language selection uses the intersection and reports actual fallback, unav
   assert.match((await wrongLanguage(original,joint)).reason,/common text language/);
 });
 test('body extraction excludes covers while preserving citations, numbered references and footnotes',()=>{
-  const body=motionBody({paragraphs:['European Parliament','Authors on behalf of groups','The European Parliament,','–\thaving regard to public data,','A.\twhereas records matter;','1.\tCalls for action[1];'],footnotes:[{reference:'1',text:'A public citation.'}]},'en');
+  const body=motionBody({paragraphs:['European Parliament','Authors on behalf of groups','The European Parliament,','–\thaving regard to public data,','A.\twhereas records matter;','1.\tCalls for action[1];'],notes:[{label:'1',text:'A public citation.'}]},'en');
   assert.equal(body.status,'available');assert.deepEqual(body.blocks.map(b=>b.kind),['citation','recital','paragraph','footnote']);
   assert.equal(body.blocks[2].label,'1');assert(!JSON.stringify(body).includes('Authors'));
   assert.equal(motionBody({paragraphs:['Unknown opening','1. Body']},'en').status,'unavailable');
   assert.equal(motionBody({paragraphs:['The European Parliament,','1. Body'],extractionWarnings:['Numbering unavailable']},'en').status,'unavailable');
   assert.equal(motionBody({paragraphs:['Le Parlement européen,','1.\tTexte public.']},'fr').status,'available');
+  const anchored=motionBody({paragraphs:['The European Parliament,','1.\tPublic text.'],notes:[{id:'2',label:'1',text:'Citation.'}],noteAnchors:[{paragraph:1,offset:15,note:'2',label:'1'}]},'en');
+  assert.equal(anchored.blocks[0].text,'Public text.[1]');
   assert.equal(motionBody({paragraphs:['The European Parliament,',...Array(DIFF_LIMITS.paragraphs+1).fill('1. Body')]},'en').status,'unavailable');
 });
 const block=(label,text,kind='paragraph')=>({index:Number(label)-1,kind,label,text});

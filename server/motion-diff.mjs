@@ -8,9 +8,15 @@ const openings={
   pt:'O Parlamento Europeu',ro:'Parlamentul European',sk:'Európsky parlament',sl:'Evropski parlament',fi:'Euroopan parlamentti',sv:'Europaparlamentet',
 };
 export function motionBody(text,language) {
-  const paragraphs=text.paragraphs || [],opening=openings[language];
+  const anchors=text.noteAnchors || text.anchors || [];
+  const paragraphs=(text.paragraphs || []).map((value,index)=>{
+    let marked=value;
+    for(const anchor of anchors.filter(a=>a.paragraph===index).sort((a,b)=>b.offset-a.offset))marked=marked.slice(0,anchor.offset)+'['+anchor.label+']'+marked.slice(anchor.offset);
+    return marked;
+  }),opening=openings[language];
   const start=opening?paragraphs.findIndex(p=>normalize(p).replace(/[,;:]$/,'').toLocaleLowerCase(language)===opening.toLocaleLowerCase(language)):-1;
   if(start<0)return {status:'unavailable',reason:'The resolution body could not be separated from the cover material in this language.'};
+  if(text.notesStatus==='not-extracted')return {status:'unavailable',reason:'The document notes have not been extracted for this saved text.'};
   if(text.extractionWarnings?.length)return {status:'unavailable',reason:text.extractionWarnings.join(' ')};
   let citation=0,other=0;
   const blocks=paragraphs.slice(start+1).map((raw,index)=>{
@@ -19,7 +25,7 @@ export function motionBody(text,language) {
     if(/^[–—−\-•]\s*/u.test(value))return {index,kind:'citation',label:String(++citation),text:value.replace(/^[–—−\-•]\s*/u,'')};
     return {index,kind:'text',label:String(++other),text:value};
   });
-  for(const note of text.footnotes || [])blocks.push({index:blocks.length,kind:'footnote',label:note.reference,text:normalize(note.text)});
+  for(const note of text.notes || [])blocks.push({index:blocks.length,kind:'footnote',label:note.label,text:normalize(note.text)});
   if(!blocks.length)return {status:'unavailable',reason:'The resolution body is empty.'};
   if(blocks.length>DIFF_LIMITS.paragraphs || blocks.reduce((n,p)=>n+p.text.length,0)>DIFF_LIMITS.characters)
     return {status:'unavailable',reason:'This resolution exceeds the supported comparison size. Open the source documents to compare it.'};
