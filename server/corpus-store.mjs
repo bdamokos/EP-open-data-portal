@@ -12,7 +12,19 @@ import path from 'node:path';
 const KINDS=['speech','question','answer'];
 const parse=value=>value==null?null:JSON.parse(value);
 const sha=value=>createHash('sha256').update(value).digest('hex');
-export const CORPUS_LIMITS=Object.freeze({searchLimit:50,searchOffset:1000,queryLength:200,queryTerms:12});
+export const CORPUS_LIMITS=Object.freeze({searchLimit:50,searchOffset:1000,queryLength:200,queryTerms:12,sourceIds:1000,requestBytes:128*1024,highlightBytes:512*1024,highlightRanges:10000});
+
+function matchRanges(marked,limit) {
+  const ranges=[];let cursor=0,position=0,truncated=false;
+  for(;;) {
+    const start=marked.indexOf('\u0002',cursor);if(start<0)break;
+    const end=marked.indexOf('\u0003',start+1);if(end<0)break;
+    position+=start-cursor;
+    if(ranges.length<limit)ranges.push({start:position,end:position+end-start-1});else truncated=true;
+    position+=end-start-1;cursor=end+1;
+  }
+  return {highlightRanges:ranges,highlightsTruncated:truncated};
+}
 
 // Accept words and "quoted phrases" only. Each becomes a quoted FTS5 string, so
 // user input cannot reach column filters, NEAR, prefix or boolean operators.
@@ -71,6 +83,12 @@ export class CorpusStore {
   set(key,value){this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value));}
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE');
+    try{const out=fn();this.db.exec('COMMIT');return out;}catch(error){this.db.exec('ROLLBACK');throw error;}
+  }
+  snapshot(fn) {
+    // Hold one WAL read snapshot across count, page and provenance queries.
+    // A background writer can keep collecting without changing a result midway.
+    this.db.exec('BEGIN');
     try{const out=fn();this.db.exec('COMMIT');return out;}catch(error){this.db.exec('ROLLBACK');throw error;}
   }
   acquire(ttl=90_000) {
@@ -149,11 +167,36 @@ export class CorpusStore {
     return row?.raw ? zstdDecompressSync(row.raw).toString('utf8') : null;
   }
 
+  // Read exactly the variant that produced the excerpt. No upstream request or
+  // language fallback is made, even when another variant exists for this ID.
+  text(params){return this.snapshot(()=>this.textSnapshot(params));}
+  textSnapshot({sourceId,sourceKey,query=null,highlightBytes=CORPUS_LIMITS.highlightBytes,highlightRangeLimit=CORPUS_LIMITS.highlightRanges}) {
+    const row=this.db.prepare(`SELECT d.source_id,d.kind,d.parent_id,d.date,d.original_languages,
+      t.source_key,t.language,t.translation_type,t.source_format,t.source_url,t.fetched_at,t.checked_at,t.sha256,t.body
+      FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=? AND t.source_key=?`).get(sourceId,sourceKey);
+    if(!row)return null;
+    const match=query===null?null:corpusQuery(query);
+    const marked=match?this.db.prepare(`SELECT highlight(texts_fts,0,'\u0002','\u0003') AS body FROM texts_fts
+      JOIN texts t ON t.id=texts_fts.rowid JOIN documents d ON d.id=t.document_id WHERE d.source_id=? AND t.source_key=? AND texts_fts MATCH ?`).get(sourceId,sourceKey,match):null;
+    const highlighted=marked?.body??row.body;
+    // Large texts keep one body plus exact UTF-16 match ranges. Duplicating a
+    // multilingual body can otherwise exceed the API response budget.
+    const highlights=query===null?{}:Buffer.byteLength(JSON.stringify(highlighted))<=highlightBytes?{highlightedBody:highlighted}:matchRanges(highlighted,highlightRangeLimit);
+    return {...this.variant(row),originalLanguages:parse(row.original_languages),checkedAt:row.checked_at,body:row.body,...highlights};
+  }
+
+  variant(row) {
+    return {sourceId:row.source_id,kind:row.kind,parentId:row.parent_id,date:row.date,sourceKey:row.source_key,
+      language:row.language,translationType:row.translation_type,sourceFormat:row.source_format,sourceUrl:row.source_url,
+      fetchedAt:row.fetched_at,sha256:row.sha256,...(row.snippet===undefined?{}:{snippet:row.snippet})};
+  }
+
   // Cheap coverage for every search response; full counts stay in status().
   coverage() {
     const backfilledAt=this.get('backfilledAt');
-    return {complete:Boolean(backfilledAt),backfilledAt,phase:this.get('phase')||'waiting',
-      note:backfilledAt?'Initial backfill finished; recent sittings and new questions are rechecked.':'Backfilling: counts and search results are incomplete.'};
+    return {complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,phase:this.get('phase')||'waiting',
+      note:backfilledAt?'Initial backfill finished. Results cover stored texts, not an authoritative complete parliamentary corpus.':'Backfilling: counts and search results cover only texts stored so far.',
+      countryBasis:'Current saved roster country of representation; missing countries are not inferred.'};
   }
   async diskBytes() {
     return (await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
@@ -166,8 +209,8 @@ export class CorpusStore {
     const lastError=this.db.prepare('SELECT key,error,attempts,retry_at FROM tasks WHERE done=0 AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get();
     const lease=this.db.prepare('SELECT expires FROM lease WHERE id=1').get();
     const backfilledAt=this.get('backfilledAt');
-    return {schemaVersion:1,term:10,phase:this.get('phase')||'waiting',complete:Boolean(backfilledAt),backfilledAt,
-      coverage:backfilledAt?'Initial backfill finished; recent sittings and new questions are rechecked.':'Backfilling: counts and search results are incomplete.',
+    return {schemaVersion:1,term:10,phase:this.get('phase')||'waiting',complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,
+      coverage:this.coverage().note,capabilities:{search:true,storedText:true,kinds:KINDS,groups:['document','question'],sorts:['relevance','newest'],sourceIdsLimit:CORPUS_LIMITS.sourceIds},
       documents:Object.fromEntries(KINDS.map(kind=>[kind,{discovered:documents[kind]||0,withText:withText[kind]||0}])),
       texts:texts.map(row=>({kind:row.kind,language:row.language,count:row.n,characters:row.chars})),
       tasks:Object.fromEntries(tasks.map(row=>[row.kind,{total:row.total,done:row.done,retrying:row.retrying}])),
@@ -178,30 +221,69 @@ export class CorpusStore {
   }
 
   // Full-text search with optional joins to the attached activity index.
-  search({query,kind=null,language=null,member=null,from=null,to=null,limit=20,offset=0}) {
+  search(params){return this.snapshot(()=>this.searchSnapshot(params));}
+  searchSnapshot({query,kind=null,kinds=null,language=null,uiLanguage='en',member=null,country=null,countryMemberIds=null,countryMetadataIds=null,from=null,to=null,limit=20,offset=0,group='document',dateBasis=group==='question'?'question':'document',sort='relevance',sourceIds=null}) {
     const match=corpusQuery(query);
     if(!match)return null;
     const where=['texts_fts MATCH ?'],params=[match];
-    if(kind){where.push('d.kind=?');params.push(kind);}
+    const selectedKinds=kinds??(kind?[kind]:null);
+    if(selectedKinds){where.push('d.kind IN (SELECT value FROM json_each(?))');params.push(JSON.stringify(selectedKinds));}
     if(language){where.push('t.language=?');params.push(language);}
-    if(from){where.push('d.date>=?');params.push(from);}
-    if(to){where.push('d.date<=?');params.push(to);}
     const generation=this.indexGeneration();
-    if(member) {
+    const questionId="CASE WHEN d.kind='answer' THEN d.parent_id WHEN d.kind='question' THEN d.source_id END";
+    const groupId=group==='question'?"CASE WHEN d.kind='answer' THEN COALESCE(d.parent_id,d.source_id) ELSE d.source_id END":'d.source_id';
+    const savedQuestionDate=generation==null?'NULL':`(SELECT json_extract(s.body,'$.document_date') FROM idx.sources s WHERE s.generation=${Number(generation)} AND s.key='/parliamentary-questions/' || ${questionId} AND s.kind='document')`;
+    const questionDate=`CASE WHEN d.kind='question' THEN d.date WHEN d.kind='answer' THEN COALESCE(q.date,${savedQuestionDate}) END`;
+    const filterDate=dateBasis==='question'?`CASE WHEN d.kind='speech' THEN d.date ELSE ${questionDate} END`:'d.date';
+    if(from){where.push(`${filterDate}>=?`);params.push(from);}
+    if(to){where.push(`${filterDate}<=?`);params.push(to);}
+    if(sourceIds!==null){where.push('d.source_id IN (SELECT value FROM json_each(?))');params.push(JSON.stringify(sourceIds));}
+    if(member || country) {
       if(generation==null)return {unavailable:'The activity index is not loaded, so member filters are unavailable.'};
       // Exact identifier joins only: speeches by speaker, questions and answers by author.
-      where.push('EXISTS (SELECT 1 FROM idx.items i WHERE i.generation=? AND i.mep=? AND i.source_id=d.source_id)');params.push(generation,String(member));
+      const authorWhere=['i.generation=?','i.source_id=d.source_id'],authorParams=[generation];
+      if(member){authorWhere.push('i.mep=?');authorParams.push(String(member));}
+      if(country){authorWhere.push(`(i.mep IN (SELECT value FROM json_each(?)) OR (i.mep NOT IN (SELECT value FROM json_each(?)) AND EXISTS (SELECT 1 FROM idx.members m WHERE m.id=i.mep AND CASE COALESCE(json_extract(m.body,'$.countryCode'),json_extract(m.body,'$."api:country-of-representation"')) WHEN 'GR' THEN 'EL' ELSE COALESCE(json_extract(m.body,'$.countryCode'),json_extract(m.body,'$."api:country-of-representation"')) END=?)))`);authorParams.push(JSON.stringify(countryMemberIds||[]),JSON.stringify(countryMetadataIds||[]),country);}
+      where.push(`EXISTS (SELECT 1 FROM idx.items i WHERE ${authorWhere.join(' AND ')})`);params.push(...authorParams);
     }
-    const sql=`FROM texts_fts JOIN texts t ON t.id=texts_fts.rowid JOIN documents d ON d.id=t.document_id WHERE ${where.join(' AND ')}`;
-    const total=this.db.prepare('SELECT COUNT(*) AS n '+sql).get(...params).n;
-    const rows=this.db.prepare(`SELECT d.source_id,d.kind,d.parent_id,d.date,t.language,t.translation_type,t.source_format,t.source_url,t.fetched_at,
-      snippet(texts_fts,0,'\u0002','\u0003','…',24) AS snippet ${sql} ORDER BY texts_fts.rank LIMIT ? OFFSET ?`).all(...params,limit,offset);
+    const sql=`FROM texts_fts JOIN texts t ON t.id=texts_fts.rowid JOIN documents d ON d.id=t.document_id LEFT JOIN documents q ON d.kind='answer' AND q.source_id=d.parent_id AND q.kind='question' WHERE ${where.join(' AND ')}`;
+    const total=this.db.prepare(`SELECT COUNT(DISTINCT ${groupId}) AS n ${sql}`).get(...params).n;
+    // Materialise FTS rank before aggregating. Pagination applies to exact source
+    // groups, so several languages or answers never consume an extra page row.
+    const selected=this.db.prepare(`WITH matched AS MATERIALIZED (SELECT ${groupId} AS group_id,${filterDate} AS date,texts_fts.rank AS score ${sql})
+      SELECT group_id,MIN(score) AS score,MAX(date) AS date FROM matched GROUP BY group_id
+      ORDER BY ${sort==='newest'?'date DESC,score':'score,date DESC'},group_id LIMIT ? OFFSET ?`).all(...params,limit,offset);
     const members=generation==null?null:this.db.prepare('SELECT DISTINCT mep FROM idx.items WHERE generation=? AND source_id=? ORDER BY mep');
-    const next=offset+rows.length,more=next<total;
-    return {total,limit,offset,nextOffset:more&&next<=CORPUS_LIMITS.searchOffset?next:null,truncated:more&&next>CORPUS_LIMITS.searchOffset,query:match,
-      hits:rows.map(row=>({sourceId:row.source_id,kind:row.kind,parentId:row.parent_id,date:row.date,language:row.language,translationType:row.translation_type,
-        sourceFormat:row.source_format,sourceUrl:row.source_url,fetchedAt:row.fetched_at,snippet:row.snippet,
-        memberIds:members?members.all(generation,row.source_id).map(item=>Number(item.mep)):null}))};
+    const memberIds=id=>members?members.all(generation,id).map(item=>Number(item.mep)):null;
+    const person=generation==null?null:this.db.prepare('SELECT body FROM idx.members WHERE id=?');
+    const people=(ids,kind)=>(ids||[]).map(id=>({id,name:parse(person?.get(String(id))?.body)?.name||null,role:kind==='speech'?'SPEAKER':kind==='answer'?'QUESTION_AUTHOR':'AUTHOR'}));
+    const rows=selected.length?this.db.prepare(`SELECT ${groupId} AS group_id,d.source_id,d.kind,d.parent_id,d.date,${questionDate} AS question_date,
+      t.source_key,t.sha256,t.language,t.translation_type,t.source_format,t.source_url,t.fetched_at,
+      snippet(texts_fts,0,'\u0002','\u0003','…',24) AS snippet ${sql} AND ${groupId} IN (SELECT value FROM json_each(?))
+      ORDER BY texts_fts.rank,d.source_id,t.language,t.source_key`).all(...params,JSON.stringify(selected.map(row=>row.group_id))):[];
+    const byGroup=new Map(selected.map(row=>[row.group_id,[]]));
+    for(const row of rows)byGroup.get(row.group_id).push(row);
+    const metadata=generation==null?null:this.db.prepare('SELECT body FROM idx.items WHERE generation=? AND source_id=? ORDER BY mep,category LIMIT 1');
+    const savedQuestion=generation==null?null:this.db.prepare("SELECT body FROM idx.sources WHERE generation=? AND key=? AND kind='document'");
+    const localTitle=titles=>typeof titles==='string'?titles:titles?.[uiLanguage]||titles?.en||Object.values(titles||{}).find(value=>typeof value==='string')||null;
+    const results=selected.map(selectedRow=>{
+      const matched=byGroup.get(selectedRow.group_id),first=matched[0],sourceId=selectedRow.group_id;
+      const questionGroup=group==='question' && (first.kind==='question'||first.kind==='answer'&&first.parent_id);
+      const item=parse(metadata?.get(generation,sourceId)?.body);
+      const questionSourceId=questionGroup||first.kind==='question'?sourceId:first.kind==='answer'?first.parent_id:null;
+      const saved=questionSourceId?parse(savedQuestion?.get(generation,'/parliamentary-questions/'+questionSourceId)?.body):null;
+      const savedAnswer=!questionGroup&&first.kind==='answer'?(saved?.inverse_answers_to||[]).find(answer=>answer&&typeof answer==='object'&&(answer.identifier||String(answer.id||'').split('/').at(-1))===sourceId):null;
+      const questionDate=matched.find(row=>row.question_date)?.question_date||null;
+      const answerDate=matched.filter(row=>row.kind==='answer'&&row.date).map(row=>row.date).sort().at(-1)||null;
+      const hits=matched.map(row=>{const ids=memberIds(row.source_id);return {...this.variant(row),memberIds:ids,people:people(ids,row.kind)};});
+      const ids=members?[...new Set([...(memberIds(sourceId)||[]),...hits.flatMap(hit=>hit.memberIds||[])])].sort((a,b)=>a-b):null;
+      const titles=item?.titles||saved?.title_dcterms||Object.assign({},...(Array.isArray(saved?.is_realized_by)?saved.is_realized_by:[]).map(realization=>realization.title||{}));
+      return {sourceId,kind:questionGroup?'question':first.kind,parentId:questionGroup?null:first.parent_id,date:selectedRow.date,
+        questionDate,answerDate,title:localTitle(titles)||sourceId,reference:item?.reference||(first.kind==='answer'&&!questionGroup?savedAnswer?.label:saved?.label)||sourceId,memberIds:ids,people:people(ids,questionGroup?'question':first.kind),hits};
+    });
+    const next=offset+results.length,more=next<total;
+    return {total,limit,offset,nextOffset:more&&next<=CORPUS_LIMITS.searchOffset?next:null,truncated:more&&next>CORPUS_LIMITS.searchOffset,query:match,group,dateBasis,sort,
+      results,hits:results.flatMap(result=>result.hits)};
   }
   close(){if(!this.readOnly)this.release();this.db.close();}
 }
