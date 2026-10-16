@@ -196,6 +196,28 @@ test('relationship-index migration waits for the writer lease and backfills reta
     store.release();assert(reader.acquire());assert.equal(reader.relatedJointMotions(cycle.generation,id).length,1);
   }finally{reader.close();}
 });
+test('older workers leave outcome tasks pending and an upgraded worker resumes them',async t=>{
+  const store=storeTest(t),cycle=seed(store),worker=new ActivityWorker(store,{clock});
+  worker.scheduleMotionOutcomes(cycle.generation,work('RC-10-2026-0441'));
+  store.enqueue(cycle.generation,'legacy-document','document',{endpoint:'/plenary-documents/B-10-2026-0441'},101);
+  // These are the scheduler and progress queries used by the previous image.
+  const legacyNext=()=>store.db.prepare('SELECT * FROM tasks WHERE generation=? AND done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(cycle.generation,clock());
+  const legacyTask=legacyNext();assert.equal(legacyTask.kind,'document');store.finishTask(legacyTask);
+  assert.equal(legacyNext(),undefined);
+  const legacyCounts=store.db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(done),0) AS completed FROM tasks WHERE generation=?').get(cycle.generation);
+  assert.equal(legacyCounts.total,2);assert.equal(legacyCounts.completed,1);
+  assert.throws(()=>store.publish(cycle.generation),/incomplete generation/);
+  store.release();
+  const resumed=new ActivityStore(path.dirname(store.filename),{clock});
+  try {
+    assert(resumed.acquire());
+    const next=new ActivityWorker(resumed,{clock,fetchRecord:async endpoint=>({payload:{data:endpoint.endsWith('/vote-results')?rawResults():rawDecisions()},fetchedAt})});
+    for(let i=0;i<4 && resumed.nextTask(cycle.generation);i++)await next.task(resumed.nextTask(cycle.generation));
+    assert.equal(resumed.taskCounts(cycle.generation).completed,2);assert.equal(legacyNext(),undefined);
+    assert.equal(resolve('RC-10-2026-0441',resumed.source(cycle.generation,motionSourceKey(fixture.sittingId)).work).status,'adopted');
+    resumed.publish(cycle.generation);
+  }finally{resumed.close();}
+});
 test('upgrades enqueue retained motions without resetting a partial generation or touching another writer',t=>{
   const store=storeTest(t),cycle=seed(store);
   const document=work('B-10-2026-0441');delete document.motionLinksVersion;delete document.inverse_based_on_a_realization_of;
@@ -217,4 +239,5 @@ test('failed refreshes leave the published outcome and activity generation reada
   assert.equal(store.status().servingGeneration,cycle.generation);
   assert.equal(resolve('RC-10-2026-0441',store.source(cycle.generation,motionSourceKey(fixture.sittingId)).work).status,'adopted');
   assert.equal(store.taskCounts(refresh.generation).retrying,1);
+  assert.equal(store.status().lastError,'Temporary upstream failure');
 });

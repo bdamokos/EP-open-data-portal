@@ -97,10 +97,13 @@ export class ActivityStore {
   updateCycle(values) { this.assertWriter();this.set('working',{...this.get('working'),...values}); }
   enqueue(generation,key,kind,body,priority=50,refreshCompleted=false) {
     this.assertWriter();
-    this.db.prepare('INSERT OR IGNORE INTO tasks(generation,key,kind,body,priority) VALUES (?,?,?,?,?)').run(generation,key,kind,JSON.stringify(body),priority);
-    if(refreshCompleted)this.db.prepare('UPDATE tasks SET done=0,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE generation=? AND key=? AND done=1').run(JSON.stringify(body),priority,generation,key);
+    // Older images select only done=0. Leave new task kinds pending for an
+    // outcome-aware worker during rollback; SUM(done) still counts only finished work.
+    const pending=kind==='motion-outcomes'?null:0;
+    this.db.prepare('INSERT OR IGNORE INTO tasks(generation,key,kind,body,priority,done) VALUES (?,?,?,?,?,?)').run(generation,key,kind,JSON.stringify(body),priority,pending);
+    if(refreshCompleted)this.db.prepare('UPDATE tasks SET done=?,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE generation=? AND key=? AND done=1').run(pending,JSON.stringify(body),priority,generation,key);
   }
-  nextTask(generation) { const r=this.db.prepare('SELECT * FROM tasks WHERE generation=? AND done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,this.clock()); return r && {...r,body:parse(r.body)}; }
+  nextTask(generation) { const r=this.db.prepare('SELECT * FROM tasks WHERE generation=? AND (done=0 OR done IS NULL) AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,this.clock()); return r && {...r,body:parse(r.body)}; }
   taskProgress(task,body) { this.assertWriter();this.db.prepare('UPDATE tasks SET body=?,attempts=0,error=NULL,retry_at=0 WHERE generation=? AND key=?').run(JSON.stringify(body),task.generation,task.key); }
   finishTask(task) { this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,error=NULL WHERE generation=? AND key=?').run(task.generation,task.key); }
   failTask(task,error) {
@@ -108,7 +111,7 @@ export class ActivityStore {
     this.db.prepare('UPDATE tasks SET attempts=attempts+1,retry_at=?,error=? WHERE generation=? AND key=?').run(this.clock()+delay,String(error.message).slice(0,350),task.generation,task.key);
     this.updateCycle({phase:'retrying',error:String(error.message).slice(0,350)});
   }
-  taskCounts(generation) { return this.db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(done),0) AS completed,COALESCE(SUM(CASE WHEN done=0 AND error IS NOT NULL THEN 1 ELSE 0 END),0) AS retrying FROM tasks WHERE generation=?').get(generation); }
+  taskCounts(generation) { return this.db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(done),0) AS completed,COALESCE(SUM(CASE WHEN (done=0 OR done IS NULL) AND error IS NOT NULL THEN 1 ELSE 0 END),0) AS retrying FROM tasks WHERE generation=?').get(generation); }
   source(generation,key) { const s=this.db.prepare('SELECT * FROM sources WHERE generation=? AND key=?').get(generation,key);return s && {work:parse(s.body),fetchedAt:s.fetched_at}; }
   sources(generation,kind,workType=null) {
     const rows=this.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind=?'+(workType?" AND json_extract(body,'$.work_type') LIKE ?":'')).all(generation,kind,...(workType?['%/'+workType]:[]));
@@ -178,7 +181,7 @@ export class ActivityStore {
       refreshInProgress:Boolean(cycle), progress:cycle?this.taskCounts(cycle.generation):null, backgroundRequests:cycle?.requests || 0, lastRefreshRequests:this.get('lastRefreshRequests') || 0,
       pendingSpeechRecoveries:{count:recoveryCount,examples:recoveryExamples},
       sourceCounts:Object.fromEntries(counts.map(c=>[c.kind,c.count])), currentMeps:this.db.prepare('SELECT COUNT(*) AS n FROM members').get().n,
-      rosterFetchedAt:this.get('rosterFetchedAt'), lastError:cycle?.phase==='paused' ? cycle.error : cycle ? this.db.prepare('SELECT error FROM tasks WHERE generation=? AND done=0 AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get(cycle.generation)?.error || null : null, exclusiveWriterActive:Boolean(lease && lease.expires>this.clock()),
+      rosterFetchedAt:this.get('rosterFetchedAt'), lastError:cycle?.phase==='paused' ? cycle.error : cycle ? this.db.prepare('SELECT error FROM tasks WHERE generation=? AND (done=0 OR done IS NULL) AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get(cycle.generation)?.error || null : null, exclusiveWriterActive:Boolean(lease && lease.expires>this.clock()),
       unresolvedJoinCount:(this.get('unresolved') || []).length, unresolvedJoins:(this.get('unresolved') || []).slice(0,100), unresolvedCategories:[...new Set((this.get('unresolved') || []).map(join=>join.category || 'reports-shadow'))], unsupportedCategories:Object.entries(CATEGORY_GAPS).map(([category,reason])=>({category,label:CATEGORIES[category],reason})),
       dataSource:'European Parliament Open Data API v2', attribution:'European Parliament, CC BY 4.0', schedule:'Daily after 03:00 Europe/Brussels; interrupted initial loads resume automatically.' };
   }

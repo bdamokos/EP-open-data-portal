@@ -67,8 +67,14 @@ test('a completed source refresh replaces saved names without clearing loaded me
         await new Promise(resolve=>setTimeout(resolve,10));
       }
       // Join the actual source refresh before triggering a new projection.
-      // Short fixed sleeps race disk I/O and concurrent test files on CI.
-      await odp('/meps/show-current',{limit:1000,offset:0});
+      // Keep this serverless child alive while the queue's unref'ed timer waits.
+      let refreshDeadline;
+      try {
+        await Promise.race([
+          odp('/meps/show-current',{limit:1000,offset:0}),
+          new Promise((_,reject)=>{refreshDeadline=setTimeout(()=>reject(new Error('Source refresh did not finish')),2000);}),
+        ]);
+      }finally{clearTimeout(refreshDeadline);}
       const now=Date.now();Date.now=()=>now+61000;
       const during=await odpDirectory();
       let after;

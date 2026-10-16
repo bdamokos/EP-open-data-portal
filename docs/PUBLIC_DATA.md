@@ -53,7 +53,7 @@ The existing activity-index writer acquires these records through its shared req
 
 Both published final-motion labels, “Motion for a resolution” and “Motion for a resolution (as a whole)”, qualify when the exact document reference and relationships match. An incomplete refresh retains the last complete sitting and its original source timestamps. Missing IDs and request provenance for the failed attempt are stored separately as `lastRefreshFailure`, exposed on resolved outcomes as `refreshFailure`, and retried by later background jobs. A first load with incomplete records retains its coverage gaps.
 
-Original-to-joint relationships use a derived SQLite index. Source insert/update/delete triggers maintain it in the same transaction as the source record, including generation copies and pruning. Existing retained sources are indexed once under the writer lease. Page requests use indexed exact-reference lookups rather than scanning the document collection for each motion.
+Original-to-joint relationships use a derived SQLite index. Source insert/update/delete triggers maintain it in the same transaction as the source record, including generation copies and pruning. Existing retained sources are indexed once under the writer lease. Page requests use indexed exact-reference lookups rather than scanning the document collection for each motion. After rollback, older workers leave new vote tasks pending for a supporting worker and continue serving saved activities.
 
 ### Speech interventions and exchanges
 
