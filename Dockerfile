@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY index.html vite.config.ts tsconfig*.json ./
+COPY THIRD_PARTY_JAVASCRIPT_LICENSES.txt ./
 COPY src ./src
 COPY public ./public
 COPY server ./server
