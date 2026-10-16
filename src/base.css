@@ -82,4 +82,22 @@ button{border:0;border-radius:0;cursor:pointer;-webkit-tap-highlight-color:trans
 }
 
 
-@media(prefers-reduced-motion:reduce){.running-text.is-running .running-text__track{animation:none;}}
+@media (prefers-reduced-motion: reduce) {
+  .running-text {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .running-text__track {
+    display: block;
+    width: auto;
+  }
+
+  .running-text.is-running .running-text__track {
+    animation: none;
+  }
+
+  .running-text__track > [aria-hidden="true"] {
+    display: none;
+  }
+}
