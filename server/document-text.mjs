@@ -9,15 +9,17 @@ import { documentFiles,array,tail } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
+const EXTRACTION_VERSION=3;
 const memory=new Map(),pending=new Map(),failures=new Map();
-// Read only the standard document entry. No archive paths are written to disk.
-export function docxParagraphs(buffer) {
+// Read only standard document/style entries. No archive paths are written to disk.
+function docxParts(buffer) {
   if(buffer.length>MAX_FILE || buffer.length<22)throw new Error('DOCX size is unsupported.');
   let end=-1;
   for(let i=buffer.length-22;i>=Math.max(0,buffer.length-65557);i--)if(buffer.readUInt32LE(i)===0x06054b50){end=i;break;}
   if(end<0)throw new Error('Invalid DOCX archive.');
   if(buffer.readUInt16LE(end+4)||buffer.readUInt16LE(end+6))throw new Error('Multipart DOCX is unsupported.');
-  const count=buffer.readUInt16LE(end+10);let cursor=buffer.readUInt32LE(end+16),xml=null;
+  const count=buffer.readUInt16LE(end+10);let cursor=buffer.readUInt32LE(end+16),total=0;
+  const parts=new Map();
   if(count>2000)throw new Error('DOCX contains too many entries.');
   for(let i=0;i<count;i++) {
     if(cursor+46>buffer.length || buffer.readUInt32LE(cursor)!==0x02014b50)throw new Error('Invalid DOCX directory.');
@@ -25,31 +27,75 @@ export function docxParagraphs(buffer) {
     const nameLength=buffer.readUInt16LE(cursor+28),extra=buffer.readUInt16LE(cursor+30),comment=buffer.readUInt16LE(cursor+32),offset=buffer.readUInt32LE(cursor+42);
     const name=buffer.subarray(cursor+46,cursor+46+nameLength).toString('utf8');
     cursor+=46+nameLength+extra+comment;
-    if(name!=='word/document.xml')continue;
-    if(xml!==null || flags&1 || size>MAX_XML || compressed>MAX_FILE || offset+30>buffer.length || buffer.readUInt32LE(offset)!==0x04034b50)throw new Error('Unsupported DOCX document entry.');
+    if(!['word/document.xml','word/styles.xml'].includes(name))continue;
+    total+=size;
+    if(parts.has(name) || flags&1 || total>MAX_XML || compressed>MAX_FILE || offset+30>buffer.length || buffer.readUInt32LE(offset)!==0x04034b50)throw new Error('Unsupported DOCX document entry.');
     const start=offset+30+buffer.readUInt16LE(offset+26)+buffer.readUInt16LE(offset+28);
     if(start+compressed>buffer.length)throw new Error('Truncated DOCX entry.');
     const bytes=buffer.subarray(start,start+compressed);
     const decoded=method===0?bytes:method===8?inflateRawSync(bytes,{maxOutputLength:MAX_XML}):null;
     if(!decoded || decoded.length!==size)throw new Error('Invalid DOCX compression.');
-    xml=decoded.toString('utf8');
+    const xml=decoded.toString('utf8');
+    if(!xml || /<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml)!==true)throw new Error('Invalid DOCX document XML.');
+    parts.set(name,xml);
   }
-  if(!xml || /<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml)!==true)throw new Error('Invalid DOCX document XML.');
-  const tree=new XMLParser({preserveOrder:true,ignoreAttributes:true,parseTagValue:false,trimValues:false}).parse(xml);
+  if(!parts.has('word/document.xml'))throw new Error('Invalid DOCX document XML.');
+  return parts;
+}
+const child=(nodes,key)=>nodes?.find(node=>Object.hasOwn(node,key));
+const children=(nodes,key)=>child(nodes,key)?.[key];
+const attribute=(node,key)=>node?.[':@']?.['@_w:'+key];
+const property=(nodes,key)=>attribute(child(nodes,key),'val');
+function hiddenValue(properties) {
+  const node=child(properties,'w:vanish');
+  return node ? !['0','false','off'].includes(String(attribute(node,'val')).toLowerCase()) : undefined;
+}
+export function docxParagraphs(buffer) {
+  const parts=docxParts(buffer);
+  const parser=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false});
+  const tree=parser.parse(parts.get('word/document.xml'));
+  const styles=children(parts.has('word/styles.xml')?parser.parse(parts.get('word/styles.xml')):[],'w:styles') || [];
+  const byId=new Map(styles.filter(node=>node['w:style']).map(node=>[attribute(node,'styleId'),{
+    parent:property(node['w:style'],'w:basedOn'),toggle:hiddenValue(children(node['w:style'],'w:rPr'))===true,
+  }]));
+  const defaultStyle=type=>attribute(styles.find(node=>node['w:style'] && attribute(node,'type')===type && ['1','true','on'].includes(String(attribute(node,'default')))),'styleId');
+  const defaultParagraph=defaultStyle('paragraph'),defaultCharacter=defaultStyle('character'),styleToggles=new Map();
+  const defaults=hiddenValue(children(children(children(styles,'w:docDefaults'),'w:rPrDefault'),'w:rPr')) ?? false;
+  function styledHidden(id,inherited) {
+    if(styleToggles.has(id))return inherited!==styleToggles.get(id);
+    if(!byId.has(id))return inherited;
+    const chain=[],seen=new Set();
+    while(byId.has(id) && !styleToggles.has(id)) {
+      if(seen.has(id))throw new Error('Cyclic DOCX style inheritance is unsupported.');
+      seen.add(id);chain.push(id);id=byId.get(id).parent;
+    }
+    // In styles, an enabled vanish toggles the inherited value; direct run
+    // formatting below is absolute, including an explicit w:val="0".
+    let toggle=styleToggles.get(id) ?? false;
+    for(const styleId of chain.reverse()) {toggle=toggle!==byId.get(styleId).toggle;styleToggles.set(styleId,toggle);}
+    return inherited!==toggle;
+  }
   const paragraphs=[];
-  function inline(nodes) {
+  function inline(nodes,hidden) {
     let text='';
     for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
-      if(key==='#text')text+=String(value);
+      if(key==='w:r') {
+        const properties=children(value,'w:rPr');
+        const runHidden=hiddenValue(properties) ?? styledHidden(property(properties,'w:rStyle') || defaultCharacter,hidden);
+        if(!runHidden)text+=inline(value,false);
+      }
+      else if(key==='#text')text+=String(value);
       else if(key==='w:tab')text+='\t';
       else if(key==='w:br'||key==='w:cr')text+='\n';
-      else if(!['w:del','w:instrText','w:pPr','w:rPr'].includes(key) && Array.isArray(value))text+=inline(value);
+      else if(key==='w:noBreakHyphen')text+='\u2011';
+      else if(key==='w:softHyphen')text+='\u00ad';
+      else if(!['w:del','w:instrText','w:pPr','w:rPr'].includes(key) && Array.isArray(value))text+=inline(value,hidden);
     }
     return text;
   }
   function walk(nodes) {
     for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
-      if(key==='w:p'){const p=inline(value).trim();if(p)paragraphs.push(p);}
+      if(key==='w:p'){const hidden=styledHidden(property(children(value,'w:pPr'),'w:pStyle') || defaultParagraph,defaults),p=inline(value,hidden).trim();if(p)paragraphs.push(p);}
       else if(Array.isArray(value))walk(value);
     }
   }
@@ -89,11 +135,11 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
   const key=chosen.url,file=directory && path.join(directory,'document-text-v1',createHash('sha256').update(key).digest('hex')+'.json');
   let saved=memory.get(key);
-  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));if(record.schemaVersion===1 && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;memory.set(key,record);}}catch{}
+  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));if(record.schemaVersion===1 && record.extractionVersion===EXTRACTION_VERSION && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;memory.set(key,record);}}catch{}
   const refresh=priority=> {
     if(pending.has(key))return pending.get(key);
     const job=boundedUpstream(async()=>{
-      const result=await download(key),record={schemaVersion:1,sourceId:work.identifier || tail(work.id),sourceUrl:key,fetchedAt:new Date(clock()).toISOString(),...result};
+      const result=await download(key),record={schemaVersion:1,extractionVersion:EXTRACTION_VERSION,sourceId:work.identifier || tail(work.id),sourceUrl:key,fetchedAt:new Date(clock()).toISOString(),...result};
       if(file){await mkdir(path.dirname(file),{recursive:true});const temp=file+'.'+process.pid+'.tmp';await writeFile(temp,JSON.stringify(record));await rename(temp,file);}
       memory.set(key,record);if(memory.size>100)memory.delete(memory.keys().next().value);failures.delete(key);return record;
     },{priority}).catch(error=>{failures.set(key,{retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
