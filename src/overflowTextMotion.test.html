@@ -12,7 +12,7 @@
       import {createRoot} from 'react-dom/client';
       import {Portrait} from './components/Portrait.tsx';
       import './base.css';
-      import './poc.css';
+      import './explorer.css';
 
       const h = React.createElement;
       const names = [
@@ -23,11 +23,11 @@
       ];
       function Fixture() {
         const [selected, setSelected] = useState('No portrait selected');
-        return h('main', {className: 'poc'},
-          h('section', {className: 'poc-wall'},
+        return h('main', {className: 'explorer'},
+          h('section', {className: 'explorer-wall'},
             h('h1', null, 'Portrait names'),
-            h('div', {className: 'poc-portraits'}, names.map(([firstName, lastName], id) =>
-              h('div', {className: 'poc-portrait-item', key: id},
+            h('div', {className: 'explorer-portraits'}, names.map(([firstName, lastName], id) =>
+              h('div', {className: 'explorer-portrait-item', key: id},
                 h(Portrait, {
                   member: {id, firstName, lastName, sortName: lastName, gender: 'f', countryCode: 'DE', imageUrl: 'assets/portrait-placeholder.svg'},
                   labelled: true,

@@ -10,17 +10,17 @@ async function checkPortraitEnlargement(page) {
   const labels = ['Marie-Agnes', 'STRACK-ZIMMERMANN', 'Isabel', 'GARCÍA MUÑOZ', 'Kinga', 'GÁL', 'Juan Fernando', 'LÓPEZ AGUILAR'];
   // Accepted 28cbf418 layout, using its wrapped reduced-motion presentation in both media.
   const legacyCSS = `
-    .poc-portrait-item { container-type: normal !important; }
-    .poc .poc-portrait-item .portrait {
+    .explorer-portrait-item { container-type: normal !important; }
+    .explorer .explorer-portrait-item .portrait {
       display: block !important; aspect-ratio: 4 / 5 !important;
       grid-template-rows: none !important; min-height: 44px !important;
     }
-    .poc-portrait-item .portrait::before { content: none !important; }
-    .poc-portrait-item .portrait img {
+    .explorer-portrait-item .portrait::before { content: none !important; }
+    .explorer-portrait-item .portrait img {
       position: static !important; inset: auto !important; height: 100% !important;
       aspect-ratio: auto !important; grid-area: auto !important; align-self: auto !important;
     }
-    .poc-portrait-item .portrait__label {
+    .explorer-portrait-item .portrait__label {
       position: absolute !important; inset: auto 0 0 !important; width: auto !important;
       min-width: auto !important; grid-area: auto !important; align-self: auto !important;
     }`;
@@ -50,7 +50,7 @@ async function checkPortraitEnlargement(page) {
   }, reduced, {timeout});
   const snapshot = () => page.evaluate(() => {
     const elements = selector => [...document.querySelectorAll(selector)];
-    const grid = document.querySelector('.poc-portraits'), gridBox = grid.getBoundingClientRect();
+    const grid = document.querySelector('.explorer-portraits'), gridBox = grid.getBoundingClientRect();
     const gridStyle = getComputedStyle(grid);
     const wallBox = grid.parentElement.getBoundingClientRect();
     // Grid content coordinates stay comparable after focus or scrolling moves a scroller.
@@ -69,7 +69,7 @@ async function checkPortraitEnlargement(page) {
           clientWidth: grid.clientWidth, paddingLeft: parseFloat(gridStyle.paddingLeft),
           paddingRight: parseFloat(gridStyle.paddingRight), gap: parseFloat(gridStyle.columnGap)},
         columns: gridStyle.gridTemplateColumns,
-        cards: elements('.poc-portrait-item').map(rect),
+        cards: elements('.explorer-portrait-item').map(rect),
         portraits: elements('.portrait').map(rect),
         images: elements('.portrait img').map(rect),
         captions: elements('.portrait__label').map(rect),
@@ -81,7 +81,7 @@ async function checkPortraitEnlargement(page) {
           naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
           renderedWidth: image.naturalWidth * scale, renderedHeight: image.naturalHeight * scale};
       }),
-      horizontalOverflow: elements('html, body, #root, .poc, .poc-wall, .poc-portraits')
+      horizontalOverflow: elements('html, body, #root, .explorer, .explorer-wall, .explorer-portraits')
         .filter(element => element.scrollWidth > element.clientWidth).map(element => element.className || element.tagName),
       animations: document.getAnimations().length,
       labels: elements('.overflow-text').map(element => {
@@ -204,13 +204,13 @@ async function checkPortraitEnlargement(page) {
       await settle(true);
       await page.getByRole('button', {name: names[3], exact: true}).focus({timeout});
       assert(await page.evaluate(() => {
-        const scroller = document.querySelector('.poc');
+        const scroller = document.querySelector('.explorer');
         if (scroller.scrollHeight <= scroller.clientHeight) return false;
         scroller.scrollTop = scroller.scrollHeight;
         return scroller.scrollTop > 0;
       }), 'The short viewport must exercise actual scrolling');
       await page.waitForFunction(() => {
-        const scroller = document.querySelector('.poc').getBoundingClientRect();
+        const scroller = document.querySelector('.explorer').getBoundingClientRect();
         const last = [...document.querySelectorAll('.overflow-text')].at(-1);
         const range = document.createRange(); range.selectNodeContents(last);
         const line = [...range.getClientRects()].at(-1);
@@ -249,13 +249,13 @@ async function checkPortraitEnlargement(page) {
 
       context = `${width}px CSS enlargement diagnostic`;
       const enlargement = await page.addStyleTag({content: `
-        .poc .portrait__label { font-size: 34px !important; }
-        @media (max-width: 767px) { .poc .portrait__label { font-size: 30px !important; } }`});
+        .explorer .portrait__label { font-size: 34px !important; }
+        @media (max-width: 767px) { .explorer .portrait__label { font-size: 30px !important; } }`});
       try {
         await settle(true);
         assertEnlarged(await snapshot(), reduced, true, false);
         const spacing = await page.addStyleTag({content: `
-          .poc .portrait__label { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }`});
+          .explorer .portrait__label { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }`});
         try {
           const enlarged = await snapshot();
           assertEnlarged(enlarged, reduced, true, true);
@@ -290,8 +290,8 @@ async function checkPortraitEnlargement(page) {
       assert(equal(typography(noPreference), typography(ordinary)), 'Restored typography must remain unchanged across media');
       // Exercise the short-screen scroll route separately from typography restoration.
       const scrolling = await page.addStyleTag({content: `
-        .poc .portrait__label { font-size: 34px !important; line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
-        @media (max-width: 767px) { .poc .portrait__label { font-size: 30px !important; } }`});
+        .explorer .portrait__label { font-size: 34px !important; line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
+        @media (max-width: 767px) { .explorer .portrait__label { font-size: 30px !important; } }`});
       try {
         await page.emulateMedia({reducedMotion: 'reduce'});
         await checkFinalScroll(width);

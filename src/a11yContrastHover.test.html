@@ -10,14 +10,14 @@
     <script type="module">
       import {createElement} from 'react';
       import {createRoot} from 'react-dom/client';
-      import './PocApp.tsx';
+      import './App.tsx';
       import './base.css';
       import {ParliamentHeader} from './ParliamentHeader.tsx';
 
-      // Run with either ?shell=poc or ?shell=poc-insights. Hover Questions,
+      // Run with either ?shell=explorer or ?shell=explorer-insights. Hover Questions,
       // then Members with a real pointer; synthetic events cannot set :hover.
-      const shell = new URLSearchParams(location.search).get('shell') || 'poc';
-      if (!['poc', 'poc-insights'].includes(shell)) throw new Error('Unknown shell');
+      const shell = new URLSearchParams(location.search).get('shell') || 'explorer';
+      if (!['explorer', 'explorer-insights'].includes(shell)) throw new Error('Unknown shell');
       const noop = () => {};
       createRoot(document.getElementById('root')).render(createElement('main', {className: shell},
         createElement(ParliamentHeader, {view: 'questions', onMembers: noop, onNavigate: noop}),
