@@ -27,7 +27,7 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=8790 APP_REVISION=${APP_REVISION} \
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/package.json /app/package-lock.json ./
 COPY --from=build /runtime-server ./server
-COPY --from=build /app/src/speakerNames.mjs ./src/speakerNames.mjs
+COPY --from=build /app/src/speakerNames.mjs /app/src/groupVoiceTerms.mjs ./src/
 COPY --from=build /app/dist ./dist
 COPY THIRD_PARTY_NOTICES.md ./
 RUN mkdir -p /data/cache /data/index && chown -R node:node /data

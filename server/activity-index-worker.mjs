@@ -1,3 +1,5 @@
+import {groupVoiceProjection,groupVoiceJobKey,recordGroupVoice,groupVoiceWorkDue,groupVoicesCopy,initializeGroupVoices,nextGroupVoiceTask,enqueueGroupVoice} from './group-voices-store.mjs';
+import {personNameVariants} from './speaker-identity.mjs';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -78,7 +80,7 @@ export class ActivityWorker {
   due() {
     const active=this.store.get('active') || 0;
     const checkpoint=this.store.source(active,CONTINUATIONS_KEY)?.work;
-    return this.coreDue() || Boolean(nextAmendmentTask(this.store,amendmentGeneration(this.store)) || this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(active) || checkpoint?.discovery?.length || checkpoint?.tasks?.some(task=>task.retry_at<=this.clock()));
+    return this.coreDue() || Boolean(nextAmendmentTask(this.store,amendmentGeneration(this.store)) || this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(active) || groupVoiceWorkDue(this.store,active) || checkpoint?.discovery?.length || checkpoint?.tasks?.some(task=>task.retry_at<=this.clock()));
   }
   checkpointContinuations(generation,{includeCore=true}={}) {
     this.store.transaction(()=>{
@@ -163,7 +165,7 @@ export class ActivityWorker {
       await this.outsideTask(task);
     } else if(task.kind==='roster') {
       const r=await this.request('/meps/show-current',{limit:1000,offset:body.offset});
-      const nodes=r.payload.data.flatMap(p=>{const id=String(p.identifier || tail(p.id));return /^[1-9]\d*$/.test(id)?[{id,name:p.label || [p.givenName,p.familyName].filter(Boolean).join(' ')}]:[];});
+      const nodes=r.payload.data.flatMap(p=>{const id=String(p.identifier || tail(p.id));return /^[1-9]\d*$/.test(id)?[{id,name:p.label || [p.givenName,p.familyName].filter(Boolean).join(' '),nameVariants:personNameVariants(p)}]:[];});
       if(nodes.length) {
         const prior=new Set(body.nodes.map(n=>n.id));if(nodes.some(n=>prior.has(n.id)))throw new Error('EP roster pagination repeated a member.');
         this.store.taskProgress(task,{nodes:[...body.nodes,...nodes],offset:body.offset+r.payload.data.length});
@@ -186,7 +188,7 @@ export class ActivityWorker {
       const r=await this.request('/speeches/'+body.recoveryId);
       const activity=r.payload.data.find(node=>node.activity_id===body.recoveryId);
       if(!activity)throw new Error(`Published speech ${body.recoveryId} has no matching detail record.`);
-      this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url);
+      this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob);
       this.store.finishTask(task);
     } else if(task.kind==='speeches') {
       const r=await this.request('/speeches',{...body.params,limit:250,offset:body.offset});
@@ -198,7 +200,8 @@ export class ActivityWorker {
         const middle=start+Math.floor((end-start)/DAY/2)*DAY;
         for(const [a,b] of [[start,middle],[middle+DAY,end]]) {
           const params={...body.params,'sitting-date':new Date(a).toISOString().slice(0,10),'sitting-date-end':new Date(b).toISOString().slice(0,10)};
-          this.store.enqueue(generation,(body.outsideOnly?'outside:catalog:':'catalog:/speeches:')+params['sitting-date']+':'+params['sitting-date-end'],'speeches',{endpoint:'/speeches',params,offset:0,outsideOnly:body.outsideOnly || false},100);
+          if(task.groupVoiceJob)enqueueGroupVoice(this.store,generation,groupVoiceJobKey('catalog',params['sitting-date']+':'+params['sitting-date-end']),{endpoint:'/speeches',params,offset:0});
+          else this.store.enqueue(generation,(body.outsideOnly?'outside:catalog:':'catalog:/speeches:')+params['sitting-date']+':'+params['sitting-date-end'],'speeches',{endpoint:'/speeches',params,offset:0,outsideOnly:body.outsideOnly || false},100);
         }
         this.store.finishTask(task);return;
       }
@@ -213,13 +216,15 @@ export class ActivityWorker {
         const id=tail(hit.id);
         if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(id))throw new Error('Speech search hit has an invalid recovery identifier.');
         const sitting=id.slice(7,17);
-        this.store.enqueue(generation,'recovery:/speeches/'+id,'speeches',{
+        const recovery={
           recoveryId:id,outsideOnly:body.outsideOnly || false,detectedAt:r.fetchedAt,searchHit:hit.id,searchWindow:{start:body.params['sitting-date'],end:body.params['sitting-date-end'],offset:body.offset},
           // Keep the existing task kind and a valid day window for safe old-image
           // rollback: old code continues strict list validation, never marks an
           // unavailable reference as a completed document.
           params:{...body.params,'sitting-date':sitting,'sitting-date-end':sitting},offset:0,
-        },103);
+        };
+        if(task.groupVoiceJob)enqueueGroupVoice(this.store,generation,groupVoiceJobKey('recovery',id),recovery,21);
+        else this.store.enqueue(generation,'recovery:/speeches/'+id,'speeches',recovery,103);
       }
       const nodes=matched.filter(({node})=>node?.activity_id).map(({node})=>node);
       const hitCount=hits?.length ?? nodes.length;
@@ -227,7 +232,7 @@ export class ActivityWorker {
       const signatures=(hits ? hits.map(hit=>hit.id) : nodes.map(a=>a.activity_id)).sort().join('|');
       if(signatures===body.lastPage)throw new Error('EP speech pagination repeated a page.');
       for(const activity of nodes){if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(activity.activity_id))throw new Error('EP speech identifier was invalid.');
-        this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url);}
+        this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob);}
       this.store.taskProgress(task,{...body,offset:body.offset+hitCount,lastPage:signatures});
     } else if(task.kind==='feed') {
       const r=await this.request(body.endpoint+'/feed',body.endpoint==='/procedures'?{timeframe:'one-week'}:{},{xml:true});
@@ -269,7 +274,7 @@ export class ActivityWorker {
       this.store.finishTask(task);
     }
   }
-  saveSpeech(generation,activity,fetchedAt,outsideOnly=false,queryUrl=null) {
+  saveSpeech(generation,activity,fetchedAt,outsideOnly=false,queryUrl=null,groupVoiceOnly=false) {
     const key='/speeches/'+activity.activity_id;
     let outside=outsideSpeech(activity,fetchedAt,queryUrl);
     const previous=this.store.source(generation,key)?.work.outside;
@@ -279,7 +284,8 @@ export class ActivityWorker {
     // A metadata-only weekly refresh must retain a previously checked header.
     if(outside && previous?.headerChecked && (!outside.headerChecked || previous.headers.some(header=>header.name)&&!outside.headers.some(header=>header.name))) outside={...outside,headers:previous.headers,headerChecked:true,headerSource:previous.headerSource || previous.source};
     if(outside?.headerChecked && !outside.headerSource)outside.headerSource={url:queryUrl || ODP_BASE+key+'?format=application%2Fld%2Bjson',fetchedAt};
-    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,...(outside?{outside}:{})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt));
+    if(groupVoiceOnly){this.store.transaction(()=>recordGroupVoice(this.store,generation,groupVoiceProjection(activity,{fetchedAt,url:queryUrl}),outside));return;}
+    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt));
     recordOutside(this.store,generation,outside);
     if(outsideOnly && outside && this.store.source(generation,'outside:roster:'+outside.date) && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,outside.id))this.store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='outside-speech'").run(generation,key);
   }
@@ -493,7 +499,7 @@ export class ActivityWorker {
       if(!existing && active) {
         // A rollback may have advanced the core generation while leaving the
         // additive amendment snapshot behind. Adopt it before reading sources.
-        this.store.transaction(()=>{this.store.assertWriter();amendmentsCopy(this.store.db,active,active);});
+        this.store.transaction(()=>{this.store.assertWriter();amendmentsCopy(this.store.db,active,active);groupVoicesCopy(this.store.db,active,active);});
         this.checkpointContinuations(active);
       }
       const cycle=this.coreDue()?this.store.beginCycle():null,generation=cycle?.generation || active;
@@ -528,14 +534,21 @@ export class ActivityWorker {
         // the canonical queue with their existing cursors.
         if(this.store.source(generation,CONTINUATIONS_KEY))this.checkpointContinuations(generation,{includeCore:false});
       }
+      initializeGroupVoices(this,generation,speechWindows(day(this.clock())));
       while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration && performance.now()<this.runDeadline) {
         const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
-        if(size>this.diskLimit){if(cycle)this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
+        if(size>this.diskLimit){if(this.store.get('working'))this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
         const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
-        const task=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
-        if(!task){if(cycle){const counts=this.store.taskCounts(generation);if(counts.total===counts.completed){if(this.catchUp(this.store.get('working')))continue;this.finalize(generation);}}break;}
-        try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(this.failOutside(task,error)||failAmendmentTask(this,task,error))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
-        finally {if((!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
+        const coreTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
+        // Publish a finished core generation before spending budget on optional metadata.
+        if(!coreTask&&cycle&&this.store.get('working')){
+          const counts=this.store.taskCounts(generation);
+          if(counts.total===counts.completed){if(this.catchUp(this.store.get('working')))continue;this.finalize(generation);}
+        }
+        const task=coreTask||nextGroupVoiceTask(this.store,generation);
+        if(!task)break;
+        try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
+        finally {if(!task.groupVoiceJob&&(!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
       }
     } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }
