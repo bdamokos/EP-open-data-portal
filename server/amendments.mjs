@@ -3,8 +3,8 @@ import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
 export const AMENDMENTS_VERSION = 1;
-export const AMENDMENT_SITTING_PROJECTION_VERSION = 3;
-export const AMENDMENT_OUTCOME_PROOF_VERSION = 2;
+export const AMENDMENT_SITTING_PROJECTION_VERSION = 4;
+export const AMENDMENT_OUTCOME_PROOF_VERSION = 3;
 export const AMENDMENT_DISTRIBUTION_PROOF_VERSION = 2;
 export const AMENDMENT_LIMITS = Object.freeze({ listsPerTarget:64, sittingsPerTarget:64, amendmentsPerList:500, text:60000, failures:20000, upgradeTargets:100, page:50 });
 export const PROPOSER_DATE_BASES = Object.freeze(['individual-amendment-document','amendment-list-document','amendment-list-metadata']);
