@@ -1,9 +1,24 @@
 import { outsidePerson, outsideCapacity } from './outside-model.mjs';
+import {speechAgendaMembership} from './speech-agenda.mjs';
 import { HttpError } from './http-utils.mjs';
 
 const parse = value => JSON.parse(value);
 // Capacity is derived from retained source text, including records indexed by older code.
-const classified = row => ({...row,header:row.header?{...row.header,capacity:outsideCapacity(row.header.role)}:null});
+const classified = row => ({...speechAgendaMembership(row),header:row.header?{...row.header,capacity:outsideCapacity(row.header.role)}:null});
+const agendaUpgradeKey = 'outside:agenda-membership';
+const legacyAgendaRows = "FROM outside_contributions WHERE generation=? AND json_array_length(body,'$.parentIds')>1 AND (COALESCE(json_type(body,'$.parentDocumentIds'),'')<>'array' OR COALESCE(json_type(body,'$.parentDocumentsComplete'),'') NOT IN ('true','false'))";
+export const outsideAgendaUpgradeDue = (store,generation) => Boolean(generation && store.source(generation,'outside:state') && store.source(generation,agendaUpgradeKey)?.work.generation !== generation && store.db.prepare('SELECT 1 '+legacyAgendaRows+' LIMIT 1').get(generation));
+const needsAgendaUpgrade = row => row.parentIds.length > 1 && (!Array.isArray(row.parentDocumentIds) || typeof row.parentDocumentsComplete !== 'boolean');
+function enqueueAgendaUpgrade(store,generation,speech) {
+  store.enqueue(generation,'outside:agenda-membership:'+speech,'outside-detail',{id:speech},102);
+}
+export function initializeOutsideAgendaUpgrade(store,generation,fetchedAt) {
+  if (!outsideAgendaUpgradeDue(store,generation)) return;
+  store.assertWriter();
+  const rows=store.db.prepare('SELECT DISTINCT speech '+legacyAgendaRows).all(generation);
+  for(const {speech} of rows)enqueueAgendaUpgrade(store,generation,speech);
+  store.putSource(generation,agendaUpgradeKey,'outside-state',{version:1,generation},fetchedAt);
+}
 export function outsideSchema(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS outside_contributions (generation INTEGER, speech TEXT, person TEXT, date TEXT, body TEXT, PRIMARY KEY(generation,speech,person));
     CREATE INDEX IF NOT EXISTS outside_person ON outside_contributions(generation,person,date DESC);
@@ -13,6 +28,8 @@ export function outsideSchema(db) {
 export function outsideCopy(db, generation, active) {
   db.prepare('DELETE FROM outside_contributions WHERE generation<>?').run(active);
   db.prepare('INSERT INTO outside_contributions SELECT ?,speech,person,date,body FROM outside_contributions WHERE generation=?').run(generation,active);
+  // Preserve exact progress and backoff when the daily core snapshot advances.
+  db.prepare("INSERT OR IGNORE INTO tasks SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key LIKE 'outside:agenda-membership:%'").run(generation,active);
 }
 export function outsidePrune(db, generation, old) {
   db.prepare('DELETE FROM outside_contributions WHERE generation NOT IN (?,?)').run(generation,old || generation);
@@ -32,6 +49,7 @@ export function recordOutside(store, generation, speech) {
   const candidates = speech.participants.filter(id => !members.has(id));
   for (const personId of candidates) put.run(generation,speech.id,personId,speech.date,JSON.stringify({...speech,personId,header:speech.headers.find(header => header.personId === personId) || null,rosterSource:{date:speech.date,sources:roster.work.sources}}));
   if (candidates.some(id=>!speech.headers.find(header=>header.personId===id)?.name)) store.enqueue(generation,'outside:detail:' + speech.id,'outside-detail',{id:speech.id},102);
+  if (candidates.length && needsAgendaUpgrade(speech)) enqueueAgendaUpgrade(store,generation,speech.id);
   if (candidates.length) for (const id of speech.parentIds) if (!store.source(generation,'outside:agenda:' + id)) store.enqueue(generation,'outside:agenda:' + id,'outside-agenda',{id},101);
 }
 
@@ -65,7 +83,7 @@ function localizedTitles(titles,language) {
   return key?{[key]:titles[key]}:{};
 }
 function publicContribution(row,language) {
-  return Object.fromEntries(['id','personId','date','term','start','end','parentIds','documentId','parentDocumentId','reference','originalLanguages','websiteUrl','websiteLanguage','source','headerSource','rosterSource'].map(key=>[key,row[key]]).concat([['titles',localizedTitles(row.titles,language)],['header',row.header?Object.fromEntries(['personId','name','role','languageTag','original','capacity'].map(key=>[key,row.header[key]])):null]]));
+  return Object.fromEntries(['id','personId','date','term','start','end','parentIds','reportedParentIds','documentId','parentDocumentId','reference','originalLanguages','websiteUrl','websiteLanguage','source','headerSource','rosterSource'].map(key=>[key,row[key]]).concat([['titles',localizedTitles(row.titles,language)],['header',row.header?Object.fromEntries(['personId','name','role','languageTag','original','capacity'].map(key=>[key,row.header[key]])):null]]));
 }
 export function outsideCoverage(store, generation, truncated=false) {
   const counts = store.db.prepare("SELECT kind,COUNT(*) AS total,SUM(CASE WHEN done=1 THEN 1 ELSE 0 END) AS completed FROM tasks WHERE generation=? AND (kind LIKE 'outside-%' OR kind='speeches') GROUP BY kind").all(generation);
