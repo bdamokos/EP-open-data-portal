@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { realpath, stat } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { config } from "./config.mjs";
@@ -35,6 +35,37 @@ const contentTypes = new Map([
   [".woff2", "font/woff2"],
   [".xml", "application/xml; charset=utf-8"],
 ]);
+
+const buildAssetsByRoot = new Map();
+
+function immutableBuildAssets(root) {
+  if (!buildAssetsByRoot.has(root)) {
+    // A production build is replaced as a unit when the process is deployed.
+    // The manifest distinguishes emitted, fingerprinted files from public files
+    // whose names happen to resemble Vite's base64url hashes.
+    buildAssetsByRoot.set(root, (async () => {
+      const assets = new Set();
+      try {
+        const manifest = JSON.parse(await readFile(path.join(root, ".vite", "manifest.json"), "utf8"));
+        if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) return assets;
+        for (const entry of Object.values(manifest)) {
+          if (!entry || typeof entry !== "object") continue;
+          for (const name of [entry.file, ...(Array.isArray(entry.css) ? entry.css : []), ...(Array.isArray(entry.assets) ? entry.assets : [])]) {
+            if (typeof name !== "string" || !name.startsWith("assets/") || !/-[A-Za-z0-9_-]{8,}\.[A-Za-z0-9]+$/.test(name)) continue;
+            const asset = path.resolve(root, name);
+            if (!withinDirectory(asset, root)) continue;
+            assets.add(asset);
+            if (/\.(?:m?js|css)$/.test(name)) assets.add(`${asset}.map`);
+          }
+        }
+      } catch {
+        // Older builds without a manifest remain available with a short TTL.
+      }
+      return assets;
+    })());
+  }
+  return buildAssetsByRoot.get(root);
+}
 
 function withinDirectory(candidate, directory) {
   return candidate === directory || candidate.startsWith(`${directory}${path.sep}`);
@@ -127,15 +158,14 @@ export async function sendResolvedFile(request, response, file, options = {}) {
   response.setHeader("ETag", etag);
   response.setHeader(
     "Cache-Control",
-    options.cacheControl ||
-      (extension === ".html"
+    range !== null
+      ? "no-store"
+      : extension === ".html"
         ? "no-cache"
-        : /[.-][a-f0-9]{8,}[.-]/i.test(path.basename(file.path))
-          ? "public, max-age=31536000, immutable"
-          : "public, max-age=300"),
+        : options.cacheControl || "public, max-age=300",
   );
 
-  if (!range && request.headers["if-none-match"] === etag) {
+  if (range === null && request.headers["if-none-match"] === etag) {
     response.statusCode = 304;
     response.end();
     return;
@@ -162,7 +192,11 @@ export async function sendResolvedFile(request, response, file, options = {}) {
 
   await new Promise((resolve, reject) => {
     const stream = createReadStream(file.path, { start, end });
-    stream.on("error", reject);
+    stream.on("error", (error) => {
+      if (response.headersSent) response.destroy();
+      else response.setHeader("Cache-Control", "no-store");
+      reject(error);
+    });
     response.on("close", () => {
       stream.destroy();
       resolve();
@@ -196,6 +230,7 @@ export async function serveStatic(request, response, url) {
     return false;
   }
 
-  await sendResolvedFile(request, response, file);
+  const immutable = (await immutableBuildAssets(root)).has(file.path);
+  await sendResolvedFile(request, response, file, immutable ? { cacheControl: "public, max-age=31536000, immutable" } : {});
   return true;
 }
