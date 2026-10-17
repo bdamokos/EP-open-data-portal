@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {createMotionComparison} from './motion-comparison.mjs';
 import {motionBody,compareMotionBodies,wordDiff,DIFF_LIMITS} from './motion-diff.mjs';
 
@@ -83,6 +84,36 @@ test('plain headings require resolution structure and competing body boundaries 
   assert.equal(motionBody({paragraphs:['Evropský parlament','2024-2029','Cover title','Author']},'cs').status,'unavailable');
   assert.equal(motionBody({paragraphs:['Evropský parlament','1. Public paragraph.']},'cs').status,'available');
   assert.equal(motionBody({paragraphs:['Evropský parlament,','– First candidate.','Evropský parlament,','1. Second candidate.']},'cs').status,'unavailable');
+});
+test('published Finnish, Swedish, Bulgarian and Greek openings exclude covers and preserve recital labels',async()=>{
+  const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-boundaries-live-20261017.json',import.meta.url),'utf8'));
+  for(const doc of fixture.documents) {
+    const body=motionBody({paragraphs:doc.paragraphs},doc.language);
+    if(doc.language==='ga'){assert.equal(body.status,'unavailable');continue;}
+    assert.equal(body.status,'available',doc.language);
+    assert.deepEqual(body.blocks.map(b=>b.kind),['citation','recital'],doc.language);
+    assert.equal(body.blocks[1].label,{bg:'А',el:'Α',fi:'A',sv:'A'}[doc.language]);
+    assert(!JSON.stringify(body).includes('2024-2029'));
+    // Recital-only beginnings must pass the same Unicode-aware boundary check.
+    const recitalFirst=motionBody({paragraphs:doc.paragraphs.filter(p=>!/^–/.test(p))},doc.language);
+    assert.equal(recitalFirst.status,'available',doc.language);
+    assert.equal(recitalFirst.blocks[0].kind,'recital',doc.language);
+  }
+});
+test('adjacent note references keep their source order, including shared footnote/endnote offsets',()=>{
+  const anchors=[{paragraph:1,offset:8,note:'1',label:'1'},{paragraph:1,offset:8,note:'endnote:1',label:'i'},{paragraph:1,offset:13,note:'2',label:'2'}];
+  const body=motionBody({paragraphs:['The European Parliament,','1. First last'],noteAnchors:anchors},'en');
+  assert.equal(body.blocks[0].text,'First[1][i] last[2]');
+  assert.deepEqual(anchors.map(a=>a.label),['1','i','2'],'inserting markers must not mutate the saved anchors');
+});
+test('insertions change printed references without inventing changes to citation or passage ordinals',()=>{
+  for(const kind of ['citation','text','paragraph','recital','footnote']) {
+    const result=compareMotionBodies([block('1','Existing public wording.',kind)],[block('1','An unrelated inserted passage.',kind),block('2','Existing public wording.',kind)]);
+    assert.equal(result.summary.unchanged,1,kind);
+    const printed=['paragraph','recital','footnote'].includes(kind);
+    assert.equal(result.rows.find(row=>row.kind==='unchanged').referenceChanged,printed,kind);
+    assert.equal(result.summary.referenceChanged,Number(printed),kind);
+  }
 });
 test('alignment retains renumbered/moved exact passages and leaves ambiguous rewrites separate',()=>{
   const result=compareMotionBodies([block('1','Calls for public access.'),block('2','Supports independent observers.')],[block('1','Supports independent observers.'),block('2','Calls for public access.')]);
