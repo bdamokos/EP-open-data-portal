@@ -7,6 +7,7 @@ import { HttpError } from './http-utils.mjs';
 import { playerContent, playerAudioMapping } from './player-content.mjs';
 import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
+import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 
 export const MMC_BASE = 'https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0';
 const DAY = 86400000;
@@ -139,6 +140,8 @@ async function speechForMedia(id) {
       return { id:row.sourceId, date:row.date, start:row.start, end:row.end, kind:row.speechKind };
     }
   }
+  const retained=await retainedSpeechMetadata(id);
+  if(retained)return retained.summary;
   const result = await odp('/speeches/' + id);
   const activity = result.payload.data.find(row => row.activity_id === id);
   if (!activity) throw new HttpError(404, 'speech_not_found', 'This speech is unavailable.');

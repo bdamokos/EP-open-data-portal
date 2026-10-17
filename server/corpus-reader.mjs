@@ -26,7 +26,7 @@ export class CorpusReader {
       clearTimeout(timer);
       // Native SQLite or optional cache-file I/O can delay termination. Return
       // transcript results/timeouts immediately, but keep the slot until exit.
-      if(worker && (timedOut||operation==='speech-transcript')) {
+      if(worker && (timedOut||operation.startsWith('speech-'))) {
         void worker.terminate().then(()=>{this.busy=false;},()=>{});
       }
       else {if(worker)await worker.terminate();this.busy=false;}
@@ -58,7 +58,7 @@ if(!isMainThread && workerData?.operation) {
   let store;
   try {
     store=new CorpusStore(workerData.directory,{indexFile:workerData.indexFile,readOnly:true});
-    const result=workerData.operation==='speech-transcript'?store.speechTranscript(workerData.params):workerData.operation==='status'?store.status(workerData.params):workerData.operation==='text'?store.text(workerData.params):store.search(workerData.params);
+    const result=workerData.operation==='speech-transcript'?store.speechTranscript(workerData.params):workerData.operation==='speech-data'?store.speechData(workerData.params):workerData.operation==='speech-page'?store.speechPage(workerData.params):workerData.operation==='status'?store.status(workerData.params):workerData.operation==='text'?store.text(workerData.params):store.search(workerData.params);
     if(workerData.operation==='speech-transcript'&&result.metadataRecord) {
       try {
         result.metadata=await retainedSpeechMetadata(result,{deadlineMs:workerData.deadlineMs});

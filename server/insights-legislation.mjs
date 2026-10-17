@@ -7,6 +7,7 @@ import { agendaTopics,classifyProcedure,topicRoles,topicVotes,finalVotePatterns,
 import {speakerNameIsSpecific} from './speech-speakers.mjs';
 import {CURRENT_TERM_START} from './analysis-period.mjs';
 import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
+import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
 export const LEGISLATION_VIEW_VERSION='plenary-weeks-v3';
@@ -31,10 +32,27 @@ function sourceNode(record,kind,id) {
   if(!node)throw new HttpError(502,'insights_source_identity','Parliament did not return the requested source identity.');
   return node;
 }
+function reusableRecord(endpoint,work) {
+  if(endpoint.startsWith('/procedures/'))return Boolean(classifyProcedure(work).code)&&typeof work.label==='string'&&Array.isArray(work.consists_of)&&work.consists_of.every(event=>typeof event?.activity_id==='string');
+  return Array.isArray(work.inverse_based_on_a_realization_of);
+}
 export class LegislationInsights {
-  constructor(store,{request=odp,clock=Date.now,loadMetadata=savedMetadata}={}) {this.store=store;this.request=request;this.clock=clock;this.loadMetadata=loadMetadata;this.cache=new Map();this.pending=new Map();this.failures=new Map();}
+  constructor(store,{request=odp,clock=Date.now,loadMetadata=savedMetadata,readSpeechMetadata=request===odp?retainedSpeechMetadata:null}={}) {this.store=store;this.request=request;this.clock=clock;this.loadMetadata=loadMetadata;this.readSpeechMetadata=readSpeechMetadata;this.cache=new Map();this.pending=new Map();this.failures=new Map();}
   async record(endpoint,params={}) {
     requestSignal()?.throwIfAborted();
+    if(!Object.keys(params).length) {
+      if(/^\/(procedures|plenary-documents|committee-documents|parliamentary-questions)\/[A-Z0-9-]+$/.test(endpoint)) {
+        const saved=this.store.source(this.store.status().servingGeneration,endpoint);
+        const id=endpoint.split('/').at(-1);
+        const expected='eli/dl/'+(endpoint.startsWith('/procedures/')?'proc/':'doc/')+id;
+        if(saved?.work&&reusableRecord(endpoint,saved.work)&&Number.isFinite(Date.parse(saved.fetchedAt))&&canonical(saved.work.id)===expected)return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.work]}};
+      }
+      if(endpoint.startsWith('/speeches/')&&this.readSpeechMetadata) {
+        const saved=await this.readSpeechMetadata(endpoint.slice('/speeches/'.length));
+        requestSignal()?.throwIfAborted();
+        if(saved)return {url:saved.sourceUrl,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.activity]}};
+      }
+    }
     const key=JSON.stringify([endpoint,params]);const old=this.cache.get(key);
     if(old&&sourceIsTransient(old.value))this.cache.delete(key);
     else if(old&&this.clock()-old.at<LEGISLATION_LIMITS.cacheMs)return old.value;
