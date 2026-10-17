@@ -1,4 +1,4 @@
-// Nearby days share a target; the panel keeps every exact sitting date.
+// Nearby days share a marker; retain the exact item behind its strongest cue.
 export function clusterOutsideDays(days,start,end,width,gap=34) {
   const span=Math.max(86400000,Date.parse(end)-Date.parse(start)), usable=Math.max(1,width-36);
   const intervals=Math.max(1,Math.floor(usable/gap)),step=usable/intervals;
@@ -9,7 +9,12 @@ export function clusterOutsideDays(days,start,end,width,gap=34) {
     if(last && last.bin===bin)last.points.push(point);
     else groups.push({points:[point],bin});
   }
-  return groups.map(({points,bin})=>({x:18+bin*step,dates:points.map(p=>p.date),items:points.reduce((sum,p)=>sum+p.itemIds.length,0),contributions:points.reduce((sum,p)=>sum+p.contributions,0),formal:points.some(p=>p.formal),legislative:points.some(p=>p.legislative)}));
+  return groups.map(({points,bin})=>{
+    const items=points.flatMap(point=>(point.items||[]).map(item=>({...item,date:point.date})));
+    const featured=items.find(item=>item.kind==='PLENARY_ACTIVITY')||items.find(item=>item.legislative)||items[0];
+    const target=featured?{date:featured.date,itemId:featured.id}:{date:(points.find(point=>point.formal)||points.find(point=>point.legislative)||points[0]).date};
+    return {x:18+bin*step,dates:points.map(p=>p.date),items:points.reduce((sum,p)=>sum+p.itemIds.length,0),contributions:points.reduce((sum,p)=>sum+p.contributions,0),formal:points.some(p=>p.formal),legislative:points.some(p=>p.legislative),target};
+  });
 }
 
 const normalize=value=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
