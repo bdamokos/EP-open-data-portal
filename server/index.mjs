@@ -10,6 +10,7 @@ import {odpDirectory,odpProfile,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,up
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
 import {motionComparison} from './motion-comparison.mjs';
+import {motionAmendmentsQuery,motionAmendmentsPage} from './motion-amendments.mjs';
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
@@ -96,7 +97,7 @@ async function corpusSearchBody(request) {
 }
 
 // Browser transport for this app. The gateway admits the same finite route set.
-const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','source-record','corpus','speech-statistics','speech-media','speech-context']);
+const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','source-record','corpus','speech-statistics','speech-media','speech-context']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -124,6 +125,10 @@ async function handleApi(request,response,url,apiPrefix){
     if(segments[0]==='source-record' && segments.length===1)result=await sourceRecord(url.searchParams.get('url'),language);
     else if(segments[0]==='motion-comparison' && segments.length===2) {
       result=await motionComparison(segments[1],url.searchParams.get('joint'),{stage:url.searchParams.get('stage') || 'original-joint',language});
+    }
+    else if(segments[0]==='motion-amendments' && segments.length===2) {
+      const query=motionAmendmentsQuery(segments[1],url.searchParams);
+      result=motionAmendmentsPage(activityIndex().store,query);
     }
     else if (segments[0] === 'amendments' && (segments.length===1 || segments.length===2&&segments[1]==='failures')) {
       const failures=segments.length===2,query=amendmentQuery(url.searchParams,{failures});

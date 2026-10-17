@@ -1,0 +1,1877 @@
+{
+  "description": "Compact public-source projections for context-specific motion amendment contracts. The selected amendment lists and decisions are not complete target or sitting coverage. English wording is preserved verbatim; source IDs, list gaps, relationships and retrieval times are retained. No adopted-wording survival claim is encoded.",
+  "works": [
+    {
+      "work": {
+        "id": "eli/dl/doc/B-10-2026-0424",
+        "identifier": "B-10-2026-0424",
+        "work_type": "def/ep-document-types/RESOLUTION_MOTION",
+        "document_date": "2026-09-29",
+        "inverse_created_a_realization_of": [
+          "eli/dl/proc/2026-2868"
+        ],
+        "inverse_based_on_a_realization_of": [
+          "eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-D-60",
+          "eli/dl/event/MTG-PL-2026-10-08-OJ-ITM-V-60",
+          "eli/dl/event/MTG-PL-2026-10-08-PVCRE-ITM-10-4",
+          "eli/dl/event/MTG-PL-2026-10-08-VOT-ITM-993171"
+        ],
+        "title_dcterms": {
+          "fr": "PROPOSITION DE RÉSOLUTION sur la nécessité pour l’Union de se doter d’une stratégie contre l’entrisme islamiste et l’influence du réseau des Frères musulmans",
+          "en": "MOTION FOR A RESOLUTION on the need for an EU strategy to counter Islamist entryism and the influence of the Muslim Brotherhood network",
+          "hu": "ÁLLÁSFOGLALÁSI INDÍTVÁNY az iszlamista beszivárgással és a Muszlim Testvériség hálózat befolyásával szembeni uniós stratégia szükségességéről"
+        },
+        "workHadParticipation": [
+          {
+            "id": "eli/dl/participation/B-10-2026-0424_256918",
+            "activity_date": "2026-09-29",
+            "had_participant_person": [
+              "person/256918"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/PPE"
+          }
+        ],
+        "is_realized_by": [
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/RON",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_ro.docx",
+                "byteSize": "57943"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_ro.pdf",
+                "byteSize": "57943"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/DAN",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_da.docx",
+                "byteSize": "56909"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_da.pdf",
+                "byteSize": "56909"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/ENG",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_en.docx",
+                "byteSize": "57333"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_en.pdf",
+                "byteSize": "57333"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/SLV",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_sl.docx",
+                "byteSize": "56588"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_sl.pdf",
+                "byteSize": "56588"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/HRV",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_hr.docx",
+                "byteSize": "57774"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_hr.pdf",
+                "byteSize": "57774"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/LAV",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_lv.pdf",
+                "byteSize": "57297"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_lv.docx",
+                "byteSize": "57297"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/SLK",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_sk.pdf",
+                "byteSize": "57629"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_sk.docx",
+                "byteSize": "57629"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/NLD",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_nl.docx",
+                "byteSize": "58195"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_nl.pdf",
+                "byteSize": "58195"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/POL",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_pl.pdf",
+                "byteSize": "58389"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_pl.docx",
+                "byteSize": "58389"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/ITA",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_it.docx",
+                "byteSize": "57647"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_it.pdf",
+                "byteSize": "57647"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/FRA",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_fr.pdf",
+                "byteSize": "58367"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_fr.docx",
+                "byteSize": "58367"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/CES",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_cs.pdf",
+                "byteSize": "57871"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_cs.docx",
+                "byteSize": "57871"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/HUN",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_hu.docx",
+                "byteSize": "58419"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_hu.pdf",
+                "byteSize": "58419"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/LIT",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_lt.docx",
+                "byteSize": "58118"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_lt.pdf",
+                "byteSize": "58118"
+              }
+            ]
+          }
+        ],
+        "inverse_foresees_change_of": [
+          "eli/dl/doc/B-10-2026-0424-AM-001-007",
+          "eli/dl/doc/B-10-2026-0424-AM-009-011",
+          {
+            "id": "eli/dl/doc/B-10-2026-0424-AM-013-020",
+            "identifier": "B-10-2026-0424-AM-013-020",
+            "foresees_change_of": "eli/dl/doc/B-10-2026-0424",
+            "work_type": "def/ep-document-types/AMENDMENT_LIST",
+            "document_date": "2026-10-02",
+            "itemNumberBegin": 13,
+            "itemNumberEnd": 20,
+            "is_realized_by": [
+              {
+                "id": "eli/dl/doc/B-10-2026-0424-AM-013-020/en",
+                "language": "http://publications.europa.eu/resource/authority/language/ENG",
+                "is_embodied_by": [
+                  {
+                    "id": "eli/dl/doc/B-10-2026-0424-AM-013-020/en/docx",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                    "is_exemplified_by": "distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-013-020/B-10-2026-0424-AM-013-020_en.docx",
+                    "byteSize": "63931"
+                  },
+                  {
+                    "id": "eli/dl/doc/B-10-2026-0424-AM-013-020/en/pdf",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                    "is_exemplified_by": "distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-013-020/B-10-2026-0424-AM-013-020_en.pdf",
+                    "byteSize": "63931"
+                  }
+                ]
+              }
+            ]
+          },
+          "eli/dl/doc/B-10-2026-0424-AM-021-030",
+          {
+            "id": "eli/dl/doc/B-10-2026-0424-AM-031-040",
+            "identifier": "B-10-2026-0424-AM-031-040",
+            "foresees_change_of": "eli/dl/doc/B-10-2026-0424",
+            "work_type": "def/ep-document-types/AMENDMENT_LIST",
+            "document_date": "2026-10-02",
+            "itemNumberBegin": 31,
+            "itemNumberEnd": 40,
+            "is_realized_by": [
+              {
+                "id": "eli/dl/doc/B-10-2026-0424-AM-031-040/en",
+                "language": "http://publications.europa.eu/resource/authority/language/ENG",
+                "is_embodied_by": [
+                  {
+                    "id": "eli/dl/doc/B-10-2026-0424-AM-031-040/en/pdf",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                    "is_exemplified_by": "distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_en.pdf",
+                    "byteSize": "78314"
+                  },
+                  {
+                    "id": "eli/dl/doc/B-10-2026-0424-AM-031-040/en/docx",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                    "is_exemplified_by": "distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_en.docx",
+                    "byteSize": "78314"
+                  }
+                ]
+              }
+            ]
+          },
+          "eli/dl/doc/B-10-2026-0424-AM-041-044",
+          "eli/dl/doc/B-10-2026-0424-AM-045-051",
+          "eli/dl/doc/B-10-2026-0424-AM-052-059",
+          "eli/dl/doc/B-10-2026-0424-AM-060-067",
+          "eli/dl/doc/B-10-2026-0424-AM-068-068",
+          "eli/dl/doc/B-10-2026-0424-AM-069-072",
+          "eli/dl/doc/B-10-2026-0424-AM-073-082",
+          "eli/dl/doc/B-10-2026-0424-AM-083-092",
+          "eli/dl/doc/B-10-2026-0424-AM-093-102",
+          "eli/dl/doc/B-10-2026-0424-AM-103-110",
+          "eli/dl/doc/B-10-2026-0424-AM-111-111",
+          "eli/dl/doc/B-10-2026-0424-AM-112-112",
+          "eli/dl/doc/B-10-2026-0424-AM-113-122",
+          "eli/dl/doc/B-10-2026-0424-AM-123-132",
+          "eli/dl/doc/B-10-2026-0424-AM-133-137"
+        ]
+      },
+      "source": {
+        "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/B-10-2026-0424?format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-17T18:39:30.667544+00:00",
+        "language": null
+      },
+      "projectionComplete": false
+    },
+    {
+      "work": {
+        "id": "eli/dl/doc/RC-10-2026-0441",
+        "identifier": "RC-10-2026-0441",
+        "work_type": "def/ep-document-types/RESOLUTION_MOTION_JOINT",
+        "document_date": "2026-10-06",
+        "is_derivative_of": [
+          "eli/dl/doc/B-10-2026-0444",
+          "eli/dl/doc/B-10-2026-0449",
+          "eli/dl/doc/B-10-2026-0445",
+          "eli/dl/doc/B-10-2026-0441",
+          "eli/dl/doc/B-10-2026-0446"
+        ],
+        "inverse_created_a_realization_of": [
+          "eli/dl/proc/2026-2907"
+        ],
+        "inverse_based_on_a_realization_of": [
+          "eli/dl/event/MTG-PL-2026-10-06-OJ-ITM-D-71",
+          "eli/dl/event/MTG-PL-2026-10-08-OJ-ITM-V-71"
+        ],
+        "title_dcterms": {
+          "hu": "KÖZÖS ÁLLÁSFOGLALÁSRA IRÁNYULÓ INDÍTVÁNY a 2026. évi antidemokratikus orosz parlamenti választásokról és azok civil társadalomra gyakorolt hatásairól",
+          "fr": "PROPOSITION DE RÉSOLUTION COMMUNE sur les élections non démocratiques de 2026 à la Douma d’État russe et leurs conséquences pour la société civile",
+          "en": "JOINT MOTION FOR A RESOLUTION on the undemocratic elections in the Russia State Duma and their implications for civil society"
+        },
+        "workHadParticipation": [
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197432",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197432"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_124806",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/124806"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/PPE"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197572",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197572"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257077",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257077"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197421",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197421"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/PPE"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257091",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257091"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257076",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257076"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_2268",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/2268"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_256806",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/256806"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257052",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257052"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257011",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257011"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_124866",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/124866"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_256824",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/256824"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/S-D"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_256907",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/256907"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257092",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257092"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257056",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257056"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257110",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257110"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197493",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197493"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_130100",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/130100"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197537",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197537"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197514",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197514"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/PPE"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197802",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197802"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/VERTS-ALE"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257055",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257055"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_256811",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/256811"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_124799",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/124799"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/S-D"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_96934",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/96934"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/PPE"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_220871",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/220871"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257013",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257013"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257081",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257081"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/PPE"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_123562",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/123562"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_127766",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/127766"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197543",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197543"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_2341",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/2341"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/PPE"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_28617",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/28617"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/PPE"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_23788",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/23788"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197722",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197722"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/S-D"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257060",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257060"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_256807",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/256807"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_124736",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/124736"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257022",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257022"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_99878",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/99878"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197545",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197545"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_124846",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/124846"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_124766",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/124766"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_256986",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/256986"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_256926",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/256926"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_28615",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/28615"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197781",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197781"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_256805",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/256805"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_256852",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/256852"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_129073",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/129073"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/RENEW"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197840",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197840"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/PPE"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_124877",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/124877"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_257090",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/257090"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197501",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197501"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/ECR"
+          },
+          {
+            "id": "eli/dl/participation/RC-10-2026-0441_197460",
+            "activity_date": "2026-10-06",
+            "had_participant_person": [
+              "person/197460"
+            ],
+            "participation_role": "def/ep-roles/AUTHOR",
+            "participation_in_name_of": "org/VERTS-ALE"
+          }
+        ],
+        "is_realized_by": [
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/HUN",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_hu.docx",
+                "byteSize": "60095"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_hu.pdf",
+                "byteSize": "60095"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/RON",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_ro.pdf",
+                "byteSize": "58531"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_ro.docx",
+                "byteSize": "58531"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/ITA",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_it.docx",
+                "byteSize": "58236"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_it.pdf",
+                "byteSize": "58236"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/FIN",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_fi.pdf",
+                "byteSize": "58493"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_fi.docx",
+                "byteSize": "58493"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/SPA",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_es.pdf",
+                "byteSize": "58184"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_es.docx",
+                "byteSize": "58184"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/NLD",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_nl.pdf",
+                "byteSize": "58473"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_nl.docx",
+                "byteSize": "58473"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/FRA",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_fr.docx",
+                "byteSize": "59070"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_fr.pdf",
+                "byteSize": "59070"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/SLV",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_sl.pdf",
+                "byteSize": "57277"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_sl.docx",
+                "byteSize": "57277"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/EST",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_et.docx",
+                "byteSize": "57522"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_et.pdf",
+                "byteSize": "57522"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/SLK",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_sk.docx",
+                "byteSize": "57710"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_sk.pdf",
+                "byteSize": "57710"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/LAV",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_lv.docx",
+                "byteSize": "58929"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_lv.pdf",
+                "byteSize": "58929"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/SWE",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_sv.pdf",
+                "byteSize": "57996"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_sv.docx",
+                "byteSize": "57996"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/HRV",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_hr.docx",
+                "byteSize": "59215"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_hr.pdf",
+                "byteSize": "59215"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/POL",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_pl.pdf",
+                "byteSize": "59560"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_pl.docx",
+                "byteSize": "59560"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/DEU",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_de.docx",
+                "byteSize": "59197"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_de.pdf",
+                "byteSize": "59197"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/BUL",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_bg.pdf",
+                "byteSize": "60215"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_bg.docx",
+                "byteSize": "60215"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/CES",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_cs.pdf",
+                "byteSize": "59473"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_cs.docx",
+                "byteSize": "59473"
+              }
+            ]
+          },
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/DAN",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_da.docx",
+                "byteSize": "57442"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc/RC-10-2026-0441/RC-10-2026-0441_da.pdf",
+                "byteSize": "57442"
+              }
+            ]
+          }
+        ],
+        "inverse_foresees_change_of": [
+          {
+            "id": "eli/dl/doc/RC-10-2026-0441-AM-001-002",
+            "identifier": "RC-10-2026-0441-AM-001-002",
+            "foresees_change_of": "eli/dl/doc/RC-10-2026-0441",
+            "work_type": "def/ep-document-types/AMENDMENT_LIST",
+            "document_date": "2026-10-06",
+            "itemNumberBegin": 1,
+            "itemNumberEnd": 2,
+            "is_realized_by": [
+              {
+                "id": "eli/dl/doc/RC-10-2026-0441-AM-001-002/en",
+                "language": "http://publications.europa.eu/resource/authority/language/ENG",
+                "is_embodied_by": [
+                  {
+                    "id": "eli/dl/doc/RC-10-2026-0441-AM-001-002/en/docx",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                    "is_exemplified_by": "distribution/reds_iPlRc_Amd/RC-10-2026-0441-AM-001-002/RC-10-2026-0441-AM-001-002_en.docx",
+                    "byteSize": "81803"
+                  },
+                  {
+                    "id": "eli/dl/doc/RC-10-2026-0441-AM-001-002/en/pdf",
+                    "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                    "is_exemplified_by": "distribution/reds_iPlRc_Amd/RC-10-2026-0441-AM-001-002/RC-10-2026-0441-AM-001-002_en.pdf",
+                    "byteSize": "81803"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/RC-10-2026-0441?format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-17T18:39:31.569620+00:00",
+        "language": null
+      },
+      "projectionComplete": false
+    }
+  ],
+  "lists": [
+    {
+      "work": {
+        "id": "eli/dl/doc/B-10-2026-0424-AM-013-020",
+        "identifier": "B-10-2026-0424-AM-013-020",
+        "foresees_change_of": "eli/dl/doc/B-10-2026-0424",
+        "work_type": "def/ep-document-types/AMENDMENT_LIST",
+        "document_date": "2026-10-02",
+        "itemNumberBegin": 13,
+        "itemNumberEnd": 20,
+        "is_realized_by": [
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/ENG",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-013-020/B-10-2026-0424-AM-013-020_en.docx",
+                "byteSize": "63931"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-013-020/B-10-2026-0424-AM-013-020_en.pdf",
+                "byteSize": "63931"
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/B-10-2026-0424?format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-17T18:39:30.667544+00:00",
+        "language": null
+      },
+      "wordingSource": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-013-020/B-10-2026-0424-AM-013-020_en.docx",
+        "fetchedAt": "2026-10-17T18:40:27.367509+00:00",
+        "language": "en"
+      },
+      "extraction": {
+        "amendments": [
+          {
+            "number": 13,
+            "listId": "B-10-2026-0424-AM-013-020",
+            "targetDocumentId": "B-10-2026-0424",
+            "date": "2026-10-02",
+            "documentDate": "2026-10-02",
+            "dateBasis": "individual-amendment-document",
+            "authors": [
+              "Céline Imart"
+            ],
+            "committeeProposer": null,
+            "onBehalfOf": "on behalf of the PPE Group",
+            "targetLabel": "Recital D",
+            "originalText": "D.\twhereas the strategy of Islamist entryism relies, in particular, on the organised confusion between Islam as a religion, which falls under freedom of conscience, and political Islam as a societal project, which seeks to produce collective norms, derogatory regimes or community allegiances placed above common law;",
+            "proposedText": "D.\twhereas the strategy of Islamist entryism relies, in particular, on the organised confusion between Islam as a religion, which falls under freedom of conscience, and political Islam as a societal project, which seeks to produce collective norms, derogatory regimes or community allegiances placed above common law; whereas such a project may contribute to the development of parallel communities and to practices incompatible with democratic principles and EU values, thereby undermining social cohesion and individuals’ ability to participate fully in public life;",
+            "justification": null,
+            "language": "en",
+            "sources": [
+              {
+                "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-013-020/B-10-2026-0424-AM-013-020_en.docx",
+                "fetchedAt": "2026-10-17T18:40:27.367509+00:00",
+                "date": "2026-10-02",
+                "dateBasis": "individual-amendment-document",
+                "language": "en",
+                "format": "DOCX"
+              }
+            ],
+            "gaps": []
+          },
+          {
+            "number": 15,
+            "listId": "B-10-2026-0424-AM-013-020",
+            "targetDocumentId": "B-10-2026-0424",
+            "date": "2026-10-02",
+            "documentDate": "2026-10-02",
+            "dateBasis": "individual-amendment-document",
+            "authors": [
+              "Céline Imart"
+            ],
+            "committeeProposer": null,
+            "onBehalfOf": "on behalf of the PPE Group",
+            "targetLabel": "Recital E a (new)",
+            "originalText": "",
+            "proposedText": "Ea.\twhereas, within Islamist ecosystems, the promotion of religious dress among minors may serve as a marker of ideological conformity and as a vector of Islamist influence; whereas such practices may raise concerns regarding the free development of minors, freedom of conscience and equality between women and men;",
+            "justification": null,
+            "language": "en",
+            "sources": [
+              {
+                "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-013-020/B-10-2026-0424-AM-013-020_en.docx",
+                "fetchedAt": "2026-10-17T18:40:27.367509+00:00",
+                "date": "2026-10-02",
+                "dateBasis": "individual-amendment-document",
+                "language": "en",
+                "format": "DOCX"
+              }
+            ],
+            "gaps": []
+          },
+          {
+            "number": 18,
+            "listId": "B-10-2026-0424-AM-013-020",
+            "targetDocumentId": "B-10-2026-0424",
+            "date": "2026-10-02",
+            "documentDate": "2026-10-02",
+            "dateBasis": "individual-amendment-document",
+            "authors": [
+              "Céline Imart"
+            ],
+            "committeeProposer": null,
+            "onBehalfOf": "on behalf of the PPE Group",
+            "targetLabel": "Paragraph 7 a (new)",
+            "originalText": "",
+            "proposedText": "7a.\tPays tribute to all victims of Islamist terrorism and expresses its full support for their families, as well as for all whistleblowers, intellectuals, journalists, artists and political figures directly threatened by Islamist movements; commends the courage of all those who have broken with Islamist movements or who publicly denounce Islamist ideology despite threats to their safety;",
+            "justification": null,
+            "language": "en",
+            "sources": [
+              {
+                "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-013-020/B-10-2026-0424-AM-013-020_en.docx",
+                "fetchedAt": "2026-10-17T18:40:27.367509+00:00",
+                "date": "2026-10-02",
+                "dateBasis": "individual-amendment-document",
+                "language": "en",
+                "format": "DOCX"
+              }
+            ],
+            "gaps": []
+          },
+          {
+            "number": 20,
+            "listId": "B-10-2026-0424-AM-013-020",
+            "targetDocumentId": "B-10-2026-0424",
+            "date": "2026-10-02",
+            "documentDate": "2026-10-02",
+            "dateBasis": "individual-amendment-document",
+            "authors": [
+              "Céline Imart"
+            ],
+            "committeeProposer": null,
+            "onBehalfOf": "on behalf of the PPE Group",
+            "targetLabel": "Paragraph 13 a (new)",
+            "originalText": "",
+            "proposedText": "13a.\tCalls on the Member States, in accordance with EU and national law, to ensure that the active promotion of Islamist ideologies advocating the subjugation of women, antisemitism or hatred against Christians has appropriate legal and administrative consequences, including as regards access to public funding, public benefits and institutional support;",
+            "justification": null,
+            "language": "en",
+            "sources": [
+              {
+                "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-013-020/B-10-2026-0424-AM-013-020_en.docx",
+                "fetchedAt": "2026-10-17T18:40:27.367509+00:00",
+                "date": "2026-10-02",
+                "dateBasis": "individual-amendment-document",
+                "language": "en",
+                "format": "DOCX"
+              }
+            ],
+            "gaps": []
+          }
+        ],
+        "gaps": [
+          {
+            "code": "list-coverage",
+            "message": "Individual amendment text is unavailable for numbers 14, 16, 17, 19.",
+            "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-013-020/B-10-2026-0424-AM-013-020_en.docx"
+          }
+        ]
+      },
+      "projectionComplete": true
+    },
+    {
+      "work": {
+        "id": "eli/dl/doc/B-10-2026-0424-AM-031-040",
+        "identifier": "B-10-2026-0424-AM-031-040",
+        "foresees_change_of": "eli/dl/doc/B-10-2026-0424",
+        "work_type": "def/ep-document-types/AMENDMENT_LIST",
+        "document_date": "2026-10-02",
+        "itemNumberBegin": 31,
+        "itemNumberEnd": 40,
+        "is_realized_by": [
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/ENG",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_en.pdf",
+                "byteSize": "78314"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_en.docx",
+                "byteSize": "78314"
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/B-10-2026-0424?format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-17T18:39:30.667544+00:00",
+        "language": null
+      },
+      "wordingSource": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_en.docx",
+        "fetchedAt": "2026-10-17T18:40:15.335054+00:00",
+        "language": "en"
+      },
+      "extraction": {
+        "amendments": [
+          {
+            "number": 31,
+            "listId": "B-10-2026-0424-AM-031-040",
+            "targetDocumentId": "B-10-2026-0424",
+            "date": "2026-10-02",
+            "documentDate": "2026-10-02",
+            "dateBasis": "individual-amendment-document",
+            "authors": [
+              "Nathalie Loiseau"
+            ],
+            "committeeProposer": null,
+            "onBehalfOf": "on behalf of the Renew Group",
+            "targetLabel": "Paragraph 1",
+            "originalText": "1.\tCondemns Islamist entryism strategies aimed at weakening democratic institutions, the rule of law, equality between women and men, freedom of conscience, freedom of expression, public order, social cohesion and the values enshrined in Article 2 TEU;",
+            "proposedText": "1.\tCondemns religious and, in particular, Islamist entryism strategies as an unacceptable form of covert and malicious interference aimed at weakening democratic institutions, the rule of law and the neutrality of public institutions; is concerned by the fact that religious entryism spearheads efforts to roll back women’s rights and gender equality, sexual health and reproductive rights, LGBTIQ+ rights, equality between women and men, freedom of conscience, freedom of expression, public order, social cohesion and the values enshrined in Article 2 TEU;",
+            "justification": null,
+            "language": "en",
+            "sources": [
+              {
+                "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_en.docx",
+                "fetchedAt": "2026-10-17T18:40:15.335054+00:00",
+                "date": "2026-10-02",
+                "dateBasis": "individual-amendment-document",
+                "language": "en",
+                "format": "DOCX"
+              }
+            ],
+            "gaps": []
+          },
+          {
+            "number": 32,
+            "listId": "B-10-2026-0424-AM-031-040",
+            "targetDocumentId": "B-10-2026-0424",
+            "date": "2026-10-02",
+            "documentDate": "2026-10-02",
+            "dateBasis": "individual-amendment-document",
+            "authors": [
+              "Nathalie Loiseau"
+            ],
+            "committeeProposer": null,
+            "onBehalfOf": "on behalf of the Renew Group",
+            "targetLabel": "Paragraph 3",
+            "originalText": "3.\tRecalls that protecting Muslim citizens against discrimination is a democratic obligation, but that recognising organised Islamist networks as representative interlocutors constitutes a political and institutional failure;",
+            "proposedText": "3.\tRecalls that protecting Muslim citizens against discrimination is a democratic obligation and condemns any political discourse that distorts the legitimate fight against malicious entryism to fuel racism, xenophobia and anti-Muslim hatred;",
+            "justification": null,
+            "language": "en",
+            "sources": [
+              {
+                "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_en.docx",
+                "fetchedAt": "2026-10-17T18:40:15.335054+00:00",
+                "date": "2026-10-02",
+                "dateBasis": "individual-amendment-document",
+                "language": "en",
+                "format": "DOCX"
+              }
+            ],
+            "gaps": []
+          }
+        ],
+        "gaps": []
+      },
+      "projectionComplete": false
+    },
+    {
+      "work": {
+        "id": "eli/dl/doc/RC-10-2026-0441-AM-001-002",
+        "identifier": "RC-10-2026-0441-AM-001-002",
+        "foresees_change_of": "eli/dl/doc/RC-10-2026-0441",
+        "work_type": "def/ep-document-types/AMENDMENT_LIST",
+        "document_date": "2026-10-06",
+        "itemNumberBegin": 1,
+        "itemNumberEnd": 2,
+        "is_realized_by": [
+          {
+            "language": "http://publications.europa.eu/resource/authority/language/ENG",
+            "is_embodied_by": [
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "is_exemplified_by": "distribution/reds_iPlRc_Amd/RC-10-2026-0441-AM-001-002/RC-10-2026-0441-AM-001-002_en.docx",
+                "byteSize": "81803"
+              },
+              {
+                "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+                "is_exemplified_by": "distribution/reds_iPlRc_Amd/RC-10-2026-0441-AM-001-002/RC-10-2026-0441-AM-001-002_en.pdf",
+                "byteSize": "81803"
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/RC-10-2026-0441?format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-17T18:39:31.569620+00:00",
+        "language": null
+      },
+      "wordingSource": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0441-AM-001-002/RC-10-2026-0441-AM-001-002_en.docx",
+        "fetchedAt": "2026-10-17T18:40:15.103430+00:00",
+        "language": "en"
+      },
+      "extraction": {
+        "amendments": [
+          {
+            "number": 1,
+            "listId": "RC-10-2026-0441-AM-001-002",
+            "targetDocumentId": "RC-10-2026-0441",
+            "date": "2026-10-06",
+            "documentDate": "2026-10-06",
+            "dateBasis": "individual-amendment-document",
+            "authors": [
+              "Manon Aubry",
+              "Marina Mesure"
+            ],
+            "committeeProposer": null,
+            "onBehalfOf": "on behalf of The Left Group",
+            "targetLabel": "Paragraph 8",
+            "originalText": "8.\tDecries the continued suppression by the Russian authorities of any form of dissent, including through repressive legislation and politically motivated prison sentences targeting opposition politicians, civil society organisations, human rights defenders and independent media; recalls that the unlawful ‘Foreign Agents Law’, enacted in 2012, has imposed severe constraints on Russian civil society;",
+            "proposedText": "8.\tDecries the continued suppression by the Russian authorities of any form of dissent, including through repressive legislation and politically motivated prison sentences targeting opposition politicians, civil society organisations, human rights defenders and independent media; recalls that the unlawful ‘Foreign Agents Law’, enacted in 2012, has imposed severe constraints on Russian civil society; condemns the legislation introduced in Russia in 2022 criminalising the dissemination of information deemed ‘false’ concerning the Russian armed forces and public statements deemed to ‘discredit’ them, which is incompatible with Article 19 of the International Covenant on Civil and Political Rights; deplores the use of these provisions to prosecute and silence elected representatives, activists, including trade unionists and left-wing anti-war activists, journalists and citizens for opposing or publicly criticising Russia’s war of aggression against Ukraine; stresses that these laws have contributed to the systematic suppression of anti-war political dissent and pluralism in Russia;",
+            "justification": null,
+            "language": "en",
+            "sources": [
+              {
+                "url": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0441-AM-001-002/RC-10-2026-0441-AM-001-002_en.docx",
+                "fetchedAt": "2026-10-17T18:40:15.103430+00:00",
+                "date": "2026-10-06",
+                "dateBasis": "individual-amendment-document",
+                "language": "en",
+                "format": "DOCX"
+              }
+            ],
+            "gaps": []
+          },
+          {
+            "number": 2,
+            "listId": "RC-10-2026-0441-AM-001-002",
+            "targetDocumentId": "RC-10-2026-0441",
+            "date": "2026-10-06",
+            "documentDate": "2026-10-06",
+            "dateBasis": "individual-amendment-document",
+            "authors": [
+              "Danilo Della Valle"
+            ],
+            "committeeProposer": null,
+            "onBehalfOf": "on behalf of The Left Group",
+            "targetLabel": "Paragraph 19 a (new)",
+            "originalText": "",
+            "proposedText": "19a.\tCalls on the Vice-President of the Commission / High Representative of the Union for Foreign Affairs and Security Policy, the Commission and the Member States to apply the same standards on electoral integrity consistently to all third countries, including EU partners;",
+            "justification": null,
+            "language": "en",
+            "sources": [
+              {
+                "url": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0441-AM-001-002/RC-10-2026-0441-AM-001-002_en.docx",
+                "fetchedAt": "2026-10-17T18:40:15.103430+00:00",
+                "date": "2026-10-06",
+                "dateBasis": "individual-amendment-document",
+                "language": "en",
+                "format": "DOCX"
+              }
+            ],
+            "gaps": []
+          }
+        ],
+        "gaps": []
+      },
+      "projectionComplete": true
+    }
+  ],
+  "roster": {
+    "date": "2026-10-02",
+    "members": [
+      {
+        "id": "person/197494",
+        "identifier": "197494",
+        "givenName": "Nathalie",
+        "familyName": "Loiseau"
+      },
+      {
+        "id": "person/256918",
+        "identifier": "256918",
+        "givenName": "Céline",
+        "familyName": "Imart"
+      }
+    ],
+    "source": {
+      "url": "https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date=2026-10-02&limit=1000&offset=0&format=application%2Fld%2Bjson",
+      "fetchedAt": "2026-10-17T18:41:37.432108+00:00",
+      "language": null
+    }
+  },
+  "sitting": {
+    "id": "MTG-PL-2026-10-08",
+    "decisions": [
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-197928",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/RC-10-2026-0441-AM-2"
+        ],
+        "activity_label": {
+          "en": "After § 19"
+        },
+        "referenceText": {
+          "en": "After § 19"
+        }
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-198211",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/RC-10-2026-0441-AM-1",
+          "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993193-SPLIT-3-1"
+        ],
+        "activity_label": {
+          "en": "§ 8"
+        },
+        "referenceText": {
+          "en": "§ 8"
+        }
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-197941",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-6-1",
+          "eli/dl/doc/B-10-2026-0424-AM-31"
+        ],
+        "number_of_votes_favor": 352,
+        "number_of_votes_against": 218,
+        "number_of_votes_abstention": 9,
+        "activity_label": {
+          "en": "B10-0424/2026 – § 1 – Am 31/1"
+        },
+        "referenceText": {
+          "en": "§ 1"
+        }
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-198174",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/B-10-2026-0424-AM-32",
+          "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-5-2"
+        ],
+        "activity_label": {
+          "en": "§ 3"
+        },
+        "referenceText": {
+          "en": "§ 3"
+        }
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-197942",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-6-2",
+          "eli/dl/doc/B-10-2026-0424-AM-31"
+        ],
+        "number_of_votes_favor": 366,
+        "number_of_votes_against": 178,
+        "number_of_votes_abstention": 32,
+        "activity_label": {
+          "en": "B10-0424/2026 – § 1 – Am 31/2"
+        },
+        "referenceText": {
+          "en": "§ 1"
+        }
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-197992",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/B-10-2026-0424-AM-20"
+        ],
+        "number_of_votes_favor": 403,
+        "number_of_votes_against": 161,
+        "number_of_votes_abstention": 16,
+        "activity_label": {
+          "en": "B10-0424/2026 – After § 13 – Am 20"
+        },
+        "referenceText": {
+          "en": "After § 13"
+        }
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-197976",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/B-10-2026-0424-AM-18"
+        ],
+        "number_of_votes_favor": 416,
+        "number_of_votes_against": 131,
+        "number_of_votes_abstention": 20,
+        "activity_label": {
+          "en": "B10-0424/2026 – After § 7 – Am 18"
+        },
+        "referenceText": {
+          "en": "After § 7"
+        }
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-197943",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/B-10-2026-0424-AM-31",
+          "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-6-3"
+        ],
+        "number_of_votes_favor": 348,
+        "number_of_votes_against": 169,
+        "number_of_votes_abstention": 41,
+        "activity_label": {
+          "en": "B10-0424/2026 – § 1 – Am 31/3"
+        },
+        "referenceText": {
+          "en": "§ 1"
+        }
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-197784",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/B-10-2026-0424-AM-15"
+        ],
+        "activity_label": {
+          "en": "After recital E"
+        },
+        "referenceText": {
+          "en": "After recital E"
+        }
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-198212",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/LAPSED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993193-SPLIT-3-2",
+          "eli/dl/doc/RC-10-2026-0441-AM-1"
+        ],
+        "activity_label": {
+          "en": "§ 8"
+        },
+        "referenceText": {
+          "en": "§ 8"
+        }
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-197777",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/B-10-2026-0424-AM-13"
+        ],
+        "activity_label": {
+          "en": "Recital D"
+        },
+        "referenceText": {
+          "en": "Recital D"
+        }
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-DEC-198173",
+        "activity_date": "2026-10-08",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-5-1",
+          "eli/dl/doc/B-10-2026-0424-AM-32"
+        ],
+        "number_of_votes_favor": 204,
+        "number_of_votes_against": 357,
+        "number_of_votes_abstention": 19,
+        "activity_label": {
+          "en": "B10-0424/2026 – § 3 – Am 32/1"
+        },
+        "referenceText": {
+          "en": "§ 3"
+        }
+      }
+    ],
+    "splitRequests": [
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-6",
+        "had_activity_type": "def/ep-activities/REQUEST_VOTE_SPLIT",
+        "created_a_realization_of": [
+          {
+            "id": "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-6-1",
+            "number": "1",
+            "numbering": 1,
+            "expressionContent": {
+              "en": "<partValue>Text as a whole without the words: ‘sexual health and reproductive rights,’ and ‘LGBTIQ+ rights,’</partValue>"
+            }
+          },
+          {
+            "id": "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-6-2",
+            "number": "2",
+            "numbering": 2,
+            "expressionContent": {
+              "en": "<partValue>‘sexual health and reproductive rights,’</partValue>"
+            }
+          },
+          {
+            "id": "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-6-3",
+            "number": "3",
+            "numbering": 3,
+            "expressionContent": {
+              "en": "<partValue>‘LGBTIQ+ rights,’</partValue>"
+            }
+          }
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-5",
+        "had_activity_type": "def/ep-activities/REQUEST_VOTE_SPLIT",
+        "created_a_realization_of": [
+          {
+            "id": "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-5-1",
+            "number": "1",
+            "numbering": 1,
+            "expressionContent": {
+              "en": "<partValue>Text as a whole without the deletion of the words: ‘but that recognising organised Islamist networks as representative interlocutors constitutes a political and institutional failure’</partValue>"
+            }
+          },
+          {
+            "id": "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993171-SPLIT-5-2",
+            "number": "2",
+            "numbering": 2,
+            "expressionContent": {
+              "en": "<partValue>The deletion of the words: ‘but that recognising organised Islamist networks as representative interlocutors constitutes a political and institutional failure’</partValue>"
+            }
+          }
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-08-VOT-ITM-993193-SPLIT-3",
+        "had_activity_type": "def/ep-activities/REQUEST_VOTE_SPLIT",
+        "created_a_realization_of": [
+          {
+            "id": "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993193-SPLIT-3-1",
+            "number": "1",
+            "numbering": 1,
+            "expressionContent": {
+              "en": "<partValue>Text as a whole without the words: ‘left-wing’</partValue>"
+            }
+          },
+          {
+            "id": "eli/dl/doc/MTG-PL-2026-10-08-VOT-ITM-993193-SPLIT-3-2",
+            "number": "2",
+            "numbering": 2,
+            "expressionContent": {
+              "en": "<partValue>those words</partValue>"
+            }
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-08/decisions?format=application%2Fld%2Bjson&limit=500&offset=0&filter-output=voters",
+        "fetchedAt": "2026-10-17T18:40:44.678098+00:00",
+        "language": "en"
+      },
+      {
+        "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-08/vote-results?format=application%2Fld%2Bjson&limit=500&offset=0",
+        "fetchedAt": "2026-10-17T18:40:44.370769+00:00",
+        "language": "en"
+      }
+    ],
+    "projectionComplete": false
+  }
+}
