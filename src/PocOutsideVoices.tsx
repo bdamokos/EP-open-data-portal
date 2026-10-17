@@ -26,7 +26,7 @@ function Titles({contributions,language}:{contributions:OutsideContribution[];la
 const legislative=(a:OutsideAgenda)=>a.procedures.some(p=>['COD','CNS'].includes(p.type||''));
 const procedureRef=(id:string,type:string|null)=>id.replace('-','/')+(type?`(${type})`:'');
 const oeil=(id:string,type:string)=>'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference='+encodeURIComponent(procedureRef(id,type));
-const itemWebsite=(c:OutsideContribution)=>c.parentDocumentId&&/^CRE-\d+-\d{4}-\d{2}-\d{2}-ITM-\d+$/.test(c.parentDocumentId)?'https://www.europarl.europa.eu/doceo/document/'+c.parentDocumentId+'_EN.html':null;
+const itemWebsite=(c:OutsideContribution)=>c.parentDocumentId&&/^CRE-\d+-\d{4}-\d{2}-\d{2}-ITM-\d+(?:-\d+)*$/.test(c.parentDocumentId)?'https://www.europarl.europa.eu/doceo/document/'+c.parentDocumentId+'_EN.html':null;
 
 type OutsideOpener={node:HTMLElement|null;key:string|null};
 const captureOpener=():OutsideOpener=>{const node=document.activeElement instanceof HTMLElement?document.activeElement:null;return {node,key:node?.dataset.ovFocus||null};};

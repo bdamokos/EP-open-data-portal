@@ -13,7 +13,7 @@ import { ActivityStore } from './activity-index-store.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
 import { HttpError } from './http-utils.mjs';
 import {outsideSpeech,outsideAgenda} from './outside-model.mjs';
-import {recordOutside} from './outside-store.mjs';
+import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade} from './outside-store.mjs';
 
 import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
 
@@ -80,7 +80,7 @@ export class ActivityWorker {
   due() {
     const active=this.store.get('active') || 0;
     const checkpoint=this.store.source(active,CONTINUATIONS_KEY)?.work;
-    return this.coreDue() || Boolean(nextAmendmentTask(this.store,amendmentGeneration(this.store)) || this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(active) || groupVoiceWorkDue(this.store,active) || checkpoint?.discovery?.length || checkpoint?.tasks?.some(task=>task.retry_at<=this.clock()));
+    return this.coreDue() || outsideAgendaUpgradeDue(this.store,active) || Boolean(nextAmendmentTask(this.store,amendmentGeneration(this.store)) || this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(active) || groupVoiceWorkDue(this.store,active) || checkpoint?.discovery?.length || checkpoint?.tasks?.some(task=>task.retry_at<=this.clock()));
   }
   checkpointContinuations(generation,{includeCore=true}={}) {
     this.store.transaction(()=>{
@@ -537,6 +537,7 @@ export class ActivityWorker {
         // the canonical queue with their existing cursors.
         if(this.store.source(generation,CONTINUATIONS_KEY))this.checkpointContinuations(generation,{includeCore:false});
       }
+      initializeOutsideAgendaUpgrade(this.store,generation,new Date(this.clock()).toISOString());
       initializeGroupVoices(this,generation,freshSpeechLoad?[]:speechWindows(day(this.clock())));
       while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration && performance.now()<this.runDeadline) {
         const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);

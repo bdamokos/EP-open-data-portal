@@ -1,6 +1,6 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { languageCode, speechWebsite } from './ep-links.mjs';
-import {speechAgendaMembership,speechParentDocuments} from './speech-agenda.mjs';
+import {speechAgendaMembership,speechParentEvidence,speechParentDocumentId} from './speech-agenda.mjs';
 import countryLabels from './insights-country-labels.json' with {type:'json'};
 
 const array = value => value == null ? [] : Array.isArray(value) ? value : [value];
@@ -61,10 +61,10 @@ export function outsideSpeech(activity, fetchedAt, queryUrl = null) {
   });
   const term = Number(String(doc.identifier || doc.id || '').match(/CRE-(\d+)-/)?.[1]) || (activity.activity_date < '2024-07-16' ? 9 : 10);
   if(![9,10].includes(term))return null;
-  const parentDocumentIds = speechParentDocuments(activity);
+  const documentEvidence = speechParentEvidence(activity);
   return speechAgendaMembership({id, date:activity.activity_date, term, start:activity.activity_start_date || null, end:activity.activity_end_date || null, titles:activity.activity_label || {}, participants, headers,
     parentIds:[...new Set(array(activity.inverse_consists_of).map(canonical).map(value=>value.match(/^eli\/dl\/event\/(MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+)$/)?.[1]).filter(Boolean))],
-    documentId:doc.identifier || tail(doc.id) || null, parentDocumentIds, parentDocumentId:parentDocumentIds.length === 1 ? parentDocumentIds[0] : null, reference:doc.number || id, originalLanguages:array(doc.originalLanguage), ...speechWebsite(doc),
+    documentId:doc.identifier || tail(doc.id) || null, ...documentEvidence, parentDocumentId:documentEvidence.parentDocumentsComplete?speechParentDocumentId(documentEvidence.parentDocumentIds):null, reference:doc.number || id, originalLanguages:array(doc.originalLanguage), ...speechWebsite(doc),
     headerChecked:observations.length>0, source:{url:queryUrl || 'https://data.europarl.europa.eu/api/v2/speeches/' + id, fetchedAt}});
 }
 

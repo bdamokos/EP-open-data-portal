@@ -95,6 +95,15 @@ test('resolved agenda membership shows one debate and retains the original API l
   }
 });
 
+test('numbered transcript subitems retain their exact Debate link',async t=>{
+  const detail=speaker('42','Guest',[speech('2026-04-28','01',[item('2026-04-28','10-7')])]);
+  detail.contributions[0].parentDocumentId='CRE-10-2026-04-28-ITM-010-07';
+  const {container}=await harness(t,[detail],'?view=outside&ov-person=42');
+  await act(async()=>container.querySelector('.ov-appearance-cards button').click());
+  const link=[...container.querySelectorAll('.ov-drawer .ov-links a')].find(a=>a.textContent==='Debate ↗');
+  assert.equal(link?.href,'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-04-28-ITM-010-07_EN.html');
+});
+
 test('only populated capacity buttons appear and stale empty-group links show all speakers',async t=>{
   const detail=speaker('42','Current guest',[speech('2026-10-07','01',[item('2026-10-07',4)])]);
   const {container,click}=await harness(t,[detail],'?view=outside&ov-group=parliaments');

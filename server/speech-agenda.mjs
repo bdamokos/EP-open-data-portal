@@ -1,12 +1,22 @@
 const array = value => value == null ? [] : Array.isArray(value) ? value : [value];
 const canonical = value => String(value?.id || value || '').replace(/^https?:\/\/data\.europarl\.europa\.eu\//, '');
 const itemNumber = value => value.split('-').map(n=>n.replace(/^0+(?=\d)/,'')).join('-');
+const chapter = id => String(id).match(/^CRE-(9|10)-(\d{4}-\d{2}-\d{2})-ITM-(\d+(?:-\d+)*)$/);
 
-export function speechParentDocuments(activity) {
-  return [...new Set(array(activity.recorded_in_a_realization_of)
-    .filter(doc=>doc && typeof doc === 'object')
-    .flatMap(doc=>array(doc.is_part_of))
-    .map(canonical).map(uri=>uri.match(/^eli\/dl\/doc\/(CRE-(?:9|10)-\d{4}-\d{2}-\d{2}-ITM-\d+(?:-\d+)*)$/)?.[1]).filter(Boolean))];
+export function speechParentDocumentId(documents) {
+  const identities = new Set(documents.map(id=>{
+    const match=chapter(id);
+    return match ? match[1]+'|'+match[2]+'|'+itemNumber(match[3]) : null;
+  }));
+  return identities.size === 1 && !identities.has(null) ? documents[0] : null;
+}
+
+export function speechParentEvidence(activity) {
+  const groups=array(activity.recorded_in_a_realization_of).map(doc=>
+    doc && typeof doc === 'object' ? array(doc.is_part_of).map(canonical)
+      .map(uri=>uri.match(/^eli\/dl\/doc\/(CRE-(?:9|10)-\d{4}-\d{2}-\d{2}-ITM-\d+(?:-\d+)*)$/)?.[1] || null) : []);
+  return {parentDocumentIds:[...new Set(groups.flat().filter(Boolean))],
+    parentDocumentsComplete:groups.length > 0 && groups.every(ids=>ids.length > 0 && ids.every(Boolean))};
 }
 
 // CRE chapter numbers are padded; PVCRE event numbers are not. Resolve only
@@ -14,10 +24,12 @@ export function speechParentDocuments(activity) {
 // Never infer continuity from a resumption label, order, title or timestamps.
 export function speechAgendaMembership(row) {
   const reported = row.reportedParentIds || row.parentIds;
-  if (reported.length < 2) return row;
-  const documents = row.parentDocumentIds || (row.parentDocumentId ? [row.parentDocumentId] : []);
+  if (reported.length < 2 || row.parentDocumentsComplete !== true) return row;
+  // Older projections retained only one basename and discarded secondary
+  // documents and URI provenance. They need a source-writer metadata refresh.
+  const documents = row.parentDocumentIds || [];
   const chapters = [...new Set(documents.map(id=> {
-    const match = id.match(/^CRE-(9|10)-(\d{4}-\d{2}-\d{2})-ITM-(\d+(?:-\d+)*)$/);
+    const match = chapter(id);
     return match && Number(match[1]) === row.term && match[2] === row.date ? itemNumber(match[3]) : null;
   }))];
   if (chapters.length !== 1 || chapters[0] === null) return row;

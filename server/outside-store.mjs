@@ -5,6 +5,20 @@ import { HttpError } from './http-utils.mjs';
 const parse = value => JSON.parse(value);
 // Capacity is derived from retained source text, including records indexed by older code.
 const classified = row => ({...speechAgendaMembership(row),header:row.header?{...row.header,capacity:outsideCapacity(row.header.role)}:null});
+const agendaUpgradeKey = 'outside:agenda-membership';
+const legacyAgendaRows = "FROM outside_contributions WHERE generation=? AND json_array_length(body,'$.parentIds')>1 AND (COALESCE(json_type(body,'$.parentDocumentIds'),'')<>'array' OR COALESCE(json_type(body,'$.parentDocumentsComplete'),'') NOT IN ('true','false'))";
+export const outsideAgendaUpgradeDue = (store,generation) => Boolean(generation && store.source(generation,'outside:state') && !store.source(generation,agendaUpgradeKey) && store.db.prepare('SELECT 1 '+legacyAgendaRows+' LIMIT 1').get(generation));
+const needsAgendaUpgrade = row => row.parentIds.length > 1 && (!Array.isArray(row.parentDocumentIds) || typeof row.parentDocumentsComplete !== 'boolean');
+function enqueueAgendaUpgrade(store,generation,speech) {
+  store.enqueue(generation,'outside:agenda-membership:'+speech,'outside-detail',{id:speech},102);
+}
+export function initializeOutsideAgendaUpgrade(store,generation,fetchedAt) {
+  if (!outsideAgendaUpgradeDue(store,generation)) return;
+  store.assertWriter();
+  const rows=store.db.prepare('SELECT DISTINCT speech '+legacyAgendaRows).all(generation);
+  for(const {speech} of rows)enqueueAgendaUpgrade(store,generation,speech);
+  store.putSource(generation,agendaUpgradeKey,'outside-state',{version:1},fetchedAt);
+}
 export function outsideSchema(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS outside_contributions (generation INTEGER, speech TEXT, person TEXT, date TEXT, body TEXT, PRIMARY KEY(generation,speech,person));
     CREATE INDEX IF NOT EXISTS outside_person ON outside_contributions(generation,person,date DESC);
@@ -33,6 +47,7 @@ export function recordOutside(store, generation, speech) {
   const candidates = speech.participants.filter(id => !members.has(id));
   for (const personId of candidates) put.run(generation,speech.id,personId,speech.date,JSON.stringify({...speech,personId,header:speech.headers.find(header => header.personId === personId) || null,rosterSource:{date:speech.date,sources:roster.work.sources}}));
   if (candidates.some(id=>!speech.headers.find(header=>header.personId===id)?.name)) store.enqueue(generation,'outside:detail:' + speech.id,'outside-detail',{id:speech.id},102);
+  if (candidates.length && needsAgendaUpgrade(speech)) enqueueAgendaUpgrade(store,generation,speech.id);
   if (candidates.length) for (const id of speech.parentIds) if (!store.source(generation,'outside:agenda:' + id)) store.enqueue(generation,'outside:agenda:' + id,'outside-agenda',{id},101);
 }
 
