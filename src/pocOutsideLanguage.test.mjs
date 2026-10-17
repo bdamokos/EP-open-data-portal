@@ -153,11 +153,11 @@ test('speaker titles retain source fallback keys and per-title boundaries throug
   });
 });
 
-test('drawer English fallback returns to unknown source name without changing focus or localized dates',async t=>{
+test('drawer fallback name resolves while timeline focus follows the localized destination',async t=>{
   const h=await harness(t,'hu','?view=outside',true),mark=h.container.querySelector('[data-ov-focus="mark:42:'+day+'"]');
   await h.click(mark);const close=h.container.querySelector('[aria-label="Close speeches"]'),heading=h.container.querySelector('#ov-panel-title');
   assert.equal(heading.textContent,'Speeches');expectLanguage(heading,'en');expectLanguage(close,'en');assert.equal(document.activeElement,close);
-  await h.finish();assert.equal(h.container.querySelector('#ov-panel-title'),heading);assert.equal(heading.textContent,'Source speaker');expectLanguage(heading,'');assert.equal(document.activeElement,close);
+  await h.finish();assert.equal(h.container.querySelector('#ov-panel-title'),heading);assert.equal(heading.textContent,'Source speaker');expectLanguage(heading,'');assert(document.activeElement===h.container.querySelector('.ov-day>h2'),'a date-only marker focuses its localized sitting heading');expectLanguage(h.container.querySelector('.ov-drawer header small'),'hu');
   expectLanguage(h.container.querySelector('.ov-day>h2'),'hu');expectLanguage(h.container.querySelector('.ov-open-person'),'en');
   await h.click(close);assert.equal(h.container.querySelector('.ov-drawer'),null);assert.equal(document.activeElement,mark);
 });
