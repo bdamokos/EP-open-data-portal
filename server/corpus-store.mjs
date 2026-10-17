@@ -5,7 +5,7 @@ import { stat } from 'node:fs/promises';
 import { zstdCompressSync, zstdDecompressSync } from 'node:zlib';
 import path from 'node:path';
 import {countryCode} from './insights-countries.mjs';
-import {speechSummary} from './odp.mjs';
+import {speechSummary,chooseTranscript} from './odp.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
 
 // Full-text corpus of speeches, questions and answers. It lives beside the
@@ -199,7 +199,16 @@ export class CorpusStore {
     const docs=structuredClone(documents),first=docs.find(doc=>doc&&typeof doc==='object');
     if(first)first['api:xmlFragment']=fragments;
     const observed={...activity,recorded_in_a_realization_of:docs};
-    const body=JSON.stringify({version:1,activity:metadata,summary:speechSummary(observed),speakers:speechSpeakerDetails(observed),headerSources});
+    // Availability describes observed source variants, independently of the
+    // retention policy. Metadata-only refreshes must not forget known variants.
+    let previousLanguages=[];
+    const previous=this.db.prepare('SELECT body FROM speech_metadata WHERE source_id=?').get(activity.activity_id);
+    if(previous)try {
+      const saved=JSON.parse(zstdDecompressSync(previous.body,{maxOutputLength:2*1024*1024}));
+      if(saved.version===1&&saved.activity?.activity_id===activity.activity_id&&Array.isArray(saved.availableTextLanguages))previousLanguages=saved.availableTextLanguages.filter(value=>typeof value==='string');
+    }catch { /* A fresh projection can replace damaged metadata. */ }
+    const availableTextLanguages=[...new Set([...chooseTranscript(activity.recorded_in_a_realization_of||[],'en').availableTextLanguages,...previousLanguages,...chooseTranscript(docs,'en').availableTextLanguages])];
+    const body=JSON.stringify({version:1,activity:metadata,summary:speechSummary(observed),speakers:speechSpeakerDetails(observed),headerSources,availableTextLanguages});
     if(Buffer.byteLength(body)>2*1024*1024)throw new Error('Speech metadata exceeded the allowed size.');
     this.db.prepare(`INSERT INTO speech_metadata VALUES (?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET
       body=excluded.body,source_url=excluded.source_url,fetched_at=excluded.fetched_at WHERE excluded.fetched_at>=speech_metadata.fetched_at`)

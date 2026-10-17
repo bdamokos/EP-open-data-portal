@@ -102,3 +102,46 @@ test('legacy corpus metadata upgrades through the existing lease and metadata-on
     store.release();assert.throws(()=>store.putSpeechMetadata(activity,'https://data.europarl.europa.eu/api/v2/speeches',date),/lease/);
   } finally {store.close();rmSync(directory,{recursive:true,force:true});}
 });
+
+test('metadata-only missing graph recovery never fetches XML or rewrites retained text',async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'speech-metadata-recovery-')),store=new CorpusStore(directory);
+  try {
+    store.acquire();store.putDocument({sourceId:id,kind:'speech',date:'2026-10-07',term:10},[{sourceKey:'de',language:'de',translationType:'original',sourceFormat:'xml-fragment',sourceUrl:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:date,body:'Retained text.',raw:xml}]);
+    store.set('speechMetadataBackfill',true);
+    const before=store.db.prepare('SELECT sha256,checked_at FROM texts').get(),requests=[];
+    t.mock.method(store,'putDocument',()=>{throw new Error('Metadata recovery cannot ingest text');});
+    const worker=new CorpusWorker(store,{clock:()=>Date.parse(date),interval:0,fetchRecord:async(endpoint,params)=>{
+      requests.push(endpoint);assert.equal(params['include-output'],undefined);
+      return {payload:endpoint==='/speeches'?{data:[],searchResults:{hits:params.offset===0?[{id:'eli/dl/event/'+id}]:[]}}:{data:[activity]},fetchedAt:date};
+    }});
+    await worker.discover();const page=store.nextTask();await worker.task(page);await worker.task(store.task(page.key));
+    await worker.discover();assert.equal(store.get('speechMetadataBackfill'),true,'missing detail remains pending after the page cursor finishes');
+    const recovery=store.task('speech-metadata-detail:'+id);assert(recovery);await worker.task(recovery);
+    await worker.discover();assert.equal(store.get('speechMetadataBackfill'),false);
+    assert.deepEqual(requests,['/speeches','/speeches','/speeches/'+id]);
+    assert.equal(store.db.prepare('SELECT COUNT(*) n FROM speech_metadata').get().n,1);
+    assert.deepEqual(store.db.prepare('SELECT sha256,checked_at FROM texts').get(),before);
+  } finally {store.release();store.close();rmSync(directory,{recursive:true,force:true});}
+});
+
+test('primary retention preserves source-discovered languages in ready metadata across metadata-only refreshes',async()=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'speech-primary-metadata-')),store=new CorpusStore(directory);
+  try {
+    store.acquire();
+    const source=structuredClone(activity),doc=source.recorded_in_a_realization_of[0];
+    doc.originalLanguage=['http://publications.europa.eu/resource/authority/language/SPA'];
+    doc['api:xmlFragment']=Object.fromEntries(['en','fr','de'].map(language=>[language,`<speech xml:lang="es-t-${language}-mtec"><from><person refersTo="person/42">Source Name</person></from><p>Source ${language} variant.</p></speech>`]));
+    const worker=new CorpusWorker(store,{languages:'primary',interval:0,fetchRecord:async()=>({payload:{data:[source]},fetchedAt:date})});
+    store.enqueue('primary-test','speeches',{start:'2026-10-01',end:'2026-10-31',offset:0,limit:25},60);
+    await worker.task(store.task('primary-test'));
+    assert.deepEqual(store.speechTranscript({sourceId:id,language:'en'}).availableTextLanguages,['en']);
+    assert.equal(store.speechTranscript({sourceId:id,language:'fr'}).available,false);
+    const reader=new CorpusReader(directory);
+    let result=await reader.query('speech-transcript',{sourceId:id,language:'en'});
+    assert.deepEqual(result.metadata.availableTextLanguages,['en','fr','de']);
+    assert.deepEqual(result.metadata.textCache.availableLanguages,['en'],'retained and source availability stay distinct');
+    delete doc['api:xmlFragment'];store.putSpeechMetadata(source,'https://data.europarl.europa.eu/api/v2/speeches/'+id,'2026-10-17T10:00:00Z');
+    result=await reader.query('speech-transcript',{sourceId:id,language:'en'});
+    assert.deepEqual(result.metadata.availableTextLanguages,['en','fr','de']);
+  } finally {store.release();store.close();rmSync(directory,{recursive:true,force:true});}
+});

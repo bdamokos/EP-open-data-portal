@@ -39,10 +39,10 @@ if(!isMainThread && workerData?.operation) {
     const result=workerData.operation==='speech-transcript'?store.speechTranscript(workerData.params):workerData.operation==='status'?store.status(workerData.params):workerData.operation==='text'?store.text(workerData.params):store.search(workerData.params);
     if(workerData.operation==='speech-transcript'&&result.metadataRecord) {
       try {
-        const {summary,speakers:people,sourceUrl,fetchedAt,headerSources}=result.metadataRecord;
+        const {summary,speakers:people,sourceUrl,fetchedAt,headerSources,availableTextLanguages=[]}=result.metadataRecord;
         const speakers=await cachedSpeakerIdentities.enrich(people,summary.date,{chairs:people.filter(person=>person.sittingRole==='chair').map(person=>person.id),profileIds:people.map(person=>person.id)});
         result.metadata={...summary,speakers,xml:null,textLanguage:result.textLanguage,translationType:result.translationType,
-          sourceFragmentKey:result.sourceFragmentKey,availableTextLanguages:result.availableTextLanguages,fetchedAt:result.fetchedAt,
+          sourceFragmentKey:result.sourceFragmentKey,availableTextLanguages:[...new Set([...result.availableTextLanguages,...availableTextLanguages])],fetchedAt:result.fetchedAt,
           textCache:{sourceFetchedAt:result.fetchedAt,stale:false,refreshInProgress:false,refreshError:null,availableLanguages:result.availableTextLanguages,coverage:'returned-languages-only'},
           video:{available:false,reason:'Recording lookup uses the separate speech media service.'},
           metadataSource:{url:sourceUrl,fetchedAt,headerSources}};
