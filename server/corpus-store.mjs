@@ -171,6 +171,26 @@ export class CorpusStore {
     return row?.raw ? zstdDecompressSync(row.raw).toString('utf8') : null;
   }
 
+  speechTranscript({sourceId,language}) {
+    return this.snapshot(()=>{
+      const rows=this.db.prepare(`SELECT t.id,t.language,t.source_key,t.translation_type,t.source_url,t.fetched_at,t.checked_at,t.sha256
+        FROM documents d JOIN texts t ON t.document_id=d.id
+        WHERE d.source_id=? AND d.kind='speech' AND t.source_format='xml-fragment' AND t.raw IS NOT NULL
+        ORDER BY t.source_key`).all(sourceId);
+      // Exact language only: the authoritative detail reader owns language fallback.
+      const row=rows.filter(t=>t.language===language).sort((a,b)=>
+        Number(b.translation_type==='original')-Number(a.translation_type==='original') ||
+        Number(b.source_key===language)-Number(a.source_key===language))[0];
+      if(!row)return {id:sourceId,available:false};
+      const raw=this.db.prepare('SELECT raw FROM texts WHERE id=?').get(row.id).raw;
+      const xml=zstdDecompressSync(raw,{maxOutputLength:2*1024*1024}).toString('utf8');
+      if(sha(xml)!==row.sha256)throw new Error('The retained speech transcript failed its checksum.');
+      return {id:sourceId,available:true,xml,textLanguage:row.language,sourceFragmentKey:row.source_key,
+        translationType:row.translation_type,availableTextLanguages:[...new Set(rows.map(t=>t.language))],
+        sourceUrl:row.source_url,fetchedAt:row.fetched_at,checkedAt:row.checked_at};
+    });
+  }
+
   // Read exactly the variant that produced the excerpt. No upstream request or
   // language fallback is made, even when another variant exists for this ID.
   text(params){return this.snapshot(()=>this.textSnapshot(params));}

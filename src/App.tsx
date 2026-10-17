@@ -39,7 +39,7 @@ import "./explorer.css";
 import { activitySourceId } from "../server/activity-links.mjs";
 import {transcriptParagraphs,TranscriptText} from "./Transcript";
 import { transcriptLanguage } from "../server/transcript-language.mjs";
-import { useData } from "./data";
+import { useSpeechData, useData } from "./data";
 import { useSpeechVideo } from "./SpeechPlayer";
 import { Legislation } from './Legislation';
 import {Amendments,AmendmentsPage} from './Amendments';
@@ -95,35 +95,34 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
   const c = interfaceCopy(lang);
   const transcriptText=useRef<HTMLDivElement>(null);
   const video=useSpeechVideo(speech,lang);
-  const state = useData<SpeechDetail>(
-    `speech/${encodeURIComponent(speech.id)}?lang=${transcriptLanguage}`,
-  );
+  const state = useSpeechData(speech.id,transcriptLanguage);
+  const body=state.transcript;
   const text = useMemo(
-    () => transcript(state.data?.xml ?? null),
-    [state.data?.xml],
+    () => transcript(body?.xml ?? null),
+    [body?.xml],
   );
   return (
     <div className="explorer-speech-detail" lang={lang}>
-      <Status scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={state.error||!state.data?null:text.error?'Parliament returned transcript text that could not be read.':text.paragraphs.length?'Transcript loaded.':'No transcript text is available from Parliament’s API for this contribution.'}/>
+      <Status scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={state.error||!body?null:text.error?'Parliament returned transcript text that could not be read.':text.paragraphs.length?'Transcript loaded.':'No transcript text is available from Parliament’s API for this contribution.'}/>
       {state.data?.speakers?.map(person=><div key={person.id}><strong><SpeakerName person={person} language={lang}/></strong><SpeakerRoleLine person={person} language={lang} intervention={state.data?.intervention} className="insight-secondary"/></div>)}
       {state.data?.intervention?.type!=='chair'&&<InterventionBadges value={state.data?.intervention} language={lang}/>}
       <SpeechContextPanel key={speech.id} id={speech.id} language={lang} transcriptLanguage={transcriptLanguage}/>
       <div className="explorer-speech-transcript-heading" lang="en"><h3 lang={lang}>{c.transcript}</h3><div className="explorer-reader-tools">{video.toggle}{text.paragraphs.length>0&&<FindInText key={speech.id+':'+transcriptLanguage} label="Find in speech" target={transcriptText}/>}</div></div>
       {video.panel}
       {speech.websiteUrl && <p className="explorer-source-link" lang="en"><a href={speech.websiteUrl} target="_blank" rel="noreferrer">Speech on Parliament’s website ↗</a>{" "}<small>Original <span lang="">{speech.websiteLanguage?.toUpperCase()}</span></small></p>}
-      {state.loading && !state.data && <p role="status" lang="en">Loading transcript…</p>}
+      {state.loading && !body && <p role="status" lang="en">Loading transcript…</p>}
       {state.error && <ErrorView message={state.error} retry={state.retry} />}
-      {state.data && (
+      {body && (
         <>
-          {state.data.textCache?.stale && <small lang="en">Showing saved transcript.{state.data.textCache.refreshInProgress ? " A refresh is running in the background." : state.data.textCache.refreshError ? " The last refresh failed." : ""}</small>}
+          {body===state.data&&state.data?.textCache?.stale && <small lang="en">Showing saved transcript.{state.data.textCache.refreshInProgress ? " A refresh is running in the background." : state.data.textCache.refreshError ? " The last refresh failed." : ""}</small>}
           <div className="explorer-text-meta" lang="en">
-            {state.data.textLanguage ? <span lang="">{state.data.textLanguage.toUpperCase()}</span> : text.paragraphs.length ? "Language unspecified" : "Text unavailable"}
-            {state.data.translationType === "machine" || text.machine
+            {body.textLanguage ? <span lang="">{body.textLanguage.toUpperCase()}</span> : text.paragraphs.length ? "Language unspecified" : "Text unavailable"}
+            {body.translationType === "machine" || text.machine
               ? " · Parliament machine translation"
-              : state.data.translationType === "original"
+              : body.translationType === "original"
                 ? " · Original text"
-                : state.data.textLanguage ? " · Translation method unspecified" : ""}
-            {state.data.textLanguage && state.data.textLanguage !== transcriptLanguage
+                : body.textLanguage ? " · Translation method unspecified" : ""}
+            {body.textLanguage && body.textLanguage !== transcriptLanguage
               ? " · Requested-language text unavailable"
               : ""}
           </div>
@@ -133,7 +132,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
             <div
               className="explorer-transcript"
               ref={transcriptText}
-              lang={state.data.textLanguage || ""}
+              lang={body.textLanguage || ""}
             >
               {text.paragraphs.map((p, i) => (
                 <p key={i}><TranscriptText paragraph={p}/></p>

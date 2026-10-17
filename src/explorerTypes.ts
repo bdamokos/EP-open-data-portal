@@ -169,6 +169,19 @@ export interface SpeechDetail extends Speech {
   fetchedAt: string;
   textCache?: { sourceFetchedAt: string; stale: boolean; refreshInProgress: boolean; refreshError: string | null; availableLanguages: string[]; coverage: 'returned-languages-only' };
 }
+
+export interface StoredSpeechTranscript {
+  id:string;
+  available:boolean;
+  xml?:string;
+  textLanguage?:string;
+  sourceFragmentKey?:string;
+  translationType?:'original'|'machine'|'unspecified';
+  availableTextLanguages?:string[];
+  sourceUrl?:string;
+  fetchedAt?:string;
+  checkedAt?:string;
+}
 export interface MotionOutcome {
   status: 'adopted' | 'rejected' | 'lapsed' | 'withdrawn' | 'unavailable';
   reason?: string;

@@ -17,7 +17,7 @@ test('speaker names and sitting roles follow the UI independently of the selecte
     {value:'Γεάδης Γεάδη',script:'Grek',language:null,source:'ODP person'},
   ]};
   const connectedId=speechId+'2';
-  const h=await harness(t,(route,params)=>route.startsWith('speech/')?{...speech(params.get('lang')),speakers:[person]}:route.startsWith('speech-context/')?{speechId,unavailable:false,debates:[{id:'MTG-PL-2026-03-25-PVCRE-ITM-1',titles:{en:'Public debate fixture'},records:[{id:connectedId,start:null,intervention:{type:'speech',speaker:{...person,sittingRole:undefined,office:null},onBehalfOf:[]},replyTo:null,exchangeId:null}],exchanges:[],coverage:{complete:true,available:1,expected:1}}]}:undefined);
+  const h=await harness(t,(route,params)=>route.startsWith('speech/')?{...speech(params.get('lang')),id:route.slice('speech/'.length),speakers:[person]}:route.startsWith('speech-context/')?{speechId,unavailable:false,debates:[{id:'MTG-PL-2026-03-25-PVCRE-ITM-1',titles:{en:'Public debate fixture'},records:[{id:connectedId,start:null,intervention:{type:'speech',speaker:{...person,sittingRole:undefined,office:null},onBehalfOf:[]},replyTo:null,exchangeId:null}],exchanges:[],coverage:{complete:true,available:1,expected:1}}]}:undefined);
   await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}),'en');
   assert.equal(h.container.querySelector('h3').textContent,'Geadis Geadi');
   assert.equal(h.container.querySelector('.insight-secondary').textContent,'Vice-President of the European Parliament · Chairing the sitting');
@@ -301,7 +301,7 @@ test('speech readers preserve source italics and notes inside timed paragraphs, 
   const xml='<oralStatements><speech xml:lang="en"><from>Header is not speech text</from><blockContainer><p><inline name="i">(Opening note)</inline></p><p><time>Before</time><time>the</time><time>video</time> <inline name="i">(A video was played in the Chamber)</inline> <time>we</time><time>continue</time> .</p><p>Ordinary (spoken aside) and <inline name="i"><span>an editorial note</span></inline> remain in place.</p><p><inline name="i">(Closing note)</inline></p></blockContainer></speech></oralStatements>';
   const connectedId=speechId+'-formatted';
   const person={id:'118859',name:'President'};
-  const h=await harness(t,(route)=>route.startsWith('speech/')?{...speech('en'),xml}:route.startsWith('speech-context/')?{speechId,unavailable:false,debates:[{id:'exact-debate',titles:{en:'Debate'},records:[{id:connectedId,start:null,intervention:{type:'speech',speaker:person,onBehalfOf:[]}}],exchanges:[],coverage:{complete:true}}]}:undefined);
+  const h=await harness(t,(route)=>route.startsWith('speech/')?{...speech('en'),id:route.slice('speech/'.length),xml}:route.startsWith('speech-context/')?{speechId,unavailable:false,debates:[{id:'exact-debate',titles:{en:'Debate'},records:[{id:connectedId,start:null,intervention:{type:'speech',speaker:person,onBehalfOf:[]}}],exchanges:[],coverage:{complete:true}}]}:undefined);
   await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en',highlight:'video (A video'}),'en');
   const body=h.container.querySelector('.insight-reader-text');
   assert.deepEqual([...body.querySelectorAll('i')].map(node=>node.textContent),['(Opening note)','(A video was played in the Chamber)','an editorial note','(Closing note)']);

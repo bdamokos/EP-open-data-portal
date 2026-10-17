@@ -35,7 +35,7 @@ if(!isMainThread && workerData?.operation) {
   let store;
   try {
     store=new CorpusStore(workerData.directory,{indexFile:workerData.indexFile,readOnly:true});
-    const result=workerData.operation==='status'?store.status(workerData.params):workerData.operation==='text'?store.text(workerData.params):store.search(workerData.params);
+    const result=workerData.operation==='speech-transcript'?store.speechTranscript(workerData.params):workerData.operation==='status'?store.status(workerData.params):workerData.operation==='text'?store.text(workerData.params):store.search(workerData.params);
     parentPort.postMessage({result:workerData.operation==='search' && result?{...result,coverage:store.coverage()}:result});
   } catch(error) {parentPort.postMessage({error:error.message});}
   finally {store?.close();}
