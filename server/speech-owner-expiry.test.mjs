@@ -1,6 +1,6 @@
 import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
 import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
 import {syncBuiltinESMExports} from 'node:module';
 import {createHash} from 'node:crypto';
@@ -22,9 +22,9 @@ const cloudFixture=JSON.parse(readFileSync(new URL('./fixtures/plenary-context-l
 test('expired ODP disk readers cannot replace a successful newer source',async t=>{
   t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()+180_000});
   const endpoint='/expired-disk-reader',url='https://data.europarl.europa.eu/api/v2'+endpoint+'?format=application%2Fld%2Bjson';
-  const file=path.join(directory,createHash('sha256').update(url).digest('hex')+'.json'),realRead=fs.readFile;
+  const file=path.join(directory,createHash('sha256').update(url).digest('hex')+'.json'),realRead=fs.createReadStream;
   let finish,reads=0,calls=0;
-  const mock=t.mock.method(fs,'readFile',(filename,...args)=>String(filename)===file&&reads++===0?new Promise(resolve=>finish=resolve):realRead(filename,...args));
+  const mock=t.mock.method(fs,'createReadStream',(filename,...args)=>String(filename)===file&&reads++===0?(async function*(){yield Buffer.from(await new Promise(resolve=>finish=resolve));})():realRead(filename,...args));
   syncBuiltinESMExports();t.after(()=>{mock.mock.restore();syncBuiltinESMExports();});
   t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({data:[{id:'replacement'}]});});
   const first=assert.rejects(sharedRequest(()=>odp(endpoint)),e=>e.code==='request_timeout');
