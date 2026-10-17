@@ -5,6 +5,8 @@ import { stat } from 'node:fs/promises';
 import { zstdCompressSync, zstdDecompressSync } from 'node:zlib';
 import path from 'node:path';
 import {countryCode} from './insights-countries.mjs';
+import {speechSummary} from './odp.mjs';
+import {speechSpeakerDetails} from './speech-speakers.mjs';
 
 // Full-text corpus of speeches, questions and answers. It lives beside the
 // activity index but outside its refresh generations, so a refresh never copies
@@ -50,6 +52,7 @@ export class CorpusStore {
       CREATE TABLE IF NOT EXISTS documents (
         id INTEGER PRIMARY KEY, source_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL CHECK(kind IN ('speech','question','answer')),
         parent_id TEXT, date TEXT, term INTEGER, original_languages TEXT NOT NULL DEFAULT '[]');
+      CREATE TABLE IF NOT EXISTS speech_metadata (source_id TEXT PRIMARY KEY, body BLOB NOT NULL, source_url TEXT NOT NULL, fetched_at TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS document_kind_date ON documents(kind,date DESC);
       CREATE INDEX IF NOT EXISTS document_parent ON documents(parent_id) WHERE parent_id IS NOT NULL;
       CREATE TABLE IF NOT EXISTS texts (
@@ -73,6 +76,10 @@ export class CorpusStore {
       CREATE INDEX IF NOT EXISTS task_status_error ON tasks(done,retry_at DESC,key,error,attempts) WHERE done=0 AND error IS NOT NULL;
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
     if(this.get('schema')!==1)throw new Error('Unsupported corpus schema.');
+    if(!readOnly&&this.get('speechMetadataVersion')!==1) {
+      this.set('speechMetadataBackfill',Boolean(this.db.prepare("SELECT 1 FROM documents WHERE kind='speech' LIMIT 1").get()));
+      this.set('speechMetadataVersion',1);
+    }
     this.indexFile=indexFile;this.indexAttached=false;this.attachIndex();
   }
   // Read-only: the activity worker remains the only index writer.
@@ -171,6 +178,34 @@ export class CorpusStore {
     return row?.raw ? zstdDecompressSync(row.raw).toString('utf8') : null;
   }
 
+  putSpeechMetadata(activity,sourceUrl,fetchedAt) {
+    this.assertWriter();
+    if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(activity?.activity_id||'')||activity.activity_date!==activity.activity_id.slice(7,17))
+      throw new Error('Invalid speech metadata identity.');
+    const documents=(activity.recorded_in_a_realization_of||[]).map(doc=>{
+      if(!doc||typeof doc!=='object')return doc;
+      const {'api:xmlFragment':fragments,...metadata}=doc;return metadata;
+    });
+    const metadata={...activity,recorded_in_a_realization_of:documents};
+    const retained=this.db.prepare(`SELECT t.source_key,t.raw,t.source_url,t.fetched_at,t.sha256 FROM texts t JOIN documents d ON d.id=t.document_id
+      WHERE d.source_id=? AND t.source_format='xml-fragment' AND t.raw IS NOT NULL ORDER BY t.source_key`).all(activity.activity_id);
+    const headerSources=[...new Map(retained.map(row=>[row.source_url+'|'+row.fetched_at,{url:row.source_url,fetchedAt:row.fetched_at}])).values()];
+    const fragments={};let bytes=0;
+    for(const row of retained) {
+      const xml=zstdDecompressSync(row.raw,{maxOutputLength:2*1024*1024}).toString('utf8');bytes+=Buffer.byteLength(xml);
+      if(bytes>12*1024*1024||sha(xml)!==row.sha256)throw new Error('Retained speech fragments failed projection validation.');
+      fragments[row.source_key]=xml;
+    }
+    const docs=structuredClone(documents),first=docs.find(doc=>doc&&typeof doc==='object');
+    if(first)first['api:xmlFragment']=fragments;
+    const observed={...activity,recorded_in_a_realization_of:docs};
+    const body=JSON.stringify({version:1,activity:metadata,summary:speechSummary(observed),speakers:speechSpeakerDetails(observed),headerSources});
+    if(Buffer.byteLength(body)>2*1024*1024)throw new Error('Speech metadata exceeded the allowed size.');
+    this.db.prepare(`INSERT INTO speech_metadata VALUES (?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET
+      body=excluded.body,source_url=excluded.source_url,fetched_at=excluded.fetched_at WHERE excluded.fetched_at>=speech_metadata.fetched_at`)
+      .run(activity.activity_id,zstdCompressSync(Buffer.from(body)),sourceUrl,new Date(fetchedAt).toISOString());
+  }
+
   speechTranscript({sourceId,language}) {
     return this.snapshot(()=>{
       const rows=this.db.prepare(`SELECT t.id,t.language,t.source_key,t.translation_type,t.source_url,t.fetched_at,t.checked_at,t.sha256
@@ -185,7 +220,19 @@ export class CorpusStore {
       const raw=this.db.prepare('SELECT raw FROM texts WHERE id=?').get(row.id).raw;
       const xml=zstdDecompressSync(raw,{maxOutputLength:2*1024*1024}).toString('utf8');
       if(sha(xml)!==row.sha256)throw new Error('The retained speech transcript failed its checksum.');
-      return {id:sourceId,available:true,xml,textLanguage:row.language,sourceFragmentKey:row.source_key,
+      let metadataRecord=null,metadataUnavailable=false;
+      // Old corpora remain readable before the existing writer adds/backfills metadata.
+      if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_metadata'").get()) {
+        const metadata=this.db.prepare('SELECT * FROM speech_metadata WHERE source_id=?').get(sourceId);
+        if(metadata) {
+          try {
+            const saved=JSON.parse(zstdDecompressSync(metadata.body,{maxOutputLength:2*1024*1024}).toString('utf8'));
+            if(saved.version!==1||saved.activity?.activity_id!==sourceId||saved.summary?.id!==sourceId||!Array.isArray(saved.speakers))throw new Error('Retained speech metadata identity mismatch.');
+            metadataRecord={...saved,sourceUrl:metadata.source_url,fetchedAt:metadata.fetched_at};
+          }catch {metadataUnavailable=true;}
+        }
+      }
+      return {id:sourceId,available:true,xml,textLanguage:row.language,sourceFragmentKey:row.source_key,metadataRecord,metadataUnavailable,
         translationType:row.translation_type,availableTextLanguages:[...new Set(rows.map(t=>t.language))],
         sourceUrl:row.source_url,fetchedAt:row.fetched_at,checkedAt:row.checked_at};
     });
@@ -235,9 +282,11 @@ export class CorpusStore {
     const lastError=this.db.prepare('SELECT key,error,attempts,retry_at FROM tasks WHERE done=0 AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get();
     const lease=this.db.prepare('SELECT expires FROM lease WHERE id=1').get();
     const backfilledAt=this.get('backfilledAt');
+    const metadataRetained=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_metadata'").get()?this.db.prepare('SELECT COUNT(*) n FROM speech_metadata').get().n:0;
     return {schemaVersion:1,term:10,phase:this.get('phase')||'waiting',complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,
       coverage:this.coverage().note,capabilities:{search:true,storedText:true,kinds:KINDS,groups:['document','question'],sorts:['relevance','newest'],sourceIdsLimit:CORPUS_LIMITS.sourceIds},
       documents:Object.fromEntries(KINDS.map(kind=>[kind,{discovered:documents[kind]||0,withText:withText[kind]||0}])),
+      speechMetadata:{retained:metadataRetained,backfillPending:Boolean(this.get('speechMetadataBackfill'))},
       texts:texts.map(row=>({kind:row.kind,language:row.language,count:row.n,characters:row.chars})),
       tasks:Object.fromEntries(tasks.map(row=>[row.kind,{total:row.total,done:row.done,retrying:row.retrying}])),
       lastError:lastError?{key:lastError.key,error:lastError.error,attempts:lastError.attempts,nextRetryAt:new Date(lastError.retry_at).toISOString()}:null,

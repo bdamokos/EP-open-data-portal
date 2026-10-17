@@ -20,12 +20,14 @@ const client = createDataClient(api, { timeoutFor: route => route.startsWith('mo
 export function expireActivityReads() { client.expireMatching(route=>/^(document\/|latest-activities\/)/.test(route)); }
 export function useSpeechData(id:string,language:string) {
   const route=encodeURIComponent(id)+'?lang='+language;
-  const detail=useData<SpeechDetail>('speech/'+route);
   const saved=useData<StoredSpeechTranscript>('speech-transcript/'+route);
-  const transcript=saved.data?.id===id&&saved.data.available&&saved.data.xml?saved.data:detail.data?.id===id?detail.data:null;
+  const retained=saved.data?.available&&saved.data.xml&&saved.data.id===id&&saved.data.metadata?.id===id?saved.data.metadata:null;
+  const detail=useData<SpeechDetail>(!saved.loading&&!retained?'speech/'+route:null);
+  const data=retained||detail.data;
+  const transcript=saved.data?.id===id&&saved.data.available&&saved.data.xml?saved.data:data?.id===id?data:null;
   const retry=useCallback(()=>{saved.retry();detail.retry();},[saved.retry,detail.retry]);
-  const availableTextLanguages=[...new Set([...(saved.data?.id===id?saved.data.availableTextLanguages||[]:[]),...(detail.data?.id===id?detail.data.availableTextLanguages||[]:[])])];
-  return {...detail,transcript,retry,availableTextLanguages,loading:!transcript&&(saved.loading||detail.loading),
+  const availableTextLanguages=[...new Set([...(saved.data?.id===id?saved.data.availableTextLanguages||[]:[]),...(data?.id===id?data.availableTextLanguages||[]:[])])];
+  return {...detail,data,transcript,retry,availableTextLanguages,loading:!transcript&&(saved.loading||detail.loading),
     error:transcript?null:saved.loading?null:detail.error};
 }
 export function prefetchData(routes: string[]) { return client.prefetch(routes); }
