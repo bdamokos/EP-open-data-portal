@@ -31,8 +31,8 @@ test('player controls, unavailable states and parent-frame text stay English und
     await h.render(createElement(PocSpeechPlayer,{speech:{...speech,start:null},lang:locale}));
     assert.equal(h.container.querySelector('strong').textContent,'Video timings unavailable');assert.equal(effective(h.container.querySelector('strong')),'en');
     await h.render(createElement(PocSpeechPlayer,{speech,lang:locale}));
-    const actions=h.container.querySelectorAll('.poc-video-actions button');
-    assert.deepEqual([...actions].map(node=>node.textContent),['Play · '+locale.toUpperCase(),'Original audio']);
+    const actions=h.container.querySelectorAll('.poc-video-toggle');
+    assert.deepEqual([...actions].map(node=>node.textContent),['Video']);
     assert([...actions].every(node=>effective(node)==='en'));assert.equal(h.calls.length,0,'language markup never starts media acquisition');
     await h.click(actions[0]);
     assert.equal(h.calls.length,1);assert.equal(h.calls[0].searchParams.get('lang'),locale);

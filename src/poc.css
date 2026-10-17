@@ -72,11 +72,11 @@
 .poc-membership { background: white; border-left: 3px solid var(--signal-blue); padding: 16px 20px; margin-bottom: 14px; }
 .poc-membership p { margin: 6px 0; }
 .poc-historical { border-left-color: #7892b5; opacity: .75; }
-.poc-notice, .poc-video-gap { padding: 18px; margin: 14px 0; background: #e9eff8; color: var(--institutional-ink); }
+.poc-notice { padding: 18px; margin: 14px 0; background: #e9eff8; color: var(--institutional-ink); }
 .poc-notice p:first-child, .poc-video-gap p:first-child { margin-top: 0; }
 .poc-notice p:last-child, .poc-video-gap p:last-child { margin-bottom: 0; }
-.poc-video-gap strong { font-size: 17px; }
-.poc-video-gap p { font-size: 16px; }
+.poc-video-gap { color:#53677e; font-size:14px; line-height:1.4; }
+.poc-video-gap strong { font:inherit; }
 .poc-pagination { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 15px; }
 .poc-publication-files { border-top: 1px solid #c2d0e4; padding-top: 14px; margin-top: 20px; font-size: 16px; }
 .poc-publication-files select { max-width: 240px; margin-bottom: 12px; }
@@ -113,6 +113,23 @@
 .poc-player-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
 .poc-video-caption { font-weight: 600; font-size: 15px; }
 .poc-video .poc-source-link { margin-bottom: 0; }
+.poc-speech-transcript-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 12px; margin:18px 0 12px; }
+.poc-speech-transcript-heading h3,.poc-speech-transcript-heading h4 { margin:0; font-size:22px; }
+.poc-reader-tools { display:flex; align-items:center; flex-wrap:wrap; gap:8px; max-width:100%; }
+.poc .poc-video-toggle,.poc-insights .poc-video-toggle { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; min-width:44px; padding:8px; border:1px solid transparent; border-radius:3px; color:inherit; background:transparent; font-size:15px; flex-shrink:0; }
+.poc-video-toggle svg { width:20px; height:20px; flex-shrink:0; }
+.poc .poc-video-toggle:hover { color:#012b5d; background:#e9eff8; border-color:#718ba8; }
+.poc .poc-video-toggle[aria-expanded=true],.poc-insights .poc-video-toggle[aria-expanded=true] { color:#012b5d; background:#fff200; border-color:#8a8400; }
+.poc .poc-video-toggle:focus-visible { outline-color:#1e6cff; }
+.poc-video[hidden] { display:none; }
+.poc-video-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.poc .poc-video-heading button { background:transparent; color:inherit; border:1px solid #718ba8; font-size:14px; min-height:44px; }
+.poc-video-controls { display:flex; align-items:flex-end; flex-wrap:wrap; gap:10px; }
+.poc-video-controls label { display:grid; gap:5px; flex:0 1 280px; min-width:0; font-size:14px; }
+.poc .poc-video-controls select { width:100%; max-width:100%; min-height:44px; padding:8px 10px; }
+.poc .poc-video-controls button { color:#012b5d; background:#fff; border:1px solid #718ba8; min-height:44px; font-size:14px; }
+.poc .poc-video-controls button:disabled { color:#53677e; background:#e2e9f2; opacity:1; }
+.poc-video-audio-note { font-size:14px; line-height:1.5; }
 @media (min-width:1100px) {
   .poc-profile { display: grid; grid-template-columns: 250px minmax(0,1fr); grid-template-rows: auto minmax(0,1fr); column-gap: 32px; row-gap: 16px; }
   .poc-back { grid-column: 1; grid-row: 1; justify-self: start; margin: 0; }
