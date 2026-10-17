@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import PocApp from './PocApp';
+import App from './App';
 import './base.css';
-createRoot(document.getElementById('root')!).render(<StrictMode><PocApp /></StrictMode>);
+createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);

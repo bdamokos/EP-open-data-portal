@@ -12,7 +12,7 @@
   font:15px/1.4 Arial,Helvetica,sans-serif;
   overflow-wrap:normal;
 }
-.poc-insights .parliament-header { margin-inline:calc(-1 * var(--insight-gutter)); }
+.explorer-insights .parliament-header { margin-inline:calc(-1 * var(--insight-gutter)); }
 .parliament-brand { font-size:17px; font-weight:700; }
 .parliament-header nav { display:flex; flex-wrap:wrap; gap:8px; margin-left:auto; }
 .parliament-header nav button {
@@ -35,7 +35,7 @@
 .parliament-header nav button:hover:not(:disabled):not([aria-current=page]) { border-color:#fff; }
 .parliament-header nav button:focus-visible { outline:3px solid var(--selected-yellow,#fff200); outline-offset:3px; }
 .parliament-header nav button small { font-size:13px; }
-.parliament-header .poc-saved-count { margin-left:0; }
+.parliament-header .explorer-saved-count { margin-left:0; }
 @media(max-width:767px) {
   .parliament-header { gap:12px; padding:12px 16px; font-size:13px; }
   .parliament-brand { font-size:13px; }

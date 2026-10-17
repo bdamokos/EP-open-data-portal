@@ -1,6 +1,6 @@
 # Project vision
 
-Parliament explorer is a proof-of-concept website for having fun with open data. It uses the European Parliament’s existing open data APIs to connect people, questions, speeches, votes, documents and legislative procedures, uncover new insights and invent engaging ways to explore them.
+Parliament explorer is a website for having fun with open data. It uses the European Parliament’s existing open data APIs to connect people, questions, speeches, votes, documents and legislative procedures, uncover new insights and invent engaging ways to explore them.
 
 The aim is to have fun, experiment and make data that can feel dry or difficult to navigate accessible and interesting. Exploring the activity of Members of the European Parliament is a way into understanding the work of Parliament and, more broadly, the European Union.
 
