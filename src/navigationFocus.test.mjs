@@ -124,3 +124,23 @@ test('delayed exact-speech handoff respects a subsequent focus choice and initia
     assert.equal(document.activeElement,moved==='returned'?document.body:moved?language:h.container.querySelector('.explorer-speech-toggle'));
   });
 });
+
+test('revealing a speech scrolls only its reading container and respects the sticky-tab margin',async t=>{
+  for(const mobile of [false,true])await t.test(mobile?'page scrolling':'panel scrolling',async t=>{
+    const h=await harness(t,'?member=257043&module=speeches&speech='+speechId,true);
+    const shell=h.container.querySelector('.explorer'),panel=h.container.querySelector('.explorer-profile-body');
+    const shellScroll=[],panelScroll=[],computed=globalThis.getComputedStyle;
+    shell.scrollTop=40;panel.scrollTop=35;
+    shell.scrollTo=options=>shellScroll.push(options);panel.scrollTo=options=>panelScroll.push(options);
+    Object.defineProperty(shell,'clientTop',{value:1,configurable:true});
+    Object.defineProperty(panel,'clientTop',{value:2,configurable:true});
+    t.mock.method(globalThis,'getComputedStyle',element=>element===panel?{overflowY:mobile?'visible':'auto'}:element.id==='speech-'+speechId?{scrollMarginTop:mobile?'84px':'0px'}:computed(element));
+    t.mock.method(h.window.HTMLElement.prototype,'getBoundingClientRect',function(){return {top:this===shell?0:this===panel?200:600};});
+    t.mock.method(h.window.HTMLElement.prototype,'scrollIntoView',()=>assert.fail('Speech reveal must not scroll its ancestors'));
+    await h.finish(page());
+    assert.deepEqual(panelScroll,mobile?[]:[{top:433}]);
+    assert.deepEqual(shellScroll,mobile?[{top:555}]:[]);
+    assert.equal(shell.scrollTop,40,'revealing a speech cannot implicitly move the shell');
+    assert.equal(document.activeElement,h.container.querySelector('.explorer-speech-toggle'));
+  });
+});
