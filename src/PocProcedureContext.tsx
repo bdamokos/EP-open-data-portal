@@ -3,6 +3,7 @@ import {PocFindInText} from './PocTextSearch';
 import {useInsightData} from './PocInsightData';
 import {humanDate} from './PocInsightCharts';
 import './PocTopicContext.css';
+import {AmendmentTrailLink} from './AmendmentTrailLink';
 import {PocSourceLink} from './PocSourceLink';
 import {summaryStage,compoundLanguage} from './pocTerms.mjs';
 
@@ -14,10 +15,11 @@ export function PocProcedureContext({reference,language='en',onTopic,showTitle=f
   useEffect(()=>{setSummary('');setExpanded(false);},[reference]);
   const params=new URLSearchParams({reference,lang:language});if(summary)params.set('summary',summary);
   const {data,loading,error}=useInsightData<Context>('insights/procedure-context?'+params);
-  if(!data&&!loading&&!showTitle)return null;
-  if(!data)return <section lang="en" className="insight-procedure-context insight-procedure-fallback">{loading?<p role="status">Loading summary…</p>:error?<p><a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer">Read on Legislative Observatory ↗</a></p>:null}</section>;
+  const amendmentLink=<AmendmentTrailLink procedure={reference} language={language}>Amendments for this dossier</AmendmentTrailLink>;
+  if(!data)return <section lang="en" className="insight-procedure-context insight-procedure-fallback">{amendmentLink}{loading?<p role="status">Loading summary…</p>:error?<p><a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer">Read on Legislative Observatory ↗</a></p>:null}</section>;
   const blocks=data.summary?.blocks||[],displayed=expanded?blocks:blocks.slice(0,2);
   return <section lang="en" className="insight-procedure-context">
+    {amendmentLink}
     {showTitle&&<div className="insight-dossier-title"><h2 lang={data.language??''}>{data.title}</h2><p>{data.reference}</p></div>}
     {data.summary&&<><header><div><h3>Summary</h3><PocFindInText key={data.summary.id} label="Find in summary" target={summaryText} onOpen={()=>setExpanded(true)}/></div><div>{data.summaries.length>1?<label className="insight-summary-stage"><span className="poc-sr-only">Summary stage</span><select value={data.summary.id} onChange={event=>{setSummary(event.target.value);setExpanded(false);}}>{data.summaries.map(item=>{const stage=summaryStage(item.stage,language);return <option lang={compoundLanguage(stage.language,item.date?language:stage.language)} value={item.id} key={item.id}>{stage.text}{item.date?' · '+humanDate(item.date,language):''}</option>;})}</select></label>:<span lang={summaryStage(data.summary.stage,language).language}>{summaryStage(data.summary.stage,language).text}</span>}{data.summaries.length===1&&<time lang={language}>{humanDate(data.summary.date,language)}</time>}</div></header>
       <div className="insight-official-summary" ref={summaryText} lang={data.language??''}>{displayed.map((block,index)=>block.kind==='heading'?<h4 key={index}>{block.text}</h4>:<p key={index}>{block.text}</p>)}</div>

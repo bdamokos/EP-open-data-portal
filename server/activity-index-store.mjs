@@ -4,6 +4,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
+import { amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 
 const parse = value => value == null ? null : JSON.parse(value);
@@ -51,6 +52,7 @@ export class ActivityStore {
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
     if (this.get('schema') !== 1) throw new Error('Unsupported activity-index schema.');
     outsideSchema(this.db);
+    amendmentsSchema(this.db);
   }
   get(key) { return parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value); }
   set(key,value) { this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value)); }
@@ -83,7 +85,7 @@ export class ActivityStore {
     return this.transaction(()=> {
       this.assertWriter();
       const working=this.get('working');
-      if (working) return working;
+      if (working) { amendmentsCopy(this.db,working.generation,this.get('active') || 0); return working; }
       const active=this.get('active') || 0, generation=(this.get('sequence') || 0)+1;
       this.set('sequence',generation);
       if (active) {
@@ -92,6 +94,7 @@ export class ActivityStore {
         this.db.prepare('INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
         outsideCopy(this.db,generation,active);
+        amendmentsCopy(this.db,generation,active);
       }
       const cycle={ generation, initial:!active, startedAt:new Date(this.clock()).toISOString(), phase:'discovering', error:null, requests:0 };
       this.set('working',cycle);return cycle;
@@ -108,12 +111,12 @@ export class ActivityStore {
     if(refreshCompleted)this.db.prepare('UPDATE tasks SET done=?,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE generation=? AND key=? AND done=1').run(pending,JSON.stringify(body),priority,generation,key);
   }
   nextTask(generation) { const r=this.db.prepare('SELECT * FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,this.clock()); return r && {...r,body:parse(r.body)}; }
-  taskProgress(task,body) { this.assertWriter();this.db.prepare('UPDATE tasks SET body=?,attempts=0,error=NULL,retry_at=0 WHERE generation=? AND key=?').run(JSON.stringify(body),task.generation,task.key); }
-  finishTask(task) { this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,error=NULL WHERE generation=? AND key=?').run(task.generation,task.key); }
+  taskProgress(task,body) { this.assertWriter();this.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET body=?,attempts=0,error=NULL,retry_at=0 WHERE generation=? AND key=?`).run(JSON.stringify(body),task.generation,task.key); }
+  finishTask(task) { this.assertWriter();this.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET done=1,error=NULL WHERE generation=? AND key=?`).run(task.generation,task.key); }
   failTask(task,error) {
     this.assertWriter();const delay=Math.min(30*60_000,30_000*2**Math.min(task.attempts,6));
-    this.db.prepare('UPDATE tasks SET attempts=attempts+1,retry_at=?,error=? WHERE generation=? AND key=?').run(this.clock()+delay,String(error.message).slice(0,350),task.generation,task.key);
-    this.updateCycle({phase:'retrying',error:String(error.message).slice(0,350)});
+    this.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET attempts=attempts+1,retry_at=?,error=? WHERE generation=? AND key=?`).run(this.clock()+delay,String(error.message).slice(0,350),task.generation,task.key);
+    if(this.get('working')?.generation===task.generation)this.updateCycle({phase:'retrying',error:String(error.message).slice(0,350)});
   }
   taskCounts(generation) { return this.db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(CASE WHEN done=1 THEN 1 ELSE 0 END),0) AS completed,COALESCE(SUM(CASE WHEN (done IN (-1,0) OR done IS NULL) AND error IS NOT NULL THEN 1 ELSE 0 END),0) AS retrying FROM tasks WHERE generation=?').get(generation); }
   source(generation,key) { const s=this.db.prepare('SELECT * FROM sources WHERE generation=? AND key=?').get(generation,key);return s && {work:parse(s.body),fetchedAt:s.fetched_at}; }
@@ -170,6 +173,7 @@ export class ActivityStore {
       // Retain the immediately previous generation for recovery; cache is reproducible public data.
       for (const table of ['sources','items','tasks']) this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,old || generation);
       outsidePrune(this.db,generation,old);
+      amendmentsPrune(this.db,generation,old);
     });
   }
   status() {
@@ -184,6 +188,7 @@ export class ActivityStore {
       phase:cycle?.phase || (active?'ready':'waiting'), lastSuccessfulRefresh:this.get('lastSuccess'), refreshStartedAt:cycle?.startedAt || null,
       stale:!this.get('lastSuccess') || this.clock()-Date.parse(this.get('lastSuccess'))>26*60*60_000,
       refreshInProgress:Boolean(cycle), progress:cycle?this.taskCounts(cycle.generation):null, backgroundRequests:cycle?.requests || 0, lastRefreshRequests:this.get('lastRefreshRequests') || 0,
+      amendments:{indexed:this.db.prepare('SELECT COUNT(*) AS n FROM amendments WHERE generation=?').get(amendmentGeneration(this)).n,servingGeneration:amendmentGeneration(this),failures:amendmentFailureSummary(this)},
       pendingSpeechRecoveries:{count:recoveryCount,examples:recoveryExamples},
       sourceCounts:Object.fromEntries(counts.map(c=>[c.kind,c.count])), currentMeps:this.db.prepare('SELECT COUNT(*) AS n FROM members').get().n,
       rosterFetchedAt:this.get('rosterFetchedAt'), lastError:cycle?.phase==='paused' ? cycle.error : cycle ? this.db.prepare('SELECT error FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get(cycle.generation)?.error || null : null, exclusiveWriterActive:Boolean(lease && lease.expires>this.clock()),
