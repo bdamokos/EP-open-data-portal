@@ -1,6 +1,11 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import { ODP_BASE, boundedUpstream, backoffUpstream } from './odp.mjs';
+import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
+import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
+import { nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker } from './amendments-store.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
@@ -11,6 +16,7 @@ import {recordOutside} from './outside-store.mjs';
 import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
 
 const DAY = 24*60*60_000;
+const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
 const day = t => new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
 const hour = t => Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Brussels',hour:'2-digit',hourCycle:'h23'}).format(new Date(t)));
 const safeId = id => /^[A-Z0-9-]{1,100}$/.test(id);
@@ -63,11 +69,71 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
   },{priority:'background',signal});
 }
 export class ActivityWorker {
-  constructor(store,{fetchRecord=apiFetch,clock=Date.now,budget=1000,maxDuration=90*60_000,diskLimit=1024*1024*1024}={}) {
+  constructor(store,{fetchRecord=apiFetch,clock=Date.now,budget=1000,maxDuration=90*60_000,diskLimit=1024*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml}={}) {
     this.store=store;this.fetchRecord=fetchRecord;this.clock=clock;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
+    this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;
   }
-  due() { const s=this.store.status();return Boolean(this.store.get('working') || !s.complete || day(Date.parse(s.lastSuccessfulRefresh))!==day(this.clock()) && hour(this.clock())>=3); }
+  coreDue() { const s=this.store.status();return Boolean(this.store.get('working') || !s.complete || day(Date.parse(s.lastSuccessfulRefresh))!==day(this.clock()) && hour(this.clock())>=3); }
+  due() {
+    const active=this.store.get('active') || 0;
+    const checkpoint=this.store.source(active,CONTINUATIONS_KEY)?.work;
+    return this.coreDue() || Boolean(nextAmendmentTask(this.store,amendmentGeneration(this.store)) || this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(active) || checkpoint?.discovery?.length || checkpoint?.tasks?.some(task=>task.retry_at<=this.clock()));
+  }
+  checkpointContinuations(generation,{includeCore=true}={}) {
+    this.store.transaction(()=>{
+      this.store.assertWriter();
+      // Legacy generations do not copy pending core tasks. Keep dependencies
+      // created after publication with the optional jobs and their cursors.
+      const saved=this.store.source(generation,CONTINUATIONS_KEY)?.work || {},today=day(this.clock());
+      const progressed=task=>{
+        const body=JSON.parse(task.body);
+        return Boolean(task.attempts>0 || task.retry_at>0 || Number(body.offset)>0 || body.stage && body.stage!=='results' || ['results','decisions','splits','sources'].some(key=>body[key]?.length) || !['document','procedure','motion-outcomes'].includes(task.kind));
+      };
+      const pending=new Map([...(saved.tasks || []),...(saved.discovery || []).map(task=>({...task,body:JSON.stringify(task.kind==='motion-outcomes'?{sittingId:task.sittingId,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]}:{endpoint:task.endpoint}),attempts:0,retry_at:0,error:null}))].map(task=>[task.key,{...task,generation,done:0}]));
+      const incoming=includeCore?this.store.db.prepare(`SELECT * FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL)
+        ORDER BY (attempts>0 OR retry_at>0 OR COALESCE(json_extract(body,'$.offset'),0)>0 OR COALESCE(json_extract(body,'$.stage'),'results')<>'results' OR COALESCE(json_array_length(body,'$.results'),0)>0 OR COALESCE(json_array_length(body,'$.decisions'),0)>0 OR COALESCE(json_array_length(body,'$.splits'),0)>0 OR COALESCE(json_array_length(body,'$.sources'),0)>0 OR kind NOT IN ('document','procedure','motion-outcomes')) DESC,priority DESC,key
+        LIMIT ?`).all(generation,2*CONTINUATION_LIMIT+1):[];
+      const incomingTotal=includeCore?this.store.db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL)').get(generation).n:0;
+      const queued=new Map(this.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=?').all(generation).map(task=>[task.key,task]));
+      const completed=new Map((saved.completed || []).filter(task=>task.key.includes(':'+today)).map(task=>[task.key,task]));
+      for(const task of incoming)if(!pending.has(task.key))pending.set(task.key,{...task,done:0});
+      for(const [key] of pending)if(queued.get(key)?.done===0)pending.delete(key);
+      const reclaimable=task=>{
+        const marker=amendmentCompletionMarker(task,today);return task.done===1&&(!marker||completed.has(marker.key)||completed.size<CONTINUATION_LIMIT);
+      };
+      const forget=task=>{
+        const marker=amendmentCompletionMarker(task,today);if(marker)completed.set(marker.key,marker);
+        this.store.db.prepare('DELETE FROM amendment_jobs WHERE generation=? AND key=?').run(generation,task.key);queued.delete(task.key);
+      };
+      const admit=this.store.db.prepare('INSERT OR REPLACE INTO amendment_jobs VALUES (?,?,?,?,?,?,?,?,?)');
+      for(const task of [...pending.values()].sort((a,b)=>(a.retry_at>this.clock())-(b.retry_at>this.clock()) || b.priority-a.priority)) {
+        if(queued.get(task.key)?.done===1){if(!reclaimable(queued.get(task.key)))continue;forget(queued.get(task.key));}
+        if(queued.size>=200) {
+          const reserve=[...pending.values()].filter(progressed).length-Number(progressed(task));
+          const reclaim=[...queued.values()].find(reclaimable) || (task.retry_at<=this.clock() && reserve<CONTINUATION_LIMIT?[...queued.values()].find(row=>row.done===0&&row.retry_at>this.clock()):null);
+          if(reclaim){if(reclaim.done===0)pending.set(reclaim.key,reclaim);forget(reclaim);}
+        }
+        if(queued.size>=200)continue;
+        admit.run(generation,task.key,task.kind,task.body,task.priority,0,task.attempts,task.retry_at,task.error);
+        queued.set(task.key,task);pending.delete(task.key);
+      }
+      const deferred=[...pending.values()].sort((a,b)=>Number(progressed(b))-Number(progressed(a)) || b.priority-a.priority);
+      const snapshots=deferred.filter(progressed),untouched=deferred.filter(task=>!progressed(task));
+      // Publication leaves no pending core tasks. After publication only
+      // admitted optional jobs advance; newly created dependencies remain
+      // untouched until this checkpoint admits them. The reserve above keeps
+      // every displaced cursor within these 200 full snapshot slots.
+      snapshots.push(...untouched.splice(0,CONTINUATION_LIMIT-snapshots.length));
+      const discovery=untouched.splice(0,CONTINUATION_LIMIT).map(({key,kind,body,priority})=>({key,kind,...(kind==='motion-outcomes'?{sittingId:JSON.parse(body).sittingId}:{endpoint:JSON.parse(body).endpoint}),priority})),overflow=untouched;
+      const deferredCount=overflow.length+incomingTotal-incoming.length;
+      const capacityGap=deferredCount?{count:(saved.capacityGap?.count || 0)+deferredCount,message:'Additional untouched amendment discovery exceeded the bounded checkpoint and is deferred to normal catalogue refresh.'}:saved.capacityGap || null;
+      if(deferredCount)this.store.db.prepare("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')").run(generation);
+      if(snapshots.length || discovery.length || completed.size || capacityGap)this.store.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,CONTINUATIONS_KEY,'amendment-continuations',JSON.stringify({tasks:snapshots,discovery,completed:[...completed.values()].slice(-CONTINUATION_LIMIT),...(capacityGap?{capacityGap}:{})}),new Date(this.clock()).toISOString());
+      else this.store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(generation,CONTINUATIONS_KEY);
+      if(includeCore)this.store.db.prepare('DELETE FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL)').run(generation);
+    });
+  }
   async request(endpoint,params={},opts={}) {
     this.store.assertWriter();this.requests++;
     const cycle=this.store.get('working');if(cycle)this.store.updateCycle({requests:(cycle.requests||0)+1});
@@ -91,7 +157,9 @@ export class ActivityWorker {
   }
   async task(task) {
     const {generation,body}=task;
-    if(task.kind.startsWith('outside-')) {
+    if(task.kind.startsWith('amendment-')) {
+      await amendmentTask(this,task);
+    } else if(task.kind.startsWith('outside-')) {
       await this.outsideTask(task);
     } else if(task.kind==='roster') {
       const r=await this.request('/meps/show-current',{limit:1000,offset:body.offset});
@@ -189,6 +257,7 @@ export class ActivityWorker {
       const {rows}=documentRows(projected,body.endpoint,r.fetchedAt,proc);
       this.store.putSource(generation,body.endpoint,'document',projected,r.fetchedAt,rows);this.store.finishTask(task);
       if(isMotion(projected))this.scheduleMotionOutcomes(generation,projected);
+      scheduleAmendments(this,generation,projected,r.fetchedAt,body.endpoint);
     } else if(task.kind==='motion-outcomes') {
       await this.loadMotionOutcomes(task);
     } else if(task.kind==='procedure') {
@@ -309,15 +378,7 @@ export class ActivityWorker {
   }
 
   scheduleMotionOutcomes(generation,work) {
-    const today=day(this.clock());
-    for(const sittingId of motionSittings(work)) {
-      const sittingDate=sittingId.slice(7);
-      if(sittingDate>today)continue;
-      const saved=this.store.source(generation,motionSourceKey(sittingId));
-      const ttl=this.clock()-Date.parse(sittingDate)<14*DAY ? 6*60*60_000 : 7*DAY;
-      if(saved && !saved.work.truncated && !saved.work.lastRefreshFailure && this.clock()-Date.parse(saved.fetchedAt)<ttl)continue;
-      this.store.enqueue(generation,motionSourceKey(sittingId)+':'+today,'motion-outcomes',{sittingId,stage:'results',offset:0,results:[],decisions:[],sources:[]},102);
-    }
+    for(const sittingId of motionSittings(work))scheduleSittingOutcomes(this,generation,sittingId,{priority:102});
   }
   prepareMotionOutcomes(generation) {
     for(const source of this.store.iterateSources(generation,'document')) {
@@ -332,6 +393,11 @@ export class ActivityWorker {
   async loadMotionOutcomes(task) {
     const {generation,body}=task;
     if(!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(body.sittingId))throw new Error('Invalid motion sitting identifier.');
+    if(body.amendmentRebuildPending) {
+      const saved=this.store.source(generation,motionSourceKey(body.sittingId));
+      if(saved&&await refreshSittingTargets(this,generation,body.sittingId,saved.work))this.store.finishTask(task);
+      return;
+    }
     const collection=body.stage==='results'?'vote-results':'decisions';
     const endpoint='/meetings/'+body.sittingId+'/'+collection;
     // Include show-of-hands and electronic votes, and retain outcomes without tallies.
@@ -341,22 +407,35 @@ export class ActivityWorker {
     for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,String(value));
     const sources=[...body.sources,{url:url.href,fetchedAt:record.fetchedAt,language:body.stage==='decisions'?'en':null}];
     const project=body.stage==='results'?projectMotionResults:projectMotionDecisions;
-    const nodes=project(record.payload.data,body.sittingId);
+    const amendmentNodes=body.stage==='decisions'?new Map(projectAmendmentDecisions(record.payload.data,body.sittingId).map(node=>[node.id,node])):null;
+    const pageSource={url:url.href,fetchedAt:record.fetchedAt};
+    const nodes=project(record.payload.data,body.sittingId).map(node=>amendmentNodes?{...node,...amendmentNodes.get(node.id),source:pageSource}:node);
+    const priorSplits=(body.splits || []).map((node,index)=>node.id||node.observationKey?node:{...node,observationKey:'__legacy_request__:'+createHash('sha256').update(JSON.stringify([index,node])).digest('hex')});
+    const pageSplits=body.stage==='results'?projectAmendmentSplits(record.payload.data,body.sittingId).map(node=>({...node,...(!node.id?{observationKey:'__unidentified_request__:'+createHash('sha256').update(JSON.stringify([url.href,node.observationIndex,node])).digest('hex')}:{ }),source:pageSource})):[];
+    const splits=[...new Map([...priorSplits,...pageSplits].map(node=>[node.id || node.observationKey,node])).values()];
+    if(splits.length>5000)throw new Error('Split request source exceeded its record budget.');
     const field=body.stage==='results'?'results':'decisions';
     const merged=[...new Map([...body[field],...nodes].map(node=>[node.id,node])).values()];
-    const next={...body,[field]:merged,sources};
+    const projectionKnown=body.amendmentProjectionVersion===AMENDMENT_SITTING_PROJECTION_VERSION||body.stage==='results'&&body.offset===0&&!body.results.length&&!(body.splits || []).length;
+    const next={...body,[field]:merged,sources,splits,...(projectionKnown?{amendmentProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION}:{})};
     const coverage=motionVoteCoverage(next.results,next.decisions);
     const missing=body.stage==='results'?coverage.missingResultIds:coverage.missingDecisionIds;
-    const grew=merged.length>body[field].length;
+    const grew=merged.length>body[field].length || body.stage==='results'&&splits.length>(body.splits || []).length;
+    const rawPageLength=record.payload.data.length;
     const capped=merged.length>5000 || body.offset>=950;
     if(merged.length>5000)throw new Error('Motion vote source exceeded its record budget.');
+    // Results pages also contain request types excluded from both projections.
+    // Their raw length still advances the source cursor, even without new votes.
+    const continueResults=body.stage==='results'&&(rawPageLength>=50 || grew&&missing.length);
     // The decisions API currently ignores limit and returns the whole sitting.
     // Compare exact declared children, never graph length or the requested limit.
-    if(!capped && grew && (missing.length || body.stage==='results' && nodes.length>=50)) {
-      this.store.taskProgress(task,{...next,offset:body.offset+Math.max(50,nodes.length)});return;
+    const continueDecisions=body.stage==='decisions'&&grew&&missing.length;
+    if(!capped && (continueResults || continueDecisions)) {
+      const offset=body.stage==='results'?Math.min(950,body.offset+Math.max(50,rawPageLength)):body.offset+Math.max(50,nodes.length);
+      this.store.taskProgress(task,{...next,offset});return;
     }
     if(body.stage==='results') {
-      this.store.taskProgress(task,{...next,stage:'decisions',offset:0,resultsUrl:sources[0].url,resultsFetchedAt:record.fetchedAt});return;
+      this.store.taskProgress(task,{...next,stage:'decisions',offset:0,splitProjectionTruncated:Boolean(capped&&rawPageLength>=50),resultsUrl:sources[0].url,resultsFetchedAt:record.fetchedAt});return;
     }
     const firstDecisionSource=sources.find(source=>source.url.includes('/decisions?'));
     const key=motionSourceKey(body.sittingId), saved=this.store.source(generation,key);
@@ -365,12 +444,16 @@ export class ActivityWorker {
     coverage.missingResultIds=[...new Set([...coverage.missingResultIds,...(saved?.work.results || []).map(result=>result.id).filter(id=>!resultIds.has(id))])];
     const truncated=Boolean(coverage.missingResultIds.length || coverage.missingDecisionIds.length);
     const lastRefreshFailure=truncated?{attemptedAt:record.fetchedAt,coverage,sources}:null;
-    const replacement=truncated && saved && !saved.work.truncated ? {...saved.work,lastRefreshFailure} : {
-      results:next.results,decisions:next.decisions,sources,
+    const fresh=parseSavedSplits(this,{
+      results:next.results,decisions:next.decisions,splitRequests:next.splits,sources,splitProjectionTruncated:Boolean(next.splitProjectionTruncated),...(projectionKnown?{amendmentProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION}:{}),
       resultsUrl:body.resultsUrl,resultsFetchedAt:body.resultsFetchedAt,decisionsUrl:firstDecisionSource.url,decisionsFetchedAt:record.fetchedAt,
       coverage,truncated,lastRefreshFailure,
-    };
+    },{priorWork:saved?.work || null});
+    const replacement=truncated && saved && !saved.work.truncated ? {...saved.work,lastRefreshFailure,amendmentEvidence:fresh.amendmentEvidence || fresh} : fresh;
     this.store.putSource(generation,key,'motion-outcomes',replacement,truncated && saved && !saved.work.truncated?saved.fetchedAt:record.fetchedAt);
+    if(!await refreshSittingTargets(this,generation,body.sittingId,replacement)) {
+      this.store.taskProgress(task,{...next,amendmentRebuildPending:true});return;
+    }
     this.store.finishTask(task);
   }
   refreshReportJoins(generation,procedureId) {
@@ -403,40 +486,58 @@ export class ActivityWorker {
   async run() {
     if(this.stopped || this.running || !this.due() || !this.store.acquire())return;
     this.running=true;this.requests=0;const started=this.clock();
+    this.runDeadline=performance.now()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
     try {
-      const cycle=this.store.beginCycle();if(!cycle.initialized)await this.initialize(cycle);
-      this.initializeOutside(cycle);
-      // An unavailable historical detail must not stop next-day catalogue/feed
-      // catch-up while its durable retry keeps the generation incomplete.
-      this.catchUp(this.store.get('working'));
-      const motionDay=day(this.clock());
-      if(this.store.get('working').motionOutcomesDay!==motionDay) {
-        this.prepareMotionOutcomes(cycle.generation);
-        this.store.updateCycle({motionOutcomesDay:motionDay});
+      const active=this.store.get('active') || 0,existing=this.store.get('working');
+      if(!existing && active) {
+        // A rollback may have advanced the core generation while leaving the
+        // additive amendment snapshot behind. Adopt it before reading sources.
+        this.store.transaction(()=>{this.store.assertWriter();amendmentsCopy(this.store.db,active,active);});
+        this.checkpointContinuations(active);
       }
-      if(!this.store.get('working').reportJoinsReady) {
-        // Upgrade an existing partial generation from its retained real records,
-        // without refetching sources or resetting any durable page cursor.
-        for(const procedure of this.store.iterateSources(cycle.generation,'procedure'))this.refreshReportJoins(cycle.generation,tail(procedure.key));
-        this.store.updateCycle({reportJoinsReady:true});
+      const cycle=this.coreDue()?this.store.beginCycle():null,generation=cycle?.generation || active;
+      if(cycle) {
+        if(!cycle.initialized)await this.initialize(cycle);
+        this.initializeOutside(cycle);
+        await prepareAmendments(this,cycle);
+        // An unavailable historical detail must not stop next-day catalogue/feed
+        // catch-up while its durable retry keeps the generation incomplete.
+        this.catchUp(this.store.get('working'));
+        const motionDay=day(this.clock());
+        if(this.store.get('working').motionOutcomesDay!==motionDay) {
+          this.prepareMotionOutcomes(cycle.generation);
+          this.store.updateCycle({motionOutcomesDay:motionDay});
+        }
+        if(!this.store.get('working').reportJoinsReady) {
+          // Upgrade an existing partial generation from its retained real records,
+          // without refetching sources or resetting any durable page cursor.
+          for(const procedure of this.store.iterateSources(cycle.generation,'procedure'))this.refreshReportJoins(cycle.generation,tail(procedure.key));
+          this.store.updateCycle({reportJoinsReady:true});
+        }
+        if(!this.store.get('working').procedureTitlesQueued) {
+          // Upgrade saved procedures within the existing worker/request budget, ahead of bulk catalogues.
+          // Explicit null records an unavailable upstream title, so later cycles do not refetch it just for this upgrade.
+          const untitled=this.store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='procedure' AND json_type(body,'$.process_title') IS NULL").all(cycle.generation);
+          for(const {key} of untitled)this.store.enqueue(cycle.generation,key,'procedure',{endpoint:key},104,true);
+          this.store.updateCycle({procedureTitlesQueued:true});
+        }
+        this.store.updateCycle({phase:cycle.initial?'backfilling':'refreshing'});
+        // Existing optional continuations may become admissible while a core
+        // refresh is still working. Leave its catalogue and recovery tasks in
+        // the canonical queue with their existing cursors.
+        if(this.store.source(generation,CONTINUATIONS_KEY))this.checkpointContinuations(generation,{includeCore:false});
       }
-      if(!this.store.get('working').procedureTitlesQueued) {
-        // Upgrade saved procedures within the existing worker/request budget, ahead of bulk catalogues.
-        // Explicit null records an unavailable upstream title, so later cycles do not refetch it just for this upgrade.
-        const untitled=this.store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='procedure' AND json_type(body,'$.process_title') IS NULL").all(cycle.generation);
-        for(const {key} of untitled)this.store.enqueue(cycle.generation,key,'procedure',{endpoint:key},104,true);
-        this.store.updateCycle({procedureTitlesQueued:true});
-      }
-      this.store.updateCycle({phase:cycle.initial?'backfilling':'refreshing'});
-      while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration) {
+      while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration && performance.now()<this.runDeadline) {
         const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
-        if(size>this.diskLimit){this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
-        const task=this.store.nextTask(cycle.generation);
-        if(!task){const counts=this.store.taskCounts(cycle.generation);if(counts.total===counts.completed){if(this.catchUp(this.store.get('working')))continue;this.finalize(cycle.generation);}break;}
-        try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(this.failOutside(task,error))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare('UPDATE tasks SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?').run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
+        if(size>this.diskLimit){if(cycle)this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
+        const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
+        const task=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
+        if(!task){if(cycle){const counts=this.store.taskCounts(generation);if(counts.total===counts.completed){if(this.catchUp(this.store.get('working')))continue;this.finalize(generation);}}break;}
+        try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(this.failOutside(task,error)||failAmendmentTask(this,task,error))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
+        finally {if((!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
       }
-    } finally {clearInterval(heartbeat);this.store.release();this.running=false;}
+    } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}
 }

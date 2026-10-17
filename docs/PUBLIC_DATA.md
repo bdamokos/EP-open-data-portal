@@ -17,7 +17,7 @@ Bundled supporting data: committee labels from the corporate-bodies API, country
 ## Access rules
 
 - Every source is anonymous. No adapter uses credentials, private exports or copied production caches. A failed public request becomes a reported gap. It must never lead to credentials or to bypassing a protection such as DOCEO's browser verification challenge.
-- Server routes are read-only. Callers cannot choose a host, supply query text or make the server follow a URL. Endpoints are built from validated identifiers (`server/odp.mjs`, `server/source-record.mjs`, `server/legal-references.mjs`).
+- Server routes are read-only. Callers cannot choose an upstream host, supply upstream query text (such as SPARQL) or make the server follow a URL. Corpus search runs user queries only against locally stored text. Endpoints are built from validated identifiers (`server/odp.mjs`, `server/source-record.mjs`, `server/legal-references.mjs`).
 - Requests never forward the caller's cookies or authorization and never forge an Origin. Open Data API and portrait downloads reject redirects. OEIL and Publications Office reads follow same-origin redirects only (`server/official-context.mjs`). Downloads stream within size limits.
 - Upstream reads go through per-source admission queues with spacing, concurrency limits, cooldowns and `Retry-After` handling (`server/upstream-queue.mjs`, `server/request-budget.mjs`). Interactive reads keep a reserved slot.
 - Use one source-cache writer, one leased activity-index writer and, when enabled, one leased corpus writer that opens the index read-only. Page views never start an indexer or a corpus download.
@@ -36,7 +36,7 @@ To add a source, document it here (access path, licence, limits), route it throu
 | Website text, portraits, OEIL summaries, documents and recordings | Reuse allowed with the source acknowledged; third-party items keep their own rights | Parliament’s [legal notice](https://www.europarl.europa.eu/legal-notice/en/) |
 | EuroVoc and country terminology | Commission reuse policy (CC BY 4.0) | [Decision 2011/833/EU](https://eur-lex.europa.eu/eli/dec/2011/833/oj) |
 
-Every page shows `src/components/DataNotice.tsx`: the attribution “© European Union – Source: European Parliament”, the licence, a note that the site is independent and its counts are derived, and a pointer to check the original. Material is linked or embedded from its official source rather than redistributed. The Parliament’s name and logo are not used as a brand.
+Every page shows `src/components/DataNotice.tsx`: the attribution “© European Union – Source: European Parliament”, the licence, a note that the site is independent and its counts are derived, and a pointer to check the original. Documents and recordings are linked or embedded from their official source. The application also serves cached portraits, extracted document and speech text, and bounded source-record views for reading, each with its source URL. It offers no bulk download of source material. The Parliament’s name and logo are not used as a brand.
 
 ## Source notes
 
@@ -63,6 +63,16 @@ Every page shows `src/components/DataNotice.tsx`: the attribution “© European
 - Outcomes use `/plenary-documents/{id}`, `/meetings/{sitting-id}/vote-results` and `/meetings/{sitting-id}/decisions`, requested with `filter-output=voters` to omit named voters. Documents link to votes through `inverse_based_on_a_realization_of`, and joint motions to their originals through `is_derivative_of`.
 - A decision qualifies only if it belongs to the linked vote result, names the same B10/RC-B10 reference in its English heading, and covers the whole motion. Both “Motion for a resolution” and “Motion for a resolution (as a whole)” qualify. All declared decision children must be present. Show-of-hands decisions give an outcome without totals.
 - Wording comparison: `/procedures/{id}` lists candidate adopted texts via `created_a_realization_of`, and `/adopted-texts/{id}` must `adopts` the exact joint motion. Both texts must share a published DOCX language.
+
+### Plenary amendments
+
+Amendment trails for reports and motions are collected by the activity-index worker in a separate job queue under the same writer lease. Reads never fetch sources (`server/amendments*.mjs`).
+
+- `/plenary-documents/{id}` lists amendment-list documents through `inverse_foresees_change_of`. Each list must `foresees_change_of` the target. When the link is URI-only or the record incomplete, `/documents/{doc-id}` must confirm the URI, amendment-list type and forward target.
+- Each list's API-linked DOCX supplies amendment numbers, proposers, group statements, target provisions and the original/proposed columns. When the table structure is ambiguous, both wording columns are withheld rather than guessed (`server/amendment-documents.mjs`).
+- Outcomes come from the sitting `/vote-results` and `/decisions?filter-output=voters` records shared with motion outcomes, through `decided_on_a_realization_of`. Split votes keep separate component outcomes. A missing outcome is unavailable, never a rejection.
+- Author links need an exact normalized full name or an official voting alias, plus an active mandate on the tabling date from the dated roster. Aliases come from the roll-call XML of `/plenary-session-documents/PV-10-{date}-RCV`, where `PersId` is the Open Data person ID and `MepId` is a different identifier. Ambiguous identities stay unlinked.
+- Split-vote descriptions are parsed from English (`server/amendment-splits.mjs`). Unparsed descriptions are recorded, exposed read-only at `/api/poc/amendments/failures`, and reparsed when the parser version changes.
 
 ### Documents (DOCX)
 

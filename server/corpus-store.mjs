@@ -234,7 +234,10 @@ export class CorpusStore {
     const where=['texts_fts MATCH ?'],params=[match];
     const selectedKinds=kinds??(kind?[kind]:null);
     if(selectedKinds){where.push('d.kind IN (SELECT value FROM json_each(?))');params.push(JSON.stringify(selectedKinds));}
-    if(language){where.push('t.language=?');params.push(language);}
+    // SQLite 3.51 can start with every language row and restart MATCH for each.
+    // Disqualify that index term so FTS supplies candidates first. Validated
+    // language strings need no TEXT-affinity coercion removed by unary +.
+    if(language){where.push('+t.language=?');params.push(language);}
     const generation=this.indexGeneration();
     const questionId="CASE WHEN d.kind='answer' THEN d.parent_id WHEN d.kind='question' THEN d.source_id END";
     const groupId=group==='question'?"CASE WHEN d.kind='answer' THEN COALESCE(d.parent_id,d.source_id) ELSE d.source_id END":'d.source_id';
@@ -261,21 +264,36 @@ export class CorpusStore {
       if(country){authorWhere.push(`(i.mep IN (SELECT value FROM json_each(?)) OR (i.mep NOT IN (SELECT value FROM json_each(?)) AND EXISTS (SELECT 1 FROM idx.members m WHERE m.id=i.mep AND CASE COALESCE(json_extract(m.body,'$.countryCode'),json_extract(m.body,'$."api:country-of-representation"')) WHEN 'GR' THEN 'EL' ELSE COALESCE(json_extract(m.body,'$.countryCode'),json_extract(m.body,'$."api:country-of-representation"')) END=?)))`);authorParams.push(JSON.stringify(countryMemberIds||[]),JSON.stringify(countryMetadataIds||[]),country);}
       where.push(`EXISTS (SELECT 1 FROM idx.items i WHERE ${authorWhere.join(' AND ')})`);params.push(...authorParams);
     }
-    const sql=`FROM texts_fts JOIN texts t ON t.id=texts_fts.rowid JOIN documents d ON d.id=t.document_id LEFT JOIN documents q ON d.kind='answer' AND q.source_id=d.parent_id AND q.kind='question' WHERE ${where.join(' AND ')}`;
-    const total=this.db.prepare(`SELECT COUNT(DISTINCT ${groupId}) AS n ${sql}`).get(...params).n;
-    // Materialise FTS rank before aggregating. Pagination applies to exact source
-    // groups, so several languages or answers never consume an extra page row.
-    const selected=this.db.prepare(`WITH matched AS MATERIALIZED (SELECT ${groupId} AS group_id,${filterDate} AS date,texts_fts.rank AS score ${sql})
-      SELECT group_id,MIN(score) AS score,MAX(date) AS date FROM matched GROUP BY group_id
-      ORDER BY ${sort==='newest'?'date DESC,score':'score,date DESC'},group_id LIMIT ? OFFSET ?`).all(...params,limit,offset);
+    // Resolve the language from its covering index before matching rowids to
+    // wide text records. Keep FTS ahead of this materialized lookup: reversing
+    // those loops would restart MATCH for every text in the chosen language.
+    const textScope=language?'filtered_text AS MATERIALIZED (SELECT id,document_id,language FROM texts WHERE language=?),':'';
+    const sql=`FROM texts_fts ${language?'CROSS JOIN filtered_text':'JOIN texts'} t ON t.id=texts_fts.rowid JOIN documents d ON d.id=t.document_id LEFT JOIN documents q ON d.kind='answer' AND q.source_id=d.parent_id AND q.kind='question' WHERE ${where.join(' AND ')}`;
+    const order=sort==='newest'?'date DESC,score,group_id':'score,date DESC,group_id';
+    const pageOrder=sort==='newest'?'page.date DESC,page.score,page.group_id':'page.score,page.date DESC,page.group_id';
+    // Count and select groups from one FTS traversal instead of repeating the
+    // same full match for COUNT. The singleton LEFT JOIN retains the true total
+    // for empty and out-of-range pages without a second count query.
+    const page=this.db.prepare(`WITH ${textScope}matched AS MATERIALIZED (SELECT ${groupId} AS group_id,${filterDate} AS date,texts_fts.rank AS score,t.id AS text_id ${sql}),
+      grouped AS MATERIALIZED (SELECT group_id,MIN(score) AS score,MAX(date) AS date FROM matched GROUP BY group_id),
+      page AS MATERIALIZED (SELECT * FROM grouped ORDER BY ${order} LIMIT ? OFFSET ?)
+      SELECT (SELECT COUNT(*) FROM grouped) AS total,page.*,matched.text_id,DENSE_RANK() OVER (ORDER BY matched.score) AS hit_rank
+      FROM (SELECT 1) LEFT JOIN page ON 1 LEFT JOIN matched ON matched.group_id=page.group_id ORDER BY ${pageOrder}`).all(...(language?[language]:[]),...params,limit,offset);
+    const total=page[0].total,selected=[...new Map(page.filter(row=>row.group_id!==null).map(row=>[row.group_id,row])).values()];
+    // Keep exact matching variants from the same snapshot. Integer score ranks
+    // preserve ties without serializing floating-point scores into JSON.
+    const selectedHits=page.filter(row=>row.text_id!==null).map(row=>[row.text_id,row.hit_rank]);
     const members=generation==null?null:this.db.prepare('SELECT DISTINCT mep FROM idx.items WHERE generation=? AND source_id=? ORDER BY mep');
     const memberIds=id=>members?members.all(generation,id).map(item=>Number(item.mep)):null;
     const person=generation==null?null:this.db.prepare('SELECT body FROM idx.members WHERE id=?');
     const people=(ids,kind)=>(ids||[]).map(id=>({id,name:parse(person?.get(String(id))?.body)?.name||null,role:kind==='speech'?'SPEAKER':kind==='answer'?'QUESTION_AUTHOR':'AUTHOR'}));
     const rows=selected.length?this.db.prepare(`SELECT ${groupId} AS group_id,d.source_id,d.kind,d.parent_id,d.date,${questionDate} AS question_date,
       t.source_key,t.sha256,t.language,t.translation_type,t.source_format,t.source_url,t.fetched_at,
-      snippet(texts_fts,0,'\u0002','\u0003','…',24) AS snippet ${sql} AND ${groupId} IN (SELECT value FROM json_each(?))
-      ORDER BY texts_fts.rank,d.source_id,t.language,t.source_key`).all(...params,JSON.stringify(selected.map(row=>row.group_id))):[];
+      snippet(texts_fts,0,'\u0002','\u0003','…',24) AS snippet
+      FROM json_each(?) AS selected_hit CROSS JOIN texts_fts ON texts_fts.rowid=json_extract(selected_hit.value,'$[0]')
+      JOIN texts t ON t.id=texts_fts.rowid JOIN documents d ON d.id=t.document_id
+      LEFT JOIN documents q ON d.kind='answer' AND q.source_id=d.parent_id AND q.kind='question'
+      WHERE texts_fts MATCH ? ORDER BY json_extract(selected_hit.value,'$[1]'),d.source_id,t.language,t.source_key`).all(JSON.stringify(selectedHits),match):[];
     const byGroup=new Map(selected.map(row=>[row.group_id,[]]));
     for(const row of rows)byGroup.get(row.group_id).push(row);
     const metadata=generation==null?null:this.db.prepare('SELECT body FROM idx.items WHERE generation=? AND source_id=? ORDER BY mep,category LIMIT 1');

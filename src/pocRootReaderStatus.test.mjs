@@ -94,6 +94,20 @@ test('selected written question keeps full text and downloads while announcing s
   assert.equal(document.activeElement,toggle,'reader outcomes must not move focus from the activity control');
 });
 
+test('member reader uses exact structured ECR instead of the conflicting Bulgarian source-role translation',async t=>{
+  const h=await harness(t,{module:'speeches',language:'bg',items:[speechItem]});
+  await h.click(h.container.querySelector('.poc-speech-toggle'));
+  const person={id:'256986',name:'Geadis Geadi',roleLabels:{en:{text:'on behalf of the Group',language:'en'},bg:{text:'от името на групата Verts/ALE',language:'bg'}}};
+  const intervention={type:'speech',speaker:person,onBehalfOf:[{id:'ECR',uri:'org/ECR',label:'ECR',politicalGroup:true,source:'participation_in_name_of'}]};
+  await h.finish(`speech/${speechId}?lang=bg`,{id:speechId,speakers:[person],intervention,xml:'<speech><p>Exact source body.</p></speech>',textLanguage:'bg',translationType:'machine'});
+  const reader=h.container.querySelector('.poc-speech-detail');
+  assert.equal(reader.querySelector('strong').textContent,'Geadis Geadi');
+  assert(!reader.querySelector('.insight-secondary'),'raw translated role must not contradict the exact group badge');
+  assert.equal(reader.querySelector('.intervention-group').textContent,'On behalf of ECR');
+  assert(!reader.textContent.includes('Verts/ALE'));
+  assert(reader.textContent.includes('Exact source body.'));
+});
+
 test('member cloud opens the chosen transcript while names and chair roles retain the interface language',async t=>{
   for(const [language,transcript] of [['bg','en'],['en','el']])await t.test(language+'/'+transcript,async t=>{
     const h=await harness(t,{module:'speeches',language,items:[speechItem]});
@@ -114,15 +128,17 @@ test('member cloud opens the chosen transcript while names and chair roles retai
 test('selected root speech announces an error once, retries successfully, and preserves transcript source and player controls',async t=>{
   const h=await harness(t,{items:[speechItem]}),toggle=h.container.querySelector('.poc-speech-toggle');toggle.focus();await h.click(toggle);
   const reader=h.container.querySelector('.poc-speech-detail'),source=speechItem.websiteUrl;
+  const video=reader.querySelector('.poc-speech-transcript-heading .poc-video-toggle');assert(video);
+  const panel=document.getElementById(video.getAttribute('aria-controls'));assert(panel.hidden);assert(panel.previousElementSibling.classList.contains('poc-speech-transcript-heading'));
   await h.finish(`speech/${speechId}?lang=en`,{error:{message:'Speech fixture temporarily unavailable.'}},503);await h.wait();
   assert.equal(status(reader).textContent,'','the existing error alert is not repeated through the status region');
   assert.equal(reader.querySelectorAll('[role="alert"]').length,1);assert.match(reader.querySelector('[role="alert"]').textContent,/Speech fixture temporarily unavailable\./);
-  assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===source));assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Play · EN'));
+  assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===source));assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Video'));
   assert.equal(document.activeElement,toggle);
   await h.click([...reader.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
   await h.finish(`speech/${speechId}?lang=en`,{id:speechId,xml:'<speech>'+paragraphs.map(text=>'<p>'+text+'</p>').join('')+'</speech>',textLanguage:'en',translationType:'original'});await h.wait();
   assert.equal(status(reader).textContent,'Transcript loaded.');assert.equal(reader.querySelector('[role="alert"]'),null);assertOrdinaryText(reader);
-  assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===source));assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Play · EN'));
+  assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===source));assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Video'));
 });
 
 test('an explicitly checked linked activity keeps its nested document outside the fallback announcement',async t=>{

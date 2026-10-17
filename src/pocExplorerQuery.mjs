@@ -12,7 +12,8 @@ export function readExplorerParam(query,key,fallback,allowed) {
   if(typeof value==='number'&&!Number.isFinite(value))return fallback;
   if(key.endsWith('-country')&&!countries.has(value))return fallback;
   if((key.endsWith('-until')||key==='trend-week')&&raw&&!validDate(raw))return fallback;
-  if(key==='q-offset'&&(!Number.isInteger(value)||value<0||value>5000))return fallback;
+  if(['q-offset','am-offset'].includes(key)&&(!Number.isInteger(value)||value<0||value>(key==='am-offset'?1000000:5000)))return fallback;
+  if(key==='am-member'&&raw&&!/^[1-9]\d{0,12}$/.test(raw))return fallback;
   if(key.endsWith('-fts-offset')&&(!Number.isInteger(Number(value))||Number(value)<0||Number(value)>1000))return fallback;
   if(key.endsWith('-fts-page')&&(!Number.isInteger(Number(value))||Number(value)<0||Number(value)>50))return fallback;
   if(key==='q-range'&&raw){const [start,end,...extra]=raw.split('_');if(extra.length||!validDate(start)||!validDate(end)||start>end)return fallback;}
@@ -25,7 +26,7 @@ export function readExplorerParam(query,key,fallback,allowed) {
 export function explorerParams(query,view,member) {
   const result=new URLSearchParams();
   const ownsMember=member===undefined||Boolean(member&&query.get('member')===String(member));
-  const prefix=view==='questions'?/^q-/:view==='legislation'?/^(pl|agenda|hot|cloud|dossier|trend)-/:view==='outside'?/^ov-/:view===null&&ownsMember?/^mep-(speech|activity)-fts-/:null;
+  const prefix=view==='questions'?/^q-/:view==='legislation'?/^(pl|agenda|hot|cloud|dossier|trend)-/:view==='outside'?/^ov-/:view==='amendments'?/^am-/:view===null&&ownsMember?/^mep-(speech|activity)-fts-/:null;
   for(const [key,value] of query)if(/^global-fts-(search|text-lang|page|offset|read|kind|sort|closed)$/.test(key)||prefix?.test(key)){
     if(key.endsWith('-country')){const country=readExplorerParam(query,key,null);if(country)result.set(key,country);}
     else result.set(key,value);
