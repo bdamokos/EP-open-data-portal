@@ -65,7 +65,7 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
   const current = playable && request && request.speechId === speech?.id && request.lang === lang ? request : null;
   const audio = current?.original ? 'or' : lang;
   const media = useData<SpeechMedia>(current ? `speech-media/${encodeURIComponent(current.speechId)}?lang=${lang}${current.original ? '&audio=or' : ''}` : null);
-  useEffect(()=>{setRequest(null);setSelectedOriginal(false);},[speech?.id,lang]);
+  useEffect(()=>{setRequest(null);setSelectedOriginal(false);},[speech?.id,lang,playable]);
   const embed = speech ? speechEmbedUrl(media.data, speech.id, lang, audio) : null;
   const returnFocus=()=>{
     if(!section.current?.isConnected)return;
@@ -91,11 +91,11 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
         </select></label>
         {changed?<button onClick={()=>{audioControl.current?.focus({preventScroll:true});start(selectedOriginal);}}>Restart video</button>:<button disabled={media.loading||!media.data?.available} onClick={()=>start(current.original)}>Replay video</button>}
       </div>
-      <p className="poc-video-audio-note">{changed?`Changing audio restarts the clip. Active audio: ${activeName}.`:current.original?'Original sound from the chamber. Languages may vary.':`Parliament’s ${languageName} audio channel. Transcript language is separate.`}</p>
+      <p className="poc-video-audio-note">{changed?'Changing audio restarts the clip.':current.original?'Original sound from the chamber. Languages may vary.':`Parliament’s ${languageName} audio channel. Transcript language is separate.`}</p>
       {media.loading && !media.data && <p role="status">Loading video…</p>}
     {media.error && <div className="poc-notice" role="alert"><p>{media.error}</p><button onClick={()=>{returnFocus();media.retry();}}>Try video again</button></div>}
     {media.data && <>
-      {!media.data.available ? <div className="poc-notice" role="alert"><strong>{media.data.status === 'audio-unavailable' ? `${activeName} audio unavailable` : ['audio-unverified','audio-selection-unverified'].includes(media.data.status) ? `${activeName} audio not verified` : 'No matched speech video'}</strong><p>{media.data.reason || 'A recording with the requested audio could not be established.'}</p>{!current.original&&media.data.status.startsWith('audio-')&&<button onClick={()=>{audioControl.current?.focus({preventScroll:true});start(true);}}>Try original audio</button>}</div>
+      {!media.data.available ? <div className="poc-notice" role="alert"><strong>{media.data.status === 'audio-unavailable' ? `${activeName} audio unavailable` : ['audio-unverified','audio-selection-unverified'].includes(media.data.status) ? `${activeName} audio not verified` : 'No matched speech video'}</strong><p>{media.data.reason || 'A recording with the requested audio could not be established.'}</p>{!current.original&&media.data.status?.startsWith('audio-')&&<button onClick={()=>{audioControl.current?.focus({preventScroll:true});start(true);}}>Try original audio</button>}</div>
         : !embed ? <p role="alert">This clip is unavailable. Open the full recording below.</p>
         : <>
           <ParliamentFrame key={speechFrameKey(current.speechId,lang,audio,frameAttempt,media.data.audioMapping)} src={embed} speechId={current.speechId} lang={lang} audio={audio} original={current.original} mapping={media.data.audioMapping!} returnFocus={returnFocus} />

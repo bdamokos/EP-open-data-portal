@@ -114,15 +114,17 @@ test('member cloud opens the chosen transcript while names and chair roles retai
 test('selected root speech announces an error once, retries successfully, and preserves transcript source and player controls',async t=>{
   const h=await harness(t,{items:[speechItem]}),toggle=h.container.querySelector('.poc-speech-toggle');toggle.focus();await h.click(toggle);
   const reader=h.container.querySelector('.poc-speech-detail'),source=speechItem.websiteUrl;
+  const video=reader.querySelector('.poc-speech-transcript-heading .poc-video-toggle');assert(video);
+  const panel=document.getElementById(video.getAttribute('aria-controls'));assert(panel.hidden);assert(panel.previousElementSibling.classList.contains('poc-speech-transcript-heading'));
   await h.finish(`speech/${speechId}?lang=en`,{error:{message:'Speech fixture temporarily unavailable.'}},503);await h.wait();
   assert.equal(status(reader).textContent,'','the existing error alert is not repeated through the status region');
   assert.equal(reader.querySelectorAll('[role="alert"]').length,1);assert.match(reader.querySelector('[role="alert"]').textContent,/Speech fixture temporarily unavailable\./);
-  assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===source));assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Play · EN'));
+  assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===source));assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Video'));
   assert.equal(document.activeElement,toggle);
   await h.click([...reader.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
   await h.finish(`speech/${speechId}?lang=en`,{id:speechId,xml:'<speech>'+paragraphs.map(text=>'<p>'+text+'</p>').join('')+'</speech>',textLanguage:'en',translationType:'original'});await h.wait();
   assert.equal(status(reader).textContent,'Transcript loaded.');assert.equal(reader.querySelector('[role="alert"]'),null);assertOrdinaryText(reader);
-  assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===source));assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Play · EN'));
+  assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===source));assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Video'));
 });
 
 test('an explicitly checked linked activity keeps its nested document outside the fallback announcement',async t=>{
