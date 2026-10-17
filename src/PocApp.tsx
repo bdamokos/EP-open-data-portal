@@ -38,7 +38,7 @@ import "./poc.css";
 import { activitySourceId } from "../server/activity-links.mjs";
 import { transcriptLanguage } from "../server/transcript-language.mjs";
 import { useData } from "./pocData";
-import { PocSpeechPlayer } from "./PocSpeechPlayer";
+import { useSpeechVideo } from "./PocSpeechPlayer";
 import { PocLegislation } from './PocLegislation';
 import { PocQuestionTopics } from './PocQuestionTopics';
 import {PocOutsideVoices} from './PocOutsideVoices';
@@ -98,6 +98,7 @@ export function transcript(xml: string | null) {
 function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lang: string;transcriptLanguage?:string }) {
   const c = pocCopy(lang);
   const transcriptText=useRef<HTMLDivElement>(null);
+  const video=useSpeechVideo(speech,lang);
   const state = useData<SpeechDetail>(
     `speech/${encodeURIComponent(speech.id)}?lang=${transcriptLanguage}`,
   );
@@ -108,11 +109,11 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
   return (
     <div className="poc-speech-detail" lang={lang}>
       <PocStatus scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={state.error||!state.data?null:text.error?'Parliament returned transcript text that could not be read.':text.paragraphs.length?'Transcript loaded.':'No transcript text is available from Parliament’s API for this contribution.'}/>
-      <PocSpeechPlayer speech={speech} lang={transcriptLanguage} />
       {state.data?.speakers?.map(person=><div key={person.id}><strong><SpeakerName person={person} language={lang}/></strong><SpeakerRoleLine person={person} language={lang} className="insight-secondary"/></div>)}
       {state.data?.intervention?.type!=='chair'&&<InterventionBadges value={state.data?.intervention} language={lang}/>}
       <PocSpeechContext key={speech.id} id={speech.id} language={lang} transcriptLanguage={transcriptLanguage}/>
-      <div className="poc-section-title" lang="en"><h3 lang={lang}>{c.transcript}</h3>{text.paragraphs.length>0&&<PocFindInText key={speech.id+':'+transcriptLanguage} label="Find in speech" target={transcriptText}/>}</div>
+      <div className="poc-speech-transcript-heading" lang="en"><h3 lang={lang}>{c.transcript}</h3><div className="poc-reader-tools">{video.toggle}{text.paragraphs.length>0&&<PocFindInText key={speech.id+':'+transcriptLanguage} label="Find in speech" target={transcriptText}/>}</div></div>
+      {video.panel}
       {speech.websiteUrl && <p className="poc-source-link" lang="en"><a href={speech.websiteUrl} target="_blank" rel="noreferrer">Speech on Parliament’s website ↗</a>{" "}<small>Original <span lang="">{speech.websiteLanguage?.toUpperCase()}</span></small></p>}
       {state.loading && !state.data && <p role="status" lang="en">Loading transcript…</p>}
       {state.error && <ErrorView message={state.error} retry={state.retry} />}
