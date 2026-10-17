@@ -9,12 +9,12 @@ function queuedBody(store,task) {
 
 // Actions commit complete target work before the cursor advances. Callbacks
 // must not keep a SQLite transaction open across an asynchronous yield.
-// worker.runDeadline is a monotonic performance.now() timestamp; omitted means
-// Infinity for direct callers. The production worker sets it once per run.
+// worker.runDeadline is a worker.monotonic() timestamp (performance.now() by
+// default); omitted means Infinity for direct callers. The production worker sets it once per run.
 export async function runAmendmentWorkSlice(worker,task,{select,action,advance,maxActions=10}) {
   if(!Number.isInteger(maxActions)||maxActions<1)throw new Error('Amendment work slices require a positive action bound.');
-  const limit=Math.min(maxActions,10),store=worker.store,deadline=worker.runDeadline ?? Infinity;
-  const stopped=()=>worker.stopped||worker.controller?.signal.aborted||performance.now()>=deadline;
+  const limit=Math.min(maxActions,10),store=worker.store,deadline=worker.runDeadline ?? Infinity,monotonic=worker.monotonic ?? (()=>performance.now());
+  const stopped=()=>worker.stopped||worker.controller?.signal.aborted||monotonic()>=deadline;
   const boundary=async()=>{
     if(stopped())return false;
     store.assertWriter();
