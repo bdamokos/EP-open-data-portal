@@ -1,0 +1,83 @@
+{
+  "attribution": "European Parliament",
+  "scope": "Selected cover, body-opening, first citation and recital paragraphs; Irish placeholder in full.",
+  "documents": [
+    {
+      "id": "TA-10-2026-0339",
+      "language": "fi",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_fi.docx",
+      "resolvedSourceUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_fi.docx",
+      "retrievedAt": "2026-10-17T07:22:16.548Z",
+      "sha256": "100f4f2dc6c9b0d908e73c77b2d32cd0ff1f156f5bb0157a2c03c7576abf7b6c",
+      "paragraphs": [
+        "Euroopan parlamentti",
+        "2024-2029",
+        "Euroopan parlamentti, joka",
+        "–\tottaa huomioon aiemmat päätöslauselmansa Venäjästä,",
+        "A.\ttoteaa, että 18.–20. syyskuuta 2026 pidetyt Venäjän valtionduuman vilpilliset vaalit olivat laittomat ja epädemokraattiset ja ne järjestettiin ilman aitoa poliittista kilpailua yhä autoritaarisemmassa ympäristössä, jossa sorto on järjestelmällistä ja institutionaalista; ottaa huomioon, että Venäjä käy edelleen laitonta hyökkäyssotaa Ukrainaa vastaan;"
+      ]
+    },
+    {
+      "id": "TA-10-2026-0339",
+      "language": "sv",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_sv.docx",
+      "resolvedSourceUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_sv.docx",
+      "retrievedAt": "2026-10-17T07:22:16.892Z",
+      "sha256": "cc510401e4cb787a3127563d7c803708d798230916f7c146dc1fb13ae7fe52cf",
+      "paragraphs": [
+        "Europaparlamentet",
+        "2024-2029",
+        "Europaparlamentet utfärdar denna resolution",
+        "–\tmed beaktande av sina tidigare resolutioner om Ryssland,",
+        "A.\tDet riggade valet till den ryska statsduman den 18–20 september 2026 var olagligt och odemokratiskt, och genomfördes utan någon egentlig politisk konkurrens i en alltmer auktoritär miljö med systematiskt och institutionaliserat förtryck. Ryssland fortsätter att föra ett olagligt anfallskrig mot Ukraina."
+      ]
+    },
+    {
+      "id": "TA-10-2026-0339",
+      "language": "bg",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_bg.docx",
+      "resolvedSourceUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_bg.docx",
+      "retrievedAt": "2026-10-17T07:22:17.001Z",
+      "sha256": "0c1600ae45a596f030ef877d8e77f766083a41add6670edc97684669b103d4bf",
+      "paragraphs": [
+        "Европейски парламент",
+        "2024 – 2029",
+        "Европейският парламент,",
+        "–\tкато взе предвид предходните си резолюции относно Русия,",
+        "А.\tкато има предвид, че фалшивите избори за Държавната дума на Русия, проведени от 18 до 20 септември 2026 г., бяха нелегитимни и недемократични, и бяха проведени без истинска политическа конкуренция в една все по-авторитарна среда на систематични и институционализирани репресии; като има предвид, че Русия продължава да води незаконна агресивна война срещу Украйна;"
+      ]
+    },
+    {
+      "id": "TA-10-2026-0339",
+      "language": "el",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_el.docx",
+      "resolvedSourceUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_el.docx",
+      "retrievedAt": "2026-10-17T07:22:17.234Z",
+      "sha256": "2bc367ff2f4c866eae2c73032f7e83b0e0c133a3acf6e6dc24bcdecd7a841f68",
+      "paragraphs": [
+        "Ευρωπαϊκό Κοινοβούλιο",
+        "2024-2029",
+        "Το Ευρωπαϊκό Κοινοβούλιο,",
+        "–\tέχοντας υπόψη τα προηγούμενα ψηφίσματά του σχετικά με τη Ρωσία,",
+        "Α.\tλαμβάνοντας υπόψη ότι οι ψευδείς εκλογές για τη ρωσική Κρατική Δούμα, που πραγματοποιήθηκαν από τις 18 έως τις 20 Σεπτεμβρίου 2026, ήταν παράνομες, αντιδημοκρατικές και διεξήχθησαν χωρίς πραγματικό πολιτικό ανταγωνισμό σε ένα ολοένα και πιο αυταρχικό περιβάλλον συστηματικής και θεσμοθετημένης καταστολής· λαμβάνοντας υπόψη ότι η Ρωσία εξακολουθεί να διεξάγει παράνομο επιθετικό πόλεμο κατά της Ουκρανίας·"
+      ]
+    },
+    {
+      "id": "TA-10-2026-0339",
+      "language": "ga",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_ga.docx",
+      "resolvedSourceUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_ga.docx",
+      "retrievedAt": "2026-10-17T07:22:17.309Z",
+      "sha256": "2eef8c232d1d660ad1ef2da0f667a857a5d4202b044f80629881622ea8923637",
+      "paragraphs": [
+        "Parlaimint na hEorpa",
+        "2024-2029",
+        "TÉACSANNA ARNA nGLACADH",
+        "P10_TA(2026)0339",
+        "Toghcháin neamhdhaonlathacha 2026 do Dhúma Stáit na Rúise agus a n-impleachtaí don tsochaí shibhialta",
+        "Rún ó Pharlaimint na hEorpa an 8 Deireadh Fómhair 2026 maidir le toghcháin neamhdhaonlathacha 2026 do Dhúma Stáit na Rúise agus a n-impleachtaí don tsochaí shibhialta (2026/2907(RSP))",
+        "(Níl an téacs seo ar fáil as Gaeilge faoi láthair)"
+      ]
+    }
+  ]
+}
