@@ -151,3 +151,14 @@ test('an explicitly checked linked activity keeps its nested document outside th
   assert.equal(fallbackStatus.textContent,'Linked source available.');assert.equal(status(reader).textContent,'Question: Text loaded.');
   assert.equal(h.pending.length,1,'the nested reader reuses the completed exact-source request');
 });
+
+test('member transcript preserves editorial italics in place without importing source attributes',async t=>{
+  const h=await harness(t,{module:'speeches',items:[speechItem]});
+  await h.click(h.container.querySelector('.poc-speech-toggle'));
+  const xml='<speech xml:lang="en"><p>Before the video.</p><p><inline name="i" style="display:none" onclick="alert(1)">(A video was played in the Chamber)</inline></p><p>After <inline name="i">(Applause)</inline> we continue (spoken aside).</p><p>&lt;script&gt;literal text&lt;/script&gt;</p></speech>';
+  await h.finish(`speech/${speechId}?lang=en`,{id:speechId,speakers:[],xml,textLanguage:'en',translationType:'original'});
+  const body=h.container.querySelector('.poc-transcript');
+  assert.deepEqual([...body.querySelectorAll('p')].map(node=>node.textContent),['Before the video.','(A video was played in the Chamber)','After (Applause) we continue (spoken aside).','<script>literal text</script>']);
+  assert.deepEqual([...body.querySelectorAll('i')].map(node=>node.textContent),['(A video was played in the Chamber)','(Applause)']);
+  assert.equal(body.querySelector('script,[style],[onclick],inline'),null);
+});

@@ -37,6 +37,7 @@ import type {
 } from "./pocTypes";
 import "./poc.css";
 import { activitySourceId } from "../server/activity-links.mjs";
+import {transcriptParagraphs,TranscriptText} from "./PocTranscript";
 import { transcriptLanguage } from "../server/transcript-language.mjs";
 import { useData } from "./pocData";
 import { useSpeechVideo } from "./PocSpeechPlayer";
@@ -87,16 +88,8 @@ function ErrorView({ message, retry }: { message: string; retry: () => void }) {
 }
 export function transcript(xml: string | null) {
   if (!xml) return { paragraphs: [], machine: false, error: false };
-  const doc = new DOMParser().parseFromString(xml, "application/xml");
-  if (doc.querySelector("parsererror"))
-    return { paragraphs: [], machine: false, error: true };
-  return {
-    paragraphs: Array.from(doc.getElementsByTagNameNS("*", "p"))
-      .map((p) => {const timed=Array.from(p.getElementsByTagNameNS("*","time"));return (timed.length?timed.map(t=>t.textContent||"").join(" "):p.textContent||"").replace(/\s+([,.;:!?])/g,"$1");})
-      .filter(Boolean),
-    machine: transcriptLanguage(xml).machine,
-    error: false,
-  };
+  const text=transcriptParagraphs(xml);
+  return {...text,machine:transcriptLanguage(xml).machine};
 }
 function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lang: string;transcriptLanguage?:string }) {
   const c = pocCopy(lang);
@@ -143,7 +136,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
               lang={state.data.textLanguage || ""}
             >
               {text.paragraphs.map((p, i) => (
-                <p key={i}>{p}</p>
+                <p key={i}><TranscriptText paragraph={p}/></p>
               ))}
             </div>
           ) : (

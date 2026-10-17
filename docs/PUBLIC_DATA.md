@@ -114,7 +114,7 @@ The API supplies portrait URLs. Each MEP record's `img` field points to the webs
 
 With `CORPUS_ENABLED=true`, a leased worker stores current-term texts in `corpus-v1.sqlite` (`server/corpus-worker.mjs`, `server/corpus-store.mjs`):
 
-- Speeches come from `/speeches` with `include-output=xml_fragment`, month by month. Fragments marked `mtec` are machine translations. Recent months are rechecked because translations arrive later.
+- Speeches come from `/speeches` with `include-output=xml_fragment`, month by month. Fragments marked `mtec` are machine translations. Recent months are rechecked because translations arrive later. Readers preserve the XML’s `<inline name="i">` italics in place, including editorial remarks within paragraphs and between speech paragraphs. Parentheses alone do not identify editorial remarks.
 - Question and answer texts come from the DOCX distributions of saved index records. Original languages and English come first. `CORPUS_LANGUAGES=primary` keeps only those.
 
 Search uses SQLite FTS5 with Unicode tokenisation. Latin diacritics are folded, Greek accents are not. Endpoints:
