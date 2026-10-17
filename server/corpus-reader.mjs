@@ -24,9 +24,12 @@ export class CorpusReader {
       });
     } finally {
       clearTimeout(timer);
-      // A native SQLite call may finish before the worker can terminate. Return
-      // the timeout immediately, retaining the concurrency slot until it exits.
-      if(worker && timedOut)void worker.terminate().finally(()=>{this.busy=false;});
+      // Native SQLite or optional cache-file I/O can delay termination. Return
+      // transcript results/timeouts immediately, but keep the slot until exit.
+      if(worker && (timedOut||operation==='speech-transcript')) {
+        worker.once('exit',()=>{this.busy=false;});
+        void worker.terminate().catch(()=>{});
+      }
       else {if(worker)await worker.terminate();this.busy=false;}
     }
   }

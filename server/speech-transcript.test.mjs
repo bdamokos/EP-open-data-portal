@@ -1,6 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,rmSync,constants} from 'node:fs';
+import {open} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import {CorpusStore} from './corpus-store.mjs';
@@ -16,6 +19,11 @@ const activity={id:'eli/dl/event/'+id,activity_id:id,activity_date:'2026-10-07',
   had_participation:[{id:'participation/exact',had_participant_person:['person/42'],participation_in_name_of:['org/S_D'],participation_role:'def/ep-roles/SPEAKER'}],
   inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-1'],
   recorded_in_a_realization_of:[{id:'eli/dl/doc/CRE-10-2026-10-07-INT-1',number:'CRE-10-2026-10-07-INT-1',numbering:17,originalLanguage:['http://publications.europa.eu/resource/authority/language/DEU'],'api:xmlFragment':{en:'omitted from metadata'}}]};
+async function readerIdle(reader) {
+  const deadline=Date.now()+5000;
+  while(reader.busy&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,5));
+  assert.equal(reader.busy,false,'reader releases its concurrency slot after worker exit');
+}
 test('corpus transcript reads retain XML, exact keys, languages and provenance without writes or upstream requests',async t=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'retained-speech-'));
   const old={CORPUS_ENABLED:process.env.CORPUS_ENABLED,CORPUS_DIR:process.env.CORPUS_DIR};
@@ -140,9 +148,11 @@ test('primary retention preserves source-discovered languages in ready metadata 
     let result=await reader.query('speech-transcript',{sourceId:id,language:'en'});
     assert.deepEqual(result.metadata.availableTextLanguages,['en','fr','de']);
     assert.deepEqual(result.metadata.textCache.availableLanguages,['en'],'retained and source availability stay distinct');
+    await readerIdle(reader);
     delete doc['api:xmlFragment'];store.putSpeechMetadata(source,'https://data.europarl.europa.eu/api/v2/speeches/'+id,'2026-10-17T10:00:00Z');
     result=await reader.query('speech-transcript',{sourceId:id,language:'en'});
     assert.deepEqual(result.metadata.availableTextLanguages,['en','fr','de']);
+    await readerIdle(reader);
   } finally {store.release();store.close();rmSync(directory,{recursive:true,force:true});}
 });
 
@@ -162,11 +172,13 @@ test('primary retention projects exact speaker headers from mul originals and di
     assert(result.metadata.speakers[0].nameVariants.some(variant=>variant.language==='fr'&&variant.value==='Nom source'));
     assert(result.metadata.speakers[0].nameVariants.some(variant=>variant.language==='de'&&variant.value==='Source Name'));
     assert.deepEqual(result.metadata.availableTextLanguages,['de','fr']);
+    await readerIdle(reader);
     delete doc['api:xmlFragment'];store.putSpeechMetadata(source,'https://data.europarl.europa.eu/api/v2/speeches/'+id,'2026-10-17T10:00:00Z');
     const refreshed=await reader.query('speech-transcript',{sourceId:id,language:'de'});
     assert.equal(refreshed.metadata.speakers[0].id,'42');assert.equal(refreshed.metadata.speakers[0].name,'Source Name');
     assert(refreshed.metadata.speakers[0].nameVariants.some(variant=>variant.language==='fr'&&variant.value==='Nom source'),'metadata-only refresh retains headers from an unstored translation');
     assert.equal(store.db.prepare('SELECT source_key FROM texts').get().source_key,'mul');
+    await readerIdle(reader);
   } finally {store.release();store.close();rmSync(directory,{recursive:true,force:true});}
 });
 
@@ -240,4 +252,37 @@ test('metadata isolation cannot advance a speech page after writer lease loss',a
     await assert.rejects(worker.task(store.task('lost-lease')),/writer lease was lost/);
     assert.equal(store.task('lost-lease').body.offset,0);assert.equal(store.task('speech-metadata-detail:'+id),undefined);
   } finally {store.close();rmSync(directory,{recursive:true,force:true});}
+});
+
+test('blocked native identity I/O cannot hold a returned transcript or free its occupied reader slot',{skip:process.platform==='win32'},async()=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'speech-native-io-')),cache=path.join(directory,'cache'),corpus=path.join(directory,'corpus');mkdirSync(cache);
+  const originalCache=process.env.ODP_CACHE_DIR,store=new CorpusStore(corpus);
+  let handle,timer,reader,released=false;
+  const release=async()=>{if(released)return;released=true;clearTimeout(timer);await handle?.close();handle=null;};
+  try {
+    store.acquire();store.putDocument({sourceId:id,kind:'speech',date:'2026-10-07',term:10},[{sourceKey:'de',language:'de',translationType:'original',sourceFormat:'xml-fragment',sourceUrl:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:date,body:'Retained text.',raw:xml}]);
+    store.putSpeechMetadata(activity,'https://data.europarl.europa.eu/api/v2/speeches/'+id,date);store.release();
+    const url='https://data.europarl.europa.eu/api/v2/meps/show-current?limit=1000&offset=0&format=application%2Fld%2Bjson';
+    const fifo=path.join(cache,createHash('sha256').update(url).digest('hex')+'.json');execFileSync('mkfifo',[fifo]);
+    handle=await open(fifo,constants.O_RDWR|constants.O_NONBLOCK);
+    process.env.ODP_CACHE_DIR=cache;reader=new CorpusReader(corpus,{timeoutMs:2000});
+    // A FIFO read has no EOF until the test closes its writer. The fallback
+    // deadline must return text before that native I/O can finish.
+    timer=setTimeout(()=>{void release();},3500);
+    const result=await reader.query('speech-transcript',{sourceId:id,language:'de'});
+    assert.equal(released,false,'return the settled result before native I/O permits termination');
+    assert.equal(result.xml,xml);assert.equal(result.metadata.speakers[0].id,'42');
+    await new Promise(resolve=>setTimeout(resolve,50));
+    assert.equal(reader.busy,true,'a terminating worker still consumes its concurrency slot');
+    await assert.rejects(reader.query('speech-transcript',{sourceId:id,language:'de'}),error=>error.code==='corpus_busy');
+    await release();await readerIdle(reader);rmSync(fifo);
+    const next=await reader.query('speech-transcript',{sourceId:id,language:'de'});
+    assert.equal(next.xml,xml,'the lane is reusable after the blocked worker exits');await readerIdle(reader);
+  } finally {
+    try {await release();if(reader)await readerIdle(reader);}
+    finally {
+      originalCache===undefined?delete process.env.ODP_CACHE_DIR:process.env.ODP_CACHE_DIR=originalCache;
+      store.close();rmSync(directory,{recursive:true,force:true});
+    }
+  }
 });
