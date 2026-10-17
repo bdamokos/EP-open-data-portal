@@ -4,6 +4,7 @@ import {mkdtempSync,mkdirSync,rmSync,constants} from 'node:fs';
 import {open} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
+import {Worker} from 'node:worker_threads';
 import os from 'node:os';
 import path from 'node:path';
 import {CorpusStore} from './corpus-store.mjs';
@@ -254,11 +255,16 @@ test('metadata isolation cannot advance a speech page after writer lease loss',a
   } finally {store.close();rmSync(directory,{recursive:true,force:true});}
 });
 
-test('blocked native identity I/O cannot hold a returned transcript or free its occupied reader slot',{skip:process.platform==='win32'},async()=>{
+test('transcript responses return before teardown and retain their reader slot until termination completes',{skip:process.platform==='win32'},async t=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'speech-native-io-')),cache=path.join(directory,'cache'),corpus=path.join(directory,'corpus');mkdirSync(cache);
   const originalCache=process.env.ODP_CACHE_DIR,store=new CorpusStore(corpus);
-  let handle,timer,reader,released=false;
-  const release=async()=>{if(released)return;released=true;clearTimeout(timer);await handle?.close();handle=null;};
+  let handle,timer,reader,releaseTermination,released=false;
+  const terminationGate=new Promise(resolve=>{releaseTermination=resolve;});
+  const terminate=Worker.prototype.terminate;
+  t.mock.method(Worker.prototype,'terminate',async function(...args){
+    const code=await terminate.apply(this,args);await terminationGate;return code;
+  });
+  const release=async()=>{if(released)return;released=true;clearTimeout(timer);releaseTermination();await handle?.close();handle=null;};
   try {
     store.acquire();store.putDocument({sourceId:id,kind:'speech',date:'2026-10-07',term:10},[{sourceKey:'de',language:'de',translationType:'original',sourceFormat:'xml-fragment',sourceUrl:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:date,body:'Retained text.',raw:xml}]);
     store.putSpeechMetadata(activity,'https://data.europarl.europa.eu/api/v2/speeches/'+id,date);store.release();
@@ -266,11 +272,12 @@ test('blocked native identity I/O cannot hold a returned transcript or free its 
     const fifo=path.join(cache,createHash('sha256').update(url).digest('hex')+'.json');execFileSync('mkfifo',[fifo]);
     handle=await open(fifo,constants.O_RDWR|constants.O_NONBLOCK);
     process.env.ODP_CACHE_DIR=cache;reader=new CorpusReader(corpus,{timeoutMs:2000});
-    // A FIFO read has no EOF until the test closes its writer. The fallback
-    // deadline must return text before that native I/O can finish.
+    // FIFO reads can block native I/O, but some Node/platform combinations
+    // finish them immediately. Hold the termination promise in either case:
+    // the response must return while the reader slot remains occupied.
     timer=setTimeout(()=>{void release();},3500);
     const result=await reader.query('speech-transcript',{sourceId:id,language:'de'});
-    assert.equal(released,false,'return the settled result before native I/O permits termination');
+    assert.equal(released,false,'return the settled result before termination completes');
     assert.equal(result.xml,xml);assert.equal(result.metadata.speakers[0].id,'42');
     await new Promise(resolve=>setTimeout(resolve,50));
     assert.equal(reader.busy,true,'a terminating worker still consumes its concurrency slot');
