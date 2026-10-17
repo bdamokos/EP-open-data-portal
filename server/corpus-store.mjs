@@ -4,6 +4,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { zstdCompressSync, zstdDecompressSync } from 'node:zlib';
 import path from 'node:path';
+import {countryCode} from './insights-countries.mjs';
 
 // Full-text corpus of speeches, questions and answers. It lives beside the
 // activity index but outside its refresh generations, so a refresh never copies
@@ -245,6 +246,15 @@ export class CorpusStore {
     if(sourceIds!==null){where.push('d.source_id IN (SELECT value FROM json_each(?))');params.push(JSON.stringify(sourceIds));}
     if(member || country) {
       if(generation==null)return {unavailable:'The activity index is not loaded, so member filters are unavailable.'};
+      if(country){
+        const known=new Set(countryMetadataIds||[]),roster=this.db.prepare('SELECT id,body FROM idx.members').all();
+        // Validate coverage independently of the requested country's matches.
+        // The real roster writer stores IDs/names, so missing cached countries
+        // must not turn into successful zeroes. Existing saved countries remain
+        // a fallback only for members without valid cached country metadata.
+        if(!roster.length||roster.some(row=>{const person=parse(row.body);return !known.has(row.id)&&!countryCode(person?.countryCode||person?.['api:country-of-representation']);}))
+          return {unavailableCode:'corpus_country_metadata_unavailable',unavailable:'Saved current-country metadata is incomplete. Retry after the roster metadata becomes available.'};
+      }
       // Exact identifier joins only: speeches by speaker, questions and answers by author.
       const authorWhere=['i.generation=?','i.source_id=d.source_id'],authorParams=[generation];
       if(member){authorWhere.push('i.mep=?');authorParams.push(String(member));}
