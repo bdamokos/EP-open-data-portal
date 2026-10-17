@@ -1,3 +1,4 @@
+import {transcriptParagraphs,TranscriptText} from './PocTranscript';
 import {GROUP_VOICE_GROUPS} from './groupVoiceTerms.mjs';
 import {useEffect,useId,useRef,useState} from 'react';
 import {api,useData} from './pocData';
@@ -52,11 +53,10 @@ export function PocInterventionStatistics({member,onItems}:{member:number;onItem
 
 function ConnectedText({id,language}:{id:string;language:string}) {
   const state=useData<SpeechDetail>(`speech/${id}?lang=${language}`);
-  const xml=state.data?.xml,doc=xml?new DOMParser().parseFromString(xml,'application/xml'):null;
-  const paragraphs=doc&&!doc.querySelector('parsererror')?[...doc.getElementsByTagNameNS('*','p')].map(p=>p.textContent?.replace(/\s+([,.;:!?])/g,'$1').trim()).filter(Boolean):[];
+  const paragraphs=transcriptParagraphs(state.data?.xml??null).paragraphs;
   return <div className="intervention-connected-text" lang={state.data?.textLanguage??''}>
     {state.loading&&!state.data&&<p lang="en" role="status">Loading contribution…</p>}{state.error&&<p lang="en">{state.error} <button onClick={state.retry}>Retry</button></p>}
-    {state.data&&<><p className="intervention-caption" lang="en">{state.data.textLanguage?.toUpperCase()}{state.data.translationType==='machine'?' · Machine translation':''}</p>{paragraphs.length?paragraphs.map((p,i)=><p key={i}>{p}</p>):<p lang="en">Transcript unavailable.</p>}{state.data.websiteUrl&&<a lang="en" href={state.data.websiteUrl} target="_blank" rel="noreferrer">Parliament’s transcript ↗</a>}</>}
+    {state.data&&<><p className="intervention-caption" lang="en">{state.data.textLanguage?.toUpperCase()}{state.data.translationType==='machine'?' · Machine translation':''}</p>{paragraphs.length?paragraphs.map((p,i)=><p key={i}><TranscriptText paragraph={p}/></p>):<p lang="en">Transcript unavailable.</p>}{state.data.websiteUrl&&<a lang="en" href={state.data.websiteUrl} target="_blank" rel="noreferrer">Parliament’s transcript ↗</a>}</>}
   </div>;
 }
 function SequenceError({message,retryAt,loading,retry}:{message:string;retryAt?:number;loading:boolean;retry:()=>void}) {
