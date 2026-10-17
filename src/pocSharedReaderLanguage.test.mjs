@@ -59,10 +59,15 @@ test('comparison source wording keeps exact actual/unknown metadata while Englis
     const h=await harness(t,locale,url=>{assert.equal(url.pathname,'/api/poc/motion-comparison/B-10-2026-0001');return comparison(actual);});
     const {PocMotionComparison}=await h.load('PocMotionComparison');
     await h.render(createElement(PocMotionComparison,{originalId:'B-10-2026-0001',jointId:'RC-10-2026-0001',language:locale}));
+    assert.equal(effective(h.container.querySelector('.poc-diff-change-label')),'en');
+    assert.equal(h.container.querySelector('.poc-diff-change-label').textContent,'Only in joint');
+    assert.equal(effective(h.container.querySelector('.poc-diff-rows ins')),actual||'');
+    assert([...h.container.querySelectorAll('.poc-diff-sr')].every(node=>effective(node)==='en'));
+    await h.click([...h.container.querySelectorAll('.poc-diff-views button')].find(node=>node.textContent==='Side by side'));
     assert.equal(effective(h.container.querySelector('h4')),'en');assert.equal(effective(h.container.querySelector('.poc-diff-row-label')),'en');
     assert.equal(h.container.querySelector('.poc-diff-row-label').textContent,'Only in joint');
     assert.equal(effective(h.container.querySelector('.poc-diff-reference')),'en');assert.equal(effective(h.container.querySelector('.poc-diff-absent')),'en');
-    const wording=h.container.querySelector('ins');assert.equal(wording.textContent,'Exact source wording');assert.equal(effective(wording),actual||'');
+    const wording=h.container.querySelector('.poc-diff-rows ins');assert.equal(wording.childNodes[1].textContent,'Exact source wording');assert.equal(effective(wording),actual||'');
     assert.equal(h.container.querySelector('.poc-diff-reference').textContent,'Original');assert.equal(h.container.querySelectorAll('.poc-diff-reference')[1].textContent,'Joint · Recital A');
     const sourceDate=h.container.querySelector('.poc-diff-documents > div > span');assert.equal(effective(sourceDate),locale);
     assert.equal(sourceDate.textContent,new Intl.DateTimeFormat(locale,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date('2026-03-25')));
@@ -70,8 +75,12 @@ test('comparison source wording keeps exact actual/unknown metadata while Englis
     assert.equal(effective(selects[0].querySelector('option')),'en');assert.equal(effective(selects[1]),'en');
     for(const option of selects[1].options){assert.equal(effective(option),locale);assert.equal(option.textContent,new Intl.DisplayNames([locale],{type:'language'}).of(option.value));}
     const fallback=h.container.querySelector('.poc-diff-notice');
-    if(actual&&actual!==locale){assert.equal(effective(fallback),'en');assert([...fallback.querySelectorAll('span')].every(node=>effective(node)===locale));assert.equal(fallback.textContent,new Intl.DisplayNames([locale],{type:'language'}).of(locale)+' is unavailable in both texts. Showing '+new Intl.DisplayNames([locale],{type:'language'}).of(actual)+'.');}
+    if(actual&&actual!==locale){assert.equal(effective(fallback),'en');assert([...fallback.querySelectorAll('span')].every(node=>effective(node)===locale));assert.equal(fallback.textContent,new Intl.DisplayNames([locale],{type:'language'}).of(locale)+' is unavailable in one or both texts. Showing '+new Intl.DisplayNames([locale],{type:'language'}).of(actual)+'.');}
     else assert.equal(fallback,null,'unknown metadata never invents a fallback-language notice');
+    await h.click([...h.container.querySelectorAll('.poc-diff-views button')].find(node=>node.textContent==='Full text'));
+    assert.equal(effective(h.container.querySelector('.poc-diff-reader h5')),'en');assert.equal(effective(h.container.querySelector('.poc-diff-reader .poc-diff-reference')),'en');
+    assert.equal(effective(h.container.querySelector('.poc-diff-reader .poc-diff-wording')),actual||'');
+    assert.equal(h.container.querySelector('.poc-diff-reader .poc-diff-wording').textContent,'Exact source wording');
     assert.equal(h.calls.length,1);assert.equal(h.calls[0].searchParams.get('lang'),locale);assert.equal(h.calls[0].searchParams.get('joint'),'RC-10-2026-0001');
   });
 });

@@ -49,12 +49,12 @@ test('comparison announces one narrow settled result; full wording, provenance a
   assert.match(status.textContent,/Original to joint comparison available.*Text language: EN.*1 changed/);
   assert.equal(messages.length,1);assert.equal(document.activeElement,stage);assert.equal(h.container.querySelector('select'),stage);
   const passages=[...h.container.querySelectorAll('.poc-diff-passage p')];assert.equal(passages.length,4);
-  assert.match(passages.map(node=>node.textContent).join(' '),/Full original public passage.*Full revised public passage/);
+  assert.match(passages.map(node=>node.textContent).join(' '),/Full .*original.*revised.* public passage/);
   for(const node of [...passages,...h.container.querySelectorAll('.poc-diff-controls,.poc-diff-documents,.poc-diff-sources,.poc-diff-checkbox')])assert.equal(liveAncestor(node),null);
   assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,2);assert.match(h.container.querySelector('.poc-diff-sources').textContent,/B-10-2026-0441.*2026-10-16T15:00:00Z/);
   assert.equal(h.container.querySelector('.poc-diff-rows').lang,'en');
   await act(async()=>h.container.querySelector('input[type="checkbox"]').click());await settle();
-  assert.equal(h.container.querySelectorAll('.poc-diff-row').length,2);assert.equal(messages.length,1,'showing unchanged passages must not repeat completion');
+  assert.equal(h.container.querySelectorAll('.poc-diff-row').length,1);assert.equal(messages.length,1,'filtering unchanged passages must not repeat completion');
   for(const paragraph of h.container.querySelectorAll('.poc-diff-passage p'))assert.equal(liveAncestor(paragraph),null);
   assert.equal(h.requests.length,1);assert(status.textContent.length<180);assert.doesNotMatch(status.textContent,/Full original|Full revised|Full unchanged|2026-10-16|https:/);
 });
@@ -92,10 +92,10 @@ test('errors and unavailable results stay concise, retry repeats deliberate outc
 test('missing summaries preserve unknown counts and known passages without claiming no differences',async t=>{
   const h=await harness(t);await h.render();await h.respond(0,{summary:null});await settle();
   assert.equal(h.container.querySelector('.poc-diff-summary').textContent,'— changed · — only in original · — only in joint');
-  assert.match(h.container.querySelector('.poc-diff-checkbox').textContent,/Show unchanged passages \(—\)/);assert.equal(h.container.querySelectorAll('.poc-diff-row').length,1);
+  assert.match(h.container.querySelector('.poc-diff-checkbox').textContent,/Show unchanged passages \(—\)/);assert.equal(h.container.querySelectorAll('.poc-diff-row').length,2);
   assert.match(h.status().textContent,/Comparison counts unavailable/);assert.doesNotMatch(h.status().textContent,/0 changed/);assert.doesNotMatch(h.container.textContent,/No wording differences were found/);
   await h.change('Stages','original-adopted');await h.respond(1,{summary:null,rows:[]});await settle();
-  assert.match(h.container.textContent,/No changed passages are displayed. Comparison counts are unavailable/);assert.doesNotMatch(h.container.textContent,/No wording differences were found/);
+  assert.match(h.container.textContent,/No comparison passages are available. Comparison counts are unavailable/);assert.doesNotMatch(h.container.textContent,/No wording differences were found/);
   await h.change('Stages','joint-adopted');await h.respond(2,{summary:{changed:0,added:0,removed:0,unchanged:1,referenceChanged:0},rows:comparison(h.requests[2]).rows.slice(1)});await settle();
   assert.match(h.container.textContent,/No wording differences were found/);assert.match(h.status().textContent,/0 changed/);
 });
@@ -104,10 +104,10 @@ test('saved sources and cached refresh failures retain wording and provenance wi
   const h=await harness(t);let now=Date.now();t.mock.method(Date,'now',()=>now);
   await h.render();await h.respond(0,{sources:[{url:'https://data.europarl.europa.eu/eli/dl/event/MTG-PL-2026-10-08',fetchedAt:'2026-10-16T15:00:00Z',stale:true,refreshError:'Source refresh failed'}]});await settle();
   assert.match(h.status().textContent,/comparison available.*Showing saved sources/);assert.match(h.container.textContent,/Showing saved sources while Parliament’s data refreshes/);
-  await h.clear();now+=31_000;await h.render();assert.equal(h.requests.length,2);assert.equal(h.status().textContent,'');assert.equal(h.container.querySelectorAll('.poc-diff-row').length,1,'cached wording remains while refreshing');
+  await h.clear();now+=31_000;await h.render();assert.equal(h.requests.length,2);assert.equal(h.status().textContent,'');assert.equal(h.container.querySelectorAll('.poc-diff-row').length,2,'cached wording remains while refreshing');
   await h.respond(1,{error:'Refresh unavailable'},503);await settle();
-  assert.equal(h.status().textContent,'Original to joint comparison refresh failed. Showing saved comparison.');assert.equal(h.container.querySelectorAll('.poc-diff-row').length,1);assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,2);
+  assert.equal(h.status().textContent,'Original to joint comparison refresh failed. Showing saved comparison.');assert.equal(h.container.querySelectorAll('.poc-diff-row').length,2);assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,2);
   assert.match(h.container.querySelector('.poc-diff-error').textContent,/Refresh unavailable/);assert.equal(liveAncestor(h.container.querySelector('.poc-diff-passage p')),null);
-  await act(async()=>h.container.querySelector('.poc-diff-error button').click());assert.equal(h.status().textContent,'');assert.equal(h.container.querySelectorAll('.poc-diff-row').length,1);
+  await act(async()=>h.container.querySelector('.poc-diff-error button').click());assert.equal(h.status().textContent,'');assert.equal(h.container.querySelectorAll('.poc-diff-row').length,2);
   await h.respond(2);await settle();assert.match(h.status().textContent,/comparison available/);assert.doesNotMatch(h.status().textContent,/refresh failed|Showing saved/);
 });

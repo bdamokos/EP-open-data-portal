@@ -86,7 +86,7 @@ test('requested comparison language and actual fallback remain distinct while na
   assert.equal(h.requests[0].url.searchParams.get('lang'),'hu');
   await h.finish(h.requests[0],comparison('original-joint','hu',{textLanguage:'en'}));
   const select=h.language();assert(select);select.focus();assert.equal(select.value,'en');
-  assert.equal(h.container.querySelector('.poc-diff-rows').lang,'en');assert.match(h.container.querySelector('.poc-diff-notice').textContent,/is unavailable in both texts\. Showing/);
+  assert.equal(h.container.querySelector('.poc-diff-rows').lang,'en');assert.match(h.container.querySelector('.poc-diff-notice').textContent,/is unavailable in one or both texts\. Showing/);
   await h.change(select,'fr');assert.equal(select.value,'fr');assert(h.language()===select);
   assert.equal(h.requests.at(-1).url.searchParams.get('lang'),'fr');assert.equal(h.container.querySelector('.poc-diff-rows'),null);
   await h.finish(h.requests.at(-1),comparison('original-joint','fr',{textLanguage:'en',availableLanguages:['en']}));
@@ -108,7 +108,7 @@ test('unadmitted actual language metadata keeps the valid requested choice witho
     assert.deepEqual([...select.options].map(option=>option.textContent),admitted.map(code=>new Intl.DisplayNames(['hu'],{type:'language'}).of(code)));
     assert.equal(h.container.querySelector('.poc-diff-rows').lang,actual,'selector validity does not rewrite actual source-language metadata');
     assert.equal(h.container.querySelector('.poc-diff-documents a').textContent,'Source DOCX · '+actual.toUpperCase()+' ↗');
-    assert.match(h.container.querySelector('.poc-diff-notice').textContent,/is unavailable in both texts\. Showing/);
+    assert.match(h.container.querySelector('.poc-diff-notice').textContent,/is unavailable in one or both texts\. Showing/);
     await h.wait();assert.match(h.status().textContent,new RegExp('Text language: '+actual.toUpperCase()+'\\.'));
     assert(!h.status().textContent.includes(body));
   });
