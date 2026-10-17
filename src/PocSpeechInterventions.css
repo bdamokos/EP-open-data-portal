@@ -7,17 +7,19 @@
 .intervention-statistics{margin:1.2rem 0 1.5rem;padding:1.1rem;border-top:3px solid #155e71;background:#f5f8f8;border-radius:3px}
 .intervention-stats-heading,.intervention-sequence-heading{display:flex;align-items:center;justify-content:space-between;gap:.7rem;flex-wrap:wrap}
 .intervention-stats-heading h3,.intervention-sequence-heading h4{margin:0;font-size:1rem}
-.intervention-stats-heading>span,.intervention-caption{font-size:.78rem;color:#53636c;line-height:1.6}
+.intervention-stats-meta,.intervention-caption{font-size:.78rem;color:#53636c;line-height:1.6}
+.intervention-stats-meta{display:flex;align-items:center;gap:.5rem}
+.intervention-counting{display:inline-flex;align-items:center}
+.intervention-spinner{width:.85rem;height:.85rem;box-sizing:border-box;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:intervention-counting 1s linear infinite}
+.intervention-counting-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@keyframes intervention-counting{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.intervention-spinner{animation:none}}
 .intervention-stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.8rem;margin-top:1.1rem}
 .intervention-stats-grid>div{display:grid;grid-template-columns:1.2rem 1fr;align-items:center;gap:.2rem .4rem;color:#1b536d}
 .intervention-stats-grid strong{font-size:1.8rem;line-height:1.2;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
 .intervention-stats-grid span{grid-column:1/-1;font-size:.74rem;color:#334850;line-height:1.4}
 .intervention-statistics button,.intervention-context button{font:inherit;cursor:pointer}
-.intervention-statistics>button,.intervention-sequence-heading button{border:1px solid #becdd2;border-radius:4px;background:white;color:#155e71;padding:.4rem .65rem;font-size:.78rem}
-.intervention-group-counts{display:flex;flex-wrap:wrap;gap:.5rem 1rem;font-size:.8rem;color:#445b36}
-.intervention-source{font-size:.76rem;color:#5c6870;margin:.8rem 0 .2rem;line-height:1.6}
-.intervention-source summary{cursor:pointer;text-decoration:underline;text-underline-offset:3px}
-.intervention-source a{display:block;overflow-wrap:anywhere}
+.intervention-sequence-heading button{border:1px solid #becdd2;border-radius:4px;background:white;color:#155e71;padding:.4rem .65rem;font-size:.78rem}
 .intervention-context{margin:.8rem 0 1.1rem;border-block:1px solid #d9e1e4}
 .intervention-context-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;padding:.8rem 0;background:transparent;border:0;color:#165a70;text-align:left;font-weight:650!important}
 .intervention-debate{padding:.25rem 0 1rem}
@@ -37,11 +39,10 @@
 .intervention-reply{display:block;font-size:.72rem;color:#596e82;margin:.2rem 0}
 .intervention-connected-text{margin:.65rem 0;padding:.65rem .85rem;border-left:2px solid #77a9ca;background:#f7fafc;color:#183c60;font-size:.9rem;line-height:1.75;overflow-wrap:anywhere}
 .intervention-connected-text p{margin:.5rem 0}
-.intervention-context button:focus-visible,.intervention-statistics button:focus-visible,.intervention-source summary:focus-visible{outline:2px solid #155e71;outline-offset:3px}
+.intervention-context button:focus-visible,.intervention-statistics button:focus-visible{outline:2px solid #155e71;outline-offset:3px}
 .poc .intervention-context-toggle{padding:.8rem 0;background:transparent;color:#165a70}
 .poc .intervention-read{background:transparent;color:#164f6b;padding:0;min-height:44px}
-.poc .intervention-sequence-heading button,.poc .intervention-statistics>button{background:white;color:#155e71;padding:.4rem .65rem;font-size:.78rem}
+.poc .intervention-sequence-heading button{background:white;color:#155e71;padding:.4rem .65rem;font-size:.78rem}
 .poc .intervention-stats-heading h3{font-size:1rem;margin:0}
 .poc .intervention-read small{font-size:.72rem;color:#62717d}
-.poc .intervention-source a{color:#155e71}
 @media(max-width:620px){.intervention-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.intervention-stats-grid>div:first-child{grid-column:1/-1}.intervention-statistics{padding:.85rem}.intervention-sequence>li{gap:.5rem}.intervention-sequence-heading h4{font-size:.95rem}}
