@@ -1,4 +1,4 @@
-# Parliament explorer
+# European Parliament data explorer
 
 Explore Members of the European Parliament, written questions, plenary debates, votes and legislative dossiers. Word clouds lead to the underlying speeches, with the selected words highlighted. Questions can be explored by topic, time and author country. Following MEPs is stored in the browser.
 
