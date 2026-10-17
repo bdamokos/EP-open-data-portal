@@ -81,12 +81,6 @@ function evidenceForMember(member, date, matchType) {
     ...(member?.fetchedAt != null ? { fetchedAt: member.fetchedAt } : {}),
   };
 }
-function fullNameMatches(member, key) {
-  return Boolean(member?.givenName && member?.familyName && [
-    `${member.givenName} ${member.familyName}`,
-    `${member.familyName} ${member.givenName}`,
-  ].some(value => normalized(value) === key));
-}
 function aliasValidity(alias, date, relatedSittingDates) {
   if (alias.sittingDate === date) return 'sitting_date';
   if (relatedSittingDates.has(alias.sittingDate)) return 'related_sitting';
@@ -100,30 +94,46 @@ function aliasValidity(alias, date, relatedSittingDates) {
 // sittings through exact document/vote-parent links, never date proximity.
 // Complete given/family or family/given names can match the roster.
 // The returned person ID is a derived authorship link, never API authorship data.
-export function resolveAmendmentAuthors(names, { members = [], aliases = [], date, relatedSittingDates = [] } = {}) {
+// Reuse only within one immutable roster/alias/date context. Construct a new
+// resolver when any of those inputs changes; no source data is cached globally.
+export function createAmendmentAuthorResolver({ members = [], aliases = [], date, relatedSittingDates = [] } = {}) {
   const relatedDates = new Set(array(relatedSittingDates).filter(value => day(value)));
-  const validMembers = array(members).filter(member => id(member?.id ?? member?.identifier));
-  const memberMap = new Map();
-  for (const member of validMembers) {
-    const personId = id(member.id ?? member.identifier);
-    if (!memberMap.has(personId)) memberMap.set(personId, []);
-    memberMap.get(personId).push(member);
+  const memberMap = new Map(), fullNames = new Map();
+  const append = (map, key, value) => {
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(value);
+  };
+  for (const member of array(members)) {
+    const personId = id(member?.id ?? member?.identifier);
+    if (!personId) continue;
+    append(memberMap, personId, member);
+    if (member.givenName && member.familyName) {
+      // Equivalent forward/reversed forms match this record once. Separate
+      // duplicate input records keep their original evidence multiplicity.
+      for (const key of new Set([normalized(`${member.givenName} ${member.familyName}`), normalized(`${member.familyName} ${member.givenName}`)])) append(fullNames, key, member);
+    }
   }
-  const validAliases = array(aliases).filter(alias => id(alias?.personId) && normalized(alias?.alias) && day(alias?.sittingDate) && officialUrl(alias?.sourceUrl) && timestamp(alias?.fetchedAt));
-  return array(names).map(name => {
+  const aliasNames = new Map(), aliasDates = new Map();
+  for (const alias of array(aliases)) {
+    const key = normalized(alias?.alias);
+    if (!id(alias?.personId) || !key || !day(alias?.sittingDate) || !officialUrl(alias?.sourceUrl) || !timestamp(alias?.fetchedAt)) continue;
+    append(aliasNames, key, alias);
+    aliasDates.set(alias, aliasValidity(alias, date, relatedDates));
+  }
+  return names => array(names).map(name => {
     const base = { name, personId: null, method: null, evidence: [], status: 'missing' };
     if (!day(date)) return { ...base, status: 'missing_date' };
     const key = normalized(name);
     if (!key) return base;
-    const fullMatches = validMembers.filter(member => fullNameMatches(member, key));
-    const aliasMatches = validAliases.filter(alias => normalized(alias.alias) === key);
-    const datedAliases = aliasMatches.filter(alias => aliasValidity(alias, date, relatedDates));
+    const fullMatches = fullNames.get(key) || [];
+    const aliasMatches = aliasNames.get(key) || [];
+    const datedAliases = aliasMatches.filter(alias => aliasDates.get(alias));
     const candidateEvidence = fullMatches.map(member => evidenceForMember(member, date, 'full_name'));
     for (const alias of datedAliases) {
       const matchingMembers = memberMap.get(id(alias.personId)) || [];
       const memberEvidence = matchingMembers.map(member => evidenceForMember(member, date, 'mandate'));
       candidateEvidence.push({
-        type: 'voting_alias', ...alias, personId: id(alias.personId), date, dateValidity: aliasValidity(alias, date, relatedDates),
+        type: 'voting_alias', ...alias, personId: id(alias.personId), date, dateValidity: aliasDates.get(alias),
         mandates: memberEvidence.flatMap(item => item.mandates),
         activeMandate: memberEvidence.find(item => item.activeMandate)?.activeMandate || null,
       });
@@ -141,4 +151,8 @@ export function resolveAmendmentAuthors(names, { members = [], aliases = [], dat
     if (allIds.length) return { ...base, evidence: candidateEvidence, status: candidateEvidence.some(item => !item.mandates.length) ? 'missing_mandate' : 'inactive' };
     return { ...base, evidence: aliasMatches.map(alias => ({ type: 'voting_alias', ...alias, date, reason: 'missing_alias_date' })) };
   });
+}
+
+export function resolveAmendmentAuthors(names, options = {}) {
+  return createAmendmentAuthorResolver(options)(names);
 }

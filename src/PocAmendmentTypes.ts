@@ -13,7 +13,7 @@ export type AmendmentSplit = AmendmentSplitProvenance & {id:string|null;requestI
 export type AmendmentVariant = {
   listId?:string|null;date?:string|null;documentDate?:string|null;listDocumentDate?:string|null;dateBasis?:string|null;language?:string|null;
   proposerDate?:string|null;proposerDateBasis?:string|null;
-  targetLabel?:string|null;originalText?:string|null;proposedText?:string|null;authors?:AmendmentAuthor[];
+  targetLabel?:string|null;targetLabelLanguage?:string|null;targetLabelSource?:AmendmentSource|null;originalText?:string|null;proposedText?:string|null;authors?:AmendmentAuthor[];
   committeeProposer?:string|null;onBehalfOf?:string|string[]|null;sources?:AmendmentSource[];justification?:string|null;
   wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;
 };
@@ -23,12 +23,12 @@ export type Amendment = {
   proposerDate?:string|null;proposerDateBasis?:string|null;
   wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;
   identifierBasis?:string;officialIds?:string[];
-  procedureIds?:string[];targetLabel?:string|null;originalText?:string|null;proposedText?:string|null;language?:string|null;
+  procedureIds?:string[];targetLabel?:string|null;targetLabelLanguage?:string|null;targetLabelSource?:AmendmentSource|null;originalText?:string|null;proposedText?:string|null;language?:string|null;
   authors?:AmendmentAuthor[];onBehalfOf?:string|string[]|null;decisions?:AmendmentDecision[];splitParts?:AmendmentSplit[];
   targetDocumentDate?:string|null;outcomeProofVersion?:number;splitCoverageComplete?:boolean;
   splitCoverage?:{requestId:string|null;registryRequestKey:string|null;componentCount:number|null;componentIds:string[];recordedComponentCount:number;recordedComponentIds:string[];boundComponentCount:number;boundComponentIds:string[];unboundComponentCount:number|null;complete:boolean}[];
   authorMatch?:{memberId:string;basis:'aggregate'|'variant'|'aggregate-and-variant';variantListIds:string[]};
-  outcome:AmendmentOutcome;topics?:{id:string;label:string;basis:'dossier'|'target'}[];sources?:AmendmentSource[];gaps?:unknown[];
+  outcome:AmendmentOutcome;topics?:{id:string;label:string;basis:'dossier'|'target';language?:string|null}[];sources?:AmendmentSource[];gaps?:unknown[];
 };
 export type AmendmentPage = {
   items:Amendment[];total:number;offset:number;limit:number;

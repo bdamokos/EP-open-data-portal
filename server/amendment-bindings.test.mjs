@@ -6,7 +6,7 @@ import path from 'node:path';
 import { ActivityStore } from './activity-index-store.mjs';
 import { ActivityWorker } from './activity-index-worker.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
-import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
+import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, distributionEvidenceFor } from './amendments.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { amendmentsPage, amendmentFailures } from './amendments-store.mjs';
 import { parseSavedSplits, rebuildAmendmentTarget } from './amendments-worker.mjs';
@@ -18,7 +18,7 @@ const source={url:'https://data.europarl.europa.eu/api/v2/meetings/'+sitting+'/d
 const splitSource={url:source.url.replace('/decisions?','/vote-results?'),fetchedAt};
 const wordingSource={url:'https://data.europarl.europa.eu/distribution/example/bindings_en.docx',language:'en',fetchedAt};
 const sourceDescriptor={url:wordingSource.url,language:'en',byteSize:null};
-const sourceFreshness={version:1,status:'fresh',descriptor:sourceDescriptor,sourceDescriptor};
+const sourceFreshness={version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,status:'fresh',distributionState:'available',descriptor:sourceDescriptor,sourceDescriptor};
 const amendmentId=(number,target=targetId)=>target+'-AM-'+number;
 const amendmentRef=(number,target=targetId)=>'eli/dl/doc/'+amendmentId(number,target);
 const component=(number)=>({id:'eli/dl/doc/'+sitting+'-VOT-ITM-123-SPLIT-1-'+number,number:String(number),numbering:number,expressionContent:{en:'<partValue>'+(number===1?'Text as a whole without the word: ‘old’':'‘old’')+'</partValue>'}});
@@ -40,12 +40,16 @@ function setup(t) {
 function seedTarget({store,generation},numbers=[1],id=targetId) {
   const listId=id+'-AM-001-004';
   const list={id:'eli/dl/doc/'+listId,identifier:listId,targetDocumentId:id,document_date:tabled,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+id],extraction:{amendments:numbers.map(number=>({number,authors:[],date:tabled,targetLabel:'Article '+number,originalText:'Original '+number,proposedText:'Proposal '+number,language:'en',gaps:[]})),gaps:[],language:'en',sourceUrl:'https://data.europarl.europa.eu/distribution/example/'+listId+'_en.docx',fetchedAt,parserVersion:AMENDMENT_EXTRACTION_VERSION}};
+  list.is_realized_by=[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:list.extraction.sourceUrl}]}];
+  list.amendmentDistributionDeclared=true;
+  list.distributionEvidence=distributionEvidenceFor(list,{url:'https://data.europarl.europa.eu/api/v2/documents/'+listId,fetchedAt,language:null});
+  list.extraction.sourceDescriptor={url:list.extraction.sourceUrl,language:'en',byteSize:null};
   const target={id:'eli/dl/doc/'+id,identifier:id,amendmentLinksVersion:AMENDMENT_LINKS_VERSION,document_date:tabled,work_type:'def/ep-document-types/REPORT_PLENARY',title_dcterms:{en:'Public report'},inverse_foresees_change_of:[list],inverse_based_on_a_realization_of:['eli/dl/event/'+sitting+'-VOT-ITM-123']};
   store.putSource(generation,'/plenary-documents/'+id,'document',target,fetchedAt);
   store.putSource(generation,'amendment:list:'+listId,'amendment-list',list,fetchedAt);
 }
-function seedDecisions({store,worker,generation},decisions,requests=[]) {
-  const work=parseSavedSplits(worker,{amendmentVersion:AMENDMENTS_VERSION,amendmentProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION,decisions,splitRequests:requests,coverage:{missingResultIds:[],missingDecisionIds:[]},truncated:false,lastRefreshFailure:null,sources:[source,splitSource]});
+function seedDecisions({store,worker,generation},decisions,requests=[],{projectionVersion=AMENDMENT_SITTING_PROJECTION_VERSION}={}) {
+  const work=parseSavedSplits(worker,{amendmentVersion:AMENDMENTS_VERSION,amendmentProjectionVersion:projectionVersion,decisions,splitRequests:requests,coverage:{missingResultIds:[],missingDecisionIds:[]},truncated:false,lastRefreshFailure:null,sources:[source,splitSource]});
   store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',work,fetchedAt);
 }
 function cacheRows({store,generation},rows) {
@@ -68,7 +72,7 @@ test('one recorded split vote does not establish an aggregate outcome or ownersh
   const page=amendmentsPage(store,{document:targetId}),[item]=page.items;
   assert.equal(page.total,1);
   assert.equal(item.outcome,'unavailable');
-  assert.equal(item.outcomeProofVersion,1);assert.equal(item.splitCoverageComplete,false);
+  assert.equal(item.outcomeProofVersion,AMENDMENT_OUTCOME_PROOF_VERSION);assert.equal(item.splitCoverageComplete,false);
   assert.deepEqual(item.decisions.map(vote=>[vote.id,vote.partId,vote.outcome]),[[sitting+'-DEC-1',first.id,'ADOPTED']]);
   assert.equal(item.decisions[0].componentBinding,'single-amendment');
   assert.deepEqual(item.decisions[0].componentReferences,[first.id]);
@@ -90,7 +94,7 @@ test('explicit decisions for all known parts allow the amendment aggregate outco
   rebuildAmendmentTarget(worker,generation,targetId);
   const [item]=amendmentsPage(store,{document:targetId}).items;
   assert.equal(item.outcome,'mixed');
-  assert.equal(item.outcomeProofVersion,1);assert.equal(item.splitCoverageComplete,true);
+  assert.equal(item.outcomeProofVersion,AMENDMENT_OUTCOME_PROOF_VERSION);assert.equal(item.splitCoverageComplete,true);
   assert.deepEqual(item.splitParts.map(part=>part.id),[first.id,second.id]);
   assert.deepEqual(item.splitCoverage,[{requestId:request.id,registryRequestKey:request.id,componentCount:2,componentIds:[first.id,second.id],recordedComponentCount:2,recordedComponentIds:[first.id,second.id],boundComponentCount:2,boundComponentIds:[first.id,second.id],unboundComponentCount:0,complete:true}]);
   assert.equal(amendmentsPage(store,{document:targetId,outcome:'mixed'}).total,1);
@@ -109,7 +113,7 @@ test('a collective split preserves the complete official subject set without ass
   assert.equal(page.total,3);
   for(const item of page.items) {
     assert.equal(item.outcome,'unavailable');
-    assert.equal(item.outcomeProofVersion,1);assert.equal(item.splitCoverageComplete,false);
+    assert.equal(item.outcomeProofVersion,AMENDMENT_OUTCOME_PROOF_VERSION);assert.equal(item.splitCoverageComplete,false);
     assert.deepEqual(item.splitParts,[]);
     assert.equal(item.decisions.length,1);
     const [vote]=item.decisions;
@@ -135,7 +139,7 @@ test('a whole collective decision remains an explicit outcome for all unique ame
   assert.equal(page.total,3);
   for(const item of page.items) {
     assert.equal(item.outcome,'ADOPTED');assert.deepEqual(item.splitParts,[]);
-    assert.equal(item.outcomeProofVersion,1);assert.equal(item.splitCoverageComplete,true);assert.deepEqual(item.splitCoverage,[]);
+    assert.equal(item.outcomeProofVersion,AMENDMENT_OUTCOME_PROOF_VERSION);assert.equal(item.splitCoverageComplete,true);assert.deepEqual(item.splitCoverage,[]);
     assert.equal(item.decisions.length,1);assert.equal(item.decisions[0].collective,true);
     assert.deepEqual(item.decisions[0].amendmentIds,subjects.map(reference=>reference.replace('eli/dl/doc/','')));
   }
@@ -173,6 +177,75 @@ test('legacy and partial cached split bindings are withheld consistently by read
     assert.equal(unavailable.coverage.complete,false,mode);
     assert.deepEqual(cachedSnapshot(store),before,mode);
   }
+});
+
+test('a cached version-one split completeness proof is invalidated on reads before its source is refreshed',t=>{
+  const context=setup(t),{store}=context,request=split(),first=request.created_a_realization_of[0];
+  const proof={version:1,requestId:request.id,registryRequestKey:request.id,componentCount:1,componentIds:[first.id],sourceComplete:true};
+  const vote={id:sitting+'-DEC-1',amendmentIds:[amendmentId(1)],collective:false,sittingId:sitting,date:'2026-10-07',outcome:'ADOPTED',partId:first.id,partNumber:1,componentBinding:'single-amendment',componentReferences:[first.id],requestCoverages:[proof],source};
+  const oldCoverage={requestId:request.id,registryRequestKey:request.id,componentCount:1,componentIds:[first.id],recordedComponentCount:1,recordedComponentIds:[first.id],boundComponentCount:1,boundComponentIds:[first.id],unboundComponentCount:0,complete:true};
+  cacheRows(context,[row(1,{outcome:'ADOPTED',outcomeProofVersion:1,splitCoverageComplete:true,splitCoverage:[oldCoverage],decisions:[vote],splitParts:[{id:first.id,number:1,requestId:request.id,requestCoverage:proof,status:'parsed',grounding:'not_attempted',source:splitSource}]})]);
+  const before=cachedSnapshot(store),page=amendmentsPage(store,{document:targetId}),[item]=page.items;
+  assert.equal(item.outcome,'unavailable');assert.equal(item.outcomeProofVersion,AMENDMENT_OUTCOME_PROOF_VERSION);
+  assert.equal(item.splitCoverageComplete,false);assert.equal(item.splitCoverage[0].complete,false);
+  assert.equal(item.decisions[0].outcome,'ADOPTED');assert.equal(item.decisions[0].partId,first.id);
+  assert.deepEqual(item.splitParts.map(part=>part.id),[first.id]);
+  assert.equal(page.coverage.complete,false);
+  assert.equal(amendmentsPage(store,{document:targetId,outcome:'ADOPTED'}).total,0);
+  const unavailable=amendmentsPage(store,{document:targetId,outcome:'unavailable'});
+  assert.equal(unavailable.total,1);assert.equal(unavailable.items[0].outcome,'unavailable');
+  assert.deepEqual(cachedSnapshot(store),before);
+});
+
+test('a local split reparse preserves legacy projection provenance until a complete current source graph restores the outcome',async t=>{
+  const context=setup(t),{store,worker,generation}=context,request=split(),[first,second]=request.created_a_realization_of;
+  seedTarget(context);
+  seedDecisions(context,[decision(1,[amendmentRef(1),first.id])],[{...request,created_a_realization_of:[first]}],{projectionVersion:2});
+  const key='amendment:reparse:legacy-projection',sourceKey=motionSourceKey(sitting);
+  store.enqueue(generation,key,'amendment-reparse',{sourceKey},200);
+  const task=store.nextTask(generation);assert.equal(task.key,key);
+  await worker.task(task);
+  const reparsed=store.source(generation,sourceKey);
+  assert.equal(reparsed.work.amendmentProjectionVersion,2);assert.equal(reparsed.fetchedAt,fetchedAt);
+  const legacyPage=amendmentsPage(store,{document:targetId}),[legacy]=legacyPage.items;
+  assert.equal(legacy.outcome,'unavailable');assert.equal(legacy.splitCoverageComplete,false);
+  assert.equal(legacy.splitCoverage[0].componentCount,1);assert.equal(legacy.splitCoverage[0].complete,false);
+  assert.equal(legacy.decisions[0].outcome,'ADOPTED');assert.equal(legacy.decisions[0].requestCoverages[0].sourceComplete,false);
+  assert.equal(amendmentsPage(store,{document:targetId,outcome:'ADOPTED'}).total,0);
+  seedDecisions(context,[decision(1,[amendmentRef(1),first.id]),decision(2,[amendmentRef(1),second.id])],[request]);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  const current=amendmentsPage(store,{document:targetId,outcome:'ADOPTED'});
+  assert.equal(store.source(generation,sourceKey).work.amendmentProjectionVersion,AMENDMENT_SITTING_PROJECTION_VERSION);
+  assert.equal(current.total,1);assert.equal(current.items[0].outcome,'ADOPTED');assert.equal(current.items[0].splitCoverageComplete,true);
+  assert.deepEqual(current.items[0].splitParts.map(part=>part.id),[first.id,second.id]);
+  assert.equal(current.items[0].splitCoverage[0].componentCount,2);assert.equal(current.items[0].splitCoverage[0].boundComponentCount,2);
+  assert.equal(amendmentsPage(store,{document:targetId,outcome:'unavailable'}).total,0);
+});
+
+test('a current sitting projection cannot upgrade the completeness of an absent retained legacy request',t=>{
+  const context=setup(t),{store,worker,generation}=context,request=split(),[first,second]=request.created_a_realization_of;
+  seedTarget(context);
+  const sourceWork={amendmentVersion:AMENDMENTS_VERSION,coverage:{missingResultIds:[],missingDecisionIds:[]},truncated:false,lastRefreshFailure:null,sources:[source,splitSource]};
+  const prior=parseSavedSplits(worker,{...sourceWork,amendmentProjectionVersion:2,splitRequests:[{...request,created_a_realization_of:[first]}],decisions:[decision(1,[amendmentRef(1),first.id])]});
+  const fresh=parseSavedSplits(worker,{...sourceWork,amendmentProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION,splitRequests:[],decisions:[decision(1,[amendmentRef(1),first.id])]},{priorWork:prior});
+  store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',fresh,fetchedAt);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  assert.equal(fresh.amendmentProjectionVersion,AMENDMENT_SITTING_PROJECTION_VERSION);
+  const retained=fresh.amendmentEvidence || fresh;
+  assert.equal(retained.parsedSplits.length,1);assert.equal(retained.parsedSplits[0].sourceProjectionVersion,2);
+  const [item]=amendmentsPage(store,{document:targetId}).items;
+  assert.equal(item.outcome,'unavailable');assert.equal(item.splitCoverageComplete,false);
+  assert.equal(item.decisions[0].outcome,'ADOPTED');assert.equal(item.decisions[0].partId,first.id);
+  assert.equal(item.splitCoverage[0].componentCount,1);assert.equal(item.splitCoverage[0].complete,false);
+  assert.equal(amendmentsPage(store,{document:targetId,outcome:'ADOPTED'}).total,0);
+  const replaced=parseSavedSplits(worker,{...sourceWork,amendmentProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION,splitRequests:[request],decisions:[decision(1,[amendmentRef(1),first.id]),decision(2,[amendmentRef(1),second.id])]},{priorWork:fresh});
+  store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',replaced,fetchedAt);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  assert.equal((replaced.amendmentEvidence || replaced).parsedSplits[0].sourceProjectionVersion,AMENDMENT_SITTING_PROJECTION_VERSION);
+  const recovered=amendmentsPage(store,{document:targetId,outcome:'ADOPTED'});
+  assert.equal(recovered.total,1);assert.equal(recovered.items[0].splitCoverageComplete,true);
+  assert.deepEqual(recovered.items[0].splitParts.map(part=>part.id),[first.id,second.id]);
+  assert.equal(recovered.items[0].splitCoverage[0].componentCount,2);assert.equal(recovered.items[0].splitCoverage[0].complete,true);
 });
 
 test('a cached legacy collective split loses inferred per-amendment ownership on a pure read',t=>{

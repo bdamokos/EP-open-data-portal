@@ -2,9 +2,9 @@ import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='9';
+export const AMENDMENT_EXTRACTION_VERSION='10';
 
-const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-text-loss','text-unavailable','numbering-warning']);
+const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-text-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
 const nonTextContent=key=>/(?:^|:)(?:oMath|oMathPara)$/.test(key)||['w:drawing','w:pict','w:object','w:altChunk','w:contentPart','w:subDoc'].includes(key);
 const CONTENT_LOSSES={
@@ -24,7 +24,7 @@ const ROW_CHILDREN=new Set(['w:tblPrEx','w:trPr','w:tc']);
 const CELL_CHILDREN=new Set(['w:tcPr','w:p','w:tbl']);
 const STRUCTURAL_REVISIONS=new Set(['w:ins','w:del','w:cellIns','w:cellDel','w:cellMerge','w:moveFrom','w:moveTo']);
 const STRUCTURAL_MOVES=new Set(['w:moveFromRangeStart','w:moveFromRangeEnd','w:moveToRangeStart','w:moveToRangeEnd']);
-const PROPERTY_SNAPSHOTS=new Set(['w:tblPrChange','w:tblPrExChange','w:trPrChange','w:tcPrChange','w:pPrChange','w:rPrChange']);
+const PROPERTY_SNAPSHOTS=new Set(['w:tblPrChange','w:tblPrExChange','w:tblGridChange','w:trPrChange','w:tcPrChange','w:pPrChange','w:rPrChange']);
 function structuralRevision(nodes) {
   for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
     if(PROPERTY_SNAPSHOTS.has(key))continue;
@@ -42,6 +42,43 @@ const property=(nodes,key)=>attribute(child(nodes,key),'val');
 const parser=()=>new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false});
 const clean=value=>String(value??'').replace(/\r\n?/g,'\n').replace(/[ \t]+\n/g,'\n').trim();
 const enabled=node=>node?!['0','false','off'].includes(String(attribute(node,'val')).toLowerCase()):undefined;
+
+const direct=(nodes,key)=>(nodes||[]).filter(node=>Object.hasOwn(node,key));
+const emptyGeometry=nodes=>!(nodes||[]).some(node=>Object.entries(node).some(([key,value])=>key!==':@'&&(key!=='#text'||String(value).trim())));
+function geometryNumber(nodes,key,fallback) {
+  const matches=direct(nodes,key);
+  if(!matches.length)return fallback;
+  if(matches.length!==1||!emptyGeometry(matches[0][key]))return null;
+  const value=attribute(matches[0],'val');
+  return typeof value==='string'&&/^\d+$/.test(value)&&Number.isSafeInteger(Number(value))?Number(value):null;
+}
+function declaredGridSupported(nodes) {
+  const grids=direct(nodes,'w:tblGrid');
+  if(grids.length>1)return false;
+  if(!grids.length)return true;
+  const grid=grids[0]['w:tblGrid'],columns=direct(grid,'w:gridCol');
+  if(unsupportedChildren(grid,new Set(['w:gridCol','w:tblGridChange'])))return false;
+  // An absent/empty declaration does not establish a third column. Historical
+  // tblGridChange snapshots do not describe the current comparison layout.
+  if(columns.length&&columns.length!==2)return false;
+  return columns.every(column=>{
+    const width=attribute(column,'w');
+    return emptyGeometry(column['w:gridCol'])&&(width==null||typeof width==='string'&&/^\d+$/.test(width)&&Number.isSafeInteger(Number(width)));
+  });
+}
+function currentCellGrid(nodes) {
+  const properties=direct(nodes,'w:tcPr'),current=properties[0]?.['w:tcPr'];
+  return {span:geometryNumber(current,'w:gridSpan',1),supported:properties.length<=1&&!direct(current,'w:hMerge').length&&!direct(current,'w:vMerge').length};
+}
+function currentRowGridSupported(nodes,cells) {
+  const properties=direct(nodes,'w:trPr'),current=properties[0]?.['w:trPr'];
+  if(properties.length>1||geometryNumber(current,'w:gridBefore',0)!==0||geometryNumber(current,'w:gridAfter',0)!==0)return false;
+  if(cells.some(cell=>!cell.grid.supported))return false;
+  if(cells.length===2)return cells.every(cell=>cell.grid.span===1);
+  // Public amendment DOCX files use this completely blank, two-column-spanning
+  // separator. It carries no legal wording and does not shift either column.
+  return cells.length===1&&cells[0].grid.span===2&&!cells[0].text&&!cells[0].raw.trim()&&!cells[0].nested&&!cells[0].hasNotes&&!cells[0].losses.length;
+}
 
 // Translation-template tags are literal text in hidden runs. Read those for
 // metadata, but apply Word visibility when extracting the comparison columns.
@@ -158,17 +195,20 @@ function documentBlocks(parts,warnings) {
         // them into the surrounding row (including nested-table descendants).
         let unsupported=unsupportedChildren(value,TABLE_CHILDREN);
         let revised=structuralRevision(children(value,'w:tblPr'))||structuralMove(value);
+        let gridUnsupported=!declaredGridSupported(value);
         const rows=value.filter(n=>n['w:tr']).map(row=>{
           unsupported ||= unsupportedChildren(row['w:tr'],ROW_CHILDREN);
           revised ||= structuralRevision(children(row['w:tr'],'w:trPr'))||structuralRevision(children(row['w:tr'],'w:tblPrEx'))||structuralMove(row['w:tr']);
-          return row['w:tr'].filter(n=>n['w:tc']).map(cell=>{
+          const cells=row['w:tr'].filter(n=>n['w:tc']).map(cell=>{
             const content=paragraphs(cell['w:tc']);
             unsupported ||= unsupportedChildren(cell['w:tc'],CELL_CHILDREN)||content.some(p=>p.unsupportedBody);
             revised ||= structuralRevision(children(cell['w:tc'],'w:tcPr'))||structuralMove(cell['w:tc']);
-            return {text:content.map(p=>p.text).filter(Boolean).join('\n'),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),losses:[...new Set(content.flatMap(p=>p.losses))],symbolLoss:content.some(p=>p.symbolLoss),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"')};
+            return {text:content.map(p=>p.text).filter(Boolean).join('\n'),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),losses:[...new Set(content.flatMap(p=>p.losses))],symbolLoss:content.some(p=>p.symbolLoss),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"'),grid:currentCellGrid(cell['w:tc'])};
           });
+          gridUnsupported ||= !currentRowGridSupported(row['w:tr'],cells);
+          return cells;
         });
-        blocks.push({kind:'table',rows,unsupported,revised});
+        blocks.push({kind:'table',rows,unsupported,revised,gridUnsupported});
       } else if(key!==':@'&&Array.isArray(value))walk(value);
     }
   };
@@ -244,6 +284,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const before=[],after=[];let comparableRows=0,hasTable=false;
     for(const table of group.filter(b=>b.kind==='table')) {
       hasTable=true;
+      if(table.gridUnsupported)gap('comparison-grid',number,'The comparison grid contains unsupported column counts, spans, offsets or merges; both wording columns are withheld.');
       if(table.unsupported)gap('comparison-structure',number,'The comparison contains unsupported wrapped or embedded row/cell content; its wording is withheld.');
       if(table.revised)gap('structural-revision',number,'The comparison contains tracked structural insertion, deletion, merge or move markers; revision acceptance is unresolved and its wording is withheld.');
       let headerConfirmed=false;
