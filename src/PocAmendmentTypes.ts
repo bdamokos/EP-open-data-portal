@@ -12,6 +12,7 @@ export type AmendmentSplitProvenance = {source?:AmendmentSource|null;sourceUrl?:
 export type AmendmentSplit = AmendmentSplitProvenance & {id:string|null;requestId?:string|null;componentIndex?:number|null;number?:number|string|null;description:string|null;language?:string|null;rawDescription?:string|null;sourceDescriptions?:Record<string,string>;plan?:Record<string,unknown>|null;status?:string;failure?:{code?:string;message?:string}|string|null};
 export type AmendmentVariant = {
   listId?:string|null;date?:string|null;documentDate?:string|null;listDocumentDate?:string|null;dateBasis?:string|null;language?:string|null;
+  textIntegrity?:'complete'|'incomplete'|'unavailable'|null;listRelationship?:'current'|'unverified'|'absent-current-relationship'|'conflicting-variants'|null;recordRetained?:boolean;
   proposerDate?:string|null;proposerDateBasis?:string|null;
   targetLabel?:string|null;targetLabelLanguage?:string|null;targetLabelSource?:AmendmentSource|null;originalText?:string|null;proposedText?:string|null;authors?:AmendmentAuthor[];
   committeeProposer?:string|null;onBehalfOf?:string|string[]|null;sources?:AmendmentSource[];justification?:string|null;
@@ -21,6 +22,7 @@ export type Amendment = {
   id:string;number:number|string|null;listId?:string|null;targetDocumentId?:string|null;title?:string|null;titles?:Record<string,string>;date?:string|null;
   documentDate?:string|null;listDocumentDate?:string|null;dateBasis?:string|null;committeeProposer?:string|null;conflicted?:boolean;variants?:AmendmentVariant[];
   proposerDate?:string|null;proposerDateBasis?:string|null;
+  textIntegrity?:'complete'|'incomplete'|'unavailable'|null;listRelationship?:'current'|'unverified'|'absent-current-relationship'|'conflicting-variants'|null;recordRetained?:boolean;
   wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;
   identifierBasis?:string;officialIds?:string[];
   procedureIds?:string[];targetLabel?:string|null;targetLabelLanguage?:string|null;targetLabelSource?:AmendmentSource|null;originalText?:string|null;proposedText?:string|null;language?:string|null;
@@ -33,11 +35,11 @@ export type Amendment = {
 export type AmendmentPage = {
   items:Amendment[];total:number;offset:number;limit:number;
   coverage:{complete:boolean;pending:boolean;gaps?:unknown[];lastUpdated?:string|null;parserVersion?:string|null};
-  failures?:{total:number;unresolved:number};
+  failures?:{total:number;unresolved:number;capacityReached?:boolean};
 };
 export type AmendmentFailure = AmendmentSplitProvenance & {
   requestId:string|null;partId:string|null;registryRequestKey?:string;registryPartKey?:string;observationKey?:string|null;recordKind?:'request'|'component';componentIndex?:number|null;scope?:'request'|'component';description:string|null;language?:string|null;rawDescription?:string|null;sourceDescriptions?:Record<string,string>;parserVersion?:string|null;code?:string;message?:string;
   firstSeen?:string|null;lastSeen?:string|null;occurrences?:number;status?:string;
   firstOccurrence?:string|null;lastOccurrence?:string|null;count?:number;reason?:string|null;
 };
-export type AmendmentFailurePage = {items:AmendmentFailure[];total:number;offset:number;limit:number};
+export type AmendmentFailurePage = {items:AmendmentFailure[];total:number;offset:number;limit:number;capacityReached?:boolean};

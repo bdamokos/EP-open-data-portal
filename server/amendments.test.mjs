@@ -34,7 +34,7 @@ const decision=(number,refs,outcome,extra={})=>({id:'eli/dl/event/'+sitting+'-DE
 const part=(number,description)=>({id:'eli/dl/doc/'+sitting+'-VOT-ITM-123-SPLIT-1-'+number,number:String(number),numbering:number,expressionContent:{en:'<partValue>'+description+'</partValue>'}});
 const request=(parts)=>({id:'eli/dl/event/'+sitting+'-VOT-ITM-123-SPLIT-1',had_activity_type:'def/ep-activities/REQUEST_VOTE_SPLIT',created_a_realization_of:parts});
 const coverage={complete:true,gaps:[],lastUpdated:earlier};
-const metadata={id:targetId,date:tabled,titles:target.title_dcterms,procedureIds:['2025-0233']};
+const metadata={id:targetId,date:tabled,listProjectionVersion:AMENDMENT_LINKS_VERSION,titles:target.title_dcterms,procedureIds:['2025-0233']};
 const row=(number,extra={})=>({id:targetId+'-AM-'+number,targetDocumentId:targetId,number,date:tabled,proposerDate:tabled,proposerDateBasis:'individual-amendment-document',documentDate:tabled,textParserVersion:AMENDMENT_EXTRACTION_VERSION,titles:target.title_dcterms,procedureIds:['2025-0233'],authors:[],decisions:[],gaps:[],...extra});
 const completeSitting=(sittingId=sitting)=>({
   amendmentVersion:AMENDMENTS_VERSION,amendmentProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION,splitRequests:[],coverage:{missingResultIds:[],missingDecisionIds:[]},truncated:false,lastRefreshFailure:null,
