@@ -39,6 +39,7 @@ export type MemberVote = {
     position:MemberVotePosition|null;
   };
   intention:{status:'reported'|'not-reported'|'unavailable';positions:MemberVotePosition[]};
+  sourceConflicts:{fields:string[];census:Record<string,unknown>;named:Record<string,unknown>}|null;
   totals:Record<MemberVotePosition,number|null>;
   namedVoters:{
     available:boolean;

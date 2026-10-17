@@ -16,6 +16,7 @@ const relative=value=>String(value?.id||value||'').replace(/^https?:\/\/data\.eu
 const refs=value=>(Array.isArray(value)?value:value==null?[]:[value]).map(relative);
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const errorInfo=error=>({code:error?.code||'vote_source_unavailable',message:error?.message||'Parliament source could not be read.'});
+const comparable=value=>Array.isArray(value)?value.map(comparable).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,comparable(value[key])])):value;
 
 export function memberVotesQuery(search,{now=Date.now()}={}) {
   const allowed=['lang','week','sitting','limit','offset','decision','snapshot'];
@@ -59,8 +60,9 @@ export class MemberVotes {
         budget.bytes+=bytes;
         coverage.sources.push(sourceEvidence(record,record.payload));coverage.pages++;
         let added=0;
-        for(const node of data)if(nodes.has(relative(node.id))&&JSON.stringify(nodes.get(relative(node.id)))!==JSON.stringify(node))throw new HttpError(502,'vote_source_changed','Parliament changed a repeated source identity during pagination.');
-        for(const node of data){const key=relative(node.id);if(!nodes.has(key)){if(nodes.size>=this.limits.maxRows){coverage.stopReason='row-budget';break;}nodes.set(key,node);added++;}}
+        const pageNodes=new Map();
+        for(const node of data){const key=relative(node.id),previous=pageNodes.get(key)||nodes.get(key);if(previous&&JSON.stringify(comparable(previous))!==JSON.stringify(comparable(node)))throw new HttpError(502,'vote_source_changed','Parliament changed a repeated source identity during pagination.');pageNodes.set(key,node);}
+        for(const [key,node] of pageNodes){if(!nodes.has(key)){if(nodes.size>=this.limits.maxRows){coverage.stopReason='row-budget';break;}nodes.set(key,node);added++;}}
         coverage.rows=nodes.size;
         if(coverage.stopReason==='row-budget'){coverage.state='partial';break;}
         if(!data.length||data.length<size){coverage.state='complete';coverage.stopReason='end';break;}
@@ -119,17 +121,26 @@ export class MemberVotes {
     });
     const allNodes=eligible(all,'-DEC-\\d+'),namedNodes=eligible(named,'-DEC-\\d+'),resultNodes=eligible(results,'-VOT-ITM-\\d+(?:-(?:SPLIT|RCV)-\\d+)?',true),agendaNodes=eligible(agenda,'-[A-Z0-9-]{1,100}');
     const merged=new Map(allNodes.map(n=>[relative(n.id),n]));const conflictingDecisionIds=[];
-    for(const n of namedNodes){const key=relative(n.id),old=merged.get(key);if(old&&['decision_method','decision_outcome','inverse_consists_of'].some(k=>JSON.stringify(old[k])!==JSON.stringify(n[k])))conflictingDecisionIds.push(key);merged.set(key,{...old,...n});}
+    for(const n of namedNodes){
+      const key=relative(n.id),old=merged.get(key);
+      const fields=old?Object.keys(old).filter(k=>!k.startsWith('had_voter_')&&Object.hasOwn(n,k)&&JSON.stringify(comparable(old[k]))!==JSON.stringify(comparable(n[k]))):[];
+      if(fields.length)conflictingDecisionIds.push(key);
+      merged.set(key,{...old,...n,_conflictingSourceObservations:fields.length?{fields,census:Object.fromEntries(fields.map(k=>[k,old[k]])),named:Object.fromEntries(fields.map(k=>[k,n[k]]))}:null});
+    }
     const decisions=[...merged.values()],parents=resultNodes.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS');
     const resultIds=new Set(parents.map(n=>relative(n.id))),decisionIds=new Set(decisions.map(n=>relative(n.id))),namedIds=new Set(namedNodes.map(n=>relative(n.id))),agendaIds=new Set(agendaNodes.map(n=>relative(n.id)));
-    const declaredResults=[...new Set(parents.flatMap(n=>(Array.isArray(n.inverse_consists_of)?n.inverse_consists_of:[]).filter(p=>relative(p.id)==='eli/dl/event/'+sittingId).flatMap(p=>refs(p.consists_of))))];
+    const isSittingResult=id=>new RegExp('^eli/dl/event/'+sittingId+'-VOT-ITM-\\d+$').test(id);
+    const declaredResults=[...new Set([
+      ...refs(node.consists_of).filter(isSittingResult),
+      ...parents.flatMap(n=>(Array.isArray(n.inverse_consists_of)?n.inverse_consists_of:[]).filter(p=>relative(p.id)==='eli/dl/event/'+sittingId).flatMap(p=>refs(p.consists_of))).filter(isSittingResult)
+    ])];
     const declaredDecisions=[...new Set(parents.flatMap(n=>refs(n.consists_of)))];
     const missingResultIds=[...new Set([...declaredResults.filter(id=>!resultIds.has(id)),...decisions.flatMap(n=>refs(n.inverse_consists_of)).filter(id=>!resultIds.has(id))])];
     const missingDecisionIds=declaredDecisions.filter(id=>!decisionIds.has(id));
     const missingNamedDecisionIds=allNodes.filter(n=>tail(n.decision_method)==='VOTE_ELECTRONIC_ROLLCALL'&&!['LAPSED','WITHDRAWN'].includes(tail(n.decision_outcome))&&n.type==='Vote'&&!namedIds.has(relative(n.id))).map(n=>relative(n.id));
     const unresolvedAgendaItemIds=[...new Set(parents.flatMap(n=>refs(n.executed)).filter(id=>!agendaIds.has(id)))];
     const undeclaredChildResultIds=parents.filter(n=>!Array.isArray(n.consists_of)||!n.consists_of.length).map(n=>relative(n.id));
-    const completeness={missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,invalidSourceIds:[...new Set(errors)],declaredResultCount:declaredResults.length||null,declaredDecisionCount:declaredDecisions.length,complete:false};
+    const completeness={missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,invalidSourceIds:[...new Set(errors)],declaredResultCount:Array.isArray(node.consists_of)?declaredResults.length:declaredResults.length||null,declaredDecisionCount:declaredDecisions.length,complete:false};
     completeness.complete=[all,named,results,agenda].every(c=>c.coverage.state==='complete')&&![missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,errors].some(a=>a.length);
     const anySource=[all,named,results,agenda].some(c=>c.coverage.pages>0);
     const coverage={sittingId,date,state:completeness.complete?'complete':anySource?'partial':'unavailable',decisions:all.coverage,namedDecisions:named.coverage,results:results.coverage,agenda:agenda.coverage,completeness,observedDecisionCount:decisions.length};
