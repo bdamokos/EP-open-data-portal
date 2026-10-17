@@ -63,11 +63,12 @@ export function sendJson(request, response, status, payload, options = {}) {
   response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'self'");
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Cache-Control", options.cacheControl || "no-store");
+  response.setHeader("CDN-Cache-Control", options.cdnCacheControl || "no-store");
   response.setHeader("ETag", etag);
   response.setHeader("Vary", "Origin");
   if(Number.isFinite(response.explorerStartedAt))response.setHeader('Server-Timing',`app;dur=${Math.max(0,performance.now()-response.explorerStartedAt).toFixed(1)}`);
 
-  if ((request.method === "GET" || request.method === "HEAD") && request.headers["if-none-match"] === etag) {
+  if (status === 200 && (request.method === "GET" || request.method === "HEAD") && request.headers["if-none-match"] === etag) {
     response.statusCode = 304;
     response.removeHeader("Content-Type");
     response.removeHeader("Content-Length");

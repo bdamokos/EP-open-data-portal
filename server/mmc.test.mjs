@@ -5,6 +5,7 @@ import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { CONTENT_SOCKET_URL } from './player-content.mjs';
+import {apiCachePolicy} from './response-cache.mjs';
 
 const id='20261007-0900-PLENARY';
 const official='https://webstreaming.europarl.europa.eu/ep/embed/embed.html?event='+id+'&language=en&autoplay=false&logo=logo';
@@ -56,6 +57,23 @@ test('overlapping recordings remain ambiguous and a failed candidate is not igno
   assert.equal(matchRecording(speech,[detail,detail]).status,'ambiguous');
   const result=await speechMedia(speech.id,'hu','hu',{...deps,detail:async()=>{throw new Error('upstream403');}});
   assert.equal(result.status,'metadata-unavailable');assert.equal(result.available,false);
+});
+test('a stale nonmatching recording prevents caching a clip whose uniqueness depends on it',async()=>{
+  const secondId='20261007-1800-PLENARY';
+  const expanded={...catalogue,total:2,records:[...catalogue.records,{id:secondId,start:'2026-10-07 17:00',end:'2026-10-07 19:00',status:'RECORDED'}]};
+  for(const stale of [true,false]) {
+    const evening={url:detail.url.replace(id,secondId),fetchedAt:detail.fetchedAt,stale,refreshError:stale?'Synthetic retained recording failure':null,payload:{resultJSON:{content:{mediaBusinessId:secondId,meetingStartDate:'2026-10-07T17:00:00Z',meetingEndDate:'2026-10-07T19:00:00Z'}}}};
+    const result=await speechMedia(speech.id,'hu','hu',{...deps,catalogue:expanded,detail:async key=>key===id?detail:evening});
+    assert.equal(result.available,true);
+    assert.equal(result.recording.id,id);
+    assert.equal(result.provenance.recordingSources.length,2);
+    const source=result.provenance.recordingSources.find(source=>source.url===evening.url);
+    assert.equal(source.stale,stale);
+    assert.equal(source.fetchedAt,evening.fetchedAt);
+    const policy=apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/poc/speech-media/'+speech.id),result);
+    if(stale)assert.equal(policy.cdnCacheControl,'no-store');
+    else assert.match(policy.cdnCacheControl,/max-age=21600/);
+  }
 });
 test('written statements, invalid timestamps and excessive durations cannot acquire a clip',async()=>{
   for(const [patch,status] of [[{kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'},'not-recorded-speech'],[{end:null},'missing-times'],[{end:'2026-10-07T13:30:00+02:00'},'invalid-duration']])

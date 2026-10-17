@@ -8,6 +8,7 @@ import {canonical,personId} from './insights-model.mjs';
 import {refs,voteScope} from './insights-legislation-model.mjs';
 import {odpLanguage} from './odp.mjs';
 import {brusselsDay} from './insights-store.mjs';
+import {LEGISLATION_LIMITS,sourceCacheState,sourceIsTransient} from './insights-legislation.mjs';
 export function participationQuery(search) {
   for(const key of search.keys())if(!['lang','sitting','week','country'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated participation query.');
   const sitting=search.get('sitting'),week=search.get('week'),country=search.get('country');if(country&&!countryCode(country))throw new HttpError(400,'invalid_country','Choose a country of representation.');
@@ -22,6 +23,13 @@ export async function cachedEvent(id,directory=process.env.ODP_CACHE_DIR) {
   const names=[createHash('sha256').update(url).digest('hex')+'.json'],legacy=Buffer.from(url).toString('base64url')+'.json';if(legacy.length<=255)names.push(legacy);
   for(const name of names)try{const file=path.join(directory,name);if((await stat(file)).size>2*1024*1024)continue;const raw=await readFile(file,'utf8'),record=JSON.parse(raw);if(record.url===url&&Array.isArray(record.payload?.data))return record;}catch{}
   return null;
+}
+async function participationEvent(legislation,id,readEvent,now) {
+  const entry=legislation.cache.get(JSON.stringify(['/events/'+id,{}])),memory=entry?.value;
+  if(memory&&!sourceIsTransient(memory)&&Number.isFinite(entry.at)&&now-entry.at<LEGISLATION_LIMITS.cacheMs)return memory;
+  const disk=await readEvent(id);
+  // Old disk events are saved observations. Only a provably newer publication replaces transient evidence.
+  return disk&&(!memory||Number.isFinite(disk.fetchedAt)&&Number.isFinite(memory.fetchedAt)&&disk.fetchedAt>memory.fetchedAt)?disk:memory||disk;
 }
 export function participationRows(topics,results,decisions,speechRows,members) {
   const rows=topics.map(topic=>({...topic,speakerIds:speechRows.has(topic.id)?new Set(speechRows.get(topic.id).filter(row=>row.speechKind==='PLENARY_DEBATE_SPEECH'&&members.has(String(row.mepId))).map(row=>String(row.mepId))):null,voterIds:null,amendmentVotes:null,amendmentIds:new Set(),rollCalls:0}));
@@ -44,21 +52,23 @@ export async function participation(legislation,store,query,{clock=Date.now,read
   const end=query.week?new Date(Date.parse(query.week+'T12:00:00Z')+6*86400_000).toISOString().slice(0,10):null;
   const sittings=query.week?catalogue.sittings.filter(s=>s.activity_date>=query.week&&s.activity_date<=end):catalogue.sittings.filter(s=>s.activity_id===(query.sitting||catalogue.sittings[0]?.activity_id));
   if(!sittings.length||sittings.length>5)throw new HttpError(404,'sitting_not_found','Choose a listed sitting or plenary week from the current parliamentary term.');
-  const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],sources=[];
+  const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],sources=[...(catalogue.sources||[])];
+  const recordSource=async(...args)=>{const record=await legislation.record(...args);sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});return record;};
   for(const sitting of sittings) {
-    let base;try{base=await legislation.query({language:query.language,sitting:sitting.activity_id,topic:null,vote:null});}catch{gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});continue;}const speechRows=new Map();let results=null,decisions=null;
+    let base;try{base=await legislation.query({language:query.language,sitting:sitting.activity_id,topic:null,vote:null});}catch{gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});continue;}sources.push(...(base.coverage?.sources||[]));const speechRows=new Map();let results=null,decisions=null;
     if(base.coverage?.agendaError){gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});if(!base.topics.length)continue;}
     if(sitting.activity_date<=today) {
-      try{results=await legislation.record('/meetings/'+sitting.activity_id+'/vote-results',{limit:50,offset:0});decisions=await legislation.record('/meetings/'+sitting.activity_id+'/decisions',{'vote-method':'ROLL_CALL_EV',limit:1,offset:0});if(decisions.payload.data.length>250){decisions={...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,250)}};gaps.push({sitting:sitting.activity_id,kind:'roll-call-limit'});}if(results.payload.data.length>=50)gaps.push({sitting:sitting.activity_id,kind:'vote-result-page-limit'});sources.push({url:decisions.url,fetchedAt:decisions.fetchedAt});}catch{gaps.push({sitting:sitting.activity_id,kind:'votes-unavailable'});}
+      try{results=await recordSource('/meetings/'+sitting.activity_id+'/vote-results',{limit:50,offset:0});decisions=await recordSource('/meetings/'+sitting.activity_id+'/decisions',{'vote-method':'ROLL_CALL_EV',limit:1,offset:0});if(decisions.payload.data.length>250){decisions={...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,250)}};gaps.push({sitting:sitting.activity_id,kind:'roll-call-limit'});}if(results.payload.data.length>=50)gaps.push({sitting:sitting.activity_id,kind:'vote-result-page-limit'});}catch{gaps.push({sitting:sitting.activity_id,kind:'votes-unavailable'});}
       const parents=refs(sitting.consists_of).filter(uri=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/.test(uri)).slice(0,50);
       for(const uri of parents) {
-        const id=tail(uri),record=legislation.cache.get(JSON.stringify(['/events/'+id,{}]))?.value||await readEvent(id);
+        const id=tail(uri),record=await participationEvent(legislation,id,readEvent,clock());
+        // Missing children or an unresolved node still depend on this record's freshness.
+        if(record)sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});
         const event=record?.payload.data.find(node=>canonical(node.id)===uri);
         if(!event||tail(event.had_activity_type)!=='PLENARY_DEBATE'||event.activity_date!==sitting.activity_date)continue;
         const children=refs(event.consists_of).map(tail).slice(0,200);if(!children.length)continue;
         const rows=store.db.prepare(`SELECT body FROM items WHERE generation=? AND category='plenary-contributions' AND source_id IN (${children.map(()=>'?').join(',')}) LIMIT 1000`).all(status.servingGeneration,...children).map(row=>JSON.parse(row.body));
         for(const target of refs(event.executed)){const topic=base.topics.find(t=>t.uri===target);if(topic)speechRows.set(topic.id,[...(speechRows.get(topic.id)||[]),...rows]);}
-        sources.push({url:record.url,fetchedAt:record.fetchedAt});
       }
     }
     all.push(...participationRows(base.topics,results,decisions,speechRows,members).map(row=>({...row,sittingId:sitting.activity_id,upcoming:sitting.activity_date>today})));

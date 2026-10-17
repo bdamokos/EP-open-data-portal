@@ -18,8 +18,8 @@ export class ProcedureContext {
     let text=null;
     if(selected){const body=await this.sources.get(selected.url),parsed=parseSummaryPage(body.html,reference);if(selected.date&&parsed.date!==selected.date)throw new HttpError(502,'summary_date','The summary date does not match the procedure.');text={...selected,...parsed,source:{url:body.url,fetchedAt:body.fetchedAt,stale:Boolean(body.viewCache?.stale)}};}
     const id=reference.match(/^(\d{4})\/(\d{4}[A-Z]?)/).slice(1).join('-');let topics=null,topicError=false;
-    try{const known=await this.catalog.known([id],language);topics=known.get(id);if(!topics||topics.stale)topics=(await this.catalog.load([id],language)).get(id);if(topics.reference!==reference)topics={state:'ambiguous',concepts:[]};}catch{topicError=true;}
-    return {view:'procedure-context',reference,title:procedure.title,language:sourceLanguage,summaries:procedure.summaries,summary:text,subjects:procedure.subjects,topics:topics?.concepts||[],topicState:topics?.state||'unavailable',topicError,source:{url:page.url,fetchedAt:page.fetchedAt,stale:Boolean(page.viewCache?.stale)}};
+    try{const known=await this.catalog.known([id],language);topics=known.get(id);if(!topics||topics.stale)topics=(await this.catalog.load([id],language)).get(id);if(topics.reference!==reference)topics={...topics,state:'ambiguous',concepts:[]};}catch{topicError=true;}
+    return {view:'procedure-context',reference,title:procedure.title,language:sourceLanguage,summaries:procedure.summaries,summary:text,subjects:procedure.subjects,topics:topics?.concepts||[],topicState:topics?.state||'unavailable',topicError,topicSource:topics?.source?{...topics.source,stale:Boolean(topics.stale||topics.source.stale)}:null,source:{url:page.url,fetchedAt:page.fetchedAt,stale:Boolean(page.viewCache?.stale)}};
   }
 }
 // A cited act is best described by its final-act summary, then by the proposal.
