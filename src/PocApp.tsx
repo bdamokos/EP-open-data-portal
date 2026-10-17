@@ -111,7 +111,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
   return (
     <div className="poc-speech-detail" lang={lang}>
       <PocStatus scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={state.error||!state.data?null:text.error?'Parliament returned transcript text that could not be read.':text.paragraphs.length?'Transcript loaded.':'No transcript text is available from Parliament’s API for this contribution.'}/>
-      {state.data?.speakers?.map(person=><div key={person.id}><strong><SpeakerName person={person} language={lang}/></strong><SpeakerRoleLine person={person} language={lang} className="insight-secondary"/></div>)}
+      {state.data?.speakers?.map(person=><div key={person.id}><strong><SpeakerName person={person} language={lang}/></strong><SpeakerRoleLine person={person} language={lang} intervention={state.data?.intervention} className="insight-secondary"/></div>)}
       {state.data?.intervention?.type!=='chair'&&<InterventionBadges value={state.data?.intervention} language={lang}/>}
       <PocSpeechContext key={speech.id} id={speech.id} language={lang} transcriptLanguage={transcriptLanguage}/>
       <div className="poc-speech-transcript-heading" lang="en"><h3 lang={lang}>{c.transcript}</h3><div className="poc-reader-tools">{video.toggle}{text.paragraphs.length>0&&<PocFindInText key={speech.id+':'+transcriptLanguage} label="Find in speech" target={transcriptText}/>}</div></div>
