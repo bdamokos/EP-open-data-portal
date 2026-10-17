@@ -100,22 +100,23 @@ function localized(titles,language){
 export function groupVoicesPage(store,query){
   const generation=generationOf(store),{rows,truncated}=scopeRows(store,generation,query);
   const shared={group:query.group,period:query.period,window:{from:query.from,to:query.to},coverage:coverage(store,generation,query,truncated)};
-  if(query.part==='summary'){
-    const grouped=new Map();
-    for(const row of rows){let person=grouped.get(row.person);if(!person){person={...identity(store,generation,row.person,row.speech),total:0,subjects:{}};grouped.set(row.person,person)}person.total++;person.subjects[row.subject]=(person.subjects[row.subject]||0)+1;}
-    return {...shared,groups:Object.entries(GROUP_VOICE_GROUPS).map(([id,label])=>({id,label})),subjects:Object.entries(GROUP_VOICE_SUBJECTS).map(([id,label])=>({id,label})),
-      people:[...grouped.values()].sort((a,b)=>b.total-a.total||(a.name||a.id).localeCompare(b.name||b.id)),
-      months:store.db.prepare("SELECT DISTINCT substr(date,1,7) AS month FROM group_voice_observations WHERE generation=? AND date>='2024-07-16' ORDER BY month DESC LIMIT 100").all(generation).map(r=>r.month),
-      subjectMethod:'Reviewed editorial primary-subject groupings. Unlisted records remain unclassified; these are not official annotations of individual speeches.'};
-  }
   const selected=rows.filter(row=>(!query.person||row.person===query.person)&&(!query.subject||row.subject===query.subject));
-  return {...shared,total:selected.length,offset:query.offset,limit:query.limit,nextOffset:query.offset+query.limit<selected.length?query.offset+query.limit:null,
+  const page={...shared,total:selected.length,offset:query.offset,limit:query.limit,nextOffset:query.offset+query.limit<selected.length?query.offset+query.limit:null,
     contributions:selected.slice(query.offset,query.offset+query.limit).map(row=>{
       const source=savedSpeech(store,generation,row.speech);
       return {id:row.speech,personId:row.person,date:row.date,subject:row.subject,...localized(source?.titles,query.language),
         websiteUrl:source?.websiteUrl||null,websiteLanguage:source?.websiteLanguage||null,source:source?.source||null,
         designation:source?.designations.find(p=>p.person===row.person&&p.group===query.group)||null};
     })};
+  if(query.part==='summary'){
+    const grouped=new Map();
+    for(const row of rows){let person=grouped.get(row.person);if(!person){person={...identity(store,generation,row.person,row.speech),total:0,subjects:{}};grouped.set(row.person,person)}person.total++;person.subjects[row.subject]=(person.subjects[row.subject]||0)+1;}
+    return {...page,groups:Object.entries(GROUP_VOICE_GROUPS).map(([id,label])=>({id,label})),subjects:Object.entries(GROUP_VOICE_SUBJECTS).map(([id,label])=>({id,label})),
+      people:[...grouped.values()].sort((a,b)=>b.total-a.total||(a.name||a.id).localeCompare(b.name||b.id)),
+      months:store.db.prepare("SELECT DISTINCT substr(date,1,7) AS month FROM group_voice_observations WHERE generation=? AND date>='2024-07-16' ORDER BY month DESC LIMIT 100").all(generation).map(r=>r.month),
+      subjectMethod:'Reviewed editorial primary-subject groupings. Unlisted records remain unclassified; these are not official annotations of individual speeches.'};
+  }
+  return page;
 }
 
 export {groupVoiceProjection};

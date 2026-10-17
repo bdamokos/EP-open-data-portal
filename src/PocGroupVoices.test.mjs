@@ -14,9 +14,8 @@ async function harness(t,query='?poc=1&view=groups&gv-tab=people'){
  t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,location.href);calls.push(url);assert.equal(url.pathname,'/api/poc/insights/group-voices','No directory, corpus or upstream fetch is needed.');
   if(fail)return Response.json({error:{message:'Unavailable'}},{status:503});
   if(url.searchParams.get('group')==='PPE')return new Promise(resolve=>delays.push(resolve));
-  if(!url.searchParams.has('part'))return Response.json({people,months:['2026-10','2026-09'],coverage,window:{from:'2024-07-16',to:'2026-10-17'}});
   const selected=people.filter(p=>!url.searchParams.get('person')||url.searchParams.get('person')===p.id),subject=url.searchParams.get('subject'),total=selected.reduce((n,p)=>n+(subject?p.subjects[subject]||0:p.total),0);
-  return Response.json({contributions:selected.slice(0,20).map(p=>({id:'MTG-PL-2026-10-06-OTH-'+p.id,personId:p.id,date:'2026-10-06',subject:subject||'foreign',title:'Exact contribution '+p.id,titleLanguage:'en',websiteUrl:'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-10-06-OTH-'+p.id+'_EN.html'})),total,nextOffset:null,coverage});
+  return Response.json({people,months:['2026-10','2026-09'],window:{from:'2024-07-16',to:'2026-10-17'},contributions:selected.slice(0,20).map(p=>({id:'MTG-PL-2026-10-06-OTH-'+p.id,personId:p.id,date:'2026-10-06',subject:subject||'foreign',title:'Exact contribution '+p.id,titleLanguage:'en',websiteUrl:'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-10-06-OTH-'+p.id+'_EN.html'})),total,nextOffset:null,coverage});
  });
  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {default:PocApp}=await vite.ssrLoadModule('/src/PocApp.tsx'),{createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
