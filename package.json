@@ -29,6 +29,6 @@
   },
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=22.15.0"
+    "node": "^22.16.0 || >=24.0.0"
   }
 }
