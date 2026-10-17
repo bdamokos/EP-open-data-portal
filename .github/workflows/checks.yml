@@ -30,3 +30,13 @@ jobs:
           ACTIVITY_INDEX_ENABLED: 'false'
       - run: npm run check
       - run: npm run build
+
+  runtime-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker build --build-arg APP_REVISION="$GITHUB_SHA" --tag parliament-explorer:ci .
+      - run: node scripts/check-runtime-image.mjs parliament-explorer:ci "$GITHUB_SHA"

@@ -11,6 +11,8 @@ import {motionComparison} from './motion-comparison.mjs';
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
+import { amendmentQuery } from './amendments.mjs';
+import { amendmentsPage, amendmentFailures } from './amendments-store.mjs';
 import {CATEGORIES} from './activity-index-model.mjs';
 import {speechMedia} from './mmc.mjs';
 import {outsideDirectory,outsideSpeaker,outsideQuery} from './outside-store.mjs';
@@ -116,6 +118,10 @@ async function handleApi(request,response,url,apiPrefix){
     if(segments[1]==='source-record' && segments.length===2)result=await sourceRecord(url.searchParams.get('url'),language);
     else if(segments[1]==='motion-comparison' && segments.length===3) {
       result=await motionComparison(segments[2],url.searchParams.get('joint'),{stage:url.searchParams.get('stage') || 'original-joint',language});
+    }
+    else if (segments[1] === 'amendments' && (segments.length===2 || segments.length===3&&segments[2]==='failures')) {
+      const failures=segments.length===3,query=amendmentQuery(url.searchParams,{failures});
+      result=failures?amendmentFailures(activityIndex().store,query):amendmentsPage(activityIndex().store,query);
     }
     else if (segments[1] === 'outside' && segments.length === 3) {
       const query=outsideQuery(url.searchParams), store=activityIndex().store;

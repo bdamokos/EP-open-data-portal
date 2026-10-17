@@ -37,6 +37,21 @@ test('speaker names and sitting roles follow the UI independently of the selecte
   assert.equal(h.container.querySelector('.insight-secondary span').lang,'el');
 });
 
+test('shared reader and sequence retain exact ECR without promoting a conflicting translated group role',async t=>{
+  const person={id:'256986',name:'Geadis Geadi',roleLabels:{en:{text:'on behalf of the Group',language:'en'},bg:{text:'от името на групата Verts/ALE',language:'bg'}}};
+  const intervention={type:'speech',speaker:person,onBehalfOf:[{id:'ECR',uri:'org/ECR',label:'ECR',politicalGroup:true,source:'participation_in_name_of'}]};
+  const h=await harness(t,(route,params)=>route.startsWith('speech/')?{...speech(params.get('lang')),speakers:[person],intervention,availableTextLanguages:['bg','en']}:route.startsWith('speech-context/')?{speechId,unavailable:false,debates:[{id:'MTG-PL-2026-10-08-PVCRE-ITM-3',titles:{bg:'Public debate'},records:[{id:speechId,date:'2026-10-08',start:null,intervention,replyTo:null,exchangeId:null}],exchanges:[],coverage:{complete:true,available:1,expected:1}}]}:undefined);
+  await h.render(el(h.InsightSpeechReader,{id:speechId,language:'bg'}),'bg');
+  assert.equal(h.container.querySelector('h3').textContent,'Geadis Geadi');
+  assert(!h.container.querySelector('.insight-secondary'),'raw translated role must not contradict the exact group badge');
+  assert.equal(h.container.querySelector('.intervention-group').textContent,'On behalf of ECR');
+  await h.click(h.container.querySelector('.intervention-context-toggle'));
+  const row=h.container.querySelector('.intervention-sequence li');
+  assert.equal(row.querySelector('.intervention-group').textContent,'On behalf of ECR');
+  assert(!row.querySelector('p.intervention-caption'),'sequence keeps the exact group badge without a redundant translated role');
+  assert(!h.container.textContent.includes('Verts/ALE'));
+});
+
 async function harness(t,respond) {
   const window=new Window({url:'http://localhost/'}),requests=[],scrolls=[];
   class ReaderDOMParser extends window.DOMParser {
@@ -262,4 +277,22 @@ test('OPEN compound reader headings keep exact date-bearing labels, status and l
   assert.equal(find.getAttribute('aria-label'),'Find in '+heading.toLowerCase());assert.equal(find.hasAttribute('aria-labelledby'),false);assert.equal(effectiveLanguage(find),'en');
   assert.equal(status.textContent,heading+': Text loaded.');assert.equal(effectiveLanguage(status),'en');
   t.diagnostic(JSON.stringify({assessment:'OPEN',heading,constituents:[{text:'Answer 2',language:'en'},{text:'2026. márc. 25.',language:'hu'}],effectiveLang:'en',selectorName:select.getAttribute('aria-label'),findName:find.getAttribute('aria-label'),status:status.textContent,mechanism:'existing text and aria-label strings'}));
+});
+
+
+test('speech video opens beside its heading and transcript language changes do not retune or close it',async t=>{
+  const h=await harness(t,(route,params)=>route.startsWith('speech-media/')?{available:false,status:'audio-unavailable',reason:'Requested fixture channel is unavailable.'}:route.startsWith('speech/')?{...speech(params.get('lang')),start:'2026-03-25T10:00:00Z',end:'2026-03-25T10:01:00Z'}:undefined);
+  await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}),'en');
+  const toggle=h.container.querySelector('.poc-speech-transcript-heading .poc-video-toggle');assert(toggle);
+  const panel=document.getElementById(toggle.getAttribute('aria-controls'));
+  assert(panel.hidden);assert.equal(h.requests.filter(route=>route.startsWith('speech-media/')).length,0);
+  assert(panel.previousElementSibling.classList.contains('poc-speech-transcript-heading'),'the player stays next to the control rather than after the transcript');
+  await h.click(toggle);assert.equal(toggle.getAttribute('aria-expanded'),'true');assert.equal(panel.hidden,false);
+  assert.equal(panel.querySelector('select').options[0].textContent,'English');
+  await h.change(h.container.querySelector('.insight-reader-heading select'),'fr');
+  assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
+  assert.equal(toggle.getAttribute('aria-expanded'),'true');assert.equal(panel.hidden,false);
+  assert.equal(panel.querySelector('select').value,'language');
+  assert.deepEqual(h.requests.filter(route=>route.startsWith('speech-media/')),[`speech-media/${speechId}?lang=en`]);
+  await h.click(panel.querySelector('button'));assert.equal(toggle.getAttribute('aria-expanded'),'false');assert.equal(document.activeElement,toggle);
 });

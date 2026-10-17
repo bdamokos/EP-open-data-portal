@@ -487,6 +487,166 @@ test('document and question groups paginate before variants and retain exact sam
   } finally {s.cleanup();}
 });
 
+test('one counted page preserves exact totals, scoped variants and empty or out-of-range results',()=>{
+  const s=stores(),q1=question.identifier,a1=q1+'-ASW',q2='E-10-2026-000002',q3='E-10-2026-000003';
+  try {
+    s.index.db.exec('DELETE FROM items; DELETE FROM members;');
+    for(const id of ['43','44'])s.index.db.prepare('INSERT INTO members VALUES (?,?)').run(id,JSON.stringify({id,name:'Saved author '+id}));
+    const documents=[[q1,'question','2026-05-01',43,null],[a1,'answer','2026-06-01',44,q1],[q2,'question','2026-05-02',43,null],[q3,'question','2026-05-03',44,null]];
+    for(const [id,kind,date,member,parentId] of documents){
+      s.index.db.prepare('INSERT INTO items VALUES (1,?,?,?,?,?,?)').run('/parliamentary-questions/'+id,id,String(member),'written-questions',date,'{}');
+      for(const language of id===q1?['en','fr']:id===q3?['fr']:['en'])putText(s.corpus,id,kind,date,language,'Ukraine water policy',{parentId,language});
+    }
+    const cases=[
+      [{language:'en'},[a1,q2,q1]],
+      [{language:'fr'},[q3,q1]],
+      [{group:'question'},[q3,q2,q1]],
+      [{group:'question',language:'en'},[q2,q1]],
+      [{kind:'answer'},[a1]],
+      [{member:44,group:'question'},[q3,q1]],
+      [{member:44,language:'en'},[a1]],
+      [{sourceIds:[a1],group:'question'},[q1]],
+      [{sourceIds:[],group:'question'},[]],
+      [{from:'2026-06-01',dateBasis:'document',group:'question'},[q1]],
+      [{from:'2026-06-01',dateBasis:'question',group:'question'},[]],
+      [{country:'IT',countryMemberIds:['44'],countryMetadataIds:['43','44'],group:'question'},[q3,q1]],
+      [{country:'MT',countryMemberIds:[],countryMetadataIds:['43','44']},[]],
+    ];
+    for(const [scope,expected] of cases){
+      const options={query:'Ukraine',sort:'newest',...scope},full=s.corpus.search(options),seen=[];
+      assert.equal(full.total,expected.length,JSON.stringify(scope));
+      assert.deepEqual(full.results.map(result=>result.sourceId),expected);
+      let offset=0;
+      do{
+        const page=s.corpus.search({...options,limit:1,offset});
+        assert.equal(page.total,expected.length);assert.equal(page.offset,offset);
+        assert.deepEqual(page.hits,page.results.flatMap(result=>result.hits));
+        seen.push(...page.results);offset=page.nextOffset;
+      }while(offset!==null);
+      assert.deepEqual(seen,full.results,'pagination retains every matching variant and its exact provenance');
+      const beyond=s.corpus.search({...options,limit:1,offset:1000});
+      assert.equal(beyond.total,expected.length);assert.deepEqual(beyond.results,[]);assert.deepEqual(beyond.hits,[]);
+      assert.equal(beyond.nextOffset,null);assert.equal(beyond.truncated,false);
+      for(const hit of full.hits){
+        if(scope.language)assert.equal(hit.language,scope.language);
+        if(scope.sourceIds)assert(scope.sourceIds.includes(hit.sourceId));
+        if(scope.member)assert(hit.memberIds.includes(scope.member));
+        assert.equal(hit.sha256,s.corpus.text({sourceId:hit.sourceId,sourceKey:hit.sourceKey}).sha256);
+      }
+    }
+    const missing=s.corpus.search({query:'unmatched',group:'question',offset:3});
+    assert.equal(missing.total,0);assert.deepEqual(missing.results,[]);assert.equal(missing.nextOffset,null);
+  } finally {s.cleanup();}
+});
+
+test('language and kind filters traverse FTS matches before unbounded metadata rows',t=>{
+  const s=stores();
+  try {
+    for(let n=0;n<30;n++)for(const language of ['en','fr','de']){
+      const id='MTG-PL-2026-07-08-OTH-'+(n+1);
+      putText(s.corpus,id,'speech','2026-07-08',language,n%3?'Ukraine policy':'Other policy',{language});
+    }
+    const prepare=s.corpus.db.prepare.bind(s.corpus.db),plans=[];
+    t.mock.method(s.corpus.db,'prepare',sql=>{
+      const statement=prepare(sql);
+      if(!sql.includes('texts_fts MATCH'))return statement;
+      return new Proxy(statement,{get(target,key){
+        const value=Reflect.get(target,key);
+        if(key==='all'||key==='get')return (...params)=>{plans.push({sql,rows:prepare('EXPLAIN QUERY PLAN '+sql).all(...params)});return value.call(target,...params);};
+        return typeof value==='function'?value.bind(target):value;
+      }});
+    });
+    const exactRequest={query:'Ukraine',kinds:['speech','question','answer'],language:'en',uiLanguage:'en',group:'document',dateBasis:'document',sort:'relevance',limit:20,offset:0};
+    for(const scope of [{},{member:42},{kinds:['speech']},{kinds:['question','answer']},{from:'2026-01-01',to:'2026-12-31'}]){
+      plans.length=0;
+      s.corpus.search({...exactRequest,...scope});
+      assert(plans.length>0);
+      for(const plan of plans){
+        const details=plan.rows.map(row=>row.detail),fts=details.findIndex(detail=>/\b(?:SCAN|SEARCH) texts_fts\b/.test(detail));
+        if(!plan.sql.includes('snippet(texts_fts'))assert(details.some(detail=>/SEARCH texts USING COVERING INDEX text_language\b/.test(detail)),
+          'language metadata must come from the covering index, without fetching wide text records:\n'+details.join('\n'));
+        for(const table of ['t','d']){
+          const metadata=details.findIndex(detail=>new RegExp('\\b(?:SCAN|SEARCH) '+table+'\\b').test(detail));
+          assert(fts>=0&&metadata>fts,'FTS must drive the join, without one MATCH probe per language or document row:\n'+details.join('\n'));
+        }
+      }
+    }
+    t.diagnostic('Node '+process.versions.node+' / SQLite '+prepare('SELECT sqlite_version() AS version').get().version);
+  } finally {s.cleanup();}
+});
+
+test('relevance pagination keeps score order and exact-ID tie breaks while sharing totals',()=>{
+  const s=stores();
+  try {
+    const ids=['SCORE-Z','SCORE-A','SCORE-B'];
+    putText(s.corpus,ids[0],'speech','2026-05-01','en','Ukraine Ukraine Ukraine');
+    putText(s.corpus,ids[0],'speech','2026-05-01','fr','Ukraine '+'policy '.repeat(100),{language:'fr'});
+    putText(s.corpus,ids[1],'speech','2026-05-01','en','Ukraine '+'policy '.repeat(30));
+    putText(s.corpus,ids[2],'speech','2026-05-01','en','Ukraine '+'policy '.repeat(30));
+    const full=s.corpus.search({query:'Ukraine',language:'en',sort:'relevance'});
+    assert.deepEqual(full.results.map(result=>result.sourceId),ids);
+    for(let offset=0;offset<ids.length;offset++){
+      const page=s.corpus.search({query:'Ukraine',language:'en',sort:'relevance',limit:1,offset});
+      assert.equal(page.total,3);assert.deepEqual(page.results,[full.results[offset]]);
+      assert.equal(page.nextOffset,offset<2?offset+1:null);
+    }
+    const multilingual=s.corpus.search({query:'Ukraine',sort:'relevance'});
+    assert.deepEqual(multilingual.results.map(result=>result.sourceId),ids,'the best matching variant determines each group score');
+    assert.equal(multilingual.results[0].hits.length,2);
+  } finally {s.cleanup();}
+});
+
+test('excerpt hydration probes only the exact matching variants of the selected page',t=>{
+  const s=stores(),q1=question.identifier,a1=q1+'-ASW',q2='E-10-2026-000002';
+  try {
+    putText(s.corpus,q1,'question','2026-05-10','en','Ukraine Ukraine');
+    putText(s.corpus,q1,'question','2026-05-10','fr','Ukraine '+'policy '.repeat(30),{language:'fr'});
+    putText(s.corpus,q1,'question','2026-05-10','de','Other policy',{language:'de'});
+    putText(s.corpus,a1,'answer','2026-06-01','en','Ukraine '+'policy '.repeat(10),{parentId:q1});
+    putText(s.corpus,a1,'answer','2026-06-01','fr','Other policy',{parentId:q1,language:'fr'});
+    putText(s.corpus,q2,'question','2026-05-01','en','Ukraine');
+    const prepare=s.corpus.db.prepare.bind(s.corpus.db),hydrations=[];
+    t.mock.method(s.corpus.db,'prepare',sql=>{
+      const statement=prepare(sql);
+      if(!sql.includes('snippet(texts_fts'))return statement;
+      return new Proxy(statement,{get(target,key){
+        const value=Reflect.get(target,key);
+        if(key==='all')return (...params)=>{hydrations.push({params,plan:prepare('EXPLAIN QUERY PLAN '+sql).all(...params)});return value.call(target,...params);};
+        return typeof value==='function'?value.bind(target):value;
+      }});
+    });
+    const options={query:'Ukraine',kinds:['speech','question','answer'],group:'question',sort:'newest',limit:1};
+    const textId=(sourceId,key)=>prepare('SELECT t.id FROM texts t JOIN documents d ON d.id=t.document_id WHERE d.source_id=? AND t.source_key=?').get(sourceId,key).id;
+    const cases=[
+      [{},[[q1,'en'],[q1,'fr'],[a1,'en']]],
+      [{language:'en'},[[q1,'en'],[a1,'en']]],
+      [{language:'fr'},[[q1,'fr']],1],
+      [{offset:1},[[q2,'en']]],
+      [{sourceIds:[a1]},[[a1,'en']],1],
+      [{member:43},[[a1,'en']],1],
+      [{group:'document'},[[a1,'en']],3],
+    ];
+    for(const [scope,expected,total=2] of cases){
+      const result=s.corpus.search({...options,...scope}),hydration=hydrations.at(-1),selected=JSON.parse(hydration.params[0]);
+      assert.equal(result.total,total);assert.equal(result.results.length,1);
+      assert(Array.isArray(selected),'excerpt input must be the selected exact text rows');
+      assert.deepEqual(selected.map(([id])=>id).sort((a,b)=>a-b),expected.map(([id,key])=>textId(id,key)).sort((a,b)=>a-b));
+      assert(selected.every(([id,rank])=>Number.isSafeInteger(id)&&Number.isSafeInteger(rank)&&rank>=1));
+      const ordered=prepare(`SELECT t.id FROM texts_fts JOIN texts t ON t.id=texts_fts.rowid JOIN documents d ON d.id=t.document_id
+        WHERE texts_fts MATCH ? AND t.id IN (SELECT value FROM json_each(?)) ORDER BY texts_fts.rank,d.source_id,t.language,t.source_key`)
+        .all(corpusQuery(options.query),JSON.stringify(selected.map(([id])=>id))).map(row=>row.id);
+      assert.deepEqual(result.hits.map(hit=>textId(hit.sourceId,hit.sourceKey)),ordered,'integer score ranks retain native FTS relevance and exact ties within the selected group');
+      const details=hydration.plan.map(row=>row.detail),selectedLoop=details.findIndex(detail=>/SCAN selected_hit\b/.test(detail)),ftsLoop=details.findIndex(detail=>/SCAN texts_fts\b/.test(detail));
+      assert(selectedLoop>=0&&ftsLoop>selectedLoop,'selected variants must drive excerpt hydration:\n'+details.join('\n'));
+      assert(/VIRTUAL TABLE INDEX.*=/.test(details[ftsLoop]),'excerpt MATCH must be constrained by each selected text rowid');
+    }
+    const before=hydrations.length;
+    assert.equal(s.corpus.search({...options,query:'unmatched'}).total,0);
+    assert.equal(s.corpus.search({...options,offset:1000}).total,2);
+    assert.equal(hydrations.length,before,'empty pages do not start excerpt reads');
+  } finally {s.cleanup();}
+});
+
 test('answer-only matches use their exact parent question date and saved title without upstream reads',()=>{
   const s=stores(),questionId=question.identifier,answerId=question.inverse_answers_to[0].identifier;
   try {

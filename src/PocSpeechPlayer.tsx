@@ -1,8 +1,13 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { requestPlayerAudio, requestPlayerPlayback } from './pocPlayerAudio.mjs';
 import { useData } from './pocData';
 import { speechEmbedUrl, speechFrameKey, replayNeedsMediaRefresh } from './pocMedia.mjs';
 import type { Speech, SpeechMedia } from './pocTypes';
+
+function audioLanguageName(language:string) {
+  try { return new Intl.DisplayNames(['en'],{type:'language'}).of(language)||language.toUpperCase(); }
+  catch { return language.toUpperCase(); }
+}
 
 export function ParliamentFrame({ src, speechId, lang, audio, original, mapping, returnFocus }: { src:string;speechId:string;lang:string;audio:string;original:boolean;mapping:NonNullable<SpeechMedia['audioMapping']>;returnFocus?:()=>void }) {
   const frame=useRef<HTMLIFrameElement>(null);
@@ -37,51 +42,74 @@ export function ParliamentFrame({ src, speechId, lang, audio, original, mapping,
   },[src,audio,attempt]);
   useEffect(()=>{if(phase==='ready')frame.current?.parentElement?.scrollIntoView({block:'nearest'});},[phase]);
   return <>
-    {phase==='preparing' && <p role="status" lang="en">Preparing {original ? 'original' : lang.toUpperCase()} audio…</p>}
+    {phase==='preparing' && <p role="status" lang="en">Preparing {original ? 'original' : audioLanguageName(lang)} audio…</p>}
     {phase==='error' ? <div className="poc-notice" role="alert" lang="en"><p>{error}</p><button onClick={()=>{returnFocusRef.current?.();setPhase('preparing');setAttempt(x=>x+1);}}>Retry player</button></div> : <>
-      {phase==='ready' && <p className="poc-video-caption" lang="en">{original ? 'Original audio' : `${lang.toUpperCase()} audio`} · European Parliament</p>}
+      {phase==='ready' && <p className="poc-video-caption" lang="en">{original ? 'Original audio' : `${audioLanguageName(lang)} audio`} · European Parliament</p>}
       {manual && <p role="status" lang="en">{manual}</p>}
-      <div className="poc-player-frame" lang="en" style={{visibility:phase==='ready' ? 'visible' : 'hidden'}} aria-hidden={phase!=='ready'}><iframe ref={frame} key={attempt} title={`European Parliament speech video · ${original ? 'original audio' : lang.toUpperCase()}`} src={src} allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" tabIndex={phase==='ready' ? 0 : -1} data-speech-id={speechId} /></div>
+      <div className="poc-player-frame" lang="en" style={{visibility:phase==='ready' ? 'visible' : 'hidden'}} aria-hidden={phase!=='ready'}><iframe ref={frame} key={attempt} title={`European Parliament speech video · ${original ? 'original audio' : audioLanguageName(lang)}`} src={src} allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" tabIndex={phase==='ready' ? 0 : -1} data-speech-id={speechId} /></div>
 
     </>}
   </>;
 }
 
-export function PocSpeechPlayer({ speech, lang }: { speech: Speech; lang: string }) {
-  const section=useRef<HTMLElement>(null),play=useRef<HTMLButtonElement>(null),original=useRef<HTMLButtonElement>(null);
-  const opener=useRef<{speechId:string;lang:string;original:boolean}|null>(null);
-  const identity=useRef({speechId:speech.id,lang});identity.current={speechId:speech.id,lang};
+export function useSpeechVideo(speech:Speech|null,lang:string) {
+  const section=useRef<HTMLElement>(null),toggle=useRef<HTMLButtonElement>(null),audioControl=useRef<HTMLSelectElement>(null);
+  const panelId='speech-video-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
+  const opener=useRef<{speechId:string;lang:string}|null>(null);
+  const identity=useRef({speechId:speech?.id,lang});identity.current={speechId:speech?.id,lang};
   const [frameAttempt,setFrameAttempt]=useState(0);
+  const [selectedOriginal,setSelectedOriginal]=useState(false);
   const [request, setRequest] = useState<{ speechId: string; lang: string; original: boolean } | null>(null);
-  const current = request?.speechId === speech.id && request.lang === lang ? request : null;
+  const written=speech?.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT';
+  const playable=Boolean(speech&&!written&&speech.start&&speech.end);
+  const current = playable && request && request.speechId === speech?.id && request.lang === lang ? request : null;
   const audio = current?.original ? 'or' : lang;
-  const media = useData<SpeechMedia>(current ? `speech-media/${encodeURIComponent(speech.id)}?lang=${lang}${current.original ? '&audio=or' : ''}` : null);
-  if (speech.kind === 'PLENARY_DEBATE_WRITTEN_STATEMENT') return <div className="poc-video-gap" lang="en"><strong>Written statement · no video</strong><p>This contribution was submitted in writing.</p></div>;
-  if (!speech.start || !speech.end) return <div className="poc-video-gap" lang="en"><strong>Video timings unavailable</strong><p>No bounded speaking times were returned for this contribution.</p></div>;
-  const embed = speechEmbedUrl(media.data, speech.id, lang, audio);
+  const media = useData<SpeechMedia>(current ? `speech-media/${encodeURIComponent(current.speechId)}?lang=${lang}${current.original ? '&audio=or' : ''}` : null);
+  useEffect(()=>{setRequest(null);setSelectedOriginal(false);},[speech?.id,lang,playable]);
+  const embed = speech ? speechEmbedUrl(media.data, speech.id, lang, audio) : null;
   const returnFocus=()=>{
     if(!section.current?.isConnected)return;
     const saved=opener.current;
-    if(saved?.speechId!==identity.current.speechId||saved.lang!==identity.current.lang)return;
-    const target=saved.original?original.current:play.current;
-    if(target?.isConnected)target.focus({preventScroll:true});
+    if(!saved||saved.speechId!==identity.current.speechId||saved.lang!==identity.current.lang)return;
+    if(toggle.current?.isConnected)toggle.current.focus({preventScroll:true});
   };
-  const start = (original: boolean) => { opener.current={speechId:speech.id,lang,original};if (current?.original === original) {setFrameAttempt(x=>x+1);if(replayNeedsMediaRefresh(media.data,media.error))media.retry();} else setRequest({ speechId: speech.id, lang, original }); };
-  return <section ref={section} className="poc-video" lang="en" aria-label="Speech video">
-    <div className="poc-video-actions">
-      <button ref={play} onClick={() => start(false)} aria-pressed={Boolean(current && !current.original)}>Play · {lang.toUpperCase()}</button>
-      <button ref={original} onClick={() => start(true)} aria-pressed={Boolean(current?.original)}>Original audio</button>
-      {current && <button onClick={() => {returnFocus();setRequest(null);}}>Close video</button>}
-    </div>
-    {media.loading && !media.data && <p role="status">Loading video…</p>}
+  const close=()=>{returnFocus();setRequest(null);setSelectedOriginal(false);};
+  const start = (original: boolean) => {
+    if(!speech||!playable)return;
+    opener.current={speechId:speech.id,lang};setSelectedOriginal(original);
+    if (current?.original === original) {setFrameAttempt(x=>x+1);if(replayNeedsMediaRefresh(media.data,media.error))media.retry();}
+    else setRequest({ speechId: speech.id, lang, original });
+  };
+  const languageName=audioLanguageName(lang),activeName=current?.original?'Original':languageName;
+  const changed=Boolean(current&&selectedOriginal!==current.original);
+  const panel=<section ref={section} id={panelId} hidden={!current} className="poc-video" lang="en" aria-label="Speech video" onKeyDown={event=>{if(event.key==='Escape'){event.stopPropagation();close();}}}>
+    {current&&<>
+      <div className="poc-video-heading"><strong>Speech video</strong><button onClick={close}>Close video</button></div>
+      <div className="poc-video-controls">
+        <label>Audio<select ref={audioControl} value={selectedOriginal?'original':'language'} onChange={event=>setSelectedOriginal(event.target.value==='original')}>
+          <option value="language">{languageName}</option><option value="original">Original (floor audio)</option>
+        </select></label>
+        {changed?<button onClick={()=>{audioControl.current?.focus({preventScroll:true});start(selectedOriginal);}}>Restart video</button>:<button disabled={media.loading||!media.data?.available} onClick={()=>{if(replayNeedsMediaRefresh(media.data,media.error))audioControl.current?.focus({preventScroll:true});start(current.original);}}>Replay video</button>}
+      </div>
+      <p className="poc-video-audio-note">{changed?'Changing audio restarts the clip.':current.original?'Original sound from the chamber. Languages may vary.':`Parliament’s ${languageName} audio channel. Transcript language is separate.`}</p>
+      {media.loading && !media.data && <p role="status">Loading video…</p>}
     {media.error && <div className="poc-notice" role="alert"><p>{media.error}</p><button onClick={()=>{returnFocus();media.retry();}}>Try video again</button></div>}
-    {current && media.data && <>
-      {!media.data.available ? <div className="poc-notice"><strong>{media.data.status === 'audio-unavailable' ? `${lang.toUpperCase()} audio unavailable` : ['audio-unverified','audio-selection-unverified'].includes(media.data.status) ? `${lang.toUpperCase()} audio not verified` : 'No matched speech video'}</strong><p>{media.data.reason || 'A recording with the requested audio could not be established.'}</p></div>
+    {media.data && <>
+      {!media.data.available ? <div className="poc-notice" role="alert"><strong>{media.data.status === 'audio-unavailable' ? `${activeName} audio unavailable` : ['audio-unverified','audio-selection-unverified'].includes(media.data.status) ? `${activeName} audio not verified` : 'No matched speech video'}</strong><p>{media.data.reason || 'A recording with the requested audio could not be established.'}</p>{!current.original&&media.data.status?.startsWith('audio-')&&<button onClick={()=>{audioControl.current?.focus({preventScroll:true});start(true);}}>Try original audio</button>}</div>
         : !embed ? <p role="alert">This clip is unavailable. Open the full recording below.</p>
         : <>
-          <ParliamentFrame key={speechFrameKey(speech.id,lang,audio,frameAttempt,media.data.audioMapping)} src={embed} speechId={speech.id} lang={lang} audio={audio} original={current.original} mapping={media.data.audioMapping!} returnFocus={returnFocus} />
+          <ParliamentFrame key={speechFrameKey(current.speechId,lang,audio,frameAttempt,media.data.audioMapping)} src={embed} speechId={current.speechId} lang={lang} audio={audio} original={current.original} mapping={media.data.audioMapping!} returnFocus={returnFocus} />
         </>}
       {media.data.recording && <p className="poc-source-link"><a href={media.data.recording.websiteUrl} target="_blank" rel="noreferrer">Full recording ↗</a>{media.data.recording.stale && <small> · Cached recording metadata</small>}</p>}
     </>}
+    </>}
   </section>;
+  if(!speech)return {toggle:null,panel:null};
+  if(!playable)return {toggle:<span className="poc-video-gap" lang="en"><strong>{written?'Written statement · no video':'Video timings unavailable'}</strong></span>,panel:null};
+  return {toggle:<button ref={toggle} className="poc-video-toggle" lang="en" title={current?'Close this speech’s video':'Open this speech’s video'} aria-expanded={Boolean(current)} aria-controls={panelId} onClick={()=>current?close():start(false)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3Z" fill="currentColor" stroke="none"/></svg><span>Video</span></button>,panel};
+}
+
+export function PocSpeechPlayer({speech,lang}:{speech:Speech;lang:string}) {
+  const video=useSpeechVideo(speech,lang);
+  return <>{video.toggle}{video.panel}</>;
 }

@@ -57,9 +57,22 @@ test('outside-speaker links retain their own filters and validate identity and m
   assert.equal(readExplorerParam(new URLSearchParams('ov-person=0'),'ov-person',null),null);
   assert.equal(readExplorerParam(new URLSearchParams('ov-month=2025-13'),'ov-month',null),null);
 });
+test('amendment links retain their own dossier filters and reject malformed author or page values',()=>{
+  const params=new URLSearchParams('am-procedure=2025%2F0407(COD)&am-document=A-10-2026-0254&am-member=197818&am-outcome=mixed&am-offset=20&q-country=IT&member=42');
+  const saved=explorerParams(params,'amendments');
+  assert.equal(saved.get('am-procedure'),'2025/0407(COD)');
+  assert.equal(saved.get('am-member'),'197818');
+  assert.equal(saved.has('q-country'),false);
+  assert.equal(saved.has('member'),false);
+  assert.equal(explorerParams(params,'legislation').has('am-document'),false);
+  assert.equal(readExplorerParam(saved,'am-offset',0),20);
+  for(const value of ['0','-2','not-an-id'])assert.equal(readExplorerParam(new URLSearchParams({'am-member':value}),'am-member',''),'');
+  assert.equal(readExplorerParam(new URLSearchParams({'am-offset':'1000000'}),'am-offset',0),1000000);
+  for(const value of ['-1','20.5','1000001'])assert.equal(readExplorerParam(new URLSearchParams({'am-offset':value}),'am-offset',0),0);
+});
 test('global full-text navigation survives every explorer while contextual searches stay with their owner',()=>{
   const query=new URLSearchParams('global-fts-search=climate&global-fts-text-lang=fr&global-fts-page=2&global-fts-offset=37&global-fts-read=MTG-PL-example&global-fts-kind=question&global-fts-sort=newest&global-fts-closed=1&q-fts-search=water&q-fts-read=P-10-2025-000001&agenda-fts-search=energy&dossier-fts-search=emissions&mep-speech-fts-search=transport&mep-activity-fts-search=rail');
-  for(const view of [null,'questions','legislation','outside','saved']){
+  for(const view of [null,'questions','legislation','outside','saved','amendments']){
     const saved=explorerParams(query,view);
     for(const key of ['global-fts-search','global-fts-text-lang','global-fts-page','global-fts-offset','global-fts-read','global-fts-kind','global-fts-sort','global-fts-closed'])assert.equal(saved.get(key),query.get(key));
     assert.equal(saved.has('q-fts-search'),view==='questions');
