@@ -20,9 +20,10 @@ export function PocQuestionTopics(props:InsightProps) {
   const language=props.language||'en';
   const [textActive,setTextActive]=useState(false),[textScopeReady,setTextScopeReady]=useState(true);
   const [days,setDays]=useExplorerParam<AnalysisPeriod>('q-days',90,[7,30,90,180,365,'term']),[end,setEnd]=useExplorerParam<string>('q-until',''),[cluster,setCluster]=useExplorerParam<string|null>('q-topic',null),[word,setWord]=useExplorerParam<string|null>('q-word',null),[selectionLabel,setSelectionLabel]=useState<string|null>(null),[offset,setOffset]=useExplorerParam<number>('q-offset',0),[reading,setReading]=useExplorerParam<string|null>('q-read',null),[words,setWords]=useState(true),[allWords,setAllWords]=useState(false),[allTopics,setAllTopics]=useState(false),[country,setCountry]=useExplorerParam<string|null>('q-country',null),[dimension,setDimension]=useExplorerParam<'topics'|'time'|'countries'>('q-view','topics',['topics','time','countries']),[rangeKey,setRangeKey]=useExplorerParam<string>('q-range','');
+  const [,setTextOffset]=useExplorerParam<number>('q-fts-offset',-1);
   const [,setTextPage]=useExplorerParam<number>('q-fts-page',0),[,setTextRead]=useExplorerParam<string>('q-fts-read','');
   // URL writes commit after render; pause the mounted search until its old position is removed.
-  useEffect(()=>{const committed=()=>{const query=new URLSearchParams(location.search);if(!query.has('q-fts-page')&&!query.has('q-fts-read'))setTextScopeReady(true);};window.addEventListener('poc-explorer-query',committed);return()=>window.removeEventListener('poc-explorer-query',committed);},[]);
+  useEffect(()=>{const committed=()=>{const query=new URLSearchParams(location.search);if(!query.has('q-fts-page')&&!query.has('q-fts-offset')&&!query.has('q-fts-read'))setTextScopeReady(true);};window.addEventListener('poc-explorer-query',committed);return()=>window.removeEventListener('poc-explorer-query',committed);},[]);
   const range=/^\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}$/.test(rangeKey)?{start:rangeKey.slice(0,10),end:rangeKey.slice(11)}:null;
   const setRange=(value:{start:string;end:string}|null)=>setRangeKey(value?value.start+'_'+value.end:'');
   const params=new URLSearchParams({lang:language,days:String(days),limit:'25',offset:String(offset)});if(end)params.set('end',end);if(cluster)params.set('cluster',cluster);if(word)params.set('word',word);if(country)params.set('country',country);if(range){params.set('from',range.start);params.set('to',range.end);}
@@ -57,7 +58,7 @@ export function PocQuestionTopics(props:InsightProps) {
     pageFocus.current=null;heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'start'});
   },[route,textActive,data,error,loading]);
   // Clear explicit scope gestures in the same URL step; hydration and Back keep their saved position.
-  function resetTextPosition(){setTextScopeReady(false);setTextPage(0);setTextRead('');}
+  function resetTextPosition(){setTextScopeReady(false);setTextPage(0);setTextOffset(-1);setTextRead('');}
   function chooseCountry(code:string|null){if(code!==country)resetTextPosition();preservePosition(document.activeElement?.matches('[data-question-country]')||!code?'[data-question-country]':'[data-country="'+CSS.escape(code)+'"]');setAllWords(false);setCountry(code);setOffset(0);setReading(null);}
   function reset(){setCluster(null);setWord(null);setSelectionLabel(null);setOffset(0);setReading(null);}
   function select(id:string|null,token=false){preservePosition(id?'[data-'+(token?'word':'topic')+'="'+CSS.escape(id)+'"]':'.insight-topic-picker button');setSelectionLabel(id?(token?data?.words.find(w=>w.word===id)?.label||id:data?.clusters.find(c=>c.id===id)?.label||id):null);setCluster(token?null:id);setWord(token?id:null);setOffset(0);setReading(null);}

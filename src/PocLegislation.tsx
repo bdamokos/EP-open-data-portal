@@ -64,9 +64,10 @@ export function PocLegislation(props:InsightProps) {
   useEffect(()=>{window.document.title=`${pageTitle} — Parliament explorer`;},[pageTitle]);
   const [,setTrendTopic]=useExplorerParam<string>('trend-topic',''),[,setTrendWeek]=useExplorerParam<string>('trend-week',''),[,setTrendSearch]=useExplorerParam<string>('trend-search',''),[,setTrendDossier]=useExplorerParam<string|null>('trend-dossier',null);
   const [agendaPeriod,setAgendaPeriod]=useExplorerParam<string>('agenda-period','');
+  const [,setSearchOffset]=useExplorerParam<number>('agenda-fts-offset',-1);
   const [,setSearchPage]=useExplorerParam<number>('agenda-fts-page',0),[,setSearchRead]=useExplorerParam<string>('agenda-fts-read','');
   // Reset only explicit scope navigation; saved links and Back adopt their own result position.
-  const resetSearchPosition=useCallback(()=>{setSearchPage(0);setSearchRead('');},[setSearchPage,setSearchRead]);
+  const resetSearchPosition=useCallback(()=>{setSearchPage(0);setSearchOffset(-1);setSearchRead('');},[setSearchPage,setSearchOffset,setSearchRead]);
   const language=props.language||'en', [sitting,setSitting]=useExplorerParam<string>('pl-sitting',''),[topic,setTopic]=useExplorerParam<string>('agenda-topic',''),[,setVote]=useExplorerParam<string>('agenda-vote',''),[speech,setSpeech]=useState<string|null>(null),[document,setDocument]=useState<string|null>(null),[documentEvent,setDocumentEvent]=useState<string|null>(null);
   const voteLabel=interfaceTerm('vote',language);
   useEffect(()=>setReferenceDraft(reference),[reference]);
