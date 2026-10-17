@@ -63,10 +63,17 @@ export function interventionMetadata(activity) {
 // Exact debate membership and document numbering establish the sequence. Never bridge a missing row.
 export function buildInterventionSequence(activities,{parentId,expectedIds=[]}={}) {
   const expected=new Set(array(expectedIds).map(speechId).filter(Boolean));
-  const records=[...new Map(activities.filter(a=>expected.has(a.activity_id)&&interventionMetadata(a).parentIds.includes(parentId)).map(a=>[a.activity_id,a])).values()]
+  const hasExpected=expected.size>0;
+  const candidates=[...new Map(activities.filter(a=>expected.has(a.activity_id)).map(a=>[a.activity_id,a])).values()]
     .map(activity=>({activity,id:activity.activity_id,intervention:interventionMetadata(activity),exchangeId:null,replyTo:null}));
+  // Event consists_of can repeat the same contradictory links as the speeches.
+  // Only a fetched row with complete transcript evidence can leave the
+  // expected set; unavailable rows and unrelated parent mismatches stay gaps.
+  const reassignedIds=candidates.filter(row=>row.intervention.reportedParentIds?.includes(parentId)&&!row.intervention.parentIds.includes(parentId)).map(row=>row.id);
+  for(const id of reassignedIds)expected.delete(id);
+  const records=candidates.filter(row=>row.intervention.parentIds.includes(parentId));
   records.sort((a,b)=>(a.intervention.numbering??Infinity)-(b.intervention.numbering??Infinity)||a.id.localeCompare(b.id));
-  const numbers=records.map(r=>r.intervention.numbering),complete=expected.size>0&&records.length===expected.size&&numbers.every(Number.isSafeInteger)&&new Set(numbers).size===numbers.length;
+  const numbers=records.map(r=>r.intervention.numbering),complete=hasExpected&&records.length===expected.size&&numbers.every(Number.isSafeInteger)&&new Set(numbers).size===numbers.length;
   // Catch-the-eye is commonly a section, not an individual speech flag. Require both published boundaries.
   let opening=null;
   for(let i=0;i<records.length;i++) {
@@ -101,5 +108,5 @@ export function buildInterventionSequence(activities,{parentId,expectedIds=[]}={
       original=null;question=null;exchange=null;
     }
   }
-  return {records,exchanges,coverage:{complete,expected:expected.size,available:records.length,missingIds:[...expected].filter(id=>!records.some(r=>r.id===id))}};
+  return {records,exchanges,coverage:{complete,expected:expected.size,available:records.length,missingIds:[...expected].filter(id=>!records.some(r=>r.id===id)),reassignedIds}};
 }
