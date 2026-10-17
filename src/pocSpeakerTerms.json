@@ -1,0 +1,30 @@
+{
+  "provenance": {"method":"App-owned machine translations of short interface role labels; no human review claimed","model":"gpt-6.1-sol","date":"2026-10-17"},
+  "keys":["chair","president-parliament","vice-president-parliament","name-unavailable","commissioner","president-commission","vice-president-commission","council-presidency"],
+  "labels": {
+    "en":["Chairing the sitting","President of the European Parliament","Vice-President of the European Parliament","Name unavailable","Member of the Commission","President of the Commission","Vice-President of the Commission","President-in-Office of the Council"],
+    "bg":["Председателства заседанието","Председател на Европейския парламент","Заместник-председател на Европейския парламент","Името не е налично","Член на Комисията","Председател на Комисията","Заместник-председател на Комисията","Действащ председател на Съвета"],
+    "es":["Preside la sesión","Presidente del Parlamento Europeo","Vicepresidente del Parlamento Europeo","Nombre no disponible","Miembro de la Comisión","Presidente de la Comisión","Vicepresidente de la Comisión","Presidente en ejercicio del Consejo"],
+    "cs":["Řídí zasedání","Předseda Evropského parlamentu","Místopředseda Evropského parlamentu","Jméno není k dispozici","Člen Komise","Předseda Komise","Místopředseda Komise","Úřadující předseda Rady"],
+    "da":["Leder mødet","Formand for Europa-Parlamentet","Næstformand for Europa-Parlamentet","Navn ikke tilgængeligt","Medlem af Kommissionen","Formand for Kommissionen","Næstformand for Kommissionen","Rådets fungerende formand"],
+    "de":["Leitet die Sitzung","Präsident des Europäischen Parlaments","Vizepräsident des Europäischen Parlaments","Name nicht verfügbar","Mitglied der Kommission","Präsident der Kommission","Vizepräsident der Kommission","Amtierender Ratspräsident"],
+    "et":["Juhatab istungit","Euroopa Parlamendi president","Euroopa Parlamendi asepresident","Nimi pole saadaval","Komisjoni liige","Komisjoni president","Komisjoni asepresident","Nõukogu eesistuja"],
+    "el":["Προεδρεύει της συνεδρίασης","Πρόεδρος του Ευρωπαϊκού Κοινοβουλίου","Αντιπρόεδρος του Ευρωπαϊκού Κοινοβουλίου","Το όνομα δεν είναι διαθέσιμο","Μέλος της Επιτροπής","Πρόεδρος της Επιτροπής","Αντιπρόεδρος της Επιτροπής","Προεδρεύων του Συμβουλίου"],
+    "fr":["Préside la séance","Président du Parlement européen","Vice-président du Parlement européen","Nom indisponible","Membre de la Commission","Président de la Commission","Vice-président de la Commission","Président en exercice du Conseil"],
+    "ga":["I gceannas ar an suí","Uachtarán Pharlaimint na hEorpa","Leas-Uachtarán Pharlaimint na hEorpa","Níl an t-ainm ar fáil","Comhalta den Choimisiún","Uachtarán an Choimisiúin","Leas-Uachtarán an Choimisiúin","Uachtarán-in-Oifig na Comhairle"],
+    "hr":["Predsjeda sjednicom","Predsjednik Europskog parlamenta","Potpredsjednik Europskog parlamenta","Ime nije dostupno","Član Komisije","Predsjednik Komisije","Potpredsjednik Komisije","Predsjedatelj Vijeća"],
+    "it":["Presiede la seduta","Presidente del Parlamento europeo","Vicepresidente del Parlamento europeo","Nome non disponibile","Membro della Commissione","Presidente della Commissione","Vicepresidente della Commissione","Presidente in carica del Consiglio"],
+    "lv":["Vada sēdi","Eiropas Parlamenta priekšsēdētājs","Eiropas Parlamenta priekšsēdētāja vietnieks","Vārds nav pieejams","Komisijas loceklis","Komisijas priekšsēdētājs","Komisijas priekšsēdētāja vietnieks","Padomes pašreizējais priekšsēdētājs"],
+    "lt":["Pirmininkauja posėdžiui","Europos Parlamento pirmininkas","Europos Parlamento pirmininko pavaduotojas","Vardas nepateiktas","Komisijos narys","Komisijos pirmininkas","Komisijos pirmininko pavaduotojas","Einantis Tarybos pirmininko pareigas"],
+    "hu":["Az ülés levezető elnöke","Az Európai Parlament elnöke","Az Európai Parlament alelnöke","A név nem áll rendelkezésre","A Bizottság tagja","A Bizottság elnöke","A Bizottság alelnöke","A Tanács soros elnöke"],
+    "mt":["Jippresjedi s-seduta","President tal-Parlament Ewropew","Viċi President tal-Parlament Ewropew","L-isem mhux disponibbli","Membru tal-Kummissjoni","President tal-Kummissjoni","Viċi President tal-Kummissjoni","President fil-kariga tal-Kunsill"],
+    "nl":["Leidt de vergadering","Voorzitter van het Europees Parlement","Ondervoorzitter van het Europees Parlement","Naam niet beschikbaar","Lid van de Commissie","Voorzitter van de Commissie","Vicevoorzitter van de Commissie","Fungerend voorzitter van de Raad"],
+    "pl":["Przewodniczy posiedzeniu","Przewodniczący Parlamentu Europejskiego","Wiceprzewodniczący Parlamentu Europejskiego","Imię i nazwisko niedostępne","Członek Komisji","Przewodniczący Komisji","Wiceprzewodniczący Komisji","Urzędujący przewodniczący Rady"],
+    "pt":["Preside à sessão","Presidente do Parlamento Europeu","Vice-presidente do Parlamento Europeu","Nome indisponível","Membro da Comissão","Presidente da Comissão","Vice-presidente da Comissão","Presidente em exercício do Conselho"],
+    "ro":["Prezidează ședința","Președinte al Parlamentului European","Vicepreședinte al Parlamentului European","Numele nu este disponibil","Membru al Comisiei","Președinte al Comisiei","Vicepreședinte al Comisiei","Președinte în exercițiu al Consiliului"],
+    "sk":["Vedie zasadnutie","Predseda Európskeho parlamentu","Podpredseda Európskeho parlamentu","Meno nie je k dispozícii","Člen Komisie","Predseda Komisie","Podpredseda Komisie","Úradujúci predseda Rady"],
+    "sl":["Vodi sejo","Predsednik Evropskega parlamenta","Podpredsednik Evropskega parlamenta","Ime ni na voljo","Član Komisije","Predsednik Komisije","Podpredsednik Komisije","Predsedujoči Svetu"],
+    "fi":["Johtaa istuntoa","Euroopan parlamentin puhemies","Euroopan parlamentin varapuhemies","Nimi ei saatavilla","Komission jäsen","Komission puheenjohtaja","Komission varapuheenjohtaja","Neuvoston puheenjohtaja"],
+    "sv":["Leder sammanträdet","Europaparlamentets talman","Europaparlamentets vice talman","Namn saknas","Ledamot av kommissionen","Kommissionens ordförande","Kommissionens vice ordförande","Rådets tjänstgörande ordförande"]
+  }
+}
