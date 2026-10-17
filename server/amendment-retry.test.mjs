@@ -33,7 +33,7 @@ function setup(t,options={}) {
   store.putSource(generation,'outside:state','outside-state',{version:1,terms:[9,10]},stamp);
   store.updateCycle({initialized:true,motionOutcomesDay:date,reportJoinsReady:true,procedureTitlesQueued:true,amendmentsPreparedVersion:AMENDMENTS_VERSION,amendmentsPreparedDay:date,splitParserVersion:SPLIT_PARSER_VERSION,amendmentDocumentParserVersion:AMENDMENT_EXTRACTION_VERSION,amendmentDocumentLinksVersion:AMENDMENT_LINKS_VERSION,amendmentSittingProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION,amendmentDistributionProofVersion:AMENDMENT_DISTRIBUTION_PROOF_VERSION});
   store.release();
-  const worker=new ActivityWorker(store,{clock,fetchRecord:async()=>{throw new Error('Unexpected source request.');},...options});
+  const worker=new ActivityWorker(store,{clock,monotonic:clock,fetchRecord:async()=>{throw new Error('Unexpected source request.');},...options});
   const write=fn=>{assert(store.acquire());try{return fn();}finally{store.release();}};
   const writeAsync=async fn=>{assert(store.acquire());try{return await fn();}finally{store.release();}};
   t.after(()=>{worker.stop();store.close();rmSync(directory,{recursive:true,force:true});});
@@ -91,7 +91,14 @@ test('post-publication pagination respects the existing request and duration bou
     await worker.run();
     assert.equal(calls,1);assert.equal(JSON.parse(job(store,'bounded:roster',generation).body).offset,701);
     assert.equal(job(store,'bounded:roster',generation).done,0);assert.equal(pending(store),true);assert.equal(store.get('working'),null);
-    await worker.run();assert.equal(calls,2);assert.equal(job(store,'bounded:roster',generation).done,1);assert.equal(pending(store),false);assert.equal(store.get('sequence'),generation);
+    await worker.run();assert.equal(calls,2);
+    if(limit==='duration') {
+      // The final page also spends the run's duration, so the roster rebuild
+      // yields at its slice boundary and resumes without another request.
+      assert.equal(job(store,'bounded:roster',generation).done,0);assert.equal(pending(store),true);assert.equal(store.get('working'),null);
+      await worker.run();assert.equal(calls,2);
+    }
+    assert.equal(job(store,'bounded:roster',generation).done,1);assert.equal(pending(store),false);assert.equal(store.get('sequence'),generation);
   }
 });
 

@@ -8,6 +8,9 @@ const IMAGE_LIMIT = 2 * 1024 * 1024;
 const HEADER_LIMIT = 4096;
 const digest = body => createHash('sha256').update(body).digest('hex');
 const unavailable = () => new HttpError(502, 'portrait_unavailable', 'Portrait unavailable.');
+// Cache validators from the image host, kept only when well formed and bounded.
+const entityTag = value => typeof value === 'string' && value.length <= 256 && /^(W\/)?"[\x21\x23-\x7e\x80-\xff]*"$/.test(value) ? value : null;
+const httpDate = value => typeof value === 'string' && value.length <= 64 && Number.isFinite(Date.parse(value)) ? value : null;
 
 function officialPortrait(value) {
   const url = new URL(value);
@@ -110,7 +113,7 @@ export class PortraitCache {
           header.fetchedAt <= 0 || header.fetchedAt > this.clock() || header.contentType !== 'image/jpeg' ||
           officialPortrait(header.sourceUrl) !== header.sourceUrl || body.length > IMAGE_LIMIT ||
           digest(body) !== header.sha256) return null;
-      return this.remember(id, {...header, body});
+      return this.remember(id, {...header, etag: entityTag(header.etag), lastModified: httpDate(header.lastModified), body});
     } catch (error) {
       if (!(error instanceof SyntaxError) && !(error instanceof HttpError) && error.code !== 'ENOENT') this.diskError();
       return null;
@@ -155,12 +158,26 @@ export class PortraitCache {
     await operation;
   }
 
-  async download(id, resolveSource, {priority = 'interactive',signal} = {}) {
+  async download(id, resolveSource, {priority = 'interactive',signal,previous = null} = {}) {
     const sourceUrl = officialPortrait(await waitForRequest(resolveSource(id, {priority}),signal));signal?.throwIfAborted();
+    // Revalidate a saved copy of the same image, so an unchanged portrait costs a 304 and no body.
+    const saved = previous?.sourceUrl === sourceUrl ? previous : null;
+    const conditions = {
+      ...(saved?.etag ? {'If-None-Match': saved.etag} : {}),
+      ...(saved?.lastModified ? {'If-Modified-Since': saved.lastModified} : {}),
+    };
     const response = await this.fetchImpl(sourceUrl, {
-      headers: {'User-Agent': 'Mozilla/5.0 (compatible; Parliament-Explorer/0.1)', Accept: 'image/jpeg'},
+      headers: {'User-Agent': 'Mozilla/5.0 (compatible; Parliament-Explorer/0.1)', Accept: 'image/jpeg', ...conditions},
       redirect: 'error', signal: AbortSignal.any([AbortSignal.timeout(12000),...(signal?[signal]:[])]),
     });
+    const etag = entityTag(response.headers.get('etag')), lastModified = httpDate(response.headers.get('last-modified'));
+    if (response.status === 304) {
+      await response.body?.cancel();
+      if (!Object.keys(conditions).length) throw unavailable();
+      // A 304 naming another entity tag does not confirm the saved bytes; fetch them afresh.
+      if (etag && etag !== saved.etag) return this.download(id, () => sourceUrl, {priority, signal});
+      return {...saved, fetchedAt: this.clock(), lastModified: lastModified || saved.lastModified};
+    }
     const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase();
     if (!response.ok || contentType !== 'image/jpeg' || !response.body) {
       await response.body?.cancel(); throw unavailable();
@@ -180,7 +197,7 @@ export class PortraitCache {
       }
     } finally { reader.releaseLock(); }
     if (!size) throw unavailable();
-    return {memberId: id, sourceUrl, fetchedAt: this.clock(), contentType, body: Buffer.concat(chunks, size)};
+    return {memberId: id, sourceUrl, fetchedAt: this.clock(), contentType, etag, lastModified, body: Buffer.concat(chunks, size)};
   }
 
   refresh(id, resolveSource, options) {
@@ -189,7 +206,8 @@ export class PortraitCache {
     const failure = this.failures.get(id);
     if (failure && this.clock() < failure.retryAt) return Promise.reject(failure.error);
     const job = sharedRequest(async signal => {
-        const image = await this.download(id, resolveSource, {...options,signal});signal.throwIfAborted();
+        const previous = this.memory.get(id) || await this.read(id);signal.throwIfAborted();
+        const image = await this.download(id, resolveSource, {...options,signal,previous});signal.throwIfAborted();
         this.remember(id, image); this.failures.delete(id);
         await this.save(id, image);
         return image;
