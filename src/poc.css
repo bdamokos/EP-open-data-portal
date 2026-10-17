@@ -1,6 +1,7 @@
 /* Responsive explorer layout. */
 .poc {
-  position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden;
+  /* Desktop content scrolls inside its panels; revealing a card must not scroll the shell. */
+  position: fixed; inset: 0; display: flex; flex-direction: column; overflow: clip;
   color: white; background: var(--parliament-blue); font-size: 18px; line-height: 1.45;
   -webkit-user-select: text; user-select: text;
   --poc-gutter: clamp(16px, 2.5vw, 40px);
