@@ -13,9 +13,9 @@ export const roleName=(role:string)=>({RAPPORTEUR:'Rapporteur',RAPPORTEUR_SHADOW
 export function InsightShell({title,description,view,children,onBack,onNavigate,onSaved,language='en'}:InsightProps&{title:string;description?:string;view:'legislation'|'questions'|'outside'|'amendments'|'groups';children:ReactNode}) {
   return <main className="explorer-insights" lang={language}><ParliamentHeader view={view} onMembers={onBack} onNavigate={onNavigate} onSaved={onSaved} language={language}/><section className="insight-intro" lang="en"><h1>{title}</h1>{description&&<p>{description}</p>}</section>{children}<footer><DataNotice className="insight-data-notice"/></footer></main>;
 }
-export function InsightStatus({loading,error,retry}:{loading:boolean;error:string|null;retry:()=>void}) {
+export function InsightStatus({loading,error,retry,loadingMessage='Loading…',errorMessage='Could not load this item.'}:{loading:boolean;error:string|null;retry:()=>void;loadingMessage?:string;errorMessage?:string}) {
   const [visible,setVisible]=useState(false);useEffect(()=>{setVisible(false);if(!loading)return;const timer=setTimeout(()=>setVisible(true),300);return()=>clearTimeout(timer);},[loading]);
-  return <>{visible&&loading&&<p className="insight-secondary" role="status" lang="en">Loading…</p>}{error&&<div className="insight-error" role="alert" lang="en"><span>Could not load this item.</span><button onClick={retry}>Reload</button></div>}</>;
+  return <>{visible&&loading&&<p className="insight-secondary" role="status" lang="en">{loadingMessage}</p>}{error&&<div className="insight-error" role="alert" lang="en"><span>{errorMessage}</span><button onClick={retry}>Reload</button></div>}</>;
 }
 export function InsightDemographics({stats,language='en'}:{stats:InsightStats;language?:string}) {
   const [allCountries,setAllCountries]=useState(false),sex=stats.dimensions.gender,total=stats.denominator;
