@@ -13,6 +13,7 @@ import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
 import {motionComparison} from './motion-comparison.mjs';
 import {motionAmendmentsQuery,motionAmendmentsPage} from './motion-amendments.mjs';
+import {memberVotes,memberVotesQuery} from './member-votes.mjs';
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
@@ -139,6 +140,9 @@ async function handleApi(request,response,url,apiPrefix){
     else if(segments[1]==='motion-amendments' && segments.length===3) {
       const query=motionAmendmentsQuery(segments[2],url.searchParams);
       result=motionAmendmentsPage(activityIndex().store,query);
+    }
+    else if (segments[1] === 'member-votes' && segments.length===3) {
+      result=await memberVotes.query(positiveId(segments[2]),memberVotesQuery(url.searchParams));
     }
     else if (segments[1] === 'amendments' && (segments.length===2 || segments.length===3&&segments[2]==='failures')) {
       const failures=segments.length===3,query=amendmentQuery(url.searchParams,{failures});

@@ -40,6 +40,14 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 
 ## Source notes
 
+### Member voting records
+
+The member voting API reads a selected held plenary week or sitting through `/meetings`, sitting `/decisions`, `/vote-results` and `/foreseen-activities`. Named roll calls use `vote-method=ROLL_CALL_EV` without `filter-output=voters`; a separate voter-excluded decision read retains non-named and lapsed outcomes. Exact decision parents, result children and agenda references connect documents, procedures, amendments and split components. Procedural ballots without agenda links remain available with unresolved context. English reference labels provide an explicitly labelled scope heuristic when no exact amendment/component reference exists.
+
+Actual `had_voter_favor`, `had_voter_against` and `had_voter_abstention` positions stay separate from `had_voter_intended_*` declarations. Non-named votes and missing positions never establish individual choices or physical absence. Omitted declarations are not reported as proof that none exist. A roll-call method on a lapsed decision does not establish a conducted ballot. Null tallies remain distinct from zero, and conflicting/malformed named references and tally mismatches remain explicit. Current roster metadata is not used as historical group membership or mandate eligibility.
+
+Source coverage is bounded and independent of the activity index. Complete collection requires successful paging and all declared result/decision children; source errors, repeated pages and caps retain uncertainty. Retrieval times, content hashes and stale/refresh flags identify the source snapshot; no API publication SLA or publication version is inferred. Parliament's [roll-call annex](https://www.europarl.europa.eu/doceo/document/PV-10-2026-10-07-RCV_EN.xml) states that corrections/intention declarations do not change announced results and may update over the two weeks following a part-session. The endpoint is a selected-period observation, not a complete term history or participation statistic.
+
 ### Open Data API
 
 - `/meetings` accepts comma-separated years and offset pagination. Some historical agenda endpoints return HTTP 204. The UI shows those as unavailable agendas and keeps the sitting selectable.
