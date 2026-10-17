@@ -6,7 +6,7 @@ import { downloadDocxBuffer } from './document-text.mjs';
 import { extractAmendments, AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { createAmendmentAuthorResolver, votingAliases } from './amendment-authors.mjs';
 import { parseSplitRequest, SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
-import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentReference, amendmentSittings, amendmentDecision, amendmentTextLosses, amendmentProposerDate, validAmendmentDate, hasDecisionReferenceSet, targetMetadata, normalizedDocxDescriptor, sameDocxDescriptor, distributionEvidenceFor, currentDocxDescriptor, listWordingFreshness, checkedAggregateAttribution } from './amendments.mjs';
+import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentReference, amendmentSittings, amendmentDecision, amendmentTextLosses, amendmentProposerDate, validAmendmentDate, hasDecisionReferenceSet, targetMetadata, normalizedDocxDescriptor, sameDocxDescriptor, distributionEvidenceFor, currentDocxDescriptor, listWordingFreshness, checkedAggregateAttribution } from './amendments.mjs';
 import { recordSplitResults, saveAmendmentRows, enqueueAmendment } from './amendments-store.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 import { runAmendmentWorkSlice } from './amendment-work-slices.mjs';
@@ -430,6 +430,10 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   const currentListIds=linked.candidates.map(candidate=>candidate.id);
   const currentLists=new Set(currentListIds);
   target.linkedListCount=currentListIds.length;target.linkedListObservationCount=currentListIds.length+linked.unavailable;target.unresolvedListObservationCount=linked.unavailable;target.unresolvedListIds=linked.unresolved;
+  // Persist this narrow source observation separately from legacy completeness,
+  // which also requires amendment wording/decisions and at least one row.
+  target.emptyObservation=relationshipsKnown&&Array.isArray(saved.work.inverse_foresees_change_of)&&saved.work.inverse_foresees_change_of.length===0?
+    {version:AMENDMENT_EMPTY_OBSERVATION_VERSION,documentId:id,relationship:'inverse_foresees_change_of',scope:'published-amendment-list-relationships',listCount:0,source:target.sources[0]}:null;
   const lists=store.db.prepare("SELECT body,fetched_at FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=?").all(generation,id).map(row=>{const work=JSON.parse(row.body);return {work,fetchedAt:row.fetched_at,current:currentLists.has(idOf(work))};}).sort((a,b)=>Number(b.current)-Number(a.current));
   const sittingSources=[...new Set([...amendmentSittings(saved.work),...discovered])].map(sittingId=>{const record=store.source(generation,motionSourceKey(sittingId));return {sittingId,record:record?{...record,work:amendmentSitting(record.work)}:null};});
   target.sittingIds=sittingSources.map(source=>source.sittingId);
