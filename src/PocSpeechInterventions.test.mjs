@@ -108,3 +108,26 @@ test('top-level rate errors show a countdown and enable retry after the cooldown
   await act(async()=>new Promise(resolve=>setTimeout(resolve,1100)));
   assert.equal(retry().disabled,false);assert.equal(retry().textContent,'Retry sequence');
 });
+
+test('missing debate records remain visible without the sequence sources disclosure',async t=>{
+  const window=new Window({url:'http://localhost/'});
+  const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  let vite,root;
+  t.after(async()=>{
+    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
+  });
+  const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/speech-interventions-live-20261015.json',import.meta.url)));
+  const row={...speechSummary(fixture.activities.find(a=>a.recorded_in_a_realization_of?.[0]?.numbering===172)),replyTo:null,exchangeId:null};
+  t.mock.method(globalThis,'fetch',async()=>Response.json({speechId:row.id,unavailable:false,debates:[{id:fixture.parent.activity_id,titles:{en:'Debate'},records:[row],exchanges:[],coverage:{complete:false,available:1,expected:2,missingIds:['missing']},sources:[{url:'https://example.org/sequence-source',fetchedAt:'2026-10-16T12:00:00Z',stale:false}]}]}));
+  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {PocSpeechContext}=await vite.ssrLoadModule('/src/PocSpeechInterventions.tsx');
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');root=createRoot(container);
+  await act(async()=>root.render(createElement(PocSpeechContext,{id:row.id,language:'en'})));
+  await act(async()=>container.querySelector('button').click());
+  assert.match(container.textContent,/1 of 2 debate records available\. Links stop at missing contributions\./);
+  assert.equal(container.querySelector('details,a[href="https://example.org/sequence-source"]'),null);
+  assert(!container.textContent.includes('Sequence sources'));
+});

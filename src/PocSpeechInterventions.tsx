@@ -1,4 +1,3 @@
-import {PocSourceLink} from './PocSourceLink';
 import {useEffect,useId,useRef,useState} from 'react';
 import {api,useData} from './pocData';
 import type {Intervention,InterventionStatistics,Speech,SpeechContext,SpeechDetail,SpeechSequenceRow} from './pocTypes';
@@ -20,38 +19,33 @@ export function InterventionBadges({value,language='en'}:{value?:Intervention;la
 
 export function PocInterventionStatistics({member,onItems}:{member:number;onItems?:(items:Speech[])=>void}) {
   const [state,setState]=useState<{member:number;data:InterventionStatistics|null;loading:boolean;error:string|null}>({member,data:null,loading:true,error:null});
-  const [attempt,setAttempt]=useState(0),[all,setAll]=useState(false);
-  const result=state.member===member?state.data:null;
-  useEffect(()=>{setAll(false);},[member]);
+  const [attempt,setAttempt]=useState(0);
+  const {data:result,loading,error}=state.member===member?state:{data:null,loading:true,error:null};
   useEffect(()=>{
-    let active=true;
+    let active=true;const controller=new AbortController();
     void(async()=>{
       setState(previous=>({member,data:previous.member===member?previous.data:null,loading:true,error:null}));
       try {
         let page:number|null=0,restarts=0;
-        while(page!==null) {
-          const data:InterventionStatistics=await api<InterventionStatistics>(`speech-statistics/${member}?page=${page}`);
+        while(active&&page!==null) {
+          const data:InterventionStatistics=await api<InterventionStatistics>(`speech-statistics/${member}?page=${page}`,controller.signal);
           if(!active)return;
-          if(data.restarted&&++restarts>2)throw new Error('This count was interrupted. Retry counts.');
+          if(data.restarted&&++restarts>2)throw new Error('Counting was interrupted.');
           onItems?.(data.items);
-          setState({member,data,loading:all&&data.nextPage!==null,error:null});
-          if(!all)break;page=data.nextPage;
+          setState({member,data,loading:data.nextPage!==null,error:null});
+          page=data.nextPage;
         }
       }catch(error){if(active)setState(previous=>({...previous,loading:false,error:(error as Error).message}));}
-    })();return()=>{active=false;};
-  },[member,attempt,all,onItems]);
+    })();return()=>{active=false;controller.abort();};
+  },[member,attempt,onItems]);
   return <section className="intervention-statistics" lang="en" aria-label="Speaking statistics">
-    <div className="intervention-stats-heading"><h3>At the microphone</h3><span>Term 10</span></div>
-    {result&&<><div className="intervention-stats-grid">{[
+    <div className="intervention-stats-heading"><h3>At the microphone</h3><div className="intervention-stats-meta"><span>Term 10</span>{loading&&<span className="intervention-counting" role="status"><span className="intervention-spinner" aria-hidden="true"/><span className="intervention-counting-label">Counting contributions…</span></span>}</div></div>
+    {result&&<><div className="intervention-stats-grid" aria-busy={loading}>{[
       ['total','Total contributions','speech'],['groupOrations','On behalf of a group','speech'],['blueQuestions','Blue cards raised','blue-card-question'],['blueAnswers','Blue cards answered','blue-card-answer'],['blueReactions','Blue-card reactions','blue-card-reaction']
     ].map(([key,label,type])=><div key={key}><InterventionIcon type={type as Intervention['type']}/><strong>{key==='total'?result.coverage.available:result.counts[key as keyof typeof result.counts]??'—'}</strong><span>{label}</span></div>)}</div>
-      <p className="intervention-caption">{result.coverage.available}{result.coverage.total!==null&&result.coverage.available!==result.coverage.total?` of ${result.coverage.total}`:''} contributions counted{state.loading?' · Loading…':!result.coverage.complete?' · Partial coverage':''}</p>
-      {result.groups.length>0&&<p className="intervention-group-counts">{result.groups.map(group=><span key={group.id}>{group.label} <strong>{group.count}</strong></span>)}</p>}
-      {!state.loading&&result.nextPage!==null&&<button onClick={()=>{setAll(true);setAttempt(a=>a+1);}}>Count all contributions</button>}
-      <details className="intervention-source"><summary>About these counts</summary><p>The total includes every counted speech and written statement, including contributions without a group designation or readable speaker header. Group and blue-card counts are subsets of the total and can overlap.</p><p>Subtotals use Parliament’s speech headers and recorded group designations. Blue cards answered counts replies; reactions are counted separately.</p><p>Group names refer to the designation at the time of the speech.</p>{result.coverage.headers<result.coverage.available&&<p>{result.coverage.available-result.coverage.headers} contributions have no readable English speaker header.</p>}<p>Catch-the-eye sections appear in the debate sequence.</p>{result.sources.map(item=><PocSourceLink key={item.url} url={item.url}>Source · <span lang={new Intl.DateTimeFormat().resolvedOptions().locale}>{new Date(item.fetchedAt).toLocaleDateString()}</span></PocSourceLink>)}</details>
+      {!loading&&!result.coverage.complete&&<p className="intervention-caption">Partial coverage</p>}
     </>}
-    {state.loading&&!result&&<p role="status">Counting contributions…</p>}
-    {state.error&&<p lang="en">{state.error} <button onClick={()=>setAttempt(a=>a+1)}>Retry counts</button></p>}
+    {error&&<p role="alert">{error} <button onClick={()=>setAttempt(a=>a+1)}>Retry counts</button></p>}
   </section>;
 }
 
@@ -96,7 +90,7 @@ function Sequence({debate,speechId,language,loading,retry}:{debate:SpeechContext
         </>}
       </div>
     </li>)}</ol>}
-    <details className="intervention-source"><summary>Sequence sources</summary><p>Exchanges follow debate order, numbered contributions and speaker IDs. Catch-the-eye speeches sit between the published section markers.</p>{!debate.coverage.complete&&<p>{debate.coverage.available} of {debate.coverage.expected??'unknown'} debate records available. Links stop at missing contributions.</p>}{debate.sources?.map(item=><PocSourceLink key={item.url} url={item.url} language={language}>Source · <span lang={new Intl.DateTimeFormat().resolvedOptions().locale}>{new Date(item.fetchedAt).toLocaleDateString()}</span></PocSourceLink>)}</details>
+    {!debate.error&&!debate.coverage.complete&&<p className="intervention-caption">{debate.coverage.available} of {debate.coverage.expected??'unknown'} debate records available. Links stop at missing contributions.</p>}
   </section>;
 }
 export function PocSpeechContext({id,language}:{id:string;language:string}) {
