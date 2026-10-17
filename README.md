@@ -8,7 +8,7 @@ See the [project vision](VISION.md) for the proof of concept’s purpose, approa
 
 ## Run locally
 
-Use Node.js 22.15 or newer and npm.
+Use the Node.js version in `.nvmrc` (Node.js 26) and npm. The minimum is Node.js 22.16 or 24+; earlier releases and Node.js 23 bundle SQLite without FTS5.
 
 ```sh
 npm ci
