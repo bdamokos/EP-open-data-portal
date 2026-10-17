@@ -10,9 +10,9 @@
     <script type="module">
       import {createElement} from 'react';
       import {createRoot} from 'react-dom/client';
-      import './PocApp.tsx';
+      import './App.tsx';
       import './base.css';
-      import {PocOutsideVoices} from './PocOutsideVoices.tsx';
+      import {OutsideVoices} from './OutsideVoices.tsx';
 
       // Serve locally at desktop and 320px, with ?months=88 for a long range.
       // Press a real Tab before focusMonth(); synthetic key events cannot set
@@ -74,8 +74,8 @@
         const request = new URL(input instanceof Request ? input.url : input, location.href);
         calls.push(request.pathname + request.search);
         if (request.origin !== location.origin) throw new Error('External request blocked: ' + request.origin);
-        if (request.pathname === '/api/poc/outside/directory') return Response.json({term: request.searchParams.get('term'), people: [person], coverage});
-        if (request.pathname === '/api/poc/outside/42') return Response.json(detail);
+        if (request.pathname === '/api/explorer/outside/directory') return Response.json({term: request.searchParams.get('term'), people: [person], coverage});
+        if (request.pathname === '/api/explorer/outside/42') return Response.json(detail);
         throw new Error('Unexpected fixture request: ' + request.pathname + request.search);
       };
 
@@ -200,7 +200,7 @@
         observer.disconnect();
       });
       observer.observe(document.getElementById('root'), {childList: true, subtree: true});
-      createRoot(document.getElementById('root')).render(createElement(PocOutsideVoices, {language: 'en', onBack() {}}));
+      createRoot(document.getElementById('root')).render(createElement(OutsideVoices, {language: 'en', onBack() {}}));
     </script>
   </body>
 </html>
