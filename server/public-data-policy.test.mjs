@@ -32,7 +32,7 @@ test('runtime source cannot reintroduce authenticated data adapters',()=>{
  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(html,/<title>European Parliament data explorer<\/title>/);
  assert.doesNotMatch(html,/\bUnity\b|\bterminal\b/i);
- const app=readFileSync(new URL('../src/PocApp.tsx',import.meta.url),'utf8');
+ const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
  assert.doesNotMatch(app,/loadI18n/);
 });
 test('every explorer page carries the public-data notice',()=>{
@@ -41,5 +41,5 @@ test('every explorer page carries the public-data notice',()=>{
  assert.match(notice,/creativecommons\.org\/licenses\/by\/4\.0/);
  assert.match(notice,/Not an official Parliament service/);
  assert.doesNotMatch(readFileSync(new URL('../src/ParliamentHeader.tsx',import.meta.url),'utf8'),/>\s*EUROPEAN PARLIAMENT\s*</i,'the site brand is not the Parliament’s name alone');
- for(const shell of ['PocApp.tsx','PocInsightShared.tsx'])assert.match(readFileSync(new URL(`../src/${shell}`,import.meta.url),'utf8'),/<DataNotice\b/,shell);
+ for(const shell of ['App.tsx','InsightShared.tsx'])assert.match(readFileSync(new URL(`../src/${shell}`,import.meta.url),'utf8'),/<DataNotice\b/,shell);
 });
