@@ -16,7 +16,7 @@ const questionItem={id:'question:'+questionId,sourceId:questionId,date:'2026-10-
 const speechItem={id:'speech:'+speechId,sourceId:speechId,date:'2026-03-25',title:'Plenary speech fixture',titles:{en:'Plenary speech fixture'},recordKind:'speech',category:'plenary-contributions',categoryLabel:'Plenary contributions',reference:speechId,files:[],speechKind:'PLENARY_DEBATE_SPEECH',start:'2026-03-25T10:00:00Z',end:'2026-03-25T10:01:00Z',websiteUrl:'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-25-INT-2017069380111_EN.html',websiteLanguage:'en',provenance:{role:'SPEAKER'}};
 const page=items=>({categories:{'written-questions':'Written questions','plenary-contributions':'Plenary contributions'},categoryGroups:[],categoryCoverage:{},items,selectedItems:[],indexedTotal:items.length,nextOffset:null,cache:{complete:true}});
 
-async function harness(t,{items=[questionItem],activity,module='activities',language='en'}={}) {
+async function harness(t,{items=[questionItem],activity,module='activities',language='en',stored=false}={}) {
   const query=new URLSearchParams({member:String(member.id),module,lang:language});if(activity)query.set('activity',activity);
   const window=new Window({url:'http://localhost/?'+query}),pending=[],unexpected=[];
   class ReaderDOMParser extends window.DOMParser {
@@ -42,6 +42,8 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   });
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,location.href),route=url.pathname.split('/poc/')[1];
+    if(route?.startsWith('speech-transcript/')&&!stored)return Response.json({id:route.split('/')[1],available:false});
+    if(stored&&route?.startsWith('speech-transcript/'))return new Promise(resolve=>pending.push({route:route+url.search,resolve,finished:false}));
     if(/^(document|speech)\//.test(route))return new Promise(resolve=>pending.push({route:route+url.search,resolve,finished:false}));
     if(route==='directory')return Response.json({day:'2026-10-16',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}});
     if(route===`portrait/${member.id}`)return new Response(null,{status:404});
@@ -140,6 +142,51 @@ test('selected root speech announces an error once, retries successfully, and pr
   await h.finish(`speech/${speechId}?lang=en`,{id:speechId,xml:'<speech>'+paragraphs.map(text=>'<p>'+text+'</p>').join('')+'</speech>',textLanguage:'en',translationType:'original'});await h.wait();
   assert.equal(status(reader).textContent,'Transcript loaded.');assert.equal(reader.querySelector('[role="alert"]'),null);assertOrdinaryText(reader);
   assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===source));assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Video'));
+});
+
+test('retained transcript renders before metadata and survives a failed metadata load without replacing the text',async t=>{
+  const h=await harness(t,{items:[speechItem],stored:true});
+  await h.click(h.container.querySelector('.explorer-speech-toggle'));
+  const reader=h.container.querySelector('.explorer-speech-detail');
+  const xml='<speech><p>Retained <inline name="i">editorial note</inline> and readable speech.</p></speech>';
+  await h.finish(`speech-transcript/${speechId}?lang=en`,{id:speechId,available:true,xml,textLanguage:'en',translationType:'machine',sourceFragmentKey:'en',availableTextLanguages:['en','fr']});
+  await h.wait();
+  const text=reader.querySelector('.explorer-transcript');assert(text);
+  assert.equal(text.lang,'en');assert.equal(text.querySelector('i').textContent,'editorial note');
+  assert.match(reader.querySelector('.explorer-text-meta').textContent,/Parliament machine translation/);
+  assert.equal(status(reader).textContent,'Transcript loaded.');
+  assert(reader.querySelector('[aria-label="Find in speech"]'));
+  assert(h.pending.some(request=>request.route===`speech/${speechId}?lang=en`&&!request.finished),'metadata is still pending');
+  await h.finish(`speech/${speechId}?lang=en`,{error:{message:'Metadata fixture unavailable.'}},503);
+  assert.equal(reader.querySelector('.explorer-transcript'),text);
+  assert.equal(reader.querySelector('[role="alert"]'),null);
+  assert.equal(status(reader).textContent,'Transcript loaded.');
+});
+
+test('late metadata does not overwrite the corpus variant or replace its DOM',async t=>{
+  const h=await harness(t,{items:[speechItem],stored:true});
+  await h.click(h.container.querySelector('.explorer-speech-toggle'));
+  const reader=h.container.querySelector('.explorer-speech-detail');
+  await h.finish(`speech-transcript/${speechId}?lang=en`,{id:speechId,available:true,xml:'<speech><p>Retained variant.</p></speech>',textLanguage:'en',translationType:'original'});
+  const text=reader.querySelector('.explorer-transcript');
+  await h.finish(`speech/${speechId}?lang=en`,{id:speechId,xml:'<speech><p>Other detail variant.</p></speech>',textLanguage:'fr',speakers:[{id:'42',name:'Exact speaker'}]});
+  assert.equal(reader.querySelector('.explorer-transcript'),text);
+  assert.equal(text.textContent,'Retained variant.');assert.equal(text.lang,'en');
+  assert.equal(reader.querySelector('strong').textContent,'Exact speaker');
+});
+
+test('complete retained speech metadata renders without a foreground speech-detail request',async t=>{
+  const h=await harness(t,{items:[speechItem],stored:true});
+  await h.click(h.container.querySelector('.explorer-speech-toggle'));
+  assert(!h.pending.some(request=>request.route.startsWith('speech/')),'the corpus is checked first');
+  await h.finish(`speech-transcript/${speechId}?lang=en`,{id:speechId,available:true,xml:'<speech><p>Complete retained speech.</p></speech>',textLanguage:'en',translationType:'original',availableTextLanguages:['en'],
+    metadata:{id:speechId,xml:null,speakers:[{id:'42',name:'Retained speaker'}],intervention:{type:'speech',onBehalfOf:[]},availableTextLanguages:['en']}});
+  await h.wait();
+  const reader=h.container.querySelector('.explorer-speech-detail');
+  assert.equal(reader.querySelector('strong').textContent,'Retained speaker');
+  assert.equal(reader.querySelector('.explorer-transcript').textContent,'Complete retained speech.');
+  assert.equal(status(reader).textContent,'Transcript loaded.');
+  assert(!h.pending.some(request=>request.route.startsWith('speech/')),'a complete corpus hit needs no detail fetch');
 });
 
 test('an explicitly checked linked activity keeps its nested document outside the fallback announcement',async t=>{

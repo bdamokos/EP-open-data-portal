@@ -34,6 +34,8 @@ test('vote changes preserve agenda readers and expansion through loading, failur
     }
     if(url.pathname.endsWith('/insights/procedure-context'))return Response.json(summary);
     if(url.pathname.includes('/document/'))return Response.json({selectedDocumentId:topic.documentIds[0],files:[],answers:[],selectedText:{status:'available',paragraphs:['Document text'],textLanguage:params.get('lang'),availableTextLanguages:['en','fr']}});
+    if(url.pathname.includes('/speech-transcript/'))return Response.json({id:url.pathname.split('/').at(-1),available:false});
+    if(url.pathname.includes('/speech-context/'))return Response.json({speechId:url.pathname.split('/').at(-1),unavailable:true,debates:[]});
     if(url.pathname.includes('/speech/'))return Response.json({id:url.pathname.split('/').at(-1),xml:`<root><p>Speech text ${url.pathname.split('/').at(-1)}</p></root>`,websiteUrl:'https://example.test/'+url.pathname.split('/').at(-1),speakers:[],availableTextLanguages:['en'],textLanguage:'en'});
     throw new Error('Unexpected request: '+url);
   });
@@ -110,7 +112,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   assert.equal(voteSection().getAttribute('aria-busy'),'true');preserved();
   assert.equal(container.querySelector('.insight-vote-detail'),null,'old totals must not appear under a new selection');
   await respond();assert.equal(shown(),'amendment');preserved();
-  assert.equal(calls.length,before+1,'only the vote request should run');
+  assert.equal(calls.slice(before).filter(url=>!url.pathname.includes('/speech-context/')).length,1,'only the vote foreground request should run; delayed debate preloading is independent');
   assert.equal(window.location.search.includes('agenda-vote=test-amendment'),true);
   await change('.insight-vote-select select','test-procedural');await respond(503);
   assert(voteSection().querySelector('[role="alert"]'));preserved();

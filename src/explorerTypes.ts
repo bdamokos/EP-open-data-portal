@@ -158,6 +158,7 @@ export interface SpeechPage {
   offset: number;
 }
 export interface SpeechDetail extends Speech {
+  metadataSource?:{url:string;fetchedAt:string;headerSources?:{url:string;fetchedAt:string}[]};
   sourceFragmentKey?:string;
   speakers?:SpeechSpeaker[];
   xml: string | null;
@@ -168,6 +169,21 @@ export interface SpeechDetail extends Speech {
   video: { available: false; reason: string };
   fetchedAt: string;
   textCache?: { sourceFetchedAt: string; stale: boolean; refreshInProgress: boolean; refreshError: string | null; availableLanguages: string[]; coverage: 'returned-languages-only' };
+}
+
+export interface StoredSpeechTranscript {
+  id:string;
+  available:boolean;
+  xml?:string;
+  textLanguage?:string;
+  sourceFragmentKey?:string;
+  translationType?:'original'|'machine'|'unspecified';
+  availableTextLanguages?:string[];
+  sourceUrl?:string;
+  fetchedAt?:string;
+  checkedAt?:string;
+  metadata?:SpeechDetail;
+  metadataUnavailable?:boolean;
 }
 export interface MotionOutcome {
   status: 'adopted' | 'rejected' | 'lapsed' | 'withdrawn' | 'unavailable';
