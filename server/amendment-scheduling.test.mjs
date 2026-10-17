@@ -20,6 +20,8 @@ function setup(t,{budget=1000}={}) {
   const directory=mkdtempSync(path.join(os.tmpdir(),'amendment-scheduling-')),clock=()=>Date.parse(stamp);
   const store=new ActivityStore(directory,{clock});assert(store.acquire());const {generation}=store.beginCycle();
   store.setMembers([{id:'1',name:'Example Member'}]);
+  // Metadata is settled in this amendment scheduling fixture.
+  store.db.prepare('INSERT INTO group_voice_state VALUES (?,1)').run(generation);
   const worker=new ActivityWorker(store,{clock,budget,fetchRecord:async()=>{throw Error('Unexpected synthetic source request');},downloadAmendmentDocx:async()=>{throw Error('Unexpected DOCX download');},downloadVotingXml:async()=>{throw Error('Unexpected XML download');}});
   t.after(()=>{worker.stop();store.close();rmSync(directory,{recursive:true,force:true});});
   return {store,worker,generation};
