@@ -142,7 +142,7 @@ test('HTTP joined endpoints read the persistent cache and validate categories, p
   assert.equal((await fetch(groupRoute,{method:'POST'})).status,405);assert.equal((await fetch(groupRoute,{headers:{Origin:'https://evil.example'}})).status,403);
   const groupHead=await fetch(groupRoute,{method:'HEAD'});assert.equal(groupHead.status,200);assert.equal(await groupHead.text(),'');
   const before=store.status();
-  const insight='/poc/insights/questions?days=365&end=2026-10-13';
+  const insight='/insights/questions?days=365&end=2026-10-13';
   for(const prefix of ['/api']) {
     const response=await fetch(base+prefix+insight);assert.equal(response.status,200);
     const body=await response.json();assert.equal(body.counts.analyzedQuestions,1);
