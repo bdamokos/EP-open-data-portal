@@ -3,9 +3,10 @@ import { API_ROOT } from "./api";
 import { createDataClient } from "./client.mjs";
 import type {SpeechDetail,StoredSpeechTranscript} from './explorerTypes';
 
-export async function api<T>(route: string, signal?: AbortSignal): Promise<T> {
+export async function api<T>(route: string, signal?: AbortSignal, { priority = 'auto' }: { priority?: 'auto' | 'low' } = {}): Promise<T> {
   const r = await fetch(`${API_ROOT}/poc/${route}`, {
     signal,
+    priority,
     credentials: "omit",
     headers: { Accept: "application/json" },
   });
@@ -27,6 +28,7 @@ export function useSpeechData(id:string,language:string) {
   return {...detail,transcript,retry,availableTextLanguages,loading:!transcript&&(saved.loading||detail.loading),
     error:transcript?null:saved.loading?null:detail.error};
 }
+export function prefetchData(routes: string[]) { return client.prefetch(routes); }
 export function useData<T>(route: string | null) {
   const [state, setState] = useState<{
     route: string | null;

@@ -40,7 +40,7 @@ function useCloud(route:string) {
 }
 
 export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage='en',title,controls,onSpeech,onSpeakers,onSpeechSpeakers}:{member?:number;sitting?:string;week?:string;topic?:string;country?:string|null;interfaceLanguage?:string;title?:string|false;controls?:ReactNode;onSpeech?:(id:string,language:string)=>void;onSpeakers?:(people:{id:string;name:string;role:string|null}[],speechId?:string)=>void;onSpeechSpeakers?:(speeches:{id:string;people:CloudPerson[]}[])=>void}) {
-  const [language,setLanguage]=useState('en'),[days,setDays]=useState<AnalysisPeriod>(90),[word,setWord]=useState<string|null>(null),[more,setMore]=useState(false),[reading,setReading]=useState<string|null>(null),examples=useRef<HTMLHeadingElement>(null);
+  const [language,setLanguage]=useState('en'),[days,setDays]=useState<AnalysisPeriod>('term'),[word,setWord]=useState<string|null>(null),[more,setMore]=useState(false),[reading,setReading]=useState<string|null>(null),examples=useRef<HTMLHeadingElement>(null);
   const reader=useRef<HTMLDivElement>(null),sourceButtons=useRef(new Map<string,HTMLButtonElement>()),readerId=useId();
   const params=new URLSearchParams({lang:language});if(member){params.set('member',String(member));params.set('days',String(days));}else if(week)params.set('week',week);else if(sitting)params.set('sitting',sitting);if(topic)params.set('topic',topic);if(country)params.set('country',country);
   const {data,loading,error,retry}=useCloud('insights/speech-cloud?'+params),selected=data?.words.find(term=>term.word===word);
