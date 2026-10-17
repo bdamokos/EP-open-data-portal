@@ -53,7 +53,7 @@ test('HTTP deadline releases the reader, aborts its unshared cold source and kee
     calls++;sourceSignal=signal;started();
     return new Promise((resolve,reject)=>signal.addEventListener('abort',()=>{aborted?.();reject(signal.reason);},{once:true}));
   });
-  const slow=read(base,'/api/poc/profile/99988');await admitted;
+  const slow=read(base,'/api/profile/99988');await admitted;
   assert.equal((await read(base,'/api/healthz')).status,200);assert.equal((await read(base,'/')).status,200);
   t.mock.timers.tick(30000);
   const result=await slow;assert.equal(result.status,503);assert.equal(JSON.parse(result.body).error.code,'request_timeout');assert(sourceSignal.aborted);assert.equal(calls,1);
@@ -61,7 +61,7 @@ test('HTTP deadline releases the reader, aborts its unshared cold source and kee
   assert.equal((await read(base,'/healthz')).status,200);
   const nextAdmitted=new Promise(resolve=>started=resolve),sourceAborted=new Promise(resolve=>aborted=resolve);
   let client;
-  const disconnected=new Promise(resolve=>{client=http.get(base+'/api/poc/profile/99989');client.on('error',resolve);});
+  const disconnected=new Promise(resolve=>{client=http.get(base+'/api/profile/99989');client.on('error',resolve);});
   await nextAdmitted;client.destroy();await disconnected;await sourceAborted;assert(sourceSignal.aborted);
   assert.equal((await read(base,'/api/healthz')).status,200);
 });

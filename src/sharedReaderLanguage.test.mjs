@@ -24,7 +24,7 @@ async function harness(t,locale,respond=()=>{throw Error('Unexpected fixture req
 
 test('player controls, unavailable states and parent-frame text stay English under EN/HU/FR source selections',async t=>{
   for(const locale of ['en','hu','fr'])await t.test(locale,async t=>{
-    const h=await harness(t,locale,url=>{assert.equal(url.pathname,'/api/poc/speech-media/'+speech.id);return {available:false,status:'audio-unavailable',reason:'Requested fixture audio is unavailable.'};});
+    const h=await harness(t,locale,url=>{assert.equal(url.pathname,'/api/speech-media/'+speech.id);return {available:false,status:'audio-unavailable',reason:'Requested fixture audio is unavailable.'};});
     const {SpeechPlayer,ParliamentFrame}=await h.load('SpeechPlayer');
     await h.render(createElement(SpeechPlayer,{speech:{...speech,kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'},lang:locale}));
     assert.equal(effective(h.container.querySelector('.explorer-video-gap strong')),'en');
@@ -56,7 +56,7 @@ const comparison=actual=>({status:'available',stage:'original-joint',requestedLa
 test('comparison source wording keeps exact actual/unknown metadata while English labels and localized metadata remain separate',async t=>{
   const cases=[['en','hu'],['hu','fr'],['fr','en'],['hu',null],['fr','mul'],['hu','und']];
   for(const [locale,actual] of cases)await t.test(locale+'/'+actual,async t=>{
-    const h=await harness(t,locale,url=>{assert.equal(url.pathname,'/api/poc/motion-comparison/B-10-2026-0001');return comparison(actual);});
+    const h=await harness(t,locale,url=>{assert.equal(url.pathname,'/api/motion-comparison/B-10-2026-0001');return comparison(actual);});
     const {MotionComparison}=await h.load('MotionComparison');
     await h.render(createElement(MotionComparison,{originalId:'B-10-2026-0001',jointId:'RC-10-2026-0001',language:locale}));
     assert.equal(effective(h.container.querySelector('.explorer-diff-change-label')),'en');

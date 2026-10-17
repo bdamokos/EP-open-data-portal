@@ -4,7 +4,7 @@ import { createDataClient } from "./client.mjs";
 import type {SpeechDetail,StoredSpeechTranscript} from './explorerTypes';
 
 export async function api<T>(route: string, signal?: AbortSignal, { priority = 'auto' }: { priority?: 'auto' | 'low' } = {}): Promise<T> {
-  const r = await fetch(`${API_ROOT}/poc/${route}`, {
+  const r = await fetch(`${API_ROOT}/${route}`, {
     signal,
     priority,
     credentials: "omit",

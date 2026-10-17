@@ -1,4 +1,4 @@
-const portraitPath = /^(?:(?:\.\/)*|\/)api\/poc\/portrait\/([1-9][0-9]*)$/;
+const portraitPath = /^(?:(?:\.\/)*|\/)api\/portrait\/([1-9][0-9]*)$/;
 const aborted = () => new DOMException('Portrait no longer needed', 'AbortError');
 
 export function isManagedPortrait(url) {
@@ -80,7 +80,7 @@ export function createPortraitLoader({concurrency = 3, maxQueued = 1024, startIn
   function load(url, {signal} = {}) {
     const match = portraitPath.exec(url);
     if (!match) return Promise.reject(new Error('Invalid portrait path'));
-    url = `/api/poc/portrait/${match[1]}`;
+    url = `/api/portrait/${match[1]}`;
     if (signal?.aborted) return Promise.reject(aborted());
     let job = jobs.get(url);
     if (!job) {

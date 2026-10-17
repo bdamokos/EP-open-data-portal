@@ -25,4 +25,4 @@ Run the checks in [Contributing](../CONTRIBUTING.md). Verify the directory, a pr
 
 Local test examples intentionally omit parts of the archive, portraits and demographics. Keep fixture limits separate from live counts. Test external media through the official public player after an explicit Play, including the requested language and actual decoded audio.
 
-The published application API uses `/api/poc/`. This transport namespace is a compatibility contract with the gateway and clients, independent of application file and component names.
+The application API uses flat routes under `/api/`, such as `/api/directory` and `/api/profile/{id}`. The former `/api/poc/` routes are not served. Deploy this route contract together with the gateway’s bounded route admission and verify the frontend after the coordinated switch.

@@ -616,7 +616,7 @@ export default function App() {
                 <Portrait
                   member={{
                     ...selected,
-                    imageUrl: `${API_ROOT}/poc/portrait/${selected.id}`,
+                    imageUrl: `${API_ROOT}/portrait/${selected.id}`,
                   }}
                 />
               )}
@@ -859,7 +859,7 @@ export default function App() {
                           member={{
                             ...m,
                             imageUrl: m.memberships
-                              ? `${API_ROOT}/poc/portrait/${m.id}`
+                              ? `${API_ROOT}/portrait/${m.id}`
                               : publicUrl("assets/portrait-placeholder.svg"),
                           }}
                           labelled

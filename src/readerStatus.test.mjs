@@ -39,7 +39,7 @@ async function harness(t) {
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   t.mock.method(globalThis,'fetch',input=>{
-    const url=new URL(input,window.location.href),route=url.pathname.split('/poc/')[1]+url.search;
+    const url=new URL(input,window.location.href),route=url.pathname.split('/api/')[1]+url.search;
     assert.match(route,/^(document|speech)\//,'reader tests must not contact unrelated services');
     return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));
   });

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createPortraitLoader, isManagedPortrait} from './portraitLoader.mjs';
 
-const path = id => `/api/poc/portrait/${id}`;
+const path = id => `/api/portrait/${id}`;
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function deferred() {
   let resolve, reject;
@@ -50,7 +50,7 @@ test('an eager batch leaves room for a profile read when cached portraits respon
   const pending = Array.from({length: 18}, (_, i) => loader.load(path(i + 1)));
   await flush();
   assert.equal(calls.length, 3, 'fast cached bodies must not drain the whole eager batch at once');
-  assert.equal((await gateway('/api/poc/profile/1')).status, 200);
+  assert.equal((await gateway('/api/profile/1')).status, 200);
   await time.advance(5_000);
   await Promise.all(pending);
   assert.equal(calls.filter(call => call.url.includes('/portrait/')).length, 18);
@@ -156,11 +156,11 @@ test('exhausting one portrait retry budget does not release the queue before its
 test('only same-origin portrait paths enter the queue, including relative build URLs', async () => {
   const calls = [];
   const loader = createPortraitLoader({startInterval: 0, fetchImpl: async (url, options) => {calls.push({url, options}); return image();}});
-  for (const url of [path(1), './api/poc/portrait/2', '././api/poc/portrait/3']) {
+  for (const url of [path(1), './api/portrait/2', '././api/portrait/3']) {
     assert.equal(isManagedPortrait(url), true);
     assert.equal((await loader.load(url)).type, 'image/jpeg');
   }
-  for (const url of ['https://example.test/api/poc/portrait/1', '//example.test/api/poc/portrait/1', '/api/poc/document/E-1', '/api/poc/portrait/0', '/api/poc/portrait/1?url=other', '../api/poc/portrait/1']) {
+  for (const url of ['https://example.test/api/portrait/1', '//example.test/api/portrait/1', '/api/document/E-1', '/api/poc/portrait/1', '/api/portrait/0', '/api/portrait/1?url=other', '../api/portrait/1']) {
     assert.equal(isManagedPortrait(url), false);
     await assert.rejects(loader.load(url), /Invalid portrait path/);
   }
@@ -190,7 +190,7 @@ test('coalesces matching wall/author requests while allowing one consumer to can
   const response = deferred(), cancelled = new AbortController();
   let calls = 0;
   const loader = createPortraitLoader({startInterval: 0, fetchImpl: () => {calls++; return response.promise;}});
-  const first = loader.load('./api/poc/portrait/1', {signal: cancelled.signal});
+  const first = loader.load('./api/portrait/1', {signal: cancelled.signal});
   const second = loader.load(path(1));
   const rejected = assert.rejects(first, {name: 'AbortError'});
   cancelled.abort(); await rejected;

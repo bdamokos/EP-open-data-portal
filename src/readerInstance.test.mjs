@@ -25,12 +25,12 @@ async function harness(t,{mismatch=false}={}) {
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',()=>{});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);assert.equal(url.origin,'http://localhost','only isolated local request stubs are permitted');calls.push(url);
-    if(url.pathname==='/api/poc/references'){
+    if(url.pathname==='/api/references'){
       assert.equal(url.searchParams.get('lang'),'en');assert(url.searchParams.get('keys').split(',').every(key=>references.some(reference=>reference.key===key)));
       return Response.json({references});
     }
-    assert.match(url.pathname,/^\/api\/poc\/document\//,'the reader must not contact corpus, media or other services');
-    const id=decodeURIComponent(url.pathname.slice('/api/poc/document/'.length));assert([questionA,questionB,answerA].includes(id),'document requests retain exact public source IDs');assert.equal(url.search,'?lang=en');
+    assert.match(url.pathname,/^\/api\/document\//,'the reader must not contact corpus, media or other services');
+    const id=decodeURIComponent(url.pathname.slice('/api/document/'.length));assert([questionA,questionB,answerA].includes(id),'document requests retain exact public source IDs');assert.equal(url.search,'?lang=en');
     return Response.json(publication(mismatch&&id===questionA?questionB:id));
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
@@ -113,5 +113,5 @@ test('local find stays within each repeated question and answer text instance',a
 test('rendered instance identity does not admit a mismatched source response',async t=>{
   const h=await harness(t,{mismatch:true});assert.equal(h.ownText(h.container.firstElementChild),null);assert(!h.container.textContent.includes('Beta question body.'));
   await act(async()=>new Promise(resolve=>setTimeout(resolve,400)));
-  assert.equal(h.container.querySelector('[role="status"][aria-live="polite"]').textContent,'Question A: Text unavailable.');assert.equal(h.calls[0].pathname,'/api/poc/document/'+questionA);
+  assert.equal(h.container.querySelector('[role="status"][aria-live="polite"]').textContent,'Question A: Text unavailable.');assert.equal(h.calls[0].pathname,'/api/document/'+questionA);
 });

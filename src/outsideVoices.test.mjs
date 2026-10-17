@@ -60,14 +60,14 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
   const calls=[];
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);calls.push(url);
-    if(url.pathname.startsWith('/api/poc/speech/')) {
+    if(url.pathname.startsWith('/api/speech/')) {
       if(readSpeech)return readSpeech(url);
       const id=decodeURIComponent(url.pathname.split('/').at(-1));
       return Response.json({id,speakers:[],xml:'<speech><p>Transcript for '+id+'</p></speech>',textLanguage:url.searchParams.get('lang'),availableTextLanguages:['en'],translationType:'original'});
     }
-    if(url.pathname==='/api/poc/source-record'&&sourceData)return Response.json(sourceData);
-    if(url.pathname==='/api/poc/outside/directory')return Response.json({term:url.searchParams.get('term'),people:details.map(d=>d.person),coverage});
-    const detail=details.find(d=>url.pathname==='/api/poc/outside/'+d.person.id);
+    if(url.pathname==='/api/source-record'&&sourceData)return Response.json(sourceData);
+    if(url.pathname==='/api/outside/directory')return Response.json({term:url.searchParams.get('term'),people:details.map(d=>d.person),coverage});
+    const detail=details.find(d=>url.pathname==='/api/outside/'+d.person.id);
     if(detail)return Response.json(detail);
     throw new Error('Unexpected request: '+url);
   });

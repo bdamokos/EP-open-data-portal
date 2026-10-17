@@ -62,7 +62,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
     assert.deepEqual(unexpected,[],'every fetch stays within the isolated app fixtures');
   });
   t.mock.method(globalThis,'fetch',async input=>{
-    const url=new URL(input,location.href),route=url.pathname.split('/poc/')[1];
+    const url=new URL(input,location.href),route=url.pathname.split('/api/')[1];
     if(route?.startsWith('speech-transcript/'))return Response.json({id:route.split('/')[1],available:false});requests.push(route+url.search);
     if(route==='directory')return Response.json(directory);
     if(route?.startsWith('portrait/'))return new Response(null,{status:404});

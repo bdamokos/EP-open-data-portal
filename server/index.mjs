@@ -95,20 +95,23 @@ async function corpusSearchBody(request) {
   finally{cleanup();}
 }
 
+// Browser transport for this app. The gateway admits the same finite route set.
+const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','source-record','corpus','speech-statistics','speech-media','speech-context']);
+
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
- const segments=routeSegments(url.pathname,apiPrefix),endpoint=segments[0]||'';
- const isCorpusSearch=segments.length===3&&segments[0]==='poc'&&segments[1]==='corpus'&&segments[2]==='search';
+ const segments=routeSegments(url.pathname,apiPrefix);
+ const endpoint=segments[0]||'';
+ if(endpoint&&!apiEndpoints.has(endpoint))throw new HttpError(404,'not_found','The requested API endpoint does not exist.');
+ const isCorpusSearch=segments.length===2&&endpoint==='corpus'&&segments[1]==='search';
  if(request.method==='OPTIONS'){setCommonSecurityHeaders(response);response.statusCode=204;response.setHeader('Allow',isCorpusSearch?'GET, HEAD, POST, OPTIONS':'GET, HEAD, OPTIONS');response.setHeader('Cache-Control','no-store');response.setHeader('Vary','Origin');response.end();return;}
  requireMethod(request,isCorpusSearch?['GET','HEAD','POST']:['GET','HEAD']);
- if(!endpoint||endpoint==='healthz'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:1,...(!endpoint?{endpoints:['healthz','poc']}:{}),time:new Date().toISOString()});return;}
-  if (endpoint === "poc") {
-    requireMethod(request,isCorpusSearch?['GET','HEAD','POST']:["GET", "HEAD"]);
+ if(!endpoint||endpoint==='healthz'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:1,...(!endpoint?{endpoints:[...apiEndpoints]}:{}),time:new Date().toISOString()});return;}
     const queryKeys={directory:['lang'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang'],'speech-transcript':['lang'],'source-record':['lang','url'],'motion-comparison':['lang','joint','stage']};
-    if(Object.hasOwn(queryKeys,segments[1]))requireQuery(url.searchParams,queryKeys[segments[1]]);
+    if(Object.hasOwn(queryKeys,segments[0]))requireQuery(url.searchParams,queryKeys[segments[0]]);
     const language = odpLanguage(url.searchParams.get("lang") || "en");
-    if (segments.length === 3 && segments[1] === "portrait") {
-      const image = await odpPortrait(positiveId(segments[2]));
+    if (segments.length === 2 && segments[0] === "portrait") {
+      const image = await odpPortrait(positiveId(segments[1]));
       setCommonSecurityHeaders(response);
       response.setHeader("Content-Type", image.contentType);
       response.setHeader("Cache-Control", "private, max-age=21600");
@@ -118,37 +121,37 @@ async function handleApi(request,response,url,apiPrefix){
       return;
     }
     let result;
-    if(segments[1]==='source-record' && segments.length===2)result=await sourceRecord(url.searchParams.get('url'),language);
-    else if(segments[1]==='motion-comparison' && segments.length===3) {
-      result=await motionComparison(segments[2],url.searchParams.get('joint'),{stage:url.searchParams.get('stage') || 'original-joint',language});
+    if(segments[0]==='source-record' && segments.length===1)result=await sourceRecord(url.searchParams.get('url'),language);
+    else if(segments[0]==='motion-comparison' && segments.length===2) {
+      result=await motionComparison(segments[1],url.searchParams.get('joint'),{stage:url.searchParams.get('stage') || 'original-joint',language});
     }
-    else if (segments[1] === 'amendments' && (segments.length===2 || segments.length===3&&segments[2]==='failures')) {
-      const failures=segments.length===3,query=amendmentQuery(url.searchParams,{failures});
+    else if (segments[0] === 'amendments' && (segments.length===1 || segments.length===2&&segments[1]==='failures')) {
+      const failures=segments.length===2,query=amendmentQuery(url.searchParams,{failures});
       result=failures?amendmentFailures(activityIndex().store,query):amendmentsPage(activityIndex().store,query);
     }
-    else if (segments[1] === 'outside' && segments.length === 3) {
+    else if (segments[0] === 'outside' && segments.length === 2) {
       const query=outsideQuery(url.searchParams), store=activityIndex().store;
-      result=segments[2]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[2],query);
+      result=segments[1]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[1],query);
     }
-    else if (segments.length === 3 && segments[1] === 'insights' && segments[2] === 'group-voices') {
+    else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'group-voices') {
       result=groupVoicesPage(activityIndex().store,groupVoicesQuery(url.searchParams));
     }
-    else if (segments.length === 3 && segments[1] === 'insights') {
+    else if (segments.length === 2 && segments[0] === 'insights') {
       insightService ??= createInsights(activityIndex().store,{officialSources:official().sources,eurovocCatalog:official().catalog});
-      result = await insightService.query(segments[2], url.searchParams);
+      result = await insightService.query(segments[1], url.searchParams);
     }
-    else if (segments.length === 2 && segments[1] === 'references') result = await official().references.query(referencesQuery(url.searchParams));
+    else if (segments.length === 1 && segments[0] === 'references') result = await official().references.query(referencesQuery(url.searchParams));
     // Dossier summaries for reading references do not depend on the activity index.
-    else if (segments.length === 2 && segments[1] === 'reference-summary') result = await official().procedures.query({...procedureContextQuery(url.searchParams),order:REFERENCE_SUMMARY_ORDER});
-    else if (segments.length === 3 && segments[1] === 'activity-index' && segments[2] === 'status') {
+    else if (segments.length === 1 && segments[0] === 'reference-summary') result = await official().procedures.query({...procedureContextQuery(url.searchParams),order:REFERENCE_SUMMARY_ORDER});
+    else if (segments.length === 2 && segments[0] === 'activity-index' && segments[1] === 'status') {
       if ([...url.searchParams.keys()].some(key => key!=='lang' || url.searchParams.getAll(key).length!==1)) throw new HttpError(400,'invalid_query','Unsupported or repeated status query parameter.');
       result = activityIndexStatus();
     }
-    else if (segments.length === 3 && segments[1] === 'corpus' && segments[2] === 'status') {
+    else if (segments.length === 2 && segments[0] === 'corpus' && segments[1] === 'status') {
       if ([...url.searchParams.keys()].some(key => key!=='lang' || url.searchParams.getAll(key).length!==1)) throw new HttpError(400,'invalid_query','Unsupported or repeated status query parameter.');
       result = await corpusStatus();
     }
-    else if (segments.length === 3 && segments[1] === 'corpus' && segments[2] === 'search') {
+    else if (segments.length === 2 && segments[0] === 'corpus' && segments[1] === 'search') {
       const allowed = new Set(['lang','q','kind','kinds','text-lang','member','country','from','to','limit','offset','group','date-basis','sort','source-ids']);
       if ([...url.searchParams.keys()].some(key => !allowed.has(key) || url.searchParams.getAll(key).length !== 1)) throw new HttpError(400,'invalid_query','Unsupported or repeated search query parameter.');
       if(request.method==='POST') {
@@ -168,7 +171,7 @@ async function handleApi(request,response,url,apiPrefix){
         sourceIds:value('source-ids')===null?null:value('source-ids')===''?[]:value('source-ids').split(','),limit:integer('limit',20,CORPUS_LIMITS.searchLimit,1),offset:integer('offset',0,CORPUS_LIMITS.searchOffset)}));
       }
     }
-    else if (segments.length === 3 && segments[1] === 'corpus' && segments[2] === 'text') {
+    else if (segments.length === 2 && segments[0] === 'corpus' && segments[1] === 'text') {
       requireQuery(url.searchParams,['lang','source-id','source-key','q']);
       const sourceId=url.searchParams.get('source-id'),sourceKey=url.searchParams.get('source-key');
       if(!/^[A-Z0-9-]{1,100}$/.test(sourceId||''))throw new HttpError(400,'invalid_source_id','Use an exact source identifier.');
@@ -177,7 +180,7 @@ async function handleApi(request,response,url,apiPrefix){
       if(query!==null&&!corpusQuery(query))throw new HttpError(400,'invalid_query','Use bounded words or quoted phrases for text highlighting.');
       result=await corpusText({sourceId,sourceKey,query});
     }
-    else if (segments.length === 3 && segments[1] === 'latest-activities') {
+    else if (segments.length === 2 && segments[0] === 'latest-activities') {
       const allowed = new Set(['lang','category','limit','offset','source-id']);
       if ([...url.searchParams.keys()].some(key => !allowed.has(key) || url.searchParams.getAll(key).length !== 1)) throw new HttpError(400,'invalid_query','Unsupported or repeated activity query parameter.');
       const integer = (name,fallback,max) => {
@@ -190,43 +193,40 @@ async function handleApi(request,response,url,apiPrefix){
       if(category!==null && !Object.hasOwn(CATEGORIES,category))throw new HttpError(400,'invalid_category','Unknown activity category.');
       const sourceId=url.searchParams.get('source-id');
       if(sourceId!==null && !/^[A-Z0-9-]{1,100}$/.test(sourceId))throw new HttpError(400,'invalid_source_id','Invalid source identifier.');
-      result=questionStatuses(activityIndex().store,latestActivities(positiveId(segments[2]),{language,category,sourceId,limit:integer('limit',10,50),offset:integer('offset',0,1000000)}));
+      result=questionStatuses(activityIndex().store,latestActivities(positiveId(segments[1]),{language,category,sourceId,limit:integer('limit',10,50),offset:integer('offset',0,1000000)}));
     }
-    else if (segments.length === 3 && segments[1] === 'speech-context') {
+    else if (segments.length === 2 && segments[0] === 'speech-context') {
       requireQuery(url.searchParams,['lang']);
-      if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]{1,80}$/.test(segments[2]))throw new HttpError(400,'invalid_speech','Invalid speech identifier.');
-      result=await interventions.context(segments[2]);
+      if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]{1,80}$/.test(segments[1]))throw new HttpError(400,'invalid_speech','Invalid speech identifier.');
+      result=await interventions.context(segments[1]);
     }
-    else if (segments.length === 3 && segments[1] === 'speech-statistics') {
+    else if (segments.length === 2 && segments[0] === 'speech-statistics') {
       requireQuery(url.searchParams,['lang','page']);
       const page=url.searchParams.get('page')||'0';
       if(!/^(0|[1-9]\d?)$/.test(page)||Number(page)>=INTERVENTION_LIMITS.memberPages)throw new HttpError(400,'invalid_page','Invalid statistics page.');
-      result=await interventions.member(positiveId(segments[2]),Number(page));
+      result=await interventions.member(positiveId(segments[1]),Number(page));
     }
-    else if (segments.length === 3 && segments[1] === 'speech-media') {
-      if (!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]{1,80}$/.test(segments[2])) throw new HttpError(400,'invalid_speech','Invalid speech identifier.');
+    else if (segments.length === 2 && segments[0] === 'speech-media') {
+      if (!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]{1,80}$/.test(segments[1])) throw new HttpError(400,'invalid_speech','Invalid speech identifier.');
       if ([...url.searchParams.keys()].some(key => !['lang','audio'].includes(key) || url.searchParams.getAll(key).length!==1)) throw new HttpError(400,'invalid_query','Unsupported or repeated media query parameter.');
       const audio=url.searchParams.get('audio');
       if (audio!==null && audio!=='or') throw new HttpError(400,'invalid_audio','Use audio=or for explicitly selected original audio; otherwise the interface language is requested.');
-      result=await speechMedia(segments[2],language,audio || language);
+      result=await speechMedia(segments[1],language,audio || language);
     }
-    else if (segments.length === 2 && segments[1] === "directory") result = await odpDirectory();
-    else if (segments.length === 3 && segments[1] === "profile") result = await odpProfile(positiveId(segments[2]));
-    else if (segments.length === 3 && segments[1] === "activities") result = await recentActivities(positiveId(segments[2]), language);
-    else if (segments.length === 3 && segments[1] === "document" && /^[A-Z0-9-]{1,100}$/.test(segments[2])) result = await activityDocument(segments[2], url.searchParams.has("member")?positiveId(url.searchParams.get("member")):null, language);
-    else if (segments.length === 3 && segments[1] === "speeches") {
+    else if (segments.length === 1 && segments[0] === "directory") result = await odpDirectory();
+    else if (segments.length === 2 && segments[0] === "profile") result = await odpProfile(positiveId(segments[1]));
+    else if (segments.length === 2 && segments[0] === "activities") result = await recentActivities(positiveId(segments[1]), language);
+    else if (segments.length === 2 && segments[0] === "document" && /^[A-Z0-9-]{1,100}$/.test(segments[1])) result = await activityDocument(segments[1], url.searchParams.has("member")?positiveId(url.searchParams.get("member")):null, language);
+    else if (segments.length === 2 && segments[0] === "speeches") {
       const rawOffset=url.searchParams.get('offset') ?? '0';
       const offset = Number(rawOffset);
       if (!/^(0|[1-9][0-9]*)$/.test(rawOffset) || !Number.isInteger(offset) || offset < 0 || offset > 10000) throw new HttpError(400, "invalid_offset", "Invalid speech page.");
-      result = await odpSpeeches(positiveId(segments[2]), language, offset);
-    } else if (segments.length === 3 && segments[1] === "speech-transcript" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[2])) result = await speechTranscript(segments[2], language);
-    else if (segments.length === 3 && segments[1] === "speech" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[2])) result = await odpSpeech(segments[2], language);
+      result = await odpSpeeches(positiveId(segments[1]), language, offset);
+    } else if (segments.length === 2 && segments[0] === "speech-transcript" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[1])) result = await speechTranscript(segments[1], language);
+    else if (segments.length === 2 && segments[0] === "speech" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[1])) result = await odpSpeech(segments[1], language);
     else throw new HttpError(404, "not_found", "Unknown explorer endpoint.");
     sendJson(request, response, 200, result);
     return;
-  }
-
- throw new HttpError(404,'not_found','The requested API endpoint does not exist.');
 }
 export async function handleRequest(request, response) {
   const started=performance.now(),eventLoop=performance.eventLoopUtilization();let route='/';
@@ -238,7 +238,7 @@ export async function handleRequest(request, response) {
       (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
     );
     if (apiPrefix) {
-      const extended=/\/poc\/(?:speech-context|motion-comparison)\//.test(url.pathname);
+      const extended=/^\/(?:speech-context|motion-comparison)\//.test(url.pathname.slice(apiPrefix.length));
       const budget=createRequestBudget(extended?50_000:30_000);
       const closed=()=>{if(!response.writableEnded)budget.abort(cancelledRequest());};
       response.once('close',closed);
