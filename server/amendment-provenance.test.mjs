@@ -9,7 +9,7 @@ import {ActivityWorker} from './activity-index-worker.mjs';
 import {projectDocument,documentFiles,AMENDMENT_LINKS_VERSION} from './activity-index-model.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION,AMENDMENT_DISTRIBUTION_PROOF_VERSION,distributionEvidenceFor} from './amendments.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
-import {amendmentsPage,enqueueAmendment} from './amendments-store.mjs';
+import {amendmentsPage,enqueueAmendment,saveAmendmentRows} from './amendments-store.mjs';
 import {failAmendmentTask,rebuildAmendmentTarget} from './amendments-worker.mjs';
 import {motionSourceKey} from './motion-outcomes.mjs';
 
@@ -147,4 +147,40 @@ test('parser9 grid-loss caches and variants are withheld through pure reads, fai
     await refresh(list1,{original:'',proposed:'Supported insertion'});
     const [safe]=amendmentsPage(store,{document:target}).items;assert.equal(safe.originalText,'');assert.equal(safe.proposedText,'Supported insertion');assert.equal(safe.sourceFreshness.version,AMENDMENT_DISTRIBUTION_PROOF_VERSION);
   }
+});
+
+test('conflicted rows withhold every source-specific primary claim while preserving complete variant evidence',t=>{
+  const {store,worker,generation,metadata,at,vote,decisionSource}=fixture(t),sources=[];
+  for(const [index,id] of [list1,list2].entries()) {
+    const language=index?'fr':'en',documentDate=index?'2026-10-03':date,work=metadata(id,language),source={url:url(id,language),language,fetchedAt:at()};sources.push(source);
+    const amendment={number:1,date:documentDate,documentDate,dateBasis:'individual-amendment-document',authors:index?[]:['Alex Common'],committeeProposer:index?'Published committee proposer':null,targetLabel:'Article 1',originalText:'Original '+index,proposedText:'Proposal '+index,language,gaps:[]};
+    store.putSource(generation,'amendment:list:'+id,'amendment-list',{...work,extraction:{parserVersion:AMENDMENT_EXTRACTION_VERSION,amendments:[amendment],gaps:[],language,sourceUrl:source.url,fetchedAt:source.fetchedAt,sourceDescriptor:{url:source.url,language,byteSize:null}}},at());
+  }
+  rebuildAmendmentTarget(worker,generation,target);
+  const empty=['committeeProposer','onBehalfOf','date','documentDate','listDocumentDate','dateBasis','proposerDate','proposerDateBasis','wordingSource','metadataSource','proposerSource','sourceFreshness','textParserVersion','originalText','proposedText','language'];
+  const check=row=>{assert.equal(row.conflicted,true);assert.deepEqual(row.authors,[]);for(const field of empty)assert.equal(row[field],null,field);assert.equal(row.textIntegrity,'unavailable');assert.equal(row.wordingRetained,false);assert.equal(row.proposerRetained,false);assert.equal(row.recordRetained,false);assert.equal(row.targetDocumentDate,date);assert.equal(row.decisions[0].outcome,'ADOPTED');assert.equal(row.variants[0].authors[0].personId,'101');assert.equal(row.variants[0].documentDate,date);assert.equal(row.variants[1].committeeProposer,'Published committee proposer');assert.equal(row.variants[1].documentDate,'2026-10-03');assert.deepEqual(row.variants.map(variant=>variant.metadataSource),sources);};
+  const selected=()=>store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,target+'-AM-1').body;
+  check(JSON.parse(selected()));check(amendmentsPage(store,{document:target}).items[0]);
+  assert.equal(JSON.parse(selected()).targetLabel,vote.referenceText.en);assert.equal(JSON.parse(selected()).targetLabelLanguage,'en');assert.deepEqual(JSON.parse(selected()).targetLabelSource,{...decisionSource,language:'en'});
+  const original=JSON.parse(selected()),legacy={...original,authors:[{name:'Arbitrary combined proposer',personId:'303',status:'resolved'}],committeeProposer:'Last variant',targetLabel:'Arbitrary combined provision',targetLabelLanguage:'fr',targetLabelSource:sources[1],date:'2026-10-03',documentDate:'2026-10-03',listDocumentDate:date,dateBasis:'individual-amendment-document',proposerDate:'2026-10-03',proposerDateBasis:'individual-amendment-document',wordingSource:sources[1],metadataSource:sources[1],proposerSource:sources[1],sourceFreshness:original.variants[1].sourceFreshness,textParserVersion:AMENDMENT_EXTRACTION_VERSION,textIntegrity:'complete',wordingRetained:true,proposerRetained:true,recordRetained:true};
+  const raw=JSON.stringify(legacy);store.db.prepare('UPDATE amendments SET body=? WHERE generation=? AND id=?').run(raw,generation,legacy.id);
+  const sourceRows=store.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? ORDER BY key').all(generation);
+  check(amendmentsPage(store,{document:target}).items[0]);assert.equal(amendmentsPage(store,{document:target,member:'303'}).total,0);
+  for(const field of ['targetLabel','targetLabelLanguage','targetLabelSource'])assert.equal(amendmentsPage(store,{document:target}).items[0][field],null,field);
+  const match=amendmentsPage(store,{document:target,member:'101'});assert.equal(match.total,1);assert.equal(match.items[0].authorMatch.basis,'variant');
+  assert.equal(selected(),raw);assert.deepEqual(store.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? ORDER BY key').all(generation),sourceRows);
+});
+
+test('a retained target label and its derived topic stay aligned after a store merge and legacy reads',t=>{
+  const {store,generation}=fixture(t),source={url:url(list1,'en'),fetchedAt:'2026-10-01T00:00:00Z',language:'en'};
+  const targetMetadata={id:target,date,listProjectionVersion:AMENDMENT_LINKS_VERSION},dossier={id:'ENV',label:'ENV',basis:'dossier'};
+  const row={id:target+'-AM-1',targetDocumentId:target,number:1,date,documentDate:date,proposerDate:date,proposerDateBasis:'individual-amendment-document',targetLabel:'Article 1',targetLabelLanguage:'en',targetLabelSource:source,authors:[],decisions:[],splitParts:[],topics:[dossier],sources:[source],gaps:[]};
+  const topic={id:'target:Article 1',label:'Article 1',basis:'target',language:'en',source};
+  saveAmendmentRows(store,generation,targetMetadata,[row],{complete:false,gaps:[]});
+  saveAmendmentRows(store,generation,targetMetadata,[{...row,targetLabel:null,targetLabelLanguage:null,targetLabelSource:null,topics:[dossier],metadataSource:{...source,language:'fr'}}],{complete:false,gaps:[]});
+  const selected=()=>store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,row.id).body;
+  let stored=JSON.parse(selected());assert.equal(stored.targetLabel,'Article 1');assert.deepEqual(stored.topics,[dossier,topic]);
+  const raw=JSON.stringify({...stored,topics:[dossier,{id:'target:obsolete',label:'Obsolete label',basis:'target',language:'fr'}]});
+  store.db.prepare('UPDATE amendments SET body=? WHERE generation=? AND id=?').run(raw,generation,row.id);
+  const served=amendmentsPage(store,{document:target}).items[0];assert.equal(served.targetLabel,'Article 1');assert.deepEqual(served.topics,[dossier,topic]);assert.equal(selected(),raw);
 });

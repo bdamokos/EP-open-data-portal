@@ -57,6 +57,17 @@ export function resolvedAmendmentAuthorId(author) {
   const id=String(author?.personId ?? '').replace(/^person\//,'');
   return author?.status==='resolved'&&/^[1-9]\d*$/.test(id)&&Number.isSafeInteger(Number(id))?id:null;
 }
+export function checkedAggregateAttribution(record) {
+  if(!record.conflicted)return record;
+  // A decision reference belongs to the target's recorded vote, independently
+  // of competing list variants. Retain it only with matching field evidence.
+  const decisionLabel=record.targetLabelLanguage==='en'&&(record.decisions || []).some(decision=>decision.reference===record.targetLabel&&
+    (!record.targetLabelSource||(decision.source&&decision.source.url===record.targetLabelSource.url&&decision.source.fetchedAt===record.targetLabelSource.fetchedAt)));
+  return {...record,listId:null,authors:[],committeeProposer:null,onBehalfOf:null,date:null,documentDate:null,listDocumentDate:null,dateBasis:null,proposerDate:null,proposerDateBasis:null,
+    originalText:null,proposedText:null,language:null,justification:null,textParserVersion:null,textIntegrity:'unavailable',wordingSource:null,metadataSource:null,proposerSource:null,sourceFreshness:null,
+    targetLabel:decisionLabel?record.targetLabel:null,targetLabelLanguage:decisionLabel?'en':null,targetLabelSource:decisionLabel?record.targetLabelSource ?? null:null,
+    wordingRetained:false,proposerRetained:false,recordRetained:false,fieldSources:{}};
+}
 const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','comparison-grid','structural-revision','symbol-text-loss','non-text-content','vertical-text-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
 export function amendmentTextLosses(extraction,amendment) {
   const oversized=['originalText','proposedText'].some(field=>typeof amendment?.[field]==='string'&&amendment[field].length>AMENDMENT_LIMITS.text);

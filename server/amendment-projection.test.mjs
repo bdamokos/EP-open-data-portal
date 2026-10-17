@@ -29,7 +29,7 @@ function context(t,raw) {
 }
 
 test('document projection preserves missing, unavailable, empty and exact list relationship evidence',()=>{
-  assert.equal(AMENDMENT_LINKS_VERSION,2);
+  assert.equal(AMENDMENT_LINKS_VERSION,3);
   for(const type of ['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT']) {
     const raw={...target,work_type:'def/ep-document-types/'+type};
     for(const value of [undefined,null]) {
