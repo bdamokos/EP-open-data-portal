@@ -1,12 +1,12 @@
 # Parliament explorer
 
-Use only publicly accessible parliamentary data and transparently documented processing of public websites/documents. Do not add authenticated institutional services, private data exports, copied production caches or secrets. Document each external source in docs/PUBLIC_DATA.md and keep docs/DATA_ACCESS_AUDIT.md accurate.
+Use only publicly accessible parliamentary data and transparently documented processing of public websites/documents. Do not add authenticated institutional services, private data exports, copied production caches or secrets. Document each external source and its capabilities in docs/PUBLIC_DATA.md.
 
 Preserve exact identifiers, source URLs, retrieval dates, languages and explicit gaps. Do not join records solely by title, tally or name similarity. Keep unavailable observations distinct from zeroes.
 
 Use branches and pull requests for changes. Do not publish the repository, change its visibility or add a source licence without maintainer authorization. Keep cache/index directories and browser following data outside Git.
 
-Keep QA screenshots, browser captures, evidence bundles and agent work logs outside Git. Do not add long agent-generated research or completion reports to demonstrate work performed. Summarize validation briefly in PR descriptions or comments, and keep required project, public-source and data-access documentation concise and useful.
+Keep QA screenshots, browser captures, evidence bundles and agent work logs outside Git. Documentation is guidance for future contributors, not an audit trail: describe current sources, behaviour and rules, and update existing text in place. Do not add dated check logs, sampled API responses, per-change entries or agent-generated research and completion reports; Git history and PRs record what changed. Summarize validation briefly in PR descriptions or comments, and keep required project, public-source and data-access documentation concise and useful.
 
 Use one source writer and one index writer. Keep site-specific routing, service configuration, host addresses, credentials and deployment records outside this repository. A push or health check is not user-visible acceptance. Verify the exact live revision and user path; preserve the accepted runtime and data while testing a candidate.
 
