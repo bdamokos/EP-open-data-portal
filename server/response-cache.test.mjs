@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {apiCachePolicy, portraitCachePolicy} from './response-cache.mjs';
 import {activityDocument} from './activities.mjs';
+import {SpeakerIdentities} from './speaker-identity.mjs';
 
 const now = Date.parse('2026-10-17T12:00:00Z');
 const request = {method: 'GET', headers: {}};
@@ -43,6 +44,55 @@ test('temporary failure and refresh states inside successful responses are never
   for (const value of values) assert.equal(policy('/api/poc/document/B-10-2026-0001', value).cdnCacheControl, 'no-store', JSON.stringify(value));
   assert.equal(policy('/api/poc/speech-media/MTG-PL-2026-09-01-INT-1', {available: false}).cacheControl, 'no-store');
   assert.equal(seconds(policy('/api/poc/profile/43', {errors: [], error: null, sourceError: false})), 21600);
+});
+
+test('temporary identity lookup failures prevent speech caching while an absent historical office remains cacheable', async () => {
+  let failing = true;
+  const resolver = new SpeakerIdentities({request: async () => {
+    if (failing) throw new Error('Public identity source unavailable');
+    return {url: 'https://data.europarl.europa.eu/api/v2/meps', fetchedAt: now, payload: {data: [{id: 'person/43', identifier: '43', givenName: 'Public', familyName: 'Speaker', hasMembership: []}]}};
+  }});
+  const read = () => resolver.enrich([{id: '43', name: 'Public Speaker'}], '2026-09-01', {chairs: ['43']});
+  const cases = [
+    ['/api/poc/speech/MTG-PL-2026-09-01-INT-1', speakers => ({date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers}), 86400],
+    ['/api/poc/speech-context/MTG-PL-2026-09-01-INT-1', speakers => ({debates: [{records: [{intervention: {speaker: speakers[0]}}]}]}), 21600],
+  ];
+  const temporary = await read();
+  assert.equal(temporary[0].name, 'Public Speaker', 'a failed enrichment preserves the supplied transcript name');
+  assert(temporary[0].identityIssues.includes('person-names-unavailable'));
+  for (const [path, payload] of cases) assert.deepEqual(policy(path, payload(temporary)), {cacheControl: 'no-store', cdnCacheControl: 'no-store'}, path);
+
+  failing = false;
+  const recovered = await read();
+  assert.equal(recovered[0].office, null);
+  assert.deepEqual(recovered[0].identityIssues, ['parliament-office-unavailable'], 'a successful public lookup can lack exact historical office evidence');
+  for (const [path, payload, ttl] of cases) assert.equal(seconds(policy(path, payload(recovered))), ttl, path);
+});
+
+test('a fresh roster cannot conceal failed individual speaker profiles from speech and context cache policy', async () => {
+  let failing = true;
+  const record = data => ({url: 'https://data.europarl.europa.eu/api/v2/meps', fetchedAt: now, payload: {data}});
+  const resolver = new SpeakerIdentities({request: async route => {
+    if (route === '/meps/show-current') return record([{id: 'person/44', identifier: '44', givenName: 'Current', familyName: 'Member'}]);
+    if (failing) throw new Error('Public profile temporarily unavailable');
+    return record([{id: 'person/43', identifier: '43', givenName: 'Public', familyName: 'Speaker', hasMembership: []}]);
+  }});
+  const cases = [
+    ['/api/poc/speech/MTG-PL-2026-09-01-INT-1', speakers => ({date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers}), 86400],
+    ['/api/poc/speech-context/MTG-PL-2026-09-01-INT-1', speakers => ({debates: [{records: [{intervention: {speaker: speakers[0]}}]}]}), 21600],
+  ];
+  for (const options of [{chairs: ['43']}, {profileIds: ['43']}]) {
+    failing = true;
+    const temporary = await resolver.enrich([{id: '43', name: 'Public Speaker'}], '2026-09-01', options);
+    assert(temporary[0].identityIssues.includes('person-profile-unavailable'));
+    assert(temporary[0].identitySources.every(source => source.stale === false));
+    for (const [path, payload] of cases) assert.deepEqual(policy(path, payload(temporary)), {cacheControl: 'no-store', cdnCacheControl: 'no-store'}, path);
+
+    failing = false;
+    const recovered = await resolver.enrich([{id: '43', name: 'Public Speaker'}], '2026-09-01', options);
+    assert.deepEqual(recovered[0].identityIssues, options.chairs ? ['parliament-office-unavailable'] : []);
+    for (const [path, payload, ttl] of cases) assert.equal(seconds(policy(path, payload(recovered))), ttl, path);
+  }
 });
 
 test('document reading retains stale source state and uses the exact selected answer date', async () => {
