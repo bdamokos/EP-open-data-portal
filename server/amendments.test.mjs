@@ -911,7 +911,7 @@ test('actual split ingestion preserves distinct missing-request observations and
   assert.equal(saved.splitRequests.length,4);assert.equal(saved.parsedSplits.length,4);
   assert(saved.splitRequests.every(split=>split.id==null));
   assert.equal(new Set(saved.splitRequests.map(split=>split.observationKey)).size,4);
-  assert.deepEqual(saved.splitRequests.map(split=>new URL(split.source.url).searchParams.get('offset')).sort(),['0','0','0','50']);
+  assert.deepEqual(saved.splitRequests.map(split=>new URL(split.source.url).searchParams.get('offset')).sort(),['0','0','0','54']);
   const failures=amendmentFailures(store,{status:'unresolved'}).items;
   assert.equal(failures.length,4);assert(failures.every(failure=>failure.requestId===null));
   assert.equal(failures.filter(failure=>failure.code==='missing_parts').length,2);

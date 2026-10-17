@@ -421,15 +421,21 @@ export class ActivityWorker {
     const coverage=motionVoteCoverage(next.results,next.decisions);
     const missing=body.stage==='results'?coverage.missingResultIds:coverage.missingDecisionIds;
     const grew=merged.length>body[field].length || body.stage==='results'&&splits.length>(body.splits || []).length;
+    const rawPageLength=record.payload.data.length;
     const capped=merged.length>5000 || body.offset>=950;
     if(merged.length>5000)throw new Error('Motion vote source exceeded its record budget.');
+    // Results pages also contain request types excluded from both projections.
+    // Their raw length still advances the source cursor, even without new votes.
+    const continueResults=body.stage==='results'&&(rawPageLength>=50 || grew&&missing.length);
     // The decisions API currently ignores limit and returns the whole sitting.
     // Compare exact declared children, never graph length or the requested limit.
-    if(!capped && grew && (missing.length || body.stage==='results' && nodes.length+pageSplits.length>=50)) {
-      this.store.taskProgress(task,{...next,offset:body.offset+Math.max(50,nodes.length)});return;
+    const continueDecisions=body.stage==='decisions'&&grew&&missing.length;
+    if(!capped && (continueResults || continueDecisions)) {
+      const offset=body.stage==='results'?Math.min(950,body.offset+Math.max(50,rawPageLength)):body.offset+Math.max(50,nodes.length);
+      this.store.taskProgress(task,{...next,offset});return;
     }
     if(body.stage==='results') {
-      this.store.taskProgress(task,{...next,stage:'decisions',offset:0,splitProjectionTruncated:Boolean(capped&&nodes.length+pageSplits.length>=50),resultsUrl:sources[0].url,resultsFetchedAt:record.fetchedAt});return;
+      this.store.taskProgress(task,{...next,stage:'decisions',offset:0,splitProjectionTruncated:Boolean(capped&&rawPageLength>=50),resultsUrl:sources[0].url,resultsFetchedAt:record.fetchedAt});return;
     }
     const firstDecisionSource=sources.find(source=>source.url.includes('/decisions?'));
     const key=motionSourceKey(body.sittingId), saved=this.store.source(generation,key);
