@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {MemberVotes, MEMBER_VOTES_LIMITS, memberVotesQuery} from './member-votes.mjs';
-import {cancelledRequest,runWithRequestSignal} from './request-budget.mjs';
+import {cancelledRequest,requestSignal,runWithRequestSignal} from './request-budget.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/insights-live-20261014.json',import.meta.url)));
 const NOW=Date.parse('2026-10-17T19:10:00Z');
@@ -260,6 +260,30 @@ for(const code of ['request_cancelled','request_timeout','upstream_busy'])test(`
   assert.equal(retry.coverage.status,'complete');
   assert.equal(retry.coverage.collectionComplete,true);
   assert(calls.length>count,'a failed local load was not published in the snapshot cache');
+});
+
+test('a failed stream aborts sibling ownership and prevents further paging after the loader ends',async()=>{
+  let fail=true,release;
+  const held=new Promise(resolve=>{release=resolve;}),signals=[];
+  const {service,calls}=setup({limits:{decisionPageSize:1},override:async({kind,supplied})=>{
+    if(!fail||kind==='meeting')return;
+    if(kind==='named')throw Object.assign(new Error('Shared source admission is busy'),{status:503,code:'upstream_busy'});
+    signals.push(requestSignal());
+    await held;
+    return supplied;
+  }});
+  await assert.rejects(service.query(MEMBER,query('sitting='+SITTING)),error=>error.code==='upstream_busy');
+  assert.equal(signals.length,3);
+  assert(signals.every(signal=>signal.aborted&&signal.reason.code==='upstream_busy'));
+  assert.equal(service.pending.size,0);
+  assert.equal(service.snapshots.size,0);
+  const before=calls.length;
+  release();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(calls.length,before,'late sibling responses cannot start another page without an owner');
+  fail=false;
+  const retry=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(retry.coverage.status,'complete');
 });
 
 test('an already-aborted reader cannot start source collection',async()=>{

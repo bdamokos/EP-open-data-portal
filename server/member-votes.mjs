@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
 import {odp,odpLanguage} from './odp.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
-import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
+import {requestSignal,runWithRequestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {projectMemberDecision} from './member-votes-model.mjs';
 
 export const MEMBER_VOTES_VERSION=1;
@@ -107,12 +107,15 @@ export class MemberVotes {
 
   async sitting(node,budget){
     const sittingId=node.activity_id,date=node.activity_date;
-    const [all,named,results,agenda]=await Promise.all([
+    const failure=new AbortController(),signal=AbortSignal.any([requestSignal(),failure.signal].filter(Boolean));
+    // A local failure ends this collection, so sibling reads must lose their
+    // ownership too, before sharedRequest disposes the collection deadline.
+    const [all,named,results,agenda]=await runWithRequestSignal(signal,()=>Promise.all([
       this.pages('/meetings/'+sittingId+'/decisions',{'filter-output':'voters'},'decisions',budget),
       this.pages('/meetings/'+sittingId+'/decisions',{'vote-method':'ROLL_CALL_EV'},'decisions',budget),
       this.pages('/meetings/'+sittingId+'/vote-results',{},'results',budget),
       this.pages('/meetings/'+sittingId+'/foreseen-activities',{},'agenda',budget)
-    ]);
+    ]).catch(error=>{failure.abort(error);throw error;}));
     const errors=[];
     const eligible=(collection,suffix)=>collection.nodes.filter(n=>{
       const good=new RegExp('^eli/dl/event/'+sittingId+suffix+'$').test(relative(n.id))&&n.activity_id===tail(n.id)&&n.activity_date===date;
