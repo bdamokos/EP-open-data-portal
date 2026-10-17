@@ -330,6 +330,16 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
 function speechSummary(item: JoinedActivity): Speech {
   return {id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null};
 }
+function revealSpeech(target: HTMLElement) {
+  const panel=target.closest<HTMLElement>('.explorer-profile-body');
+  const scroller=panel&&/^(auto|scroll)$/.test(getComputedStyle(panel).overflowY)
+    ? panel : target.closest<HTMLElement>('.explorer');
+  if(!scroller)return;
+  // scrollIntoView also scrolls the hidden-overflow desktop shell, lifting its footer.
+  const margin=Number.parseFloat(getComputedStyle(target).scrollMarginTop)||0;
+  const top=scroller.scrollTop+target.getBoundingClientRect().top-scroller.getBoundingClientRect().top-scroller.clientTop-margin;
+  scroller.scrollTo({top});
+}
 function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;initialSpeech:string|null;onOpen:(id:string|null)=>void }) {
   const c=interfaceCopy(lang);
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
@@ -357,7 +367,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else heading?.scrollIntoView({block:'start'});
     setOffset(next);onOpen(null);
   };
-  useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){target.scrollIntoView({block:'start'});target.querySelector<HTMLButtonElement>('.explorer-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data]);
+  useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){revealSpeech(target);target.querySelector<HTMLButtonElement>('.explorer-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data]);
   return <section lang={lang}>
     <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2><TextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" scopeNote="Searches saved speech text for this MEP in the current term. Transcript and language coverage may be incomplete."/></div>
     <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches}/>
