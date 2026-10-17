@@ -16,7 +16,8 @@ test('speaker names and sitting roles follow the UI independently of the selecte
     {value:'Geadis Geadi',script:'Latn',language:null,source:'ODP person'},
     {value:'Γεάδης Γεάδη',script:'Grek',language:null,source:'ODP person'},
   ]};
-  const h=await harness(t,(route,params)=>route.startsWith('speech/')?{...speech(params.get('lang')),speakers:[person]}:route.startsWith('speech-context/')?{speechId,unavailable:true,debates:[]}:undefined);
+  const connectedId=speechId+'2';
+  const h=await harness(t,(route,params)=>route.startsWith('speech/')?{...speech(params.get('lang')),speakers:[person]}:route.startsWith('speech-context/')?{speechId,unavailable:false,debates:[{id:'MTG-PL-2026-03-25-PVCRE-ITM-1',titles:{en:'Public debate fixture'},records:[{id:connectedId,start:null,intervention:{type:'speech',speaker:{...person,sittingRole:undefined,office:null},onBehalfOf:[]},replyTo:null,exchangeId:null}],exchanges:[],coverage:{complete:true,available:1,expected:1}}]}:undefined);
   await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}),'en');
   assert.equal(h.container.querySelector('h3').textContent,'Geadis Geadi');
   assert.equal(h.container.querySelector('.insight-secondary').textContent,'Vice-President of the European Parliament · Chairing the sitting');
@@ -27,6 +28,10 @@ test('speaker names and sitting roles follow the UI independently of the selecte
   await h.click(h.container.querySelector('.intervention-context-toggle'));
   assert(h.requests.some(request=>request.startsWith('speech-context/')&&request.endsWith('lang=en')));
   assert(!h.requests.some(request=>request.startsWith('speech-context/')&&request.endsWith('lang=fr')));
+  await h.click(h.container.querySelector('.intervention-read'));
+  assert(h.requests.includes(`speech/${connectedId}?lang=fr`),'connected contributions preserve the chosen transcript language');
+  assert.equal(h.container.querySelector('.intervention-connected-text').lang,'fr');
+  assert.equal(h.container.querySelector('.intervention-read>span').textContent,'Geadis Geadi','connected-row names still use the English UI');
   await h.render(el(h.InsightSpeechReader,{id:speechId,language:'el'}),'el');
   assert.equal(h.container.querySelector('h3').textContent,'Γεάδης Γεάδη');
   assert.equal(h.container.querySelector('.insight-secondary span').lang,'el');
