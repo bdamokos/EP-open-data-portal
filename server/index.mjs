@@ -10,6 +10,7 @@ import {odpDirectory,odpProfile,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,up
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
 import {motionComparison} from './motion-comparison.mjs';
+import {motionAmendmentsQuery,motionAmendmentsPage} from './motion-amendments.mjs';
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
@@ -121,6 +122,10 @@ async function handleApi(request,response,url,apiPrefix){
     if(segments[1]==='source-record' && segments.length===2)result=await sourceRecord(url.searchParams.get('url'),language);
     else if(segments[1]==='motion-comparison' && segments.length===3) {
       result=await motionComparison(segments[2],url.searchParams.get('joint'),{stage:url.searchParams.get('stage') || 'original-joint',language});
+    }
+    else if(segments[1]==='motion-amendments' && segments.length===3) {
+      const query=motionAmendmentsQuery(segments[2],url.searchParams);
+      result=motionAmendmentsPage(activityIndex().store,query);
     }
     else if (segments[1] === 'amendments' && (segments.length===2 || segments.length===3&&segments[2]==='failures')) {
       const failures=segments.length===3,query=amendmentQuery(url.searchParams,{failures});

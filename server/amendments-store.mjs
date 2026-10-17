@@ -34,6 +34,16 @@ function checkedAmendmentRead(record) {
   row.outcome=amendmentRowOutcome(row);
   return row;
 }
+// Apply only to checked read records: proposer dates and variant attribution have
+// already passed the same guards used by the member-filtered catalogue query.
+export function amendmentAuthorMatch(record,member) {
+  const memberId=String(member);
+  const matches=value=>!value.conflicted&&Boolean(amendmentProposerDate(value))&&(value.authors || []).some(author=>resolvedAmendmentAuthorId(author)===memberId);
+  const aggregateMatched=matches(record),variants=(record.variants || []).filter(matches);
+  const matched=aggregateMatched||variants.length>0;
+  return {memberId,matched,aggregateMatched,basis:matched?aggregateMatched?variants.length?'aggregate-and-variant':'aggregate':'variant':null,
+    variantListIds:[...new Set(variants.map(variant=>variant.listId).filter(Boolean))]};
+}
 function supportedProposerDateSql(body) {
   const value=field=>`json_extract(${body},'$.${field}')`,date=value('proposerDate'),document=value('documentDate'),list=value('listDocumentDate');
   const valid=expression=>`(typeof(${expression})='text' AND ${expression} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(${expression},'+0 days')=${expression})`;
@@ -247,9 +257,8 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   const items=store.db.prepare('SELECT body FROM amendments WHERE '+where+" ORDER BY date DESC,target,CAST(json_extract(body,'$.number') AS INTEGER),id LIMIT ? OFFSET ?").all(...args,limit,offset).map(record=>{
     const row=checkedAmendmentRead(parse(record.body));
     if(member) {
-      const matches=value=>Boolean(amendmentProposerDate(value)&&(value.authors || []).some(author=>resolvedAmendmentAuthorId(author)===String(member)));
-      const aggregate=matches(row),variants=(row.variants || []).filter(matches);
-      row.authorMatch={memberId:String(member),basis:aggregate?variants.length?'aggregate-and-variant':'aggregate':'variant',variantListIds:[...new Set(variants.map(variant=>variant.listId).filter(Boolean))]};
+      const {memberId,basis,variantListIds}=amendmentAuthorMatch(row,member);
+      row.authorMatch={memberId,basis,variantListIds};
     }
     return {...row,title:row.titles?.[language] || row.titles?.en || Object.values(row.titles || {})[0] || row.targetDocumentId,requestedLanguage:language};
   });
@@ -283,7 +292,8 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   if(!records.length)gaps.push(document?'This document has no indexed amendment records.':'Amendment discovery is incomplete.');
   if(!document)gaps.push('Coverage includes indexed plenary amendment lists; older targets are enriched in bounded batches.');
   const lastUpdated=records.map(record=>record.lastUpdated).filter(Boolean).sort().at(-1) || null;
-  return {items,total,offset,limit,coverage:{complete:Boolean(document&&records.length&&records.every(record=>record.complete)&&!listProjectionUnverified&&!pending&&!capacityGaps.length&&!readCoverage.wording&&!readCoverage.proposer&&!readCoverage.splits&&!readCoverage.freshness),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope:'plenary',servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation)},failures:amendmentFailureSummary(store)};
+  const observationComplete=Boolean(document&&records.length&&records.every(record=>record.complete)&&!listProjectionUnverified&&!readCoverage.wording&&!readCoverage.proposer&&!readCoverage.splits&&!readCoverage.freshness);
+  return {items,total,offset,limit,coverage:{complete:Boolean(observationComplete&&!pending&&!capacityGaps.length),observationComplete,indexed:Boolean(records.length),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope:'plenary',servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation)},failures:amendmentFailureSummary(store)};
 }
 
 export function amendmentCompletionMarker(task,today) {
