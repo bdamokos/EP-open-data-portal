@@ -85,6 +85,37 @@ test('explicit main-view gestures orient to the current heading without adding h
   assert.equal(document.activeElement,search,'filter updates do not invoke a page destination');
 });
 
+test('old amendment URLs fall back without exposing or requesting the catalogue',async t=>{
+  for(const query of ['?view=amendments&am-document=A-10-2026-0254&am-procedure=2025%2F0407(COD)','?member=257043&module=amendments&am-member=257043'])await t.test(query,async t=>{
+    const h=await harness(t,query);
+    assert.equal(h.button('Amendments'),undefined);
+    assert.equal(h.container.querySelector('.explorer-amendments'),null);
+    assert.equal(new URL(location.href).searchParams.has('view'),false);
+    assert.equal([...new URL(location.href).searchParams.keys()].some(key=>key.startsWith('am-')),false);
+    if(query.includes('member=')){
+      assert.equal(new URL(location.href).searchParams.get('module'),'speeches');
+      assert.equal(h.container.querySelector('.explorer-tabs button[aria-pressed="true"]').textContent,'Latest speeches');
+    }else assert(h.container.querySelector('.explorer-filters'));
+    assert.doesNotMatch(document.title,/Amendments/);
+  });
+});
+
+test('history restoration rejects disabled catalogue views even when the fallback state is unchanged',async t=>{
+  const h=await harness(t);
+  for(const query of ['?view=amendments&am-document=A-10-2026-0254','?member=257043&module=amendments&am-member=257043','?member=257043&module=amendments&am-offset=20']){
+    await act(async()=>{history.pushState(null,'',query);window.dispatchEvent(new window.Event('popstate'));});
+    assert.equal(h.button('Amendments'),undefined);
+    assert.equal(h.container.querySelector('.explorer-amendments'),null);
+    const params=new URL(location.href).searchParams;
+    assert.equal(params.has('view'),false);
+    assert.equal([...params.keys()].some(key=>key.startsWith('am-')),false);
+    if(params.has('member'))assert.equal(params.get('module'),'speeches');
+    assert.doesNotMatch(document.title,/Amendments/);
+  }
+  await h.click(h.button('Questions'));
+  assert.equal(new URL(location.href).searchParams.get('view'),'questions','ordinary public navigation stays available');
+});
+
 test('Following Back restores its semantic header trigger even after the header remounts',async t=>{
   const h=await harness(t);
   await h.click(h.button('Questions'));

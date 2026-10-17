@@ -2,6 +2,8 @@
 
 Use the Node version in `.nvmrc`. The frontend entry is `src/main.tsx`. Navigation uses query parameters at the application root. Static serving covers only the root page, `index.html` and `assets/`; other paths return 404.
 
+The unfinished amendment catalogue is hidden by `publicAmendmentsEnabled` in `src/publicFeatures.ts`. This gates its main navigation, MEP tab and document/dossier links. Old catalogue URLs fall back to Members, and old MEP amendment-tab URLs to Latest speeches. The amendment components, API, parsing, indexing and stored data remain intact; motion outcomes and original/joint/adopted wording comparisons remain public.
+
 The server binds to loopback by default and has no accounts. A reverse proxy must overwrite forwarded headers before `TRUST_PROXY=true` is enabled. Site routing, access controls, host configuration and credentials belong outside this repository.
 
 ## Container
