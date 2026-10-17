@@ -234,7 +234,10 @@ export class CorpusStore {
     const where=['texts_fts MATCH ?'],params=[match];
     const selectedKinds=kinds??(kind?[kind]:null);
     if(selectedKinds){where.push('d.kind IN (SELECT value FROM json_each(?))');params.push(JSON.stringify(selectedKinds));}
-    if(language){where.push('t.language=?');params.push(language);}
+    // SQLite 3.51 can start with every language row and restart MATCH for each.
+    // Disqualify that index term so FTS supplies candidates first. Validated
+    // language strings need no TEXT-affinity coercion removed by unary +.
+    if(language){where.push('+t.language=?');params.push(language);}
     const generation=this.indexGeneration();
     const questionId="CASE WHEN d.kind='answer' THEN d.parent_id WHEN d.kind='question' THEN d.source_id END";
     const groupId=group==='question'?"CASE WHEN d.kind='answer' THEN COALESCE(d.parent_id,d.source_id) ELSE d.source_id END":'d.source_id';
@@ -262,12 +265,15 @@ export class CorpusStore {
       where.push(`EXISTS (SELECT 1 FROM idx.items i WHERE ${authorWhere.join(' AND ')})`);params.push(...authorParams);
     }
     const sql=`FROM texts_fts JOIN texts t ON t.id=texts_fts.rowid JOIN documents d ON d.id=t.document_id LEFT JOIN documents q ON d.kind='answer' AND q.source_id=d.parent_id AND q.kind='question' WHERE ${where.join(' AND ')}`;
-    const total=this.db.prepare(`SELECT COUNT(DISTINCT ${groupId}) AS n ${sql}`).get(...params).n;
-    // Materialise FTS rank before aggregating. Pagination applies to exact source
-    // groups, so several languages or answers never consume an extra page row.
-    const selected=this.db.prepare(`WITH matched AS MATERIALIZED (SELECT ${groupId} AS group_id,${filterDate} AS date,texts_fts.rank AS score ${sql})
-      SELECT group_id,MIN(score) AS score,MAX(date) AS date FROM matched GROUP BY group_id
-      ORDER BY ${sort==='newest'?'date DESC,score':'score,date DESC'},group_id LIMIT ? OFFSET ?`).all(...params,limit,offset);
+    const order=sort==='newest'?'date DESC,score,group_id':'score,date DESC,group_id';
+    // Count and select groups from one FTS traversal instead of repeating the
+    // same full match for COUNT. The singleton LEFT JOIN retains the true total
+    // for empty and out-of-range pages without a second count query.
+    const page=this.db.prepare(`WITH matched AS MATERIALIZED (SELECT ${groupId} AS group_id,${filterDate} AS date,texts_fts.rank AS score ${sql}),
+      grouped AS MATERIALIZED (SELECT group_id,MIN(score) AS score,MAX(date) AS date FROM matched GROUP BY group_id),
+      page AS MATERIALIZED (SELECT * FROM grouped ORDER BY ${order} LIMIT ? OFFSET ?)
+      SELECT (SELECT COUNT(*) FROM grouped) AS total,page.* FROM (SELECT 1) LEFT JOIN page ON 1 ORDER BY ${order}`).all(...params,limit,offset);
+    const total=page[0].total,selected=page.filter(row=>row.group_id!==null);
     const members=generation==null?null:this.db.prepare('SELECT DISTINCT mep FROM idx.items WHERE generation=? AND source_id=? ORDER BY mep');
     const memberIds=id=>members?members.all(generation,id).map(item=>Number(item.mep)):null;
     const person=generation==null?null:this.db.prepare('SELECT body FROM idx.members WHERE id=?');
