@@ -107,6 +107,17 @@ test('a 304 naming a different entity tag is not taken as confirmation of the sa
   assert.equal(requests[2]['If-None-Match'], undefined); assert.equal(requests.length, 3);
 });
 
+test('saved validators outside the HTTP grammar are dropped instead of being sent', async t => {
+  const directory = await fixture(t);
+  await new PortraitCache({directory, fetchImpl: async () => jpeg()}).get(1, source);
+  const name = path.join(directory, '1.portrait'), file = await readFile(name), length = file.readUInt32BE(0);
+  const header = {...JSON.parse(file.subarray(4, 4 + length).toString()), etag: '"a\u0000b"', lastModified: 'not a date'};
+  const encoded = Buffer.from(JSON.stringify(header)), prefix = Buffer.alloc(4); prefix.writeUInt32BE(encoded.length);
+  await writeFile(name, Buffer.concat([prefix, encoded, file.subarray(4 + length)]));
+  const image = await new PortraitCache({directory, fetchImpl: () => assert.fail('saved image is fresh')}).get(1, source);
+  assert.equal(image.etag, null); assert.equal(image.lastModified, null);
+});
+
 test('a 304 without a saved validated copy is not treated as an image', async t => {
   const directory = await fixture(t); let calls = 0;
   const cache = new PortraitCache({directory, fetchImpl: async () => {calls++; return new Response(null, {status: 304});}});
