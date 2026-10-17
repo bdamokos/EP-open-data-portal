@@ -100,6 +100,8 @@ List number ranges do not establish the presence of every number. Revised or con
 
 Distributions linked by the API are processed locally with bounded decompression (`server/document-text.mjs`). Extraction reads `word/document.xml` plus style, numbering, settings, footnote and endnote parts. It omits hidden text (`w:vanish`, including inherited styles, which Parliament uses for translation markers) and keeps automatic numbering and referenced notes. Page-dependent note restarts and unsupported numbering are explicit gaps. Answer PDFs carry the same link targets as their DOCX, so only DOCX is read.
 
+Extracted texts are saved in `ODP_CACHE_DIR/document-text-v1` with source URL, retrieval time and the API's file size and issue time. Distributions send no HTTP validators, so the API listing is the change signal: a different size or issue time re-reads the file. Otherwise a text retrieved within 60 days of its document date is re-read at most weekly when viewed, and a text retrieved later is kept. The directory is capped by `DOCUMENT_TEXT_MAX_DISK_MIB` (default 256) and removes the least recently read texts first; a removed text is downloaded again when next opened.
+
 ### OEIL
 
 Summaries are parsed from visible HTML, reached through the exact procedure reference from the API. Final-act summaries are preferred over proposal summaries. No summary is invented when none is published.
