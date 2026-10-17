@@ -2,7 +2,7 @@ import { array, tail } from './activity-index-model.mjs';
 import {titlePlaces,countryLabelSource} from './insights-places.mjs';
 import {phraseModel} from './insights-phrases.mjs';
 
-export const INSIGHTS_VERSION = 'titles-phrases-facets-v6';
+export const INSIGHTS_VERSION = 'titles-phrases-facets-v7-source-freshness';
 export const officialApi = path => 'https://data.europarl.europa.eu/api/v2' + path;
 export function personId(value) {
   let reference=typeof value==='string' ? value : value?.id;
