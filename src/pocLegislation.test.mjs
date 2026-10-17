@@ -11,7 +11,7 @@ const topic={id:'test-topic',title:'Test agenda item',date:'2026-10-07',kind:'PL
 function legislation(params) {
   return {view:'legislation',sitting:{id:'MTG-PL-2026-10-07',phase:'past',date:'2026-10-07'},sittings:[{id:'MTG-PL-2026-10-07',phase:'past',date:'2026-10-07'}],topics:[topic],coverage:{agendaError:null},detail:params.has('topic')?{
     ...topic,phase:'past',procedures:[{id:'2025-2117',reference:'2025/2117(INI)'}],committeeWork:[],roles:people.map(person=>({...person,role:'RAPPORTEUR'})),people,stats,
-    speeches:people.slice(0,2).map(person=>({sourceId:'test-speech-'+person.id,people:[person],kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'})),
+    speeches:people.slice(0,3).map((person,index)=>({start:`2026-10-07T07:0${index}:00Z`,sourceId:'test-speech-'+person.id,people:[person],kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'})),
     votes:votes.map(vote=>({...vote,title:vote.titles.en,subject:vote.subjects.en})),selectedVote:votes.find(vote=>vote.id===params.get('vote'))||votes[0],
     voteCoverage:{truncated:false},coverage:{roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}
   }:null};
@@ -20,7 +20,7 @@ const summary={reference:'2025/2117(INI)',language:'en',summaries:[{id:'test-sum
 
 test('vote changes preserve agenda readers and expansion through loading, failure, retry and history',async t=>{
   const window=new Window({url:'http://localhost/?view=legislation&pl-sitting=MTG-PL-2026-10-07&agenda-topic=test-topic'});
-  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,requestAnimationFrame:callback=>{callback();return 0;},innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   const pending=[],calls=[];
@@ -34,7 +34,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
     }
     if(url.pathname.endsWith('/insights/procedure-context'))return Response.json(summary);
     if(url.pathname.includes('/document/'))return Response.json({selectedDocumentId:topic.documentIds[0],files:[],answers:[],selectedText:{status:'available',paragraphs:['Document text'],textLanguage:params.get('lang'),availableTextLanguages:['en','fr']}});
-    if(url.pathname.includes('/speech/'))return Response.json({id:url.pathname.split('/').at(-1),xml:'<root><p>Speech text</p></root>',speakers:[],availableTextLanguages:['en'],textLanguage:'en'});
+    if(url.pathname.includes('/speech/'))return Response.json({id:url.pathname.split('/').at(-1),xml:`<root><p>Speech text ${url.pathname.split('/').at(-1)}</p></root>`,websiteUrl:'https://example.test/'+url.pathname.split('/').at(-1),speakers:[],availableTextLanguages:['en'],textLanguage:'en'});
     throw new Error('Unexpected request: '+url);
   });
   // Use the existing TSX pipeline without a listening server or external data.
@@ -52,7 +52,43 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const voteSection=()=>find('.insight-vote-select').closest('section');
   assert.equal(shown(),'final-text');
   await click('Continue reading');await click('All 8 people');await click('Read '+topic.documentIds[0]);
-  await change('.insight-speech-select select','test-speech-2');
+  const pager=find('nav[aria-label="Speeches"]'),bottom=find('nav[aria-label="Speeches, bottom"]');
+  const previous=pager.querySelector('[aria-label="Previous speech"]'),next=pager.querySelector('[aria-label="Next speech"]');
+  const disabled=button=>button.getAttribute('aria-disabled')==='true';
+  const counter=()=>find('.insight-speech-position strong').textContent;
+  const speechRequests=()=>calls.filter(url=>url.pathname.includes('/speech/')).map(url=>url.pathname.split('/').at(-1));
+  assert.equal(counter(),'Speech 1 of 3');assert(disabled(previous));assert(!disabled(next));
+  assert.equal(pager.querySelector('[aria-live]').getAttribute('aria-live'),'polite');
+  assert.match(find('.insight-speech-position').textContent,/Contributor 1 · 09:00 Brussels · Written statement/);
+  next.focus();await act(async()=>next.click());
+  assert.equal(counter(),'Speech 2 of 3');assert.equal(document.activeElement,next);
+  assert.equal(find('.insight-speech-panel .insight-source-document').href,'https://example.test/test-speech-2');assert(!disabled(previous));assert(!disabled(next));
+  await act(async()=>next.click());assert.equal(counter(),'Speech 3 of 3');assert(disabled(next));assert.equal(document.activeElement,next);
+  await act(async()=>next.click());assert.equal(counter(),'Speech 3 of 3');
+  assert(disabled(bottom.querySelector('[aria-label="Next speech"]')));
+  await act(async()=>previous.click());assert.equal(counter(),'Speech 2 of 3');
+  assert.equal(find('.insight-speech-panel .insight-source-document').href,'https://example.test/test-speech-2');
+  let scrollOptions;
+  pager.scrollIntoView=options=>{scrollOptions=options;};
+  const bottomPrevious=bottom.querySelector('[aria-label="Previous speech"]');
+  bottomPrevious.focus();await act(async()=>bottomPrevious.click());
+  assert.equal(counter(),'Speech 1 of 3');assert.equal(bottom.querySelector('span:not([aria-hidden])').textContent,'1 / 3');
+  assert.equal(document.activeElement,bottomPrevious);assert.equal(scrollOptions.behavior,'smooth');
+  assert(disabled(bottomPrevious));
+  // Set an explicit media-query result for the reduced-motion path.
+  const matchMedia=window.matchMedia.bind(window);
+  window.matchMedia=query=>query==='(prefers-reduced-motion: reduce)'?{matches:true}:matchMedia(query);
+  await act(async()=>bottom.querySelector('[aria-label="Next speech"]').click());
+  assert.equal(counter(),'Speech 2 of 3');assert.equal(scrollOptions.behavior,'instant');
+  const jump=find('.insight-speech-jump');jump.open=true;
+  const jumpButtons=[...jump.querySelectorAll('ol button')];
+  assert.equal(jumpButtons[1].getAttribute('aria-current'),'true');
+  jumpButtons[2].focus();await act(async()=>jumpButtons[2].click());
+  assert.equal(counter(),'Speech 3 of 3');assert(!jump.open);
+  assert.equal(document.activeElement,jump.querySelector('summary'));
+  assert.equal(jumpButtons[2].getAttribute('aria-current'),'true');assert.equal(jumpButtons[1].getAttribute('aria-current'),null);
+  assert.equal(speechRequests().at(-1),'test-speech-3');
+  jump.open=true;await act(async()=>jumpButtons[1].click());
   await change('select[aria-label="Document language"]','fr');
   find('.insight-inline-reader[id] details').open=true;
   const nodes=['.insight-topic-detail h2','.insight-procedure-context','.insight-speech-panel','.insight-inline-reader[id]','.insight-participants'].map(selector=>[selector,find(selector)]);
@@ -60,7 +96,8 @@ test('vote changes preserve agenda readers and expansion through loading, failur
     for(const [selector,node] of nodes){assert(node.isConnected,selector+' unmounted');assert.equal(find(selector),node);}
     assert.equal(button('Show less').getAttribute('aria-expanded'),'true');
     assert.equal(find('.insight-participants').querySelectorAll('article').length,8);
-    assert.equal(find('.insight-speech-select select').value,'test-speech-2');
+    assert.equal(counter(),'Speech 2 of 3');
+    assert.equal(find('.insight-speech-jump [aria-current="true"]').textContent,jumpButtons[1].textContent);
     assert.equal(find('select[aria-label="Document language"]').value,'fr');
     assert(find('.insight-inline-reader[id] details').open);
   }
