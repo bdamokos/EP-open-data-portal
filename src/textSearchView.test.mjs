@@ -275,6 +275,71 @@ test('local find uses CSS highlights without changing React links or footnotes a
   assert.equal(body.innerHTML,markup);assert.equal(view.calls.length,0);
 });
 
+for(const highlights of [true,false])for(const navigation of ['Next match','Previous match','Enter','Shift+Enter'])test('local find repeats single-match '+navigation+' reveal with '+(highlights?'CSS Highlights':'native Selection'),async t=>{
+  const view=await setup(t,{highlights}),scrolls=[];
+  t.mock.method(view.window.HTMLElement.prototype,'scrollIntoView',function(options){scrolls.push({node:this,options});});
+  function SingleMatch(){const target=useRef(null);return createElement('section',null,
+    createElement(view.FindInText,{target,label:'Find in single-match text'}),
+    createElement('div',{ref:target,id:'single-match-text'},createElement('p',null,'Before ',createElement('a',{id:'single-match-link',href:'https://example.test/source'},'uniquetoken'),' after.')));}
+  await act(async()=>view.root.render(createElement(SingleMatch)));
+  const body=view.find('#single-match-text'),markup=body.innerHTML,link=view.find('#single-match-link'),text=link.firstChild;
+  const active=()=>highlights?[...view.registry].find(([key])=>key.endsWith('active'))?.[1]?.ranges[0]:view.window.getSelection().getRangeAt(0);
+  await view.click('Find in single-match text');await view.flushFrames();
+  const input=view.find('input[type="search"]');
+  await view.input('input[type="search"]','uniquetoken');await view.flushFrames();
+  const status=view.find('[role="status"]'),range=active();
+  assert.equal(status.textContent,'1 / 1');assert.equal(range.toString(),'uniquetoken');
+  assert.equal(scrolls.length,1);assert.equal(scrolls[0].node,link);
+  assert.equal(view.button('Next match').disabled,false);assert.equal(view.button('Previous match').disabled,false);
+  for(let repeat=1;repeat<=2;repeat++){
+    // Discard the initial reveal to model the user scrolling away between actions.
+    scrolls.length=0;
+    const keyboard=navigation.endsWith('Enter'),control=keyboard?input:view.button(navigation);
+    await act(async()=>control.focus());
+    if(keyboard)await act(async()=>input.dispatchEvent(new view.window.KeyboardEvent('keydown',{key:'Enter',shiftKey:navigation==='Shift+Enter',bubbles:true,cancelable:true})));
+    else await view.click(navigation);
+    await view.flushFrames();
+    assert.equal(scrolls.length,1,navigation+' must reveal the sole match again on activation '+repeat);
+    assert.equal(scrolls[0].node,link);assert.deepEqual(scrolls[0].options,{block:'nearest'});
+    assert.equal(status.textContent,'1 / 1');assert.equal(view.find('[role="status"]'),status);
+    assert.equal(active(),range,'navigation preserves the live match range');
+    assert.equal(view.window.document.activeElement,control,'revealing a match must not steal focus');
+    assert.equal(view.find('input[type="search"]'),input);assert.equal(input.value,'uniquetoken');
+    assert.equal(view.find('#single-match-link'),link);assert.equal(link.firstChild,text);assert.equal(body.innerHTML,markup);
+    if(highlights){assert.equal(view.registry.size,2);assert.equal(view.window.getSelection().rangeCount,0);}
+    else {assert.equal(view.registry.size,0);assert.equal(view.window.getSelection().rangeCount,1);}
+  }
+  assert.equal(view.calls.length,0,'local navigation never requests corpus data');
+});
+
+for(const highlights of [true,false])test('local find wraps every navigation control across multiple matches with '+(highlights?'CSS Highlights':'native Selection'),async t=>{
+  const view=await setup(t,{highlights}),scrolls=[];
+  t.mock.method(view.window.HTMLElement.prototype,'scrollIntoView',function(){scrolls.push(this);});
+  function MultipleMatches(){const target=useRef(null);return createElement('section',null,
+    createElement(view.FindInText,{target,label:'Find in multiple-match text'}),
+    createElement('div',{ref:target,id:'multiple-match-text'},...[1,2,3].map(number=>createElement('p',{id:'match-'+number,key:number},'sharedtoken '+number))));}
+  await act(async()=>view.root.render(createElement(MultipleMatches)));
+  const body=view.find('#multiple-match-text'),markup=body.innerHTML,paragraphs=[1,2,3].map(number=>view.find('#match-'+number));
+  const active=()=>highlights?[...view.registry].find(([key])=>key.endsWith('active'))?.[1]?.ranges[0]:view.window.getSelection().getRangeAt(0);
+  await view.click('Find in multiple-match text');await view.flushFrames();
+  await view.input('input[type="search"]','sharedtoken');await view.flushFrames();
+  const input=view.find('input[type="search"]');
+  assert.equal(view.find('[role="status"]').textContent,'1 / 3');
+  for(const [navigation,expected] of [['Previous match',3],['Next match',1],['Shift+Enter',3],['Enter',1],['Enter',2],['Next match',3],['Next match',1],['Previous match',3],['Shift+Enter',2]]){
+    const before=scrolls.length,keyboard=navigation.endsWith('Enter'),control=keyboard?input:view.button(navigation);
+    await act(async()=>control.focus());
+    if(keyboard)await act(async()=>input.dispatchEvent(new view.window.KeyboardEvent('keydown',{key:'Enter',shiftKey:navigation==='Shift+Enter',bubbles:true,cancelable:true})));
+    else await view.click(navigation);
+    await view.flushFrames();
+    assert.equal(view.find('[role="status"]').textContent,expected+' / 3',navigation);
+    assert.equal(scrolls.length,before+1);assert.equal(scrolls.at(-1),paragraphs[expected-1]);
+    assert(paragraphs[expected-1].contains(active().startContainer));assert.equal(active().toString(),'sharedtoken');
+    assert.equal(view.window.document.activeElement,control);
+    assert.deepEqual([...body.children],paragraphs);assert.equal(body.innerHTML,markup);
+  }
+  assert.equal(view.calls.length,0);
+});
+
 test('local find recomputes live ranges when a React summary collapses and expands',async t=>{
   const view=await setup(t,{highlights:true});
   function Summary({expanded}){const target=useRef(null);return createElement('section',null,
