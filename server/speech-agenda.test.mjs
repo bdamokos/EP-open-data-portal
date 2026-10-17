@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {outsideSpeech} from './outside-model.mjs';
-import {interventionMetadata} from './speech-interventions.mjs';
+import {buildInterventionSequence,interventionMetadata} from './speech-interventions.mjs';
 import {SpeechInterventions} from './speech-intervention-service.mjs';
 import {speechAgendaMembership,speechParentEvidence} from './speech-agenda.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/outside-agenda-conflict.json',import.meta.url),'utf8'));
+const coverageFixture=JSON.parse(readFileSync(new URL('./fixtures/speech-agenda-coverage.json',import.meta.url),'utf8'));
 const parents=['MTG-PL-2026-04-28-PVCRE-ITM-11','MTG-PL-2026-04-28-PVCRE-ITM-12'];
 const row={date:'2026-04-28',term:10,parentIds:parents,parentDocumentIds:['CRE-10-2026-04-28-ITM-012'],parentDocumentsComplete:true,parentDocumentId:'CRE-10-2026-04-28-ITM-012'};
 
@@ -22,7 +23,7 @@ test('both Court of Auditors speeches resolve the published contradiction from t
 });
 
 test('the speech reader opens one discharge sequence and never fetches the contradicted resumption',async()=>{
-  const rows=fixture.contributions.map(row=>row.activity),calls=[];
+  const rows=[...fixture.contributions.map(row=>row.activity),coverageFixture.reassigned.activity],calls=[];
   const service=new SpeechInterventions({request:async(endpoint)=>{
     calls.push(endpoint);
     const data=endpoint==='/speeches/'+rows[0].activity_id?[rows[0]]:endpoint==='/events/'+parents[1]?[{...fixture.agendas[1].activity,consists_of:rows.map(a=>a.id)}]:endpoint==='/speeches'?rows:null;
@@ -31,8 +32,38 @@ test('the speech reader opens one discharge sequence and never fetches the contr
   }});
   const context=await service.context(rows[0].activity_id);
   assert.equal(context.debates.length,1);assert.equal(context.debates[0].id,parents[1]);
-  assert.deepEqual(context.debates[0].records.map(r=>r.id),rows.map(a=>a.activity_id));
+  assert.deepEqual(context.debates[0].records.map(r=>r.id),rows.slice(0,2).map(a=>a.activity_id));
+  assert.deepEqual(context.debates[0].coverage,{complete:true,expected:2,available:2,missingIds:[],reassignedIds:[rows[2].activity_id]});
   assert(!calls.includes('/events/'+parents[0]));
+});
+
+test('the published event list distinguishes a fetched adjacent-chapter speech from unavailable records',()=>{
+  const rows=[...fixture.contributions.map(row=>row.activity),coverageFixture.reassigned.activity];
+  const expectedIds=coverageFixture.agenda.activity.consists_of,before=structuredClone(rows);
+  assert(expectedIds.includes(rows[2].id),'the published event itself reports the contradictory child');
+  const result=buildInterventionSequence(rows,{parentId:parents[1],expectedIds});
+  assert.deepEqual(result.coverage.reassignedIds,[rows[2].activity_id]);
+  assert.equal(result.coverage.expected,53);assert.equal(result.coverage.available,2);
+  assert.equal(result.coverage.complete,false,'the other 51 published records have not been supplied');
+  assert.equal(result.coverage.missingIds.length,51);
+  assert(!result.coverage.missingIds.includes(rows[2].activity_id));
+  assert.deepEqual(rows,before,'coverage must not rewrite the public evidence');
+});
+
+test('only proven reassignments leave the expected set, including a confirmed empty resumption',()=>{
+  const speech=fixture.contributions[0].activity,boundary=coverageFixture.reassigned.activity;
+  const expectedIds=[speech.id,boundary.id];
+  const missing=buildInterventionSequence([speech],{parentId:parents[1],expectedIds});
+  assert.deepEqual(missing.coverage,{complete:false,expected:2,available:1,missingIds:[boundary.activity_id],reassignedIds:[]});
+  const unrelated=structuredClone(boundary);unrelated.inverse_consists_of=['eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-13'];
+  assert.deepEqual(buildInterventionSequence([speech,unrelated],{parentId:parents[1],expectedIds}).coverage,missing.coverage);
+  const unresolved=structuredClone(boundary);delete unresolved.recorded_in_a_realization_of[0].is_part_of;
+  const retained=buildInterventionSequence([speech,unresolved],{parentId:parents[1],expectedIds});
+  assert.equal(retained.coverage.expected,2);assert.equal(retained.coverage.available,2);
+  assert.deepEqual(retained.coverage.reassignedIds,[],'incomplete document evidence cannot prove a reassignment');
+  const empty=buildInterventionSequence([speech],{parentId:parents[0],expectedIds:[speech.id]});
+  assert.deepEqual(empty.coverage,{complete:true,expected:0,available:0,missingIds:[],reassignedIds:[speech.activity_id]});
+  assert.equal(buildInterventionSequence([],{parentId:parents[0]}).coverage.complete,false,'an absent event list is still unknown');
 });
 
 test('the same rule resolves other procedural headings, reversed parent order and numbered vote subitems',()=>{

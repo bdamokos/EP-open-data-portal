@@ -5,6 +5,7 @@ import {Window} from 'happy-dom';
 import {createServer} from 'vite';
 import {readFileSync} from 'node:fs';
 import {speechSummary} from '../server/odp.mjs';
+import {SpeechInterventions} from '../server/speech-intervention-service.mjs';
 
 test('procedural notes explain later contributions without speech controls, while trailing notes are omitted',async t=>{
   const window=new Window({url:'http://localhost/'});
@@ -130,4 +131,36 @@ test('missing debate records remain visible without the sequence sources disclos
   assert.match(container.textContent,/1 of 2 debate records available\. Links stop at missing contributions\./);
   assert.equal(container.querySelector('details,a[href="https://example.org/sequence-source"]'),null);
   assert(!container.textContent.includes('Sequence sources'));
+});
+
+test('resolved adjacent-chapter records do not show as missing, while unfetched records still do',async t=>{
+  const window=new Window({url:'http://localhost/'});
+  const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  let vite,root;
+  t.after(async()=>{
+    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
+  });
+  const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/outside-agenda-conflict.json',import.meta.url)));
+  const adjacent=JSON.parse(readFileSync(new URL('../server/fixtures/speech-agenda-coverage.json',import.meta.url)));
+  const rows=[...fixture.contributions.map(c=>c.activity),adjacent.reassigned.activity];
+  const record=data=>({url:'https://data.europarl.europa.eu/api/v2/speeches',fetchedAt:Date.now(),payload:{data,meta:{total:data.length}}});
+  const context=async missing=>new SpeechInterventions({request:async endpoint=>
+    record(endpoint.startsWith('/events/')?[{...adjacent.agenda.activity,consists_of:rows.map(a=>a.id)}]:endpoint.startsWith('/speeches/')?[rows[0]]:missing?[rows[0],rows[2]]:rows)
+  }).context(rows[0].activity_id);
+  const contexts=[await context(false),await context(true)];let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>Response.json(contexts[calls++]));
+  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {PocSpeechContext}=await vite.ssrLoadModule('/src/PocSpeechInterventions.tsx');
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');root=createRoot(container);
+  for(const [index,id] of [rows[0].activity_id,rows[1].activity_id].entries()) {
+    await act(async()=>root.render(createElement(PocSpeechContext,{key:id,id,language:'en'})));
+    await act(async()=>container.querySelector('button').click());
+    assert.equal(container.querySelectorAll('.intervention-sequence>li').length,index===0?2:1);
+    if(index===0)assert(!container.textContent.includes('records available'));
+    else assert.match(container.textContent,/1 of 2 debate records available\. Links stop at missing contributions\./);
+  }
+  assert.equal(calls,2);
 });
