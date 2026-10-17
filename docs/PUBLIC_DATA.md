@@ -55,8 +55,16 @@ Every page shows `src/components/DataNotice.tsx`: the attribution “© European
 - Debate order comes from joining `inverse_consists_of` to the parent's `consists_of`, sorted by `numbering`. The API has no reply-to field, so exchanges are derived. Gaps, duplicates or unclassified records stop reconstruction.
 - Catch-the-eye is a `PROCEEDING_ACTIVITY` section with start and end markers (`Catch-the-eye procedure` or, machine-translated, `On-demand interventions`). Other `PROCEEDING_ACTIVITY` records are procedural notes.
 - `MEETING_NAME_CHAIR` records name a new chair in `communication/heading/person`, with the role in `communication/subheading`. The person must match the record's participation ID.
-- `had_participation.participation_in_name_of` gives the historical group for **On behalf of**. NI is not a political group.
+- `had_participation.participation_in_name_of` records speaking capacity for **On behalf of**, not group membership. Match the person and organisation on the same speaking participation. NI is not a political group.
 - Display names use the roster/profile `givenName`/`familyName` and `officialGivenName`/`officialFamilyName`. The UI prefers a supplied form in its script and never transliterates. A President/Vice-President office requires an exact Parliament membership valid on the speech date.
+
+### Group voices
+
+The group view counts distinct oral speech/person/group designations from `had_participation.participation_in_name_of`, beginning with term 10. Missing designations, untranslated role headers, dated rosters and offices never create a group attribution. Localised names retain the exact person ID.
+
+The activity writer stores a compact, generation-scoped metadata projection with exact participation, organisation, speech and agenda IDs, source URL and retrieval time. A separate optional queue re-reads monthly oral metadata catalogues once when upgrading an old index, under the existing lease, request, time and disk budgets. It preserves core and amendment cursors and does not block core publication. Older application versions ignore the additive tables; the next new writer adopts the last retained projection and pending cursors. Page reads use a group/date covering index, at most 20,000 scalar designations and 50 contribution records, without upstream requests or transcript scans. Coverage stays partial even when the local backfill finishes; an empty selection is not a parliamentary census.
+
+Subjects use the versioned editorial primary-subject map in `server/group-voice-subjects.json`, joined only by exact agenda or speech ID. The map currently covers reviewed July, September and October 2026 headings. These are broad editorial groupings, not EuroVoc or official annotations of individual speeches. Each contribution has one primary subject; unlisted records and conflicting parents stay **Unclassified**. Add classifications by reviewing an exact published heading and updating the map and its version (which queues a bounded metadata re-projection), never by joining titles or assuming an MEP specialises in a topic. Subjects and people show contribution counts, not speaking time or political influence.
 
 ### Motions and outcomes
 

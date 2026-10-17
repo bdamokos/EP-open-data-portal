@@ -1,3 +1,5 @@
+import {groupVoicesQuery} from './group-voices-model.mjs';
+import {groupVoicesPage} from './group-voices-store.mjs';
 import http from 'node:http';
 import {performance} from 'node:perf_hooks';
 import {pathToFileURL} from 'node:url';
@@ -126,6 +128,9 @@ async function handleApi(request,response,url,apiPrefix){
     else if (segments[1] === 'outside' && segments.length === 3) {
       const query=outsideQuery(url.searchParams), store=activityIndex().store;
       result=segments[2]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[2],query);
+    }
+    else if (segments.length === 3 && segments[1] === 'insights' && segments[2] === 'group-voices') {
+      result=groupVoicesPage(activityIndex().store,groupVoicesQuery(url.searchParams));
     }
     else if (segments.length === 3 && segments[1] === 'insights') {
       insightService ??= createInsights(activityIndex().store,{officialSources:official().sources,eurovocCatalog:official().catalog});
