@@ -17,10 +17,6 @@ For persistent data, mount a writable cache directory at `/data/cache` and an in
 
 Corpus search and status scans use read-only worker threads, with one query at a time and a five-second response deadline. Busy or slow queries return HTTP 503. Search pagination stops at offset 1,000; `truncated: true` indicates more matches beyond the accessible pages. Narrow the language, date, kind or member filters to inspect those matches.
 
-Status reads document/variant counts, character totals and retry summaries from covering metadata indexes, without scanning stored text or task bodies. The writable store adds these indexes in place on first open after an upgrade; read-only workers never create them. Existing text, task cursors, retries and schema version are unchanged. One read snapshot keeps the status fields coherent while collection continues.
-
-Corpus discovery yields after each question record and every eight file tasks. Speech extraction yields between individual language parses and stored speeches. Language extraction retains only attributes, without building a body tree; oversized fragments still supply provenance while the existing 2 MiB body limit remains. These checkpoints let HTTP handlers and lease renewals run during collection and check cancellation and writer ownership before continuing. Interrupted discovery leaves its completion marker unset; interrupted speech pages retain their previous offset and can be retried without duplicating stored text. No additional writer or schema migration is needed.
-
 ## Verification
 
 Run the checks in [Contributing](../CONTRIBUTING.md). Verify the directory, a profile, question/answer reading, speech-cloud reading and highlights, named vote/country joins, language selection, Following, and mobile layouts. Inspect screenshots as well as measurements.
