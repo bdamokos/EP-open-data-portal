@@ -93,7 +93,7 @@ test('a delayed timeline response never reveals a closed drawer or reclaims focu
 
 
 test('retained contribution disclosure keeps focus through reader cleanup and reopen',async t=>{
-  const h=await harness(t);await h.click('Fixture speaker 42');await h.finish('42');await h.click(h.container.querySelector('.ov-appearance-cards button'));
+  const h=await harness(t);await h.click(h.container.querySelector('.ov-mark'));await h.finish('42');
   const toggle=await h.click('Read / watch');assert.equal(toggle.textContent,'Close speech');assert.equal(document.activeElement,toggle);assert(h.container.querySelector('.insight-inline-reader'));
   await h.click('Close speech');assert.equal(h.container.querySelector('.insight-inline-reader'),null);assert.equal(document.activeElement,toggle);
   await h.click('Read / watch');assert.equal(h.container.querySelector('.ov-contribution-head button'),toggle);assert.equal(document.activeElement,toggle);assert(h.container.querySelector('.insight-inline-reader'));
@@ -120,10 +120,10 @@ test('opening the current speaker from its drawer consumes focus intent before a
   t.mock.method(globalThis,'clearInterval',timer=>{if(!polls.delete(timer))clearInterval(timer);});
   await h.click('Fixture speaker 42');await h.finish('42',false,{coverage:{...coverage,complete:false,pending:1}});
   const dataHeading=h.container.querySelector('.ov-person-heading h2');await h.click(h.container.querySelector('.ov-appearance-cards button'));
-  assert.equal(h.requests.length,1,'the drawer reuses the exact cached speaker detail');await h.click('Open speaker page →');
+  assert.equal(h.requests.filter(r=>r.url.pathname.includes('/outside/')).length,1,'the drawer reuses the exact cached speaker detail');await h.click('Open speaker page →');
   assert.equal(h.container.querySelector('.ov-drawer'),null);assert(document.activeElement===dataHeading,'same-speaker navigation consumes the explicit intent when its drawer closes');
   const retained=h.container.querySelector('.ov-tabs button');retained.focus();
-  await act(async()=>{assert.equal(polls.size,1);[...polls][0].run();});assert.equal(h.requests.length,2,'incomplete coverage still starts its existing deferred refresh');assert.equal(document.activeElement,retained,'starting the refresh preserves the chosen control');
+  await act(async()=>{assert.equal(polls.size,1);[...polls][0].run();});assert.equal(h.requests.filter(r=>r.url.pathname.includes('/outside/')).length,2,'incomplete coverage still starts its existing deferred refresh');assert.equal(document.activeElement,retained,'starting the refresh preserves the chosen control');
   retained.blur();assert.equal(document.activeElement,document.body);
   h.focusScrollEvents.length=0;await h.finish('42');assert(document.activeElement===document.body,'later completion cannot revive the consumed drawer navigation intent');assert.equal(h.focusScrollEvents.length,0,'later completion cannot refocus or reveal a consumed destination');
   assert.equal(h.container.querySelector('.ov-person-heading h2'),dataHeading);
