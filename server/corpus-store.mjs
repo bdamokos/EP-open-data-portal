@@ -158,8 +158,8 @@ export class CorpusStore {
       const confirm=this.db.prepare('UPDATE texts SET checked_at=?,translation_type=?,language=?,source_format=?,source_url=? WHERE id=?');
       for(const text of texts) {
         const hash=sha((text.raw ?? text.body)), old=existing.get(id,text.sourceKey);
-        const raw=text.raw==null?null:zstdCompressSync(Buffer.from(text.raw));
         if(old?.sha256===hash){confirm.run(text.fetchedAt,text.translationType,text.language,text.sourceFormat,text.sourceUrl,old.id);continue;}
+        const raw=text.raw==null?null:zstdCompressSync(Buffer.from(text.raw));
         const values=[text.language,text.translationType,text.sourceFormat,text.sourceUrl,text.fetchedAt,text.fetchedAt,hash,text.body.length,text.body,raw];
         if(old)update.run(...values,old.id);
         else insert.run(id,text.language,text.sourceKey,text.translationType,text.sourceFormat,text.sourceUrl,text.fetchedAt,text.fetchedAt,hash,text.body.length,text.body,raw);
