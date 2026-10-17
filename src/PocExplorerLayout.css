@@ -29,8 +29,6 @@
 .insight-question-list .insight-people article { width:132px; }
 .insight-eyebrow { text-transform:none; letter-spacing:0; }
 .insight-agenda-select { display:none; }
-.insight-speech-select { display:grid; gap:7px; font-size:15px; }
-.insight-speech-select select { width:100%; min-width:0; padding:10px; border:0; border-radius:4px; }
 .insight-legislation-grid { padding-top:8px; }
 .insight-agenda { max-height:min(720px,75dvh); }
 .insight-agenda>div { display:grid; gap:10px; }

@@ -9,7 +9,7 @@ type Kind='speech'|'question'|'answer';
 type Person={id:number;name:string|null;role:string};
 type Hit={sourceId:string;sourceKey:string;kind:Kind;parentId:string|null;date:string|null;language:string;translationType:string;sourceUrl:string;sha256:string;snippet:string;people?:Person[]};
 type Result={sourceId:string;kind:Kind;parentId:string|null;date:string|null;questionDate?:string|null;answerDate?:string|null;title:string|null;reference:string|null;people?:Person[];hits:Hit[]};
-type Response={total:number;offset:number;limit:number;nextOffset:number|null;truncated:boolean;results:Result[];coverage:{complete?:boolean;backfillComplete?:boolean;note?:string;phase?:string}};
+type Response={total:number;offset:number;limit:number;nextOffset:number|null;truncated:boolean;responseLimited?:boolean;results:Result[];coverage:{complete?:boolean;backfillComplete?:boolean;note?:string;phase?:string}};
 type StoredText=Hit&{body:string;highlightedBody?:string;highlightRanges?:{start:number;end:number}[];highlightsTruncated?:boolean;fetchedAt:string;checkedAt:string};
 export interface TextSearchProps {
   prefix:string;label:string;language:string;kinds?:Kind[];member?:number|string;country?:string;from?:string;to?:string;
@@ -46,6 +46,8 @@ export function PocTextSearch({prefix,label,language,kinds,member,country,from,t
   const [query,setQuery]=useExplorerParam<string>(prefix+'-search','');
   const [textLanguage,setTextLanguage]=useExplorerParam<string>(prefix+'-text-lang','');
   const [page,setPage]=useExplorerParam<number>(prefix+'-page',0);
+  const [exactOffset,setExactOffset]=useExplorerParam<number>(prefix+'-offset',-1);
+  const offset=exactOffset<0?page*20:exactOffset;
   const [read,setRead]=useExplorerParam<string>(prefix+'-read','');
   const [field,setField]=useExplorerParam<string>(prefix+'-kind','');
   const [sort,setSort]=useExplorerParam<string>(prefix+'-sort','relevance',['relevance','newest']);
@@ -63,13 +65,19 @@ export function PocTextSearch({prefix,label,language,kinds,member,country,from,t
   const restoredHistory=useRef<string|null>(null),previousScope=useRef({key:scope,ready:!disabledReason});
   useEffect(()=>{const restored=()=>{restoredHistory.current=navigationKey();};window.addEventListener('popstate',restored);return()=>window.removeEventListener('popstate',restored);},[]);
   const scopeChanging=previousScope.current.ready&&previousScope.current.key!==scope&&restoredHistory.current!==navigationKey();
-  useEffect(()=>{const previous=previousScope.current;previousScope.current={key:scope,ready:!disabledReason};if(previous.ready&&previous.key!==scope&&restoredHistory.current!==navigationKey()){setPage(0);setRead('');setVariants({});}},[scope,disabledReason,setPage,setRead]);
+  useEffect(()=>{const previous=previousScope.current;previousScope.current={key:scope,ready:!disabledReason};if(previous.ready&&previous.key!==scope&&restoredHistory.current!==navigationKey()){setPage(0);setExactOffset(-1);setRead('');setVariants({});}},[scope,disabledReason,setPage,setExactOffset,setRead]);
   useEffect(()=>setDraft(query),[query]);
   const previousNavigation=useRef({query,read,closed});
   useEffect(()=>{const previous=previousNavigation.current;previousNavigation.current={query,read,closed};if(closed==='1')setOpen(false);else if(query&&query!==previous.query||read&&read!==previous.read||previous.closed==='1'&&(query||read))setOpen(true);},[query,read,closed]);
   useEffect(()=>{callback.current?.(open);return()=>callback.current?.(false);},[open]);
   useEffect(()=>{if(open){const frame=window.requestAnimationFrame(()=>input.current?.focus({preventScroll:true}));return()=>window.cancelAnimationFrame(frame);}},[open]);
-  const request=JSON.stringify({query,kinds:actualKinds,language:searchedLanguage==='all'?undefined:searchedLanguage,uiLanguage:language,member,country,from,to,sourceIds,group,dateBasis,sort,limit:20,offset:page*20});
+  const request=JSON.stringify({query,kinds:actualKinds,language:searchedLanguage==='all'?undefined:searchedLanguage,uiLanguage:language,member,country,from,to,sourceIds,group,dateBasis,sort,limit:20,offset});
+  const searchIdentity=JSON.stringify({...JSON.parse(request),offset:0});
+  const predecessors=useRef<{key:string;offsets:Map<number,number>}>({key:searchIdentity,offsets:new Map()});
+  if(predecessors.current.key!==searchIdentity)predecessors.current={key:searchIdentity,offsets:new Map()};
+  const previousOffset=predecessors.current.offsets.get(offset)??0;
+  const previousLabel=!predecessors.current.offsets.has(offset)?'First page':'Previous';
+  function moveTo(next:number){setExactOffset(next);setPage(0);setRead('');}
   const activeRequest=open&&Boolean(query)&&!disabledReason&&!scopeChanging;
   useEffect(()=>{
     if(!activeRequest)return;
@@ -91,16 +99,16 @@ export function PocTextSearch({prefix,label,language,kinds,member,country,from,t
   const data=state.key===request?state.data:null,loading=activeRequest&&(state.key!==request||state.loading),error=state.key===request?state.error:null;
   const selected=disabledReason||scopeChanging?null:parseTextReadKey(read),allHits=data?.results.flatMap(r=>r.hits)||[],selectedHit=allHits.find(hit=>textReadKey(hit)===read);
   function close(){setOpen(false);setClosed(query?'1':'');setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
-  function submit(event:React.FormEvent){event.preventDefault();const next=draft.trim();setClosed('');if(!textLanguage)setTextLanguage(searchedLanguage);setQuery(next);setPage(0);setRead('');setVariants({});if(next===query)setAttempt(v=>v+1);}
+  function submit(event:React.FormEvent){event.preventDefault();const next=draft.trim();setClosed('');if(!textLanguage)setTextLanguage(searchedLanguage);setQuery(next);setPage(0);setExactOffset(-1);setRead('');setVariants({});if(next===query)setAttempt(v=>v+1);}
   return <div lang="en" className={'poc-text-search '+(open?'is-open ':'')+className} onKeyDown={event=>{if(event.key==='Escape'&&open){event.stopPropagation();close();}}}>
     <button ref={toggle} type="button" className="poc-search-icon" aria-label={label} title={label} aria-expanded={open} aria-controls={panel} onClick={()=>{if(open)close();else{setClosed('');setOpen(true);}}}><Magnifier/>{query&&!open&&<span className="poc-search-dot"/>}</button>
     {open&&<section className="poc-search-panel" id={panel} aria-label={label}>
       <header className="poc-search-heading"><h3>{label}</h3><button type="button" className="poc-search-icon" aria-label="Close text search" title="Close text search" onClick={close}><CloseIcon/></button></header>
       <form onSubmit={submit}><div className="poc-search-input"><label className="poc-search-field"><span className="poc-search-sr">Words or exact phrase</span><input ref={input} type="search" value={draft} onChange={e=>setDraft(e.target.value)} maxLength={200} placeholder="Words or “exact phrase”" aria-describedby={panel+'-hint'}/></label><button type="submit" className="poc-search-icon" aria-label="Run text search" title="Search" disabled={Boolean(disabledReason)||loading}><Magnifier/></button></div>
       <p id={panel+'-hint'} className="poc-search-hint">All words · Use quotes for a phrase</p>
-      <div className="poc-search-facets"><label>Text language<select value={searchedLanguage} onChange={e=>{setTextLanguage(e.target.value);setPage(0);setRead('');}}>{languages.map(code=><option value={code} key={code} lang={language}>{languageName(code,language)}</option>)}<option value="all">All available languages</option></select></label>
-      {allowedKinds.length>1&&<label>Search in<select value={actualKinds.length===1?actualKinds[0]:''} onChange={e=>{setField(e.target.value);setPage(0);setRead('');}}><option value="">{group==='question'?'Questions + answers':'All text types'}</option>{allowedKinds.map(kind=><option key={kind} value={kind}>{kind==='answer'?'Answer text':kind==='question'?'Question text':'Speech text'}</option>)}</select></label>}
-      <label>Order<select value={sort} onChange={e=>{setSort(e.target.value);setPage(0);setRead('');}}><option value="relevance">Best match</option><option value="newest">Newest first</option></select></label></div></form>
+      <div className="poc-search-facets"><label>Text language<select value={searchedLanguage} onChange={e=>{setTextLanguage(e.target.value);setPage(0);setExactOffset(-1);setRead('');}}>{languages.map(code=><option value={code} key={code} lang={language}>{languageName(code,language)}</option>)}<option value="all">All available languages</option></select></label>
+      {allowedKinds.length>1&&<label>Search in<select value={actualKinds.length===1?actualKinds[0]:''} onChange={e=>{setField(e.target.value);setPage(0);setExactOffset(-1);setRead('');}}><option value="">{group==='question'?'Questions + answers':'All text types'}</option>{allowedKinds.map(kind=><option key={kind} value={kind}>{kind==='answer'?'Answer text':kind==='question'?'Question text':'Speech text'}</option>)}</select></label>}
+      <label>Order<select value={sort} onChange={e=>{setSort(e.target.value);setPage(0);setExactOffset(-1);setRead('');}}><option value="relevance">Best match</option><option value="newest">Newest first</option></select></label></div></form>
       {scopeNote&&<p className="poc-search-scope">{scopeNote}</p>}
       {(from||to)&&<p className="poc-search-hint">{dateBasis==='question'?'Question date':'Publication date'}: <span lang={from?language:'en'}>{dateLabel(from,language)||'start'}</span> — <span lang={to?language:'en'}>{dateLabel(to,language)||'present'}</span></p>}
       {disabledReason&&<p role="status" className="poc-search-status">{disabledReason}</p>}
@@ -119,7 +127,8 @@ export function PocTextSearch({prefix,label,language,kinds,member,country,from,t
             {versions.length>1&&<label className="poc-search-versions"><span>Matching versions</span><select value={hit.sourceKey} onChange={event=>{setVariants(previous=>({...previous,[id]:event.target.value}));if(read)setRead('');}}>{versions.map(version=><option value={version.sourceKey} key={version.sourceKey} lang={language}>{languageName(version.language,language)}{versions.some(v=>v.language===version.language&&v.sourceKey!==version.sourceKey)?' · '+version.sourceKey:''}</option>)}</select></label>}</div>
             {selected&&read===key&&<StoredReader identity={selected} query={query} expectedHash={hit.sha256} sourceUrl={hit.sourceUrl} language={language}/>}</div>;})}</article>;
         })}
-        {(page>0||data.nextOffset!==null)&&<nav className="poc-search-pages" aria-label="Search result pages"><button type="button" className="poc-search-link" disabled={!page||loading} onClick={()=>{setPage(Math.max(0,page-1));setRead('');}}>Previous</button><span>Page {page+1}</span><button type="button" className="poc-search-link" disabled={data.nextOffset===null||loading} onClick={()=>{setPage((data.nextOffset||0)/20);setRead('');}}>Next</button></nav>}
+        {(offset>0||data.nextOffset!==null)&&<nav className="poc-search-pages" aria-label="Search result pages"><button type="button" className="poc-search-link" disabled={!offset||loading} onClick={()=>moveTo(previousOffset)}>{previousLabel}</button><span>{data.results.length?`${data.offset+1}–${data.offset+data.results.length}`:'0'} of {data.total}</span><button type="button" className="poc-search-link" disabled={data.nextOffset===null||loading} onClick={()=>{if(data.nextOffset!==null){predecessors.current.offsets.set(data.nextOffset,offset);moveTo(data.nextOffset);}}}>Next</button></nav>}
+        {data.responseLimited&&<p className="poc-search-hint">This page contains fewer documents because some have many matching language versions.</p>}
         {data.truncated&&<p className="poc-search-status">More matches are available. Narrow the period, language or document type to see them.</p>}
       </div>}
       {selected&&!selectedHit&&!loading&&<><p className="poc-search-status">Opening the linked saved text independently of this results page.</p><StoredReader identity={selected} query={query} language={language}/></>}
