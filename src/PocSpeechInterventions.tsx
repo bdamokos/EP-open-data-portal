@@ -64,7 +64,7 @@ function SequenceError({message,retryAt,loading,retry}:{message:string;retryAt?:
   const seconds=Math.max(0,Math.ceil(((retryAt||0)-now)/1000));
   return <div className="intervention-error"><p>{message}</p><button onClick={retry} disabled={loading||seconds>0}>{loading?'Retrying sequence…':seconds>0?`Retry sequence in ${seconds}s`:'Retry sequence'}</button>{loading&&<p role="status">Loading debate sequence…</p>}</div>;
 }
-function Sequence({debate,speechId,language,loading,retry}:{debate:SpeechContext['debates'][number];speechId:string;language:string;loading:boolean;retry:()=>void}) {
+function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{debate:SpeechContext['debates'][number];speechId:string;language:string;transcriptLanguage:string;loading:boolean;retry:()=>void}) {
   const [full,setFull]=useState(false),[reading,setReading]=useState<string|null>(null);
   const readingRef=useRef<HTMLDivElement>(null),readingId=useId();
   const exchange=debate.exchanges.find(e=>e.ids.includes(speechId)),ids=new Set(exchange?.ids||[]);
@@ -86,19 +86,19 @@ function Sequence({debate,speechId,language,loading,retry}:{debate:SpeechContext
           {row.id===exchange?.originalId&&<span className="intervention-reply">Original speech</span>}
           {row.intervention.type!=='chair'&&<InterventionBadges value={row.intervention} language={language}/>}
           {row.replyTo&&<span className="intervention-reply">↳ {row.replyTo===exchange?.originalId?'To the original speech':'In reply'}</span>}
-          {reading===row.id&&<div ref={readingRef} tabIndex={-1} id={readingId}><ConnectedText id={row.id} language={language}/></div>}
+          {reading===row.id&&<div ref={readingRef} tabIndex={-1} id={readingId}><ConnectedText id={row.id} language={transcriptLanguage}/></div>}
         </>}
       </div>
     </li>)}</ol>}
     {!debate.error&&!debate.coverage.complete&&<p className="intervention-caption">{debate.coverage.available} of {debate.coverage.expected??'unknown'} debate records available. Links stop at missing contributions.</p>}
   </section>;
 }
-export function PocSpeechContext({id,language}:{id:string;language:string}) {
+export function PocSpeechContext({id,language,transcriptLanguage=language}:{id:string;language:string;transcriptLanguage?:string}) {
   const [open,setOpen]=useState(false);
   const state=useData<SpeechContext>(open?`speech-context/${id}?lang=${language}`:null);
   const controlId=useId();
   return <div className="intervention-context" lang="en"><button className="intervention-context-toggle" onClick={()=>setOpen(value=>!value)} aria-expanded={open} aria-controls={controlId}>Debate & exchanges <span aria-hidden="true">{open?'−':'+'}</span></button>{open&&<div id={controlId}>
     {state.loading&&!state.data&&<p role="status">Loading debate sequence…</p>}{state.error&&<SequenceError message={state.error} retryAt={state.retryAt} loading={state.loading} retry={state.retry}/>}
-    {state.data&&<>{state.data.unavailable&&<p>No debate is linked to this contribution.</p>}{state.data.debates.map(debate=><Sequence key={debate.id} debate={debate} speechId={id} language={language} loading={state.loading} retry={state.retry}/>)}</>}
+    {state.data&&<>{state.data.unavailable&&<p>No debate is linked to this contribution.</p>}{state.data.debates.map(debate=><Sequence key={debate.id} debate={debate} speechId={id} language={language} transcriptLanguage={transcriptLanguage} loading={state.loading} retry={state.retry}/>)}</>}
   </div>}</div>;
 }

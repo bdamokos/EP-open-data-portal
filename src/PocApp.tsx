@@ -111,7 +111,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
       <PocSpeechPlayer speech={speech} lang={transcriptLanguage} />
       {state.data?.speakers?.map(person=><div key={person.id}><strong><SpeakerName person={person} language={lang}/></strong><SpeakerRoleLine person={person} language={lang} className="insight-secondary"/></div>)}
       {state.data?.intervention?.type!=='chair'&&<InterventionBadges value={state.data?.intervention} language={lang}/>}
-      <PocSpeechContext key={speech.id} id={speech.id} language={lang}/>
+      <PocSpeechContext key={speech.id} id={speech.id} language={lang} transcriptLanguage={transcriptLanguage}/>
       <div className="poc-section-title" lang="en"><h3 lang={lang}>{c.transcript}</h3>{text.paragraphs.length>0&&<PocFindInText key={speech.id+':'+transcriptLanguage} label="Find in speech" target={transcriptText}/>}</div>
       {speech.websiteUrl && <p className="poc-source-link" lang="en"><a href={speech.websiteUrl} target="_blank" rel="noreferrer">Speech on Parliament’s website ↗</a>{" "}<small>Original <span lang="">{speech.websiteLanguage?.toUpperCase()}</span></small></p>}
       {state.loading && !state.data && <p role="status" lang="en">Loading transcript…</p>}
