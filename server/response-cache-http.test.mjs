@@ -68,6 +68,13 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   assert.equal(sameImage.headers.get('vary'), 'Origin');
   assert(sameImage.headers.get('cdn-cache-control').startsWith('public,'));
   assert.equal(await sameImage.text(), '');
+  for (const [method, conditional, status] of [['GET', false, 200], ['HEAD', false, 200], ['GET', true, 304], ['HEAD', true, 304]]) {
+    const authenticated = await get('/api/poc/portrait/43', {method, headers: {Authorization: 'Bearer synthetic-test', ...(conditional ? {'If-None-Match': portrait.headers.get('etag')} : {})}});
+    assert.equal(authenticated.status, status);
+    assertNoStore(authenticated);
+    assert.equal(authenticated.headers.get('vary'), 'Origin');
+    assert.equal(await authenticated.text(), method === 'GET' && !conditional ? 'fixture portrait' : '');
+  }
   assert.equal(imageLoads, 1);
 
   const bad = await get('/api/poc/profile/43?unknown=1');
