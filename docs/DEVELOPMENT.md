@@ -23,4 +23,4 @@ Run the checks in [Contributing](../CONTRIBUTING.md). Verify the directory, a pr
 
 Local test examples intentionally omit parts of the archive, portraits and demographics. Keep fixture limits separate from live counts. Test external media through the official public player after an explicit Play, including the requested language and actual decoded audio.
 
-The published application API retains `/api/poc/` for gateway and client compatibility. This transport namespace is independent of the application’s file and component names. Browser following and preference storage keys are unchanged.
+The published application API uses `/api/poc/`. This transport namespace is a compatibility contract with the gateway and clients, independent of application file and component names.
