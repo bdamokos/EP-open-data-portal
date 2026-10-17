@@ -7,10 +7,10 @@ const insights = new Set(['questions', 'legislation', 'saved', 'participation', 
 
 function approvedPath(pathname) {
   const parts = pathname.split('/');
-  if (parts[0] !== '' || parts[1] !== 'api' || parts[2] !== 'poc') return false;
-  const [, , , resource, item] = parts;
-  if (parts.length === 4) return direct.has(resource);
-  if (parts.length !== 5 || !item) return false;
+  if (parts[0] !== '' || parts[1] !== 'api') return false;
+  const [, , resource, item] = parts;
+  if (parts.length === 3) return direct.has(resource);
+  if (parts.length !== 4 || !item) return false;
   if (byId.has(resource)) return true;
   if (resource === 'insights') return insights.has(item);
   if (resource === 'corpus') return item === 'search' || item === 'text';
@@ -49,13 +49,13 @@ function publicPolicy(seconds, browserSeconds = 0) {
 export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   if (!['GET', 'HEAD'].includes(request.method) || request.headers?.authorization || !approvedPath(url.pathname) || transientState(payload)) return noStore;
   if (url.pathname.includes('/speech-media/') && payload?.available === false) return noStore;
-  const resource = url.pathname.split('/')[3];
+  const resource = url.pathname.split('/')[2];
   if (resource === 'speech' && !payload?.xml) return noStore;
   if (['activities', 'latest-activities', 'speeches'].includes(resource)) return publicPolicy(HOUR);
 
   // Only positive reading responses qualify for the longer historical lifetime.
   // An old unanswered question can still acquire an answer and remains at 6 h.
-  const reading = resource === 'speech' || resource === 'document' || url.pathname === '/api/poc/corpus/text';
+  const reading = resource === 'speech' || resource === 'document' || url.pathname === '/api/corpus/text';
   const selectedAnswer = resource === 'document' && url.pathname.endsWith('-ASW');
   const date = selectedAnswer ? payload?.selectedDocumentDate : payload?.date;
   const time = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? Date.parse(date) : NaN;

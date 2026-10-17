@@ -32,7 +32,7 @@ test('motion context HTTP reads are index-only, scoped and bounded',async t=>{
       const chunks=[];response.on('data',chunk=>chunks.push(chunk));response.on('end',()=>{const text=Buffer.concat(chunks).toString();resolve({status:response.statusCode,headers:response.headers,text,body:text?JSON.parse(text):null});});
     });request.on('error',reject);request.end();
   });
-  const endpoint='/api/poc/motion-amendments/'+id;
+  const endpoint='/api/motion-amendments/'+id;
   const all=await read(endpoint+'?member=256918&scope=all');
   assert.equal(all.status,200);assert.equal(all.body.total,2);assert.equal(all.body.text.status,'indexed');
   assert.equal(all.body.text.memberAuthorship.status,'recorded');
@@ -47,12 +47,12 @@ test('motion context HTTP reads are index-only, scoped and bounded',async t=>{
   for(const query of ['scope=member','scope=other','scope=','member=','member=0','member=0256918','member=9007199254740992','member=256918&member=197494','limit=0','limit=51','offset=-1','offset=1000001','procedure=2026-2868','lang=invalid']) {
     assert.equal((await read(endpoint+'?'+query)).status,400,query);
   }
-  for(const invalid of ['A-10-2026-0424','B-9-2026-0424','B-10-2026-0424-AM-13','B-10-2026-0424%2Fextra'])assert.equal((await read('/api/poc/motion-amendments/'+invalid)).status,400,invalid);
+  for(const invalid of ['A-10-2026-0424','B-9-2026-0424','B-10-2026-0424-AM-13','B-10-2026-0424%2Fextra'])assert.equal((await read('/api/motion-amendments/'+invalid)).status,400,invalid);
   assert.equal((await read(endpoint,{method:'POST'})).status,405);
   assert.equal((await read(endpoint,{headers:{Origin:'https://unrelated.example'}})).status,403);
   assert.equal((await read(endpoint,{method:'HEAD'})).text,'');
   assert.equal((await read(endpoint+'?member=256918&scope=all',{headers:{'If-None-Match':all.headers.etag}})).status,304);
-  const absent=await read('/api/poc/motion-amendments/RC-10-2026-0441');
+  const absent=await read('/api/motion-amendments/RC-10-2026-0441');
   assert.equal(absent.status,200);assert.equal(absent.body.coverage.resultState,'not-indexed');assert.equal(absent.body.coverage.observationComplete,false);assert.equal(absent.body.text.status,'unavailable');
   assert.equal((await read('/api/healthz')).status,200);
   assert.equal(upstreamCalls,0);assert.equal(worker.running,false);

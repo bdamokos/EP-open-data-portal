@@ -52,7 +52,7 @@ test('member-votes HTTP contract retains actual positions, bounded snapshot pagi
   });
   ({server}=await import('./index.mjs?member-votes-http-test'));
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  const base=`http://127.0.0.1:${server.address().port}/api/poc/member-votes/`;
+  const base=`http://127.0.0.1:${server.address().port}/api/member-votes/`;
   const fixture=fixtureService();memberVotes.query=fixture.service.query.bind(fixture.service);
   const route=base+'197591',period='sitting='+sittingId;
   const firstResponse=await fetch(route+'?'+period+'&lang=hu&limit=1&decision='+sittingId+'-DEC-197457');

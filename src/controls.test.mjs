@@ -11,7 +11,7 @@ const stats={denominator:0,dimensions:{country:[],group:[],gender:[],age:[]}};
 const topic={id:'test-topic',title:'Agenda fixture',date:'2026-10-07',kind:'PLENARY_DEBATE',documentIds:['A-10-2026-0237','B-10-2026-0001']};
 const legislation={sitting:{id:'MTG-PL-2026-10-07',date:'2026-10-07',phase:'past'},sittings:[{id:'MTG-PL-2026-10-07',date:'2026-10-07',phase:'past'}],topics:[topic],coverage:{agendaError:null},detail:{...topic,phase:'past',procedures:[],committeeWork:[1,2].map(n=>({id:'event/'+n,date:'2026-10-01',kind:'COMMITTEE_TABLING_REPORT',documentIds:[topic.documentIds[0]]})),people:[],roles:[],speeches:[],stats,votes:[],voteCoverage:{},coverage:{gaps:[],speechAssociations:{sources:[]}}}};
 function fixture(url) {
-  const route=url.pathname.split('/poc/')[1];
+  const route=url.pathname.split('/api/')[1];
   if(route==='directory')return directory;
   if(route?.startsWith('profile/'))return member;
   if(route?.startsWith('latest-activities/'))return activities;
@@ -60,7 +60,7 @@ test('MEP speech loads before hidden debate preload, then opening the sequence w
   const person={id:'257043',name:'Mika Aaltola'};
   const row=sourceId=>({id:sourceId,start:null,intervention:{type:'speech',speaker:person,onBehalfOf:[]}});
   const h=await harness(t,`?poc=1&member=257043&speech=${id}`,url=>{
-    const route=url.pathname.split('/poc/')[1];requests.push(route);
+    const route=url.pathname.split('/api/')[1];requests.push(route);
     if(route.startsWith('latest-activities/'))return {...activities,items:[item],indexedTotal:1};
     if(route===`speech/${id}`)return new Promise(resolve=>finishSpeech=()=>resolve({id,xml:'<speech><p>Main transcript</p></speech>',speakers:[person],availableTextLanguages:['en'],textLanguage:'en'}));
     if(route.startsWith('speech-context/'))return new Promise(resolve=>finishContext=()=>resolve({speechId:id,debates:[{id:'debate',titles:{en:'Debate'},records:[row(id),row(other)],exchanges:[],coverage:{complete:true}}]}));
@@ -135,7 +135,7 @@ test('rapid speech navigation shares the speculative queue and cancels obsolete 
 
 test('member deep links, module selection and restored routes keep meaningful titles without extra history',async t=>{
   const pending=[];
-  const h=await harness(t,'?poc=1&member=257043&module=profile',url=>['directory','profile/257043'].includes(url.pathname.split('/poc/')[1])?new Promise(resolve=>pending.push(()=>resolve(fixture(url)))):fixture(url));
+  const h=await harness(t,'?poc=1&member=257043&module=profile',url=>['directory','profile/257043'].includes(url.pathname.split('/api/')[1])?new Promise(resolve=>pending.push(()=>resolve(fixture(url)))):fixture(url));
   const {default:App}=await h.load('/src/App.tsx');
   await h.render(createElement(App));
   assert.equal(document.title,'MEP 257043 · Profile — European Parliament data explorer');

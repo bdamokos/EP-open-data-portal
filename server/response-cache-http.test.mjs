@@ -39,7 +39,7 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
     assert.equal(response.headers.get('cdn-cache-control'), 'no-store');
   };
 
-  const first = await get('/api/poc/profile/43?lang=en');
+  const first = await get('/api/profile/43?lang=en');
   assert.equal(first.status, 200);
   assert.equal(first.headers.get('cache-control'), 'public, max-age=0');
   assert.equal(first.headers.get('cdn-cache-control'), 'public, max-age=21600, stale-if-error=0');
@@ -47,29 +47,29 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   const body = await first.json();
   assert.equal(body.id, 43);
   assert(body.fetchedAt);
-  const unchanged = await get('/api/poc/profile/43?lang=en', {headers: {'If-None-Match': first.headers.get('etag')}});
+  const unchanged = await get('/api/profile/43?lang=en', {headers: {'If-None-Match': first.headers.get('etag')}});
   assert.equal(unchanged.status, 304);
   assert.equal(unchanged.headers.get('cdn-cache-control'), first.headers.get('cdn-cache-control'));
   assert.equal(await unchanged.text(), '');
-  const head = await get('/api/poc/profile/43?lang=hu', {method: 'HEAD'});
+  const head = await get('/api/profile/43?lang=hu', {method: 'HEAD'});
   assert.equal(head.status, 200);
   assert.equal(head.headers.get('cdn-cache-control'), first.headers.get('cdn-cache-control'));
   assert.equal(await head.text(), '');
   assert.equal(profileLoads, 1);
 
-  const portrait = await get('/api/poc/portrait/43');
+  const portrait = await get('/api/portrait/43');
   assert.equal(portrait.status, 200);
   assert.equal(portrait.headers.get('cache-control'), 'public, max-age=86400');
   assert.equal(portrait.headers.get('vary'), 'Origin');
   assert.match(portrait.headers.get('cdn-cache-control'), /^public, max-age=604\d{3}, stale-if-error=0$/);
   assert.equal(await portrait.text(), 'fixture portrait');
-  const sameImage = await get('/api/poc/portrait/43', {headers: {'If-None-Match': portrait.headers.get('etag')}});
+  const sameImage = await get('/api/portrait/43', {headers: {'If-None-Match': portrait.headers.get('etag')}});
   assert.equal(sameImage.status, 304);
   assert.equal(sameImage.headers.get('vary'), 'Origin');
   assert(sameImage.headers.get('cdn-cache-control').startsWith('public,'));
   assert.equal(await sameImage.text(), '');
   for (const [method, conditional, status] of [['GET', false, 200], ['HEAD', false, 200], ['GET', true, 304], ['HEAD', true, 304]]) {
-    const authenticated = await get('/api/poc/portrait/43', {method, headers: {Authorization: 'Bearer synthetic-test', ...(conditional ? {'If-None-Match': portrait.headers.get('etag')} : {})}});
+    const authenticated = await get('/api/portrait/43', {method, headers: {Authorization: 'Bearer synthetic-test', ...(conditional ? {'If-None-Match': portrait.headers.get('etag')} : {})}});
     assert.equal(authenticated.status, status);
     assertNoStore(authenticated);
     assert.equal(authenticated.headers.get('vary'), 'Origin');
@@ -77,15 +77,15 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   }
   assert.equal(imageLoads, 1);
 
-  const bad = await get('/api/poc/profile/43?unknown=1');
+  const bad = await get('/api/profile/43?unknown=1');
   assert.equal(bad.status, 400);
   assertNoStore(bad);
   await bad.text();
-  const repeatedBad = await get('/api/poc/profile/43?unknown=1', {headers: {'If-None-Match': bad.headers.get('etag')}});
+  const repeatedBad = await get('/api/profile/43?unknown=1', {headers: {'If-None-Match': bad.headers.get('etag')}});
   assert.equal(repeatedBad.status, 400, 'conditional requests must not turn an error into a 304');
   assertNoStore(repeatedBad);
   await repeatedBad.text();
-  for (const [url, options, status] of [['/healthz', {}, 200], ['/api/poc/corpus/search', {method: 'OPTIONS'}, 204], ['/api/poc/profile/43', {method: 'POST'}, 405], ['/api/poc/profile/43', {headers: {Origin: 'https://foreign.example'}}, 403]]) {
+  for (const [url, options, status] of [['/healthz', {}, 200], ['/api/corpus/search', {method: 'OPTIONS'}, 204], ['/api/profile/43', {method: 'POST'}, 405], ['/api/profile/43', {headers: {Origin: 'https://foreign.example'}}, 403]]) {
     const response = await get(url, options);
     assert.equal(response.status, status);
     assertNoStore(response);

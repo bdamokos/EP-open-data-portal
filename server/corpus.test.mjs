@@ -733,7 +733,7 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
   // multi-megabyte PFAS fixture below can exceed it on real CPU time.
   corpus().reader.timeoutMs=120_000;
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  const base=`http://127.0.0.1:${server.address().port}/api/poc/corpus`;
+  const base=`http://127.0.0.1:${server.address().port}/api/corpus`;
   const post=body=>fetch(base+'/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   try {
     const response=await post({query:'ocean',sourceIds:[id],group:'question'});

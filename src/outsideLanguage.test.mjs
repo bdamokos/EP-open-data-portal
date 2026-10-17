@@ -71,8 +71,8 @@ async function harness(t,language,query='?view=outside',deferDetail=false) {
     const url=new URL(input,location.href);calls.push(url);
     assert.equal(url.origin,'http://localhost','only local fixture requests are allowed');
     assert.equal(url.searchParams.get('term'),'10','language markup preserves the current-term request');
-    if(url.pathname==='/api/poc/outside/directory')return Promise.resolve(Response.json({term:'10',people,coverage}));
-    assert.equal(url.pathname,'/api/poc/outside/42','no source, index or corpus requests are allowed');
+    if(url.pathname==='/api/outside/directory')return Promise.resolve(Response.json({term:'10',people,coverage}));
+    assert.equal(url.pathname,'/api/outside/42','no source, index or corpus requests are allowed');
     return deferDetail?new Promise(resolve=>{finishDetail=()=>resolve(Response.json(detail));}):Promise.resolve(Response.json(detail));
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});

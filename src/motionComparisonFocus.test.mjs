@@ -28,7 +28,7 @@ async function harness(t,initial={}) {
   });
   t.mock.method(globalThis,'fetch',input=>{
     const url=new URL(input,window.location.href);
-    assert.match(url.pathname,/\/poc\/motion-comparison\/B-10-/,'comparison focus tests only use stubbed comparison requests');
+    assert.match(url.pathname,/\/api\/motion-comparison\/B-10-/,'comparison focus tests only use stubbed comparison requests');
     return new Promise(resolve=>requests.push({url,resolve,finished:false}));
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});

@@ -21,7 +21,7 @@ async function harness(t) {
   const scrolls=[];window.HTMLElement.prototype.scrollIntoView=function(options){scrolls.push({element:this,options});};
   let vite,root;
   t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of requests)if(!request.finished)request.resolve(Response.json({}));if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  t.mock.method(globalThis,'fetch',input=>{const route=new URL(input,window.location.href);assert.match(route.pathname,/\/poc\/speech-media\//,'media focus tests cannot fetch an upstream player or corpus');return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));});
+  t.mock.method(globalThis,'fetch',input=>{const route=new URL(input,window.location.href);assert.match(route.pathname,/\/api\/speech-media\//,'media focus tests cannot fetch an upstream player or corpus');return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));});
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const components=await vite.ssrLoadModule('/src/SpeechPlayer.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
