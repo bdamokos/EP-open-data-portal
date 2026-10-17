@@ -1,5 +1,5 @@
 import {GROUP_VOICE_GROUPS,GROUP_VOICE_SUBJECTS} from './groupVoiceTerms.mjs';
-export const GROUP_VOICE_DEFAULTS=Object.freeze({group:'S_D',period:'term',person:null,subject:null,tab:'subjects',q:'',peopleLimit:15,offset:0});
+export const GROUP_VOICE_DEFAULTS=Object.freeze({group:'PPE',period:'term',person:null,subject:null,tab:'people',q:'',peopleLimit:15,offset:0});
 const keys={group:'group',period:'period',person:'person',subject:'subject',tab:'tab',q:'q',peopleLimit:'people-limit',offset:'offset'};
 export function readGroupVoicesState(params,{now=Date.now()}={}){
   const value=key=>params.get('gv-'+key),d=GROUP_VOICE_DEFAULTS;
@@ -10,7 +10,7 @@ export function readGroupVoicesState(params,{now=Date.now()}={}){
     period,
     person:/^[1-9]\d{0,12}$/.test(value('person')||'')?value('person'):null,
     subject:Object.hasOwn(GROUP_VOICE_SUBJECTS,value('subject'))?value('subject'):null,
-    tab:value('tab')==='people'?'people':'subjects',q:(value('q')||'').slice(0,200),
+    tab:value('tab')==='subjects'?'subjects':'people',q:(value('q')||'').slice(0,200),
     peopleLimit:integer('people-limit',15,15,1000),offset:integer('offset',0,0,20000)};
 }
 export function groupVoicesUrl(input,state){

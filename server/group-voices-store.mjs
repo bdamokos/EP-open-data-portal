@@ -117,6 +117,13 @@ export function groupVoicesPage(store,query){
     const grouped=new Map();
     for(const row of rows){let person=grouped.get(row.person);if(!person){person={...identity(store,generation,row.person,row.speech),total:0,subjects:{}};grouped.set(row.person,person)}person.total++;person.subjects[row.subject]=(person.subjects[row.subject]||0)+1;}
     return {...page,groups:Object.entries(GROUP_VOICE_GROUPS).map(([id,label])=>({id,label})),subjects:Object.entries(GROUP_VOICE_SUBJECTS).map(([id,label])=>({id,label})),
+      // Every group's subject counts over the same window, one covering-index
+      // range per group, so subjects can be compared across groups.
+      groupSubjects:Object.keys(GROUP_VOICE_GROUPS).map(id=>{
+        const subjects={};let total=0;
+        for(const row of store.db.prepare('SELECT subject,COUNT(*) AS n FROM group_voice_designations WHERE generation=? AND group_id=? AND date>=? AND date<=? GROUP BY subject').all(generation,id,query.from,query.to)){subjects[row.subject]=row.n;total+=row.n;}
+        return {id,total,subjects};
+      }),
       people:[...grouped.values()].sort((a,b)=>b.total-a.total||(a.name||a.id).localeCompare(b.name||b.id)),
       months:store.db.prepare("SELECT DISTINCT substr(date,1,7) AS month FROM group_voice_observations WHERE generation=? AND date>='2024-07-16' ORDER BY month DESC LIMIT 100").all(generation).map(r=>r.month),
       subjectMethod:'Reviewed editorial primary-subject groupings. Unlisted records remain unclassified; these are not official annotations of individual speeches.'};

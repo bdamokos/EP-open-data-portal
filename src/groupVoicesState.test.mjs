@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import {GROUP_VOICE_DEFAULTS as defaults,readGroupVoicesState,changeGroupVoicesState,groupVoicesUrl,visibleGroupPeople} from './groupVoicesState.mjs';
 test('retired time links normalise while preserving exact filters and route-owned parameters',()=>{
  const url=new URL('https://example.test/?poc=1&lang=hu&view=groups&gv-tab=time&gv-person=42&gv-subject=foreign&gv-period=2026-09');const state=readGroupVoicesState(url.searchParams),next=groupVoicesUrl(url.href,state);
- assert.equal(state.tab,'subjects');assert.equal(next.searchParams.get('gv-person'),'42');assert.equal(next.searchParams.get('gv-subject'),'foreign');assert.equal(next.searchParams.get('lang'),'hu');assert.equal(next.searchParams.has('gv-tab'),false);assert.deepEqual(readGroupVoicesState(next.searchParams),state);
+ assert.equal(state.tab,'people');assert.equal(next.searchParams.get('gv-person'),'42');assert.equal(next.searchParams.get('gv-subject'),'foreign');assert.equal(next.searchParams.get('lang'),'hu');assert.equal(next.searchParams.has('gv-tab'),false);assert.equal(defaults.group,'PPE');assert.equal(readGroupVoicesState(new URLSearchParams('gv-tab=subjects')).tab,'subjects');assert.deepEqual(readGroupVoicesState(next.searchParams),state);
 });
 test('person toggles preserve subject and list limit; other list facets reset expansion',()=>{
  const state={...defaults,tab:'people',peopleLimit:50,subject:'foreign',person:'42',offset:40};
  assert.deepEqual(changeGroupVoicesState(state,{person:null}),{...state,person:null,offset:0});
- for(const patch of [{subject:'climate'},{q:'Éva'},{period:'2026-09'},{group:'PPE'}])assert.equal(changeGroupVoicesState(state,patch).peopleLimit,15);
- assert.equal(changeGroupVoicesState(state,{group:'PPE'}).person,null);
+ for(const patch of [{subject:'climate'},{q:'Éva'},{period:'2026-09'},{group:'ECR'}])assert.equal(changeGroupVoicesState(state,patch).peopleLimit,15);
+ assert.equal(changeGroupVoicesState(state,{group:'ECR'}).person,null);
 });
 test('People remains an independent selector, with exact active counts and selected rows past 15',()=>{
  const people=Array.from({length:24},(_,i)=>({id:String(i+1),name:'Person '+(i+1),total:50-i,subjects:{foreign:30-i,climate:20}}));
