@@ -1,3 +1,4 @@
+import {PocGroupVoices} from './PocGroupVoices';
 import {filterCountry,matchesCountry} from './pocCountries.mjs';
 import {explorerParams} from './pocExplorerUrl';
 import {PocSpeechCloud} from './PocSpeechCloud';
@@ -407,9 +408,9 @@ export default function PocApp() {
   const [speechLink, setSpeechLink] = useState(initial.get("speech"));
   const [activityLink, setActivityLink] = useState(initial.get("activity"));
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
-  const [view, setView] = useState<'legislation'|'questions'|'outside'|'amendments'|'saved'|null>(
-    ['legislation','questions','outside','amendments','saved'].includes(initial.get('view') || '')
-      ? initial.get('view') as 'legislation'|'questions'|'outside'|'amendments'|'saved' : null,
+  const [view, setView] = useState<'legislation'|'questions'|'outside'|'amendments'|'groups'|'saved'|null>(
+    ['legislation','questions','outside','amendments','groups','saved'].includes(initial.get('view') || '')
+      ? initial.get('view') as 'legislation'|'questions'|'outside'|'amendments'|'groups'|'saved' : null,
   );
   const [tab, setTab] = useState(
     ["profile", "activities", "amendments"].includes(initial.get("module") || "") ? initial.get("module")! : "speeches",
@@ -417,7 +418,7 @@ export default function PocApp() {
   const memberOpener=useRef<number|null>(null);
   const viewOpener=useRef<{node:HTMLElement|null;headerIndex:number}|null>(null);
   const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
-  const directoryState = useData<Directory>(view==='outside'?null:"directory");
+  const directoryState = useData<Directory>(view==='outside'||view==='groups'?null:"directory");
   const directory = directoryState.data;
   const error = directoryState.error;
   const profile = useData<PocProfile>(!view && member && tab === "profile" ? `profile/${member}` : null);
@@ -526,7 +527,7 @@ export default function PocApp() {
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = profile.data?.id === member ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || `MEP ${member}`;
-  const pageTitle = view==='legislation' ? null : view ? {questions:'Questions',outside:'Outside voices',amendments:'Amendments',saved:'Following'}[view]
+  const pageTitle = view==='legislation' ? null : view ? {questions:'Questions',outside:'Outside voices',groups:'Group voices',amendments:'Amendments',saved:'Following'}[view]
     : member ? `${memberName} · ${tab==='profile'?c.profile:tab==='activities'?c.activities:tab==='amendments'?'Amendments':c.speeches}` : c.title;
   const pageTitleLanguage=view||member&&tab==='amendments'?'en':lang;
   useEffect(()=>{if(pageTitle)document.title = `${pageTitle} — Parliament explorer`;document.querySelector('title')?.setAttribute('lang',pageTitleLanguage);},[pageTitle,pageTitleLanguage]);
@@ -548,7 +549,7 @@ export default function PocApp() {
     const url=new URL(location.href);
     // Country on the member wall is deliberately not an explorer default.
     url.searchParams.delete('country');
-    for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend|ov|am|mep-speech-fts|mep-activity-fts)-/.test(key))url.searchParams.delete(key);
+    for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend|ov|am|gv|mep-speech-fts|mep-activity-fts)-/.test(key))url.searchParams.delete(key);
     next?url.searchParams.set('view',next):url.searchParams.delete('view');
     history.pushState(null,'',url);setView(next);
   }
@@ -556,7 +557,7 @@ export default function PocApp() {
     const restore=()=>{
       pendingDestination.current=null;
       const query=new URLSearchParams(location.search),next=query.get('view');
-      const restored=['legislation','questions','outside','amendments','saved'].includes(next||'')?next as typeof view:null;
+      const restored=['legislation','questions','outside','amendments','groups','saved'].includes(next||'')?next as typeof view:null;
       setView(restored);setMember(/^\d+$/.test(query.get('member')||'')?Number(query.get('member')):null);
       if(!restored){setCountry(filterCountry(query.get('country')));setCommittee(query.get('committee')||'');setGroup(query.get('group')||'');}
       setTab(['profile','activities','amendments'].includes(query.get('module')||'')?query.get('module')!:'speeches');
@@ -586,9 +587,9 @@ export default function PocApp() {
     navigateView(null);
     pendingDestination.current={view:null,member,opener};
   };
-  if (view === 'legislation' || view === 'questions' || view === 'outside' || view === 'amendments') {
+  if (view === 'legislation' || view === 'questions' || view === 'outside' || view === 'amendments' || view === 'groups') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
-    return view==='amendments' ? <PocAmendmentsPage {...props}/> : view==='legislation' ? <PocLegislation {...props}/> : view==='outside' ? <PocOutsideVoices {...props}/> : <PocQuestionTopics {...props}/>;
+    return view==='groups' ? <PocGroupVoices {...props}/> : view==='amendments' ? <PocAmendmentsPage {...props}/> : view==='legislation' ? <PocLegislation {...props}/> : view==='outside' ? <PocOutsideVoices {...props}/> : <PocQuestionTopics {...props}/>;
   }
   return (
     <main className="poc" lang={lang}>

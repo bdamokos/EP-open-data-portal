@@ -1,3 +1,4 @@
+import {GROUP_VOICE_GROUPS} from './groupVoiceTerms.mjs';
 import {useEffect,useId,useRef,useState} from 'react';
 import {api,useData} from './pocData';
 import type {Intervention,InterventionStatistics,Speech,SpeechContext,SpeechDetail,SpeechSequenceRow} from './pocTypes';
@@ -14,7 +15,7 @@ export function InterventionIcon({type}:{type:Intervention['type']}) {
 export function InterventionBadges({value,language='en'}:{value?:Intervention;language?:string}) {
   if(!value)return null;
   const label=value.type==='chair'?speakerTerm('chair',language):{text:labels[value.type],language:'en'};
-  return <span className="intervention-badges" lang="en"><span className={'intervention-badge '+(value.type.startsWith('blue-card')?'is-blue':'')} title={value.process||undefined} lang=""><InterventionIcon type={value.type}/><span lang={label.language}>{label.text}</span></span>{value.onBehalfOf.map(group=><span className="intervention-group" key={group.uri}>On behalf of <span lang="">{group.label}</span></span>)}</span>;
+  return <span className="intervention-badges" lang="en"><span className={'intervention-badge '+(value.type.startsWith('blue-card')?'is-blue':'')} title={value.process||undefined} lang=""><InterventionIcon type={value.type}/><span lang={label.language}>{label.text}</span></span>{value.onBehalfOf.map(group=><span className="intervention-group" key={group.uri}>On behalf of {group.politicalGroup&&Object.hasOwn(GROUP_VOICE_GROUPS,group.id)?<a lang="" href={`?poc=1&view=groups&gv-group=${group.id}&lang=${language}`} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();history.pushState(null,'',event.currentTarget.href);window.dispatchEvent(new PopStateEvent('popstate'));}}>{group.label}</a>:<span lang="">{group.label}</span>}</span>)}</span>;
 }
 
 export function PocInterventionStatistics({member,onItems}:{member:number;onItems?:(items:Speech[])=>void}) {
