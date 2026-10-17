@@ -8,6 +8,7 @@ import {canonical,personId} from './insights-model.mjs';
 import {refs,voteScope} from './insights-legislation-model.mjs';
 import {odpLanguage} from './odp.mjs';
 import {brusselsDay} from './insights-store.mjs';
+import {sourceCacheState} from './insights-legislation.mjs';
 export function participationQuery(search) {
   for(const key of search.keys())if(!['lang','sitting','week','country'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated participation query.');
   const sitting=search.get('sitting'),week=search.get('week'),country=search.get('country');if(country&&!countryCode(country))throw new HttpError(400,'invalid_country','Choose a country of representation.');
@@ -44,12 +45,13 @@ export async function participation(legislation,store,query,{clock=Date.now,read
   const end=query.week?new Date(Date.parse(query.week+'T12:00:00Z')+6*86400_000).toISOString().slice(0,10):null;
   const sittings=query.week?catalogue.sittings.filter(s=>s.activity_date>=query.week&&s.activity_date<=end):catalogue.sittings.filter(s=>s.activity_id===(query.sitting||catalogue.sittings[0]?.activity_id));
   if(!sittings.length||sittings.length>5)throw new HttpError(404,'sitting_not_found','Choose a listed sitting or plenary week from the current parliamentary term.');
-  const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],sources=[];
+  const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],sources=[...(catalogue.sources||[])];
+  const recordSource=async(...args)=>{const record=await legislation.record(...args);sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});return record;};
   for(const sitting of sittings) {
-    let base;try{base=await legislation.query({language:query.language,sitting:sitting.activity_id,topic:null,vote:null});}catch{gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});continue;}const speechRows=new Map();let results=null,decisions=null;
+    let base;try{base=await legislation.query({language:query.language,sitting:sitting.activity_id,topic:null,vote:null});}catch{gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});continue;}sources.push(...(base.coverage?.sources||[]));const speechRows=new Map();let results=null,decisions=null;
     if(base.coverage?.agendaError){gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});if(!base.topics.length)continue;}
     if(sitting.activity_date<=today) {
-      try{results=await legislation.record('/meetings/'+sitting.activity_id+'/vote-results',{limit:50,offset:0});decisions=await legislation.record('/meetings/'+sitting.activity_id+'/decisions',{'vote-method':'ROLL_CALL_EV',limit:1,offset:0});if(decisions.payload.data.length>250){decisions={...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,250)}};gaps.push({sitting:sitting.activity_id,kind:'roll-call-limit'});}if(results.payload.data.length>=50)gaps.push({sitting:sitting.activity_id,kind:'vote-result-page-limit'});sources.push({url:decisions.url,fetchedAt:decisions.fetchedAt});}catch{gaps.push({sitting:sitting.activity_id,kind:'votes-unavailable'});}
+      try{results=await recordSource('/meetings/'+sitting.activity_id+'/vote-results',{limit:50,offset:0});decisions=await recordSource('/meetings/'+sitting.activity_id+'/decisions',{'vote-method':'ROLL_CALL_EV',limit:1,offset:0});if(decisions.payload.data.length>250){decisions={...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,250)}};gaps.push({sitting:sitting.activity_id,kind:'roll-call-limit'});}if(results.payload.data.length>=50)gaps.push({sitting:sitting.activity_id,kind:'vote-result-page-limit'});}catch{gaps.push({sitting:sitting.activity_id,kind:'votes-unavailable'});}
       const parents=refs(sitting.consists_of).filter(uri=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/.test(uri)).slice(0,50);
       for(const uri of parents) {
         const id=tail(uri),record=legislation.cache.get(JSON.stringify(['/events/'+id,{}]))?.value||await readEvent(id);
@@ -58,7 +60,7 @@ export async function participation(legislation,store,query,{clock=Date.now,read
         const children=refs(event.consists_of).map(tail).slice(0,200);if(!children.length)continue;
         const rows=store.db.prepare(`SELECT body FROM items WHERE generation=? AND category='plenary-contributions' AND source_id IN (${children.map(()=>'?').join(',')}) LIMIT 1000`).all(status.servingGeneration,...children).map(row=>JSON.parse(row.body));
         for(const target of refs(event.executed)){const topic=base.topics.find(t=>t.uri===target);if(topic)speechRows.set(topic.id,[...(speechRows.get(topic.id)||[]),...rows]);}
-        sources.push({url:record.url,fetchedAt:record.fetchedAt});
+        sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});
       }
     }
     all.push(...participationRows(base.topics,results,decisions,speechRows,members).map(row=>({...row,sittingId:sitting.activity_id,upcoming:sitting.activity_date>today})));

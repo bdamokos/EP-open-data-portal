@@ -60,10 +60,12 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   const portrait = await get('/api/poc/portrait/43');
   assert.equal(portrait.status, 200);
   assert.equal(portrait.headers.get('cache-control'), 'public, max-age=86400');
+  assert.equal(portrait.headers.get('vary'), 'Origin');
   assert.match(portrait.headers.get('cdn-cache-control'), /^public, max-age=604\d{3}, stale-if-error=0$/);
   assert.equal(await portrait.text(), 'fixture portrait');
   const sameImage = await get('/api/poc/portrait/43', {headers: {'If-None-Match': portrait.headers.get('etag')}});
   assert.equal(sameImage.status, 304);
+  assert.equal(sameImage.headers.get('vary'), 'Origin');
   assert(sameImage.headers.get('cdn-cache-control').startsWith('public,'));
   assert.equal(await sameImage.text(), '');
   assert.equal(imageLoads, 1);

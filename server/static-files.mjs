@@ -55,7 +55,6 @@ function immutableBuildAssets(root) {
             const asset = path.resolve(root, name);
             if (!withinDirectory(asset, root)) continue;
             assets.add(asset);
-            if (/\.(?:m?js|css)$/.test(name)) assets.add(`${asset}.map`);
           }
         }
       } catch {
@@ -160,7 +159,7 @@ export async function sendResolvedFile(request, response, file, options = {}) {
     "Cache-Control",
     range !== null
       ? "no-store"
-      : extension === ".html"
+      : extension === ".html" || extension === ".map"
         ? "no-cache"
         : options.cacheControl || "public, max-age=300",
   );

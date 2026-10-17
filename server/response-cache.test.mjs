@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {apiCachePolicy, portraitCachePolicy} from './response-cache.mjs';
+import {activityDocument} from './activities.mjs';
 
 const now = Date.parse('2026-10-17T12:00:00Z');
 const request = {method: 'GET', headers: {}};
@@ -38,10 +39,29 @@ test('operational, stateful, unknown and non-read routes fail closed', () => {
 });
 
 test('temporary failure and refresh states inside successful responses are never stored', () => {
-  const values = [{stale: true}, {textCache: {refreshInProgress: true}}, {selectedText: {status: 'error'}}, {selectedText: {status: 'unavailable'}}, {coverage: {sourceError: true}}, {sources: [{refreshError: 'timeout'}]}, {index: {loading: true}}, {viewCache: {nextRetryAt: '2026-10-17T12:01:00Z'}}];
+  const values = [{stale: true}, {textCache: {refreshInProgress: true}}, {selectedText: {status: 'error'}}, {selectedText: {status: 'unavailable'}}, {coverage: {sourceError: true}}, {sources: [{refreshError: 'timeout'}]}, {index: {loading: true}}, {viewCache: {nextRetryAt: '2026-10-17T12:01:00Z'}}, {coverage: {gaps: [{kind: 'agenda-unavailable'}]}}, {coverage: {gaps: [{kind: 'votes-unavailable'}]}}];
   for (const value of values) assert.equal(policy('/api/poc/document/B-10-2026-0001', value).cdnCacheControl, 'no-store', JSON.stringify(value));
   assert.equal(policy('/api/poc/speech-media/MTG-PL-2026-09-01-INT-1', {available: false}).cacheControl, 'no-store');
   assert.equal(seconds(policy('/api/poc/profile/43', {errors: [], error: null, sourceError: false})), 21600);
+});
+
+test('document reading retains stale source state and uses the exact selected answer date', async () => {
+  const questionId = 'E-10-2026-000001', answerId = questionId + '-ASW';
+  const work = {identifier: questionId, document_date: '2026-09-01', inverse_answers_to: [{identifier: answerId, document_date: '2026-10-17'}]};
+  const record = {url: 'https://data.europarl.europa.eu/api/v2/parliamentary-questions/' + questionId, fetchedAt: now - 7 * 3600_000, payload: {data: [work]}};
+  const readText = async () => ({status: 'available', paragraphs: ['Published answer'], textLanguage: 'en'});
+  const read = value => activityDocument(answerId, null, 'en', {request: async () => value, readText});
+  const recent = await read(record);
+  assert.equal(recent.date, '2026-09-01');
+  assert.equal(recent.selectedDocumentDate, '2026-10-17');
+  assert.equal(seconds(policy('/api/poc/document/' + answerId, recent)), 21600);
+  for (const selectedDate of ['2026-09-02', null]) {
+    const old = await read({...record, payload: {data: [{...work, inverse_answers_to: [{identifier: answerId, document_date: selectedDate}]}]}});
+    assert.equal(seconds(policy('/api/poc/document/' + answerId, old)), selectedDate ? 86400 : 21600);
+  }
+  const stale = await read({...record, stale: true, refreshInProgress: true, refreshError: 'Retained after timeout'});
+  assert.deepEqual(stale.sourceCache, {stale: true, refreshInProgress: true, refreshError: 'Retained after timeout'});
+  assert.equal(policy('/api/poc/document/' + answerId, stale).cdnCacheControl, 'no-store');
 });
 
 test('portrait cache expires with its retained source and never re-caches an expired image for another week', () => {
