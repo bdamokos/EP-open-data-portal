@@ -124,7 +124,7 @@ for(const language of ['en','hu','fr']) {
       const title=row.querySelector('strong');assert.equal(title.textContent,expected[index]);assert.equal(effectiveLanguage(title),expectedLanguages[index]);
       const metadata=row.querySelector('.poc-speech-toggle > span');assert.equal(effectiveLanguage(metadata),'en');
       assert.equal(metadata.querySelector('span').textContent,date('2026-10-07',language));assert.equal(effectiveLanguage(metadata.querySelector('span')),language);
-      assert.equal(effectiveLanguage(row.querySelector('small > span')),'');
+      assert(!row.querySelector('.poc-speech-toggle').textContent.includes(speeches[index].reference),'speech reference stays out of the card label');
     });
     await h.click(rows[0].querySelector('button'));
     const detail=rows[0].querySelector('.poc-speech-detail'),body=detail.querySelector('.poc-transcript');
