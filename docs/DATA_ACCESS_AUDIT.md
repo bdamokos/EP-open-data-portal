@@ -1,5 +1,9 @@
 # Data access audit
 
+## Speaker names and sitting roles, 17 October 2026
+
+Speaker identity enrichment reuses the anonymous Open Data API `/meps/show-current` and exact `/meps/{id}` routes, with the existing cache and upstream queue. Supplied Latin/native-script fields and transcript headers remain joined only through exact person IDs. Dated Parliament memberships establish a chair's institutional office; the current roster supplies names only. Chair/profile lookups are bounded to eight and two concurrent requests within a shared 2.5-second budget. Missing names, office evidence and language variants remain explicit fallbacks. Bundled short role translations are identified as app-owned machine translations. No authenticated data, production-cache copy, corpus collection, new writer or persistent worker is introduced.
+
 ## Outside voices, 16 October 2026
 
 - Uses the existing anonymous Open Data API v2 fetcher, upstream queue, 12 MiB response bound, request budget, writer lease and persistent task cursors. No authenticated service, private export, production cache copy or second source/index writer was added.

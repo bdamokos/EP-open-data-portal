@@ -1,4 +1,5 @@
 import {XMLParser, XMLValidator} from 'fast-xml-parser';
+import {speechSpeakerDetails,speakerIsChair} from './speech-speakers.mjs';
 
 const array=value=>value==null?[]:Array.isArray(value)?value:[value];
 const parser=new XMLParser({ignoreAttributes:false,parseTagValue:false,trimValues:false});
@@ -42,10 +43,11 @@ export function interventionMetadata(activity) {
     else if(/blue card/.test(normalized))type=/\b(?:reaction|counter ?reply)\b/.test(normalized)?'blue-card-reaction':/\b(?:answer|reply|response)\b/.test(normalized)?'blue-card-answer':/\bquestion\b/.test(normalized)?'blue-card-question':/\b(?:speech|intervention)\b/.test(normalized)?'blue-card-intervention':'blue-card';
     else if(/blau(?:e|en) karte/.test(normalized))type=/\b(?:antwort|erwiderung)\b/.test(normalized)?'blue-card-answer':/\breaktion\b/.test(normalized)?'blue-card-reaction':/\bfrage\b/.test(normalized)?'blue-card-question':'blue-card';
     else if(/catch the eye/.test(normalized))type='catch-the-eye';
-    else if(!from.organization&&!from.role&&!process&&speaker&&chairLabels.has(normalize(text(speaker).normalize('NFD').replace(/\p{M}/gu,''))))type='chair';
+    else if(!from.organization&&!from.role&&!process&&speaker&&(speakerIsChair(text(speaker))||chairLabels.has(normalize(text(speaker).normalize('NFD').replace(/\p{M}/gu,'')))))type='chair';
     else type=process?'unclassified':'speech';
   }
-  return {type,process:process||null,speaker: speaker?{id:String(speaker['@_refersTo']).split('/').at(-1),name:text(speaker).trim()}:null,onBehalfOf,
+  const speakerDetail=speaker?speechSpeakerDetails(activity).find(person=>person.id===String(speaker['@_refersTo']).split('/').at(-1)):null;
+  return {type,process:process||null,speaker: speaker?{id:String(speaker['@_refersTo']).split('/').at(-1),name:text(speaker).trim(),...speakerDetail,...(type==='chair'?{sittingRole:'chair'}:{})}:null,onBehalfOf,
     headerAvailable:Boolean(from&&speaker),catchMarker,narrative:narrative||null,
     procedureKind:type==='procedure'?(kind==='MEETING_NAME_CHAIR'?'chair-change':'note'):null,chair,
     numbering:docs.find(d=>Number.isSafeInteger(d.numbering))?.numbering??null,

@@ -1,4 +1,4 @@
-import {odp,speechSummary} from './odp.mjs';
+import {odp,speechSummary,speakerIdentities} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {interventionMetadata,buildInterventionSequence,speechId,speechPeople} from './speech-interventions.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
@@ -8,7 +8,7 @@ const validId=id=>/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id||'');
 export const INTERVENTION_LIMITS=Object.freeze({memberPage:50,memberPages:20,sittingPage:500,sittingPages:4,selections:8,cacheMs:30*60_000});
 
 export class SpeechInterventions {
-  constructor({request=odp,clock=Date.now}={}) {this.request=request;this.clock=clock;this.sittings=new Map();this.members=new Map();}
+  constructor({request=odp,clock=Date.now,identities=request===odp?speakerIdentities:null}={}) {this.request=request;this.clock=clock;this.identities=identities;this.sittings=new Map();this.members=new Map();}
   async sitting(day) {
     let state=this.sittings.get(day);
     if(state&&this.clock()-state.at<INTERVENTION_LIMITS.cacheMs)return waitForRequest(state.promise);
@@ -52,6 +52,18 @@ export class SpeechInterventions {
         const sequence=buildInterventionSequence(sitting.rows,{parentId,expectedIds:parent.consists_of||[]});
         debates.push({id:parentId,titles:parent.activity_label||{},...sequence,records:sequence.records.map(({activity,...row})=>({...speechSummary(activity),...row})),sources:[source(event),...sitting.sources],sittingCoverage:sitting.coverage});
       }catch(error){debates.push({id:parentId,titles:{},records:[],exchanges:[],coverage:{complete:false,expected:null,available:0,missingIds:[]},error:String(error.message),...(Number.isFinite(error.retryAt)?{retryAt:error.retryAt}:{})});}
+    }
+    if(this.identities) {
+      const metadata=[meta,...debates.flatMap(debate=>debate.records.map(row=>row.intervention))];
+      const people=metadata.flatMap(value=>[value.speaker,value.chair].filter(Boolean));
+      const unique=[...new Map(people.map(person=>[person.id,person])).values()];
+      const chairs=metadata.flatMap(value=>[...(value.type==='chair'&&value.speaker?[value.speaker.id]:[]),...(value.chair?[value.chair.id]:[])]);
+      const resolved=new Map((await this.identities.enrich(unique,activity.activity_date,{chairs})).map(person=>[person.id,person]));
+      for(const value of metadata) {
+        // A person's office does not turn their separate substantive speech into chairing.
+        if(value.speaker){const identity=resolved.get(value.speaker.id);if(identity)value.speaker={...value.speaker,name:identity.name,nameSource:identity.nameSource,nameVariants:identity.nameVariants,identitySources:identity.identitySources,identityIssues:identity.identityIssues,...(value.type==='chair'?{sittingRole:'chair',office:identity.office}:{} )};}
+        if(value.chair)value.chair={...value.chair,...resolved.get(value.chair.id),sittingRole:'chair'};
+      }
     }
     return {speechId:id,intervention:meta,debates,unavailable:parentIds.length===0,sources:[source(record)]};
   }

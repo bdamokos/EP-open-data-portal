@@ -7,7 +7,8 @@ import { XMLParser } from "fast-xml-parser";
 import { transcriptLanguage } from "./transcript-language.mjs";
 import { speechWebsite, languageCode } from "./ep-links.mjs";
 import { UpstreamQueue, retryAfterSeconds } from './upstream-queue.mjs';
-import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
+import {speechSpeakerDetails} from './speech-speakers.mjs';
+import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
@@ -190,6 +191,7 @@ export async function odp(
   pending.set(key,entry);
   return observeSource(entry,priority,signal);
 }
+export const speakerIdentities=new SpeakerIdentities({request:odp});
 async function list(endpoint, params = {}) {
   const nodes = [];
   const sources = [];
@@ -550,14 +552,12 @@ export async function odpSpeech(id, language) {
     throw new HttpError(404, "speech_not_found", "This speech is unavailable.");
   const docs = activity.recorded_in_a_realization_of || [];
   const selected=chooseTranscript(docs,language);
+  const details=speechSpeakerDetails(activity);
+  const speakers=await speakerIdentities.enrich(details,activity.activity_date,{chairs:details.filter(person=>person.sittingRole==='chair').map(person=>person.id),profileIds:details.map(person=>person.id)});
   return {
     ...speechSummary(activity),
     ...selected,
-    speakers:speechSpeakers(activity,selected.xml).map(speaker=>{
-      const person=profileIndex.get(Number(speaker.id))||directory?.members.find(member=>String(member.id)===speaker.id);
-      const name=person&&[person.firstName,person.lastName].filter(Boolean).join(' ');
-      return {...speaker,...(name?{name,nameSource:'ODP person record'}:{}),role:speaker.role||(!speakerNameIsSpecific(speaker.name)&&/president|chair/i.test(speaker.name)?'Chairing the sitting':null)};
-    }),
+    speakers,
     textCache:{sourceFetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError || null,availableLanguages:selected.availableTextLanguages,coverage:'returned-languages-only'},
     video: {
       available: false,
