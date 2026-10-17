@@ -214,6 +214,36 @@ test('timeline names and visible legislative cues follow all classifications, fi
   assert.equal(mark('Combined guest').classList.contains('ov-special'),false);
 });
 
+test('a special timeline marker reveals its exact agenda item and keeps every clustered sitting',async t=>{
+  const first='2026-04-28',last='2026-04-29',special=item(last,3);
+  const detail=speaker('42','Commission guest',[
+    speech(first,'1',[item(first,1)]),speech(last,'2',[item(last,2)]),speech(last,'3',[special]),
+    speech('2026-10-07','4',[item('2026-10-07',4)]),
+  ],{[special]:{kind:'PLENARY_ACTIVITY'}});
+  const {window,container,click}=await harness(t,[detail]);
+  const scrolls=[];
+  window.HTMLElement.prototype.scrollTo=function(options){scrolls.push({element:this,options});};
+  window.HTMLElement.prototype.getBoundingClientRect=function(){return {top:this.matches('h3')?900:100};};
+  const mark=container.querySelector('.ov-special');
+  const open=()=>act(async()=>{mark.focus();mark.click();});
+  await open();
+  const panel=container.querySelector('.ov-drawer'),heading=panel.querySelector(`[data-ov-item="${special}"] h3`);
+  assert(document.activeElement===heading,'arrival focuses the special agenda, rather than the first debate');
+  assert.deepEqual([...panel.querySelectorAll('.ov-day')].map(node=>node.dataset.ovDate),[first,last]);
+  assert.equal(panel.querySelector('header small').textContent,'29 Apr 2026');
+  assert.deepEqual(scrolls.map(s=>s.options),[{top:800,behavior:'instant'}]);
+  assert(scrolls.every(s=>s.element===panel.querySelector('.ov-drawer-content')),'only the drawer body scrolls');
+  await click('Close');
+  assert(document.activeElement===mark,'closing restores the initiating marker');
+  await open();
+  assert(document.activeElement===container.querySelector(`[data-ov-item="${special}"] h3`),'cached reopen lands on the same exact event');
+  await click('Close');
+  await click('Commission guest');await click('Subjects & dossiers');
+  const dossier=[...container.querySelectorAll('.ov-dossier>button')].find(button=>button.dataset.ovFocus.endsWith(':'+special));
+  await act(async()=>{dossier.focus();dossier.click();});
+  assert(document.activeElement===container.querySelector(`.ov-drawer [data-ov-item="${special}"] h3`),'an exact dossier selection also reveals that item');
+});
+
 test('Escape closes only the source reader inside an Outside voices drawer',async t=>{
   const detail=speaker('42','Source reader guest',[speech('2026-10-07','01',[item('2026-10-07',4)])]);
   const url='https://data.europarl.europa.eu/api/v2/speeches/'+detail.contributions[0].id+'?format=application%2Fld%2Bjson';

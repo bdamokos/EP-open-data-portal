@@ -18,6 +18,25 @@ test('monthly activity cannot chain into one cluster spanning an entire year',()
   assert(marks.slice(1).every((mark,i)=>mark.x-marks[i].x>=34));
 });
 
+test('a mixed marker targets the exact special item, including a later sitting and same-day debates',()=>{
+  const input=[
+    {...day('2026-04-28'),items:[{id:'debate-1',kind:'PLENARY_DEBATE',legislative:true}]},
+    {...day('2026-04-29',2),formal:true,items:[{id:'debate-2',kind:'PLENARY_DEBATE',legislative:false},{id:'special-3',kind:'PLENARY_ACTIVITY',legislative:false}]},
+  ];
+  for(const width of [180,747]) {
+    const [mark]=clusterOutsideDays(input,'2024-07-16','2026-10-15',width);
+    assert.deepEqual(mark.dates,['2026-04-28','2026-04-29']);
+    assert.deepEqual(mark.target,{date:'2026-04-29',itemId:'special-3'});
+  }
+  const filtered=filterOutsidePeople([{id:'1',name:'Guest',capacity:'commission',days:input}],{kind:'debate'});
+  assert.deepEqual(clusterOutsideDays(filtered[0].days,'2024-07-16','2026-10-15',747)[0].target,{date:'2026-04-28',itemId:'debate-1'});
+});
+
+test('markers without item metadata retain an exact date destination for their special cue',()=>{
+  const [mark]=clusterOutsideDays([day('2026-04-28'),{...day('2026-04-29'),formal:true}],'2024-07-16','2026-10-15',180);
+  assert.deepEqual(mark.target,{date:'2026-04-29'});
+});
+
 test('repeat appearances include two agenda items on one day and exclude repeated speeches in one item',()=>{
   const one={id:'1',name:'Guest',capacity:'other',days:[day('2025-03-11',1)]};
   const multi={id:'2',name:'Commissioner',capacity:'commission',days:[day('2025-03-11',2)]};

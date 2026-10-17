@@ -46,7 +46,7 @@ test('speaker intent focuses a retained pending Back control, arrival keeps it, 
 
 test('cached speaker destinations orient once and drawer-to-speaker Back returns to the original exact sitting marker',async t=>{
   const h=await harness(t),mark=h.container.querySelector('[data-ov-focus="mark:42:'+day+'"]');await h.click(mark);await h.finish('42');
-  assert.equal(document.activeElement,h.container.querySelector('[aria-label="Close speeches"]'));
+  assert(document.activeElement===h.container.querySelector('.ov-drawer .ov-item h3'),'a timeline activation focuses its exact agenda heading after arrival');
   await h.click('Open speaker page →');assert.equal(h.container.querySelector('.ov-drawer'),null);assert.equal(document.activeElement,h.container.querySelector('.ov-person-heading h2'),'cached explicit navigation lands on the current speaker heading');
   await h.click('← All speakers');assert.equal(document.activeElement,h.container.querySelector('[data-ov-focus="mark:42:'+day+'"]'),'return follows the initiating day marker rather than the removed drawer action');
   await h.click('Fixture speaker 42');assert.equal(document.activeElement,h.container.querySelector('.ov-person-heading h2'));await h.click('← All speakers');assert.equal(document.activeElement,h.container.querySelector('[data-ov-focus="person:42"]'));
@@ -76,6 +76,19 @@ test('drawer endpoints wrap during pending and ready content and host Escape ret
 
 test('drawer Back/popstate returns locally without changing existing URL history behavior',async t=>{
   const h=await harness(t),mark=h.container.querySelector('[data-ov-focus="mark:42:'+day+'"]');await h.click(mark);const length=history.length;await h.navigate('?view=outside');assert.equal(h.container.querySelector('.ov-drawer'),null);assert.equal(document.activeElement,mark);assert.equal(history.length,length,'closing a non-URL drawer adds no history entry');
+});
+
+test('a delayed timeline response never reveals a closed drawer or reclaims focus after another action',async t=>{
+  const h=await harness(t),mark=id=>h.container.querySelector('[data-ov-focus="mark:'+id+':'+day+'"]');
+  await h.click(mark('42'));await h.click(h.container.querySelector('[aria-label="Close speeches"]'));
+  h.focusScrollEvents.length=0;await h.finish('42');
+  assert.equal(h.container.querySelector('.ov-drawer'),null);
+  assert.equal(h.focusScrollEvents.length,0,'a response for a dismissed selection creates no scroll or focus');
+  await h.click(mark('43'));
+  const search=h.container.querySelector('input[type="search"]');search.focus();h.focusScrollEvents.length=0;
+  await h.finish('43');
+  assert(document.activeElement===search,'explicit focus movement supersedes the pending reveal');
+  assert.equal(h.focusScrollEvents.length,0);
 });
 
 
