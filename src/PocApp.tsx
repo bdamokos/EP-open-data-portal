@@ -95,11 +95,11 @@ export function transcript(xml: string | null) {
     error: false,
   };
 }
-function Detail({ speech, lang }: { speech: Speech; lang: string }) {
+function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lang: string;transcriptLanguage?:string }) {
   const c = pocCopy(lang);
   const transcriptText=useRef<HTMLDivElement>(null);
   const state = useData<SpeechDetail>(
-    `speech/${encodeURIComponent(speech.id)}?lang=${lang}`,
+    `speech/${encodeURIComponent(speech.id)}?lang=${transcriptLanguage}`,
   );
   const text = useMemo(
     () => transcript(state.data?.xml ?? null),
@@ -108,11 +108,11 @@ function Detail({ speech, lang }: { speech: Speech; lang: string }) {
   return (
     <div className="poc-speech-detail" lang={lang}>
       <PocStatus scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={state.error||!state.data?null:text.error?'Parliament returned transcript text that could not be read.':text.paragraphs.length?'Transcript loaded.':'No transcript text is available from Parliament’s API for this contribution.'}/>
-      <PocSpeechPlayer speech={speech} lang={lang} />
+      <PocSpeechPlayer speech={speech} lang={transcriptLanguage} />
       {state.data?.speakers?.map(person=><div key={person.id}><strong><SpeakerName person={person} language={lang}/></strong><SpeakerRoleLine person={person} language={lang} className="insight-secondary"/></div>)}
       {state.data?.intervention?.type!=='chair'&&<InterventionBadges value={state.data?.intervention} language={lang}/>}
       <PocSpeechContext key={speech.id} id={speech.id} language={lang}/>
-      <div className="poc-section-title" lang="en"><h3 lang={lang}>{c.transcript}</h3>{text.paragraphs.length>0&&<PocFindInText key={speech.id+':'+lang} label="Find in speech" target={transcriptText}/>}</div>
+      <div className="poc-section-title" lang="en"><h3 lang={lang}>{c.transcript}</h3>{text.paragraphs.length>0&&<PocFindInText key={speech.id+':'+transcriptLanguage} label="Find in speech" target={transcriptText}/>}</div>
       {speech.websiteUrl && <p className="poc-source-link" lang="en"><a href={speech.websiteUrl} target="_blank" rel="noreferrer">Speech on Parliament’s website ↗</a>{" "}<small>Original <span lang="">{speech.websiteLanguage?.toUpperCase()}</span></small></p>}
       {state.loading && !state.data && <p role="status" lang="en">Loading transcript…</p>}
       {state.error && <ErrorView message={state.error} retry={state.retry} />}
@@ -126,8 +126,8 @@ function Detail({ speech, lang }: { speech: Speech; lang: string }) {
               : state.data.translationType === "original"
                 ? " · Original text"
                 : state.data.textLanguage ? " · Translation method unspecified" : ""}
-            {state.data.textLanguage && state.data.textLanguage !== lang
-              ? " · Interface-language text unavailable"
+            {state.data.textLanguage && state.data.textLanguage !== transcriptLanguage
+              ? " · Requested-language text unavailable"
               : ""}
           </div>
           {text.error ? (
@@ -373,7 +373,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     {items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId),speech={...base,...enriched,titles:{...base.titles,...enriched?.titles}};const open=initialSpeech===speech.id,speechTitle=title(speech,lang);return <article className="poc-speech" key={item.id} id={`speech-${speech.id}`}>
       <button className="poc-speech-toggle" lang="en" onClick={()=>{setSpeechLanguage(null);onOpen(open ? null : speech.id);}} aria-expanded={open}><span><span lang={lang}>{date(speech.date,lang)}</span> · {speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT' ? 'Written statement' : 'Plenary speech'}{speech.start ? <> · <span lang={lang}>{time(speech.start,lang)}</span> Brussels</> : ''}</span><strong lang={speechTitle.language}>{speechTitle.text}</strong><small><span lang="">{speech.reference}</span><b>{open ? '−' : '+'}</b></small></button>
       {!open&&<div className="poc-speech-list-badges"><InterventionBadges value={speech.intervention} language={lang}/></div>}
-      {open && <Detail speech={speech} lang={speechLanguage||lang} />}
+      {open && <Detail speech={speech} lang={lang} transcriptLanguage={speechLanguage||lang} />}
     </article>})}
     {state.data && <div className="poc-category-top" lang="en">{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
   </section>;

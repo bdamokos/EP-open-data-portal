@@ -67,3 +67,23 @@ test('context enrichment keeps each contribution role and leaves exchange classi
   assert.equal(b.intervention.speaker.roleLabels.en,undefined,'the substantive speech never inherits a role from another turn');
   assert.equal(context.debates[0].coverage.complete,true);
 });
+
+test('failed identity lookups retain each supplied name and chair heading role when the final turn is only President',async()=>{
+  const substantive=activity('58766','Nicolae Ștefănuță');
+  const heading=activity('58766','ignored');heading.had_activity_type='def/ep-activities/MEETING_NAME_CHAIR';
+  heading.recorded_in_a_realization_of[0]['api:xmlFragment'].en='<communication><heading><person refersTo="epdata:person/58766">Nicolae ŞTEFĂNUŢĂ</person></heading><subheading>Vice-President</subheading></communication>';
+  const closing=activity('58766','President'),rows=[substantive,heading,closing];
+  rows.forEach((row,index)=>{row.activity_id=speechId+index;row.id='eli/dl/event/'+row.activity_id;row.recorded_in_a_realization_of[0].numbering=index+1;});
+  const request=async(route)=>route.startsWith('/events/')?record([{activity_id:parentId,consists_of:rows.map(row=>row.id)}]):route==='/speeches'?{...record(rows),payload:{data:rows,meta:{total:rows.length}}}:record([substantive]);
+  const identities=new SpeakerIdentities({request:async()=>{throw new Error('Public identity source unavailable');}});
+  const result=await new SpeechInterventions({request,identities}).context(substantive.activity_id);
+  const [speech,change,chairing]=result.debates[0].records;
+  assert.equal(result.intervention.speaker.name,'Nicolae Ștefănuță');
+  assert.equal(speech.intervention.speaker.name,'Nicolae Ștefănuță');
+  assert.equal(speech.intervention.speaker.sittingRole,undefined);
+  assert.equal(change.intervention.chair.name,'Nicolae ŞTEFĂNUŢĂ');
+  assert.equal(change.intervention.chair.role,'Vice-President');
+  assert.equal(change.intervention.chair.office,null);
+  assert.equal(chairing.intervention.speaker.name,'Nicolae Ștefănuță','a verified same-ID name remains usable for a role-only turn');
+  assert.equal(chairing.intervention.type,'chair');
+});

@@ -16,8 +16,8 @@ const questionItem={id:'question:'+questionId,sourceId:questionId,date:'2026-10-
 const speechItem={id:'speech:'+speechId,sourceId:speechId,date:'2026-03-25',title:'Plenary speech fixture',titles:{en:'Plenary speech fixture'},recordKind:'speech',category:'plenary-contributions',categoryLabel:'Plenary contributions',reference:speechId,files:[],speechKind:'PLENARY_DEBATE_SPEECH',start:'2026-03-25T10:00:00Z',end:'2026-03-25T10:01:00Z',websiteUrl:'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-25-INT-2017069380111_EN.html',websiteLanguage:'en',provenance:{role:'SPEAKER'}};
 const page=items=>({categories:{'written-questions':'Written questions','plenary-contributions':'Plenary contributions'},categoryGroups:[],categoryCoverage:{},items,selectedItems:[],indexedTotal:items.length,nextOffset:null,cache:{complete:true}});
 
-async function harness(t,{items=[questionItem],activity}={}) {
-  const query=new URLSearchParams({member:String(member.id),module:'activities',lang:'en'});if(activity)query.set('activity',activity);
+async function harness(t,{items=[questionItem],activity,module='activities',language='en'}={}) {
+  const query=new URLSearchParams({member:String(member.id),module,lang:language});if(activity)query.set('activity',activity);
   const window=new Window({url:'http://localhost/?'+query}),pending=[],unexpected=[];
   class ReaderDOMParser extends window.DOMParser {
     parseFromString(...args) {
@@ -28,10 +28,11 @@ async function harness(t,{items=[questionItem],activity}={}) {
       return parsed;
     }
   }
-  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1440,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let root,vite;
+  t.mock.method(window.HTMLElement.prototype,'scrollIntoView',()=>{});
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const request of pending)if(!request.finished)request.resolve(Response.json({}));
@@ -45,6 +46,8 @@ async function harness(t,{items=[questionItem],activity}={}) {
     if(route==='directory')return Response.json({day:'2026-10-16',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}});
     if(route===`portrait/${member.id}`)return new Response(null,{status:404});
     if(route?.startsWith('latest-activities/'))return Response.json(page(items));
+    if(route?.startsWith('speech-statistics/'))return Response.json({memberId:String(member.id),items:[],counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:true,available:0,total:0},nextPage:null,sources:[]});
+    if(route==='insights/speech-cloud')return Response.json({scope:{kind:'member',phase:'past'},language:url.searchParams.get('lang'),words:[{word:'fixture',label:'Fixture',speechCount:1,occurrences:1,speechIds:[speechId]}],speeches:[{id:speechId,date:'2026-03-25',title:'Plenary speech fixture',titleLanguage:'en',machineTranslation:false,people:[]}],coverage:{transcripts:1,matchedSpeechRecords:1,missingLanguage:0,unreadableText:0,complete:true,truncated:false,associationUnavailable:false},window:{start:'2026-03-25',end:'2026-03-25'},nextPage:null});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
     unexpected.push(url.href);throw new Error('Unexpected fixture request: '+url.href);
   });
@@ -89,6 +92,23 @@ test('selected written question keeps full text and downloads while announcing s
   await h.finish(`document/${questionId}?member=${member.id}&lang=fr`,documentResult('fr',false));await h.wait();
   assert.equal(status(refreshed).textContent,'Question: Text unavailable.');assert.match(refreshed.textContent,/Text unavailable\. Download the document below\./);assertDownloads(refreshed,'fr');
   assert.equal(document.activeElement,toggle,'reader outcomes must not move focus from the activity control');
+});
+
+test('member cloud opens the chosen transcript while names and chair roles retain the interface language',async t=>{
+  for(const [language,transcript] of [['bg','en'],['en','el']])await t.test(language+'/'+transcript,async t=>{
+    const h=await harness(t,{module:'speeches',language,items:[speechItem]});
+    if(transcript!=='en')await act(async()=>{const select=h.container.querySelector('.poc-cloud-controls select');select.value=transcript;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+    await h.click(h.container.querySelector('.poc-cloud-words button'));
+    await h.click(h.container.querySelector('.poc-cloud-source'));
+    const person={id:'34232',name:'Kristian Vigenin',sittingRole:'chair',office:{code:'vice-president-parliament'},nameVariants:[{value:'Kristian Vigenin',script:'Latn',language:null,source:'fixture'},{value:'Кристиан Вигенин',script:'Cyrl',language:null,source:'fixture'}]};
+    await h.finish(`speech/${speechId}?lang=${transcript}`,{id:speechId,speakers:[person],intervention:{type:'chair',onBehalfOf:[]},xml:'<speech><p>Fixture transcript.</p></speech>',textLanguage:transcript,translationType:'original'});
+    const reader=h.container.querySelector('.poc-speech-detail');
+    assert.equal(reader.querySelector('.poc-transcript').lang,transcript);
+    assert.equal(reader.querySelector('strong').textContent,language==='bg'?'Кристиан Вигенин':'Kristian Vigenin');
+    const roles=[...reader.querySelectorAll('.insight-secondary span')];assert(roles.length===2);
+    assert(roles.every(role=>role.lang===language));
+    assert.equal(roles[0].textContent,language==='bg'?'Заместник-председател на Европейския парламент':'Vice-President of the European Parliament');
+  });
 });
 
 test('selected root speech announces an error once, retries successfully, and preserves transcript source and player controls',async t=>{
