@@ -19,9 +19,12 @@ function Name({person,language}:{person:GroupVoicePerson;language:string}){
 export function PocGroupVoices({language='en',...props}:InsightProps){
   const {state:s,change,endSearch}=useGroupVoicesState();
   const root=useRef<HTMLDivElement>(null),heading=useRef<HTMLHeadingElement>(null),focusPerson=useRef<string|null>(null);
-  const summary=useInsightData<Summary>(`insights/group-voices?lang=${language}&group=${s.group}&period=${s.period}`);
-  const page=useInsightData<Contributions>(`insights/group-voices?part=contributions&lang=${language}&group=${s.group}&period=${s.period}${s.person?'&person='+s.person:''}${s.subject?'&subject='+s.subject:''}&offset=${s.offset}`);
-  const data=summary.data,people=data?.people||[],selected=people.find(p=>p.id===s.person),list=visibleGroupPeople(people,s);
+  // One response keeps the selector matrix and contribution page on the same
+  // saved-data snapshot while the background metadata queue advances.
+  const scopeKey=JSON.stringify([language,s.group,s.period]),retained=useRef<{key:string;data:Summary}|null>(null);
+  const page=useInsightData<Summary&Contributions>(`insights/group-voices?lang=${language}&group=${s.group}&period=${s.period}${s.person?'&person='+s.person:''}${s.subject?'&subject='+s.subject:''}&offset=${s.offset}`);
+  if(page.data)retained.current={key:scopeKey,data:page.data};
+  const data=page.data||(retained.current?.key===scopeKey?retained.current.data:null),people=data?.people||[],selected=people.find(p=>p.id===s.person),list=visibleGroupPeople(people,s);
   const scope=people.filter(p=>!s.person||p.id===s.person);
   const total=scope.reduce((n,p)=>n+(s.subject?p.subjects[s.subject]||0:p.total),0),speakers=scope.filter(p=>(s.subject?p.subjects[s.subject]||0:p.total)>0).length;
   const topicRows=Object.entries(subjects).map(([id,label])=>({id,label,count:scope.reduce((n,p)=>n+(p.subjects[id]||0),0)})).filter(t=>t.count>0).sort((a,b)=>Number(a.id==='unclassified')-Number(b.id==='unclassified')||b.count-a.count||a.label.localeCompare(b.label));
@@ -34,7 +37,7 @@ export function PocGroupVoices({language='en',...props}:InsightProps){
   return <InsightShell {...props} language={language} title="Group voices" view="groups" compactNotice><div className="gv" ref={root} lang="en">
     <p className="gv-intro">Who takes the floor on behalf of a political group?</p>
     <div className="gv-controls"><label>Political group<select value={s.group} onChange={e=>change({group:e.target.value})}>{Object.entries(groups).map(([id,label])=><option value={id} key={id}>{label}</option>)}</select></label><label>Period<select value={s.period} onChange={e=>change({period:e.target.value})}><option value="term">Current term · since July 2024</option><option value="12m">Last 12 months</option>{months.map(month=><option lang={language} key={month} value={month}>{monthLabel(month)}</option>)}</select></label></div>
-    <InsightStatus loading={summary.loading&&!data} error={summary.error} retry={summary.retry}/>
+    <InsightStatus loading={page.loading&&!data} error={data?null:page.error} retry={page.retry}/>
     {data&&<><p className="gv-coverage">{data.coverage.truncated?'Showing the most recent 20,000 recorded designations · partial coverage':data.coverage.note}{data.coverage.pending>0?' · More records are being indexed.':''}</p>
       <div className="gv-summary" aria-live="polite"><div><strong>{total.toLocaleString(language)}</strong><span>recorded oral contributions</span></div><div><strong>{speakers.toLocaleString(language)}</strong><span>{speakers===1?'speaker':'speakers'}</span></div><div><strong>{topicRows.filter(t=>t.id!=='unclassified'&&(!s.subject||s.subject===t.id)).length}</strong><span>subjects</span></div></div>
       {(s.person||s.subject)&&<div className="gv-selected" aria-label="Active filters">{s.person&&<button onClick={()=>change({person:null})}>{selected?<Name person={selected} language={language}/>:<>Person {s.person}</>} <span aria-hidden="true">×</span><span className="gv-sr"> Remove person filter</span></button>}{s.subject&&<button onClick={()=>change({subject:null})}>{subjects[s.subject]} <span aria-hidden="true">×</span><span className="gv-sr"> Remove subject filter</span></button>}</div>}
