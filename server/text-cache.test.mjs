@@ -194,7 +194,7 @@ test('document text coalesces cold reads, persists actual language and serves la
     const [a,b]=await Promise.all([documentText(work,'en',{directory:dir,download}),documentText(work,'ga',{directory:dir,download})]);
     assert.equal(calls,1);assert.equal(a.textLanguage,'ga');assert.equal(a.translationType,'unspecified');assert.equal(a.status,'available');assert.deepEqual(a.paragraphs,b.paragraphs);
     const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,6);
-    const clock=()=>Date.now()+2*86400000;
+    const clock=()=>Date.now()+8*86400000;
     const stale=await documentText(work,'en',{directory:dir,clock,download:async()=>{throw new Error('upstream500');}});
     assert(stale.stale);assert.deepEqual(stale.paragraphs,a.paragraphs);
     await new Promise(r=>setTimeout(r,2200));
