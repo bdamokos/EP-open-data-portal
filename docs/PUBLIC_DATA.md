@@ -122,6 +122,7 @@ Search uses SQLite FTS5 with Unicode tokenisation. Latin diacritics are folded, 
 
 - `GET`/`POST /api/poc/corpus/search` search retained text only. POST accepts exact `sourceIds` scopes. Results are grouped by document by default. With `group=question`, a question and its linked answers count as one group. `total`, `offset` and `nextOffset` count groups. Clients must follow `nextOffset`, because `responseLimited` pages can be shorter than `limit`. Pagination stops at offset 1,000 (`truncated: true` means more matches exist; narrow the filters). Queries run one at a time in read-only workers, and busy or slow queries return HTTP 503.
 - `GET /api/poc/corpus/text?source-id=…&source-key=…` returns one stored variant with provenance, optionally highlighted with `q`.
+- `GET /api/poc/speech-transcript/{id}?lang=…` reads the exact retained speech language and its compressed XML, with source key, translation type and retrieval provenance. Speech readers load it independently of speaker metadata, so metadata delays and errors do not block retained text. Missing languages use the existing speech-detail fallback. The read-only transcript workers have a separate concurrency limit from full-text searches; page reads never create a corpus or start collection. Speaker identities, intervention types and debate relationships continue to come from the speech-detail service.
 - `GET /api/poc/corpus/status` reports coverage. `authoritativeComplete` is always false, because upstream gaps and later publications rule out a completeness claim.
 
 ## Test fixtures
