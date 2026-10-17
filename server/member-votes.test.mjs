@@ -363,3 +363,17 @@ test('official undated roll-call and split request metadata does not invalidate 
   assert.equal(response.coverage.sittings[0].results.rows,3);
   assert.equal(response.items[0].date,'2026-10-07');
 });
+
+test('one week does not burst two sittings into the shared admission queue together',async()=>{
+  let active=0,maximum=0;
+  const nextMeeting=JSON.parse(JSON.stringify(meeting).replaceAll('2026-10-07','2026-10-08'));
+  const {service}=setup({meetings:[meeting,nextMeeting],override:async({kind,endpoint,supplied})=>{
+    if(kind==='catalogue')return supplied;
+    active++;maximum=Math.max(maximum,active);
+    await new Promise(resolve=>setImmediate(resolve));active--;
+    return endpoint.includes('2026-10-08')?JSON.parse(JSON.stringify(supplied).replaceAll('2026-10-07','2026-10-08')):supplied;
+  }});
+  const response=await service.query(MEMBER,query('week=2026-10-05'));
+  assert.deepEqual(response.coverage.scannedSittingIds,[SITTING,'MTG-PL-2026-10-08']);
+  assert.equal(maximum,4,'daily streams may share slots, but the next sitting waits for the current one');
+});

@@ -145,7 +145,9 @@ export class MemberVotes {
     const nodes=catalogue.nodes.filter(n=>n.activity_date>=period.from&&n.activity_date<=period.to&&n.activity_date<=today).sort((a,b)=>a.activity_date.localeCompare(b.activity_date)||a.activity_id.localeCompare(b.activity_id));
     if(nodes.length>this.limits.maxSittings)throw new HttpError(502,'vote_sitting_budget','The selected period contains too many sittings for this bounded view.');
     const days=[];
-    for(let i=0;i<nodes.length;i+=2)days.push(...await Promise.all(nodes.slice(i,i+2).map(n=>this.sitting(n,budget))));
+    // At most four cold source reads enter the shared admission queue at once.
+    // Eight simultaneous reads would exceed its ten-second interactive wait.
+    for(const node of nodes)days.push(await this.sitting(node,budget));
     requestSignal()?.throwIfAborted();
     const expectedSittingIds=query.sitting?[query.sitting]:nodes.map(n=>n.activity_id),scannedSittingIds=days.map(d=>d.sittingId);
     const failedSittingIds=[...expectedSittingIds.filter(id=>!scannedSittingIds.includes(id)),...days.filter(d=>d.coverage.state==='unavailable').map(d=>d.sittingId)];
