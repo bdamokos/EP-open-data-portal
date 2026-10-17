@@ -116,6 +116,12 @@ export class CorpusWorker {
     const now=this.clock(), today=day(now);
     // Widening the language policy must revisit months already read under `primary`.
     const widened=this.languages==='all' && this.store.get('speechLanguages')==='primary';
+    if(this.store.get('speechMetadataBackfill')) {
+      const months=new Set(this.store.db.prepare("SELECT DISTINCT substr(date,1,7) month FROM documents WHERE kind='speech'").all().map(row=>row.month));
+      for(const range of speechWindows(today))if(months.has(range.start.slice(0,7)))
+        this.store.enqueue('speech-metadata:'+range.start.slice(0,7),'speech-metadata',{start:range.start,end:range.end,offset:0,limit:500},62);
+      if(!this.store.db.prepare("SELECT 1 FROM tasks WHERE kind='speech-metadata' AND done=0 LIMIT 1").get())this.store.set('speechMetadataBackfill',false);
+    }
     if(widened){this.store.set('backfilledAt',null);this.store.set('phase','backfilling');}
     for(const range of speechWindows(today)) {
       const key='speeches:'+range.start.slice(0,7), body={start:range.start,end:range.end,offset:0,limit:this.pageSize};
@@ -146,8 +152,9 @@ export class CorpusWorker {
   }
   async task(task) {
     const {body}=task;
-    if(task.kind==='speeches') {
-      const params={'parliamentary-term':10,'activity-type':SPEECH_TYPES,'sort-by':'sitting-date:desc,numbering:desc','sitting-date':body.start,'sitting-date-end':body.end,'include-output':'xml_fragment',limit:body.limit,offset:body.offset};
+    if(task.kind==='speeches'||task.kind==='speech-metadata') {
+      const metadataOnly=task.kind==='speech-metadata';
+      const params={'parliamentary-term':10,'activity-type':SPEECH_TYPES,'sort-by':'sitting-date:desc,numbering:desc','sitting-date':body.start,'sitting-date-end':body.end,...(!metadataOnly?{'include-output':'xml_fragment'}:{}),limit:body.limit,offset:body.offset};
       let record;
       await this.pace();
       try{record=await this.fetchRecord('/speeches',params,{signal:this.controller.signal});}
@@ -172,8 +179,14 @@ export class CorpusWorker {
           if(!this.store.enqueue(key,'speech',{id},PRIORITY.speech))this.store.reopen(key,{id},PRIORITY.speech);
           continue;
         }
+        if(node.activity_id!==id)throw new Error('Speech metadata does not match its exact search identifier.');
+        if(metadataOnly) {
+          this.store.putSpeechMetadata(node,url.href,record.fetchedAt);
+          await this.checkpoint();continue;
+        }
         const {document,texts}=await this.extractSpeech(node,url.href,record.fetchedAt);
         this.store.putDocument(document,this.keep(texts));
+        this.store.putSpeechMetadata(node,url.href,record.fetchedAt);
         await this.checkpoint();
       }
       this.store.taskProgress(task,{...body,offset:body.offset+matched.length,lastPage:signature});
@@ -185,7 +198,9 @@ export class CorpusWorker {
       const activity=record.payload.data.find(node=>node.activity_id===body.id);
       if(!activity)throw new Error(`Speech ${body.id} has no matching detail record.`);
       const {document,texts}=await this.extractSpeech(activity,ODP_BASE+'/speeches/'+body.id+'?include-output=xml_fragment&format=application%2Fld%2Bjson',record.fetchedAt);
-      this.store.putDocument(document,this.keep(texts));this.store.finishTask(task);
+      this.store.putDocument(document,this.keep(texts));
+      this.store.putSpeechMetadata(activity,ODP_BASE+'/speeches/'+body.id+'?include-output=xml_fragment&format=application%2Fld%2Bjson',record.fetchedAt);
+      this.store.finishTask(task);
     } else if(task.kind==='docx') {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');
       await this.pace();

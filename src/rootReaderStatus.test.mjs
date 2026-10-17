@@ -175,6 +175,20 @@ test('late metadata does not overwrite the corpus variant or replace its DOM',as
   assert.equal(reader.querySelector('strong').textContent,'Exact speaker');
 });
 
+test('complete retained speech metadata renders without a foreground speech-detail request',async t=>{
+  const h=await harness(t,{items:[speechItem],stored:true});
+  await h.click(h.container.querySelector('.explorer-speech-toggle'));
+  assert(!h.pending.some(request=>request.route.startsWith('speech/')),'the corpus is checked first');
+  await h.finish(`speech-transcript/${speechId}?lang=en`,{id:speechId,available:true,xml:'<speech><p>Complete retained speech.</p></speech>',textLanguage:'en',translationType:'original',availableTextLanguages:['en'],
+    metadata:{id:speechId,xml:null,speakers:[{id:'42',name:'Retained speaker'}],intervention:{type:'speech',onBehalfOf:[]},availableTextLanguages:['en']}});
+  await h.wait();
+  const reader=h.container.querySelector('.explorer-speech-detail');
+  assert.equal(reader.querySelector('strong').textContent,'Retained speaker');
+  assert.equal(reader.querySelector('.explorer-transcript').textContent,'Complete retained speech.');
+  assert.equal(status(reader).textContent,'Transcript loaded.');
+  assert(!h.pending.some(request=>request.route.startsWith('speech/')),'a complete corpus hit needs no detail fetch');
+});
+
 test('an explicitly checked linked activity keeps its nested document outside the fallback announcement',async t=>{
   const h=await harness(t,{items:[],activity:questionId}),fallback=h.container.querySelector('aside.explorer-notice');assert(fallback);
   assert.equal(h.pending.length,0,'a linked source is checked only after the explicit action');

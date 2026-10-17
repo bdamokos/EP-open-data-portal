@@ -76,7 +76,7 @@ function observeSource(entry,priority,signal) {
 export async function odp(
   endpoint,
   params = {},
-  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
+  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
   signal?.throwIfAborted();
   const url = new URL(ODP_BASE + endpoint);
@@ -97,6 +97,10 @@ export async function odp(
     } catch { /* Missing or invalid reproducible cache. */ }
   }
   signal?.throwIfAborted();
+  if(cachedOnly) {
+    if(!stored)throw new HttpError(404,'odp_cache_miss','This source record is not retained.');
+    return {...stored,stale:Date.now()-stored.fetchedAt>=ttl || daily&&dayOf(stored.fetchedAt)!==today()};
+  }
   if (
     !force &&
     stored &&
@@ -193,6 +197,7 @@ export async function odp(
   return observeSource(entry,priority,signal);
 }
 export const speakerIdentities=new SpeakerIdentities({request:odp});
+export const cachedSpeakerIdentities=new SpeakerIdentities({request:(endpoint,params,options)=>odp(endpoint,params,{...options,cachedOnly:true})});
 async function list(endpoint, params = {}) {
   const nodes = [];
   const sources = [];

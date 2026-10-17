@@ -1,6 +1,7 @@
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { CorpusStore } from './corpus-store.mjs';
 import { HttpError } from './http-utils.mjs';
+import {cachedSpeakerIdentities} from './odp.mjs';
 
 // SQLite searches and status scans are synchronous. Run them on a read-only
 // connection off the API thread; allow one query at a time and terminate slow
@@ -36,6 +37,18 @@ if(!isMainThread && workerData?.operation) {
   try {
     store=new CorpusStore(workerData.directory,{indexFile:workerData.indexFile,readOnly:true});
     const result=workerData.operation==='speech-transcript'?store.speechTranscript(workerData.params):workerData.operation==='status'?store.status(workerData.params):workerData.operation==='text'?store.text(workerData.params):store.search(workerData.params);
+    if(workerData.operation==='speech-transcript'&&result.metadataRecord) {
+      try {
+        const {summary,speakers:people,sourceUrl,fetchedAt,headerSources}=result.metadataRecord;
+        const speakers=await cachedSpeakerIdentities.enrich(people,summary.date,{chairs:people.filter(person=>person.sittingRole==='chair').map(person=>person.id),profileIds:people.map(person=>person.id)});
+        result.metadata={...summary,speakers,xml:null,textLanguage:result.textLanguage,translationType:result.translationType,
+          sourceFragmentKey:result.sourceFragmentKey,availableTextLanguages:result.availableTextLanguages,fetchedAt:result.fetchedAt,
+          textCache:{sourceFetchedAt:result.fetchedAt,stale:false,refreshInProgress:false,refreshError:null,availableLanguages:result.availableTextLanguages,coverage:'returned-languages-only'},
+          video:{available:false,reason:'Recording lookup uses the separate speech media service.'},
+          metadataSource:{url:sourceUrl,fetchedAt,headerSources}};
+      }catch {result.metadataUnavailable=true;}
+    }
+    if(workerData.operation==='speech-transcript')delete result.metadataRecord;
     parentPort.postMessage({result:workerData.operation==='search' && result?{...result,coverage:store.coverage()}:result});
   } catch(error) {parentPort.postMessage({error:error.message});}
   finally {store?.close();}
