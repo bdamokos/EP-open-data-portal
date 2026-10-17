@@ -1,7 +1,7 @@
 import {transcriptParagraphs,TranscriptText} from './Transcript';
 import {GROUP_VOICE_GROUPS} from './groupVoiceTerms.mjs';
 import {useEffect,useId,useRef,useState} from 'react';
-import {api,useData} from './data';
+import {api,prefetchData,useData} from './data';
 import type {Intervention,InterventionStatistics,Speech,SpeechContext,SpeechDetail,SpeechSequenceRow} from './explorerTypes';
 import './SpeechInterventions.css';
 import {SpeakerName,SpeakerRoles,SpeakerRoleLine} from './SpeakerIdentity';
@@ -73,6 +73,13 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
   // Procedural notes explain the next contribution, rather than extending a finished debate.
   const lastContribution=selectedRows.reduce((last,row,index)=>row.intervention.type==='procedure'?last:index,-1);
   const rows=selectedRows.slice(0,lastContribution+1);
+  const current=rows.findIndex(row=>row.id===speechId);
+  const preloadRoutes=JSON.stringify(debate.error?[]:rows
+    .map((row,index)=>({row,distance:Math.abs(index-Math.max(0,current))}))
+    .filter(({row})=>row.intervention.type!=='procedure'&&row.id!==speechId)
+    .sort((a,b)=>a.distance-b.distance).slice(0,12)
+    .map(({row})=>`speech/${encodeURIComponent(row.id)}?lang=${transcriptLanguage}`));
+  useEffect(()=>prefetchData(JSON.parse(preloadRoutes)),[preloadRoutes]);
   useEffect(()=>{if(reading){readingRef.current?.focus({preventScroll:true});readingRef.current?.scrollIntoView({block:'nearest'});}},[reading]);
   const time=(row:SpeechSequenceRow)=>row.start?new Intl.DateTimeFormat(language,{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Brussels'}).format(new Date(row.start)):null;
   return <section className="intervention-debate" lang="en">
@@ -94,9 +101,9 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
     {!debate.error&&!debate.coverage.complete&&<p className="intervention-caption">{debate.coverage.available} of {debate.coverage.expected??'unknown'} debate records available. Links stop at missing contributions.</p>}
   </section>;
 }
-export function SpeechContextPanel({id,language,transcriptLanguage=language}:{id:string;language:string;transcriptLanguage?:string}) {
+export function SpeechContextPanel({id,language,transcriptLanguage=language,preload=true}:{id:string;language:string;transcriptLanguage?:string;preload?:boolean}) {
   const [open,setOpen]=useState(false);
-  const state=useData<SpeechContext>(open?`speech-context/${id}?lang=${language}`:null);
+  const state=useData<SpeechContext>(open||preload?`speech-context/${id}?lang=${language}`:null,{priority:open?'auto':'low'});
   const controlId=useId();
   return <div className="intervention-context" lang="en"><button className="intervention-context-toggle" onClick={()=>setOpen(value=>!value)} aria-expanded={open} aria-controls={controlId}>Debate & exchanges <span aria-hidden="true">{open?'−':'+'}</span></button>{open&&<div id={controlId}>
     {state.loading&&!state.data&&<p role="status">Loading debate sequence…</p>}{state.error&&<SequenceError message={state.error} retryAt={state.retryAt} loading={state.loading} retry={state.retry}/>}
