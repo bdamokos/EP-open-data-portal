@@ -503,6 +503,9 @@ export class ActivityWorker {
         this.checkpointContinuations(active);
       }
       const cycle=this.coreDue()?this.store.beginCycle():null,generation=cycle?.generation || active;
+      // Only a newly initialized empty load projects every historical page.
+      // An older partial initial generation still needs the metadata upgrade.
+      const freshSpeechLoad=Boolean(cycle?.initial&&!cycle.initialized);
       if(cycle) {
         if(!cycle.initialized)await this.initialize(cycle);
         this.initializeOutside(cycle);
@@ -534,7 +537,7 @@ export class ActivityWorker {
         // the canonical queue with their existing cursors.
         if(this.store.source(generation,CONTINUATIONS_KEY))this.checkpointContinuations(generation,{includeCore:false});
       }
-      initializeGroupVoices(this,generation,speechWindows(day(this.clock())));
+      initializeGroupVoices(this,generation,freshSpeechLoad?[]:speechWindows(day(this.clock())));
       while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration && performance.now()<this.runDeadline) {
         const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
         if(size>this.diskLimit){if(this.store.get('working'))this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}

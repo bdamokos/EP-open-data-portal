@@ -22,3 +22,15 @@ test('malformed limits and identifiers never become filter state',()=>{
  const result=readGroupVoicesState(new URLSearchParams('gv-person=abc&gv-group=NI&gv-subject=unknown&gv-people-limit=1001&gv-offset=-1'));
  assert.deepEqual(result,defaults);
 });
+
+test('months outside the current term normalise without losing the other filters',()=>{
+ const now=Date.parse('2026-10-17T12:00Z');
+ for(const period of ['2023-05','2024-06','2026-11','2099-01']){const state=readGroupVoicesState(new URLSearchParams('gv-period='+period+'&gv-person=42&gv-subject=foreign'),{now});assert.equal(state.period,'term');assert.equal(state.person,'42');assert.equal(state.subject,'foreign');}
+ assert.equal(readGroupVoicesState(new URLSearchParams('gv-period=2024-07'),{now}).period,'2024-07');
+ assert.equal(readGroupVoicesState(new URLSearchParams('gv-period=2026-11'),{now:Date.parse('2026-10-31T23:30Z')}).period,'2026-11');
+});
+test('the 1000-person cap has no inert Show all action',()=>{
+ const people=Array.from({length:1002},(_,i)=>({id:String(i+1),name:'Speaker '+i,total:1,subjects:{foreign:1}})),state={...defaults,peopleLimit:1000};
+ const list=visibleGroupPeople(people,state);assert.equal(list.visible.length,1000);assert.equal(list.hasMore,false);
+ const selected=visibleGroupPeople(people,{...state,person:list.rows.at(-1).id});assert.equal(selected.visible.length,1002);assert.equal(selected.hasMore,false);
+});

@@ -79,7 +79,7 @@ test('optional pagination resumes within the shared request budget without modif
  const resumed=new ActivityWorker(store,{clock:now,budget:1,fetchRecord});await resumed.run();assert.deepEqual(offsets,[0,1]);assert.equal(nextGroupVoiceTask(store,gen),null);assert.equal(groupVoicesPage(store,query()).people[0].total,1);
 });
 test('a disk pause after core publication cannot recreate a generation-less working cycle',async t=>{
- const store=setup(t),gen=store.beginCycle().generation;store.release();
+ const store=setup(t),gen=store.beginCycle().generation;initializeGroupVoices({store,clock:now},gen,[{start:'2026-09-01',end:'2026-09-30'}]);store.release();
  const worker=new ActivityWorker(store,{clock:now,budget:5,fetchRecord:async()=>({payload:{data:[]},fetchedAt:stamp})});
  worker.initialize=async()=>store.updateCycle({initialized:true,reportJoinsReady:true,procedureTitlesQueued:true,motionOutcomesDay:'2026-10-17'});
  worker.initializeOutside=()=>{};worker.prepareMotionOutcomes=()=>{};
@@ -94,4 +94,41 @@ test('a corrected written record removes a previously observed oral designation 
  worker.saveSpeech(gen,speech(),stamp);assert.equal(groupVoicesPage(store,query()).people[0].total,1);
  worker.saveSpeech(gen,{...speech(),had_activity_type:'def/ep-activities/PLENARY_DEBATE_WRITTEN_STATEMENT'},stamp);
  const page=groupVoicesPage(store,query());assert.equal(page.people.length,0);assert.equal(page.coverage.authoritativeComplete,false);
+});
+
+test('resuming a working generation cannot resurrect changed or removed group designations',t=>{
+ const store=setup(t),first=store.beginCycle().generation,worker=new ActivityWorker(store,{clock:now});initializeGroupVoices(worker,first,[]);
+ store.putSource(first,'outside:roster:2026-10-06','outside-roster',{date:'2026-10-06',ids:['42','43'],sources:[]},stamp);
+ worker.saveSpeech(first,speech(),stamp);store.publish(first);
+ const second=store.beginCycle().generation;
+ worker.saveSpeech(second,speech('1','2026-10-06',[participation('43','PPE')]),stamp);
+ assert.equal(store.beginCycle().generation,second);
+ assert.deepEqual(store.db.prepare('SELECT person,group_id FROM group_voice_designations WHERE generation=?').all(second).map(r=>[r.person,r.group_id]),[['43','PPE']]);
+ store.publish(second);assert.equal(groupVoicesPage(store,query()).people.length,0);assert.equal(groupVoicesPage(store,query('group=PPE')).people[0].id,'43');
+ const third=store.beginCycle().generation;worker.saveSpeech(third,{...speech(),had_activity_type:'def/ep-activities/PLENARY_DEBATE_WRITTEN_STATEMENT'},stamp);
+ assert.equal(store.beginCycle().generation,third);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM group_voice_observations WHERE generation=?').get(third).n,0);
+ store.publish(third);assert.equal(groupVoicesPage(store,query('group=PPE')).people.length,0);
+});
+test('version upgrades discard only superseded pending jobs and retain current cursors',t=>{
+ const store=setup(t),gen=store.beginCycle().generation,worker={store,clock:now};initializeGroupVoices(worker,gen,[]);
+ const body={params:{'sitting-date':'2026-09-01','sitting-date-end':'2026-09-30'},offset:750};
+ enqueueGroupVoice(store,gen,'group-voices:0:catalog:old',body);enqueueGroupVoice(store,gen,'group-voices:0:catalog:complete',body);store.finishTask({...nextGroupVoiceTask(store,gen),key:'group-voices:0:catalog:complete'});
+ enqueueGroupVoice(store,gen,'group-voices:1:catalog:2026-09-01:2026-09-30',body);store.db.prepare('UPDATE group_voice_state SET version=0 WHERE generation=?').run(gen);
+ initializeGroupVoices(worker,gen,[{start:'2026-09-01',end:'2026-09-30'}]);
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM group_voice_jobs WHERE generation=? AND done=0 AND key LIKE 'group-voices:0:%'").get(gen).n,0);
+ assert.equal(nextGroupVoiceTask(store,gen).body.offset,750);assert.equal(store.db.prepare("SELECT done FROM group_voice_jobs WHERE generation=? AND key='group-voices:0:catalog:complete'").get(gen).done,1);
+});
+test('only a genuinely fresh core load can skip the historical designation upgrade',async t=>{
+ for(const legacy of [false,true]){
+  const store=setup(t),gen=store.beginCycle().generation;
+  if(legacy){store.updateCycle({initialized:true});store.putSource(gen,'/speeches/legacy','speech',{id:'MTG-PL-2026-09-01-OTH-1'},stamp);store.enqueue(gen,'catalog:/speeches:2026-09-01:2026-09-30','speeches',{offset:750,params:{'sitting-date':'2026-09-01','sitting-date-end':'2026-09-30'}},100);}
+  store.release();const worker=new ActivityWorker(store,{clock:now,budget:1,fetchRecord:async()=>({payload:{data:[]},fetchedAt:stamp})});await worker.run();
+  const queued=store.db.prepare('SELECT COUNT(*) n FROM group_voice_jobs WHERE generation=?').get(gen).n;assert.equal(queued>0,legacy);
+  if(legacy)assert.equal(JSON.parse(store.db.prepare('SELECT body FROM tasks WHERE generation=? AND key=?').get(gen,'catalog:/speeches:2026-09-01:2026-09-30').body).offset,750);
+ }
+});
+test('title selection ignores inherited keys even when a caller bypasses HTTP language validation',t=>{
+ const store=setup(t),gen=store.beginCycle().generation,worker={store,clock:now};initializeGroupVoices(worker,gen,[]);const p=groupVoiceProjection(speech(),{fetchedAt:stamp});
+ store.putSource(gen,'/speeches/'+p.id,'speech',{id:p.id,groupVoices:p,outside:{titles:{en:'Published heading'}}},stamp);
+ const row=groupVoicesPage(store,query('lang=__proto__&part=contributions')).contributions[0];assert.equal(row.title,'Published heading');assert.equal(row.titleLanguage,'en');
 });

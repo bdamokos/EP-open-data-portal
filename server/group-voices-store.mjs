@@ -13,6 +13,9 @@ export function groupVoicesSchema(db){
 // Older images ignore these additive tables. If a rollback advanced the core
 // generation, adopt the latest retained projection and its durable cursors.
 export function groupVoicesCopy(db,generation,active){
+  // Adoption is once per target generation. Re-copying after a restart would
+  // resurrect source rows corrected or deleted in the working snapshot.
+  if(db.prepare('SELECT 1 FROM group_voice_state WHERE generation=?').get(generation))return;
   const saved=db.prepare('SELECT generation FROM group_voice_state WHERE generation<=? ORDER BY generation DESC LIMIT 1').get(active)?.generation;
   if(!saved||saved===generation)return;
   db.prepare('INSERT OR IGNORE INTO group_voice_state SELECT ?,version FROM group_voice_state WHERE generation=?').run(generation,saved);
@@ -56,6 +59,7 @@ export function initializeGroupVoices(worker,generation,windows){
   if(store.db.prepare('SELECT 1 FROM group_voice_state WHERE generation=? AND version=?').get(generation,GROUP_VOICE_VERSION))return;
   store.transaction(()=>{
     store.assertWriter();
+    store.db.prepare('DELETE FROM group_voice_jobs WHERE generation=? AND done<>1 AND key NOT LIKE ?').run(generation,'group-voices:'+GROUP_VOICE_VERSION+':%');
     for(const {start,end} of windows)enqueueGroupVoice(store,generation,groupVoiceJobKey('catalog',start+':'+end),{
       endpoint:'/speeches',params:{'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH','sort-by':'sitting-date:desc,numbering:desc','sitting-date':start,'sitting-date-end':end},offset:0,
     });
@@ -90,7 +94,8 @@ function identity(store,generation,id,speech){
   return {id,name:variants[0]?.value||header?.name||null,nameVariants:variants};
 }
 function localized(titles,language){
-  const titleLanguage=titles?.[language]?language:titles?.en?'en':Object.keys(titles||{})[0]||null;
+  const available=Object.keys(titles||{}).filter(key=>typeof titles[key]==='string'&&titles[key].trim());
+  const titleLanguage=available.includes(language)?language:available.includes('en')?'en':available[0]||null;
   return {title:titleLanguage?titles[titleLanguage]:null,titleLanguage};
 }
 

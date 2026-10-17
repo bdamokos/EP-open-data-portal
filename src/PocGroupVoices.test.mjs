@@ -10,12 +10,14 @@ async function harness(t,query='?poc=1&view=groups&gv-tab=people'){
  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,ResizeObserver:class {observe(){} disconnect(){}},IS_REACT_ACT_ENVIRONMENT:true};
  const originals=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  window.HTMLElement.prototype.scrollIntoView=function(){};window.HTMLElement.prototype.scrollTo=function(){};
- let vite,root,fail=false;const calls=[],delays=[];
+ let vite,root,fail=false,deferPerson=false;const calls=[],delays=[],personResponses=[];
  t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,location.href);calls.push(url);assert.equal(url.pathname,'/api/poc/insights/group-voices','No directory, corpus or upstream fetch is needed.');
   if(fail)return Response.json({error:{message:'Unavailable'}},{status:503});
   if(url.searchParams.get('group')==='PPE')return new Promise(resolve=>delays.push(resolve));
   const selected=people.filter(p=>!url.searchParams.get('person')||url.searchParams.get('person')===p.id),subject=url.searchParams.get('subject'),total=selected.reduce((n,p)=>n+(subject?p.subjects[subject]||0:p.total),0);
-  return Response.json({people,months:['2026-10','2026-09'],window:{from:'2024-07-16',to:'2026-10-17'},contributions:selected.slice(0,20).map(p=>({id:'MTG-PL-2026-10-06-OTH-'+p.id,personId:p.id,date:'2026-10-06',subject:subject||'foreign',title:'Exact contribution '+p.id,titleLanguage:'en',websiteUrl:'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-10-06-OTH-'+p.id+'_EN.html'})),total,nextOffset:null,coverage});
+  const result={people,months:['2026-10','2026-09'],window:{from:'2024-07-16',to:'2026-10-17'},contributions:selected.slice(0,20).map(p=>({id:'MTG-PL-2026-10-06-OTH-'+p.id,personId:p.id,date:'2026-10-06',subject:subject||'foreign',title:'Exact contribution '+p.id,titleLanguage:'en',websiteUrl:'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-10-06-OTH-'+p.id+'_EN.html'})),total,nextOffset:null,coverage};
+  if(deferPerson&&url.searchParams.has('person'))return new Promise(resolve=>personResponses.push(()=>resolve(Response.json(result))));
+  return Response.json(result);
  });
  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {default:PocApp}=await vite.ssrLoadModule('/src/PocApp.tsx'),{createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
@@ -24,7 +26,7 @@ async function harness(t,query='?poc=1&view=groups&gv-tab=people'){
  const click=node=>act(async()=>{assert(node);node.focus();node.click();});
  const restore=url=>act(async()=>{history.replaceState(null,'',url);window.dispatchEvent(new window.PopStateEvent('popstate'));});
  const input=async text=>act(async()=>{const field=container.querySelector('.gv-search input');Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(field,text);field.dispatchEvent(new window.InputEvent('input',{bubbles:true,data:text,inputType:'insertText'}));});
- return {window,container,calls,click,restore,input,fail:()=>{fail=true;},delays};
+ return {window,container,calls,click,restore,input,fail:()=>{fail=true;},delays,deferPerson:()=>{deferPerson=true;},finishPerson:()=>act(async()=>{personResponses.splice(0).forEach(resolve=>resolve());})};
 }
 test('integrated group navigation preserves the independent People selector, exact subject counts and Back state',async t=>{
  const h=await harness(t),name=()=>h.container.querySelector('[data-gv-person="42"]'),first=name();
@@ -48,4 +50,13 @@ test('changing scope with delayed or failed data hides previous results and igno
  await act(async()=>{select.value='PPE';select.dispatchEvent(new window.Event('change',{bubbles:true}));});assert.equal(h.container.querySelector('.gv-person'),null);assert.equal(h.container.querySelector('.gv-contributions article'),null);
  h.fail();await h.restore('/?poc=1&view=groups&gv-group=ECR&gv-tab=people');assert(h.container.querySelector('[role=alert]'));assert.equal(h.container.querySelector('.gv-person'),null);
  await act(async()=>{h.delays.forEach(resolve=>resolve(Response.json({people,months:[],coverage,window:{}})));});assert.equal(new URLSearchParams(location.search).get('gv-group'),'ECR');assert.equal(h.container.querySelector('.gv-person'),null);
+});
+
+test('person toggles from Contributions retain their local focus while the filtered page loads',async t=>{
+ for(const tab of ['subjects','people'])await t.test(tab,async t=>{
+  const h=await harness(t,'?poc=1&view=groups&gv-tab='+tab),button=h.container.querySelector('.gv-contribution-person'),key=button.dataset.gvContribution;
+  h.deferPerson();await h.click(button);assert.equal(document.activeElement,h.container.querySelector('.gv-contributions h2'));assert.equal(h.container.querySelector('.gv-contribution-person'),null);
+  await h.finishPerson();const restored=h.container.querySelector('[data-gv-contribution="'+key+'"]');assert.equal(document.activeElement,restored);assert(!document.activeElement.hasAttribute('data-gv-person'));
+  await h.click(restored);assert.equal(new URLSearchParams(location.search).get('gv-person'),null);assert.equal(document.activeElement,h.container.querySelector('[data-gv-contribution="'+key+'"]'));
+ });
 });
