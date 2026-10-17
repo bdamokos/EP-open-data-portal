@@ -572,8 +572,9 @@ test('language-filtered search traverses FTS matches before language metadata',t
 test('relevance pagination keeps score order and exact-ID tie breaks while sharing totals',()=>{
   const s=stores();
   try {
-    const ids=['SCORE-A','SCORE-B','SCORE-C'];
+    const ids=['SCORE-Z','SCORE-A','SCORE-B'];
     putText(s.corpus,ids[0],'speech','2026-05-01','en','Ukraine Ukraine Ukraine');
+    putText(s.corpus,ids[0],'speech','2026-05-01','fr','Ukraine '+'policy '.repeat(100),{language:'fr'});
     putText(s.corpus,ids[1],'speech','2026-05-01','en','Ukraine '+'policy '.repeat(30));
     putText(s.corpus,ids[2],'speech','2026-05-01','en','Ukraine '+'policy '.repeat(30));
     const full=s.corpus.search({query:'Ukraine',language:'en',sort:'relevance'});
@@ -583,6 +584,9 @@ test('relevance pagination keeps score order and exact-ID tie breaks while shari
       assert.equal(page.total,3);assert.deepEqual(page.results,[full.results[offset]]);
       assert.equal(page.nextOffset,offset<2?offset+1:null);
     }
+    const multilingual=s.corpus.search({query:'Ukraine',sort:'relevance'});
+    assert.deepEqual(multilingual.results.map(result=>result.sourceId),ids,'the best matching variant determines each group score');
+    assert.equal(multilingual.results[0].hits.length,2);
   } finally {s.cleanup();}
 });
 
