@@ -44,4 +44,5 @@ export const config=Object.freeze({
  distDirectory:absolutePathFromEnvironment('EXPLORER_DIST_DIR',path.join(projectRoot,'dist')),
  serveStatic:booleanFromEnvironment('EXPLORER_SERVE_STATIC',true),
  jsonResponseLimitBytes:integerFromEnvironment('JSON_RESPONSE_LIMIT_BYTES',5*1024*1024,64*1024,25*1024*1024),
+ documentTextMaxDiskBytes:integerFromEnvironment('DOCUMENT_TEXT_MAX_DISK_MIB',256,16,8192)*1024*1024,
 });

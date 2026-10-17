@@ -13,6 +13,7 @@ import {numberingLabels} from './docx-numbering.mjs';
 import {noteNumbering} from './docx-note-numbering.mjs';
 import {userAgent} from './user-agent.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
+import {config} from './config.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
 // 6: empty list items and independent, source-formatted footnote/endnote numbering.
@@ -24,14 +25,9 @@ const memory=new Map(),pending=new Map(),failures=new Map();
 // changed size or issue time in the API's file listing marks a re-publication.
 const RECENT_REFRESH_MS=7*DAY,SETTLED_AFTER_MS=60*DAY;
 const budgets=new Map();
-const MIB=1024*1024;
 function diskBudget(directory){
   const folder=path.join(directory,'document-text-v1');
-  if(!budgets.has(folder)){
-    const value=Number(process.env.DOCUMENT_TEXT_MAX_DISK_MIB||256);
-    if(!Number.isInteger(value)||value<16||value>8192)throw new Error('Invalid DOCUMENT_TEXT_MAX_DISK_MIB.');
-    budgets.set(folder,new CacheDiskBudget(folder,{maxBytes:value*MIB,maxEntries:20000,pattern:/^[0-9a-f]{64}\.json$/}));
-  }
+  if(!budgets.has(folder))budgets.set(folder,new CacheDiskBudget(folder,{maxBytes:config.documentTextMaxDiskBytes,maxEntries:20000,pattern:/^[0-9a-f]{64}\.json$/}));
   return budgets.get(folder);
 }
 function fileDescriptor(work,url){
