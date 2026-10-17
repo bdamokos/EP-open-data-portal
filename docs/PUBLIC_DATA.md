@@ -109,7 +109,7 @@ Both endpoints are undocumented and may change. The server reads metadata only a
 
 ### Portraits
 
-The API supplies portrait URLs. Each MEP record's `img` field points to the website image, e.g. `https://www.europarl.europa.eu/mepphoto/4465.jpg`. The images themselves are hosted on the website, not served by the API. If `img` is missing, the same URL pattern is built from the MEP ID. Only that path pattern is accepted. Images are fetched on demand through `/api/poc/portrait/{id}` and cached in `ODP_CACHE_DIR/portraits-v1` with source URL, retrieval time and checksum (`server/portrait-cache.mjs`). The roster is never prefetched.
+The API supplies portrait URLs. Each MEP record's `img` field points to the website image, e.g. `https://www.europarl.europa.eu/mepphoto/4465.jpg`. The images themselves are hosted on the website, not served by the API. If `img` is missing, the same URL pattern is built from the MEP ID. Only that path pattern is accepted. Images are fetched on demand through `/api/poc/portrait/{id}` and cached in `ODP_CACHE_DIR/portraits-v1` with source URL, retrieval time, checksum and the host's `ETag`/`Last-Modified` validators (`server/portrait-cache.mjs`). The roster is never prefetched. A portrait viewed more than 7 days after retrieval is refreshed in the background with a conditional request; a `304 Not Modified` keeps the saved image and records the confirmation as the new retrieval time. The Open Data API and the other periodically read sources (activity RSS, Multimedia Centre, OEIL, Publications Office SPARQL) send no validators, so they are re-read on their cache lifetimes.
 
 ## Full-text corpus
 

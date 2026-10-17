@@ -66,6 +66,65 @@ test('expired saved portraits return promptly and share one background refresh w
   assert.equal((await new PortraitCache({directory, clock: () => now}).get(1, () => assert.fail('fresh disk must avoid upstream'))).body.toString(), 'new');
 });
 
+test('an unchanged portrait is revalidated without a download and a changed one is replaced', async t => {
+  const directory = await fixture(t); let now = 1000; const requests = [];
+  const validators = {etag: '"6698ce1a-1e9e2"', 'last-modified': 'Thu, 18 Jul 2024 08:11:06 GMT'};
+  const replies = [
+    () => new Response('original', {headers: {'content-type': 'image/jpeg', ...validators}}),
+    () => new Response(null, {status: 304, headers: validators}),
+    () => new Response('changed', {headers: {'content-type': 'image/jpeg', etag: '"new"'}}),
+  ];
+  const fetchImpl = async (url, {headers}) => {requests.push(headers); return replies.shift()();};
+  const cache = new PortraitCache({directory, clock: () => now, freshMs: 100, fetchImpl});
+  await cache.get(1, source);
+  assert.equal(requests[0]['If-None-Match'], undefined);
+  now = 1100; await cache.get(1, source); await cache.refreshes.get(1);
+  assert.equal(requests[1]['If-None-Match'], validators.etag);
+  assert.equal(requests[1]['If-Modified-Since'], validators['last-modified']);
+  // A restart keeps the confirmed copy, its validators and the confirmation time.
+  const restarted = new PortraitCache({directory, clock: () => now, freshMs: 100, fetchImpl});
+  const confirmed = await restarted.get(1, source);
+  assert.equal(confirmed.body.toString(), 'original'); assert.equal(confirmed.fetchedAt, 1100);
+  assert.equal(confirmed.etag, validators.etag);
+  now = 1200; await restarted.get(1, source); await restarted.refreshes.get(1);
+  const replaced = await restarted.get(1, source);
+  assert.equal(replaced.body.toString(), 'changed'); assert.equal(replaced.etag, '"new"');
+  assert.equal(replaced.lastModified, null); assert.equal(requests.length, 3);
+});
+
+test('a 304 naming a different entity tag is not taken as confirmation of the saved image', async t => {
+  const directory = await fixture(t); let now = 1000; const requests = [];
+  const replies = [
+    () => new Response('original', {headers: {'content-type': 'image/jpeg', etag: '"a"'}}),
+    () => new Response(null, {status: 304, headers: {etag: '"b"'}}),
+    () => new Response('current', {headers: {'content-type': 'image/jpeg', etag: '"b"'}}),
+  ];
+  const cache = new PortraitCache({directory, clock: () => now, freshMs: 100,
+    fetchImpl: async (url, {headers}) => {requests.push(headers); return replies.shift()();}});
+  await cache.get(1, source); now = 1100; await cache.get(1, source); await cache.refreshes.get(1);
+  const image = await cache.get(1, source);
+  assert.equal(image.body.toString(), 'current'); assert.equal(image.etag, '"b"');
+  assert.equal(requests[2]['If-None-Match'], undefined); assert.equal(requests.length, 3);
+});
+
+test('saved validators outside the HTTP grammar are dropped instead of being sent', async t => {
+  const directory = await fixture(t);
+  await new PortraitCache({directory, fetchImpl: async () => jpeg()}).get(1, source);
+  const name = path.join(directory, '1.portrait'), file = await readFile(name), length = file.readUInt32BE(0);
+  const header = {...JSON.parse(file.subarray(4, 4 + length).toString()), etag: '"a\u0000b"', lastModified: 'not a date'};
+  const encoded = Buffer.from(JSON.stringify(header)), prefix = Buffer.alloc(4); prefix.writeUInt32BE(encoded.length);
+  await writeFile(name, Buffer.concat([prefix, encoded, file.subarray(4 + length)]));
+  const image = await new PortraitCache({directory, fetchImpl: () => assert.fail('saved image is fresh')}).get(1, source);
+  assert.equal(image.etag, null); assert.equal(image.lastModified, null);
+});
+
+test('a 304 without a saved validated copy is not treated as an image', async t => {
+  const directory = await fixture(t); let calls = 0;
+  const cache = new PortraitCache({directory, fetchImpl: async () => {calls++; return new Response(null, {status: 304});}});
+  await assert.rejects(cache.get(1, source), {code: 'portrait_unavailable'});
+  assert.equal(calls, 1); assert.deepEqual(await readdir(directory), []);
+});
+
 test('failed refresh retains the saved image and timestamp and backs off upstream retries', async t => {
   const directory = await fixture(t); let now = 1000, calls = 0;
   const cache = new PortraitCache({directory, clock: () => now, freshMs: 100, retryMs: 500,
