@@ -32,6 +32,9 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
     const url=new URL(input,location.href);
     if(url.pathname==='/api/directory')return Response.json(directory);
     if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
+    if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:[],selectedItems:[],indexedTotal:0,nextOffset:null,cache:{complete:true}});
+    if(url.pathname.startsWith('/api/speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
+    if(url.pathname==='/api/insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
@@ -56,7 +59,8 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
     assert.deepEqual([...container.querySelectorAll('[data-member-id]')].map(node=>Number(node.dataset.memberId)),expected.map(row=>row.id),'actual filtered member identities');
     for(const row of expected)assert.match(container.querySelector(`[data-member-id="${row.id}"]`).textContent,new RegExp(row.firstName+'\\s*'+row.lastName));
   }
-  return {window,container,select,click,go,filters,language,agree};
+  const open=id=>act(async()=>{const node=container.querySelector(`[data-member-id="${id}"] button`);assert(node,'Missing portrait: '+id);node.click();});
+  return {window,container,select,click,go,filters,language,agree,open};
 }
 
 test('Back and Forward restore Membership, every URL filter and actual directory results',async t=>{
@@ -87,4 +91,18 @@ for(const query of [selection,selection+'&role=invalid&lang=invalid'])test('hist
   // Retain the raw old URL so popstate must validate absent/unsupported values.
   await act(async()=>{history.replaceState(null,'','/?'+query);h.window.dispatchEvent(new h.window.PopStateEvent('popstate'));});
   h.agree('both');
+});
+
+test('opening and leaving an MEP from the member wall are Back/Forward steps',async t=>{
+  const h=await harness(t);h.agree('member');
+  const wall=location.href,length=history.length;
+  await h.open(1);
+  const profile=location.href,query=new URLSearchParams(location.search);
+  assert.equal(history.length,length+1,'opening an MEP adds one history entry');
+  assert.equal(query.get('member'),'1');assert.equal(h.container.querySelector('.explorer-profile h1')?.getAttribute('aria-label'),'Tamás Deutsch');
+  await h.go(-1);assert.equal(location.href,wall);assert.equal(h.container.querySelector('.explorer-profile'),null);h.agree('member');
+  await h.go(1);assert.equal(location.href,profile);assert.equal(h.container.querySelector('.explorer-profile h1')?.getAttribute('aria-label'),'Tamás Deutsch');
+  await act(async()=>h.container.querySelector('.explorer-back').click());
+  assert.equal(history.length,length+2,'leaving the MEP adds one history entry');h.agree('member');
+  await h.go(-1);assert.equal(location.href,profile);assert(h.container.querySelector('.explorer-profile'));
 });

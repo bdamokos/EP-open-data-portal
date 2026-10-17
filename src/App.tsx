@@ -415,6 +415,8 @@ export default function App() {
   );
   const memberOpener=useRef<number|null>(null);
   const viewOpener=useRef<{node:HTMLElement|null;headerIndex:number}|null>(null);
+  // Opening or leaving an MEP is a navigation; the URL effect pushes it once.
+  const memberStep=useRef(false);
   const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
   const directoryState = useData<Directory>(view==='outside'||view==='groups'?null:"directory");
   const directory = directoryState.data;
@@ -493,7 +495,8 @@ export default function App() {
       ...(!view && member && activityLink ? { activity: activityLink } : {}),
       ...(!view && member && activityCategory ? { "activity-category": activityCategory } : {}),
     }).toString();
-    if (u.href !== location.href) history.replaceState(null, "", u);
+    const step=memberStep.current;memberStep.current=false;
+    if (u.href !== location.href) step ? history.pushState(null, "", u) : history.replaceState(null, "", u);
     window.dispatchEvent(new Event('explorer-query-change'));
     document.documentElement.lang = lang;
   }, [lang, member, tab, committee, role, country, group, view, speechLink, activityLink, activityCategory]);
@@ -588,7 +591,7 @@ export default function App() {
   };
   const leaveMember=()=>{
     pendingDestination.current={view:null,member:null,portrait:memberOpener.current};
-    setMember(null);setSpeechLink(null);setActivityLink(null);
+    memberStep.current=true;setMember(null);setSpeechLink(null);setActivityLink(null);
   };
   const leaveSaved=()=>{
     const opener=viewOpener.current;
@@ -867,7 +870,7 @@ export default function App() {
                           onClick={() => {
                             memberOpener.current=m.id;
                             pendingDestination.current={view:null,member:m.id};
-                            setMember(m.id);
+                            memberStep.current=true;setMember(m.id);
                             setSpeechLink(null);
                             setActivityLink(null);
                             setTab("speeches");
