@@ -1,0 +1,565 @@
+{
+  "description": "Selected fields from public EP API responses. Decision/result/agenda nodes and source language maps are selected, not a full sitting inventory. Actual voter arrays retain only each position's first person plus person/197591 when present; intended voter arrays and published totals are unchanged. Trimmed counts deliberately do not match full published totals. Result consists_of references are untrimmed.",
+  "selection": {
+    "actualVoters": "trimmed",
+    "languages": [
+      "en",
+      "hu",
+      "fr",
+      "mul"
+    ],
+    "retrievalDate": "2026-10-17"
+  },
+  "snapshots": [
+    {
+      "sittingId": "MTG-PL-2026-10-07",
+      "date": "2026-10-07",
+      "decisions": [
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-07-DEC-197457",
+          "type": "Vote",
+          "activity_date": "2026-10-07",
+          "activity_id": "MTG-PL-2026-10-07-DEC-197457",
+          "activity_label": {
+            "fr": "A10-0237/2026 - Hilde Vautmans - Proposition de résolution (ensemble du texte)",
+            "mul": "A10-0237/2026 - Hilde Vautmans - Proposition de résolution (ensemble du texte)",
+            "hu": "A10-0237/2026 – Hilde Vautmans – Állásfoglalási indítvány (a szöveg egésze)",
+            "en": "A10-0237/2026 – Hilde Vautmans – Motion for a resolution (as a whole)"
+          },
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/ADOPTED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "number_of_votes_abstention": 110,
+          "number_of_votes_against": 86,
+          "number_of_votes_favor": 454,
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-10-07-RCV-ITM-054"
+          ],
+          "referenceText": {
+            "fr": "Proposition de résolution (ensemble du texte)",
+            "hu": "Állásfoglási indítvány (a szöveg egésze)",
+            "en": "Motion for a resolution (as a whole)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151"
+          ],
+          "had_voter_abstention": [
+            "person/257102"
+          ],
+          "had_voter_against": [
+            "person/249982"
+          ],
+          "had_voter_favor": [
+            "person/256879",
+            "person/197591"
+          ],
+          "had_voter_intended_abstention": [
+            "person/197591"
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-07-DEC-197847",
+          "type": "Vote",
+          "activity_date": "2026-10-07",
+          "activity_id": "MTG-PL-2026-10-07-DEC-197847",
+          "activity_label": {
+            "en": "A10-0237/2026 – Hilde Vautmans – § 1, point au/2",
+            "mul": "A10-0237/2026 - Hilde Vautmans - § 1, point au/2",
+            "fr": "A10-0237/2026 - Hilde Vautmans - § 1, point au/2",
+            "hu": "A10-0237/2026 – Hilde Vautmans – 1. bek., au/2. pont"
+          },
+          "decided_on_a_realization_of": [
+            "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-2"
+          ],
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/ADOPTED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "number_of_votes_abstention": 31,
+          "number_of_votes_against": 218,
+          "number_of_votes_favor": 415,
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-10-07-RCV-ITM-038"
+          ],
+          "referenceText": {
+            "hu": "1. bek, au) pont",
+            "fr": "§ 1, point au",
+            "en": "§ 1, point au"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151"
+          ],
+          "had_voter_abstention": [
+            "person/257015"
+          ],
+          "had_voter_against": [
+            "person/257083"
+          ],
+          "had_voter_favor": [
+            "person/257068",
+            "person/197591"
+          ],
+          "had_voter_intended_abstention": [
+            "person/257094"
+          ],
+          "had_voter_intended_against": [
+            "person/197534"
+          ],
+          "had_voter_intended_favor": [
+            "person/72779"
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-07-DEC-197819",
+          "type": "Vote",
+          "activity_date": "2026-10-07",
+          "activity_id": "MTG-PL-2026-10-07-DEC-197819",
+          "activity_label": {
+            "fr": "A10-0237/2026 - Hilde Vautmans - § 1, après le point a - Am 12",
+            "mul": "A10-0237/2026 - Hilde Vautmans - § 1, après le point a - Am 12",
+            "en": "A10-0237/2026 – Hilde Vautmans – § 1, after point a – Am 12",
+            "hu": "A10-0237/2026 – Hilde Vautmans – 1. bek., a) pont után – 12. mód."
+          },
+          "decided_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0237-AM-12"
+          ],
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/REJECTED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "number_of_votes_abstention": 48,
+          "number_of_votes_against": 420,
+          "number_of_votes_favor": 200,
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-10-07-RCV-ITM-012"
+          ],
+          "referenceText": {
+            "hu": "1. bek., a) pont után",
+            "fr": "§ 1, après le point a",
+            "en": "§ 1, after point a"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151"
+          ],
+          "had_voter_abstention": [
+            "person/256956"
+          ],
+          "had_voter_against": [
+            "person/86793"
+          ],
+          "had_voter_favor": [
+            "person/197782",
+            "person/197591"
+          ],
+          "had_voter_intended_abstention": [
+            "person/256904"
+          ],
+          "had_voter_intended_against": [
+            "person/197782",
+            "person/23788",
+            "person/86057"
+          ],
+          "had_voter_intended_favor": [
+            "person/197627"
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-07-DEC-197866",
+          "type": "Vote",
+          "activity_date": "2026-10-07",
+          "activity_id": "MTG-PL-2026-10-07-DEC-197866",
+          "activity_label": {
+            "en": "A10-0237/2026 – Hilde Vautmans – Recital AO – Am 40/2",
+            "hu": "A10-0237/2026 – Hilde Vautmans – AO. preb. – 40/2. mód.",
+            "mul": "A10-0237/2026 - Hilde Vautmans - Considérant AO - Am 40/2",
+            "fr": "A10-0237/2026 - Hilde Vautmans - Considérant AO - Am 40/2"
+          },
+          "decided_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0237-AM-40",
+            "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3-2"
+          ],
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/ADOPTED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "number_of_votes_abstention": 36,
+          "number_of_votes_against": 270,
+          "number_of_votes_favor": 357,
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-10-07-RCV-ITM-053"
+          ],
+          "referenceText": {
+            "en": "Recital AO",
+            "hu": "AO. preb.",
+            "fr": "Considérant AO"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151"
+          ],
+          "had_voter_abstention": [
+            "person/256808"
+          ],
+          "had_voter_against": [
+            "person/4746"
+          ],
+          "had_voter_favor": [
+            "person/30482",
+            "person/197591"
+          ],
+          "had_voter_intended_abstention": [
+            "person/257068"
+          ],
+          "had_voter_intended_against": [
+            "person/197466",
+            "person/256904",
+            "person/257438",
+            "person/204418",
+            "person/197697",
+            "person/256846"
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-07-DEC-197491",
+          "type": "Decision",
+          "activity_date": "2026-10-07",
+          "activity_id": "MTG-PL-2026-10-07-DEC-197491",
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "headingLabel": {
+            "en": "Draft legislative act ",
+            "hu": "Jogalkotási aktus tervezete",
+            "fr": "Projet d'acte législatif "
+          },
+          "referenceText": {
+            "fr": "Proposition de la Commission",
+            "en": "Commission proposal",
+            "hu": "A Bizottság javaslata"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993159"
+          ]
+        }
+      ],
+      "results": [
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151",
+          "type": "Activity",
+          "activity_date": "2026-10-07",
+          "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993151",
+          "activity_label": {
+            "en": "Recommendation on EU-China political relations",
+            "mul": "Recommandation relative aux relations politiques entre l’UE et la Chine - Recommendation on EU-China political relations - Empfehlung zu den politischen Beziehungen zwischen der EU und China",
+            "fr": "Recommandation relative aux relations politiques entre l’UE et la Chine",
+            "hu": "Ajánlás az EU és Kína közötti politikai kapcsolatokról"
+          },
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0237"
+          ],
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197862",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197825",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197398",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197440",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197411",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197852",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197832",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197831",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197395",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197392",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197858",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197837",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197819",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197436",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197407",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197865",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197827",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197844",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197861",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197397",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197840",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197410",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197830",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197839",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197391",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197438",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197846",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197444",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197836",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197434",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197451",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197863",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197399",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197843",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197842",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197822",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197412",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197428",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197848",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197446",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197838",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197855",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197425",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197453",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197871",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197389",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197824",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197851",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197450",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197841",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197821",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197820",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197449",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197857",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197427",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197455",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197847",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197829",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197826",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197445",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197854",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197833",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197452",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197423",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197431",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197860",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197823",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197850",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197859",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197457",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197408",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197849",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197866",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197828",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197856",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197835",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197454",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197433"
+          ],
+          "executed": [
+            "eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-48"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-10-07-VOT-ITM-007"
+          ],
+          "inverse_consists_of": [
+            {
+              "id": "eli/dl/event/MTG-PL-2026-10-07"
+            },
+            {
+              "id": "eli/dl/proc/2025-2117"
+            }
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993159",
+          "type": "Activity",
+          "activity_date": "2026-10-07",
+          "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993159",
+          "activity_label": {
+            "mul": "Classe d’émissions de CO2 des véhicules lourds avec remorques - CO2 emission class of heavy-duty vehicles with trailers - CO2-Emissionsklasse von schweren Nutzfahrzeugen mit Anhängern",
+            "fr": "Classe d’émissions de CO2 des véhicules lourds avec remorques ***I",
+            "en": "CO2 emission class of heavy-duty vehicles with trailers ***I",
+            "hu": "A pótkocsival felszerelt nehézgépjárművek szén-dioxid-kibocsátási osztálya ***I"
+          },
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0131"
+          ],
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197489",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197490",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197486",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197488",
+            "eli/dl/event/MTG-PL-2026-10-07-DEC-197491"
+          ],
+          "executed": [
+            "eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-45"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-10-07-VOT-ITM-001"
+          ],
+          "inverse_consists_of": [
+            {
+              "id": "eli/dl/event/MTG-PL-2026-10-07"
+            },
+            {
+              "id": "eli/dl/proc/2023-0134"
+            }
+          ]
+        }
+      ],
+      "agenda": [
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-45",
+          "type": "ForeseenActivity",
+          "activity_date": "2026-10-07",
+          "activity_id": "MTG-PL-2026-10-07-OJ-ITM-V-45",
+          "activity_label": {
+            "en": "CO2 emission class of heavy-duty vehicles with trailers",
+            "fr": "Classe d’émissions de CO2 des véhicules lourds avec remorques",
+            "hu": "A pótkocsival felszerelt nehézgépjárművek szén-dioxid-kibocsátási osztálya"
+          },
+          "based_on_a_realization_of": [
+            "eli/dl/doc/C-10-2025-0235",
+            "eli/dl/doc/A-10-2026-0131"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE",
+          "inverse_was_scheduled_in": [
+            "eli/dl/proc/2023-0134"
+          ]
+        },
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-48",
+          "type": "ForeseenActivity",
+          "activity_date": "2026-10-07",
+          "activity_id": "MTG-PL-2026-10-07-OJ-ITM-V-48",
+          "activity_label": {
+            "en": "Recommendation on EU-China political relations",
+            "fr": "Recommandation relative aux relations politiques entre l’UE et la Chine",
+            "hu": "Ajánlás az EU és Kína közötti politikai kapcsolatokról"
+          },
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0237"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE",
+          "inverse_was_scheduled_in": [
+            "eli/dl/proc/2025-2117"
+          ]
+        }
+      ],
+      "sources": {
+        "decisions": [
+          {
+            "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-07/decisions?format=application%2Fld%2Bjson&vote-method=ROLL_CALL_EV&limit=1&offset=0",
+            "fetchedAt": "2026-10-17T18:39:08.315787Z",
+            "contentHash": "c38a93f31fced0f70f2ca2b9153b7b0bfbc7664ba79127f033a007f32d913b0d",
+            "stale": false,
+            "refreshInProgress": false,
+            "refreshError": null
+          },
+          {
+            "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-07/decisions?format=application%2Fld%2Bjson&filter-output=voters&limit=1&offset=0",
+            "fetchedAt": "2026-10-17T18:39:40.480313+00:00",
+            "contentHash": "bcd198fd41b61046f782e2eb521960f0437810896e877806418cb74e4b42fbc6",
+            "stale": false,
+            "refreshInProgress": false,
+            "refreshError": null
+          }
+        ],
+        "results": [
+          {
+            "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-07/vote-results?format=application%2Fld%2Bjson&limit=50&offset=0",
+            "fetchedAt": "2026-10-17T18:39:39.698248+00:00",
+            "contentHash": "5f03d709d1aecb9bb73b3cf188c49bd1a8be43b6c7135075e2d736a93c14eda1",
+            "stale": false,
+            "refreshInProgress": false,
+            "refreshError": null
+          }
+        ],
+        "agenda": [
+          {
+            "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-07/foreseen-activities?format=application%2Fld%2Bjson&limit=50&offset=0",
+            "fetchedAt": "2026-10-17T18:39:39.883151+00:00",
+            "contentHash": "a3056e1c94b48ec5672216249e04ec050fbfb5beaf264936ca7c55795ae6b563",
+            "stale": false,
+            "refreshInProgress": false,
+            "refreshError": null
+          }
+        ]
+      }
+    },
+    {
+      "sittingId": "MTG-PL-2026-10-05",
+      "date": "2026-10-05",
+      "decisions": [
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-05-DEC-197673",
+          "type": "Vote",
+          "activity_date": "2026-10-05",
+          "activity_id": "MTG-PL-2026-10-05-DEC-197673",
+          "activity_label": {
+            "fr": "Ordre du jour de lundi - Demande du groupe ECR – Émeutes de lycéens en France",
+            "mul": "Ordre du jour de lundi - Demande du groupe ECR – Émeutes de lycéens en France",
+            "en": "Monday’s agenda – Request by the ECR Group – Escalating student riots in France",
+            "hu": "Hétfői napirend – Az ECR képviselőcsoport kérelme – A franciaországi diákzavargások"
+          },
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/ADOPTED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "number_of_votes_abstention": 4,
+          "number_of_votes_against": 198,
+          "number_of_votes_favor": 217,
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-10-05-RCV-ITM-001"
+          ],
+          "referenceText": {
+            "fr": "Demande du groupe ECR – Émeutes de lycéens en France",
+            "hu": "Az ECR képviselőcsoport kérelme – A franciaországi diákzavargások",
+            "en": "Request by the ECR Group – Escalating student riots in France"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-05-VOT-ITM-000001"
+          ],
+          "had_voter_abstention": [
+            "person/256966"
+          ],
+          "had_voter_against": [
+            "person/257123"
+          ],
+          "had_voter_favor": [
+            "person/198176"
+          ]
+        }
+      ],
+      "results": [
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-05-VOT-ITM-000001",
+          "type": "Activity",
+          "activity_date": "2026-10-05",
+          "activity_id": "MTG-PL-2026-10-05-VOT-ITM-000001",
+          "activity_label": {
+            "en": "Monday’s agenda – Request by the ECR Group – Escalating student riots in France",
+            "hu": "Hétfői napirend – Az ECR képviselőcsoport kérelme – A franciaországi diákzavargások",
+            "mul": "Ordre du jour de lundi - Demande du groupe ECR – Émeutes de lycéens en France - Monday’s Agenda - Request from the ECR group – Student riots in France - Tagesordnung für Montag - Antrag der ECR-Fraktion – Eskalierende Schülerproteste in Frankreich",
+            "fr": "Ordre du jour de lundi - Demande du groupe ECR – Émeutes de lycéens en France"
+          },
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-05-DEC-197673"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-10-05-VOT-ITM-001"
+          ],
+          "inverse_consists_of": [
+            {
+              "id": "eli/dl/event/MTG-PL-2026-10-05"
+            }
+          ]
+        }
+      ],
+      "agenda": [],
+      "sources": {
+        "decisions": [
+          {
+            "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-05/decisions?format=application%2Fld%2Bjson&vote-method=ROLL_CALL_EV&limit=1",
+            "fetchedAt": "2026-10-17T18:41:08.171499+00:00",
+            "contentHash": "6e21ab2411eb92191c381028a2e6fd794221e2a540e24949a41a2978468a7b75",
+            "stale": false,
+            "refreshInProgress": false,
+            "refreshError": null
+          }
+        ],
+        "results": [
+          {
+            "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-05/vote-results?format=application%2Fld%2Bjson&limit=50",
+            "fetchedAt": "2026-10-17T18:41:08.172210+00:00",
+            "contentHash": "f82b75aa7141af38f42feb8acd37e7d826f95ce9b1dfd7c62b264ca97fdcd20a",
+            "stale": false,
+            "refreshInProgress": false,
+            "refreshError": null
+          }
+        ],
+        "agenda": []
+      }
+    }
+  ]
+}

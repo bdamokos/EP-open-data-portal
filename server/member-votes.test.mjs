@@ -1,0 +1,365 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {MemberVotes, MEMBER_VOTES_LIMITS, memberVotesQuery} from './member-votes.mjs';
+import {cancelledRequest,runWithRequestSignal} from './request-budget.mjs';
+
+const fixture=JSON.parse(readFileSync(new URL('./fixtures/insights-live-20261014.json',import.meta.url)));
+const NOW=Date.parse('2026-10-17T19:10:00Z');
+const SITTING='MTG-PL-2026-10-07';
+const MEMBER='197591';
+const clone=value=>structuredClone(value);
+const meeting=fixture.meetings.payload.data.find(row=>row.activity_id===SITTING);
+// The older retained fixture omits JSON-LD types; annotate this projected
+// collector input so the conducted-ballot evidence is explicit.
+const finalDecision={...fixture.decisions.payload.data.find(row=>row.activity_id===SITTING+'-DEC-197457'),type:'Vote'};
+const finalResult=fixture.results.payload.data.find(row=>row.consists_of?.includes(finalDecision.id));
+const query=value=>memberVotesQuery(new URLSearchParams(value),{now:NOW});
+
+function source(endpoint,params,data,extra={}) {
+  const url=new URL('https://data.europarl.europa.eu/api/v2'+endpoint);
+  for(const [key,value] of Object.entries(params||{}))url.searchParams.set(key,String(value));
+  return {url:url.href,fetchedAt:NOW,payload:{data:clone(data)},...extra};
+}
+
+function setup({decisions=[finalDecision],results,agenda=fixture.foreseen.payload.data,meetings=[meeting],override,limits={},clock=()=>NOW}={}) {
+  const calls=[];
+  const rawResults=results??[{...clone(finalResult),consists_of:decisions.map(row=>row.id)}];
+  const request=async(endpoint,params={})=>{
+    const call={endpoint,params:{...params}};calls.push(call);
+    let kind,rows;
+    if(endpoint==='/meetings'){kind='catalogue';rows=meetings;}
+    else if(endpoint===`/meetings/${SITTING}`){kind='meeting';rows=meetings.filter(row=>row.activity_id===SITTING);}
+    else if(endpoint.endsWith('/decisions')){
+      kind=params['vote-method']==='ROLL_CALL_EV'?'named':'decisions';
+      rows=kind==='named'?decisions:decisions.map(row=>Object.fromEntries(Object.entries(row).filter(([key])=>!key.startsWith('had_voter'))));
+    }else if(endpoint.endsWith('/vote-results')){kind='results';rows=rawResults;}
+    else if(endpoint.endsWith('/foreseen-activities')){kind='agenda';rows=agenda;}
+    else throw new Error('Unexpected source read: '+endpoint);
+    const offset=Number(params.offset||0),limit=Number(params.limit||Number.MAX_SAFE_INTEGER);
+    const supplied=source(endpoint,params,kind==='meeting'?rows:rows.slice(offset,offset+limit));
+    if(override){const replacement=await override({...call,kind,rows,supplied});if(replacement!==undefined)return replacement;}
+    return supplied;
+  };
+  return {service:new MemberVotes({request,clock,limits}),calls};
+}
+
+test('single-sitting collection exposes its bounded period and reuses source reads across members',async()=>{
+  const {service,calls}=setup();
+  const first=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(first.version,1);
+  assert.equal(first.period.sittingId,SITTING);
+  assert.equal(first.period.from,'2026-10-07');
+  assert.equal(first.period.to,'2026-10-07');
+  assert.match(first.snapshotId,/^[a-f0-9]{64}$/);
+  assert.equal(first.coverage.status,'complete');
+  assert.equal(first.coverage.collectionComplete,true);
+  assert.equal(first.coverage.termWide,false);
+  assert.deepEqual(first.coverage.expectedSittingIds,[SITTING]);
+  assert.deepEqual(first.coverage.scannedSittingIds,[SITTING]);
+  assert.deepEqual(first.coverage.failedSittingIds,[]);
+  assert.deepEqual(first.coverage.incompleteSittingIds,[]);
+  assert.equal(first.pagination.observedTotal,1);
+  assert.equal(first.pagination.returned,1);
+  assert.equal(first.pagination.nextOffset,null);
+  assert.equal(first.items.length,1);
+  assert.deepEqual(first.items[0].actualPosition,{status:'recorded',position:'for'});
+  assert.deepEqual(first.items[0].intention,{status:'reported',positions:['abstaining']});
+  assert.deepEqual(first.items[0].totals,{for:454,against:86,abstaining:110});
+  assert.equal(first.items[0].historicalGroup,null);
+  const before=calls.length;
+  const other=await service.query('197481',query('sitting='+SITTING));
+  assert.equal(calls.length,before,'member projection must reuse the collected sitting snapshot');
+  assert.equal(other.snapshotId,first.snapshotId);
+  assert(!calls.some(call=>call.endpoint==='/meetings'),'an explicit sitting does not require the year catalogue');
+  assert(!calls.some(call=>/speeches|plenary-documents|procedures/.test(call.endpoint)),'member projections do not load document or speech details');
+  const named=calls.find(call=>call.kind==='named'||call.params['vote-method']==='ROLL_CALL_EV');
+  assert(named,'a named-voter source is collected separately');
+  assert.notEqual(named.params['filter-output'],'voters','the named source must retain actual voters');
+  assert(calls.some(call=>call.endpoint.endsWith('/decisions')&&call.params['filter-output']==='voters'),'all decisions supply completeness and lapsed-decision evidence');
+});
+
+test('pagination slices one deterministic collected snapshot rather than refetching source pages',async()=>{
+  const decisions=Array.from({length:5},(_,index)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${197450+index}`,activity_id:`${SITTING}-DEC-${197450+index}`,activity_order:String(5-index)}));
+  const {service,calls}=setup({decisions});
+  const first=await service.query(MEMBER,query(`sitting=${SITTING}&limit=2&offset=0`));
+  const count=calls.length;
+  const second=await service.query(MEMBER,query(`sitting=${SITTING}&limit=2&offset=2&snapshot=${first.snapshotId}`));
+  const last=await service.query(MEMBER,query(`sitting=${SITTING}&limit=2&offset=4&snapshot=${first.snapshotId}`));
+  assert.deepEqual([first.pagination.returned,second.pagination.returned,last.pagination.returned],[2,2,1]);
+  assert.deepEqual([first.pagination.nextOffset,second.pagination.nextOffset,last.pagination.nextOffset],[2,4,null]);
+  assert.equal(first.pagination.observedTotal,5);
+  assert.equal(second.pagination.observedTotal,5);
+  assert.equal(calls.length,count);
+  const ids=[...first.items,...second.items,...last.items].map(row=>row.id);
+  assert.equal(new Set(ids).size,5);
+  const full=await service.query(MEMBER,query(`sitting=${SITTING}&limit=10`));
+  assert.deepEqual(ids,full.items.map(row=>row.id));
+  assert.equal(full.snapshotId,first.snapshotId);
+  await assert.rejects(service.query(MEMBER,query(`sitting=${SITTING}&snapshot=${'0'.repeat(64)}`)),error=>error.status===409);
+});
+
+test('declared result children missing from both decision streams prevent complete coverage',async()=>{
+  const missing=`eli/dl/event/${SITTING}-DEC-199999`;
+  const {service}=setup({results:[{...clone(finalResult),consists_of:[finalDecision.id,missing]}]});
+  const result=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(result.items.length,1,'known observations survive incomplete result children');
+  assert.equal(result.coverage.status,'partial');
+  assert.equal(result.coverage.collectionComplete,false);
+  assert.deepEqual(result.coverage.incompleteSittingIds,[SITTING]);
+  assert(JSON.stringify(result.coverage).includes('199999'),'the unresolved exact child identifier remains reviewable');
+});
+
+test('failed selected-sitting metadata is unavailable rather than a complete empty period',async()=>{
+  const {service}=setup({override:({kind})=>{if(kind==='meeting')throw new Error('Selected sitting unavailable');}});
+  const result=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(result.period.sittingId,SITTING);
+  assert.equal(result.items.length,0);
+  assert.equal(result.coverage.status,'unavailable');
+  assert.equal(result.coverage.collectionComplete,false);
+  assert.deepEqual(result.coverage.failedSittingIds,[SITTING]);
+});
+
+test('a valid empty source period is distinct from unavailable decision content',async()=>{
+  const complete=setup({decisions:[],results:[],agenda:[]});
+  const empty=await complete.service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(empty.coverage.status,'complete');
+  assert.equal(empty.coverage.collectionComplete,true);
+  assert.equal(empty.pagination.observedTotal,0);
+  assert.deepEqual(empty.items,[]);
+  const missing=setup({decisions:[],results:[],agenda:[],override:({kind})=>{if(kind==='decisions'||kind==='named')throw Object.assign(new Error('No content'),{status:502,code:'odp_no_content'});}});
+  const unavailable=await missing.service.query(MEMBER,query('sitting='+SITTING));
+  assert.notEqual(unavailable.coverage.status,'complete');
+  assert.equal(unavailable.coverage.collectionComplete,false);
+  assert.deepEqual(unavailable.items,[]);
+});
+
+test('decision endpoints that ignore offset terminate on repeats and keep coverage uncertain',async()=>{
+  const count=MEMBER_VOTES_LIMITS.pageSize;
+  const decisions=Array.from({length:count},(_,index)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${200000+index}`,activity_id:`${SITTING}-DEC-${200000+index}`}));
+  const {service,calls}=setup({decisions,limits:{decisionPageSize:count},override:({kind,endpoint,params,rows})=>{
+    if(kind==='decisions'||kind==='named')return source(endpoint,params,rows);
+  }});
+  const result=await service.query(MEMBER,query(`sitting=${SITTING}&limit=100`));
+  assert.equal(result.coverage.status,'partial');
+  assert.equal(result.coverage.collectionComplete,false);
+  assert.equal(new Set(result.items.map(row=>row.id)).size,result.items.length);
+  assert.equal(result.pagination.observedTotal,count);
+  assert(calls.filter(call=>call.endpoint.endsWith('/decisions')).length<=4,'each repeated stream stops after its second identical page');
+  assert(JSON.stringify(result.coverage).match(/repeat/i));
+});
+
+test('later source-page failure retains observed decisions and reports partial collection',async()=>{
+  const count=MEMBER_VOTES_LIMITS.pageSize;
+  const decisions=Array.from({length:count},(_,index)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${210000+index}`,activity_id:`${SITTING}-DEC-${210000+index}`}));
+  const {service}=setup({decisions,limits:{decisionPageSize:count},override:({kind,params})=>{
+    if((kind==='decisions'||kind==='named')&&Number(params.offset)>0)throw new Error('Second page temporarily unavailable');
+  }});
+  const result=await service.query(MEMBER,query(`sitting=${SITTING}&limit=100`));
+  assert.equal(result.coverage.status,'partial');
+  assert.equal(result.coverage.collectionComplete,false);
+  assert.equal(result.pagination.observedTotal,count);
+  assert(result.items.length>0);
+  assert.match(JSON.stringify(result.coverage),/Second page temporarily unavailable/);
+});
+
+test('204 after a full source page terminates that stream without losing observed rows',async()=>{
+  const count=MEMBER_VOTES_LIMITS.pageSize;
+  const decisions=Array.from({length:count},(_,index)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${220000+index}`,activity_id:`${SITTING}-DEC-${220000+index}`}));
+  const {service}=setup({decisions,limits:{decisionPageSize:count},override:({kind,params})=>{
+    if((kind==='decisions'||kind==='named')&&Number(params.offset)>0)throw Object.assign(new Error('No further content'),{status:502,code:'odp_no_content'});
+  }});
+  const result=await service.query(MEMBER,query(`sitting=${SITTING}&limit=100`));
+  assert.equal(result.coverage.status,'complete');
+  assert.equal(result.coverage.collectionComplete,true);
+  assert.equal(result.pagination.observedTotal,count);
+});
+
+test('records returned for another sitting are rejected instead of contaminating the period',async()=>{
+  const foreign=JSON.parse(JSON.stringify(finalDecision).replaceAll('2026-10-07','2026-10-06'));
+  const {service}=setup({decisions:[foreign],results:[]});
+  const result=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.deepEqual(result.items,[]);
+  assert.notEqual(result.coverage.status,'complete');
+  assert.equal(result.coverage.collectionComplete,false);
+});
+
+test('source stale and refresh-error observations survive in response provenance',async()=>{
+  const {service}=setup({override:({kind,supplied})=>kind==='named'?{...supplied,stale:true,refreshError:'Public source refresh delayed'}:undefined});
+  const result=await service.query(MEMBER,query('sitting='+SITTING));
+  const serial=JSON.stringify(result);
+  assert(serial.includes('Public source refresh delayed'));
+  assert(serial.includes('"stale":true'));
+  assert(serial.includes(new Date(NOW).toISOString()),'retrieval timestamp is explicit');
+});
+
+test('selected decisions are resolved from the full snapshot independently of the visible page',async()=>{
+  const decisions=Array.from({length:3},(_,index)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${230000+index}`,activity_id:`${SITTING}-DEC-${230000+index}`}));
+  const {service}=setup({decisions});
+  const whole=await service.query(MEMBER,query(`sitting=${SITTING}&limit=10`));
+  const selectedId=whole.items.at(-1).id;
+  const page=await service.query(MEMBER,query(`sitting=${SITTING}&limit=1&decision=${selectedId}&snapshot=${whole.snapshotId}`));
+  assert.equal(page.items.length,1);
+  assert.notEqual(page.items[0].id,selectedId);
+  assert.equal(page.selected.status,'found');
+  assert.equal(page.selected.item.id,selectedId);
+});
+
+test('a reader abort stops only that wait and leaves the shared period load available to another reader',async()=>{
+  let entered,release;
+  const waiting=new Promise(resolve=>{entered=resolve;});
+  const held=new Promise(resolve=>{release=resolve;});
+  const {service,calls}=setup({override:async({kind,supplied})=>{
+    if(kind==='meeting'){entered();await held;return supplied;}
+  }});
+  const controller=new AbortController();
+  const abandoned=runWithRequestSignal(controller.signal,()=>service.query(MEMBER,query('sitting='+SITTING)));
+  await waiting;
+  const continuing=service.query('197481',query('sitting='+SITTING));
+  controller.abort(cancelledRequest());
+  await assert.rejects(abandoned,error=>error.code==='request_cancelled');
+  release();
+  const result=await continuing;
+  assert.equal(result.coverage.status,'complete');
+  const count=calls.length;
+  await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(calls.length,count,'the completed shared load is reusable');
+});
+
+for(const code of ['request_cancelled','request_timeout','upstream_busy'])test(`local ${code} is propagated and never cached as a source coverage gap`,async()=>{
+  let fail=true;
+  const {service,calls}=setup({override:({kind})=>{
+    if(kind==='named'&&fail)throw Object.assign(new Error('Local request was interrupted'),{status:503,code});
+  }});
+  await assert.rejects(service.query(MEMBER,query('sitting='+SITTING)),error=>error.code===code);
+  const count=calls.length;fail=false;
+  const retry=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(retry.coverage.status,'complete');
+  assert.equal(retry.coverage.collectionComplete,true);
+  assert(calls.length>count,'a failed local load was not published in the snapshot cache');
+});
+
+test('an already-aborted reader cannot start source collection',async()=>{
+  const {service,calls}=setup();
+  const controller=new AbortController();controller.abort(cancelledRequest());
+  await assert.rejects(runWithRequestSignal(controller.signal,()=>service.query(MEMBER,query('sitting='+SITTING))),error=>error.code==='request_cancelled');
+  assert.equal(calls.length,0);
+});
+
+test('a retained latest snapshot pins its resolved week before consulting a changed catalogue',async()=>{
+  let now=NOW;
+  const meetings=[clone(meeting)];
+  const {service,calls}=setup({meetings,clock:()=>now});
+  const first=await service.query(MEMBER,query('week=latest'));
+  assert.equal(first.period.week,'2026-10-05');
+  const count=calls.length;
+  meetings.push(JSON.parse(JSON.stringify(meeting).replaceAll('2026-10-07','2026-10-14')));
+  now+=MEMBER_VOTES_LIMITS.cacheMs+1;
+  const pinned=await service.query(MEMBER,query('week=latest&snapshot='+first.snapshotId));
+  assert.equal(pinned.period.week,'2026-10-05');
+  assert.equal(pinned.snapshotId,first.snapshotId);
+  assert.equal(calls.length,count,'the latest catalogue is irrelevant to an explicitly retained snapshot');
+});
+
+test('week collection reads only that held period and never loads other weeks or full-term details',async()=>{
+  const meetings=[meeting,...['2026-10-14','2026-10-19'].map(date=>JSON.parse(JSON.stringify(meeting).replaceAll('2026-10-07',date)))];
+  const {service,calls}=setup({meetings});
+  const result=await service.query(MEMBER,query('week=2026-10-05'));
+  assert.equal(result.period.kind,'week');
+  assert.equal(result.period.week,'2026-10-05');
+  assert.equal(result.period.from,'2026-10-05');
+  assert.equal(result.period.to,'2026-10-11');
+  assert.deepEqual(result.coverage.expectedSittingIds,[SITTING]);
+  assert.equal(result.coverage.termWide,false);
+  assert.equal(result.coverage.status,'complete');
+  assert.deepEqual(calls.filter(call=>call.endpoint==='/meetings').map(call=>call.params.year),[2026]);
+  assert(calls.every(call=>call.endpoint==='/meetings'||call.endpoint.startsWith('/meetings/'+SITTING+'/')));
+});
+
+test('the first term week is accepted while weeks wholly before the term remain invalid',()=>{
+  assert.equal(query('week=2024-07-15').week,'2024-07-15');
+  assert.throws(()=>query('week=2024-07-08'),error=>error.status===400);
+  assert.throws(()=>query('sitting=MTG-PL-2024-07-15'),error=>error.status===400);
+});
+
+test('the snapshot identity changes with unprojected raw data, exact context, source provenance and coverage',async()=>{
+  const base=await setup().service.query(MEMBER,query('sitting='+SITTING));
+  const variants=[
+    setup({decisions:[{...clone(finalDecision),sourceRevisionMarker:'new raw source field'}]}),
+    setup({results:[{...clone(finalResult),consists_of:[finalDecision.id],based_on_a_realization_of:['eli/dl/doc/A-10-2026-9999']}]}),
+    setup({agenda:fixture.foreseen.payload.data.map(row=>({...clone(row),sourceRevisionMarker:'new agenda source field'}))}),
+    setup({override:({kind,supplied})=>kind==='named'?{...supplied,fetchedAt:NOW+1000}:undefined}),
+    setup({override:({kind,supplied})=>kind==='named'?{...supplied,stale:true,refreshError:'Refresh delayed'}:undefined}),
+    setup({results:[{...clone(finalResult),consists_of:[finalDecision.id,`eli/dl/event/${SITTING}-DEC-999999`]}]})
+  ];
+  const ids=[];
+  for(const {service} of variants)ids.push((await service.query(MEMBER,query('sitting='+SITTING))).snapshotId);
+  assert(ids.every(id=>id!==base.snapshotId));
+  assert.equal(new Set(ids).size,ids.length);
+});
+
+test('a collector owner timeout is propagated and cannot publish the late source response',async()=>{
+  let delay=true;
+  const {service,calls}=setup({limits:{timeoutMs:5},override:async({kind,supplied})=>{
+    if(kind==='named'&&delay){await new Promise(resolve=>setTimeout(resolve,20));return supplied;}
+  }});
+  await assert.rejects(service.query(MEMBER,query('sitting='+SITTING)),error=>error.code==='request_timeout');
+  await new Promise(resolve=>setTimeout(resolve,25));
+  const count=calls.length;delay=false;
+  const retry=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(retry.coverage.status,'complete');
+  assert(calls.length>count,'the response that arrived after the owner deadline was not cached');
+});
+
+test('decision page caps stop bounded retrieval without claiming complete collection',async()=>{
+  const decisions=Array.from({length:3},(_,index)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${240000+index}`,activity_id:`${SITTING}-DEC-${240000+index}`}));
+  const {service,calls}=setup({decisions,limits:{decisionPageSize:2,decisionPages:1}});
+  const result=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(result.coverage.status,'partial');
+  assert.equal(result.coverage.collectionComplete,false);
+  assert.equal(result.pagination.observedTotal,2);
+  assert.equal(result.coverage.sittings[0].decisions.stopReason,'page-budget');
+  assert.equal(result.coverage.sittings[0].namedDecisions.stopReason,'page-budget');
+  assert.equal(calls.filter(call=>call.endpoint.endsWith('/decisions')).length,2);
+});
+
+test('named decision collection continues beyond the old first-250 boundary',async()=>{
+  const small={...clone(finalDecision),had_voter_favor:['person/'+MEMBER],had_voter_against:[],had_voter_abstention:[],number_of_votes_favor:1,number_of_votes_against:0,number_of_votes_abstention:0};
+  const decisions=Array.from({length:260},(_,index)=>({...clone(small),id:`eli/dl/event/${SITTING}-DEC-${250000+index}`,activity_id:`${SITTING}-DEC-${250000+index}`}));
+  const {service,calls}=setup({decisions});
+  const selectedId=decisions.at(-1).activity_id;
+  const result=await service.query(MEMBER,query(`sitting=${SITTING}&offset=250&limit=25&decision=${selectedId}`));
+  assert.equal(result.coverage.status,'complete');
+  assert.equal(result.pagination.observedTotal,260);
+  assert.equal(result.pagination.returned,10);
+  assert.equal(result.pagination.nextOffset,null);
+  assert.equal(result.selected.item.id,selectedId);
+  assert.deepEqual(result.selected.item.actualPosition,{status:'recorded',position:'for'});
+  assert.deepEqual(calls.filter(call=>call.params['vote-method']==='ROLL_CALL_EV').map(call=>call.params.offset),[0,250]);
+});
+
+test('result collection follows later pages and checks all declared decision children',async()=>{
+  const first={...clone(finalResult),consists_of:[finalDecision.id]};
+  const secondDecision={...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-250300`,activity_id:`${SITTING}-DEC-250300`,inverse_consists_of:[`eli/dl/event/${SITTING}-VOT-ITM-999999`]};
+  const second={...clone(finalResult),id:`eli/dl/event/${SITTING}-VOT-ITM-999999`,activity_id:`${SITTING}-VOT-ITM-999999`,consists_of:[secondDecision.id]};
+  const agenda=fixture.foreseen.payload.data.filter(row=>row.id==='eli/dl/event/'+SITTING+'-OJ-ITM-V-48');
+  const {service,calls}=setup({decisions:[finalDecision,secondDecision],results:[first,second],agenda,limits:{pageSize:1}});
+  const result=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(result.coverage.status,'complete');
+  assert.equal(result.coverage.sittings[0].results.rows,2);
+  assert.equal(result.coverage.sittings[0].completeness.complete,true);
+  assert.deepEqual(calls.filter(call=>call.endpoint.endsWith('/vote-results')).map(call=>call.params.offset),[0,1,2]);
+});
+
+test('official undated roll-call and split request metadata does not invalidate dated result coverage',async()=>{
+  const result={...clone(finalResult),consists_of:[finalDecision.id]};
+  const requests=[['SPLIT','REQUEST_VOTE_SPLIT'],['RCV','REQUEST_VOTE_ROLLCALL']].map(([suffix,type])=>({
+    id:`${result.id}-${suffix}-1`,activity_id:`${result.activity_id}-${suffix}-1`,had_activity_type:'def/ep-activities/'+type,type:'Activity'
+  }));
+  const {service}=setup({results:[result,...requests]});
+  const response=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(response.coverage.status,'complete');
+  assert.deepEqual(response.coverage.sittings[0].completeness.invalidSourceIds,[]);
+  assert.equal(response.coverage.sittings[0].results.rows,3);
+  assert.equal(response.items[0].date,'2026-10-07');
+});
