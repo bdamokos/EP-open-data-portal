@@ -46,6 +46,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 - Speech and date-range filters have no span limit in the API. The current term starts 16 July 2024.
 - Records can contain fields such as `notation_codictPersonId`. These are fields of the open API, not calls to another service.
 - `/meps/show-current?mandate-date=YYYY-MM-DD` gives the dated roster. Use it, not today's roster, to classify historical speakers.
+- Parliamentary questions can be tabled by Members, political groups or committees ([Rule 142](https://www.europarl.europa.eu/doceo/document/lastrules/RULE-142_EN.html), [Rule 144](https://www.europarl.europa.eu/doceo/document/lastrules/RULE-144_EN.html)). The [question data model](https://europarl.github.io/eli-ep/dsd/parliamentary-questions/#participation) separates person authors from organisations and addressees. The Questions view counts exact person-author IDs as MEP authors at tabling and distinguishes current and former MEPs using the saved current roster. Its author total includes both; demographic charts cover current MEPs only. This question-specific classification does not apply to plenary speakers.
 - Older website speech references use a hyphenated legacy document number (e.g. `CRE-9-2021-11-24-INT-3-103-0000_EN.html`). No archive-wide changeover date is known.
 
 ### Speeches and debate structure

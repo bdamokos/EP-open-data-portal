@@ -11,7 +11,7 @@ test('question text search keeps country and dates while visual topic filters re
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let vite,root;
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  const stats={uniqueCurrentMeps:0,denominator:0,referenceDate:'2026-10-11',dimensions:{country:[],group:[],gender:[],age:[]}},searches=[];
+  const stats={uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:'2026-10-11',dimensions:{country:[],group:[],gender:[],age:[]}},searches=[];
   t.mock.method(globalThis,'fetch',async(input,options)=>{
     const url=new URL(input,window.location.href);
     if(url.pathname.endsWith('/insights/questions'))return Response.json({window:{start:'2025-10-12',end:'2026-10-11'},counts:{selectedQuestions:0},selection:{word:'water',wordLabel:'water'},stats,selectedStats:stats,clusters:[],words:[],questions:[],nextOffset:null,facets:{countries:[{code:'IT',count:0,authors:0}]},analysis:{unassignedQuestions:0,missingEnglishTitles:0},coverage:{indexComplete:false,truncated:false}});
@@ -59,7 +59,7 @@ test('question country and date gestures reset restored text results without cha
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let vite,root;const searches=[],readerRequests=[];
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  const stats={uniqueCurrentMeps:0,denominator:0,referenceDate:'2026-10-11',dimensions:{country:[],group:[],gender:[],age:[]}};
+  const stats={uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:'2026-10-11',dimensions:{country:[],group:[],gender:[],age:[]}};
   const record=id=>({sourceId:id,sourceKey:'fr',kind:'question',parentId:null,date:'2026-09-15',language:'fr',translationType:'original',sourceUrl:'https://www.europarl.europa.eu/doceo/document/'+id+'_EN.html',sha256:'fixture-hash',snippet:'\u0002Water\u0003 policy',body:id===ids.IT?'Italian saved reader':'Another saved reader',fetchedAt:'2026-10-15T12:00:00Z',checkedAt:'2026-10-15T12:00:00Z'});
   t.mock.method(globalThis,'fetch',async(input,options={})=>{
     const url=new URL(input,window.location.href),params=url.searchParams;
