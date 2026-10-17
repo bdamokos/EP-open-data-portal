@@ -36,10 +36,10 @@ try{
     const health=await (await get('/healthz')).json();
     assert.equal(health.ok,true);assert.equal(health.service,'parliament-explorer');
     const html=await (await get('/')).text();
-    const asset=html.match(/<script[^>]+src="(\\/assets\\/[^"?]+\\.js)"/);
+    const asset=html.match(/<script[^>]+src="((?:\\.)?\\/assets\\/[^"?]+\\.js)"/);
     assert(asset,'Built frontend entry is missing.');
-    assert((await (await get(asset[1])).text()).length>0,'Built frontend entry is empty.');
-    assert.equal((await fetch(base+'/src/speakerNames.mjs')).status,404,'Runtime source must not be publicly served.');
+    assert((await (await get(new URL(asset[1],base).pathname)).text()).length>0,'Built frontend entry is empty.');
+    assert.equal((await fetch(base+'/src/speakerNames.mjs',{signal:AbortSignal.timeout(3000)})).status,404,'Runtime source must not be publicly served.');
     console.log(JSON.stringify({revision:${JSON.stringify(revision)},node:process.versions.node,health:health.ok,asset:asset[1]}));
   `;
   console.log(docker('exec',container,'node','--input-type=module','-e',probe));
