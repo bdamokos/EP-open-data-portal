@@ -90,3 +90,12 @@ test('a missing file size is not recorded as zero', async t => {
   const later = await documentText(work(url, {byteSize: 1000}), 'en', {directory, download, clock});
   assert.equal(later.stale, false); assert.equal(calls, 1);
 });
+
+test('a failed cache scan is retried on the next use', async t => {
+  const root = await fixture(t), directory = path.join(root, 'document-text-v1');
+  await writeFile(directory, 'not a directory');
+  const budget = new CacheDiskBudget(directory, {maxBytes: 100, maxEntries: 10, pattern: /^[0-9a-f]{64}\.json$/});
+  await assert.rejects(budget.initialize(), {code: 'ENOTDIR'});
+  await rm(directory); await mkdir(directory); await writeFile(path.join(directory, 'a'.repeat(64) + '.json'), 'x'.repeat(10));
+  await budget.initialize(); assert.equal(budget.bytes, 10);
+});

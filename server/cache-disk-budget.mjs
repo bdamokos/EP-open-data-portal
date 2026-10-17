@@ -29,7 +29,7 @@ export class CacheDiskBudget {
         this.entries.set(name, {size: info.size, usedAt: info.mtimeMs, touchedAt: info.mtimeMs}); this.bytes += info.size;
       }
       await this.trim(null);
-    })();
+    })().catch(error => { this.ready = null; throw error; });
     return this.ready;
   }
 
