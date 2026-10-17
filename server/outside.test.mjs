@@ -6,9 +6,10 @@ import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {outsideSpeech,outsideAgenda,outsidePerson,outsideCapacity} from './outside-model.mjs';
-import {recordOutside,outsideDirectory,outsideSpeaker,outsideQuery} from './outside-store.mjs';
+import {recordOutside,outsideDirectory,outsideSpeaker,outsideQuery,initializeOutsideAgendaUpgrade,outsideAgendaUpgradeDue} from './outside-store.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/outside-speakers-20261016.json',import.meta.url),'utf8'));
+const conflict=JSON.parse(readFileSync(new URL('./fixtures/outside-agenda-conflict.json',import.meta.url),'utf8'));
 const sample=(id)=>fixture.contributions.find(row=>row.activity.activity_id===id);
 const project=row=>outsideSpeech(row.activity,row.retrievedAt,row.sourceUrl);
 const saved={url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date=2025-03-11',fetchedAt:'2026-10-16T06:00:00.000Z'};
@@ -19,6 +20,72 @@ function seed(store,generation,contributions=fixture.contributions) {
   for(const row of contributions) {const speech=project(row);roster(store,generation,speech.date);store.putSource(generation,'/speeches/'+speech.id,speech.term===9?'outside-speech':'speech',{id:speech.id,outside:speech},row.retrievedAt);recordOutside(store,generation,speech);}
   for(const row of fixture.agendas)store.putSource(generation,'outside:agenda:'+row.activity.activity_id,'outside-agenda',outsideAgenda(row.activity,row.retrievedAt,row.sourceUrl),row.retrievedAt);
 }
+
+test('validated indexed agenda contradictions resolve consistently on read without writes',withStore((store,generation)=>{
+  store.putSource(generation,'outside:state','outside-state',{version:1},saved.fetchedAt);
+  for(const row of conflict.contributions) {
+    const speech=project(row);
+    // Retain complete document evidence alongside the original API links.
+    speech.parentIds=speech.reportedParentIds;delete speech.reportedParentIds;
+    roster(store,generation,speech.date);recordOutside(store,generation,speech);
+  }
+  for(const row of conflict.agendas)store.putSource(generation,'outside:agenda:'+row.activity.activity_id,'outside-agenda',outsideAgenda(row.activity,row.retrievedAt,row.sourceUrl),row.retrievedAt);
+  const first=project(conflict.contributions[0]),wrong=conflict.agendas[0].activity.activity_id,right=conflict.agendas[1].activity.activity_id;
+  // A person speaking only in the resumption must not leak into the discharge.
+  recordOutside(store,generation,{...first,id:'MTG-PL-2026-04-28-OTH-999999',participants:['999999'],headers:[{personId:'999999',name:'Procedural guest',role:'Guest speaker'}],parentIds:[wrong],reportedParentIds:undefined,parentDocumentId:'CRE-10-2026-04-28-ITM-011',parentDocumentIds:['CRE-10-2026-04-28-ITM-011']});
+  const before=store.db.prepare('SELECT body FROM outside_contributions ORDER BY speech,person').all();
+  store.db.exec('PRAGMA query_only=ON');
+  const directory=outsideDirectory(store,{term:'10',language:'en'}),person=directory.people.find(p=>p.id==='238669');
+  assert.equal(person.appearances,1);assert.equal(person.contributions,2);assert.equal(person.days[0].formal,false);
+  assert.deepEqual(person.days[0].itemIds,[right]);
+  const detail=outsideSpeaker(store,'238669',{term:'10',language:'en'});
+  assert.equal(detail.agendas.length,1);assert.equal(detail.agendas[0].id,right);
+  assert.equal(detail.contributions.length,2);assert.equal(detail.coSpeakers.length,0);
+  for(const c of detail.contributions){assert.deepEqual(c.parentIds,[right]);assert.deepEqual(c.reportedParentIds,[wrong,right]);}
+  assert.deepEqual(store.db.prepare('SELECT body FROM outside_contributions ORDER BY speech,person').all(),before);
+  store.db.exec('PRAGMA query_only=OFF');
+}));
+
+test('ambiguous legacy rows retain their links until the existing source writer verifies all documents',withStore(async(store,generation)=>{
+  store.putSource(generation,'outside:state','outside-state',{version:1},saved.fetchedAt);
+  for(const row of conflict.contributions) {
+    const speech=project(row);speech.parentIds=speech.reportedParentIds;delete speech.reportedParentIds;delete speech.parentDocumentIds;
+    roster(store,generation,speech.date);recordOutside(store,generation,speech);
+  }
+  const query={term:'10',language:'en'};
+  assert.equal(outsideSpeaker(store,'238669',query).person.appearances,2);
+  // Recreate a legacy queue that predates the new enqueue hook.
+  store.db.prepare("DELETE FROM tasks WHERE key LIKE 'outside:agenda-membership:%'").run();
+  assert(outsideAgendaUpgradeDue(store,generation));
+  initializeOutsideAgendaUpgrade(store,generation,saved.fetchedAt);
+  const tasks=()=>store.db.prepare("SELECT * FROM tasks WHERE generation=? AND key LIKE 'outside:agenda-membership:%'").all(generation).map(t=>({...t,body:JSON.parse(t.body)}));
+  assert.equal(tasks().length,2);initializeOutsideAgendaUpgrade(store,generation,saved.fetchedAt);assert.equal(tasks().length,2);
+  assert.equal(outsideAgendaUpgradeDue(store,generation),false);
+  const calls=[];
+  const worker=new ActivityWorker(store,{fetchRecord:async endpoint=>{
+    calls.push(endpoint);const row=conflict.contributions.find(r=>endpoint==='/speeches/'+r.activity.activity_id);assert(row,'no catalogue or corpus download');
+    return {fetchedAt:row.retrievedAt,payload:{data:[row.activity]}};
+  }});
+  for(const task of tasks())await worker.outsideTask(task);
+  assert.equal(calls.length,2);assert.equal(outsideSpeaker(store,'238669',query).person.appearances,1);
+  assert(outsideSpeaker(store,'238669',query).contributions.every(c=>c.reportedParentIds.length===2));
+  for(const task of tasks())assert.equal(task.done,1);
+}));
+
+test('failed legacy verification preserves source rows and leaves a durable retry gap',withStore(async(store,generation)=>{
+  store.putSource(generation,'outside:state','outside-state',{version:1},saved.fetchedAt);
+  const speech=project(conflict.contributions[0]);speech.parentIds=speech.reportedParentIds;delete speech.reportedParentIds;delete speech.parentDocumentIds;
+  roster(store,generation,speech.date);recordOutside(store,generation,speech);
+  initializeOutsideAgendaUpgrade(store,generation,saved.fetchedAt);
+  const row=store.db.prepare("SELECT * FROM tasks WHERE key LIKE 'outside:agenda-membership:%'").get(),task={...row,body:JSON.parse(row.body)};
+  const before=store.db.prepare('SELECT body FROM outside_contributions').all();
+  const worker=new ActivityWorker(store,{fetchRecord:async()=>{throw new Error('unavailable verification');}});
+  await assert.rejects(worker.outsideTask(task),/unavailable verification/);
+  assert.deepEqual(store.db.prepare('SELECT body FROM outside_contributions').all(),before);
+  assert(worker.failOutside({...task,attempts:2},new Error('unavailable verification')));
+  assert.equal(outsideDirectory(store,{term:'10',language:'en'}).coverage.gaps,1);
+  assert.equal(outsideSpeaker(store,'238669',{term:'10',language:'en'}).person.appearances,2);
+}));
 
 test('reviewed source roles distinguish institutions, national leaders and invited guests',()=>{
   const cases={
