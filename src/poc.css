@@ -29,8 +29,11 @@
 .poc-results small { display: block; font-size: 13px; margin-top: 3px; }
 .poc-results button { font-size: 15px; }
 .poc-portraits { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 20px; overflow: auto; min-height: 0; padding: 4px 8px 16px 0; align-content: start; }
-.poc-portrait-item { min-width: 0; }
-.poc .poc-portrait-item .portrait { width: 100%; height: auto; aspect-ratio: 4 / 5; padding: 0; }
+.poc-portrait-item { min-width: 0; container-type: inline-size; }
+/* Keep a 4:3 photo window above the complete name, growing beyond the usual 4:5 card when needed. */
+.poc .poc-portrait-item .portrait { display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(75cqw,1fr) auto; width: 100%; height: auto; min-height: 125cqw; padding: 0; }
+.poc-portrait-item .portrait img { position: absolute; inset: 0; height: auto; aspect-ratio: 4 / 5; }
+.poc-portrait-item .portrait__label { position: relative; inset: auto; grid-area: 2 / 1; min-width: 0; width: 100%; }
 .poc .portrait__label { font-size: 17px; min-height: 56px; padding: 10px 12px; }
 .poc-portrait-item > small { display: block; margin-top: 8px; }
 .poc-index { background: #083c7b; padding: 16px; font-size: 16px; margin-bottom: 16px; }
