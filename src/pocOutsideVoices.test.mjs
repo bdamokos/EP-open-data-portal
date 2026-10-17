@@ -76,7 +76,8 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
   const {PocOutsideVoices}=await vite.ssrLoadModule('/src/PocOutsideVoices.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  await act(async()=>root.render(createElement(PocOutsideVoices,{language:'en',onBack(){}})));
+  const render=language=>act(async()=>root.render(createElement(PocOutsideVoices,{language,onBack(){}})));
+  await render('en');
   const select=label=>{
     const node=[...container.querySelectorAll('label')].find(l=>l.textContent.trim().startsWith(label))?.querySelector('select');
     assert(node,'Missing labelled select: '+label);return node;
@@ -84,7 +85,7 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
   const change=async(label,value)=>act(async()=>{const node=select(label);node.value=value;node.dispatchEvent(new window.Event('change',{bubbles:true}));});
   const click=async text=>act(async()=>{const node=[...container.querySelectorAll('button')].find(b=>b.textContent===text);assert(node,'Missing button: '+text);node.click();});
   const navigate=async query=>act(async()=>{history.replaceState(null,'','/'+query);window.dispatchEvent(new window.Event('popstate'));});
-  return {window,container,calls,select,change,click,navigate};
+  return {window,container,calls,select,change,click,navigate,render};
 }
 
 const sourceIds=container=>[...new Set([...container.querySelectorAll('.ov-evidence dl')].map(dl=>dl.querySelector('dd').textContent))].sort();
@@ -309,10 +310,11 @@ test('each recent speech opens its exact transcript in one click, including repe
   const detail=speaker('42','Direct guest',[
     speech(day,'01',[item(day,1)]),speech(day,'02',[item(day,1),item(day,2)]),speech(day,'03',[]),
   ]);
-  detail.contributions.forEach(c=>c.titles={en:'Same agenda title'});
+  detail.contributions.forEach(c=>{c.titles={en:'Same agenda title'};c.start=day+'T10:00:00Z';});
   const {container,calls}=await harness(t,[detail],'?view=outside&ov-person=42');
   const cards=[...container.querySelectorAll('.ov-appearance-cards button')];
   assert.equal(cards.length,3,'every exact contribution has its own action even when titles match');
+  assert.deepEqual(cards.map(card=>card.querySelector(':scope>span').textContent),['Read speech 1 →','Read speech 2 →','Read speech 3 →'],'same-minute speeches remain distinguishable');
   assert.equal(calls.filter(url=>url.pathname.includes('/speech/')).length,0,'listing speeches does not preload transcripts');
   for(const [index,card] of cards.entries()) {
     const id=detail.contributions[index].id;
@@ -322,6 +324,8 @@ test('each recent speech opens its exact transcript in one click, including repe
     assert.equal(readers[0].textContent,'Transcript for '+id);
     assert.equal(readers[0].closest('[data-ov-speech]').dataset.ovSpeech,id);
     assert.equal(document.activeElement,readers[0].closest('.ov-speech-reader'));
+    assert.equal(document.activeElement.getAttribute('role'),'region');
+    assert.equal(document.activeElement.getAttribute('aria-label'),'Speech');
     assert.match(container.querySelector('.ov-sources summary').textContent,/partial/);
     await act(async()=>container.querySelector('[aria-label="Close speeches"]').click());
     assert.equal(document.activeElement,card,'closing returns to the exact speech card');
@@ -345,4 +349,19 @@ test('a direct speech shows loading immediately and late transcript arrival neve
   await act(async()=>{card.focus();card.click();});
   assert.equal(container.querySelector('.ov-drawer .insight-reader-text').textContent,'Delayed exact transcript.','cached reopening also opens the transcript immediately');
   assert.equal(calls.filter(url=>url.pathname.includes('/speech/')).length,1);
+});
+
+
+test('a consumed direct-speech opening does not reopen a closed reader after a language reload',async t=>{
+  const detail=speaker('42','Reload guest',[speech('2026-10-07','01',[])]);
+  const {container,calls,render,click}=await harness(t,[detail],'?view=outside&ov-person=42');
+  await act(async()=>container.querySelector('.ov-appearance-cards button').click());
+  assert(container.querySelector('.ov-drawer .insight-reader-text'));
+  await click('Close speech');
+  assert.equal(container.querySelector('.ov-drawer .ov-speech-reader'),null);
+  const speechCalls=calls.filter(url=>url.pathname.includes('/speech/')).length;
+  await render('fr');
+  assert(container.querySelector('.ov-drawer .ov-contribution'));
+  assert.equal(container.querySelector('.ov-drawer .ov-speech-reader'),null,'new drawer data cannot revive an already consumed opening');
+  assert.equal(calls.filter(url=>url.pathname.includes('/speech/')).length,speechCalls);
 });
