@@ -596,6 +596,11 @@ export function chooseTranscript(docs, language) {
   };
 }
 export async function odpSpeech(id, language) {
+  const {speechTranscript}=await import('./speech-transcript.mjs');
+  try {
+    const retained=await speechTranscript(id,language);
+    if(retained.available&&retained.metadata)return {...retained.metadata,xml:retained.xml};
+  }catch {requestSignal()?.throwIfAborted();}
   const record = await odp(`/speeches/${id}`, {
     "include-output": "xml_fragment",
   }, {staleWhileRevalidate:true});
