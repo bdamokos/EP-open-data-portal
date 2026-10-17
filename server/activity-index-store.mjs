@@ -150,7 +150,7 @@ export class ActivityStore {
       this.assertWriter();
       this.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,key,kind,JSON.stringify(work),fetchedAt);
       this.replaceRows(generation,key,rows);
-      if(work.groupVoices)recordGroupVoice(this,generation,work.groupVoices,work.outside);
+      if(Object.hasOwn(work,'groupVoices'))recordGroupVoice(this,generation,work.groupVoices,work.outside,work.id);
     });
   }
   replaceRows(generation,key,rows) {

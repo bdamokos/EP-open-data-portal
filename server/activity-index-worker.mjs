@@ -284,7 +284,7 @@ export class ActivityWorker {
     // A metadata-only weekly refresh must retain a previously checked header.
     if(outside && previous?.headerChecked && (!outside.headerChecked || previous.headers.some(header=>header.name)&&!outside.headers.some(header=>header.name))) outside={...outside,headers:previous.headers,headerChecked:true,headerSource:previous.headerSource || previous.source};
     if(outside?.headerChecked && !outside.headerSource)outside.headerSource={url:queryUrl || ODP_BASE+key+'?format=application%2Fld%2Bjson',fetchedAt};
-    if(groupVoiceOnly){this.store.transaction(()=>recordGroupVoice(this.store,generation,groupVoiceProjection(activity,{fetchedAt,url:queryUrl}),outside));return;}
+    if(groupVoiceOnly){this.store.transaction(()=>recordGroupVoice(this.store,generation,groupVoiceProjection(activity,{fetchedAt,url:queryUrl}),outside,activity.activity_id));return;}
     this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt));
     recordOutside(this.store,generation,outside);
     if(outsideOnly && outside && this.store.source(generation,'outside:roster:'+outside.date) && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,outside.id))this.store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='outside-speech'").run(generation,key);

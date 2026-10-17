@@ -88,3 +88,10 @@ test('a disk pause after core publication cannot recreate a generation-less work
  await worker.run();assert.equal(store.get('active'),gen,JSON.stringify({working:store.get('working'),tasks:store.db.prepare('SELECT key,kind,done,error FROM tasks').all()}));assert.equal(store.get('working'),null);assert.equal(store.status().refreshInProgress,false);
  assert(store.acquire());assert.equal(store.beginCycle().generation,gen+1);
 });
+
+test('a corrected written record removes a previously observed oral designation without implying complete coverage',t=>{
+ const store=setup(t),gen=store.beginCycle().generation,worker=new ActivityWorker(store,{clock:now});initializeGroupVoices(worker,gen,[]);
+ worker.saveSpeech(gen,speech(),stamp);assert.equal(groupVoicesPage(store,query()).people[0].total,1);
+ worker.saveSpeech(gen,{...speech(),had_activity_type:'def/ep-activities/PLENARY_DEBATE_WRITTEN_STATEMENT'},stamp);
+ const page=groupVoicesPage(store,query());assert.equal(page.people.length,0);assert.equal(page.coverage.authoritativeComplete,false);
+});
