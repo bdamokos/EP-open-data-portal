@@ -12,6 +12,7 @@ import { CorpusReader } from './corpus-reader.mjs';
 import { countryCode } from './insights-countries.mjs';
 import { savedMetadata } from './insights-store.mjs';
 import { config } from './config.mjs';
+import { corpusSearchResponse } from './corpus-search-response.mjs';
 
 const DAY=24*60*60_000;
 const day=t=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
@@ -259,8 +260,8 @@ export async function corpusSearch(params) {
   const countryMetadataIds=metadata?[...metadata].filter(([,person])=>countryCode(person['api:country-of-representation'])).map(([id])=>id):null;
   const result=await reader.query('search',{...params,countryMemberIds,countryMetadataIds});
   if(!result)throw new HttpError(400,'invalid_query',`Enter 1–${CORPUS_LIMITS.queryTerms} words or quoted phrases (at most ${CORPUS_LIMITS.queryLength} characters).`);
-  if(result.unavailable)throw new HttpError(503,'activity_index_loading',result.unavailable);
-  return result;
+  if(result.unavailable)throw new HttpError(503,result.unavailableCode||'activity_index_loading',result.unavailable);
+  return corpusSearchResponse(result,config.jsonResponseLimitBytes);
 }
 export async function corpusText(params) {
   const result=await corpus().reader.query('text',{...params,
