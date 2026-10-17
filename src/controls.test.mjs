@@ -78,6 +78,7 @@ test('MEP speech loads before hidden debate preload, then opening the sequence w
   assert(finishSpeech);assert(!requests.some(route=>route.startsWith('speech-context/')));
   await act(async()=>finishSpeech());
   assert(h.container.textContent.includes('Main transcript'),'pending context does not block the transcript');
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
   assert(finishContext);assert.equal(h.container.querySelector('.intervention-context-toggle').getAttribute('aria-expanded'),'false');
   await act(async()=>finishContext());
   assert(!requests.includes(`speech/${other}`),'closed sequences do not preload contributions');
@@ -113,6 +114,23 @@ test('sequence preloads are bounded, skip procedural rows, stop on close and fol
   assert.equal(reads.length,13);assert(reads.slice(1).every(url=>url.searchParams.get('lang')==='fr'));
   assert(reads.every(url=>!url.pathname.endsWith(prefix+'5')&&!url.pathname.endsWith(prefix+'6')));
   assert(h.container.textContent.includes('25 of 26 debate records available'),'preloading preserves incomplete coverage');
+});
+
+test('rapid speech navigation shares the speculative queue and cancels obsolete debate preloads',async t=>{
+  const prefix='MTG-PL-2026-03-25-OTH-',pending=[];
+  const h=await harness(t,'',url=>{
+    assert(url.pathname.includes('/speech-context/'));
+    return new Promise(resolve=>pending.push({id:url.pathname.split('/').at(-1),finish:()=>resolve({debates:[],unavailable:true})}));
+  });
+  t.after(()=>pending.forEach(request=>request.finish()));
+  const {SpeechContextPanel}=await h.load('/src/SpeechInterventions.tsx');
+  const render=n=>h.render(createElement(SpeechContextPanel,{key:n,id:prefix+n,language:'en'}));
+  const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
+  await render(1);await settle();assert.equal(pending.length,1);
+  await render(2);await settle();assert.equal(pending.length,1,'a pending hidden debate owns the single background slot');
+  await render(3);await act(async()=>pending[0].finish());await settle();
+  assert.deepEqual(pending.map(request=>request.id),[prefix+'1',prefix+'3'],'the superseded speech 2 preload never starts');
+  await act(async()=>pending[1].finish());
 });
 
 test('member deep links, module selection and restored routes keep meaningful titles without extra history',async t=>{

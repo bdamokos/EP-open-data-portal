@@ -103,7 +103,9 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
 }
 export function SpeechContextPanel({id,language,transcriptLanguage=language,preload=true}:{id:string;language:string;transcriptLanguage?:string;preload?:boolean}) {
   const [open,setOpen]=useState(false);
-  const state=useData<SpeechContext>(open||preload?`speech-context/${id}?lang=${language}`:null,{priority:open?'auto':'low'});
+  const route=`speech-context/${id}?lang=${language}`;
+  const state=useData<SpeechContext>(open?route:null);
+  useEffect(()=>preload&&!open?prefetchData([route]):undefined,[preload,open,route]);
   const controlId=useId();
   return <div className="intervention-context" lang="en"><button className="intervention-context-toggle" onClick={()=>setOpen(value=>!value)} aria-expanded={open} aria-controls={controlId}>Debate & exchanges <span aria-hidden="true">{open?'−':'+'}</span></button>{open&&<div id={controlId}>
     {state.loading&&!state.data&&<p role="status">Loading debate sequence…</p>}{state.error&&<SequenceError message={state.error} retryAt={state.retryAt} loading={state.loading} retry={state.retry}/>}
