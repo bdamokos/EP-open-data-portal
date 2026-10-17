@@ -93,10 +93,12 @@ export class ActivityWorker {
         return Boolean(task.attempts>0 || task.retry_at>0 || Number(body.offset)>0 || body.stage && body.stage!=='results' || ['results','decisions','splits','sources'].some(key=>body[key]?.length) || !['document','procedure','motion-outcomes'].includes(task.kind));
       };
       const pending=new Map([...(saved.tasks || []),...(saved.discovery || []).map(task=>({...task,body:JSON.stringify(task.kind==='motion-outcomes'?{sittingId:task.sittingId,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]}:{endpoint:task.endpoint}),attempts:0,retry_at:0,error:null}))].map(task=>[task.key,{...task,generation,done:0}]));
-      const incoming=includeCore?this.store.db.prepare(`SELECT * FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL)
+      // Agenda verification stays in the durable canonical queue so its pending
+      // coverage and recovery survive the bounded amendment continuation log.
+      const incoming=includeCore?this.store.db.prepare(`SELECT * FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key NOT LIKE 'outside:agenda-membership:%'
         ORDER BY (attempts>0 OR retry_at>0 OR COALESCE(json_extract(body,'$.offset'),0)>0 OR COALESCE(json_extract(body,'$.stage'),'results')<>'results' OR COALESCE(json_array_length(body,'$.results'),0)>0 OR COALESCE(json_array_length(body,'$.decisions'),0)>0 OR COALESCE(json_array_length(body,'$.splits'),0)>0 OR COALESCE(json_array_length(body,'$.sources'),0)>0 OR kind NOT IN ('document','procedure','motion-outcomes')) DESC,priority DESC,key
         LIMIT ?`).all(generation,2*CONTINUATION_LIMIT+1):[];
-      const incomingTotal=includeCore?this.store.db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL)').get(generation).n:0;
+      const incomingTotal=includeCore?this.store.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key NOT LIKE 'outside:agenda-membership:%'").get(generation).n:0;
       const queued=new Map(this.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=?').all(generation).map(task=>[task.key,task]));
       const completed=new Map((saved.completed || []).filter(task=>task.key.includes(':'+today)).map(task=>[task.key,task]));
       for(const task of incoming)if(!pending.has(task.key))pending.set(task.key,{...task,done:0});
@@ -133,7 +135,7 @@ export class ActivityWorker {
       if(deferredCount)this.store.db.prepare("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')").run(generation);
       if(snapshots.length || discovery.length || completed.size || capacityGap)this.store.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,CONTINUATIONS_KEY,'amendment-continuations',JSON.stringify({tasks:snapshots,discovery,completed:[...completed.values()].slice(-CONTINUATION_LIMIT),...(capacityGap?{capacityGap}:{})}),new Date(this.clock()).toISOString());
       else this.store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(generation,CONTINUATIONS_KEY);
-      if(includeCore)this.store.db.prepare('DELETE FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL)').run(generation);
+      if(includeCore)this.store.db.prepare("DELETE FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key NOT LIKE 'outside:agenda-membership:%'").run(generation);
     });
   }
   async request(endpoint,params={},opts={}) {

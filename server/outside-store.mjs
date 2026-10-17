@@ -7,7 +7,7 @@ const parse = value => JSON.parse(value);
 const classified = row => ({...speechAgendaMembership(row),header:row.header?{...row.header,capacity:outsideCapacity(row.header.role)}:null});
 const agendaUpgradeKey = 'outside:agenda-membership';
 const legacyAgendaRows = "FROM outside_contributions WHERE generation=? AND json_array_length(body,'$.parentIds')>1 AND (COALESCE(json_type(body,'$.parentDocumentIds'),'')<>'array' OR COALESCE(json_type(body,'$.parentDocumentsComplete'),'') NOT IN ('true','false'))";
-export const outsideAgendaUpgradeDue = (store,generation) => Boolean(generation && store.source(generation,'outside:state') && !store.source(generation,agendaUpgradeKey) && store.db.prepare('SELECT 1 '+legacyAgendaRows+' LIMIT 1').get(generation));
+export const outsideAgendaUpgradeDue = (store,generation) => Boolean(generation && store.source(generation,'outside:state') && store.source(generation,agendaUpgradeKey)?.work.generation !== generation && store.db.prepare('SELECT 1 '+legacyAgendaRows+' LIMIT 1').get(generation));
 const needsAgendaUpgrade = row => row.parentIds.length > 1 && (!Array.isArray(row.parentDocumentIds) || typeof row.parentDocumentsComplete !== 'boolean');
 function enqueueAgendaUpgrade(store,generation,speech) {
   store.enqueue(generation,'outside:agenda-membership:'+speech,'outside-detail',{id:speech},102);
@@ -17,7 +17,7 @@ export function initializeOutsideAgendaUpgrade(store,generation,fetchedAt) {
   store.assertWriter();
   const rows=store.db.prepare('SELECT DISTINCT speech '+legacyAgendaRows).all(generation);
   for(const {speech} of rows)enqueueAgendaUpgrade(store,generation,speech);
-  store.putSource(generation,agendaUpgradeKey,'outside-state',{version:1},fetchedAt);
+  store.putSource(generation,agendaUpgradeKey,'outside-state',{version:1,generation},fetchedAt);
 }
 export function outsideSchema(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS outside_contributions (generation INTEGER, speech TEXT, person TEXT, date TEXT, body TEXT, PRIMARY KEY(generation,speech,person));
@@ -28,6 +28,8 @@ export function outsideSchema(db) {
 export function outsideCopy(db, generation, active) {
   db.prepare('DELETE FROM outside_contributions WHERE generation<>?').run(active);
   db.prepare('INSERT INTO outside_contributions SELECT ?,speech,person,date,body FROM outside_contributions WHERE generation=?').run(generation,active);
+  // Preserve exact progress and backoff when the daily core snapshot advances.
+  db.prepare("INSERT OR IGNORE INTO tasks SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key LIKE 'outside:agenda-membership:%'").run(generation,active);
 }
 export function outsidePrune(db, generation, old) {
   db.prepare('DELETE FROM outside_contributions WHERE generation NOT IN (?,?)').run(generation,old || generation);
