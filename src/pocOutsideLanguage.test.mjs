@@ -121,7 +121,8 @@ test('speaker titles retain source fallback keys and per-title boundaries throug
     expectLanguage(q('.ov-back'),'en');expectLanguage(q('.ov-person-heading h2'),'');expectLanguage(q('.ov-person-heading p'),'fr');
     for(const selector of ['.ov-totals','.ov-tabs button','.ov-month-filter','.ov-speaker-body h3','.ov-roles summary'])expectLanguage(q(selector),'en');
     expectLanguage(q('.ov-range'),language);
-    const card=q('[data-ov-focus="appearance:42:'+day+'"]');assertTitles(card.querySelector('strong'),language);
+    const cards=[...h.container.querySelectorAll('[data-ov-focus^="appearance:42:'+day+':"]')],card=cards[0];
+    assert.deepEqual(cards.map(node=>[node.querySelector('strong').textContent,effective(node.querySelector('strong'))]),[...selectedTitles(language),['Deutscher Titel','en']]);
     expectLanguage(card.querySelector('small'),language);expectLanguage(card.querySelector(':scope>span'),'en');
     const roleRows=[...h.container.querySelectorAll('.ov-roles p')];
     assert.deepEqual(roleRows.slice(0,8).map(p=>effective(p.querySelector('span'))),['fr','','mul','und','','','FR-ca','en']);
