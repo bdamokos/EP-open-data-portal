@@ -64,6 +64,21 @@ test('both disappearing retry controls recover the exact retained audio action w
   await h.ready(next);assert.equal(document.activeElement,original,'a successful retry does not move focus again');
 });
 
+test('replaying a retained clip after a refresh error moves focus before disabling Replay',async t=>{
+  let now=Date.now();t.mock.method(Date,'now',()=>now);
+  const h=await harness(t);await h.render(h.player());
+  const toggle=await h.click('Video');assert.equal(toggle.getAttribute('aria-label'),null,'the visible Video label names the disclosure in both states');
+  await h.finish('en');await h.click('Close video');
+  now+=31_000;await h.click('Video');await h.finish('en',true);
+  assert(h.container.querySelector('iframe'),'the retained matched clip remains available after refresh failure');
+  assert.equal(h.button('Replay video').disabled,false);
+  const replay=await h.click('Replay video'),select=h.container.querySelector('select');
+  assert.equal(replay.disabled,true);assert.equal(document.activeElement,select,'retrying Replay retains keyboard focus in the audio controls');
+  assert.equal(h.requests.length,3,'Replay explicitly refreshes failed metadata');
+  await h.finish('en');assert.equal(document.activeElement,select,'refresh completion does not move focus again');
+  assert.equal(toggle.getAttribute('aria-label'),null);
+});
+
 test('audio failure recovers a focused frame but respects another chosen link',async t=>{
   const h=await harness(t);await h.render(h.player());const original=await h.openOriginal();await h.finish();
   const frame=h.container.querySelector('iframe');await h.ready(frame);frame.focus();assert.equal(document.activeElement,frame);
