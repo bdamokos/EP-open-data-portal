@@ -23,7 +23,8 @@ export function useSpeechData(id:string,language:string) {
   const saved=useData<StoredSpeechTranscript>('speech-transcript/'+route);
   const transcript=saved.data?.id===id&&saved.data.available&&saved.data.xml?saved.data:detail.data?.id===id?detail.data:null;
   const retry=useCallback(()=>{saved.retry();detail.retry();},[saved.retry,detail.retry]);
-  return {...detail,transcript,retry,loading:!transcript&&(saved.loading||detail.loading),
+  const availableTextLanguages=[...new Set([...(saved.data?.id===id?saved.data.availableTextLanguages||[]:[]),...(detail.data?.id===id?detail.data.availableTextLanguages||[]:[])])];
+  return {...detail,transcript,retry,availableTextLanguages,loading:!transcript&&(saved.loading||detail.loading),
     error:transcript?null:saved.loading?null:detail.error};
 }
 export function useData<T>(route: string | null) {
