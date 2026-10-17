@@ -55,6 +55,10 @@ const normalize = (s: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase();
+const queryLanguage = (query: URLSearchParams) =>
+  interfaceLanguages.includes(query.get("lang") || "") ? query.get("lang")! : "en";
+const queryRole = (query: URLSearchParams) =>
+  ["both", "member", "substitute"].includes(query.get("role") || "") ? query.get("role")! : "both";
 const title = (s: Speech, lang: string) =>
   selectLanguageText(s.titles,lang,"Plenary contribution");
 const date = (s: string, lang: string) =>
@@ -389,22 +393,14 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
 }
 export default function App() {
   const [initial] = useState(() => new URLSearchParams(location.search));
-  const [lang, setLang] = useState(
-    interfaceLanguages.includes(initial.get("lang") || "")
-      ? initial.get("lang")!
-      : "en",
-  );
+  const [lang, setLang] = useState(() => queryLanguage(initial));
   const [member, setMember] = useState<number | null>(
     /^\d+$/.test(initial.get("member") || "")
       ? Number(initial.get("member"))
       : null,
   );
   const [committee, setCommittee] = useState(initial.get("committee") || "");
-  const [role, setRole] = useState(
-    ["both", "member", "substitute"].includes(initial.get("role") || "")
-      ? initial.get("role")!
-      : "both",
-  );
+  const [role, setRole] = useState(() => queryRole(initial));
   const [country, setCountry] = useState(initial.get("view") ? "" : filterCountry(initial.get("country")));
   const [group, setGroup] = useState(initial.get("group") || "");
   const [search, setSearch] = useState("");
@@ -498,7 +494,7 @@ export default function App() {
       ...(!view && member && activityLink ? { activity: activityLink } : {}),
       ...(!view && member && activityCategory ? { "activity-category": activityCategory } : {}),
     }).toString();
-    history.replaceState(null, "", u);
+    if (u.href !== location.href) history.replaceState(null, "", u);
     window.dispatchEvent(new Event('explorer-query-change'));
     document.documentElement.lang = lang;
   }, [lang, member, tab, committee, role, country, group, view, speechLink, activityLink, activityCategory]);
@@ -560,6 +556,7 @@ export default function App() {
       pendingDestination.current=null;
       const query=new URLSearchParams(location.search),next=query.get('view');
       const restored=['legislation','questions','outside','amendments','groups','saved'].includes(next||'')?next as typeof view:null;
+      setLang(queryLanguage(query));setRole(queryRole(query));
       setView(restored);setMember(/^\d+$/.test(query.get('member')||'')?Number(query.get('member')):null);
       if(!restored){setCountry(filterCountry(query.get('country')));setCommittee(query.get('committee')||'');setGroup(query.get('group')||'');}
       setTab(['profile','activities','amendments'].includes(query.get('module')||'')?query.get('module')!:'speeches');
