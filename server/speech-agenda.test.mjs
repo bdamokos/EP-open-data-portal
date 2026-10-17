@@ -4,11 +4,11 @@ import {readFileSync} from 'node:fs';
 import {outsideSpeech} from './outside-model.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
 import {SpeechInterventions} from './speech-intervention-service.mjs';
-import {speechAgendaMembership,speechParentDocuments} from './speech-agenda.mjs';
+import {speechAgendaMembership,speechParentEvidence} from './speech-agenda.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/outside-agenda-conflict.json',import.meta.url),'utf8'));
 const parents=['MTG-PL-2026-04-28-PVCRE-ITM-11','MTG-PL-2026-04-28-PVCRE-ITM-12'];
-const row={date:'2026-04-28',term:10,parentIds:parents,parentDocumentId:'CRE-10-2026-04-28-ITM-012'};
+const row={date:'2026-04-28',term:10,parentIds:parents,parentDocumentIds:['CRE-10-2026-04-28-ITM-012'],parentDocumentsComplete:true,parentDocumentId:'CRE-10-2026-04-28-ITM-012'};
 
 test('both Court of Auditors speeches resolve the published contradiction from their CRE chapter',()=>{
   for(const {activity,retrievedAt,sourceUrl} of fixture.contributions) {
@@ -54,7 +54,7 @@ test('real speeches under resumption headings stay there; chapter continuity is 
   }
   // The published 8 June 2021 transcript puts the continued Own Resources
   // debate in chapter 6, following the separate resumption in chapter 5.
-  const continued={date:'2021-06-08',term:9,parentIds:['MTG-PL-2021-06-08-PVCRE-ITM-4','MTG-PL-2021-06-08-PVCRE-ITM-6'],parentDocumentId:'CRE-9-2021-06-08-ITM-006'};
+  const continued={date:'2021-06-08',term:9,parentIds:['MTG-PL-2021-06-08-PVCRE-ITM-4','MTG-PL-2021-06-08-PVCRE-ITM-6'],parentDocumentIds:['CRE-9-2021-06-08-ITM-006'],parentDocumentsComplete:true,parentDocumentId:'CRE-9-2021-06-08-ITM-006'};
   assert.deepEqual(speechAgendaMembership(continued).parentIds,[continued.parentIds[1]]);
   const reopening={...continued,parentDocumentId:'CRE-9-2021-06-08-ITM-005',parentIds:['MTG-PL-2021-06-08-PVCRE-ITM-5']};
   assert.deepEqual(speechAgendaMembership(reopening),reopening);
@@ -62,10 +62,10 @@ test('real speeches under resumption headings stay there; chapter continuity is 
 
 test('missing, foreign, cross-date, cross-term or conflicting documents never choose a parent',()=>{
   for(const change of [
-    {parentDocumentId:null},{parentDocumentId:'CRE-10-2026-04-28-ITM-013'},
-    {parentDocumentId:'CRE-9-2026-04-28-ITM-012'},
-    {parentDocumentId:'CRE-10-2026-04-29-ITM-012'},
-    {parentDocumentId:'https://elsewhere.example/CRE-10-2026-04-28-ITM-012'},
+    {parentDocumentIds:[]},{parentDocumentIds:['CRE-10-2026-04-28-ITM-013']},
+    {parentDocumentIds:['CRE-9-2026-04-28-ITM-012']},
+    {parentDocumentIds:['CRE-10-2026-04-29-ITM-012']},
+    {parentDocumentIds:['https://elsewhere.example/CRE-10-2026-04-28-ITM-012']},
     {parentDocumentIds:['CRE-10-2026-04-28-ITM-011','CRE-10-2026-04-28-ITM-012']},
     {parentIds:[parents[0],'MTG-PL-2026-04-29-PVCRE-ITM-12']},
     {parentIds:[parents[0],'MTG-PL-2026-04-28']},
@@ -75,7 +75,7 @@ test('missing, foreign, cross-date, cross-term or conflicting documents never ch
   }
   const activity=structuredClone(fixture.contributions[0].activity);
   activity.recorded_in_a_realization_of[0].is_part_of='https://elsewhere.example/eli/dl/doc/CRE-10-2026-04-28-ITM-012';
-  assert.deepEqual(speechParentDocuments(activity),[]);
+  assert.deepEqual(speechParentEvidence(activity),{parentDocumentIds:[],parentDocumentsComplete:false});
   assert.deepEqual(outsideSpeech(activity,'2026-10-17').parentIds,parents);
 });
 
@@ -87,7 +87,26 @@ test('all explicit transcript documents participate in resolution; original pare
   assert.equal(outsideSpeech(activity,'2026-10-17').parentIds.length,1);
   duplicate.is_part_of='eli/dl/doc/CRE-10-2026-04-28-ITM-011';
   assert.deepEqual(outsideSpeech(activity,'2026-10-17').parentIds,parents);
+  // Legacy scalar evidence cannot show that the second document conflicted.
+  const legacy={...row};delete legacy.parentDocumentIds;
+  assert.deepEqual(speechAgendaMembership(legacy).parentIds,parents);
+  duplicate.is_part_of='eli/dl/doc/CRE-10-2026-04-28-ITM-12';
+  const equivalent=outsideSpeech(activity,'2026-10-17');
+  assert.deepEqual(equivalent.parentIds,[parents[1]]);
+  assert.equal(equivalent.parentDocumentId,'CRE-10-2026-04-28-ITM-012');
   assert.deepEqual(speechAgendaMembership(speechAgendaMembership(row)),speechAgendaMembership(row));
+});
+
+test('an unexpanded, missing or foreign secondary document leaves multi-parent evidence unresolved',()=>{
+  for(const secondary of ['eli/dl/doc/CRE-10-2026-04-28-OTH-123',{},
+    {is_part_of:'https://elsewhere.example/eli/dl/doc/CRE-10-2026-04-28-ITM-011'}]) {
+    const activity=structuredClone(fixture.contributions[0].activity);
+    activity.recorded_in_a_realization_of.push(secondary);
+    const projected=outsideSpeech(activity,'2026-10-17');
+    assert.equal(projected.parentDocumentsComplete,false);
+    assert.deepEqual(projected.parentIds,parents);
+    assert.deepEqual(interventionMetadata(activity).parentIds,parents);
+  }
 });
 
 test('chair-change containment is preserved: its transcript placement can mark the next chapter boundary',()=>{
