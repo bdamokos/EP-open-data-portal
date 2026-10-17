@@ -104,7 +104,7 @@ export function motionAmendmentsPage(store,query) {
   const {pending,...coverage}=page.coverage;
   return {schemaVersion:1,text,relations,scope:{documentId:document,memberId:member,results:scope,requestedLanguage:language},
     items:page.items.map(row=>contextualAmendment(row,member,language)),total:page.total,totals:{allIndexed,memberMatched},offset,limit,
-    coverage:{...coverage,indexStatus:indexed?'indexed':'not-indexed',resultState,backgroundPending:pending,backgroundPendingScope:'index',targetProcessing:'unknown',observationScope:'indexed-plenary-amendment-sources',
+    coverage:{...coverage,indexStatus:indexed?'indexed':'not-indexed',resultState,backgroundPending:pending,backgroundPendingScope:'index',targetProcessing:'unknown',
       gaps:[...coverage.gaps,...(!source?['Verified motion metadata is not indexed for this text.']:[])]},
     snapshots:{amendments:generation,text:source?.generation ?? null}};
 }

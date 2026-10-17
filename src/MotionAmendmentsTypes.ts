@@ -68,8 +68,9 @@ export type MotionAmendmentsCoverage = {
   resultState:'records'|'not-indexed'|'no-indexed-member-matches'|'observed-empty'|'unavailable';
   /** Background work anywhere in the index, not a processing claim for this target. */
   backgroundPending:boolean;backgroundPendingScope:'index';targetProcessing:'unknown';
-  /** Completeness covers accepted indexed sources, never a parliamentary census. */
-  observationScope:'indexed-plenary-amendment-sources';
+  /** Completeness is limited to this explicit source scope, never a parliamentary census. */
+  observationScope:'indexed-plenary-amendment-sources'|'published-amendment-list-relationships';
+  emptyObservation:{version:1;documentId:MotionAmendmentsDocumentId;relationship:'inverse_foresees_change_of';scope:'published-amendment-list-relationships';listCount:0;source:AmendmentSource}|null;
   gaps:unknown[];lastUpdated:string|null;parserVersion:string;scope:'plenary';
   servingGeneration:number;workingGeneration:boolean;
 };

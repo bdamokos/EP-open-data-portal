@@ -58,6 +58,13 @@ const coverage={complete:true,gaps:[],lastUpdated:at};
 function row(number,extra={}) {
   return {id:target+'-AM-'+number,targetDocumentId:target,number,date,documentDate:date,proposerDate:date,proposerDateBasis:'individual-amendment-document',listId:target+'-AM-001-001',language:'en',originalText:'Original wording',proposedText:'Proposed wording',textIntegrity:'complete',textParserVersion:AMENDMENT_EXTRACTION_VERSION,sourceFreshness:{version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,status:'fresh',distributionState:'available',descriptor:{url:source.url,language:'en',byteSize:null},sourceDescriptor:{url:source.url,language:'en',byteSize:null}},wordingSource:source,metadataSource:source,proposerSource:source,authors:[{name:'Isolated Member',personId:'101',status:'resolved',method:'exact_full_name_active_mandate',evidence:[{type:'full_name',date,activeMandate:{start:date,end:date}}]}],decisions:[],splitParts:[],sources:[source],gaps:[],...extra};
 }
+function isolatedMotion(extra={}) {
+  return {id:'eli/dl/doc/'+target,identifier:target,work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:date,title_dcterms:{en:'Isolated motion'},amendmentLinksVersion:AMENDMENT_LINKS_VERSION,inverse_foresees_change_of:[],...extra};
+}
+function rebuildIsolatedMotion({store,worker,generation},work=isolatedMotion(),fetchedAt=at) {
+  store.putSource(generation,'/plenary-documents/'+target,'document',work,fetchedAt);
+  rebuildAmendmentTarget(worker,generation,target);
+}
 
 test('motion amendment queries accept only bounded exact motion/member scopes',()=>{
   assert.deepEqual(query(),{document:target,member:null,scope:'all',language:'en',limit:20,offset:0});
@@ -138,18 +145,62 @@ test('all-scope highlights and member filtering share variant/date protections w
 });
 
 test('not indexed, complete observed emptiness and unrelated global jobs remain distinct',t=>{
-  const {store,generation}=setup(t);
+  const context=setup(t),{store,generation}=context;
   const missing=page(store);
   assert.equal(missing.text.status,'unavailable');assert.equal(missing.coverage.indexStatus,'not-indexed');assert.equal(missing.coverage.resultState,'not-indexed');assert.equal(missing.coverage.observationComplete,false);assert.equal(missing.coverage.targetProcessing,'unknown');
-  saveAmendmentRows(store,generation,metadata(),[],coverage);
+  rebuildIsolatedMotion(context);
   const empty=page(store);
   assert.equal(empty.total,0);assert.equal(empty.coverage.indexStatus,'indexed');assert.equal(empty.coverage.resultState,'observed-empty');assert.equal(empty.coverage.observationComplete,true);
+  assert.equal(empty.text.status,'indexed');assert.equal(empty.coverage.complete,false);
+  assert.equal(empty.coverage.observationScope,'published-amendment-list-relationships');
+  assert.deepEqual(empty.coverage.emptyObservation,{version:1,documentId:target,relationship:'inverse_foresees_change_of',scope:'published-amendment-list-relationships',listCount:0,source:{url:'https://data.europarl.europa.eu/api/v2/plenary-documents/'+target+'?format=application%2Fld%2Bjson',fetchedAt:at,language:null}});
   enqueueAmendment(store,generation,'unrelated','amendment-extract',{targetDocumentId:joint});
   const pending=page(store);
   assert.equal(pending.coverage.backgroundPending,true);assert.equal(pending.coverage.backgroundPendingScope,'index');assert.equal(pending.coverage.targetProcessing,'unknown');
   assert.equal(pending.coverage.observationComplete,true);assert.equal(pending.coverage.resultState,'observed-empty');assert.equal(pending.coverage.complete,false);
   const neverObserved=page(store,'',joint);
   assert.equal(neverObserved.coverage.resultState,'not-indexed');assert.equal(neverObserved.coverage.backgroundPending,true);assert.equal(neverObserved.coverage.targetProcessing,'unknown');
+});
+
+test('the production rebuild cannot certify missing, legacy or malformed amendment-list observations as empty',async t=>{
+  const missing=isolatedMotion();delete missing.inverse_foresees_change_of;
+  const legacy=isolatedMotion();delete legacy.amendmentLinksVersion;
+  for(const [name,work] of [
+    ['missing relationship',missing],
+    ['null relationship',isolatedMotion({inverse_foresees_change_of:null})],
+    ['legacy projection',legacy],
+    ['stale projection',isolatedMotion({amendmentLinksVersion:AMENDMENT_LINKS_VERSION-1})],
+    ['empty scalar',isolatedMotion({inverse_foresees_change_of:''})],
+    ['object relationship',isolatedMotion({inverse_foresees_change_of:{}})],
+    ['malformed array entry',isolatedMotion({inverse_foresees_change_of:[null]})],
+  ])await t.test(name,t=>{
+    const context=setup(t);rebuildIsolatedMotion(context,work);
+    const result=page(context.store);
+    assert.equal(result.total,0);assert.equal(result.coverage.observationComplete,false);
+    assert.equal(result.coverage.resultState,'unavailable');assert.equal(result.coverage.complete,false);
+    assert.equal(result.coverage.observationScope,'indexed-plenary-amendment-sources');assert.equal(result.coverage.emptyObservation??null,null);
+  });
+});
+
+test('retained amendment rows prevent an explicit empty list observation from becoming an empty amendment result',t=>{
+  const context=setup(t),{store,generation}=context;
+  saveAmendmentRows(store,generation,metadata(),[row(1)],coverage);
+  rebuildIsolatedMotion(context);
+  const result=page(store);
+  assert.equal(result.total,1);assert.equal(result.items[0].id,target+'-AM-1');
+  assert.equal(result.coverage.resultState,'records');assert.equal(result.coverage.observationComplete,false);
+  assert.equal(result.coverage.observationScope,'indexed-plenary-amendment-sources');assert.equal(result.coverage.emptyObservation??null,null);
+  assert(result.items[0].gaps.includes('Source was absent from the latest partial refresh.'));
+});
+
+test('a refreshed unknown relationship revokes a previously verified empty list observation',t=>{
+  const context=setup(t);rebuildIsolatedMotion(context);
+  assert.equal(page(context.store).coverage.resultState,'observed-empty');
+  const unknown=isolatedMotion();delete unknown.inverse_foresees_change_of;
+  rebuildIsolatedMotion(context,unknown,'2026-10-17T19:01:00.000Z');
+  const result=page(context.store);
+  assert.equal(result.total,0);assert.equal(result.coverage.observationComplete,false);assert.equal(result.coverage.resultState,'unavailable');
+  assert.equal(result.coverage.observationScope,'indexed-plenary-amendment-sources');assert.equal(result.coverage.emptyObservation??null,null);
 });
 
 test('retained and stale partial evidence remains labelled, and index-only reads do not mutate it',t=>{
