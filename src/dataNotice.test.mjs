@@ -23,15 +23,21 @@ test('the site notice states independence and can be hidden to a compact toggle 
   const {window,container}=await harness(t);
   const summary=()=>container.querySelector('.data-notice summary');
   assert.equal(summary().textContent,'Independent site · Not an official Parliament service');
+  const details=container.querySelector('.data-notice details');
+  await act(async()=>summary().click());
+  assert.equal(details.open,true,'the terms open before dismissal');
   const dismiss=container.querySelector('.data-notice__dismiss');
   assert.equal(dismiss.getAttribute('aria-label'),'Hide site notice');
   await act(async()=>dismiss.click());
   assert.equal(container.querySelector('.data-notice__dismiss'),null);
   assert.ok(container.querySelector('.data-notice').classList.contains('data-notice--dismissed'));
   assert.equal(summary().textContent,'About this site');
+  assert.equal(details.open,false,'dismissal collapses the expanded terms');
   assert.equal(window.document.activeElement,summary(),'focus moves to the remaining toggle');
   assert.match(container.querySelector('.data-notice__body').textContent,/This site is independent\./);
   assert.equal(window.localStorage.getItem('ep.data-notice.dismissed.v1'),'1');
+  await act(async()=>summary().click());
+  assert.equal(details.open,true,'the compact toggle reopens the same terms');
 });
 
 test('a hidden site notice stays compact on later pages',async t=>{
