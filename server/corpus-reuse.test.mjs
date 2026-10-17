@@ -50,6 +50,11 @@ test('metadata-only reads work without a retained transcript and isolate damaged
   assert.equal(await retainedSpeechMetadata(id),null);
   const data=await retainedSpeechData({sourceIds:[id],language:'en'});assert.equal(data.records[0].metadataUnavailable,true);
 });
+test('parallel cloud and statistics page reads share bounded worker capacity through teardown',async t=>{
+  const {add}=fixture(t);for(let n=1;n<=51;n++)add(activity(n));
+  const reads=await Promise.all(Array.from({length:4},(_,n)=>retainedSpeechPage({member:'42',language:'en',offset:(n%2)*50,limit:50})));
+  assert(reads.every(result=>result?.total===51));assert.deepEqual(reads.map(result=>result.records.length),[50,1,50,1]);
+});
 test('speech pages filter exact members, types, dates and topic IDs with stable continuation and partial coverage',t=>{
   const {store,add}=fixture(t),a=add(activity(1)),b=add(activity(2)),written=add(activity(3,{kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'}));
   add(activity(4,{member:'7'}));add(activity(5,{date:'2026-10-08'}));
