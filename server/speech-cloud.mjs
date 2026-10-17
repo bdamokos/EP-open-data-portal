@@ -71,15 +71,21 @@ export class SpeechCloudInsights {
     const sources=response.detail.coverage.speechAssociations.sources;
     return {kind:'topic',dates:[...new Set(sources.map(s=>s.eventDate))].sort().map(date=>({start:date,end:date})),ids:new Set(sources.flatMap(s=>s.contributionIds)),people:new Map(response.detail.people.map(person=>[person.id,person])),phase:upcoming?'upcoming':'past',title:response.detail.title,titleLanguage:response.detail.titleLanguage??null};
   }
-  async query(query) {
+  async query(query,restarts=0) {
     requestSignal()?.throwIfAborted();
     const {page,...selection}=query,key=JSON.stringify([this.store.status().servingGeneration,selection]);let state=this.states.get(key);
     if(state&&this.clock()-state.at>CLOUD_LIMITS.cacheMs){this.states.delete(key);state=null;}
     if(!state) {state={at:this.clock(),scope:null,cursor:{date:0,offset:0},page:-1,records:new Map(),seen:new Set(),scans:new Map(),sourceIssues:new Set(),duplicates:0,sources:[],rawRecords:0,missingLanguage:0,invalidText:0,xmlBytes:0,truncated:false,pending:null,result:null};this.states.set(key,state);while(this.states.size>CLOUD_LIMITS.queries)this.states.delete(this.states.keys().next().value);}
-    if(state.pending)await waitForRequest(state.pending);
-    if(state.result&&(state.page>=page||state.cursor===null))return state.result;
-    const job=sharedRequest(()=>this.build(state,query,page)).finally(()=>{if(state.pending===job)state.pending=null;});state.pending=job;
-    return waitForRequest(job);
+    try {
+      if(state.pending)await waitForRequest(state.pending);
+      if(state.result&&(state.page>=page||state.cursor===null))return state.result;
+      const job=sharedRequest(()=>this.build(state,query,page)).finally(()=>{if(state.pending===job)state.pending=null;});state.pending=job;
+      return await waitForRequest(job);
+    }catch(error) {
+      if(error.code!=='corpus_changed'||restarts>=2)throw error;
+      if(this.states.get(key)===state)this.states.delete(key);
+      return {...await this.query({...query,page:0},restarts+1),restarted:true};
+    }
   }
   async build(state,query,page) {
     if(!state.scope){const scope=await this.scope(query);requestSignal()?.throwIfAborted();state.scope=scope;}
@@ -155,7 +161,7 @@ export class SpeechCloudInsights {
   corpusSelection(state,query,offset) {
     return {member:query.member,from:state.scope.dates[0].start,to:state.scope.dates.at(-1).end,
       dates:query.member?null:state.scope.dates.map(window=>window.start),sourceIds:state.scope.ids?[...state.scope.ids]:null,
-      language:query.language,offset,limit:CLOUD_LIMITS.pageSize};
+      language:query.language,offset,limit:CLOUD_LIMITS.pageSize,expectedRevision:state.corpusRevision};
   }
   async buildCorpus(state,query,page,limits) {
     const members=new Map(this.store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)]));
@@ -165,7 +171,8 @@ export class SpeechCloudInsights {
       const result=state.corpusFirst||await this.readCorpusPage(this.corpusSelection(state,query,state.cursor.offset));
       requestSignal()?.throwIfAborted();
       if(!result)throw new HttpError(503,'corpus_unavailable','Saved speeches are temporarily unavailable. Please retry.');
-      state.corpusFirst=null;state.storedTotal=result.total;
+      if(result.changed)throw new HttpError(409,'corpus_changed','Saved speeches changed during loading. Please retry.');
+      state.corpusRevision=result.revision;state.corpusFirst=null;state.storedTotal=result.total;
       for(const record of result.records) {
         if(state.seen.has(record.id)){state.duplicates++;state.sourceIssues.add('overlapping-pages');continue;}
         state.seen.add(record.id);state.rawRecords++;
