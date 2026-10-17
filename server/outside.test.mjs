@@ -303,12 +303,12 @@ test('HTTP outside-speaker routes read the index and enforce query, method and o
   const base='http://127.0.0.1:'+server.address().port;
   try{
     store.db.exec('PRAGMA query_only=ON');
-    const response=await fetch(base+'/api/poc/outside/227855?term=all&lang=en');assert.equal(response.status,200);assert.equal((await response.json()).person.sittingDays,4);
-    const current=await fetch(base+'/api/poc/outside/227855?term=10');assert.equal((await current.json()).person.sittingDays,2);
-    for(const url of ['/api/poc/outside/directory?term=8','/api/poc/outside/directory?term=9&term=10','/api/poc/outside/directory?url=https://example.com','/api/poc/outside/0','/api/poc/outside/directory?lang=bad'])assert.equal((await fetch(base+url)).status,400,url);
-    assert.equal((await fetch(base+'/api/poc/outside/999999')).status,404);
-    assert.equal((await fetch(base+'/api/poc/outside/directory',{method:'POST'})).status,405);
-    assert.equal((await fetch(base+'/api/poc/outside/directory',{headers:{Origin:'https://elsewhere.example'}})).status,403);
-    const head=await fetch(base+'/api/poc/outside/directory',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
+    const response=await fetch(base+'/api/outside/227855?term=all&lang=en');assert.equal(response.status,200);assert.equal((await response.json()).person.sittingDays,4);
+    const current=await fetch(base+'/api/outside/227855?term=10');assert.equal((await current.json()).person.sittingDays,2);
+    for(const url of ['/api/outside/directory?term=8','/api/outside/directory?term=9&term=10','/api/outside/directory?url=https://example.com','/api/outside/0','/api/outside/directory?lang=bad'])assert.equal((await fetch(base+url)).status,400,url);
+    assert.equal((await fetch(base+'/api/outside/999999')).status,404);
+    assert.equal((await fetch(base+'/api/outside/directory',{method:'POST'})).status,405);
+    assert.equal((await fetch(base+'/api/outside/directory',{headers:{Origin:'https://elsewhere.example'}})).status,403);
+    const head=await fetch(base+'/api/outside/directory',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
   }finally{store.db.exec('PRAGMA query_only=OFF');server.closeAllConnections();await new Promise(resolve=>server.close(resolve));store.close();rmSync(directory,{recursive:true,force:true});}
 });

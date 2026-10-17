@@ -84,7 +84,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,from,to,s
     const controller=new AbortController();let current=true;
     setState(old=>({key:request,data:old.key===request?old.data:null,loading:true,error:null}));
     const timer=window.setTimeout(()=>controller.abort(),8000);
-    fetch(API_ROOT+'/poc/corpus/search',{method:'POST',credentials:'omit',headers:{Accept:'application/json','Content-Type':'application/json'},body:request,signal:controller.signal}).then(async response=>{
+    fetch(API_ROOT+'/corpus/search',{method:'POST',credentials:'omit',headers:{Accept:'application/json','Content-Type':'application/json'},body:request,signal:controller.signal}).then(async response=>{
       const data=await response.json().catch(()=>null);
       if(!response.ok){const code=data?.error?.code;let message=data?.error?.message||'Text search is temporarily unavailable.';
         if(response.status===404||response.status===403||code==='corpus_disabled')message='Text search is not available on this site yet. You can still browse the documents.';

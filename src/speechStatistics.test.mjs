@@ -55,7 +55,7 @@ test('automatically counts every page including written and unreadable contribut
   const pages=[],enriched=[];let finish;
   const ui=await statistics(t,async input=>{
     const url=new URL(input,'http://localhost');
-    assert.equal(url.pathname,'/api/poc/speech-statistics/257070');
+    assert.equal(url.pathname,'/api/speech-statistics/257070');
     const page=Number(url.searchParams.get('page'));pages.push(page);
     if(page===1)await new Promise(resolve=>finish=resolve);
     return Response.json(await service.member('257070',page));

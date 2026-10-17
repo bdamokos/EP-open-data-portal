@@ -157,7 +157,7 @@ test('a stale wall burst bounds background work and leaves an upstream slot for 
     const image = await cache.get(Number(url.split('/').at(-1)), resolveSource);
     return new Response(image.body, {headers: {'content-type': image.contentType}});
   }});
-  const images = await Promise.all(ids.map(id => loader.load(`/api/poc/portrait/${id}`)));
+  const images = await Promise.all(ids.map(id => loader.load(`/api/portrait/${id}`)));
   assert(images.every(image => image.size === 5), 'all stale images return while refreshes are blocked');
   assert.equal(cache.refreshes.size, 2); assert.equal(cache.backgroundQueue.size, 4);
   assert.deepEqual(priorities, ['background', 'background']);

@@ -1,0 +1,31 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm} from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+test('flat browser API preserves bounded reads, search POSTs and conditional responses',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'flat-api-'));
+  process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=directory;
+  process.env.CORPUS_ENABLED='false';delete process.env.ODP_CACHE_DIR;
+  const {server}=await import('./index.mjs');
+  const {activityIndex}=await import('./activity-index-worker.mjs');
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));activityIndex().store.close();await rm(directory,{recursive:true,force:true});});
+  const base=`http://127.0.0.1:${server.address().port}`,read=globalThis.fetch;
+  t.mock.method(globalThis,'fetch',()=>{throw Error('Route tests must not read public sources');});
+  const request=(route,options)=>read(`${base}/api/${route}`,options);
+  for(const route of ['profile/0','profile/1?lang=en&lang=hu','directory?other=1','portrait/1?other=1','speech-context/invalid','speech-transcript/invalid?lang=bad','speeches/1?offset=1e2','source-record?url=x&url=y','amendments?limit=0','outside/directory?term=8','corpus/search?q=climate&other=1'])assert.equal((await request(route)).status,400,route);
+  assert.equal((await request('corpus/status')).status,503,'a disabled corpus stays unavailable');
+  for(const route of ['session','admin','unknown'])assert.equal((await request(route)).status,404,route);
+  assert.equal((await request('profile/1',{method:'POST'})).status,405);
+  assert.equal((await request('directory',{headers:{Origin:'https://other.example'}})).status,403);
+  for(const [headers,body,status] of [[{'Content-Type':'application/json'},'{',400],[{'Content-Type':'text/plain'},'{}',415],[{'Content-Type':'application/json'},' '.repeat(128*1024+1),413]])assert.equal((await request('corpus/search',{method:'POST',headers,body})).status,status);
+  const options=await request('corpus/search',{method:'OPTIONS'});
+  assert.equal(options.status,204);assert.equal(options.headers.get('Allow'),'GET, HEAD, POST, OPTIONS');
+  const get=await request('activity-index/status');assert.equal(get.status,200);const etag=get.headers.get('ETag');await get.json();
+  const head=await request('activity-index/status',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
+  const cached=await request('activity-index/status',{headers:{'If-None-Match':etag}});assert.equal(cached.status,304);assert.equal(await cached.text(),'');
+  const discovery=await (await read(base+'/api')).json();assert(discovery.endpoints.includes('directory'));assert(!discovery.endpoints.includes('poc'));
+  for(const route of ['poc/directory','poc/profile/1','poc/corpus/search','poc/healthz','poc/poc/directory'])for(const method of ['GET','HEAD','POST','OPTIONS'])assert.equal((await request(route,{method})).status,404,`${method} ${route}`);
+});

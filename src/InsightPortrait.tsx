@@ -4,7 +4,7 @@ import {publicUrl} from './publicUrl';
 import {usePortraitImage} from './usePortraitImage';
 
 export function InsightPortrait({id,name,onUnavailable}:{id:string;name:string|null;onUnavailable:(missing:boolean)=>void}) {
-  const portrait=usePortraitImage(`${API_ROOT}/poc/portrait/${id}`,publicUrl('assets/portrait-placeholder.svg'));
+  const portrait=usePortraitImage(`${API_ROOT}/portrait/${id}`,publicUrl('assets/portrait-placeholder.svg'));
   const unavailableRef=useRef(onUnavailable);
   unavailableRef.current=onUnavailable;
   useEffect(()=>{

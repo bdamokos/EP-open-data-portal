@@ -74,8 +74,8 @@
         const request = new URL(input instanceof Request ? input.url : input, location.href);
         calls.push(request.pathname + request.search);
         if (request.origin !== location.origin) throw new Error('External request blocked: ' + request.origin);
-        if (request.pathname === '/api/poc/outside/directory') return Response.json({term: request.searchParams.get('term'), people: [person], coverage});
-        if (request.pathname === '/api/poc/outside/42') return Response.json(detail);
+        if (request.pathname === '/api/outside/directory') return Response.json({term: request.searchParams.get('term'), people: [person], coverage});
+        if (request.pathname === '/api/outside/42') return Response.json(detail);
         throw new Error('Unexpected fixture request: ' + request.pathname + request.search);
       };
 

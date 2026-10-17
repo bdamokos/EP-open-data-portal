@@ -22,13 +22,13 @@ test('cold HTTP reference readers share a bounded source while cancellation leav
     return {response,close:()=>request.destroy()};
   };
   const until=async condition=>{for(let i=0;i<1000&&!condition();i++)await new Promise(resolve=>setImmediate(resolve));assert(condition());};
-  const route='/api/poc/references?lang=en&keys=com%3A2024%2F225';
+  const route='/api/references?lang=en&keys=com%3A2024%2F225';
   const a=read(route),closed=a.response.catch(()=>{});await until(()=>calls===1);
   const b=read(route);await new Promise(resolve=>setTimeout(resolve,10));
   assert.equal((await read('/api/healthz').response).status,200);assert.equal((await read('/').response).status,200);
   a.close();await closed;assert.equal(budgets[0].signal.aborted,false,'the source cache retains its own budget');
   finish();const survivor=await b.response;assert.equal(survivor.status,200);assert.equal(calls,1);assert.equal(JSON.parse(survivor.body).references[0].status,'not-found');
-  const c=read('/api/poc/references?lang=en&keys=celex%3A32021R2116');await until(()=>budgets.length===2);
+  const c=read('/api/references?lang=en&keys=celex%3A32021R2116');await until(()=>budgets.length===2);
   budgets[1].abort(new Error('source deadline ended'));
   const expired=await c.response;assert.equal(expired.status,200);assert.equal(JSON.parse(expired.body).references[0].status,'unavailable');
   assert.equal((await read('/api/healthz').response).status,200);

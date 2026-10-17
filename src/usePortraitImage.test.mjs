@@ -36,7 +36,7 @@ test('priority changes preserve requests and decoded portraits, and can start a 
   const {createRoot} = await import('react-dom/client');
   const container = document.createElement('div'); document.body.append(container);
   root = createRoot(container);
-  const render = (lazy, url = '/api/poc/portrait/1') => act(async () => root.render(createElement(Portrait, {url, lazy})));
+  const render = (lazy, url = '/api/portrait/1') => act(async () => root.render(createElement(Portrait, {url, lazy})));
   const image = () => container.querySelector('img');
 
   await render(true);
@@ -58,13 +58,13 @@ test('priority changes preserve requests and decoded portraits, and can start a 
   assert.equal(requests.length, 1);
   assert.deepEqual(revoked, []);
 
-  await render(true, '/api/poc/portrait/2');
+  await render(true, '/api/portrait/2');
   assert.equal(image().getAttribute('src'), '/placeholder.svg');
   assert.deepEqual(revoked, [displayed], 'changing source releases the old blob');
   assert.equal(requests.length, 1, 'new lazy source waits for proximity');
-  await render(false, '/api/poc/portrait/2');
+  await render(false, '/api/portrait/2');
   assert.equal(requests.length, 2, 'promotion starts a waiting source without an intersection');
-  assert.equal(requests[1].url, '/api/poc/portrait/2');
+  assert.equal(requests[1].url, '/api/portrait/2');
   await act(async () => requests[1].resolve(new Blob(['next portrait'])));
   const second = image().getAttribute('src');
   await act(async () => root.unmount()); root = null;

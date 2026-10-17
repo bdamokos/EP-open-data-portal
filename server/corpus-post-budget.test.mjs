@@ -37,7 +37,7 @@ test('an expired chunked POST cannot enter corpus search when its remaining body
   server.prependOnceListener('request',capture);t.after(()=>server.removeListener('request',capture));
   let client;
   const response=new Promise((resolve,reject)=>{
-    client=http.request({host:'127.0.0.1',port:server.address().port,path:'/api/poc/corpus/search?lang=en',method:'POST',agent,
+    client=http.request({host:'127.0.0.1',port:server.address().port,path:'/api/corpus/search?lang=en',method:'POST',agent,
       headers:{'Content-Type':'application/json','Transfer-Encoding':'chunked'}},response=>{
       const chunks=[];response.on('data',chunk=>chunks.push(chunk));
       response.on('end',()=>resolve({status:response.statusCode,body:JSON.parse(Buffer.concat(chunks).toString())}));
@@ -67,7 +67,7 @@ test('an expired chunked POST cannot enter corpus search when its remaining body
       request.once('data',()=>{bodyListeners=request.listeners('end');ready();});
       request.once('close',closed);
     });
-    const disconnected=http.request({host:'127.0.0.1',port:server.address().port,path:'/api/poc/corpus/search?lang=en',method:'POST',agent,
+    const disconnected=http.request({host:'127.0.0.1',port:server.address().port,path:'/api/corpus/search?lang=en',method:'POST',agent,
       headers:{'Content-Type':'application/json','Transfer-Encoding':'chunked'}});
     disconnected.on('error',()=>{});disconnected.write('{"query":');
     await started;disconnected.destroy();await ended;await new Promise(resolve=>setImmediate(resolve));

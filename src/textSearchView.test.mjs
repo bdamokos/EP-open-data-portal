@@ -361,7 +361,7 @@ test('local find recomputes live ranges when a React summary collapses and expan
 
 for(const highlights of [true,false])test('local find reveals actual question Notes and retains navigation with '+(highlights?'CSS Highlights':'native Selection'),async t=>{
   const id='E-10-2026-000001',view=await setup(t,{highlights,respond:call=>{
-    assert.equal(call.url.pathname,'/api/poc/document/'+id);
+    assert.equal(call.url.pathname,'/api/document/'+id);
     return Response.json({id,selectedDocumentId:id,titles:{en:'Question fixture'},date:'2026-10-01',files:[],answers:[],selectedText:{status:'available',paragraphs:['sharedmatch in the visible body.'],textLanguage:'en',availableTextLanguages:['en'],translationType:'original',sourceFormat:'DOCX',sourceUrl:'https://example.test/source',notes:[{id:'1',label:'1',text:'uniquenotetoken sharedmatch inside the note.',links:[]}],noteAnchors:[],documentLinks:[]}});
   }});
   const {InsightQuestionReader}=await view.loadModule('/src/InsightReaders.tsx');

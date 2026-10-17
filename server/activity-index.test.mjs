@@ -129,14 +129,14 @@ test('HTTP joined endpoints read the persistent cache and validate categories, p
   const {server}=await import('./index.mjs?activity-http-test');
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}`;
   t.after(async()=>{await new Promise(resolve=>server.close(resolve));store.close();rmSync(dir,{recursive:true,force:true});delete process.env.ACTIVITY_INDEX_ENABLED;delete process.env.ACTIVITY_INDEX_DIR;});
-  assert.equal((await fetch(base+'/api/poc/activity-index/status')).status,200);
-  const r=await fetch(base+'/api/poc/latest-activities/257043?lang=es&limit=1');assert.equal(r.status,200);assert.equal((await r.json()).items[0].recordKind,'document');
-  for(const suffix of ['?limit=0','?limit=51','?offset=-1','?offset=1e2','?category=unknown','?url=https://evil.example','?limit=1&limit=2'])assert.equal((await fetch(base+'/api/poc/latest-activities/257043'+suffix)).status,400);
-  assert.equal((await fetch(base+'/api/poc/latest-activities/257043',{method:'POST'})).status,405);
-  assert.equal((await fetch(base+'/api/poc/latest-activities/257043',{headers:{Origin:'https://evil.example'}})).status,403);
-  assert.equal((await fetch(base+'/api/poc/latest-activities/42')).status,404);
-  const head=await fetch(base+'/api/poc/latest-activities/257043',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
-  const groupRoute=base+'/api/poc/insights/group-voices';
+  assert.equal((await fetch(base+'/api/activity-index/status')).status,200);
+  const r=await fetch(base+'/api/latest-activities/257043?lang=es&limit=1');assert.equal(r.status,200);assert.equal((await r.json()).items[0].recordKind,'document');
+  for(const suffix of ['?limit=0','?limit=51','?offset=-1','?offset=1e2','?category=unknown','?url=https://evil.example','?limit=1&limit=2'])assert.equal((await fetch(base+'/api/latest-activities/257043'+suffix)).status,400);
+  assert.equal((await fetch(base+'/api/latest-activities/257043',{method:'POST'})).status,405);
+  assert.equal((await fetch(base+'/api/latest-activities/257043',{headers:{Origin:'https://evil.example'}})).status,403);
+  assert.equal((await fetch(base+'/api/latest-activities/42')).status,404);
+  const head=await fetch(base+'/api/latest-activities/257043',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
+  const groupRoute=base+'/api/insights/group-voices';
   const groupResponse=await fetch(groupRoute);assert.equal(groupResponse.status,200);assert.equal((await groupResponse.json()).coverage.authoritativeComplete,false);
   for(const suffix of ['?group=NI','?lang=__proto__','?person=abc','?limit=0','?group=S_D&group=PPE','?url=https://example.com'])assert.equal((await fetch(groupRoute+suffix)).status,400);
   assert.equal((await fetch(groupRoute,{method:'POST'})).status,405);assert.equal((await fetch(groupRoute,{headers:{Origin:'https://evil.example'}})).status,403);
@@ -153,13 +153,13 @@ test('HTTP joined endpoints read the persistent cache and validate categories, p
     const h=await fetch(base+prefix+insight,{method:'HEAD'});assert.equal(h.status,200);assert.equal(await h.text(),'');
   }
   for(const days of ['term','366']) {
-    const response=await fetch(base+'/api/poc/insights/questions?days='+days+'&end=2026-10-13');assert.equal(response.status,200);
+    const response=await fetch(base+'/api/insights/questions?days='+days+'&end=2026-10-13');assert.equal(response.status,200);
     const body=await response.json();assert.equal(body.counts.analyzedQuestions,days==='term'?2:1);
     if(days==='term'){assert.equal(body.window.start,'2024-07-16');assert(body.questions.some(q=>q.id===early.identifier));}
   }
-  for(const suffix of ['?days=0','?days=999999','?days=90&days=90','?url=https://evil.example'])assert.equal((await fetch(base+'/api/poc/insights/questions'+suffix)).status,400);
-  assert.equal((await fetch(base+'/api/poc/insights/legislation?url=https://evil.example')).status,400);
-  assert.equal((await fetch(base+'/api/poc/insights/unknown')).status,404);
+  for(const suffix of ['?days=0','?days=999999','?days=90&days=90','?url=https://evil.example'])assert.equal((await fetch(base+'/api/insights/questions'+suffix)).status,400);
+  assert.equal((await fetch(base+'/api/insights/legislation?url=https://evil.example')).status,400);
+  assert.equal((await fetch(base+'/api/insights/unknown')).status,404);
   assert.equal((await fetch(base+ '/api'+insight,{method:'POST'})).status,405);
   assert.equal((await fetch(base+ '/api'+insight,{headers:{Origin:'https://evil.example'}})).status,403);
   assert.deepEqual(store.status(),before);
