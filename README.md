@@ -4,7 +4,7 @@ Explore Members of the European Parliament, written questions, plenary debates, 
 
 Outside voices follows Commissioners and other non-MEP speakers through plenary timelines, repeat appearances, speeches and linked dossiers.
 
-See the [project vision](VISION.md) for the proof of concept’s purpose, approach to public data and future directions.
+See the [project vision](VISION.md) for the project’s purpose, approach to public data and future directions.
 
 ## Run locally
 
