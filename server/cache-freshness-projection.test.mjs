@@ -1,10 +1,11 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,rm,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
-import {LegislationInsights,LEGISLATION_VIEW_VERSION} from './insights-legislation.mjs';
-import {participation,participationQuery} from './insights-participation.mjs';
+import {LegislationInsights,LEGISLATION_LIMITS,LEGISLATION_VIEW_VERSION} from './insights-legislation.mjs';
+import {cachedEvent,participation,participationQuery} from './insights-participation.mjs';
 import {insightQuery} from './insights-store.mjs';
 import {createInsights} from './insights.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
@@ -190,8 +191,105 @@ test('participation retains stale empty-event evidence from the existing legisla
   record.payload.data[0].consists_of=[];
   Object.assign(record,{stale:true,refreshInProgress:true});
   legislation.cache.set(JSON.stringify([eventEndpoint,{}]),{at:clock(),value:record});
-  const value=await participation(legislation,store,participantQuery(),{clock,readEvent:async()=>assert.fail('The existing exact cache key should be used')});
+  let reads=0;
+  const value=await participation(legislation,store,participantQuery(),{clock,readEvent:async()=>{reads++;return null;}});
+  assert.equal(reads,1,'A transient memory record checks the existing exact disk key for recovery');
   assert.equal(value.topics.find(topic=>topic.id===debateId).speakers,null);
   assert(value.coverage.sources.some(source=>source.url===record.url&&source.stale&&source.refreshInProgress));
+  assert.equal(policy('participation',value).cdnCacheControl,'no-store');
+});
+
+
+for(const transient of [{stale:true},{refreshInProgress:true},{refreshError:'Synthetic retry'}])test('legislation observes source recovery after '+Object.keys(transient)[0]+' without waiting six hours',async()=>{
+  const flags={[agendaEndpoint]:transient}, {legislation,calls}=fixture({flags});
+  const first=await legislation.query(legislationQuery(null));
+  assert.equal(policy('legislation',first).cdnCacheControl,'no-store');
+  const key=JSON.stringify([agendaEndpoint,{limit:50,offset:0}]);
+  assert.equal(legislation.cache.has(key),false,'A transient ODP snapshot is not stored for the normal fresh lifetime');
+  flags[agendaEndpoint]={};
+  const recovered=await legislation.query(legislationQuery(null));
+  assert.match(policy('legislation',recovered).cdnCacheControl,/max-age=21600/);
+  assert.equal(calls.filter(endpoint=>endpoint===agendaEndpoint).length,2);
+  await legislation.query(legislationQuery(null));
+  assert.equal(calls.filter(endpoint=>endpoint===agendaEndpoint).length,2,'Recovered fresh records retain normal reuse');
+});
+
+test('fresh legislation sources retain the existing six-hour adapter lifetime',async()=>{
+  let now=clock(),calls=0;
+  const legislation=new LegislationInsights(null,{clock:()=>now,request:async()=>{calls++;return {url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:now,payload:{data:[]}};}});
+  const first=await legislation.record('/meetings');
+  now+=LEGISLATION_LIMITS.cacheMs-1;
+  assert.equal(await legislation.record('/meetings'),first);
+  assert.equal(calls,1);
+  now++;
+  assert.notEqual(await legislation.record('/meetings'),first);
+  assert.equal(calls,2);
+});
+
+test('legislation does not reuse a transient entry retained by an earlier adapter',async()=>{
+  const {legislation,calls,readEvent}=fixture();
+  const record=await readEvent(eventId);
+  legislation.cache.set(JSON.stringify([eventEndpoint,{}]),{at:clock(),value:{...record,stale:true,refreshInProgress:true}});
+  const recovered=await legislation.record(eventEndpoint);
+  assert.equal(recovered.stale,undefined);
+  assert.deepEqual(calls,[eventEndpoint]);
+});
+
+test('participation keeps same-record transient evidence and sees a newer fresh raw disk publication',async()=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'participation-event-recovery-'));
+  try {
+    const {legislation,store,readEvent,calls}=fixture();
+    const source=await readEvent(eventId),url='https://data.europarl.europa.eu/api/v2/events/'+eventId+'?format=application%2Fld%2Bjson';
+    source.url=url;source.fetchedAt=clock()-LEGISLATION_LIMITS.cacheMs-1;source.payload.data[0].consists_of=[];
+    legislation.cache.set(JSON.stringify([eventEndpoint,{}]),{at:clock(),value:{...source,stale:true,refreshInProgress:true,refreshError:'Refresh pending'}});
+    const file=path.join(directory,createHash('sha256').update(url).digest('hex')+'.json');
+    await writeFile(file,JSON.stringify(source));
+    const readSaved=id=>cachedEvent(id,directory);
+    const first=await participation(legislation,store,participantQuery(),{clock,readEvent:readSaved});
+    const firstSource=first.coverage.sources.find(source=>source.url===url);
+    assert.equal(firstSource.stale,true);
+    assert.equal(firstSource.refreshInProgress,true);
+    assert.equal(firstSource.refreshError,'Refresh pending','Flagless serialization of the same old record does not erase observed refresh state');
+    assert.equal(policy('participation',first).cdnCacheControl,'no-store');
+    await writeFile(file,JSON.stringify({...source,fetchedAt:clock()}));
+    const recovered=await participation(legislation,store,participantQuery(),{clock,readEvent:readSaved});
+    const recoveredSource=recovered.coverage.sources.find(source=>source.url===url);
+    assert.equal(recoveredSource.stale,false);
+    assert.equal(recoveredSource.refreshInProgress,false);
+    assert.equal(recoveredSource.refreshError,null);
+    assert.equal(recovered.topics.find(topic=>topic.id===debateId).speakers,null,'A fresh partial snapshot still distinguishes unavailable speaker links from zero');
+    assert.match(policy('participation',recovered).cdnCacheControl,/max-age=21600/);
+    assert(!calls.some(endpoint=>endpoint.startsWith('/events/')),'Recovery only rereads the existing exact disk key');
+  } finally {await rm(directory,{recursive:true,force:true});}
+});
+
+test('participation keeps an old raw disk event cacheable as a saved partial snapshot',async()=>{
+  const {legislation,store,readEvent}=fixture();
+  const record=await readEvent(eventId);record.fetchedAt=clock()-30*24*60*60_000;record.payload.data[0].consists_of=[];
+  const value=await participation(legislation,store,participantQuery(),{clock,readEvent:async()=>record});
+  const source=value.coverage.sources.find(source=>source.url===record.url);
+  assert.equal(source.stale,false,'Age alone does not make a saved historical observation transient');
+  assert.equal(source.fetchedAt,record.fetchedAt);
+  assert.equal(value.topics.find(topic=>topic.id===debateId).speakers,null);
+  assert.match(policy('participation',value).cdnCacheControl,/max-age=21600/);
+});
+
+test('participation rereads an expired unflagged memory event and accepts a fresh cache-only replacement',async()=>{
+  const {legislation,store,readEvent}=fixture();
+  const record=await readEvent(eventId),old=clock()-LEGISLATION_LIMITS.cacheMs;
+  legislation.cache.set(JSON.stringify([eventEndpoint,{}]),{at:old,value:{...record,fetchedAt:old}});
+  let reads=0;
+  const value=await participation(legislation,store,participantQuery(),{clock,readEvent:async()=>{reads++;return record;}});
+  assert.equal(reads,1);
+  assert.match(policy('participation',value).cdnCacheControl,/max-age=21600/);
+});
+
+
+test('participation preserves transient memory evidence when its timestamp cannot establish a newer disk publication',async()=>{
+  const {legislation,store,readEvent}=fixture();
+  const record=await readEvent(eventId);
+  legislation.cache.set(JSON.stringify([eventEndpoint,{}]),{at:clock(),value:{...record,fetchedAt:undefined,stale:true}});
+  const value=await participation(legislation,store,participantQuery(),{clock,readEvent:async()=>record});
+  assert(value.coverage.sources.some(source=>source.url===record.url&&source.stale));
   assert.equal(policy('participation',value).cdnCacheControl,'no-store');
 });

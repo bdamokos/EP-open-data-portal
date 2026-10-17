@@ -9,6 +9,8 @@ import path from 'node:path';
 import {SpeakerIdentities,personNameVariants,parliamentOffice} from './speaker-identity.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {SpeechInterventions} from './speech-intervention-service.mjs';
+import {runWithRequestSignal} from './request-budget.mjs';
+import {apiCachePolicy} from './response-cache.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/speaker-names-20261017.json',import.meta.url)));
 const [greek,bulgarian,chair]=fixture.examples.map(example=>example.person);
 const day='2026-10-06',speechId='MTG-PL-2026-10-06-OTH-1',parentId='MTG-PL-2026-10-06-PVCRE-ITM-1';
@@ -86,6 +88,33 @@ test('failed individual profiles mark only the affected identities while success
   assert.deepEqual(recovered[1].identityIssues,['parliament-office-unavailable']);
   assert.equal(recovered[1].office,null);
   assert.deepEqual(recovered[2].identityIssues,[]);
+});
+
+test('an aborted identity budget marks skipped bounded profiles as temporary failures',async()=>{
+  const people=Array.from({length:10},(_,i)=>({id:String(i+1),name:'Public Speaker '+(i+1)}));
+  for(const kind of ['chairs','profileIds']) {
+    const controller=new AbortController(),calls=[],pending=[];
+    const identities=new SpeakerIdentities({request:async route=>{
+      calls.push(route);
+      if(route==='/meps/show-current')return record([]);
+      return new Promise(resolve=>pending.push(resolve));
+    }});
+    const job=runWithRequestSignal(controller.signal,()=>identities.enrich(people,day,{[kind]:people.map(person=>person.id)}));
+    for(let turn=0;turn<10&&pending.length<2;turn++)await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(pending.length,2,'only the first bounded batch starts');
+    controller.abort(new Error('Synthetic identity budget elapsed'));
+    const result=await job;
+    for(const finish of pending)finish(record([]));
+    assert.deepEqual(calls,['/meps/show-current','/meps/1','/meps/2']);
+    for(const person of result.slice(0,8))assert(person.identityIssues.includes('person-profile-unavailable'),person.id+' must retain its temporary lookup failure');
+    for(const person of result.slice(8))assert(!person.identityIssues.includes('person-profile-unavailable'),'the explicit profile cap remains a coverage limit');
+    const skipped=result[2];
+    assert.equal(skipped.name,people[2].name);
+    for(const [route,payload] of [
+      ['/api/poc/speech/test',{date:'2026-09-01',xml:'<speech>Retained text</speech>',speakers:[skipped]}],
+      ['/api/poc/speech-context/test',{debates:[{speaker:skipped}]}],
+    ])assert.equal(apiCachePolicy({method:'GET',headers:{}},new URL(route,'https://example.test'),payload).cdnCacheControl,'no-store');
+  }
 });
 
 test('an established speech retains expired empty ODP profile evidence during refresh and after its failure',async()=>{

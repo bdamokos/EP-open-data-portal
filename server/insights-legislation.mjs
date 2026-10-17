@@ -16,6 +16,7 @@ const verifiedSpeechAnchors={
 };
 // Keep source freshness alongside provenance even when assembled views are newly cached.
 export const sourceCacheState=record=>({stale:record?.stale===true,refreshInProgress:record?.refreshInProgress===true,refreshError:record?.refreshError||null});
+export const sourceIsTransient=record=>record?.stale===true||record?.refreshInProgress===true||Boolean(record?.refreshError);
 const sourceEvidence=record=>({apiUrl:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),...sourceCacheState(record)});
 function uniqueSources(sources) {
   const records=new Map();
@@ -35,12 +36,14 @@ export class LegislationInsights {
   async record(endpoint,params={}) {
     requestSignal()?.throwIfAborted();
     const key=JSON.stringify([endpoint,params]);const old=this.cache.get(key);
-    if(old&&this.clock()-old.at<LEGISLATION_LIMITS.cacheMs)return old.value;
+    if(old&&sourceIsTransient(old.value))this.cache.delete(key);
+    else if(old&&this.clock()-old.at<LEGISLATION_LIMITS.cacheMs)return old.value;
     const failed=this.failures.get(key);if(failed&&this.clock()-failed.at<60_000)throw failed.error;
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
     const job=sharedRequest(async()=>{const value=await this.request(endpoint,params,{priority:'interactive',staleWhileRevalidate:true});requestSignal()?.throwIfAborted();if(!Array.isArray(value.payload?.data))throw new HttpError(502,'insights_source_shape','Parliament returned an unreadable insight source.');
       if(Buffer.byteLength(JSON.stringify(value.payload))>LEGISLATION_LIMITS.rawBytes)throw new HttpError(502,'insights_source_size','Parliament source exceeds the bounded insight response size.');
-      this.cache.set(key,{at:this.clock(),value});this.failures.delete(key);while(this.cache.size>LEGISLATION_LIMITS.cacheEntries)this.cache.delete(this.cache.keys().next().value);return value;
+      // Let the ODP cache expose recovery on the next read instead of pinning an SWR snapshot.
+      if(sourceIsTransient(value))this.cache.delete(key);else this.cache.set(key,{at:this.clock(),value});this.failures.delete(key);while(this.cache.size>LEGISLATION_LIMITS.cacheEntries)this.cache.delete(this.cache.keys().next().value);return value;
     }).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error});while(this.failures.size>24)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
     this.pending.set(key,job);return waitForRequest(job);
   }
