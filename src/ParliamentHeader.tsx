@@ -1,6 +1,7 @@
 import {SavedNav} from './Saved';
 import {TextSearch} from './TextSearch';
 import './ParliamentHeader.css';
+import {publicAmendmentsEnabled} from './publicFeatures';
 
 type ExplorerView = 'legislation' | 'questions' | 'outside' | 'amendments' | 'groups';
 
@@ -15,7 +16,7 @@ export function ParliamentHeader({view,onMembers,onNavigate,onSaved,language='en
     <span className="parliament-brand" lang="en">European Parliament data explorer</span>
     <nav aria-label="Explore Parliament" lang="en">
       <button aria-current={view==='members'?'page':undefined} onClick={onMembers}>Members</button>
-      {(['legislation','questions','amendments','outside','groups'] as const).map(destination=><button
+      {(['legislation','questions','amendments','outside','groups'] as const).filter(destination=>destination!=='amendments'||publicAmendmentsEnabled).map(destination=><button
         key={destination}
         aria-current={view===destination?'page':undefined}
         disabled={!onNavigate&&view!==destination}

@@ -44,6 +44,7 @@ import { useSpeechVideo } from "./SpeechPlayer";
 import { Legislation } from './Legislation';
 import {Amendments,AmendmentsPage} from './Amendments';
 import {AmendmentTrailLink} from './AmendmentTrailLink';
+import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule} from './publicFeatures';
 import { QuestionTopics } from './QuestionTopics';
 import {OutsideVoices} from './OutsideVoices';
 import {Status} from './Status';
@@ -408,11 +409,10 @@ export default function App() {
   const [activityLink, setActivityLink] = useState(initial.get("activity"));
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
   const [view, setView] = useState<'legislation'|'questions'|'outside'|'amendments'|'groups'|'saved'|null>(
-    ['legislation','questions','outside','amendments','groups','saved'].includes(initial.get('view') || '')
-      ? initial.get('view') as 'legislation'|'questions'|'outside'|'amendments'|'groups'|'saved' : null,
+    publicExplorerView(initial.get('view')),
   );
   const [tab, setTab] = useState(
-    ["profile", "activities", "amendments"].includes(initial.get("module") || "") ? initial.get("module")! : "speeches",
+    publicMemberModule(initial.get('module')),
   );
   const memberOpener=useRef<number|null>(null);
   const viewOpener=useRef<{node:HTMLElement|null;headerIndex:number}|null>(null);
@@ -540,6 +540,7 @@ export default function App() {
             ? lang === "en" ? "Vice-Chair" : label("viceChair", "Vice-Chair")
             : value.toLowerCase().replaceAll("_", " ");
   function navigateView(next:typeof view) {
+    next=publicExplorerView(next);
     if(next===view)return;
     const active=document.activeElement instanceof HTMLElement?document.activeElement:null;
     viewOpener.current={node:active,headerIndex:active?Array.from(document.querySelectorAll('.parliament-header nav button')).indexOf(active):-1};
@@ -555,12 +556,21 @@ export default function App() {
     const restore=()=>{
       pendingDestination.current=null;
       const query=new URLSearchParams(location.search),next=query.get('view');
-      const restored=['legislation','questions','outside','amendments','groups','saved'].includes(next||'')?next as typeof view:null;
+      const restored=publicExplorerView(next);
       setLang(queryLanguage(query));setRole(queryRole(query));
       setView(restored);setMember(/^\d+$/.test(query.get('member')||'')?Number(query.get('member')):null);
       if(!restored){setCountry(filterCountry(query.get('country')));setCommittee(query.get('committee')||'');setGroup(query.get('group')||'');}
-      setTab(['profile','activities','amendments'].includes(query.get('module')||'')?query.get('module')!:'speeches');
+      setTab(publicMemberModule(query.get('module')));
       setSpeechLink(query.get('speech'));setActivityLink(query.get('activity'));setActivityCategory(query.get('activity-category')||'');
+      // A restored disabled link may resolve to the current state, so the URL
+      // effect need not run. Canonicalize that history entry immediately too.
+      if(!publicAmendmentsEnabled&&(next==='amendments'||query.get('module')==='amendments')){
+        const url=new URL(location.href);
+        if(next==='amendments')url.searchParams.delete('view');
+        if(query.get('module')==='amendments')url.searchParams.set('module','speeches');
+        for(const key of [...url.searchParams.keys()])if(key.startsWith('am-'))url.searchParams.delete(key);
+        history.replaceState(null,'',url);
+      }
     };
     window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);
   },[]);
@@ -586,7 +596,7 @@ export default function App() {
     navigateView(null);
     pendingDestination.current={view:null,member,opener};
   };
-  if (view === 'legislation' || view === 'questions' || view === 'outside' || view === 'amendments' || view === 'groups') {
+  if (view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
     return view==='groups' ? <GroupVoices {...props}/> : view==='amendments' ? <AmendmentsPage {...props}/> : view==='legislation' ? <Legislation {...props}/> : view==='outside' ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>;
   }
@@ -639,7 +649,7 @@ export default function App() {
                 {c.speeches}
               </button>
               <button className={tab === "activities" ? "selected" : ""} aria-pressed={tab === "activities"} onClick={() => setTab("activities")}>{c.activities}</button>
-              <button lang="en" className={tab === "amendments" ? "selected" : ""} aria-pressed={tab === "amendments"} onClick={() => setTab("amendments")}>Amendments</button>
+              {publicAmendmentsEnabled&&<button lang="en" className={tab === "amendments" ? "selected" : ""} aria-pressed={tab === "amendments"} onClick={() => setTab("amendments")}>Amendments</button>}
             </nav>
             <div className="explorer-profile-body">
               {tab === "speeches" ? (
@@ -649,7 +659,7 @@ export default function App() {
                   initialSpeech={speechLink}
                   onOpen={setSpeechLink}
                 />
-              ) : tab === "amendments" ? <Amendments key={member} member={member} language={lang} onMember={openInsightMember} heading="Amendments tabled"/> : tab === "activities" ? <Activities id={member} lang={lang} initialActivity={activityLink} onOpen={setActivityLink} category={activityCategory} onCategory={setActivityCategory} /> : (
+              ) : publicAmendmentsEnabled && tab === "amendments" ? <Amendments key={member} member={member} language={lang} onMember={openInsightMember} heading="Amendments tabled"/> : tab === "activities" ? <Activities id={member} lang={lang} initialActivity={activityLink} onOpen={setActivityLink} category={activityCategory} onCategory={setActivityCategory} /> : (
                 <>
                   {profile.loading && <p role="status" lang="en">Loading profile…</p>}
                   {profile.error && (

@@ -4,7 +4,7 @@ import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
 
-test('dossier amendment link remains available while its independent summary loads or fails',async t=>{
+test('dossier summary loading and failure do not expose the unfinished amendment catalogue',async t=>{
   const window=new Window({url:'http://localhost/?view=legislation'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -27,13 +27,10 @@ test('dossier amendment link remains available while its independent summary loa
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(ProcedureContext,{reference:'2025/0407(COD)',language:'en'})));
   const amendmentLinks=()=>[...container.querySelectorAll('a')].filter(link=>link.textContent.includes('Amendments for this dossier'));
-  assert.equal(amendmentLinks().length,1);
+  assert.equal(amendmentLinks().length,0);
   assert.match(container.textContent,/Loading summary/);
-  const params=new URL(amendmentLinks()[0].href).searchParams;
-  assert.equal(params.get('view'),'amendments');
-  assert.equal(params.get('am-procedure'),'2025/0407(COD)');
   await act(async()=>respond(Response.json({error:{message:'Summary service unavailable.'}},{status:503})));
-  assert.equal(amendmentLinks().length,1,'a failed summary never hides or duplicates the independent amendment trail');
+  assert.equal(amendmentLinks().length,0,'a failed summary must not expose the unfinished catalogue');
   assert.match(container.textContent,/Read on Legislative Observatory/);
   assert.doesNotMatch(container.textContent,/Loading summary/);
 });
