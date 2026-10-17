@@ -6,7 +6,7 @@ import os from 'node:os';
 import {ActivityStore} from './activity-index-store.mjs';
 import {documentRows,projectDocument} from './activity-index-model.mjs';
 import {savedQuery,savedStates} from './insights-saved.mjs';
-import {createSavedStore} from '../src/pocBookmarks.mjs';
+import {createSavedStore} from '../src/bookmarks.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/activity-index-live-20261013.json',import.meta.url)));
 const base=fixture.documents.find(d=>d.work.identifier==='E-10-2026-003031').work;

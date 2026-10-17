@@ -94,7 +94,7 @@ Summaries are parsed from visible HTML, reached through the exact procedure refe
 ### Publications Office
 
 - Legal references in questions and answers (CELEX, ELI, Cellar, COM/SWD/JOIN, procedure and question numbers) become lookup keys through fixed patterns and are resolved in batched SPARQL. A reference links only when exactly one work matches. Official Journal position links (`uri=uriserv:OJ…`) are not resolved.
-- `src/pocTerms.json` holds procedure-phase labels (RDG1, RDG2) in all 24 languages, with concept URIs and query provenance. IATE entries corroborate them but are not substituted.
+- `src/terms.json` holds procedure-phase labels (RDG1, RDG2) in all 24 languages, with concept URIs and query provenance. IATE entries corroborate them but are not substituted.
 - **Vote**, **Amendment** and some short interface labels are app-owned machine translations with model/date provenance. They are not official translations. EuroVoc 4750 (electoral voting) gives the wrong sense for parliamentary votes.
 
 ### Multimedia Centre and player

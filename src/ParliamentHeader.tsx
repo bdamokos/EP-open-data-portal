@@ -1,5 +1,5 @@
-import {SavedNav} from './PocSaved';
-import {PocTextSearch} from './PocTextSearch';
+import {SavedNav} from './Saved';
+import {TextSearch} from './TextSearch';
 import './ParliamentHeader.css';
 
 type ExplorerView = 'legislation' | 'questions' | 'outside' | 'amendments' | 'groups';
@@ -23,6 +23,6 @@ export function ParliamentHeader({view,onMembers,onNavigate,onSaved,language='en
       >{destination==='legislation'?'Plenary agenda':destination==='questions'?'Questions':destination==='amendments'?'Amendments':destination==='groups'?'Group voices':'Outside voices'}</button>)}
       {onSaved&&<SavedNav onClick={onSaved} current={view==='saved'}/>}
     </nav>
-    <PocTextSearch prefix="global-fts" label="Search Parliament text" language={language} className="poc-text-search-global" scopeNote="Searches saved speeches, parliamentary questions and linked answers. Coverage varies by language and document."/>
+    <TextSearch prefix="global-fts" label="Search Parliament text" language={language} className="explorer-text-search-global" scopeNote="Searches saved speeches, parliamentary questions and linked answers. Coverage varies by language and document."/>
   </header>;
 }

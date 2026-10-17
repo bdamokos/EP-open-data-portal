@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {GROUP_VOICE_DEFAULTS as defaults,readGroupVoicesState,changeGroupVoicesState,groupVoicesUrl,visibleGroupPeople} from './groupVoicesState.mjs';
 test('retired time links normalise while preserving exact filters and route-owned parameters',()=>{
- const url=new URL('https://example.test/?poc=1&lang=hu&view=groups&gv-tab=time&gv-person=42&gv-subject=foreign&gv-period=2026-09');const state=readGroupVoicesState(url.searchParams),next=groupVoicesUrl(url.href,state);
+ const url=new URL('https://example.test/?lang=hu&view=groups&gv-tab=time&gv-person=42&gv-subject=foreign&gv-period=2026-09');const state=readGroupVoicesState(url.searchParams),next=groupVoicesUrl(url.href,state);
  assert.equal(state.tab,'subjects');assert.equal(state.group,'S_D');assert.equal(next.searchParams.get('gv-person'),'42');assert.equal(next.searchParams.get('gv-subject'),'foreign');assert.equal(next.searchParams.get('lang'),'hu');assert.equal(next.searchParams.get('gv-tab'),'subjects');assert.equal(next.searchParams.get('gv-group'),'S_D');assert.deepEqual(readGroupVoicesState(next.searchParams),state);assert.deepEqual(readGroupVoicesState(next.searchParams),state);
 });
 test('person toggles preserve subject and list limit; other list facets reset expansion',()=>{
@@ -36,7 +36,7 @@ test('the 1000-person cap has no inert Show all action',()=>{
 });
 
 test('bare links use PPE/People; legacy filtered links keep S&D/Subjects; changed state always writes group and tab',()=>{
- const bare=readGroupVoicesState(new URLSearchParams('poc=1&view=groups&lang=fr'));assert.equal(bare.group,'PPE');assert.equal(bare.tab,'people');assert.equal(groupVoicesUrl('https://example.test/?view=groups',bare).search,'?view=groups');
+ const bare=readGroupVoicesState(new URLSearchParams('view=groups&lang=fr'));assert.equal(bare.group,'PPE');assert.equal(bare.tab,'people');assert.equal(groupVoicesUrl('https://example.test/?view=groups',bare).search,'?view=groups');
  const legacy=readGroupVoicesState(new URLSearchParams('view=groups&gv-person=42&gv-subject=foreign'));assert.equal(legacy.group,'S_D');assert.equal(legacy.tab,'subjects');
  assert.equal(readGroupVoicesState(new URLSearchParams('gv-group=ECR')).tab,'subjects');
  for(const patch of [{tab:'subjects'},{subject:'climate'},{q:'x'},{group:'S_D'}]){const state=changeGroupVoicesState(defaults,patch),url=groupVoicesUrl('https://example.test/?view=groups',state);assert(url.searchParams.has('gv-group')&&url.searchParams.has('gv-tab'));assert.deepEqual(readGroupVoicesState(url.searchParams),state);}
