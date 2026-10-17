@@ -725,6 +725,13 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
   const saveRoster=data=>writeFileSync(rosterFile,JSON.stringify({url,fetchedAt:instant(),payload:{data}}));
   saveRoster(roster);
   Object.assign(process.env,{CORPUS_ENABLED:'true',CORPUS_DIR:path.dirname(s.corpus.filename),ACTIVITY_INDEX_DIR:path.dirname(s.index.filename),ODP_CACHE_DIR:cache});
+  // fetch and the server share this event loop. After a synchronous fixture
+  // write blocks it past the idle timeout, the server's overdue keep-alive
+  // timer can close the socket fetch just reused, as a reset. Let the client own idle closes.
+  const keepAliveTimeout=server.keepAliveTimeout;server.keepAliveTimeout=0;
+  // The 5 s reader bound has its own test above; under parallel suite load the
+  // multi-megabyte PFAS fixture below can exceed it on real CPU time.
+  corpus().reader.timeoutMs=120_000;
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${server.address().port}/api/poc/corpus`;
   const post=body=>fetch(base+'/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -809,7 +816,7 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
     }
     assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0,'bounded pagination schedules no collection');
   } finally {
-    await new Promise(resolve=>server.close(resolve));
+    await new Promise(resolve=>server.close(resolve));server.keepAliveTimeout=keepAliveTimeout;
     corpus().store.close();
     for(const [key,value] of Object.entries(savedEnv)){if(value===undefined)delete process.env[key];else process.env[key]=value;}
     s.cleanup();
