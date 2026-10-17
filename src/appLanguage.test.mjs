@@ -71,6 +71,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
     if(route?.startsWith('speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(route==='insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
+    if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
     if(route?.startsWith('speech/')) {
       const id=route.slice(7),unknown=id===speeches[1].sourceId;
       if(speechResponse)return Response.json({id,...speechResponse});
