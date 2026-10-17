@@ -95,6 +95,44 @@ test('a fresh roster cannot conceal failed individual speaker profiles from spee
   }
 });
 
+test('identity source freshness survives empty and mismatched profile results for chairs and selected speakers', async () => {
+  const person = {id: '43', name: 'Public Speaker'};
+  const other = {id: 'person/44', identifier: '44', givenName: 'Other', familyName: 'Member'};
+  const cases = [
+    ['/api/poc/speech/MTG-PL-2026-09-01-INT-1', speakers => ({date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers}), 86400],
+    ['/api/poc/speech-context/MTG-PL-2026-09-01-INT-1', speakers => ({debates: [{records: [{intervention: {speaker: speakers[0]}}]}]}), 21600],
+  ];
+  for (const options of [{chairs: ['43']}, {profileIds: ['43']}]) for (const data of [[], [other]]) for (const flags of [{}, {stale: true}, {refreshInProgress: true}, {refreshError: 'Public profile refresh failed'}]) {
+    const resolver = new SpeakerIdentities({request: async route => ({url: 'https://data.europarl.europa.eu/api/v2' + route, fetchedAt: now, payload: {data: route === '/meps/show-current' ? [other] : data}, ...(route === '/meps/43' ? flags : {})})});
+    const people = await resolver.enrich([person], '2026-09-01', options);
+    const source = people[0].identitySources.find(value => value.url.endsWith('/meps/43'));
+    assert(source, 'the consulted source is retained even without an exact person');
+    assert.equal(source.stale, Boolean(flags.stale));
+    assert.equal(source.refreshInProgress, Boolean(flags.refreshInProgress));
+    assert.equal(source.refreshError, flags.refreshError || null);
+    assert.deepEqual(people[0].identityIssues, options.chairs ? ['parliament-office-unavailable'] : []);
+    for (const [path, payload, ttl] of cases) {
+      if (Object.keys(flags).length) assert.equal(policy(path, payload(people)).cdnCacheControl, 'no-store');
+      else assert.equal(seconds(policy(path, payload(people))), ttl, 'fresh absence remains cacheable');
+    }
+  }
+});
+
+test('identity roster evidence retains refresh state even when its records are empty', async () => {
+  for (const data of [[], [{id: 'person/43', identifier: '43', givenName: 'Public', familyName: 'Speaker'}]]) for (const flags of [{}, {stale: true}, {refreshInProgress: true}, {refreshError: 'Public roster refresh failed'}]) {
+    const resolver = new SpeakerIdentities({request: async route => ({url: 'https://data.europarl.europa.eu/api/v2' + route, fetchedAt: now, payload: {data}, ...flags})});
+    const people = await resolver.enrich([{id: '43', name: 'Public Speaker'}], '2026-09-01');
+    assert.equal(people[0].identitySources.length, 1);
+    const source = people[0].identitySources[0];
+    assert.equal(source.stale, Boolean(flags.stale));
+    assert.equal(source.refreshInProgress, Boolean(flags.refreshInProgress));
+    assert.equal(source.refreshError, flags.refreshError || null);
+    const value = policy('/api/poc/speech/MTG-PL-2026-09-01-INT-1', {date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers: people});
+    if (Object.keys(flags).length) assert.equal(value.cdnCacheControl, 'no-store');
+    else assert.equal(seconds(value), 86400);
+  }
+});
+
 test('document reading retains stale source state and uses the exact selected answer date', async () => {
   const questionId = 'E-10-2026-000001', answerId = questionId + '-ASW';
   const work = {identifier: questionId, document_date: '2026-09-01', inverse_answers_to: [{identifier: answerId, document_date: '2026-10-17'}]};
