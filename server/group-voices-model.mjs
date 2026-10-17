@@ -34,7 +34,7 @@ export function groupVoiceProjection(activity,{fetchedAt,url}={}) {
 
 export function groupVoicesQuery(params,{now=Date.now()}={}){
   for(const key of params.keys())if(!['lang','group','period','person','subject','offset','limit','part'].includes(key)||params.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated group-voices parameter.');
-  const group=params.get('group')||'S_D',period=params.get('period')||'term',person=params.get('person')||null,subject=params.get('subject')||null,part=params.get('part')||'summary';
+  const group=params.get('group')||'PPE',period=params.get('period')||'term',person=params.get('person')||null,subject=params.get('subject')||null,part=params.get('part')||'summary';
   if(!Object.hasOwn(GROUP_VOICE_GROUPS,group))throw new HttpError(400,'invalid_group','Choose a recorded political group.');
   if(!['term','12m'].includes(period)&&!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(period))throw new HttpError(400,'invalid_period','Choose the current term, last 12 months or a month.');
   if(person&&!/^[1-9]\d{0,12}$/.test(person))throw new HttpError(400,'invalid_person','Invalid person identifier.');

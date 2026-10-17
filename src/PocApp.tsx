@@ -523,7 +523,7 @@ export default function PocApp() {
   const pageTitle = view==='legislation' ? null : view ? {questions:'Questions',outside:'Outside voices',groups:'Group voices',amendments:'Amendments',saved:'Following'}[view]
     : member ? `${memberName} · ${tab==='profile'?c.profile:tab==='activities'?c.activities:tab==='amendments'?'Amendments':c.speeches}` : c.title;
   const pageTitleLanguage=view||member&&tab==='amendments'?'en':lang;
-  useEffect(()=>{if(pageTitle)document.title = `${pageTitle} — Parliament explorer`;document.querySelector('title')?.setAttribute('lang',pageTitleLanguage);},[pageTitle,pageTitleLanguage]);
+  useEffect(()=>{if(pageTitle)document.title = `${pageTitle} — European Parliament data explorer`;document.querySelector('title')?.setAttribute('lang',pageTitleLanguage);},[pageTitle,pageTitleLanguage]);
   const roleName = (value: string) =>
     value === "MEMBER_SUBSTITUTE"
       ? label("substitute", c.substitutes)

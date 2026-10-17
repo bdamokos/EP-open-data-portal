@@ -11,6 +11,7 @@ import { languageCode } from './ep-links.mjs';
 import {sharedRequest,waitForRequest,requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 import {numberingLabels} from './docx-numbering.mjs';
 import {noteNumbering} from './docx-note-numbering.mjs';
+import {userAgent} from './user-agent.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
 // 6: empty list items and independent, source-formatted footnote/endnote numbering.
@@ -189,7 +190,7 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal()}={}) 
     if(!allowedDownload(url))throw new Error('Unapproved official document download URL.');
     // This published distribution route returns 500 to Node fetch but a normal
     // 302 to Node HTTPS/Python. Use standard HTTPS without browser impersonation.
-    const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'*/*','User-Agent':'EP-Exhibition-PoC/0.1'},signal:AbortSignal.any([AbortSignal.timeout(25000),...(signal?[signal]:[])])},resolve).on('error',reject));
+    const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'*/*','User-Agent':userAgent('document text')},signal:AbortSignal.any([AbortSignal.timeout(25000),...(signal?[signal]:[])])},resolve).on('error',reject));
     if([301,302,303,307,308].includes(response.statusCode)){const target=response.headers.location;response.resume();if(!target)throw new Error('Invalid document redirect.');url=new URL(target,url).href;continue;}
     if(response.statusCode!==200){response.resume();throw new Error(`Official document download unavailable (${response.statusCode}).`);}
     if(!/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw new Error('Unexpected document download format.');}
