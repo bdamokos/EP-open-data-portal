@@ -1,9 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import os from 'node:os';
+import path from 'node:path';
 import {SpeakerIdentities,personNameVariants,parliamentOffice} from './speaker-identity.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {SpeechInterventions} from './speech-intervention-service.mjs';
+import {runWithRequestSignal} from './request-budget.mjs';
+import {apiCachePolicy} from './response-cache.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/speaker-names-20261017.json',import.meta.url)));
 const [greek,bulgarian,chair]=fixture.examples.map(example=>example.person);
 const day='2026-10-06',speechId='MTG-PL-2026-10-06-OTH-1',parentId='MTG-PL-2026-10-06-PVCRE-ITM-1';
@@ -54,6 +61,119 @@ test('a mismatched profile cannot provide the name or office of a chair',async()
   const resolver=new SpeakerIdentities({request:async()=>record([greek])});
   const [result]=await resolver.enrich([{id:'58766',name:'Președinte'}],day,{chairs:['58766']});
   assert.equal(result.name,'');assert.equal(result.office,null);
+});
+
+test('failed individual profiles mark only the affected identities while successful missing-office observations remain explicit',async()=>{
+  let failing=true;
+  const calls=[];
+  const resolver=new SpeakerIdentities({request:async(route)=>{
+    calls.push(route);
+    if(route==='/meps/show-current')return record([greek]);
+    if(failing)throw new Error('Public profile temporarily unavailable');
+    return record(route==='/meps/'+chair.identifier?[{...chair,hasMembership:[]}]:[{id:'person/43',identifier:'43',givenName:'Public',familyName:'Person'}]);
+  }});
+  const people=[{id:greek.identifier,name:'Γεάδης Γεάδη'},{id:chair.identifier,name:'Nicolae Ștefănuță'},{id:'43',name:'Public Person'}];
+  const read=()=>resolver.enrich(people,day,{chairs:[chair.identifier],profileIds:['43']});
+  const failed=await read();
+  assert.deepEqual(calls,['/meps/show-current','/meps/'+chair.identifier,'/meps/43']);
+  assert.deepEqual(failed[0].identityIssues,[]);
+  assert.deepEqual(failed[1].identityIssues,['person-profile-unavailable','parliament-office-unavailable']);
+  assert.deepEqual(failed[2].identityIssues,['person-profile-unavailable']);
+  assert.equal(failed[1].name,people[1].name);
+  assert.equal(failed[2].name,people[2].name);
+
+  failing=false;
+  const recovered=await read();
+  assert.deepEqual(recovered[0].identityIssues,[]);
+  assert.deepEqual(recovered[1].identityIssues,['parliament-office-unavailable']);
+  assert.equal(recovered[1].office,null);
+  assert.deepEqual(recovered[2].identityIssues,[]);
+});
+
+test('an aborted identity budget marks skipped bounded profiles as temporary failures',async()=>{
+  const people=Array.from({length:10},(_,i)=>({id:String(i+1),name:'Public Speaker '+(i+1)}));
+  for(const kind of ['chairs','profileIds']) {
+    const controller=new AbortController(),calls=[],pending=[];
+    const identities=new SpeakerIdentities({request:async route=>{
+      calls.push(route);
+      if(route==='/meps/show-current')return record([]);
+      return new Promise(resolve=>pending.push(resolve));
+    }});
+    const job=runWithRequestSignal(controller.signal,()=>identities.enrich(people,day,{[kind]:people.map(person=>person.id)}));
+    for(let turn=0;turn<10&&pending.length<2;turn++)await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(pending.length,2,'only the first bounded batch starts');
+    controller.abort(new Error('Synthetic identity budget elapsed'));
+    const result=await job;
+    for(const finish of pending)finish(record([]));
+    assert.deepEqual(calls,['/meps/show-current','/meps/1','/meps/2']);
+    for(const person of result.slice(0,8))assert(person.identityIssues.includes('person-profile-unavailable'),person.id+' must retain its temporary lookup failure');
+    for(const person of result.slice(8))assert(!person.identityIssues.includes('person-profile-unavailable'),'the explicit profile cap remains a coverage limit');
+    const skipped=result[2];
+    assert.equal(skipped.name,people[2].name);
+    for(const [route,payload] of [
+      ['/api/speech/test',{date:'2026-09-01',xml:'<speech>Retained text</speech>',speakers:[skipped]}],
+      ['/api/speech-context/test',{debates:[{speaker:skipped}]}],
+    ])assert.equal(apiCachePolicy({method:'GET',headers:{}},new URL(route,'https://example.test'),payload).cdnCacheControl,'no-store');
+  }
+});
+
+test('an established speech retains expired empty ODP profile evidence during refresh and after its failure',async()=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'identity-profile-freshness-'));
+  const id='MTG-PL-2026-09-01-OTH-1',now=Date.now();
+  const url=(endpoint,params={})=>{
+    const value=new URL('https://data.europarl.europa.eu/api/v2'+endpoint);
+    for(const [key,item]of Object.entries({...params,format:'application/ld+json'}))value.searchParams.set(key,item);
+    return value.href;
+  };
+  const profileUrl=url('/meps/43');
+  const profile={url:profileUrl,fetchedAt:now-8*86400000,payload:{data:[]}};
+  const speech={id:'eli/dl/event/'+id,activity_id:id,activity_date:'2026-09-01',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/43']}],recorded_in_a_realization_of:[{'api:xmlFragment':{en:fragment('43','President')}}]};
+  const records=[
+    profile,
+    {url:url('/meps/show-current',{limit:1000,offset:0}),fetchedAt:now,payload:{data:[{id:'person/44',identifier:'44',givenName:'Current',familyName:'Member'}]}},
+    {url:url('/speeches/'+id,{'include-output':'xml_fragment'}),fetchedAt:now,payload:{data:[speech]}},
+  ];
+  const filename=value=>path.join(directory,createHash('sha256').update(value).digest('hex')+'.json');
+  try {
+    for(const record of records)await writeFile(filename(record.url),JSON.stringify(record));
+    const script=`
+      import assert from 'node:assert/strict';
+      let requests=0,finish;
+      globalThis.fetch=async value=>{
+        assert.equal(String(value),${JSON.stringify(profileUrl)},'Only the retained profile may refresh');
+        requests++;
+        return new Promise(resolve=>{finish=()=>resolve(new Response('{}',{status:500,headers:{'content-type':'application/json'}}));});
+      };
+      const {odpSpeech}=await import(${JSON.stringify(new URL('./odp.mjs',import.meta.url).href)});
+      const {apiCachePolicy}=await import(${JSON.stringify(new URL('./response-cache.mjs',import.meta.url).href)});
+      const readPolicy=value=>apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/speech/'+${JSON.stringify(id)}),value);
+      const during=await odpSpeech(${JSON.stringify(id)},'en');
+      const duringPolicy=readPolicy(during);
+      await new Promise(resolve=>setImmediate(resolve));
+      assert.equal(typeof finish,'function');
+      finish();
+      await new Promise(resolve=>setTimeout(resolve,20));
+      const after=await odpSpeech(${JSON.stringify(id)},'en');
+      console.log(JSON.stringify({during,after,duringPolicy,afterPolicy:readPolicy(after),requests}));
+    `;
+    const out=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{env:{...process.env,ODP_CACHE_DIR:directory},encoding:'utf8',timeout:10000}));
+    assert.equal(out.requests,1);
+    for(const [value,policy]of [[out.during,out.duringPolicy],[out.after,out.afterPolicy]]){
+      const identity=value.speakers.find(person=>person.id==='43');
+      assert.equal(identity.name,'');
+      assert.equal(identity.sittingRole,'chair');
+      assert.equal(identity.office,null);
+      assert.deepEqual(identity.identityIssues,['parliament-office-unavailable']);
+      const source=identity.identitySources.find(source=>source.url===profileUrl);
+      assert(source,'Expired empty profile remains explicit in the real speech payload');
+      assert.equal(source.fetchedAt,new Date(profile.fetchedAt).toISOString());
+      assert.equal(source.stale,true);
+      assert.deepEqual(policy,{cacheControl:'no-store',cdnCacheControl:'no-store'});
+    }
+    assert.equal(out.during.speakers[0].identitySources.find(source=>source.url===profileUrl).refreshInProgress,true);
+    assert.match(out.after.speakers[0].identitySources.find(source=>source.url===profileUrl).refreshError,/500/);
+    assert.deepEqual(JSON.parse(await readFile(filename(profileUrl),'utf8')),profile,'Failed refresh preserves the retained source fixture');
+  }finally{await rm(directory,{recursive:true,force:true});}
 });
 
 test('context enrichment keeps each contribution role and leaves exchange classification intact',async()=>{

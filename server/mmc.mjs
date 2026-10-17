@@ -162,7 +162,10 @@ export async function speechMedia(id, language, audio = language, dependencies =
   const results = await Promise.allSettled(candidates.map(row => (dependencies.detail || recordingDetail)(row.id, directory)));
   // A failed candidate could overlap the successful one; do not silently choose it.
   if (results.some(result => result.status === 'rejected')) return fail('metadata-unavailable');
-  const match = matchRecording(speech, results.map(result => result.value));
+  const recordings = results.map(result => result.value);
+  // Every candidate establishes uniqueness, including recordings that do not overlap.
+  base.provenance.recordingSources = recordings.map(record => ({url: record.url, fetchedAt: record.fetchedAt, stale: Boolean(record.stale), refreshInProgress: Boolean(record.refreshInProgress), refreshError: record.refreshError || null}));
+  const match = matchRecording(speech, recordings);
   if (match.status !== 'matched') return fail(match.status);
   const detail = match.record.payload.resultJSON.content, official = officialEmbed(detail, detail.mediaBusinessId);
   const additions = {

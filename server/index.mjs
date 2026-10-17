@@ -1,16 +1,19 @@
 import {groupVoicesQuery} from './group-voices-model.mjs';
 import {groupVoicesPage} from './group-voices-store.mjs';
 import http from 'node:http';
+import {createHash} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {pathToFileURL} from 'node:url';
 import {apiPrefixes,config} from './config.mjs';
 import {assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} from './http-utils.mjs';
 import {serveStatic} from './static-files.mjs';
+import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
 import {odpDirectory,odpProfile,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,upstreamStatus} from './odp.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
 import {motionComparison} from './motion-comparison.mjs';
 import {motionAmendmentsQuery,motionAmendmentsPage} from './motion-amendments.mjs';
+import {memberVotes,memberVotesQuery} from './member-votes.mjs';
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
@@ -97,7 +100,7 @@ async function corpusSearchBody(request) {
 }
 
 // Browser transport for this app. The gateway admits the same finite route set.
-const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','source-record','corpus','speech-statistics','speech-media','speech-context']);
+const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','source-record','corpus','speech-statistics','speech-media','speech-context']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -105,7 +108,7 @@ async function handleApi(request,response,url,apiPrefix){
  const endpoint=segments[0]||'';
  if(endpoint&&!apiEndpoints.has(endpoint))throw new HttpError(404,'not_found','The requested API endpoint does not exist.');
  const isCorpusSearch=segments.length===2&&endpoint==='corpus'&&segments[1]==='search';
- if(request.method==='OPTIONS'){setCommonSecurityHeaders(response);response.statusCode=204;response.setHeader('Allow',isCorpusSearch?'GET, HEAD, POST, OPTIONS':'GET, HEAD, OPTIONS');response.setHeader('Cache-Control','no-store');response.setHeader('Vary','Origin');response.end();return;}
+ if(request.method==='OPTIONS'){setCommonSecurityHeaders(response);response.statusCode=204;response.setHeader('Allow',isCorpusSearch?'GET, HEAD, POST, OPTIONS':'GET, HEAD, OPTIONS');response.setHeader('Cache-Control','no-store');response.setHeader('CDN-Cache-Control','no-store');response.setHeader('Vary','Origin');response.end();return;}
  requireMethod(request,isCorpusSearch?['GET','HEAD','POST']:['GET','HEAD']);
  if(!endpoint||endpoint==='healthz'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:1,...(!endpoint?{endpoints:[...apiEndpoints]}:{}),time:new Date().toISOString()});return;}
     const queryKeys={directory:['lang'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang'],'speech-transcript':['lang'],'source-record':['lang','url'],'motion-comparison':['lang','joint','stage']};
@@ -114,8 +117,19 @@ async function handleApi(request,response,url,apiPrefix){
     if (segments.length === 2 && segments[0] === "portrait") {
       const image = await odpPortrait(positiveId(segments[1]));
       setCommonSecurityHeaders(response);
+      const policy = request.headers.authorization ? {cacheControl: 'no-store', cdnCacheControl: 'no-store'} : portraitCachePolicy(image);
+      const etag = `"${createHash('sha256').update(image.body).digest('base64url')}"`;
       response.setHeader("Content-Type", image.contentType);
-      response.setHeader("Cache-Control", "private, max-age=21600");
+      response.setHeader("Cache-Control", policy.cacheControl);
+      response.setHeader("CDN-Cache-Control", policy.cdnCacheControl);
+      response.setHeader("Vary", "Origin");
+      response.setHeader("ETag", etag);
+      if (request.headers['if-none-match'] === etag) {
+        response.statusCode = 304;
+        response.removeHeader('Content-Type');
+        response.end();
+        return;
+      }
       response.setHeader("Content-Length", image.body.length);
       response.statusCode = 200;
       response.end(request.method === "HEAD" ? undefined : image.body);
@@ -129,6 +143,9 @@ async function handleApi(request,response,url,apiPrefix){
     else if(segments[0]==='motion-amendments' && segments.length===2) {
       const query=motionAmendmentsQuery(segments[1],url.searchParams);
       result=motionAmendmentsPage(activityIndex().store,query);
+    }
+    else if (segments[0] === 'member-votes' && segments.length===2) {
+      result=await memberVotes.query(positiveId(segments[1]),memberVotesQuery(url.searchParams));
     }
     else if (segments[0] === 'amendments' && (segments.length===1 || segments.length===2&&segments[1]==='failures')) {
       const failures=segments.length===2,query=amendmentQuery(url.searchParams,{failures});
@@ -230,7 +247,7 @@ async function handleApi(request,response,url,apiPrefix){
     } else if (segments.length === 2 && segments[0] === "speech-transcript" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[1])) result = await speechTranscript(segments[1], language);
     else if (segments.length === 2 && segments[0] === "speech" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[1])) result = await odpSpeech(segments[1], language);
     else throw new HttpError(404, "not_found", "Unknown explorer endpoint.");
-    sendJson(request, response, 200, result);
+    sendJson(request, response, 200, result, apiCachePolicy(request, url, result));
     return;
 }
 export async function handleRequest(request, response) {
