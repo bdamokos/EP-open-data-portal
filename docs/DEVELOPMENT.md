@@ -22,3 +22,5 @@ For persistent data, mount a writable cache directory at `/data/cache` and an in
 Run the checks in [Contributing](../CONTRIBUTING.md). Verify the directory, a profile, question/answer reading, speech-cloud reading and highlights, named vote/country joins, language selection, Following, and mobile layouts.
 
 Local test examples intentionally omit parts of the archive, portraits and demographics. Keep fixture limits separate from live counts. Test external media through the official public player after an explicit Play, including the requested language and actual decoded audio.
+
+The published application API uses `/api/poc/`. This transport namespace is a compatibility contract with the gateway and clients, independent of application file and component names.
