@@ -12,6 +12,7 @@ import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
+import {userAgent} from './user-agent.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
@@ -127,7 +128,7 @@ export async function odp(
           headers: {
             Accept: "application/ld+json",
             "User-Agent":
-              "Parliament-Explorer/0.1 (public parliamentary data)",
+              userAgent("parliamentary data"),
           },
           signal: budget.signal?AbortSignal.any([budget.signal,AbortSignal.timeout(25_000)]):AbortSignal.timeout(25_000),
           redirect: 'error',
@@ -605,7 +606,7 @@ async function feed(endpoint, params, entity) {
       headers: {
         Accept: "application/atom+xml",
         "User-Agent":
-          "Parliament-Explorer/0.1 (public update feed)",
+          userAgent("update feed"),
       },
       signal: AbortSignal.timeout(25000),
     });

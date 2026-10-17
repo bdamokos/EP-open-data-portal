@@ -4,6 +4,7 @@ import {UpstreamQueue,retryAfterSeconds} from './upstream-queue.mjs';
 import {HttpError} from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest} from './request-budget.mjs';
+import {userAgent} from './user-agent.mjs';
 
 export function officialSourceUrl(value) {
   const url=new URL(value);
@@ -44,7 +45,7 @@ export class OfficialContextSources {
       return this.run(async()=>{
         let target=url,response;
         for(let attempt=0;attempt<3;attempt++) {
-          response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':'MEP-Committee-Speeches-PoC/0.1 (official legislative context)'},redirect:'manual',signal});
+          response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':userAgent('legislative context')},redirect:'manual',signal});
           if(![301,302,303,307,308].includes(response.status))break;
           const next=response.headers.get('location');await response.body?.cancel();if(!next)throw new HttpError(502,'official_redirect','The source redirect is incomplete.');
           const redirected=officialSourceUrl(new URL(next,target));
