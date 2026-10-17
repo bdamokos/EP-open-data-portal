@@ -78,20 +78,22 @@ export class SpeechInterventions {
       if(page>0){page=0;restarted=true;}
       state={at:this.clock(),page:-1,rows:new Map(),summaries:new Map(),sources:[],issues:new Set(),total:null,ended:false,pending:null};this.members.set(key,state);while(this.members.size>INTERVENTION_LIMITS.selections)this.members.delete(this.members.keys().next().value);
     }
-    if(state.pending)await waitForRequest(state.pending);
+    if(state.pending)try {await waitForRequest(state.pending);}catch(error){if(error.code==='corpus_changed')return this.restartMember(id,key,state);throw error;}
     if(page>state.page+1)throw new HttpError(400,'invalid_page','Load the preceding statistics page first.');
     if(!state.ended&&page>state.page) {
       const job=sharedRequest(async()=>{
         let saved=null;
         if(state.corpusMode!==false&&this.readCorpusPage) {
-          saved=await this.readCorpusPage({member:key,kinds:['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'],metadataOnly:true,descending:true,limit:INTERVENTION_LIMITS.memberPage,offset:page*INTERVENTION_LIMITS.memberPage});
+          saved=await this.readCorpusPage({member:key,kinds:['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'],metadataOnly:true,descending:true,limit:INTERVENTION_LIMITS.memberPage,offset:page*INTERVENTION_LIMITS.memberPage,expectedRevision:state.corpusRevision});
           requestSignal()?.throwIfAborted();
           if(state.corpusMode&&!saved)throw new HttpError(503,'corpus_unavailable','Saved speech statistics are temporarily unavailable.');
+          if(saved?.changed)throw new HttpError(409,'corpus_changed','Saved speech statistics changed during loading.');
           if(state.corpusMode===undefined)state.corpusMode=Boolean(saved?.total>0);
           if(!state.corpusMode)saved=null;
         }
         let record;
         if(saved) {
+          state.corpusRevision=saved.revision;
           state.issues.add('retained-corpus');
           if(saved.truncated)state.issues.add('retained-byte-limit');
           const rows=saved.records.filter(row=>row.metadata);
@@ -110,7 +112,8 @@ export class SpeechInterventions {
         }
         if(hitIds&&[...hitIds].some(id=>!state.rows.has(id)))state.issues.add('missing-hit');
         state.page=page;state.ended=saved?saved.nextOffset===null||saved.truncated:(record.payload.data?.length||0)<INTERVENTION_LIMITS.memberPage||state.total!==null&&(page+1)*INTERVENTION_LIMITS.memberPage>=state.total;
-      }).finally(()=>{if(state.pending===job)state.pending=null;});state.pending=job;await waitForRequest(job);
+      }).finally(()=>{if(state.pending===job)state.pending=null;});state.pending=job;
+      try {await waitForRequest(job);}catch(error){if(error.code==='corpus_changed')return this.restartMember(id,key,state);throw error;}
     }
     const rows=[...state.rows.values()],metadata=rows.map(row=>state.summaries.get(row.activity_id)?.intervention||interventionMetadata(row)),count=type=>metadata.filter(m=>m.type===type).length;
     const groupOrations=metadata.filter(m=>m.onBehalfOf.some(g=>g.politicalGroup));
@@ -120,6 +123,10 @@ export class SpeechInterventions {
     return {memberId:key,restarted,items:rows.map(row=>state.summaries.get(row.activity_id)||speechSummary(row)),counts:{groupOrations:state.corpusMode?observed(groupOrations.length):groupOrations.length,blueQuestions:observed(count('blue-card-question')+count('blue-card-intervention')),blueAnswers:observed(count('blue-card-answer')),blueReactions:observed(count('blue-card-reaction')),catchTheEye:count('catch-the-eye')||null},groups:[...new Set(groupOrations.flatMap(m=>m.onBehalfOf.filter(g=>g.politicalGroup).map(g=>g.id)))].map(id=>({id,label:groupLabelsFrom(metadata,id),count:groupOrations.filter(m=>m.onBehalfOf.some(g=>g.id===id)).length})),
       coverage:{complete:sourceComplete&&classificationsComplete,available:state.rows.size,total:state.total,headers:metadata.filter(m=>m.headerAvailable).length,unclassified:count('unclassified')+count('blue-card'),issues:[...state.issues]},
       nextPage:!state.ended&&state.page+1<INTERVENTION_LIMITS.memberPages?state.page+1:null,sources:state.sources};
+  }
+  async restartMember(id,key,state) {
+    if(this.members.get(key)===state)this.members.delete(key);
+    return {...await this.member(id,0),restarted:true};
   }
 }
 const groupLabelsFrom=(metadata,id)=>metadata.flatMap(m=>m.onBehalfOf).find(g=>g.id===id)?.label||id;

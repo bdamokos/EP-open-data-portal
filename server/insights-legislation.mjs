@@ -20,6 +20,10 @@ function sourceNode(record,kind,id) {
   if(!node)throw new HttpError(502,'insights_source_identity','Parliament did not return the requested source identity.');
   return node;
 }
+function reusableRecord(endpoint,work) {
+  if(endpoint.startsWith('/procedures/'))return Boolean(classifyProcedure(work).code)&&typeof work.label==='string'&&Array.isArray(work.consists_of)&&work.consists_of.every(event=>typeof event?.activity_id==='string');
+  return Array.isArray(work.inverse_based_on_a_realization_of);
+}
 export class LegislationInsights {
   constructor(store,{request=odp,clock=Date.now,loadMetadata=savedMetadata,readSpeechMetadata=request===odp?retainedSpeechMetadata:null}={}) {this.store=store;this.request=request;this.clock=clock;this.loadMetadata=loadMetadata;this.readSpeechMetadata=readSpeechMetadata;this.cache=new Map();this.pending=new Map();this.failures=new Map();}
   async record(endpoint,params={}) {
@@ -28,7 +32,7 @@ export class LegislationInsights {
       if(/^\/(procedures|plenary-documents|committee-documents|parliamentary-questions)\/[A-Z0-9-]+$/.test(endpoint)) {
         const saved=this.store.source(this.store.status().servingGeneration,endpoint);
         const id=endpoint.split('/').at(-1);
-        if(saved?.work&&Number.isFinite(Date.parse(saved.fetchedAt))&&(saved.work.identifier===id||tail(saved.work.id)===id))return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.work]}};
+        if(saved?.work&&reusableRecord(endpoint,saved.work)&&Number.isFinite(Date.parse(saved.fetchedAt))&&(saved.work.identifier===id||tail(saved.work.id)===id))return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.work]}};
       }
       if(endpoint.startsWith('/speeches/')&&this.readSpeechMetadata) {
         const saved=await this.readSpeechMetadata(endpoint.slice('/speeches/'.length));

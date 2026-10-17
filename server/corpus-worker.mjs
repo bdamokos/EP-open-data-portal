@@ -130,11 +130,11 @@ export class CorpusWorker {
     const projectionStarted=this.clock();
     catalog:for(;;) {
       if(this.clock()-projectionStarted>=Math.min(10_000,this.maxDuration)||await this.store.diskBytes()>=this.diskLimit)break;
-      const rows=this.store.db.prepare('SELECT m.source_id FROM speech_metadata m LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL ORDER BY m.source_id LIMIT 100').all();
+      const rows=this.store.db.prepare('SELECT m.source_id,m.fetched_at FROM speech_metadata m LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL OR c.fetched_at IS NOT m.fetched_at ORDER BY m.source_id LIMIT 100').all();
       if(!rows.length)break;
       for(const row of rows) {
         try {const saved=this.store.speechMetadata(row.source_id);this.store.projectSpeechCatalog(saved.activity,saved.availableTextLanguages);}
-        catch {this.store.assertWriter();this.store.db.prepare('INSERT OR IGNORE INTO speech_catalog(source_id) VALUES (?)').run(row.source_id);}
+        catch {this.store.assertWriter();this.store.db.prepare('INSERT OR REPLACE INTO speech_catalog(source_id,revision,fetched_at) VALUES (?,?,?)').run(row.source_id,this.store.nextSpeechRevision(),row.fetched_at);}
         await this.checkpoint();
         if(this.clock()-projectionStarted>=Math.min(10_000,this.maxDuration))break catalog;
       }

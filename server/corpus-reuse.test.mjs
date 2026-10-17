@@ -6,7 +6,8 @@ import os from 'node:os';
 import {CorpusStore} from './corpus-store.mjs';
 import {CorpusWorker,speechTexts} from './corpus-worker.mjs';
 import {ActivityStore} from './activity-index-store.mjs';
-import {speechRows} from './activity-index-model.mjs';
+import {speechRows,projectProcedure} from './activity-index-model.mjs';
+import {classifyProcedure} from './insights-legislation-model.mjs';
 import {SpeechCloudInsights,speechCloudQuery} from './speech-cloud.mjs';
 import {SpeechWordInsights,speechWordsQuery} from './insights-speech-words.mjs';
 import {SpeechInterventions} from './speech-intervention-service.mjs';
@@ -128,9 +129,51 @@ test('legacy speech detail and media metadata reuse corpus data',async t=>{
   const media=await speechMedia(id,'en','en',{directory});assert.equal(media.status,'missing-times');
 });
 test('legislation associations use exact saved speech and document metadata without redundant source requests',async t=>{
-  const {index,add}=fixture(t),id=add(activity(1)),work={id:'eli/dl/doc/B-10-2026-0001',identifier:'B-10-2026-0001',title_dcterms:{en:'Exact saved work'}};
+  const {index,add}=fixture(t),id=add(activity(1)),work={id:'eli/dl/doc/B-10-2026-0001',identifier:'B-10-2026-0001',title_dcterms:{en:'Exact saved work'},inverse_based_on_a_realization_of:[]};
   const generation=index.status().servingGeneration;index.putSource(generation,'/plenary-documents/'+work.identifier,'document',work,fetchedAt,[]);
   const service=new LegislationInsights(index,{clock:now});
   assert.equal((await service.record('/speeches/'+id)).payload.data[0].activity_id,id);
   assert.deepEqual((await service.record('/plenary-documents/'+work.identifier)).payload.data[0],work);
+});
+test('incomplete procedure projections retain source classification and debate association fallback',async t=>{
+  const {index}=fixture(t),id='2025-0407',work={id:'eli/dl/proc/'+id,process_type:'def/procedure-types/COD',label:'2025/0407(COD)',consists_of:[{id:'eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-1',activity_id:'MTG-PL-2026-10-07-PVCRE-ITM-1',had_activity_type:'def/ep-activities/PLENARY_DEBATE'}]};
+  const projection=projectProcedure(work),generation=index.status().servingGeneration;index.putSource(generation,'/procedures/'+id,'procedure',projection,fetchedAt,[]);
+  let calls=0;const service=new LegislationInsights(index,{clock:now,request:async endpoint=>{calls++;assert.equal(endpoint,'/procedures/'+id);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:now(),payload:{data:[work]}};}});
+  const read=(await service.record('/procedures/'+id)).payload.data[0];assert.equal(calls,1);assert.equal(classifyProcedure(read).code,'COD');assert.equal(read.consists_of[0].activity_id,work.consists_of[0].activity_id);
+  index.putSource(generation,'/procedures/'+id,'procedure',work,fetchedAt,[]);
+  assert.equal((await service.record('/procedures/'+id)).payload.data[0].label,work.label);assert.equal(calls,1);
+});
+test('cloud and member page walks restart when selected members change without silently skipping a speech',async t=>{
+  const {store,index,add}=fixture(t);for(let n=1;n<=51;n++)add(activity(n));
+  const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()}),cloud=new SpeechCloudInsights(index,{clock:now});
+  assert.equal((await cloud.query(query)).coverage.transcripts,50);
+  store.putSpeechMetadata(activity(1,{member:'7'}),url,'2026-10-17T11:00:00Z');
+  const reset=await cloud.query({...query,page:1});assert.equal(reset.restarted,true);assert.equal(reset.coverage.transcripts,50);assert.equal(reset.nextPage,null);assert(!reset.speeches.some(row=>row.id===activity(1).activity_id));assert(reset.speeches.some(row=>row.id===activity(51).activity_id));
+  const stats=new SpeechInterventions({clock:now,identities:null});store.putSpeechMetadata(activity(1),url,'2026-10-17T12:00:00Z');
+  assert.equal((await stats.member('42')).coverage.available,50);
+  store.putSpeechMetadata(activity(51,{member:'7'}),url,'2026-10-17T13:00:00Z');
+  const next=await stats.member('42',1);assert.equal(next.restarted,true);assert.equal(next.coverage.available,50);assert(next.items.some(row=>row.id===activity(1).activity_id));assert(!next.items.some(row=>row.id===activity(51).activity_id));
+});
+test('selection revisions track relevant text changes without restarting for unrelated members',t=>{
+  const {store,add}=fixture(t),id=add(activity(1));add(activity(2,{member:'7'}));
+  const before=store.speechPage({member:'42',language:'en'});
+  store.putSpeechMetadata(activity(2,{member:'7'}),url,'2026-10-17T12:00:00Z');
+  assert.equal(store.speechPage({member:'42',language:'en',expectedRevision:before.revision}).changed,undefined);
+  const updated=speechTexts(activity(1,{fragments:{en:xml.replace('Climate climate water.','Energy energy water.')}}),url,'2026-10-17T13:00:00Z');store.putDocument(updated.document,updated.texts);
+  assert.deepEqual(store.speechPage({member:'42',language:'en',expectedRevision:before.revision}),{changed:true});
+  assert.equal(store.speechData({sourceIds:[id],language:'en'}).records[0].text.body,'Energy energy water.');
+});
+test('metadata, selection fields and revision roll back together when projection fails',t=>{
+  const {store,add}=fixture(t),id=add(activity(1)),before=store.speechMetadata(id),page=store.speechPage({member:'42',metadataOnly:true}),project=store.projectSpeechCatalog.bind(store),revision=store.get('speechReadRevision');
+  t.mock.method(store,'projectSpeechCatalog',(...args)=>{project(...args);throw new Error('projection failed after write');});
+  assert.throws(()=>store.putSpeechMetadata(activity(1,{member:'7',kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'}),url,'2026-10-17T12:00:00Z'),/projection failed/);
+  assert.deepEqual(store.speechMetadata(id),before);assert.equal(store.get('speechReadRevision'),revision);assert.equal(store.speechPage({member:'42',metadataOnly:true}).revision,page.revision);
+});
+test('discovery repairs an existing selection row left behind newer metadata',async t=>{
+  const {store,add}=fixture(t),id=add(activity(1)),old=store.db.prepare('SELECT * FROM speech_catalog WHERE source_id=?').get(id);
+  store.putSpeechMetadata(activity(1,{member:'7',kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'}),url,'2026-10-17T12:00:00Z');
+  store.db.prepare('UPDATE speech_catalog SET kind=?,participants=?,revision=?,fetched_at=? WHERE source_id=?').run(old.kind,old.participants,old.revision,old.fetched_at,id);
+  assert.equal(store.speechPage({member:'42'}),null);
+  const worker=new CorpusWorker(store,{clock:now,fetchRecord:()=>{throw new Error('No source fetch');}});await worker.discover();
+  assert.equal(store.speechPage({member:'42'}).total,0);assert.equal(store.speechPage({member:'7',kinds:['PLENARY_DEBATE_WRITTEN_STATEMENT'],metadataOnly:true}).records[0].metadata.activity.activity_id,id);
 });
