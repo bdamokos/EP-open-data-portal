@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, amendmentProposerDate, checkedAggregateAttribution } from './amendments.mjs';
+import { AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, amendmentProposerDate, checkedAggregateAttribution } from './amendments.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
@@ -33,6 +33,16 @@ function checkedAmendmentRead(record) {
   if(record.targetDocumentId || record.topics)row.topics=checkedTargetTopics(row);
   row.outcome=amendmentRowOutcome(row);
   return row;
+}
+// Apply only to checked read records: proposer dates and variant attribution have
+// already passed the same guards used by the member-filtered catalogue query.
+export function amendmentAuthorMatch(record,member) {
+  const memberId=String(member);
+  const matches=value=>!value.conflicted&&Boolean(amendmentProposerDate(value))&&(value.authors || []).some(author=>resolvedAmendmentAuthorId(author)===memberId);
+  const aggregateMatched=matches(record),variants=(record.variants || []).filter(matches);
+  const matched=aggregateMatched||variants.length>0;
+  return {memberId,matched,aggregateMatched,basis:matched?aggregateMatched?variants.length?'aggregate-and-variant':'aggregate':'variant':null,
+    variantListIds:[...new Set(variants.map(variant=>variant.listId).filter(Boolean))]};
 }
 function supportedProposerDateSql(body) {
   const value=field=>`json_extract(${body},'$.${field}')`,date=value('proposerDate'),document=value('documentDate'),list=value('listDocumentDate');
@@ -237,6 +247,17 @@ export function amendmentGeneration(store) {
   const core=store.get('working')?.generation || store.get('active') || 0;
   return store.db.prepare('SELECT 1 FROM amendment_targets WHERE generation=? LIMIT 1').get(core)?core:extensionGeneration(store.db) || core;
 }
+function checkedEmptyObservation(record,document,rowCount) {
+  const proof=record?.emptyObservation,source=proof?.source;
+  // This proves only the published list relationship was observed empty. It
+  // cannot erase retained records or establish a census of oral/other changes.
+  return rowCount===0&&record?.id===document&&record.listProjectionVersion===AMENDMENT_LINKS_VERSION&&
+    record.linkedListObservationCount===0&&record.unresolvedListObservationCount===0&&
+    proof?.version===AMENDMENT_EMPTY_OBSERVATION_VERSION&&proof.documentId===document&&proof.listCount===0&&
+    proof.relationship==='inverse_foresees_change_of'&&proof.scope==='published-amendment-list-relationships'&&
+    source?.url==='https://data.europarl.europa.eu/api/v2/plenary-documents/'+document+'?format=application%2Fld%2Bjson'&&
+    typeof source.fetchedAt==='string'&&Number.isFinite(Date.parse(source.fetchedAt))?proof:null;
+}
 export function amendmentsPage(store,{document=null,procedure=null,member=null,outcome=null,language='en',limit=20,offset=0}={}) {
   const generation=amendmentGeneration(store),clauses=['generation=?'],args=[generation];
   if(document){clauses.push('target=?');args.push(document);}
@@ -247,9 +268,8 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   const items=store.db.prepare('SELECT body FROM amendments WHERE '+where+" ORDER BY date DESC,target,CAST(json_extract(body,'$.number') AS INTEGER),id LIMIT ? OFFSET ?").all(...args,limit,offset).map(record=>{
     const row=checkedAmendmentRead(parse(record.body));
     if(member) {
-      const matches=value=>Boolean(amendmentProposerDate(value)&&(value.authors || []).some(author=>resolvedAmendmentAuthorId(author)===String(member)));
-      const aggregate=matches(row),variants=(row.variants || []).filter(matches);
-      row.authorMatch={memberId:String(member),basis:aggregate?variants.length?'aggregate-and-variant':'aggregate':'variant',variantListIds:[...new Set(variants.map(variant=>variant.listId).filter(Boolean))]};
+      const {memberId,basis,variantListIds}=amendmentAuthorMatch(row,member);
+      row.authorMatch={memberId,basis,variantListIds};
     }
     return {...row,title:row.titles?.[language] || row.titles?.en || Object.values(row.titles || {})[0] || row.targetDocumentId,requestedLanguage:language};
   });
@@ -260,7 +280,7 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   // Verify the cached scope before pagination, so a stale later page cannot
   // produce complete coverage on an otherwise current first page. Reads never
   // rewrite the retained source or indexed JSON used by older workers.
-  const readCoverage=store.db.prepare(`SELECT
+  const readCoverage=store.db.prepare(`SELECT COUNT(*) AS rows,
     COALESCE(MAX(CASE WHEN ${incompatibleWordingSql('amendments.body')} OR EXISTS(SELECT 1 FROM json_each(amendments.body,'$.variants') AS variant WHERE ${incompatibleWordingSql('variant.value')}) THEN 1 ELSE 0 END),0) AS wording,
     COALESCE(MAX(CASE WHEN (json_array_length(json_extract(amendments.body,'$.authors'))>0 AND NOT ${supportedProposerDateSql('amendments.body')}) OR EXISTS(SELECT 1 FROM json_each(amendments.body,'$.variants') AS variant WHERE json_array_length(json_extract(variant.value,'$.authors'))>0 AND NOT ${supportedProposerDateSql('variant.value')}) THEN 1 ELSE 0 END),0) AS proposer,
     COALESCE(MAX(CASE WHEN ${splitUnverifiedSql('amendments.body')} THEN 1 ELSE 0 END),0) AS splits,
@@ -283,7 +303,11 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   if(!records.length)gaps.push(document?'This document has no indexed amendment records.':'Amendment discovery is incomplete.');
   if(!document)gaps.push('Coverage includes indexed plenary amendment lists; older targets are enriched in bounded batches.');
   const lastUpdated=records.map(record=>record.lastUpdated).filter(Boolean).sort().at(-1) || null;
-  return {items,total,offset,limit,coverage:{complete:Boolean(document&&records.length&&records.every(record=>record.complete)&&!listProjectionUnverified&&!pending&&!capacityGaps.length&&!readCoverage.wording&&!readCoverage.proposer&&!readCoverage.splits&&!readCoverage.freshness),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope:'plenary',servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation)},failures:amendmentFailureSummary(store)};
+  const indexedObservationComplete=Boolean(document&&readCoverage.rows>0&&records.length&&records.every(record=>record.complete)&&!listProjectionUnverified&&!readCoverage.wording&&!readCoverage.proposer&&!readCoverage.splits&&!readCoverage.freshness);
+  const emptyObservation=document&&records.length===1?checkedEmptyObservation(records[0],document,readCoverage.rows):null;
+  const observationComplete=indexedObservationComplete||Boolean(emptyObservation);
+  return {items,total,offset,limit,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length),observationComplete,emptyObservation,
+    observationScope:emptyObservation?'published-amendment-list-relationships':'indexed-plenary-amendment-sources',indexed:Boolean(records.length),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope:'plenary',servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation)},failures:amendmentFailureSummary(store)};
 }
 
 export function amendmentCompletionMarker(task,today) {
