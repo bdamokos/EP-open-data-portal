@@ -98,12 +98,18 @@ test("static caching follows emitted build assets and keeps HTML, ranges and fai
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    await t.test("Vite base64url hashes and their source maps cache for one year", async () => {
-      for (const name of files.slice(1, 7)) {
+    await t.test("Vite base64url hashes cache for one year while source maps revalidate", async () => {
+      for (const name of files.slice(1, 7).filter(name=>!name.endsWith('.map'))) {
         const response = await fetch(`${base}/${name}`);
         assert.equal(response.status, 200, name);
         assert.equal(response.headers.get("Cache-Control"), "public, max-age=31536000, immutable", name);
         assert.equal(await response.text(), body);
+      }
+      // A source-only comment can change a map without changing its JS hash.
+      for (const name of files.filter(name=>name.endsWith('.map'))) {
+        const response = await fetch(`${base}/${name}`);
+        assert.equal(response.headers.get('Cache-Control'), 'no-cache', name);
+        await response.arrayBuffer();
       }
       const response = await fetch(`${base}/assets/index-DZAb_0-x.js`);
       const etag = response.headers.get("ETag");
@@ -118,7 +124,7 @@ test("static caching follows emitted build assets and keeps HTML, ranges and fai
     });
 
     await t.test("unversioned files and lookalike public filenames keep the short fallback", async () => {
-      for (const name of files.slice(8)) {
+      for (const name of files.slice(8).filter(name=>!name.endsWith('.map'))) {
         const response = await fetch(`${base}/${name}`);
         assert.equal(response.status, 200, name);
         assert.equal(response.headers.get("Cache-Control"), "public, max-age=300", name);

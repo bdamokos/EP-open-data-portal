@@ -115,6 +115,7 @@ async function handleApi(request,response,url,apiPrefix){
       response.setHeader("Content-Type", image.contentType);
       response.setHeader("Cache-Control", policy.cacheControl);
       response.setHeader("CDN-Cache-Control", policy.cdnCacheControl);
+      response.setHeader("Vary", "Origin");
       response.setHeader("ETag", etag);
       if (request.headers['if-none-match'] === etag) {
         response.statusCode = 304;

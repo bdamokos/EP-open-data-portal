@@ -29,6 +29,7 @@ function transientState(payload) {
     for (const [key, child] of Object.entries(value)) {
       if ((key === 'stale' || key === 'refreshInProgress' || key === 'loading') && child === true) return true;
       if (key === 'status' && ['error', 'unavailable', 'loading', 'pending'].includes(child)) return true;
+      if (key === 'kind' && ['agenda-unavailable', 'votes-unavailable'].includes(child)) return true;
       if (/errors?$/i.test(key) && child && (!Array.isArray(child) || child.length)) return true;
       if (key === 'nextRetryAt' && child) return true;
       if (child && typeof child === 'object') pending.push(child);
@@ -54,7 +55,8 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   // Only positive reading responses qualify for the longer historical lifetime.
   // An old unanswered question can still acquire an answer and remains at 6 h.
   const reading = resource === 'speech' || resource === 'document' || url.pathname === '/api/poc/corpus/text';
-  const date = payload?.date;
+  const selectedAnswer = resource === 'document' && url.pathname.endsWith('-ASW');
+  const date = selectedAnswer ? payload?.selectedDocumentDate : payload?.date;
   const time = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? Date.parse(date) : NaN;
   const established = Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === date && now - time >= 14 * DAY * 1000;
   const unanswered = resource === 'document' && /^[EOP]-\d+-\d{4}-\d+$/.test(url.pathname.split('/').at(-1)) && !payload?.answers?.length;
