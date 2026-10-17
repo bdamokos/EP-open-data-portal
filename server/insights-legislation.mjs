@@ -32,7 +32,8 @@ export class LegislationInsights {
       if(/^\/(procedures|plenary-documents|committee-documents|parliamentary-questions)\/[A-Z0-9-]+$/.test(endpoint)) {
         const saved=this.store.source(this.store.status().servingGeneration,endpoint);
         const id=endpoint.split('/').at(-1);
-        if(saved?.work&&reusableRecord(endpoint,saved.work)&&Number.isFinite(Date.parse(saved.fetchedAt))&&(saved.work.identifier===id||tail(saved.work.id)===id))return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.work]}};
+        const expected='eli/dl/'+(endpoint.startsWith('/procedures/')?'proc/':'doc/')+id;
+        if(saved?.work&&reusableRecord(endpoint,saved.work)&&Number.isFinite(Date.parse(saved.fetchedAt))&&canonical(saved.work.id)===expected)return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.work]}};
       }
       if(endpoint.startsWith('/speeches/')&&this.readSpeechMetadata) {
         const saved=await this.readSpeechMetadata(endpoint.slice('/speeches/'.length));
