@@ -53,27 +53,40 @@ test('a changed file listing refreshes a saved text in the background', async t 
 test('the disk budget evicts the least recently read records and leaves other files alone', async t => {
   const root = await fixture(t), directory = path.join(root, 'document-text-v1'); await mkdir(directory);
   let now = Date.parse('2026-06-01T00:00:00Z');
-  const put = async (name, age) => {
-    const file = path.join(directory, name); await writeFile(file, 'x'.repeat(100));
-    const time = new Date(now - age * DAY); await utimes(file, time, time);
+  const name = letter => letter.repeat(64) + '.json', uuid = n => `00000000-0000-4000-8000-00000000000${n}`;
+  const put = async (file, age, size = 100) => {
+    await writeFile(path.join(directory, file), 'x'.repeat(size));
+    const time = new Date(now - age * DAY); await utimes(path.join(directory, file), time, time);
   };
-  await put('a.json', 3); await put('b.json', 2); await put('c.json', 1);
-  await writeFile(path.join(directory, 'notes.txt'), 'unrelated');
-  await put('d.json.00000000-0000-4000-8000-000000000000.tmp', 1);
-  await put('e.json.00000000-0000-4000-8000-000000000001.tmp', 0);
-  const budget = new CacheDiskBudget(directory, {maxBytes: 300, maxEntries: 10, clock: () => now});
+  await put(name('a'), 3); await put(name('b'), 2); await put(name('c'), 1);
+  await put('notes.json', 9, 500); await put('notes.json.' + uuid(2) + '.tmp', 9);
+  await put(name('d') + '.' + uuid(0) + '.tmp', 1); await put(name('e') + '.' + uuid(1) + '.tmp', 0);
+  const listing = async () => (await readdir(directory)).sort();
+  const budget = new CacheDiskBudget(directory, {maxBytes: 300, maxEntries: 10, pattern: /^[0-9a-f]{64}\.json$/, clock: () => now});
   await budget.initialize();
-  // An interrupted write from an earlier process is removed; a fresh one may still be in flight.
-  assert.deepEqual((await readdir(directory)).sort(), ['a.json', 'b.json', 'c.json', 'e.json.00000000-0000-4000-8000-000000000001.tmp', 'notes.txt']);
-  budget.used('a.json');
-  await writeFile(path.join(directory, 'f.json'), 'x'.repeat(100)); await budget.saved('f.json', 100);
-  // b is now the least recently read; a was read today.
-  assert.deepEqual((await readdir(directory)).filter(name => name.endsWith('.json')).sort(), ['a.json', 'c.json', 'f.json']);
-  assert.equal(budget.bytes, 300);
+  // Only this cache's interrupted writes are removed, and only once they are old.
+  assert.deepEqual(await listing(), [name('a'), name('b'), name('c'), name('e') + '.' + uuid(1) + '.tmp', 'notes.json', 'notes.json.' + uuid(2) + '.tmp'].sort());
+  budget.used(name('a'));
+  await put(name('f'), 0); await budget.saved(name('f'), 100);
+  // b is now the least recently read; a was read today. Unrelated JSON is never counted or removed.
+  assert.deepEqual((await listing()).filter(file => /^[0-9a-f]{64}\.json$/.test(file)), [name('a'), name('c'), name('f')]);
+  assert.equal(budget.bytes, 300); assert((await listing()).includes('notes.json'));
   // Read recency survives a restart through the file time.
-  assert((await stat(path.join(directory, 'a.json'))).mtimeMs >= now - 1000);
+  assert((await stat(path.join(directory, name('a')))).mtimeMs >= now - 1000);
   now += DAY;
-  const restarted = new CacheDiskBudget(directory, {maxBytes: 200, maxEntries: 10, clock: () => now});
+  const restarted = new CacheDiskBudget(directory, {maxBytes: 200, maxEntries: 10, pattern: /^[0-9a-f]{64}\.json$/, clock: () => now});
   await restarted.initialize();
-  assert.deepEqual((await readdir(directory)).filter(name => name.endsWith('.json')).sort(), ['a.json', 'f.json']);
+  assert.deepEqual((await listing()).filter(file => /^[0-9a-f]{64}\.json$/.test(file)), [name('a'), name('f')]);
+  // A record larger than the whole budget is not kept on disk.
+  await put(name('9'), 0, 250); await restarted.saved(name('9'), 250);
+  assert(!(await listing()).includes(name('9'))); assert.equal(restarted.bytes, 200);
+});
+
+test('a missing file size is not recorded as zero', async t => {
+  const directory = await fixture(t), url = `https://data.europarl.europa.eu/distribution/doc/no-size-${Date.now()}.docx`;
+  let calls = 0; const download = async () => ({paragraphs: [`version ${++calls}`]});
+  const clock = () => Date.parse('2026-06-01T00:00:00Z');
+  await documentText(work(url, {byteSize: null}), 'en', {directory, download, clock});
+  const later = await documentText(work(url, {byteSize: 1000}), 'en', {directory, download, clock});
+  assert.equal(later.stale, false); assert.equal(calls, 1);
 });

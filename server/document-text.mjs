@@ -30,14 +30,14 @@ function diskBudget(directory){
   if(!budgets.has(folder)){
     const value=Number(process.env.DOCUMENT_TEXT_MAX_DISK_MIB||256);
     if(!Number.isInteger(value)||value<16||value>8192)throw new Error('Invalid DOCUMENT_TEXT_MAX_DISK_MIB.');
-    budgets.set(folder,new CacheDiskBudget(folder,{maxBytes:value*MIB,maxEntries:20000}));
+    budgets.set(folder,new CacheDiskBudget(folder,{maxBytes:value*MIB,maxEntries:20000,pattern:/^[0-9a-f]{64}\.json$/}));
   }
   return budgets.get(folder);
 }
 function fileDescriptor(work,url){
   for(const e of array(work.is_realized_by))for(const m of array(e.is_embodied_by)){
     let href=null;try{href=new URL(m.is_exemplified_by,'https://data.europarl.europa.eu/').href;}catch{}
-    if(href===url)return {byteSize:Number.isFinite(Number(m.byteSize))?Number(m.byteSize):null,issued:typeof m.issued==='string'&&Number.isFinite(Date.parse(m.issued))?m.issued:null};
+    if(href===url)return {byteSize:m.byteSize!=null&&m.byteSize!==''&&Number.isFinite(Number(m.byteSize))?Number(m.byteSize):null,issued:typeof m.issued==='string'&&Number.isFinite(Date.parse(m.issued))?m.issued:null};
   }
   return {byteSize:null,issued:null};
 }
