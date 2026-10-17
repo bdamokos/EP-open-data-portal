@@ -39,7 +39,7 @@ async function harness(t,language,query='') {
 test('insight controls and charts restore selected Intl language inside English UI in EN, HU and FR',async t=>{
   for(const language of ['en','hu','fr'])await t.test(language,async t=>{
     const h=await harness(t,language);
-    const CountryFilter=await h.load('CountryFilter','CountryFilter'),AnalysisPeriod=await h.load('AnalysisPeriod','AnalysisPeriod');
+    const CountryFilter=await h.load('CountryFilter','CountryFilter'),AnalysisPeriod=await h.load('AnalysisPeriod','AnalysisPeriodControl');
     const QuestionTrend=await h.load('InsightCharts','QuestionTrend');
     await h.render(createElement('div',null,
       createElement(CountryFilter,{country:'HU',language,onChange(){}}),
