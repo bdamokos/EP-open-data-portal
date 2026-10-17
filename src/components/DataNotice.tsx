@@ -15,11 +15,11 @@ const readDismissed=()=>{try{return storage?.getItem(DISMISSED)==='1';}catch{ret
 // Attribution and reuse terms for the public sources listed in docs/PUBLIC_DATA.md.
 // Hiding the notice keeps a compact "About this site" toggle with the same terms.
 export function DataNotice({className=''}:{className?:string}) {
-  const [dismissed,setDismissed]=useState(readDismissed),[moveFocus,setMoveFocus]=useState(false),summary=useRef<HTMLElement>(null);
+  const [dismissed,setDismissed]=useState(readDismissed),[moveFocus,setMoveFocus]=useState(false),summary=useRef<HTMLElement>(null),details=useRef<HTMLDetailsElement>(null);
   useEffect(()=>{if(moveFocus&&dismissed){summary.current?.focus();setMoveFocus(false);}},[moveFocus,dismissed]);
-  const dismiss=()=>{try{storage?.setItem(DISMISSED,'1');}catch{}setDismissed(true);setMoveFocus(true);};
+  const dismiss=()=>{if(details.current)details.current.open=false;try{storage?.setItem(DISMISSED,'1');}catch{}setDismissed(true);setMoveFocus(true);};
   return <div className={`data-notice${dismissed?' data-notice--dismissed':''} ${className}`} lang="en">
-    <details>
+    <details ref={details}>
       <summary ref={summary}>{dismissed?'About this site':'Independent site · Not an official Parliament service'}</summary>
       <div className="data-notice__body">
         <p>Parliament open data: © European Union – Source: European Parliament, from the <a href={links.openData}>Open Data Portal</a>, licensed under <a href={links.ccBy}>CC BY 4.0</a>.</p>
