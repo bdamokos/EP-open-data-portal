@@ -9,11 +9,14 @@ const NOW=Date.parse('2026-10-17T19:10:00Z');
 const SITTING='MTG-PL-2026-10-07';
 const MEMBER='197591';
 const clone=value=>structuredClone(value);
-const meeting=fixture.meetings.payload.data.find(row=>row.activity_id===SITTING);
+const sourceMeeting=fixture.meetings.payload.data.find(row=>row.activity_id===SITTING);
 // The older retained fixture omits JSON-LD types; annotate this projected
 // collector input so the conducted-ballot evidence is explicit.
 const finalDecision={...fixture.decisions.payload.data.find(row=>row.activity_id===SITTING+'-DEC-197457'),type:'Vote'};
 const finalResult=fixture.results.payload.data.find(row=>row.consists_of?.includes(finalDecision.id));
+// Successful collector fixtures deliberately narrow the meeting graph too.
+// Keeping the source's other declared results would describe incomplete data.
+const meeting={...sourceMeeting,consists_of:[finalResult.id]};
 const query=value=>memberVotesQuery(new URLSearchParams(value),{now:NOW});
 
 function source(endpoint,params,data,extra={}) {
@@ -121,7 +124,7 @@ test('failed selected-sitting metadata is unavailable rather than a complete emp
 });
 
 test('a valid empty source period is distinct from unavailable decision content',async()=>{
-  const complete=setup({decisions:[],results:[],agenda:[]});
+  const complete=setup({decisions:[],results:[],agenda:[],meetings:[{...meeting,consists_of:[]}]});
   const empty=await complete.service.query(MEMBER,query('sitting='+SITTING));
   assert.equal(empty.coverage.status,'complete');
   assert.equal(empty.coverage.collectionComplete,true);
@@ -132,6 +135,26 @@ test('a valid empty source period is distinct from unavailable decision content'
   assert.notEqual(unavailable.coverage.status,'complete');
   assert.equal(unavailable.coverage.collectionComplete,false);
   assert.deepEqual(unavailable.items,[]);
+});
+
+test('meeting-declared result identities prevent empty or omitted result streams from becoming complete',async()=>{
+  const expected=sourceMeeting.consists_of.filter(id=>new RegExp('^eli/dl/event/'+SITTING+'-VOT-ITM-\\d+$').test(id));
+  const {service}=setup({decisions:[],results:[],agenda:[],meetings:[sourceMeeting]});
+  const empty=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(empty.pagination.observedTotal,0);
+  assert.equal(empty.coverage.status,'partial');
+  assert.equal(empty.coverage.collectionComplete,false);
+  assert.deepEqual(empty.coverage.sittings[0].completeness.missingResultIds,[...expected]);
+  assert.equal(empty.coverage.sittings[0].completeness.declaredResultCount,7);
+  const missing=`eli/dl/event/${SITTING}-VOT-ITM-999999`;
+  const otherHost='https://example.invalid/eli/dl/event/'+SITTING+'-VOT-ITM-000002';
+  const otherDay='eli/dl/event/MTG-PL-2026-10-08-VOT-ITM-000003';
+  const incomplete=setup({meetings:[{...meeting,consists_of:[finalResult.id,missing,otherHost,otherDay,finalResult.id+'-SPLIT-1']}]});
+  const retained=await incomplete.service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(retained.items.length,1);
+  assert.deepEqual(retained.coverage.sittings[0].completeness.missingResultIds,[missing]);
+  assert.equal(retained.coverage.sittings[0].completeness.declaredResultCount,2);
+  assert.equal(retained.coverage.collectionComplete,false);
 });
 
 test('decision endpoints that ignore offset terminate on repeats and keep coverage uncertain',async()=>{
@@ -376,4 +399,33 @@ test('one week does not burst two sittings into the shared admission queue toget
   const response=await service.query(MEMBER,query('week=2026-10-05'));
   assert.deepEqual(response.coverage.scannedSittingIds,[SITTING,'MTG-PL-2026-10-08']);
   assert.equal(maximum,4,'daily streams may share slots, but the next sitting waits for the current one');
+});
+
+test('overlapping source tallies and component references retain both conflicting observations',async()=>{
+  const censusAmendment='eli/dl/doc/A-10-2026-0237-AM-12',namedAmendment='eli/dl/doc/A-10-2026-0237-AM-60';
+  const {service}=setup({override:({kind,supplied})=>{
+    if(kind==='decisions')return {...supplied,payload:{data:supplied.payload.data.map(row=>({...row,number_of_votes_favor:1,decided_on_a_realization_of:[censusAmendment]}))}};
+    if(kind==='named')return {...supplied,payload:{data:supplied.payload.data.map(row=>({...row,decided_on_a_realization_of:[namedAmendment]}))}};
+  }});
+  const response=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(response.coverage.collectionComplete,false);
+  assert.deepEqual(response.coverage.sittings[0].completeness.conflictingDecisionIds,[finalDecision.id]);
+  const conflict=response.items[0].sourceConflicts;
+  assert(conflict.fields.includes('number_of_votes_favor'));
+  assert(conflict.fields.includes('decided_on_a_realization_of'));
+  assert.equal(conflict.census.number_of_votes_favor,1);
+  assert.equal(conflict.named.number_of_votes_favor,454);
+  assert.deepEqual(conflict.census.decided_on_a_realization_of,[censusAmendment]);
+  assert.deepEqual(conflict.named.decided_on_a_realization_of,[namedAmendment]);
+});
+
+test('opposite outcomes duplicated within one page cannot publish a complete observation',async()=>{
+  const {service}=setup({override:({kind,supplied})=>{
+    if(kind==='decisions'||kind==='named')return {...supplied,payload:{data:[supplied.payload.data[0],{...supplied.payload.data[0],decision_outcome:'def/ep-statuses/REJECTED'}]}};
+  }});
+  const response=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(response.coverage.collectionComplete,false);
+  assert.equal(response.coverage.sittings[0].decisions.error.code,'vote_source_changed');
+  assert.equal(response.coverage.sittings[0].namedDecisions.error.code,'vote_source_changed');
+  assert.equal(response.pagination.observedTotal,0);
 });

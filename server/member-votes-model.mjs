@@ -119,7 +119,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en') {
   return {
     id,uri,sittingId:snapshot.sittingId,date:raw.activity_date||snapshot.date,
     titles,referenceTexts,...preferred(Object.keys(titles).length?titles:referenceTexts,language),
-    scope:scope(raw,decidedIds),method,outcome,ballotStatus,actualPosition,intention,
+    scope:scope(raw,decidedIds),method,outcome,ballotStatus,actualPosition,intention,sourceConflicts:raw._conflictingSourceObservations||null,
     namedVoters:{available,counts,totalsMatch,conflictingPersonIds,malformedReferences:actual.malformedReferences},totals,
     context:{resultIds:resultUris.map(identifier),agendaItemIds:unique(agendaUris.map(identifier)),documentIds:unique(documentIds),procedureIds:unique(procedureIds),amendmentIds:decidedIds.filter(id=>/-AM-\d+(?:-\d+)?$/.test(id)),componentIds:decidedIds.filter(id=>/-SPLIT-\d+-\d+$/.test(id)),missingResultIds,missingAgendaItemIds:unique(missingAgendaItemIds),relationships},
     historicalGroup:null,sources:{decisions:snapshot.sources?.decisions||[],results:snapshot.sources?.results||[],agenda:snapshot.sources?.agenda||[]}
