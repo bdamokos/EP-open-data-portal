@@ -138,7 +138,7 @@ test('HTTP joined endpoints read the persistent cache and validate categories, p
   const head=await fetch(base+'/api/poc/latest-activities/257043',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
   const groupRoute=base+'/api/poc/insights/group-voices';
   const groupResponse=await fetch(groupRoute);assert.equal(groupResponse.status,200);assert.equal((await groupResponse.json()).coverage.authoritativeComplete,false);
-  for(const suffix of ['?group=NI','?person=abc','?limit=0','?group=S_D&group=PPE','?url=https://example.com'])assert.equal((await fetch(groupRoute+suffix)).status,400);
+  for(const suffix of ['?group=NI','?lang=__proto__','?person=abc','?limit=0','?group=S_D&group=PPE','?url=https://example.com'])assert.equal((await fetch(groupRoute+suffix)).status,400);
   assert.equal((await fetch(groupRoute,{method:'POST'})).status,405);assert.equal((await fetch(groupRoute,{headers:{Origin:'https://evil.example'}})).status,403);
   const groupHead=await fetch(groupRoute,{method:'HEAD'});assert.equal(groupHead.status,200);assert.equal(await groupHead.text(),'');
   const before=store.status();
