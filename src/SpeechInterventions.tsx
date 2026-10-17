@@ -1,7 +1,7 @@
 import {transcriptParagraphs,TranscriptText} from './Transcript';
 import {GROUP_VOICE_GROUPS} from './groupVoiceTerms.mjs';
 import {useEffect,useId,useRef,useState} from 'react';
-import {api,prefetchData,useData} from './data';
+import {api,prefetchData,useData,useSpeechData} from './data';
 import type {Intervention,InterventionStatistics,Speech,SpeechContext,SpeechDetail,SpeechSequenceRow} from './explorerTypes';
 import './SpeechInterventions.css';
 import {SpeakerName,SpeakerRoles,SpeakerRoleLine} from './SpeakerIdentity';
@@ -52,11 +52,11 @@ export function InterventionStatistics({member,onItems}:{member:number;onItems?:
 }
 
 function ConnectedText({id,language}:{id:string;language:string}) {
-  const state=useData<SpeechDetail>(`speech/${id}?lang=${language}`);
-  const paragraphs=transcriptParagraphs(state.data?.xml??null).paragraphs;
-  return <div className="intervention-connected-text" lang={state.data?.textLanguage??''}>
-    {state.loading&&!state.data&&<p lang="en" role="status">Loading contribution…</p>}{state.error&&<p lang="en">{state.error} <button onClick={state.retry}>Retry</button></p>}
-    {state.data&&<><p className="intervention-caption" lang="en">{state.data.textLanguage?.toUpperCase()}{state.data.translationType==='machine'?' · Machine translation':''}</p>{paragraphs.length?paragraphs.map((p,i)=><p key={i}><TranscriptText paragraph={p}/></p>):<p lang="en">Transcript unavailable.</p>}{state.data.websiteUrl&&<a lang="en" href={state.data.websiteUrl} target="_blank" rel="noreferrer">Parliament’s transcript ↗</a>}</>}
+  const state=useSpeechData(id,language),body=state.transcript;
+  const paragraphs=transcriptParagraphs(body?.xml??null).paragraphs;
+  return <div className="intervention-connected-text" lang={body?.textLanguage??''}>
+    {state.loading&&!body&&<p lang="en" role="status">Loading contribution…</p>}{state.error&&<p lang="en">{state.error} <button onClick={state.retry}>Retry</button></p>}
+    {body&&<><p className="intervention-caption" lang="en">{body.textLanguage?.toUpperCase()}{body.translationType==='machine'?' · Machine translation':''}</p>{paragraphs.length?paragraphs.map((p,i)=><p key={i}><TranscriptText paragraph={p}/></p>):<p lang="en">Transcript unavailable.</p>}{state.data?.websiteUrl&&<a lang="en" href={state.data?.websiteUrl} target="_blank" rel="noreferrer">Parliament’s transcript ↗</a>}</>}
   </div>;
 }
 function SequenceError({message,retryAt,loading,retry}:{message:string;retryAt?:number;loading:boolean;retry:()=>void}) {

@@ -25,6 +25,7 @@ async function harness(t,query='',delay=false) {
   });
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,location.href),route=url.pathname.split('/poc/')[1];
+    if(route?.startsWith('speech-transcript/'))return Response.json({id:route.split('/')[1],available:false});
     if(route==='directory')return Response.json(directory);
     if(route?.startsWith('portrait/'))return new Response(null,{status:404});
     if(route?.startsWith('profile/'))return Response.json(member);
