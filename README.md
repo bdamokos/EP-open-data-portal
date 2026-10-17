@@ -8,7 +8,7 @@ See the [project vision](VISION.md) for the proof of concept’s purpose, approa
 
 ## Run locally
 
-Use the Node.js version in `.nvmrc` (Node.js 26) and npm. Node.js 22.15 is the oldest supported runtime.
+Use the Node.js version in `.nvmrc` (Node.js 26) and npm. The minimum is Node.js 22.16 or 24+; earlier releases and Node.js 23 bundle SQLite without FTS5.
 
 ```sh
 npm ci
