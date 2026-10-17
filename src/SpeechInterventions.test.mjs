@@ -79,7 +79,7 @@ test('failed debate sections offer a real retry that bypasses the partial-result
   const {SpeechContextPanel}=await vite.ssrLoadModule('/src/SpeechInterventions.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id,language:'en'})));
-  assert.equal(calls,0,'closed debate must not fetch');
+  assert.equal(calls,1,'closed debate preloads its sequence');
   await act(async()=>container.querySelector('button').click());
   const retry=()=>[...container.querySelectorAll('button')].find(button=>button.textContent.includes('Retry'));
   assert.equal(retry().textContent,'Retry sequence');assert.equal(calls,1);

@@ -62,3 +62,30 @@ test('a superseded loader cannot overwrite fresh cached answers or clear them wi
   requests[0].reject(Object.assign(new Error('Expired'),{status:401}));await Promise.resolve();await Promise.resolve();
   assert.deepEqual(await client.get('document/question'),{answers:['fresh']});assert.equal(requests.length,2);
 });
+
+const pause=()=>new Promise(resolve=>setTimeout(resolve,15));
+test('prefetch yields to foreground work, serializes batches and shares pending and cached reads',async()=>{
+  const requests=[];
+  const client=createDataClient((route,signal,options)=>{const request=deferred();requests.push({route,...request,...options});return request.promise;},{prefetchDelay:1});
+  const foreground=client.get('current');
+  const cancel=client.prefetch(['next','next','later']);
+  const cancelOther=client.prefetch(['other']);
+  await pause();assert.deepEqual(requests.map(r=>r.route),['current']);
+  requests[0].resolve('current text');await foreground;
+  await pause();assert.deepEqual(requests.map(r=>r.route),['current','next']);assert.equal(requests[1].priority,'low');
+  const opened=client.get('next');await pause();assert.equal(requests.length,2,'opening a pending preload reuses the request');
+  requests[1].resolve('next text');assert.equal(await opened,'next text');
+  await pause();assert.equal(requests[2].route,'later');
+  cancel();requests[2].resolve('later text');await pause();assert.equal(requests[3].route,'other');
+  requests[3].resolve('other text');cancelOther();await pause();
+  assert.equal(await client.get('next'),'next text');assert.equal(requests.length,4);
+});
+test('cancelled prefetches stop scheduling, and failed speculation leaves a real read retryable',async()=>{
+  const requests=[];const client=createDataClient((route)=>{const request=deferred();requests.push({route,...request});return request.promise;},{prefetchDelay:1});
+  const cancel=client.prefetch(['old-language','never']);await pause();cancel();
+  requests[0].resolve('saved');await pause();assert.equal(requests.length,1);
+  const cancelFailed=client.prefetch(['busy','also-never']);await pause();requests[1].reject(new Error('Busy'));
+  await pause();assert.equal(requests.length,2);assert.equal(client.peek('busy'),null);
+  const opened=client.get('busy');await Promise.resolve();requests[2].resolve('recovered');assert.equal(await opened,'recovered');
+  cancelFailed();
+});
