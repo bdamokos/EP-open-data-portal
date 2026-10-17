@@ -29,7 +29,10 @@ function useCloud(route:string) {
           failedPage.current=page;
           const data:SpeechCloudResult=await client.get(route+'&page='+page,{force:attempt>0&&page===forcePage});
           if(!active)return;
-          if(data.restarted&&++restarts>2)throw new Error('Saved speeches changed during loading. Please retry.');
+          if(data.restarted) {
+            client.expireMatching(cachedRoute=>cachedRoute.startsWith(route+'&page='));
+            if(++restarts>2)throw new Error('Saved speeches changed during loading. Please retry.');
+          }
           setState({route,data,loading:data.nextPage!==null,error:null});
           page=data.nextPage;
         }
