@@ -263,3 +263,21 @@ test('OPEN compound reader headings keep exact date-bearing labels, status and l
   assert.equal(status.textContent,heading+': Text loaded.');assert.equal(effectiveLanguage(status),'en');
   t.diagnostic(JSON.stringify({assessment:'OPEN',heading,constituents:[{text:'Answer 2',language:'en'},{text:'2026. márc. 25.',language:'hu'}],effectiveLang:'en',selectorName:select.getAttribute('aria-label'),findName:find.getAttribute('aria-label'),status:status.textContent,mechanism:'existing text and aria-label strings'}));
 });
+
+
+test('speech video opens beside its heading and transcript language changes do not retune or close it',async t=>{
+  const h=await harness(t,(route,params)=>route.startsWith('speech-media/')?{available:false,status:'audio-unavailable',reason:'Requested fixture channel is unavailable.'}:route.startsWith('speech/')?{...speech(params.get('lang')),start:'2026-03-25T10:00:00Z',end:'2026-03-25T10:01:00Z'}:undefined);
+  await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}),'en');
+  const toggle=h.container.querySelector('.poc-speech-transcript-heading .poc-video-toggle');assert(toggle);
+  const panel=document.getElementById(toggle.getAttribute('aria-controls'));
+  assert(panel.hidden);assert.equal(h.requests.filter(route=>route.startsWith('speech-media/')).length,0);
+  assert(panel.previousElementSibling.classList.contains('poc-speech-transcript-heading'),'the player stays next to the control rather than after the transcript');
+  await h.click(toggle);assert.equal(toggle.getAttribute('aria-expanded'),'true');assert.equal(panel.hidden,false);
+  assert.equal(panel.querySelector('select').options[0].textContent,'English');
+  await h.change(h.container.querySelector('.insight-reader-heading select'),'fr');
+  assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
+  assert.equal(toggle.getAttribute('aria-expanded'),'true');assert.equal(panel.hidden,false);
+  assert.equal(panel.querySelector('select').value,'language');
+  assert.deepEqual(h.requests.filter(route=>route.startsWith('speech-media/')),[`speech-media/${speechId}?lang=en`]);
+  await h.click(panel.querySelector('button'));assert.equal(toggle.getAttribute('aria-expanded'),'false');assert.equal(document.activeElement,toggle);
+});

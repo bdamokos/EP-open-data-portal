@@ -32,27 +32,31 @@ async function harness(t) {
   const finish=(audio='or',error=false)=>act(async()=>{const request=requests.find(request=>!request.finished&&request.route.searchParams.get('audio')===(audio==='or'?'or':null));assert(request,'Missing media request '+audio);request.finished=true;error?request.reject(new Error('Fixture media unavailable.')):request.resolve(Response.json(media(audio)));});
   const post=(frame,data,{messageOrigin=origin,source=frame.contentWindow}={})=>act(async()=>window.dispatchEvent(new window.MessageEvent('message',{origin:messageOrigin,source,data})));
   const ready=async frame=>{await post(frame,{key:'get:availableAudio',isError:false,result:['qaa','qab']});await post(frame,{key:'get:availableLang',isError:false,result:[['qaa','Original'],['qab','English']]});await post(frame,{key:'event:audioadaptation',isError:false,result:{type:'audioadaptation',representationID:'Original AUDIO'}});await post(frame,{key:'method:play',isError:false});};
-  return {window,container,requests,scrolls,components,render,player,button,click,finish,post,ready};
+  const chooseAudio=async value=>act(async()=>{const select=container.querySelector('select');assert(select);select.value=value;select.dispatchEvent(new window.Event('change',{bubbles:true}));});
+  const openOriginal=async()=>{if(button('Video').getAttribute('aria-expanded')==='false')await click('Video');await chooseAudio('original');await click('Restart video');return button('Video');};
+  return {window,container,requests,scrolls,components,render,player,button,click,finish,post,ready,chooseAudio,openOriginal};
 }
 
-test('media actions retain their own focus, readiness preserves it, and Close restores the chosen audio action',async t=>{
+test('the compact disclosure loads only on request, retains focus through readiness and restores its opener on Close',async t=>{
   const h=await harness(t);await h.render(h.player());
-  const play=await h.click('Play · EN');assert.equal(document.activeElement,play);await h.finish('en');
-  assert.equal(document.activeElement,play);assert.equal(h.container.querySelector('iframe').tabIndex,-1);
-  await h.click('Close video');assert.equal(document.activeElement,play);assert.equal(h.container.querySelector('iframe'),null);
-  const original=await h.click('Original audio');await h.finish();
+  assert.equal(h.requests.length,0);const toggle=h.button('Video');
+  const panel=document.getElementById(toggle.getAttribute('aria-controls'));assert(panel.hidden);assert.equal(panel.querySelector('select'),null);
+  await h.click('Video');assert.equal(document.activeElement,toggle);assert.equal(toggle.getAttribute('aria-expanded'),'true');await h.finish('en');
+  assert.equal(document.activeElement,toggle);assert.equal(h.container.querySelector('iframe').tabIndex,-1);
+  await h.click('Close video');assert.equal(document.activeElement,toggle);assert.equal(h.container.querySelector('iframe'),null);assert(panel.hidden);
+  await h.openOriginal();const select=h.container.querySelector('select');assert.equal(document.activeElement,select);await h.finish();
   const frame=h.container.querySelector('iframe'),wrapper=frame.parentElement;
   assert.equal(wrapper.style.visibility,'hidden');assert.equal(wrapper.getAttribute('aria-hidden'),'true');assert.equal(frame.tabIndex,-1);
   await h.post(frame,{key:'get:availableAudio',isError:false,result:['qaa','qab']},{messageOrigin:'https://invalid.example'});
-  assert.equal(frame.tabIndex,-1,'a message with an untrusted origin cannot release the frame');
-  await h.ready(frame);assert.equal(frame.tabIndex,0);assert.equal(wrapper.style.visibility,'visible');assert.equal(wrapper.getAttribute('aria-hidden'),'false');assert.equal(document.activeElement,original,'player readiness never reclaims focus');
+  assert.equal(frame.tabIndex,-1,'an untrusted origin cannot release the frame');
+  await h.ready(frame);assert.equal(frame.tabIndex,0);assert.equal(wrapper.style.visibility,'visible');assert.equal(wrapper.getAttribute('aria-hidden'),'false');assert.equal(document.activeElement,select,'readiness never reclaims focus');
   assert.deepEqual(h.scrolls.at(-1),{element:wrapper,options:{block:'nearest'}},'the established readiness scroll is retained');
-  await h.click('Original audio');assert.notEqual(h.container.querySelector('iframe'),frame,'replay still remounts the player');assert.equal(document.activeElement,original);assert.equal(h.requests.length,2,'matched replay does not refresh media metadata');
-  await h.click('Close video');assert.equal(document.activeElement,original);assert.equal(h.container.querySelector('iframe'),null);
+  const replay=await h.click('Replay video');assert.notEqual(h.container.querySelector('iframe'),frame);assert.equal(document.activeElement,replay);assert.equal(h.requests.length,2,'matched replay does not refresh metadata');
+  await h.click('Close video');assert.equal(document.activeElement,toggle);assert.equal(h.container.querySelector('iframe'),null);
 });
 
 test('both disappearing retry controls recover the exact retained audio action without changing readiness guards',async t=>{
-  const h=await harness(t);await h.render(h.player());const original=await h.click('Original audio');await h.finish('or',true);
+  const h=await harness(t);await h.render(h.player());const original=await h.openOriginal();await h.finish('or',true);
   const outer=await h.click('Try video again');assert.equal(outer.isConnected,false);assert.equal(document.activeElement,original);await h.finish();
   const first=h.container.querySelector('iframe');await h.post(first,{key:'get:availableAudio',isError:true});
   const inner=await h.click('Retry player');assert.equal(inner.isConnected,false);assert.equal(document.activeElement,original);
@@ -61,7 +65,7 @@ test('both disappearing retry controls recover the exact retained audio action w
 });
 
 test('audio failure recovers a focused frame but respects another chosen link',async t=>{
-  const h=await harness(t);await h.render(h.player());const original=await h.click('Original audio');await h.finish();
+  const h=await harness(t);await h.render(h.player());const original=await h.openOriginal();await h.finish();
   const frame=h.container.querySelector('iframe');await h.ready(frame);frame.focus();assert.equal(document.activeElement,frame);
   await h.post(frame,{key:'event:audioadaptation',isError:false,result:{type:'audioadaptation',representationID:'English AUDIO'}});
   assert.equal(h.container.querySelector('iframe'),null);assert.equal(document.activeElement,original,'removing the active frame returns to its semantic audio opener');
@@ -81,7 +85,7 @@ test('frame replacement returns only lost frame focus, while navigation and deli
   const chosen=document.createElement('button');chosen.textContent='User selected destination';document.body.append(chosen);
   function ChosenDestination(){useLayoutEffect(()=>chosen.focus(),[]);return frame('chosen-map');}
   await h.render(createElement(ChosenDestination));assert.equal(document.activeElement,chosen,'a newer focus destination wins before deferred frame cleanup');
-  await h.render(h.player());const original=await h.click('Original audio');await h.finish();const active=h.container.querySelector('iframe');await h.ready(active);active.focus();
+  await h.render(h.player());const original=await h.openOriginal();await h.finish();const active=h.container.querySelector('iframe');await h.ready(active);active.focus();
   await h.render(h.player({lang:'fr'}));assert.notEqual(document.activeElement,original,'a superseded language intent does not restore the old audio opener');assert.equal(h.container.querySelector('iframe'),null);
   const unrelated=document.createElement('button');document.body.append(unrelated);unrelated.focus();await h.render(null);assert.equal(document.activeElement,unrelated,'navigation cleanup never steals focus');
 });

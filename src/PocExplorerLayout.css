@@ -73,6 +73,7 @@
 .poc-insights .poc-video [role=status] { color:#dce8f7; }
 .poc-insights .poc-video [role=alert] { color:#ffe2ad; }
 .poc-insights .poc-video-toggle:hover { color:#f4f7fc; background:#153b61; border-color:#8ea9c7; }
+.poc-insights .poc-video-toggle[aria-expanded=true] { color:#012b5d; background:#fff200; border-color:#8a8400; }
 .poc-insights .poc-video-toggle:focus-visible { outline-color:#fff200; }
 .poc-insights .poc-video-heading button,.poc-insights .poc-video-controls button { color:#f4f7fc; background:#153b61; border:1px solid #8ea9c7; min-height:44px; }
 .poc-insights .poc-video-controls select { width:100%; color:#012b5d; background:#fff; min-height:44px; }
