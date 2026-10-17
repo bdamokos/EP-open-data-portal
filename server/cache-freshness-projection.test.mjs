@@ -97,6 +97,49 @@ test('fresh legislation and participation snapshots remain cacheable with incomp
   assert.equal(calls.length,new Set(calls).size,'Projection does not add upstream requests');
 });
 
+for(const [name,endpoint] of [['procedure',procedureEndpoint],['document',documentEndpoint]])test('retained '+name+' keeps source freshness and recovers without redundant requests',async()=>{
+  const {legislation,store,calls}=fixture();
+  const source=await legislation.request(endpoint),work=source.payload.data[0];
+  if(name==='procedure')work.label='2026/0001(COD)';
+  const saved={work,fetchedAt:new Date(clock()).toISOString()};
+  store.source=(generation,key)=>{assert.equal(generation,1);return key===endpoint?saved:null;};
+  calls.length=0;
+  for(const flags of [{stale:true},{refreshInProgress:true},{refreshError:'Synthetic retained refresh failure'},{}]) {
+    Object.assign(saved,{stale:false,refreshInProgress:false,refreshError:null},flags);
+    const value=await legislation.query(legislationQuery(debateId));
+    const evidence=value.coverage.sources.find(source=>source.apiUrl.endsWith(endpoint));
+    assert(evidence,'Retained source identity remains visible');
+    assert.equal(evidence.fetchedAt,saved.fetchedAt);
+    for(const [key,state] of Object.entries(flags))assert.equal(evidence[key],state);
+    if(Object.keys(flags).length)assert.equal(policy('legislation',value).cdnCacheControl,'no-store');
+    else assert.match(policy('legislation',value).cdnCacheControl,/max-age=21600/);
+  }
+  assert(!calls.includes(endpoint),'The retained work is used throughout stale evidence and recovery');
+});
+
+test('a store without retained lookup preserves dependency errors and their source evidence',async()=>{
+  const source={url:'https://data.europarl.europa.eu/api/v2'+documentEndpoint,fetchedAt:clock(),payload:{data:[]},stale:true};
+  let fail=false,calls=0;
+  const service=new LegislationInsights(null,{clock,request:async()=>{calls++;if(fail)throw new Error('Synthetic dependency unavailable');return source;}});
+  assert.equal(await service.record(documentEndpoint),source);
+  fail=true;
+  await assert.rejects(service.record(documentEndpoint),/Synthetic dependency unavailable/);
+  assert.equal(calls,2,'A transient source is not hidden by the optional retained lookup or adapter cache');
+});
+
+test('retained speech metadata keeps supplied freshness evidence and observes recovery',async()=>{
+  const id='MTG-PL-2026-10-07-OTH-1',saved={sourceUrl:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:new Date(clock()).toISOString(),activity:{id:uri(id),activity_id:id}};
+  const service=new LegislationInsights(null,{clock,request:async()=>{assert.fail('Retained speech must not trigger a redundant source request');},readSpeechMetadata:async()=>saved});
+  for(const flags of [{stale:true},{refreshInProgress:true},{refreshError:'Synthetic retained refresh failure'},{}]) {
+    Object.assign(saved,{stale:false,refreshInProgress:false,refreshError:null},flags);
+    const record=await service.record('/speeches/'+id);
+    assert.equal(record.url,saved.sourceUrl);
+    assert.equal(record.fetchedAt,clock());
+    assert.equal(record.payload.data[0],saved.activity);
+    for(const key of ['stale','refreshInProgress','refreshError'])assert.equal(record[key],saved[key]);
+  }
+});
+
 for(const [name,fail,kind] of [['agenda',agendaEndpoint,'agenda-unavailable'],['votes',decisionsEndpoint,'votes-unavailable']])test('participation does not publicly cache a caught '+name+' dependency failure',async()=>{
   const {legislation,store,readEvent}=fixture({fail});
   const value=await participation(legislation,store,participantQuery(),{clock,readEvent});
