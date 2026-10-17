@@ -4,7 +4,7 @@ import {createElement,Fragment} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {createServer} from 'vite';
 
-test('shared trail link hides unsupported document links while keeping valid plenary and dossier entry points',async t=>{
+test('shared trail link hides the unfinished catalogue from document and dossier readers',async t=>{
   const original=Object.getOwnPropertyDescriptor(globalThis,'window');
   Object.defineProperty(globalThis,'window',{value:{location:{pathname:'/explore'}},configurable:true,writable:true});
   let vite;
@@ -22,8 +22,5 @@ test('shared trail link hides unsupported document links while keeping valid ple
     ...documents.map(document=>createElement(AmendmentTrailLink,{key:document,document},document)),
     createElement(AmendmentTrailLink,{procedure:'2025/0407(COD)'},'Dossier amendments'),
   ));
-  assert.equal((html.match(/class="explorer-amendment-trail-link"/g)||[]).length,4);
-  for(const document of documents)assert(html.includes('am-document='+document),document);
-  assert(html.includes('am-procedure=2025%2F0407%28COD%29'));
-  assert(html.includes('view=amendments'));
+  assert.equal(html,'','supported documents and dossiers must not expose the unfinished catalogue');
 });
