@@ -539,6 +539,53 @@ test('one counted page preserves exact totals, scoped variants and empty or out-
   } finally {s.cleanup();}
 });
 
+test('language-filtered search traverses FTS matches before language metadata',t=>{
+  const s=stores();
+  try {
+    for(let n=0;n<30;n++)for(const language of ['en','fr','de']){
+      const id='MTG-PL-2026-07-08-OTH-'+(n+1);
+      putText(s.corpus,id,'speech','2026-07-08',language,n%3?'Ukraine policy':'Other policy',{language});
+    }
+    const prepare=s.corpus.db.prepare.bind(s.corpus.db),plans=[];
+    t.mock.method(s.corpus.db,'prepare',sql=>{
+      const statement=prepare(sql);
+      if(!sql.includes('texts_fts MATCH'))return statement;
+      return new Proxy(statement,{get(target,key){
+        const value=Reflect.get(target,key);
+        if(key==='all'||key==='get')return (...params)=>{plans.push(prepare('EXPLAIN QUERY PLAN '+sql).all(...params));return value.call(target,...params);};
+        return typeof value==='function'?value.bind(target):value;
+      }});
+    });
+    for(const scope of [{},{member:42},{sourceIds:['MTG-PL-2026-07-08-OTH-2']}]){
+      plans.length=0;
+      s.corpus.search({query:'Ukraine',language:'en',kinds:['speech','question','answer'],...scope});
+      assert(plans.length>0);
+      for(const plan of plans){
+        const details=plan.map(row=>row.detail),fts=details.findIndex(detail=>/\b(?:SCAN|SEARCH) texts_fts\b/.test(detail)),text=details.findIndex(detail=>/\b(?:SCAN|SEARCH) t\b/.test(detail));
+        assert(fts>=0&&text>fts,'FTS must drive the join, without one MATCH probe per language row:\n'+details.join('\n'));
+      }
+    }
+    t.diagnostic('Node '+process.versions.node+' / SQLite '+prepare('SELECT sqlite_version() AS version').get().version);
+  } finally {s.cleanup();}
+});
+
+test('relevance pagination keeps score order and exact-ID tie breaks while sharing totals',()=>{
+  const s=stores();
+  try {
+    const ids=['SCORE-A','SCORE-B','SCORE-C'];
+    putText(s.corpus,ids[0],'speech','2026-05-01','en','Ukraine Ukraine Ukraine');
+    putText(s.corpus,ids[1],'speech','2026-05-01','en','Ukraine '+'policy '.repeat(30));
+    putText(s.corpus,ids[2],'speech','2026-05-01','en','Ukraine '+'policy '.repeat(30));
+    const full=s.corpus.search({query:'Ukraine',language:'en',sort:'relevance'});
+    assert.deepEqual(full.results.map(result=>result.sourceId),ids);
+    for(let offset=0;offset<ids.length;offset++){
+      const page=s.corpus.search({query:'Ukraine',language:'en',sort:'relevance',limit:1,offset});
+      assert.equal(page.total,3);assert.deepEqual(page.results,[full.results[offset]]);
+      assert.equal(page.nextOffset,offset<2?offset+1:null);
+    }
+  } finally {s.cleanup();}
+});
+
 test('answer-only matches use their exact parent question date and saved title without upstream reads',()=>{
   const s=stores(),questionId=question.identifier,answerId=question.inverse_answers_to[0].identifier;
   try {

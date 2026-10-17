@@ -234,7 +234,10 @@ export class CorpusStore {
     const where=['texts_fts MATCH ?'],params=[match];
     const selectedKinds=kinds??(kind?[kind]:null);
     if(selectedKinds){where.push('d.kind IN (SELECT value FROM json_each(?))');params.push(JSON.stringify(selectedKinds));}
-    if(language){where.push('t.language=?');params.push(language);}
+    // SQLite 3.51 can start with every language row and restart MATCH for each.
+    // Disqualify that index term so FTS supplies candidates first. Validated
+    // language strings need no TEXT-affinity coercion removed by unary +.
+    if(language){where.push('+t.language=?');params.push(language);}
     const generation=this.indexGeneration();
     const questionId="CASE WHEN d.kind='answer' THEN d.parent_id WHEN d.kind='question' THEN d.source_id END";
     const groupId=group==='question'?"CASE WHEN d.kind='answer' THEN COALESCE(d.parent_id,d.source_id) ELSE d.source_id END":'d.source_id';
