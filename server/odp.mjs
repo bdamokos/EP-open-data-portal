@@ -18,7 +18,8 @@ import {userAgent} from './user-agent.mjs';
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
 const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
-const MAX_DISK_RECORD_BYTES = MAX_SOURCE_BYTES + 64 * 1024;
+// JSON number normalization can expand a valid wire value (1e20 becomes 21 digits).
+const MAX_DISK_RECORD_BYTES = 6 * MAX_SOURCE_BYTES + 64 * 1024;
 const MAX_CACHE_ENTRIES = 1800;
 const MAX_CACHE_BYTES = 64 * 1024 * 1024;
 const cache = new Map();
@@ -216,7 +217,7 @@ export async function odp(
       const serialized = JSON.stringify(record);
       refreshFailures.delete(key);
       rememberSource(key, record, serialized);
-      if (cacheDir) {
+      if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) {
         await writeCacheFile(filename(key),serialized,{signal:budget.signal}).catch(()=>{});
       }
       budget.signal?.throwIfAborted();

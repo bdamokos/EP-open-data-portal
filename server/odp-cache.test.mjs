@@ -14,7 +14,7 @@ async function fixture(t,scenario) {
   t.after(()=>rm(directory,{recursive:true,force:true}));
   const script=`
     import assert from 'node:assert/strict';
-    import {writeFile,rm} from 'node:fs/promises';
+    import {writeFile,rm,stat} from 'node:fs/promises';
     import {createHash} from 'node:crypto';
     import path from 'node:path';
     const directory=process.env.ODP_CACHE_DIR;
@@ -86,7 +86,7 @@ test('oversized hashed and legacy disk records are not parsed or promoted, while
     allowed=true;
     for(const legacy of [false,true]){
       const endpoint='/memory-oversized-'+legacy;
-      await save(endpoint,{data:[{identifier:'disk'}]},{legacy,padding:13*1024*1024});
+      await save(endpoint,{data:[{identifier:'disk'}]},{legacy,padding:80*1024*1024});
       assert.equal((await odp(endpoint)).payload.data[0].identifier,'network');
     }
     allowed=false;
@@ -95,5 +95,22 @@ test('oversized hashed and legacy disk records are not parsed or promoted, while
     const controller=new AbortController();controller.abort(new Error('Cancelled fixture reader'));
     await assert.rejects(odp('/memory-valid-legacy',{}, {signal:controller.signal}),/Cancelled fixture reader/);
     assert.equal(calls,2);
+  `);
+});
+
+test('accepted network records remain readable from disk after JSON number normalization expands them',async t=>{
+  await fixture(t,`
+    const body='{"data":['+'1e20,'.repeat(599999)+'1e20]}';
+    assert(Buffer.byteLength(body)<12*1024*1024);
+    globalThis.fetch=async()=>{calls++;return new Response(body,{headers:{'Content-Type':'application/json'}});};
+    const expected=await odp('/memory-normalized');
+    const file=path.join(directory,createHash('sha256').update(expected.url).digest('hex')+'.json');
+    assert((await stat(file)).size>12*1024*1024+64*1024);
+    globalThis.fetch=async()=>assert.fail('A valid fresh saved record must not need upstream');
+    const cold=await import(${JSON.stringify(moduleUrl+'?normalized-cold')});
+    const saved=await cold.odp('/memory-normalized');
+    assert.equal(saved.url,expected.url);assert.equal(saved.fetchedAt,expected.fetchedAt);
+    assert.equal(saved.payload.data.length,600000);assert.equal(saved.payload.data.at(-1),1e20);
+    assert.equal(calls,1);
   `);
 });
