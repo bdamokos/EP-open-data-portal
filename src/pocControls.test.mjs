@@ -58,33 +58,33 @@ test('member deep links, module selection and restored routes keep meaningful ti
   const h=await harness(t,'?poc=1&member=257043&module=profile',url=>['directory','profile/257043'].includes(url.pathname.split('/poc/')[1])?new Promise(resolve=>pending.push(()=>resolve(fixture(url)))):fixture(url));
   const {default:PocApp}=await h.load('/src/PocApp.tsx');
   await h.render(createElement(PocApp));
-  assert.equal(document.title,'MEP 257043 · Profile — Parliament explorer');
+  assert.equal(document.title,'MEP 257043 · Profile — European Parliament data explorer');
   const length=history.length;
   await act(async()=>pending.splice(0).forEach(resolve=>resolve()));
-  assert.equal(document.title,'Mika Aaltola · Profile — Parliament explorer');
+  assert.equal(document.title,'Mika Aaltola · Profile — European Parliament data explorer');
   assert.equal(history.length,length,'data and title updates must not add history entries');
   for(const label of ['Latest speeches','Political activities','Profile']) {
     await h.click(h.button(label));
     assert.equal(h.container.querySelectorAll('.poc-tabs [aria-pressed="true"]').length,1);
     assert.equal(h.container.querySelector('.poc-tabs [aria-pressed="true"]').textContent,label);
-    assert.equal(document.title,`Mika Aaltola · ${label} — Parliament explorer`);
+    assert.equal(document.title,`Mika Aaltola · ${label} — European Parliament data explorer`);
     assert.equal(history.length,length,'module changes retain existing replaceState behavior');
   }
   const routes=[];
   for(const [label,title] of [['Following','Following'],['Plenary agenda','Plenary agenda'],['Questions','Questions'],['Outside voices','Outside voices']]) {
     await h.click(h.button(label));
     routes.push(location.href);
-    assert.equal(document.title,`${title} — Parliament explorer`);
+    assert.equal(document.title,`${title} — European Parliament data explorer`);
   }
   // happy-dom's replaceState truncates forward entries. Exercise popstate restoration here;
   // actual browser Back/Forward is verified separately with the local fixture frontend.
   async function restore(url,title) {
     await act(async()=>{history.replaceState(null,'',url);window.dispatchEvent(new window.PopStateEvent('popstate'));});
-    assert.equal(document.title,`${title} — Parliament explorer`);
+    assert.equal(document.title,`${title} — European Parliament data explorer`);
   }
   await restore(routes[2],'Questions');await restore(routes[3],'Outside voices');
   await h.click(h.button('Members'));
-  assert.equal(document.title,'Members of the European Parliament — Parliament explorer');
+  assert.equal(document.title,'Members of the European Parliament — European Parliament data explorer');
 });
 
 test('initial feature and unavailable member links have titles before data returns',async t=>{
@@ -92,7 +92,7 @@ test('initial feature and unavailable member links have titles before data retur
     await t.test(query,async t=>{
       const h=await harness(t,query,()=>{throw Error('Fixture unavailable');});
       const {default:PocApp}=await h.load('/src/PocApp.tsx');await h.render(createElement(PocApp));
-      assert.equal(document.title,`${title} — Parliament explorer`);
+      assert.equal(document.title,`${title} — European Parliament data explorer`);
     });
   }
 });
@@ -101,25 +101,25 @@ test('plenary mode titles follow headings, gestures and restored queries without
   const h=await harness(t,'?view=legislation&pl-mode=dossier');
   const {default:PocApp}=await h.load('/src/PocApp.tsx');
   await h.render(createElement(PocApp));
-  assert.equal(document.title,'Dossiers — Parliament explorer');
+  assert.equal(document.title,'Dossiers — European Parliament data explorer');
   const routes=[];
   for(const [button,title] of [['Agenda','Plenary agenda'],['Word cloud','Plenary word cloud'],['What’s hot','What’s hot'],['Topic timeline','Topic timeline'],['Dossiers','Dossiers']]) {
     const length=history.length;
     await h.click(h.button(button));routes.push(location.href);
-    assert.equal(document.title,`${title} — Parliament explorer`);
+    assert.equal(document.title,`${title} — European Parliament data explorer`);
     assert.equal(h.container.querySelector('h1').textContent,title);
     assert.equal(history.length,length+1,'one mode gesture adds only its existing history entry');
   }
   // Simulate the restored browser query; happy-dom truncates forward entries on replaceState.
   for(const [index,title] of [[1,'Plenary word cloud'],[3,'Topic timeline'],[4,'Dossiers']]) {
     await act(async()=>{history.replaceState(null,'',routes[index]);window.dispatchEvent(new window.PopStateEvent('popstate'));});
-    assert.equal(document.title,`${title} — Parliament explorer`);
+    assert.equal(document.title,`${title} — European Parliament data explorer`);
     assert.equal(h.container.querySelector('h1').textContent,title);
   }
   await h.click(h.button('Following'));
-  assert.equal(document.title,'Following — Parliament explorer');
+  assert.equal(document.title,'Following — European Parliament data explorer');
   await h.click(h.button('Plenary agenda'));
-  assert.equal(document.title,'Plenary agenda — Parliament explorer','returning to plenary resets its mode as before');
+  assert.equal(document.title,'Plenary agenda — European Parliament data explorer','returning to plenary resets its mode as before');
 });
 
 test('document disclosures stay related and accurate when documents repeat across agenda and committee events',async t=>{

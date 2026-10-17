@@ -80,7 +80,7 @@ export function PocGroupVoices({language='en',...props}:InsightProps){
   const jump=()=>{heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'start',behavior:'smooth'});};
   const monthLabel=(value:string)=>new Intl.DateTimeFormat(language,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(value+'-15T12:00:00Z'));
   const months=[...new Set([...(data?.months||[]),...(/^\d{4}-\d{2}$/.test(s.period)?[s.period]:[])])].sort().reverse();
-  return <InsightShell {...props} language={language} title="Group voices" view="groups" compactNotice><div className="gv" ref={root} lang="en">
+  return <InsightShell {...props} language={language} title="Group voices" view="groups"><div className="gv" ref={root} lang="en">
     <p className="gv-intro">Who takes the floor on behalf of a political group?</p>
     <div className="gv-controls"><label>Political group<select value={s.group} onChange={e=>change({group:e.target.value})}>{Object.entries(groups).map(([id,label])=><option value={id} key={id}>{label}</option>)}</select></label><label>Period<select value={s.period} onChange={e=>change({period:e.target.value})}><option value="term">Current term · since July 2024</option><option value="12m">Last 12 months</option>{months.map(month=><option lang={language} key={month} value={month}>{monthLabel(month)}</option>)}</select></label></div>
     <InsightStatus loading={page.loading&&!data} error={data?null:page.error} retry={page.retry}/>

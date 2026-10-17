@@ -3,6 +3,7 @@ import {createHash, randomUUID} from 'node:crypto';
 import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
 import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
+import {browserCompatibleUserAgent} from './user-agent.mjs';
 
 const IMAGE_LIMIT = 2 * 1024 * 1024;
 const HEADER_LIMIT = 4096;
@@ -167,7 +168,7 @@ export class PortraitCache {
       ...(saved?.lastModified ? {'If-Modified-Since': saved.lastModified} : {}),
     };
     const response = await this.fetchImpl(sourceUrl, {
-      headers: {'User-Agent': 'Mozilla/5.0 (compatible; Parliament-Explorer/0.1)', Accept: 'image/jpeg', ...conditions},
+      headers: {'User-Agent': browserCompatibleUserAgent('MEP portraits'), Accept: 'image/jpeg', ...conditions},
       redirect: 'error', signal: AbortSignal.any([AbortSignal.timeout(12000),...(signal?[signal]:[])]),
     });
     const etag = entityTag(response.headers.get('etag')), lastModified = httpDate(response.headers.get('last-modified'));

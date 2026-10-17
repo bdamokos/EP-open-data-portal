@@ -18,7 +18,7 @@ RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 
 FROM ${NODE_IMAGE} AS runtime
 ARG APP_REVISION
-LABEL org.opencontainers.image.title="Parliament explorer" \
+LABEL org.opencontainers.image.title="European Parliament data explorer" \
       org.opencontainers.image.revision=${APP_REVISION}
 WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8790 APP_REVISION=${APP_REVISION} \
