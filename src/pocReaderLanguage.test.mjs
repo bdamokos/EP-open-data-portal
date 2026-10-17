@@ -11,6 +11,32 @@ const sourceText='Exact source passage with accents: énergie, közlekedés.';
 const question=(language)=>({id:questionId,selectedDocumentId:questionId,files:[],answers:[],selectedText:{status:'available',paragraphs:['Exact source header','CONTENTS','DRAFT REPORT',sourceText],textLanguage:language,availableTextLanguages:languages,translationType:'original',sourceFormat:'DOCX',sourceUrl:'https://www.europarl.europa.eu/document.docx',notes:[{id:'1',label:'1',text:'Exact source note',links:['https://example.org/note']} ]}});
 const speech=(language)=>({id:speechId,kind:'PLENARY_DEBATE_SPEECH',start:null,end:null,speakers:[{id:'1',name:'Ágnes Élodie',role:'présidente',nameSource:'fixture'},{id:'2',name:'Other speaker',role:'Chairing the sitting',nameSource:'fixture'}],xml:'<speech><p>'+sourceText+'</p></speech>',textLanguage:language,availableTextLanguages:languages,translationType:'machine',websiteUrl:'https://www.europarl.europa.eu/transcript.html'});
 
+test('speaker names and sitting roles follow the UI independently of the selected transcript language',async t=>{
+  const person={id:'256986',name:'Γεάδης Γεάδη',sittingRole:'chair',office:{code:'vice-president-parliament'},nameVariants:[
+    {value:'Geadis Geadi',script:'Latn',language:null,source:'ODP person'},
+    {value:'Γεάδης Γεάδη',script:'Grek',language:null,source:'ODP person'},
+  ]};
+  const connectedId=speechId+'2';
+  const h=await harness(t,(route,params)=>route.startsWith('speech/')?{...speech(params.get('lang')),speakers:[person]}:route.startsWith('speech-context/')?{speechId,unavailable:false,debates:[{id:'MTG-PL-2026-03-25-PVCRE-ITM-1',titles:{en:'Public debate fixture'},records:[{id:connectedId,start:null,intervention:{type:'speech',speaker:{...person,sittingRole:undefined,office:null},onBehalfOf:[]},replyTo:null,exchangeId:null}],exchanges:[],coverage:{complete:true,available:1,expected:1}}]}:undefined);
+  await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}),'en');
+  assert.equal(h.container.querySelector('h3').textContent,'Geadis Geadi');
+  assert.equal(h.container.querySelector('.insight-secondary').textContent,'Vice-President of the European Parliament · Chairing the sitting');
+  await h.change(h.container.querySelector('.insight-reader-heading select'),'fr');
+  assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
+  assert.equal(h.container.querySelector('h3').textContent,'Geadis Geadi');
+  assert(h.container.querySelector('.insight-secondary').textContent.includes('Vice-President'));
+  await h.click(h.container.querySelector('.intervention-context-toggle'));
+  assert(h.requests.some(request=>request.startsWith('speech-context/')&&request.endsWith('lang=en')));
+  assert(!h.requests.some(request=>request.startsWith('speech-context/')&&request.endsWith('lang=fr')));
+  await h.click(h.container.querySelector('.intervention-read'));
+  assert(h.requests.includes(`speech/${connectedId}?lang=fr`),'connected contributions preserve the chosen transcript language');
+  assert.equal(h.container.querySelector('.intervention-connected-text').lang,'fr');
+  assert.equal(h.container.querySelector('.intervention-read>span').textContent,'Geadis Geadi','connected-row names still use the English UI');
+  await h.render(el(h.InsightSpeechReader,{id:speechId,language:'el'}),'el');
+  assert.equal(h.container.querySelector('h3').textContent,'Γεάδης Γεάδη');
+  assert.equal(h.container.querySelector('.insight-secondary span').lang,'el');
+});
+
 async function harness(t,respond) {
   const window=new Window({url:'http://localhost/'}),requests=[],scrolls=[];
   class ReaderDOMParser extends window.DOMParser {
@@ -64,7 +90,7 @@ test('reader controls stay English while EN/HU/FR source passages and language c
         assert.equal(effectiveLanguage(h.container.querySelector('.insight-reader-source summary')),'en');
       } else {
         assert.equal(effectiveLanguage(h.container.querySelector('h3')),'','speaker names have no guessed language');
-        assert.deepEqual([...h.container.querySelectorAll('.insight-secondary span')].map(effectiveLanguage),['','en']);
+        assert.deepEqual([...h.container.querySelectorAll('.insight-secondary span')].map(effectiveLanguage),['',language]);
         assert.equal(effectiveLanguage(h.container.querySelector('.insight-machine-label')),'en');
         assert.equal(effectiveLanguage(h.container.querySelector('.insight-source-document')),'en');
       }
