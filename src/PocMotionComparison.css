@@ -18,9 +18,32 @@
 .poc-motion-comparison .poc-diff-passage>p:not(.poc-diff-reference){margin:0;white-space:pre-wrap}
 .poc-motion-comparison del{background:var(--diff-deletion);text-decoration:line-through;text-decoration-thickness:1px;color:#632b36}
 .poc-motion-comparison ins{background:var(--diff-insertion);text-decoration:underline;text-underline-offset:3px;color:#175137}
+.poc-diff-views{display:flex;flex-wrap:wrap;gap:6px;margin:20px 0 16px}
+.poc-motion-comparison .poc-diff-views button{flex:1 1 130px;min-height:44px;border:1px solid #8b9bb0;border-radius:5px;padding:10px 14px;background:#fff;color:#162b47;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.poc-motion-comparison .poc-diff-views button[aria-pressed="true"]{background:#162b47;color:#fff;border-color:#162b47;box-shadow:inset 0 -3px 0 #9bc7f5}
+.poc-motion-comparison :is(button,select,input,a,summary):focus-visible{outline:3px solid #175b9e;outline-offset:3px}
+.poc-motion-comparison .poc-diff-legend{display:flex;flex-wrap:wrap;gap:8px 24px;font-size:14px;line-height:1.6;margin:12px 0}
+.poc-diff-legend>span{display:block}
+.poc-diff-legend :is(ins,del){padding:2px 4px}
+.poc-diff-rows[data-view="inline"],.poc-diff-reader{max-width:76ch;margin:12px auto 0}
+.poc-diff-rows[data-view="inline"] .poc-diff-row{border:0;padding:0;margin:0 0 24px}
+.poc-diff-rows[data-view="inline"] .poc-diff-passage{line-height:1.8}
+.poc-diff-rows[data-view="inline"] .poc-diff-reference{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-bottom:5px}
+.poc-diff-change-label{font-size:12px;font-weight:400}
+.poc-diff-row[data-kind="unchanged"] .poc-diff-change-label{color:var(--diff-muted)}
+.poc-diff-row[data-kind="added"] .poc-diff-inline-passage,.poc-diff-row[data-kind="removed"] .poc-diff-inline-passage{border-left:3px solid #8b9bb0;padding-left:14px}
+.poc-motion-comparison .poc-diff-read-control{display:flex;align-items:center;gap:12px;font-size:14px;font-weight:600}
+.poc-diff-read-control select{min-height:44px;max-width:100%;border:1px solid #8b9bb0;border-radius:5px;padding:9px;background:#fff;color:#162b47;font:inherit;font-weight:400}
+.poc-motion-comparison .poc-diff-reader h5{font-size:18px;line-height:1.5;margin:24px 0}
+.poc-diff-text-passage{margin:0 0 24px;overflow-wrap:anywhere}
+.poc-diff-text-passage[data-kind="footnote"]{font-size:14px}
+.poc-diff-text-passage[data-kind="footnote"] .poc-diff-reference{border-top:1px solid var(--diff-border);padding-top:12px}
+.poc-motion-comparison .poc-diff-wording{margin:0;white-space:pre-wrap;line-height:1.8}
+.poc-diff-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .poc-motion-comparison .poc-diff-absent{color:var(--diff-muted);font-size:14px;font-style:italic}
 .poc-diff-sources{font-size:13px;margin:16px 0 0;overflow-wrap:anywhere}
 .poc-diff-sources summary{cursor:pointer;min-height:30px}
 .poc-motion-compare{margin-top:12px}
 .poc-motion-compare>summary{cursor:pointer;font-size:14px;font-weight:600;min-height:30px;width:fit-content}
 @media(max-width:680px){.poc-diff-columns,.poc-diff-documents{grid-template-columns:1fr;gap:16px}.poc-diff-passage+.poc-diff-passage{padding-top:12px;border-top:1px dashed var(--diff-border)}.poc-motion-compare>summary{min-height:44px;display:flex;align-items:center}.poc-diff-controls label{flex-basis:100%}}
+@media(forced-colors:active){.poc-motion-comparison :is(ins,del){background:Canvas;color:CanvasText}.poc-motion-comparison .poc-diff-views button[aria-pressed="true"]{border:3px solid ButtonText;box-shadow:none}.poc-motion-comparison :is(button,select,input,a,summary):focus-visible{outline-color:Highlight}}

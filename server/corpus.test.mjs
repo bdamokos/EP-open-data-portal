@@ -559,7 +559,11 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
   s.index.db.prepare('INSERT INTO members VALUES (?,?)').run('43',JSON.stringify({id:'43',name:'Saved author'}));
   const cache=path.join(s.dir,'cache');mkdirSync(cache);
   const url='https://data.europarl.europa.eu/api/v2/meps/show-current?limit=1000&offset=0&format=application%2Fld%2Bjson';
-  writeFileSync(path.join(cache,createHash('sha256').update(url).digest('hex')+'.json'),JSON.stringify({url,fetchedAt:instant(),payload:{data:[{id:'person/43','api:country-of-representation':'HU'}]}}));
+  s.index.db.prepare('INSERT INTO members VALUES (?,?)').run('44',JSON.stringify({id:'44',name:'Other saved author'}));
+  const rosterFile=path.join(cache,createHash('sha256').update(url).digest('hex')+'.json');
+  const roster=[{id:'person/43','api:country-of-representation':'HU'},{id:'person/44','api:country-of-representation':'IT'}];
+  const saveRoster=data=>writeFileSync(rosterFile,JSON.stringify({url,fetchedAt:instant(),payload:{data}}));
+  saveRoster(roster);
   Object.assign(process.env,{CORPUS_ENABLED:'true',CORPUS_DIR:path.dirname(s.corpus.filename),ACTIVITY_INDEX_DIR:path.dirname(s.index.filename),ODP_CACHE_DIR:cache});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${server.address().port}/api/poc/corpus`;
@@ -569,6 +573,24 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
     assert.equal(response.status,200);assert.equal((await response.json()).results[0].sourceId,id);
     const empty=await post({query:'ocean',sourceIds:[]});assert.equal((await empty.json()).total,0);
     const country=await post({query:'ocean',sourceIds:[answerId],country:'HU',group:'question'});assert.equal((await country.json()).total,1,'country uses existing exact cached roster metadata, without profile fetches');
+    for(const state of ['missing','malformed','partial','no-countries','empty','unconfigured']){
+      saveRoster(roster);
+      if(state==='missing')rmSync(rosterFile);
+      if(state==='malformed')writeFileSync(rosterFile,'{broken');
+      if(state==='partial')saveRoster(roster.slice(0,1));
+      if(state==='no-countries')saveRoster(roster.map(({id})=>({id})));
+      if(state==='empty')saveRoster([]);
+      if(state==='unconfigured')delete process.env.ODP_CACHE_DIR;
+      for(const response of [await post({query:'ocean',country:'IT'}),await fetch(base+'/search?q=ocean&country=IT')]){
+        assert.equal(response.status,503,state);
+        assert.equal((await response.json()).error.code,'corpus_country_metadata_unavailable',state);
+      }
+      const unfiltered=await post({query:'ocean'});assert.equal((await unfiltered.json()).total,2,state);
+      const memberOnly=await post({query:'ocean',member:43});assert.equal((await memberOnly.json()).total,1,state);
+      process.env.ODP_CACHE_DIR=cache;
+    }
+    saveRoster(roster);
+    const genuineEmpty=await post({query:'ocean',country:'MT'});assert.equal(genuineEmpty.status,200);assert.equal((await genuineEmpty.json()).total,0);
     s.index.db.prepare('UPDATE members SET body=? WHERE id=?').run(JSON.stringify({id:'43',name:'Saved author',countryCode:'IT'}),'43');
     const staleCountry=await post({query:'ocean',sourceIds:[answerId],country:'IT',group:'question'});assert.equal((await staleCountry.json()).total,0,'known cached roster metadata takes precedence over a conflicting saved index country');
     const get=await fetch(base+'/search?q=ocean&kinds=question,answer&group=question&date-basis=question&sort=newest');
@@ -596,6 +618,36 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
     putText(s.corpus,'OVERSIZED-Q','question','2026-05-01','en','Ocean '+'漢'.repeat(2*1024*1024-6));
     const oversized=await fetch(base+'/text?source-id=OVERSIZED-Q&source-key=en&q=ocean');
     assert.equal(oversized.status,413);assert.equal((await oversized.json()).error.code,'corpus_text_too_large','supported extraction can exceed a configured response budget, with an explicit reader-unavailable error');
+    // Ordinary all-language question/answer groups exceed 5 MiB when repeated
+    // per-variant authors and legacy hits are retained. Keep complete groups.
+    const languages='bg cs da de el en es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ');
+    const putMember=s.index.db.prepare('INSERT INTO members VALUES (?,?)'),putItem=s.index.db.prepare('INSERT INTO items VALUES (1,?,?,?,?,?,?)');
+    for(let n=0;n<40;n++)putMember.run(String(100000+n),JSON.stringify({id:String(100000+n),name:'Alessandra Maria Fernández '+n}));
+    const ids=[];
+    for(let n=0;n<20;n++){
+      const questionId='E-10-2026-'+String(100+n).padStart(6,'0');ids.push(questionId);
+      for(const [sourceId,kind,parentId] of [[questionId,'question',null],[questionId+'-ASW','answer',questionId]]){
+        s.corpus.putDocument({sourceId,kind,parentId,date:'2026-05-01'},languages.map(language=>({sourceKey:language,language,translationType:'original',sourceFormat:'docx',sourceUrl:docx(sourceId,language),fetchedAt,body:'PFAS contamination in drinking water and environmental protection.',raw:null})));
+        for(let a=0;a<40;a++)putItem.run('/parliamentary-questions/'+questionId,sourceId,String(100000+a),'written-questions','2026-05-01','{}');
+      }
+    }
+    const options={query:'PFAS',group:'question',limit:20};
+    assert(Buffer.byteLength(JSON.stringify({...s.corpus.search(options),coverage:s.corpus.coverage()}))>5*1024*1024,'fixture reproduces the former generic 500 at the default response limit');
+    for(const method of ['GET','POST']){
+      const seen=[];let offset=0;
+      do{
+        const response=method==='POST'?await post({...options,offset}):await fetch(base+'/search?q=PFAS&group=question&limit=20&offset='+offset);
+        assert.equal(response.status,200,method);
+        const body=await response.text();assert(Buffer.byteLength(body)<=5*1024*1024);
+        const page=JSON.parse(body);assert.equal(page.total,20);assert.equal(page.coverage.authoritativeComplete,false);
+        assert.deepEqual(page.hits,page.results.flatMap(result=>result.hits));
+        for(const result of page.results){assert.equal(result.hits.length,48);assert(result.hits.every(hit=>hit.people.length===40));}
+        if(offset===0){assert.equal(page.responseLimited,true);assert(page.nextOffset>0&&page.nextOffset<20);}
+        seen.push(...page.results.map(result=>result.sourceId));offset=page.nextOffset;
+      }while(offset!==null);
+      assert.deepEqual([...seen].sort(),ids);assert.equal(new Set(seen).size,20);
+    }
+    assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0,'bounded pagination schedules no collection');
   } finally {
     await new Promise(resolve=>server.close(resolve));
     corpus().store.close();
