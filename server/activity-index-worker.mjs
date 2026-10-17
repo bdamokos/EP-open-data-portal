@@ -16,6 +16,7 @@ import {outsideSpeech,outsideAgenda} from './outside-model.mjs';
 import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade} from './outside-store.mjs';
 
 import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
+import { userAgent } from './user-agent.mjs';
 
 const DAY = 24*60*60_000;
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
@@ -57,7 +58,7 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
   const url=new URL(ODP_BASE+endpoint);
   for (const [key,value] of Object.entries({...params,...(!xml?{format:'application/ld+json'}:{})})) url.searchParams.set(key,String(value));
   return boundedUpstream(async()=> {
-    const response=await fetch(url,{headers:{Accept:xml?'application/atom+xml':'application/ld+json','User-Agent':'MEP-Wall-dev-1.0 (joined activity index)'},redirect:'error',signal:AbortSignal.any([AbortSignal.timeout(45_000),...(signal?[signal]:[])])});
+    const response=await fetch(url,{headers:{Accept:xml?'application/atom+xml':'application/ld+json','User-Agent':userAgent('activity index')},redirect:'error',signal:AbortSignal.any([AbortSignal.timeout(45_000),...(signal?[signal]:[])])});
     if (response.status===204) return xml ? {xml:'<feed/>',fetchedAt:new Date().toISOString()} : {payload:{data:[]},fetchedAt:new Date().toISOString()};
     if (!response.ok) { await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;e.retryAfter=Math.min(1800,Math.max(0,Number(response.headers.get('retry-after'))||0));if(response.status===429||response.status===503){e.retryAfter=retryAfterSeconds(response.headers.get('retry-after'));backoffUpstream(e.retryAfter);}throw e; }
     const contentType=response.headers.get('content-type') || '';
