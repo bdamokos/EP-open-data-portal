@@ -4,7 +4,7 @@ export function useGroupVoicesState(){
   const read=()=>readGroupVoicesState(new URLSearchParams(location.search));
   const [state,setState]=useState(read),current=useRef(state),typing=useRef(false);current.current=state;
   useEffect(()=>{
-    const update=()=>setState(read()),restore=()=>{typing.current=false;update();};
+    const update=()=>{const next=read(),url=groupVoicesUrl(location.href,next);if(url.href!==location.href)history.replaceState(null,'',url);setState(next);},restore=()=>{typing.current=false;update();};
     // Retired time links retain their other filters, with no extra history step.
     const url=groupVoicesUrl(location.href,read());if(url.href!==location.href)history.replaceState(null,'',url);
     window.addEventListener('popstate',restore);window.addEventListener('poc-explorer-query',update);

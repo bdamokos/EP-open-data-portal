@@ -24,8 +24,8 @@ export function groupVoicesPrune(db,generation,old){
   const previous=db.prepare('SELECT generation FROM group_voice_state WHERE generation<? ORDER BY generation DESC LIMIT 1').get(generation)?.generation||old||generation;
   for(const table of ['group_voice_observations','group_voice_designations','group_voice_jobs','group_voice_state'])db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,previous);
 }
-export function recordGroupVoice(store,generation,projection,outside){
-  if(!projection)return;
+export function recordGroupVoice(store,generation,projection,outside,id=projection?.id){
+  if(!projection){if(id){store.assertWriter();store.db.prepare('DELETE FROM group_voice_designations WHERE generation=? AND speech=?').run(generation,id);store.db.prepare('DELETE FROM group_voice_observations WHERE generation=? AND speech=?').run(generation,id);}return;}
   store.assertWriter();
   // Retain only compact public metadata, independently of legacy speech-source
   // rewrites during rollback. No transcript/XML bodies enter this projection.
