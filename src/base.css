@@ -54,51 +54,9 @@ button{border:0;border-radius:0;cursor:pointer;-webkit-tap-highlight-color:trans
   font-weight: 600;
 }
 
-.running-text {
+.overflow-text {
   min-width: 0;
   display: block;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.running-text__track {
-  display: flex;
-  gap: 40px;
-  width: max-content;
-}
-
-.running-text__track > span {
-  display: block;
-  flex: none;
-}
-
-.running-text.is-running .running-text__track {
-  animation: running-text-loop var(--running-text-duration) linear infinite;
-}
-
-@keyframes running-text-loop {
-  from { transform: translateX(0); }
-  to { transform: translateX(var(--running-text-distance)); }
-}
-
-
-@media (prefers-reduced-motion: reduce) {
-  .running-text {
-    overflow: visible;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-
-  .running-text__track {
-    display: block;
-    width: auto;
-  }
-
-  .running-text.is-running .running-text__track {
-    animation: none;
-  }
-
-  .running-text__track > [aria-hidden="true"] {
-    display: none;
-  }
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
