@@ -6,6 +6,7 @@ import { activityIndex } from './activity-index-worker.mjs';
 import { HttpError } from './http-utils.mjs';
 import { playerContent, playerAudioMapping } from './player-content.mjs';
 import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
+import {userAgent} from './user-agent.mjs';
 
 export const MMC_BASE = 'https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0';
 const DAY = 86400000;
@@ -66,7 +67,7 @@ async function freshDetail(id, directory) {
   if (pending.has(id)) return waitForRequest(pending.get(id));
   const task = sharedRequest(signal=>boundedUpstream(async () => {
     const url = MMC_BASE + '/media/' + id;
-    const response = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'Parliament-Explorer/0.1 (public recording metadata)' }, signal: AbortSignal.any([signal,AbortSignal.timeout(25000)]), redirect: 'error' });
+    const response = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': userAgent('recording metadata') }, signal: AbortSignal.any([signal,AbortSignal.timeout(25000)]), redirect: 'error' });
     if (!response.ok) {await response.body?.cancel();throw new Error(`Multimedia recording details unavailable (${response.status}).`);}
     const text = await response.text();
     if (Buffer.byteLength(text) > 2 * 1024 * 1024) throw new Error('Multimedia metadata exceeded size limit.');

@@ -11,7 +11,7 @@ const now=()=>Date.parse('2026-10-17T12:00Z'),stamp=new Date(now()).toISOString(
 const participation=(person,group)=>({id:'participation/'+person,participation_role:'def/ep-roles/SPEAKER',had_participant_person:['person/'+person],participation_in_name_of:'org/'+group});
 const speech=(id='1',date='2026-10-06',ps=[participation('42','S_D')])=>({activity_id:`MTG-PL-${date}-OTH-${id}`,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:ps});
 function setup(t){const dir=mkdtempSync(path.join(os.tmpdir(),'group-voices-')),store=new ActivityStore(dir,{clock:now});store.acquire();t.after(()=>{store.close();rmSync(dir,{recursive:true,force:true});});return store;}
-const query=(text='')=>groupVoicesQuery(new URLSearchParams(text),{now:now()});
+const query=(text='')=>{const params=new URLSearchParams(text);if(!params.has('group'))params.set('group','S_D');return groupVoicesQuery(params,{now:now()});};
 test('designation and person belong to the same exact speaking participation; duplicates count once',()=>{
  const a=speech('1','2026-10-06',[participation('42','S_D'),participation('42','S_D'),{had_participant_person:'person/43'}, {participation_in_name_of:'org/PPE'},participation('44','NI'),{...participation('45','PPE'),participation_role:'def/ep-roles/PRESIDING'}]);
  const p=groupVoiceProjection(a,{fetchedAt:stamp});assert.deepEqual(p.designations,[{person:'42',group:'S_D',participationIds:['participation/42']}]);
@@ -32,6 +32,7 @@ test('indexed summaries, subject/person intersections and evidence pages use sav
  for(const a of [speech('1','2026-09-01'),speech('2','2026-10-06'),speech('3','2026-10-06',[participation('43','S_D')]),speech('4','2026-10-06',[participation('42','PPE')])])worker.saveSpeech(cycle.generation,a,stamp,false,'https://data.europarl.europa.eu/api/v2/speeches');
  worker.saveSpeech(cycle.generation,speech('2','2026-10-06'),stamp); // idempotent
  const summary=groupVoicesPage(store,query());assert.equal(summary.people.length,2);assert.equal(summary.people[0].total,2);assert.equal(summary.people[0].name,'Éva Example');assert.deepEqual(summary.months,['2026-10','2026-09']);
+ assert.deepEqual(summary.groupSubjects.find(g=>g.id==='S_D'),{id:'S_D',total:3,subjects:{unclassified:3},truncated:false});assert.deepEqual(summary.groupSubjects.find(g=>g.id==='PPE'),{id:'PPE',total:1,subjects:{unclassified:1},truncated:false});assert.equal(summary.groupSubjects.find(g=>g.id==='ECR').total,0);assert.equal(groupVoicesQuery(new URLSearchParams(),{now:now()}).group,'PPE');
  const page=groupVoicesPage(store,query('part=contributions&person=42&subject=unclassified&limit=1'));assert.equal(page.total,2);assert.equal(page.nextOffset,1);assert.equal(page.contributions[0].designation.group,'S_D');assert(page.contributions[0].source.fetchedAt);
  assert.equal(groupVoicesPage(store,query('period=2026-08')).coverage.authoritativeComplete,false);
  const plan=store.db.prepare('EXPLAIN QUERY PLAN SELECT speech,person,date,subject FROM group_voice_designations WHERE generation=? AND group_id=? AND date>=? AND date<=? ORDER BY date DESC,speech,person LIMIT 20001').all(cycle.generation,'S_D','2024-07-16','2026-10-17');assert(plan.some(p=>/COVERING INDEX group_voice_group_date/.test(p.detail)));
@@ -131,4 +132,13 @@ test('title selection ignores inherited keys even when a caller bypasses HTTP la
  const store=setup(t),gen=store.beginCycle().generation,worker={store,clock:now};initializeGroupVoices(worker,gen,[]);const p=groupVoiceProjection(speech(),{fetchedAt:stamp});
  store.putSource(gen,'/speeches/'+p.id,'speech',{id:p.id,groupVoices:p,outside:{titles:{en:'Published heading'}}},stamp);
  const row=groupVoicesPage(store,query('lang=__proto__&part=contributions')).contributions[0];assert.equal(row.title,'Published heading');assert.equal(row.titleLanguage,'en');
+});
+test('cross-group subject counts use the same most-recent row cap as people and contributions',t=>{
+ const store=setup(t),cycle=store.beginCycle(),worker=new ActivityWorker(store,{clock:now});initializeGroupVoices(worker,cycle.generation,[]);
+ const put=store.db.prepare('INSERT INTO group_voice_designations VALUES (?,?,?,?,?,?)');
+ store.transaction(()=>{for(let i=0;i<20000;i++)put.run(cycle.generation,'MTG-PL-2026-10-06-OTH-'+i,'42','PPE','2026-10-06','foreign');put.run(cycle.generation,'MTG-PL-2025-01-20-OTH-1','43','PPE','2025-01-20','climate');put.run(cycle.generation,'MTG-PL-2025-01-20-OTH-2','44','ECR','2025-01-20','climate');});
+ const summary=groupVoicesPage(store,query('group=PPE')),ppe=summary.groupSubjects.find(g=>g.id==='PPE'),ecr=summary.groupSubjects.find(g=>g.id==='ECR');
+ assert.deepEqual(ppe,{id:'PPE',total:20000,subjects:{foreign:20000},truncated:true});assert.equal(summary.coverage.truncated,true);
+ assert.equal(groupVoicesPage(store,query('group=PPE&subject=climate&part=contributions')).total,0,'The capped page and the comparison agree.');
+ assert.deepEqual(ecr,{id:'ECR',total:1,subjects:{climate:1},truncated:false});
 });

@@ -1,8 +1,12 @@
 import {GROUP_VOICE_GROUPS,GROUP_VOICE_SUBJECTS} from './groupVoiceTerms.mjs';
-export const GROUP_VOICE_DEFAULTS=Object.freeze({group:'S_D',period:'term',person:null,subject:null,tab:'subjects',q:'',peopleLimit:15,offset:0});
+export const GROUP_VOICE_DEFAULTS=Object.freeze({group:'PPE',period:'term',person:null,subject:null,tab:'people',q:'',peopleLimit:15,offset:0});
 const keys={group:'group',period:'period',person:'person',subject:'subject',tab:'tab',q:'q',peopleLimit:'people-limit',offset:'offset'};
+// Links written before PPE/People became the defaults omitted S&D and
+// Subjects. Any gv- parameter therefore keeps those legacy fallbacks, and the
+// serializer always writes group and tab alongside other state.
+const LEGACY_DEFAULTS=Object.freeze({group:'S_D',tab:'subjects'});
 export function readGroupVoicesState(params,{now=Date.now()}={}){
-  const value=key=>params.get('gv-'+key),d=GROUP_VOICE_DEFAULTS;
+  const value=key=>params.get('gv-'+key),legacy=[...params.keys()].some(key=>key.startsWith('gv-')),d={...GROUP_VOICE_DEFAULTS,...(legacy?LEGACY_DEFAULTS:{})};
   const integer=(key,fallback,min,max)=>{const n=value(key);return /^(0|[1-9]\d*)$/.test(n||'')&&Number(n)>=min&&Number(n)<=max?Number(n):fallback;};
   const month=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now)).slice(0,7);
   const rawPeriod=value('period'),period=['term','12m'].includes(rawPeriod)||/^20\d\d-(0[1-9]|1[0-2])$/.test(rawPeriod||'')&&rawPeriod>='2024-07'&&rawPeriod<=month?rawPeriod:d.period;
@@ -10,13 +14,14 @@ export function readGroupVoicesState(params,{now=Date.now()}={}){
     period,
     person:/^[1-9]\d{0,12}$/.test(value('person')||'')?value('person'):null,
     subject:Object.hasOwn(GROUP_VOICE_SUBJECTS,value('subject'))?value('subject'):null,
-    tab:value('tab')==='people'?'people':'subjects',q:(value('q')||'').slice(0,200),
+    tab:['people','subjects'].includes(value('tab'))?value('tab'):d.tab,q:(value('q')||'').slice(0,200),
     peopleLimit:integer('people-limit',15,15,1000),offset:integer('offset',0,0,20000)};
 }
 export function groupVoicesUrl(input,state){
   const url=new URL(input);
   for(const key of [...url.searchParams.keys()])if(key.startsWith('gv-'))url.searchParams.delete(key);
-  for(const [key,suffix] of Object.entries(keys))if(state[key]!==GROUP_VOICE_DEFAULTS[key]&&state[key]!==null&&state[key]!=='')url.searchParams.set('gv-'+suffix,String(state[key]));
+  const changed=Object.keys(keys).some(key=>state[key]!==GROUP_VOICE_DEFAULTS[key]);
+  for(const [key,suffix] of Object.entries(keys))if(changed&&(key==='group'||key==='tab')||state[key]!==GROUP_VOICE_DEFAULTS[key]&&state[key]!==null&&state[key]!=='')url.searchParams.set('gv-'+suffix,String(state[key]));
   return url;
 }
 export function changeGroupVoicesState(state,patch){

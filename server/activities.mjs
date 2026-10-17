@@ -9,6 +9,7 @@ import { languageCode } from "./ep-links.mjs";
 import { documentText } from './document-text.mjs';
 import { documentAuthorIdentities, documentCoAuthors } from './document-authors.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
+import {browserCompatibleUserAgent} from './user-agent.mjs';
 
 const rssCache = new Map();
 const rssPending = new Map();
@@ -73,7 +74,7 @@ export async function recentActivities(id, language) {
     }
     signal.throwIfAborted();
     const record = await boundedUpstream(async signal => {
-      const response = await fetch(url, { headers: { Accept: "application/rss+xml, application/xml", "User-Agent": "Mozilla/5.0 (compatible; MEP-Committee-Speeches-PoC/0.3)" }, signal: AbortSignal.any([AbortSignal.timeout(25_000),...(signal?[signal]:[])]), redirect: "error" });
+      const response = await fetch(url, { headers: { Accept: "application/rss+xml, application/xml", "User-Agent": browserCompatibleUserAgent("MEP activity feeds") }, signal: AbortSignal.any([AbortSignal.timeout(25_000),...(signal?[signal]:[])]), redirect: "error" });
       if (response.status !== 200 || !/xml/.test(response.headers.get("content-type") || "")) {
         await response.body?.cancel();
         throw new HttpError(502, "activity_feed_unavailable", "Parliament’s activity feed is unavailable. Please try again.");

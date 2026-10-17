@@ -94,7 +94,7 @@ for(const language of ['en','hu','fr']) {
   test(language+': interface copy, English shell, endonyms, speech-title fallbacks and transcript language stay distinct',async t=>{
     const h=await harness(t,language),c=copy[language];
     assert.equal(document.documentElement.lang,language);assert.equal(h.container.querySelector('main.poc').lang,language);
-    assert.equal(document.title,c.title+' — Parliament explorer');assert.equal(document.querySelector('title').lang,language);
+    assert.equal(document.title,c.title+' — European Parliament data explorer');assert.equal(document.querySelector('title').lang,language);
     assert.equal(effectiveLanguage(exactText(h.container,'h1',c.title)),language);
     assert.equal(effectiveLanguage(h.container.querySelector('.poc-filters input')),language);
     const footerSelect=h.container.querySelector('select[aria-label="Interface language"]');
@@ -145,7 +145,7 @@ for(const language of ['en','hu','fr']) {
     assert.equal(effectiveLanguage(h.container.querySelector('a[href^="mailto:"]')),'');
     assert.equal(effectiveLanguage(h.container.querySelector('.poc-membership p')),language);
     await h.click(exactText(h.container,'.parliament-header button','Following'));
-    assert.equal(document.title,'Following — Parliament explorer');assert.equal(document.querySelector('title').lang,'en');
+    assert.equal(document.title,'Following — European Parliament data explorer');assert.equal(document.querySelector('title').lang,'en');
     assert.equal(document.documentElement.lang,language);assert.equal(h.container.querySelector('main.poc').lang,language);
   });
 
