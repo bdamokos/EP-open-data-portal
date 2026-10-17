@@ -157,7 +157,7 @@ function matchDetails(range:Range,target:HTMLElement) {
   return details;
 }
 export function FindInText({target,label='Find in this text',onOpen}:{target:RefObject<HTMLElement|null>;label?:string;onOpen?:()=>void}) {
-  const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[index,setIndex]=useState(0),[ranges,setRanges]=useState<Range[]>([]);
+  const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[index,setIndex]=useState(0),[ranges,setRanges]=useState<Range[]>([]),[revealRequest,setRevealRequest]=useState(0);
   const input=useRef<HTMLInputElement>(null),toggle=useRef<HTMLButtonElement>(null),id=useId(),highlightId='find'+id.replace(/\W/g,''),lastSelection=useRef<Range|null>(null);
   const active=ranges[index%Math.max(1,ranges.length)];
   const highlightApi=()=>({registry:(globalThis.CSS as unknown as {highlights?:Map<string,unknown>})?.highlights,Highlight:(globalThis as unknown as {Highlight?:new(...ranges:Range[])=>unknown}).Highlight});
@@ -190,14 +190,20 @@ export function FindInText({target,label='Find in this text',onOpen}:{target:Ref
       for(const detail of details)observer.observe(detail,{attributes:true,attributeFilter:['open']});
     }
     return()=>{observer?.disconnect();registry?.delete(highlightId);registry?.delete(highlightId+'active');const selection=window.getSelection();if(lastSelection.current&&selection?.rangeCount&&selection.getRangeAt(0).compareBoundaryPoints(window.Range.START_TO_START,lastSelection.current)===0)selection.removeAllRanges();lastSelection.current=null;};
-  },[ranges,active,open,highlightId,target]);
+  },[ranges,active,open,highlightId,target,revealRequest]);
+  function navigate(direction:number){
+    if(!ranges.length)return;
+    setIndex(value=>(value+direction+ranges.length)%ranges.length);
+    // Wrapping to the same match still needs to reveal it after scrolling away.
+    setRevealRequest(value=>value+1);
+  }
   function close(){setOpen(false);setQuery('');setRanges([]);window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
   return <div className="explorer-find-text" lang="en" onKeyDown={event=>{if(event.key==='Escape'&&open){event.stopPropagation();close();}}}>
     <button ref={toggle} type="button" className="explorer-search-icon" aria-label={label} title={label} aria-expanded={open} aria-controls={id} onClick={()=>{if(open)close();else{onOpen?.();setOpen(true);}}}><Magnifier/></button>
     {open&&<><style>{'::highlight('+highlightId+'){background:#fff2a3;color:#012b5d}::highlight('+highlightId+'active){background:#ffcc33;color:#012b5d}'}</style><div className="explorer-find-controls" id={id}>
-      <label><span className="explorer-search-sr">{label}</span><input ref={input} type="search" aria-label={label} value={query} maxLength={200} placeholder={label} onChange={event=>setQuery(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();setIndex(value=>(value+(event.shiftKey?-1:1)+Math.max(1,ranges.length))%Math.max(1,ranges.length));}}}/></label>
+      <label><span className="explorer-search-sr">{label}</span><input ref={input} type="search" aria-label={label} value={query} maxLength={200} placeholder={label} onChange={event=>setQuery(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();navigate(event.shiftKey?-1:1);}}}/></label>
       <span role="status">{query?(ranges.length?`${index%ranges.length+1} / ${ranges.length}${ranges.length===1000?'+':''}`:'No matches'):''}</span>
-      <button className="explorer-search-icon" type="button" aria-label="Previous match" title="Previous match" disabled={!ranges.length} onClick={()=>setIndex(value=>(value-1+ranges.length)%ranges.length)}>↑</button><button className="explorer-search-icon" type="button" aria-label="Next match" title="Next match" disabled={!ranges.length} onClick={()=>setIndex(value=>(value+1)%ranges.length)}>↓</button><button className="explorer-search-icon" type="button" aria-label="Close find" title="Close find" onClick={close}><CloseIcon/></button>
+      <button className="explorer-search-icon" type="button" aria-label="Previous match" title="Previous match" disabled={!ranges.length} onClick={()=>navigate(-1)}>↑</button><button className="explorer-search-icon" type="button" aria-label="Next match" title="Next match" disabled={!ranges.length} onClick={()=>navigate(1)}>↓</button><button className="explorer-search-icon" type="button" aria-label="Close find" title="Close find" onClick={close}><CloseIcon/></button>
     </div></>}
   </div>;
 }
