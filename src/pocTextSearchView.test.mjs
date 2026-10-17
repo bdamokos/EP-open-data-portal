@@ -294,6 +294,92 @@ test('local find recomputes live ranges when a React summary collapses and expan
   assert.equal(ranges().length,2);assert(ranges().every(range=>range.startContainer.isConnected&&range.endContainer.isConnected));
 });
 
+for(const highlights of [true,false])test('local find reveals actual question Notes and retains navigation with '+(highlights?'CSS Highlights':'native Selection'),async t=>{
+  const id='E-10-2026-000001',view=await setup(t,{highlights,respond:call=>{
+    assert.equal(call.url.pathname,'/api/poc/document/'+id);
+    return Response.json({id,selectedDocumentId:id,titles:{en:'Question fixture'},date:'2026-10-01',files:[],answers:[],selectedText:{status:'available',paragraphs:['sharedmatch in the visible body.'],textLanguage:'en',availableTextLanguages:['en'],translationType:'original',sourceFormat:'DOCX',sourceUrl:'https://example.test/source',notes:[{id:'1',label:'1',text:'uniquenotetoken sharedmatch inside the note.',links:[]}],noteAnchors:[],documentLinks:[]}});
+  }});
+  const {InsightQuestionReader}=await view.loadModule('/src/PocInsightReaders.tsx');
+  const render=key=>act(async()=>view.root.render(createElement(InsightQuestionReader,{id,language:'en',key})));
+  const settle=async()=>{await act(async()=>new Promise(resolve=>view.window.setTimeout(resolve,0)));await view.flushFrames();};
+  const active=()=>highlights?[...view.registry].find(([key])=>key.endsWith('active'))?.[1]?.ranges[0]:view.window.getSelection().getRangeAt(0);
+  const status=()=>view.find('.poc-find-controls [role="status"]').textContent;
+  const scrolls=[];
+  t.mock.method(view.window.HTMLElement.prototype,'scrollIntoView',function(){scrolls.push({node:this,closed:this.closest('details:not([open])')});});
+  await render('first');await settle();
+  const notes=view.find('details.legal-notes'),source=view.find('details.insight-reader-source'),note=view.find('.legal-notes li'),text=note.textContent;
+  assert(view.find('.insight-reader-text').contains(notes));
+  await act(async()=>{notes.open=false;});
+  await view.click('Find in question');await view.flushFrames();
+  const input=view.find('input[type="search"]');
+  await view.input('input[type="search"]','uniquenotetoken');await settle();
+  assert.equal(status(),'1 / 1');assert.equal(notes.open,true);assert.equal(source.open,false);
+  assert.equal(active().toString(),'uniquenotetoken');assert(notes.contains(active().startContainer));
+  assert.equal(view.window.document.activeElement,input);assert.equal(scrolls.at(-1).closed,null,'reveal precedes scroll');
+  const unique=active();
+  await act(async()=>{notes.open=false;});await settle();
+  assert.equal(notes.open,true,'an active note remains visible after manual collapse');assert.equal(active(),unique);assert.equal(status(),'1 / 1');
+  await view.input('input[type="search"]','sharedmatch');await settle();
+  assert.equal(status(),'1 / 2');assert(!notes.contains(active().startContainer));
+  await act(async()=>{notes.open=false;});await settle();
+  assert.equal(notes.open,false,'Notes can stay collapsed while the body match is active');
+  await act(async()=>input.dispatchEvent(new view.window.KeyboardEvent('keydown',{key:'Enter',bubbles:true})));await settle();
+  assert.equal(status(),'2 / 2');assert.equal(notes.open,true);assert(notes.contains(active().startContainer));
+  const second=active(),scrollCount=scrolls.length;
+  await act(async()=>{notes.open=false;});await settle();
+  assert.equal(status(),'2 / 2');assert.equal(active(),second);assert.equal(input.value,'sharedmatch');
+  assert.equal(notes.open,true);assert.equal(view.window.document.activeElement,input);assert.equal(scrolls.length,scrollCount+1,'open observation settles without a loop');
+  await act(async()=>{notes.open=true;});await settle();assert.equal(active(),second);
+  await view.click('Next match');assert.equal(status(),'1 / 2');
+  await view.click('Previous match');assert.equal(status(),'2 / 2');
+  await act(async()=>input.dispatchEvent(new view.window.KeyboardEvent('keydown',{key:'Enter',shiftKey:true,bubbles:true})));assert.equal(status(),'1 / 2');
+  await view.click('Previous match');assert.equal(status(),'2 / 2');
+  assert.equal(view.find('.legal-notes li'),note);assert.equal(note.textContent,text);assert.equal(source.open,false);
+  assert(scrolls.every(scroll=>scroll.closed===null));
+  await act(async()=>input.dispatchEvent(new view.window.KeyboardEvent('keydown',{key:'Escape',bubbles:true})));await settle();
+  assert.equal(view.container.querySelector('input'),null);assert.equal(view.window.document.activeElement,view.button('Find in question'));
+  assert.equal(view.registry.size,0);assert.equal(view.window.getSelection().rangeCount,0);
+  await act(async()=>{notes.open=false;});await settle();assert.equal(notes.open,false,'close disconnects the active-details observer');
+  await view.click('Find in question');await view.input('input[type="search"]','uniquenotetoken');await settle();
+  await render('remounted');await settle();
+  assert.equal(view.registry.size,0);assert.equal(view.window.getSelection().rangeCount,0);assert.equal(view.container.querySelector('input'),null);
+  assert.equal(notes.isConnected,false);
+  await act(async()=>{notes.open=false;});await settle();assert.equal(notes.open,false,'remount disconnects observers on the old Notes');
+  assert.equal(view.calls.length,1,'only the mocked document request is needed');
+});
+
+test('local find reveals nested and intervening details only for searchable match text inside its target',async t=>{
+  const view=await setup(t,{highlights:true});
+  const details=(id,summary,...children)=>createElement('details',{id},createElement('summary',null,summary),...children);
+  function Nested(){const target=useRef(null);return createElement('section',null,
+    createElement(view.PocFindInText,{target,label:'Find in nested fixture'}),
+    details('outside','Outside',createElement('div',{ref:target},
+      details('outer','Outer',details('inner','Inner',createElement('p',null,'nestedtoken'))),
+      details('other','Other',createElement('p',null,'unrelated text')),
+      createElement('span',null,'bridge '),
+      details('middle','',createElement('span',null,'middle ')),
+      details('excluded','',createElement('button',null,'ignoredword'),createElement('span',{hidden:true},'ignoredword')),
+      createElement('span',null,'end'),
+      details('summary-only','summarytoken',createElement('p',null,'unmatched body')))));
+  }
+  await act(async()=>view.root.render(createElement(Nested)));
+  const settle=async()=>{await act(async()=>new Promise(resolve=>view.window.setTimeout(resolve,0)));await view.flushFrames();};
+  const isOpen=id=>view.find('#'+id).open;
+  await view.click('Find in nested fixture');await view.flushFrames();
+  await view.input('input[type="search"]','nestedtoken');await settle();
+  assert.equal(view.find('[role="status"]').textContent,'1 / 1');
+  assert.equal(isOpen('outer'),true);assert.equal(isOpen('inner'),true);
+  for(const id of ['outside','other','middle','excluded','summary-only'])assert.equal(isOpen(id),false,id);
+  await view.input('input[type="search"]','bridge middle end');await settle();
+  assert.equal(view.find('[role="status"]').textContent,'1 / 1');assert.equal(isOpen('middle'),true,'a closed section between both range endpoints is revealed');
+  for(const id of ['outside','other','excluded','summary-only'])assert.equal(isOpen(id),false,id);
+  const ranges=[...view.registry].find(([key])=>!key.endsWith('active'))[1].ranges,range=ranges[0];
+  assert.equal(range.startContainer.textContent,'bridge ');assert.equal(range.endContainer.textContent,'end');
+  await view.input('input[type="search"]','ignoredword');await settle();assert.equal(view.find('[role="status"]').textContent,'No matches');assert.equal(isOpen('excluded'),false);
+  await view.input('input[type="search"]','summarytoken');await settle();assert.equal(view.find('[role="status"]').textContent,'1 / 1');assert.equal(isOpen('summary-only'),false,'a visible summary needs no body expansion');
+  assert.equal(isOpen('outside'),false);assert.equal(view.window.document.activeElement,view.find('input[type="search"]'));
+});
+
 test('local find separates paragraphs and line breaks while preserving words split by inline links',async t=>{
   const view=await setup(t,{highlights:true});
   function Paragraphs(){const target=useRef(null);return createElement('section',null,
