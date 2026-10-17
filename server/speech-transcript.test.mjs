@@ -276,7 +276,11 @@ test('blocked native identity I/O cannot hold a returned transcript or free its 
     assert.equal(reader.busy,true,'a terminating worker still consumes its concurrency slot');
     await assert.rejects(reader.query('speech-transcript',{sourceId:id,language:'de'}),error=>error.code==='corpus_busy');
     await release();await readerIdle(reader);rmSync(fifo);
-    const next=await reader.query('speech-transcript',{sourceId:id,language:'de'});
+    const nextRead=reader.query('speech-transcript',{sourceId:id,language:'de'});
+    // Allow the fast worker to finish before the parent processes its result.
+    // Cleanup must also release a worker whose exit event has already fired.
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,500);
+    const next=await nextRead;
     assert.equal(next.xml,xml,'the lane is reusable after the blocked worker exits');await readerIdle(reader);
   } finally {
     try {await release();if(reader)await readerIdle(reader);}

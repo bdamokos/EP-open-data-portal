@@ -27,8 +27,7 @@ export class CorpusReader {
       // Native SQLite or optional cache-file I/O can delay termination. Return
       // transcript results/timeouts immediately, but keep the slot until exit.
       if(worker && (timedOut||operation==='speech-transcript')) {
-        worker.once('exit',()=>{this.busy=false;});
-        void worker.terminate().catch(()=>{});
+        void worker.terminate().then(()=>{this.busy=false;},()=>{});
       }
       else {if(worker)await worker.terminate();this.busy=false;}
     }
