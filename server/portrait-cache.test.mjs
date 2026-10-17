@@ -92,6 +92,21 @@ test('an unchanged portrait is revalidated without a download and a changed one 
   assert.equal(replaced.lastModified, null); assert.equal(requests.length, 3);
 });
 
+test('a 304 naming a different entity tag is not taken as confirmation of the saved image', async t => {
+  const directory = await fixture(t); let now = 1000; const requests = [];
+  const replies = [
+    () => new Response('original', {headers: {'content-type': 'image/jpeg', etag: '"a"'}}),
+    () => new Response(null, {status: 304, headers: {etag: '"b"'}}),
+    () => new Response('current', {headers: {'content-type': 'image/jpeg', etag: '"b"'}}),
+  ];
+  const cache = new PortraitCache({directory, clock: () => now, freshMs: 100,
+    fetchImpl: async (url, {headers}) => {requests.push(headers); return replies.shift()();}});
+  await cache.get(1, source); now = 1100; await cache.get(1, source); await cache.refreshes.get(1);
+  const image = await cache.get(1, source);
+  assert.equal(image.body.toString(), 'current'); assert.equal(image.etag, '"b"');
+  assert.equal(requests[2]['If-None-Match'], undefined); assert.equal(requests.length, 3);
+});
+
 test('a 304 without a saved validated copy is not treated as an image', async t => {
   const directory = await fixture(t); let calls = 0;
   const cache = new PortraitCache({directory, fetchImpl: async () => {calls++; return new Response(null, {status: 304});}});

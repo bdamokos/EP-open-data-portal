@@ -174,7 +174,9 @@ export class PortraitCache {
     if (response.status === 304) {
       await response.body?.cancel();
       if (!Object.keys(conditions).length) throw unavailable();
-      return {...saved, fetchedAt: this.clock(), etag: etag || saved.etag, lastModified: lastModified || saved.lastModified};
+      // A 304 naming another entity tag does not confirm the saved bytes; fetch them afresh.
+      if (etag && etag !== saved.etag) return this.download(id, () => sourceUrl, {priority, signal});
+      return {...saved, fetchedAt: this.clock(), lastModified: lastModified || saved.lastModified};
     }
     const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase();
     if (!response.ok || contentType !== 'image/jpeg' || !response.body) {
