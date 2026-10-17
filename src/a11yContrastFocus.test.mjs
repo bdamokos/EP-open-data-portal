@@ -4,8 +4,8 @@ import {readFile} from 'node:fs/promises';
 import {Window} from 'happy-dom';
 
 const styles = await Promise.all([
-  'PocReferences.css', 'ParliamentHeader.css', 'poc.css', 'PocInsights.css',
-  'PocSpeechCloud.css', 'PocExplorerLayout.css', 'base.css',
+  'References.css', 'ParliamentHeader.css', 'explorer.css', 'Insights.css',
+  'SpeechCloud.css', 'ExplorerLayout.css', 'base.css',
 ].map(file => readFile(new URL(file, import.meta.url), 'utf8')));
 
 function luminance(color) {
@@ -36,7 +36,7 @@ function focusContrast(window, element, surface) {
     `${element.outerHTML}: ${style.outlineColor} must contrast with its surrounding surface`);
 }
 
-for (const shell of ['poc', 'poc-insights']) {
+for (const shell of ['explorer', 'explorer-insights']) {
   test(`current navigation is readable and keeps its yellow border in ${shell}`, async t => {
     const window = await page(t, `<main class="${shell}"><header class="parliament-header"><nav>
       <button aria-current="page">Questions</button><button>Members</button>
@@ -50,9 +50,9 @@ for (const shell of ['poc', 'poc-insights']) {
   });
 }
 
-for (const panel of ['poc-profile-body', 'poc-saved-view']) {
+for (const panel of ['explorer-profile-body', 'explorer-saved-view']) {
   test(`all reader control types have contrasting focus on ${panel}`, async t => {
-    const window = await page(t, `<main class="poc"><section class="${panel}">
+    const window = await page(t, `<main class="explorer"><section class="${panel}">
       <div class="insight-inline-reader"><button>Read</button><a href="#source">Source</a>
       <input aria-label="Search"><select aria-label="Language"><option>EN</option></select>
       <details><summary>Sources</summary></details></div>
@@ -65,9 +65,9 @@ for (const panel of ['poc-profile-body', 'poc-saved-view']) {
 }
 
 test('video controls retain contrasting focus in light member and dark insight panels', async t => {
-  for (const shell of ['poc', 'poc-insights']) {
-    const window = await page(t, `<main class="${shell}"><section class="poc-video">
-      <div class="poc-video-actions"><button>Original audio</button><button aria-pressed="true">Selected audio</button></div>
+  for (const shell of ['explorer', 'explorer-insights']) {
+    const window = await page(t, `<main class="${shell}"><section class="explorer-video">
+      <div class="explorer-video-actions"><button>Original audio</button><button aria-pressed="true">Selected audio</button></div>
       <a href="#source">Source recording</a>
     </section></main>`);
     const surface = window.document.querySelector('section');
@@ -76,21 +76,21 @@ test('video controls retain contrasting focus in light member and dark insight p
 });
 
 test('speech cloud focus follows the light member and dark insight surfaces', async t => {
-  for (const shell of ['poc', 'poc-insights']) {
-    const window = await page(t, `<main class="${shell}"><section class="poc-cloud"><button>Topic</button></section></main>`);
-    const surface = window.document.querySelector(shell === 'poc' ? 'section' : 'main');
+  for (const shell of ['explorer', 'explorer-insights']) {
+    const window = await page(t, `<main class="${shell}"><section class="explorer-cloud"><button>Topic</button></section></main>`);
+    const surface = window.document.querySelector(shell === 'explorer' ? 'section' : 'main');
     focusContrast(window, window.document.querySelector('button'), surface);
   }
 });
 
 test('a directory error retry has contrasting focus outside the profile panel', async t => {
-  const window = await page(t, '<main class="poc"><section class="poc-wall"><div class="poc-notice"><button>Try again</button></div></section></main>');
-  focusContrast(window, window.document.querySelector('button'), window.document.querySelector('.poc-notice'));
+  const window = await page(t, '<main class="explorer"><section class="explorer-wall"><div class="explorer-notice"><button>Try again</button></div></section></main>');
+  focusContrast(window, window.document.querySelector('button'), window.document.querySelector('.explorer-notice'));
 });
 
 test('programmatic focus uses the local surface token and keeps yellow on dark insight readers', async t => {
   for (const light of [false, true]) {
-    const window = await page(t, `<main class="poc-insights"><section ${light ? 'style="--focus-outline-color:var(--signal-blue);background:#fff"' : ''}>
+    const window = await page(t, `<main class="explorer-insights"><section ${light ? 'style="--focus-outline-color:var(--signal-blue);background:#fff"' : ''}>
       <div class="insight-inline-reader" tabindex="-1">Reading destination</div>
     </section></main>`);
     const reader = window.document.querySelector('.insight-inline-reader');

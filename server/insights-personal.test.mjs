@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync,mkdtempSync,rmSync} from 'node:fs';import path from 'node:path';import os from 'node:os';
 import {savedQuery,savedStates} from './insights-saved.mjs';import {participationQuery,participationRows} from './insights-participation.mjs';
-import {createSavedStore,savedLinks} from '../src/pocBookmarks.mjs';
+import {createSavedStore,savedLinks} from '../src/bookmarks.mjs';
 import {ActivityStore} from './activity-index-store.mjs';import {projectDocument,documentRows} from './activity-index-model.mjs';import {titleTokens} from './insights-model.mjs';
 test('saved-item and participation queries reject duplicate, excessive, malformed and unsupported selections',()=>{
   for(const query of ['questions=E-10-2026-003031,E-10-2026-003031','members=0','members=1&members=2','foo=1','questions=../../x','members='+Array.from({length:101},(_,i)=>i+1).join(',')])assert.throws(()=>savedQuery(new URLSearchParams(query)),e=>e.status===400);
