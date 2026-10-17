@@ -145,3 +145,27 @@ test('primary retention preserves source-discovered languages in ready metadata 
     assert.deepEqual(result.metadata.availableTextLanguages,['en','fr','de']);
   } finally {store.release();store.close();rmSync(directory,{recursive:true,force:true});}
 });
+
+test('primary retention projects exact speaker headers from mul originals and discarded translations',async()=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'speech-primary-headers-')),store=new CorpusStore(directory);
+  try {
+    store.acquire();
+    const source=structuredClone(activity),doc=source.recorded_in_a_realization_of[0];
+    doc['api:xmlFragment']={mul:xml,fr:xml.replace('xml:lang="de"','xml:lang="de-t-fr-mtec"').replace('Source Name','Nom source')};
+    const worker=new CorpusWorker(store,{languages:'primary',interval:0,fetchRecord:async()=>({payload:{data:[source]},fetchedAt:date})});
+    store.enqueue('primary-headers','speeches',{start:'2026-10-01',end:'2026-10-31',offset:0,limit:25},60);
+    await worker.task(store.task('primary-headers'));
+    const reader=new CorpusReader(directory),result=await reader.query('speech-transcript',{sourceId:id,language:'de'});
+    assert.equal(result.sourceFragmentKey,'mul');assert.equal(result.xml,xml);
+    assert.deepEqual(result.availableTextLanguages,['de']);
+    assert.equal(result.metadata.speakers[0].id,'42');assert.equal(result.metadata.speakers[0].name,'Nom source');
+    assert(result.metadata.speakers[0].nameVariants.some(variant=>variant.language==='fr'&&variant.value==='Nom source'));
+    assert(result.metadata.speakers[0].nameVariants.some(variant=>variant.language==='de'&&variant.value==='Source Name'));
+    assert.deepEqual(result.metadata.availableTextLanguages,['de','fr']);
+    delete doc['api:xmlFragment'];store.putSpeechMetadata(source,'https://data.europarl.europa.eu/api/v2/speeches/'+id,'2026-10-17T10:00:00Z');
+    const refreshed=await reader.query('speech-transcript',{sourceId:id,language:'de'});
+    assert.equal(refreshed.metadata.speakers[0].id,'42');assert.equal(refreshed.metadata.speakers[0].name,'Source Name');
+    assert(refreshed.metadata.speakers[0].nameVariants.some(variant=>variant.language==='fr'&&variant.value==='Nom source'),'metadata-only refresh retains headers from an unstored translation');
+    assert.equal(store.db.prepare('SELECT source_key FROM texts').get().source_key,'mul');
+  } finally {store.release();store.close();rmSync(directory,{recursive:true,force:true});}
+});

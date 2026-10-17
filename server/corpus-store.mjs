@@ -4,9 +4,11 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { zstdCompressSync, zstdDecompressSync } from 'node:zlib';
 import path from 'node:path';
+import {XMLValidator} from 'fast-xml-parser';
 import {countryCode} from './insights-countries.mjs';
 import {speechSummary,chooseTranscript} from './odp.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
+import {speechPeople} from './speech-interventions.mjs';
 
 // Full-text corpus of speeches, questions and answers. It lives beside the
 // activity index but outside its refresh generations, so a refresh never copies
@@ -187,28 +189,53 @@ export class CorpusStore {
       const {'api:xmlFragment':fragments,...metadata}=doc;return metadata;
     });
     const metadata={...activity,recorded_in_a_realization_of:documents};
+    let previousMetadata=null;
+    const previous=this.db.prepare('SELECT body FROM speech_metadata WHERE source_id=?').get(activity.activity_id);
+    if(previous)try {
+      const saved=JSON.parse(zstdDecompressSync(previous.body,{maxOutputLength:2*1024*1024}));
+      if(saved.version===1&&saved.activity?.activity_id===activity.activity_id&&saved.summary?.id===activity.activity_id&&Array.isArray(saved.speakers))previousMetadata=saved;
+    }catch { /* A fresh projection can replace damaged metadata. */ }
     const retained=this.db.prepare(`SELECT t.source_key,t.raw,t.source_url,t.fetched_at,t.sha256 FROM texts t JOIN documents d ON d.id=t.document_id
       WHERE d.source_id=? AND t.source_format='xml-fragment' AND t.raw IS NOT NULL ORDER BY t.source_key`).all(activity.activity_id);
-    const headerSources=[...new Map(retained.map(row=>[row.source_url+'|'+row.fetched_at,{url:row.source_url,fetchedAt:row.fetched_at}])).values()];
     const fragments={};let bytes=0;
     for(const row of retained) {
       const xml=zstdDecompressSync(row.raw,{maxOutputLength:2*1024*1024}).toString('utf8');bytes+=Buffer.byteLength(xml);
       if(bytes>12*1024*1024||sha(xml)!==row.sha256)throw new Error('Retained speech fragments failed projection validation.');
       fragments[row.source_key]=xml;
     }
+    // Project every supplied header before the text retention policy discards
+    // translations. Older corpora can still project their retained fragments.
+    const supplied=Object.fromEntries(Object.entries(Object.assign({},...(activity.recorded_in_a_realization_of||[]).map(doc=>doc?.['api:xmlFragment']||{})))
+      .filter(([,xml])=>typeof xml==='string'&&Buffer.byteLength(xml)<=2*1024*1024&&!/<!DOCTYPE|<!ENTITY/i.test(xml)&&XMLValidator.validate(xml)===true));
+    Object.assign(fragments,supplied);
+    const metadataOnly=!Object.keys(supplied).length;
+    const headerSources=[...new Map([...retained.map(row=>({url:row.source_url,fetchedAt:row.fetched_at})),
+      ...(!metadataOnly?[{url:sourceUrl,fetchedAt:new Date(fetchedAt).toISOString()}]:previousMetadata?.headerSources||[])]
+      .map(source=>[source.url+'|'+source.fetchedAt,source])).values()];
+    // The speaker extractor accepts language keys. Add a projection-only alias
+    // for an unambiguous `mul` original; its stored source key remains exact.
+    if(fragments.mul) {
+      const selected=chooseTranscript([{'api:xmlFragment':{mul:fragments.mul}}],'en');
+      if(selected.textLanguage&&selected.textLanguage!=='mul'&&!fragments[selected.textLanguage])fragments[selected.textLanguage]=fragments.mul;
+    }
     const docs=structuredClone(documents),first=docs.find(doc=>doc&&typeof doc==='object');
     if(first)first['api:xmlFragment']=fragments;
     const observed={...activity,recorded_in_a_realization_of:docs};
+    const people=speechSpeakerDetails(observed);
+    if(metadataOnly&&previousMetadata) {
+      const ids=new Set(speechPeople(activity));
+      for(const old of previousMetadata.speakers.filter(person=>ids.has(person.id))) {
+        const current=people.find(person=>person.id===old.id);
+        if(!current){people.push(old);continue;}
+        current.nameVariants=[...new Map([...(old.nameVariants||[]),...(current.nameVariants||[])].map(variant=>[JSON.stringify(variant),variant])).values()];
+        current.roleLabels={...old.roleLabels,...current.roleLabels};
+      }
+    }
     // Availability describes observed source variants, independently of the
     // retention policy. Metadata-only refreshes must not forget known variants.
-    let previousLanguages=[];
-    const previous=this.db.prepare('SELECT body FROM speech_metadata WHERE source_id=?').get(activity.activity_id);
-    if(previous)try {
-      const saved=JSON.parse(zstdDecompressSync(previous.body,{maxOutputLength:2*1024*1024}));
-      if(saved.version===1&&saved.activity?.activity_id===activity.activity_id&&Array.isArray(saved.availableTextLanguages))previousLanguages=saved.availableTextLanguages.filter(value=>typeof value==='string');
-    }catch { /* A fresh projection can replace damaged metadata. */ }
+    const previousLanguages=Array.isArray(previousMetadata?.availableTextLanguages)?previousMetadata.availableTextLanguages.filter(value=>typeof value==='string'):[];
     const availableTextLanguages=[...new Set([...chooseTranscript(activity.recorded_in_a_realization_of||[],'en').availableTextLanguages,...previousLanguages,...chooseTranscript(docs,'en').availableTextLanguages])];
-    const body=JSON.stringify({version:1,activity:metadata,summary:speechSummary(observed),speakers:speechSpeakerDetails(observed),headerSources,availableTextLanguages});
+    const body=JSON.stringify({version:1,activity:metadata,summary:speechSummary(observed),speakers:people,headerSources,availableTextLanguages});
     if(Buffer.byteLength(body)>2*1024*1024)throw new Error('Speech metadata exceeded the allowed size.');
     this.db.prepare(`INSERT INTO speech_metadata VALUES (?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET
       body=excluded.body,source_url=excluded.source_url,fetched_at=excluded.fetched_at WHERE excluded.fetched_at>=speech_metadata.fetched_at`)
