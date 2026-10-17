@@ -322,7 +322,7 @@ export class CorpusStore {
     return {schemaVersion:1,term:10,phase:this.get('phase')||'waiting',complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,
       coverage:this.coverage().note,capabilities:{search:true,storedText:true,kinds:KINDS,groups:['document','question'],sorts:['relevance','newest'],sourceIdsLimit:CORPUS_LIMITS.sourceIds},
       documents:Object.fromEntries(KINDS.map(kind=>[kind,{discovered:documents[kind]||0,withText:withText[kind]||0}])),
-      speechMetadata:{retained:metadataRetained,backfillPending:Boolean(this.get('speechMetadataBackfill'))},
+      speechMetadata:{retained:metadataRetained,backfillPending:Boolean(this.get('speechMetadataBackfill'))||tasks.some(task=>task.kind==='speech-metadata-detail'&&task.total>task.done)},
       texts:texts.map(row=>({kind:row.kind,language:row.language,count:row.n,characters:row.chars})),
       tasks:Object.fromEntries(tasks.map(row=>[row.kind,{total:row.total,done:row.done,retrying:row.retrying}])),
       lastError:lastError?{key:lastError.key,error:lastError.error,attempts:lastError.attempts,nextRetryAt:new Date(lastError.retry_at).toISOString()}:null,

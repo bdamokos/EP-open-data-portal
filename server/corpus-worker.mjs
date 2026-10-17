@@ -111,6 +111,17 @@ export class CorpusWorker {
     const steps=speechTextSteps(activity,sourceUrl,fetchedAt);
     for(;;){const step=steps.next();if(step.done)return step.value;await this.checkpoint();}
   }
+  retainSpeechMetadata(activity,sourceUrl,fetchedAt) {
+    try {this.store.putSpeechMetadata(activity,sourceUrl,fetchedAt);}
+    catch(error) {
+      // Losing ownership or stopping is never a recoverable metadata gap.
+      this.store.assertWriter();
+      if(this.stopped||this.controller.signal.aborted)throw error;
+      const kind='speech-metadata-detail',key=kind+':'+activity.activity_id,body={id:activity.activity_id};
+      if(!this.store.enqueue(key,kind,body,PRIORITY.speech))this.store.reopen(key,body,PRIORITY.speech);
+      this.store.failTask(this.store.task(key),error,error.retryAfter||0);
+    }
+  }
   // Month windows for speeches; question and answer files from the saved index.
   async discover() {
     const now=this.clock(), today=day(now);
@@ -181,12 +192,12 @@ export class CorpusWorker {
         }
         if(node.activity_id!==id)throw new Error('Speech metadata does not match its exact search identifier.');
         if(metadataOnly) {
-          this.store.putSpeechMetadata(node,url.href,record.fetchedAt);
+          this.retainSpeechMetadata(node,url.href,record.fetchedAt);
           await this.checkpoint();continue;
         }
         const {document,texts}=await this.extractSpeech(node,url.href,record.fetchedAt);
         this.store.putDocument(document,this.keep(texts));
-        this.store.putSpeechMetadata(node,url.href,record.fetchedAt);
+        this.retainSpeechMetadata(node,url.href,record.fetchedAt);
         await this.checkpoint();
       }
       this.store.taskProgress(task,{...body,offset:body.offset+matched.length,lastPage:signature});
@@ -202,7 +213,8 @@ export class CorpusWorker {
         const {document,texts}=await this.extractSpeech(activity,url.href,record.fetchedAt);
         this.store.putDocument(document,this.keep(texts));
       }
-      this.store.putSpeechMetadata(activity,url.href,record.fetchedAt);
+      if(metadataOnly)this.store.putSpeechMetadata(activity,url.href,record.fetchedAt);
+      else this.retainSpeechMetadata(activity,url.href,record.fetchedAt);
       this.store.finishTask(task);
     } else if(task.kind==='docx') {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');
