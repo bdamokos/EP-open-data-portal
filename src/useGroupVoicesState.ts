@@ -7,13 +7,13 @@ export function useGroupVoicesState(){
     const update=()=>{const next=read(),url=groupVoicesUrl(location.href,next);if(url.href!==location.href)history.replaceState(null,'',url);setState(next);},restore=()=>{typing.current=false;update();};
     // Retired time links retain their other filters, with no extra history step.
     const url=groupVoicesUrl(location.href,read());if(url.href!==location.href)history.replaceState(null,'',url);
-    window.addEventListener('popstate',restore);window.addEventListener('poc-explorer-query',update);
-    return()=>{window.removeEventListener('popstate',restore);window.removeEventListener('poc-explorer-query',update);};
+    window.addEventListener('popstate',restore);window.addEventListener('explorer-query-change',update);
+    return()=>{window.removeEventListener('popstate',restore);window.removeEventListener('explorer-query-change',update);};
   },[]);
   const change=useCallback((patch:Partial<GroupVoiceState>,search=false)=>{
     const next=changeGroupVoicesState(current.current,patch),url=groupVoicesUrl(location.href,next);
     if(url.href!==location.href){if(search&&typing.current)history.replaceState(null,'',url);else history.pushState(null,'',url);}
-    typing.current=search;current.current=next;setState(next);window.dispatchEvent(new Event('poc-explorer-query'));
+    typing.current=search;current.current=next;setState(next);window.dispatchEvent(new Event('explorer-query-change'));
   },[]);
   return {state,change,endSearch:()=>{typing.current=false;}};
 }

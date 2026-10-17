@@ -17,8 +17,8 @@ async function checkPortraitMotion(page) {
       reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
       names: elements('.portrait').map(element => element.getAttribute('aria-label')),
       geometry: {
-        grid: rect(document.querySelector('.poc-portraits')),
-        cards: elements('.poc-portrait-item').map(rect),
+        grid: rect(document.querySelector('.explorer-portraits')),
+        cards: elements('.explorer-portrait-item').map(rect),
         portraits: elements('.portrait').map(rect),
         images: elements('.portrait img').map(rect),
       },
