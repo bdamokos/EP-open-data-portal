@@ -54,7 +54,7 @@ test('exact decision → result → agenda joins preserve document and nested pr
   const from=absolute('eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151');
   assert(vote.context.relationships.some(row=>row.from===from&&row.field==='inverse_consists_of'&&row.to===absolute('eli/dl/proc/2025-2117')));
   assert(vote.context.relationships.some(row=>row.from===vote.uri&&row.field==='inverse_consists_of'&&row.to===from));
-  const unrelated={...snapshot.results[0],id:'eli/dl/event/unrelated',based_on_a_realization_of:['eli/dl/doc/UNRELATED']};
+  const unrelated={...snapshot.results[0],id:'eli/dl/event/unrelated',consists_of:[],based_on_a_realization_of:['eli/dl/doc/UNRELATED']};
   const missing=project(decision('197457'),'197591',{...snapshot,results:[unrelated]});
   assert.deepEqual(missing.context.missingResultIds,['MTG-PL-2026-10-07-VOT-ITM-993151']);
   assert.deepEqual(missing.context.agendaItemIds,[]);assert.deepEqual(missing.context.procedureIds,[]);
@@ -79,6 +79,17 @@ test('197847 remains the exact split part and amendment references are retained 
   assert.deepEqual(splitAmendment.context.componentIds,['MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3-2']);
   const isolated=project(decision('197819'),'197591',{...snapshot,results:[]});
   assert(!isolated.context.documentIds.includes('A-10-2026-0237'),'do not derive a document relationship merely by removing an AM suffix');
+});
+
+test('forward declared decision children retain result context without inventing an inverse observation',()=>{
+  const raw={...decision('197457')};delete raw.inverse_consists_of;
+  const vote=project(raw);
+  assert.deepEqual(vote.context.resultIds,['MTG-PL-2026-10-07-VOT-ITM-993151']);
+  assert.deepEqual(vote.context.agendaItemIds,['MTG-PL-2026-10-07-OJ-ITM-V-48']);
+  assert(vote.context.documentIds.includes('A-10-2026-0237'));
+  assert.deepEqual(vote.context.procedureIds,['2025-2117']);
+  assert(vote.context.relationships.some(row=>row.from.endsWith('/MTG-PL-2026-10-07-VOT-ITM-993151')&&row.field==='consists_of'&&row.to===vote.uri));
+  assert(!vote.context.relationships.some(row=>row.from===vote.uri&&row.field==='inverse_consists_of'));
 });
 
 test('unlinked 5 October procedural roll call remains available without normal agenda context',()=>{
@@ -179,7 +190,7 @@ test('external and malformed relation targets never join and projection never mu
   project(decision('197847'));
   assert.equal(JSON.stringify(snapshot),before);
   const raw={...decision('197457'),inverse_consists_of:['https://example.com/eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151','eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151?member=197591']};
-  const vote=project(raw);
+  const vote=project(raw,'197591',{...snapshot,results:snapshot.results.map(node=>({...node,consists_of:[]}))});
   assert.deepEqual(vote.context.resultIds,[]);assert.deepEqual(vote.context.agendaItemIds,[]);
   assert.deepEqual(vote.context.procedureIds,[]);
 });

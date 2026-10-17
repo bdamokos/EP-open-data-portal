@@ -98,15 +98,18 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en') {
     for(const field of ['inverse_consists_of','inverse_was_scheduled_in','was_scheduled_in'])
       for(const to of references(node[field],'proc')){procedureIds.push(identifier(to));relation(from,field,to);}
   }
-  const resultUris=references(raw.inverse_consists_of,'event');
+  const inverseResultUris=references(raw.inverse_consists_of,'event');
   const resultMap=new Map(list(snapshot.results).map(node=>[eventUri(node),node]).filter(([uri])=>uri));
+  const forwardResultUris=[...resultMap].filter(([,node])=>references(node.consists_of,'event').includes(uri)).map(([uri])=>uri);
+  const resultUris=unique([...inverseResultUris,...forwardResultUris]);
   const agendaMap=new Map(list(snapshot.agenda).map(node=>[eventUri(node),node]).filter(([uri])=>uri));
   const agendaUris=[],missingResultIds=[],missingAgendaItemIds=[];
   contextReferences(raw);
   for(const resultUri of resultUris) {
-    relation(uri,'inverse_consists_of',resultUri);
+    if(inverseResultUris.includes(resultUri))relation(uri,'inverse_consists_of',resultUri);
     const result=resultMap.get(resultUri);
     if(!result){missingResultIds.push(identifier(resultUri));continue;}
+    if(references(result.consists_of,'event').includes(uri))relation(resultUri,'consists_of',uri);
     contextReferences(result);
     for(const agendaUri of references(result.executed,'event')) {
       agendaUris.push(agendaUri);relation(resultUri,'executed',agendaUri);

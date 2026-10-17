@@ -376,14 +376,15 @@ test('result collection follows later pages and checks all declared decision chi
 
 test('official undated roll-call and split request metadata does not invalidate dated result coverage',async()=>{
   const result={...clone(finalResult),consists_of:[finalDecision.id]};
-  const requests=[['SPLIT','REQUEST_VOTE_SPLIT'],['RCV','REQUEST_VOTE_ROLLCALL']].map(([suffix,type])=>({
+  const requests=[['SPLIT','REQUEST_VOTE_SPLIT'],['RCV','REQUEST_VOTE_ROLLCALL'],['SEPARATE','REQUEST_VOTE_SEPARATE']].map(([suffix,type])=>({
     id:`${result.id}-${suffix}-1`,activity_id:`${result.activity_id}-${suffix}-1`,had_activity_type:'def/ep-activities/'+type,type:'Activity'
   }));
-  const {service}=setup({results:[result,...requests]});
+  const auxiliary={id:`eli/dl/event/${SITTING}-TF-1000`,activity_id:`${SITTING}-TF-1000`,had_activity_type:'def/ep-activities/PROCEEDING_ACTIVITY'};
+  const {service}=setup({results:[result,...requests,auxiliary]});
   const response=await service.query(MEMBER,query('sitting='+SITTING));
   assert.equal(response.coverage.status,'complete');
   assert.deepEqual(response.coverage.sittings[0].completeness.invalidSourceIds,[]);
-  assert.equal(response.coverage.sittings[0].results.rows,3);
+  assert.equal(response.coverage.sittings[0].results.rows,5);
   assert.equal(response.items[0].date,'2026-10-07');
 });
 
@@ -428,4 +429,16 @@ test('opposite outcomes duplicated within one page cannot publish a complete obs
   assert.equal(response.coverage.sittings[0].decisions.error.code,'vote_source_changed');
   assert.equal(response.coverage.sittings[0].namedDecisions.error.code,'vote_source_changed');
   assert.equal(response.pagination.observedTotal,0);
+});
+
+test('a short nonempty duplicate-only page remains incomplete rather than an end marker',async()=>{
+  const second={...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-250999`,activity_id:`${SITTING}-DEC-250999`};
+  const {service}=setup({decisions:[finalDecision,second],limits:{decisionPageSize:2},override:({kind,params,supplied})=>{
+    if((kind==='decisions'||kind==='named')&&params.offset===2)return {...supplied,payload:{data:[kind==='named'?clone(finalDecision):Object.fromEntries(Object.entries(finalDecision).filter(([key])=>!key.startsWith('had_voter')))]}};
+  }});
+  const response=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(response.coverage.collectionComplete,false);
+  assert.equal(response.coverage.sittings[0].decisions.stopReason,'repeated-page');
+  assert.equal(response.coverage.sittings[0].namedDecisions.stopReason,'repeated-page');
+  assert.equal(response.pagination.observedTotal,2);
 });
