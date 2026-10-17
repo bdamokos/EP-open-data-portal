@@ -487,6 +487,58 @@ test('document and question groups paginate before variants and retain exact sam
   } finally {s.cleanup();}
 });
 
+test('one counted page preserves exact totals, scoped variants and empty or out-of-range results',()=>{
+  const s=stores(),q1=question.identifier,a1=q1+'-ASW',q2='E-10-2026-000002',q3='E-10-2026-000003';
+  try {
+    s.index.db.exec('DELETE FROM items; DELETE FROM members;');
+    for(const id of ['43','44'])s.index.db.prepare('INSERT INTO members VALUES (?,?)').run(id,JSON.stringify({id,name:'Saved author '+id}));
+    const documents=[[q1,'question','2026-05-01',43,null],[a1,'answer','2026-06-01',44,q1],[q2,'question','2026-05-02',43,null],[q3,'question','2026-05-03',44,null]];
+    for(const [id,kind,date,member,parentId] of documents){
+      s.index.db.prepare('INSERT INTO items VALUES (1,?,?,?,?,?,?)').run('/parliamentary-questions/'+id,id,String(member),'written-questions',date,'{}');
+      for(const language of id===q1?['en','fr']:id===q3?['fr']:['en'])putText(s.corpus,id,kind,date,language,'Ukraine water policy',{parentId,language});
+    }
+    const cases=[
+      [{language:'en'},[a1,q2,q1]],
+      [{language:'fr'},[q3,q1]],
+      [{group:'question'},[q3,q2,q1]],
+      [{group:'question',language:'en'},[q2,q1]],
+      [{kind:'answer'},[a1]],
+      [{member:44,group:'question'},[q3,q1]],
+      [{member:44,language:'en'},[a1]],
+      [{sourceIds:[a1],group:'question'},[q1]],
+      [{sourceIds:[],group:'question'},[]],
+      [{from:'2026-06-01',dateBasis:'document',group:'question'},[q1]],
+      [{from:'2026-06-01',dateBasis:'question',group:'question'},[]],
+      [{country:'IT',countryMemberIds:['44'],countryMetadataIds:['43','44'],group:'question'},[q3,q1]],
+      [{country:'MT',countryMemberIds:[],countryMetadataIds:['43','44']},[]],
+    ];
+    for(const [scope,expected] of cases){
+      const options={query:'Ukraine',sort:'newest',...scope},full=s.corpus.search(options),seen=[];
+      assert.equal(full.total,expected.length,JSON.stringify(scope));
+      assert.deepEqual(full.results.map(result=>result.sourceId),expected);
+      let offset=0;
+      do{
+        const page=s.corpus.search({...options,limit:1,offset});
+        assert.equal(page.total,expected.length);assert.equal(page.offset,offset);
+        assert.deepEqual(page.hits,page.results.flatMap(result=>result.hits));
+        seen.push(...page.results);offset=page.nextOffset;
+      }while(offset!==null);
+      assert.deepEqual(seen,full.results,'pagination retains every matching variant and its exact provenance');
+      const beyond=s.corpus.search({...options,limit:1,offset:1000});
+      assert.equal(beyond.total,expected.length);assert.deepEqual(beyond.results,[]);assert.deepEqual(beyond.hits,[]);
+      assert.equal(beyond.nextOffset,null);assert.equal(beyond.truncated,false);
+      for(const hit of full.hits){
+        if(scope.language)assert.equal(hit.language,scope.language);
+        if(scope.sourceIds)assert(scope.sourceIds.includes(hit.sourceId));
+        if(scope.member)assert(hit.memberIds.includes(scope.member));
+        assert.equal(hit.sha256,s.corpus.text({sourceId:hit.sourceId,sourceKey:hit.sourceKey}).sha256);
+      }
+    }
+    const missing=s.corpus.search({query:'unmatched',group:'question',offset:3});
+    assert.equal(missing.total,0);assert.deepEqual(missing.results,[]);assert.equal(missing.nextOffset,null);
+  } finally {s.cleanup();}
+});
+
 test('answer-only matches use their exact parent question date and saved title without upstream reads',()=>{
   const s=stores(),questionId=question.identifier,answerId=question.inverse_answers_to[0].identifier;
   try {
