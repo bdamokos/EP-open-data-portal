@@ -89,7 +89,7 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
         <label>Audio<select ref={audioControl} value={selectedOriginal?'original':'language'} onChange={event=>setSelectedOriginal(event.target.value==='original')}>
           <option value="language">{languageName}</option><option value="original">Original (floor audio)</option>
         </select></label>
-        {changed?<button onClick={()=>{audioControl.current?.focus({preventScroll:true});start(selectedOriginal);}}>Restart video</button>:<button disabled={media.loading||!media.data?.available} onClick={()=>start(current.original)}>Replay video</button>}
+        {changed?<button onClick={()=>{audioControl.current?.focus({preventScroll:true});start(selectedOriginal);}}>Restart video</button>:<button disabled={media.loading||!media.data?.available} onClick={()=>{if(replayNeedsMediaRefresh(media.data,media.error))audioControl.current?.focus({preventScroll:true});start(current.original);}}>Replay video</button>}
       </div>
       <p className="poc-video-audio-note">{changed?'Changing audio restarts the clip.':current.original?'Original sound from the chamber. Languages may vary.':`Parliament’s ${languageName} audio channel. Transcript language is separate.`}</p>
       {media.loading && !media.data && <p role="status">Loading video…</p>}
@@ -106,7 +106,7 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
   </section>;
   if(!speech)return {toggle:null,panel:null};
   if(!playable)return {toggle:<span className="poc-video-gap" lang="en"><strong>{written?'Written statement · no video':'Video timings unavailable'}</strong></span>,panel:null};
-  return {toggle:<button ref={toggle} className="poc-video-toggle" lang="en" aria-label={current?'Close video':'Open video'} title={current?'Close this speech’s video':'Open this speech’s video'} aria-expanded={Boolean(current)} aria-controls={panelId} onClick={()=>current?close():start(false)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3Z" fill="currentColor" stroke="none"/></svg><span>Video</span></button>,panel};
+  return {toggle:<button ref={toggle} className="poc-video-toggle" lang="en" title={current?'Close this speech’s video':'Open this speech’s video'} aria-expanded={Boolean(current)} aria-controls={panelId} onClick={()=>current?close():start(false)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3Z" fill="currentColor" stroke="none"/></svg><span>Video</span></button>,panel};
 }
 
 export function PocSpeechPlayer({speech,lang}:{speech:Speech;lang:string}) {
