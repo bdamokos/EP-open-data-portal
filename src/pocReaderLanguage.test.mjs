@@ -296,3 +296,23 @@ test('speech video opens beside its heading and transcript language changes do n
   assert.deepEqual(h.requests.filter(route=>route.startsWith('speech-media/')),[`speech-media/${speechId}?lang=en`]);
   await h.click(panel.querySelector('button'));assert.equal(toggle.getAttribute('aria-expanded'),'false');assert.equal(document.activeElement,toggle);
 });
+
+test('speech readers preserve source italics and notes inside timed paragraphs, including highlighted phrases',async t=>{
+  const xml='<oralStatements><speech xml:lang="en"><from>Header is not speech text</from><blockContainer><p><inline name="i">(Opening note)</inline></p><p><time>Before</time><time>the</time><time>video</time> <inline name="i">(A video was played in the Chamber)</inline> <time>we</time><time>continue</time> .</p><p>Ordinary (spoken aside) and <inline name="i"><span>an editorial note</span></inline> remain in place.</p><p><inline name="i">(Closing note)</inline></p></blockContainer></speech></oralStatements>';
+  const connectedId=speechId+'-formatted';
+  const person={id:'118859',name:'President'};
+  const h=await harness(t,(route)=>route.startsWith('speech/')?{...speech('en'),xml}:route.startsWith('speech-context/')?{speechId,unavailable:false,debates:[{id:'exact-debate',titles:{en:'Debate'},records:[{id:connectedId,start:null,intervention:{type:'speech',speaker:person,onBehalfOf:[]}}],exchanges:[],coverage:{complete:true}}]}:undefined);
+  await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en',highlight:'video (A video'}),'en');
+  const body=h.container.querySelector('.insight-reader-text');
+  assert.deepEqual([...body.querySelectorAll('i')].map(node=>node.textContent),['(Opening note)','(A video was played in the Chamber)','an editorial note','(Closing note)']);
+  assert.equal(body.querySelectorAll('p')[1].textContent,'Before the video (A video was played in the Chamber) we continue.');
+  assert.equal([...body.querySelectorAll('mark')].map(node=>node.textContent).join(''),'video (A video','highlight spans regular and italic source text');
+  assert(body.querySelector('i mark'),'highlighting retains the source italic wrapper');
+  assert(!body.textContent.includes('Header is not speech text'));
+  await h.click(h.container.querySelector('.intervention-context-toggle'));
+  await h.click(h.container.querySelector('.intervention-read'));
+  const connected=h.container.querySelector('.intervention-connected-text');
+  assert.deepEqual([...connected.querySelectorAll('i')].map(node=>node.textContent),[...body.querySelectorAll('i')].map(node=>node.textContent));
+  assert.equal(connected.querySelectorAll('p')[2].textContent,body.querySelectorAll('p')[1].textContent);
+  assert.equal(connected.querySelectorAll('i').length,4,'parentheses in spoken text do not acquire italics');
+});
