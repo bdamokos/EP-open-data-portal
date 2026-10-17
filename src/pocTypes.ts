@@ -44,16 +44,29 @@ export interface PocProfile extends PocMember {
   accounts: string[];
   fetchedAt: string;
 }
+export interface SpeechSpeaker {
+  id:string;
+  name:string;
+  role?:string|null;
+  roleLanguage?:string|null;
+  nameSource?:string;
+  sittingRole?:'chair';
+  nameVariants?:{value:string;script:string|null;language:string|null;source:string}[];
+  roleLabels?:Record<string,{text:string;language:string}>;
+  office?:{code:'president-parliament'|'vice-president-parliament';membershipId:string;start:string;end:string|null}|null;
+  identitySources?:{url:string;fetchedAt:string;stale:boolean}[];
+  identityIssues?:string[];
+}
 export interface Intervention {
   type:'speech'|'written'|'chair'|'procedure'|'catch-the-eye'|'blue-card-question'|'blue-card-intervention'|'blue-card-answer'|'blue-card-reaction'|'blue-card'|'unclassified';
   process:string|null;
-  speaker:{id:string;name:string}|null;
+  speaker:SpeechSpeaker|null;
   onBehalfOf:{id:string;uri:string;label:string;politicalGroup:boolean;source:string}[];
   headerAvailable:boolean;
   catchMarker:'start'|'end'|null;
   narrative:string|null;
   procedureKind:'note'|'chair-change'|null;
-  chair:{id:string;name:string;role:string|null}|null;
+  chair:SpeechSpeaker|null;
   numbering:number|null;
   parentIds:string[];
   evidence:string|null;
@@ -146,7 +159,7 @@ export interface SpeechPage {
 }
 export interface SpeechDetail extends Speech {
   sourceFragmentKey?:string;
-  speakers?:{id:string;name:string;role:string|null;nameSource:string}[];
+  speakers?:SpeechSpeaker[];
   xml: string | null;
   textLanguage: string | null;
   languageTags: string[];
