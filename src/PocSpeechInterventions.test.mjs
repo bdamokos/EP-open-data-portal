@@ -37,7 +37,7 @@ test('procedural notes explain later contributions without speech controls, whil
   await act(async()=>container.querySelector('button').click());
   const entries=[...container.querySelectorAll('.intervention-sequence>li')];
   assert.equal(entries.length,4);assert.match(entries[1].textContent,/The sitting was briefly suspended/);
-  assert.match(entries[2].textContent,/Chair: ESTEBAN GONZÁLEZ PONS · Vice-President/);
+  assert.match(entries[2].textContent,/ESTEBAN GONZÁLEZ PONSVice-President · Chairing the sitting/);
   for(const entry of entries.slice(1,3)) {
     assert.equal(entry.querySelector('button,a,.intervention-badge'),null);
     assert(!entry.textContent.includes('Contribution'));assert(!entry.textContent.includes('Speech'));

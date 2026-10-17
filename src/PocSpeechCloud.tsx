@@ -78,7 +78,7 @@ export function PocSpeechCloud({member,sitting,week,topic,country,interfaceLangu
             <strong lang={people?'':speech.titleLanguage??''}>{name}</strong><span lang={speech.titleLanguage??''}>{speech.title}</span><small lang={interfaceLanguage}>{humanDate(speech.date,interfaceLanguage)}</small><span className="poc-cloud-read-action">{open?'Close speech':'Read speech'}</span>
           </button>
           {open&&<div className="poc-cloud-reader" ref={reader} id={readerId} tabIndex={-1} role="region" aria-label={'Speech by '+name}>
-            <InsightSpeechReader key={id} id={id} language={language} highlight={selected.label||selected.word} onSpeakers={onSpeakers}/>
+            <InsightSpeechReader key={id} id={id} language={interfaceLanguage} transcriptLanguage={language} highlight={selected.label||selected.word} onSpeakers={onSpeakers}/>
           </div>}
         </article>;
       })}</div>

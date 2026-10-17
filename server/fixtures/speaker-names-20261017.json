@@ -1,0 +1,56 @@
+{
+  "description": "Anonymous public name fields and one dated Parliament office; unrelated profile fields omitted.",
+  "examples": [
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/meps/256986?format=application%2Fld%2Bjson",
+      "fetchedAt": "2026-10-17T07:19:30.205567+00:00",
+      "person": {
+        "id": "person/256986",
+        "officialFamilyName": "Γεάδη",
+        "officialGivenName": "Γεάδης",
+        "identifier": "256986",
+        "familyName": "Geadi",
+        "givenName": "Geadis"
+      }
+    },
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/meps/show-current?format=application%2Fld%2Bjson&country-of-representation=BG&limit=2",
+      "fetchedAt": "2026-10-17T07:19:32.877373+00:00",
+      "person": {
+        "id": "person/34232",
+        "officialFamilyName": "Вигенин",
+        "officialGivenName": "Кристиан",
+        "identifier": "34232",
+        "familyName": "Vigenin",
+        "givenName": "Kristian"
+      }
+    },
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/meps/58766?format=application%2Fld%2Bjson",
+      "fetchedAt": "2026-10-17T07:20:03.467724+00:00",
+      "person": {
+        "id": "person/58766",
+        "identifier": "58766",
+        "familyName": "Ștefănuță",
+        "givenName": "Nicolae",
+        "hasMembership": [
+          {
+            "id": "membership/58766-f-172818",
+            "type": "Membership",
+            "identifier": "58766-f-172818",
+            "notation_codictFunctionId": "172818",
+            "memberDuring": {
+              "id": "time-period/20240716",
+              "type": "PeriodOfTime",
+              "startDate": "2024-07-16"
+            },
+            "organization": "org/ep-10",
+            "role": "def/ep-roles/PRESIDENT_VICE",
+            "membershipClassification": "def/ep-entities/EU_INSTITUTION",
+            "contactPoint": []
+          }
+        ]
+      }
+    }
+  ]
+}
