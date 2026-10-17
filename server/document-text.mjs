@@ -12,12 +12,37 @@ import {sharedRequest,waitForRequest,requestSignal,isLocalRequestFailure} from '
 import {numberingLabels} from './docx-numbering.mjs';
 import {noteNumbering} from './docx-note-numbering.mjs';
 import {userAgent} from './user-agent.mjs';
+import {CacheDiskBudget} from './cache-disk-budget.mjs';
+import {config} from './config.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
 // 6: empty list items and independent, source-formatted footnote/endnote numbering.
 const EXTRACTION_VERSION=6;
 const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500});
 const memory=new Map(),pending=new Map(),failures=new Map();
+// Published DOCX files carry no HTTP validators. Recent texts are re-read weekly;
+// a text retrieved 60 or more days after publication is treated as settled, and a
+// changed size or issue time in the API's file listing marks a re-publication.
+const RECENT_REFRESH_MS=7*DAY,SETTLED_AFTER_MS=60*DAY;
+const budgets=new Map();
+function diskBudget(directory){
+  const folder=path.join(directory,'document-text-v1');
+  if(!budgets.has(folder))budgets.set(folder,new CacheDiskBudget(folder,{maxBytes:config.documentTextMaxDiskBytes,maxEntries:20000,pattern:/^[0-9a-f]{64}\.json$/}));
+  return budgets.get(folder);
+}
+function fileDescriptor(work,url){
+  for(const e of array(work.is_realized_by))for(const m of array(e.is_embodied_by)){
+    let href=null;try{href=new URL(m.is_exemplified_by,'https://data.europarl.europa.eu/').href;}catch{}
+    if(href===url)return {byteSize:m.byteSize!=null&&m.byteSize!==''&&Number.isFinite(Number(m.byteSize))?Number(m.byteSize):null,issued:typeof m.issued==='string'&&Number.isFinite(Date.parse(m.issued))?m.issued:null};
+  }
+  return {byteSize:null,issued:null};
+}
+export function documentNeedsRefresh(saved,work,descriptor,now){
+  if(['byteSize','issued'].some(k=>descriptor[k]!=null&&saved.source?.[k]!=null&&descriptor[k]!==saved.source[k]))return true;
+  const published=Date.parse(work.document_date||descriptor.issued||''),fetched=Date.parse(saved.fetchedAt);
+  if(Number.isFinite(published)&&fetched-published>=SETTLED_AFTER_MS)return false;
+  return now-fetched>=RECENT_REFRESH_MS;
+}
 const DOCX_PARTS=['word/document.xml','word/styles.xml','word/numbering.xml','word/settings.xml','word/_rels/document.xml.rels','word/footnotes.xml','word/_rels/footnotes.xml.rels','word/endnotes.xml','word/_rels/endnotes.xml.rels'];
 // Read only standard text, style, numbering, note and relationship parts. No archive paths are written to disk.
 export function docxParts(buffer) {
@@ -222,15 +247,18 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const chosen=files.find(f=>f.language===language) || files.find(f=>originals.includes(f.language)) || files.find(f=>f.language==='en') || files[0];
   const base={status:'unavailable',paragraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
-  const key=chosen.url,file=directory && path.join(directory,'document-text-v1',createHash('sha256').update(key).digest('hex')+'.json');
+  const key=chosen.url,name=createHash('sha256').update(key).digest('hex')+'.json',file=directory && path.join(directory,'document-text-v1',name);
+  const budget=directory?diskBudget(directory):null,descriptor=fileDescriptor(work,key);
   let saved=memory.get(key);
-  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===EXTRACTION_VERSION && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;memory.set(key,record);}}catch{}
+  if(saved)budget?.used(name);
+  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===EXTRACTION_VERSION && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;memory.set(key,record);budget.used(name);}}catch{}
   requestSignal()?.throwIfAborted();
   const refresh=priority=> {
     if(pending.has(key))return pending.get(key);
     const job=sharedRequest(signal=>boundedUpstream(async()=>{
-      const result=await download(key,{signal});signal.throwIfAborted();const record={schemaVersion:1,extractionVersion:EXTRACTION_VERSION,sourceId:work.identifier || tail(work.id),sourceUrl:key,fetchedAt:new Date(clock()).toISOString(),...result};
-      if(file)await writeCacheFile(file,JSON.stringify(record),{signal});
+      const result=await download(key,{signal});signal.throwIfAborted();const record={schemaVersion:1,extractionVersion:EXTRACTION_VERSION,sourceId:work.identifier || tail(work.id),sourceUrl:key,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
+      const serialized=JSON.stringify(record);
+      if(file&&await writeCacheFile(file,serialized,{signal}))void budget.saved(name,Buffer.byteLength(serialized));
       signal.throwIfAborted();
       memory.set(key,record);if(memory.size>100)memory.delete(memory.keys().next().value);failures.delete(key);return record;
     },{priority,signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(key,{retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
@@ -238,7 +266,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   };
   const failure=failures.get(key);
   const present=record=>({...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
-  if(saved){const stale=clock()-Date.parse(saved.fetchedAt)>=DAY;if(stale && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
+  if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock());if(stale && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
   try {const record=await waitForRequest(refresh('interactive'));return present(record);}
   catch(error){requestSignal()?.throwIfAborted();return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString()};}
