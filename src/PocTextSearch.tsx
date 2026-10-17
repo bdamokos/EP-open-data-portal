@@ -138,6 +138,24 @@ export function PocTextSearch({prefix,label,language,kinds,member,country,from,t
 
 // CSS Custom Highlights leave React-managed text, links and footnotes intact.
 // Where unsupported, select only the active match using the native Selection.
+const findExcluded='button:not(.legal-ref):not(.source-primary),script,style,[hidden]';
+function matchDetails(range:Range,target:HTMLElement) {
+  const details=new Set<HTMLDetailsElement>();
+  if(!target.contains(range.commonAncestorContainer))return details;
+  const collect=(node:Node)=>{
+    if(!node.textContent||!range.intersectsNode(node)||node===range.startContainer&&range.startOffset===node.textContent.length||node===range.endContainer&&range.endOffset===0)return;
+    const parent=node.parentElement;if(!parent||parent.closest(findExcluded))return;
+    for(let ancestor:HTMLElement|null=parent;ancestor&&target.contains(ancestor);ancestor=ancestor.parentElement){
+      if(ancestor.tagName!=='DETAILS')continue;
+      const summary=[...ancestor.children].find(child=>child.tagName==='SUMMARY');
+      if(!summary?.contains(node))details.add(ancestor as HTMLDetailsElement);
+    }
+  };
+  const common=range.commonAncestorContainer;
+  if(common.nodeType===window.Node.TEXT_NODE)collect(common);
+  else {const walker=document.createTreeWalker(common,window.NodeFilter.SHOW_TEXT);let node;while((node=walker.nextNode()))collect(node);}
+  return details;
+}
 export function PocFindInText({target,label='Find in this text',onOpen}:{target:RefObject<HTMLElement|null>;label?:string;onOpen?:()=>void}) {
   const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[index,setIndex]=useState(0),[ranges,setRanges]=useState<Range[]>([]);
   const input=useRef<HTMLInputElement>(null),toggle=useRef<HTMLButtonElement>(null),id=useId(),highlightId='find'+id.replace(/\W/g,''),lastSelection=useRef<Range|null>(null);
@@ -149,7 +167,7 @@ export function PocFindInText({target,label='Find in this text',onOpen}:{target:
       while((node=walker.nextNode())){
         if(node.nodeType===window.Node.ELEMENT_NODE){if((node as Element).tagName==='BR'&&!(node as Element).closest('[hidden]'))text+=' ';continue;}
         // Inline reference and source-reader buttons contain searchable source text.
-        const parent=node.parentElement;if(!parent||parent.closest('button:not(.legal-ref):not(.source-primary),script,style,[hidden]'))continue;
+        const parent=node.parentElement;if(!parent||parent.closest(findExcluded))continue;
         const block=parent.closest('p,div,h1,h2,h3,h4,h5,h6,li,blockquote,section,article,td,th,pre,dt,dd,figcaption');
         if(lastBlock&&block!==lastBlock&&text&&!/\s$/.test(text))text+=' ';
         lastBlock=block;const value=node.textContent||'';nodes.push({node:node as Text,start:text.length,end:text.length+value.length});text+=value;
@@ -159,9 +177,20 @@ export function PocFindInText({target,label='Find in this text',onOpen}:{target:
   },[open,query,target]);
   useEffect(()=>{if(open){const frame=window.requestAnimationFrame(()=>input.current?.focus({preventScroll:true}));return()=>window.cancelAnimationFrame(frame);}},[open]);
   useEffect(()=>{const {registry,Highlight}=highlightApi();if(registry&&Highlight&&open){registry.set(highlightId,new Highlight(...ranges));if(active)registry.set(highlightId+'active',new Highlight(active));}
-    if(active&&open){if(!registry||!Highlight){const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(active);lastSelection.current=active;}active.startContainer.parentElement?.scrollIntoView({block:'nearest'});}
-    return()=>{registry?.delete(highlightId);registry?.delete(highlightId+'active');const selection=window.getSelection();if(lastSelection.current&&selection?.rangeCount&&selection.getRangeAt(0).compareBoundaryPoints(window.Range.START_TO_START,lastSelection.current)===0)selection.removeAllRanges();lastSelection.current=null;};
-  },[ranges,active,open,highlightId]);
+    let observer:MutationObserver|undefined;
+    const element=target.current,contained=()=>Boolean(element&&active&&target.current===element&&element.isConnected&&element.contains(active.startContainer)&&element.contains(active.endContainer));
+    if(active&&open&&element&&contained()){
+      const details=matchDetails(active,element),reveal=()=>{if(!contained())return false;let changed=false;for(const detail of details)if(!detail.open){detail.open=true;changed=true;}return changed;};
+      reveal();
+      if(!registry||!Highlight){const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(active);lastSelection.current=active;}
+      const scroll=()=>{if(contained())active.startContainer.parentElement?.scrollIntoView({block:'nearest'});};scroll();
+      // Only active-match ancestors need open-attribute observation. Revealing or
+      // manually toggling Notes must not rebuild ranges and reset the match index.
+      observer=new window.MutationObserver(()=>{if(reveal())scroll();});
+      for(const detail of details)observer.observe(detail,{attributes:true,attributeFilter:['open']});
+    }
+    return()=>{observer?.disconnect();registry?.delete(highlightId);registry?.delete(highlightId+'active');const selection=window.getSelection();if(lastSelection.current&&selection?.rangeCount&&selection.getRangeAt(0).compareBoundaryPoints(window.Range.START_TO_START,lastSelection.current)===0)selection.removeAllRanges();lastSelection.current=null;};
+  },[ranges,active,open,highlightId,target]);
   function close(){setOpen(false);setQuery('');setRanges([]);window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
   return <div className="poc-find-text" lang="en" onKeyDown={event=>{if(event.key==='Escape'&&open){event.stopPropagation();close();}}}>
     <button ref={toggle} type="button" className="poc-search-icon" aria-label={label} title={label} aria-expanded={open} aria-controls={id} onClick={()=>{if(open)close();else{onOpen?.();setOpen(true);}}}><Magnifier/></button>
