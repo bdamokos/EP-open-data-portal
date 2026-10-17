@@ -111,7 +111,8 @@ async function handleApi(request,response,url,apiPrefix){
     if (segments.length === 3 && segments[1] === "portrait") {
       const image = await odpPortrait(positiveId(segments[2]));
       setCommonSecurityHeaders(response);
-      const policy = portraitCachePolicy(image), etag = `"${createHash('sha256').update(image.body).digest('base64url')}"`;
+      const policy = request.headers.authorization ? {cacheControl: 'no-store', cdnCacheControl: 'no-store'} : portraitCachePolicy(image);
+      const etag = `"${createHash('sha256').update(image.body).digest('base64url')}"`;
       response.setHeader("Content-Type", image.contentType);
       response.setHeader("Cache-Control", policy.cacheControl);
       response.setHeader("CDN-Cache-Control", policy.cdnCacheControl);

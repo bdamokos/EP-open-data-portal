@@ -161,3 +161,37 @@ test('weekly legislation keeps the worst freshness for a shared source across da
   assert.equal(value.coverage.sources[0].refreshError,'Earlier source refresh failed');
   assert.equal(policy('legislation',value).cdnCacheControl,'no-store');
 });
+
+
+for(const links of ['empty children','missing children','missing event node'])for(const stale of [true,false])test('participation retains '+(stale?'stale':'fresh')+' cached-event evidence with '+links,async()=>{
+  const {legislation,store,readEvent,calls}=fixture();
+  const record=await readEvent(eventId);
+  if(links==='missing event node')record.payload.data=[];
+  else if(links==='missing children')delete record.payload.data[0].consists_of;
+  else record.payload.data[0].consists_of=[];
+  Object.assign(record,{stale,refreshInProgress:stale});
+  const value=await new InsightViewCache({directory:null,clock}).get(['empty-participation',links,stale],()=>participation(legislation,store,participantQuery(),{clock,readEvent:async()=>record}));
+  const source=value.coverage.sources.find(source=>source.url===record.url);
+  assert(source,'The exact event source remains visible for the unavailable speaker observation');
+  assert.equal(source.stale,stale);
+  assert.equal(source.refreshInProgress,stale);
+  assert.equal(value.topics.find(topic=>topic.id===debateId).speakers,null);
+  assert.equal(value.topics.find(topic=>topic.id===debateId).allSpeakers,null);
+  assert.equal(value.series[0].speakers,null);
+  assert.equal(value.viewCache.stale,false);
+  if(stale)assert.equal(policy('participation',value).cdnCacheControl,'no-store');
+  else assert.match(policy('participation',value).cdnCacheControl,/max-age=21600/);
+  assert(!calls.some(endpoint=>endpoint.startsWith('/events/')),'Cache-only speech links do not introduce a network request');
+});
+
+test('participation retains stale empty-event evidence from the existing legislation memory cache',async()=>{
+  const {legislation,store,readEvent}=fixture();
+  const record=await readEvent(eventId);
+  record.payload.data[0].consists_of=[];
+  Object.assign(record,{stale:true,refreshInProgress:true});
+  legislation.cache.set(JSON.stringify([eventEndpoint,{}]),{at:clock(),value:record});
+  const value=await participation(legislation,store,participantQuery(),{clock,readEvent:async()=>assert.fail('The existing exact cache key should be used')});
+  assert.equal(value.topics.find(topic=>topic.id===debateId).speakers,null);
+  assert(value.coverage.sources.some(source=>source.url===record.url&&source.stale&&source.refreshInProgress));
+  assert.equal(policy('participation',value).cdnCacheControl,'no-store');
+});

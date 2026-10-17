@@ -55,12 +55,13 @@ export async function participation(legislation,store,query,{clock=Date.now,read
       const parents=refs(sitting.consists_of).filter(uri=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/.test(uri)).slice(0,50);
       for(const uri of parents) {
         const id=tail(uri),record=legislation.cache.get(JSON.stringify(['/events/'+id,{}]))?.value||await readEvent(id);
+        // Missing children or an unresolved node still depend on this record's freshness.
+        if(record)sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});
         const event=record?.payload.data.find(node=>canonical(node.id)===uri);
         if(!event||tail(event.had_activity_type)!=='PLENARY_DEBATE'||event.activity_date!==sitting.activity_date)continue;
         const children=refs(event.consists_of).map(tail).slice(0,200);if(!children.length)continue;
         const rows=store.db.prepare(`SELECT body FROM items WHERE generation=? AND category='plenary-contributions' AND source_id IN (${children.map(()=>'?').join(',')}) LIMIT 1000`).all(status.servingGeneration,...children).map(row=>JSON.parse(row.body));
         for(const target of refs(event.executed)){const topic=base.topics.find(t=>t.uri===target);if(topic)speechRows.set(topic.id,[...(speechRows.get(topic.id)||[]),...rows]);}
-        sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});
       }
     }
     all.push(...participationRows(base.topics,results,decisions,speechRows,members).map(row=>({...row,sittingId:sitting.activity_id,upcoming:sitting.activity_date>today})));
