@@ -215,16 +215,42 @@ test('an explicitly closed global search stays collapsed across navigation remou
 });
 
 test('changing entity scope clears the old page and reader before requesting the new entity',async t=>{
-  const query=new URLSearchParams({'fixture-fts-search':'energy','fixture-fts-text-lang':'all','fixture-fts-page':'3','fixture-fts-read':JSON.stringify([speech,english.sourceKey])});
+  const query=new URLSearchParams({'fixture-fts-search':'energy','fixture-fts-text-lang':'all','fixture-fts-page':'3','fixture-fts-offset':'37','fixture-fts-read':JSON.stringify([speech,english.sourceKey])});
   const view=await setup(t,{query:query.toString()});await view.render({member:42,sourceIds:[speech]});
-  assert.equal(view.searches()[0].body.offset,60);
+  assert.equal(view.searches()[0].body.offset,37);
   const before=view.searches().length;
   await view.render({member:43,sourceIds:[otherSpeech]});
   const changed=view.searches().slice(before);assert(changed.length>0);
   assert(changed.every(call=>call.body.member===43&&call.body.offset===0));
   assert.equal(new URL(view.window.location.href).searchParams.has('fixture-fts-page'),false);
+  assert.equal(new URL(view.window.location.href).searchParams.has('fixture-fts-offset'),false);
   assert.equal(new URL(view.window.location.href).searchParams.has('fixture-fts-read'),false);
   assert.equal(view.container.querySelector('.poc-search-reader'),null);
+});
+
+test('short grouped pages follow exact offsets, retain predecessors and restore shared positions',async t=>{
+  const view=await setup(t,{query:'fixture-fts-search=energy&fixture-fts-text-lang=all',respond:call=>{
+    if(!call.url.pathname.endsWith('/corpus/search'))return;
+    const offset=call.body.offset,count=offset===0?7:12,nextOffset=offset===0?7:offset===7?19:null;
+    return Response.json({...results(call.body),total:31,nextOffset,responseLimited:nextOffset!==null,
+      results:Array.from({length:count},(_,n)=>({sourceId:'Q-'+(offset+n),kind:'question',title:'Saved question '+(offset+n),hits:[{...english,sourceId:'Q-'+(offset+n),kind:'question'}]}))});
+  }});
+  await view.render();assert.match(view.find('.poc-search-pages').textContent,/1–7 of 31/);
+  await view.click('Next');assert.equal(view.searches().at(-1).body.offset,7);assert.match(view.find('.poc-search-pages').textContent,/8–19 of 31/);
+  assert.equal(new URL(view.window.location.href).searchParams.get('fixture-fts-offset'),'7');
+  await view.click('Next');assert.equal(view.searches().at(-1).body.offset,19);assert.match(view.find('.poc-search-pages').textContent,/20–31 of 31/);
+  assert.equal(view.button('Next').disabled,true);
+  await view.click('Previous');await view.click('Previous');
+  assert.deepEqual(view.searches().map(call=>call.body.offset),[0,7,19,7,0]);
+  await view.click('Next');
+  await act(async()=>{const restored=new Promise(resolve=>view.window.addEventListener('popstate',resolve,{once:true}));view.window.history.back();await restored;});
+  assert.equal(view.searches().at(-1).body.offset,0);
+  await act(async()=>{const restored=new Promise(resolve=>view.window.addEventListener('popstate',resolve,{once:true}));view.window.history.forward();await restored;});
+  assert.equal(view.searches().at(-1).body.offset,7);
+  await view.render({key:'remount'});assert.equal(view.searches().at(-1).body.offset,7);
+  assert(view.button('First page'));await view.click('First page');assert.equal(view.searches().at(-1).body.offset,0);
+  await view.click('Next');await view.select('.poc-search-facets select','fr');
+  assert.equal(view.searches().at(-1).body.offset,0);assert.equal(new URL(view.window.location.href).searchParams.has('fixture-fts-offset'),false);
 });
 
 test('local find uses CSS highlights without changing React links or footnotes and restores focus on close',async t=>{
