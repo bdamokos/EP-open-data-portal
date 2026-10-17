@@ -65,8 +65,8 @@ export class MemberVotes {
         for(const [key,node] of pageNodes){if(!nodes.has(key)){if(nodes.size>=this.limits.maxRows){coverage.stopReason='row-budget';break;}nodes.set(key,node);added++;}}
         coverage.rows=nodes.size;
         if(coverage.stopReason==='row-budget'){coverage.state='partial';break;}
+        if(data.length&&!added){coverage.state='partial';coverage.stopReason='repeated-page';break;}
         if(!data.length||data.length<size){coverage.state='complete';coverage.stopReason='end';break;}
-        if(!added){coverage.state='partial';coverage.stopReason='repeated-page';break;}
         coverage.state='partial';coverage.stopReason='page-budget';
       } catch(error){
         if(isLocalRequestFailure(error))throw error;
@@ -114,12 +114,14 @@ export class MemberVotes {
       this.pages('/meetings/'+sittingId+'/foreseen-activities',{},'agenda',budget)
     ]);
     const errors=[];
-    const eligible=(collection,suffix,allowUndatedRequests=false)=>collection.nodes.filter(n=>{
-      const requestWithoutDate=allowUndatedRequests&&n.activity_date==null&&['REQUEST_VOTE_ROLLCALL','REQUEST_VOTE_SPLIT'].includes(tail(n.had_activity_type));
-      const good=new RegExp('^eli/dl/event/'+sittingId+suffix+'$').test(relative(n.id))&&n.activity_id===tail(n.id)&&(n.activity_date===date||requestWithoutDate);
+    const eligible=(collection,suffix)=>collection.nodes.filter(n=>{
+      const good=new RegExp('^eli/dl/event/'+sittingId+suffix+'$').test(relative(n.id))&&n.activity_id===tail(n.id)&&n.activity_date===date;
       if(!good)errors.push(relative(n.id));return good;
     });
-    const allNodes=eligible(all,'-DEC-\\d+'),namedNodes=eligible(named,'-DEC-\\d+'),resultNodes=eligible(results,'-VOT-ITM-\\d+(?:-(?:SPLIT|RCV)-\\d+)?',true),agendaNodes=eligible(agenda,'-[A-Z0-9-]{1,100}');
+    // This source also supplies undated requests and other auxiliary activities.
+    // They are not result parents; their bytes remain covered by source hashes.
+    const resultCandidates={nodes:results.nodes.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS')};
+    const allNodes=eligible(all,'-DEC-\\d+'),namedNodes=eligible(named,'-DEC-\\d+'),resultNodes=eligible(resultCandidates,'-VOT-ITM-\\d+'),agendaNodes=eligible(agenda,'-[A-Z0-9-]{1,100}');
     const merged=new Map(allNodes.map(n=>[relative(n.id),n]));const conflictingDecisionIds=[];
     for(const n of namedNodes){
       const key=relative(n.id),old=merged.get(key);
