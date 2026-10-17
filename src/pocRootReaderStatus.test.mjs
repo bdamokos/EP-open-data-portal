@@ -94,6 +94,20 @@ test('selected written question keeps full text and downloads while announcing s
   assert.equal(document.activeElement,toggle,'reader outcomes must not move focus from the activity control');
 });
 
+test('member reader uses exact structured ECR instead of the conflicting Bulgarian source-role translation',async t=>{
+  const h=await harness(t,{module:'speeches',language:'bg',items:[speechItem]});
+  await h.click(h.container.querySelector('.poc-speech-toggle'));
+  const person={id:'256986',name:'Geadis Geadi',roleLabels:{en:{text:'on behalf of the Group',language:'en'},bg:{text:'от името на групата Verts/ALE',language:'bg'}}};
+  const intervention={type:'speech',speaker:person,onBehalfOf:[{id:'ECR',uri:'org/ECR',label:'ECR',politicalGroup:true,source:'participation_in_name_of'}]};
+  await h.finish(`speech/${speechId}?lang=bg`,{id:speechId,speakers:[person],intervention,xml:'<speech><p>Exact source body.</p></speech>',textLanguage:'bg',translationType:'machine'});
+  const reader=h.container.querySelector('.poc-speech-detail');
+  assert.equal(reader.querySelector('strong').textContent,'Geadis Geadi');
+  assert(!reader.querySelector('.insight-secondary'),'raw translated role must not contradict the exact group badge');
+  assert.equal(reader.querySelector('.intervention-group').textContent,'On behalf of ECR');
+  assert(!reader.textContent.includes('Verts/ALE'));
+  assert(reader.textContent.includes('Exact source body.'));
+});
+
 test('member cloud opens the chosen transcript while names and chair roles retain the interface language',async t=>{
   for(const [language,transcript] of [['bg','en'],['en','el']])await t.test(language+'/'+transcript,async t=>{
     const h=await harness(t,{module:'speeches',language,items:[speechItem]});
