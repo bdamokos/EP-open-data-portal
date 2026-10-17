@@ -44,3 +44,18 @@ test('every supported UI language has the full bundled speaker label set',()=>{
     const term=speakerTerm(key,language);assert.equal(term.language,language);assert(term.text.trim());
   }
 });
+
+test('exact structured group capacity replaces redundant translated role wording without hiding institutional roles',()=>{
+  // Public speech MTG-PL-2026-10-08-OTH-2017098235211 has this mistranslated BG role beside exact ECR.
+  const person={id:'256986',name:'Geadis Geadi',roleLabels:{en:{text:'on behalf of the Group',language:'en'},bg:{text:'от името на групата Verts/ALE',language:'bg'}}};
+  const intervention={speaker:{id:'256986'},onBehalfOf:[{id:'ECR',uri:'org/ECR',label:'ECR',politicalGroup:true,source:'participation_in_name_of'}]};
+  assert.deepEqual(speakerPresentation(person,'bg',{intervention}).roles,[],'the existing exact ECR badge supplies this capacity');
+  assert.deepEqual(speakerPresentation(person,'en',{intervention}).roles,[],'do not repeat a translated group-capacity line');
+  for(const context of [undefined,{...intervention,speaker:{id:'1',name:person.name}},{...intervention,onBehalfOf:[]},{...intervention,onBehalfOf:[{...intervention.onBehalfOf[0],source:'unverified'}]}]) {
+    assert.deepEqual(speakerPresentation(person,'bg',{intervention:context}).roles,[person.roleLabels.bg],'only the same exact speaker and structured source can replace the raw role');
+  }
+  const commissioner={...person,roleLabels:{en:{text:'Member of the Commission',language:'en'}}};
+  assert.deepEqual(speakerPresentation(commissioner,'bg',{intervention}).roles,[speakerTerm('commissioner','bg')]);
+  const unspecific={...person,roleLabels:{bg:person.roleLabels.bg}};
+  assert.deepEqual(speakerPresentation(unspecific,'bg',{intervention}).roles,[person.roleLabels.bg],'unclassified role text is not silently discarded');
+});
