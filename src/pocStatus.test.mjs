@@ -13,12 +13,16 @@ async function harness(t,query='',respond=()=>{throw Error('Unexpected request')
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let root,vite;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  t.after(async()=>{t.mock.timers.reset();if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async input=>Response.json(await respond(new URL(input,location.href))));
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  return {window,container,load:path=>vite.ssrLoadModule(path),render:node=>act(async()=>root.render(node)),unmount:()=>act(async()=>root.unmount())};
+  // PocStatus debounces with the global setTimeout. Fake it only after Vite has
+  // loaded the module; happy-dom keeps its own real timers and microtask delivery.
+  const tick=ms=>act(async()=>{t.mock.timers.tick(ms);});
+  const load=async path=>{const module=await vite.ssrLoadModule(path);if(path==='/src/PocStatus.tsx')t.mock.timers.enable({apis:['setTimeout']});return module;};
+  return {window,container,load,tick,render:node=>act(async()=>root.render(node)),unmount:()=>act(async()=>root.unmount())};
 }
 
 test('one persistent polite atomic region debounces obsolete outcomes without moving focus',async t=>{
@@ -29,20 +33,20 @@ test('one persistent polite atomic region debounces obsolete outcomes without mo
   assert.equal(status.textContent,'');assert.equal(status.getAttribute('aria-live'),'polite');assert.equal(status.getAttribute('aria-atomic'),'true');assert.equal(status.lang,'en');
   const messages=[],observer=new h.window.MutationObserver(()=>{if(status.textContent)messages.push(status.textContent);});
   observer.observe(status,{subtree:true,childList:true,characterData:true});t.after(()=>observer.disconnect());
-  await render({scope:'a',message:'3 members'});await render({scope:'ab',message:'No members'});await render({scope:'abc',message:'1 member'});await wait();
+  await render({scope:'a',message:'3 members'});await render({scope:'ab',message:'No members'});await render({scope:'abc',message:'1 member'});await h.tick(30);
   assert.deepEqual(messages,['1 member']);assert.equal(h.container.querySelector('[role="status"]'),status);assert.equal(document.activeElement,input);
-  await render({scope:'other-filter',message:'1 member'});assert.equal(status.textContent,'');await wait();
+  await render({scope:'other-filter',message:'1 member'});assert.equal(status.textContent,'');await h.tick(30);
   assert.deepEqual(messages,['1 member','1 member'],'different settled filters with equal counts each receive an update');
 });
 
 test('settled results suppress unchanged polling and clear invalidated counts without a background announcement',async t=>{
   const h=await harness(t),{PocStatus}=await h.load('/src/PocStatus.tsx');
   const render=props=>h.render(createElement(PocStatus,{scope:'filter',message:'2 speakers. Partial coverage.',oncePerScope:true,delay:10,...props}));
-  await render();await wait();const status=h.container.querySelector('[role="status"]');
+  await render();await h.tick(30);const status=h.container.querySelector('[role="status"]');
   let updates=0;const observer=new h.window.MutationObserver(()=>{if(status.textContent)updates++;});observer.observe(status,{subtree:true,childList:true,characterData:true});t.after(()=>observer.disconnect());
-  await render({pending:true});await render();await wait();assert.equal(updates,0);assert.equal(status.textContent,'2 speakers. Partial coverage.');
-  await render({message:'3 speakers. Partial coverage.'});await wait();assert.equal(status.textContent,'');assert.equal(updates,0,'changed polling data must not queue a spoken count');
-  await render({scope:'new-filter',message:'No indexed speakers match. Partial coverage.'});await wait();
+  await render({pending:true});await render();await h.tick(30);assert.equal(updates,0);assert.equal(status.textContent,'2 speakers. Partial coverage.');
+  await render({message:'3 speakers. Partial coverage.'});await h.tick(30);assert.equal(status.textContent,'');assert.equal(updates,0,'changed polling data must not queue a spoken count');
+  await render({scope:'new-filter',message:'No indexed speakers match. Partial coverage.'});await h.tick(30);
   assert.equal(updates,1);assert.match(status.textContent,/No indexed speakers.*Partial coverage/);
 });
 
@@ -50,16 +54,16 @@ test('returning to an earlier filter never restores its announcement before the 
   for(const oncePerScope of [false,true])await t.test(String(oncePerScope),async t=>{
     const h=await harness(t),{PocStatus}=await h.load('/src/PocStatus.tsx');
     const render=scope=>h.render(createElement(PocStatus,{scope,message:scope+' results',oncePerScope,delay:30}));
-    await render('A');await wait(40);
+    await render('A');await h.tick(40);
     const status=h.container.querySelector('[role="status"]'),messages=[];
     assert.equal(status.textContent,'A results');
     const observer=new h.window.MutationObserver(()=>{if(status.textContent)messages.push(status.textContent);});
     observer.observe(status,{subtree:true,childList:true,characterData:true});t.after(()=>observer.disconnect());
     await render('B');await render('A');
     assert.equal(status.textContent,'','returning to A must wait for a fresh debounce');
-    await render('C');await wait(40);
+    await render('C');await h.tick(40);
     assert.deepEqual(messages,['C results'],'A and B were superseded before settling');
-    await render('A');assert.equal(status.textContent,'');await wait(40);
+    await render('A');assert.equal(status.textContent,'');await h.tick(40);
     assert.equal(status.textContent,'A results','a settled return to A is announced normally');
   });
 });
@@ -67,12 +71,12 @@ test('returning to an earlier filter never restores its announcement before the 
 test('pending requests cancel queued success, and a repeated explicit reader failure is announced again',async t=>{
   const h=await harness(t),{PocStatus}=await h.load('/src/PocStatus.tsx');
   const render=props=>h.render(createElement(PocStatus,{scope:'reader',delay:10,...props}));
-  await render({message:'Text loaded.'});await render({message:null,pending:true});await wait();
+  await render({message:'Text loaded.'});await render({message:null,pending:true});await h.tick(30);
   const status=h.container.querySelector('[role="status"]');assert.equal(status.textContent,'');
-  await render({message:'Text temporarily unavailable.'});await wait();assert.equal(status.textContent,'Text temporarily unavailable.');
+  await render({message:'Text temporarily unavailable.'});await h.tick(30);assert.equal(status.textContent,'Text temporarily unavailable.');
   await render({message:null,pending:true});assert.equal(status.textContent,'');
-  await render({message:'Text temporarily unavailable.'});await wait();assert.equal(status.textContent,'Text temporarily unavailable.');
-  await render({scope:'next-reader',message:'Obsolete reader'});await h.unmount();await wait();assert.equal(h.container.textContent,'');
+  await render({message:'Text temporarily unavailable.'});await h.tick(30);assert.equal(status.textContent,'Text temporarily unavailable.');
+  await render({scope:'next-reader',message:'Obsolete reader'});await h.unmount();await h.tick(30);assert.equal(h.container.textContent,'');
 });
 
 const member=(id,countryCode)=>({id,firstName:'Fixture',lastName:String(id),sortName:String(id),countryCode,groupCode:'EPP',gender:'f',memberships:[],accounts:[]});
