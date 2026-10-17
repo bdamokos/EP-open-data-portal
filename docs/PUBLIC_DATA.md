@@ -72,7 +72,7 @@ Amendment trails for reports and motions are collected by the activity-index wor
 - Each list's API-linked DOCX supplies amendment numbers, proposers, group statements, target provisions and the original/proposed columns. When the table structure is ambiguous, both wording columns are withheld rather than guessed (`server/amendment-documents.mjs`).
 - Outcomes come from the sitting `/vote-results` and `/decisions?filter-output=voters` records shared with motion outcomes, through `decided_on_a_realization_of`. Split votes keep separate component outcomes. A missing outcome is unavailable, never a rejection.
 - Author links need an exact normalized full name or an official voting alias, plus an active mandate on the tabling date from the dated roster. Aliases come from the roll-call XML of `/plenary-session-documents/PV-10-{date}-RCV`, where `PersId` is the Open Data person ID and `MepId` is a different identifier. Ambiguous identities stay unlinked.
-- Split-vote descriptions are parsed from English (`server/amendment-splits.mjs`). Unparsed descriptions are recorded, exposed read-only at `/api/poc/amendments/failures`, and reparsed when the parser version changes.
+- Split-vote descriptions are parsed from English (`server/amendment-splits.mjs`). A parsed plan has `grounding: not_attempted`: it does not establish a validated wording span or the final adopted text. Unparsed descriptions are recorded, exposed read-only at `/api/poc/amendments/failures`, and reparsed when the parser version changes.
 
 ### Documents (DOCX)
 
@@ -94,7 +94,7 @@ Videos play in the Parliament's own embedded player. The Multimedia Centre websi
 
 1. The recording's metadata, including that embed URL and the recording's start and end times, comes from `https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0/media/{recording-id}`, the endpoint the Multimedia Centre website itself calls.
 2. A speech's start and end times from the Open Data API select exactly one recording. The embed URL gets the player's own `start`, `end`, `language` and `audio` parameters, so it opens at that speech.
-3. Before playback, the player's metadata connection confirms that the requested interpretation track exists: `wss://websockets.services.eup.glcloud.eu/content-manager/api/v1/socket.io/?EIO=4&transport=websocket`, namespace `/content`, event `join:event`, with the recording's public `commonId` (`server/player-content.mjs`). Only `PUBLISHED` content matching the recording is accepted.
+3. Before playback, the player's metadata connection confirms that the requested interpretation track exists: `wss://websockets.services.eup.glcloud.eu/content-manager/api/v1/socket.io/?EIO=4&transport=websocket`, namespace `/content`, event `join:event`, with the recording's public `commonId` (`server/player-content.mjs`). Only `PUBLISHED` content matching the recording is accepted. The embed starts paused on the original audio (`audio=or`). The client then checks the iframe's actual track list and adaptation events before switching to the requested language, and does not play if that selection fails or is ambiguous.
 
 Both endpoints are undocumented and may change. The server reads metadata only and never downloads video. There is no automatic recording search: speech-to-recording lookups use a saved catalogue of public Multimedia Centre search results, and missing coverage is shown.
 
@@ -111,7 +111,7 @@ With `CORPUS_ENABLED=true`, a leased worker stores current-term texts in `corpus
 
 Search uses SQLite FTS5 with Unicode tokenisation. Latin diacritics are folded, Greek accents are not. Endpoints:
 
-- `GET`/`POST /api/poc/corpus/search` search retained text only. POST accepts exact `sourceIds` scopes. Results are grouped (a question with its linked answers counts as one group), and `total`, `offset` and `nextOffset` count groups. Clients must follow `nextOffset`, because `responseLimited` pages can be shorter than `limit`.
+- `GET`/`POST /api/poc/corpus/search` search retained text only. POST accepts exact `sourceIds` scopes. Results are grouped by document by default. With `group=question`, a question and its linked answers count as one group. `total`, `offset` and `nextOffset` count groups. Clients must follow `nextOffset`, because `responseLimited` pages can be shorter than `limit`.
 - `GET /api/poc/corpus/text?source-id=…&source-key=…` returns one stored variant with provenance, optionally highlighted with `q`.
 - `GET /api/poc/corpus/status` reports coverage. `authoritativeComplete` is always false, because upstream gaps and later publications rule out a completeness claim.
 
