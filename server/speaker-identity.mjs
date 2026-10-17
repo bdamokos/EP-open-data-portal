@@ -29,6 +29,13 @@ export class SpeakerIdentities {
   async enrich(people,day,{chairs=[],profileIds=[]}={}) {
     if(!people.length)return [];
     const sources=[],byId=new Map(),issues=[];
+    const supplied=new Map();
+    for(const person of people) {
+      const variants=supplied.get(person.id)||new Map();
+      const own=[...person.nameVariants||[],...(speakerNameIsSpecific(person.name)?[{value:person.name,script:nameScript(person.name),language:null,source:person.nameSource||'ID-matched transcript header'}]:[])];
+      for(const variant of own)variants.set(JSON.stringify(variant),variant);
+      supplied.set(person.id,variants);
+    }
     const ownerSignal=requestSignal(),signal=AbortSignal.any([AbortSignal.timeout(2500),...(ownerSignal?[ownerSignal]:[])]);
     // Reuse the directory's cached roster request; never fetch a profile per debate speaker.
     try {
@@ -48,9 +55,10 @@ export class SpeakerIdentities {
     }));
     return people.map(person=>{
       const profile=byId.get(person.id),variants=personNameVariants(profile);
-      const name=variants.find(variant=>variant.script==='Latn')?.value||variants[0]?.value||(speakerNameIsSpecific(person.name)?person.name:'');
+      const sourceVariants=[...supplied.get(person.id).values()];
+      const name=variants.find(variant=>variant.script==='Latn')?.value||variants[0]?.value||(speakerNameIsSpecific(person.name)?person.name:sourceVariants.find(variant=>speakerNameIsSpecific(variant.value))?.value||'');
       return {...person,name,nameSource:variants.length?'ODP person record':person.nameSource,
-        nameVariants:[...variants,...person.nameVariants||[]],
+        nameVariants:[...variants,...sourceVariants],
         ...(chairs.includes(person.id)?{sittingRole:'chair',office:parliamentOffice(profile,day)}:{}),
         identitySources:sources,identityIssues:[...issues,...(chairs.includes(person.id)&&!parliamentOffice(profile,day)?['parliament-office-unavailable']:[])]};
     });

@@ -56,13 +56,13 @@ export class SpeechInterventions {
     if(this.identities) {
       const metadata=[meta,...debates.flatMap(debate=>debate.records.map(row=>row.intervention))];
       const people=metadata.flatMap(value=>[value.speaker,value.chair].filter(Boolean));
-      const unique=[...new Map(people.map(person=>[person.id,person])).values()];
       const chairs=metadata.flatMap(value=>[...(value.type==='chair'&&value.speaker?[value.speaker.id]:[]),...(value.chair?[value.chair.id]:[])]);
-      const resolved=new Map((await this.identities.enrich(unique,activity.activity_date,{chairs})).map(person=>[person.id,person]));
+      const resolved=await this.identities.enrich(people,activity.activity_date,{chairs});
+      let index=0;
       for(const value of metadata) {
         // A person's office does not turn their separate substantive speech into chairing.
-        if(value.speaker){const identity=resolved.get(value.speaker.id);if(identity)value.speaker={...value.speaker,name:identity.name,nameSource:identity.nameSource,nameVariants:identity.nameVariants,identitySources:identity.identitySources,identityIssues:identity.identityIssues,...(value.type==='chair'?{sittingRole:'chair',office:identity.office}:{} )};}
-        if(value.chair)value.chair={...value.chair,...resolved.get(value.chair.id),sittingRole:'chair'};
+        if(value.speaker){const {sittingRole,office,...identity}=resolved[index++];value.speaker={...identity,...(value.type==='chair'?{sittingRole:'chair',office}:{} )};}
+        if(value.chair)value.chair={...resolved[index++],sittingRole:'chair'};
       }
     }
     return {speechId:id,intervention:meta,debates,unavailable:parentIds.length===0,sources:[source(record)]};
