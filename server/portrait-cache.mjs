@@ -9,7 +9,7 @@ const HEADER_LIMIT = 4096;
 const digest = body => createHash('sha256').update(body).digest('hex');
 const unavailable = () => new HttpError(502, 'portrait_unavailable', 'Portrait unavailable.');
 // Cache validators from the image host, kept only when well formed and bounded.
-const entityTag = value => typeof value === 'string' && value.length <= 256 && /^(W\/)?"[^"\s]*"$/.test(value) ? value : null;
+const entityTag = value => typeof value === 'string' && value.length <= 256 && /^(W\/)?"[\x21\x23-\x7e\x80-\xff]*"$/.test(value) ? value : null;
 const httpDate = value => typeof value === 'string' && value.length <= 64 && Number.isFinite(Date.parse(value)) ? value : null;
 
 function officialPortrait(value) {
