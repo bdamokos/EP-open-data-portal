@@ -7,7 +7,7 @@ import {deflateRawSync} from 'node:zlib';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {AMENDMENT_LINKS_VERSION,projectDocument,documentRows} from './activity-index-model.mjs';
-import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
+import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION,AMENDMENT_DISTRIBUTION_PROOF_VERSION} from './amendments.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {SPLIT_PARSER_VERSION} from './amendment-splits.mjs';
 import {amendmentsPage,enqueueAmendment,saveAmendmentRows} from './amendments-store.mjs';
@@ -29,12 +29,13 @@ function setup(t,options={}) {
     store.putSource(generation,key,'document',projected,stamp,documentRows(projected,key,stamp).rows);
   }
   store.putSource(generation,'outside:state','outside-state',{version:1,terms:[9,10]},stamp);
-  store.updateCycle({initialized:true,motionOutcomesDay:date,reportJoinsReady:true,procedureTitlesQueued:true,amendmentsPreparedVersion:AMENDMENTS_VERSION,amendmentsPreparedDay:date,splitParserVersion:SPLIT_PARSER_VERSION,amendmentDocumentParserVersion:AMENDMENT_EXTRACTION_VERSION,amendmentDocumentLinksVersion:AMENDMENT_LINKS_VERSION,amendmentSittingProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION});
+  store.updateCycle({initialized:true,motionOutcomesDay:date,reportJoinsReady:true,procedureTitlesQueued:true,amendmentsPreparedVersion:AMENDMENTS_VERSION,amendmentsPreparedDay:date,splitParserVersion:SPLIT_PARSER_VERSION,amendmentDocumentParserVersion:AMENDMENT_EXTRACTION_VERSION,amendmentDocumentLinksVersion:AMENDMENT_LINKS_VERSION,amendmentSittingProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION,amendmentDistributionProofVersion:AMENDMENT_DISTRIBUTION_PROOF_VERSION});
   store.release();
   const worker=new ActivityWorker(store,{clock,fetchRecord:async()=>{throw new Error('Unexpected source request.');},...options});
   const write=fn=>{assert(store.acquire());try{return fn();}finally{store.release();}};
+  const writeAsync=async fn=>{assert(store.acquire());try{return await fn();}finally{store.release();}};
   t.after(()=>{worker.stop();store.close();rmSync(directory,{recursive:true,force:true});});
-  return {directory,store,worker,generation,clock,advance:milliseconds=>{now+=milliseconds;},write,publish:()=>write(()=>store.publish(generation))};
+  return {directory,store,worker,generation,clock,advance:milliseconds=>{now+=milliseconds;},write,writeAsync,publish:()=>write(()=>store.publish(generation))};
 }
 const pending=store=>amendmentsPage(store,{document:target}).coverage.pending;
 const job=(store,key,generation)=>store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
@@ -118,8 +119,14 @@ test('a retained extension retry adopts the current legacy core generation befor
     store.set('active',4);store.set('sequence',4);
   });
   assert.equal(amendmentsPage(store,{document:target}).coverage.servingGeneration,generation);assert.equal(pending(store),true);assert.equal(worker.due(),false);
+  const queued=job(store,'retained:source',generation),execute=worker.task.bind(worker);let adopted;
+  worker.task=async task=>{
+    if(task.key==='retained:source')adopted={generation:task.generation,attempts:task.attempts,error:task.error,retry_at:task.retry_at,offset:task.body.offset};
+    return execute(task);
+  };
   advance(30_000);await worker.run();
-  const resumed=job(store,'retained:source',4);assert.equal(resumed.done,1);assert.equal(resumed.attempts,1);assert.equal(JSON.parse(resumed.body).offset,1000);
+  assert.deepEqual(adopted,{generation:4,attempts:1,error:queued.error,retry_at:queued.retry_at,offset:1000});
+  const resumed=job(store,'retained:source',4);assert.equal(resumed.done,1);assert.equal(resumed.attempts,0);assert.equal(resumed.error,null);assert.equal(resumed.retry_at,0);assert.equal(JSON.parse(resumed.body).offset,1000);assert.equal(JSON.parse(resumed.body).rebuild.kind,'sitting');assert.equal(worker.requests,0);
   assert.equal(store.source(generation,sourceKey),undefined);assert.equal(store.source(4,sourceKey).work.splitParserVersion,SPLIT_PARSER_VERSION);
   assert.equal(store.get('active'),4);assert.equal(store.get('sequence'),4);assert.equal(store.get('working'),null);assert.equal(pending(store),false);
 });
@@ -309,15 +316,15 @@ function discoveryFetch(calls) {
 
 test('200 completed jobs allow actual scheduling and preparation to execute a new extraction and dated roster',async t=>{
   for(const mode of ['schedule','prepare']) {
-    const {store,worker,generation,write,clock}=setup(t,{budget:3}),{work,listId,url}=discoveryReport();
+    const {store,worker,generation,writeAsync,clock}=setup(t,{budget:3}),{work,listId,url}=discoveryReport();
     const coreKey='core:held-for-retry';
-    write(()=>{
+    await writeAsync(async()=>{
       store.putSource(generation,'/plenary-documents/'+target,'document',work,stamp);
       for(let index=0;index<200;index++){const key='completed:'+index;enqueueAmendment(store,generation,key,'amendment-reparse',{sourceKey},10);store.finishTask({...job(store,key,generation),amendmentJob:true});}
       store.enqueue(generation,coreKey,'catalog',{endpoint:'/plenary-documents',params:{year:2026},offset:750},100);
       store.db.prepare('UPDATE tasks SET attempts=3,retry_at=?,error=? WHERE generation=? AND key=?').run(clock()+60_000,'Existing core retry',generation,coreKey);
       if(mode==='schedule')scheduleAmendments(worker,generation,work,stamp,'/plenary-documents/'+target);
-      else {store.updateCycle({amendmentsPreparedDay:'2026-10-15'});prepareAmendments(worker,store.get('working'));}
+      else {store.updateCycle({amendmentsPreparedDay:'2026-10-15'});await prepareAmendments(worker,store.get('working'));}
     });
     const coreBefore=store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,coreKey),calls=[];let downloads=0;
     assert.equal(pending(store),true);assert.equal(job(store,'amendment:extract:'+listId,generation).done,0);assert.equal(job(store,'amendment:roster:'+date,generation).done,0);

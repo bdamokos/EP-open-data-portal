@@ -1,6 +1,7 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import { ODP_BASE, boundedUpstream, backoffUpstream } from './odp.mjs';
 import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
 import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
@@ -392,6 +393,11 @@ export class ActivityWorker {
   async loadMotionOutcomes(task) {
     const {generation,body}=task;
     if(!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(body.sittingId))throw new Error('Invalid motion sitting identifier.');
+    if(body.amendmentRebuildPending) {
+      const saved=this.store.source(generation,motionSourceKey(body.sittingId));
+      if(saved&&await refreshSittingTargets(this,generation,body.sittingId,saved.work))this.store.finishTask(task);
+      return;
+    }
     const collection=body.stage==='results'?'vote-results':'decisions';
     const endpoint='/meetings/'+body.sittingId+'/'+collection;
     // Include show-of-hands and electronic votes, and retain outcomes without tallies.
@@ -439,7 +445,9 @@ export class ActivityWorker {
     },{priorWork:saved?.work || null});
     const replacement=truncated && saved && !saved.work.truncated ? {...saved.work,lastRefreshFailure,amendmentEvidence:fresh.amendmentEvidence || fresh} : fresh;
     this.store.putSource(generation,key,'motion-outcomes',replacement,truncated && saved && !saved.work.truncated?saved.fetchedAt:record.fetchedAt);
-    refreshSittingTargets(this,generation,body.sittingId,replacement);
+    if(!await refreshSittingTargets(this,generation,body.sittingId,replacement)) {
+      this.store.taskProgress(task,{...next,amendmentRebuildPending:true});return;
+    }
     this.store.finishTask(task);
   }
   refreshReportJoins(generation,procedureId) {
@@ -472,6 +480,7 @@ export class ActivityWorker {
   async run() {
     if(this.stopped || this.running || !this.due() || !this.store.acquire())return;
     this.running=true;this.requests=0;const started=this.clock();
+    this.runDeadline=performance.now()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
     try {
       const active=this.store.get('active') || 0,existing=this.store.get('working');
@@ -485,7 +494,7 @@ export class ActivityWorker {
       if(cycle) {
         if(!cycle.initialized)await this.initialize(cycle);
         this.initializeOutside(cycle);
-        prepareAmendments(this,cycle);
+        await prepareAmendments(this,cycle);
         // An unavailable historical detail must not stop next-day catalogue/feed
         // catch-up while its durable retry keeps the generation incomplete.
         this.catchUp(this.store.get('working'));
@@ -513,7 +522,7 @@ export class ActivityWorker {
         // the canonical queue with their existing cursors.
         if(this.store.source(generation,CONTINUATIONS_KEY))this.checkpointContinuations(generation,{includeCore:false});
       }
-      while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration) {
+      while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration && performance.now()<this.runDeadline) {
         const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
         if(size>this.diskLimit){if(cycle)this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
         const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
@@ -522,7 +531,7 @@ export class ActivityWorker {
         try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(this.failOutside(task,error)||failAmendmentTask(this,task,error))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
         finally {if((!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
       }
-    } finally {clearInterval(heartbeat);this.store.release();this.running=false;}
+    } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}
 }

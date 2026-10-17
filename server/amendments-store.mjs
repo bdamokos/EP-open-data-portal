@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
-import { AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, amendmentProposerDate } from './amendments.mjs';
+import { AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, amendmentProposerDate } from './amendments.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 const parse=value=>JSON.parse(value);
 const wordingUpgradeGap='Amendment wording is unverified until the current document parser refreshes its source.';
 const proposerDateGap='The amendment proposer date is unavailable; author identities cannot be checked against a mandate.';
 const sourceFreshnessGap='Some amendment wording source distributions are pending, unverified or failed; retained wording is labelled.';
+const checkedLabel=record=>({targetLabelLanguage:record.targetLabel?record.targetLabelLanguage ?? null:null,targetLabelSource:record.targetLabel?record.targetLabelSource ?? null:null});
 function checkedProposer(record) {
   const date=amendmentProposerDate(record);
   return {...record,proposerDate:date?.date || null,proposerDateBasis:date?.basis || null,
@@ -13,13 +14,13 @@ function checkedProposer(record) {
     gaps:[...new Set([...(record.gaps || []),...(!date&&record.authors?.length?[proposerDateGap]:[])])]};
 }
 function checkedAmendmentRead(record) {
-  const row=checkedAmendmentBindings(checkedProposer(record));
+  const row=checkedAmendmentBindings({...checkedProposer(record),...checkedLabel(record)});
   if((record.listId || record.textParserVersion!=null || typeof record.originalText==='string' || typeof record.proposedText==='string')&&record.textParserVersion!==AMENDMENT_EXTRACTION_VERSION) {
     row.originalText=null;row.proposedText=null;row.textIntegrity='incomplete';row.wordingRetained=false;
     row.gaps=[...new Set([...row.gaps,wordingUpgradeGap])];
   }
   if(record.listId || typeof record.originalText==='string' || typeof record.proposedText==='string') {
-    row.sourceFreshness=record.sourceFreshness || {version:1,status:'unverified',descriptor:null,sourceDescriptor:null};
+    row.sourceFreshness=record.sourceFreshness?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION?record.sourceFreshness:{...(record.sourceFreshness || {descriptor:null,sourceDescriptor:null}),version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,status:'unverified',distributionState:'unknown'};
     if(row.sourceFreshness.status!=='fresh') {
       row.wordingRetained=row.textParserVersion===AMENDMENT_EXTRACTION_VERSION&&row.textIntegrity!=='incomplete'&&typeof row.originalText==='string'&&typeof row.proposedText==='string';
       row.gaps=[...new Set([...row.gaps,sourceFreshnessGap])];
@@ -36,7 +37,7 @@ function supportedProposerDateSql(body) {
   return `COALESCE((${valid(date)} AND (${value('proposerDateBasis')} IN (${bases}) OR (${valid(document)} AND ${date}=${document}) OR (${valid(list)} AND ${date}=${list}))) OR (${date} IS NULL AND COALESCE(${value('proposerRetained')},0)=0 AND (${valid(document)} OR ${valid(list)})),0)`;
 }
 const incompatibleWordingSql=body=>`((json_extract(${body},'$.listId') IS NOT NULL OR json_extract(${body},'$.textParserVersion') IS NOT NULL OR json_type(${body},'$.originalText')='text' OR json_type(${body},'$.proposedText')='text') AND COALESCE(json_extract(${body},'$.textParserVersion'),'')<>?)`;
-const unverifiedSourceSql=body=>`((json_extract(${body},'$.listId') IS NOT NULL OR json_type(${body},'$.originalText')='text' OR json_type(${body},'$.proposedText')='text') AND COALESCE(json_extract(${body},'$.sourceFreshness.status'),'unverified')<>'fresh')`;
+const unverifiedSourceSql=body=>`((json_extract(${body},'$.listId') IS NOT NULL OR json_type(${body},'$.originalText')='text' OR json_type(${body},'$.proposedText')='text') AND (COALESCE(json_extract(${body},'$.sourceFreshness.version'),0)<>${AMENDMENT_DISTRIBUTION_PROOF_VERSION} OR COALESCE(json_extract(${body},'$.sourceFreshness.status'),'unverified')<>'fresh'))`;
 const splitUnverifiedSql=body=>`(EXISTS(SELECT 1 FROM json_each(${body},'$.decisions') AS vote WHERE json_extract(vote.value,'$.partId') IS NOT NULL OR json_extract(vote.value,'$.partNumber') IS NOT NULL OR json_extract(vote.value,'$.componentBinding') IS NOT NULL OR json_array_length(json_extract(vote.value,'$.componentReferences'))>0) AND (COALESCE(json_extract(${body},'$.outcomeProofVersion'),0)<>${AMENDMENT_OUTCOME_PROOF_VERSION} OR COALESCE(json_extract(${body},'$.splitCoverageComplete'),0)<>1 OR COALESCE(json_array_length(json_extract(${body},'$.splitCoverage')),0)=0 OR EXISTS(SELECT 1 FROM json_each(${body},'$.splitCoverage') AS proof WHERE COALESCE(json_extract(proof.value,'$.complete'),0)<>1) OR EXISTS(SELECT 1 FROM json_each(${body},'$.decisions') AS vote WHERE json_extract(vote.value,'$.componentBinding') IN ('unresolved-collective','unverified'))))`;
 const memberMatchesSql=body=>`(${supportedProposerDateSql(body)} AND EXISTS(SELECT 1 FROM json_each(${body},'$.authors') AS author WHERE json_extract(author.value,'$.status')='resolved' AND CAST(json_extract(author.value,'$.personId') AS TEXT) IN (?,?)))`;
 export function amendmentsSchema(db) {
@@ -132,7 +133,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
       for(const field of incoming.conflicted?[]:['originalText','proposedText','targetLabel','language','listId','justification','onBehalfOf']){
         if(field==='onBehalfOf'&&!incoming.proposerRetained&&(incoming.authors?.length||incoming.committeeProposer))continue;
         if(['originalText','proposedText'].includes(field)&&(incoming.textIntegrity==='incomplete'||old.textIntegrity==='incomplete'||invalidBaseline(old)||amendmentTextLosses(null,old).length))continue;
-        if(incoming[field]==null&&old[field]!=null){incoming[field]=old[field];incoming.fieldSources={...(incoming.fieldSources || {}),[field]:old.fieldSources?.[field] || (['originalText','proposedText','language'].includes(field)?old.wordingSource:old.metadataSource) || null};stale.push(field);}
+        if(incoming[field]==null&&old[field]!=null){incoming[field]=old[field];if(field==='targetLabel')Object.assign(incoming,checkedLabel(old));incoming.fieldSources={...(incoming.fieldSources || {}),[field]:field==='targetLabel'?old.targetLabelSource || null:old.fieldSources?.[field] || (['originalText','proposedText','language'].includes(field)?old.wordingSource:old.metadataSource) || null};stale.push(field);}
       }
       const acceptedProposer=checkedProposer(old);
       const retainProposer=()=>Object.assign(incoming,{proposerSource:old.proposerSource || old.metadataSource || null,proposerRetained:true,proposerDate:acceptedProposer.proposerDate,proposerDateBasis:acceptedProposer.proposerDateBasis});
@@ -159,8 +160,8 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
     // inventing a binding to any other component, target or namespace.
     const splitGaps=new Set(['A split component has no indexed description.','A split description could not be parsed; the failure is retained for a future parser update.','Split descriptions are parsed as selection plans; exact wording spans have not been validated.','The split description has no exact recorded source page; candidate page provenance is retained.']);
     for(const row of merged.values()) {
-      Object.assign(row,checkedProposer(row));
-      if(row.variants)row.variants=row.variants.map(checkedProposer);
+      Object.assign(row,checkedProposer(row),checkedLabel(row));
+      if(row.variants)row.variants=row.variants.map(variant=>({...checkedProposer(variant),...checkedLabel(variant)}));
       if([row,...(row.variants || [])].some(record=>record.authors?.length&&!record.proposerDate))extraGaps.add(proposerDateGap);
       row.gaps=(row.gaps || []).filter(gap=>gap!=='An amendment decision has no exact recorded source page; candidate page provenance is retained.');
       if((row.decisions || []).some(decision=>!decision.source?.url)){row.gaps.push('An amendment decision has no exact recorded source page; candidate page provenance is retained.');extraGaps.add('Some amendment decisions have no exact recorded source page.');}

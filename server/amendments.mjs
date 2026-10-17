@@ -3,8 +3,9 @@ import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
 export const AMENDMENTS_VERSION = 1;
-export const AMENDMENT_SITTING_PROJECTION_VERSION = 2;
-export const AMENDMENT_OUTCOME_PROOF_VERSION = 1;
+export const AMENDMENT_SITTING_PROJECTION_VERSION = 3;
+export const AMENDMENT_OUTCOME_PROOF_VERSION = 2;
+export const AMENDMENT_DISTRIBUTION_PROOF_VERSION = 2;
 export const AMENDMENT_LIMITS = Object.freeze({ listsPerTarget:64, sittingsPerTarget:64, amendmentsPerList:500, text:60000, failures:20000, upgradeTargets:100, page:50 });
 export const PROPOSER_DATE_BASES = Object.freeze(['individual-amendment-document','amendment-list-document','amendment-list-metadata']);
 export function validAmendmentDate(value) {
@@ -33,18 +34,30 @@ export function sameDocxDescriptor(a,b) {
   const left=normalizedDocxDescriptor(a),right=normalizedDocxDescriptor(b);
   return Boolean(left&&right&&left.url===right.url&&left.language===right.language&&left.byteSize===right.byteSize);
 }
-export function listWordingFreshness(list,{parserVersion,now=Date.now()}={}) {
-  const files=list?.files || documentFiles(list || {}),file=files.find(file=>file.format==='DOCX'&&file.language==='en') || files.find(file=>file.format==='DOCX');
-  const descriptor=normalizedDocxDescriptor(file),proof=list?.extraction?.sourceDescriptor,sourceDescriptor=proof&&Object.hasOwn(proof,'byteSize')?normalizedDocxDescriptor(proof):null,failure=list?.wordingRefreshFailure;
+export function distributionEvidenceFor(work,source) {
+  const descriptors=array(work?.is_realized_by).flatMap(expression=>array(expression?.is_embodied_by).flatMap(manifestation=>
+    documentFiles({is_realized_by:[{...expression,is_embodied_by:[manifestation]}]}).filter(file=>file.format==='DOCX').map(file=>normalizedDocxDescriptor({...file,byteSize:manifestation?.byteSize})))).filter(Boolean);
+  const available=typeof work?.amendmentDistributionDeclared==='boolean'?work.amendmentDistributionDeclared:Object.hasOwn(work || {},'is_realized_by')&&work.is_realized_by!=null;
+  return {version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:descriptors.length?'available':available?'empty':'unavailable',descriptors,source:source || null};
+}
+export function currentDocxDescriptor(list) {
+  const evidence=list?.distributionEvidence;
+  if(evidence?.version!==AMENDMENT_DISTRIBUTION_PROOF_VERSION||evidence.state!=='available')return null;
+  const descriptors=array(evidence.descriptors).map(normalizedDocxDescriptor).filter(Boolean);
+  return descriptors.find(file=>file.language==='en') || descriptors[0] || null;
+}
+export function listWordingFreshness(list,{parserVersion}={}) {
+  const descriptor=currentDocxDescriptor(list),proof=list?.extraction?.sourceDescriptor,sourceDescriptor=proof&&Object.hasOwn(proof,'byteSize')?normalizedDocxDescriptor(proof):null,failure=list?.wordingRefreshFailure;
+  const distributionState=list?.distributionEvidence?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION?list.distributionEvidence.state:'unknown';
   const failed=failure&&(sameDocxDescriptor(descriptor,failure.descriptor)||(!descriptor&&!failure.descriptor));
   const status=failed?'failed':!descriptor||!sourceDescriptor||list?.extraction?.parserVersion!==parserVersion?'unverified':sameDocxDescriptor(descriptor,sourceDescriptor)?'fresh':'pending';
-  return {version:1,status,descriptor,sourceDescriptor,...(failed?{failedAt:failure.failedAt,retryAfter:failure.retryAfter,error:failure.error}:{})};
+  return {version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,status,distributionState,descriptor,sourceDescriptor,...(failed?{failedAt:failure.failedAt,retryAfter:failure.retryAfter,error:failure.error}:{})};
 }
 export function resolvedAmendmentAuthorId(author) {
   const id=String(author?.personId ?? '').replace(/^person\//,'');
   return author?.status==='resolved'&&/^[1-9]\d*$/.test(id)&&Number.isSafeInteger(Number(id))?id:null;
 }
-const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','structural-revision','symbol-text-loss','non-text-content','vertical-text-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
+const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','comparison-grid','structural-revision','symbol-text-loss','non-text-content','vertical-text-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
 export function amendmentTextLosses(extraction,amendment) {
   const oversized=['originalText','proposedText'].some(field=>typeof amendment?.[field]==='string'&&amendment[field].length>AMENDMENT_LIMITS.text);
   return [...array(extraction?.gaps),...array(amendment?.gaps),...(oversized?[{code:'wording-too-large',number:amendment.number,message:'Amendment wording exceeds the 60,000-character column limit; both columns are unavailable.'}]:[])].filter(gap=>textLossCodes.has(gap?.code) &&
@@ -92,10 +105,12 @@ export function projectAmendmentDecisions(nodes,sittingId) {
 }
 export function projectAmendmentSplits(nodes,sittingId) {
   return nodes.flatMap((node,observationIndex)=>tail(node.had_activity_type)==='REQUEST_VOTE_SPLIT' && (node.id==null||node.id===''||canonicalEPReference(node.id)?.startsWith('eli/dl/event/'+sittingId+'-VOT-ITM-'))?[{
-    id:refs(node.id)[0] || null,...(!node.id?{observationIndex}:{}),activity_id:node.activity_id,activity_label:labels(node.activity_label),had_activity_type:node.had_activity_type,
-    created_a_realization_of:array(node.created_a_realization_of).filter(part=>part && typeof part==='object').slice(0,257).map(part=>({
-      id:refs(part.id)[0],number:part.number,numbering:part.numbering,expressionContent:labels(part.expressionContent,65537),
-    })),
+    id:refs(node.id)[0] || null,...(!node.id?{observationIndex}:{}),amendmentProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION,activity_id:node.activity_id,activity_label:labels(node.activity_label),had_activity_type:node.had_activity_type,
+    created_a_realization_of:array(node.created_a_realization_of).slice(0,257).map(part=>{
+      const object=part && typeof part==='object',reference=object?part.id:typeof part==='string'?part:null;
+      return {id:refs(reference)[0] || null,number:object?part.number:undefined,numbering:object?part.numbering:undefined,expressionContent:labels(object?part.expressionContent:null,65537),
+        ...(!object?{sourceComponentObservation:part}:reference&&!canonicalEPReference(reference)?{sourceComponentObservation:{id:reference}}:{})};
+    }),
   }]:[]);
 }
 export function amendmentDecision(node,sittingId,source) {

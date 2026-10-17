@@ -44,6 +44,33 @@ test('document projection preserves missing, unavailable, empty and exact list r
   }
 });
 
+test('amendment distribution declaration survives reprojection without turning synthesized empty arrays into published observations',()=>{
+  const published=[{language:'http://publications.europa.eu/resource/authority/language/ENG',title:{en:'Amendments'},is_embodied_by:[{format:'authority/DOCX',byteSize:1234,is_exemplified_by:'https://data.europarl.europa.eu/distribution/example/list_en.docx'}]}];
+  const states=[
+    {name:'missing',fields:{},declared:false,files:[]},
+    {name:'undefined',fields:{is_realized_by:undefined},declared:false,files:[]},
+    {name:'unavailable',fields:{is_realized_by:null},declared:false,files:[]},
+    {name:'observed empty',fields:{is_realized_by:[]},declared:true,files:[]},
+    {name:'published',fields:{is_realized_by:published},declared:true,files:published},
+  ];
+  for(const {name,fields,declared,files} of states) {
+    const projected=projectDocument({...linked,...fields});
+    assert.equal(projected.amendmentDistributionDeclared,declared,name);
+    assert.deepEqual(projected.is_realized_by,files,name);
+    const reprojected=projectDocument(projected);
+    assert.equal(reprojected.amendmentDistributionDeclared,declared,name+' reprojected');
+    assert.deepEqual(reprojected.is_realized_by,files,name+' reprojected');
+    for(const type of ['REPORT_PLENARY','RESOLUTION_MOTION']) {
+      const ordinary=projectDocument({...target,work_type:'def/ep-document-types/'+type,...fields});
+      assert.equal(Object.hasOwn(ordinary,'amendmentDistributionDeclared'),false,type+' '+name);
+      assert.deepEqual(ordinary.is_realized_by,files,type+' '+name);
+      const ordinaryAgain=projectDocument(ordinary);
+      assert.equal(Object.hasOwn(ordinaryAgain,'amendmentDistributionDeclared'),false,type+' '+name+' reprojected');
+      assert.deepEqual(ordinaryAgain.is_realized_by,files,type+' '+name+' reprojected');
+    }
+  }
+});
+
 test('document worker ingestion keeps unknown list relationships distinct from observed empty and URI-only links',async t=>{
   for(const state of ['missing','unavailable','empty','uri']) {
     const raw={...target};
@@ -81,13 +108,13 @@ test('document worker ingestion keeps unknown list relationships distinct from o
   }
 });
 
-test('legacy synthesized empty relationships stay unverified and queue a bounded projection upgrade immediately',t=>{
+test('legacy synthesized empty relationships stay unverified and queue a bounded projection upgrade immediately',async t=>{
   const {store,worker,generation}=context(t,target);
   store.putSource(generation,endpoint,'document',{...projectDocument(target),amendmentLinksVersion:1,inverse_foresees_change_of:[]},at);
   rebuildAmendmentTarget(worker,generation,targetId);
   assert.equal(amendmentsPage(store,{document:targetId}).items[0].listRelationship,'unverified');
   store.updateCycle({amendmentsPreparedVersion:AMENDMENTS_VERSION,amendmentsPreparedDay:'2026-10-16',splitParserVersion:SPLIT_PARSER_VERSION,amendmentDocumentParserVersion:AMENDMENT_EXTRACTION_VERSION,amendmentDocumentLinksVersion:1});
-  prepareAmendments(worker,store.get('working'));
+  await prepareAmendments(worker,store.get('working'));
   const job=store.db.prepare('SELECT kind,body FROM tasks WHERE generation=? AND key=?').get(generation,endpoint);
   assert.equal(job.kind,'document');assert.deepEqual(JSON.parse(job.body),{endpoint});
   assert.equal(store.get('working').amendmentDocumentLinksVersion,AMENDMENT_LINKS_VERSION);

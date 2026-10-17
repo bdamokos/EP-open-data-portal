@@ -50,7 +50,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'9');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'10');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -322,6 +322,79 @@ test('ordinary table properties and positional annotation markers do not invalid
   assert.equal(result.amendments[0].originalText,'Original');assert.equal(result.amendments[0].proposedText,'Proposal');assert.deepEqual(result.gaps,[]);
 });
 
+test('unsupported comparison geometry withholds both columns with a numbered gap while another amendment remains intact',()=>{
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'10');
+  const grid=widths=>'<w:tblGrid>'+widths.map(width=>`<w:gridCol${width==null?'':` w:w="${width}"`}/>`).join('')+'</w:tblGrid>';
+  const propsCell=(text,properties='')=>'<w:tc><w:tcPr>'+properties+'</w:tcPr>'+p(text)+'</w:tc>';
+  const header=row(propsCell('Motion for a resolution'),propsCell('Amendment'));
+  const original=propsCell('Original wording'),proposal=propsCell('Proposed wording');
+  const comparison=(rows,definition=grid(['3000','3000']),head=header)=>'<w:tbl>'+definition+head+rows+'</w:tbl>';
+  const shifted=(properties)=>'<w:tr><w:trPr>'+properties+'</w:trPr>'+original+proposal+'</w:tr>';
+  const variants=[
+    ['review reproduction: third grid column, spanning header and shifted content',comparison(shifted('<w:gridBefore w:val="1"/>'),grid(['3000','1500','1500']),row(propsCell('Motion for a resolution'),propsCell('Amendment','<w:gridSpan w:val="2"/>')))],
+    ['one declared column',comparison(row(original,proposal),grid(['6000']))],
+    ['three declared columns',comparison(row(original,proposal),grid(['3000','1500','1500']))],
+    ['wrapped grid columns',comparison(row(original,proposal),'<w:tblGrid><w:customXml><w:gridCol/><w:gridCol/></w:customXml></w:tblGrid>')],
+    ['duplicate grid declarations',comparison(row(original,proposal),'<w:tblGrid/>'+grid(['3000','3000']))],
+    ['malformed grid width',comparison(row(original,proposal),grid(['invalid','3000']))],
+    ['negative grid width',comparison(row(original,proposal),grid(['-1','3000']))],
+    ['spanning header',comparison(row(original,proposal),grid(['3000','3000']),row(propsCell('Motion for a resolution'),propsCell('Amendment','<w:gridSpan w:val="2"/>')))],
+    ['shifted header',comparison(row(original,proposal),grid(['3000','3000']),'<w:tr><w:trPr><w:gridAfter w:val="1"/></w:trPr>'+propsCell('Motion for a resolution')+propsCell('Amendment')+'</w:tr>')],
+    ['missing second header cell',comparison(row(original,proposal),grid(['3000','3000']),row(propsCell('Amendment')))],
+    ['offset before content',comparison(shifted('<w:gridBefore w:val="1"/>'))],
+    ['offset after content',comparison(shifted('<w:gridAfter w:val="1"/>'))],
+    ...['<w:gridBefore/>','<w:gridAfter w:val="invalid"/>','<w:gridBefore w:val="-1"/>','<w:gridAfter w:val="0.0"/>','<w:gridBefore w:val="0"/><w:gridBefore w:val="0"/>'].map(properties=>['malformed row offset '+properties,comparison(shifted(properties))]),
+    ['duplicate row property blocks',comparison('<w:tr><w:trPr/><w:trPr/>'+original+proposal+'</w:tr>')],
+    ...['<w:gridSpan w:val="2"/>','<w:gridSpan w:val="0"/>','<w:gridSpan/>','<w:gridSpan w:val="invalid"/>','<w:gridSpan w:val="-1"/>','<w:gridSpan w:val="1.0"/>','<w:gridSpan w:val="1"/><w:gridSpan w:val="1"/>','<w:gridSpan w:val="1"><w:gridSpan w:val="2"/></w:gridSpan>','<w:hMerge/>','<w:hMerge w:val="restart"/>','<w:vMerge/>','<w:vMerge w:val="continue"/>'].map(properties=>['unsupported current cell geometry '+properties,comparison(row(propsCell('Original wording',properties),proposal))]),
+    ['duplicate cell property blocks',comparison(row('<w:tc><w:tcPr/><w:tcPr/>'+p('Original wording')+'</w:tc>',proposal))],
+    ['empty row without cells',comparison(row(original,proposal)+row())],
+    ['blank row with three cells',comparison(row(original,proposal)+row(propsCell(''),propsCell(''),propsCell('')))],
+    ['blank one-cell row without its explicit two-column span',comparison(row(original,proposal)+row(propsCell('')))],
+    ['blank spanning cell with a current merge',comparison(row(original,proposal)+row(propsCell('','<w:gridSpan w:val="2"/><w:vMerge/>')))],
+    ['blank spanning cell with an offset',comparison(row(original,proposal)+'<w:tr><w:trPr><w:gridBefore w:val="1"/></w:trPr>'+propsCell('','<w:gridSpan w:val="2"/>')+'</w:tr>')],
+    ['nonblank one-cell span is not a spacer',comparison(row(original,proposal)+row(propsCell('Additional legal wording','<w:gridSpan w:val="2"/>')))],
+    ['hidden content is not the public blank spacer',comparison(row(original,proposal)+row('<w:tc><w:tcPr><w:gridSpan w:val="2"/></w:tcPr><w:p><w:r><w:rPr><w:vanish/></w:rPr><w:t>Hidden legal wording</w:t></w:r></w:p></w:tc>'))],
+  ];
+  for(const [description,comparisonXml] of variants) {
+    const xml=body(metadata()+comparisonXml+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('A complete insertion.'))))+p('</Amend>'));
+    const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+    const affected=result.amendments.find(amendment=>amendment.number===1);
+    assert.equal(affected.originalText,null,description);assert.equal(affected.proposedText,null,description);
+    assert(affected.gaps.some(gap=>gap.code==='comparison-grid'&&gap.number===1&&gap.sourceUrl===options.sourceUrl),description);
+    assert(result.gaps.some(gap=>gap.code==='comparison-grid'&&gap.number===1),description);
+    assert.deepEqual(affected.gaps,result.gaps.filter(gap=>gap.number===1),description);
+    const intact=result.amendments.find(amendment=>amendment.number===2);
+    assert.equal(intact.originalText,'',description);assert.equal(intact.proposedText,'A complete insertion.',description);assert.deepEqual(intact.gaps,[],description);
+  }
+});
+
+test('ordinary two-column geometry, blank cells and exact public blank span-two spacers remain supported',()=>{
+  const cellWith=(text,properties='')=>'<w:tc><w:tcPr>'+properties+'</w:tcPr>'+p(text)+'</w:tc>';
+  const header=row(cellWith('Motion for a resolution','<w:gridSpan w:val="1"/>'),cellWith('Amendment'));
+  const blank=row(cellWith(''),cellWith(''));
+  const spacer='<w:tr><w:trPr><w:gridBefore w:val="0"/><w:gridAfter w:val="00"/></w:trPr>'+cellWith('','<w:gridSpan w:val="2"/>')+'</w:tr>';
+  const original=cellWith('Original wording','<w:gridSpan w:val="01"/>'),proposal=cellWith('Proposed wording');
+  for(const definition of ['', '<w:tblGrid/>', '<w:tblGrid><w:gridCol/><w:gridCol w:w="3000"/></w:tblGrid>']) {
+    const comparison='<w:tbl>'+definition+spacer+blank+header+spacer+'<w:tr><w:trPr><w:gridBefore w:val="0"/><w:gridAfter w:val="0"/></w:trPr>'+original+proposal+'</w:tr>'+blank+spacer+'</w:tbl>';
+    const result=extractAmendments(archive(body(metadata()+comparison+p('</Amend>'))),options);
+    assert.equal(result.amendments[0].originalText,'Original wording');assert.equal(result.amendments[0].proposedText,'Proposed wording');assert.deepEqual(result.gaps,[]);
+  }
+});
+
+test('historical table, row and cell geometry changes do not replace the current two-column layout',()=>{
+  const pastGrid='<w:tblGridChange w:id="1"><w:tblGrid><w:gridCol/><w:gridCol/><w:gridCol/></w:tblGrid></w:tblGridChange>';
+  const pastTable='<w:tblPr><w:tblPrChange w:id="2"><w:tblPr><w:tblGrid><w:gridCol/><w:gridCol/><w:gridCol/></w:tblGrid></w:tblPr></w:tblPrChange></w:tblPr>';
+  const pastRow='<w:trPr><w:gridBefore w:val="0"/><w:trPrChange w:id="3"><w:trPr><w:gridBefore w:val="1"/><w:gridAfter w:val="invalid"/></w:trPr></w:trPrChange></w:trPr>';
+  const pastCell='<w:tcPr><w:gridSpan w:val="1"/><w:tcPrChange w:id="4"><w:tcPr><w:gridSpan w:val="3"/><w:hMerge/><w:vMerge w:val="restart"/></w:tcPr></w:tcPrChange></w:tcPr>';
+  const spacer='<w:tr>'+pastRow+'<w:tc><w:tcPr><w:gridSpan w:val="2"/><w:tcPrChange w:id="5"><w:tcPr><w:gridSpan w:val="invalid"/><w:vMerge/></w:tcPr></w:tcPrChange></w:tcPr>'+p('')+'</w:tc></w:tr>';
+  const header=row(cell(p('Motion for a resolution')),cell(p('Amendment')));
+  for(const definition of ['<w:tblGrid><w:gridCol/><w:gridCol/>'+pastGrid+'</w:tblGrid>','<w:tblGrid>'+pastGrid+'</w:tblGrid>']) {
+    const comparison='<w:tbl>'+pastTable+definition+header+spacer+'<w:tr>'+pastRow+'<w:tc>'+pastCell+p('Original wording')+'</w:tc>'+cell(p('Proposed wording'))+'</w:tr></w:tbl>';
+    const result=extractAmendments(archive(body(metadata()+comparison+p('</Amend>'))),options);
+    assert.equal(result.amendments[0].originalText,'Original wording');assert.equal(result.amendments[0].proposedText,'Proposed wording');assert.deepEqual(result.gaps,[]);
+  }
+});
+
 test('tracked row and cell revisions cannot silently join accepted comparison wording',()=>{
   const changedRow=(properties,cells)=>'<w:tr>'+properties+cells+'</w:tr>';
   const original=cell(p('Revised original')),proposal=cell(p('Revised proposal'));
@@ -356,7 +429,7 @@ test('historical property snapshots and ordinary hidden or deleted inline text d
 });
 
 test('current paragraph-mark revisions cannot turn ambiguous decimal boundaries into accepted wording',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'9');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'10');
   for(const marker of ['del','ins','moveFrom','moveTo']) {
     const first='<w:p><w:pPr><w:rPr><w:'+marker+' w:id="9" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:rPr></w:pPr>'+run('Rate: 1')+'</w:p>';
     const xml=body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));

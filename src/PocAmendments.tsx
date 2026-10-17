@@ -22,6 +22,7 @@ function LocalizedDate({value,language}:{value?:string|number|null;language:stri
 const joinMeta=(items:ReactNode[])=>items.filter(item=>item!==null&&item!==undefined&&item!==false&&item!=='').map((item,index)=><Fragment key={index}>{index?' · ':''}{item}</Fragment>);
 const metadataLanguage=(item:AmendmentVariant)=>Object.hasOwn(item,'metadataSource')?item.metadataSource?.language??'':item.language??'';
 const wordingLanguage=(item:AmendmentVariant)=>Object.hasOwn(item,'wordingSource')?item.wordingSource?.language??'':item.language??'';
+const targetLabelLanguage=(item:AmendmentVariant)=>item.targetLabelLanguage??'';
 function documentDateLabel(item:AmendmentVariant,language:string,legacySource=false) {
   const documentaryDate=dateLabel(item.documentDate,language)?item.documentDate:null;
   const listDate=item.dateBasis==='amendment-list-document'&&dateLabel(item.listDocumentDate,language)?item.listDocumentDate:null;
@@ -77,11 +78,11 @@ function PlanLine({text,plan,language}:{text:string;plan?:Record<string,unknown>
 }
 function GroupLabel({group,by}:{group:ReturnType<typeof amendmentGroups>[number];by:string}) {
   const item=group.items[0];
-  if(by==='target')return <>{item.targetDocumentId&&<><span lang="">{item.targetDocumentId}</span> · </>}{item.targetLabel?<span lang={metadataLanguage(item)}>{item.targetLabel}</span>:'Target provision unavailable'}</>;
+  if(by==='target')return <>{item.targetDocumentId&&<><span lang="">{item.targetDocumentId}</span> · </>}{item.targetLabel?<span lang={targetLabelLanguage(item)}>{item.targetLabel}</span>:'Target provision unavailable'}</>;
   if(by==='topic'){
     const topic=item.topics?.[0];
     if(!topic)return <>Topic unavailable</>;
-    return <>{topic.basis==='target'&&item.targetDocumentId&&<><span lang="">{item.targetDocumentId}</span> · </>}<span lang={topic.basis==='target'?metadataLanguage(item):''}>{topic.label}</span></>;
+    return <>{topic.basis==='target'&&item.targetDocumentId&&<><span lang="">{item.targetDocumentId}</span> · </>}<span lang={topic.language??''}>{topic.label}</span></>;
   }
   const identifier=item.procedureIds?.[0]||item.targetDocumentId;
   return identifier?<span lang="">{identifier}</span>:<>Dossier unavailable</>;
@@ -111,7 +112,7 @@ function ComponentSource({source,label,language}:{source?:AmendmentSource|null;l
   return <p className="poc-amendment-meta" lang="en">{label}: {url?<a href={url} target="_blank" rel="noreferrer">official document{source.language?' · '+source.language.toUpperCase():''} ↗</a>:'link unavailable'}{source.fetchedAt!=null?<> · retrieved <LocalizedDate value={source.fetchedAt} language={language}/></>:''}</p>;
 }
 function ComponentSources({item,language}:{item:AmendmentVariant;language:string}) {
-  return <><ComponentSource source={item.wordingSource} label={item.wordingRetained?'Retained wording source':'Wording source'} language={language}/><ComponentSource source={item.proposerSource} label={item.proposerRetained?'Retained proposer source':'Proposer source'} language={language}/><ComponentSource source={item.metadataSource} label="Document metadata source" language={language}/></>;
+  return <><ComponentSource source={item.wordingSource} label={item.wordingRetained?'Retained wording source':'Wording source'} language={language}/><ComponentSource source={item.proposerSource} label={item.proposerRetained?'Retained proposer source':'Proposer source'} language={language}/><ComponentSource source={item.metadataSource} label="Document metadata source" language={language}/><ComponentSource source={item.targetLabelSource} label="Target label source" language={language}/></>;
 }
 function AuthorEvidence({item,language}:{item:AmendmentVariant;language:string}) {
   const linked=(item.authors||[]).filter(author=>author.personId&&/^[1-9]\d*$/.test(String(author.personId)));
@@ -141,7 +142,7 @@ function SourceVariants({item,language}:{item:Amendment;language:string}) {
       <h5>Source variant {index+1}{variant.listId?' · '+variant.listId:''}</h5>
       {variant.listId&&item.authorMatch?.variantListIds?.includes(variant.listId)&&<p className="poc-amendment-secondary">Matches the selected MEP author through this source variant.</p>}
       <p className="poc-amendment-meta">{joinMeta([documentDateLabel(variant,language,true),variant.language?<><span lang="">{variant.language.toUpperCase()}</span> · source language</>:'Source language unavailable'])}</p>
-      {variant.targetLabel&&<p lang={metadataLanguage(variant)}>{variant.targetLabel}</p>}
+      {variant.targetLabel&&<p lang={targetLabelLanguage(variant)}>{variant.targetLabel}</p>}
       {variant.authors?.length?<p>Named in this source: {variant.authors.map((author,index)=><Fragment key={index}>{index?', ':''}<span lang="">{author.name}</span></Fragment>)}</p>:null}
       {variant.committeeProposer&&<p>Committee proposer in this source: <span lang={variant.proposerSource?.language??''}>{variant.committeeProposer}</span></p>}
       {onBehalfLabel(variant.onBehalfOf)&&<p>On behalf of <span lang="">{onBehalfLabel(variant.onBehalfOf)}</span></p>}
@@ -155,7 +156,7 @@ function AmendmentCard({item,language,onMember}:{item:Amendment;language:string;
   const title=selectLanguageText(item.titles,language,item.title||'','');
   return <article lang="en" className="poc-amendment-card" id={'amendment-'+item.id}>
     <header><div><p className="poc-amendment-reference">{item.targetDocumentId||'Target document unavailable'}{item.listId&&<span> · {item.listId}</span>}</p><h4>Amendment {item.number??item.id}</h4>{item.title&&<p className="poc-amendment-title" lang={title.text===item.title?title.language:''}>{item.title}</p>}</div><Outcome value={item.outcome}/></header>
-    {!item.conflicted&&<><p className="poc-amendment-target" lang={item.targetLabel?metadataLanguage(item):'en'}>{item.targetLabel||'Target provision unavailable'}</p><p className="poc-amendment-meta">{joinMeta([documentDateLabel(item,language),metadataLanguage(item)?<><span lang="">{metadataLanguage(item).toUpperCase()}</span> · document language</>:'Document language unavailable',splitParts.length?'Split amendment · '+splitParts.length+' parts':null])}</p></>}
+    {!item.conflicted&&<><p className="poc-amendment-target" lang={item.targetLabel?targetLabelLanguage(item):'en'}>{item.targetLabel||'Target provision unavailable'}</p><p className="poc-amendment-meta">{joinMeta([documentDateLabel(item,language),metadataLanguage(item)?<><span lang="">{metadataLanguage(item).toUpperCase()}</span> · document language</>:'Document language unavailable',splitParts.length?'Split amendment · '+splitParts.length+' parts':null])}</p></>}
     <SourceVariants item={item} language={language}/>
     <AmendmentAuthors item={item} language={language} onMember={onMember}/>
     {!item.conflicted&&item.proposerRetained&&<p className="poc-amendment-secondary">Proposer information is retained from an earlier indexed source.</p>}
@@ -170,7 +171,7 @@ function AmendmentCard({item,language,onMember}:{item:Amendment;language:string;
       <AmendmentSources sources={item.sources||[]} language={language}/>
       {item.procedureIds?.length?<p>Recorded procedure references: {item.procedureIds.map((reference,index)=><Fragment key={reference}>{index?', ':''}<span lang="">{reference}</span></Fragment>)}</p>:null}
       {item.splitCoverage?.length?<details><summary>Observed split-request coverage · {item.splitCoverage.length}</summary><ul>{item.splitCoverage.map((request,index)=><li key={request.registryRequestKey||request.requestId||index}>{request.requestId?<span lang="">{request.requestId}</span>:'Official request identifier unavailable'}: {request.componentCount??'unknown number of'} source components · {request.recordedComponentCount} recorded references · {request.boundComponentCount} verified bindings{request.complete?' · complete':' · incomplete'}</li>)}</ul><p>Unbound components from a source request are not assigned to this amendment.</p></details>:null}
-      {item.topics?.length?<ul>{item.topics.map(topic=><li key={topic.id}><span lang="">{topic.label}</span> <small>· {topic.basis==='dossier'?'dossier subject':'target provision'}</small></li>)}</ul>:null}
+      {item.topics?.length?<ul>{item.topics.map(topic=><li key={topic.id}><span lang={topic.language??''}>{topic.label}</span> <small>· {topic.basis==='dossier'?'dossier subject':'target provision'}</small></li>)}</ul>:null}
       {item.gaps?.length?<ul className="poc-amendment-gap">{item.gaps.map((gap,index)=><li key={index}>{gapLabel(gap)}</li>)}</ul>:null}
       {!item.conflicted&&authors.some(author=>author.personId)&&<p className="poc-amendment-secondary">Author links are derived from public names, dated mandates and voting identities where available.</p>}
     </details>
