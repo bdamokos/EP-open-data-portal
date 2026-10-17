@@ -4,6 +4,14 @@ Use the Node version in `.nvmrc`. The frontend entry is `src/main.tsx`. Navigati
 
 The server binds to loopback by default and has no accounts. A reverse proxy must overwrite forwarded headers before `TRUST_PROXY=true` is enabled. Site routing, access controls, host configuration and credentials belong outside this repository.
 
+## HTTP caching
+
+Anonymous, stateless API reads use a six-hour CDN lifetime; activity and speech lists use one hour. Positive speech/document reading responses dated at least 14 days ago use 24 hours, except unanswered questions, whose answer links can still change. Browsers revalidate API responses. Partial index coverage remains an explicit snapshot, with source retrieval dates preserved. Source refresh schedules are independent and unchanged: CDN lifetimes describe when a shared cache checks this server, not the maximum age of upstream data.
+
+Health, progress, diagnostic failures, stateful speech statistics, speech clouds and topic trends, non-read methods, errors, and temporary unavailable/stale/refreshing responses use `no-store`. Successful portraits use up to seven days at the CDN and one day in browsers, capped by the saved image's existing source expiry, with content ETags for conditional reads. HTML revalidates. Vite's build manifest identifies fingerprinted assets and their source maps for one-year immutable caching; other assets use five minutes.
+
+The application sends separate `Cache-Control` and `CDN-Cache-Control` headers. A gateway must preserve the approved public policy and keep its own errors, private routes and legacy routes uncached. A CDN needs explicit eligibility for JSON and extensionless portraits, must respect origin `no-store`, and must retain the full query string and Origin in its cache key. Mutable API entries require invalidation when a release changes their representation; refresh publication can invalidate affected entries sooner than their TTL. Hosting-specific rules and invalidation configuration belong outside this repository. Do not treat a revision response header as a cache-key change.
+
 ## Container
 
 ```sh
