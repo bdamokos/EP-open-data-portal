@@ -42,15 +42,15 @@ export class LegislationInsights {
     requestSignal()?.throwIfAborted();
     if(!Object.keys(params).length) {
       if(/^\/(procedures|plenary-documents|committee-documents|parliamentary-questions)\/[A-Z0-9-]+$/.test(endpoint)) {
-        const saved=this.store.source(this.store.status().servingGeneration,endpoint);
+        const saved=this.store?.source?.(this.store.status().servingGeneration,endpoint);
         const id=endpoint.split('/').at(-1);
         const expected='eli/dl/'+(endpoint.startsWith('/procedures/')?'proc/':'doc/')+id;
-        if(saved?.work&&reusableRecord(endpoint,saved.work)&&Number.isFinite(Date.parse(saved.fetchedAt))&&canonical(saved.work.id)===expected)return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.work]}};
+        if(saved?.work&&reusableRecord(endpoint,saved.work)&&Number.isFinite(Date.parse(saved.fetchedAt))&&canonical(saved.work.id)===expected)return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.work]},...sourceCacheState(saved)};
       }
       if(endpoint.startsWith('/speeches/')&&this.readSpeechMetadata) {
         const saved=await this.readSpeechMetadata(endpoint.slice('/speeches/'.length));
         requestSignal()?.throwIfAborted();
-        if(saved)return {url:saved.sourceUrl,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.activity]}};
+        if(saved)return {url:saved.sourceUrl,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.activity]},...sourceCacheState(saved)};
       }
     }
     const key=JSON.stringify([endpoint,params]);const old=this.cache.get(key);
