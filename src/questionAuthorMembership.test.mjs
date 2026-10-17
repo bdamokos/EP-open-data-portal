@@ -30,7 +30,7 @@ async function harness(t,{response=questions(),language='en'}={}) {
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);calls.push(url);
     assert.equal(url.origin,'http://localhost','membership tests must never use remote source data');
-    if(/^\/api\/poc\/portrait\/\d+$/.test(url.pathname))return new Response('',{status:404});
+    if(/^\/api\/portrait\/\d+$/.test(url.pathname))return new Response('',{status:404});
     assert(url.pathname.endsWith('/insights/questions'),'only the fixture Questions endpoint and portrait placeholders are allowed');
     return Response.json(response);
   });
@@ -61,7 +61,7 @@ test('Questions counts current and former authors together and labels former MEP
   assert.equal(former.target,'_blank');
   await act(async()=>current.click());
   assert.deepEqual(h.memberCalls,[[1001,undefined]]);
-  assert(h.calls.some(url=>url.pathname==='/api/poc/portrait/1001'),'portrait requests use the fixture handler');
+  assert(h.calls.some(url=>url.pathname==='/api/portrait/1001'),'portrait requests use the fixture handler');
 });
 
 test('Questions labels former MEPs in English when the selected display language is Hungarian',async t=>{

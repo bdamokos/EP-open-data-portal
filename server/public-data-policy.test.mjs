@@ -10,8 +10,8 @@ test('the standalone adapter exposes only read-only explorer routes',async()=>{
  try{
   const health=await fetch(base+'/api/healthz');assert.equal(health.status,200);assert.equal((await health.json()).service,'parliament-explorer');
   for(const route of ['/api/bootstrap','/api/members','/api/profile','/api/news','/api/wall/filter','/api/media/video/mep/1'])assert.equal((await fetch(base+route)).status,404,route);
-  assert.equal((await fetch(base+'/api/poc/directory',{method:'POST'})).status,405);
-  for(const route of ['/api/poc/speech-context/invalid','/api/poc/speech-context/MTG-PL-2026-10-06-OTH-1?url=https://example.com','/api/poc/speech-statistics/00','/api/poc/speech-statistics/257070?page=20','/api/poc/speech-statistics/257070?page=0&page=1'])assert.equal((await fetch(base+route)).status,400,route);
+  assert.equal((await fetch(base+'/api/directory',{method:'POST'})).status,405);
+  for(const route of ['/api/speech-context/invalid','/api/speech-context/MTG-PL-2026-10-06-OTH-1?url=https://example.com','/api/speech-statistics/00','/api/speech-statistics/257070?page=20','/api/speech-statistics/257070?page=0&page=1'])assert.equal((await fetch(base+route)).status,400,route);
   assert.equal((await fetch(base+'/api/healthz',{headers:{Origin:'https://elsewhere.example'}})).status,403);
   const head=await fetch(base+'/api/healthz',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
   assert.equal((await fetch(base+'/api/healthz',{method:'OPTIONS'})).headers.get('Allow'),'GET, HEAD, OPTIONS');

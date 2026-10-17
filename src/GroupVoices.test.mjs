@@ -11,7 +11,7 @@ async function harness(t,query='?view=groups&gv-group=PPE&gv-tab=people'){
  const originals=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  window.HTMLElement.prototype.scrollIntoView=function(){};window.HTMLElement.prototype.scrollTo=function(){};
  let vite,root,fail=false,deferPerson=false;const calls=[],delays=[],personResponses=[];
- t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,location.href);if(url.pathname.startsWith('/api/poc/portrait/'))return new Response(null,{status:404});calls.push(url);assert.equal(url.pathname,'/api/poc/insights/group-voices','No directory, corpus or upstream fetch is needed.');
+ t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,location.href);if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});calls.push(url);assert.equal(url.pathname,'/api/insights/group-voices','No directory, corpus or upstream fetch is needed.');
   if(fail)return Response.json({error:{message:'Unavailable'}},{status:503});
   if(url.searchParams.get('group')==='RENEW')return new Promise(resolve=>delays.push(resolve));
   const people=url.searchParams.get('group')==='ESN'?[{id:'7',name:'Zero Example',total:1,subjects:{climate:1}}]:basePeople,selected=people.filter(p=>!url.searchParams.get('person')||url.searchParams.get('person')===p.id),subject=url.searchParams.get('subject'),total=selected.reduce((n,p)=>n+(subject?p.subjects[subject]||0:p.total),0);

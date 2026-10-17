@@ -17,7 +17,7 @@ const uri=id=>'eli/dl/event/'+id;
 const agendaEndpoint='/meetings/'+sittingId+'/foreseen-activities';
 const resultsEndpoint='/meetings/'+sittingId+'/vote-results',decisionsEndpoint='/meetings/'+sittingId+'/decisions';
 const procedureEndpoint='/procedures/2026-0001',documentEndpoint='/plenary-documents/A-10-2026-0001',eventEndpoint='/events/'+eventId;
-const policy=(view,value)=>apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/poc/insights/'+view),value,{now:clock()});
+const policy=(view,value)=>apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/insights/'+view),value,{now:clock()});
 const legislationQuery=topic=>insightQuery(new URLSearchParams({sitting:sittingId,...(topic?{topic}:{})}),{kind:'legislation',now:clock()});
 const participantQuery=()=>participationQuery(new URLSearchParams({sitting:sittingId}));
 

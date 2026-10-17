@@ -30,8 +30,8 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
   });
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,location.href);
-    if(url.pathname==='/api/poc/directory')return Response.json(directory);
-    if(url.pathname.startsWith('/api/poc/portrait/'))return new Response(null,{status:404});
+    if(url.pathname==='/api/directory')return Response.json(directory);
+    if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});

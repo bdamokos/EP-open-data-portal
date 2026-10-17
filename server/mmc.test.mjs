@@ -70,7 +70,7 @@ test('a stale nonmatching recording prevents caching a clip whose uniqueness dep
     const source=result.provenance.recordingSources.find(source=>source.url===evening.url);
     assert.equal(source.stale,stale);
     assert.equal(source.fetchedAt,evening.fetchedAt);
-    const policy=apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/poc/speech-media/'+speech.id),result);
+    const policy=apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/speech-media/'+speech.id),result);
     if(stale)assert.equal(policy.cdnCacheControl,'no-store');
     else assert.match(policy.cdnCacheControl,/max-age=21600/);
   }
@@ -96,7 +96,7 @@ test('catalogue snapshots reject changed source origins, duplicate IDs and incom
 test('HTTP media endpoint rejects methods, origins, duplicate/unknown queries and invalid language before upstream work',async()=>{
   const {server}=await import('./index.mjs');
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  const base='http://127.0.0.1:'+server.address().port+'/api/poc/speech-media/'+speech.id;
+  const base='http://127.0.0.1:'+server.address().port+'/api/speech-media/'+speech.id;
   try {
     for(const suffix of ['?url=https://evil.example','?lang=hu&lang=en','?audio=hu','?lang=xx'])assert.equal((await fetch(base+suffix)).status,400);
     assert.equal((await fetch(base,{method:'POST'})).status,405);

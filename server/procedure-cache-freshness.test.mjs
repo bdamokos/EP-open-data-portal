@@ -39,7 +39,7 @@ for(const [name,stale,ambiguous] of [['fresh topics',false,false],['stale topics
   assert.equal(result.topicState,ambiguous?'ambiguous':'mapped');
   if(ambiguous)assert.deepEqual(result.topics,[]);
   else assert(result.topics.length>0);
-  for(const pathname of ['/api/poc/reference-summary','/api/poc/insights/procedure-context']) {
+  for(const pathname of ['/api/reference-summary','/api/insights/procedure-context']) {
     const policy=apiCachePolicy({method:'GET',headers:{}},new URL(pathname,'https://example.test'),result,{now});
     if(stale)assert.equal(policy.cdnCacheControl,'no-store');
     else assert.match(policy.cdnCacheControl,/max-age=21600/);

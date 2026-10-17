@@ -29,7 +29,7 @@ For persistent data, mount a writable cache directory at `/data/cache` and an in
 
 ## Member voting API
 
-`GET /api/poc/member-votes/{personId}` projects a positive Open Data person ID over one held plenary `sitting=MTG-PL-YYYY-MM-DD` or Monday `week=YYYY-MM-DD` (`week=latest` by default). Optional parameters are `lang`, `limit` (1–100, default 25), `offset` (0–10000), exact `decision`, and `snapshot`. Unknown, duplicate and invalid parameters return 400. Exported response types live in `src/MemberVotesTypes.ts`; this endpoint does not depend on the activity index or expose a frontend view.
+`GET /api/member-votes/{personId}` projects a positive Open Data person ID over one held plenary `sitting=MTG-PL-YYYY-MM-DD` or Monday `week=YYYY-MM-DD` (`week=latest` by default). Optional parameters are `lang`, `limit` (1–100, default 25), `offset` (0–10000), exact `decision`, and `snapshot`. Unknown, duplicate and invalid parameters return 400. Exported response types live in `src/MemberVotesTypes.ts`; this endpoint does not depend on the activity index or expose a frontend view.
 
 The response resolves a concrete `period`, supplies a `snapshotId`, and paginates all observed decisions by date descending, then exact ID. `observedTotal` describes that retrieved snapshot, including non-named and non-conducted observations; it is not a term total or participation denominator. Pin subsequent pages with `snapshot`; selection by `decision` searches the full pinned snapshot independently of the visible page. A retained `week=latest&snapshot=…` resolves its original week without looking up today's latest week. Evicted, expired or mismatched snapshots return 409. Snapshots are shared across members and languages, retained for at most ten minutes, with an eight-entry/32 MiB memory limit.
 
@@ -43,11 +43,11 @@ Run the checks in [Contributing](../CONTRIBUTING.md). Verify the directory, a pr
 
 Local test examples intentionally omit parts of the archive, portraits and demographics. Keep fixture limits separate from live counts. Test external media through the official public player after an explicit Play, including the requested language and actual decoded audio.
 
-The published application API uses `/api/poc/`. This transport namespace is a compatibility contract with the gateway and clients, independent of application file and component names.
+The application API uses flat routes under `/api/`, such as `/api/directory` and `/api/profile/{id}`. The former `/api/poc/` routes are not served. Deploy this route contract together with the gateway’s bounded route admission and verify the frontend after the coordinated switch.
 
 ## Motion amendment API
 
-`GET /api/poc/motion-amendments/{id}` reads the accepted index for one exact term-10 `B-10-YYYY-NNNN` or `RC-10-YYYY-NNNN` identifier, allowing four to six final digits (`server/motion-amendments.mjs`, `src/MotionAmendmentsTypes.ts`). It never fetches upstream sources, queues work or writes data. The hidden amendment catalogue remains hidden.
+`GET /api/motion-amendments/{id}` reads the accepted index for one exact term-10 `B-10-YYYY-NNNN` or `RC-10-YYYY-NNNN` identifier, allowing four to six final digits (`server/motion-amendments.mjs`, `src/MotionAmendmentsTypes.ts`). It never fetches upstream sources, queues work or writes data. The hidden amendment catalogue remains hidden.
 
 Query parameters are `member` (positive Open Data person ID), `scope=all|member` (default `all`), `lang` (default `en`), `offset` (default `0`, maximum `1000000`) and `limit` (default `20`, maximum `50`). Member scope requires a valid member. Unsupported or repeated parameters return HTTP 400. All scope with a member annotates each checked aggregate and variant match without filtering out other proposers; member scope uses the same checked, dated author matching. `total` counts the selected indexed scope; `totals` also gives all indexed rows and member matches.
 

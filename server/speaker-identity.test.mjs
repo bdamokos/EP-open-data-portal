@@ -111,8 +111,8 @@ test('an aborted identity budget marks skipped bounded profiles as temporary fai
     const skipped=result[2];
     assert.equal(skipped.name,people[2].name);
     for(const [route,payload] of [
-      ['/api/poc/speech/test',{date:'2026-09-01',xml:'<speech>Retained text</speech>',speakers:[skipped]}],
-      ['/api/poc/speech-context/test',{debates:[{speaker:skipped}]}],
+      ['/api/speech/test',{date:'2026-09-01',xml:'<speech>Retained text</speech>',speakers:[skipped]}],
+      ['/api/speech-context/test',{debates:[{speaker:skipped}]}],
     ])assert.equal(apiCachePolicy({method:'GET',headers:{}},new URL(route,'https://example.test'),payload).cdnCacheControl,'no-store');
   }
 });
@@ -146,7 +146,7 @@ test('an established speech retains expired empty ODP profile evidence during re
       };
       const {odpSpeech}=await import(${JSON.stringify(new URL('./odp.mjs',import.meta.url).href)});
       const {apiCachePolicy}=await import(${JSON.stringify(new URL('./response-cache.mjs',import.meta.url).href)});
-      const readPolicy=value=>apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/poc/speech/'+${JSON.stringify(id)}),value);
+      const readPolicy=value=>apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/speech/'+${JSON.stringify(id)}),value);
       const during=await odpSpeech(${JSON.stringify(id)},'en');
       const duringPolicy=readPolicy(during);
       await new Promise(resolve=>setImmediate(resolve));

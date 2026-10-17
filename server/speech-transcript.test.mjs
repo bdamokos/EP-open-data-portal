@@ -41,7 +41,7 @@ test('corpus transcript reads retain XML, exact keys, languages and provenance w
   let upstream=0;
   t.mock.method(globalThis,'fetch',(url,options)=>{if(!String(url).startsWith(base)){upstream++;throw new Error('Upstream forbidden');}return originalFetch(url,options);});
   try {
-    const get=(language,suffix='')=>fetch(`${base}/api/poc/speech-transcript/${id}?lang=${language}${suffix}`);
+    const get=(language,suffix='')=>fetch(`${base}/api/speech-transcript/${id}?lang=${language}${suffix}`);
     const response=await get('de'),result=await response.json();
     assert.equal(response.status,200);assert.equal(result.xml,xml);
     assert.equal(result.sourceFragmentKey,'mul');assert.equal(result.textLanguage,'de');assert.equal(result.translationType,'original');
@@ -60,7 +60,7 @@ test('corpus transcript reads retain XML, exact keys, languages and provenance w
     assert.equal(retained.activity.recorded_in_a_realization_of[0]['api:xmlFragment'],undefined);
     await assert.rejects(odp('/meps/999999987',{}, {cachedOnly:true}),error=>error.code==='odp_cache_miss');
     assert.deepEqual(await (await get('fr')).json(),{id,available:false},'a missing language remains a miss');
-    assert.deepEqual(await (await fetch(`${base}/api/poc/speech-transcript/${id}9?lang=en`)).json(),{id:id+'9',available:false});
+    assert.deepEqual(await (await fetch(`${base}/api/speech-transcript/${id}9?lang=en`)).json(),{id:id+'9',available:false});
     assert.equal((await get('xx')).status,400);assert.equal((await get('en','&lang=fr')).status,400);
     assert.equal((await get('en','&url=https://example.com')).status,400);
     const searchReader=new CorpusReader(directory);

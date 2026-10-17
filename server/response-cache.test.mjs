@@ -10,40 +10,61 @@ const policy = (path, value = {}, options = {}) => apiCachePolicy({...request, .
 const seconds = value => Number(value.cdnCacheControl.match(/max-age=(\d+)/)?.[1]);
 
 test('ordinary public reads use six hours and recent lists one hour without changing browser freshness', () => {
-  for (const path of ['/api/poc/directory', '/api/poc/profile/43?lang=hu', '/api/poc/insights/questions?lang=en', '/api/poc/corpus/search?lang=hu&q=water', '/api/poc/amendments', '/api/poc/outside/directory']) {
+  for (const path of ['/api/directory', '/api/profile/43?lang=hu', '/api/insights/questions?lang=en', '/api/corpus/search?lang=hu&q=water', '/api/amendments', '/api/outside/directory']) {
     const value = {coverage: {complete: false, authoritativeComplete: false}, fetchedAt: '2026-10-16T00:00:00Z'};
     assert.equal(seconds(policy(path, value)), 21600, path);
     assert.equal(policy(path, value).cacheControl, 'public, max-age=0');
     assert.match(policy(path, value).cdnCacheControl, /stale-if-error=0/);
     assert.equal(value.coverage.complete, false);
   }
-  for (const path of ['/api/poc/activities/43', '/api/poc/latest-activities/43', '/api/poc/speeches/43?offset=20']) assert.equal(seconds(policy(path)), 3600, path);
-  assert.equal(seconds(policy('/api/poc/profile/43', {}, {method: 'HEAD'})), 21600);
+  for (const path of ['/api/activities/43', '/api/latest-activities/43', '/api/speeches/43?offset=20']) assert.equal(seconds(policy(path)), 3600, path);
+  assert.equal(seconds(policy('/api/profile/43', {}, {method: 'HEAD'})), 21600);
 });
 
 test('only established positive speech and document reads use a day; unanswered questions remain mutable', () => {
   const speech = {date: '2026-09-01', xml: '<speech>Retained text</speech>', video: {available: false}, textCache: {stale: false, refreshError: null}};
-  assert.equal(seconds(policy('/api/poc/speech/MTG-PL-2026-09-01-INT-1', speech)), 86400);
-  assert.equal(seconds(policy('/api/poc/speech/MTG-PL-2026-10-16-INT-1', {...speech, date: '2026-10-16'})), 21600);
-  assert.equal(policy('/api/poc/speech/MTG-PL-2026-09-01-INT-1', {...speech, xml: null}).cacheControl, 'no-store');
-  assert.equal(seconds(policy('/api/poc/document/E-10-2026-000001', {date: '2026-09-01', answers: [], selectedText: {status: 'available'}})), 21600);
-  assert.equal(seconds(policy('/api/poc/document/E-10-2026-000001', {date: '2026-09-01', answers: [{id: 'E-10-2026-000001-ASW'}], selectedText: {status: 'available'}})), 86400);
-  assert.equal(seconds(policy('/api/poc/document/B-10-2026-0001', {date: '2026-09-01', selectedText: {status: 'available'}})), 86400);
-  assert.equal(seconds(policy('/api/poc/corpus/text?source-id=S&source-key=hu', {date: '2026-09-01', body: 'Text'})), 86400);
-  for (const date of [null, '2026-02-30', '2026-12-01']) assert.equal(seconds(policy('/api/poc/document/B-10-2026-0001', {date})), 21600);
+  assert.equal(seconds(policy('/api/speech/MTG-PL-2026-09-01-INT-1', speech)), 86400);
+  assert.equal(seconds(policy('/api/speech/MTG-PL-2026-10-16-INT-1', {...speech, date: '2026-10-16'})), 21600);
+  assert.equal(policy('/api/speech/MTG-PL-2026-09-01-INT-1', {...speech, xml: null}).cacheControl, 'no-store');
+  assert.equal(seconds(policy('/api/document/E-10-2026-000001', {date: '2026-09-01', answers: [], selectedText: {status: 'available'}})), 21600);
+  assert.equal(seconds(policy('/api/document/E-10-2026-000001', {date: '2026-09-01', answers: [{id: 'E-10-2026-000001-ASW'}], selectedText: {status: 'available'}})), 86400);
+  assert.equal(seconds(policy('/api/document/B-10-2026-0001', {date: '2026-09-01', selectedText: {status: 'available'}})), 86400);
+  assert.equal(seconds(policy('/api/corpus/text?source-id=S&source-key=hu', {date: '2026-09-01', body: 'Text'})), 86400);
+  for (const date of [null, '2026-02-30', '2026-12-01']) assert.equal(seconds(policy('/api/document/B-10-2026-0001', {date})), 21600);
 });
 
 test('operational, stateful, unknown and non-read routes fail closed', () => {
-  for (const path of ['/healthz', '/api/healthz', '/api/poc/activity-index/status', '/api/poc/corpus/status', '/api/poc/amendments/failures', '/api/poc/speech-statistics/43?page=0', '/api/poc/insights/speech-cloud?page=0', '/api/poc/insights/topic-trends?page=0', '/api/poc/new-resource', '/api/poc/profile/43/extra', '/portal/api/session']) assert.equal(policy(path).cdnCacheControl, 'no-store', path);
-  for (const method of ['POST', 'OPTIONS', 'PUT']) assert.equal(policy('/api/poc/corpus/search', {}, {method}).cacheControl, 'no-store');
-  assert.equal(policy('/api/poc/profile/43', {}, {headers: {authorization: 'test'}}).cacheControl, 'no-store');
+  for (const path of ['/healthz', '/api/healthz', '/api/activity-index/status', '/api/corpus/status', '/api/amendments/failures', '/api/speech-statistics/43?page=0', '/api/insights/speech-cloud?page=0', '/api/insights/topic-trends?page=0', '/api/new-resource', '/api/profile/43/extra', '/portal/api/session']) assert.equal(policy(path).cdnCacheControl, 'no-store', path);
+  for (const method of ['POST', 'OPTIONS', 'PUT']) assert.equal(policy('/api/corpus/search', {}, {method}).cacheControl, 'no-store');
+  assert.equal(policy('/api/profile/43', {}, {headers: {authorization: 'test'}}).cacheControl, 'no-store');
+});
+
+test('flat transport preserves the finite cache allowlist and excludes retired namespaces and new APIs', () => {
+  const paths = ['directory', 'references', 'reference-summary', 'source-record', 'amendments',
+    'profile/43', 'activities/43', 'speeches/43', 'latest-activities/43',
+    'speech/MTG-PL-2026-09-01-INT-1', 'speech-context/MTG-PL-2026-09-01-INT-1',
+    'speech-media/MTG-PL-2026-09-01-INT-1', 'document/B-10-2026-0001',
+    'motion-comparison/B-10-2026-0001', 'corpus/search', 'corpus/text',
+    'outside/directory', 'outside/43', ...['questions', 'legislation', 'saved', 'participation',
+      'speech-words', 'procedure-context', 'group-voices'].map(view => 'insights/' + view)];
+  for (const suffix of paths) {
+    const payload = {xml: '<speech>Retained text</speech>'};
+    const expected = /^(activities|speeches|latest-activities)\//.test(suffix) ? 3600 : 21600;
+    assert.equal(seconds(policy('/api/' + suffix, payload)), expected, suffix);
+    for (const prefix of ['/api/poc/', '/api/explorer/']) {
+      assert.deepEqual(policy(prefix + suffix, payload), {cacheControl: 'no-store', cdnCacheControl: 'no-store'}, prefix + suffix);
+    }
+  }
+  for (const suffix of ['motion-amendments/B-10-2026-0001', 'member-votes/43', 'speech-transcript/MTG-PL-2026-09-01-INT-1']) {
+    assert.deepEqual(policy('/api/' + suffix), {cacheControl: 'no-store', cdnCacheControl: 'no-store'}, suffix);
+  }
 });
 
 test('temporary failure and refresh states inside successful responses are never stored', () => {
   const values = [{stale: true}, {textCache: {refreshInProgress: true}}, {selectedText: {status: 'error'}}, {selectedText: {status: 'unavailable'}}, {coverage: {sourceError: true}}, {sources: [{refreshError: 'timeout'}]}, {index: {loading: true}}, {viewCache: {nextRetryAt: '2026-10-17T12:01:00Z'}}, {coverage: {gaps: [{kind: 'agenda-unavailable'}]}}, {coverage: {gaps: [{kind: 'votes-unavailable'}]}}];
-  for (const value of values) assert.equal(policy('/api/poc/document/B-10-2026-0001', value).cdnCacheControl, 'no-store', JSON.stringify(value));
-  assert.equal(policy('/api/poc/speech-media/MTG-PL-2026-09-01-INT-1', {available: false}).cacheControl, 'no-store');
-  assert.equal(seconds(policy('/api/poc/profile/43', {errors: [], error: null, sourceError: false})), 21600);
+  for (const value of values) assert.equal(policy('/api/document/B-10-2026-0001', value).cdnCacheControl, 'no-store', JSON.stringify(value));
+  assert.equal(policy('/api/speech-media/MTG-PL-2026-09-01-INT-1', {available: false}).cacheControl, 'no-store');
+  assert.equal(seconds(policy('/api/profile/43', {errors: [], error: null, sourceError: false})), 21600);
 });
 
 test('temporary identity lookup failures prevent speech caching while an absent historical office remains cacheable', async () => {
@@ -54,8 +75,8 @@ test('temporary identity lookup failures prevent speech caching while an absent 
   }});
   const read = () => resolver.enrich([{id: '43', name: 'Public Speaker'}], '2026-09-01', {chairs: ['43']});
   const cases = [
-    ['/api/poc/speech/MTG-PL-2026-09-01-INT-1', speakers => ({date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers}), 86400],
-    ['/api/poc/speech-context/MTG-PL-2026-09-01-INT-1', speakers => ({debates: [{records: [{intervention: {speaker: speakers[0]}}]}]}), 21600],
+    ['/api/speech/MTG-PL-2026-09-01-INT-1', speakers => ({date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers}), 86400],
+    ['/api/speech-context/MTG-PL-2026-09-01-INT-1', speakers => ({debates: [{records: [{intervention: {speaker: speakers[0]}}]}]}), 21600],
   ];
   const temporary = await read();
   assert.equal(temporary[0].name, 'Public Speaker', 'a failed enrichment preserves the supplied transcript name');
@@ -78,8 +99,8 @@ test('a fresh roster cannot conceal failed individual speaker profiles from spee
     return record([{id: 'person/43', identifier: '43', givenName: 'Public', familyName: 'Speaker', hasMembership: []}]);
   }});
   const cases = [
-    ['/api/poc/speech/MTG-PL-2026-09-01-INT-1', speakers => ({date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers}), 86400],
-    ['/api/poc/speech-context/MTG-PL-2026-09-01-INT-1', speakers => ({debates: [{records: [{intervention: {speaker: speakers[0]}}]}]}), 21600],
+    ['/api/speech/MTG-PL-2026-09-01-INT-1', speakers => ({date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers}), 86400],
+    ['/api/speech-context/MTG-PL-2026-09-01-INT-1', speakers => ({debates: [{records: [{intervention: {speaker: speakers[0]}}]}]}), 21600],
   ];
   for (const options of [{chairs: ['43']}, {profileIds: ['43']}]) {
     failing = true;
@@ -99,8 +120,8 @@ test('identity source freshness survives empty and mismatched profile results fo
   const person = {id: '43', name: 'Public Speaker'};
   const other = {id: 'person/44', identifier: '44', givenName: 'Other', familyName: 'Member'};
   const cases = [
-    ['/api/poc/speech/MTG-PL-2026-09-01-INT-1', speakers => ({date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers}), 86400],
-    ['/api/poc/speech-context/MTG-PL-2026-09-01-INT-1', speakers => ({debates: [{records: [{intervention: {speaker: speakers[0]}}]}]}), 21600],
+    ['/api/speech/MTG-PL-2026-09-01-INT-1', speakers => ({date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers}), 86400],
+    ['/api/speech-context/MTG-PL-2026-09-01-INT-1', speakers => ({debates: [{records: [{intervention: {speaker: speakers[0]}}]}]}), 21600],
   ];
   for (const options of [{chairs: ['43']}, {profileIds: ['43']}]) for (const data of [[], [other]]) for (const flags of [{}, {stale: true}, {refreshInProgress: true}, {refreshError: 'Public profile refresh failed'}]) {
     const resolver = new SpeakerIdentities({request: async route => ({url: 'https://data.europarl.europa.eu/api/v2' + route, fetchedAt: now, payload: {data: route === '/meps/show-current' ? [other] : data}, ...(route === '/meps/43' ? flags : {})})});
@@ -127,7 +148,7 @@ test('identity roster evidence retains refresh state even when its records are e
     assert.equal(source.stale, Boolean(flags.stale));
     assert.equal(source.refreshInProgress, Boolean(flags.refreshInProgress));
     assert.equal(source.refreshError, flags.refreshError || null);
-    const value = policy('/api/poc/speech/MTG-PL-2026-09-01-INT-1', {date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers: people});
+    const value = policy('/api/speech/MTG-PL-2026-09-01-INT-1', {date: '2026-09-01', xml: '<speech>Retained text</speech>', speakers: people});
     if (Object.keys(flags).length) assert.equal(value.cdnCacheControl, 'no-store');
     else assert.equal(seconds(value), 86400);
   }
@@ -142,14 +163,14 @@ test('document reading retains stale source state and uses the exact selected an
   const recent = await read(record);
   assert.equal(recent.date, '2026-09-01');
   assert.equal(recent.selectedDocumentDate, '2026-10-17');
-  assert.equal(seconds(policy('/api/poc/document/' + answerId, recent)), 21600);
+  assert.equal(seconds(policy('/api/document/' + answerId, recent)), 21600);
   for (const selectedDate of ['2026-09-02', null]) {
     const old = await read({...record, payload: {data: [{...work, inverse_answers_to: [{identifier: answerId, document_date: selectedDate}]}]}});
-    assert.equal(seconds(policy('/api/poc/document/' + answerId, old)), selectedDate ? 86400 : 21600);
+    assert.equal(seconds(policy('/api/document/' + answerId, old)), selectedDate ? 86400 : 21600);
   }
   const stale = await read({...record, stale: true, refreshInProgress: true, refreshError: 'Retained after timeout'});
   assert.deepEqual(stale.sourceCache, {stale: true, refreshInProgress: true, refreshError: 'Retained after timeout'});
-  assert.equal(policy('/api/poc/document/' + answerId, stale).cdnCacheControl, 'no-store');
+  assert.equal(policy('/api/document/' + answerId, stale).cdnCacheControl, 'no-store');
 });
 
 test('portrait cache expires with its retained source and never re-caches an expired image for another week', () => {
