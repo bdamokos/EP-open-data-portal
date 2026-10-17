@@ -218,7 +218,7 @@
 .insight-committee-work time {color:var(--insight-muted);font-size:14px;}
 .insight-committee-work li p {margin:5px 0;font-size:15px;}
 .insight-document-links {display:flex;gap:12px;flex-wrap:wrap;margin:10px 0;}
-.insight-error {display:flex;align-items:center;gap:15px;margin:12px 0;}
+.insight-error {display:flex;flex-wrap:wrap;align-items:center;gap:15px;margin:12px 0;}
 .insight-data-credit {color:var(--insight-muted);font-size:13px;padding:25px 0 5px;}
 @media(max-width:1250px) {.insight-demographic-grid {grid-template-columns:minmax(250px,1.5fr) minmax(160px,1fr);}.insight-gender {grid-column:1/-1;}.insight-gender ul {display:flex;gap:30px;}.insight-gender li {gap:12px;}.insight-gender-strip {max-width:420px;}.insight-age-histogram {max-width:440px;}}
 @media(max-width:1050px) {.insight-question-grid {grid-template-columns:1fr;}.insight-topic-picker {position:static;}.insight-topic-picker .insight-topics {grid-template-columns:repeat(2,minmax(0,1fr));}.insight-vote-group-charts {gap:16px;}}
