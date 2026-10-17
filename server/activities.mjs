@@ -124,7 +124,7 @@ export function documentSummary(work, person) {
     answers: array(work.inverse_answers_to).filter(a => typeof a === "object").map(a => ({ id: a.identifier || tail(a.id), date: a.document_date || null, titles: a.title_dcterms || {}, files: files(a) })),
   };
 }
-export async function activityDocument(id, person, language) {
+export async function activityDocument(id, person, language, {request=odp,readText=documentText}={}) {
   const endpoint = documentEndpoint(id);
   if (!endpoint) throw new HttpError(400, "unsupported_document", "This publication has no supported document-detail API. Open it on Parliament’s website.");
   let record, store;
@@ -134,7 +134,7 @@ export async function activityDocument(id, person, language) {
     const saved=store.source(store.status().servingGeneration,endpoint);
     if(saved)record={payload:{data:[saved.work]},fetchedAt:Date.parse(saved.fetchedAt)};
   }
-  record ||= await odp(endpoint,{}, {staleWhileRevalidate:true});
+  record ||= await request(endpoint,{}, {staleWhileRevalidate:true});
   if (!record.payload.data[0]) throw new HttpError(404, "document_unavailable", "This document is unavailable in the Open Data API.");
   const work=record.payload.data[0];
   const authorIds=documentAuthorIdentities(work);
@@ -145,7 +145,7 @@ export async function activityDocument(id, person, language) {
   });
   const coAuthorData=documentCoAuthors(work,{members,selectedDocumentId:id,documentApiUrl:'https://data.europarl.europa.eu/api/v2'+endpoint,documentFetchedAt:new Date(record.fetchedAt).toISOString(),rosterFetchedAt:store?.get('rosterFetchedAt') || null});
   const selected=id.endsWith('-ASW')?array(work.inverse_answers_to).find(a=>(a.identifier || tail(a.id))===id):work;
-  const selectedText=selected?await documentText(selected,language):{status:'unavailable',paragraphs:[],textLanguage:null,requestedLanguage:language,availableTextLanguages:[],translationType:null,sourceFormat:null,sourceUrl:null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:'The requested answer is not supplied by this question record.',extraction:null};
+  const selectedText=selected?await readText(selected,language):{status:'unavailable',paragraphs:[],textLanguage:null,requestedLanguage:language,availableTextLanguages:[],translationType:null,sourceFormat:null,sourceUrl:null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:'The requested answer is not supplied by this question record.',extraction:null};
   const summary=documentSummary(work,person);
-  return { ...summary, ...coAuthorData,relatedQuestion:id.endsWith('-ASW')?{id:summary.id,titles:summary.titles,date:summary.date}:null, selectedDocumentId:id,selectedText,requestedLanguage: language, fetchedAt: new Date(record.fetchedAt).toISOString() };
+  return { ...summary, ...coAuthorData,relatedQuestion:id.endsWith('-ASW')?{id:summary.id,titles:summary.titles,date:summary.date}:null, selectedDocumentId:id,selectedDocumentDate:selected?.document_date||null,selectedText,requestedLanguage: language, fetchedAt: new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null} };
 }

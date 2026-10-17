@@ -4,6 +4,7 @@ import {requestSignal,waitForRequest} from './request-budget.mjs';
 export {nameScript} from '../src/speakerNames.mjs';
 
 const personId=value=>String(value?.id||value||'').match(/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?person\/([1-9]\d*)$/)?.[1];
+const identitySource=record=>({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null});
 export function personNameVariants(person) {
   return [['givenName','familyName'],['officialGivenName','officialFamilyName']].flatMap(fields=>{
     const value=fields.map(key=>typeof person?.[key]==='string'?person[key].trim():'').filter(Boolean).join(' ');
@@ -28,7 +29,7 @@ export class SpeakerIdentities {
   constructor({request}={}) {this.request=request;}
   async enrich(people,day,{chairs=[],profileIds=[]}={}) {
     if(!people.length)return [];
-    const sources=[],byId=new Map(),issues=[];
+    const sources=[],byId=new Map(),issues=[],profileFailures=new Set();
     const supplied=new Map();
     for(const person of people) {
       const variants=supplied.get(person.id)||new Map();
@@ -40,19 +41,24 @@ export class SpeakerIdentities {
     // Reuse the directory's cached roster request; never fetch a profile per debate speaker.
     try {
       const record=await waitForRequest(this.request('/meps/show-current',{limit:1000,offset:0},{daily:true,staleWhileRevalidate:true,signal}),signal);
-      sources.push({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale)});
+      sources.push(identitySource(record));
       for(const person of record.payload.data||[])if(personId(person)===String(person.identifier))byId.set(String(person.identifier),person);
     }catch {issues.push('person-names-unavailable');}
     const chairIds=[...new Set([...chairs,...profileIds.filter(id=>!byId.has(id))])].filter(id=>people.some(person=>person.id===id));
     // A selected debate has few chairs. Keep exceptional sources bounded and explicit.
+    const attempted=new Set();
     for(let offset=0;offset<Math.min(chairIds.length,8)&&!signal.aborted;offset+=2)await Promise.all(chairIds.slice(offset,Math.min(offset+2,8)).map(async id=>{
+      attempted.add(id);
       try {
         const record=await waitForRequest(this.request('/meps/'+id,{}, {ttl:7*86400000,staleWhileRevalidate:true,signal}),signal);
+        sources.push(identitySource(record));
         const person=record.payload.data?.find(p=>personId(p)===id&&String(p.identifier)===id);
         if(!person)return;
-        byId.set(id,person);sources.push({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale)});
-      }catch { /* A failed office lookup cannot hide the supplied transcript. */ }
+        byId.set(id,person);
+      }catch {profileFailures.add(id); /* A failed office lookup cannot hide the supplied transcript. */ }
     }));
+    // A timed-out budget can skip a later batch; that is not a confirmed absence.
+    for(const id of chairIds.slice(0,8))if(!attempted.has(id))profileFailures.add(id);
     return people.map(person=>{
       const profile=byId.get(person.id),variants=personNameVariants(profile);
       const sourceVariants=[...supplied.get(person.id).values()];
@@ -60,7 +66,7 @@ export class SpeakerIdentities {
       return {...person,name,nameSource:variants.length?'ODP person record':person.nameSource,
         nameVariants:[...variants,...sourceVariants],
         ...(chairs.includes(person.id)?{sittingRole:'chair',office:parliamentOffice(profile,day)}:{}),
-        identitySources:sources,identityIssues:[...issues,...(chairs.includes(person.id)&&!parliamentOffice(profile,day)?['parliament-office-unavailable']:[])]};
+        identitySources:sources,identityIssues:[...issues,...(profileFailures.has(person.id)?['person-profile-unavailable']:[]),...(chairs.includes(person.id)&&!parliamentOffice(profile,day)?['parliament-office-unavailable']:[])]};
     });
   }
 }
