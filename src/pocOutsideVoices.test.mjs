@@ -251,14 +251,15 @@ test('a special timeline marker reveals its exact agenda item and keeps every cl
   const scrolls=[];
   window.HTMLElement.prototype.scrollTo=function(options){scrolls.push({element:this,options});};
   window.HTMLElement.prototype.getBoundingClientRect=function(){return {top:this.matches('h3')?900:100};};
+  const style=document.createElement('style');style.textContent='.ov-drawer h3{scroll-margin-top:12px}';document.head.append(style);
   const mark=container.querySelector('.ov-special');
   const open=()=>act(async()=>{mark.focus();mark.click();});
   await open();
   const panel=container.querySelector('.ov-drawer'),heading=panel.querySelector(`[data-ov-item="${special}"] h3`);
   assert(document.activeElement===heading,'arrival focuses the special agenda, rather than the first debate');
   assert.deepEqual([...panel.querySelectorAll('.ov-day')].map(node=>node.dataset.ovDate),[first,last]);
-  assert.equal(panel.querySelector('header small').textContent,'29 Apr 2026');
-  assert.deepEqual(scrolls.map(s=>s.options),[{top:800,behavior:'instant'}]);
+  assert.equal(panel.querySelector('header small').textContent,'Selected: 29 Apr 2026 · 2 sitting days');
+  assert.deepEqual(scrolls.map(s=>s.options),[{top:788,behavior:'instant'}]);
   assert(scrolls.every(s=>s.element===panel.querySelector('.ov-drawer-content')),'only the drawer body scrolls');
   await click('Close');
   assert(document.activeElement===mark,'closing restores the initiating marker');

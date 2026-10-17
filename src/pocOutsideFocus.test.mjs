@@ -129,6 +129,26 @@ test('opening the current speaker from its drawer consumes focus intent before a
   assert.equal(h.container.querySelector('.ov-person-heading h2'),dataHeading);
 });
 
+test('a retained drawer keeps refresh progress and retry visible above its scrollable appearances',async t=>{
+  const h=await harness(t),polls=new Set(),setInterval=globalThis.setInterval,clearInterval=globalThis.clearInterval;
+  t.mock.method(globalThis,'setInterval',(callback,delay,...args)=>{if(delay!==15000)return setInterval(callback,delay,...args);const timer={run:()=>callback(...args)};polls.add(timer);return timer;});
+  t.mock.method(globalThis,'clearInterval',timer=>{if(!polls.delete(timer))clearInterval(timer);});
+  await h.click(h.container.querySelector('[data-ov-focus="mark:42:'+day+'"]'));
+  await h.finish('42',false,{coverage:{...coverage,complete:false,pending:1}});
+  const heading=document.activeElement,content=h.container.querySelector('.ov-drawer-content');
+  h.focusScrollEvents.length=0;
+  await act(async()=>{assert.equal(polls.size,1);[...polls][0].run();});
+  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,350));});
+  const loading=h.container.querySelector('.ov-drawer-status [role="status"]');assert(loading);
+  assert(!content.contains(loading),'refresh progress remains outside the scrolled appearances');
+  await h.finish('42',true);
+  const error=h.container.querySelector('.ov-drawer-status [role="alert"]');assert(error?.querySelector('button'));
+  assert(!content.contains(error),'the retained-data retry stays above the scroll area');
+  assert(document.activeElement===heading,'a refresh failure does not reclaim focus');
+  assert(content.contains(heading),'the selected appearance remains available after refresh failure');
+  assert.equal(h.focusScrollEvents.length,0,'status changes do not repeat the one-time reveal');
+});
+
 
 test('returning to an exact speaker resets the established scroll first, then focuses and reveals that control once',async t=>{
   const h=await harness(t);await h.click('Fixture speaker 43');
