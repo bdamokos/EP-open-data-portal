@@ -35,6 +35,7 @@ async function harness(t,query='',delay=false) {
     if(route?.startsWith('speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(route==='insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
+    if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
     if(route?.startsWith('speech/'))return Response.json({id:speechId,xml:null,speakers:[],availableTextLanguages:['en'],textLanguage:'en'});
     // Main-view error states still have a stable destination before any data.
     if(route?.startsWith('insights/')||route?.startsWith('outside/'))return Response.json({error:{message:'Local fixture unavailable.'}},{status:503});

@@ -29,7 +29,7 @@ async function harness(t,query,respond=fixture) {
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let root,vite;
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  t.mock.method(globalThis,'fetch',async input=>Response.json(await respond(new URL(input,location.href))));
+  t.mock.method(globalThis,'fetch',async(input,options)=>Response.json(await respond(new URL(input,location.href),options)));
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
@@ -51,6 +51,86 @@ test('Follow and Save names include their visible state and identify compact con
       if(index<2)await h.click(button);
     }
   }
+});
+
+test('MEP speech loads before hidden debate preload, then opening the sequence warms nearby transcripts',async t=>{
+  const id='MTG-PL-2026-03-25-OTH-2017069380111',other=id+'2',requests=[];
+  let finishSpeech,finishContext;
+  const item={id:'speech:'+id,sourceId:id,recordKind:'speech',date:'2026-03-25',titles:{en:'Test debate'},speechKind:'PLENARY_DEBATE_SPEECH',originalLanguages:['en']};
+  const person={id:'257043',name:'Mika Aaltola'};
+  const row=sourceId=>({id:sourceId,start:null,intervention:{type:'speech',speaker:person,onBehalfOf:[]}});
+  const h=await harness(t,`?poc=1&member=257043&speech=${id}`,url=>{
+    const route=url.pathname.split('/poc/')[1];requests.push(route);
+    if(route.startsWith('latest-activities/'))return {...activities,items:[item],indexedTotal:1};
+    if(route===`speech/${id}`)return new Promise(resolve=>finishSpeech=()=>resolve({id,xml:'<speech><p>Main transcript</p></speech>',speakers:[person],availableTextLanguages:['en'],textLanguage:'en'}));
+    if(route.startsWith('speech-context/'))return new Promise(resolve=>finishContext=()=>resolve({speechId:id,debates:[{id:'debate',titles:{en:'Debate'},records:[row(id),row(other)],exchanges:[],coverage:{complete:true}}]}));
+    if(route===`speech/${other}`)return {id:other,xml:'<speech><p>Preloaded contribution</p></speech>',textLanguage:'en'};
+    return fixture(url);
+  });
+  globalThis.DOMParser=class extends h.window.DOMParser {
+    parseFromString(...args) {
+      const parsed=super.parseFromString(...args),query=parsed.getElementsByTagNameNS.bind(parsed);
+      parsed.getElementsByTagNameNS=(namespace,name)=>namespace==='*'?parsed.getElementsByTagName(name):query(namespace,name);
+      return parsed;
+    }
+  };
+  const {default:ExplorerApp}=await h.load('/src/App.tsx');await h.render(createElement(ExplorerApp));
+  assert(finishSpeech);assert(!requests.some(route=>route.startsWith('speech-context/')));
+  await act(async()=>finishSpeech());
+  assert(h.container.textContent.includes('Main transcript'),'pending context does not block the transcript');
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
+  assert(finishContext);assert.equal(h.container.querySelector('.intervention-context-toggle').getAttribute('aria-expanded'),'false');
+  await act(async()=>finishContext());
+  assert(!requests.includes(`speech/${other}`),'closed sequences do not preload contributions');
+  await h.click(h.container.querySelector('.intervention-context-toggle'));
+  assert(h.container.querySelector('.intervention-sequence'));assert(!h.container.textContent.includes('Loading debate sequence'));
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
+  assert.equal(requests.filter(route=>route===`speech/${other}`).length,1);
+  await h.click(h.container.querySelectorAll('.intervention-read')[1]);
+  assert(h.container.textContent.includes('Preloaded contribution'));assert.equal(requests.filter(route=>route===`speech/${other}`).length,1);
+  assert.equal(requests.filter(route=>route.startsWith('speech-context/')).length,1);
+});
+
+test('sequence preloads are bounded, skip procedural rows, stop on close and follow the transcript language',async t=>{
+  const prefix='MTG-PL-2026-03-25-OTH-',id=prefix+'5',reads=[];let finish;
+  const records=Array.from({length:25},(_,n)=>({id:prefix+n,start:null,intervention:{type:n===6?'procedure':'speech',speaker:{id:String(n),name:'Speaker '+n},onBehalfOf:[]}}));
+  const h=await harness(t,'',(url,options)=>{
+    if(url.pathname.includes('/speech-context/'))return {speechId:id,debates:[{id:'debate',titles:{en:'Debate'},records,exchanges:[],coverage:{complete:false,available:25,expected:26}}]};
+    assert(url.pathname.includes('/speech/'));assert.equal(options.priority,'low');reads.push(url);
+    if(url.searchParams.get('lang')==='en')return new Promise(resolve=>finish=()=>resolve({id:url.pathname.split('/').at(-1)}));
+    return {id:url.pathname.split('/').at(-1)};
+  });
+  const {SpeechContextPanel}=await h.load('/src/SpeechInterventions.tsx');
+  const render=transcriptLanguage=>h.render(createElement(SpeechContextPanel,{id,language:'en',transcriptLanguage}));
+  await render('en');assert.equal(reads.length,0);
+  await h.click(h.container.querySelector('.intervention-context-toggle'));
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
+  assert.equal(reads.length,1);assert(reads[0].pathname.endsWith(prefix+'4'),'nearest contribution is warmed first');
+  await h.click(h.container.querySelector('.intervention-context-toggle'));
+  await act(async()=>finish());await act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
+  assert.equal(reads.length,1,'closing stops the rest of the batch');
+  await render('fr');await h.click(h.container.querySelector('.intervention-context-toggle'));
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,2300)));
+  assert.equal(reads.length,13);assert(reads.slice(1).every(url=>url.searchParams.get('lang')==='fr'));
+  assert(reads.every(url=>!url.pathname.endsWith(prefix+'5')&&!url.pathname.endsWith(prefix+'6')));
+  assert(h.container.textContent.includes('25 of 26 debate records available'),'preloading preserves incomplete coverage');
+});
+
+test('rapid speech navigation shares the speculative queue and cancels obsolete debate preloads',async t=>{
+  const prefix='MTG-PL-2026-03-25-OTH-',pending=[];
+  const h=await harness(t,'',url=>{
+    assert(url.pathname.includes('/speech-context/'));
+    return new Promise(resolve=>pending.push({id:url.pathname.split('/').at(-1),finish:()=>resolve({debates:[],unavailable:true})}));
+  });
+  t.after(()=>pending.forEach(request=>request.finish()));
+  const {SpeechContextPanel}=await h.load('/src/SpeechInterventions.tsx');
+  const render=n=>h.render(createElement(SpeechContextPanel,{key:n,id:prefix+n,language:'en'}));
+  const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
+  await render(1);await settle();assert.equal(pending.length,1);
+  await render(2);await settle();assert.equal(pending.length,1,'a pending hidden debate owns the single background slot');
+  await render(3);await act(async()=>pending[0].finish());await settle();
+  assert.deepEqual(pending.map(request=>request.id),[prefix+'1',prefix+'3'],'the superseded speech 2 preload never starts');
+  await act(async()=>pending[1].finish());
 });
 
 test('member deep links, module selection and restored routes keep meaningful titles without extra history',async t=>{
