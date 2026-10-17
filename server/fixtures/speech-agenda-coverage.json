@@ -1,0 +1,137 @@
+{
+  "agenda": {
+    "sourceUrl": "https://data.europarl.europa.eu/api/v2/events/MTG-PL-2026-04-28-PVCRE-ITM-12?format=application%2Fld%2Bjson",
+    "retrievedAt": "2026-10-17T16:28:32.315Z",
+    "activity": {
+      "id": "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-12",
+      "activity_id": "MTG-PL-2026-04-28-PVCRE-ITM-12",
+      "activity_date": "2026-04-28",
+      "activity_label": {
+        "mt": "12. Kwittanza 2024 (dibattitu konġunt)",
+        "it": "12. Discarico 2024 (discussione congiunta)",
+        "et": "12. 2024. aasta eelarvele heakskiidu andmine (ühine arutelu)",
+        "pl": "12. Absolutorium z wykonania budżetu za rok 2024 (łączna debata)",
+        "hr": "12. Razrješnica za 2024. (zajednička rasprava)",
+        "en": "12. Discharge 2024 (joint debate)",
+        "cs": "12. Udělení absolutoria za rok 2024 (společná rozprava)",
+        "bg": "12. Освобождаване от отговорност във връзка с изпълнението на бюджета за 2024 г. (общо разискване)",
+        "sl": "12. Razrešnice za leto 2024 (skupna razprava)",
+        "da": "12. Decharge 2024 (forhandling under ét)",
+        "hu": "12. 2024. évi mentesítés (közös vita)",
+        "el": "12. Απαλλαγή 2024 (κοινή συζήτηση)",
+        "sv": "12. Ansvarsfrihet 2024 (gemensam debatt)",
+        "de": "12. Entlastung 2024 (gemeinsame Aussprache)",
+        "ro": "12. Descărcarea de gestiune pentru 2024 (discuție comună)",
+        "pt": "12. Quitação 2024 (discussão conjunta)",
+        "nl": "12. Kwijting 2024 (gezamenlijk debat)",
+        "lt": "12. 2024 m. biudžeto įvykdymo patvirtinimas (bendros diskusijos)",
+        "lv": "12. 2024. gada budžeta izpildes apstiprināšana (kopīga apspriešana)",
+        "fi": "12. Vastuuvapaus 2024 (yhteiskeskustelu)",
+        "es": "12. Aprobación de la gestión 2024 (debate conjunto)",
+        "fr": "12. Décharge 2024 (discussion commune)",
+        "sk": "12. Absolutórium na rok 2024 (spoločná rozprava)",
+        "ga": "12. Urscaoileadh 2024 (díospóireacht chomhpháirteach)"
+      },
+      "had_activity_type": "def/ep-activities/PLENARY_DEBATE",
+      "consists_of": [
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824363",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813318",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824381",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824395",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824420",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824347",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824369",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813328",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824371",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813320",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824345",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813343",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824389",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824391",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824415",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824407",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824365",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813333",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824379",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824404",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824397",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824349",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824417",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813317",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824355",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824373",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824399",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824411",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813337",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824383",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824375",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824393",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824401",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824359",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813335",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824351",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813326",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824419",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824421",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824357",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824409",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813339",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824367",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824385",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813331",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824377",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824403",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824361",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813341",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824353",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824387",
+        "eli/dl/event/MTG-PL-2026-04-28-PVCRE-CHA-6",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824413",
+        "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824405"
+      ]
+    }
+  },
+  "reassigned": {
+    "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-04-28-OTH-2017073824421?include-output=xml_fragment&language=en&format=application%2Fld%2Bjson",
+    "retrievedAt": "2026-10-17T16:28:33.090Z",
+    "activity": {
+      "id": "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824421",
+      "activity_id": "MTG-PL-2026-04-28-OTH-2017073824421",
+      "activity_date": "2026-04-28",
+      "activity_label": {
+        "en": "Approval of the minutes of the previous sitting"
+      },
+      "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+      "had_participation": {
+        "id": "eli/dl/participation/MTG-PL-2026-04-28-OTH-2017073824421_197433",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/197433"
+        ],
+        "participation_role": "def/ep-roles/SPEAKER"
+      },
+      "inverse_consists_of": [
+        "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-12",
+        "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-13"
+      ],
+      "recorded_in_a_realization_of": [
+        {
+          "id": "eli/dl/doc/CRE-10-2026-04-28-OTH-2017073824421",
+          "type": "WorkSubdivision",
+          "is_part_of": "eli/dl/doc/CRE-10-2026-04-28-ITM-013",
+          "number": "2-0259-0000",
+          "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+          "identifier": "CRE-10-2026-04-28-OTH-2017073824421",
+          "notation_speechId": "2017073824421",
+          "numbering": 226,
+          "originalLanguage": [
+            "http://publications.europa.eu/resource/authority/language/DEU"
+          ],
+          "api:xmlFragment": {
+            "en": "<oralStatements><speech><from xml:lang=\"de-t-en-mtec\"><person refersTo=\"epdata:person/197433\">Die Präsidentin</person>.</from></speech></oralStatements>"
+          }
+        }
+      ]
+    }
+  }
+}
