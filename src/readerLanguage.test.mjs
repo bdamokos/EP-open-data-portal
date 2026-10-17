@@ -11,14 +11,15 @@ const sourceText='Exact source passage with accents: énergie, közlekedés.';
 const question=(language)=>({id:questionId,selectedDocumentId:questionId,files:[],answers:[],selectedText:{status:'available',paragraphs:['Exact source header','CONTENTS','DRAFT REPORT',sourceText],textLanguage:language,availableTextLanguages:languages,translationType:'original',sourceFormat:'DOCX',sourceUrl:'https://www.europarl.europa.eu/document.docx',notes:[{id:'1',label:'1',text:'Exact source note',links:['https://example.org/note']} ]}});
 const speech=(language)=>({id:speechId,kind:'PLENARY_DEBATE_SPEECH',start:null,end:null,speakers:[{id:'1',name:'Ágnes Élodie',role:'présidente',nameSource:'fixture'},{id:'2',name:'Other speaker',role:'Chairing the sitting',nameSource:'fixture'}],xml:'<speech><p>'+sourceText+'</p></speech>',textLanguage:language,availableTextLanguages:languages,translationType:'machine',websiteUrl:'https://www.europarl.europa.eu/transcript.html'});
 
-test('retained English text keeps metadata-discovered languages available through the detail fallback',async t=>{
+test('ready corpus metadata keeps source-discovered languages available through the detail fallback',async t=>{
   const h=await harness(t,(route,params)=>route.startsWith('speech-transcript/')?
-    params.get('lang')==='en'?{id:speechId,available:true,xml:'<speech><p>Stored English variant.</p></speech>',textLanguage:'en',translationType:'original',availableTextLanguages:['en']}:{id:speechId,available:false}:
+    params.get('lang')==='en'?{id:speechId,available:true,xml:'<speech><p>Stored English variant.</p></speech>',textLanguage:'en',translationType:'original',availableTextLanguages:['en'],metadata:{...speech('en'),xml:null,availableTextLanguages:['en','fr','de']}}:{id:speechId,available:false}:
     route.startsWith('speech/')?{...speech(params.get('lang')),availableTextLanguages:['en','fr','de']}:undefined);
   await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}),'en');
   const picker=h.container.querySelector('.insight-reader-heading select');assert(picker);
   assert.deepEqual([...picker.options].map(option=>option.value),['en','fr','de']);
   assert.equal(h.container.querySelector('.insight-reader-text').textContent,'Stored English variant.');
+  assert(!h.requests.includes(`speech/${speechId}?lang=en`),'complete retained metadata avoids the detail request');
   await h.change(picker,'fr');
   const text=h.container.querySelector('.insight-reader-text');assert.equal(text.lang,'fr');
   assert.equal(text.textContent,sourceText);
