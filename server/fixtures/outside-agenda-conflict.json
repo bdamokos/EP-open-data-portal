@@ -1,0 +1,337 @@
+{
+  "contributions": [
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-04-28-OTH-2017073813337?include-output=xml_fragment&language=en&format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-17T14:29:53.233Z",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813337",
+        "type": "Activity",
+        "activity_date": "2026-04-28",
+        "activity_end_date": "2026-04-28T14:16:44.271+02:00",
+        "activity_id": "MTG-PL-2026-04-28-OTH-2017073813337",
+        "activity_label": {
+          "en": "Discharge 2024 (joint debate)"
+        },
+        "activity_start_date": "2026-04-28T14:11:10.182+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-04-28-OTH-2017073813337_238669",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/238669"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-04-28-OTH-2017073813337",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-04-28-ITM-012",
+            "number": "2-0213-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-04-28-OTH-2017073813337",
+            "notation_speechId": "2017073813337",
+            "numbering": 181,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/ENG"
+            ],
+            "api:xmlFragment": {
+              "en": "<oralStatements><speech endTime=\"2026-04-28T14:16:44.271\" startTime=\"2026-04-28T14:11:10.182\" xml:lang=\"en\"><from xml:lang=\"en\" xml:space=\"preserve\"><person refersTo=\"epdata:person/238669\">Tony Murphy</person>, <role refersTo=\"\">President of the Court of Auditors</role>.</from></speech></oralStatements>"
+            }
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-11",
+          "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-12"
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-04-28-OTH-2017073824401?include-output=xml_fragment&language=en&format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-17T14:31:23.794Z",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073824401",
+        "type": "Activity",
+        "activity_date": "2026-04-28",
+        "activity_end_date": "2026-04-28T15:03:51.302+02:00",
+        "activity_id": "MTG-PL-2026-04-28-OTH-2017073824401",
+        "activity_label": {
+          "en": "Discharge 2024 (joint debate)"
+        },
+        "activity_start_date": "2026-04-28T15:01:11.667+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-04-28-OTH-2017073824401_238669",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/238669"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-04-28-OTH-2017073824401",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-04-28-ITM-012",
+            "number": "2-0248-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-04-28-OTH-2017073824401",
+            "notation_speechId": "2017073824401",
+            "numbering": 216,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/ENG"
+            ],
+            "api:xmlFragment": {
+              "en": "<oralStatements><speech endTime=\"2026-04-28T15:03:51.302\" startTime=\"2026-04-28T15:01:11.667\" xml:lang=\"en\"><from xml:lang=\"en\" xml:space=\"preserve\"><person refersTo=\"epdata:person/238669\">Tony Murphy</person>, <role refersTo=\"\">President of the Court of Auditors</role>.</from></speech></oralStatements>"
+            }
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-11",
+          "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-12"
+        ]
+      }
+    }
+  ],
+  "agendas": [
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/events/MTG-PL-2026-04-28-PVCRE-ITM-11?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-17T14:30:01.446Z",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-11",
+        "activity_id": "MTG-PL-2026-04-28-PVCRE-ITM-11",
+        "activity_date": "2026-04-28",
+        "activity_label": {
+          "en": "11. Resumption of the sitting"
+        },
+        "had_activity_type": "def/ep-activities/PLENARY_ACTIVITY",
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-04-28-ITM-011",
+          "eli/dl/doc/CRE-10-2026-04-28-ITM-011"
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/events/MTG-PL-2026-04-28-PVCRE-ITM-12?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-17T14:30:01.589Z",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-12",
+        "activity_id": "MTG-PL-2026-04-28-PVCRE-ITM-12",
+        "activity_date": "2026-04-28",
+        "activity_label": {
+          "en": "12. Discharge 2024 (joint debate)"
+        },
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE",
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-04-28-ITM-012",
+          "eli/dl/doc/CRE-10-2026-04-28-ITM-012"
+        ]
+      }
+    }
+  ],
+  "controls": [
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-04-28-OTH-2017073813278?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-17T14:33:31.723Z",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813278",
+        "type": "Activity",
+        "activity_date": "2026-04-28",
+        "activity_id": "MTG-PL-2026-04-28-OTH-2017073813278",
+        "activity_label": {
+          "en": "Resumption of the sitting"
+        },
+        "had_activity_type": "def/ep-activities/PROCEEDING_ACTIVITY",
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-04-28-OTH-2017073813278",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-04-28-ITM-007",
+            "number": "2-0144-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-04-28-OTH-2017073813278",
+            "notation_speechId": "2017073813278",
+            "numbering": 138,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/ITA"
+            ]
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-7"
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2025-03-11-OTH-2017017656713?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-17T14:33:31.286Z",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2025-03-11-OTH-2017017656713",
+        "type": "Activity",
+        "activity_date": "2025-03-11",
+        "activity_end_date": "2025-03-11T12:55:13.39+01:00",
+        "activity_id": "MTG-PL-2025-03-11-OTH-2017017656713",
+        "activity_label": {
+          "en": "Resumption of the sitting"
+        },
+        "activity_start_date": "2025-03-11T12:54:32.39+01:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2025-03-11-OTH-2017017656713_197694",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/197694"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2025-03-11-OTH-2017017656713",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2025-03-11-ITM-005",
+            "number": "2-0136-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2025-03-11-OTH-2017017656713",
+            "notation_speechId": "2017017656713",
+            "numbering": 129,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/ENG"
+            ]
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2025-03-11-PVCRE-ITM-5"
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches?sitting-date=2026-04-28&language=en&sort-by=numbering:asc&limit=500&offset=0&format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-17T14:34:38.207Z",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073813269",
+        "type": "Activity",
+        "activity_date": "2026-04-28",
+        "activity_end_date": "2026-04-28T12:12:44+02:00",
+        "activity_id": "MTG-PL-2026-04-28-OTH-2017073813269",
+        "activity_label": {
+          "en": "Request for the waiver of immunity of Alvise Pérez (A10-0119/2026 - Mario Furore) (vote)"
+        },
+        "activity_start_date": "2026-04-28T12:12:29.45+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-04-28-OTH-2017073813269_257113",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/257113"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-04-28-OTH-2017073813269",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-04-28-ITM-010-07",
+            "number": "2-0163-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-04-28-OTH-2017073813269",
+            "notation_speechId": "2017073813269",
+            "numbering": 148,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/ITA"
+            ]
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-10-7",
+          "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-9-7"
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches?sitting-date=2026-04-28&language=en&sort-by=numbering:asc&limit=500&offset=0&format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-17T14:34:38.207Z",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073900611",
+        "type": "Activity",
+        "activity_date": "2026-04-28",
+        "activity_end_date": "2026-04-28T21:58:49.822+02:00",
+        "activity_id": "MTG-PL-2026-04-28-OTH-2017073900611",
+        "activity_label": {
+          "en": "Interim report on the proposal for the multiannual financial framework for 2028-2034 (A10-0105/2026 - Siegfried Mureşan, Carla Tavares)"
+        },
+        "activity_start_date": "2026-04-28T21:58:39.422+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-04-28-OTH-2017073900611_197433",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/197433"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-04-28-OTH-2017073900611",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-04-28-ITM-022-01",
+            "number": "2-0535-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-04-28-OTH-2017073900611",
+            "notation_speechId": "2017073900611",
+            "numbering": 504,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/DEU"
+            ]
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-21-1",
+          "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-22-1"
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches?sitting-date=2026-04-28&language=en&sort-by=numbering:asc&limit=500&offset=0&format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-17T14:34:38.207Z",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-04-28-OTH-2017073831144",
+        "type": "Activity",
+        "activity_date": "2026-04-28",
+        "activity_end_date": "2026-04-28T15:42:03.787+02:00",
+        "activity_id": "MTG-PL-2026-04-28-OTH-2017073831144",
+        "activity_label": {
+          "en": "Presentation of the Better Regulation and Enforcement Communication (debate)"
+        },
+        "activity_start_date": "2026-04-28T15:40:49.866+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-04-28-OTH-2017073831144_229839",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/229839"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-04-28-OTH-2017073831144",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-04-28-ITM-014",
+            "number": "2-0272-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-04-28-OTH-2017073831144",
+            "notation_speechId": "2017073831144",
+            "numbering": 238,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/DEU"
+            ]
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-13",
+          "eli/dl/event/MTG-PL-2026-04-28-PVCRE-ITM-14"
+        ]
+      }
+    }
+  ]
+}
