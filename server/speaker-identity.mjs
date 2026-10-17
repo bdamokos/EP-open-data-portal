@@ -28,7 +28,7 @@ export class SpeakerIdentities {
   constructor({request}={}) {this.request=request;}
   async enrich(people,day,{chairs=[],profileIds=[]}={}) {
     if(!people.length)return [];
-    const sources=[],byId=new Map(),issues=[];
+    const sources=[],byId=new Map(),issues=[],profileFailures=new Set();
     const supplied=new Map();
     for(const person of people) {
       const variants=supplied.get(person.id)||new Map();
@@ -51,7 +51,7 @@ export class SpeakerIdentities {
         const person=record.payload.data?.find(p=>personId(p)===id&&String(p.identifier)===id);
         if(!person)return;
         byId.set(id,person);sources.push({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale)});
-      }catch { /* A failed office lookup cannot hide the supplied transcript. */ }
+      }catch {profileFailures.add(id); /* A failed office lookup cannot hide the supplied transcript. */ }
     }));
     return people.map(person=>{
       const profile=byId.get(person.id),variants=personNameVariants(profile);
@@ -60,7 +60,7 @@ export class SpeakerIdentities {
       return {...person,name,nameSource:variants.length?'ODP person record':person.nameSource,
         nameVariants:[...variants,...sourceVariants],
         ...(chairs.includes(person.id)?{sittingRole:'chair',office:parliamentOffice(profile,day)}:{}),
-        identitySources:sources,identityIssues:[...issues,...(chairs.includes(person.id)&&!parliamentOffice(profile,day)?['parliament-office-unavailable']:[])]};
+        identitySources:sources,identityIssues:[...issues,...(profileFailures.has(person.id)?['person-profile-unavailable']:[]),...(chairs.includes(person.id)&&!parliamentOffice(profile,day)?['parliament-office-unavailable']:[])]};
     });
   }
 }

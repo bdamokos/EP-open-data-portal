@@ -30,6 +30,7 @@ function transientState(payload) {
       if ((key === 'stale' || key === 'refreshInProgress' || key === 'loading') && child === true) return true;
       if (key === 'status' && ['error', 'unavailable', 'loading', 'pending'].includes(child)) return true;
       if (key === 'kind' && ['agenda-unavailable', 'votes-unavailable'].includes(child)) return true;
+      if (key === 'identityIssues' && Array.isArray(child) && child.some(issue => ['person-names-unavailable', 'person-profile-unavailable'].includes(issue))) return true;
       if (/errors?$/i.test(key) && child && (!Array.isArray(child) || child.length)) return true;
       if (key === 'nextRetryAt' && child) return true;
       if (child && typeof child === 'object') pending.push(child);

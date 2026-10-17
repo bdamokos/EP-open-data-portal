@@ -56,6 +56,33 @@ test('a mismatched profile cannot provide the name or office of a chair',async()
   assert.equal(result.name,'');assert.equal(result.office,null);
 });
 
+test('failed individual profiles mark only the affected identities while successful missing-office observations remain explicit',async()=>{
+  let failing=true;
+  const calls=[];
+  const resolver=new SpeakerIdentities({request:async(route)=>{
+    calls.push(route);
+    if(route==='/meps/show-current')return record([greek]);
+    if(failing)throw new Error('Public profile temporarily unavailable');
+    return record(route==='/meps/'+chair.identifier?[{...chair,hasMembership:[]}]:[{id:'person/43',identifier:'43',givenName:'Public',familyName:'Person'}]);
+  }});
+  const people=[{id:greek.identifier,name:'Γεάδης Γεάδη'},{id:chair.identifier,name:'Nicolae Ștefănuță'},{id:'43',name:'Public Person'}];
+  const read=()=>resolver.enrich(people,day,{chairs:[chair.identifier],profileIds:['43']});
+  const failed=await read();
+  assert.deepEqual(calls,['/meps/show-current','/meps/'+chair.identifier,'/meps/43']);
+  assert.deepEqual(failed[0].identityIssues,[]);
+  assert.deepEqual(failed[1].identityIssues,['person-profile-unavailable','parliament-office-unavailable']);
+  assert.deepEqual(failed[2].identityIssues,['person-profile-unavailable']);
+  assert.equal(failed[1].name,people[1].name);
+  assert.equal(failed[2].name,people[2].name);
+
+  failing=false;
+  const recovered=await read();
+  assert.deepEqual(recovered[0].identityIssues,[]);
+  assert.deepEqual(recovered[1].identityIssues,['parliament-office-unavailable']);
+  assert.equal(recovered[1].office,null);
+  assert.deepEqual(recovered[2].identityIssues,[]);
+});
+
 test('context enrichment keeps each contribution role and leaves exchange classification intact',async()=>{
   const first=activity('58766','Președinte'),second=activity('58766','Nicolae Ștefănuță');second.activity_id=speechId+'2';second.id='eli/dl/event/'+second.activity_id;second.recorded_in_a_realization_of[0].numbering=2;
   const request=async(route)=>route.startsWith('/events/')?record([{activity_id:parentId,consists_of:[first.id,second.id]}]):route==='/speeches'?{...record([first,second]),payload:{data:[first,second],meta:{total:2}}}:record([first]);
