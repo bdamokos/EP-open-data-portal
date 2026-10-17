@@ -46,7 +46,9 @@ export class SpeakerIdentities {
     }catch {issues.push('person-names-unavailable');}
     const chairIds=[...new Set([...chairs,...profileIds.filter(id=>!byId.has(id))])].filter(id=>people.some(person=>person.id===id));
     // A selected debate has few chairs. Keep exceptional sources bounded and explicit.
+    const attempted=new Set();
     for(let offset=0;offset<Math.min(chairIds.length,8)&&!signal.aborted;offset+=2)await Promise.all(chairIds.slice(offset,Math.min(offset+2,8)).map(async id=>{
+      attempted.add(id);
       try {
         const record=await waitForRequest(this.request('/meps/'+id,{}, {ttl:7*86400000,staleWhileRevalidate:true,signal}),signal);
         sources.push(identitySource(record));
@@ -55,6 +57,8 @@ export class SpeakerIdentities {
         byId.set(id,person);
       }catch {profileFailures.add(id); /* A failed office lookup cannot hide the supplied transcript. */ }
     }));
+    // A timed-out budget can skip a later batch; that is not a confirmed absence.
+    for(const id of chairIds.slice(0,8))if(!attempted.has(id))profileFailures.add(id);
     return people.map(person=>{
       const profile=byId.get(person.id),variants=personNameVariants(profile);
       const sourceVariants=[...supplied.get(person.id).values()];
