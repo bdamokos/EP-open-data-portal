@@ -4,7 +4,7 @@ import {mkdtempSync,rmSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {CorpusStore} from './corpus-store.mjs';
-import {CorpusReader} from './corpus-reader.mjs';
+import {CorpusReader,retainedSpeechMetadata} from './corpus-reader.mjs';
 import {server} from './index.mjs';
 import {CorpusWorker} from './corpus-worker.mjs';
 import {odp} from './odp.mjs';
@@ -168,4 +168,76 @@ test('primary retention projects exact speaker headers from mul originals and di
     assert(refreshed.metadata.speakers[0].nameVariants.some(variant=>variant.language==='fr'&&variant.value==='Nom source'),'metadata-only refresh retains headers from an unstored translation');
     assert.equal(store.db.prepare('SELECT source_key FROM texts').get().source_key,'mul');
   } finally {store.release();store.close();rmSync(directory,{recursive:true,force:true});}
+});
+
+test('slow or failed identity enrichment returns retained speakers before the transcript deadline',async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'speech-identity-deadline-')),store=new CorpusStore(directory);
+  try {
+    store.acquire();store.putDocument({sourceId:id,kind:'speech',date:'2026-10-07',term:10},[{sourceKey:'de',language:'de',translationType:'original',sourceFormat:'xml-fragment',sourceUrl:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:date,body:'Retained text.',raw:xml}]);
+    store.putSpeechMetadata(activity,'https://data.europarl.europa.eu/api/v2/speeches/'+id,date);
+    const retained=store.speechTranscript({sourceId:id,language:'de'}),people=retained.metadataRecord.speakers;
+    t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});
+    let finishEnrichment;
+    const pending=retainedSpeechMetadata(retained,{deadlineMs:3000,enrich:()=>new Promise(resolve=>{finishEnrichment=resolve;})});
+    t.mock.timers.tick(250);
+    const metadata=await pending;
+    assert.deepEqual(metadata.speakers,people);assert.equal(metadata.id,id);assert.equal(retained.xml,xml);
+    assert(Date.now()<3000,'readable text and metadata return before the outer deadline');
+    finishEnrichment([{id:'42',name:'Late replacement'}]);await Promise.resolve();
+    assert.deepEqual(metadata.speakers,people,'a late identity result cannot mutate the response');
+    const failed=await retainedSpeechMetadata(retained,{enrich:async()=>{throw new Error('Slow cache unavailable');}});
+    assert.deepEqual(failed.speakers,people);
+    let enrichmentCalls=0;
+    const exhausted=await retainedSpeechMetadata(retained,{deadlineMs:Date.now()+50,enrich:async()=>{enrichmentCalls++;return [];}});
+    assert.equal(enrichmentCalls,0,'a nearly exhausted reader budget skips optional lookup');assert.deepEqual(exhausted.speakers,people);
+    const enriched=[{...people[0],name:'Cached identity'}];
+    assert.deepEqual((await retainedSpeechMetadata(retained,{enrich:async()=>enriched})).speakers,enriched);
+  } finally {store.release();store.close();rmSync(directory,{recursive:true,force:true});}
+});
+
+for(const metadataOnly of [false,true])test(`${metadataOnly?'metadata-only':'text'} pages isolate a bad metadata record and retry it without stalling later speeches`,async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'speech-metadata-gap-'));let now=Date.parse(date);
+  const store=new CorpusStore(directory,{clock:()=>now});
+  try {
+    store.acquire();
+    const bad=structuredClone(activity),good=structuredClone(activity);delete bad.activity_date;
+    good.activity_id=id+'2';good.id='eli/dl/event/'+good.activity_id;
+    for(const node of [bad,good])node.recorded_in_a_realization_of[0]['api:xmlFragment']={de:xml};
+    if(metadataOnly)for(const node of [bad,good]) {
+      store.putDocument({sourceId:node.activity_id,kind:'speech',date:'2026-10-07',term:10},[{sourceKey:'de',language:'de',translationType:'original',sourceFormat:'xml-fragment',sourceUrl:'https://data.europarl.europa.eu/api/v2/speeches/'+node.activity_id,fetchedAt:date,body:'Retained text.',raw:xml}]);
+      delete node.recorded_in_a_realization_of[0]['api:xmlFragment'];
+    }
+    let textWrites=0;
+    const putDocument=store.putDocument.bind(store);t.mock.method(store,'putDocument',(...args)=>{textWrites++;return putDocument(...args);});
+    const requests=[];
+    const worker=new CorpusWorker(store,{clock:()=>now,interval:0,fetchRecord:async(endpoint,params)=>{
+      requests.push({endpoint,params});
+      return {payload:{data:endpoint==='/speeches'?(params.offset===0?[bad,good]:[]):[{...bad,activity_date:'2026-10-07'}]},fetchedAt:date};
+    }});
+    const kind=metadataOnly?'speech-metadata':'speeches',key='failure-page';
+    store.enqueue(key,kind,{start:'2026-10-01',end:'2026-10-31',offset:0,limit:25},60);
+    await worker.task(store.task(key));assert.equal(store.task(key).body.offset,2);
+    for(const node of [bad,good])assert.equal(store.speechTranscript({sourceId:node.activity_id,language:'de'}).xml,xml);
+    assert.equal(store.speechTranscript({sourceId:good.activity_id,language:'de'}).metadataRecord.summary.id,good.activity_id);
+    const retry=store.task('speech-metadata-detail:'+id);
+    assert.equal(retry.attempts,1);assert(retry.retry_at>now);assert.match(retry.error,/Invalid speech metadata identity/);
+    assert.equal(store.status().speechMetadata.backfillPending,true);
+    await worker.task(store.task(key));assert.equal(store.task(key).done,1,'the monthly cursor completes while the record waits for retry');
+    now=retry.retry_at;assert.equal(store.nextTask().key,retry.key);await worker.task(store.nextTask());
+    assert.equal(store.task(retry.key).done,1);assert.equal(store.status().speechMetadata.backfillPending,false);
+    assert.equal(requests.at(-1).params['include-output'],undefined,'metadata recovery never downloads transcript XML');
+    assert.equal(textWrites,metadataOnly?0:2,'metadata retry cannot rewrite retained text');
+  } finally {store.release();store.close();rmSync(directory,{recursive:true,force:true});}
+});
+
+test('metadata isolation cannot advance a speech page after writer lease loss',async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'speech-metadata-lease-')),store=new CorpusStore(directory);
+  try {
+    store.acquire();const source=structuredClone(activity);source.recorded_in_a_realization_of[0]['api:xmlFragment']={de:xml};
+    t.mock.method(store,'putSpeechMetadata',()=>{store.release();throw new Error('Projection interrupted');});
+    const worker=new CorpusWorker(store,{interval:0,fetchRecord:async()=>({payload:{data:[source]},fetchedAt:date})});
+    store.enqueue('lost-lease','speeches',{start:'2026-10-01',end:'2026-10-31',offset:0,limit:25},60);
+    await assert.rejects(worker.task(store.task('lost-lease')),/writer lease was lost/);
+    assert.equal(store.task('lost-lease').body.offset,0);assert.equal(store.task('speech-metadata-detail:'+id),undefined);
+  } finally {store.close();rmSync(directory,{recursive:true,force:true});}
 });
