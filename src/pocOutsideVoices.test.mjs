@@ -77,6 +77,24 @@ async function harness(t,details,query='?view=outside',sourceData=null) {
 const sourceIds=container=>[...new Set([...container.querySelectorAll('.ov-evidence dl')].map(dl=>dl.querySelector('dd').textContent))].sort();
 const contributionIds=detail=>detail.contributions.map(c=>c.id).sort();
 
+test('resolved agenda membership shows one debate and retains the original API links in evidence',async t=>{
+  const wrong=item('2026-04-28',11),right=item('2026-04-28',12);
+  const detail=speaker('238669','Tony Murphy',[speech('2026-04-28','01',[right]),speech('2026-04-28','02',[right])]);
+  detail.agendas[0].titles={en:'12. Discharge 2024 (joint debate)'};
+  for(const c of detail.contributions){c.reportedParentIds=[wrong,right];c.parentDocumentId='CRE-10-2026-04-28-ITM-012';}
+  const {container}=await harness(t,[detail],'?view=outside&ov-person=238669');
+  await act(async()=>container.querySelector('.ov-appearance-cards button').click());
+  const drawer=container.querySelector('.ov-drawer');
+  assert.equal(drawer.querySelectorAll('.ov-item').length,1);assert.equal(drawer.querySelectorAll('.ov-contribution').length,2);
+  assert.equal(drawer.querySelector('h3').textContent,'12. Discharge 2024 (joint debate)');
+  assert(!drawer.textContent.includes('Special event'));
+  assert.equal(drawer.querySelectorAll('a[href$="CRE-10-2026-04-28-ITM-012_EN.html"]').length,2);
+  for(const evidence of drawer.querySelectorAll('.ov-evidence')){
+    assert(evidence.textContent.includes('Transcript chapterCRE-10-2026-04-28-ITM-012'));
+    assert(evidence.textContent.includes('API agenda links'+wrong+', '+right));
+  }
+});
+
 test('only populated capacity buttons appear and stale empty-group links show all speakers',async t=>{
   const detail=speaker('42','Current guest',[speech('2026-10-07','01',[item('2026-10-07',4)])]);
   const {container,click}=await harness(t,[detail],'?view=outside&ov-group=parliaments');

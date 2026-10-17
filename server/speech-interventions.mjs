@@ -1,5 +1,6 @@
 import {XMLParser, XMLValidator} from 'fast-xml-parser';
 import {speechSpeakerDetails,speakerIsChair} from './speech-speakers.mjs';
+import {speechAgendaMembership,speechParentDocuments} from './speech-agenda.mjs';
 
 const array=value=>value==null?[]:Array.isArray(value)?value:[value];
 const parser=new XMLParser({ignoreAttributes:false,parseTagValue:false,trimValues:false});
@@ -47,11 +48,15 @@ export function interventionMetadata(activity) {
     else type=process?'unclassified':'speech';
   }
   const speakerDetail=speaker?speechSpeakerDetails(activity).find(person=>person.id===String(speaker['@_refersTo']).split('/').at(-1)):null;
+  const reportedParents=[...new Set(array(activity.inverse_consists_of).map(speechId).filter(Boolean))];
+  const parentDocumentIds=speechParentDocuments(activity);
+  const term=Number(String(docs[0]?.identifier || docs[0]?.id || '').match(/CRE-(\d+)-/)?.[1]);
+  const membership=kind==='PLENARY_DEBATE_SPEECH'?speechAgendaMembership({parentIds:reportedParents,parentDocumentIds,date:activity.activity_date,term}):{parentIds:reportedParents};
   return {type,process:process||null,speaker: speaker?{id:String(speaker['@_refersTo']).split('/').at(-1),name:text(speaker).trim(),...speakerDetail,...(type==='chair'?{sittingRole:'chair'}:{})}:null,onBehalfOf,
     headerAvailable:Boolean(from&&speaker),catchMarker,narrative:narrative||null,
     procedureKind:type==='procedure'?(kind==='MEETING_NAME_CHAIR'?'chair-change':'note'):null,chair,
     numbering:docs.find(d=>Number.isSafeInteger(d.numbering))?.numbering??null,
-    parentIds:[...new Set(array(activity.inverse_consists_of).map(speechId).filter(Boolean))],
+    parentIds:membership.parentIds,...(membership.reportedParentIds?{reportedParentIds:membership.reportedParentIds}:{}),
     evidence:type==='unclassified'?null:type==='procedure'?(chair?'api:xmlFragment/communication/heading/person':narrative?'api:xmlFragment/communication/narrative':'had_activity_type'):type==='written'?'had_activity_type':'api:xmlFragment/from'};
 }
 

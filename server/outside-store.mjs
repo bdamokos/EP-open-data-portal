@@ -1,9 +1,10 @@
 import { outsidePerson, outsideCapacity } from './outside-model.mjs';
+import {speechAgendaMembership} from './speech-agenda.mjs';
 import { HttpError } from './http-utils.mjs';
 
 const parse = value => JSON.parse(value);
 // Capacity is derived from retained source text, including records indexed by older code.
-const classified = row => ({...row,header:row.header?{...row.header,capacity:outsideCapacity(row.header.role)}:null});
+const classified = row => ({...speechAgendaMembership(row),header:row.header?{...row.header,capacity:outsideCapacity(row.header.role)}:null});
 export function outsideSchema(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS outside_contributions (generation INTEGER, speech TEXT, person TEXT, date TEXT, body TEXT, PRIMARY KEY(generation,speech,person));
     CREATE INDEX IF NOT EXISTS outside_person ON outside_contributions(generation,person,date DESC);
@@ -65,7 +66,7 @@ function localizedTitles(titles,language) {
   return key?{[key]:titles[key]}:{};
 }
 function publicContribution(row,language) {
-  return Object.fromEntries(['id','personId','date','term','start','end','parentIds','documentId','parentDocumentId','reference','originalLanguages','websiteUrl','websiteLanguage','source','headerSource','rosterSource'].map(key=>[key,row[key]]).concat([['titles',localizedTitles(row.titles,language)],['header',row.header?Object.fromEntries(['personId','name','role','languageTag','original','capacity'].map(key=>[key,row.header[key]])):null]]));
+  return Object.fromEntries(['id','personId','date','term','start','end','parentIds','reportedParentIds','documentId','parentDocumentId','reference','originalLanguages','websiteUrl','websiteLanguage','source','headerSource','rosterSource'].map(key=>[key,row[key]]).concat([['titles',localizedTitles(row.titles,language)],['header',row.header?Object.fromEntries(['personId','name','role','languageTag','original','capacity'].map(key=>[key,row.header[key]])):null]]));
 }
 export function outsideCoverage(store, generation, truncated=false) {
   const counts = store.db.prepare("SELECT kind,COUNT(*) AS total,SUM(CASE WHEN done=1 THEN 1 ELSE 0 END) AS completed FROM tasks WHERE generation=? AND (kind LIKE 'outside-%' OR kind='speeches') GROUP BY kind").all(generation);
