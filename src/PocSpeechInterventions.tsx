@@ -82,7 +82,7 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
       <div className="intervention-sequence-entry">
         {row.intervention.type==='procedure'?<p className="intervention-caption">{row.intervention.chair?<><strong><SpeakerName person={row.intervention.chair} language={language} chair/></strong><br/><SpeakerRoles person={row.intervention.chair} language={language} chair/></>:row.intervention.procedureKind==='chair-change'?'Chair change · identity unconfirmed':row.intervention.narrative?<span lang="">{row.intervention.narrative}</span>:'Procedural note · text unavailable'}</p>:<>
           <button className="intervention-read" onClick={()=>setReading(value=>value===row.id?null:row.id)} aria-expanded={reading===row.id} aria-controls={reading===row.id?readingId:undefined}><SpeakerName person={row.intervention.speaker} language={language} chair={row.intervention.type==='chair'}/><small><span lang={language}>{time(row)}</span>{row.id===speechId?' · Current speech':''}</small></button>
-          <SpeakerRoleLine person={row.intervention.speaker} language={language} chair={row.intervention.type==='chair'} className="intervention-caption"/>
+          <SpeakerRoleLine person={row.intervention.speaker} language={language} chair={row.intervention.type==='chair'} intervention={row.intervention} className="intervention-caption"/>
           {row.id===exchange?.originalId&&<span className="intervention-reply">Original speech</span>}
           {row.intervention.type!=='chair'&&<InterventionBadges value={row.intervention} language={language}/>}
           {row.replyTo&&<span className="intervention-reply">↳ {row.replyTo===exchange?.originalId?'To the original speech':'In reply'}</span>}
