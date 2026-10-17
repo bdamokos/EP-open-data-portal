@@ -35,10 +35,18 @@ function speaker(id,name,rows,classifications={}) {
   return {person,contributions,agendas,coSpeakers:[],coverage};
 }
 
-async function harness(t,details,query='?view=outside',sourceData=null) {
+async function harness(t,details,query='?view=outside',sourceData=null,readSpeech=null) {
   const window=new Window({url:'http://localhost/'+query});
+  class ReaderDOMParser extends window.DOMParser {
+    parseFromString(...args) {
+      const parsed=super.parseFromString(...args),query=parsed.getElementsByTagNameNS.bind(parsed);
+      // Happy DOM lacks the wildcard namespace lookup used by the reader.
+      parsed.getElementsByTagNameNS=(namespace,name)=>namespace==='*'?parsed.getElementsByTagName(name):query(namespace,name);
+      return parsed;
+    }
+  }
   const globals={window,document:window.document,location:window.location,history:window.history,
-    Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,
+    Event:window.Event,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,
     ResizeObserver:class {observe(){} disconnect(){}},IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
@@ -52,6 +60,11 @@ async function harness(t,details,query='?view=outside',sourceData=null) {
   const calls=[];
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);calls.push(url);
+    if(url.pathname.startsWith('/api/poc/speech/')) {
+      if(readSpeech)return readSpeech(url);
+      const id=decodeURIComponent(url.pathname.split('/').at(-1));
+      return Response.json({id,speakers:[],xml:'<speech><p>Transcript for '+id+'</p></speech>',textLanguage:url.searchParams.get('lang'),availableTextLanguages:['en'],translationType:'original'});
+    }
     if(url.pathname==='/api/poc/source-record'&&sourceData)return Response.json(sourceData);
     if(url.pathname==='/api/poc/outside/directory')return Response.json({term:url.searchParams.get('term'),people:details.map(d=>d.person),coverage});
     const detail=details.find(d=>url.pathname==='/api/poc/outside/'+d.person.id);
@@ -288,4 +301,48 @@ test('Escape closes only the source reader inside an Outside voices drawer',asyn
   assert.equal(document.querySelector('dialog.source-dialog'),null);assert(container.querySelector('.ov-drawer'));assert.equal(document.activeElement,trigger);
   await act(async()=>container.querySelector('.ov-drawer').dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true})));
   assert.equal(container.querySelector('.ov-drawer'),null,'a subsequent Escape still closes the drawer');
+});
+
+
+test('each recent speech opens its exact transcript in one click, including repeated titles and multiple parents',async t=>{
+  const day='2026-10-07';
+  const detail=speaker('42','Direct guest',[
+    speech(day,'01',[item(day,1)]),speech(day,'02',[item(day,1),item(day,2)]),speech(day,'03',[]),
+  ]);
+  detail.contributions.forEach(c=>c.titles={en:'Same agenda title'});
+  const {container,calls}=await harness(t,[detail],'?view=outside&ov-person=42');
+  const cards=[...container.querySelectorAll('.ov-appearance-cards button')];
+  assert.equal(cards.length,3,'every exact contribution has its own action even when titles match');
+  assert.equal(calls.filter(url=>url.pathname.includes('/speech/')).length,0,'listing speeches does not preload transcripts');
+  for(const [index,card] of cards.entries()) {
+    const id=detail.contributions[index].id;
+    await act(async()=>{card.focus();card.click();});
+    const readers=container.querySelectorAll('.ov-drawer .insight-reader-text');
+    assert.equal(readers.length,1,'only the selected contribution is opened, once for multiple-parent contributions');
+    assert.equal(readers[0].textContent,'Transcript for '+id);
+    assert.equal(readers[0].closest('[data-ov-speech]').dataset.ovSpeech,id);
+    assert.equal(document.activeElement,readers[0].closest('.ov-speech-reader'));
+    assert.match(container.querySelector('.ov-sources summary').textContent,/partial/);
+    await act(async()=>container.querySelector('[aria-label="Close speeches"]').click());
+    assert.equal(document.activeElement,card,'closing returns to the exact speech card');
+  }
+  assert.deepEqual(calls.filter(url=>url.pathname.includes('/speech/')).map(url=>decodeURIComponent(url.pathname.split('/').at(-1))),detail.contributions.map(c=>c.id));
+});
+
+test('a direct speech shows loading immediately and late transcript arrival never moves user focus',async t=>{
+  const detail=speaker('42','Slow guest',[speech('2026-10-07','01',[])]);
+  let resolveSpeech;
+  const {container,calls}=await harness(t,[detail],'?view=outside&ov-person=42',null,()=>new Promise(resolve=>{resolveSpeech=resolve;}));
+  const card=container.querySelector('.ov-appearance-cards button');
+  await act(async()=>{card.focus();card.click();});
+  assert.match(container.querySelector('.ov-speech-reader').textContent,/Loading speech/);
+  assert.equal(calls.filter(url=>url.pathname.includes('/speech/')).length,1);
+  const close=container.querySelector('[aria-label="Close speeches"]');close.focus();
+  await act(async()=>resolveSpeech(Response.json({id:detail.contributions[0].id,speakers:[],xml:'<speech><p>Delayed exact transcript.</p></speech>',textLanguage:'en',availableTextLanguages:['en']})));
+  assert.equal(container.querySelector('.ov-drawer .insight-reader-text').textContent,'Delayed exact transcript.');
+  assert.equal(document.activeElement,close);
+  await act(async()=>close.click());
+  await act(async()=>{card.focus();card.click();});
+  assert.equal(container.querySelector('.ov-drawer .insight-reader-text').textContent,'Delayed exact transcript.','cached reopening also opens the transcript immediately');
+  assert.equal(calls.filter(url=>url.pathname.includes('/speech/')).length,1);
 });
