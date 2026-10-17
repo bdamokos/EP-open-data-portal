@@ -7,20 +7,30 @@ const openings={
   lv:'Eiropas Parlaments',lt:'Europos Parlamentas',hu:'Az Európai Parlament',mt:'Il-Parlament Ewropew',nl:'Het Europees Parlement',pl:'Parlament Europejski',
   pt:'O Parlamento Europeu',ro:'Parlamentul European',sk:'Európsky parlament',sl:'Evropski parlament',fi:'Euroopan parlamentti',sv:'Europaparlamentet',
 };
+const openingVariants={fi:['Euroopan parlamentti, joka'],sv:['Europaparlamentet utfärdar denna resolution']};
 export function motionBody(text,language) {
   const anchors=text.noteAnchors || text.anchors || [];
   const paragraphs=(text.paragraphs || []).map((value,index)=>{
     let marked=value;
-    for(const anchor of anchors.filter(a=>a.paragraph===index).sort((a,b)=>b.offset-a.offset))marked=marked.slice(0,anchor.offset)+'['+anchor.label+']'+marked.slice(anchor.offset);
+    // Insert backwards so equal-offset references retain their order in the source.
+    for(const anchor of anchors.filter(a=>a.paragraph===index).reverse().sort((a,b)=>b.offset-a.offset))marked=marked.slice(0,anchor.offset)+'['+anchor.label+']'+marked.slice(anchor.offset);
     return marked;
   }),opening=openings[language];
-  const start=opening?paragraphs.findIndex(p=>normalize(p).replace(/[,;:]$/,'').toLocaleLowerCase(language)===opening.toLocaleLowerCase(language)):-1;
+  // Some translations use the same Parliament heading on the cover and in the body.
+  // Require a following citation/recital/operative item and one unambiguous boundary.
+  const normalized=paragraphs.map(normalize),starts=[];
+  if(opening)for(let i=0;i<normalized.length;i++) {
+    if(![opening,...(openingVariants[language] || [])].some(value=>normalized[i].replace(/[,;:]$/,'').toLocaleLowerCase(language)===value.toLocaleLowerCase(language)))continue;
+    let next=i+1;while(next<normalized.length&&!normalized[next])next++;
+    if(/^(?:[–—−\-•]\s*\S|(?:\d+|\p{Lu}{1,3})[.)]\s+\S)/u.test(normalized[next] || ''))starts.push(i);
+  }
+  const start=starts.length===1?starts[0]:-1;
   if(start<0)return {status:'unavailable',reason:'The resolution body could not be separated from the cover material in this language.'};
   if(text.notesStatus==='not-extracted')return {status:'unavailable',reason:'The document notes have not been extracted for this saved text.'};
   if(text.extractionWarnings?.length)return {status:'unavailable',reason:text.extractionWarnings.join(' ')};
   let citation=0,other=0;
   const blocks=paragraphs.slice(start+1).map((raw,index)=>{
-    const value=normalize(raw),match=value.match(/^(\d+|[A-Z]{1,3})[.)]\s+(.+)$/u);
+    const value=normalize(raw),match=value.match(/^(\d+|\p{Lu}{1,3})[.)]\s+(.+)$/u);
     if(match)return {index,kind:/^\d+$/.test(match[1])?'paragraph':'recital',label:match[1],text:match[2]};
     if(/^[–—−\-•]\s*/u.test(value))return {index,kind:'citation',label:String(++citation),text:value.replace(/^[–—−\-•]\s*/u,'')};
     return {index,kind:'text',label:String(++other),text:value};
@@ -83,7 +93,7 @@ export function compareMotionBodies(before,after) {
     const previous=i===undefined?null:a[i],kind=previous?previous.text===block.text?'unchanged':'changed':'added';
     const cost=previous && kind==='changed'?tokens(previous.text).length*tokens(block.text).length:0;
     wordBudget-=Math.min(cost,DIFF_LIMITS.wordCells);
-    return {kind,before:clean(previous),after:clean(block),referenceChanged:Boolean(previous && previous.label!==block.label),
+    return {kind,before:clean(previous),after:clean(block),referenceChanged:Boolean(previous && ['paragraph','recital','footnote'].includes(block.kind) && previous.label!==block.label),
       segments:previous?wordBudget<0 && kind==='changed'?[{type:'removed',text:previous.text},{type:'added',text:block.text}]:wordDiff(previous.text,block.text):[{type:'added',text:block.text}]};
   });
   // Keep unmatched originals near their next matched passage, rather than losing their source order.
