@@ -125,6 +125,20 @@ export class CorpusWorker {
   // Month windows for speeches; question and answer files from the saved index.
   async discover() {
     const now=this.clock(), today=day(now);
+    // Build the queryable projection locally through this leased writer. No
+    // speech metadata or transcript download is needed for older corpora.
+    const projectionStarted=this.clock();
+    catalog:for(;;) {
+      if(this.clock()-projectionStarted>=Math.min(10_000,this.maxDuration)||await this.store.diskBytes()>=this.diskLimit)break;
+      const rows=this.store.db.prepare('SELECT m.source_id FROM speech_metadata m LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL ORDER BY m.source_id LIMIT 100').all();
+      if(!rows.length)break;
+      for(const row of rows) {
+        try {const saved=this.store.speechMetadata(row.source_id);this.store.projectSpeechCatalog(saved.activity,saved.availableTextLanguages);}
+        catch {this.store.assertWriter();this.store.db.prepare('INSERT OR IGNORE INTO speech_catalog(source_id) VALUES (?)').run(row.source_id);}
+        await this.checkpoint();
+        if(this.clock()-projectionStarted>=Math.min(10_000,this.maxDuration))break catalog;
+      }
+    }
     // Widening the language policy must revisit months already read under `primary`.
     const widened=this.languages==='all' && this.store.get('speechLanguages')==='primary';
     if(this.store.get('speechMetadataBackfill')) {

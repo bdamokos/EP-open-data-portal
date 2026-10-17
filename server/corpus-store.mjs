@@ -55,6 +55,8 @@ export class CorpusStore {
         id INTEGER PRIMARY KEY, source_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL CHECK(kind IN ('speech','question','answer')),
         parent_id TEXT, date TEXT, term INTEGER, original_languages TEXT NOT NULL DEFAULT '[]');
       CREATE TABLE IF NOT EXISTS speech_metadata (source_id TEXT PRIMARY KEY, body BLOB NOT NULL, source_url TEXT NOT NULL, fetched_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS speech_catalog (source_id TEXT PRIMARY KEY, date TEXT, kind TEXT, start TEXT, numbering INTEGER, participants TEXT NOT NULL DEFAULT '[]',available_languages TEXT NOT NULL DEFAULT '[]');
+      CREATE INDEX IF NOT EXISTS speech_catalog_window ON speech_catalog(kind,date,source_id);
       CREATE INDEX IF NOT EXISTS document_kind_date ON documents(kind,date DESC);
       CREATE INDEX IF NOT EXISTS document_parent ON documents(parent_id) WHERE parent_id IS NOT NULL;
       CREATE TABLE IF NOT EXISTS texts (
@@ -237,10 +239,74 @@ export class CorpusStore {
     const availableTextLanguages=[...new Set([...chooseTranscript(activity.recorded_in_a_realization_of||[],'en').availableTextLanguages,...previousLanguages,...chooseTranscript(docs,'en').availableTextLanguages])];
     const body=JSON.stringify({version:1,activity:metadata,summary:speechSummary(observed),speakers:people,headerSources,availableTextLanguages});
     if(Buffer.byteLength(body)>2*1024*1024)throw new Error('Speech metadata exceeded the allowed size.');
-    this.db.prepare(`INSERT INTO speech_metadata VALUES (?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET
+    const updated=this.db.prepare(`INSERT INTO speech_metadata VALUES (?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET
       body=excluded.body,source_url=excluded.source_url,fetched_at=excluded.fetched_at WHERE excluded.fetched_at>=speech_metadata.fetched_at`)
       .run(activity.activity_id,zstdCompressSync(Buffer.from(body)),sourceUrl,new Date(fetchedAt).toISOString());
+    if(updated.changes)this.projectSpeechCatalog(activity,availableTextLanguages);
   }
+
+  projectSpeechCatalog(activity,availableLanguages=[]) {
+    this.assertWriter();
+    this.db.prepare('INSERT OR REPLACE INTO speech_catalog VALUES (?,?,?,?,?,?,?)').run(activity.activity_id,activity.activity_date||null,
+      String(activity.had_activity_type||'').split('/').at(-1),activity.activity_start_date||null,
+      (activity.recorded_in_a_realization_of||[]).find(doc=>Number.isSafeInteger(doc?.numbering))?.numbering??null,JSON.stringify(speechPeople(activity)),JSON.stringify(availableLanguages));
+  }
+  speechMetadata(sourceId) {
+    if(!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_metadata'").get())return null;
+    const row=this.db.prepare('SELECT * FROM speech_metadata WHERE source_id=?').get(sourceId);
+    if(!row)return null;
+    const saved=JSON.parse(zstdDecompressSync(row.body,{maxOutputLength:2*1024*1024}));
+    if(saved.version!==1||saved.activity?.activity_id!==sourceId||saved.summary?.id!==sourceId||saved.activity.activity_date!==sourceId.slice(7,17)||saved.summary.date!==saved.activity.activity_date||
+      saved.summary.kind!==String(saved.activity.had_activity_type||'').split('/').at(-1)||!Array.isArray(saved.speakers)||!saved.summary.intervention||
+      !Array.isArray(saved.summary.intervention.parentIds)||!Array.isArray(saved.summary.intervention.onBehalfOf))throw new Error('Retained speech metadata identity mismatch.');
+    return {...saved,sourceUrl:row.source_url,fetchedAt:row.fetched_at};
+  }
+  speechData(params){return this.snapshot(()=>this.speechDataSnapshot(params));}
+  speechDataSnapshot({sourceIds,language=null,metadataOnly=false}) {
+    if(!Array.isArray(sourceIds)||sourceIds.length>100||sourceIds.some(id=>!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id)))throw new Error('Invalid retained speech selection.');
+    let bytes=0;const records=[];
+    for(const id of new Set(sourceIds)) {
+      let metadata=null,metadataUnavailable=false;
+      try {metadata=this.speechMetadata(id);}catch {metadataUnavailable=true;}
+      const variants=metadataOnly?[]:this.db.prepare(`SELECT t.id,t.language,t.source_key,t.translation_type,t.source_url,t.fetched_at,t.checked_at,t.chars
+        FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=? AND d.kind='speech' AND t.source_format='xml-fragment'
+        ORDER BY (t.translation_type='original') DESC,(t.source_key=?) DESC,t.source_key`).all(id,language);
+      const selected=variants.find(row=>row.language===language);
+      let text=null;
+      if(selected&&selected.chars<=2*1024*1024) {
+        const body=this.db.prepare('SELECT body FROM texts WHERE id=?').get(selected.id).body;
+        text={body,language:selected.language,sourceFragmentKey:selected.source_key,translationType:selected.translation_type,
+          sourceUrl:selected.source_url,fetchedAt:selected.fetched_at,checkedAt:selected.checked_at};
+      }
+      const record={id,metadata,metadataUnavailable,text,availableLanguages:[...new Set(variants.map(row=>row.language))]};
+      const size=Buffer.byteLength(JSON.stringify(record));
+      if(bytes+size>4*1024*1024)return {records,truncated:true};
+      bytes+=size;records.push(record);
+    }
+    return {records,truncated:false};
+  }
+  speechPage(params){return this.snapshot(()=>{
+    if(!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_catalog'").get())return null;
+    // A projection is usable only after the existing writer has visited every
+    // retained metadata row. This is not a claim of complete upstream coverage.
+    if(this.db.prepare('SELECT 1 FROM speech_metadata m LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL LIMIT 1').get())return null;
+    const {member=null,from='2024-07-16',to='9999-12-31',dates=null,kinds=['PLENARY_DEBATE_SPEECH'],sourceIds=null,offset=0,limit=50,descending=false}=params;
+    if(!Number.isSafeInteger(offset)||offset<0||offset>10000||!Number.isSafeInteger(limit)||limit<1||limit>100||
+      !Array.isArray(kinds)||!kinds.length||kinds.some(kind=>!['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'].includes(kind))||
+      sourceIds!==null&&(!Array.isArray(sourceIds)||sourceIds.length>1000))throw new Error('Invalid retained speech page.');
+    const where=['kind IN ('+kinds.map(()=>'?').join(',')+')','date BETWEEN ? AND ?'],args=[...kinds,from,to];
+    if(dates!==null){if(!Array.isArray(dates)||dates.length>5)throw new Error('Invalid retained sitting selection.');where.push('date IN ('+dates.map(()=>'?').join(',')+')');args.push(...dates);}
+    if(member!==null){where.push('EXISTS (SELECT 1 FROM json_each(participants) WHERE value=?)');args.push(String(member));}
+    if(sourceIds!==null){where.push('source_id IN ('+sourceIds.map(()=>'?').join(',')+')');args.push(...sourceIds);}
+    const total=this.db.prepare('SELECT COUNT(*) n FROM speech_catalog WHERE '+where.join(' AND ')).get(...args).n;
+    const missingRetainedLanguage=params.metadataOnly||!params.language?0:this.db.prepare(`SELECT COUNT(*) n FROM speech_catalog c WHERE ${where.join(' AND ')}
+      AND EXISTS (SELECT 1 FROM json_each(c.available_languages) WHERE value=?)
+      AND NOT EXISTS (SELECT 1 FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=c.source_id AND t.source_format='xml-fragment' AND t.language=?)`).get(...args,params.language,params.language).n;
+    const direction=descending?'DESC':'ASC';
+    const ids=this.db.prepare(`SELECT source_id FROM speech_catalog WHERE ${where.join(' AND ')} ORDER BY date ${direction},start ${direction},numbering ${direction},source_id ${direction} LIMIT ? OFFSET ?`).all(...args,limit,offset).map(row=>row.source_id);
+    const result=this.speechDataSnapshot({...params,sourceIds:ids});
+    return {...result,total,offset,missingRetainedLanguage,nextOffset:offset+ids.length<total?offset+ids.length:null,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt'))}};
+  });}
 
   speechTranscript({sourceId,language}) {
     return this.snapshot(()=>{

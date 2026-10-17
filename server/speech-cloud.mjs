@@ -9,6 +9,7 @@ import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
 import {transcriptLanguage} from './transcript-language.mjs';
 import {phraseModel} from './insights-phrases.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
+import {retainedSpeechPage} from './corpus-speeches.mjs';
 
 // A week scales the total page and XML budgets by its number of held sittings (at most five).
 export const CLOUD_LIMITS=Object.freeze({pageSize:50,pages:20,xmlBytes:4*1024*1024,weekSittings:5,queries:6,cacheMs:30*60_000});
@@ -49,7 +50,7 @@ export function analyzeSpeechCloud(records,language) {
 
 // Selected-view retrieval only: normal ODP cache/queue, no index or worker writes.
 export class SpeechCloudInsights {
-  constructor(store,{request=odp,legislation,clock=Date.now,loadMetadata=async()=>new Map()}={}) {Object.assign(this,{store,request,legislation,clock,loadMetadata});this.states=new Map();}
+  constructor(store,{request=odp,legislation,clock=Date.now,loadMetadata=async()=>new Map(),readCorpusPage=request===odp?retainedSpeechPage:null}={}) {Object.assign(this,{store,request,legislation,clock,loadMetadata,readCorpusPage});this.states=new Map();}
   async scope(query) {
     if(query.member) {
       if(!this.store.db.prepare('SELECT id FROM members WHERE id=?').get(query.member))throw new HttpError(404,'member_not_found','This MEP is not in the current roster.');
@@ -83,6 +84,11 @@ export class SpeechCloudInsights {
   async build(state,query,page) {
     if(!state.scope){const scope=await this.scope(query);requestSignal()?.throwIfAborted();state.scope=scope;}
     const days=['sitting','week'].includes(state.scope.kind)?Math.max(1,state.scope.dates.length):1,limits={pages:CLOUD_LIMITS.pages*days,xmlBytes:CLOUD_LIMITS.xmlBytes*days};
+    if(state.corpusMode===undefined&&state.scope.dates.length&&this.readCorpusPage) {
+      state.corpusFirst=await this.readCorpusPage(this.corpusSelection(state,query,0));
+      requestSignal()?.throwIfAborted();state.corpusMode=Boolean(state.corpusFirst?.total>0&&!state.corpusFirst.missingRetainedLanguage);
+    }
+    if(state.corpusMode)return this.buildCorpus(state,query,page,limits);
     const members=new Map(this.store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)]));
     const metadata=query.country?await this.loadMetadata({members}):new Map();
     requestSignal()?.throwIfAborted();
@@ -144,6 +150,54 @@ export class SpeechCloudInsights {
     const scans=[...state.scans.values()],sourceRecords={unique:scans.reduce((sum,scan)=>sum+scan.ids.size,0),declared:scans.every(scan=>scan.totals.size===1)?scans.reduce((sum,scan)=>sum+[...scan.totals][0],0):null,duplicates:state.duplicates,issues:[...state.sourceIssues]};
     state.truncated=state.sourceIssues.size>0;
     state.result={view:'speech-cloud',scope:{kind:state.scope.kind,member:query.member,sitting:query.sitting,week:query.week,topic:query.topic,title:state.scope.title,titleLanguage:state.scope.titleLanguage,phase:state.scope.phase},language:query.language,availableAnalysisLanguages:speechWordLanguages,window:{start:state.scope.dates[0]?.start||null,end:state.scope.dates.at(-1)?.end||null,days:query.days},country:query.country,words:analyzeSpeechCloud(records,query.language),speeches:records.map(({text,...speech})=>speech),coverage:{transcripts:records.length,matchedSpeechRecords:state.rawRecords,missingLanguage:state.missingLanguage,unreadableText:state.invalidText,complete:state.cursor===null&&!state.truncated,truncated:state.truncated,sourceRecords,associationUnavailable:state.scope.kind==='topic'&&!state.scope.dates.length,xmlBytes:state.xmlBytes},nextPage:state.cursor?state.page+1:null,sources:state.sources,computedAt:new Date(this.clock()).toISOString()};
+    return state.result;
+  }
+  corpusSelection(state,query,offset) {
+    return {member:query.member,from:state.scope.dates[0].start,to:state.scope.dates.at(-1).end,
+      dates:query.member?null:state.scope.dates.map(window=>window.start),sourceIds:state.scope.ids?[...state.scope.ids]:null,
+      language:query.language,offset,limit:CLOUD_LIMITS.pageSize};
+  }
+  async buildCorpus(state,query,page,limits) {
+    const members=new Map(this.store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)]));
+    const metadata=query.country?await this.loadMetadata({members}):new Map();
+    requestSignal()?.throwIfAborted();
+    while(state.cursor&&state.page<page) {
+      const result=state.corpusFirst||await this.readCorpusPage(this.corpusSelection(state,query,state.cursor.offset));
+      requestSignal()?.throwIfAborted();
+      if(!result)throw new HttpError(503,'corpus_unavailable','Saved speeches are temporarily unavailable. Please retry.');
+      state.corpusFirst=null;state.storedTotal=result.total;
+      for(const record of result.records) {
+        if(state.seen.has(record.id)){state.duplicates++;state.sourceIssues.add('overlapping-pages');continue;}
+        state.seen.add(record.id);state.rawRecords++;
+        const saved=record.metadata;if(!saved){state.invalidText++;continue;}
+        const people=participants(saved.activity);
+        if(query.country&&!people.some(id=>memberCountry(id,members,metadata)===query.country))continue;
+        for(const source of [{url:saved.sourceUrl,fetchedAt:saved.fetchedAt},...(saved.headerSources||[]),...(record.text?[{url:record.text.sourceUrl,fetchedAt:record.text.fetchedAt,checkedAt:record.text.checkedAt}]:[])])
+          state.sources.push({...source,retained:true});
+        if(!record.text){state.missingLanguage++;continue;}
+        const size=Buffer.byteLength(record.text.body);
+        if(state.xmlBytes+size>limits.xmlBytes){state.sourceIssues.add('text-byte-limit');state.cursor=null;break;}
+        state.xmlBytes+=size;
+        if(!record.text.body.trim()){state.invalidText++;continue;}
+        const titles=saved.summary.titles||{};
+        state.records.set(record.id,{id:record.id,date:saved.summary.date,title:titles[query.language]||titles.en||'Speech',titleLanguage:titles[query.language]?query.language:titles.en?'en':null,
+          text:record.text.body,machineTranslation:record.text.translationType==='machine',people:people.map(id=>{
+            const known=members.get(id)||state.scope.people?.get(id),header=saved.speakers.find(person=>person.id===id);
+            return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),role:header?.role||null};
+          })});
+      }
+      state.page++;
+      if(result.truncated){state.sourceIssues.add('text-byte-limit');state.cursor=null;}
+      if(state.cursor)state.cursor=result.nextOffset===null?null:{date:0,offset:result.nextOffset};
+      if(state.page>=limits.pages-1&&state.cursor){state.sourceIssues.add('page-limit');state.cursor=null;}
+    }
+    const records=[...state.records.values()];state.truncated=state.sourceIssues.size>0;
+    state.result={view:'speech-cloud',scope:{kind:state.scope.kind,member:query.member,sitting:query.sitting,week:query.week,topic:query.topic,title:state.scope.title,titleLanguage:state.scope.titleLanguage,phase:state.scope.phase},
+      language:query.language,availableAnalysisLanguages:speechWordLanguages,window:{start:state.scope.dates[0].start,end:state.scope.dates.at(-1).end,days:query.days},country:query.country,
+      words:analyzeSpeechCloud(records,query.language),speeches:records.map(({text,...speech})=>speech),
+      coverage:{basis:'retained-corpus',transcripts:records.length,matchedSpeechRecords:state.rawRecords,missingLanguage:state.missingLanguage,unreadableText:state.invalidText,complete:false,truncated:state.truncated,
+        sourceRecords:{unique:state.rawRecords,declared:null,retained:state.storedTotal,duplicates:state.duplicates,issues:[...state.sourceIssues]},associationUnavailable:false,xmlBytes:state.xmlBytes},
+      nextPage:state.cursor?state.page+1:null,sources:[...new Map(state.sources.map(source=>[JSON.stringify(source),source])).values()],computedAt:new Date(this.clock()).toISOString()};
     return state.result;
   }
 }
