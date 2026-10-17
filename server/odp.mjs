@@ -1,4 +1,5 @@
 import { HttpError } from "./http-utils.mjs";
+import {createReadStream} from "node:fs";
 import {readFile,writeFile} from "node:fs/promises";
 import {writeCacheFile} from './cache-publication.mjs';
 import path from "node:path";
@@ -16,7 +17,13 @@ import {userAgent} from './user-agent.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
+const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
+// JSON number normalization can expand a valid wire value (1e20 becomes 21 digits).
+const MAX_DISK_RECORD_BYTES = 6 * MAX_SOURCE_BYTES + 64 * 1024;
+const MAX_CACHE_ENTRIES = 1800;
+const MAX_CACHE_BYTES = 64 * 1024 * 1024;
 const cache = new Map();
+let cacheBytes = 0;
 const pending = new Map();
 const upstreamQueue = new UpstreamQueue();
 export const upstreamStatus=()=>upstreamQueue.snapshot();
@@ -56,6 +63,38 @@ function filename(key) {
     createHash("sha256").update(key).digest("hex") + ".json",
   );
 }
+// Disk and upstream records share one count and serialized-byte budget.
+function rememberSource(key, record, serialized = JSON.stringify(record)) {
+  const bytes = Buffer.byteLength(serialized);
+  const previous = cache.get(key);
+  if (previous) {
+    cacheBytes -= previous.bytes;
+    cache.delete(key);
+  }
+  if (bytes > MAX_CACHE_BYTES) return;
+  cache.set(key, {record, bytes});
+  cacheBytes += bytes;
+  while (cache.size > MAX_CACHE_ENTRIES || cacheBytes > MAX_CACHE_BYTES) {
+    const oldest = cache.keys().next().value;
+    cacheBytes -= cache.get(oldest).bytes;
+    cache.delete(oldest);
+  }
+}
+async function readSourceRecord(file, signal) {
+  signal?.throwIfAborted();
+  // The inclusive end permits one overflow byte without trusting a prior stat.
+  const stream = createReadStream(file, {start: 0, end: MAX_DISK_RECORD_BYTES, signal});
+  const parts = [];
+  let bytes = 0;
+  for await (const chunk of stream) {
+    signal?.throwIfAborted();
+    bytes += chunk.byteLength;
+    if (bytes > MAX_DISK_RECORD_BYTES) throw new Error('Saved Parliament source exceeds the allowed size.');
+    parts.push(chunk);
+  }
+  signal?.throwIfAborted();
+  return Buffer.concat(parts, bytes).toString('utf8');
+}
 const dayOf = (timestamp) =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Brussels",
@@ -86,14 +125,17 @@ export async function odp(
   }))
     url.searchParams.set(key, String(value));
   const key = url.href;
-  let stored = cache.get(key);
+  let stored = cache.get(key)?.record;
   if (!stored && cacheDir && !force) {
     try {
       const oldName=Buffer.from(key).toString('base64url')+'.json';
-      const raw=await readFile(filename(key),'utf8').catch(e=>oldName.length<=255?readFile(path.join(cacheDir,oldName),'utf8'):Promise.reject(e));
+      const raw=await readSourceRecord(filename(key),signal).catch(error=>{
+        signal?.throwIfAborted();
+        return oldName.length<=255?readSourceRecord(path.join(cacheDir,oldName),signal):Promise.reject(error);
+      });
       signal?.throwIfAborted();
       const record=JSON.parse(raw);
-      if(record.url===key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data)) {stored=record;cache.set(key,record);}
+      if(record.url===key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data)) {rememberSource(key,record);stored=record;}
     } catch { /* Missing or invalid reproducible cache. */ }
   }
   signal?.throwIfAborted();
@@ -161,7 +203,7 @@ export async function odp(
         );
       }
       const parts=[];let bytes=0;
-      for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>12*1024*1024)throw new HttpError(502,'odp_size','Parliament response exceeded the allowed size.');parts.push(chunk);}
+      for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>MAX_SOURCE_BYTES)throw new HttpError(502,'odp_size','Parliament response exceeded the allowed size.');parts.push(chunk);}
       budget.signal?.throwIfAborted();
       const text=Buffer.concat(parts).toString('utf8');
       const payload = JSON.parse(text);
@@ -172,16 +214,20 @@ export async function odp(
           "Parliament returned an unexpected data structure.",
         );
       const record = { url: key, fetchedAt: Date.now(), payload };
+      const serialized = JSON.stringify(record);
       refreshFailures.delete(key);
-      cache.set(key, record);
-      if (cache.size > 1800) cache.delete(cache.keys().next().value);
-      if (cacheDir) {
-        await writeCacheFile(filename(key),JSON.stringify(record),{signal:budget.signal}).catch(()=>{});
+      rememberSource(key, record, serialized);
+      if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) {
+        await writeCacheFile(filename(key),serialized,{signal:budget.signal}).catch(()=>{});
       }
       budget.signal?.throwIfAborted();
       return record;
     } catch(error) {
-      if(!budget.signal?.aborted&&!isLocalRequestFailure(error))refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});
+      if(!budget.signal?.aborted&&!isLocalRequestFailure(error)) {
+        refreshFailures.delete(key);
+        refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});
+        while(refreshFailures.size>MAX_CACHE_ENTRIES)refreshFailures.delete(refreshFailures.keys().next().value);
+      }
       throw error;
     } finally {
       release?.();
