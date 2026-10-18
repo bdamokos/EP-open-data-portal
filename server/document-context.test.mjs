@@ -88,6 +88,32 @@ test('an insertion uses an explicitly linked source decision, never its new-labe
   assert.equal((await unlinked.query(query({amendmentId}),{store:{}})).target.status,'unavailable');
 });
 
+test('adding conflicting decision references cannot restore a previously withheld passage',async()=>{
+  const paragraphs=['D. Exact original wording.','E. Another passage.','F. A third passage.'];
+  const text={...summary,paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({...summary.paragraphSources[0],path:'w:p['+ordinal+']',ordinal}))};
+  for(const references of [['Recital E'],['Recital E','Recital F']]) {
+    const decisions=references.map((reference,index)=>({id:'MTG-PL-2026-10-07-DEC-'+(197430+index),amendmentIds:[amendmentId],reference,source}));
+    const reader=service({findAmendment:()=>({...indexed,targetLabel:'Recital D',targetLabelLanguage:'en',originalText:paragraphs[0],decisions}),readText:async()=>text});
+    const result=await reader.query(query({amendmentId}),{store:{}});
+    assert.equal(result.target.status,'ambiguous');assert.deepEqual(result.target.paragraphs,[]);assert.deepEqual(result.target.evidence.referenceDecisions.map(decision=>decision.reference),references);
+  }
+});
+
+test('the aggregate metadata limit stops procedure, adopted-text and amendment-list traversal',async()=>{
+  const procedure='2026-2868',secondProcedure='2026-2869',secondTA='TA-10-2026-0342',secondList=id+'-AM-040-040';
+  const procedureNode={id:'eli/dl/proc/'+procedure,created_a_realization_of:['eli/dl/doc/'+ta,'eli/dl/doc/'+secondTA]};
+  const scenarios=[
+    {root:{...work,inverse_created_a_realization_of:['eli/dl/proc/'+procedure,'eli/dl/proc/'+secondProcedure]},extra:{adopted:true},documents:{['/procedures/'+procedure]:{...procedureNode,padding:'x'.repeat(6000)}},paths:['/plenary-documents/'+id,'/procedures/'+procedure]},
+    {root:{...work,inverse_created_a_realization_of:['eli/dl/proc/'+procedure]},extra:{adopted:true},documents:{['/procedures/'+procedure]:procedureNode,['/adopted-texts/'+ta]:{id:'eli/dl/doc/'+ta,identifier:ta,padding:'x'.repeat(6000)}},paths:['/plenary-documents/'+id,'/procedures/'+procedure,'/adopted-texts/'+ta]},
+    {root:{...work,inverse_foresees_change_of:['eli/dl/doc/'+listId,'eli/dl/doc/'+secondList]},extra:{amendmentId},documents:{['/plenary-documents/'+listId]:{id:'eli/dl/doc/'+listId,identifier:listId,padding:'x'.repeat(6000)}},paths:['/plenary-documents/'+id,'/plenary-documents/'+listId]},
+  ];
+  for(const scenario of scenarios) {
+    const paths=[];const reader=service({limits:{metadataBytes:5000},request:async path=>{paths.push(path);return record(path==='/plenary-documents/'+id?scenario.root:scenario.documents[path]);}});
+    await assert.rejects(reader.query(query(scenario.extra)),{status:502,code:'document_source_budget'});
+    assert.deepEqual(paths,scenario.paths);assert.equal(reader.cache.size,0);
+  }
+});
+
 test('an unreadable competing version cannot silently make another version the default target',async()=>{
   const variants=[indexed,{...indexed,listId:id+'-AM-040-040',textIntegrity:'incomplete',originalText:null,proposedText:null}];
   const reader=service({findAmendment:()=>({...indexed,variants})});

@@ -111,14 +111,14 @@ export class DocumentContext {
           const {work:procedure}=await read('/procedures/'+id,id,{procedure:true});
           if(!knownDocumentRelationships(procedure,'created_a_realization_of'))related.gaps.push('adopted-relationships-unavailable');
           for(const value of array(procedure.created_a_realization_of)){const valueId=typeof value==='string'?value:value?.id;const normalized=String(valueId||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');if(/^eli\/dl\/doc\/TA-10-\d{4}-\d{4,6}$/.test(normalized))candidates.add(tail(normalized));}
-        }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;related.gaps.push('procedure-unavailable');}
+        }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;related.gaps.push('procedure-unavailable');}
         if(candidates.size>this.limits.adoptedCandidates){related.gaps.push('adopted-candidate-budget');}
         else for(const id of candidates)try {
           const {work:adopted,source}=await read('/adopted-texts/'+id,id);
           if(!knownDocumentRelationships(adopted,'adopts'))related.gaps.push('adopted-reciprocal-relationship-unavailable');
           if(canonicalType(adopted.work_type)!=='def/ep-document-types/TEXT_ADOPTED')related.gaps.push('adopted-record-type-unverified');
           else if(refs(adopted.adopts).includes('eli/dl/doc/'+query.id))related.items.push({...documentSummary(adopted,null),relationship:{from:id,field:'adopts',to:query.id},source});
-        }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;related.gaps.push('adopted-text-unavailable');}
+        }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;related.gaps.push('adopted-text-unavailable');}
         if(related.gaps.length)related.status=related.items.length?'partial':'unavailable';
       }
     }
@@ -128,7 +128,7 @@ export class DocumentContext {
     const chosen=amendment?.variants.length===1&&amendment.variants[0].wordingStatus==='available'&&(query.listId||!amendment.gaps.length)?amendment.variants[0]:null;
     const referenceDecisions=array(indexed?.decisions).filter(decision=>array(decision.amendmentIds).some(id=>id===query.amendmentId||id===indexed.id)&&typeof decision.reference==='string'&&decision.source?.url&&decision.source?.fetchedAt);
     const references=[...new Set(referenceDecisions.map(decision=>decision.reference))];
-    const target=!query.amendmentId||query.includeBody===false?{...unavailableTarget(null),status:'not-requested'}:!chosen?unavailableTarget(amendment?.variants.length?'choose-source-version':'amendment-wording-unavailable'):chosen.language!==document?.selectedText?.textLanguage?unavailableTarget('different-text-languages'):resolveDocumentTarget(document?.selectedText,{originalText:chosen.originalText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references.length===1?references[0]:undefined,language:chosen.language});
+    const target=!query.amendmentId||query.includeBody===false?{...unavailableTarget(null),status:'not-requested'}:!chosen?unavailableTarget(amendment?.variants.length?'choose-source-version':'amendment-wording-unavailable'):references.length>1?{...unavailableTarget('conflicting-reference-decisions'),status:'ambiguous'}:chosen.language!==document?.selectedText?.textLanguage?unavailableTarget('different-text-languages'):resolveDocumentTarget(document?.selectedText,{originalText:chosen.originalText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references[0],language:chosen.language});
     return {version:1,documentId:query.id,requestedLanguage:query.language,document,related,amendment,target:{...target,evidence:chosen?{amendmentId:query.amendmentId,listId:chosen.listId,wordingSource:chosen.source,targetLabelLanguage:chosen.targetLabelLanguage,targetLabelSource:chosen.targetLabelSource,fieldSources:chosen.fieldSources,referenceDecisions:referenceDecisions.map(decision=>({id:decision.id,reference:decision.reference,language:'en',source:decision.source}))}:null},sources};
   }
   async amendment(query,indexed,work,sources,read) {
@@ -151,7 +151,7 @@ export class DocumentContext {
       const listId=tail(ref(candidate)),fingerprint=JSON.stringify(candidate);
       if(observed.has(listId)){if(observed.get(listId)!==fingerprint)base.gaps.push('conflicting-list-metadata');continue;}observed.set(listId,fingerprint);
       let list=candidate;
-      if(typeof candidate==='string'||!Object.hasOwn(candidate,'is_realized_by'))try {list=(await read('/plenary-documents/'+listId,listId)).work;}catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;base.gaps.push('amendment-list-unavailable');continue;}
+      if(typeof candidate==='string'||!Object.hasOwn(candidate,'is_realized_by'))try {list=(await read('/plenary-documents/'+listId,listId)).work;}catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;base.gaps.push('amendment-list-unavailable');continue;}
       if(workId(list)!==listId||canonicalType(list.work_type)!=='def/ep-document-types/AMENDMENT_LIST'||!refs(list.foresees_change_of).includes('eli/dl/doc/'+query.id)){base.gaps.push('amendment-list-target-unverified');continue;}
       const files=documentFiles(list).filter(file=>file.format==='DOCX'&&file.language&&allowedDownload(file.url));
       const languages=[...new Set(files.map(file=>file.language))],language=languages.includes(query.language)?query.language:languages.includes('en')?'en':languages[0];
