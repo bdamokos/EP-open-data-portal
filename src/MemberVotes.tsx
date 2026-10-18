@@ -136,6 +136,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext}:{vote:Mem
 export function MemberVotes({memberId,memberName,language,state,onStateChange,renderContext}:MemberVotesProps) {
   const id=useId(),listRef=useRef<HTMLDivElement>(null),detailRef=useRef<HTMLDivElement>(null);
   const listScroll=useRef(0),detailScroll=useRef(0),headingRef=useRef<HTMLDivElement>(null);
+  const restoredPane=useRef<HTMLDivElement|null>(null);
   const listHeadingRef=useRef<HTMLHeadingElement>(null);
   const lastSelection=useRef<{decisionId:string;groupId:string|null}|null>(null),returnFocus=useRef(false);
   const [weekError,setWeekError]=useState('');
@@ -160,8 +161,11 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     if(current.snapshotId!==data.snapshotId||current.week!==week)onStateChange({...current,week,snapshotId:data.snapshotId},{replace:true});
   },[data,request.data,request.loading,onStateChange]);
   useLayoutEffect(()=>{
-    if(!state.decisionId&&!state.context&&listRef.current)listRef.current.scrollTop=listScroll.current;
-    if(state.decisionId&&!state.context&&detailRef.current)detailRef.current.scrollTop=detailScroll.current;
+    const pane=state.context?null:state.decisionId?detailRef.current:listRef.current;
+    // The journey owner may restore this node after a tab remount. A refreshed
+    // response must not overwrite that position while the same pane stays open.
+    if(pane&&pane!==restoredPane.current)pane.scrollTop=state.decisionId?detailScroll.current:listScroll.current;
+    restoredPane.current=pane;
   },[data,state.decisionId,state.context]);
   useLayoutEffect(()=>{
     if(state.decisionId){

@@ -457,13 +457,14 @@ export default function App() {
     const previous=scrolledView.current;scrolledView.current={member,tab,view};
     const page=document.querySelector<HTMLElement>(".explorer");
     if(!page||page.scrollHeight<=page.clientHeight)return;
+    if(!view&&tab==='votes'&&votes.hasSavedScroll)return;
     if(previous.member!==member||previous.view!==view){if(!speechLink&&!activityLink)page.scrollTo({top:0});return;}
     if(previous.tab===tab||(tab==="speeches"&&speechLink)||(tab==="activities"&&activityLink))return;
     const body=page.querySelector<HTMLElement>(".explorer-profile-body"),tabs=page.querySelector<HTMLElement>(".explorer-tabs");
     if(!body||!tabs||getComputedStyle(tabs).position!=="sticky")return;
     const contentTop=page.scrollTop+body.getBoundingClientRect().top-page.getBoundingClientRect().top-tabs.offsetHeight;
     if(page.scrollTop>contentTop)page.scrollTo({top:contentTop});
-  }, [member, tab, view, speechLink, activityLink]);
+  }, [member, tab, view, speechLink, activityLink,votes.hasSavedScroll]);
   // Apply the destination after the existing responsive scroll policy has settled.
   function focusDestination(){
     const intent=pendingDestination.current;
@@ -572,6 +573,7 @@ export default function App() {
   function navigateView(next:typeof view) {
     next=publicExplorerView(next);
     if(next===view)return;
+    votes.remember();
     const active=document.activeElement instanceof HTMLElement?document.activeElement:null;
     viewOpener.current={node:active,headerIndex:active?Array.from(document.querySelectorAll('.parliament-header nav button')).indexOf(active):-1};
     pendingDestination.current={view:next,member:next?member:null};
@@ -607,8 +609,9 @@ export default function App() {
     };
     window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);
   },[]);
-  const changeMemberTab=(next:string)=>{if(next!==tab&&(next==='votes'||tab==='votes'))memberStep.current=true;setTab(next);};
+  const changeMemberTab=(next:string)=>{if(next!==tab){votes.remember();if(next==='votes'||tab==='votes')memberStep.current=true;}setTab(next);};
   const openInsightMember = (id: number, sourceId?: string) => {
+    votes.remember();
     navigateView(null);setMember(id);setActivityCategory('');
     memberOpener.current=null;
     pendingDestination.current={view:null,member:id};
@@ -618,10 +621,12 @@ export default function App() {
     setActivityLink(sourceId && !speech ? sourceId : null);
   };
   const showMembers = () => {
+    votes.remember();
     navigateView(null);setMember(null);setSpeechLink(null);setActivityLink(null);
     pendingDestination.current={view:null,member:null};
   };
   const leaveMember=()=>{
+    votes.remember();
     pendingDestination.current={view:null,member:null,portrait:memberOpener.current};
     memberStep.current=true;setMember(null);setSpeechLink(null);setActivityLink(null);
   };
