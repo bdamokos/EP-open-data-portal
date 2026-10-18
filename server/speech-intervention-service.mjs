@@ -94,6 +94,7 @@ export class SpeechInterventions {
         let record;
         if(saved) {
           state.corpusRevision=saved.revision;
+          state.latestDataDate=saved.coverage?.latestDataDate||null;
           state.issues.add('retained-corpus');
           if(saved.truncated)state.issues.add('retained-byte-limit');
           const rows=saved.records.filter(row=>row.metadata);
@@ -121,7 +122,7 @@ export class SpeechInterventions {
     const classificationsComplete=(metadata.length>0||sourceComplete)&&(!state.corpusMode||sourceComplete)&&!metadata.some(m=>['unclassified','blue-card'].includes(m.type));
     const observed=value=>(value>0||classificationsComplete)?value:null;
     return {memberId:key,restarted,items:rows.map(row=>state.summaries.get(row.activity_id)||speechSummary(row)),counts:{groupOrations:state.corpusMode?observed(groupOrations.length):groupOrations.length,blueQuestions:observed(count('blue-card-question')+count('blue-card-intervention')),blueAnswers:observed(count('blue-card-answer')),blueReactions:observed(count('blue-card-reaction')),catchTheEye:count('catch-the-eye')||null},groups:[...new Set(groupOrations.flatMap(m=>m.onBehalfOf.filter(g=>g.politicalGroup).map(g=>g.id)))].map(id=>({id,label:groupLabelsFrom(metadata,id),count:groupOrations.filter(m=>m.onBehalfOf.some(g=>g.id===id)).length})),
-      coverage:{complete:sourceComplete&&classificationsComplete,available:state.rows.size,total:state.total,headers:metadata.filter(m=>m.headerAvailable).length,unclassified:count('unclassified')+count('blue-card'),issues:[...state.issues]},
+      coverage:{complete:sourceComplete&&classificationsComplete,available:state.rows.size,total:state.total,headers:metadata.filter(m=>m.headerAvailable).length,unclassified:count('unclassified')+count('blue-card'),issues:[...state.issues],latestDataDate:state.latestDataDate||null},
       nextPage:!state.ended&&state.page+1<INTERVENTION_LIMITS.memberPages?state.page+1:null,sources:state.sources};
   }
   async restartMember(id,key,state) {
