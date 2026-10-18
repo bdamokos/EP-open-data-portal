@@ -64,4 +64,5 @@
 .motion-amendments__pages{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:14px 0;font-size:13px}
 .motion-amendments__pages>span{font-variant-numeric:tabular-nums;text-align:center}
 .motion-amendments__context-gap{padding:16px 0;font-size:14px}
+.motion-amendments__context:focus-visible{outline:3px solid var(--signal-blue,#1e6cff);outline-offset:3px}
 @media(max-width:600px){.motion-amendments__header{padding:16px 0;gap:12px}.motion-amendments__text-actions{width:100%}.motion-amendments__text-actions>button{flex:1;min-width:0}.motion-amendments__scope{display:grid;grid-template-columns:minmax(0,1fr)}.motion-amendments__wording-grid{grid-template-columns:minmax(0,1fr)}.motion-amendments__detail{padding:17px 12px}.motion-amendments__wording{padding:13px}.motion-amendments__wording--proposed{padding-top:11px}.motion-amendments__row-end{max-width:44%;gap:7px}.motion-amendments__pages>span{order:3;flex:1 0 100%}.motion-amendments .motion-amendments__passage{font-size:16px}}
