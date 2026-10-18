@@ -1,0 +1,269 @@
+{
+  "note": "Public API record extracts; transcript paragraphs omitted, original and English headers retained.",
+  "observations": [
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-07-08-OTH-2017087022084?include-output=xml_fragment&format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-18T21:15:31.427963+00:00",
+      "expectedType": "blue-card-answer",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087022084",
+        "type": "Activity",
+        "activity_date": "2026-07-08",
+        "activity_end_date": "2026-07-08T15:09:40.947+02:00",
+        "activity_id": "MTG-PL-2026-07-08-OTH-2017087022084",
+        "activity_start_date": "2026-07-08T15:08:58.516+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-07-08-OTH-2017087022084_256918",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/256918"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-07-08-OTH-2017087022084",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-07-08-ITM-014",
+            "number": "3-0311-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-07-08-OTH-2017087022084",
+            "notation_speechId": "2017087022084",
+            "numbering": 295,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/FRA"
+            ],
+            "api:xmlFragment": {
+              "en": "<oralStatements><answer endTime=\"2026-07-08T15:09:40.947\" startTime=\"2026-07-08T15:08:58.516\" xml:lang=\"fr-t-en-mtec\"><from xml:lang=\"fr-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/256918\">Céline Imart</person> (<organization refersTo=\"epdata:org/7018\">PPE</organization>), <process refersTo=\"\">Blue Carton Response</process>.</from></answer></oralStatements>",
+              "fr": "<oralStatements><answer endTime=\"2026-07-08T15:09:40.947\" startTime=\"2026-07-08T15:08:58.516\" xml:lang=\"fr\"><from xml:lang=\"fr\" xml:space=\"preserve\"><person refersTo=\"epdata:person/256918\">Céline Imart</person> (<organization refersTo=\"epdata:org/7018\">PPE</organization>), <process refersTo=\"\">réponse carton bleu</process>.</from></answer></oralStatements>"
+            }
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-07-08-PVCRE-ITM-14"
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-10-07-OTH-2017097993210?include-output=xml_fragment&format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-18T21:15:34.089515+00:00",
+      "expectedType": "blue-card-question",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-10-07-OTH-2017097993210",
+        "type": "Activity",
+        "activity_date": "2026-10-07",
+        "activity_end_date": "2026-10-07T11:24:05.876+02:00",
+        "activity_id": "MTG-PL-2026-10-07-OTH-2017097993210",
+        "activity_start_date": "2026-10-07T11:22:44.852+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-10-07-OTH-2017097993210_197493",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/197493"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-10-07-OTH-2017097993210",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-10-07-ITM-004",
+            "number": "3-0116-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-10-07-OTH-2017097993210",
+            "notation_speechId": "2017097993210",
+            "numbering": 124,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/ENG",
+              "http://publications.europa.eu/resource/authority/language/EST"
+            ],
+            "api:xmlFragment": {
+              "mul": "<oralStatements><question endTime=\"2026-10-07T11:23:09.44\" startTime=\"2026-10-07T11:22:44.852\" xml:lang=\"et\"><from xml:lang=\"et\" xml:space=\"preserve\"><person refersTo=\"epdata:person/197493\">Jaak Madison</person> (<organization refersTo=\"epdata:org/7037\">ECR</organization>), <process refersTo=\"\">sinise kaardi küsimus</process>.</from><!--et - 0--><!--en - 1--></question></oralStatements>",
+              "en": "<oralStatements><question endTime=\"2026-10-07T11:23:09.44\" startTime=\"2026-10-07T11:22:44.852\" xml:lang=\"et-t-en-mtec\"><from xml:lang=\"et-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/197493\">Jaak Madison</person> (<organization refersTo=\"epdata:org/7037\">ECR</organization>), <process refersTo=\"\">Blue Card issue</process>.</from><!--et - 0--><!--en - 1--></question></oralStatements>"
+            }
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-4"
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-07-08-OTH-2017087022093?include-output=xml_fragment&format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-18T21:15:32.169503+00:00",
+      "expectedType": "blue-card-reaction",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-07-08-OTH-2017087022093",
+        "type": "Activity",
+        "activity_date": "2026-07-08",
+        "activity_end_date": "2026-07-08T15:14:06.083+02:00",
+        "activity_id": "MTG-PL-2026-07-08-OTH-2017087022093",
+        "activity_start_date": "2026-07-08T15:13:26.326+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-07-08-OTH-2017087022093_277178",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/277178"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-07-08-OTH-2017087022093",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-07-08-ITM-014",
+            "number": "3-0316-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-07-08-OTH-2017087022093",
+            "notation_speechId": "2017087022093",
+            "numbering": 300,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/DAN"
+            ],
+            "api:xmlFragment": {
+              "en": "<oralStatements><speech endTime=\"2026-07-08T15:14:06.083\" startTime=\"2026-07-08T15:13:26.326\" xml:lang=\"da-t-en-mtec\"><from xml:lang=\"da-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/277178\">Majbritt Birkholm</person> (<organization refersTo=\"epdata:org/7150\">PfE</organization>), <process refersTo=\"\">Responding to Blue Card Questions</process>.</from></speech></oralStatements>",
+              "da": "<oralStatements><speech endTime=\"2026-07-08T15:14:06.083\" startTime=\"2026-07-08T15:13:26.326\" xml:lang=\"da\"><from xml:lang=\"da\" xml:space=\"preserve\"><person refersTo=\"epdata:person/277178\">Majbritt Birkholm</person> (<organization refersTo=\"epdata:org/7150\">PfE</organization>), <process refersTo=\"\">reaktion på blåt kort-spørgsmål</process>.</from></speech></oralStatements>"
+            }
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-07-08-PVCRE-ITM-14"
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-05-20-OTH-2017077073509?include-output=xml_fragment&format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-18T21:15:33.223292+00:00",
+      "expectedType": "blue-card-reaction",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-05-20-OTH-2017077073509",
+        "type": "Activity",
+        "activity_date": "2026-05-20",
+        "activity_end_date": "2026-05-20T16:44:01.139+02:00",
+        "activity_id": "MTG-PL-2026-05-20-OTH-2017077073509",
+        "activity_start_date": "2026-05-20T16:43:53.466+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-05-20-OTH-2017077073509_96681",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/96681"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-05-20-OTH-2017077073509",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-05-20-ITM-015",
+            "number": "3-0337-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-05-20-OTH-2017077073509",
+            "notation_speechId": "2017077073509",
+            "numbering": 311,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/LIT"
+            ],
+            "api:xmlFragment": {
+              "lt": "<oralStatements><speech endTime=\"2026-05-20T16:44:01.139\" startTime=\"2026-05-20T16:43:53.466\" xml:lang=\"lt\"><from xml:lang=\"lt\" xml:space=\"preserve\"><person refersTo=\"epdata:person/96681\">Vilija Blinkevičiūtė</person> (<organization refersTo=\"epdata:org/7038\">S&amp;D</organization>), <process refersTo=\"\">replika pagal mėlynosios kortelės procedūrą</process>.</from></speech></oralStatements>",
+              "en": "<oralStatements><speech endTime=\"2026-05-20T16:44:01.139\" startTime=\"2026-05-20T16:43:53.466\" xml:lang=\"lt-t-en-mtec\"><from xml:lang=\"lt-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/96681\">Vilija Blinkevičiūtė</person> (<organization refersTo=\"epdata:org/7038\">S&amp;D</organization>), <process refersTo=\"\">replica under the blue card procedure</process>.</from></speech></oralStatements>"
+            }
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-05-20-PVCRE-ITM-15"
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-02-10-OTH-2017061106855?include-output=xml_fragment&format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-18T21:15:32.674301+00:00",
+      "expectedType": "blue-card-reaction",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2026-02-10-OTH-2017061106855",
+        "type": "Activity",
+        "activity_date": "2026-02-10",
+        "activity_end_date": "2026-02-10T13:51:19.358+01:00",
+        "activity_id": "MTG-PL-2026-02-10-OTH-2017061106855",
+        "activity_start_date": "2026-02-10T13:50:50.582+01:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2026-02-10-OTH-2017061106855_260724",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/260724"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2026-02-10-OTH-2017061106855",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2026-02-10-ITM-010",
+            "number": "2-0232-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2026-02-10-OTH-2017061106855",
+            "notation_speechId": "2017061106855",
+            "numbering": 210,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/HUN"
+            ],
+            "api:xmlFragment": {
+              "en": "<oralStatements><speech endTime=\"2026-02-10T13:51:19.358\" startTime=\"2026-02-10T13:50:50.582\" xml:lang=\"hu-t-en-mtec\"><from xml:lang=\"hu-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/260724\">Csaba Dömötör</person> (<organization refersTo=\"epdata:org/7150\">PfE</organization>), <process refersTo=\"\">Blue Card Responding</process>.</from></speech></oralStatements>",
+              "hu": "<oralStatements><speech endTime=\"2026-02-10T13:51:19.358\" startTime=\"2026-02-10T13:50:50.582\" xml:lang=\"hu\"><from xml:lang=\"hu\" xml:space=\"preserve\"><person refersTo=\"epdata:person/260724\">Csaba Dömötör</person> (<organization refersTo=\"epdata:org/7150\">PfE</organization>), <process refersTo=\"\">kékkártyás viszontválasz</process>.</from></speech></oralStatements>"
+            }
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-02-10-PVCRE-ITM-10"
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2025-03-31-OTH-2017020224062?include-output=xml_fragment&format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-18T21:12:50.418668+00:00",
+      "expectedType": "chair",
+      "activity": {
+        "id": "eli/dl/event/MTG-PL-2025-03-31-OTH-2017020224062",
+        "type": "Activity",
+        "activity_date": "2025-03-31",
+        "activity_end_date": "2025-03-31T19:14:00+02:00",
+        "activity_id": "MTG-PL-2025-03-31-OTH-2017020224062",
+        "activity_start_date": "2025-03-31T19:13:41+02:00",
+        "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+        "had_participation": {
+          "id": "eli/dl/participation/MTG-PL-2025-03-31-OTH-2017020224062_37312",
+          "type": "Participation",
+          "had_participant_person": [
+            "person/37312"
+          ],
+          "participation_role": "def/ep-roles/SPEAKER"
+        },
+        "recorded_in_a_realization_of": [
+          {
+            "id": "eli/dl/doc/CRE-10-2025-03-31-OTH-2017020224062",
+            "type": "WorkSubdivision",
+            "is_part_of": "eli/dl/doc/CRE-10-2025-03-31-ITM-014",
+            "number": "1-0122-0000",
+            "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+            "identifier": "CRE-10-2025-03-31-OTH-2017020224062",
+            "notation_speechId": "2017020224062",
+            "numbering": 110,
+            "originalLanguage": [
+              "http://publications.europa.eu/resource/authority/language/ENG"
+            ],
+            "api:xmlFragment": {
+              "en": "<oralStatements><speech endTime=\"2025-03-31T19:14:00\" startTime=\"2025-03-31T19:13:41\"><from xml:lang=\"en\" xml:space=\"preserve\"><person refersTo=\"epdata:person/37312\">President</person>.</from></speech></oralStatements>"
+            }
+          }
+        ],
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2025-03-31-PVCRE-ITM-14"
+        ]
+      }
+    }
+  ]
+}

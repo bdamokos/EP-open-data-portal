@@ -4,11 +4,11 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { zstdCompressSync, zstdDecompressSync } from 'node:zlib';
 import path from 'node:path';
-import {XMLValidator} from 'fast-xml-parser';
+import {XMLParser,XMLBuilder,XMLValidator} from 'fast-xml-parser';
 import {countryCode} from './insights-countries.mjs';
 import {speechSummary,chooseTranscript} from './odp.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
-import {speechPeople} from './speech-interventions.mjs';
+import {speechPeople,interventionMetadata,INTERVENTION_CLASSIFICATION_VERSION} from './speech-interventions.mjs';
 
 // Full-text corpus of speeches, questions and answers. It lives beside the
 // activity index but outside its refresh generations, so a refresh never copies
@@ -17,6 +17,30 @@ import {speechPeople} from './speech-interventions.mjs';
 const KINDS=['speech','question','answer'];
 const parse=value=>value==null?null:JSON.parse(value);
 const sha=value=>createHash('sha256').update(value).digest('hex');
+const headerParser=new XMLParser({ignoreAttributes:false,parseTagValue:false,trimValues:false});
+const headerBuilder=new XMLBuilder({ignoreAttributes:false});
+const array=value=>value==null?[]:Array.isArray(value)?value:[value];
+const attributes=node=>Object.fromEntries(Object.entries(node||{}).filter(([key])=>key.startsWith('@_')));
+
+// Empty contributions can have useful headers without any paragraph to retain
+// in texts. Keep only classification headers, never another transcript copy.
+function interventionHeaders(fragments) {
+  const headers={};let bytes=0;
+  for(const [language,xml] of Object.entries(fragments)) {
+    if(typeof xml!=='string'||Buffer.byteLength(xml)>2*1024*1024||/<!DOCTYPE|<!ENTITY/i.test(xml)||XMLValidator.validate(xml)!==true)continue;
+    const parsed=headerParser.parse(xml);
+    const rootName=['oralStatements','writtenStatements'].find(key=>parsed[key]);
+    if(!rootName)continue;
+    const root=parsed[rootName];
+    const [kind,node]=Object.entries(root).flatMap(([key,value])=>array(value).map(node=>[key,node])).find(([,node])=>node?.from)||[];
+    if(!node)continue;
+    const header=headerBuilder.build({[rootName]:{...attributes(root),[kind]:{...attributes(node),from:node.from}}});
+    bytes+=Buffer.byteLength(header);
+    if(Buffer.byteLength(header)>16*1024||bytes>256*1024||Object.keys(headers).length>=64)throw new Error('Speech classification headers exceeded the allowed size.');
+    headers[language]=header;
+  }
+  return headers;
+}
 export const CORPUS_LIMITS=Object.freeze({searchLimit:50,searchOffset:1000,queryLength:200,queryTerms:12,sourceIds:1000,requestBytes:128*1024,highlightBytes:512*1024,highlightRanges:10000});
 
 function matchRanges(marked,limit) {
@@ -183,6 +207,18 @@ export class CorpusStore {
     return row?.raw ? zstdDecompressSync(row.raw).toString('utf8') : null;
   }
 
+  retainedSpeechFragments(sourceId) {
+    const rows=this.db.prepare(`SELECT t.source_key,t.raw,t.source_url,t.fetched_at,t.sha256 FROM texts t JOIN documents d ON d.id=t.document_id
+      WHERE d.source_id=? AND t.source_format='xml-fragment' AND t.raw IS NOT NULL ORDER BY t.source_key`).all(sourceId);
+    const fragments={};let bytes=0;
+    for(const row of rows) {
+      const xml=zstdDecompressSync(row.raw,{maxOutputLength:2*1024*1024}).toString('utf8');bytes+=Buffer.byteLength(xml);
+      if(bytes>12*1024*1024||sha(xml)!==row.sha256)throw new Error('Retained speech fragments failed projection validation.');
+      fragments[row.source_key]=xml;
+    }
+    return {fragments,headerSources:rows.map(row=>({url:row.source_url,fetchedAt:row.fetched_at}))};
+  }
+
   putSpeechMetadata(activity,sourceUrl,fetchedAt) {
     this.assertWriter();
     if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(activity?.activity_id||'')||activity.activity_date!==activity.activity_id.slice(7,17))
@@ -198,28 +234,29 @@ export class CorpusStore {
       const saved=JSON.parse(zstdDecompressSync(previous.body,{maxOutputLength:2*1024*1024}));
       if(saved.version===1&&saved.activity?.activity_id===activity.activity_id&&saved.summary?.id===activity.activity_id&&Array.isArray(saved.speakers))previousMetadata=saved;
     }catch { /* A fresh projection can replace damaged metadata. */ }
-    const retained=this.db.prepare(`SELECT t.source_key,t.raw,t.source_url,t.fetched_at,t.sha256 FROM texts t JOIN documents d ON d.id=t.document_id
-      WHERE d.source_id=? AND t.source_format='xml-fragment' AND t.raw IS NOT NULL ORDER BY t.source_key`).all(activity.activity_id);
-    const fragments={};let bytes=0;
-    for(const row of retained) {
-      const xml=zstdDecompressSync(row.raw,{maxOutputLength:2*1024*1024}).toString('utf8');bytes+=Buffer.byteLength(xml);
-      if(bytes>12*1024*1024||sha(xml)!==row.sha256)throw new Error('Retained speech fragments failed projection validation.');
-      fragments[row.source_key]=xml;
-    }
+    const retained=this.retainedSpeechFragments(activity.activity_id);
+    const fragments={...(previousMetadata?.interventionHeaders||{}),...retained.fragments};
     // Project every supplied header before the text retention policy discards
     // translations. Older corpora can still project their retained fragments.
     const supplied=Object.fromEntries(Object.entries(Object.assign({},...(activity.recorded_in_a_realization_of||[]).map(doc=>doc?.['api:xmlFragment']||{})))
       .filter(([,xml])=>typeof xml==='string'&&Buffer.byteLength(xml)<=2*1024*1024&&!/<!DOCTYPE|<!ENTITY/i.test(xml)&&XMLValidator.validate(xml)===true));
     Object.assign(fragments,supplied);
     const metadataOnly=!Object.keys(supplied).length;
-    const headerSources=[...new Map([...retained.map(row=>({url:row.source_url,fetchedAt:row.fetched_at})),
-      ...(!metadataOnly?[{url:sourceUrl,fetchedAt:new Date(fetchedAt).toISOString()}]:previousMetadata?.headerSources||[])]
+    const headerSources=[...new Map([...retained.headerSources,...(previousMetadata?.headerSources||[]),
+      ...(!metadataOnly?[{url:sourceUrl,fetchedAt:new Date(fetchedAt).toISOString()}]:[])]
       .map(source=>[source.url+'|'+source.fetchedAt,source])).values()];
     // The speaker extractor accepts language keys. Add a projection-only alias
     // for an unambiguous `mul` original; its stored source key remains exact.
     if(fragments.mul) {
       const selected=chooseTranscript([{'api:xmlFragment':{mul:fragments.mul}}],'en');
       if(selected.textLanguage&&selected.textLanguage!=='mul'&&!fragments[selected.textLanguage])fragments[selected.textLanguage]=fragments.mul;
+      // A metadata-only refresh keeps the retained original as the preferred
+      // name source while preserving compact translated name/role variants.
+      if(metadataOnly&&selected.textLanguage&&selected.textLanguage!=='mul') {
+        const ordered={[selected.textLanguage]:fragments[selected.textLanguage],...fragments};
+        for(const key of Object.keys(fragments))delete fragments[key];
+        Object.assign(fragments,ordered);
+      }
     }
     const docs=structuredClone(documents),first=docs.find(doc=>doc&&typeof doc==='object');
     if(first)first['api:xmlFragment']=fragments;
@@ -238,7 +275,15 @@ export class CorpusStore {
     // retention policy. Metadata-only refreshes must not forget known variants.
     const previousLanguages=Array.isArray(previousMetadata?.availableTextLanguages)?previousMetadata.availableTextLanguages.filter(value=>typeof value==='string'):[];
     const availableTextLanguages=[...new Set([...chooseTranscript(activity.recorded_in_a_realization_of||[],'en').availableTextLanguages,...previousLanguages,...chooseTranscript(docs,'en').availableTextLanguages])];
-    const body=JSON.stringify({version:1,activity:metadata,summary:speechSummary(observed),speakers:people,headerSources,availableTextLanguages});
+    const summary=speechSummary(observed),previousIntervention=previousMetadata?.summary?.intervention;
+    // Legacy rows may predate compact headers and retain no body at all. Their
+    // ID-checked header remains useful, but current API relationships take precedence.
+    if(metadataOnly&&!summary.intervention.headerAvailable&&previousIntervention?.headerAvailable&&
+      speechPeople(activity).includes(previousIntervention.speaker?.id)) {
+      for(const key of ['type','process','speaker','headerAvailable','evidence'])summary.intervention[key]=previousIntervention[key];
+    }
+    const body=JSON.stringify({version:1,activity:metadata,summary,speakers:people,headerSources,availableTextLanguages,
+      interventionHeaders:interventionHeaders(fragments),interventionClassificationVersion:INTERVENTION_CLASSIFICATION_VERSION});
     if(Buffer.byteLength(body)>2*1024*1024)throw new Error('Speech metadata exceeded the allowed size.');
     this.transaction(()=>{
       this.assertWriter();
@@ -246,6 +291,57 @@ export class CorpusStore {
         body=excluded.body,source_url=excluded.source_url,fetched_at=excluded.fetched_at WHERE excluded.fetched_at>=speech_metadata.fetched_at`)
         .run(activity.activity_id,zstdCompressSync(Buffer.from(body)),sourceUrl,new Date(fetchedAt).toISOString());
       if(updated.changes)this.projectSpeechCatalog(activity,availableTextLanguages);
+    });
+  }
+
+  refreshSpeechInterventions(task,{limit=100,maxDuration=1000}={}) {
+    this.assertWriter();
+    if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error('Invalid speech classification refresh limit.');
+    if(!Number.isFinite(maxDuration)||maxDuration<=0||maxDuration>10_000)throw new Error('Invalid speech classification refresh duration.');
+    const current=this.task(task.key);
+    if(!current||current.done||current.kind!=='speech-intervention-refresh')throw new Error('Invalid speech classification refresh task.');
+    if(current.body.version!==INTERVENTION_CLASSIFICATION_VERSION) {
+      this.finishTask(current);return;
+    }
+    const afterId=current.body.afterId||'';
+    if(afterId&&!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(afterId))throw new Error('Invalid speech classification refresh cursor.');
+    const rows=this.db.prepare('SELECT source_id FROM speech_metadata WHERE source_id>? ORDER BY source_id LIMIT ?').all(afterId,limit);
+    const updates=[],deadline=performance.now()+maxDuration;let processed=0,lastId=afterId;
+    for(const row of rows) {
+      const {sourceUrl,fetchedAt,...saved}=this.speechMetadata(row.source_id);
+      if(saved.interventionClassificationVersion!==INTERVENTION_CLASSIFICATION_VERSION&&['unclassified','blue-card'].includes(saved.summary.intervention.type)) {
+        const {fragments:raw}=this.retainedSpeechFragments(row.source_id);
+        const fragments={...(saved.interventionHeaders||{}),...raw};
+        const docs=structuredClone(saved.activity.recorded_in_a_realization_of||[]),first=docs.find(doc=>doc&&typeof doc==='object');
+        if(first)first['api:xmlFragment']=fragments;
+        const classified=interventionMetadata({...saved.activity,recorded_in_a_realization_of:docs});
+        const before=saved.summary.intervention,next={...before};
+        if(!['unclassified','blue-card'].includes(classified.type)) {
+          for(const key of ['type','process','evidence'])next[key]=classified[key];
+          if(Object.hasOwn(classified,'classificationSources'))next.classificationSources=classified.classificationSources;
+          else delete next.classificationSources;
+        }
+        const body=JSON.stringify({...saved,summary:{...saved.summary,intervention:next},
+          interventionHeaders:interventionHeaders(fragments),interventionClassificationVersion:INTERVENTION_CLASSIFICATION_VERSION});
+        if(Buffer.byteLength(body)>2*1024*1024)throw new Error('Speech metadata exceeded the allowed size.');
+        updates.push({id:row.source_id,body:zstdCompressSync(Buffer.from(body)),changed:JSON.stringify(next)!==JSON.stringify(before)});
+      }
+      processed++;lastId=row.source_id;
+      if(performance.now()>=deadline)break;
+    }
+    // The projection, page-walk revision and durable cursor move together. A
+    // corrupt fragment leaves the task pending, with its ordinary visible retry.
+    this.transaction(()=>{
+      this.assertWriter();
+      for(const update of updates) {
+        this.db.prepare('UPDATE speech_metadata SET body=? WHERE source_id=?').run(update.body,update.id);
+        if(update.changed)this.db.prepare('UPDATE speech_catalog SET revision=? WHERE source_id=?').run(this.nextSpeechRevision(),update.id);
+      }
+      if(rows.length===limit||processed<rows.length)this.taskProgress(current,{...current.body,afterId:lastId});
+      else {
+        this.set('speechInterventionClassificationVersion',INTERVENTION_CLASSIFICATION_VERSION);
+        this.finishTask(current);
+      }
     });
   }
 
@@ -398,7 +494,9 @@ export class CorpusStore {
     return {schemaVersion:1,term:10,phase:this.get('phase')||'waiting',complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,
       coverage:this.coverage().note,capabilities:{search:true,storedText:true,kinds:KINDS,groups:['document','question'],sorts:['relevance','newest'],sourceIdsLimit:CORPUS_LIMITS.sourceIds},
       documents:Object.fromEntries(KINDS.map(kind=>[kind,{discovered:documents[kind]||0,withText:withText[kind]||0}])),
-      speechMetadata:{retained:metadataRetained,backfillPending:Boolean(this.get('speechMetadataBackfill'))||tasks.some(task=>task.kind==='speech-metadata-detail'&&task.total>task.done)},
+      speechMetadata:{retained:metadataRetained,backfillPending:Boolean(this.get('speechMetadataBackfill'))||tasks.some(task=>task.kind==='speech-metadata-detail'&&task.total>task.done),
+        classificationVersion:this.get('speechInterventionClassificationVersion')??null,
+        classificationRefreshPending:metadataRetained>0&&this.get('speechInterventionClassificationVersion')!==INTERVENTION_CLASSIFICATION_VERSION||tasks.some(task=>task.kind==='speech-intervention-refresh'&&task.total>task.done)},
       texts:texts.map(row=>({kind:row.kind,language:row.language,count:row.n,characters:row.chars})),
       tasks:Object.fromEntries(tasks.map(row=>[row.kind,{total:row.total,done:row.done,retrying:row.retrying}])),
       lastError:lastError?{key:lastError.key,error:lastError.error,attempts:lastError.attempts,nextRetryAt:new Date(lastError.retry_at).toISOString()}:null,
