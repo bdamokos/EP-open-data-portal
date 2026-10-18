@@ -1,4 +1,5 @@
 import {filterCountry} from './countries.mjs';
+import {isMemberVotesParam} from './memberVotesJourney.mjs';
 
 const countries=new Set('AT BE BG HR CY CZ DK EE FI FR DE EL HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE'.split(' '));
 const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
@@ -27,7 +28,7 @@ export function explorerParams(query,view,member) {
   const result=new URLSearchParams();
   const ownsMember=member===undefined||Boolean(member&&query.get('member')===String(member));
   const prefix=view==='questions'?/^q-/:view==='legislation'?/^(pl|agenda|hot|cloud|dossier|trend)-/:view==='outside'?/^ov-/:view==='amendments'?/^am-/:view==='groups'?/^gv-/:view===null&&ownsMember?/^mep-(speech|activity)-fts-/:null;
-  for(const [key,value] of query)if(/^global-fts-(search|text-lang|page|offset|read|kind|sort|closed)$/.test(key)||prefix?.test(key)){
+  for(const [key,value] of query)if(/^global-fts-(search|text-lang|page|offset|read|kind|sort|closed)$/.test(key)||prefix?.test(key)||view===null&&ownsMember&&(isMemberVotesParam(key)||key.startsWith('ma-'))){
     if(key.endsWith('-country')){const country=readExplorerParam(query,key,null);if(country)result.set(key,country);}
     else result.set(key,value);
   }

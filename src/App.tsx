@@ -46,6 +46,11 @@ import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule} from './p
 import {Status} from './Status';
 import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './coAuthors.mjs';
 import {selectLanguageText} from './language.mjs';
+import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
+import {useMemberVotesJourney} from './useMemberVotesJourney';
+
+const MemberVotes=lazy(()=>import('./MemberVotes').then(module=>({default:module.MemberVotes})));
+const DocumentContextReader=lazy(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
 
 const GroupVoices=lazy(()=>import('./GroupVoices').then(module=>({default:module.GroupVoices})));
 const Legislation=lazy(()=>import('./Legislation').then(module=>({default:module.Legislation})));
@@ -418,9 +423,10 @@ export default function App() {
   const [tab, setTab] = useState(
     publicMemberModule(initial.get('module')),
   );
+  const votes=useMemberVotesJourney(member,!view&&Boolean(member)&&tab==='votes',initial);
   const memberOpener=useRef<number|null>(null);
   const viewOpener=useRef<{node:HTMLElement|null;headerIndex:number}|null>(null);
-  // Opening or leaving an MEP is a navigation; the URL effect pushes it once.
+  // Member and Votes tab navigation add one entry through the URL effect.
   const memberStep=useRef(false);
   const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
   const directoryState = useData<Directory>(view==='outside'||view==='groups'?null:"directory");
@@ -495,6 +501,8 @@ export default function App() {
   useEffect(() => {
     const u = new URL(location.href);
     const ownParams=explorerParams(u.searchParams,view,member);
+    for(const key of [...ownParams.keys()])if(key.startsWith('mv-'))ownParams.delete(key);
+    if(!view&&member)for(const [key,value] of memberVotesJourneyParams(votes.journey))ownParams.set(key,value);
     u.search = new URLSearchParams({
       ...Object.fromEntries(ownParams),
       lang,
@@ -509,10 +517,10 @@ export default function App() {
       ...(!view && member && activityCategory ? { "activity-category": activityCategory } : {}),
     }).toString();
     const step=memberStep.current;memberStep.current=false;
-    if (u.href !== location.href) step ? history.pushState(null, "", u) : history.replaceState(null, "", u);
+    if (u.href !== location.href) step ? history.pushState(null, "", u) : history.replaceState(history.state, "", u);
     window.dispatchEvent(new Event('explorer-query-change'));
     document.documentElement.lang = lang;
-  }, [lang, member, tab, committee, role, country, group, view, speechLink, activityLink, activityCategory]);
+  }, [lang, member, tab, committee, role, country, group, view, speechLink, activityLink, activityCategory,votes.journey]);
   const filtered = useMemo(
     () =>
       directory?.members.filter(
@@ -541,8 +549,8 @@ export default function App() {
   const titleMember = profile.data?.id === member ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || `MEP ${member}`;
   const pageTitle = view==='legislation' ? null : view ? {questions:'Questions',outside:'Outside voices',groups:'Group voices',amendments:'Amendments',saved:'Following'}[view]
-    : member ? `${memberName} · ${tab==='profile'?c.profile:tab==='activities'?c.activities:tab==='amendments'?'Amendments':c.speeches}` : c.title;
-  const pageTitleLanguage=view||member&&tab==='amendments'?'en':lang;
+    : member ? `${memberName} · ${tab==='profile'?c.profile:tab==='activities'?c.activities:tab==='amendments'?'Amendments':tab==='votes'?'Votes':c.speeches}` : c.title;
+  const pageTitleLanguage=view||member&&(tab==='amendments'||tab==='votes')?'en':lang;
   useEffect(()=>{if(pageTitle)document.title = `${pageTitle} — European Parliament data explorer`;document.querySelector('title')?.setAttribute('lang',pageTitleLanguage);},[pageTitle,pageTitleLanguage]);
   const roleName = (value: string) =>
     value === "MEMBER_SUBSTITUTE"
@@ -563,7 +571,7 @@ export default function App() {
     const url=new URL(location.href);
     // Country on the member wall is deliberately not an explorer default.
     url.searchParams.delete('country');
-    for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend|ov|am|gv|mep-speech-fts|mep-activity-fts)-/.test(key))url.searchParams.delete(key);
+    for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend|ov|am|gv|mv|ma|mep-speech-fts|mep-activity-fts)-/.test(key))url.searchParams.delete(key);
     next?url.searchParams.set('view',next):url.searchParams.delete('view');
     history.pushState(null,'',url);setView(next);
   }
@@ -574,7 +582,9 @@ export default function App() {
       const query=new URLSearchParams(location.search),next=query.get('view');
       const restored=publicExplorerView(next);
       setLang(queryLanguage(query));setRole(queryRole(query));
-      setView(restored);setMember(/^\d+$/.test(query.get('member')||'')?Number(query.get('member')):null);
+      const nextMember=/^\d+$/.test(query.get('member')||'')?Number(query.get('member')):null;
+      votes.restore(query,nextMember);
+      setView(restored);setMember(nextMember);
       if(!restored){setCountry(filterCountry(query.get('country')));setCommittee(query.get('committee')||'');setGroup(query.get('group')||'');}
       setTab(publicMemberModule(query.get('module')));
       setSpeechLink(query.get('speech'));setActivityLink(query.get('activity'));setActivityCategory(query.get('activity-category')||'');
@@ -590,6 +600,7 @@ export default function App() {
     };
     window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);
   },[]);
+  const changeMemberTab=(next:string)=>{if(next!==tab&&(next==='votes'||tab==='votes'))memberStep.current=true;setTab(next);};
   const openInsightMember = (id: number, sourceId?: string) => {
     navigateView(null);setMember(id);setActivityCategory('');
     memberOpener.current=null;
@@ -657,19 +668,20 @@ export default function App() {
               <button
                 className={tab === "profile" ? "selected" : ""}
                 aria-pressed={tab === "profile"}
-                onClick={() => setTab("profile")}
+                onClick={() => changeMemberTab("profile")}
               >
                 {c.profile}
               </button>
               <button
                 className={tab === "speeches" ? "selected" : ""}
                 aria-pressed={tab === "speeches"}
-                onClick={() => setTab("speeches")}
+                onClick={() => changeMemberTab("speeches")}
               >
                 {c.speeches}
               </button>
-              <button className={tab === "activities" ? "selected" : ""} aria-pressed={tab === "activities"} onClick={() => setTab("activities")}>{c.activities}</button>
-              {publicAmendmentsEnabled&&<button lang="en" className={tab === "amendments" ? "selected" : ""} aria-pressed={tab === "amendments"} onClick={() => setTab("amendments")}>Amendments</button>}
+              <button className={tab === "activities" ? "selected" : ""} aria-pressed={tab === "activities"} onClick={() => changeMemberTab("activities")}>{c.activities}</button>
+              <button lang="en" className={tab==='votes'?'selected':''} aria-pressed={tab==='votes'} onClick={()=>changeMemberTab('votes')}>Votes</button>
+              {publicAmendmentsEnabled&&<button lang="en" className={tab === "amendments" ? "selected" : ""} aria-pressed={tab === "amendments"} onClick={() => changeMemberTab("amendments")}>Amendments</button>}
             </nav>
             <div className="explorer-profile-body">
               {tab === "speeches" ? (
@@ -679,6 +691,14 @@ export default function App() {
                   initialSpeech={speechLink}
                   onOpen={setSpeechLink}
                 />
+              ) : tab==='votes' ? (
+                votes.journey.invalid ? <section lang="en" role="alert"><h2>Invalid voting records link</h2><p>The requested voting records are unavailable. Check the period, decision and document in the link.</p></section> :
+                  <Suspense fallback={<p className="member-votes-loading" role="status" lang="en">Loading voting records…</p>}>
+                    <MemberVotes key={member} memberId={member} memberName={memberName} language={lang} state={votes.journey.state} onStateChange={votes.onStateChange}
+                      renderContext={request=><Suspense fallback={<p className="member-votes-loading" role="status" lang="en">Loading document context…</p>}>
+                        <DocumentContextReader request={request} language={lang} selectedDocumentId={votes.journey.adoptedId} onSelectedDocumentIdChange={votes.onSelectedDocumentIdChange}/>
+                      </Suspense>}/>
+                  </Suspense>
               ) : publicAmendmentsEnabled && tab === "amendments" ? <Amendments key={member} member={member} language={lang} onMember={openInsightMember} heading="Amendments tabled"/> : tab === "activities" ? <Activities id={member} lang={lang} initialActivity={activityLink} onOpen={setActivityLink} category={activityCategory} onCategory={setActivityCategory} /> : (
                 <>
                   {profile.loading && <p role="status" lang="en">Loading profile…</p>}
