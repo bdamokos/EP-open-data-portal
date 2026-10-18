@@ -220,6 +220,7 @@ test('conflicting duplicate bindings cannot choose a whole-motion outcome, while
     ['result date',votes=>{const result=votes.results.find(value=>value.id.endsWith('VOT-ITM-993193'));votes.results.push({...clone(result),activity_date:'2026-10-09'});}],
     ['result children',votes=>{const result=votes.results.find(value=>value.id.endsWith('VOT-ITM-993193'));votes.results.push({...clone(result),consists_of:[]});}],
     ['contradictory exact document',votes=>{const decision=votes.decisions.find(value=>value.id.endsWith('DEC-198216'));decision.decided_on_a_realization_of=['eli/dl/doc/'+original];}],
+    ['standalone motion label with exact amendment subject',votes=>{const decision=votes.decisions.find(value=>value.id.endsWith('DEC-198216'));decision.referenceText={en:'RC-B10-0441/2026'};decision.decided_on_a_realization_of=['eli/dl/doc/'+joint+'-AM-1'];}],
   ])await t.test(name,t=>{
     const {store}=seedPublicOutcomes(t,change);
     assert.equal(page(store,'member=197722',joint).text.outcome.status,'unavailable');
@@ -228,6 +229,17 @@ test('conflicting duplicate bindings cannot choose a whole-motion outcome, while
     const {store}=seedPublicOutcomes(t,votes=>{
       const decision=votes.decisions.find(value=>value.id.endsWith('DEC-198216'));
       votes.decisions.push({...clone(decision),number_of_votes_favor:1});
+    });
+    const outcome=page(store,'',joint).text.outcome;
+    assert.equal(outcome.status,'adopted');assert.equal(outcome.totals,null);
+    assert.equal(outcome.totalsStatus,'conflicting');assert.equal(outcome.evidenceGaps.length,1);
+  });
+  await t.test('missing counts do not conceal a later conflict',t=>{
+    const {store}=seedPublicOutcomes(t,votes=>{
+      const decision=votes.decisions.find(value=>value.id.endsWith('DEC-198216'));
+      const missing=clone(decision);
+      for(const field of ['number_of_votes_favor','number_of_votes_against','number_of_votes_abstention'])delete missing[field];
+      votes.decisions.push(missing,{...clone(decision),number_of_votes_favor:1});
     });
     const outcome=page(store,'',joint).text.outcome;
     assert.equal(outcome.status,'adopted');assert.equal(outcome.totals,null);

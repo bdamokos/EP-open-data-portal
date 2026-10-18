@@ -49,7 +49,7 @@ const bindingFields=['activity_date','decision_outcome','decision_method','inver
 const countFields=['number_of_votes_favor','number_of_votes_against','number_of_votes_abstention'];
 function checkedOutcomeSource(record,id) {
   if(!record)return null;
-  const decisions=new Map(),results=new Map(),invalidDecisions=new Set(),invalidResults=new Set();
+  const decisions=new Map(),results=new Map(),invalidDecisions=new Set(),invalidResults=new Set(),countEvidence=new Map();
   for(const result of record.work.results || []) {
     const key=canonicalEPReference(result.id);
     if(!key)continue;
@@ -70,8 +70,18 @@ function checkedOutcomeSource(record,id) {
     const formal=[...(standalone?subject:[decision.headingLabel?.en,decision.activity_label?.en].join('\n')).matchAll(/\b(RC-)?B10-(\d{4,6})\/(\d{4})\b/g)]
       .map(([,joint,number,year])=>`${joint?'RC':'B'}-10-${year}-${number}`);
     if((whole||standalone)&&formal.includes(id)&&direct.length&&(!direct.includes('eli/dl/doc/'+id)||new Set(direct).size!==1))invalidDecisions.add(key);
-    if(whole&&formal.includes(id)&&array(decision.decided_on_a_realization_of).some(ref=>amendmentReference(ref)))invalidDecisions.add(key);
-    const countConflict=previous&&countFields.some(field=>previous[field]!=null&&decision[field]!=null&&Number(previous[field])!==Number(decision[field]));
+    if((whole||standalone)&&formal.includes(id)&&array(decision.decided_on_a_realization_of).some(ref=>amendmentReference(ref)))invalidDecisions.add(key);
+    // Missing counts cannot erase an earlier observation before a later
+    // contradictory tally arrives for the same exact decision.
+    const counts=countEvidence.get(key)||new Map();
+    let countConflict=false;
+    for(const field of countFields) {
+      const value=decision[field]!=null?Number(decision[field]):null;
+      if(value===null||!Number.isSafeInteger(value)||value<0)continue;
+      if(counts.has(field)&&counts.get(field)!==value)countConflict=true;
+      else counts.set(field,value);
+    }
+    countEvidence.set(key,counts);
     decisions.set(key,{...decision,...(countConflict||previous?._countsConflict?Object.fromEntries(countFields.map(field=>[field,null]).concat([['_countsConflict',true]])): {})});
   }
   return {...record,conflicting:invalidDecisions.size>0||invalidResults.size>0,
