@@ -31,9 +31,10 @@ const documentRoute=(id:string,language:string,request?:DocumentContextRequest)=
   const query=new URLSearchParams({lang:language});
   if(request?.amendmentId)query.set('amendment',request.amendmentId);
   if(request?.amendmentId&&request.listId)query.set('list',request.listId);
+  if(request?.amendmentId&&request.listId&&request.wordingLanguage!==undefined)query.set('wording-lang',request.wordingLanguage??'unknown');
   return 'document-context/'+encodeURIComponent(id)+'?'+query;
 };
-const responseFor=(data:DocumentContextResponse|null,id:string,language:string)=>data?.documentId===id&&data.requestedLanguage===language?data:null;
+const responseFor=(data:DocumentContextResponse|null,id:string,language:string,request?:DocumentContextRequest)=>data?.documentId===id&&data.requestedLanguage===language&&(request?.wordingLanguage===undefined||data.requestedWordingLanguage===request.wordingLanguage)?data:null;
 
 // Keep source offsets when replacing an unresolved inline object with a source link.
 // The surrounding text, references and note anchors remain in their original positions.
@@ -57,10 +58,15 @@ function Paragraph({text,paragraph,objects,sourceUrl,anchors,links,notePrefix}:{
 
 function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest}:{id:string;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest}) {
   const state=useData<DocumentContextResponse>(documentRoute(id,language,amendmentRequest));
-  const data=responseFor(state.data,id,language),document=data?.document?.id===id&&(!data.document.selectedDocumentId||data.document.selectedDocumentId===id)?data.document:null;
+  const data=responseFor(state.data,id,language,amendmentRequest),document=data?.document?.id===id&&(!data.document.selectedDocumentId||data.document.selectedDocumentId===id)?data.document:null;
   const text:DocumentText|undefined=document?.selectedText,reader=useRef<HTMLDivElement>(null),notePrefix='context-notes-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
   const target=data?.target,allParagraphs=text?.paragraphs||[],indices=target?.paragraphs||[];
-  const amendmentMatches=amendmentRequest?.amendmentId&&data?.amendment?.id===amendmentRequest.amendmentId&&data.amendment.status==='available'&&(!amendmentRequest.listId||data.amendment.variants.length===1&&data.amendment.variants[0].listId===amendmentRequest.listId);
+  const wordingPinned=amendmentRequest?.wordingLanguage!==undefined;
+  const pinnedVariants=wordingPinned?data?.amendment?.variants.filter(variant=>variant.listId===amendmentRequest?.listId&&variant.language===amendmentRequest?.wordingLanguage)||[]:[];
+  const evidence=target?.evidence;
+  const pinnedTargetMatches=Boolean(amendmentRequest?.listId&&typeof amendmentRequest.wordingLanguage==='string'&&pinnedVariants.length===1&&pinnedVariants[0].wordingStatus==='available'&&
+    evidence?.amendmentId===amendmentRequest.amendmentId&&evidence?.listId===amendmentRequest.listId&&evidence?.wordingLanguage===amendmentRequest.wordingLanguage&&text?.textLanguage===amendmentRequest.wordingLanguage);
+  const amendmentMatches=amendmentRequest?.amendmentId&&data?.amendment?.id===amendmentRequest.amendmentId&&(wordingPinned?pinnedTargetMatches:data.amendment.status==='available'&&(!amendmentRequest.listId||data.amendment.variants.length===1&&data.amendment.variants[0].listId===amendmentRequest.listId));
   const found=Boolean(amendmentMatches&&target?.status==='found'&&indices.length>0&&indices.every(index=>Number.isInteger(index)&&index>=0&&index<allParagraphs.length));
   const extracted=publicationBody(allParagraphs,id,text?.textLanguage);
   const exactBody=extracted.exact&&Number.isInteger(extracted.start)&&extracted.start>=0&&extracted.paragraphs.length===allParagraphs.length-extracted.start&&extracted.paragraphs.every((paragraph,index)=>paragraph===allParagraphs[extracted.start+index]);
@@ -97,7 +103,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
 }
 
 function ContextSession({request,language,selectedDocumentId,onSelectedDocumentIdChange}:DocumentContextReaderProps) {
-  const [selectedLanguage,setLanguage]=useState(language),[localSelection,setLocalSelection]=useState<string|null>(null);
+  const [selectedLanguage,setLanguage]=useState(typeof request.wordingLanguage==='string'?request.wordingLanguage:language),[localSelection,setLocalSelection]=useState<string|null>(null);
   const controlled=selectedDocumentId!==undefined,selected=controlled?selectedDocumentId:localSelection;
   const select=(id:string|null)=>{if(!controlled)setLocalSelection(id);onSelectedDocumentIdChange?.(id);};
   const related=useData<DocumentContextResponse>(request.view==='adopted'?'document-context/'+encodeURIComponent(request.documentId)+'?'+new URLSearchParams({lang:selectedLanguage,adopted:'1'}):null);
@@ -121,5 +127,5 @@ function ContextSession({request,language,selectedDocumentId,onSelectedDocumentI
 export function DocumentContextReader(props:DocumentContextReaderProps) {
   const {request,language}=props;
   // A new requested document/version starts a new reading session immediately.
-  return <ContextSession key={JSON.stringify([request.documentId,request.amendmentId,request.listId,request.view,language])} {...props}/>;
+  return <ContextSession key={JSON.stringify([request.documentId,request.amendmentId,request.listId,request.wordingLanguage!==undefined,request.wordingLanguage,request.view,language])} {...props}/>;
 }

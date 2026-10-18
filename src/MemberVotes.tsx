@@ -5,7 +5,7 @@ import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from '.
 import {MEMBER_VOTES_PAGE_SIZE,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteOutcome,memberVotePosition,memberVoteTotals,memberVotesRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
 
-export type MemberVotesContext={documentId:string;amendmentId?:string;listId?:string;view:'document'|'adopted'};
+export type MemberVotesContext={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted'};
 export type MemberVotesState={
   week:string;sittingId:string|null;positions:'recorded'|'all';offset:number;
   decisionId:string|null;snapshotId:string|null;expandedSubjectIds:string[];context:MemberVotesContext|null;
@@ -96,7 +96,7 @@ function Wording({documentId,amendmentId,language,openContext}:{documentId:strin
         {readable&&selected.wordingRetained&&<p className="member-votes-muted">Showing saved wording.</p>}
         {authors.length>0&&selected.proposerRetained&&<p className="member-votes-muted">Proposer details are from an earlier source version.</p>}
         {selected.recordRetained&&<p className="member-votes-muted">Version details are from an earlier source record.</p>}
-        <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,view:'document'})}>Read in context</button>
+        <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,view:'document'})}>Read in context</button>
       </>}
     </>
   </section>;

@@ -4,6 +4,7 @@ import {createElement,Fragment,act} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
 import {viewReady} from './test-support/viewReady.mjs';
+import {DocumentContext,documentContextQuery} from '../server/document-context.mjs';
 
 const WEEK='2026-03-23',SITTING='MTG-PL-2026-03-25',SNAPSHOT='a'.repeat(64),SUBJECT=SITTING+'-VOT-ITM-8';
 const DOCUMENT='B-10-2026-0001',AMENDMENT=DOCUMENT+'-AM-7',LIST=DOCUMENT+'-AM-001-007';
@@ -29,6 +30,26 @@ const button=(container,text)=>[...container.querySelectorAll('button')].find(no
 const params=()=>new URLSearchParams(location.search);
 const contextDocument=id=>({id,titles:{en:'Source '+id},date:'2026-03-25',files:[],answers:[],selectedDocumentId:id,selectedText:{status:'available',paragraphs:['Synthetic context body.'],textLanguage:'en',notes:[],noteAnchors:[],documentLinks:[]}});
 
+function multilingualContext() {
+  const fetchedAt=Date.parse('2026-03-25T12:00:00Z'),reads=[],results=[];
+  const source=language=>({url:'https://example.test/synthetic-list_'+(language||'unknown')+'.docx',fetchedAt:new Date(fetchedAt).toISOString(),language});
+  const variants=[
+    {listId:LIST,language:'en',originalText:'1. Exact English source wording.',proposedText:'1. Exact English proposal.'},
+    {listId:LIST,language:'hu',originalText:'1. Eredeti magyar forrásszöveg.',proposedText:'1. Pontos magyar javaslat.'},
+  ].map(variant=>({...variant,textIntegrity:'complete',targetLabel:null,targetLabelLanguage:variant.language,authors:[],wordingSource:source(variant.language),sourceFreshness:{status:'fresh'},gaps:[]}));
+  const indexed={id:AMENDMENT,targetDocumentId:DOCUMENT,variants};
+  const work={id:'eli/dl/doc/'+DOCUMENT,identifier:DOCUMENT,document_date:'2026-03-25',work_type:'def/ep-document-types/RESOLUTION_MOTION',title_dcterms:{en:'Synthetic multilingual motion',hu:'Szintetikus többnyelvű indítvány'},is_realized_by:[]};
+  const service=new DocumentContext({clock:()=>fetchedAt,findAmendment:()=>indexed,
+    request:async endpoint=>{assert.equal(endpoint,'/plenary-documents/'+DOCUMENT);return {payload:{data:[work]},fetchedAt,url:'https://example.test/public-fixture'+endpoint};},
+    readText:async(node,language)=>{
+      assert.equal(node.identifier,DOCUMENT);reads.push(language);
+      const paragraphs=language==='hu'?['Magyar forrás bevezetése.',variants[1].originalText,'2. A következő magyar bekezdés.']:['English source introduction.',variants[0].originalText,'2. The next English paragraph.'];
+      return {status:'available',textLanguage:language,availableTextLanguages:['en','hu'],paragraphs,notes:[],noteAnchors:[],documentLinks:[],structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'w:body/w:p['+ordinal+']',ordinal,container:'body',containerPath:'w:body',segment:0,complete:true})),sourceUrl:'https://example.test/synthetic-motion_'+language+'.docx',fetchedAt:new Date(fetchedAt).toISOString()};
+    },download:async()=>{assert.fail('Indexed test wording never downloads a document.');},
+  });
+  return {indexed,reads,results,response:async url=>{const value=await service.query(documentContextQuery(DOCUMENT,url.searchParams),{store:{}});results.push(value);return Response.json(value);}};
+}
+
 async function harness(t,query='member=1&module=votes&lang=en',{activities=[],contextResponse}={}) {
   const window=new Window({url:'http://localhost/?'+query}),requests=[],unexpected=[];
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
@@ -51,7 +72,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
     if(url.pathname.startsWith('/api/document-context/')){
       const id=decodeURIComponent(url.pathname.split('/').at(-1));
       const choices=[ADOPTED,OTHER_ADOPTED].map(id=>({...contextDocument(id),relationship:{from:id,field:'adopts',to:DOCUMENT}}));
-      const payload={documentId:id,requestedLanguage:'en',document:contextDocument(id),related:{status:'available',items:choices,gaps:[]},amendment:{id:AMENDMENT,status:'available',variants:[{listId:LIST,language:'en',wordingStatus:'available',targetLabel:null,originalText:'Original',proposedText:'Proposed',authors:[]}]}};
+      const payload={documentId:id,requestedLanguage:url.searchParams.get('lang')||'en',...(url.searchParams.has('wording-lang')?{requestedWordingLanguage:url.searchParams.get('wording-lang')==='unknown'?null:url.searchParams.get('wording-lang')}:{}),document:contextDocument(id),related:{status:'available',items:choices,gaps:[]},amendment:{id:AMENDMENT,status:'available',variants:[{listId:LIST,language:'en',wordingStatus:'available',targetLabel:null,originalText:'Original',proposedText:'Proposed',authors:[]}]}};
       return contextResponse?.(url,payload)??Response.json(payload);
     }
     if(url.pathname.startsWith('/api/qa-cache/'))return Response.json({id:url.pathname.split('/').at(-1)});
@@ -199,6 +220,7 @@ test('decision and exact wording context survive Back/Forward without selecting 
   assert.equal(history.length,length+1);
   assert.equal(params().get('mv-decision'),decision(2));assert.equal(params().get('mv-document'),DOCUMENT);
   assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);assert.equal(params().get('mv-view'),'document');
+  assert.equal(params().get('mv-wording-lang'),'en');
   assert.match(h.container.querySelector('.document-context-reader').textContent,/Synthetic context body/);
   assert(h.requests.some(url=>url.pathname==='/api/document-context/'+DOCUMENT&&url.searchParams.get('list')===LIST&&url.searchParams.get('amendment')===AMENDMENT));
   const context=location.href;
@@ -207,6 +229,66 @@ test('decision and exact wording context survive Back/Forward without selecting 
   await h.restore('member=1&module=votes&mv-week='+WEEK+'&mv-decision='+decision(999));
   assert.equal(params().get('mv-decision'),decision(999));assert.match(h.container.textContent,/requested decision is unavailable/);
   assert.equal(h.container.querySelector('.member-votes-detail'),null);
+});
+
+test('choosing Hungarian wording in one multilingual list opens and restores its exact Hungarian source passage',async t=>{
+  const source=multilingualContext(),h=await harness(t,'member=1&module=votes&lang=en',{contextResponse:source.response});
+  await h.click(h.container.querySelector('.member-votes-subject h3 button'));
+  await h.click(h.container.querySelectorAll('.member-votes-row')[1]);
+  assert.equal(source.reads.length,0,'the actual service keeps its wording-only read lazy');
+  const selector=h.container.querySelector('select[aria-label="Amendment published version"]');
+  assert.equal(Boolean(selector),true);
+  const option=[...selector.options].find(option=>option.textContent.includes('Hungarian'));
+  assert.equal(Boolean(option),true);
+  await act(async()=>{selector.value=option.value;selector.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+  assert.equal(h.container.querySelector('.member-votes-comparison')?.lang,'hu');
+  const detail=location.href;
+  await h.click(button(h.container,'Read in context'));
+  const context=location.href;
+  h.container.querySelector('.member-votes').scrollTop=4237;
+  h.container.querySelector('.explorer-profile-body').scrollTop=413;
+  const assertHungarian=()=>{
+    assert.equal(location.href,context);assert.equal(params().get('lang'),'en','the interface language stays independent');
+    assert.equal(params().get('mv-wording-lang'),'hu');assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
+    const highlighted=h.container.querySelector('.document-context-reader [data-context-target="true"]');
+    assert.equal(highlighted?.textContent,source.indexed.variants[1].originalText);
+    assert.equal(h.container.querySelector('.document-context-text')?.lang,'hu');
+    assert.equal(h.container.querySelector('.member-votes').scrollTop,4237);assert.equal(h.container.querySelector('.explorer-profile-body').scrollTop,413);
+  };
+  assertHungarian();
+  const full=h.requests.filter(url=>url.pathname==='/api/document-context/'+DOCUMENT&&url.searchParams.get('body')!=='0');
+  assert.equal(full.length,1);assert.equal(full[0].searchParams.get('lang'),'hu');assert.equal(full[0].searchParams.get('wording-lang'),'hu');
+  assert.deepEqual(source.reads,['hu']);
+  const resolved=source.results.find(result=>result.document);
+  assert.equal(resolved.requestedWordingLanguage,'hu');assert.equal(resolved.target.status,'found');assert.equal(resolved.target.evidence.wordingLanguage,'hu');
+  await h.click(button(h.container,'Profile'));
+  await h.go(-1);assertHungarian();
+  await h.go(-1);assert.equal(location.href,detail);assert.equal(params().get('mv-decision'),decision(2));
+  assert.equal(Boolean(h.container.querySelector('.document-context-reader')),false);
+  await h.go(1);assertHungarian();
+});
+
+test('unknown wording language and conflicting same-language versions do not acquire another source passage',async t=>{
+  for(const kind of ['unknown','conflicting Hungarian'])await t.test(kind,async child=>{
+    const source=multilingualContext();
+    source.indexed.variants.push({...source.indexed.variants[kind==='unknown'?0:1],language:kind==='unknown'?null:'hu',targetLabelLanguage:kind==='unknown'?null:'hu',wordingSource:{...source.indexed.variants[kind==='unknown'?0:1].wordingSource,language:kind==='unknown'?null:'hu'},proposedText:'A competing source proposal.'});
+    const h=await harness(child,'member=1&module=votes&lang=en',{contextResponse:source.response});
+    await h.click(h.container.querySelector('.member-votes-subject h3 button'));
+    await h.click(h.container.querySelectorAll('.member-votes-row')[1]);
+    const selector=h.container.querySelector('select[aria-label="Amendment published version"]');
+    const option=[...selector.options].find(option=>option.textContent.includes(kind==='unknown'?'Language unknown':'Version 2 · Hungarian'));
+    assert.equal(Boolean(option),true);
+    await act(async()=>{selector.value=option.value;selector.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+    await h.click(button(h.container,'Read in context'));
+    assert.equal(params().get('mv-wording-lang'),kind==='unknown'?'unknown':'hu');
+    assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
+    assert.equal(Boolean(h.container.querySelector('.document-context-reader [data-context-target="true"]')),false);
+    assert.equal(Boolean(h.container.querySelector('.document-context-text [data-source-paragraph]')),true,'the exact source body stays readable without an assigned passage');
+    assert.equal(h.container.querySelector('.document-context-reader').textContent.includes('Passage not found.'),true);
+    const resolved=source.results.find(result=>result.document);
+    assert.notEqual(resolved.target.status,'found');assert.equal(Object.hasOwn(resolved,'requestedWordingLanguage'),true);
+    assert.equal(resolved.requestedWordingLanguage,kind==='unknown'?null:'hu');
+  });
 });
 
 for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+': exact amendment context and its scroll survive Profile and browser Back/Forward',async t=>{
@@ -335,4 +417,18 @@ test('malformed links remain explicitly invalid, retain requested decision, and 
   await h.restore('member=1&module=votes&mv-offset=Infinity&mv-decision='+decision(2));
   assert.match(h.container.textContent,/Invalid voting records link/);assert.equal(params().get('mv-decision'),decision(2));
   assert.equal(h.requests.some(url=>url.pathname.startsWith('/api/member-votes/')),false);
+});
+
+test('invalid wording-language links keep their exact requested context and never fetch an unpinned fallback',async t=>{
+  const fields={member:'1',module:'votes','mv-week':WEEK,'mv-decision':decision(2),'mv-document':DOCUMENT,'mv-amendment':AMENDMENT,'mv-list':LIST,'mv-view':'document','mv-wording-lang':'hu'};
+  const malformed=[{...fields,'mv-wording-lang':'HU'},{...fields,'mv-wording-lang':''},{...fields,'mv-view':'adopted'}];
+  for(const key of ['mv-amendment','mv-list']){const missing={...fields};delete missing[key];malformed.push(missing);}
+  const h=await harness(t,new URLSearchParams(malformed[0]).toString());
+  for(const query of malformed){
+    await h.restore(new URLSearchParams(query).toString());
+    assert.equal(h.container.textContent.includes('Invalid voting records link'),true);
+    assert.equal(params().get('mv-decision'),decision(2));assert.equal(params().get('mv-document'),DOCUMENT);
+    assert.equal(params().get('mv-amendment'),query['mv-amendment']??null);assert.equal(params().get('mv-list'),query['mv-list']??null);
+  }
+  assert.equal(h.requests.some(url=>url.pathname.startsWith('/api/member-votes/')||url.pathname.startsWith('/api/document-context/')),false,'invalid source selections cannot initiate an English or unpinned read');
 });

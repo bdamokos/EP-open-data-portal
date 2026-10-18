@@ -55,6 +55,21 @@ test('document context without amendment or list remains an exact standalone sel
   assert.deepEqual(readMemberVotesJourney(saved(journey),MEMBER),journey);
 });
 
+test('an exact source-language pin round-trips known and unknown wording independently of the interface language',()=>{
+  for(const wordingLanguage of ['en','hu',null]){
+    const journey={memberId:MEMBER,invalid:false,adoptedId:null,state:{...defaults(),week:WEEK,decisionId:DECISION,snapshotId:SNAPSHOT,context:{documentId:DOCUMENT,amendmentId:AMENDMENT,listId:LIST,view:'document',wordingLanguage}}};
+    const query=saved(journey);query.set('lang','fr');
+    assert.equal(query.get('mv-wording-lang'),wordingLanguage??'unknown');
+    const restored=readMemberVotesJourney(query,MEMBER);
+    assert.equal(restored.invalid,false);assert.deepEqual(restored,journey);
+    assert.equal(Object.hasOwn(restored.state.context,'wordingLanguage'),true,'unknown source language is explicit rather than an absent selection');
+    assert.equal(memberVotesScrollKey(restored),memberVotesScrollKey(journey));
+  }
+  const unpinned={memberId:MEMBER,invalid:false,adoptedId:null,state:{...defaults(),decisionId:DECISION,context:{documentId:DOCUMENT,amendmentId:AMENDMENT,listId:LIST,view:'document'}}};
+  assert.equal(saved(unpinned).has('mv-wording-lang'),false);
+  assert.equal(Object.hasOwn(readMemberVotesJourney(saved(unpinned),MEMBER).state.context,'wordingLanguage'),false,'older unpinned URLs do not acquire an English source version');
+});
+
 test('malformed period, decision, snapshot and pagination links remain explicitly invalid',()=>{
   const invalidFields=[
     {'mv-week':'2026-03-24'},{'mv-week':'2026-02-30'},{'mv-week':''},
@@ -98,7 +113,7 @@ test('duplicate browser fields are invalid even when values agree',()=>{
 });
 
 test('only explicitly owned browser keys are recognized, including prototype-shaped inputs',()=>{
-  for(const suffix of ['week','sitting','positions','offset','decision','snapshot','expanded','document','amendment','list','view','adopted','invalid'])assert.equal(isMemberVotesParam('mv-'+suffix),true,suffix);
+  for(const suffix of ['week','sitting','positions','offset','decision','snapshot','expanded','document','amendment','list','wording-lang','view','adopted','invalid'])assert.equal(isMemberVotesParam('mv-'+suffix),true,suffix);
   for(const key of ['mv-__proto__','mv-constructor','mv-toString','mv-hasOwnProperty','mv-prototype','mv-unknown','mv-','week','mv-week-extra']){
     assert.equal(isMemberVotesParam(key),false,key);
     if(key.startsWith('mv-'))assert.equal(read({[key]:'anything'}).invalid,true,key+' cannot inherit a field mapping');
@@ -137,6 +152,22 @@ test('context parameters require a decision and exact compatible document, amend
   for(const fields of bad)assert.equal(read(fields).invalid,true,JSON.stringify(fields));
   const valid=read({...context,'mv-amendment':AMENDMENT,'mv-list':LIST});
   assert.equal(valid.invalid,false);assert.equal(valid.state.decisionId,DECISION);assert.equal(valid.state.context.listId,LIST);
+});
+
+test('a wording-language pin requires the exact amendment, list and document view and rejects malformed or repeated values',()=>{
+  const fields={'mv-decision':DECISION,'mv-document':DOCUMENT,'mv-amendment':AMENDMENT,'mv-list':LIST,'mv-view':'document','mv-wording-lang':'hu'};
+  assert.equal(read(fields).invalid,false);
+  for(const key of ['mv-decision','mv-document','mv-amendment','mv-list','mv-view']){
+    const missing={...fields};delete missing[key];
+    assert.equal(read(missing).invalid,true,'wording pin without '+key+' must not choose another source');
+  }
+  for(const value of ['','HU','hun','hu-HU','en_us','unknown-language','12','<hu>'])assert.equal(read({...fields,'mv-wording-lang':value}).invalid,true,value);
+  assert.equal(read({...fields,'mv-view':'adopted'}).invalid,true);
+  const duplicate=queryFor(fields);duplicate.append('mv-wording-lang','en');
+  assert.equal(readMemberVotesJourney(duplicate,MEMBER).invalid,true,'two source-language requests cannot be reconciled silently');
+  const invalid=read({...fields,'mv-wording-lang':'HU'});
+  assert.equal(invalid.state.decisionId,DECISION);assert.equal(invalid.state.context.amendmentId,AMENDMENT);assert.equal(invalid.state.context.listId,LIST);
+  assert.equal(readMemberVotesJourney(saved(invalid),MEMBER).invalid,true,'normalization must retain the invalid state instead of requesting an unpinned version');
 });
 
 test('malformed document syntax cannot throw while validating an amendment deep link',()=>{
@@ -213,6 +244,18 @@ test('exact amendment context keeps its scroll identity through URL reconstructi
     {...journey.state.context,listId:DOCUMENT+'-AM-051-100'},
     {documentId:DOCUMENT,view:'adopted'},
   ])assert.notEqual(memberVotesScrollKey({...journey,state:{...journey.state,context}}),key,'another exact context has its own position');
+});
+
+test('source-language pins and an absent pin have distinct scroll and navigation identities',()=>{
+  const journey={memberId:MEMBER,invalid:false,adoptedId:null,state:{...defaults(),week:WEEK,decisionId:DECISION,snapshotId:SNAPSHOT,context:{documentId:DOCUMENT,amendmentId:AMENDMENT,listId:LIST,view:'document'}}};
+  const choices=[journey,...['en','hu',null].map(wordingLanguage=>({...journey,state:{...journey.state,context:{...journey.state.context,wordingLanguage}}}))];
+  assert.equal(new Set(choices.map(memberVotesScrollKey)).size,choices.length,'unknown, English, Hungarian and unspecified wording are separate source selections');
+  for(const choice of choices){
+    const restored=readMemberVotesJourney(saved(choice),MEMBER);
+    assert.equal(memberVotesScrollKey(restored),memberVotesScrollKey(choice));
+    assert.equal(memberVotesHistoryMode(choice.state,{...restored.state,snapshotId:'b'.repeat(64)},true),'replace');
+    for(const other of choices.filter(item=>item!==choice))assert.equal(memberVotesHistoryMode(choice.state,other.state,true),'push','changing a wording pin is user navigation');
+  }
 });
 
 test('scroll restoration preserves independent desktop and mobile scrollers and rejects invalid saved positions',()=>{
