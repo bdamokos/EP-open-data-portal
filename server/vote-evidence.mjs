@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 
 const origin='https://data.europarl.europa.eu/';
@@ -7,6 +8,7 @@ export const identifier=uri=>uri.slice(uri.lastIndexOf('/')+1);
 export const labels=value=>value&&typeof value==='object'&&!Array.isArray(value)?Object.fromEntries(Object.entries(value).filter(([,text])=>typeof text==='string')):{};
 export const term=value=>typeof value==='string'?value.split('/').at(-1):null;
 export const comparable=value=>Array.isArray(value)?value.map(comparable).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,comparable(value[key])])):value;
+export const sourceNodeKey=node=>createHash('sha256').update(JSON.stringify(node)).digest('hex');
 const equal=(a,b)=>JSON.stringify(comparable(a))===JSON.stringify(comparable(b));
 
 // Validate the supplied authority and redundant identifiers before joining.
@@ -44,7 +46,11 @@ function literalText(literal) {
   try {const walk=nodes=>nodes.map(node=>Object.entries(node).map(([key,value])=>key==='#text'?String(value):key.startsWith('?')||key==='#comment'?'':Array.isArray(value)?walk(value):'').join('')).join('');return walk(parser.parse('<root>'+literal+'</root>'));}catch{return null;}
 }
 function sourcePaths(snapshot,node,kind) {
-  const paths=snapshot[kind+'Evidence']?.[node.id?.replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')];
+  // Nested JSON pointers are valid only for this exact ordered source node.
+  // Equivalent reordered pages still contribute their source hashes, but cannot
+  // borrow indices from the representative retained by the page collector.
+  const key=kind==='result'?sourceNodeKey(node):node.id?.replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
+  const paths=snapshot[kind+'Evidence']?.[key];
   if(paths?.length)return paths;
   return (snapshot.sources?.[kind==='result'?'results':'decisions']||[]).map(source=>({sourceUrl:source.url,contentHash:source.contentHash,jsonPointer:null}));
 }

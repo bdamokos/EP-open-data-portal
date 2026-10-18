@@ -60,6 +60,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
   const intention={status:intended.malformedReferences>0?'unavailable':intendedPositions.length?'reported':'not-reported',positions:intendedPositions};
 
   const evidence=derived.decisions.get(uri)||{subjectId:null,resultRelationship:{inverseResultIds:[],forwardResultIds:[],binding:'unlinked'},parts:[],rollCallRequesters:[],evidenceGaps:[{code:'invalid-decision-identity'}],evidencePaths:[]};
+  const conflicting=!!raw._conflictingSourceObservations;
   const relationships=[],relationKeys=new Set(),documentIds=[],procedureIds=[];
   function relation(from,field,to) {
     if(!from||!to)return;
@@ -81,7 +82,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
   const agendaUris=[],missingResultIds=[],missingAgendaItemIds=[];
   if(!raw._conflictingSourceObservations)contextReferences(raw);
   for(const resultUri of resultUris) {
-    if(inverseResultUris.includes(resultUri))relation(uri,'inverse_consists_of',resultUri);
+    if(!conflicting&&inverseResultUris.includes(resultUri))relation(uri,'inverse_consists_of',resultUri);
     const result=resultMap.get(resultUri);
     if(!result){missingResultIds.push(identifier(resultUri));continue;}
     if(evidence.subjectId!==identifier(resultUri))continue;
@@ -93,8 +94,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
       if(agenda)contextReferences(agenda);else missingAgendaItemIds.push(identifier(agendaUri));
     }
   }
-  const decidedIds=references(raw.decided_on_a_realization_of,'doc').map(identifier);
-  const conflicting=!!raw._conflictingSourceObservations;
+  const decidedIds=conflicting?[]:references(raw.decided_on_a_realization_of,'doc').map(identifier);
   const titles=conflicting?{}:labels(raw.activity_label||raw.headingLabel),referenceTexts=conflicting?{}:labels(raw.referenceText);
   return {
     id,uri,sittingId:snapshot.sittingId,date:raw.activity_date||snapshot.date,
@@ -102,7 +102,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
     scope:conflicting?{kind:'unclassified',basis:'unclassified'}:scope(raw,decidedIds),method:conflicting?null:method,outcome:conflicting?null:outcome,ballotStatus:conflicting?'unknown':ballotStatus,actualPosition:conflicting?{status:'conflicting',position:null}:actualPosition,intention:conflicting?{status:'unavailable',positions:[]}:intention,sourceConflicts:raw._conflictingSourceObservations||null,
     ...evidence,
     namedVoters:{available:conflicting?false:available,counts:conflicting?null:counts,totalsMatch:conflicting?null:totalsMatch,conflictingPersonIds,malformedReferences:actual.malformedReferences},totals:conflicting?{for:null,against:null,abstaining:null}:totals,
-    context:{resultIds:resultUris.map(identifier),agendaItemIds:unique(agendaUris.map(identifier)),documentIds:unique(documentIds),procedureIds:unique(procedureIds),amendmentIds:decidedIds.filter(id=>/-AM-\d+(?:-\d+)?$/.test(id)),componentIds:decidedIds.filter(id=>/-SPLIT-\d+-\d+$/.test(id)),missingResultIds,missingAgendaItemIds:unique(missingAgendaItemIds),relationships},
+    context:{resultIds:conflicting?[]:resultUris.map(identifier),agendaItemIds:unique(agendaUris.map(identifier)),documentIds:unique(documentIds),procedureIds:unique(procedureIds),amendmentIds:decidedIds.filter(id=>/-AM-\d+(?:-\d+)?$/.test(id)),componentIds:decidedIds.filter(id=>/-SPLIT-\d+-\d+$/.test(id)),missingResultIds:conflicting?[]:missingResultIds,missingAgendaItemIds:conflicting?[]:unique(missingAgendaItemIds),relationships},
     historicalGroup:null,sources:{decisions:snapshot.sources?.decisions||[],results:snapshot.sources?.results||[],agenda:snapshot.sources?.agenda||[]}
   };
 }
