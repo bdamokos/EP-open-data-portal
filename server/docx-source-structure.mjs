@@ -30,6 +30,21 @@ export function symbolText(font,code) {
   return font==='Symbol'&&/^(?:F0|00)2D$/i.test(code??'')?'\u2212':null;
 }
 
+// Skipped paragraphs may consume style-derived list items; references may
+// consume automatic note labels. An imported chunk has no observed contents.
+export function skippedCounterRisk(nodes) {
+  const risk={lists:false,notes:false};
+  function visit(nodes) {
+    for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
+      if(key==='w:altChunk'){risk.lists=true;risk.notes=true;}
+      if(key==='w:p')risk.lists=true;
+      if(['w:footnoteReference','w:endnoteReference'].includes(key))risk.notes=true;
+      if(key!==':@'&&Array.isArray(value))visit(value);
+    }
+  }
+  visit(nodes);return risk;
+}
+
 const containers=new Set(['body','table-cell','other']);
 const objectKinds=new Set(['symbol','drawing','object','math','unsupported']);
 export function documentStructure(record) {

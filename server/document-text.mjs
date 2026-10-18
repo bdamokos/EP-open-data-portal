@@ -14,7 +14,7 @@ import {noteNumbering} from './docx-note-numbering.mjs';
 import {userAgent} from './user-agent.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {config} from './config.mjs';
-import {sourceIndex,OBJECT_REPLACEMENT,symbolText,documentStructure,DOCX_EXTRACTION_VERSION as EXTRACTION_VERSION} from './docx-source-structure.mjs';
+import {sourceIndex,OBJECT_REPLACEMENT,symbolText,skippedCounterRisk,documentStructure,DOCX_EXTRACTION_VERSION as EXTRACTION_VERSION} from './docx-source-structure.mjs';
 export {documentStructure} from './docx-source-structure.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
@@ -127,6 +127,10 @@ const inlineContainers=new Set(['w:ins','w:moveTo','w:sdt','w:sdtContent','w:cus
 const nonText=new Set(['w:del','w:moveFrom','w:instrText','w:delText','w:delInstrText','w:pPr','w:rPr','w:sdtPr','w:sdtEndPr','w:customXmlPr',
   'w:bookmarkStart','w:bookmarkEnd','w:commentRangeStart','w:commentRangeEnd','w:commentReference','w:proofErr','w:permStart','w:permEnd',
   'w:moveFromRangeStart','w:moveFromRangeEnd','w:moveToRangeStart','w:moveToRangeEnd','w:fldChar','w:lastRenderedPageBreak',...noteMarks]);
+function counterGap(node,context) {
+  const risk=skippedCounterRisk([node]);
+  for(const key of ['lists','notes'])context.counterGaps[key] ||= risk[key];
+}
 function objectText(node,key,out,context) {
   const kind=key==='w:sym'?'symbol':['w:drawing','w:pict'].includes(key)?'drawing':key==='w:object'?'object':key.startsWith('m:')?'math':'unsupported';
   const font=attribute(node,'font'),code=attribute(node,'char');
@@ -134,6 +138,7 @@ function objectText(node,key,out,context) {
   out.objects.push({offset:out.text.length,path:context.sourceIndex.get(node).path,kind,status,replacement,role:mapped&&!out.text.trim()?'leading-marker':'content',
     ...(kind==='symbol'?{font:font??'',code:code??''}:{})});
   out.text+=replacement;
+  if(!mapped)counterGap(node,context);
   if(!mapped)context.warnings.add(kind==='symbol'?'An unmapped symbol is shown as an object placeholder; the surrounding text is retained.':'A drawing, equation or other document object is shown as a placeholder; the surrounding text is retained.');
 }
 function inline(nodes,hidden,out,context) {
@@ -149,7 +154,7 @@ function inline(nodes,hidden,out,context) {
       let pending=null;
       for(const item of value) {
         const kind=noteMarks.find(name=>name in item);
-        if(kind){pending={kind,id:String(attribute(item,'id')??''),label:'',custom:['1','true','on'].includes(String(attribute(item,'customMarkFollows'))),offset:out.text.length};out.marks.push(pending);if(!pending.custom)pending=null;continue;}
+        if(kind){pending={kind,id:String(attribute(item,'id')??''),label:'',custom:['1','true','on'].includes(String(attribute(item,'customMarkFollows'))),offset:out.text.length,numberingUnknown:context.counterGaps.notes};out.marks.push(pending);if(!pending.custom)pending=null;continue;}
         if(pending&&'w:t' in item){const label={text:'',marks:[],spans:[],objects:[]};inline([item],visibility,label,context);pending.label=label.text.trim();pending=null;continue;}
         inline([item],visibility,out,context);
       }
@@ -167,17 +172,19 @@ function inline(nodes,hidden,out,context) {
 const blockContainers=new Set(['w:document','w:body','w:tbl','w:tr','w:tc',...inlineContainers]);
 const blockProperties=new Set(['w:tblPr','w:tblPrEx','w:tblGrid','w:trPr','w:tcPr','w:sectPr']);
 function paragraphsOf(nodes,context) {
-  context.sourceIndex=sourceIndex(nodes);const result=[];let segment=0;
+  context.sourceIndex=sourceIndex(nodes);context.counterGaps??={lists:false,notes:false};const result=[];let segment=0;
   function visit(nodes,boundary={container:'other',containerPath:'/'}) {
   for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
     if(key==='w:p'){
-      const out={text:'',marks:[],spans:[],objects:[]};
+      const out={text:'',marks:[],spans:[],objects:[]},counterGaps={...context.counterGaps};
       inline(value,context.style.styledHidden(property(children(value,'w:pPr'),'w:pStyle') || context.style.defaultParagraph,context.style.defaults),out,context);
-      const properties=children(value,'w:pPr'),number=context.numberLabel?.(properties),label=number?.label,section=context.paragraphSections?.get(node);
+      const properties=children(value,'w:pPr'),number=context.numberLabel?.(properties),unknownList=!!number?.label&&counterGaps.lists,
+        label=unknownList?'?':number?.label,section=context.paragraphSections?.get(node);
+      if(unknownList)context.warnings.add('Some automatic list labels are unknown after skipped document content.');
       if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const object of out.objects)object.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}}
       const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
       if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,
-        source:{...context.sourceIndex.get(node),...boundary,segment,complete:!number?.incomplete&&out.objects.every(object=>object.status==='mapped')},
+        source:{...context.sourceIndex.get(node),...boundary,segment,complete:!unknownList&&!number?.incomplete&&out.objects.every(object=>object.status==='mapped')&&!out.marks.some(mark=>mark.numberingUnknown&&!mark.label)},
         objects:out.objects.map(object=>({...object,offset:at(object.offset)})),
         marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start)});
       else segment++;
@@ -188,6 +195,7 @@ function paragraphsOf(nodes,context) {
       if(separated)segment++;
     }
     else if(key!==':@'&&key!=='#text'&&!key.startsWith('?')&&!nonText.has(key)&&!blockProperties.has(key)) {
+      counterGap(node,context);
       segment++;context.warnings.add('Some document blocks could not be read; paragraph source boundaries retain the gap.');
     }
     else if(['w:del','w:moveFrom'].includes(key))segment++;
@@ -221,7 +229,10 @@ export function docxContent(buffer) {
   body.forEach((paragraph,index)=>{for(const mark of paragraph.marks) {
     if(!['w:footnoteReference','w:endnoteReference'].includes(mark.kind))continue;
     const id=(mark.kind==='w:endnoteReference'?'endnote:':'')+mark.id;
-    if(!labels.has(id))labels.set(id,mark.label||noteLabel(mark.kind,paragraph.section,mark.custom));
+    if(!labels.has(id)){
+      if(mark.numberingUnknown&&!mark.label)warnings.add('Some automatic note labels are unknown after skipped document content.');
+      labels.set(id,mark.label||(mark.numberingUnknown?'?':noteLabel(mark.kind,paragraph.section,mark.custom)));
+    }
     if(!supplied.has(id)){warnings.add('A referenced footnote or endnote is missing.');continue;}
     let note=notes.find(n=>n.id===id);
     if(!note){

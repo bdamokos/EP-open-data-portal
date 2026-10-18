@@ -98,6 +98,29 @@ test('note section settings stay aligned after section-ending paragraphs inside 
   }
 });
 
+test('skipped list items and note references leave later automatic labels explicitly unknown',()=>{
+  const numbering='<w:numbering><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num></w:numbering>';
+  const item=(text,id)=>`<w:p><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr>${run(text)}<w:r><w:footnoteReference w:id="${id}"/></w:r></w:p>`;
+  const notes='<w:footnotes>'+[1,2,3].map(id=>`<w:footnote w:id="${id}">${p('Source '+id)}</w:footnote>`).join('')+'</w:footnotes>';
+  const extra={'word/numbering.xml':numbering,'word/footnotes.xml':notes};
+  const result=docxContent(zip(doc(item('First',1)+`<mc:AlternateContent><mc:Choice>${item('Unobserved',2)}</mc:Choice></mc:AlternateContent>`+item('Last',3)),extra));
+  assert.deepEqual(result.paragraphs,['1.\tFirst','?\tLast']);
+  assert.deepEqual(result.notes.map(note=>[note.id,note.label]),[['1','1'],['3','?']]);
+  assert.equal(result.paragraphSources[1].complete,false);
+  assert(result.extractionWarnings.some(warning=>/list labels are unknown/.test(warning)));
+  assert(result.extractionWarnings.some(warning=>/note labels are unknown/.test(warning)));
+  // A single unresolved glyph cannot consume paragraph or note counters.
+  const glyph=docxContent(zip(doc(item('First',1).replace('<w:t>First</w:t>',`${symbol('Unknown')}<w:t>First</w:t>`)+item('Last',3)),extra));
+  assert.deepEqual(glyph.paragraphs,['1.\t\uFFFCFirst','2.\tLast']);assert.deepEqual(glyph.notes.map(note=>note.label),['1','2']);
+  for(const wrapper of ['w:del','w:moveFrom']) {
+    const deleted=docxContent(zip(doc(item('First',1)+`<${wrapper}>${item('Deleted',2)}</${wrapper}>`+item('Last',3)),extra));
+    assert.deepEqual(deleted.paragraphs,['1.\tFirst','2.\tLast']);assert.deepEqual(deleted.notes.map(note=>note.label),['1','2']);
+  }
+  // Inline shapes containing unobserved paragraphs also retain the counter gap.
+  const shape=docxContent(zip(doc(`<w:p>${run('Before')}<w:r><w:drawing><w:txbxContent>${item('Unobserved',2)}</w:txbxContent></w:drawing></w:r></w:p>`+item('Last',3)),extra));
+  assert.deepEqual(shape.paragraphs,['Before\uFFFC','?\tLast']);assert.equal(shape.notes[0].label,'?');
+});
+
 test('symbol and object positions remain aligned with numbering, hyperlinks and mixed note anchors',()=>{
   const numbering='<w:numbering><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num></w:numbering>';
   const xml=doc(`<w:p><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr><w:r>${symbol()}<w:tab/></w:r><w:hyperlink r:id="link">${run('citation')}</w:hyperlink><w:r><w:footnoteReference w:id="1"/>${symbol('Other','F02D')}<w:endnoteReference w:id="2"/></w:r></w:p>`);
