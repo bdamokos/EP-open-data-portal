@@ -87,6 +87,17 @@ test('source paths and segments prevent matching over omitted paragraphs, unsupp
   assert.equal(sources[8].container,'body');assert.equal(sources[8].containerPath,sources[0].containerPath);
 });
 
+test('note section settings stay aligned after section-ending paragraphs inside omitted blocks',()=>{
+  const section=(format,start)=>`<w:sectPr><w:footnotePr><w:numFmt w:val="${format}"/><w:numStart w:val="${start}"/><w:numRestart w:val="eachSect"/></w:footnotePr></w:sectPr>`;
+  const skipped=`<w:p><w:pPr>${section('upperLetter',4)}</w:pPr>${run('omitted')}</w:p>`;
+  const note='<w:footnotes><w:footnote w:id="1"><w:p><w:r><w:footnoteRef/><w:t>Source</w:t></w:r></w:p></w:footnote></w:footnotes>';
+  for(const wrapper of ['mc:AlternateContent','w:del','w:moveFrom']) {
+    const xml=doc(`<${wrapper}>${skipped}</${wrapper}><w:p>${run('Visible')}<w:r><w:footnoteReference w:id="1"/></w:r></w:p>${section('decimal',1)}`);
+    const result=docxContent(zip(xml,{'word/footnotes.xml':note}));
+    assert.deepEqual(result.paragraphs,['Visible']);assert.equal(result.notes[0].label,'1',wrapper);assert.equal(result.anchors[0].label,'1',wrapper);
+  }
+});
+
 test('symbol and object positions remain aligned with numbering, hyperlinks and mixed note anchors',()=>{
   const numbering='<w:numbering><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num></w:numbering>';
   const xml=doc(`<w:p><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr><w:r>${symbol()}<w:tab/></w:r><w:hyperlink r:id="link">${run('citation')}</w:hyperlink><w:r><w:footnoteReference w:id="1"/>${symbol('Other','F02D')}<w:endnoteReference w:id="2"/></w:r></w:p>`);

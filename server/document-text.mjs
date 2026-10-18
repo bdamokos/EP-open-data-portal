@@ -173,8 +173,7 @@ function paragraphsOf(nodes,context) {
     if(key==='w:p'){
       const out={text:'',marks:[],spans:[],objects:[]};
       inline(value,context.style.styledHidden(property(children(value,'w:pPr'),'w:pStyle') || context.style.defaultParagraph,context.style.defaults),out,context);
-      const properties=children(value,'w:pPr'),number=context.numberLabel?.(properties),label=number?.label,section=context.section;
-      if(context.section!==undefined&&children(properties,'w:sectPr'))context.section++;
+      const properties=children(value,'w:pPr'),number=context.numberLabel?.(properties),label=number?.label,section=context.paragraphSections?.get(node);
       if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const object of out.objects)object.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}}
       const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
       if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,
@@ -203,8 +202,8 @@ export function docxContent(buffer) {
   let incompleteNumber=false;
   const label=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),{add(message){incompleteNumber=true;warnings.add(message);}});
   const numberLabel=properties=>{incompleteNumber=false;const value=label(properties);return {label:value,incomplete:incompleteNumber};};
-  const document=parser().parse(parts.get('word/document.xml')),noteLabel=noteNumbering(document,parts.get('word/settings.xml'),warnings);
-  const body=paragraphsOf(document,{style,numberLabel,warnings,section:0,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
+  const document=parser().parse(parts.get('word/document.xml')),paragraphSections=new WeakMap(),noteLabel=noteNumbering(document,parts.get('word/settings.xml'),warnings,paragraphSections);
+  const body=paragraphsOf(document,{style,numberLabel,warnings,paragraphSections,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
   if(!body.length || body.length>20000 || body.map(p=>p.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
   const supplied=new Map();
   for(const kind of ['footnote','endnote'])if(parts.has('word/'+kind+'s.xml')) {
