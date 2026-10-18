@@ -118,6 +118,25 @@ export interface CoAuthor { id:number; name:string|null; personUri:string; profi
 export interface DocumentNote { id: string; label: string; text: string; links: string[]; linkSpans?: { start: number; end: number; url: string }[] }
 export interface DocumentLink { paragraph: number; start: number; end: number; url: string }
 export interface NoteAnchor { paragraph: number; offset: number; note: string; label: string }
+export interface DocumentParagraphSource {
+  path: string;
+  ordinal: number;
+  container: 'body' | 'table-cell' | 'other';
+  containerPath: string;
+  segment: number;
+  complete: boolean;
+}
+export interface DocumentObject {
+  paragraph: number;
+  offset: number;
+  path: string;
+  kind: 'symbol' | 'drawing' | 'object' | 'math' | 'unsupported';
+  status: 'mapped' | 'unresolved';
+  replacement: string;
+  role: 'leading-marker' | 'content';
+  font?: string;
+  code?: string;
+}
 export interface PublicationDocument {
   coAuthors?: CoAuthor[];
   coAuthorSource?: { documentApiUrl:string; documentFetchedAt:string; rosterApiUrl:string; rosterFetchedAt:string|null };
@@ -150,6 +169,11 @@ export interface PublicationDocument {
     notes?: DocumentNote[];
     noteAnchors?: NoteAnchor[];
     documentLinks?: DocumentLink[];
+    structureStatus?: 'extracted' | 'not-extracted';
+    paragraphSources?: DocumentParagraphSource[];
+    documentObjects?: DocumentObject[];
+    extractionVersion?: number | null;
+    sourceVersion?: { byteSize: number | null; issued: string | null } | null;
   };
 }
 export interface SpeechPage {

@@ -14,10 +14,10 @@ import {noteNumbering} from './docx-note-numbering.mjs';
 import {userAgent} from './user-agent.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {config} from './config.mjs';
+import {sourceIndex,OBJECT_REPLACEMENT,symbolText,documentStructure,DOCX_EXTRACTION_VERSION as EXTRACTION_VERSION} from './docx-source-structure.mjs';
+export {documentStructure} from './docx-source-structure.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
-// 6: empty list items and independent, source-formatted footnote/endnote numbering.
-const EXTRACTION_VERSION=6;
 const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500});
 const memory=new Map(),pending=new Map(),failures=new Map();
 // Published DOCX files carry no HTTP validators. Recent texts are re-read weekly;
@@ -80,8 +80,8 @@ const children=(nodes,key)=>child(nodes,key)?.[key];
 const attribute=(node,key)=>node?.[':@']?.['@_w:'+key];
 const rawAttribute=(node,name)=>node?.[':@']?.['@_'+name];
 const property=(nodes,key)=>attribute(child(nodes,key),'val');
-function hiddenValue(properties) {
-  const node=child(properties,'w:vanish');
+function hiddenValue(properties,key='vanish') {
+  const node=child(properties,'w:'+key);
   return node ? !['0','false','off'].includes(String(attribute(node,'val')).toLowerCase()) : undefined;
 }
 const parser=()=>new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false});
@@ -98,78 +98,117 @@ function styleVisibility(stylesXml) {
   const styles=children(stylesXml?parser().parse(stylesXml):[],'w:styles') || [];
   const byId=new Map(styles.filter(node=>node['w:style']).map(node=>[attribute(node,'styleId'),{
     parent:property(node['w:style'],'w:basedOn'),toggle:hiddenValue(children(node['w:style'],'w:rPr'))===true,
+    webHidden:hiddenValue(children(node['w:style'],'w:rPr'),'webHidden'),
   }]));
   const defaultStyle=type=>attribute(styles.find(node=>node['w:style'] && attribute(node,'type')===type && ['1','true','on'].includes(String(attribute(node,'default')))),'styleId');
   const defaultParagraph=defaultStyle('paragraph'),defaultCharacter=defaultStyle('character'),styleToggles=new Map();
-  const defaults=hiddenValue(children(children(children(styles,'w:docDefaults'),'w:rPrDefault'),'w:rPr')) ?? false;
+  const defaultProperties=children(children(children(styles,'w:docDefaults'),'w:rPrDefault'),'w:rPr');
+  const defaults={vanish:hiddenValue(defaultProperties)??false,webHidden:hiddenValue(defaultProperties,'webHidden')??false};
   function styledHidden(id,inherited) {
-    if(styleToggles.has(id))return inherited!==styleToggles.get(id);
+    const apply=style=>({vanish:inherited.vanish!==style.toggle,webHidden:style.webHidden??inherited.webHidden});
+    if(styleToggles.has(id))return apply(styleToggles.get(id));
     if(!byId.has(id))return inherited;
     const chain=[],seen=new Set();
     while(byId.has(id) && !styleToggles.has(id)) {
       if(seen.has(id))throw new Error('Cyclic DOCX style inheritance is unsupported.');
       seen.add(id);chain.push(id);id=byId.get(id).parent;
     }
-    // In styles, an enabled vanish toggles the inherited value; direct run
-    // formatting below is absolute, including an explicit w:val="0".
-    let toggle=styleToggles.get(id) ?? false;
-    for(const styleId of chain.reverse()) {toggle=toggle!==byId.get(styleId).toggle;styleToggles.set(styleId,toggle);}
-    return inherited!==toggle;
+    // In styles, vanish toggles the inherited value. webHidden is ordinary
+    // on/off cascading (ECMA-376 17.7.3), and direct run overrides are absolute.
+    let resolved=styleToggles.get(id)??{toggle:false,webHidden:undefined};
+    for(const styleId of chain.reverse()) {const style=byId.get(styleId);resolved={toggle:resolved.toggle!==style.toggle,webHidden:style.webHidden??resolved.webHidden};styleToggles.set(styleId,resolved);}
+    return apply(resolved);
   }
   return {styledHidden,defaultParagraph,defaultCharacter,defaults};
 }
 // Footnote markers are recorded at their position instead of gluing their number to the text;
 // hyperlinks keep the exact span they cover, so the document itself identifies what a link names.
+const inlineContainers=new Set(['w:ins','w:moveTo','w:sdt','w:sdtContent','w:customXml','w:smartTag','w:fldSimple','w:dir','w:bdo']);
+const nonText=new Set(['w:del','w:moveFrom','w:instrText','w:delText','w:delInstrText','w:pPr','w:rPr','w:sdtPr','w:sdtEndPr','w:customXmlPr',
+  'w:bookmarkStart','w:bookmarkEnd','w:commentRangeStart','w:commentRangeEnd','w:commentReference','w:proofErr','w:permStart','w:permEnd',
+  'w:moveFromRangeStart','w:moveFromRangeEnd','w:moveToRangeStart','w:moveToRangeEnd','w:fldChar','w:lastRenderedPageBreak',...noteMarks]);
+function objectText(node,key,out,context) {
+  const kind=key==='w:sym'?'symbol':['w:drawing','w:pict'].includes(key)?'drawing':key==='w:object'?'object':key.startsWith('m:')?'math':'unsupported';
+  const font=attribute(node,'font'),code=attribute(node,'char');
+  const mapped=kind==='symbol'?symbolText(font,code):null,replacement=mapped??OBJECT_REPLACEMENT,status=mapped?'mapped':'unresolved';
+  out.objects.push({offset:out.text.length,path:context.sourceIndex.get(node).path,kind,status,replacement,role:mapped&&!out.text.trim()?'leading-marker':'content',
+    ...(kind==='symbol'?{font:font??'',code:code??''}:{})});
+  out.text+=replacement;
+  if(!mapped)context.warnings.add(kind==='symbol'?'An unmapped symbol is shown as an object placeholder; the surrounding text is retained.':'A drawing, equation or other document object is shown as a placeholder; the surrounding text is retained.');
+}
 function inline(nodes,hidden,out,context) {
   for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
     if(key===':@')continue;
     if(key==='w:r') {
       const properties=children(value,'w:rPr');
-      if(hiddenValue(properties) ?? context.style.styledHidden(property(properties,'w:rStyle') || context.style.defaultCharacter,hidden))continue;
-      if(!value.some(item=>noteMarks.some(mark=>mark in item))){inline(value,false,out,context);continue;}
+      const styled=context.style.styledHidden(property(properties,'w:rStyle') || context.style.defaultCharacter,hidden);
+      const visibility={vanish:hiddenValue(properties)??styled.vanish,webHidden:hiddenValue(properties,'webHidden')??styled.webHidden};
+      if(visibility.vanish||visibility.webHidden)continue;
+      if(!value.some(item=>noteMarks.some(mark=>mark in item))){inline(value,visibility,out,context);continue;}
       // Children keep their order. Only the text that immediately follows a custom-marked reference is its label.
       let pending=null;
       for(const item of value) {
         const kind=noteMarks.find(name=>name in item);
         if(kind){pending={kind,id:String(attribute(item,'id')??''),label:'',custom:['1','true','on'].includes(String(attribute(item,'customMarkFollows'))),offset:out.text.length};out.marks.push(pending);if(!pending.custom)pending=null;continue;}
-        if(pending&&'w:t' in item){const label={text:'',marks:[],spans:[]};inline([item],false,label,context);pending.label=label.text.trim();pending=null;continue;}
-        inline([item],false,out,context);
+        if(pending&&'w:t' in item){const label={text:'',marks:[],spans:[],objects:[]};inline([item],visibility,label,context);pending.label=label.text.trim();pending=null;continue;}
+        inline([item],visibility,out,context);
       }
     }
-    else if(key==='#text')out.text+=String(value);
-    else if(key==='w:tab')out.text+='\t';
+    else if(key==='w:t'&&!hidden.vanish&&!hidden.webHidden)out.text+=(value||[]).filter(item=>'#text' in item).map(item=>String(item['#text'])).join('');
+    else if(key==='w:tab'||key==='w:ptab')out.text+='\t';
     else if(key==='w:br'||key==='w:cr')out.text+='\n';
     else if(key==='w:noBreakHyphen')out.text+='‑';
     else if(key==='w:softHyphen')out.text+='­';
     else if(key==='w:hyperlink'&&Array.isArray(value)){const target=context.links.get(rawAttribute(node,'r:id')),start=out.text.length;inline(value,hidden,out,context);if(target&&out.text.length>start)out.spans.push({start,end:out.text.length,url:target});}
-    else if(!['w:del','w:instrText','w:pPr','w:rPr'].includes(key) && Array.isArray(value))inline(value,hidden,out,context);
+    else if(inlineContainers.has(key)&&Array.isArray(value))inline(value,hidden,out,context);
+    else if(key!=='#text'&&!nonText.has(key)&&!hidden.vanish&&!hidden.webHidden)objectText(node,key,out,context);
   }
 }
-function paragraphsOf(nodes,context,result=[]) {
+const blockContainers=new Set(['w:document','w:body','w:tbl','w:tr','w:tc',...inlineContainers]);
+const blockProperties=new Set(['w:tblPr','w:tblPrEx','w:tblGrid','w:trPr','w:tcPr','w:sectPr']);
+function paragraphsOf(nodes,context) {
+  context.sourceIndex=sourceIndex(nodes);const result=[];let segment=0;
+  function visit(nodes,boundary={container:'other',containerPath:'/'}) {
   for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
     if(key==='w:p'){
-      const out={text:'',marks:[],spans:[]};
+      const out={text:'',marks:[],spans:[],objects:[]};
       inline(value,context.style.styledHidden(property(children(value,'w:pPr'),'w:pStyle') || context.style.defaultParagraph,context.style.defaults),out,context);
-      const properties=children(value,'w:pPr'),label=context.numberLabel?.(properties),section=context.section;
+      const properties=children(value,'w:pPr'),number=context.numberLabel?.(properties),label=number?.label,section=context.section;
       if(context.section!==undefined&&children(properties,'w:sectPr'))context.section++;
-      if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}}
+      if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const object of out.objects)object.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}}
       const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
-      if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start)});
+      if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,
+        source:{...context.sourceIndex.get(node),...boundary,segment,complete:!number?.incomplete&&out.objects.every(object=>object.status==='mapped')},
+        objects:out.objects.map(object=>({...object,offset:at(object.offset)})),
+        marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start)});
+      else segment++;
     }
-    else if(key!==':@'&&Array.isArray(value))paragraphsOf(value,context,result);
+    else if(blockContainers.has(key)&&Array.isArray(value)) {
+      const separated=['w:tbl','w:tc'].includes(key);if(separated)segment++;
+      visit(value,key==='w:body'?{container:'body',containerPath:context.sourceIndex.get(node).path}:key==='w:tc'?{container:'table-cell',containerPath:context.sourceIndex.get(node).path}:boundary);
+      if(separated)segment++;
+    }
+    else if(key!==':@'&&key!=='#text'&&!key.startsWith('?')&&!nonText.has(key)&&!blockProperties.has(key)) {
+      segment++;context.warnings.add('Some document blocks could not be read; paragraph source boundaries retain the gap.');
+    }
+    else if(['w:del','w:moveFrom'].includes(key))segment++;
   }
+  }
+  visit(nodes);
   return result;
 }
 // Paragraphs stay plain strings. Footnotes and links are returned separately with exact positions.
 export function docxContent(buffer) {
   const parts=docxParts(buffer),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set();
-  const numberLabel=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),warnings);
+  let incompleteNumber=false;
+  const label=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),{add(message){incompleteNumber=true;warnings.add(message);}});
+  const numberLabel=properties=>{incompleteNumber=false;const value=label(properties);return {label:value,incomplete:incompleteNumber};};
   const document=parser().parse(parts.get('word/document.xml')),noteLabel=noteNumbering(document,parts.get('word/settings.xml'),warnings);
-  const body=paragraphsOf(document,{style,numberLabel,section:0,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
+  const body=paragraphsOf(document,{style,numberLabel,warnings,section:0,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
   if(!body.length || body.length>20000 || body.map(p=>p.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
   const supplied=new Map();
   for(const kind of ['footnote','endnote'])if(parts.has('word/'+kind+'s.xml')) {
-    const context={style,numberLabel,links:externalLinks(parts.get('word/_rels/'+kind+'s.xml.rels'))};
+    const context={style,numberLabel,warnings,links:externalLinks(parts.get('word/_rels/'+kind+'s.xml.rels'))};
     for(const node of children(parser().parse(parts.get('word/'+kind+'s.xml')),'w:'+kind+'s')||[]) {
       if(!node['w:'+kind]||!['normal',undefined].includes(attribute(node,'type')))continue;
       const paragraphs=paragraphsOf(node['w:'+kind],context),spans=[];let offset=0;
@@ -199,7 +238,8 @@ export function docxContent(buffer) {
     anchors.push({paragraph:index,offset:mark.offset,note:note.id,label:note.label});
   }});
   const links=body.flatMap((paragraph,index)=>paragraph.spans.map(span=>({paragraph:index,...span}))).slice(0,NOTE_LIMITS.documentLinks);
-  return {paragraphs:body.map(p=>p.text),notes,anchors,links,extractionWarnings:[...warnings]};
+  return {paragraphs:body.map(p=>p.text),notes,anchors,links,structureStatus:'extracted',paragraphSources:body.map(p=>p.source),
+    documentObjects:body.flatMap((p,paragraph)=>p.objects.map(object=>({paragraph,...object}))),extractionWarnings:[...warnings]};
 }
 export const docxParagraphs=buffer=>docxContent(buffer).paragraphs;
 
@@ -245,7 +285,9 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const languages=[...new Set(files.map(f=>f.language).filter(Boolean))];
   const originals=array(work.originalLanguage).map(languageCode);
   const chosen=files.find(f=>f.language===language) || files.find(f=>originals.includes(f.language)) || files.find(f=>f.language==='en') || files[0];
-  const base={status:'unavailable',paragraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
+  const base={status:'unavailable',paragraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],
+    structureStatus:'not-extracted',paragraphSources:[],documentObjects:[],extractionVersion:null,sourceVersion:null,
+    textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
   const key=chosen.url,name=createHash('sha256').update(key).digest('hex')+'.json',file=directory && path.join(directory,'document-text-v1',name);
   const budget=directory?diskBudget(directory):null,descriptor=fileDescriptor(work,key);
@@ -265,7 +307,8 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
     pending.set(key,job);return job;
   };
   const failure=failures.get(key);
-  const present=record=>({...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
+  const present=record=>({...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),...documentStructure(record),
+    extractionVersion:record.extractionVersion,sourceVersion:record.source||null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
   if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock());if(stale && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
   try {const record=await waitForRequest(refresh('interactive'));return present(record);}
