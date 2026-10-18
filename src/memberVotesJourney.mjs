@@ -58,13 +58,15 @@ export function memberVotesJourneyParams(journey) {
 }
 
 export function memberVotesHistoryMode(previous,next,requestedReplace=false) {
-  const stable=state=>JSON.stringify({...state,week:null,snapshotId:null});
+  const stable=state=>JSON.stringify([state.sittingId,state.positions,state.offset,state.decisionId,state.expandedSubjectIds,contextKey(state.context)]);
   return requestedReplace&&stable(previous)===stable(next)&&(previous.week===next.week||previous.week==='latest')?'replace':'push';
 }
 
+const contextKey=context=>context?[context.documentId,context.view,context.amendmentId??null,context.listId??null]:null;
+
 export function memberVotesScrollKey(journey) {
-  const {snapshotId,expandedSubjectIds,...selection}=journey.state;
-  return JSON.stringify([journey.memberId,selection,journey.adoptedId]);
+  const state=journey.state;
+  return JSON.stringify([journey.memberId,state.week,state.sittingId,state.positions,state.offset,state.decisionId,contextKey(state.context),journey.adoptedId]);
 }
 
 const scrollSelectors=['main.explorer','.explorer-profile-body','.member-votes','.member-votes-pane:not([hidden])'];
