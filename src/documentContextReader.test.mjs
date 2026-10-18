@@ -14,6 +14,8 @@ const sourceDocument=(id,paragraphs=['Official title.','Source recital.','Exact 
 const response=(id,doc=sourceDocument(id),extra={})=>({version:1,documentId:id,requestedLanguage:'en',document:doc,related:{status:'not-requested',items:[],gaps:[]},amendment:null,target:{status:'not-requested',paragraphs:[],basis:null,relation:null,quoteMatches:null,reason:null},sources:[],...extra});
 const target={status:'found',paragraphs:[2],basis:'published-reference',relation:'at',quoteMatches:false,reason:null};
 const amendmentSource={id:amendment,status:'available',basis:'index',variants:[{listId:list}],gaps:[]};
+const wordingVariant=(language,extra={})=>({listId:list,language,wordingStatus:'available',originalText:'Original wording.',proposedText:'Proposed wording.',...extra});
+const pinnedEvidence=(wordingLanguage,extra={})=>({amendmentId:amendment,listId:list,wordingLanguage,wordingSource:null,referenceDecisions:[],...extra});
 const choice=(id,to=original)=>({id,titles:{en:'***I Exact adopted resolution '+id.slice(-4)},date:'2026-10-08',kind:'TEXT_ADOPTED',roles:[],files:[],answers:[],relationship:{from:id,field:'adopts',to},source:{}});
 
 async function harness(t,respond) {
@@ -89,6 +91,87 @@ test('fallback language is visible and choosing a language changes only the exac
   assert.equal(h.container.querySelector('h3').lang,'fr');
   assert.equal(h.container.querySelector('h3').textContent,'Titre français');
   assert(h.requests.includes(`document-context/${report}?lang=fr&amendment=${amendment}&list=${list}`));
+});
+
+test('a pinned wording language opens its matching body and stays pinned when the reader language changes',async t=>{
+  const h=await harness(t,(_route,params)=>{
+    const language=params.get('lang'),wordingLanguage=params.get('wording-lang');
+    return response(report,sourceDocument(report,['Source heading.','Source context.','Exact target passage.'],{textLanguage:language,requestedLanguage:language,availableTextLanguages:['en','hu','fr']}),{
+      requestedLanguage:language,requestedWordingLanguage:wordingLanguage,
+      amendment:{...amendmentSource,variants:[wordingVariant('en'),wordingVariant('hu')]},
+      target:{...target,quoteMatches:true,evidence:pinnedEvidence(wordingLanguage)},
+    });
+  });
+  const request={documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'hu',view:'document',onBack:()=>{}};
+  await h.render({request,language:'en'});
+  assert.deepEqual(h.requests,[`document-context/${report}?lang=hu&amendment=${amendment}&list=${list}&wording-lang=hu`]);
+  assert.equal(h.container.querySelector('.document-context-text').lang,'hu');
+  assert.equal(h.container.querySelector('[data-context-target="true"]').dataset.sourceParagraph,'2');
+  await h.change(h.container.querySelector('select'),'fr');
+  assert(h.requests.includes(`document-context/${report}?lang=fr&amendment=${amendment}&list=${list}&wording-lang=hu`));
+  assert.equal(h.container.querySelector('.document-context-text').lang,'fr');
+  assert.equal(h.container.querySelectorAll('[data-context-target]').length,0,'a different body language cannot use the Hungarian quotation');
+  assert(h.container.textContent.includes('Passage not found. The full document is below.'));
+  await h.render({request:{...request,wordingLanguage:'en'},language:'en'});
+  assert.equal(h.container.querySelector('.document-context-text').lang,'en','changing the wording pin starts a new reading session');
+  assert(h.requests.includes(`document-context/${report}?lang=en&amendment=${amendment}&list=${list}&wording-lang=en`));
+  assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,1);
+});
+
+test('a pinned available wording can anchor the body while other retained variants remain unavailable',async t=>{
+  const h=await harness(t,()=>response(report,sourceDocument(report,undefined,{textLanguage:'hu',requestedLanguage:'hu'}),{
+    requestedLanguage:'hu',requestedWordingLanguage:'hu',
+    amendment:{...amendmentSource,status:'unavailable',variants:[wordingVariant('en',{wordingStatus:'unavailable',originalText:null,proposedText:null}),wordingVariant('hu')]},
+    target:{...target,evidence:pinnedEvidence('hu')},
+  }));
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'hu',view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,1);
+});
+
+for(const [name,echo] of [['missing',undefined],['different','en'],['unknown',null]])test(`a pinned context response rejects the ${name} wording-selector echo`,async t=>{
+  const h=await harness(t,()=>response(report,sourceDocument(report,undefined,{textLanguage:'hu',requestedLanguage:'hu'}),{
+    requestedLanguage:'hu',...(echo===undefined?{}:{requestedWordingLanguage:echo}),
+    amendment:{...amendmentSource,variants:[wordingVariant('hu')]},target:{...target,evidence:pinnedEvidence('hu')},
+  }));
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'hu',view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
+  assert.equal(h.container.querySelector('.document-context-text'),null);
+  assert(h.container.textContent.includes('Document unavailable here.'));
+});
+
+for(const [name,evidence] of [
+  ['missing',undefined],['wrong amendment',pinnedEvidence('hu',{amendmentId:report+'-AM-41'})],
+  ['wrong list',pinnedEvidence('hu',{listId:report+'-AM-047-056'})],['wrong language',pinnedEvidence('en')],
+])test(`a pinned context with ${name} target evidence keeps the body without highlighting`,async t=>{
+  const h=await harness(t,()=>response(report,sourceDocument(report,undefined,{textLanguage:'hu',requestedLanguage:'hu'}),{
+    requestedLanguage:'hu',requestedWordingLanguage:'hu',amendment:{...amendmentSource,variants:[wordingVariant('hu')]},target:{...target,evidence},
+  }));
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'hu',view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
+  assert(h.container.textContent.includes('Exact target passage.'));
+});
+
+test('an unknown wording pin stays unknown and cannot borrow an English quotation or reference',async t=>{
+  const h=await harness(t,()=>response(report,sourceDocument(report),{
+    requestedWordingLanguage:null,amendment:{...amendmentSource,variants:[wordingVariant(null),wordingVariant('en')]},
+    target:{...target,basis:'published-reference',evidence:pinnedEvidence(null)},
+  }));
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:null,view:'document',onBack:()=>{}},language:'en'});
+  assert.deepEqual(h.requests,[`document-context/${report}?lang=en&amendment=${amendment}&list=${list}&wording-lang=unknown`]);
+  assert.equal(h.container.querySelector('.document-context-text').lang,'en','the body can use the interface language without assigning it to the wording');
+  assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
+});
+
+for(const [name,variants] of [
+  ['duplicate same-language versions',[wordingVariant('hu'),wordingVariant('hu',{originalText:'Competing wording.'})]],
+  ['unavailable pinned wording',[wordingVariant('hu',{wordingStatus:'unavailable',originalText:null,proposedText:null})]],
+])test(`${name} cannot receive an automatic context target`,async t=>{
+  const h=await harness(t,()=>response(report,sourceDocument(report,undefined,{textLanguage:'hu',requestedLanguage:'hu'}),{
+    requestedLanguage:'hu',requestedWordingLanguage:'hu',amendment:{...amendmentSource,variants},target:{...target,evidence:pinnedEvidence('hu')},
+  }));
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'hu',view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
+  assert(h.container.textContent.includes('Exact target passage.'));
 });
 
 test('changing request identity clears prior text while the new request is pending',async t=>{

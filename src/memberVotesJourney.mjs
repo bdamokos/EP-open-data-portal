@@ -1,7 +1,7 @@
 import {memberVotesRoute} from './memberVotesPresentation.mjs';
 
 // Browser fields belong to the selected member and are separate from API keys.
-const fields={week:'week',sitting:'sittingId',positions:'positions',offset:'offset',decision:'decisionId',snapshot:'snapshotId',expanded:'expandedSubjectIds',document:'documentId',amendment:'amendmentId',list:'listId',view:'view',adopted:'adoptedId',invalid:'invalid'};
+const fields={week:'week',sitting:'sittingId',positions:'positions',offset:'offset',decision:'decisionId',snapshot:'snapshotId',expanded:'expandedSubjectIds',document:'documentId',amendment:'amendmentId',list:'listId','wording-lang':'wordingLanguage',view:'view',adopted:'adoptedId',invalid:'invalid'};
 const identifier=value=>typeof value==='string'&&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/.test(value);
 const documentId=value=>/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(value);
 const defaults=()=>({week:'latest',sittingId:null,positions:'recorded',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
@@ -27,14 +27,15 @@ export function readMemberVotesJourney(query,memberId) {
     if(!Array.isArray(ids)||ids.length>50||!ids.every(identifier)||new Set(ids).size!==ids.length)result.invalid=true;
     else state.expandedSubjectIds=ids;
   }catch{result.invalid=true;}
-  const contextKeys=['document','amendment','list','view','adopted'];
+  const contextKeys=['document','amendment','list','wording-lang','view','adopted'];
   if(contextKeys.some(key=>get(key)!==null)) {
     if(!state.decisionId||!documentId(get('document')||'')||!['document','adopted'].includes(get('view')))result.invalid=true;
-    const amendment=get('amendment'),list=get('list'),adopted=get('adopted');
+    const amendment=get('amendment'),list=get('list'),wordingLanguage=get('wording-lang'),adopted=get('adopted');
     if(amendment!==null&&(!amendment.startsWith(get('document')+'-AM-')||!/^\d+(?:-\d+)?$/.test(amendment.slice((get('document')+'-AM-').length))||get('view')!=='document'))result.invalid=true;
     if(list!==null&&(!amendment||!identifier(list)))result.invalid=true;
+    if(wordingLanguage!==null&&(!amendment||!list||get('view')!=='document'||wordingLanguage!=='unknown'&&!/^[a-z]{2}$/.test(wordingLanguage)))result.invalid=true;
     if(adopted!==null&&(get('view')!=='adopted'||!/^TA-10-\d{4}-\d{4,6}$/.test(adopted)))result.invalid=true;
-    state.context={documentId:get('document')||'',view:get('view'),...(amendment!==null?{amendmentId:amendment}:{}),...(list!==null?{listId:list}:{})};
+    state.context={documentId:get('document')||'',view:get('view'),...(amendment!==null?{amendmentId:amendment}:{}),...(list!==null?{listId:list}:{}),...(wordingLanguage!==null?{wordingLanguage:wordingLanguage==='unknown'?null:wordingLanguage}:{})};
     result.adoptedId=adopted;
   }
   if(get('invalid')!==null)result.invalid=true;
@@ -53,7 +54,7 @@ export function memberVotesJourneyParams(journey) {
   if(state.offset)put('offset',state.offset);
   put('decision',state.decisionId);put('snapshot',state.snapshotId);
   if(state.expandedSubjectIds.length)put('expanded',JSON.stringify(state.expandedSubjectIds));
-  if(state.context){put('document',state.context.documentId);put('view',state.context.view);put('amendment',state.context.amendmentId);put('list',state.context.listId);put('adopted',journey.adoptedId);}
+  if(state.context){put('document',state.context.documentId);put('view',state.context.view);put('amendment',state.context.amendmentId);put('list',state.context.listId);put('adopted',journey.adoptedId);if(Object.hasOwn(state.context,'wordingLanguage'))put('wording-lang',state.context.wordingLanguage??'unknown');}
   return query;
 }
 
@@ -62,7 +63,7 @@ export function memberVotesHistoryMode(previous,next,requestedReplace=false) {
   return requestedReplace&&stable(previous)===stable(next)&&(previous.week===next.week||previous.week==='latest')?'replace':'push';
 }
 
-const contextKey=context=>context?[context.documentId,context.view,context.amendmentId??null,context.listId??null]:null;
+const contextKey=context=>context?[context.documentId,context.view,context.amendmentId??null,context.listId??null,Object.hasOwn(context,'wordingLanguage')?[true,context.wordingLanguage]:[false]]:null;
 
 export function memberVotesScrollKey(journey) {
   const state=journey.state;

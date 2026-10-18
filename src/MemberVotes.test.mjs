@@ -244,7 +244,7 @@ test('amendment wording loads only after decision selection and requires an expl
   assert.match(h.container.querySelector('.member-votes-wording').textContent,/Text language: Hungarian · Proposed by Második pontos javaslattevő/);
   assert.equal(h.contexts.length,0,'reading wording must not open the full source context');
   await h.click('Read in context');
-  assert.deepEqual(h.state,{...initial,context:{documentId:DOCUMENT,amendmentId:AMENDMENT,listId:variants[1].listId,view:'document'}});
+  assert.deepEqual(h.state,{...initial,context:{documentId:DOCUMENT,amendmentId:AMENDMENT,listId:variants[1].listId,wordingLanguage:'hu',view:'document'}});
   assert.equal(h.contexts.at(-1).documentId,DOCUMENT);assert.equal(h.contexts.at(-1).listId,variants[1].listId);
   await h.click('Back from context');assert.deepEqual(h.state,initial);
   assert.equal(h.container.querySelector('select[aria-label="Amendment published version"]').value,variants[1].listId);
@@ -297,6 +297,7 @@ test('known unavailable wording remains a competing published version and opens 
   await h.click('Read in context');
   assert.equal(h.contexts.at(-1).listId,variants[1].listId);
   assert.equal(h.contexts.at(-1).documentId,DOCUMENT);assert.equal(h.contexts.at(-1).amendmentId,AMENDMENT);
+  assert.equal(h.contexts.at(-1).wordingLanguage,null,'unknown wording language is retained as an explicit source choice');
   await h.click('Back from context');
   assert.deepEqual(h.state,initial);
   assert.equal(h.container.querySelector(selector).value,variants[1].listId);
@@ -362,7 +363,7 @@ test('saved wording and proposer qualifications apply only to the explicitly sel
   assert.match(h.container.querySelector('.member-votes-wording').textContent,/Exact current proposer/);
 });
 
-test('same-list language variants remain separate explicit choices and pass only the exact source list to context',async t=>{
+test('same-list language variants pass the exact source list and chosen language to context',async t=>{
   const variants=[wordingVariant({listId:'same-exact-list',language:'fr'}),wordingVariant({listId:'same-exact-list',language:'hu',
     originalText:'Eredeti pontos szöveg',proposedText:'Javasolt pontos szöveg'})];
   const h=await mountWording(t,{variants}),selector='select[aria-label="Amendment published version"]';
@@ -373,6 +374,7 @@ test('same-list language variants remain separate explicit choices and pass only
   assert.equal(h.container.querySelector('.member-votes-comparison').getAttribute('lang'),'hu');
   assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Javasolt pontos szöveg/);
   await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,'same-exact-list');
+  assert.equal(h.contexts.at(-1).wordingLanguage,'hu');
   await h.click('Back from context');assert.equal(h.container.querySelector(selector).value,options[1].value);
 });
 
