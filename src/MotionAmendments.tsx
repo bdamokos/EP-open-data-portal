@@ -1,5 +1,5 @@
 import {useCallback,useEffect,useId,useRef,useState,type ReactNode,type RefObject} from 'react';
-import {api,useData} from './data';
+import {api} from './data';
 import {Status} from './Status';
 import {amendmentDecisionKey,amendmentDecisionPart,publicAmendmentSource} from './amendmentModel.mjs';
 import type {MotionAmendment,MotionAmendmentDecision,MotionAmendmentVariant,MotionAmendmentsPage,MotionAmendmentsScope} from './MotionAmendmentsTypes';
@@ -74,29 +74,30 @@ function route(documentId:string,member:string,language:string,state:MotionAmend
   if(amendment)query.set('amendment',amendment);
   return `motion-amendments/${encodeURIComponent(documentId)}?${query}`;
 }
-type ReaderPage={base:MotionAmendmentsPage|null;exact:MotionAmendmentsPage|null;page:MotionAmendmentsPage|null};
+type ReaderPage={base:MotionAmendmentsPage|null;exact:MotionAmendmentsPage|null;page:MotionAmendmentsPage|null;order:number};
 function canReplacePage(candidate:MotionAmendmentsPage,current:MotionAmendmentsPage|null) {
   return !current||candidate.snapshots.amendments>=current.snapshots.amendments&&
     (candidate.snapshots.text===null||current.snapshots.text===null||candidate.snapshots.text>=current.snapshots.text);
 }
-function useExactAmendment(route:string|null) {
-  const [result,setResult]=useState<{route:string|null;data:MotionAmendmentsPage|null;error:string|null;loading:boolean}>({route:null,data:null,error:null,loading:false});
+function useMotionAmendmentsRead(route:string|null,nextOrder:()=>number) {
+  const [result,setResult]=useState<{route:string|null;attempt:number;data:MotionAmendmentsPage|null;error:string|null;loading:boolean;order:number}>({route:null,attempt:0,data:null,error:null,loading:false,order:0});
   const [attempt,setAttempt]=useState(0);
   const retry=useCallback(()=>setAttempt(value=>value+1),[]);
   useEffect(()=>{
     let active=true;
     const controller=new AbortController();
-    setResult({route,data:null,error:null,loading:Boolean(route)});
-    // Working generations can change in place. A fresh exact read prevents a
-    // cached selection from replacing a page accepted after that selection.
+    const order=route?nextOrder():0;
+    setResult({route,attempt,data:null,error:null,loading:Boolean(route),order});
+    // Working generations can change in place. Request order applies to both
+    // list and exact reads, independently of their response completion order.
     if(route)api<MotionAmendmentsPage>(route,controller.signal).then(data=>{
-      if(active)setResult({route,data,error:null,loading:false});
+      if(active)setResult({route,attempt,data,error:null,loading:false,order});
     }).catch(error=>{
-      if(active)setResult({route,data:null,error:error.message,loading:false});
+      if(active)setResult({route,attempt,data:null,error:error.message,loading:false,order});
     });
     return ()=>{active=false;controller.abort();};
-  },[route,attempt]);
-  return {...(result.route===route?result:{route,data:null,error:null,loading:Boolean(route)}),retry};
+  },[route,attempt,nextOrder]);
+  return {...(result.route===route&&result.attempt===attempt?result:{route,attempt,data:null,error:null,loading:Boolean(route),order:0}),retry};
 }
 function formatNumber(value:number,language:string) {try{return value.toLocaleString(language);}catch{return String(value);}}
 function dateLabel(value:string|null|undefined,language:string) {
@@ -227,6 +228,7 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
   const member=String(memberId),headingRef=useRef<HTMLHeadingElement>(null),id=useId(),panelId='motion-amendments-'+id;
   const motionButton=useRef<HTMLButtonElement>(null),adoptedButton=useRef<HTMLButtonElement>(null),amendmentButton=useRef<HTMLButtonElement>(null);
   const contextRef=useRef<HTMLDivElement>(null);
+  const requestOrder=useRef(0),nextOrder=useCallback(()=>++requestOrder.current,[]);
   const previousView=useRef<{documentId:string;view:MotionAmendmentsState['view'];contextView:MotionAmendmentsState['contextView'];contextTarget:MotionAmendmentsState['contextTarget']}|null>(null);
   useEffect(()=>{
     const previous=previousView.current;
@@ -242,19 +244,21 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
   const motionAllowed=exactMotion(documentId)&&safeMember(member)&&validMotionState(state);
   const allowed=motionAllowed&&validState(state)&&(!state.amendmentId||amendmentIdentity(state.amendmentId)?.documentId===documentId&&amendmentIdentity(state.amendmentId)?.id===state.amendmentId);
   const listRoute=allowed&&state.open?route(documentId,member,language,state):null;
-  const list=useData<MotionAmendmentsPage>(listRoute);
+  const list=useMotionAmendmentsRead(listRoute,nextOrder);
   const basePage=list.data&&matchesPage(list.data,documentId,member,language,state,null)?list.data:null;
   const [savedPages,setSavedPages]=useState<Map<string,ReaderPage>>(()=>new Map());
-  const previousPage:ReaderPage=listRoute&&savedPages.get(listRoute)||{base:null,exact:null,page:null};
+  const previousPage:ReaderPage=listRoute&&savedPages.get(listRoute)||{base:null,exact:null,page:null,order:0};
   const newBase=basePage&&basePage!==previousPage.base;
-  const currentPage=newBase&&canReplacePage(basePage,previousPage.page)?basePage:previousPage.page;
+  const acceptBase=newBase&&list.order>=previousPage.order&&canReplacePage(basePage,previousPage.page);
+  const currentPage=acceptBase?basePage:previousPage.page;
+  const currentOrder=acceptBase?list.order:previousPage.order;
   const badPage=Boolean(list.data&&!basePage);
   // A primary row ID is exact. An official alias must be resolved by the API:
   // a second row carrying the same alias may be outside the displayed page.
   const localItem=state.amendmentId&&currentPage?.items.find(item=>item.id===state.amendmentId)||null;
-  const selectedRoute=listRoute&&basePage&&state.amendmentId&&!localItem?route(documentId,member,language,state,state.amendmentId):null;
-  const exact=useExactAmendment(selectedRoute);
-  const exactPage=selectedRoute&&exact.data&&matchesPage(exact.data,documentId,member,language,state,state.amendmentId)&&canReplacePage(exact.data,currentPage)?exact.data:null;
+  const selectedRoute=listRoute&&currentPage&&state.amendmentId&&!localItem?route(documentId,member,language,state,state.amendmentId):null;
+  const exact=useMotionAmendmentsRead(selectedRoute,nextOrder);
+  const exactPage=selectedRoute&&exact.data&&exact.order>=currentOrder&&matchesPage(exact.data,documentId,member,language,state,state.amendmentId)&&canReplacePage(exact.data,currentPage)?exact.data:null;
   const badSelection=Boolean(selectedRoute&&exact.data&&!exactPage);
   // The exact response includes this same page. Publish its page, counts and
   // selected record together and retain them through subsequent local choices.
@@ -263,14 +267,14 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
   if(listRoute&&(newBase||newExact))setSavedPages(previous=>{
     const next=new Map(previous);
     next.delete(listRoute);
-    next.set(listRoute,{base:basePage,exact:exactPage||previousPage.exact,page});
-    // Bound retained views to the shared client's cache capacity. Closing or
-    // visiting another query must not restore the superseded base response.
+    next.set(listRoute,{base:basePage,exact:exactPage||previousPage.exact,page,order:newExact?exact.order:currentOrder});
+    // Bound retained views. Closing or visiting another query must not
+    // restore a response superseded by a later read of that query.
     while(next.size>60)next.delete(next.keys().next().value!);
     return next;
   });
-  const selection=page?.selection.requestedId===state.amendmentId?page.selection:null;
-  const selected=selection?selection.item:state.amendmentId&&page?.items.find(item=>item.id===state.amendmentId)||null;
+  const selection=selectedRoute?exactPage?.selection:null;
+  const selected=selectedRoute?selection?.item||null:state.amendmentId&&page?.items.find(item=>item.id===state.amendmentId)||null;
   const inPage=Boolean(selected&&page?.items.some(item=>item.id===selected.id));
   const selectedRecord=selected?chosenRecord(selected,state.variantListId):null;
   const selectedPending=Boolean(selectedRoute&&exact.loading);
