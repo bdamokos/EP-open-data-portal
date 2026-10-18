@@ -5,7 +5,7 @@ import {Window} from 'happy-dom';
 
 const styles = await Promise.all([
   'References.css', 'ParliamentHeader.css', 'explorer.css', 'Insights.css',
-  'SpeechCloud.css', 'ExplorerLayout.css', 'base.css',
+  'SpeechCloud.css', 'ExplorerLayout.css', 'base.css', 'focus.css',
 ].map(file => readFile(new URL(file, import.meta.url), 'utf8')));
 
 function luminance(color) {
@@ -98,4 +98,14 @@ test('programmatic focus uses the local surface token and keeps yellow on dark i
     focusContrast(window, reader, surface);
     assert.equal(window.getComputedStyle(reader).outlineColor, light ? '#1e6cff' : '#fff200');
   }
+});
+
+test('the opened member name takes focus without a visible outline while other focused headings keep one', async t => {
+  const window = await page(t, '<main class="explorer"><section class="explorer-profile"><div class="explorer-profile-header"><h1 tabindex="-1">Name</h1></div><h2 tabindex="-1">Speeches</h2></section></main>');
+  const [name, heading] = window.document.querySelectorAll('h1,h2');
+  name.focus();
+  assert.equal(window.document.activeElement, name);
+  assert.equal(window.getComputedStyle(name).outlineStyle, 'none');
+  heading.focus();
+  assert.equal(window.getComputedStyle(heading).outlineStyle, 'solid');
 });
