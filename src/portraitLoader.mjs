@@ -1,3 +1,6 @@
+import {versionedApiUrl} from '../server/api-version.mjs';
+import {reportApiVersionMismatch} from './apiVersionMismatch.mjs';
+
 const portraitPath = /^(?:(?:\.\/)*|\/)api\/portrait\/([1-9][0-9]*)$/;
 const aborted = () => new DOMException('Portrait no longer needed', 'AbortError');
 
@@ -25,7 +28,7 @@ export function createPortraitLoader({concurrency = 3, maxQueued = 1024, startIn
     if (startInterval > 0) credit--;
     // Do not yield between checking the shared cooldown and starting HTTP.
     // Another response may otherwise establish a cooldown in that gap.
-    return fetchImpl(job.url, {credentials: 'omit', redirect: 'error'});
+    return fetchImpl(versionedApiUrl(job.url), {credentials: 'omit', redirect: 'error'});
   }
 
   function pause(response) {
@@ -44,6 +47,10 @@ export function createPortraitLoader({concurrency = 3, maxQueued = 1024, startIn
     for (let attempt = 0; ; attempt++) {
       const response = await admit(job);
       if (response.ok) return response.blob();
+      if (response.status === 409) {
+        reportApiVersionMismatch(response.status, await response.json().catch(() => null));
+        throw new Error('Portrait request failed (409)');
+      }
       const limited = [429, 503].includes(response.status);
       if (limited) pause(response);
       const retry = limited && attempt < 2 && job.listeners.size;

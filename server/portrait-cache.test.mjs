@@ -154,7 +154,7 @@ test('a stale wall burst bounds background work and leaves an upstream slot for 
     try { await delayed.promise; return source(id); } finally { release(); }
   };
   const loader = createPortraitLoader({concurrency: 3, fetchImpl: async url => {
-    const image = await cache.get(Number(url.split('/').at(-1)), resolveSource);
+    const image = await cache.get(Number(new URL(url,'http://localhost').pathname.split('/').at(-1)), resolveSource);
     return new Response(image.body, {headers: {'content-type': image.contentType}});
   }});
   const images = await Promise.all(ids.map(id => loader.load(`/api/portrait/${id}`)));

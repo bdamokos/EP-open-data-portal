@@ -351,6 +351,40 @@
       "humanReviewed": false,
       "sourceText": "Save in this browser"
     },
+    "new-version": {
+      "labels": {
+        "bg": "Налична е нова версия на приложението",
+        "cs": "Je k dispozici nová verze průzkumníku",
+        "da": "En ny version af udforskeren er tilgængelig",
+        "de": "Eine neue Version des Explorers ist verfügbar",
+        "el": "Είναι διαθέσιμη μια νέα έκδοση της εφαρμογής",
+        "en": "A new version of the explorer is available",
+        "es": "Hay una nueva versión del explorador disponible",
+        "et": "Saadaval on uurija uus versioon",
+        "fi": "Selaimen uusi versio on saatavilla",
+        "fr": "Une nouvelle version de l’explorateur est disponible",
+        "ga": "Tá leagan nua den taiscéalaí ar fáil",
+        "hr": "Dostupna je nova verzija preglednika",
+        "hu": "Elérhető a böngésző új verziója",
+        "it": "È disponibile una nuova versione dell’esploratore",
+        "lt": "Pasiekiama nauja naršyklės versija",
+        "lv": "Ir pieejama jauna pārlūka versija",
+        "mt": "Verżjoni ġdida tal-esploratur hija disponibbli",
+        "nl": "Er is een nieuwe versie van de verkenner beschikbaar",
+        "pl": "Dostępna jest nowa wersja eksploratora",
+        "pt": "Está disponível uma nova versão do explorador",
+        "ro": "Este disponibilă o nouă versiune a exploratorului",
+        "sk": "Je k dispozícii nová verzia prieskumníka",
+        "sl": "Na voljo je nova različica raziskovalnika",
+        "sv": "En ny version av utforskaren är tillgänglig"
+      },
+      "provenance": "machine-translation",
+      "sourceLanguage": "en",
+      "model": "gpt-6.1-sol",
+      "generatedAt": "2026-10-18",
+      "humanReviewed": false,
+      "sourceText": "A new version of the explorer is available"
+    },
     "view-error": {
       "labels": {
         "bg": "Този изглед не може да се покаже",

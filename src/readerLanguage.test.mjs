@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createElement as el,act} from 'react';
 import {Window} from 'happy-dom';
@@ -84,7 +85,7 @@ async function harness(t,respond) {
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){scrolls.push({element:this,options});});
   t.mock.method(globalThis,'fetch',async input=>{
-    const url=new URL(input,window.location.href),route=url.pathname.split('/api/')[1];
+    const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1];
     assert(route,'Only local mocked application routes are allowed');requests.push(route+url.search);
     const data=respond(route,url.searchParams);assert.notEqual(data,undefined,'Unexpected fixture request: '+route+url.search);
     return Response.json(data);

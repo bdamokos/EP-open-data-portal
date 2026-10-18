@@ -1,7 +1,9 @@
 import test from 'node:test';
+import {versionedApiUrl} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createPortraitLoader, isManagedPortrait} from './portraitLoader.mjs';
 
+const fetchedPath = id => versionedApiUrl(path(id));
 const path = id => `/api/portrait/${id}`;
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function deferred() {
@@ -75,7 +77,7 @@ test('one rate response pauses all portrait starts and resumes them without a re
   const time = clock(), calls = [], busy = deferred();
   const loader = createPortraitLoader({...time, fetchImpl: async url => {
     calls.push({url, at: time.now()});
-    return url === path(1) && calls.filter(call => call.url === path(1)).length === 1 ? busy.promise : image();
+    return url === fetchedPath(1) && calls.filter(call => call.url === fetchedPath(1)).length === 1 ? busy.promise : image();
   }});
   const pending = Array.from({length: 8}, (_, i) => loader.load(path(i + 1)));
   busy.resolve(new Response('limited', {status: 429, headers: {'Retry-After': '4'}}));
@@ -93,7 +95,7 @@ test('a pacing wake cannot start a request after a simultaneous response establi
   let firstAttempt = true;
   const loader = createPortraitLoader({...time, fetchImpl: url => {
     events.push({kind: 'fetch', url, at: time.now()});
-    if (url === path(1) && firstAttempt) {firstAttempt = false; return first.promise;}
+    if (url === fetchedPath(1) && firstAttempt) {firstAttempt = false; return first.promise;}
     return Promise.resolve(image());
   }});
   const pending = Array.from({length: 5}, (_, i) => loader.load(path(i + 1)));
@@ -113,7 +115,7 @@ test('a pacing wake cannot start a request after a simultaneous response establi
 
 test('a detached response still protects the queue and honours an HTTP-date cooldown', async () => {
   const time = clock(), response = deferred(), controller = new AbortController(), calls = [];
-  const loader = createPortraitLoader({...time, concurrency: 1, fetchImpl: async url => {calls.push({url, at: time.now()}); return url === path(1) ? response.promise : image();}});
+  const loader = createPortraitLoader({...time, concurrency: 1, fetchImpl: async url => {calls.push({url, at: time.now()}); return url === fetchedPath(1) ? response.promise : image();}});
   const abandoned = loader.load(path(1), {signal: controller.signal});
   const rejection = assert.rejects(abandoned, {name: 'AbortError'});
   controller.abort(); await rejection;
@@ -133,7 +135,7 @@ test('cancelled paced work never fetches and does not block the remaining portra
   controllers[3].abort(); controllers[4].abort();
   await time.advance(1_000);
   const results = await settled;
-  assert.deepEqual(calls, [path(1), path(2), path(3), path(6)]);
+  assert.deepEqual(calls, [fetchedPath(1), fetchedPath(2), fetchedPath(3), fetchedPath(6)]);
   assert.equal(results[3].reason.name, 'AbortError');
   assert.equal(results[4].reason.name, 'AbortError');
   assert.equal(results[5].status, 'fulfilled');
@@ -143,7 +145,7 @@ test('exhausting one portrait retry budget does not release the queue before its
   const time = clock(), calls = [];
   const loader = createPortraitLoader({...time, concurrency: 1, fetchImpl: async url => {
     calls.push({url, at: time.now()});
-    return url === path(1) ? new Response('limited', {status: 429, headers: {'Retry-After': '2'}}) : image();
+    return url === fetchedPath(1) ? new Response('limited', {status: 429, headers: {'Retry-After': '2'}}) : image();
   }});
   const rejection = assert.rejects(loader.load(path(1)), /429/);
   await flush(); await time.advance(4_000); await rejection;
@@ -164,7 +166,7 @@ test('only same-origin portrait paths enter the queue, including relative build 
     assert.equal(isManagedPortrait(url), false);
     await assert.rejects(loader.load(url), /Invalid portrait path/);
   }
-  assert.deepEqual(calls.map(call => call.url), [path(1), path(2), path(3)]);
+  assert.deepEqual(calls.map(call => call.url), [fetchedPath(1), fetchedPath(2), fetchedPath(3)]);
   assert.ok(calls.every(call => call.options.credentials === 'omit' && call.options.redirect === 'error'));
 });
 
@@ -209,9 +211,9 @@ test('cancelled queued work never fetches and detached active work retains its s
   active.abort(); queued.abort();
   await Promise.all([firstRejection, secondRejection]);
   const third = loader.load(path(3));
-  await tick(); assert.deepEqual(calls, [path(1)]);
+  await tick(); assert.deepEqual(calls, [fetchedPath(1)]);
   response.resolve(image()); await third;
-  assert.deepEqual(calls, [path(1), path(3)]);
+  assert.deepEqual(calls, [fetchedPath(1), fetchedPath(3)]);
 });
 
 test('retries only temporary admission responses, honours Retry-After, and bounds attempts', async () => {
@@ -244,7 +246,7 @@ test('does not retry detached consumers and recovers capacity after a network fa
   await flush(); controller.abort(); await rejection;
   const next = loader.load(path(2)); await time.advance(2000); await next;
   assert.equal(calls, 2);
-  const failed = createPortraitLoader({concurrency: 1, fetchImpl: async url => {if (url === path(1)) throw new Error('network'); return image();}});
+  const failed = createPortraitLoader({concurrency: 1, fetchImpl: async url => {if (url === fetchedPath(1)) throw new Error('network'); return image();}});
   await assert.rejects(failed.load(path(1)), /network/);
   assert.equal((await failed.load(path(2))).type, 'image/jpeg');
 });
