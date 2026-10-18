@@ -68,6 +68,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const notes=text?.notes||[],anchors=text?.noteAnchors||[],links=text?.documentLinks||[],objects=text?.documentObjects||[];
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
   const title=document?titleOf(document,language):null,hasText=text?.status==='available'&&allParagraphs.length>0;
+  const extractionError=text?.status==='error',loadError=Boolean(state.error)||extractionError;
   const incomplete=objects.some(object=>object.status==='unresolved')||Boolean(text?.extractionWarnings?.length)||text?.notesStatus==='not-extracted';
   const actual=text?.textLanguage||null;
   const availableLanguages=[...new Set([...(text?.availableTextLanguages||[]),...(actual?[actual]:[])])];
@@ -75,11 +76,11 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   return <div className="document-context-document">
     {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools">{availableLanguages.length>1&&<label>Text language<select aria-label="Document text language" value={actual&&availableLanguages.includes(actual)?actual:language} onChange={event=>onLanguageChange(event.target.value)}>{availableLanguages.map(code=><option key={code} value={code}>{languageName(code)}</option>)}</select></label>}{hasText&&<FindInText key={id+':'+language} target={reader} label="Find in document"/>}</div></header>}
     {state.loading&&!data&&<p role="status">Loading document…</p>}
-    {state.error&&<p className="document-context-notice" role="alert">{hasText?'Couldn’t update the document. Showing saved text.':'Document could not be loaded.'} <button type="button" onClick={state.retry}>Try again</button></p>}
-    {!state.loading&&!state.error&&!document&&<p>Document unavailable here.</p>}
+    {loadError&&<p className="document-context-notice" role="alert">{hasText?'Couldn’t update the document. Showing saved text.':extractionError?'Document text could not be loaded.':'Document could not be loaded.'} <button type="button" onClick={state.retry}>Try again</button></p>}
+    {!state.loading&&!loadError&&!document&&<p>Document unavailable here.</p>}
     {document&&<>
       {actual&&<p className="document-context-language">{actual!==language?<>{languageName(language)} unavailable · showing {languageName(actual)}.</>:<>Text language: {languageName(actual)}</>}</p>}
-      {!state.error&&(text?.stale||text?.refreshError)&&<p className="document-context-notice">Showing saved text.</p>}
+      {hasText&&!loadError&&(text?.stale||text?.refreshError)&&<p className="document-context-notice">{text?.refreshError?'Couldn’t update the document. Showing saved text.':'Showing saved text.'}</p>}
       {hasText?<>
         {amendmentRequest?.amendmentId&&(found?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to passage</button>{target?.quoteMatches===false&&<p>The published text differs from the amendment’s quotation.</p>}</div>:<p className="document-context-notice">Passage not found. The full document is below.</p>)}
         {incomplete&&<p className="document-context-notice">Some content is only available in the original document.</p>}
@@ -89,7 +90,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
             return <p key={sourceIndex} data-source-paragraph={sourceIndex} data-context-target={selected?'true':undefined} className={selected?'document-context-target':undefined} tabIndex={selected?-1:undefined}><Paragraph text={paragraph} paragraph={sourceIndex} objects={objects} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} notePrefix={notePrefix}/></p>;
           })}<DocumentNotes notes={notes} prefix={notePrefix}/></div>
         </ReferenceScope>
-      </>:!state.loading&&<p>Document text unavailable here.</p>}
+      </>:!state.loading&&!loadError&&<p>Document text unavailable here.</p>}
       {sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer">Open original document ↗</a></p>}
     </>}
   </div>;

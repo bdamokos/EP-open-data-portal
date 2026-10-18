@@ -85,7 +85,6 @@ export function groupMemberVotes(data) {
     if(!groups.has(id))groups.set(id,{id,subject:subject||null,items:[]});
     groups.get(id).items.push(item);
   }
-  for(const [id,subject] of subjects)if(subject&&!groups.has(id)&&subject.wholeTextDecisions?.length)groups.set(id,{id,subject,items:[]});
   return [...groups.values()];
 }
 

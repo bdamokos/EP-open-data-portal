@@ -140,6 +140,41 @@ test('a local reader failure has an explicit retry and does not claim a parliame
   assert(h.container.textContent.includes('Readable after retry.'));assert.equal(calls,2);
 });
 
+test('an extraction failure returned with HTTP 200 offers retry and never claims saved text',async t=>{
+  let calls=0;
+  const h=await harness(t,()=>++calls===1?response(report,sourceDocument(report,[],{
+    status:'error',textLanguage:null,refreshError:'official-document-download-failed',reason:'source-error',
+  })):response(report,sourceDocument(report,['Official text recovered after retry.'])));
+  await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
+  const alert=h.container.querySelector('[role="alert"]');
+  assert(alert?.textContent.includes('Document text could not be loaded.'));
+  assert(!h.container.textContent.includes('Showing saved text.'));
+  assert(!h.container.textContent.includes('Document text unavailable here.'));
+  assert(!h.container.textContent.includes('official-document-download-failed'));
+  assert.equal(h.container.querySelector('.document-context-text'),null);
+  await h.click([...alert.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
+  assert.equal(calls,2);
+  assert.deepEqual(h.requests,[`document-context/${report}?lang=en`,`document-context/${report}?lang=en`]);
+  assert(h.container.textContent.includes('Official text recovered after retry.'));
+  assert.equal(h.container.querySelector('[role="alert"]'),null);
+  assert(!h.container.textContent.includes('Showing saved text.'));
+});
+
+test('a background extraction failure keeps the readable saved body and qualifies it',async t=>{
+  const h=await harness(t,()=>response(report,sourceDocument(report,['Exact saved source paragraph.'],{
+    stale:true,refreshError:'official-document-download-failed',
+    notes:[{id:'1',label:'1',text:'Saved source note.',links:[]}],
+  })));
+  await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(h.container.querySelector('[data-source-paragraph="0"]').textContent,'Exact saved source paragraph.');
+  assert(h.container.textContent.includes('Saved source note.'));
+  assert(h.container.textContent.includes('Couldn’t update the document. Showing saved text.'));
+  assert(!h.container.textContent.includes('Document text could not be loaded.'));
+  assert(!h.container.textContent.includes('Document text unavailable here.'));
+  assert(!h.container.textContent.includes('official-document-download-failed'));
+  assert(h.container.querySelector('button[aria-label="Find in document"]'));
+});
+
 test('source hyperlinks spanning an unresolved object keep both visible linked fragments',async t=>{
   const paragraph='Before\uFFFC after note.',href='https://example.org/exact-source-link';
   const h=await harness(t,()=>response(report,sourceDocument(report,[paragraph],{
