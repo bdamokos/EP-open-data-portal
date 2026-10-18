@@ -12,6 +12,7 @@ import { CorpusWorker, corpus, corpusSearchOptions, fragmentText, questionFiles,
 import { CorpusReader } from './corpus-reader.mjs';
 import { handleRequest } from './index.mjs';
 import { server } from './index.mjs';
+import {readerTimeoutMs} from './test-support/corpus-reader.mjs';
 
 const instant=()=>Date.parse('2026-10-16T10:00:00Z');
 const fetchedAt=new Date(instant()).toISOString();
@@ -299,11 +300,11 @@ test('pagination stops at the HTTP offset limit and reports truncated results',(
   } finally {s.cleanup();}
 });
 
-test('read-only queries leave the API event loop free and enforce concurrency and deadlines',async()=>{
+test('read-only queries leave the API event loop free and enforce concurrency and deadlines',async t=>{
   const s=stores();
   try {
     s.corpus.putDocument(...Object.values(speechTexts(speech('MTG-PL-2026-07-08-OTH-1',{en:fragment('en','Ocean protection.')}),'https://example.test/list',fetchedAt)));
-    const reader=new CorpusReader(path.dirname(s.corpus.filename),{indexFile:s.index.filename});
+    const reader=new CorpusReader(path.dirname(s.corpus.filename),{indexFile:s.index.filename,timeoutMs:readerTimeoutMs});
     const pending=reader.query('search',{query:'ocean',member:42});
     await assert.rejects(reader.query('search',{query:'ocean'}),error=>error.code==='corpus_busy');
     let ticked=false;setImmediate(()=>{ticked=true;});
@@ -313,7 +314,9 @@ test('read-only queries leave the API event loop free and enforce concurrency an
     assert.equal(result.coverage.complete,false);
     assert.equal((await reader.query('status',{})).documents.speech.withText,1);
     const timeout=new CorpusReader(path.dirname(s.corpus.filename),{timeoutMs:1});
-    await assert.rejects(timeout.query('search',{query:'ocean'}),error=>error.code==='corpus_query_timeout');
+    t.mock.timers.enable({apis:['setTimeout']});
+    const timedOut=assert.rejects(timeout.query('search',{query:'ocean'}),error=>error.code==='corpus_query_timeout');
+    t.mock.timers.tick(1);await timedOut;t.mock.timers.reset();
     const readOnly=new CorpusStore(path.dirname(s.corpus.filename),{readOnly:true});
     try {assert.throws(()=>readOnly.set('changed',true),/readonly/i);}finally{readOnly.close();}
   } finally {s.cleanup();}
@@ -679,7 +682,7 @@ test('stored text reads exact keys, retains markup as text, and highlights with 
     putText(s.corpus,id,'question','2026-05-01','mul',body,{translationType:'machine'});
     putText(s.corpus,id,'question','2026-05-01','en','Another variant');
     const hit=s.corpus.search({query:'economie'}).hits[0];
-    const reader=new CorpusReader(path.dirname(s.corpus.filename),{indexFile:s.index.filename});
+    const reader=new CorpusReader(path.dirname(s.corpus.filename),{indexFile:s.index.filename,timeoutMs:readerTimeoutMs});
     const text=await reader.query('text',{sourceId:id,sourceKey:hit.sourceKey,query:'economie'});
     assert.equal(text.body,body);assert.equal(text.sourceKey,'mul');assert.equal(text.language,'en');
     assert.equal(text.sha256,hit.sha256);assert.equal(text.sourceUrl,hit.sourceUrl);assert.equal(text.translationType,'machine');
