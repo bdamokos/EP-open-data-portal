@@ -48,9 +48,12 @@ import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './coAutho
 import {selectLanguageText} from './language.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
 import {useMemberVotesJourney} from './useMemberVotesJourney';
+import {useMemberMotionJourney} from './useMemberMotionJourney';
+import type {MemberMotionReaderProps} from './MemberMotionReader';
 
 const MemberVotes=lazy(()=>import('./MemberVotes').then(module=>({default:module.MemberVotes})));
 const DocumentContextReader=lazy(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
+const MemberMotionReader=lazy(()=>import('./MemberMotionReader').then(module=>({default:module.MemberMotionReader})));
 
 const GroupVoices=lazy(()=>import('./GroupVoices').then(module=>({default:module.GroupVoices})));
 const Legislation=lazy(()=>import('./Legislation').then(module=>({default:module.Legislation})));
@@ -69,6 +72,10 @@ const queryLanguage = (query: URLSearchParams) =>
   interfaceLanguages.includes(query.get("lang") || "") ? query.get("lang")! : "en";
 const queryRole = (query: URLSearchParams) =>
   ["both", "member", "substitute"].includes(query.get("role") || "") ? query.get("role")! : "both";
+const queryActivityOffset=(query:URLSearchParams)=>{
+  const value=query.get('activity-offset');
+  return value!==null&&/^\d{1,7}$/.test(value)&&Number(value)<=1_000_000?Number(value):0;
+};
 const title = (s: Speech, lang: string) =>
   selectLanguageText(s.titles,lang,"Plenary contribution");
 const date = (s: string, lang: string) =>
@@ -204,7 +211,7 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, include
     {includeAnswers&&state.data&&!state.data.answers.length&&<p>No answer published.</p>}
   </section>;
 }
-function JoinedDetails({ item, lang, member }: { item: JoinedActivity; lang: string; member: number }) {
+function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionChange }: { item: JoinedActivity; lang: string; member: number; memberName?:string; motionQuery:URLSearchParams; onMotionChange:MemberMotionReaderProps['onJourneyChange'] }) {
   const hasText=item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer';
   const motion=/^(?:B|RC)-10-\d{4}-\d{4,6}$/.test(item.sourceId);
   const [documentOpen,setDocumentOpen]=useState(false);
@@ -216,6 +223,10 @@ function JoinedDetails({ item, lang, member }: { item: JoinedActivity; lang: str
     {!hasText&&<p lang="en"><strong lang={roles[item.provenance.role] ? "en" : ""}>{item.relatedJointMotions?.length && item.provenance.role==="AUTHOR" ? "Author of the original motion" : roles[item.provenance.role] || item.provenance.role}</strong>{item.provenance.stage ? <> · <span lang={stage.language}>{stage.text}</span></> : ""}</p>}
     {!hasText&&<span lang="en"><AmendmentTrailLink document={item.sourceId} language={lang}>Amendments to this document</AmendmentTrailLink></span>}
     <MotionOutcome outcome={item.resolutionOutcome} related={item.relatedJointMotions} reference={item.reference} sourceId={item.sourceId} language={lang}/>
+    {motion&&<p lang="en">Individual votes are not shown in this reader.</p>}
+    {motion&&<Suspense fallback={<p data-motion-pending="true" role="status" lang="en">Loading motion reader…</p>}>
+      <MemberMotionReader activity={item} memberId={member} memberName={memberName} language={lang} query={motionQuery} onJourneyChange={onMotionChange}/>
+    </Suspense>}
     {(item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer') && <>
       {item.recordKind!=='answer'&&<SaveButton language={lang} item={{kind:'question',id:item.sourceId,title:item.title,titleLanguage:item.titleLanguage,memberId:String(member),date:item.date,baseline:item.answerIds?{answerIds:item.answerIds}:undefined}}/>}
       <PublicationText sourceId={item.sourceId} member={member} lang={lang} heading={item.recordKind==='answer' ? 'Answer' : 'Question'} includeAnswers={item.recordKind!=='answer'} question={item.recordKind==='answer'&&item.relatedQuestionId?{id:item.relatedQuestionId,title:item.relatedQuestionTitle}:undefined} />
@@ -264,12 +275,12 @@ function LinkedActivityFallback({ sourceId, member, lang, complete }: { sourceId
     {contribution.data && <><p>{speechAuthor ? "The speech API names this MEP as a participant." : "The speech source is available. A relationship to this MEP has not been established."}</p><Detail speech={contribution.data} lang={lang} /></>}
   </aside>;
 }
-function Activities({ id, lang, initialActivity, onOpen, category, onCategory }: { id: number; lang: string; initialActivity: string | null; onOpen: (id: string | null) => void; category: string; onCategory: (category: string) => void }) {
-  const [offset,setOffset]=useState(0);
+function Activities({ id, lang, memberName, initialActivity, onOpen, category, onCategory, offset, onOffset, motionQuery, onMotionChange, preserveScroll }: { id: number; lang: string; memberName?:string; initialActivity: string | null; onOpen: (id: string | null,options?:{replace?:boolean}) => void; category: string; onCategory: (category: string) => void; offset:number; onOffset:(offset:number)=>void; motionQuery:URLSearchParams; onMotionChange:MemberMotionReaderProps['onJourneyChange']; preserveScroll:boolean }) {
   const [categoriesOpen,setCategoriesOpen]=useState(false);
   const resultsHeading=useRef<HTMLHeadingElement>(null);
   const moveToResults=useRef(false);
   const lastPage=useRef<{member:number;data:JoinedActivityPage} | null>(null);
+  const revealed=useRef<string|null>(null);
   const open=initialActivity;
   const sourceId=activitySourceId(open);
   const c=interfaceCopy(lang);
@@ -278,16 +289,23 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
   const page=state.data || (lastPage.current?.member===id ? lastPage.current.data : null);
   const visibleSelection = state.data?.items.some(item => item.sourceId === sourceId);
   const pinned=useData<JoinedActivityPage>(sourceId && state.data && !visibleSelection ? `latest-activities/${id}?lang=${lang}&limit=10&source-id=${encodeURIComponent(sourceId)}` : null);
-  useEffect(()=>{setOffset(0);},[id,category]);
   const selectedItems = pinned.data?.selectedItems || [];
   const items=state.data ? [...selectedItems.filter(selected=>!state.data!.items.some(item=>item.id===selected.id)),...state.data.items] : [];
   const isOpen=(item:JoinedActivity)=>open===`${item.category}:${item.sourceId}` || sourceId===item.sourceId && !open?.includes(":");
   useEffect(()=>{
     if(open && !open.includes(":") && selectedItems.length===1){
-      const selected=selectedItems[0];onOpen(`${selected.category}:${selected.sourceId}`);
+      const selected=selectedItems[0];onOpen(`${selected.category}:${selected.sourceId}`,{replace:true});
     }
   },[open,pinned.data,onOpen]);
-  useEffect(()=>{if(open && state.data)document.getElementById(`publication-${items.find(isOpen)?.id || open}`)?.scrollIntoView({block:"nearest"});},[open,state.data,pinned.data]);
+  useEffect(()=>{
+    if(!open){revealed.current=null;return;}
+    const selected=items.find(isOpen);
+    if(!selected)return;
+    const key=String(id)+':'+selected.id;
+    if(revealed.current===key)return;
+    revealed.current=key;
+    if(!preserveScroll)document.getElementById(`publication-${selected.id}`)?.scrollIntoView({block:"nearest"});
+  },[id,open,state.data,pinned.data,preserveScroll]);
   useEffect(()=>{
     if(!moveToResults.current)return;
     moveToResults.current=false;
@@ -299,10 +317,10 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
     if(state.data?.cache.complete || open)return;
     const timer=window.setInterval(state.retry,30_000);return ()=>window.clearInterval(timer);
   },[state.data?.cache.complete,open,state.retry]);
-  const choose=(value:string)=>{moveToResults.current=true;setCategoriesOpen(false);onCategory(value);setOffset(0);onOpen(null);};
+  const choose=(value:string)=>{moveToResults.current=true;setCategoriesOpen(false);onCategory(value);onOffset(0);onOpen(null);};
   const coverage=category ? page?.categoryCoverage[category] : null;
   const selectedLabel=category ? page?.categories[category] || category : "All activities";
-  return <section className="explorer-activities" lang="en">
+  return <section className="explorer-activities" lang="en" data-activities-pending={state.loading&&!state.data||open&&pinned.loading&&!items.some(isOpen)?'true':undefined}>
     <div className="explorer-section-title"><h2 lang={lang}>{c.activities}</h2>
     <TextSearch prefix="mep-activity-fts" label="Search this MEP’s text" language={lang} member={id} kinds={['speech','question','answer']} from="2024-07-16" scopeNote="Searches this MEP’s saved speeches, questions and linked answers for the current term. Reports and other activity categories are outside this text collection."/></div>
     {page && <>
@@ -333,10 +351,10 @@ function Activities({ id, lang, initialActivity, onOpen, category, onCategory }:
         return <article className="explorer-speech" id={`publication-${item.id}`} key={key}>
           <button className="explorer-speech-toggle" aria-expanded={isOpen(item)} onClick={()=>{const next=isOpen(item)?null:key;onOpen(next);}}><span><small><span>{item.recordKind === "answer" ? "Answer" : item.category === "written-questions" ? "Written question" : item.category === "oral-questions" ? "Oral question" : item.categoryLabel} · <time lang={lang} dateTime={item.date}>{date(item.date,lang)}</time></span></small><strong lang={item.titleLanguage||""}>{item.title}</strong>{item.recordKind!=="answer"&&item.answerStatus&&<QuestionStatus answered={item.answerStatus==="answered"}/>} {item.resolutionOutcome&&<MotionStatuses outcome={item.resolutionOutcome} related={item.relatedJointMotions} sourceId={item.sourceId}/>}</span><b aria-hidden="true">{isOpen(item)?"−":"+"}</b></button>
 
-          {isOpen(item) && <JoinedDetails item={item} lang={lang} member={id} />}
+          {isOpen(item) && <JoinedDetails item={item} lang={lang} member={id} memberName={memberName} motionQuery={motionQuery} onMotionChange={onMotionChange} />}
         </article>;
       })}
-      {state.data && <div className="explorer-category-top">{offset>0 && <button onClick={()=>{moveToResults.current=true;setOffset(Math.max(0,offset-10));onOpen(null);}}>Previous</button>}{state.data.nextOffset!==null && <button onClick={()=>{moveToResults.current=true;setOffset(state.data!.nextOffset!);onOpen(null);}}>Next 10</button>}<button onClick={state.retry}>Refresh list</button></div>}
+      {state.data && <div className="explorer-category-top">{offset>0 && <button onClick={()=>{moveToResults.current=true;onOffset(Math.max(0,offset-10));onOpen(null);}}>Previous</button>}{state.data.nextOffset!==null && <button onClick={()=>{moveToResults.current=true;onOffset(state.data!.nextOffset!);onOpen(null);}}>Next 10</button>}<button onClick={state.retry}>Refresh list</button></div>}
       <details className="explorer-source-join"><summary>{page.cache.complete ? "History and source information" : "Partial term 10 history — source information"}</summary>
         <p>{page.cache.complete ? "The saved history is available." : "Saved results are shown now. The term 10 history is incomplete; some source records are awaiting retry."}{page.cache.stale && page.cache.complete ? " The daily update is pending." : ""}</p>
         {page.cache.lastError && <p>An upstream request failed. Saved results remain available.</p>}
@@ -424,6 +442,7 @@ export default function App() {
   const [speechLink, setSpeechLink] = useState(initial.get("speech"));
   const [activityLink, setActivityLink] = useState(initial.get("activity"));
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
+  const [activityOffset,setActivityOffset]=useState(()=>queryActivityOffset(initial));
   const [view, setView] = useState<'legislation'|'questions'|'outside'|'amendments'|'groups'|'saved'|null>(
     publicExplorerView(initial.get('view')),
   );
@@ -431,6 +450,7 @@ export default function App() {
     publicMemberModule(initial.get('module')),
   );
   const votes=useMemberVotesJourney(member,!view&&Boolean(member)&&tab==='votes',initial);
+  const motions=useMemberMotionJourney(member,!view&&Boolean(member)&&tab==='activities',initial,{language:lang,activity:activityLink,category:activityCategory,offset:activityOffset});
   const memberOpener=useRef<number|null>(null);
   const viewOpener=useRef<{node:HTMLElement|null;headerIndex:number}|null>(null);
   // Member and Votes tab navigation add one entry through the URL effect.
@@ -458,13 +478,14 @@ export default function App() {
     const page=document.querySelector<HTMLElement>(".explorer");
     if(!page||page.scrollHeight<=page.clientHeight)return;
     if(!view&&tab==='votes'&&votes.hasSavedScroll)return;
+    if(!view&&tab==='activities'&&motions.hasSavedScroll)return;
     if(previous.member!==member||previous.view!==view){if(!speechLink&&!activityLink)page.scrollTo({top:0});return;}
     if(previous.tab===tab||(tab==="speeches"&&speechLink)||(tab==="activities"&&activityLink))return;
     const body=page.querySelector<HTMLElement>(".explorer-profile-body"),tabs=page.querySelector<HTMLElement>(".explorer-tabs");
     if(!body||!tabs||getComputedStyle(tabs).position!=="sticky")return;
     const contentTop=page.scrollTop+body.getBoundingClientRect().top-page.getBoundingClientRect().top-tabs.offsetHeight;
     if(page.scrollTop>contentTop)page.scrollTo({top:contentTop});
-  }, [member, tab, view, speechLink, activityLink,votes.hasSavedScroll]);
+  }, [member, tab, view, speechLink, activityLink,votes.hasSavedScroll,motions.hasSavedScroll]);
   // Apply the destination after the existing responsive scroll policy has settled.
   function focusDestination(){
     const intent=pendingDestination.current;
@@ -509,7 +530,7 @@ export default function App() {
   useEffect(() => {
     const u = new URL(location.href);
     const ownParams=explorerParams(u.searchParams,view,member);
-    for(const key of [...ownParams.keys()])if(key.startsWith('mv-'))ownParams.delete(key);
+    for(const key of [...ownParams.keys()])if(key.startsWith('mv-')||key.startsWith('ma-'))ownParams.delete(key);
     if(!view&&member)for(const [key,value] of memberVotesJourneyParams(votes.journey))ownParams.set(key,value);
     u.search = new URLSearchParams({
       ...Object.fromEntries(ownParams),
@@ -523,12 +544,16 @@ export default function App() {
       ...(!view && member && speechLink ? { speech: speechLink } : {}),
       ...(!view && member && activityLink ? { activity: activityLink } : {}),
       ...(!view && member && activityCategory ? { "activity-category": activityCategory } : {}),
+      ...(!view && member && activityOffset ? { "activity-offset": String(activityOffset) } : {}),
     }).toString();
+    // Retain duplicate motion-reader fields so an invalid share cannot become a
+    // valid selection merely because App rewrote its own navigation fields.
+    if(!view&&member)for(const [key,value] of motions.query)if(key.startsWith('ma-'))u.searchParams.append(key,value);
     const step=memberStep.current;memberStep.current=false;
     if (u.href !== location.href) step ? history.pushState(null, "", u) : history.replaceState(history.state, "", u);
     window.dispatchEvent(new Event('explorer-query-change'));
     document.documentElement.lang = lang;
-  }, [lang, member, tab, committee, role, country, group, view, speechLink, activityLink, activityCategory,votes.journey]);
+  }, [lang, member, tab, committee, role, country, group, view, speechLink, activityLink, activityCategory,activityOffset,votes.journey,motions.query]);
   const filtered = useMemo(
     () =>
       directory?.members.filter(
@@ -574,6 +599,7 @@ export default function App() {
     next=publicExplorerView(next);
     if(next===view)return;
     votes.remember();
+    motions.remember();
     const active=document.activeElement instanceof HTMLElement?document.activeElement:null;
     viewOpener.current={node:active,headerIndex:active?Array.from(document.querySelectorAll('.parliament-header nav button')).indexOf(active):-1};
     pendingDestination.current={view:next,member:next?member:null};
@@ -593,10 +619,11 @@ export default function App() {
       setLang(queryLanguage(query));setRole(queryRole(query));
       const nextMember=/^\d+$/.test(query.get('member')||'')?Number(query.get('member')):null;
       votes.restore(query,nextMember);
+      motions.restore(query,nextMember);
       setView(restored);setMember(nextMember);
       if(!restored){setCountry(filterCountry(query.get('country')));setCommittee(query.get('committee')||'');setGroup(query.get('group')||'');}
       setTab(publicMemberModule(query.get('module')));
-      setSpeechLink(query.get('speech'));setActivityLink(query.get('activity'));setActivityCategory(query.get('activity-category')||'');
+      setSpeechLink(query.get('speech'));setActivityLink(query.get('activity'));setActivityCategory(query.get('activity-category')||'');setActivityOffset(queryActivityOffset(query));
       // A restored disabled link may resolve to the current state, so the URL
       // effect need not run. Canonicalize that history entry immediately too.
       if(!publicAmendmentsEnabled&&(next==='amendments'||query.get('module')==='amendments')){
@@ -609,10 +636,22 @@ export default function App() {
     };
     window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);
   },[]);
-  const changeMemberTab=(next:string)=>{if(next!==tab){votes.remember();if(next==='votes'||tab==='votes')memberStep.current=true;}setTab(next);};
+  const changeMemberTab=(next:string)=>{if(next!==tab){votes.remember();motions.remember();if(['votes','activities'].includes(next)||['votes','activities'].includes(tab))memberStep.current=true;}setTab(next);};
+  const changeActivity=(next:string|null,options?:{replace?:boolean})=>{
+    if(next===activityLink)return;
+    motions.remember();if(!options?.replace)memberStep.current=true;setActivityLink(next);
+  };
+  const changeActivityCategory=(next:string)=>{
+    motions.remember();memberStep.current=true;setActivityCategory(next);setActivityOffset(0);
+  };
+  const changeActivityOffset=(next:number)=>{
+    if(next===activityOffset)return;
+    motions.remember();memberStep.current=true;setActivityOffset(next);
+  };
   const openInsightMember = (id: number, sourceId?: string) => {
     votes.remember();
-    navigateView(null);setMember(id);setActivityCategory('');
+    motions.remember();
+    navigateView(null);setMember(id);setActivityCategory('');setActivityOffset(0);
     memberOpener.current=null;
     pendingDestination.current={view:null,member:id};
     const speech=Boolean(sourceId?.startsWith('MTG-PL-'));
@@ -622,11 +661,13 @@ export default function App() {
   };
   const showMembers = () => {
     votes.remember();
+    motions.remember();
     navigateView(null);setMember(null);setSpeechLink(null);setActivityLink(null);
     pendingDestination.current={view:null,member:null};
   };
   const leaveMember=()=>{
     votes.remember();
+    motions.remember();
     pendingDestination.current={view:null,member:null,portrait:memberOpener.current};
     memberStep.current=true;setMember(null);setSpeechLink(null);setActivityLink(null);
   };
@@ -711,7 +752,7 @@ export default function App() {
                         <DocumentContextReader request={request} language={lang} selectedDocumentId={votes.journey.adoptedId} onSelectedDocumentIdChange={votes.onSelectedDocumentIdChange}/>
                       </Suspense>}/>
                   </Suspense>
-              ) : publicAmendmentsEnabled && tab === "amendments" ? <Amendments key={member} member={member} language={lang} onMember={openInsightMember} heading="Amendments tabled"/> : tab === "activities" ? <Activities id={member} lang={lang} initialActivity={activityLink} onOpen={setActivityLink} category={activityCategory} onCategory={setActivityCategory} /> : (
+              ) : publicAmendmentsEnabled && tab === "amendments" ? <Amendments key={member} member={member} language={lang} onMember={openInsightMember} heading="Amendments tabled"/> : tab === "activities" ? <Activities id={member} lang={lang} memberName={memberName} initialActivity={activityLink} onOpen={changeActivity} category={activityCategory} onCategory={changeActivityCategory} offset={activityOffset} onOffset={changeActivityOffset} motionQuery={motions.query} onMotionChange={motions.onJourneyChange} preserveScroll={motions.hasSavedScroll} /> : (
                 <>
                   {profile.loading && <p role="status" lang="en">Loading profile…</p>}
                   {profile.error && (
@@ -923,6 +964,7 @@ export default function App() {
                             memberStep.current=true;setMember(m.id);
                             setSpeechLink(null);
                             setActivityLink(null);
+                            setActivityOffset(0);
                             setTab("speeches");
                           }}
                         />
@@ -948,7 +990,7 @@ export default function App() {
             <select
               aria-label="Interface language"
               value={lang}
-              onChange={(e) => setLang(e.target.value)}
+              onChange={(e) => {votes.remember();motions.remember();setLang(e.target.value);}}
             >
               {interfaceLanguages.map((code) => (
                 <option lang={code} key={code} value={code}>
