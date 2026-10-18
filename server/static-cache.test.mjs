@@ -55,6 +55,8 @@ test("static caching follows emitted build assets and keeps HTML, ranges and fai
     "assets/legacy-aabbccdd.js",
     "assets/legacy-aabbccdd.js.map",
     "assets/unversioned.js",
+    "assets/shared-nEstEd12.js",
+    "assets/view-StYlE_12.css",
   ];
   const body = "public build file\n";
   await Promise.all(files.map((name) => writeFile(path.join(directory, name), body)));
@@ -62,10 +64,12 @@ test("static caching follows emitted build assets and keeps HTML, ranges and fai
     "index.html": {
       file: "assets/index-DZAb_0-x.js",
       isEntry: true,
+      dynamicImports: ["src/lazy.ts"],
       css: ["assets/index-B3oF-2_k.css"],
       assets: ["assets/image-DVx_y0-R.webp"],
     },
-    "src/lazy.ts": { file: "assets/lazy-kR7-_o9A.js" },
+    "src/lazy.ts": { file: "assets/lazy-kR7-_o9A.js", isDynamicEntry: true, imports: ["_shared.js"], css: ["assets/view-StYlE_12.css"] },
+    "_shared.js": { file: "assets/shared-nEstEd12.js" },
     "page.html": { file: "assets/index-NerR9_Zx.html" },
     "unversioned.js": { file: "assets/unversioned.js" },
   }));
@@ -99,7 +103,7 @@ test("static caching follows emitted build assets and keeps HTML, ranges and fai
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
     await t.test("Vite base64url hashes cache for one year while source maps revalidate", async () => {
-      for (const name of files.slice(1, 7).filter(name=>!name.endsWith('.map'))) {
+      for (const name of [...files.slice(1, 7),...files.slice(-2)].filter(name=>!name.endsWith('.map'))) {
         const response = await fetch(`${base}/${name}`);
         assert.equal(response.status, 200, name);
         assert.equal(response.headers.get("Cache-Control"), "public, max-age=31536000, immutable", name);
@@ -124,7 +128,7 @@ test("static caching follows emitted build assets and keeps HTML, ranges and fai
     });
 
     await t.test("unversioned files and lookalike public filenames keep the short fallback", async () => {
-      for (const name of files.slice(8).filter(name=>!name.endsWith('.map'))) {
+      for (const name of files.slice(8,-2).filter(name=>!name.endsWith('.map'))) {
         const response = await fetch(`${base}/${name}`);
         assert.equal(response.status, 200, name);
         assert.equal(response.headers.get("Cache-Control"), "public, max-age=300", name);

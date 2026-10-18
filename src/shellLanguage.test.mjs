@@ -24,7 +24,7 @@ async function harness(t,{locale='hu',query='',items=[],respond=()=>{throw Error
 
 test('question save controls update with the UI locale without changing source titles or saved records',async t=>{
   const item={kind:'question',id:'E-10-2026-003031',title:'Titre français',titleLanguage:'fr',memberId:'257043'};
-  const h=await harness(t,{items:[item]});const {SaveButton}=await h.load('/src/Saved.tsx');
+  const h=await harness(t,{items:[item]});const {SaveButton}=await h.load('/src/SavedControls.tsx');
   const before=window.localStorage.getItem('ep.bookmarks.v1');
   for(const [language,label] of [['hu','Mentett kérdés'],['fr','Question enregistrée'],['en','Saved question']]) {
     await h.render(createElement(SaveButton,{item,language}));

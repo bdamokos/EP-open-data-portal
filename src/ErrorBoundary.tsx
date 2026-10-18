@@ -47,13 +47,13 @@ export class ErrorBoundary extends Component<Props,State> {
 }
 
 export function RootBoundary({children}:{children:ReactNode}) {
-  const [route,setRoute]=useState(()=>location.pathname+location.search);
+  const [navigation,setNavigation]=useState(0);
   useEffect(()=>{
-    const restore=()=>setRoute(location.pathname+location.search);
+    const restore=()=>setNavigation(value=>value+1);
     window.addEventListener('popstate',restore);
     return ()=>window.removeEventListener('popstate',restore);
   },[]);
-  return <ErrorBoundary resetKey={route}>{children}</ErrorBoundary>;
+  return <ErrorBoundary resetKey={String(navigation)}>{children}</ErrorBoundary>;
 }
 
 // Evaluate view JSX inside the boundary, including inline member/directory maps.
@@ -66,3 +66,10 @@ export function ViewContent({render,onReady}:{render:()=>ReactNode;onReady:()=>v
   return render();
 }
 
+export function ViewLoading({language}:{language:string}) {
+  const term=interfaceTerm('loading-view',language);
+  return <main className="explorer explorer-recovery" lang={term.language} data-view-loading="true" aria-busy="true">
+    <p role="status">{term.text}</p>
+    <a href={'?lang='+language}>{interfaceTerm('go-home',language).text}</a>
+  </main>;
+}
