@@ -136,6 +136,8 @@ function Detail({vote,data,memberName,language,onDecision,openContext}:{vote:Mem
 export function MemberVotes({memberId,memberName,language,state,onStateChange,renderContext}:MemberVotesProps) {
   const id=useId(),listRef=useRef<HTMLDivElement>(null),detailRef=useRef<HTMLDivElement>(null);
   const listScroll=useRef(0),detailScroll=useRef(0),headingRef=useRef<HTMLDivElement>(null);
+  const listHeadingRef=useRef<HTMLHeadingElement>(null);
+  const lastSelection=useRef<{decisionId:string;groupId:string|null}|null>(null),returnFocus=useRef(false);
   const [weekError,setWeekError]=useState('');
   const snapshotRefresh=useRef<{route:string;started:boolean;baseline:MemberVotesResponse|null}|null>(null);
   const route=useMemo(()=>{try{return memberVotesRoute(memberId,state,language);}catch{return null;}},[memberId,state.week,state.sittingId,state.positions,state.offset,state.decisionId,state.snapshotId,language]);
@@ -161,6 +163,21 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     if(!state.decisionId&&!state.context&&listRef.current)listRef.current.scrollTop=listScroll.current;
     if(state.decisionId&&!state.context&&detailRef.current)detailRef.current.scrollTop=detailScroll.current;
   },[data,state.decisionId,state.context]);
+  useLayoutEffect(()=>{
+    if(state.decisionId){
+      const group=groups.find(item=>item.items.some(vote=>vote.id===state.decisionId));
+      const groupId=group?.id||(selected&&['consistent','single-direction'].includes(selected.resultRelationship.binding)?selected.subjectId:null);
+      lastSelection.current={decisionId:state.decisionId,groupId:groupId??(lastSelection.current?.decisionId===state.decisionId?lastSelection.current.groupId:null)};
+      returnFocus.current=true;
+      return;
+    }
+    if(!returnFocus.current||state.context||!data||request.loading||request.error||!listRef.current)return;
+    const previous=lastSelection.current;
+    const row=[...listRef.current.querySelectorAll<HTMLButtonElement>('[data-vote-id]')].find(item=>item.dataset.voteId===previous?.decisionId&&!item.closest('[hidden]'));
+    const group=[...listRef.current.querySelectorAll<HTMLButtonElement>('[data-vote-group]')].find(item=>item.dataset.voteGroup===previous?.groupId);
+    (row||group||listHeadingRef.current)?.focus({preventScroll:true});
+    returnFocus.current=false;
+  },[data,groups,selected,state.decisionId,state.context,request.loading,request.error]);
   useEffect(()=>{if(state.decisionId&&!state.context)headingRef.current?.querySelector<HTMLElement>('h2')?.focus({preventScroll:true});},[data,state.decisionId,state.context]);
   const change=(patch:Partial<MemberVotesState>,replace=false)=>onStateChange({...state,...patch},{replace});
   const selectDecision=(decisionId:string)=>{detailScroll.current=0;change({decisionId,context:null});};
@@ -173,7 +190,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const rejected=Boolean(!route||request.data&&!valid);
   const contextAllowed=Boolean(state.context&&selected&&['document','adopted'].includes(state.context.view)&&(state.context.amendmentId?exactAmendmentTargets(selected).some(target=>target.documentId===state.context?.documentId&&target.amendmentId===state.context?.amendmentId):topLevelVoteDocuments(selected).includes(state.context.documentId)));
   return <section className="member-votes" lang="en" aria-label={`${memberName} · Votes`}>
-    <div className="member-votes-period"><div><p className="member-votes-eyebrow">{memberName}</p><h2>Voting records</h2><p>{periodLabel(data,state)}</p></div><div className="member-votes-period-controls">
+    <div className="member-votes-period"><div><p className="member-votes-eyebrow">{memberName}</p><h2 ref={listHeadingRef} tabIndex={-1}>Voting records</h2><p>{periodLabel(data,state)}</p></div><div className="member-votes-period-controls">
       <label htmlFor={id+'-week'}>Week beginning Monday<input id={id+'-week'} aria-describedby={weekError?id+'-week-error':undefined} type="date" value={state.sittingId?'':state.week==='latest'?'':state.week} onChange={event=>{if(event.target.value)periodChange(event.target.value);}}/></label>
       <button type="button" onClick={()=>periodChange('latest')}>Latest sitting week</button>{weekError&&<p id={id+'-week-error'} role="alert">{weekError}</p>}
     </div></div>
@@ -185,9 +202,9 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
         <div className="member-votes-tools"><p>{data.pagination.returned?`${data.pagination.offset+1}–${data.pagination.offset+data.pagination.returned} of ${data.pagination.filteredTotal}`:'0'} {countLabel(data.pagination.filteredTotal,state.positions==='recorded'?'recorded position':'decision')} · {data.pagination.observedTotal} {countLabel(data.pagination.observedTotal,'decision')} available in this period</p><div className="member-votes-filter" role="group" aria-label="Votes shown"><button type="button" aria-pressed={state.positions==='recorded'} onClick={()=>{listScroll.current=0;change({positions:'recorded',offset:0});}}>Recorded positions</button><button type="button" aria-pressed={state.positions==='all'} onClick={()=>{listScroll.current=0;change({positions:'all',offset:0});}}>All decisions</button></div></div>
         {groups.map(group=>{
           const title=group.subject?chosenTitle(group.subject,language):null;
-          return <section className="member-votes-subject" key={group.id}><h3><button type="button" aria-expanded={state.expandedSubjectIds.includes(group.id)} onClick={()=>change({expandedSubjectIds:state.expandedSubjectIds.includes(group.id)?state.expandedSubjectIds.filter(item=>item!==group.id):[...state.expandedSubjectIds,group.id]},true)}><span className="member-votes-disclosure" aria-hidden="true">{state.expandedSubjectIds.includes(group.id)?'−':'+'}</span><span><span lang={title?.language} title={title?.raw}>{title?.text||'Vote without a linked subject'}</span><span className="member-votes-subject-count">{group.subject?`${group.subject.counts.filtered} ${countLabel(group.subject.counts.filtered,state.positions==='recorded'?'recorded position':'decision')} in this subject · ${group.subject.counts.page} on this page`:dateLabel(group.items[0]?.date||null)}</span></span></button></h3>
+          return <section className="member-votes-subject" key={group.id}><h3><button type="button" data-vote-group={group.id} aria-expanded={state.expandedSubjectIds.includes(group.id)} onClick={()=>change({expandedSubjectIds:state.expandedSubjectIds.includes(group.id)?state.expandedSubjectIds.filter(item=>item!==group.id):[...state.expandedSubjectIds,group.id]},true)}><span className="member-votes-disclosure" aria-hidden="true">{state.expandedSubjectIds.includes(group.id)?'−':'+'}</span><span><span lang={title?.language} title={title?.raw}>{title?.text||'Vote without a linked subject'}</span><span className="member-votes-subject-count">{group.subject?`${group.subject.counts.filtered} ${countLabel(group.subject.counts.filtered,state.positions==='recorded'?'recorded position':'decision')} in this subject · ${group.subject.counts.page} on this page`:dateLabel(group.items[0]?.date||null)}</span></span></button></h3>
             {group.subject?.wholeTextDecisions.map(whole=><WholeText key={whole.id} vote={whole}/>)}
-            <div hidden={!state.expandedSubjectIds.includes(group.id)}>{group.items.map(vote=><button type="button" className="member-votes-row" key={vote.id} onClick={()=>selectDecision(vote.id)}><span className="member-votes-row-copy"><span>{memberVoteLabel(vote,language)}</span>{vote.intention.status==='reported'&&<span className="member-votes-muted">Intention declared</span>}</span><Position vote={vote} memberName={memberName}/><Result vote={vote}/><span aria-hidden="true">›</span></button>)}{!group.items.length&&<p className="member-votes-subject-empty">No matching decisions on this page.</p>}</div>
+            <div hidden={!state.expandedSubjectIds.includes(group.id)}>{group.items.map(vote=><button type="button" className="member-votes-row" key={vote.id} data-vote-id={vote.id} onClick={()=>selectDecision(vote.id)}><span className="member-votes-row-copy"><span>{memberVoteLabel(vote,language)}</span>{vote.intention.status==='reported'&&<span className="member-votes-muted">Intention declared</span>}</span><Position vote={vote} memberName={memberName}/><Result vote={vote}/><span aria-hidden="true">›</span></button>)}</div>
           </section>;
         })}
         {!groups.length&&<p className="member-votes-empty">{state.positions==='recorded'?'No recorded positions are available for this period. Choose All decisions to see available outcomes.':'No decisions are available for this period.'}</p>}

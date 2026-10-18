@@ -62,17 +62,18 @@ test('selection is an exact full projection independent of the recorded page and
   data.selected={status:'unavailable',item:projection.items[0]};assert.equal(accepts(data,{...state,decisionId:selected.id}),false);
 });
 
-test('grouping uses exact result identities and retains page-independent whole-text outcomes',()=>{
+test('grouping uses exact result identities and keeps whole-text outcomes within subjects on the current page',()=>{
   const first=clone(projection.items[0]),second=clone(projection.items[1]),third=clone(projection.items[2]);
-  const subject={...clone(projection.subjects[0]),id:'subject-one',counts:{observed:3,filtered:2,page:2}};
+  const subject={...clone(projection.subjects[0]),id:'subject-one',counts:{observed:3,filtered:2,page:2},wholeTextDecisions:[projection.items[0]]};
   first.subjectId=second.subjectId=subject.id;first.resultRelationship.binding=second.resultRelationship.binding='consistent';
   third.subjectId=subject.id;third.resultRelationship.binding='ambiguous';third.title=first.title;
   const wholeOnly={...clone(subject),id:'whole-only',counts:{observed:1,filtered:0,page:0},wholeTextDecisions:[projection.items[0]]};
   const empty={...clone(subject),id:'not-this-page',counts:{observed:2,filtered:2,page:0},wholeTextDecisions:[]};
   const groups=groupMemberVotes({items:[first,second,third],subjects:[subject,wholeOnly,empty]});
-  assert.equal(groups.length,3);assert.deepEqual(groups[0].items.map(item=>item.id),[first.id,second.id]);
+  assert.equal(groups.length,2);assert.deepEqual(groups[0].items.map(item=>item.id),[first.id,second.id]);
+  assert.deepEqual(groups[0].subject.wholeTextDecisions,subject.wholeTextDecisions);
   assert.equal(groups[1].subject,null);assert.equal(groups[1].items[0].id,third.id);
-  assert.equal(groups[2].subject.id,'whole-only');assert.equal(groups[2].items.length,0);
+  assert.deepEqual(groupMemberVotes({items:[],subjects:[subject,wholeOnly,empty]}),[]);
   third.resultRelationship.binding='unlinked';assert.equal(groupMemberVotes({items:[third],subjects:[subject]})[0].subject,null);
 });
 

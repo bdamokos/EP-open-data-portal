@@ -176,6 +176,15 @@ test('a subject without agenda/document context remains visible with only its ex
   assert(!visiblePane(h.container).textContent.includes(decision(1)));assert(!visiblePane(h.container).textContent.includes(SNAPSHOT));
 });
 
+test('off-page whole-text outcomes do not add empty subjects or hide the recorded-position empty state',async t=>{
+  const whole=vote(3,{scope:{kind:'whole-text',basis:'exact-component-reference'},actualPosition:{status:'no-record',position:null}});
+  const absent=subject([],{id:'off-page-subject',counts:{observed:1,filtered:0,page:0},wholeTextDecisions:[whole]});
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items:[],subjects:[absent],pagination:{observedTotal:1,filteredTotal:0}}))});
+  assert.equal(h.container.querySelectorAll('.member-votes-subject').length,0);
+  assert.match(visiblePane(h.container).textContent,/No recorded positions are available for this period/);
+  assert(button(h.container,'All decisions'),'the other decisions remain one action away');
+});
+
 test('null totals, real zero totals and lapsed decisions remain distinct without invented member choices',async t=>{
   const items=[vote(1,{totals:{for:0,against:0,abstaining:0}}),vote(2,{totals:{for:400,against:null,abstaining:0}}),
     vote(3,{outcome:'LAPSED',ballotStatus:'not-conducted',method:null,actualPosition:{status:'not-conducted',position:null},totals:{for:null,against:null,abstaining:null}}),
@@ -510,4 +519,24 @@ test('returning from context preserves detail scroll, then returning to votes re
   await h.click('← Back to votes');
   assert.deepEqual(h.state,{...selectedState,decisionId:null});assert.equal(visiblePane(h.container).scrollTop,240);
   assert.deepEqual(h.state.expandedSubjectIds,[SUBJECT]);assert.equal(h.state.snapshotId,SNAPSHOT);
+  assert.equal(document.activeElement===visiblePane(h.container).querySelector('.member-votes-row'),true,'Back returns focus to the current exact row');
+});
+
+test('history return restores the exact row focus without changing the saved scroll',async t=>{
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT]}});
+  const list=visiblePane(h.container),row=list.querySelector('.member-votes-row');
+  await act(async()=>{list.scrollTop=180;list.dispatchEvent(new window.Event('scroll'));row.focus();row.click();});
+  assert.equal(document.activeElement===visiblePane(h.container).querySelector('h2'),true,'detail receives focus');
+  await h.update({decisionId:null});
+  assert.equal(document.activeElement===visiblePane(h.container).querySelector('.member-votes-row'),true,'history returns focus to the current row');assert.equal(visiblePane(h.container).scrollTop,180);
+});
+
+test('return focus falls back to a collapsed subject, an off-page subject, or the list heading',async t=>{
+  for(const mode of ['collapsed','off-page','unlinked'])await t.test(mode,async child=>{
+    const selected=vote(mode==='collapsed'?1:99,mode==='unlinked'?{subjectId:null,resultRelationship:{inverseResultIds:[],forwardResultIds:[],binding:'unlinked'}}:{});
+    const h=await mount(child,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:selected.id,expandedSubjectIds:mode==='collapsed'?[]:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items:[vote(1)],selected:stateFrom(url).decisionId?{status:'found',item:selected}:{status:'not-requested',item:null}}))});
+    await h.click('← Back to votes');
+    assert.equal(document.activeElement===(mode==='unlinked'?h.container.querySelector('.member-votes-period h2'):h.container.querySelector('[data-vote-group]')),true,mode+' has a visible focus destination');
+    assert.equal(visiblePane(h.container).scrollTop,0);
+  });
 });
