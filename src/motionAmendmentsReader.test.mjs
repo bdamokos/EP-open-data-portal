@@ -117,7 +117,7 @@ test('context uses the exact motion, amendment and chosen list, and Back retains
     {documentId,amendmentId:item.id,listId:listB,view:'document'});
   assert.equal(h.requests.length,1);
   await h.click('Back from test context');
-  assert.deepEqual(h.state(),{...initialState,open:true,scope:'all',offset:20,amendmentId:item.id,variantListId:listB,contextTarget:'amendment'});
+  assert.deepEqual(h.state(),{...initialState,open:true,scope:'all',offset:20,amendmentId:item.id,variantListId:listB,contextTarget:'amendment',wordingLanguage:'en'});
   assert.equal(document.activeElement,h.button('Read in context'));
   assert.equal(h.container.querySelector('.motion-amendments__version select').value,listB);
   assert.match(h.container.querySelector('.motion-amendments__pages').textContent,/21–21 of 45/);
@@ -789,4 +789,132 @@ test('an unreadable competing version stays visible and cannot fall back to the 
   assert.match(h.container.textContent,/Original wording is unavailable.*Proposed wording is unavailable/s);
   assert.doesNotMatch(h.container.textContent,/Only the first version has readable wording/);
   assert.equal(h.state().variantListId,listB);
+});
+
+test('a detail gesture pins only the exact wording language and its unique list through Back and closing',async t=>{
+  const item=amendment(13,{language:'de',wording:wording({language:'fr'})});
+  const h=await readerHarness(t,{state:{open:true}});
+  await h.respond(page({items:[item]}));await h.click(/^Amendment 13/);
+  assert.equal(Object.hasOwn(h.state(),'wordingLanguage'),false,'rendering wording does not derive a pin');
+  assert.equal(h.state().variantListId,null);
+  await h.click('Read in context');
+  assert.equal(h.state().wordingLanguage,'fr','interface EN and record DE must not replace wording FR');
+  assert.equal(h.state().variantListId,item.listId,'the unique list is pinned in controlled state at the same gesture');
+  assert.equal(h.context().wordingLanguage,'fr');assert.equal(h.context().listId,item.listId);
+  const savedContext={...h.state()};
+  await h.click('Back from test context');assert.equal(h.state().wordingLanguage,'fr');
+  await h.click(/^Amendments/);assert.equal(h.state().open,false);assert.equal(h.state().wordingLanguage,'fr');
+  await h.updateState(savedContext);
+  assert.equal(h.context().wordingLanguage,'fr','restored controlled state retains the exact pin');
+  assert.equal(h.context().listId,item.listId);
+});
+
+test('unknown wording languages are explicitly null and never inferred from record or interface metadata',async t=>{
+  for(const wordingLanguage of [null,undefined,'FR'])await t.test(String(wordingLanguage),async t=>{
+    const item=amendment(13,{language:'de',wording:wording({language:wordingLanguage})});
+    const h=await readerHarness(t,{state:{open:true}});
+    await h.respond(page({items:[item]}));await h.click(/^Amendment 13/);await h.click('Read in context');
+    assert.equal(Object.hasOwn(h.state(),'wordingLanguage'),true);assert.equal(h.state().wordingLanguage,null);
+    assert.equal(Object.hasOwn(h.context(),'wordingLanguage'),true);assert.equal(h.context().wordingLanguage,null);
+    await h.click('Back from test context');assert.equal(h.state().wordingLanguage,null);
+  });
+});
+
+test('a legacy context without a wording-language pin remains absent until a new detail gesture',async t=>{
+  const item=amendment(13,{wording:wording({language:'fr'})});
+  const h=await readerHarness(t,{state:{open:true,amendmentId:item.id,variantListId:item.listId,view:'context',contextTarget:'amendment'}});
+  await h.respond(page({items:[item]}));
+  assert.equal(Object.hasOwn(h.state(),'wordingLanguage'),false);
+  assert.equal(Object.hasOwn(h.context(),'wordingLanguage'),false,'a legacy share does not acquire current metadata on render');
+  await h.click('Back from test context');assert.equal(Object.hasOwn(h.state(),'wordingLanguage'),false);
+  await h.click('Read in context');assert.equal(h.context().wordingLanguage,'fr');
+});
+
+test('an optional undefined wording-language pin stays legacy and is omitted from context requests',async t=>{
+  const item=amendment(13,{wording:wording({language:'fr'})});
+  const h=await readerHarness(t,{state:{open:true,amendmentId:item.id,variantListId:item.listId,view:'context',contextTarget:'amendment',wordingLanguage:undefined}});
+  assert.equal(h.requests.length,1,'optional undefined does not invalidate an otherwise exact legacy selection');
+  await h.respond(page({items:[item]}));
+  assert.equal(h.state().wordingLanguage,undefined);
+  assert.equal(Object.hasOwn(h.context(),'wordingLanguage'),false,'undefined is omitted instead of deriving current wording metadata');
+  await h.click('Back from test context');assert.equal(h.state().wordingLanguage,undefined);
+  await h.click('Read in context');assert.equal(h.context().wordingLanguage,'fr','a new detail gesture explicitly pins the displayed wording');
+});
+
+test('changing a wording version or amendment clears its old language pin',async t=>{
+  const listA=`${documentId}-AM-001-020`,listB=`${documentId}-AM-013-014`;
+  const item=amendment(13,{variants:[variant(listA),variant(listB,{language:'de',wording:wording({language:'fr'})})]});
+  const h=await readerHarness(t,{state:{open:true}});
+  await h.respond(page({items:[item,amendment(14)]}));await h.click(/^Amendment 13/);
+  await h.change('.motion-amendments__version select',listA);await h.click('Read in context');
+  assert.equal(h.state().wordingLanguage,'en');await h.click('Back from test context');
+  await h.change('.motion-amendments__version select',listB);
+  assert.equal(Object.hasOwn(h.state(),'wordingLanguage'),false);
+  await h.click('Read in context');assert.equal(h.context().wordingLanguage,'fr');await h.click('Back from test context');
+  await h.click(/^Amendment 14/);
+  assert.equal(Object.hasOwn(h.state(),'wordingLanguage'),false);assert.equal(h.state().variantListId,null);
+  await h.click('Read in context');assert.equal(h.context().wordingLanguage,'en');await h.click('Back from test context');
+  await h.click(/^Amendment 14/);
+  assert.equal(h.state().amendmentId,null);assert.equal(Object.hasOwn(h.state(),'wordingLanguage'),false);
+});
+
+test('whole-motion and adopted gestures clear the controlled pin and omit all amendment context fields',async t=>{
+  const h=await readerHarness(t,{state:{open:true}});
+  await h.respond(page());await h.click(/^Amendment 13/);
+  for(const action of ['Read motion','Find the adopted text']) {
+    await h.click('Read in context');const savedContext={...h.state()};
+    await h.click('Back from test context');await h.click(action);
+    for(const field of ['wordingLanguage','amendmentId','listId'])assert.equal(Object.hasOwn(h.context(),field),false,field);
+    assert.equal(Object.hasOwn(h.state(),'wordingLanguage'),false);
+    assert.equal(h.state().amendmentId,`${documentId}-AM-13`);
+    assert.equal(h.state().variantListId,`${documentId}-AM-001-020`);
+    await h.updateState(savedContext);assert.equal(h.context().wordingLanguage,'en','history-owned restoration keeps the earlier exact pin');
+    await h.click('Back from test context');
+  }
+});
+
+test('invalid pins or missing exact AM/list context remain selection errors without blocking whole-text recovery',async t=>{
+  const pinned={open:true,amendmentId:`${documentId}-AM-13`,variantListId:`${documentId}-AM-001-020`,contextTarget:'amendment',wordingLanguage:'fr'};
+  for(const patch of [
+    {wordingLanguage:'FR'}, {wordingLanguage:7}, {variantListId:null},
+    {variantListId:`${documentId}-AM-000-020`}, {variantListId:`${documentId}-AM-020-001`},
+    {variantListId:'RC-10-2026-0441-AM-001-020'}, {amendmentId:'B-10-2026-0442-AM-13'},
+    {contextTarget:'text'}, {contextView:'adopted'},
+  ])await t.test(JSON.stringify(patch),async t=>{
+    const h=await readerHarness(t,{state:{...pinned,...patch}});
+    assert.equal(h.requests.length,0);assert.match(h.container.textContent,/linked amendment is unavailable/);
+    assert.equal(h.container.querySelector('.motion-amendments').hasAttribute('data-motion-pending'),false);
+    await h.click('Read motion');
+    for(const field of ['wordingLanguage','amendmentId','listId'])assert.equal(Object.hasOwn(h.context(),field),false,field);
+    assert.equal(Object.hasOwn(h.state(),'wordingLanguage'),false);
+  });
+});
+
+test('readiness marks only expanded views waiting for accepted list or exact-selection evidence',async t=>{
+  const h=await readerHarness(t),pending=()=>h.container.querySelector('.motion-amendments').getAttribute('data-motion-pending');
+  assert.equal(pending(),null);await h.click(/^Amendments/);assert.equal(pending(),'true');
+  await h.respond(page());assert.equal(pending(),null);
+  await h.click(/^Amendments/);assert.equal(pending(),null);
+  await h.click(/^Amendments/);assert.equal(pending(),null,'an accepted readable retained list remains ready during refresh');
+  const refresh=h.requests.at(-1);
+  const requestedId=`${documentId}-AM-99`;
+  await h.updateState({amendmentId:requestedId});assert.equal(pending(),'true','a selected off-page AM requires fresh authoritative evidence');
+  const exact=h.requests.at(-1);
+  await h.respond(page(),{request:refresh});assert.equal(pending(),'true');
+  await h.respond(page({requestedId,selectionStatus:'unavailable'}),{request:exact});
+  assert.equal(pending(),null,'an unavailable exact selection is settled');
+  assert.match(h.container.textContent,/requested amendment is unavailable/);
+});
+
+test('failed and malformed reader responses settle readiness and retries become pending again',async t=>{
+  const h=await readerHarness(t,{state:{open:true}}),pending=()=>h.container.querySelector('.motion-amendments').getAttribute('data-motion-pending');
+  assert.equal(pending(),'true');
+  await h.respond({error:{message:'Fixture source unavailable'}},{status:503});assert.equal(pending(),null);
+  await h.click('Try again');assert.equal(pending(),'true');
+  await h.respond({schemaVersion:1});assert.equal(pending(),null,'a malformed list is a settled error');
+  await h.click('Try again');assert.equal(pending(),'true');await h.respond(page());assert.equal(pending(),null);
+  for(const [number,response,status] of [[98,{error:{message:'Fixture exact read unavailable'}},503],[99,{schemaVersion:1},200]]) {
+    await h.updateState({amendmentId:`${documentId}-AM-${number}`});assert.equal(pending(),'true');
+    await h.respond(response,{status});assert.equal(pending(),null,'an exact failure is settled while the accepted list remains readable');
+  }
 });
