@@ -3,9 +3,10 @@ import {HttpError} from './http-utils.mjs';
 import {odp,odpLanguage} from './odp.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
 import {requestSignal,runWithRequestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
-import {projectMemberDecision} from './member-votes-model.mjs';
+import {projectMemberSitting} from './member-votes-model.mjs';
+import {comparable,mergeSourceNodes} from './vote-evidence.mjs';
 
-export const MEMBER_VOTES_VERSION=1;
+export const MEMBER_VOTES_VERSION=2;
 export const MEMBER_VOTES_LIMITS=Object.freeze({pageSize:50,decisionPageSize:250,cataloguePages:10,decisionPages:4,resultsPages:4,agendaPages:4,maxRows:4000,maxSittings:5,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,cacheBytes:32*1024*1024,cacheEntries:8,cacheMs:60_000,snapshotMs:10*60_000,sourceMs:15*60_000,timeoutMs:50_000});
 const API='https://data.europarl.europa.eu/api/v2';
 const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
@@ -16,20 +17,20 @@ const relative=value=>String(value?.id||value||'').replace(/^https?:\/\/data\.eu
 const refs=value=>(Array.isArray(value)?value:value==null?[]:[value]).map(relative);
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const errorInfo=error=>({code:error?.code||'vote_source_unavailable',message:error?.message||'Parliament source could not be read.'});
-const comparable=value=>Array.isArray(value)?value.map(comparable).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,comparable(value[key])])):value;
 
 export function memberVotesQuery(search,{now=Date.now()}={}) {
-  const allowed=['lang','week','sitting','limit','offset','decision','snapshot'];
+  const allowed=['lang','week','sitting','limit','offset','decision','snapshot','positions'];
   for(const key of search.keys())if(!allowed.includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated member-vote parameter.');
   const language=odpLanguage(search.get('lang')??'en'),today=brusselsDay(now);
   const sitting=search.get('sitting'),week=search.get('week');
   if(search.has('sitting')&&(!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(sitting||'')||!validDate(sitting.slice(7))||sitting.slice(7)<CURRENT_TERM_START||sitting.slice(7)>today))throw new HttpError(400,'invalid_sitting','Choose a held plenary sitting in the current term.');
   if(search.has('week')&&(week!=='latest'&&(!validDate(week)||monday(week)!==week||dayOffset(week,6)<CURRENT_TERM_START||week>today)||search.has('sitting')))throw new HttpError(400,'invalid_week','Choose one held plenary week or sitting.');
   function integer(key,fallback,min,max){const raw=search.get(key)??String(fallback),value=Number(raw);if(!/^(0|[1-9]\d*)$/.test(raw)||!Number.isSafeInteger(value)||value<min||value>max)throw new HttpError(400,'invalid_query',`Invalid ${key}.`);return value;}
-  const decision=search.get('decision'),snapshot=search.get('snapshot');
+  const decision=search.get('decision'),snapshot=search.get('snapshot'),positions=search.get('positions')??'all';
+  if(!['all','recorded'].includes(positions))throw new HttpError(400,'invalid_positions','Choose all or recorded member positions.');
   if(search.has('decision')&&(!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(decision||'')||!validDate(decision.slice(7,17))))throw new HttpError(400,'invalid_decision','Use an exact decision identifier.');
   if(search.has('snapshot')&&!/^[a-f0-9]{64}$/.test(snapshot||''))throw new HttpError(400,'invalid_snapshot','Use the snapshot identifier returned by this endpoint.');
-  return {language,sitting:sitting||null,week:sitting?null:week||'latest',limit:integer('limit',25,1,100),offset:integer('offset',0,0,10000),decision:decision||null,snapshot:snapshot||null};
+  return {language,positions,sitting:sitting||null,week:sitting?null:week||'latest',limit:integer('limit',25,1,100),offset:integer('offset',0,0,10000),decision:decision||null,snapshot:snapshot||null};
 }
 
 function pageCoverage(){return {state:'unavailable',pages:0,rows:0,stopReason:'not-scanned',error:null,sources:[]};}
@@ -45,7 +46,7 @@ export class MemberVotes {
   constructor({request=odp,clock=Date.now,limits={}}={}){this.request=request;this.clock=clock;this.limits={...MEMBER_VOTES_LIMITS,...limits};this.periods=new Map();this.snapshots=new Map();this.pending=new Map();this.cacheBytes=0;}
 
   async pages(endpoint,params,kind,budget) {
-    const coverage=pageCoverage(),nodes=new Map(),size=kind==='decisions'?this.limits.decisionPageSize:this.limits.pageSize;
+    const coverage=pageCoverage(),nodes=new Map(),evidence=Object.create(null),conflicts=[],size=kind==='decisions'?this.limits.decisionPageSize:this.limits.pageSize;
     const maxPages=this.limits[kind==='catalogue'?'cataloguePages':kind==='decisions'?'decisionPages':kind==='results'?'resultsPages':'agendaPages'];
     for(let page=0;page<maxPages;page++){
       requestSignal()?.throwIfAborted();
@@ -58,10 +59,11 @@ export class MemberVotes {
         const bytes=Buffer.byteLength(JSON.stringify(record.payload));
         if(bytes>this.limits.sourceBytes||budget.bytes+bytes>this.limits.periodBytes)throw new HttpError(502,'vote_source_size','Parliament vote data exceeds the bounded source size.');
         budget.bytes+=bytes;
-        coverage.sources.push(sourceEvidence(record,record.payload));coverage.pages++;
+        const source=sourceEvidence(record,record.payload);coverage.sources.push(source);coverage.pages++;
+        for(const [index,node] of data.entries()){const key=relative(node.id);(evidence[key]??=[]).push({sourceUrl:source.url,contentHash:source.contentHash,jsonPointer:'/data/'+index});}
         let added=0;
         const pageNodes=new Map();
-        for(const node of data){const key=relative(node.id),previous=pageNodes.get(key)||nodes.get(key);if(previous&&JSON.stringify(comparable(previous))!==JSON.stringify(comparable(node)))throw new HttpError(502,'vote_source_changed','Parliament changed a repeated source identity during pagination.');pageNodes.set(key,node);}
+        for(const node of data){const key=relative(node.id),previous=pageNodes.get(key)||nodes.get(key);if(previous&&JSON.stringify(comparable(previous))!==JSON.stringify(comparable(node))){conflicts.push(previous,node);throw new HttpError(502,'vote_source_changed','Parliament changed a repeated source identity during pagination.');}pageNodes.set(key,node);}
         for(const [key,node] of pageNodes){if(!nodes.has(key)){if(nodes.size>=this.limits.maxRows){coverage.stopReason='row-budget';break;}nodes.set(key,node);added++;}}
         coverage.rows=nodes.size;
         if(coverage.stopReason==='row-budget'){coverage.state='partial';break;}
@@ -75,7 +77,7 @@ export class MemberVotes {
       }
     }
     coverage.rows=nodes.size;
-    return {nodes:[...nodes.values()],coverage};
+    return {nodes:[...nodes.values()],coverage,evidence,conflicts};
   }
 
   async catalogue(query,budget) {
@@ -121,17 +123,19 @@ export class MemberVotes {
       const good=new RegExp('^eli/dl/event/'+sittingId+suffix+'$').test(relative(n.id))&&n.activity_id===tail(n.id)&&n.activity_date===date;
       if(!good)errors.push(relative(n.id));return good;
     });
-    // This source also supplies undated requests and other auxiliary activities.
-    // They are not result parents; their bytes remain covered by source hashes.
+    // Auxiliary requests are bounded by the same result-page/byte budgets.
+    // Keep their exact edges and wording; they are never result parents.
     const resultCandidates={nodes:results.nodes.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS')};
     const allNodes=eligible(all,'-DEC-\\d+'),namedNodes=eligible(named,'-DEC-\\d+'),resultNodes=eligible(resultCandidates,'-VOT-ITM-\\d+'),agendaNodes=eligible(agenda,'-[A-Z0-9-]{1,100}');
+    const requests=results.nodes.filter(n=>['REQUEST_VOTE_ROLLCALL','REQUEST_VOTE_SPLIT','REQUEST_VOTE_SEPARATE'].includes(tail(n.had_activity_type))).filter(n=>{const good=new RegExp('^eli/dl/event/'+sittingId+'-VOT-ITM-\\d+-(?:RCV|SPLIT|SEPARATE)-\\d+$').test(relative(n.id))&&n.activity_id===tail(n.id);if(!good)errors.push(relative(n.id));return good;});
     const merged=new Map(allNodes.map(n=>[relative(n.id),n]));const conflictingDecisionIds=[];
     for(const n of namedNodes){
       const key=relative(n.id),old=merged.get(key);
-      const fields=old?Object.keys(old).filter(k=>!k.startsWith('had_voter_')&&Object.hasOwn(n,k)&&JSON.stringify(comparable(old[k]))!==JSON.stringify(comparable(n[k]))):[];
+      const {node,fields}=mergeSourceNodes(old,n);
       if(fields.length)conflictingDecisionIds.push(key);
-      merged.set(key,{...old,...n,_conflictingSourceObservations:fields.length?{fields,census:Object.fromEntries(fields.map(k=>[k,old[k]])),named:Object.fromEntries(fields.map(k=>[k,n[k]]))}:null});
+      merged.set(key,{...node,...(fields.length?old:{}),_conflictingSourceObservations:fields.length?{fields,census:Object.fromEntries(fields.map(k=>[k,old[k]])),named:Object.fromEntries(fields.map(k=>[k,n[k]]))}:null});
     }
+    for(const n of [...all.conflicts,...named.conflicts]){const key=relative(n.id),old=merged.get(key);if(!old)continue;const {fields}=mergeSourceNodes(old,n);if(fields.length){conflictingDecisionIds.push(key);old._conflictingSourceObservations={fields,census:Object.fromEntries(fields.map(k=>[k,old[k]])),named:Object.fromEntries(fields.map(k=>[k,n[k]]))};}}
     const decisions=[...merged.values()],parents=resultNodes.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS');
     const resultIds=new Set(parents.map(n=>relative(n.id))),decisionIds=new Set(decisions.map(n=>relative(n.id))),namedIds=new Set(namedNodes.map(n=>relative(n.id))),agendaIds=new Set(agendaNodes.map(n=>relative(n.id)));
     const isSittingResult=id=>new RegExp('^eli/dl/event/'+sittingId+'-VOT-ITM-\\d+$').test(id);
@@ -149,7 +153,7 @@ export class MemberVotes {
     completeness.complete=[all,named,results,agenda].every(c=>c.coverage.state==='complete')&&![missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,errors].some(a=>a.length);
     const anySource=[all,named,results,agenda].some(c=>c.coverage.pages>0);
     const coverage={sittingId,date,state:completeness.complete?'complete':anySource?'partial':'unavailable',decisions:all.coverage,namedDecisions:named.coverage,results:results.coverage,agenda:agenda.coverage,completeness,observedDecisionCount:decisions.length};
-    return {sittingId,date,decisions,results:resultNodes,agenda:agendaNodes,sources:{decisions:[...all.coverage.sources,...named.coverage.sources],results:results.coverage.sources,agenda:agenda.coverage.sources},coverage};
+    return {sittingId,date,decisions,results:resultNodes,requests,conflictingResults:results.conflicts,resultEvidence:results.evidence,decisionEvidence:Object.fromEntries([...new Set([...Object.keys(all.evidence),...Object.keys(named.evidence)])].map(key=>[key,[...(all.evidence[key]||[]),...(named.evidence[key]||[])]])),agenda:agendaNodes,sources:{decisions:[...all.coverage.sources,...named.coverage.sources],results:results.coverage.sources,agenda:agenda.coverage.sources},coverage};
   }
 
   async collect(query){
@@ -205,9 +209,12 @@ export class MemberVotes {
     const snapshot=await this.snapshot(query);requestSignal()?.throwIfAborted();
     const {period,coverage}=snapshot;
     if(query.decision&&period.from&&(query.decision.slice(7,17)<period.from||query.decision.slice(7,17)>period.to))throw new HttpError(400,'decision_outside_period','Choose a decision in the resolved period.');
-    const items=snapshot.days.flatMap(day=>day.decisions.map(raw=>projectMemberDecision(raw,day,id,query.language))).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||a.id.localeCompare(b.id));
-    const page=items.slice(query.offset,query.offset+query.limit),selected=query.decision?items.find(item=>item.id===query.decision)||null:null;
-    return {version:MEMBER_VOTES_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},period,snapshotId:snapshot.id,pagination:{offset:query.offset,limit:query.limit,returned:page.length,observedTotal:items.length,nextOffset:query.offset+page.length<items.length?query.offset+page.length:null},items:page,selected:{status:query.decision?(selected?'found':coverage.status==='unavailable'?'unavailable':'not-found-in-scanned-data'):'not-requested',item:selected},coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
+    const projected=snapshot.days.map(day=>projectMemberSitting(day,id,query.language));
+    const items=projected.flatMap(day=>day.items).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||a.id.localeCompare(b.id));
+    const positions=query.positions||'all',filtered=positions==='recorded'?items.filter(item=>item.actualPosition.status==='recorded'):items;
+    const page=filtered.slice(query.offset,query.offset+query.limit),selected=query.decision?items.find(item=>item.id===query.decision)||null:null;
+    const subjects=projected.flatMap(day=>day.subjects).map(subject=>({...subject,counts:{observed:items.filter(item=>item.subjectId===subject.id).length,filtered:filtered.filter(item=>item.subjectId===subject.id).length,page:page.filter(item=>item.subjectId===subject.id).length}}));
+    return {version:MEMBER_VOTES_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},period,snapshotId:snapshot.id,positions,subjects,pagination:{offset:query.offset,limit:query.limit,returned:page.length,observedTotal:items.length,filteredTotal:filtered.length,nextOffset:query.offset+page.length<filtered.length?query.offset+page.length:null},items:page,selected:{status:query.decision?(selected?'found':coverage.status==='unavailable'?'unavailable':'not-found-in-scanned-data'):'not-requested',item:selected},coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
   }
 }
 

@@ -58,11 +58,11 @@ test('member-votes HTTP contract retains actual positions, bounded snapshot pagi
   const firstResponse=await fetch(route+'?'+period+'&lang=hu&limit=1&decision='+sittingId+'-DEC-197457');
   assert.equal(firstResponse.status,200);
   const first=await firstResponse.json();
-  assert.equal(first.version,1);
+  assert.equal(first.version,2);
   assert.deepEqual(first.member,{id:'197591',uri:'https://data.europarl.europa.eu/person/197591',mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'});
   assert.deepEqual(first.period,{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'});
   assert.match(first.snapshotId,/^[a-f0-9]{64}$/);
-  assert.deepEqual(first.pagination,{offset:0,limit:1,returned:1,observedTotal:2,nextOffset:1});
+  assert.deepEqual(first.pagination,{offset:0,limit:1,returned:1,observedTotal:2,filteredTotal:2,nextOffset:1});
   assert.equal(first.coverage.termWide,false);
   assert.equal(first.coverage.collectionComplete,true);
   assert.deepEqual(first.coverage.scannedSittingIds,[sittingId]);
@@ -80,7 +80,7 @@ test('member-votes HTTP contract retains actual positions, bounded snapshot pagi
   assert.equal(secondResponse.status,200);
   const second=await secondResponse.json();
   assert.equal(second.snapshotId,first.snapshotId);
-  assert.deepEqual(second.pagination,{offset:1,limit:1,returned:1,observedTotal:2,nextOffset:null});
+  assert.deepEqual(second.pagination,{offset:1,limit:1,returned:1,observedTotal:2,filteredTotal:2,nextOffset:null});
   assert.equal(new Set([...first.items,...second.items].map(item=>item.id)).size,2);
   assert.equal(second.selected.status,'found');
   assert.equal(second.selected.item.id,selectedId);
@@ -99,7 +99,7 @@ test('member-votes HTTP contract retains actual positions, bounded snapshot pagi
   for(const query of [
     period+'&limit=0',period+'&limit=101',period+'&offset=-1',period+'&offset=1e2',period+'&offset=10001',
     period+'&limit=1&limit=2',period+'&lang=en&lang=hu',period+'&url=https://example.invalid',
-    period+'&snapshot=',period+'&snapshot=ABC',period+'&lang=',
+    period+'&snapshot=',period+'&snapshot=ABC',period+'&lang=',period+'&positions=',period+'&positions=bad',period+'&positions=all&positions=recorded',
     'week=','week=2026-10-06','week=2026-02-30','week=2999-01-04',
     'sitting=MTG-PL-2024-07-15','sitting=MTG-PL-2026-02-30',
     period+'&week=2026-10-05',period+'&decision=MTG-PL-2026-10-08-DEC-197457'
