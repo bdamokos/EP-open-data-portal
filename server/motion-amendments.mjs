@@ -158,6 +158,19 @@ function contextualAmendment(row,member,language) {
 
 /** Read the accepted index only. This route never retrieves a source or queues a job. */
 export function motionAmendmentsPage(store,query) {
+  if(store.db.isTransaction)return readMotionAmendmentsPage(store,query);
+  // One index generation must cover the page, exact selection and related text.
+  store.db.exec('BEGIN');
+  try {
+    const result=readMotionAmendmentsPage(store,query);
+    store.db.exec('COMMIT');
+    return result;
+  } catch(error) {
+    store.db.exec('ROLLBACK');
+    throw error;
+  }
+}
+function readMotionAmendmentsPage(store,query) {
   const {document,member,scope,language,limit,offset,amendment=null}=query;
   const generation=amendmentGeneration(store);
   const generations=[...new Set([generation,store.get('active'),store.get('working')?.generation].filter(value=>value!=null))];

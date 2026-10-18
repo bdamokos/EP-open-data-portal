@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {DatabaseSync} from 'node:sqlite';
 import {ActivityStore} from './activity-index-store.mjs';
 import {AMENDMENT_LINKS_VERSION} from './activity-index-model.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
@@ -299,4 +300,98 @@ test('selection, relations and whole outcomes remain readable with a query-only 
   assert.deepEqual(store.db.prepare('SELECT * FROM amendments ORDER BY id').all(),before.rows);
   assert.deepEqual(store.db.prepare('SELECT * FROM sources ORDER BY key').all(),before.sources);
   assert.deepEqual(store.db.prepare('SELECT * FROM amendment_jobs ORDER BY key').all(),before.jobs);
+});
+
+test('a WAL publication during a response cannot mix page, selection, totals or generation metadata',t=>{
+  const context=setup(t),{store,generation}=context,nextGeneration=generation+1;
+  const other={name:'Another checked proposer',personId:'102',status:'resolved'};
+  putMotion(context,target,{title_dcterms:{en:'First generation title'}});
+  saveRows(context,[amendment(13,{proposedText:'First generation page wording'}),
+    amendment(20,{proposedText:'First generation selected wording',authors:[other]})]);
+  store.publish(generation);
+  const next={store,generation:nextGeneration};
+  putMotion(next,target,{title_dcterms:{en:'Second generation title'}});
+  saveRows(next,[amendment(13,{proposedText:'Second generation page wording'}),amendment(15),
+    amendment(20,{proposedText:'Second generation selected wording',authors:[other]})]);
+  const publisher=new DatabaseSync(store.filename);
+  publisher.exec('PRAGMA busy_timeout=100');
+  store.release();store.db.exec('PRAGMA query_only=ON');
+  const get=store.get.bind(store);
+  let published=false;
+  t.mock.method(store,'get',key=>{
+    const value=get(key);
+    if(!published&&key==='active'&&value===generation) {
+      publisher.exec('BEGIN');
+      publisher.prepare("UPDATE meta SET value=? WHERE key='active'").run(JSON.stringify(nextGeneration));
+      publisher.exec('COMMIT');
+      published=true;
+    }
+    return value;
+  });
+  try {
+    const first=selected(store,target+'-AM-20','member=101&scope=all&limit=1');
+    assert.equal(published,true);
+    assert.deepEqual(first.snapshots,{amendments:generation,text:generation});
+    assert.equal(first.text.title,'First generation title');assert.equal(first.total,2);
+    assert.deepEqual(first.totals,{allIndexed:2,memberMatched:1});
+    assert.equal(first.items[0].proposedText,'First generation page wording');
+    assert.equal(first.selection.item.proposedText,'First generation selected wording');
+    const second=selected(store,target+'-AM-20','member=101&scope=all&limit=1');
+    assert.deepEqual(second.snapshots,{amendments:nextGeneration,text:nextGeneration});
+    assert.equal(second.text.title,'Second generation title');assert.equal(second.total,3);
+    assert.deepEqual(second.totals,{allIndexed:3,memberMatched:2});
+    assert.equal(second.items[0].proposedText,'Second generation page wording');
+    assert.equal(second.selection.item.proposedText,'Second generation selected wording');
+    assert.equal(store.db.isTransaction,false);
+  } finally {publisher.close();}
+});
+
+test('standalone exact reads pin their snapshot, roll back their failures and preserve caller-owned transactions',t=>{
+  const context=setup(t),{store,generation}=context,nextGeneration=generation+1,id=target+'-AM-13';
+  saveRows(context,[amendment(13,{proposedText:'First standalone snapshot'})]);
+  store.publish(generation);
+  saveRows({store,generation:nextGeneration},[amendment(13,{proposedText:'Second standalone snapshot'})]);
+  const publisher=new DatabaseSync(store.filename);
+  publisher.exec('PRAGMA busy_timeout=100');
+  store.release();store.db.exec('PRAGMA query_only=ON');
+  const get=store.get.bind(store);
+  let published=false;
+  t.mock.method(store,'get',key=>{
+    const value=get(key);
+    if(!published&&key==='active'&&value===generation) {
+      publisher.exec('BEGIN');
+      publisher.prepare("UPDATE meta SET value=? WHERE key='active'").run(JSON.stringify(nextGeneration));
+      // Pruning the previous generation proves the row remains pinned, rather
+      // than merely re-reading old rows that happen to survive publication.
+      publisher.prepare('DELETE FROM amendments WHERE generation=?').run(generation);
+      publisher.prepare('DELETE FROM amendment_targets WHERE generation=?').run(generation);
+      publisher.exec('COMMIT');
+      published=true;
+    }
+    return value;
+  });
+  const read=()=>amendmentById(store,{document:target,id,language:'en'});
+  const prepare=store.db.prepare.bind(store.db),failure=new Error('Isolated exact-read query failure');
+  const failCheckedQuery=()=>t.mock.method(store.db,'prepare',(sql,...args)=>{
+    if(sql.startsWith('SELECT id,body FROM amendments WHERE'))throw failure;
+    return prepare(sql,...args);
+  });
+  try {
+    assert.equal(read().proposedText,'First standalone snapshot');assert.equal(published,true);
+    assert.equal(store.db.isTransaction,false);
+    assert.equal(read().proposedText,'Second standalone snapshot');
+    const ownFailure=failCheckedQuery();
+    try {assert.throws(read,error=>error===failure);assert.equal(store.db.isTransaction,false);}
+    finally {ownFailure.mock.restore();}
+    assert.equal(read().proposedText,'Second standalone snapshot');
+    store.db.exec('BEGIN');
+    try {
+      assert.equal(read().proposedText,'Second standalone snapshot');assert.equal(store.db.isTransaction,true);
+      const nestedFailure=failCheckedQuery();
+      try {assert.throws(read,error=>error===failure);assert.equal(store.db.isTransaction,true);}
+      finally {nestedFailure.mock.restore();}
+      assert.equal(read().proposedText,'Second standalone snapshot');assert.equal(store.db.isTransaction,true);
+    } finally {store.db.exec('ROLLBACK');}
+    assert.equal(store.db.isTransaction,false);
+  } finally {publisher.close();}
 });
