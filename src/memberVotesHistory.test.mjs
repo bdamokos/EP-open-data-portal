@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createElement,Fragment,act} from 'react';
 import {Window} from 'happy-dom';
@@ -63,7 +64,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
     assert.deepEqual(unexpected,[],'all requests stay inside local fixtures');
   });
   t.mock.method(globalThis,'fetch',async input=>{
-    const url=new URL(input,location.href);requests.push(url);
+    const url=new URL(input,location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');requests.push(url);
     if(url.pathname==='/api/directory')return Response.json(directory);
     if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
     if(url.pathname.startsWith('/api/profile/'))return Response.json({...members[Number(url.pathname.split('/').at(-1))-1],birthDate:null,memberships:[]});

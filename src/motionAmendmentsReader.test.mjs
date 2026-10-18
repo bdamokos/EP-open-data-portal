@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {act,createElement,useState} from 'react';
 import {Window} from 'happy-dom';
@@ -78,7 +79,7 @@ test('the closed reader is lazy, opens the member page in batches of 20, and sel
   await h.click(/^Amendments/);
   assert.equal(h.requests.length,1);
   assert.equal(h.requests[0].url.pathname,'/api/motion-amendments/'+documentId);
-  assert.deepEqual(Object.fromEntries(h.requests[0].url.searchParams),{member:memberId,scope:'member',lang:'en',offset:'0',limit:'20'});
+  assert.deepEqual(Object.fromEntries(h.requests[0].url.searchParams),{member:memberId,scope:'member',lang:'en',offset:'0',limit:'20',v:String(API_VERSION)});
   await h.respond(page({items:[amendment(13,{originalText:''}),amendment(14,{originalText:null,wording:wording({originalStatus:'unavailable'})})]}));
   await h.click(/^Amendment 13/);
   assert.equal(h.requests.length,1,'selecting a loaded row is a local action');
@@ -222,7 +223,7 @@ test('invalid linked amendments preserve exact whole-text access and require exp
     assert.equal(h.state().scope,'all');assert.equal(h.state().offset,20);
     assert.equal(h.requests.length,1);
     assert.equal(h.requests[0].url.pathname,'/api/motion-amendments/'+target);
-    assert.deepEqual(Object.fromEntries(h.requests[0].url.searchParams),{member:memberId,scope:'all',lang:'en',offset:'20',limit:'20'});
+    assert.deepEqual(Object.fromEntries(h.requests[0].url.searchParams),{member:memberId,scope:'all',lang:'en',offset:'20',limit:'20',v:String(API_VERSION)});
     const item=amendment(13,{id:`${target}-AM-13`,targetDocumentId:target,listId:`${target}-AM-001-020`});
     await h.respond(page({document:target,scope:'all',offset:20,total:45,items:[item]}));
     assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,1);

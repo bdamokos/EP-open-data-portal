@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createElement,act} from 'react';
@@ -19,7 +20,7 @@ async function reader(t,{heading=true,citationInNotes=false}={}) {
   t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of requests)if(!request.finished)request.resolve(Response.json({}));if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){scrolls.push({element:this,options});});
   t.mock.method(globalThis,'fetch',input=>{
-    const url=new URL(input,window.location.href),route=url.pathname.split('/api/')[1]+url.search;
+    const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1]+url.search;
     if(route.startsWith('references?'))return Promise.resolve(Response.json({references:[resolved(first),resolved(second)]}));
     assert.match(route,/^document\//,'focus fixtures must never contact unrelated services');
     return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));
