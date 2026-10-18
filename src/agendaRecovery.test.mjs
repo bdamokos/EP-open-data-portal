@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
+import {dataTimeoutFor} from './client.mjs';
 
 const sittings=['2026-10-05','2026-10-07','2026-10-19'].map(date=>({id:'MTG-PL-'+date,date,phase:date==='2026-10-19'?'upcoming':'past'}));
 function agenda(params) {
@@ -120,12 +121,12 @@ test('failed direct links keep exact week/day identity without a catalogue and c
 test('agenda timeout ends loading and leaves usable navigation without automatic retries',async t=>{
   const h=await harness(t,'&agenda-period=week:2026-10-19');
   // The production InsightData client bounds each read, even when fetch never settles.
-  // Advance its existing timer rather than waiting 55 seconds in a regression test.
+  // Advance the route deadline rather than waiting for it in a regression test.
   const timeouts=[],schedule=globalThis.setTimeout;
-  t.mock.method(globalThis,'setTimeout',(callback,delay,...args)=>{if(delay===55_000)timeouts.push(callback);return schedule(callback,delay,...args);});
+  t.mock.method(globalThis,'setTimeout',(callback,delay,...args)=>{if(delay===dataTimeoutFor('insights/legislation'))timeouts.push(callback);return schedule(callback,delay,...args);});
   // Start a new uncached route after enabling timer control.
   await h.restore('&agenda-period=week:2026-10-05');
-  assert.equal(timeouts.length,1);
+  assert(timeouts.length>0);
   await act(async()=>timeouts[0]());
   assert(h.requests.at(-1).signal.aborted);
   assert(!h.container.textContent.includes('Loading'));

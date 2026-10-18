@@ -3,6 +3,8 @@ import {groupVoicesPage} from './group-voices-store.mjs';
 import http from 'node:http';
 import {createHash} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
+import {measureEventLoopDelay} from './event-loop-delay.mjs';
+let eventLoopDelay;
 import {pathToFileURL} from 'node:url';
 import {apiPrefixes,config} from './config.mjs';
 import {assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} from './http-utils.mjs';
@@ -280,7 +282,7 @@ export async function handleRequest(request, response) {
     }
     throw new HttpError(404, "not_found", "The requested resource does not exist");
   } catch (error) {
-    if(error.code==='request_timeout')console.warn('[request-budget]',JSON.stringify({code:error.code,route,elapsedMs:Math.round(performance.now()-started),upstream:upstreamStatus(),eventLoopUtilization:performance.eventLoopUtilization(eventLoop).utilization}));
+    if(error.code==='request_timeout')console.warn('[request-budget]',JSON.stringify({code:error.code,route,elapsedMs:Math.round(performance.now()-started),upstream:upstreamStatus(),eventLoopDelay:eventLoopDelay?.snapshot(),eventLoopUtilization:performance.eventLoopUtilization(eventLoop).utilization}));
     if(response.destroyed||response.writableEnded)return;
     if (!response.headersSent) {
       sendError(request, response, error);
@@ -298,6 +300,8 @@ server.keepAliveTimeout = 5_000;
 server.maxRequestsPerSocket = 1000;
 
 export function startServer() {
+  eventLoopDelay ??= measureEventLoopDelay();
+  server.once('close',()=>{eventLoopDelay?.stop();eventLoopDelay=undefined;});
   server.listen(config.port, config.host, () => {
     console.log(`[parliament-explorer] listening on http://${config.host}:${config.port}`);
   });
