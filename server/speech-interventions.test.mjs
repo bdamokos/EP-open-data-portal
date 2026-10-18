@@ -164,6 +164,8 @@ test('a chair change listed again under its own transcript fragment ID counts on
   }
   const fromUri=clone(fixture.activities),row=fromUri.find(a=>a.activity_id===chair.activity_id);delete row.recorded_in_a_realization_of[0].identifier;
   assert.equal(sequence(fromUri).coverage.complete,true,'the document URI carries the same exact identifier');
+  row.recorded_in_a_realization_of.push('eli/dl/doc/CRE-10-2026-10-06-OTH-2017097917624');
+  assert.equal(sequence(fromUri).coverage.complete,true,'a bare reference to the same document agrees');
 });
 test('conflicting document evidence on a chair change never hides a genuinely missing record',()=>{
   const statement='MTG-PL-2026-10-06-OTH-2017099548464',chairId='MTG-PL-2026-10-06-PVCRE-CHA-5',chairAlias='MTG-PL-2026-10-06-OTH-2017097917624';
@@ -175,6 +177,8 @@ test('conflicting document evidence on a chair change never hides a genuinely mi
     'a secondary document with a conflicting identifier and URI':doc=>Object.assign(doc,{identifier:'CRE-10-2026-10-06-OTH-2017099548464'}),
     'a secondary document in the same term':doc=>Object.assign(doc,{identifier:'CRE-10-2026-10-06-OTH-2017099548464',id:'eli/dl/doc/CRE-10-2026-10-06-OTH-2017099548464',notation_speechId:'2017099548464'})
   };
+  cases['a secondary bare document URI']=()=>'eli/dl/doc/CRE-10-2026-10-06-OTH-2017099548464';
+  cases['an unreadable secondary entry']=()=>'https://elsewhere.example/eli/dl/doc/CRE-10-2026-10-06-OTH-2017097917624';
   for(const [label,mutate] of Object.entries(cases)) {
     const rows=withoutStatement(),chair=chairOf(rows);
     chair.recorded_in_a_realization_of.push(mutate(clone(chair.recorded_in_a_realization_of[0])));
