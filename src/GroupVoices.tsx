@@ -1,5 +1,6 @@
-import {useLayoutEffect,useRef} from 'react';
-import {InsightShell,InsightStatus,humanDate,insightMemberHref} from './InsightShared';
+import {useId,useLayoutEffect,useRef,useState} from 'react';
+import {InsightShell,InsightStatus,humanDate} from './InsightShared';
+import {InsightSpeechReader} from './InsightReaders';
 import type {InsightProps} from './InsightTypes';
 import {useInsightData} from './InsightData';
 import {useGroupVoicesState} from './useGroupVoicesState';
@@ -34,6 +35,15 @@ function GroupComparison({rows,subject,current,language,onGroup}:{rows:GroupSubj
 function Name({person,language}:{person:GroupVoicePerson;language:string}){
   const display=speakerPresentation({...person,name:person.name||undefined},language).name;
   return <span lang={display.language}>{person.name||person.nameVariants?.length?display.text:`Person ${person.id}`}</span>;
+}
+function ContributionCard({contribution:c,person,language,selected,onPerson}:{contribution:Contribution;person?:GroupVoicePerson;language:string;selected:boolean;onPerson:()=>void}){
+  const [reading,setReading]=useState(false),readerId='gv-speech-'+useId();
+  return <article className="gv-contribution">
+    <div className="gv-contribution-meta"><time dateTime={c.date} lang={language}>{humanDate(c.date,language)}</time><span>{subjects[c.subject]}</span></div>
+    <h3><button className="gv-contribution-title" aria-expanded={reading} aria-controls={reading?readerId:undefined} onClick={()=>setReading(value=>!value)}><span lang={c.titleLanguage||'en'}>{c.title||'Read contribution'}</span><span aria-hidden="true">{reading?'−':'+'}</span></button></h3>
+    {person&&<button className="gv-contribution-person" data-gv-contribution={c.id+':'+person.id} aria-pressed={selected} onClick={onPerson}><Name person={person} language={language}/></button>}
+    {reading&&<div id={readerId}><InsightSpeechReader id={c.id} language={language}/></div>}
+  </article>;
 }
 export function GroupVoices({language='en',...props}:InsightProps){
   const {state:s,change,endSearch}=useGroupVoicesState();
@@ -94,6 +104,6 @@ export function GroupVoices({language='en',...props}:InsightProps){
         {!list.rows.length&&<p className="gv-empty">No speakers match these filters in the available records.</p>}{list.hasMore&&<button className="gv-show-all" onClick={()=>change({peopleLimit:Math.min(1000,list.rows.length)})}>{list.rows.length>1000?'Show first 1,000 people':`Show all ${list.rows.length} people`}</button>}
       {s.peopleLimit>=1000&&list.rows.length>list.visible.length&&<p className="gv-list-count">Showing {list.visible.length.toLocaleString(language)} matches. Refine the name search to find others.</p>}</section>}
     </>}
-    <section className="gv-contributions" aria-busy={page.loading}><div className="gv-section-heading"><h2 ref={heading} tabIndex={-1}>Contributions {page.data&&<small>· {page.data.total.toLocaleString(language)}</small>}</h2>{s.subject&&<span>{subjects[s.subject]}</span>}</div><InsightStatus loading={page.loading} error={page.error} retry={page.retry}/>{page.data&&<>{page.data.contributions.map(c=>{const person=people.find(p=>p.id===c.personId);return <article key={c.id+':'+c.personId}><div className="gv-contribution-meta"><time dateTime={c.date} lang={language}>{humanDate(c.date,language)}</time><span>{subjects[c.subject]}</span></div><h3>{c.websiteUrl?<a href={c.websiteUrl} target="_blank" rel="noreferrer" lang={c.titleLanguage||'en'}>{c.title||'Read contribution'} ↗</a>:<a href={insightMemberHref(c.personId,language,c.id)} lang={c.titleLanguage||'en'} onClick={props.onMember?e=>{if(e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();props.onMember?.(Number(c.personId),c.id);}:undefined}>{c.title||'Read contribution'}</a>}</h3>{person&&<button className="gv-contribution-person" data-gv-contribution={c.id+':'+person.id} aria-pressed={s.person===person.id} onClick={()=>choosePerson(person.id,'contribution',c.id)}><Name person={person} language={language}/></button>}</article>;})}{!page.data.contributions.length&&<p className="gv-empty">{data?.coverage.observedOralRecords?'No recorded contributions in this selection. Coverage is incomplete.':'Recorded group designations are not available yet.'}</p>}<div className="gv-pagination">{s.offset>0&&<button onClick={()=>{change({offset:Math.max(0,s.offset-20)});jump();}}>← Previous</button>}{page.data.nextOffset!==null&&<button onClick={()=>{change({offset:page.data!.nextOffset!});jump();}}>Next →</button>}</div></>}</section>
+    <section className="gv-contributions" aria-busy={page.loading}><div className="gv-section-heading"><h2 ref={heading} tabIndex={-1}>Contributions {page.data&&<small>· {page.data.total.toLocaleString(language)}</small>}</h2>{s.subject&&<span>{subjects[s.subject]}</span>}</div><InsightStatus loading={page.loading} error={page.error} retry={page.retry}/>{page.data&&<>{page.data.contributions.map(c=><ContributionCard key={c.id+':'+c.personId} contribution={c} person={people.find(p=>p.id===c.personId)} language={language} selected={s.person===c.personId} onPerson={()=>choosePerson(c.personId,'contribution',c.id)}/>)}{!page.data.contributions.length&&<p className="gv-empty">{data?.coverage.observedOralRecords?'No recorded contributions in this selection. Coverage is incomplete.':'Recorded group designations are not available yet.'}</p>}<div className="gv-pagination">{s.offset>0&&<button onClick={()=>{change({offset:Math.max(0,s.offset-20)});jump();}}>← Previous</button>}{page.data.nextOffset!==null&&<button onClick={()=>{change({offset:page.data!.nextOffset!});jump();}}>Next →</button>}</div></>}</section>
   </div></InsightShell>;
 }
