@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, amendmentProposerDate, checkedAggregateAttribution } from './amendments.mjs';
+import { AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, amendmentProposerDate, checkedAggregateAttribution, amendmentReference, amendmentTarget, canonicalEPReference } from './amendments.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
@@ -246,6 +246,38 @@ export function amendmentFailures(store,{limit=20,offset=0,status='all'}={}) {
 export function amendmentGeneration(store) {
   const core=store.get('working')?.generation || store.get('active') || 0;
   return store.db.prepare('SELECT 1 FROM amendment_targets WHERE generation=? LIMIT 1').get(core)?core:extensionGeneration(store.db) || core;
+}
+/** One exact indexed selection, with the same wording/binding guards as a page. */
+export function amendmentById(store,{document,id,language='en'}={}) {
+  if(store.db.isTransaction)return readAmendmentById(store,{document,id,language});
+  // A deferred transaction pins metadata and the exact row to one read snapshot
+  // without taking the existing writer's reservation.
+  store.db.exec('BEGIN');
+  try {
+    const result=readAmendmentById(store,{document,id,language});
+    store.db.exec('COMMIT');
+    return result;
+  } catch(error) {
+    try {if(store.db.isTransaction)store.db.exec('ROLLBACK');}catch {/* Preserve the read's original failure. */}
+    throw error;
+  }
+}
+function readAmendmentById(store,{document,id,language}) {
+  if(!amendmentTarget(document)||typeof id!=='string')return null;
+  const reference=canonicalEPReference(id)||canonicalEPReference('eli/dl/doc/'+id);
+  const identity=amendmentReference(reference);
+  if(!identity||identity.targetDocumentId!==document)return null;
+  const generation=amendmentGeneration(store);
+  const rows=store.db.prepare(`SELECT id,body FROM amendments WHERE generation=? AND target=? AND
+    (id=? OR (json_type(amendments.body,'$.officialIds')='array' AND EXISTS(SELECT 1 FROM json_each(amendments.body,'$.officialIds') AS official
+      WHERE (CASE WHEN official.type='object' THEN json_extract(official.value,'$.id') ELSE official.value END) IN (?,?,?)))) LIMIT 2`)
+    .all(generation,document,identity.id,reference,'https://data.europarl.europa.eu/'+reference,'http://data.europarl.europa.eu/'+reference);
+  // An alias shared by two records is not a reliable individual selection.
+  if(rows.length!==1)return null;
+  const record=parse(rows[0].body);
+  if(record.id!==rows[0].id||record.targetDocumentId!==document||amendmentReference('eli/dl/doc/'+record.id)?.targetDocumentId!==document)return null;
+  const row=checkedAmendmentRead(record);
+  return {...row,title:row.titles?.[language] || row.titles?.en || Object.values(row.titles || {})[0] || document,requestedLanguage:language};
 }
 function checkedEmptyObservation(record,document,rowCount) {
   const proof=record?.emptyObservation,source=proof?.source;

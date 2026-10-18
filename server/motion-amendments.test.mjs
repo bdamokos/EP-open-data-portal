@@ -67,8 +67,8 @@ function rebuildIsolatedMotion({store,worker,generation},work=isolatedMotion(),f
 }
 
 test('motion amendment queries accept only bounded exact motion/member scopes',()=>{
-  assert.deepEqual(query(),{document:target,member:null,scope:'all',language:'en',limit:20,offset:0});
-  assert.deepEqual(query(joint,'member=197722&scope=member&lang=fr&limit=50&offset=1000000'),{document:joint,member:nacho,scope:'member',language:'fr',limit:50,offset:1000000});
+  assert.deepEqual(query(),{document:target,member:null,scope:'all',amendment:null,language:'en',limit:20,offset:0});
+  assert.deepEqual(query(joint,'member=197722&scope=member&lang=fr&limit=50&offset=1000000'),{document:joint,member:nacho,scope:'member',amendment:null,language:'fr',limit:50,offset:1000000});
   for(const id of ['A-10-2026-0424','B-9-2026-0424','B10-0424/2026','B-10-2026-0424-AM-13','https://data.europarl.europa.eu/eli/dl/doc/'+target,'../'+target])assert.throws(()=>query(id),error=>error.status===400);
   for(const params of ['scope=member','scope=other','member=0','member=-1','member=01','member=9007199254740992','member=person%2F101','limit=0','limit=51','offset=-1','offset=1000001','limit=1e1','member=101&member=102','lang=en&lang=fr','document='+joint,'unknown=yes'])assert.throws(()=>query(target,params),error=>error.status===400,params);
 });
