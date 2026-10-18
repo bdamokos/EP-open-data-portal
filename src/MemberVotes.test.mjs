@@ -88,6 +88,16 @@ async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),st
     async select(selector,value){const target=container.querySelector(selector);assert(target,'Missing control: '+selector);await act(async()=>{target.value=value;target.dispatchEvent(new window.Event('change',{bubbles:true}));});}};
 }
 
+function wordingVariant(patch={}) {
+  return {listId:'exact-published-list',wordingStatus:'available',language:'fr',targetLabel:'Paragraphe 4',targetLabelLanguage:'fr',
+    originalText:'Texte original exact',proposedText:'Texte proposé exact',authors:[],...patch};
+}
+async function mountWording(t,{variants,amendmentStatus='available',state={}}) {
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}});
+  return mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id,...state},handler:url=>String(url).includes('document-context/')?
+    Response.json({documentId:DOCUMENT,requestedLanguage:'en',document:null,amendment:{id:AMENDMENT,status:amendmentStatus,variants}}):Response.json(responseFor(url,{items:[item]}))});
+}
+
 test('default request explicitly filters recorded positions and canonical period/snapshot replace navigation',async t=>{
   const h=await mount(t);
   assert.deepEqual(h.module.defaultMemberVotesState,{week:'latest',sittingId:null,positions:'recorded',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
@@ -206,8 +216,8 @@ test('detail renders exact split wording, sibling context and only exact request
 
 test('amendment wording loads only after decision selection and requires an explicit exact published variant before context',async t=>{
   const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}});
-  const variants=[{listId:'exact-published-list-fr',language:'fr',targetLabel:'Paragraphe 4',originalText:'Texte original exact',proposedText:'Texte proposé exact',authors:[{name:'Exact amendment proposer'}]},
-    {listId:'exact-published-list-hu',language:'hu',targetLabel:'4. bekezdés',originalText:'Eredeti pontos szöveg',proposedText:'Javasolt pontos szöveg',authors:[{name:'Második pontos javaslattevő'}]}];
+  const variants=[{listId:'exact-published-list-fr',wordingStatus:'available',language:'fr',targetLabel:'Paragraphe 4',targetLabelLanguage:'fr',originalText:'Texte original exact',proposedText:'Texte proposé exact',authors:[{name:'Exact amendment proposer'}]},
+    {listId:'exact-published-list-hu',wordingStatus:'available',language:'hu',targetLabel:'4. bekezdés',targetLabelLanguage:'hu',originalText:'Eredeti pontos szöveg',proposedText:'Javasolt pontos szöveg',authors:[{name:'Második pontos javaslattevő'}]}];
   const initial={week:WEEK,sittingId:null,positions:'recorded',offset:50,decisionId:item.id,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT,'another-exact-subject'],context:null};
   const h=await mount(t,{state:{...initial,decisionId:null},handler:url=>String(url).includes('document-context/')?Response.json({version:1,documentId:DOCUMENT,requestedLanguage:'en',document:null,related:{status:'not-requested',items:[],gaps:[]},amendment:{id:AMENDMENT,status:'available',basis:'published-list',variants,gaps:[]},target:{status:'not-requested',paragraphs:[],basis:null,relation:null,quoteMatches:null,reason:null},sources:[]}):Response.json(responseFor(url,{items:[vote(2)],selected:stateFrom(url).decisionId?{status:'found',item}:{status:'not-requested',item:null},subjects:[subject([item],{counts:{observed:51,filtered:51,page:1}})],pagination:{observedTotal:51,filteredTotal:51}}))});
   assert.equal(h.calls.filter(url=>url.includes('document-context/')).length,0);
@@ -234,7 +244,7 @@ test('amendment wording loads only after decision selection and requires an expl
 
 test('a single exact amendment version shows its wording on detail and opens full context only on request',async t=>{
   const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}});
-  const variant={listId:'exact-published-list',language:'fr',targetLabel:'Paragraphe 4',originalText:'Texte original exact',proposedText:'Texte proposé exact',authors:[{name:'Exact amendment proposer'}]};
+  const variant={listId:'exact-published-list',wordingStatus:'available',language:'fr',targetLabel:'Paragraphe 4',targetLabelLanguage:'fr',originalText:'Texte original exact',proposedText:'Texte proposé exact',authors:[{name:'Exact amendment proposer'}]};
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},handler:url=>String(url).includes('document-context/')?Response.json({documentId:DOCUMENT,requestedLanguage:'en',document:null,amendment:{id:AMENDMENT,status:'available',variants:[variant]}}):Response.json(responseFor(url,{items:[item]}))});
   assert.equal(h.calls.filter(url=>url.includes('document-context/')).length,1);
   assert.equal(h.container.querySelector('select[aria-label="Amendment published version"]'),null);
@@ -246,6 +256,146 @@ test('a single exact amendment version shows its wording on detail and opens ful
   assert.equal(h.contexts.at(-1).documentId,DOCUMENT);assert.equal(h.contexts.at(-1).amendmentId,AMENDMENT);assert.equal(h.contexts.at(-1).listId,variant.listId);assert.equal(h.contexts.at(-1).view,'document');
   await h.click('Back from context');assert.equal(h.state.context,null);assert.equal(h.state.decisionId,item.id);
   assert.equal(h.calls.filter(url=>url.includes('document-context/')).length,1);
+});
+
+test('known unavailable wording remains a competing published version and opens only its exact selected list',async t=>{
+  const variants=[wordingVariant({listId:'readable-published-list'}),wordingVariant({listId:'known-unavailable-list',wordingStatus:'unavailable',language:null,
+    targetLabel:null,targetLabelLanguage:null,originalText:null,proposedText:null})];
+  const initial={week:WEEK,sittingId:SITTING,positions:'all',offset:50,decisionId:decision(1),snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT],context:null};
+  const h=await mountWording(t,{variants,amendmentStatus:'unavailable',state:initial});
+  const selector='select[aria-label="Amendment published version"]';
+  assert.deepEqual([...h.container.querySelector(selector).options].map(option=>option.value),['',...variants.map(variant=>variant.listId)]);
+  assert.equal(h.container.querySelector(selector).value,'');
+  assert.equal(h.container.querySelector('.member-votes-comparison'),null);
+  assert.equal(button(h.container,'Read in context'),undefined);
+  await h.select(selector,variants[0].listId);
+  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Texte original exact.*Texte proposé exact/);
+  await h.select(selector,variants[1].listId);
+  assert.equal(h.container.querySelector('.member-votes-comparison'),null);
+  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Amendment wording unavailable here\./);
+  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Text language unknown\./);
+  assert(!h.container.querySelector('.member-votes-wording').textContent.includes(variants[0].proposedText));
+  await h.click('Read in context');
+  assert.equal(h.contexts.at(-1).listId,variants[1].listId);
+  assert.equal(h.contexts.at(-1).documentId,DOCUMENT);assert.equal(h.contexts.at(-1).amendmentId,AMENDMENT);
+  await h.click('Back from context');
+  assert.deepEqual(h.state,initial);
+  assert.equal(h.container.querySelector(selector).value,variants[1].listId);
+  assert.equal(h.container.querySelector('.member-votes-comparison'),null);
+});
+
+test('nullable wording language is explicit, null text stays unavailable and empty original text remains a readable insertion',async t=>{
+  const variants=[wordingVariant({listId:'unknown-wording-language',language:null}),
+    wordingVariant({listId:'missing-original-wording',originalText:null}),
+    wordingVariant({listId:'missing-proposed-wording',proposedText:null}),
+    wordingVariant({listId:'exact-insertion',originalText:'',proposedText:'Exact inserted wording'})];
+  const h=await mountWording(t,{variants}),selector='select[aria-label="Amendment published version"]';
+  await h.select(selector,variants[0].listId);
+  const comparison=h.container.querySelector('.member-votes-comparison');
+  assert.equal(comparison.getAttribute('lang'),'');
+  assert.match(comparison.textContent,/Texte original exact.*Texte proposé exact/);
+  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Text language unknown\./);
+  for(const variant of variants.slice(1,3)) {
+    await h.select(selector,variant.listId);
+    assert.equal(h.container.querySelector('.member-votes-comparison'),null);
+    assert.match(h.container.querySelector('.member-votes-wording').textContent,/Amendment wording unavailable here\./);
+  }
+  await h.select(selector,variants[3].listId);
+  const insertion=h.container.querySelector('.member-votes-comparison');
+  assert(insertion);assert.equal(insertion.querySelector('div:first-child p').textContent,'');
+  assert.equal(insertion.querySelector('div:last-child p').textContent,variants[3].proposedText);
+  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('Amendment wording unavailable here.'));
+  await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,variants[3].listId);
+});
+
+test('target labels use their own source language independently of amendment wording and unknown labels inherit no English',async t=>{
+  const variants=[wordingVariant({listId:'french-target-hungarian-wording',language:'hu',targetLabel:'Paragraphe 4',targetLabelLanguage:'fr',
+    originalText:'Eredeti pontos szöveg',proposedText:'Javasolt pontos szöveg'}),
+    wordingVariant({listId:'unknown-target-language',language:'hu',targetLabel:'Exact target with unknown language',targetLabelLanguage:null})];
+  const h=await mountWording(t,{variants}),selector='select[aria-label="Amendment published version"]';
+  await h.select(selector,variants[0].listId);
+  const label=[...h.container.querySelectorAll('.member-votes-wording p')].find(paragraph=>paragraph.textContent===variants[0].targetLabel);
+  assert.equal(label.getAttribute('lang'),'fr');assert.equal(h.container.querySelector('.member-votes-comparison').getAttribute('lang'),'hu');
+  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Text language: Hungarian/);
+  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('Target language unknown.'));
+  await h.select(selector,variants[1].listId);
+  const unknown=[...h.container.querySelectorAll('.member-votes-wording p')].find(paragraph=>paragraph.textContent===variants[1].targetLabel);
+  assert.equal(unknown.getAttribute('lang'),'');assert.equal(h.container.querySelector('.member-votes-comparison').getAttribute('lang'),'hu');
+  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Target language unknown\./);
+  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('English'));
+});
+
+test('saved wording and proposer qualifications apply only to the explicitly selected version',async t=>{
+  const variants=[wordingVariant({listId:'retained-version',wordingRetained:true,proposerRetained:true,recordRetained:true,authors:[{name:'Exact retained proposer'}]}),
+    wordingVariant({listId:'current-version',wordingRetained:false,proposerRetained:false,recordRetained:false,authors:[{name:'Exact current proposer'}]})];
+  const h=await mountWording(t,{variants}),selector='select[aria-label="Amendment published version"]';
+  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('Showing saved wording.'));
+  await h.select(selector,variants[0].listId);
+  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Showing saved wording\./);
+  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Proposer details are from an earlier source version\./);
+  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Version details are from an earlier source record\./);
+  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Exact retained proposer/);
+  await h.select(selector,variants[1].listId);
+  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('Showing saved wording.'));
+  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('earlier source version'));
+  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('earlier source record'));
+  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('Exact retained proposer'));
+  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Exact current proposer/);
+});
+
+test('same-list language variants remain separate explicit choices and pass only the exact source list to context',async t=>{
+  const variants=[wordingVariant({listId:'same-exact-list',language:'fr'}),wordingVariant({listId:'same-exact-list',language:'hu',
+    originalText:'Eredeti pontos szöveg',proposedText:'Javasolt pontos szöveg'})];
+  const h=await mountWording(t,{variants}),selector='select[aria-label="Amendment published version"]';
+  const options=[...h.container.querySelector(selector).options].slice(1);
+  assert.equal(options.length,2);assert.notEqual(options[0].value,options[1].value);
+  assert.equal(h.container.querySelector('.member-votes-comparison'),null);
+  await h.select(selector,options[1].value);
+  assert.equal(h.container.querySelector('.member-votes-comparison').getAttribute('lang'),'hu');
+  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Javasolt pontos szöveg/);
+  await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,'same-exact-list');
+  await h.click('Back from context');assert.equal(h.container.querySelector(selector).value,options[1].value);
+});
+
+test('a selected published version disappearing from refreshed data never silently selects a remaining version',async t=>{
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}});
+  const variants=[wordingVariant({listId:'selected-original-list'}),wordingVariant({listId:'other-version',proposedText:'Different source version'})];
+  const wordingData={documentId:DOCUMENT,requestedLanguage:'en',document:null,amendment:{id:AMENDMENT,status:'available',variants}};
+  // Keep the hook's fixture object so a rerender can exercise a refreshed response
+  // without adding a production refresh action solely for this regression.
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},handler:url=>{
+    if(!String(url).includes('document-context/'))return Response.json(responseFor(url,{items:[item]}));
+    const response=new Response();response.json=async()=>wordingData;return response;
+  }}),selector='select[aria-label="Amendment published version"]';
+  await h.select(selector,variants[0].listId);
+  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Texte proposé exact/);
+  wordingData.amendment.variants=[variants[1]];
+  await h.update({expandedSubjectIds:[SUBJECT]});
+  assert.equal(h.container.querySelector('.member-votes-comparison'),null);
+  assert.equal(button(h.container,'Read in context'),undefined);
+  assert.equal(h.container.querySelector(selector)?.value,'');
+  await h.select(selector,variants[1].listId);
+  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Different source version/);
+  await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,variants[1].listId);
+});
+
+test('an initially automatic single version remains pinned when another sole version replaces it',async t=>{
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}});
+  const original=wordingVariant({listId:'initial-only-published-list'}),replacement=wordingVariant({listId:'replacement-only-published-list',proposedText:'Different replacement wording'});
+  const wordingData={documentId:DOCUMENT,requestedLanguage:'en',document:null,amendment:{id:AMENDMENT,status:'available',variants:[original]}};
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},handler:url=>{
+    if(!String(url).includes('document-context/'))return Response.json(responseFor(url,{items:[item]}));
+    const response=new Response();response.json=async()=>wordingData;return response;
+  }}),selector='select[aria-label="Amendment published version"]';
+  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Texte proposé exact/);
+  assert(button(h.container,'Read in context'));assert.equal(h.container.querySelector(selector),null);
+  wordingData.amendment.variants=[replacement];
+  await h.update({expandedSubjectIds:[SUBJECT]});
+  assert.equal(h.container.querySelector('.member-votes-comparison'),null);
+  assert.equal(button(h.container,'Read in context'),undefined);assert.equal(h.container.querySelector(selector)?.value,'');
+  await h.select(selector,replacement.listId);
+  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Different replacement wording/);
+  await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,replacement.listId);
 });
 
 test('unavailable amendment wording uses plain missing copy and never opens the shared reader',async t=>{
