@@ -29,7 +29,7 @@ function pause(ms, signal) {
 
 // GET only: one deadline covers response bodies, backoff and every attempt.
 // Short busy responses get at most two retries and six seconds of backoff.
-export async function readJson(url, { signal, priority = 'auto', timeoutMs = 8_000, fetchImpl = fetch } = {}) {
+export async function readJson(url, { signal, priority = 'auto', getPriority = () => priority, timeoutMs = 8_000, fetchImpl = fetch } = {}) {
   const controller = new AbortController();
   const abort = () => controller.abort(signal.reason);
   signal?.addEventListener('abort', abort, { once: true });
@@ -41,7 +41,7 @@ export async function readJson(url, { signal, priority = 'auto', timeoutMs = 8_0
   try {
     for (let attempt = 0; ; attempt++) {
       active.throwIfAborted();
-      const response = await fetchImpl(url, { method: 'GET', signal: active, priority, credentials: 'omit', headers: { Accept: 'application/json' } });
+      const response = await fetchImpl(url, { method: 'GET', signal: active, priority: getPriority(), credentials: 'omit', headers: { Accept: 'application/json' } });
       const data = await response.json().catch(() => null);
       active.throwIfAborted();
       if (response.ok) {
@@ -59,7 +59,7 @@ export async function readJson(url, { signal, priority = 'auto', timeoutMs = 8_0
       });
       const transient = response.status === 503 && ['upstream_busy', 'odp_rate_limited', 'request_timeout'].includes(error.code);
       const delay = at === null ? null : Math.max(250, at - now);
-      if (!transient || delay === null || delay > 3000 || waited + delay > 6000 || attempt >= 2 || priority === 'low') throw error;
+      if (!transient || delay === null || delay > 3000 || waited + delay > 6000 || attempt >= 2 || getPriority() === 'low') throw error;
       waited += delay;
       await pause(delay, active);
     }
@@ -96,7 +96,7 @@ export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, timeo
       controller.abort();
       resolve();
     }; });
-    const request = Promise.race([Promise.resolve().then(() => load(route, controller.signal, { priority })), timeout, invalidation])
+    const request = Promise.race([Promise.resolve().then(() => load(route, controller.signal, { priority, getPriority: () => entry.priority })), timeout, invalidation])
       .then(data => {
         // Superseded callers receive the replacement too, even if the loader ignores abort.
         if (entry.invalidated) return get(route);
