@@ -13,10 +13,11 @@ export function InterventionIcon({type}:{type:Intervention['type']}) {
     {type==='procedure'?<path d="M8 5h12M8 12h12M8 19h12M4 5h.01M4 12h.01M4 19h.01"/>:type==='catch-the-eye'?<><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></>:type.startsWith('blue-card')?<><rect x="3" y="3" width="13" height="18" rx="2" fill="currentColor" fillOpacity=".12"/>{type==='blue-card-question'?<><path d="M7 8a2.5 2.5 0 0 1 5 0c0 2-2.5 1.5-2.5 4"/><path d="M9.5 16h.01"/></>:type==='blue-card-answer'?<path d="m21 8-5 4 5 4m-5-4h6"/>:<path d="m18 7 4 4-4 4m4-4h-5"/>}</>:type==='written'?<><path d="M6 3h9l4 4v14H6Z"/><path d="M14 3v5h5M9 12h7m-7 4h5"/></>:<><path d="M4 4h16v12H10l-5 4v-4H4Z"/><path d="M8 8h8m-8 4h5"/></>}
   </svg>;
 }
-export function InterventionBadges({value,language='en'}:{value?:Intervention;language?:string}) {
+export function InterventionBadges({value,language='en',toggle}:{value?:Intervention;language?:string;toggle?:{onClick:()=>void;expanded:boolean;controls?:string}}) {
   if(!value)return null;
   const label=value.type==='chair'?speakerTerm('chair',language):{text:labels[value.type],language:'en'};
-  return <span className="intervention-badges" lang="en"><span className={'intervention-badge '+(value.type.startsWith('blue-card')?'is-blue':'')} title={value.process||undefined} lang=""><InterventionIcon type={value.type}/><span lang={label.language}>{label.text}</span></span>{value.onBehalfOf.map(group=><span className="intervention-group" key={group.uri}>On behalf of {group.politicalGroup&&Object.hasOwn(GROUP_VOICE_GROUPS,group.id)?<a lang="" href={`?view=groups&gv-group=${group.id}&lang=${language}`} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();history.pushState(null,'',event.currentTarget.href);window.dispatchEvent(new PopStateEvent('popstate'));}}>{group.label}</a>:<span lang="">{group.label}</span>}</span>)}</span>;
+  const badgeProps={className:'intervention-badge '+(value.type.startsWith('blue-card')?'is-blue':''),title:value.process||undefined,lang:''},badgeContent=<><InterventionIcon type={value.type}/><span lang={label.language}>{label.text}</span></>;
+  return <span className="intervention-badges" lang="en">{toggle?<button type="button" {...badgeProps} onClick={toggle.onClick} aria-expanded={toggle.expanded} aria-controls={toggle.controls}>{badgeContent}</button>:<span {...badgeProps}>{badgeContent}</span>}{value.onBehalfOf.map(group=><span className="intervention-group" key={group.uri}>On behalf of {group.politicalGroup&&Object.hasOwn(GROUP_VOICE_GROUPS,group.id)?<a lang="" href={`?view=groups&gv-group=${group.id}&lang=${language}`} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();history.pushState(null,'',event.currentTarget.href);window.dispatchEvent(new PopStateEvent('popstate'));}}>{group.label}</a>:<span lang="">{group.label}</span>}</span>)}</span>;
 }
 
 export function InterventionStatistics({member,onItems}:{member:number;onItems?:(items:Speech[])=>void}) {
@@ -80,6 +81,7 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
     .sort((a,b)=>a.distance-b.distance).slice(0,12)
     .map(({row})=>`speech/${encodeURIComponent(row.id)}?lang=${transcriptLanguage}`));
   useEffect(()=>prefetchData(JSON.parse(preloadRoutes)),[preloadRoutes]);
+  const toggleReading=(id:string)=>setReading(value=>value===id?null:id);
   useEffect(()=>{if(reading){readingRef.current?.focus({preventScroll:true});readingRef.current?.scrollIntoView({block:'nearest'});}},[reading]);
   const time=(row:SpeechSequenceRow)=>row.start?new Intl.DateTimeFormat(language,{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Brussels'}).format(new Date(row.start)):null;
   return <section className="intervention-debate" lang="en">
@@ -89,11 +91,13 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
       <div className="intervention-sequence-node"><InterventionIcon type={row.intervention.type}/></div>
       <div className="intervention-sequence-entry">
         {row.intervention.type==='procedure'?<p className="intervention-caption">{row.intervention.chair?<><strong><SpeakerName person={row.intervention.chair} language={language} chair/></strong><br/><SpeakerRoles person={row.intervention.chair} language={language} chair/></>:row.intervention.procedureKind==='chair-change'?'Chair change · identity unconfirmed':row.intervention.narrative?<span lang="">{row.intervention.narrative}</span>:'Procedural note · text unavailable'}</p>:<>
-          <button className="intervention-read" onClick={()=>setReading(value=>value===row.id?null:row.id)} aria-expanded={reading===row.id} aria-controls={reading===row.id?readingId:undefined}><SpeakerName person={row.intervention.speaker} language={language} chair={row.intervention.type==='chair'}/><small><span lang={language}>{time(row)}</span>{row.id===speechId?' · Current speech':''}</small></button>
+          <button className="intervention-read" onClick={()=>toggleReading(row.id)} aria-expanded={reading===row.id} aria-controls={reading===row.id?readingId:undefined}><SpeakerName person={row.intervention.speaker} language={language} chair={row.intervention.type==='chair'}/><small><span lang={language}>{time(row)}</span>{row.id===speechId?' · Current speech':''}</small></button>
           <SpeakerRoleLine person={row.intervention.speaker} language={language} chair={row.intervention.type==='chair'} intervention={row.intervention} className="intervention-caption"/>
-          {row.id===exchange?.originalId&&<span className="intervention-reply">Original speech</span>}
-          {row.intervention.type!=='chair'&&<InterventionBadges value={row.intervention} language={language}/>}
-          {row.replyTo&&<span className="intervention-reply">↳ {row.replyTo===exchange?.originalId?'To the original speech':'In reply'}</span>}
+          {row.id===exchange?.originalId&&<button type="button" className="intervention-reply" onClick={()=>toggleReading(row.id)} aria-expanded={reading===row.id} aria-controls={reading===row.id?readingId:undefined}>Original speech</button>}
+          {row.intervention.type!=='chair'&&<InterventionBadges value={row.intervention} language={language} toggle={{onClick:()=>toggleReading(row.id),expanded:reading===row.id,controls:reading===row.id?readingId:undefined}}/>}
+          {row.replyTo&&(()=>{const text=<>↳ {row.replyTo===exchange?.originalId?'To the original speech':'In reply'}</>,target=row.replyTo;
+            // Opens the contribution being answered when it is part of the displayed sequence.
+            return rows.some(other=>other.id===target)?<button type="button" className="intervention-reply" onClick={()=>toggleReading(target)} aria-expanded={reading===target} aria-controls={reading===target?readingId:undefined}>{text}</button>:<span className="intervention-reply">{text}</span>;})()}
           {reading===row.id&&<div ref={readingRef} tabIndex={-1} id={readingId}><ConnectedText id={row.id} language={transcriptLanguage}/></div>}
         </>}
       </div>
