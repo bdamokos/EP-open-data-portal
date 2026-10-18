@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {deflateRawSync} from 'node:zlib';
 import {DocumentContext,documentContextQuery} from './document-context.mjs';
+import {documentText} from './document-text.mjs';
+import {HttpError} from './http-utils.mjs';
 import {createRequestBudget,runWithRequestSignal,requestTimeout} from './request-budget.mjs';
 
 const id='A-10-2026-0237',amendmentId=id+'-AM-40',listId=id+'-AM-037-046',ta='TA-10-2026-0339';
@@ -14,6 +16,19 @@ const query=(extra={})=>({...documentContextQuery(id,new URLSearchParams()),...e
 const service=(extra={})=>new DocumentContext({request:async()=>record(work),readText:async()=>structuredClone(summary),clock:()=>at,...extra});
 const source={url:'https://data.europarl.europa.eu/distribution/doc/list_en.docx',fetchedAt:new Date(at).toISOString(),language:'en'};
 const indexed={id:amendmentId,targetDocumentId:id,listId,language:'en',textIntegrity:'complete',originalText:'AO. Original wording',proposedText:'AO. Proposed wording',targetLabel:'Recital AO',authors:[],wordingSource:source};
+
+test('the real cold document reader preserves local failures and allows an immediate context retry',async()=>{
+  for(const failure of [Object.assign(new HttpError(503,'upstream_busy','The document reader is busy.'),{retryAfter:1}),requestTimeout()]) {
+    const url=`https://data.europarl.europa.eu/distribution/doc/context-local-${failure.code}-${Date.now()}.docx`;
+    const publication={...work,is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
+    let downloads=0;
+    const reader=service({request:async()=>record(publication),readText:(node,language)=>documentText(node,language,{directory:null,clock:()=>at,download:async()=>{if(++downloads===1)throw failure;return structuredClone(summary);}})});
+    await assert.rejects(reader.query(query()),error=>error===failure&&error.status===503);
+    assert.equal(reader.cache.size,0);assert.equal(downloads,1);
+    const recovered=await reader.query(query());
+    assert.equal(recovered.document.selectedText.status,'available');assert.deepEqual(recovered.document.selectedText.paragraphs,summary.paragraphs);assert.equal(downloads,2);
+  }
+});
 
 function archive(documentXml,stylesXml) {
   const entries=[['word/document.xml',documentXml],['word/styles.xml',stylesXml]],local=[],central=[];let offset=0;
