@@ -1,3 +1,4 @@
+import {ErrorBoundary,ViewContent} from './ErrorBoundary';
 import {GroupVoices} from './GroupVoices';
 import {filterCountry,matchesCountry} from './countries.mjs';
 import {explorerParams} from './explorerUrl';
@@ -447,22 +448,23 @@ export default function App() {
     if(page.scrollTop>contentTop)page.scrollTo({top:contentTop});
   }, [member, tab, view, speechLink, activityLink]);
   // Apply the destination after the existing responsive scroll policy has settled.
-  useEffect(()=>{
+  function focusDestination(){
     const intent=pendingDestination.current;
     if(!intent||intent.view!==view||intent.member!==member)return;
-    pendingDestination.current=null;
     // Selected speech links already hand focus to the exact item once it mounts.
-    if(!view&&member&&speechLink&&!intent.opener)return;
+    if(!view&&member&&speechLink&&!intent.opener){pendingDestination.current=null;return;}
     const page=document.querySelector<HTMLElement>('main.explorer,main.explorer-insights');
     const portrait=intent.portrait!=null?page?.querySelector<HTMLElement>(`[data-member-id="${intent.portrait}"] .portrait--button`):null;
     const opener=intent.opener;
     const returned=opener?.node?.isConnected?opener.node:opener&&opener.headerIndex>=0?page?.querySelectorAll<HTMLElement>('.parliament-header nav button')[opener.headerIndex]:null;
     const target=portrait||returned||page?.querySelector<HTMLElement>('h1');
     if(!target)return;
+    pendingDestination.current=null;
     if(target.tagName==='H1')target.tabIndex=-1;
     target.focus({preventScroll:true});
     if(portrait||returned)target.scrollIntoView({block:'nearest'});
-  },[view,member,speechLink]);
+  }
+  useEffect(focusDestination,[view,member,speechLink]);
   useEffect(() => {
     const timer=window.setInterval(directoryState.retry,directory?.index.complete ? 60_000 : 10_000);
     return ()=>window.clearInterval(timer);
@@ -598,6 +600,10 @@ export default function App() {
     navigateView(null);
     pendingDestination.current={view:null,member,opener};
   };
+  return <ErrorBoundary resetKey={`${view}:${member}:${tab}`} language={lang}
+    navigation={<ParliamentHeader view={view||'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>}
+    onRetry={()=>{pendingDestination.current={view,member};}}
+  ><ViewContent onReady={focusDestination} render={()=>{
   if (view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
     return view==='groups' ? <GroupVoices {...props}/> : view==='amendments' ? <AmendmentsPage {...props}/> : view==='legislation' ? <Legislation {...props}/> : view==='outside' ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>;
@@ -911,4 +917,5 @@ export default function App() {
         </footer>
     </main>
   );
+  }}/></ErrorBoundary>;
 }
