@@ -60,6 +60,34 @@ export function interventionMetadata(activity) {
     evidence:type==='unclassified'?null:type==='procedure'?(chair?'api:xmlFragment/communication/heading/person':narrative?'api:xmlFragment/communication/narrative':'had_activity_type'):type==='written'?'had_activity_type':'api:xmlFragment/from'};
 }
 
+const docTail=value=>String(value||'').match(/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?eli\/dl\/doc\/([A-Z0-9-]+)$/)?.[1]||null;
+// The alias form of a chair change's own transcript fragment. Every document
+// field must agree on one CRE-<term>-<date>-OTH-<k> fragment in this sitting.
+const transcriptAliases=activity=>{
+  const date=String(activity.activity_date||'');
+  if(String(activity.had_activity_type).split('/').at(-1)!=='MEETING_NAME_CHAIR'||!activity.activity_id?.startsWith('MTG-PL-'+date+'-'))return [];
+  // Every listed document, including bare URI references, must name the same fragment.
+  const entries=array(activity.recorded_in_a_realization_of),docs=entries.filter(d=>d&&typeof d==='object');
+  const identities=entries.map(d=>{
+    if(!d||typeof d!=='object')return typeof d==='string'?docTail(d):null;
+    // A present field that cannot be read is conflicting evidence, not absent evidence.
+    const ids=[...(d.identifier==null?[]:[String(d.identifier)]),...(d.id==null?[]:[docTail(d.id)])];
+    return ids.length&&ids.every(id=>id&&id===ids[0])?ids[0]:null;
+  });
+  if(!docs.length||identities.some(id=>id===null)||new Set(identities).size!==1)return [];
+  const [,term,day,k]=identities[0].match(/^CRE-(\d+)-(\d{4}-\d{2}-\d{2})-OTH-(\d+)$/)||[];
+  if(!k||day!==date)return [];
+  for(const d of docs) {
+    for(const part of array(d.is_part_of)) {
+      const chapter=docTail(part?.id||part)?.match(/^CRE-(\d+)-(\d{4}-\d{2}-\d{2})-/);
+      if(!chapter||chapter[1]!==term||chapter[2]!==date)return [];
+    }
+    if(d.notation_speechId!=null&&String(d.notation_speechId)!==k)return [];
+  }
+  const alias='MTG-PL-'+date+'-OTH-'+k;
+  return alias===activity.activity_id?[]:[alias];
+};
+
 // Exact debate membership and document numbering establish the sequence. Never bridge a missing row.
 export function buildInterventionSequence(activities,{parentId,expectedIds=[]}={}) {
   const expected=new Set(array(expectedIds).map(speechId).filter(Boolean));
@@ -71,6 +99,11 @@ export function buildInterventionSequence(activities,{parentId,expectedIds=[]}={
   // expected set; unavailable rows and unrelated parent mismatches stay gaps.
   const reassignedIds=candidates.filter(row=>row.intervention.reportedParentIds?.includes(parentId)&&!row.intervention.parentIds.includes(parentId)).map(row=>row.id);
   for(const id of reassignedIds)expected.delete(id);
+  // consists_of can also name a fetched row a second time by its own transcript
+  // fragment (CRE-<term>-<date>-OTH-<k> as MTG-PL-<date>-OTH-<k>). That alias is
+  // never served as an activity, so count the row once; other unserved IDs stay gaps.
+  const served=new Set(activities.map(a=>a.activity_id));
+  for(const {activity} of candidates)for(const alias of transcriptAliases(activity))if(!served.has(alias))expected.delete(alias);
   const records=candidates.filter(row=>row.intervention.parentIds.includes(parentId));
   records.sort((a,b)=>(a.intervention.numbering??Infinity)-(b.intervention.numbering??Infinity)||a.id.localeCompare(b.id));
   const numbers=records.map(r=>r.intervention.numbering),complete=hasExpected&&records.length===expected.size&&numbers.every(Number.isSafeInteger)&&new Set(numbers).size===numbers.length;
