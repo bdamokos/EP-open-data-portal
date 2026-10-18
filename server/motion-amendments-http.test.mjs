@@ -35,6 +35,7 @@ test('motion context HTTP reads are index-only, scoped and bounded',async t=>{
   const endpoint='/api/motion-amendments/'+id;
   const all=await read(endpoint+'?member=256918&scope=all');
   assert.equal(all.status,200);assert.equal(all.body.total,2);assert.equal(all.body.text.status,'indexed');
+  assert.match(all.headers['cache-control'],/no-store/);assert.equal(all.headers['cdn-cache-control'],'no-store');
   assert.equal(all.body.text.memberAuthorship.status,'recorded');
   assert.deepEqual(all.body.items.map(item=>[item.number,item.memberMatch.matched]),[[13,true],[31,false]]);
   assert.deepEqual(all.body.totals,{allIndexed:2,memberMatched:1});
@@ -44,7 +45,16 @@ test('motion context HTTP reads are index-only, scoped and bounded',async t=>{
   assert.deepEqual(selected.body.items[0].memberMatch,all.body.items[0].memberMatch);
   const page=await read(endpoint+'?scope=all&limit=1&offset=1');
   assert.equal(page.body.items.length,1);assert.equal(page.body.items[0].number,31);assert.equal(page.body.total,2);
-  for(const query of ['scope=member','scope=other','scope=','member=','member=0','member=0256918','member=9007199254740992','member=256918&member=197494','limit=0','limit=51','offset=-1','offset=1000001','procedure=2026-2868','lang=invalid']) {
+  const chosen=await read(endpoint+'?member=256918&scope=member&limit=1&amendment='+id+'-AM-31');
+  assert.equal(chosen.status,200);assert.equal(chosen.body.total,1);assert.equal(chosen.body.items[0].number,13);
+  assert.equal(chosen.body.selection.status,'available');assert.equal(chosen.body.selection.item.number,31);
+  assert.equal(chosen.body.selection.inRequestedScope,false);assert.equal(chosen.body.selection.inPage,false);
+  assert.notEqual(chosen.headers.etag,all.headers.etag);
+  const selected304=await read(endpoint+'?member=256918&scope=member&limit=1&amendment='+id+'-AM-31',{headers:{'If-None-Match':chosen.headers.etag}});
+  assert.equal(selected304.status,304);assert.equal(selected304.text,'');assert.match(selected304.headers['cache-control'],/no-store/);
+  const another=await read(endpoint+'?member=256918&scope=member&limit=1&amendment='+id+'-AM-13',{headers:{'If-None-Match':chosen.headers.etag}});
+  assert.equal(another.status,200);assert.equal(another.body.selection.item.number,13);assert.notEqual(another.headers.etag,chosen.headers.etag);
+  for(const query of ['scope=member','scope=other','scope=','member=','member=0','member=0256918','member=9007199254740992','member=256918&member=197494','limit=0','limit=51','offset=-1','offset=1000001','procedure=2026-2868','lang=invalid','amendment=','amendment='+id+'-AM-0','amendment=RC-10-2026-0441-AM-1','amendment='+id+'-AM-13&amendment='+id+'-AM-31']) {
     assert.equal((await read(endpoint+'?'+query)).status,400,query);
   }
   for(const invalid of ['A-10-2026-0424','B-9-2026-0424','B-10-2026-0424-AM-13','B-10-2026-0424%2Fextra'])assert.equal((await read('/api/motion-amendments/'+invalid)).status,400,invalid);
