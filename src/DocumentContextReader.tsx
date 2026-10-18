@@ -3,6 +3,7 @@ import {useData} from './data';
 import type {DocumentContextRequest,DocumentContextResponse} from './DocumentContextTypes';
 import type {PublicationDocument,NoteAnchor,DocumentLink} from './explorerTypes';
 import {publicationBody} from './publication-body.mjs';
+import {displayVoteTitle} from './memberVotesPresentation.mjs';
 import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from './References';
 import {InsightQuestionReader} from './InsightReaders';
 import {FindInText} from './TextSearch';
@@ -23,7 +24,7 @@ const languageName=(code:string)=>{try{return new Intl.DisplayNames(['en'],{type
 const titleOf=(document:Pick<PublicationDocument,'titles'>,language:string):Title=>{
   const entries=Object.entries(document.titles||{}).filter(([,value])=>typeof value==='string'&&value.trim());
   const title=entries.find(([key])=>key===language)||entries.find(([key])=>key==='en')||entries[0];
-  return title?{text:title[1].replace(/\*{3}(?:III|II|I)\b/g,'').replace(/\s{2,}/g,' ').trim(),language:title[0]}:{text:'Document text',language:'en'};
+  return title?{text:displayVoteTitle(title[1]),language:title[0]}:{text:'Document text',language:'en'};
 };
 const documentKind=(id:string)=>id.startsWith('TA-')?'Adopted text':id.startsWith('RC-')?'Joint motion':id.startsWith('B-')?'Motion':'Report';
 const documentRoute=(id:string,language:string,request?:DocumentContextRequest)=>{

@@ -80,6 +80,9 @@ test('display removes only procedure markers and labels exact amendment and part
   const raw='***I A title ***II with * emphasis ***III';
   assert.equal(displayVoteTitle(raw),'A title with * emphasis');assert.equal(raw,'***I A title ***II with * emphasis ***III');
   assert.equal(displayVoteTitle('***IV ***IIa ****I word***I'),'***IV ***IIa ****I word***I');
+  for(const marker of ['*','***','**I','**II'])assert.equal(displayVoteTitle('Consular protection '+marker),'Consular protection');
+  assert.equal(displayVoteTitle('* Consular protection'),'Consular protection');
+  assert.equal(displayVoteTitle('A title with * emphasis'),'A title with * emphasis');
   const vote=clone(projection.items[0]);vote.scope.kind='whole-text';assert.equal(memberVoteLabel(vote),'Final vote');
   vote.scope.kind='amendment';vote.context.amendmentIds=['A-10-2026-0237-AM-12','A-10-2026-0237-AM-12'];vote.parts=[];
   assert.equal(memberVoteLabel(vote),'Amendment 12');

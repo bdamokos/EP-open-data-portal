@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
+import {viewReady} from './test-support/viewReady.mjs';
 
 const WEEK='2026-03-23',SITTING='MTG-PL-2026-03-25',SNAPSHOT='a'.repeat(64),SUBJECT=SITTING+'-VOT-ITM-8';
 const DOCUMENT='B-10-2026-0001',AMENDMENT=DOCUMENT+'-AM-7',LIST=DOCUMENT+'-AM-001-007';
@@ -28,7 +29,7 @@ const button=(container,text)=>[...container.querySelectorAll('button')].find(no
 const params=()=>new URLSearchParams(location.search);
 const contextDocument=id=>({id,titles:{en:'Source '+id},date:'2026-03-25',files:[],answers:[],selectedDocumentId:id,selectedText:{status:'available',paragraphs:['Synthetic context body.'],textLanguage:'en',notes:[],noteAnchors:[],documentLinks:[]}});
 
-async function harness(t,query='member=1&module=votes&lang=en') {
+async function harness(t,query='member=1&module=votes&lang=en',{activities=[]}={}) {
   const window=new Window({url:'http://localhost/?'+query}),requests=[],unexpected=[];
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -45,6 +46,7 @@ async function harness(t,query='member=1&module=votes&lang=en') {
     if(url.pathname==='/api/directory')return Response.json(directory);
     if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
     if(url.pathname.startsWith('/api/profile/'))return Response.json({...members[Number(url.pathname.split('/').at(-1))-1],birthDate:null,memberships:[]});
+    if(url.pathname.startsWith('/api/document/'))return Response.json({...contextDocument(decodeURIComponent(url.pathname.split('/').at(-1))),roles:['AUTHOR'],coAuthors:[]});
     if(url.pathname.startsWith('/api/member-votes/'))return Response.json(response(url));
     if(url.pathname.startsWith('/api/document-context/')){
       const id=decodeURIComponent(url.pathname.split('/').at(-1));
@@ -53,7 +55,7 @@ async function harness(t,query='member=1&module=votes&lang=en') {
     }
     if(url.pathname==='/api/insights/saved')return Response.json({members:[],questions:[]});
     if(url.pathname==='/api/corpus/search')return Response.json({results:[],total:0,nextOffset:null,coverage:{status:'partial'}});
-    if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:[],selectedItems:[],indexedTotal:0,nextOffset:null,cache:{complete:true}});
+    if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:activities,selectedItems:[],indexedTotal:activities.length,nextOffset:null,cache:{complete:true}});
     if(url.pathname.startsWith('/api/speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(url.pathname==='/api/insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
@@ -62,7 +64,7 @@ async function harness(t,query='member=1&module=votes&lang=en') {
   const {default:App}=await vite.ssrLoadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(App)));
-  const settle=async()=>{for(let attempt=0;attempt<200;attempt++){await act(async()=>new Promise(resolve=>setTimeout(resolve,10)));if(!container.querySelector('.member-votes-loading'))return;}assert.fail('Lazy view did not load');};
+  const settle=async()=>{await viewReady(container);for(let attempt=0;attempt<200;attempt++){await act(async()=>new Promise(resolve=>setTimeout(resolve,10)));if(!container.querySelector('.member-votes-loading'))return;}assert.fail('Lazy view did not load');};
   await settle();
   const click=async node=>{await act(async()=>{assert(node,'Missing control');node.click();});await settle();};
   const go=async delta=>{await act(async()=>{
@@ -96,6 +98,18 @@ test('Votes is public; canonical pinning replaces, every user navigation pushes 
   await h.click(button(h.container,'Following'));
   assert.equal([...params().keys()].some(key=>key.startsWith('mv-')||key.startsWith('ma-')),false);
   await h.go(-1);assert.equal(params().get('mv-offset'),'2');assert.equal(params().get('ma-document'),DOCUMENT);
+});
+
+test('opening a motion activity defers its document read until document details are expanded',async t=>{
+  const activity={id:'motion-fixture',sourceId:DOCUMENT,category:'motions',categoryLabel:'Motion for a resolution',recordKind:'document',date:'2026-03-25',title:'Synthetic motion',titleLanguage:'en',reference:DOCUMENT,files:[],provenance:{apiUrl:'https://example.test/public-fixture',sourceFetchedAt:'2026-03-25T12:00:00Z',role:'AUTHOR',relationship:'authored'}};
+  const h=await harness(t,'member=1&module=activities&lang=en&activity='+DOCUMENT,{activities:[activity]});
+  assert(h.container.textContent.includes('Author'));
+  assert.equal(h.requests.filter(url=>url.pathname.startsWith('/api/document/')).length,0);
+  assert.equal(h.requests.filter(url=>url.pathname.startsWith('/api/document-context/')).length,0);
+  const details=h.container.querySelector('details.explorer-reader-download');assert(details);
+  await act(async()=>{details.open=true;details.dispatchEvent(new h.window.Event('toggle'));});
+  assert.equal(h.requests.filter(url=>url.pathname==='/api/document/'+DOCUMENT).length,1);
+  assert.equal(h.requests.filter(url=>url.pathname.startsWith('/api/document-context/')).length,0);
 });
 
 test('entering and leaving the profile Votes tab adds one entry per gesture',async t=>{
