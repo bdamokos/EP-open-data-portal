@@ -1,3 +1,4 @@
+import {unthrottledUpstream} from './test-support/upstream.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -63,7 +64,7 @@ async function fixture(t) {
   const raw={id:'eli/dl/doc/'+targetId,identifier:targetId,type:'Work',work_type:'def/ep-document-types/REPORT_PLENARY',document_date:documentDate,title_dcterms:{en:'Public amendment report'},inverse_based_on_a_realization_of:['eli/dl/event/'+sittingId+'-VOT-ITM-123']};
   const detail={id:listUri,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',document_date:documentDate,foresees_change_of:[raw.id],is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'authority/DOCX',byteSize:buffer.length,is_exemplified_by:fileUrl}]}]};
   let observation;
-  const worker=new ActivityWorker(store,{clock:()=>Date.parse(at),fetchRecord:async endpoint=>{
+  const worker=new ActivityWorker(store,{runUpstream:unthrottledUpstream,clock:()=>Date.parse(at),fetchRecord:async endpoint=>{
     if(endpoint===targetKey){calls.documents++;return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:at,payload:{data:[observation]}};}
     assert.equal(endpoint,'/documents/'+listId,'Unexpected upstream request in list observation test.');calls.details++;
     return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:at,payload:{data:[detail]}};
