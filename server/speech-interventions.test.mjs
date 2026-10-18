@@ -177,8 +177,6 @@ test('conflicting document evidence on a chair change never hides a genuinely mi
     'a secondary document with a conflicting identifier and URI':doc=>Object.assign(doc,{identifier:'CRE-10-2026-10-06-OTH-2017099548464'}),
     'a secondary document in the same term':doc=>Object.assign(doc,{identifier:'CRE-10-2026-10-06-OTH-2017099548464',id:'eli/dl/doc/CRE-10-2026-10-06-OTH-2017099548464',notation_speechId:'2017099548464'})
   };
-  cases['a secondary bare document URI']=()=>'eli/dl/doc/CRE-10-2026-10-06-OTH-2017099548464';
-  cases['an unreadable secondary entry']=()=>'https://elsewhere.example/eli/dl/doc/CRE-10-2026-10-06-OTH-2017097917624';
   for(const [label,mutate] of Object.entries(cases)) {
     const rows=withoutStatement(),chair=chairOf(rows);
     chair.recorded_in_a_realization_of.push(mutate(clone(chair.recorded_in_a_realization_of[0])));
@@ -195,6 +193,16 @@ test('conflicting document evidence on a chair change never hides a genuinely mi
   })) {
     const rows=withoutStatement();mutate(chairOf(rows).recorded_in_a_realization_of[0]);
     assert(sequence(rows).coverage.missingIds.includes(statement),label);
+  }
+  // A parent listing the chair once: an expanded document naming another fragment must not
+  // outweigh a conflicting or unreadable bare document reference.
+  const listedOnce=fixture.parent.consists_of.filter(id=>!String(id).endsWith(chairAlias));
+  for(const secondary of ['eli/dl/doc/CRE-10-2026-10-06-OTH-2017097917624','https://elsewhere.example/eli/dl/doc/CRE-10-2026-10-06-OTH-2017099548464',42]) {
+    const rows=withoutStatement(),doc=chairOf(rows).recorded_in_a_realization_of[0];
+    Object.assign(doc,{identifier:'CRE-10-2026-10-06-OTH-2017099548464',id:'eli/dl/doc/CRE-10-2026-10-06-OTH-2017099548464',notation_speechId:'2017099548464'});
+    chairOf(rows).recorded_in_a_realization_of.push(secondary);
+    const result=buildInterventionSequence(rows,{parentId,expectedIds:listedOnce}).coverage;
+    assert.equal(result.complete,false,String(secondary));assert.deepEqual(result.missingIds,[statement],String(secondary));
   }
   // Only chair changes are aliased; another record type keeps both identifiers as expected.
   const proceeding=clone(fixture.activities);chairOf(proceeding).had_activity_type='def/ep-activities/PROCEEDING_ACTIVITY';
