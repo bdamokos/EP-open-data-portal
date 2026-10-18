@@ -60,6 +60,13 @@ export function interventionMetadata(activity) {
     evidence:type==='unclassified'?null:type==='procedure'?(chair?'api:xmlFragment/communication/heading/person':narrative?'api:xmlFragment/communication/narrative':'had_activity_type'):type==='written'?'had_activity_type':'api:xmlFragment/from'};
 }
 
+const transcriptAliases=activity=>{
+  const date=String(activity.activity_date||'');
+  return array(activity.recorded_in_a_realization_of).filter(d=>d&&typeof d==='object')
+    .map(d=>String(d.identifier||String(d.id||'').match(/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?eli\/dl\/doc\/([A-Z0-9-]+)$/)?.[1]||'').match(/^CRE-\d+-(\d{4}-\d{2}-\d{2})-OTH-(\d+)$/))
+    .filter(m=>m&&m[1]===date&&activity.activity_id?.startsWith('MTG-PL-'+date+'-')).map(m=>'MTG-PL-'+m[1]+'-OTH-'+m[2]).filter(id=>id!==activity.activity_id);
+};
+
 // Exact debate membership and document numbering establish the sequence. Never bridge a missing row.
 export function buildInterventionSequence(activities,{parentId,expectedIds=[]}={}) {
   const expected=new Set(array(expectedIds).map(speechId).filter(Boolean));
@@ -71,6 +78,11 @@ export function buildInterventionSequence(activities,{parentId,expectedIds=[]}={
   // expected set; unavailable rows and unrelated parent mismatches stay gaps.
   const reassignedIds=candidates.filter(row=>row.intervention.reportedParentIds?.includes(parentId)&&!row.intervention.parentIds.includes(parentId)).map(row=>row.id);
   for(const id of reassignedIds)expected.delete(id);
+  // consists_of can also name a fetched row a second time by its own transcript
+  // fragment (CRE-<term>-<date>-OTH-<k> as MTG-PL-<date>-OTH-<k>). That alias is
+  // never served as an activity, so count the row once; other unserved IDs stay gaps.
+  const served=new Set(activities.map(a=>a.activity_id));
+  for(const {activity} of candidates)for(const alias of transcriptAliases(activity))if(!served.has(alias))expected.delete(alias);
   const records=candidates.filter(row=>row.intervention.parentIds.includes(parentId));
   records.sort((a,b)=>(a.intervention.numbering??Infinity)-(b.intervention.numbering??Infinity)||a.id.localeCompare(b.id));
   const numbers=records.map(r=>r.intervention.numbering),complete=hasExpected&&records.length===expected.size&&numbers.every(Number.isSafeInteger)&&new Set(numbers).size===numbers.length;
