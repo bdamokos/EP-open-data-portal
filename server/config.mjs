@@ -2,7 +2,8 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 export const projectRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 export const apiPrefixes=Object.freeze(['/api']);
-function integerFromEnvironment(name, fallback, minimum, maximum) {
+// These parsers read the environment when called; service factories use them lazily.
+export function integerFromEnvironment(name, fallback, minimum, maximum) {
   const raw = process.env[name];
   if (raw === undefined || raw === "") {
     return fallback;
@@ -15,7 +16,7 @@ function integerFromEnvironment(name, fallback, minimum, maximum) {
   return value;
 }
 
-function booleanFromEnvironment(name, fallback = false) {
+export function booleanFromEnvironment(name, fallback = false) {
   const raw = process.env[name];
   if (raw === undefined || raw === "") {
     return fallback;
@@ -29,9 +30,11 @@ function booleanFromEnvironment(name, fallback = false) {
   throw new Error(`${name} must be a boolean`);
 }
 
-function absolutePathFromEnvironment(name, fallback) {
-  const value = process.env[name];
-  return path.resolve(value || fallback);
+export function absolutePathFromEnvironment(name, fallback) {
+  const value = process.env[name] || fallback;
+  if (value === undefined) return undefined;
+  if (value.includes("\0")) throw new Error(`${name} must be a filesystem path`);
+  return path.resolve(value);
 }
 
 const appRevision=process.env.APP_REVISION||'';

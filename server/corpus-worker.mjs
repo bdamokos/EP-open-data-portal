@@ -11,7 +11,7 @@ import { HttpError } from './http-utils.mjs';
 import { CorpusReader } from './corpus-reader.mjs';
 import { countryCode } from './insights-countries.mjs';
 import { savedMetadata } from './insights-store.mjs';
-import { config } from './config.mjs';
+import { config, booleanFromEnvironment, integerFromEnvironment, absolutePathFromEnvironment } from './config.mjs';
 import { corpusSearchResponse } from './corpus-search-response.mjs';
 
 const DAY=24*60*60_000;
@@ -91,8 +91,8 @@ export function questionFiles(work,policy='all') {
 }
 
 export class CorpusWorker {
-  constructor(store,{fetchRecord=apiFetch,download=downloadDocx,clock=Date.now,budget=300,maxDuration=60*60_000,diskLimit=2*1024**3,interval=1000,languages='all',pageSize=25}={}) {
-    Object.assign(this,{store,fetchRecord,download,clock,budget,maxDuration,diskLimit,interval,languages,pageSize});
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,download=downloadDocx,clock=Date.now,budget=300,maxDuration=60*60_000,diskLimit=2*1024**3,interval=1000,languages='all',pageSize=25}={}) {
+    Object.assign(this,{store,runUpstream,fetchRecord,download,clock,budget,maxDuration,diskLimit,interval,languages,pageSize});
     this.running=false;this.stopped=false;this.controller=new AbortController();this.lastRequest=0;
   }
   async pace() {
@@ -233,7 +233,9 @@ export class CorpusWorker {
     } else if(task.kind==='docx') {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');
       await this.pace();
-      const result=await boundedUpstream(()=>this.download(body.url),{priority:'background'});
+      const signal=this.controller.signal;
+      const result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal}),{priority:'background',signal});
+      signal.throwIfAborted();
       this.store.putDocument({sourceId:body.sourceId,kind:body.kind,parentId:body.parentId,date:body.date,term:10,originalLanguages:body.originalLanguages},
         [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'docx',sourceUrl:body.url,fetchedAt:new Date(this.clock()).toISOString(),body:result.paragraphs.join('\n'),raw:null}]);
       this.store.finishTask(task);
@@ -272,22 +274,22 @@ export class CorpusWorker {
 }
 
 let service;
-const bounded=(name,fallback,min,max)=>{const value=Number(process.env[name]||fallback);if(!Number.isInteger(value)||value<min||value>max)throw new Error(`Invalid ${name}.`);return value;};
 export function corpus() {
+  if(!booleanFromEnvironment('CORPUS_ENABLED'))throw new HttpError(503,'corpus_disabled','The full-text corpus is not enabled.');
   if(service)return service;
-  if(process.env.CORPUS_ENABLED!=='true')throw new HttpError(503,'corpus_disabled','The full-text corpus is not enabled.');
-  const directory=process.env.CORPUS_DIR;
+  const directory=absolutePathFromEnvironment('CORPUS_DIR');
   if(!directory)throw new HttpError(503,'corpus_configuration','A dedicated corpus directory is required.');
   const languages=process.env.CORPUS_LANGUAGES||'all';
   if(!['all','primary'].includes(languages))throw new Error('Invalid CORPUS_LANGUAGES.');
-  const indexFile=process.env.ACTIVITY_INDEX_DIR?path.join(process.env.ACTIVITY_INDEX_DIR,'activities-v1.sqlite'):null;
-  const store=new CorpusStore(directory,{indexFile});
-  const diskLimit=bounded('CORPUS_MAX_DISK_MIB',2048,64,131072)*1024*1024;
-  const worker=new CorpusWorker(store,{
-    budget:bounded('CORPUS_JOB_REQUEST_BUDGET',300,1,5000),
-    interval:bounded('CORPUS_REQUEST_INTERVAL_MS',1000,250,60_000),
+  const indexDirectory=absolutePathFromEnvironment('ACTIVITY_INDEX_DIR');
+  const indexFile=indexDirectory?path.join(indexDirectory,'activities-v1.sqlite'):null;
+  const diskLimit=integerFromEnvironment('CORPUS_MAX_DISK_MIB',2048,64,131072)*1024*1024;
+  const options={
+    budget:integerFromEnvironment('CORPUS_JOB_REQUEST_BUDGET',300,1,5000),
+    interval:integerFromEnvironment('CORPUS_REQUEST_INTERVAL_MS',1000,250,60_000),
     languages,diskLimit,
-  });
+  };
+  const store=new CorpusStore(directory,{indexFile}),worker=new CorpusWorker(store,options);
   service={store,worker,diskLimit,reader:new CorpusReader(directory,{indexFile})};return service;
 }
 export async function corpusStatus() {
@@ -358,7 +360,7 @@ export function corpusSearchOptions(input) {
     sourceIds:sourceIds===null?null:[...new Set(sourceIds)]};
 }
 export function startCorpus() {
-  if(process.env.CORPUS_ENABLED!=='true')return ()=>{};
+  if(!booleanFromEnvironment('CORPUS_ENABLED'))return ()=>{};
   const {worker}=corpus();
   const run=()=>worker.run().catch(error=>console.error('[corpus]',error.message));
   const timer=setInterval(run,60_000);timer.unref();void run();

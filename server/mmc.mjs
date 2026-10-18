@@ -1,3 +1,4 @@
+import {booleanFromEnvironment} from './config.mjs';
 import {readFile} from 'node:fs/promises';
 import {writeCacheFile} from './cache-publication.mjs';
 import path from 'node:path';
@@ -132,7 +133,7 @@ export function matchRecording(speech, details) {
 
 async function speechForMedia(id) {
   if (!speechPattern.test(id)) throw new HttpError(400, 'invalid_speech', 'Invalid speech identifier.');
-  if (process.env.ACTIVITY_INDEX_ENABLED === 'true') {
+  if (booleanFromEnvironment('ACTIVITY_INDEX_ENABLED')) {
     const store = activityIndex().store;
     const saved = store.db.prepare('SELECT body FROM items WHERE generation=? AND source_key=? LIMIT 1').get(store.status().servingGeneration, '/speeches/' + id);
     if (saved) {

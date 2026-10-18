@@ -1,3 +1,4 @@
+import { booleanFromEnvironment, integerFromEnvironment, absolutePathFromEnvironment } from './config.mjs';
 import {groupVoiceProjection,groupVoiceJobKey,recordGroupVoice,groupVoiceWorkDue,groupVoicesCopy,initializeGroupVoices,nextGroupVoiceTask,enqueueGroupVoice} from './group-voices-store.mjs';
 import {personNameVariants} from './speaker-identity.mjs';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
@@ -72,8 +73,8 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
   },{priority:'background',signal});
 }
 export class ActivityWorker {
-  constructor(store,{fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=1024*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml}={}) {
-    this.store=store;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=1024*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml}={}) {
+    this.store=store;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;
   }
@@ -563,16 +564,17 @@ export class ActivityWorker {
 }
 let service;
 export function activityIndex() {
+  if(!booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))throw new HttpError(503,'activity_index_disabled','The joined activity index is not enabled.');
   if(service)return service;
-  if(process.env.ACTIVITY_INDEX_ENABLED!=='true')throw new HttpError(503,'activity_index_disabled','The joined activity index is not enabled.');
-  const directory=process.env.ACTIVITY_INDEX_DIR;
+  const directory=absolutePathFromEnvironment('ACTIVITY_INDEX_DIR');
   if(!directory)throw new HttpError(503,'activity_index_configuration','A dedicated index directory is required.');
-  const bounded=(name,fallback,min,max)=>{const value=Number(process.env[name] || fallback);if(!Number.isInteger(value)||value<min||value>max)throw new Error(`Invalid ${name}.`);return value;};
-  const store=new ActivityStore(directory), worker=new ActivityWorker(store,{
-    budget:bounded('ACTIVITY_INDEX_JOB_REQUEST_BUDGET',1000,1,2000),
-    maxDuration:bounded('ACTIVITY_INDEX_JOB_MAX_MINUTES',90,1,120)*60_000,
-    diskLimit:bounded('ACTIVITY_INDEX_MAX_DISK_MIB',2048,64,4096)*1024*1024,
-  });service={store,worker};return service;
+  const options={
+    budget:integerFromEnvironment('ACTIVITY_INDEX_JOB_REQUEST_BUDGET',1000,1,2000),
+    maxDuration:integerFromEnvironment('ACTIVITY_INDEX_JOB_MAX_MINUTES',90,1,120)*60_000,
+    diskLimit:integerFromEnvironment('ACTIVITY_INDEX_MAX_DISK_MIB',2048,64,4096)*1024*1024,
+  };
+  const store=new ActivityStore(directory),worker=new ActivityWorker(store,options);
+  service={store,worker};return service;
 }
 export function activityIndexStatus(){return activityIndex().store.status();}
 export function latestActivities(id,params) {
@@ -581,7 +583,7 @@ export function latestActivities(id,params) {
   const result=store.page(id,params);if(!result)throw new HttpError(404,'mep_not_current','This ID is not in the current MEP roster.');return result;
 }
 export function startActivityIndex() {
-  if(process.env.ACTIVITY_INDEX_ENABLED!=='true')return ()=>{};
+  if(!booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))return ()=>{};
   const {worker}=activityIndex();
   const run=()=>worker.run().catch(e=>console.error('[activity-index]',e.message));
   const timer=setInterval(run,30_000);timer.unref();void run();

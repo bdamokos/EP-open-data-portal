@@ -1,3 +1,4 @@
+import {unthrottledUpstream} from './test-support/upstream.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -24,7 +25,7 @@ function fixture(t) {
   t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
   store.set('amendmentMandateFallback',true);
   store.putSource(generation,'amendment:members:10','amendment-members',{members:[{id:'1',givenName:'Example',familyName:'Member'}]},stamp);
-  const worker=new ActivityWorker(store,{clock:()=>now,
+  const worker=new ActivityWorker(store,{runUpstream:unthrottledUpstream,clock:()=>now,
     fetchRecord:async(endpoint,_params,{signal}={})=>{
       assert.equal(endpoint,'/meps/1','Unexpected external request in isolated profile dependency test.');
       assert.equal(signal,worker.controller.signal);requests++;

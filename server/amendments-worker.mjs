@@ -1,7 +1,6 @@
 import https from 'node:https';
 import { createHash } from 'node:crypto';
 import { array, tail, documentFiles, projectDocument, AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
-import { boundedUpstream } from './odp.mjs';
 import { downloadDocxBuffer } from './document-text.mjs';
 import { extractAmendments, AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { createAmendmentAuthorResolver, votingAliases } from './amendment-authors.mjs';
@@ -616,7 +615,7 @@ export async function amendmentTask(worker,task) {
     }
     worker.requests++;const cycle=store.get('working');if(cycle)store.updateCycle({requests:(cycle.requests || 0)+1});
     let downloaded;
-    try {downloaded=await boundedUpstream(admittedSignal=>worker.downloadAmendmentDocx(file.url,{signal:admittedSignal}),{priority:'background',signal});}
+    try {downloaded=await worker.runUpstream(admittedSignal=>worker.downloadAmendmentDocx(file.url,{signal:admittedSignal}),{priority:'background',signal});}
     catch(error){signal.throwIfAborted();throw error;}
     signal.throwIfAborted();
     const fetchedAt=new Date(worker.clock()).toISOString(),extraction=extractAmendments(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt});
@@ -666,7 +665,7 @@ export async function amendmentTask(worker,task) {
     }
     const file=body.file;
     worker.requests++;const cycle=store.get('working');if(cycle)store.updateCycle({requests:(cycle.requests || 0)+1});
-    const xml=await boundedUpstream(admittedSignal=>worker.downloadVotingXml(file.url,{signal:admittedSignal}),{priority:'background',signal});
+    const xml=await worker.runUpstream(admittedSignal=>worker.downloadVotingXml(file.url,{signal:admittedSignal}),{priority:'background',signal});
     signal.throwIfAborted();
     const fetchedAt=new Date(worker.clock()).toISOString(),aliases=votingAliases(xml,{sourceUrl:file.url,fetchedAt,sittingDate:date});
     store.putSource(generation,'amendment:aliases:'+body.sittingId,'amendment-aliases',{aliases,sources:[body.documentSource,{url:file.url,fetchedAt}]},fetchedAt);

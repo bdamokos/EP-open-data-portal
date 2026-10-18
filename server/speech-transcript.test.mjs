@@ -35,7 +35,7 @@ test('corpus transcript reads retain XML, exact keys, languages and provenance w
     {sourceKey:'en',language:'en',translationType:'machine',sourceFormat:'xml-fragment',sourceUrl,fetchedAt:date,body:'English retained.',raw:'<oralStatements><speech xml:lang="de-t-en-mtec"><from><person refersTo="person/42">Source Name</person><process>Blue card question</process></from><p>English retained.</p></speech></oralStatements>'},
   ]);store.putSpeechMetadata(activity,sourceUrl,date);store.release();
   const before=store.db.prepare('SELECT id,sha256,checked_at FROM texts ORDER BY id').all();
-  process.env.CORPUS_ENABLED='true';process.env.CORPUS_DIR=directory;
+  process.env.CORPUS_ENABLED='YES';process.env.CORPUS_DIR=directory;
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${server.address().port}`,originalFetch=globalThis.fetch;
   let upstream=0;
