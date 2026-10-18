@@ -10,30 +10,34 @@ import * as amendmentStore from './amendments-store.mjs';
 import {sharedRequest,waitForRequest,isLocalRequestFailure,requestSignal} from './request-budget.mjs';
 import {resolveDocumentTarget} from './document-context-model.mjs';
 
-export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000});
+export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id);
 const ref=value=>canonicalEPReference(value);
 const refs=value=>array(value).map(ref).filter(Boolean);
+const canonicalType=value=>String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
+const expectedType=id=>'def/ep-document-types/'+(id.startsWith('TA-')?'TEXT_ADOPTED':id.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':id.startsWith('B-')?'RESOLUTION_MOTION':'REPORT_PLENARY');
+const knownDocumentRelationships=(node,field)=>node[field]!=null&&array(node[field]).every(value=>ref(value)?.startsWith('eli/dl/doc/'));
 const procedureIds=work=>[...new Set(array(work.inverse_created_a_realization_of).flatMap(value=>{const id=String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');return /^eli\/dl\/proc\/\d{4}-\d{4}[A-Z]?$/.test(id)?[tail(id)]:[];}))];
 const workId=node=>node?.identifier||tail(node?.id);
 const unavailableTarget=reason=>({status:'unavailable',paragraphs:[],basis:null,relation:null,quoteMatches:null,reason});
 
 export function documentContextQuery(id,params) {
   if(!documentId(id))throw new HttpError(400,'invalid_document','Choose a plenary document or adopted resolution.');
-  for(const key of params.keys())if(!['lang','amendment','list','adopted'].includes(key)||params.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated document query parameter.');
+  for(const key of params.keys())if(!['lang','amendment','list','adopted','body'].includes(key)||params.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated document query parameter.');
   const amendmentId=params.get('amendment'),listId=params.get('list'),adopted=params.get('adopted');
   if(amendmentId!==null&&amendmentReference('eli/dl/doc/'+amendmentId)?.targetDocumentId!==id)throw new HttpError(400,'invalid_amendment','Choose an amendment to this exact document.');
   if(listId!==null&&(!amendmentId||!new RegExp('^'+id+'-AM-[0-9]{1,5}-[0-9]{1,5}$').test(listId)))throw new HttpError(400,'invalid_list','Choose a published amendment list for this document.');
   if(adopted!==null&&adopted!=='1')throw new HttpError(400,'invalid_query','adopted must be 1.');
   if(adopted!==null&&(amendmentId||listId||id.startsWith('TA-')))throw new HttpError(400,'invalid_query','Find adopted texts from the original report or motion.');
-  return {id,language:odpLanguage(params.get('lang')||'en'),amendmentId,listId,adopted:adopted==='1'};
+  if(params.has('body')&&(params.get('body')!=='0'||!amendmentId||adopted!==null))throw new HttpError(400,'invalid_query','body=0 requires an exact amendment.');
+  return {id,language:odpLanguage(params.get('lang')||'en'),amendmentId,listId,adopted:adopted==='1',includeBody:params.get('body')!=='0'};
 }
 
 // This reader discovers only exact linked records for the document being opened.
 // It never enqueues indexing or turns missing indexed wording into an empty list.
 export class DocumentContext {
   constructor({request=odp,readText=documentText,download=url=>boundedUpstream(()=>downloadDocxBuffer(url)),findAmendment=(store,query)=>amendmentStore.amendmentById?.(store,query)||null,clock=Date.now,limits={}}={}) {
-    Object.assign(this,{request,readText,download,findAmendment,clock});this.limits={...DOCUMENT_CONTEXT_LIMITS,...limits};this.pending=new Map();this.cache=new Map();this.bytes=0;
+    Object.assign(this,{request,readText,download,findAmendment,clock});this.limits={...DOCUMENT_CONTEXT_LIMITS,...limits};this.pending=new Map();this.cache=new Map();this.bytes=0;this.extractions=new Map();this.extractionPending=new Map();this.extractionBytes=0;
   }
   async query(query,{store=null}={}) {
     requestSignal()?.throwIfAborted();
@@ -41,7 +45,7 @@ export class DocumentContext {
     const candidate=query.amendmentId&&store?this.findAmendment(store,{document:query.id,id:query.amendmentId,language:query.language}):null;
     const exactIdentity=candidate?.id===query.amendmentId||array(candidate?.officialIds).some(value=>ref(value)==='eli/dl/doc/'+query.amendmentId);
     const indexed=exactIdentity&&candidate?.targetDocumentId===query.id?candidate:null;
-    const key=JSON.stringify([query,indexed]);const cached=this.cache.get(key);
+    const key=createHash('sha256').update(JSON.stringify([query,indexed])).digest('hex');const cached=this.cache.get(key);
     if(cached&&cached.until>this.clock())return cached.value;
     if(cached){this.bytes-=cached.bytes;this.cache.delete(key);}
     let job=this.pending.get(key);
@@ -50,12 +54,35 @@ export class DocumentContext {
         const value=await this.collect(query,indexed);signal.throwIfAborted();
         const bytes=Buffer.byteLength(JSON.stringify(value));
         // Retained stale/error sources are readable, but never acquire a new TTL.
-        if(bytes<=this.limits.entryBytes&&!value.sources.some(source=>source.stale||source.refreshInProgress||source.refreshError)&&!value.document?.selectedText?.stale&&!value.document?.selectedText?.refreshInProgress&&!value.document?.selectedText?.refreshError&&value.document?.selectedText?.status!=='error'&&!value.amendment?.gaps.length&&!value.related.gaps.length) {
+        const indexedUnverified=value.amendment?.basis==='index'&&value.amendment.variants.some(variant=>variant.sourceFreshness?.status!=='fresh'||variant.gaps.length||variant.wordingRetained||variant.proposerRetained||variant.recordRetained);
+        if(bytes<=this.limits.entryBytes&&!indexedUnverified&&!value.sources.some(source=>source.stale||source.refreshInProgress||source.refreshError)&&!value.document?.selectedText?.stale&&!value.document?.selectedText?.refreshInProgress&&!value.document?.selectedText?.refreshError&&value.document?.selectedText?.status!=='error'&&!value.amendment?.gaps.length&&!value.related.gaps.length) {
           while(this.cache.size&&(this.cache.size>=this.limits.entries||this.bytes+bytes>this.limits.bytes)){const oldest=this.cache.keys().next().value;this.bytes-=this.cache.get(oldest).bytes;this.cache.delete(oldest);}
           signal.throwIfAborted();this.cache.set(key,{value,bytes,until:this.clock()+this.limits.ttl});this.bytes+=bytes;
         }
         return value;
       }).finally(()=>this.pending.delete(key));this.pending.set(key,job);
+    }
+    return waitForRequest(job);
+  }
+  async readList(list,file,targetDocumentId) {
+    const listId=workId(list),key=createHash('sha256').update(JSON.stringify([AMENDMENT_EXTRACTION_VERSION,list,targetDocumentId,file])).digest('hex'),saved=this.extractions.get(key);
+    if(saved&&saved.until>this.clock())return saved.value;
+    if(saved){this.extractionBytes-=saved.bytes;this.extractions.delete(key);}
+    let job=this.extractionPending.get(key);
+    if(!job) {
+      job=sharedRequest(async signal=>{
+        const {buffer,resolvedSourceUrl}=await this.download(file.url);signal.throwIfAborted();
+        const manifestations=array(list.is_realized_by).flatMap(expression=>array(expression.is_embodied_by)).filter(manifestation=>{try{return new URL(manifestation.is_exemplified_by,'https://data.europarl.europa.eu/').href===file.url;}catch{return false;}});
+        const descriptor=manifestations.length===1?manifestations[0]:null,rawSize=descriptor?.byteSize,declaredSize=(typeof rawSize==='number'||typeof rawSize==='string'&&/^\d+$/.test(rawSize))&&Number.isSafeInteger(Number(rawSize))&&Number(rawSize)>=0?Number(rawSize):null;
+        const source={url:file.url,resolvedSourceUrl,fetchedAt:new Date(this.clock()).toISOString(),language:file.language,contentHash:createHash('sha256').update(buffer).digest('hex'),retrievedByteSize:buffer.byteLength,sourceVersion:{byteSize:declaredSize,issued:typeof descriptor?.issued==='string'?descriptor.issued:null},stale:false,refreshInProgress:false,refreshError:null};
+        const extraction=extractAmendments(buffer,{listId,targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt:source.fetchedAt}),value={extraction,source},bytes=Buffer.byteLength(JSON.stringify(value));
+        signal.throwIfAborted();
+        if(bytes<=this.limits.extractionBytes) {
+          while(this.extractions.size&&(this.extractions.size>=this.limits.extractionEntries||this.extractionBytes+bytes>this.limits.extractionBytes)){const oldest=this.extractions.keys().next().value;this.extractionBytes-=this.extractions.get(oldest).bytes;this.extractions.delete(oldest);}
+          this.extractions.set(key,{value,bytes,until:this.clock()+this.limits.extractionTtl});this.extractionBytes+=bytes;
+        }
+        return value;
+      }).finally(()=>this.extractionPending.delete(key));this.extractionPending.set(key,job);
     }
     return waitForRequest(job);
   }
@@ -73,7 +100,7 @@ export class DocumentContext {
     };
     const endpoint=(query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;
     const {work,record}=await read(endpoint,query.id);
-    if(query.id.startsWith('TA-')&&tail(work.work_type)!=='TEXT_ADOPTED')throw new HttpError(502,'invalid_document_source','Parliament did not return the requested adopted text.');
+    if(canonicalType(work.work_type)!==expectedType(query.id))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
     const related={status:'not-requested',items:[],gaps:[]};
     if(query.adopted) {
       related.status='available';const procedures=procedureIds(work),candidates=new Set();
@@ -82,33 +109,34 @@ export class DocumentContext {
       else {
         for(const id of procedures)try {
           const {work:procedure}=await read('/procedures/'+id,id,{procedure:true});
-          if(!Object.hasOwn(procedure,'created_a_realization_of'))related.gaps.push('adopted-relationships-unavailable');
+          if(!knownDocumentRelationships(procedure,'created_a_realization_of'))related.gaps.push('adopted-relationships-unavailable');
           for(const value of array(procedure.created_a_realization_of)){const valueId=typeof value==='string'?value:value?.id;const normalized=String(valueId||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');if(/^eli\/dl\/doc\/TA-10-\d{4}-\d{4,6}$/.test(normalized))candidates.add(tail(normalized));}
         }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;related.gaps.push('procedure-unavailable');}
         if(candidates.size>this.limits.adoptedCandidates){related.gaps.push('adopted-candidate-budget');}
         else for(const id of candidates)try {
           const {work:adopted,source}=await read('/adopted-texts/'+id,id);
-          if(!Object.hasOwn(adopted,'adopts'))related.gaps.push('adopted-reciprocal-relationship-unavailable');
-          if(tail(adopted.work_type)!=='TEXT_ADOPTED')related.gaps.push('adopted-record-type-unverified');
+          if(!knownDocumentRelationships(adopted,'adopts'))related.gaps.push('adopted-reciprocal-relationship-unavailable');
+          if(canonicalType(adopted.work_type)!=='def/ep-document-types/TEXT_ADOPTED')related.gaps.push('adopted-record-type-unverified');
           else if(refs(adopted.adopts).includes('eli/dl/doc/'+query.id))related.items.push({...documentSummary(adopted,null),relationship:{from:id,field:'adopts',to:query.id},source});
         }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;related.gaps.push('adopted-text-unavailable');}
         if(related.gaps.length)related.status=related.items.length?'partial':'unavailable';
       }
     }
     let document=null;
-    if(!query.adopted)document={...documentSummary(work,null),selectedDocumentId:query.id,selectedDocumentDate:work.document_date||null,selectedText:await this.readText(work,query.language),requestedLanguage:query.language,fetchedAt:new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null}};
+    if(!query.adopted&&query.includeBody!==false)document={...documentSummary(work,null),selectedDocumentId:query.id,selectedDocumentDate:work.document_date||null,selectedText:await this.readText(work,query.language),requestedLanguage:query.language,fetchedAt:new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null}};
     const amendment=query.amendmentId?await this.amendment(query,indexed,work,sources,read):null;
-    const chosen=amendment?.variants.length===1?amendment.variants[0]:null;
+    const chosen=amendment?.variants.length===1&&amendment.variants[0].wordingStatus==='available'&&(query.listId||!amendment.gaps.length)?amendment.variants[0]:null;
     const referenceDecisions=array(indexed?.decisions).filter(decision=>array(decision.amendmentIds).some(id=>id===query.amendmentId||id===indexed.id)&&typeof decision.reference==='string'&&decision.source?.url&&decision.source?.fetchedAt);
     const references=[...new Set(referenceDecisions.map(decision=>decision.reference))];
-    const target=!query.amendmentId?{...unavailableTarget(null),status:'not-requested'}:!chosen?unavailableTarget(amendment?.variants.length?'choose-source-version':'amendment-wording-unavailable'):chosen.language!==document?.selectedText?.textLanguage?unavailableTarget('different-text-languages'):resolveDocumentTarget(document?.selectedText,{originalText:chosen.originalText,targetLabel:chosen.targetLabel,referenceText:references.length===1?references[0]:undefined,language:chosen.language});
-    return {version:1,documentId:query.id,requestedLanguage:query.language,document,related,amendment,target:{...target,evidence:chosen?{amendmentId:query.amendmentId,listId:chosen.listId,wordingSource:chosen.source,referenceDecisions:referenceDecisions.map(decision=>({id:decision.id,reference:decision.reference,language:'en',source:decision.source}))}:null},sources};
+    const target=!query.amendmentId||query.includeBody===false?{...unavailableTarget(null),status:'not-requested'}:!chosen?unavailableTarget(amendment?.variants.length?'choose-source-version':'amendment-wording-unavailable'):chosen.language!==document?.selectedText?.textLanguage?unavailableTarget('different-text-languages'):resolveDocumentTarget(document?.selectedText,{originalText:chosen.originalText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references.length===1?references[0]:undefined,language:chosen.language});
+    return {version:1,documentId:query.id,requestedLanguage:query.language,document,related,amendment,target:{...target,evidence:chosen?{amendmentId:query.amendmentId,listId:chosen.listId,wordingSource:chosen.source,targetLabelLanguage:chosen.targetLabelLanguage,targetLabelSource:chosen.targetLabelSource,fieldSources:chosen.fieldSources,referenceDecisions:referenceDecisions.map(decision=>({id:decision.id,reference:decision.reference,language:'en',source:decision.source}))}:null},sources};
   }
   async amendment(query,indexed,work,sources,read) {
     const base={id:query.amendmentId,status:'unavailable',basis:null,variants:[],gaps:[]};
     const variants=indexed?.variants?.length?indexed.variants:indexed?[indexed]:[];
-    const accepted=variants.filter(row=>(!query.listId||row.listId===query.listId)&&row.textIntegrity==='complete'&&typeof row.originalText==='string'&&typeof row.proposedText==='string'&&!row.conflicted);
-    if(accepted.length)return {...base,status:'available',basis:'index',variants:accepted.map(row=>({listId:row.listId,language:row.language,targetLabel:row.targetLabel,originalText:row.originalText,proposedText:row.proposedText,authors:row.authors||[],source:row.wordingSource||null,sourceFreshness:row.sourceFreshness||null,gaps:row.gaps||[]}))};
+    const selectedVariants=variants.filter(row=>(!query.listId||row.listId===query.listId)&&typeof row.listId==='string');
+    const available=row=>row.textIntegrity==='complete'&&typeof row.originalText==='string'&&typeof row.proposedText==='string'&&!row.conflicted;
+    if(selectedVariants.length)return {...base,status:selectedVariants.some(available)?'available':'unavailable',basis:'index',gaps:selectedVariants.some(row=>!available(row))?['source-versions-incomplete']:[],variants:selectedVariants.map(row=>({...Object.fromEntries(['targetLabelLanguage','targetLabelSource','fieldSources','textParserVersion','wordingRetained','proposerRetained','recordRetained','listRelationship','metadataSource','proposerSource'].map(key=>[key,row[key]??null])),listId:row.listId,language:row.language,targetLabel:row.targetLabel,wordingStatus:available(row)?'available':'unavailable',originalText:available(row)?row.originalText:null,proposedText:available(row)?row.proposedText:null,authors:row.authors||[],source:row.wordingSource||null,sourceFreshness:row.sourceFreshness||null,gaps:row.gaps||[]}))};
     // A single opened amendment may use its exact published list. This is not a
     // corpus read or an index write; source range labels select candidates only.
     const number=amendmentReference('eli/dl/doc/'+query.amendmentId).number;
@@ -124,22 +152,19 @@ export class DocumentContext {
       if(observed.has(listId)){if(observed.get(listId)!==fingerprint)base.gaps.push('conflicting-list-metadata');continue;}observed.set(listId,fingerprint);
       let list=candidate;
       if(typeof candidate==='string'||!Object.hasOwn(candidate,'is_realized_by'))try {list=(await read('/plenary-documents/'+listId,listId)).work;}catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;base.gaps.push('amendment-list-unavailable');continue;}
-      if(workId(list)!==listId||tail(list.work_type)!=='AMENDMENT_LIST'||!refs(list.foresees_change_of).includes('eli/dl/doc/'+query.id)){base.gaps.push('amendment-list-target-unverified');continue;}
+      if(workId(list)!==listId||canonicalType(list.work_type)!=='def/ep-document-types/AMENDMENT_LIST'||!refs(list.foresees_change_of).includes('eli/dl/doc/'+query.id)){base.gaps.push('amendment-list-target-unverified');continue;}
       const files=documentFiles(list).filter(file=>file.format==='DOCX'&&file.language&&allowedDownload(file.url));
       const languages=[...new Set(files.map(file=>file.language))],language=languages.includes(query.language)?query.language:languages.includes('en')?'en':languages[0];
       const selected=files.filter(file=>file.language===language);
       if(selected.length!==1){base.gaps.push('amendment-file-unavailable-or-ambiguous');continue;}
       const file=selected[0];
       try {
-        const {buffer,resolvedSourceUrl}=await this.download(file.url);
-        requestSignal()?.throwIfAborted();
-        const source={url:file.url,resolvedSourceUrl,fetchedAt:new Date(this.clock()).toISOString(),language,contentHash:createHash('sha256').update(buffer).digest('hex'),stale:false,refreshInProgress:false,refreshError:null};sources.push(source);
-        const extraction=extractAmendments(buffer,{listId,targetDocumentId:query.id,language,sourceUrl:file.url,fetchedAt:source.fetchedAt});
+        const {extraction,source}=await this.readList(list,file,query.id);sources.push(source);
         const rows=extraction.amendments.filter(row=>row.number===number);
         if(rows.length!==1){base.gaps.push('amendment-not-in-published-list');continue;}
         const row=rows[0],losses=amendmentTextLosses(extraction,row);
         if(losses.length||typeof row.originalText!=='string'||typeof row.proposedText!=='string'){base.gaps.push('amendment-wording-incomplete');continue;}
-        base.variants.push({listId,language,targetLabel:row.targetLabel,originalText:row.originalText,proposedText:row.proposedText,authors:row.authors.map(name=>({name,personId:null,status:'published-name'})),source,parserVersion:AMENDMENT_EXTRACTION_VERSION,gaps:array(row.gaps)});
+        base.variants.push({listId,language,targetLabel:row.targetLabel,targetLabelLanguage:language,targetLabelSource:source,fieldSources:{wording:source,targetLabel:source},wordingStatus:'available',originalText:row.originalText,proposedText:row.proposedText,authors:row.authors.map(name=>({name,personId:null,status:'published-name'})),source,parserVersion:AMENDMENT_EXTRACTION_VERSION,gaps:array(row.gaps)});
       }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;base.gaps.push('amendment-source-unavailable');}
     }
     if(base.gaps.includes('conflicting-list-metadata'))base.variants=[];

@@ -179,6 +179,41 @@ test('compatible paragraph and point references do not conflict with a quote in 
   assert.deepEqual(resolve(text, {originalText: 'au) complete the union;', targetLabel: 'Paragraph 1 – point au', referenceText: '§1'}), found([1]));
 });
 
+test('compatible paragraph and point references resolve the narrower established point in either order', () => {
+  const text = document(['1. Recommends:', 'a) source point;']);
+  for (const [targetLabel, referenceText] of [['Paragraph 1', '§1, point a'], ['Paragraph 1 – point a', '§1']]) {
+    assert.deepEqual(resolve(text, {targetLabel, referenceText}), found([1], 'published-reference', null));
+  }
+});
+
+test('a compatible broad paragraph reference cannot substitute for a missing precise point', () => {
+  const text = document(['1. Recommends:', 'a) available point;']);
+  for (const [targetLabel, referenceText] of [['Paragraph 1', '§1, point b'], ['Paragraph 1 – point b', '§1']]) {
+    for (const originalText of [undefined, '1. Recommends:']) {
+      assert.equal(resolve(text, {targetLabel, referenceText, originalText}).reason, 'target_not_found');
+    }
+  }
+});
+
+test('conflicting supported identities remain ambiguous even when one or both source labels are missing', () => {
+  const samples = [
+    {paragraphs: ['E. available recital;'], targetLabel: 'Recital D', referenceText: 'Recital E', quote: 'E. available recital;'},
+    {paragraphs: ['D. available recital;'], targetLabel: 'Recital D', referenceText: 'Recital E', quote: 'D. available recital;'},
+    {paragraphs: ['Neither requested label occurs here.'], targetLabel: 'Recital D', referenceText: 'Recital E'},
+    {paragraphs: ['2. Available paragraph;'], targetLabel: 'Paragraph 1', referenceText: 'Paragraph 2', quote: '2. Available paragraph;'},
+    {paragraphs: ['5. Available paragraph;'], targetLabel: 'Article 5', referenceText: 'Paragraph 5', quote: '5. Available paragraph;'},
+    {paragraphs: ['1. Recommends:', 'b) available point;'], targetLabel: 'Paragraph 1 – point a', referenceText: '§1, point b', quote: 'b) available point;'},
+    {paragraphs: ['2. Recommends:', 'a) available point;'], targetLabel: 'Paragraph 1 – point a', referenceText: '§2, point a', quote: 'a) available point;'},
+    {paragraphs: ['No matching recital.'], targetLabel: 'before recital D', referenceText: 'after recital D'},
+  ];
+  for (const {paragraphs, targetLabel, referenceText, quote} of samples) {
+    for (const originalText of [undefined, quote]) {
+      assert.equal(resolve(document(paragraphs), {targetLabel, referenceText, originalText}).reason,
+        'conflicting_published_references', `${targetLabel} / ${referenceText}`);
+    }
+  }
+});
+
 test('different published references and contradictory relative directions remain ambiguous', () => {
   const text = document(['D. first recital;', 'E. another recital;']);
   assert.equal(resolve(text, {targetLabel: 'Recital D', referenceText: 'Recital E'}).reason, 'conflicting_published_references');

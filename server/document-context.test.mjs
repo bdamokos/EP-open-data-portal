@@ -29,10 +29,18 @@ function archive(documentXml,stylesXml) {
 
 test('document context validates exact identity, source variant and query keys',()=>{
   assert.equal(documentContextQuery(ta,new URLSearchParams()).id,ta);
-  assert.deepEqual(documentContextQuery(id,new URLSearchParams({amendment:amendmentId,list:listId})),{id,language:'en',amendmentId,listId,adopted:false});
+  assert.deepEqual(documentContextQuery(id,new URLSearchParams({amendment:amendmentId,list:listId})),{id,language:'en',amendmentId,listId,adopted:false,includeBody:true});
   for(const value of ['B-9-2026-0424','../secret',id+'-AM-40'])assert.throws(()=>documentContextQuery(value,new URLSearchParams()),{status:400});
   for(const params of ['amendment=B-10-2026-0424-AM-40','list='+listId,'amendment='+amendmentId+'&list=B-10-2026-0424-AM-001-099','adopted=0','lang=en&lang=fr','unknown=1','adopted=1&amendment='+amendmentId])assert.throws(()=>documentContextQuery(id,new URLSearchParams(params)),{status:400});
   assert.throws(()=>documentContextQuery(ta,new URLSearchParams('adopted=1')),{status:400});
+});
+
+test('wording-only reads defer the source body until context is requested',async()=>{
+  let bodies=0;const reader=service({findAmendment:()=>indexed,readText:async()=>{bodies++;return summary;}});
+  const wording=await reader.query(documentContextQuery(id,new URLSearchParams({amendment:amendmentId,body:'0'})),{store:{}});
+  assert.equal(wording.document,null);assert.equal(wording.target.status,'not-requested');assert.equal(wording.amendment.status,'available');assert.equal(bodies,0);
+  const context=await reader.query(query({amendmentId}),{store:{}});assert.equal(context.target.status,'found');assert.equal(bodies,1);
+  for(const text of ['body=1','body=0','body=0&adopted=1','body=0&amendment='+amendmentId+'&adopted=1'])assert.throws(()=>documentContextQuery(id,new URLSearchParams(text)),{status:400});
 });
 
 test('exact requested source is required before any body is read',async()=>{
@@ -65,6 +73,40 @@ test('an insertion uses an explicitly linked source decision, never its new-labe
   assert.equal((await unlinked.query(query({amendmentId}),{store:{}})).target.status,'unavailable');
 });
 
+test('an unreadable competing version cannot silently make another version the default target',async()=>{
+  const variants=[indexed,{...indexed,listId:id+'-AM-040-040',textIntegrity:'incomplete',originalText:null,proposedText:null}];
+  const reader=service({findAmendment:()=>({...indexed,variants})});
+  const result=await reader.query(query({amendmentId}),{store:{}});assert.equal(result.amendment.variants.length,2);assert.deepEqual(result.amendment.gaps,['source-versions-incomplete']);assert.equal(result.amendment.variants[1].wordingStatus,'unavailable');assert.equal(result.amendment.variants[1].originalText,null);assert.equal(result.target.status,'unavailable');
+  const pinned=await reader.query(query({amendmentId,listId}),{store:{}});assert.equal(pinned.target.status,'found');
+});
+
+test('target label language and field provenance remain independent of wording language',async()=>{
+  const retained={...indexed,originalText:'Quotation from another version.',targetLabelLanguage:null,targetLabelSource:source,fieldSources:{targetLabel:{source}},textParserVersion:'10',wordingRetained:true,proposerRetained:true,recordRetained:true};
+  const reader=service({findAmendment:()=>retained});const result=await reader.query(query({amendmentId}),{store:{}});
+  assert.equal(result.target.status,'unavailable');const variant=result.amendment.variants[0];assert.equal(variant.targetLabelLanguage,null);assert.deepEqual(variant.targetLabelSource,source);assert.deepEqual(variant.fieldSources,retained.fieldSources);assert.equal(variant.wordingRetained,true);assert.equal(variant.textParserVersion,'10');
+  const english=service({findAmendment:()=>({...retained,targetLabelLanguage:'en'})});const found=await english.query(query({amendmentId}),{store:{}});assert.equal(found.target.status,'found');assert.equal(found.target.quoteMatches,false);assert.deepEqual(found.target.evidence.targetLabelSource,source);
+});
+
+test('null adopted relationships are unavailable, while explicitly empty relationships remain observed',async()=>{
+  for(const field of ['created_a_realization_of','adopts']) {
+    const reader=service({request:async path=>path==='/plenary-documents/'+id?record({...work,inverse_created_a_realization_of:['eli/dl/proc/2026-2868']}):path==='/procedures/2026-2868'?record({id:'eli/dl/proc/2026-2868',created_a_realization_of:field==='created_a_realization_of'?null:['eli/dl/doc/'+ta]}):record({id:'eli/dl/doc/'+ta,identifier:ta,work_type:'def/ep-document-types/TEXT_ADOPTED',adopts:null})});
+    const result=await reader.query(query({adopted:true}));assert.equal(result.related.status,'unavailable');assert.equal(result.related.items.length,0);assert(result.related.gaps.length);
+  }
+  const empty=service({request:async path=>path.startsWith('/plenary-documents/')?record({...work,inverse_created_a_realization_of:['eli/dl/proc/2026-2868']}):record({id:'eli/dl/proc/2026-2868',created_a_realization_of:[]})});assert.equal((await empty.query(query({adopted:true}))).related.status,'available');
+});
+
+test('root document types use exact canonical identities rather than the last URI component',async()=>{
+  for(const type of ['def/ep-document-types/AMENDMENT_LIST','https://other.example/def/ep-document-types/REPORT_PLENARY','REPORT_PLENARY']) {
+    let bodies=0;const reader=service({request:async()=>record({...work,work_type:type}),readText:async()=>{bodies++;return summary;}});await assert.rejects(reader.query(query()),{code:'invalid_document_source'});assert.equal(bodies,0);
+  }
+});
+
+test('retained or unverified indexed wording never receives a fresh computed TTL',async()=>{
+  for(const fields of [{sourceFreshness:{status:'pending'}},{sourceFreshness:{status:'fresh'},gaps:['retained source']},{sourceFreshness:{status:'fresh'},wordingRetained:true}]) {
+    let reads=0;const reader=service({findAmendment:()=>({...indexed,...fields}),request:async()=>{reads++;return record(work);}});await reader.query(query({amendmentId}),{store:{}});await reader.query(query({amendmentId}),{store:{}});assert.equal(reads,2);
+  }
+});
+
 test('adopted candidates require exact procedure edges and reciprocal adopts, independently of original outcome',async()=>{
   const paths=[],root={...work,inverse_created_a_realization_of:['eli/dl/proc/2026-2868']};
   const procedure={id:'eli/dl/proc/2026-2868',created_a_realization_of:['eli/dl/doc/'+ta,'eli/dl/doc/TA-10-2026-0342']};
@@ -85,6 +127,7 @@ test('bounded published list fallback parses actual DOCX columns and never inven
   const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+id],is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:fixture.sourceUrl}]}]};
   let downloads=0;const reader=service({request:async()=>record({...work,inverse_foresees_change_of:[list]}),download:async url=>{downloads++;assert.equal(url,fixture.sourceUrl);return {buffer:archive(fixture.documentXml,fixture.stylesXml),resolvedSourceUrl:url};}});
   const result=await reader.query(query({amendmentId}));const wording=result.amendment.variants[0];assert.equal(result.amendment.basis,'published-list');assert.equal(wording.originalText,fixture.expected[0].originalText);assert.equal(wording.proposedText,fixture.expected[0].proposedText);assert(wording.authors.every(author=>author.personId===null));assert.equal(downloads,1);assert.equal(result.sources.at(-1).contentHash.length,64);
+  const later=await reader.query(query({amendmentId:id+'-AM-41'}));assert.equal(later.amendment.status,'unavailable');assert.equal(downloads,1,'different amendments reuse the same bounded list extraction');assert.equal(later.sources.at(-1).fetchedAt,result.sources.at(-1).fetchedAt);assert.equal(later.sources.at(-1).contentHash,result.sources.at(-1).contentHash);
 });
 
 test('absent or unrelated lists remain unavailable without a download or absence claim',async()=>{

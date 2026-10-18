@@ -88,6 +88,13 @@ const referenceKey = reference => reference.kind === 'point'
   ? `paragraph:${reference.number}/point:${reference.point}`
   : `${reference.kind}:${reference.number ?? reference.letter}`;
 
+function compatibleReferenceIdentities(left, right) {
+  if (referenceKey(left) === referenceKey(right)) return true;
+  if (left.relation !== 'at' || right.relation !== 'at') return false;
+  return left.number === right.number
+    && ((left.kind === 'paragraph' && right.kind === 'point') || (left.kind === 'point' && right.kind === 'paragraph'));
+}
+
 function parseReference(value) {
   const literal = whitespace(value);
   if (!literal || /\(\s*new\s*\)/i.test(literal)) return null;
@@ -173,28 +180,33 @@ export function resolveDocumentTarget(text, {originalText, targetLabel, referenc
   if (exceedsInputBudget(text, {originalText, targetLabel, referenceText})) return result('unavailable', 'matching_budget');
   const rows = sourceStructure(text);
   if (!rows) return result('unavailable', 'source_structure_unavailable');
-  const quote = whitespace(originalText);
-  const quotes = quotedTargets(rows, quote);
-  if (quotes === null) return result('unavailable', 'matching_budget');
   const isEnglish = english(language);
   const target = isEnglish ? parseReference(targetLabel) : null;
   const published = isEnglish ? parseReference(referenceText) : null;
   const isInsertion = /\(\s*new\s*\)/i.test(typeof targetLabel === 'string' ? targetLabel : '');
   if (isInsertion && (!published || published.relation === 'at')) return result('unavailable', 'insertion_reference_unavailable');
   const references = [target, published].filter(Boolean);
+  const relative = references.filter(reference => reference.relation !== 'at');
+  // Missing source labels cannot erase a contradiction between the requested
+  // identities. Only a numbered paragraph and its own point may differ in scope.
+  if (references.length === 2 && (!compatibleReferenceIdentities(references[0], references[1])
+    || (relative.length === 2 && relative[0].relation !== relative[1].relation))) {
+    return result('ambiguous', 'conflicting_published_references');
+  }
+  const narrowerReference = references.length === 2 && referenceKey(references[0]) !== referenceKey(references[1])
+    ? references.find(reference => reference.kind === 'point') : null;
+  const quote = whitespace(originalText);
+  const quotes = quotedTargets(rows, quote);
+  if (quotes === null) return result('unavailable', 'matching_budget');
   const labels = publishedTargets(rows);
   const foundReferences = references.map(reference => ({reference, matches: labels.get(referenceKey(reference)) || []}));
   if (foundReferences.some(item => item.matches.length > 1)) return result('ambiguous', 'multiple_published_targets');
   const found = foundReferences.filter(item => item.matches.length === 1);
   if (found.some(item => !item.matches[0].complete)) return result('unavailable', 'source_passage_incomplete');
-  const relative = references.filter(reference => reference.relation !== 'at');
-  if (relative.some(reference => references.some(other => referenceKey(reference) !== referenceKey(other)))) {
-    return result('ambiguous', 'conflicting_published_references');
+  if (narrowerReference && !found.some(item => referenceKey(item.reference) === referenceKey(narrowerReference))) {
+    return result('unavailable', 'target_not_found');
   }
   if (relative.length && !found.some(item => item.reference.relation !== 'at')) return result('unavailable', 'relative_target_not_found');
-  if (references.length === 2 && referenceKey(references[0]) === referenceKey(references[1])
-    && references[0].relation !== 'at' && references[1].relation !== 'at'
-    && references[0].relation !== references[1].relation) return result('ambiguous', 'conflicting_published_references');
   let selectedReference = found[0] || null;
   for (const next of found.slice(1)) {
     const firstRecord = selectedReference.matches[0], nextRecord = next.matches[0];
