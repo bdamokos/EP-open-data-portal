@@ -1,3 +1,4 @@
+import {viewReady} from './test-support/viewReady.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -10,14 +11,16 @@ const speechId='MTG-PL-2026-10-07-OTH-2017097993206';
 const item={id:'speech:'+speechId,sourceId:speechId,date:'2026-10-07',title:'Public speech fixture',titles:{en:'Public speech fixture'},recordKind:'speech',category:'plenary-contributions',categoryLabel:'Plenary contributions',speechKind:'PLENARY_DEBATE_WRITTEN_STATEMENT',reference:speechId,files:[],provenance:{role:'SPEAKER'}};
 const page=(offset=0)=>({categories:{},categoryGroups:[],categoryCoverage:{},items:offset?[]:[item],selectedItems:[],indexedTotal:11,nextOffset:offset?null:10,cache:{complete:false}});
 
-async function harness(t,query='',delay=false) {
+async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=false) {
   const window=new Window({url:'http://localhost/'+query}),pending=[],unexpected=[];
-  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1280,IS_REACT_ACT_ENVIRONMENT:true};
+  let releaseModule;const moduleGate=new Promise(resolve=>{releaseModule=resolve;});
+  const globals={__navigationViewGate:moduleGate,window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1280,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let root,vite;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
+    releaseModule();
     pending.forEach(request=>request.resolve(Response.json(page())));
     if(vite)await vite.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
@@ -38,19 +41,20 @@ async function harness(t,query='',delay=false) {
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
     if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
     if(route?.startsWith('speech/'))return Response.json({id:speechId,xml:null,speakers:[],availableTextLanguages:['en'],textLanguage:'en'});
+    if(brokenGroup&&route==='insights/group-voices'&&url.searchParams.get('group')==='ECR')return Response.json({people:[null],months:[],window:{},contributions:[],coverage:{initialized:true}});
     // Main-view error states still have a stable destination before any data.
     if(route?.startsWith('insights/')||route?.startsWith('outside/'))return Response.json({error:{message:'Local fixture unavailable.'}},{status:503});
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  vite=await createServer({configFile:false,plugins:delayedModule?[{name:'delay-view-fixture',transform(code,id){if(id.endsWith('/GroupVoices.tsx'))return 'await globalThis.__navigationViewGate;\n'+code;}}]:[],server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {default:App}=await vite.ssrLoadModule('/src/App.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  await act(async()=>root.render(createElement(App)));
+  const container=document.createElement('div');document.body.append(container);root=createRoot(container,{onCaughtError:()=>{}});
+  await act(async()=>root.render(createElement(App)));await viewReady(container);
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
-  const click=node=>{assert(node,'Missing control');node.focus();return act(async()=>node.click());};
+  const click=async node=>{assert(node,'Missing control');node.focus();await act(async()=>node.click());if(!delayedModule)await viewReady(container);};
   const finish=(data,status=200)=>act(async()=>{assert(pending.length,'Missing pending page');pending.shift().resolve(Response.json(data,{status}));});
-  return {window,container,pending,button,click,finish};
+  return {window,container,pending,button,click,finish,releaseView:async()=>{await act(async()=>{releaseModule();await vite.ssrLoadModule('/src/GroupVoices.tsx');});await viewReady(container);}};
 }
 
 test('member destination and Back restore the remounted exact portrait while retaining filters',async t=>{
@@ -175,4 +179,31 @@ test('revealing a speech scrolls only its reading container and respects the sti
     assert.equal(shell.scrollTop,40,'revealing a speech cannot implicitly move the shell');
     assert.equal(document.activeElement,h.container.querySelector('.explorer-speech-toggle'));
   });
+});
+
+
+test('delayed view imports keep navigation focus until mount and yield to a subsequent focus choice',async t=>{
+  for(const moved of [false,true,'returned'])await t.test(String(moved),async t=>{
+    const h=await harness(t,'',false,true);
+    await h.click(h.button('Group voices'));
+    const loading=h.container.querySelector('[data-view-loading]');
+    assert(loading,'the import is still pending');
+    assert.equal(loading.getAttribute('aria-busy'),'true');
+    assert.equal(loading.querySelector('[role=status]').textContent,'Loading view…');
+    const other=document.createElement('button');other.textContent='Another focus choice';document.body.append(other);
+    if(moved)other.focus();
+    if(moved==='returned'){document.body.tabIndex=-1;document.body.focus();}
+    await h.releaseView();
+    assert.equal(document.activeElement,moved==='returned'?document.body:moved?other:h.container.querySelector('h1'));
+  });
+});
+
+
+test('history navigation to another query in a failed view clears its boundary',async t=>{
+  const h=await harness(t,'?view=groups&gv-group=ECR',false,false,true);
+  assert(h.container.querySelector('.explorer-recovery [role=alert]'));
+  await act(async()=>{history.pushState(null,'','?view=groups&gv-group=PPE');window.dispatchEvent(new window.Event('popstate'));});
+  await viewReady(h.container);
+  assert.equal(h.container.querySelector('.explorer-recovery'),null);
+  assert.equal(h.container.querySelector('h1').textContent,'Group voices');
 });

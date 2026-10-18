@@ -22,7 +22,7 @@ async function harness(t,items=[member()]) {
   });
   t.mock.method(globalThis,'fetch',input=>new Promise(resolve=>requests.push({url:new URL(input,window.location.href),resolve,done:false})));
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {Saved,checkSaved}=await vite.ssrLoadModule('/src/Saved.tsx'),{createRoot}=await import('react-dom/client');
+  const {Saved}=await vite.ssrLoadModule('/src/Saved.tsx'),{checkSaved}=await vite.ssrLoadModule('/src/SavedControls.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=(language='en')=>act(async()=>root.render(createElement(Saved,{language,onBack(){},onMember(){}})));
   const button=()=>[...container.querySelectorAll('button')].find(node=>/^(Check for updates|Checking…)$/.test(node.textContent));

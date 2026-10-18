@@ -54,7 +54,7 @@ test('root fallback reads the current URL language and recovers on browser navig
   assert.equal(x.container.querySelector('main').lang,'hu');
   assert.equal(x.container.querySelector('nav'),null,'root fallback is independent of app navigation');
   fail=false;
-  await act(async()=>{history.pushState(null,'','?lang=fr');window.dispatchEvent(new window.Event('popstate'));});
+  await act(async()=>{history.pushState(null,'','?lang=hu&view=groups');window.dispatchEvent(new window.Event('popstate'));});
   assert.equal(x.container.querySelector('h1').textContent,'Members');
 });
 

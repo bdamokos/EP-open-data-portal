@@ -1,3 +1,4 @@
+import {viewReady} from './test-support/viewReady.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -22,8 +23,8 @@ async function harness(t,query='?view=groups&gv-group=PPE&gv-tab=people'){
  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {default:App}=await vite.ssrLoadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
  t.after(async()=>{await act(async()=>root.unmount());delays.forEach(resolve=>resolve(Response.json({people:[],months:[],coverage,window:{}})));await vite.close();await window.happyDOM.close();for(const [key,d] of originals)d?Object.defineProperty(globalThis,key,d):delete globalThis[key];});
- await act(async()=>root.render(createElement(App)));
- const click=node=>act(async()=>{assert(node);node.focus();node.click();});
+ await act(async()=>root.render(createElement(App)));await viewReady(container);
+ const click=async node=>{await act(async()=>{assert(node);node.focus();node.click();});await viewReady(container);};
  const restore=url=>act(async()=>{history.replaceState(null,'',url);window.dispatchEvent(new window.PopStateEvent('popstate'));});
  const input=async text=>act(async()=>{const field=container.querySelector('.gv-search input');Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(field,text);field.dispatchEvent(new window.InputEvent('input',{bubbles:true,data:text,inputType:'insertText'}));});
  return {window,container,calls,click,restore,input,fail:()=>{fail=true;},delays,deferPerson:()=>{deferPerson=true;},finishPerson:()=>act(async()=>{personResponses.splice(0).forEach(resolve=>resolve());})};
