@@ -73,7 +73,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const actual=text?.textLanguage||null;
   const availableLanguages=[...new Set([...(text?.availableTextLanguages||[]),...(actual?[actual]:[])])];
   const showPassage=()=>{const paragraph=reader.current?.querySelector<HTMLElement>('[data-context-target="true"]');paragraph?.scrollIntoView({block:'center'});paragraph?.focus({preventScroll:true});};
-  return <div className="document-context-document">
+  return <div className="document-context-document" data-context-pending={state.loading&&!hasText?'true':undefined}>
     {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools">{availableLanguages.length>1&&<label>Text language<select aria-label="Document text language" value={actual&&availableLanguages.includes(actual)?actual:language} onChange={event=>onLanguageChange(event.target.value)}>{availableLanguages.map(code=><option key={code} value={code}>{languageName(code)}</option>)}</select></label>}{hasText&&<FindInText key={id+':'+language} target={reader} label="Find in document"/>}</div></header>}
     {state.loading&&!data&&<p role="status">Loading document…</p>}
     {loadError&&<p className="document-context-notice" role="alert">{hasText?'Couldn’t update the document. Showing saved text.':extractionError?'Document text could not be loaded.':'Document could not be loaded.'} <button type="button" onClick={state.retry}>Try again</button></p>}
@@ -104,7 +104,8 @@ function ContextSession({request,language,selectedDocumentId,onSelectedDocumentI
   const data=responseFor(related.data,request.documentId,selectedLanguage);
   const choices=data?.related.items.filter(item=>/^TA-10-\d{4}-\d{4,6}$/.test(item.id)&&item.relationship.field==='adopts'&&item.relationship.from===item.id&&item.relationship.to===request.documentId)||[];
   const selectedChoice=choices.find(item=>item.id===selected),partial=data?.related.status==='partial';
-  return <section className="document-context-reader" lang="en" aria-label="Document context">
+  const pendingRelated=request.view==='adopted'&&related.loading&&(selected?!selectedChoice:!data);
+  return <section className="document-context-reader" lang="en" aria-label="Document context" data-context-pending={pendingRelated?'true':undefined}>
     <button type="button" className="document-context-back" onClick={request.onBack}>← Back</button>
     {request.view==='document'?<DocumentBody key={request.documentId+':'+selectedLanguage} id={request.documentId} language={selectedLanguage} interfaceLanguage={language} onLanguageChange={setLanguage} amendmentRequest={request}/>:<>
       {selected?<>
