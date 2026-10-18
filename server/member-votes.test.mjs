@@ -571,3 +571,45 @@ test('late conflicting decision pages cannot mutate the cached public source rec
   assert.equal(JSON.stringify(first),before);
   assert.equal('_conflictingSourceObservations' in first,false);
 });
+
+test('multiple contradictions retain all values and fields under their actual census/named stream',async()=>{
+  const census=clone(finalDecision),later={...clone(finalDecision),number_of_votes_favor:455},named={...clone(finalDecision),decision_outcome:'def/ep-statuses/REJECTED'};
+  const payloads=new Map();
+  const {service}=setup({limits:{decisionPageSize:1},override:({kind,endpoint,params})=>{
+    if(!['decisions','named'].includes(kind))return;
+    const response=source(endpoint,params,kind==='decisions'?[params.offset?later:census]:params.offset?[]:[named]);
+    payloads.set(response.url,response.payload);return response;
+  }});
+  const response=await service.query(MEMBER,query('sitting='+SITTING)),item=response.items[0],conflict=item.sourceConflicts;
+  assert(conflict.fields.includes('decision_outcome'));assert(conflict.fields.includes('number_of_votes_favor'));
+  assert.equal(conflict.census.decision_outcome,'def/ep-statuses/ADOPTED');
+  assert.equal(conflict.named.decision_outcome,'def/ep-statuses/REJECTED');
+  assert.equal(conflict.observations.length,3);
+  assert.deepEqual(conflict.observations.filter(observation=>observation.stream==='census').map(observation=>observation.values.number_of_votes_favor).sort(),[454,455]);
+  assert.deepEqual(conflict.observations.filter(observation=>observation.stream==='named').map(observation=>observation.values.decision_outcome),['def/ep-statuses/REJECTED']);
+  for(const observation of conflict.observations)for(const path of observation.evidencePaths){const raw=path.jsonPointer.slice(1).split('/').reduce((value,key)=>value[key],payloads.get(path.sourceUrl));for(const [field,value] of Object.entries(observation.values))assert.deepEqual(raw[field],value);assert.equal(new URL(path.sourceUrl).searchParams.has('vote-method'),observation.stream==='named');}
+  assert.equal(item.actualPosition.status,'conflicting');assert.equal(item.subjectId,null);assert.deepEqual(item.context.documentIds,[]);
+});
+
+test('a census-only pagination conflict never fabricates named evidence',async()=>{
+  const {service}=setup({limits:{decisionPageSize:1},override:({kind,endpoint,params})=>{
+    if(kind==='named')throw new Error('Named source unavailable');
+    if(kind==='decisions')return source(endpoint,params,[{...clone(finalDecision),decision_outcome:params.offset?'def/ep-statuses/LAPSED':finalDecision.decision_outcome}]);
+  }});
+  const response=await service.query(MEMBER,query('sitting='+SITTING)),conflict=response.items[0].sourceConflicts;
+  assert.deepEqual(conflict.named,{});
+  assert.equal(conflict.observations.length,2);assert(conflict.observations.every(observation=>observation.stream==='census'));
+  assert.deepEqual(new Set(conflict.observations.map(observation=>observation.values.decision_outcome)),new Set(['def/ep-statuses/ADOPTED','def/ep-statuses/LAPSED']));
+});
+
+test('every changed identity on a later page is withheld, including rows after the first conflict',async()=>{
+  const decisions=[clone(finalDecision),{...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-280001`,activity_id:`${SITTING}-DEC-280001`}];
+  const {service}=setup({decisions,limits:{decisionPageSize:2},override:({kind,endpoint,params})=>{
+    if(kind==='named')return source(endpoint,params,[]);
+    if(kind==='decisions')return source(endpoint,params,params.offset?decisions.map(node=>({...node,decision_outcome:'def/ep-statuses/REJECTED'})):decisions);
+  }});
+  const response=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(response.items.length,2);
+  assert.equal(response.coverage.sittings[0].completeness.conflictingDecisionIds.length,2);
+  assert(response.items.every(item=>item.actualPosition.status==='conflicting'&&item.outcome===null&&item.sourceConflicts.observations.length===2));
+});

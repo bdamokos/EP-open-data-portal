@@ -37,6 +37,33 @@ export function mergeSourceNodes(a,b) {
   const fields=Object.keys(a).filter(key=>!key.startsWith('_')&&Object.hasOwn(b,key)&&!equal(a[key],b[key]));
   return {node:{...a,...b},fields};
 }
+// Keep alternatives from every actual source stream. Later contradictions must
+// neither erase earlier fields nor turn a census occurrence into named evidence.
+export function decisionSourceConflicts(supplied) {
+  const grouped=new Map();
+  for(const observation of supplied) {
+    const key=observation.stream+':'+sourceNodeKey(observation.node);
+    const previous=grouped.get(key);
+    grouped.set(key,{...observation,evidencePaths:deduplicatePaths([...(previous?.evidencePaths||[]),...observation.evidencePaths])});
+  }
+  const observations=[...grouped.values()],fields=new Set();
+  let baseline;
+  for(const {node} of observations) {
+    const compared=mergeSourceNodes(baseline,node);
+    for(const field of compared.fields)fields.add(field);
+    baseline={...compared.node,...baseline};
+  }
+  if(!fields.size)return null;
+  const names=[...fields].sort();
+  const values=node=>Object.fromEntries(names.filter(field=>Object.hasOwn(node,field)).map(field=>[field,node[field]]));
+  function firstValues(stream) {
+    const first={};
+    for(const observation of observations.filter(observation=>observation.stream===stream))for(const [field,value] of Object.entries(values(observation.node)))if(!Object.hasOwn(first,field))first[field]=value;
+    return first;
+  }
+  return {fields:names,census:firstValues('census'),named:firstValues('named'),observations:observations.map(observation=>({stream:observation.stream,values:values(observation.node),evidencePaths:observation.evidencePaths})).filter(observation=>Object.keys(observation.values).length)};
+}
+
 const invalid=(node,fields)=>Object.entries(fields).flatMap(([field,kind])=>list(node?.[field]).flatMap((value,index)=>exactReference(value,kind)?[]:[{code:'invalid-reference',field,index}]));
 const requestTypes=new Set(['REQUEST_VOTE_SPLIT','REQUEST_VOTE_ROLLCALL','REQUEST_VOTE_SEPARATE']);
 const parser=new XMLParser({preserveOrder:true,ignoreAttributes:true,trimValues:false,parseTagValue:false,processEntities:true});
