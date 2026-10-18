@@ -1,4 +1,4 @@
-import {GroupVoices} from './GroupVoices';
+import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
 import {filterCountry,matchesCountry} from './countries.mjs';
 import {explorerParams} from './explorerUrl';
 import {SpeechCloud} from './SpeechCloud';
@@ -7,12 +7,12 @@ import {InterventionBadges,SpeechContextPanel,InterventionStatistics} from './Sp
 import {SpeakerName,SpeakerRoleLine} from './SpeakerIdentity';
 import {publicationBody} from './publication-body.mjs';
 import {orderedMemberships} from './memberships.mjs';
-import {Saved,SaveButton,useSavedChecks} from './Saved';
+import {SaveButton,useSavedChecks} from './SavedControls';
 import {interfaceTerm} from './terms.mjs';
 import {ParliamentHeader} from './ParliamentHeader';
 import {QuestionStatus} from './QuestionStatus';
 import {MotionStatuses,MotionOutcome} from './MotionOutcome';
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from "./References";
 import { Portrait } from "./components/Portrait";
 import './focus.css';
@@ -41,15 +41,19 @@ import {transcriptParagraphs,TranscriptText} from "./Transcript";
 import { transcriptLanguage } from "../server/transcript-language.mjs";
 import { useSpeechData, useData } from "./data";
 import { useSpeechVideo } from "./SpeechPlayer";
-import { Legislation } from './Legislation';
-import {Amendments,AmendmentsPage} from './Amendments';
 import {AmendmentTrailLink} from './AmendmentTrailLink';
 import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule} from './publicFeatures';
-import { QuestionTopics } from './QuestionTopics';
-import {OutsideVoices} from './OutsideVoices';
 import {Status} from './Status';
 import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './coAuthors.mjs';
 import {selectLanguageText} from './language.mjs';
+
+const GroupVoices=lazy(()=>import('./GroupVoices').then(module=>({default:module.GroupVoices})));
+const Legislation=lazy(()=>import('./Legislation').then(module=>({default:module.Legislation})));
+const QuestionTopics=lazy(()=>import('./QuestionTopics').then(module=>({default:module.QuestionTopics})));
+const OutsideVoices=lazy(()=>import('./OutsideVoices').then(module=>({default:module.OutsideVoices})));
+const Saved=lazy(()=>import('./Saved').then(module=>({default:module.Saved})));
+const Amendments=lazy(()=>import('./Amendments').then(module=>({default:module.Amendments})));
+const AmendmentsPage=lazy(()=>import('./Amendments').then(module=>({default:module.AmendmentsPage})));
 
 const normalize = (s: string) =>
   s
@@ -393,6 +397,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
 }
 export default function App() {
   const [initial] = useState(() => new URLSearchParams(location.search));
+  const [restoration,setRestoration]=useState(0);
   const [lang, setLang] = useState(() => queryLanguage(initial));
   const [member, setMember] = useState<number | null>(
     /^\d+$/.test(initial.get("member") || "")
@@ -447,21 +452,29 @@ export default function App() {
     if(page.scrollTop>contentTop)page.scrollTo({top:contentTop});
   }, [member, tab, view, speechLink, activityLink]);
   // Apply the destination after the existing responsive scroll policy has settled.
-  useEffect(()=>{
+  function focusDestination(){
     const intent=pendingDestination.current;
     if(!intent||intent.view!==view||intent.member!==member)return;
-    pendingDestination.current=null;
+    // Suspense can retain the previous view's hidden DOM while a chunk loads.
+    if(document.querySelector('[data-view-loading]'))return;
     // Selected speech links already hand focus to the exact item once it mounts.
-    if(!view&&member&&speechLink&&!intent.opener)return;
+    if(!view&&member&&speechLink&&!intent.opener){pendingDestination.current=null;return;}
     const page=document.querySelector<HTMLElement>('main.explorer,main.explorer-insights');
     const portrait=intent.portrait!=null?page?.querySelector<HTMLElement>(`[data-member-id="${intent.portrait}"] .portrait--button`):null;
     const opener=intent.opener;
     const returned=opener?.node?.isConnected?opener.node:opener&&opener.headerIndex>=0?page?.querySelectorAll<HTMLElement>('.parliament-header nav button')[opener.headerIndex]:null;
     const target=portrait||returned||page?.querySelector<HTMLElement>('h1');
     if(!target)return;
+    pendingDestination.current=null;
     if(target.tagName==='H1')target.tabIndex=-1;
     target.focus({preventScroll:true});
     if(portrait||returned)target.scrollIntoView({block:'nearest'});
+  }
+  useEffect(()=>{
+    focusDestination();
+    const cancel=()=>{pendingDestination.current=null;};
+    document.addEventListener('focusin',cancel);
+    return ()=>document.removeEventListener('focusin',cancel);
   },[view,member,speechLink]);
   useEffect(() => {
     const timer=window.setInterval(directoryState.retry,directory?.index.complete ? 60_000 : 10_000);
@@ -557,6 +570,7 @@ export default function App() {
   useEffect(()=>{
     const restore=()=>{
       pendingDestination.current=null;
+      setRestoration(value=>value+1);
       const query=new URLSearchParams(location.search),next=query.get('view');
       const restored=publicExplorerView(next);
       setLang(queryLanguage(query));setRole(queryRole(query));
@@ -598,6 +612,10 @@ export default function App() {
     navigateView(null);
     pendingDestination.current={view:null,member,opener};
   };
+  return <ErrorBoundary resetKey={`${view}:${member}:${tab}:${restoration}`} language={lang}
+    navigation={<ParliamentHeader view={view||'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>}
+    onRetry={()=>{pendingDestination.current={view,member};}}
+  ><Suspense fallback={<ViewLoading language={lang}/>}><ViewContent onReady={focusDestination} render={()=>{
   if (view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
     return view==='groups' ? <GroupVoices {...props}/> : view==='amendments' ? <AmendmentsPage {...props}/> : view==='legislation' ? <Legislation {...props}/> : view==='outside' ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>;
@@ -911,4 +929,5 @@ export default function App() {
         </footer>
     </main>
   );
+  }}/></Suspense></ErrorBoundary>;
 }

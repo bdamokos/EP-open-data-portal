@@ -40,9 +40,30 @@ test('production JavaScript retains full notices for every bundled dependency', 
   const chunks = result.output.filter(file => file.type === 'chunk');
   assert.ok(chunks.length > 0);
   for (const chunk of chunks) {
-    assert.ok(chunk.code.startsWith(banner), `notices stripped from ${chunk.fileName}`);
+    // Vite may prepend its dynamic-import dependency helper after bundling.
+    const bannerOffset = chunk.code.indexOf(banner);
+    assert.ok(bannerOffset >= 0, `notices stripped from ${chunk.fileName}`);
     assert.ok(chunk.map, `missing source map for ${chunk.fileName}`);
-    const bannerLines = banner.split('\n').length;
-    assert.ok(chunk.map.mappings.startsWith(';'.repeat(bannerLines)), 'source maps must account for the notice banner');
+    const noticeLines = chunk.code.slice(0, bannerOffset + banner.length).split('\n').length;
+    assert.ok(chunk.map.mappings.startsWith(';'.repeat(noticeLines)), 'source maps must account for the notice banner and preload helper');
+  }
+
+  const manifest = JSON.parse(result.output.find(file => file.fileName === '.vite/manifest.json').source);
+  const emitted = new Set(Object.values(manifest).map(entry => entry.file));
+  for (const chunk of chunks) assert(emitted.has(chunk.fileName), `chunk missing from immutable-asset manifest: ${chunk.fileName}`);
+  const secondary = ['GroupVoices', 'Legislation', 'QuestionTopics', 'OutsideVoices', 'Saved', 'Amendments'].map(name => `src/${name}.tsx`);
+  assert.deepEqual([...manifest['index.html'].dynamicImports].sort(), secondary.sort());
+  const initial = new Set();
+  function visit(key) {
+    if (initial.has(key)) return;
+    initial.add(key);
+    for (const imported of manifest[key].imports || []) visit(imported);
+  }
+  visit('index.html');
+  for (const key of secondary) assert(!initial.has(key), `${key} was pulled into the initial load`);
+  const initialFiles = new Set([...initial].map(key => manifest[key].file));
+  const initialSources = chunks.filter(chunk => initialFiles.has(chunk.fileName)).flatMap(chunk => chunk.map.sources);
+  for (const name of ['Saved.tsx', 'Amendments.tsx', 'europeMap.ts', 'TopicTrends.tsx']) {
+    assert(!initialSources.some(source => source.endsWith('/' + name)), `${name} remains eager through another export`);
   }
 });

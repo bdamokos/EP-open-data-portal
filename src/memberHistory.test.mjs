@@ -1,3 +1,4 @@
+import {viewReady} from './test-support/viewReady.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -40,9 +41,9 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {default:App}=await vite.ssrLoadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  await act(async()=>root.render(createElement(App)));
+  await act(async()=>root.render(createElement(App)));await viewReady(container);
   const select=(node,value)=>act(async()=>{assert(node,'Missing select');node.value=value;node.dispatchEvent(new window.Event('change',{bubbles:true}));});
-  const click=text=>act(async()=>{const node=[...container.querySelectorAll('.parliament-header nav button')].find(node=>node.textContent===text);assert(node,'Missing navigation: '+text);node.click();});
+  const click=async text=>{await act(async()=>{const node=[...container.querySelectorAll('.parliament-header nav button')].find(node=>node.textContent===text);assert(node,'Missing navigation: '+text);node.click();});await viewReady(container);};
   const go=delta=>act(async()=>{
     let timer,listener;
     const popped=new Promise((resolve,reject)=>{listener=resolve;window.addEventListener('popstate',listener,{once:true});timer=setTimeout(()=>reject(Error('Missing popstate for history.go('+delta+')')),5000);});
@@ -59,7 +60,7 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
     assert.deepEqual([...container.querySelectorAll('[data-member-id]')].map(node=>Number(node.dataset.memberId)),expected.map(row=>row.id),'actual filtered member identities');
     for(const row of expected)assert.match(container.querySelector(`[data-member-id="${row.id}"]`).textContent,new RegExp(row.firstName+'\\s*'+row.lastName));
   }
-  const open=id=>act(async()=>{const node=container.querySelector(`[data-member-id="${id}"] button`);assert(node,'Missing portrait: '+id);node.click();});
+  const open=async id=>{await act(async()=>{const node=container.querySelector(`[data-member-id="${id}"] button`);assert(node,'Missing portrait: '+id);node.click();});await viewReady(container);};
   return {window,container,select,click,go,filters,language,agree,open};
 }
 
