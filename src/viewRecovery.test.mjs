@@ -64,7 +64,7 @@ test('concurrent API and portrait mismatches show one localized recovery notice 
   });
   assert.equal(calls.length,3,'a mismatch is not retried');
   assert.equal(x.container.querySelectorAll('[role=alert]').length,1);
-  assert.equal(x.container.querySelector('h1').textContent,'Elérhető a böngésző új verziója');
+  assert.equal(x.container.querySelector('h1').textContent,'Elérhető a parlamenti adatböngésző új verziója');
   assert.equal(x.container.querySelector('main').lang,'hu');
   assert.equal(document.activeElement,x.container.querySelector('h1'));
   assert.equal(x.container.querySelector('[role=alert]').getAttribute('aria-labelledby'),document.activeElement.id);
