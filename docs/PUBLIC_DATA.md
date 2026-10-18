@@ -40,6 +40,12 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 
 ## Source notes
 
+### Reading a document in context
+
+The lazy context reader uses the exact `/plenary-documents`, `/procedures` and `/adopted-texts` records and their declared DOCX files. It can read one amendment from at most four explicitly linked published lists when indexed wording is missing; list-number ranges select candidates, while the actual parsed individual number establishes inclusion. This read does not alter the index or resolve published proposer names into member identities. Adopted-text choices require an exact procedure link and reciprocal `adopts`, independently of the original text's recorded outcome.
+
+Source paragraphs retain their XML locations, boundaries and unsupported objects. A quotation match cannot cross an omitted block or table cell. A unique published provision reference can locate a passage even when the amendment quotes a different version or typography; the quotation difference remains explicit. The original, joint and adopted text stay separate documents. Missing text or relationships remain unavailable rather than proving that no amendment or adopted text exists.
+
 ### Member voting records
 
 The member voting API reads a selected held plenary week or sitting through `/meetings`, sitting `/decisions`, `/vote-results` and `/foreseen-activities`. Named roll calls use `vote-method=ROLL_CALL_EV` without `filter-output=voters`; a separate voter-excluded decision read retains non-named and lapsed outcomes. Exact decision parents, result children and agenda references connect documents, procedures, amendments and split components. Procedural ballots without agenda links remain available with unresolved context. English reference labels provide an explicitly labelled scope heuristic when no exact amendment/component reference exists. Subject groups use exact vote-result identities and keep whole-text source decisions separate from individual amendment/part outcomes. Ambiguous forward/inverse parents and conflicting source projections withhold enrichment.

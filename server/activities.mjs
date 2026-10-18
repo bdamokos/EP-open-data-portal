@@ -102,6 +102,7 @@ export async function recentActivities(id, language) {
 export function documentEndpoint(id) {
   if (/^[EOP]-\d+-\d{4}-\d+(?:-ASW)?$/.test(id)) return `/parliamentary-questions/${id.replace(/-ASW$/, "")}`;
   if (/^(?:A|B|RC)-\d+-\d{4}-\d+$/.test(id)) return `/plenary-documents/${id}`;
+  if (/^TA-\d+-\d{4}-\d+$/.test(id)) return `/adopted-texts/${id}`;
   if (/^[A-Z]{3,5}-(?:AD|AL|AM|PA|PR)-\d+(?:-\d+)*$/.test(id)) return `/committee-documents/${id}`;
   return null;
 }
