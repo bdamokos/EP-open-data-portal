@@ -407,3 +407,31 @@ test('standalone exact reads pin their snapshot, roll back their failures and pr
     assert.equal(store.db.isTransaction,false);
   } finally {publisher.close();}
 });
+
+test('read failures survive SQLite automatic rollback and a failing cleanup rollback',async t=>{
+  for(const name of ['motion response','exact selection'])for(const mode of ['already rolled back','rollback fails'])await t.test(name+' · '+mode,t=>{
+    const {store}=setup(t),failure=new Error('Original isolated read failure');
+    const exec=store.db.exec.bind(store.db);
+    let cleanupAttempts=0;
+    const rollback=t.mock.method(store.db,'exec',sql=>{
+      if(sql==='ROLLBACK') {
+        cleanupAttempts++;
+        if(mode==='rollback fails')throw new Error('Isolated cleanup failure');
+      }
+      return exec(sql);
+    });
+    t.mock.method(store,'get',()=>{
+      if(mode==='already rolled back')exec('ROLLBACK');
+      throw failure;
+    });
+    const read=name==='motion response'?()=>page(store):()=>amendmentById(store,{document:target,id:target+'-AM-13'});
+    try {
+      assert.throws(read,error=>error===failure);
+      assert.equal(cleanupAttempts,mode==='already rolled back'?0:1);
+      assert.equal(store.db.isTransaction,mode==='rollback fails');
+    } finally {
+      rollback.mock.restore();
+      if(store.db.isTransaction)exec('ROLLBACK');
+    }
+  });
+});

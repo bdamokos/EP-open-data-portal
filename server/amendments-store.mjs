@@ -258,7 +258,7 @@ export function amendmentById(store,{document,id,language='en'}={}) {
     store.db.exec('COMMIT');
     return result;
   } catch(error) {
-    store.db.exec('ROLLBACK');
+    try {if(store.db.isTransaction)store.db.exec('ROLLBACK');}catch {/* Preserve the read's original failure. */}
     throw error;
   }
 }
