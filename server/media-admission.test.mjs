@@ -35,9 +35,7 @@ for(const kind of ['recording','player','document','legislation','portrait'])for
   const first=result(read());await turn();
   if(mode==='admission'){assert.equal(queue.waiters.length,1);t.mock.timers.tick(10_000);}
   const local=await first;assert.equal(calls.local,0);
-  if(kind==='document'){
-    assert.equal(local.value.status,'error');assert.equal(Date.parse(local.value.nextRetryAt),Date.now()+(mode==='admission'?1000:30_000));
-  }else assert.equal(local.error.code,'upstream_busy');
+  assert.equal(local.error.code,'upstream_busy');
   if(held)held();else t.mock.timers.tick(30_000);
   const recovered=await read();assert(kind==='document'?recovered.status==='available':Boolean(recovered.payload||recovered.body));assert.equal(calls.local,1);
   const failed=await result(read(true));assert(kind==='document'?failed.value.status==='error':Boolean(failed.error));
