@@ -29,7 +29,7 @@ export function MemberMotionReader({activity,memberId,language,memberName,query,
         {choices.map(choice=><option key={choice.id} value={choice.id}>{choice.kind==='joint'?'Joint motion':'Original motion'} · {choice.id}</option>)}
       </select>
     </label>
-    {selected?.title&&<p className="member-motion-reader__title" lang={selected.titleLanguage||''}>{selected.title}</p>}
+    {selected?.title&&selected.id!==activity.sourceId&&<p className="member-motion-reader__title" lang={selected.titleLanguage||''}>{selected.title}</p>}
     {unavailable?<p className="member-motion-reader__unavailable" role="status">{state.reason||'This reader link is unavailable.'}</p>:
       state.documentId&&<>
         {state.reason&&<p className="member-motion-reader__unavailable" role="status">{state.reason}</p>}

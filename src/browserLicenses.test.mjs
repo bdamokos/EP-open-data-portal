@@ -51,7 +51,7 @@ test('production JavaScript retains full notices for every bundled dependency', 
   const manifest = JSON.parse(result.output.find(file => file.fileName === '.vite/manifest.json').source);
   const emitted = new Set(Object.values(manifest).map(entry => entry.file));
   for (const chunk of chunks) assert(emitted.has(chunk.fileName), `chunk missing from immutable-asset manifest: ${chunk.fileName}`);
-  const secondary = ['GroupVoices', 'Legislation', 'QuestionTopics', 'OutsideVoices', 'Saved', 'Amendments', 'MemberVotes', 'DocumentContextReader'].map(name => `src/${name}.tsx`);
+  const secondary = ['GroupVoices', 'Legislation', 'QuestionTopics', 'OutsideVoices', 'Saved', 'Amendments', 'MemberVotes', 'DocumentContextReader', 'MemberMotionReader'].map(name => `src/${name}.tsx`);
   assert.deepEqual([...manifest['index.html'].dynamicImports].sort(), secondary.sort());
   const initial = new Set();
   function visit(key) {
@@ -63,7 +63,7 @@ test('production JavaScript retains full notices for every bundled dependency', 
   for (const key of secondary) assert(!initial.has(key), `${key} was pulled into the initial load`);
   const initialFiles = new Set([...initial].map(key => manifest[key].file));
   const initialSources = chunks.filter(chunk => initialFiles.has(chunk.fileName)).flatMap(chunk => chunk.map.sources);
-  for (const name of ['Saved.tsx', 'Amendments.tsx', 'MemberVotes.tsx', 'DocumentContextReader.tsx', 'europeMap.ts', 'TopicTrends.tsx']) {
+  for (const name of ['Saved.tsx', 'Amendments.tsx', 'MemberVotes.tsx', 'DocumentContextReader.tsx', 'MemberMotionReader.tsx', 'MotionAmendments.tsx', 'europeMap.ts', 'TopicTrends.tsx']) {
     assert(!initialSources.some(source => source.endsWith('/' + name)), `${name} remains eager through another export`);
   }
 });
