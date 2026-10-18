@@ -1,3 +1,4 @@
+import {unthrottledUpstream} from './test-support/upstream.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -14,7 +15,7 @@ import { SPLIT_PARSER_VERSION, parseSplitRequest } from './amendment-splits.mjs'
 import { resolveAmendmentAuthors } from './amendment-authors.mjs';
 import { AMENDMENT_EXTRACTION_VERSION, extractAmendments } from './amendment-documents.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
-import { boundedUpstream, upstreamStatus } from './odp.mjs';
+import { UpstreamQueue } from './upstream-queue.mjs';
 
 const targetId='A-10-2026-0254', otherTarget='B-10-2026-0254', sitting='MTG-PL-2026-10-07';
 const tabled='2026-10-02', fetchedAt='2026-10-16T17:00:00.000Z', earlier='2026-10-15T17:00:00.000Z';
@@ -50,7 +51,7 @@ function setup(t) {
   assert(store.acquire());
   const {generation}=store.beginCycle();
   t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
-  const worker=new ActivityWorker(store,{clock:()=>now,fetchRecord:async()=>{throw new Error('Unexpected network request in amendment test.');}});
+  const worker=new ActivityWorker(store,{runUpstream:unthrottledUpstream,clock:()=>now,fetchRecord:async()=>{throw new Error('Unexpected network request in amendment test.');}});
   return {store,worker,generation,advance:milliseconds=>{now+=milliseconds;store.renew();}};
 }
 function putList(store,generation,key,work,at) {
@@ -140,14 +141,19 @@ test('worker cancellation reaches signal-aware DOCX and XML downloads promptly a
 
 test('worker cancellation removes a queued amendment download before its downloader starts',async t=>{
   const {worker,task,download,unchanged}=cancellationTask(t,'amendment-extract'),occupied=deferred(),release=deferred();
-  const blocker=boundedUpstream(async()=>{occupied.resolve();await release.promise;},{priority:'background'});
+  const queue=new UpstreamQueue({interval:0});
+  worker.runUpstream=async(operation,{priority,signal}={})=>{
+    const release=await queue.acquire(priority,{signal});
+    try {signal?.throwIfAborted();return await operation(signal);}finally {release();}
+  };
+  const blocker=worker.runUpstream(async()=>{occupied.resolve();await release.promise;},{priority:'background'});
   await occupied.promise;
-  const baseline=upstreamStatus().queued;let downloads=0;
+  const baseline=queue.snapshot().queued;let downloads=0;
   worker.running=true;worker[download]=async()=>{downloads++;return {buffer:Buffer.alloc(0)};};
   const pending=worker.task(task),rejected=assert.rejects(pending,error=>error===worker.controller.signal.reason);
-  assert.equal(upstreamStatus().queued,baseline+1);
+  assert.equal(queue.snapshot().queued,baseline+1);
   worker.stop();
-  try {await beforeTimeout(rejected);assert.equal(upstreamStatus().queued,baseline);assert.equal(downloads,0);unchanged();}
+  try {await beforeTimeout(rejected);assert.equal(queue.snapshot().queued,baseline);assert.equal(downloads,0);unchanged();}
   finally {release.resolve();await blocker;await rejected;worker.running=false;}
 });
 

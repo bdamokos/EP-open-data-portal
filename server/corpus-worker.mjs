@@ -91,8 +91,8 @@ export function questionFiles(work,policy='all') {
 }
 
 export class CorpusWorker {
-  constructor(store,{fetchRecord=apiFetch,download=downloadDocx,clock=Date.now,budget=300,maxDuration=60*60_000,diskLimit=2*1024**3,interval=1000,languages='all',pageSize=25}={}) {
-    Object.assign(this,{store,fetchRecord,download,clock,budget,maxDuration,diskLimit,interval,languages,pageSize});
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,download=downloadDocx,clock=Date.now,budget=300,maxDuration=60*60_000,diskLimit=2*1024**3,interval=1000,languages='all',pageSize=25}={}) {
+    Object.assign(this,{store,runUpstream,fetchRecord,download,clock,budget,maxDuration,diskLimit,interval,languages,pageSize});
     this.running=false;this.stopped=false;this.controller=new AbortController();this.lastRequest=0;
   }
   async pace() {
@@ -233,7 +233,7 @@ export class CorpusWorker {
     } else if(task.kind==='docx') {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');
       await this.pace();
-      const result=await boundedUpstream(()=>this.download(body.url),{priority:'background'});
+      const result=await this.runUpstream(()=>this.download(body.url),{priority:'background'});
       this.store.putDocument({sourceId:body.sourceId,kind:body.kind,parentId:body.parentId,date:body.date,term:10,originalLanguages:body.originalLanguages},
         [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'docx',sourceUrl:body.url,fetchedAt:new Date(this.clock()).toISOString(),body:result.paragraphs.join('\n'),raw:null}]);
       this.store.finishTask(task);

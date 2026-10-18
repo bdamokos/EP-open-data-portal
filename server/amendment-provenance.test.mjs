@@ -1,3 +1,4 @@
+import {unthrottledUpstream} from './test-support/upstream.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync} from 'node:fs';
@@ -32,7 +33,7 @@ function fixture(t) {
   const directory=mkdtempSync(path.join(os.tmpdir(),'amendment-provenance-'));let now=Date.parse('2026-10-17T08:00:00Z');
   const store=new ActivityStore(directory,{clock:()=>now});assert(store.acquire());const {generation}=store.beginCycle();
   t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
-  const worker=new ActivityWorker(store,{clock:()=>now,fetchRecord:async()=>{throw Error('Unexpected upstream request in provenance fixture.');}});
+  const worker=new ActivityWorker(store,{runUpstream:unthrottledUpstream,clock:()=>now,fetchRecord:async()=>{throw Error('Unexpected upstream request in provenance fixture.');}});
   const at=()=>new Date(now).toISOString();
   store.putSource(generation,'/plenary-documents/'+target,'document',{id:'eli/dl/doc/'+target,identifier:target,amendmentLinksVersion:AMENDMENT_LINKS_VERSION,work_type:'def/ep-document-types/REPORT_PLENARY',document_date:date,inverse_foresees_change_of:[],inverse_based_on_a_realization_of:['eli/dl/event/'+sitting+'-VOT-ITM-123']},at());
   store.putSource(generation,'amendment:roster:'+date,'amendment-roster',{members:[{id:'101',givenName:'Alex',familyName:'Common'}],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+date,fetchedAt:at()}]},at());

@@ -1,3 +1,4 @@
+import {unthrottledUpstream} from './test-support/upstream.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -94,7 +95,7 @@ async function fixture(t,{byteSize,baseline=true,initialDistribution='available'
     work_type:'def/ep-document-types/REPORT_PLENARY',document_date:documentDate,title_dcterms:{en:'Public implementation report'},
     inverse_created_a_realization_of:['eli/dl/proc/2025-0233'],inverse_foresees_change_of:[detail.id],
     inverse_based_on_a_realization_of:['eli/dl/event/'+sittingId+'-VOT-ITM-123']};
-  const worker=new ActivityWorker(store,{clock:()=>now,
+  const worker=new ActivityWorker(store,{runUpstream:unthrottledUpstream,clock:()=>now,
     fetchRecord:async endpoint=>{
       assert.equal(endpoint,'/documents/'+listId,'Unexpected network request in isolated amendment freshness test.');
       return {fetchedAt:new Date(now).toISOString(),payload:{data:[detail]}};
