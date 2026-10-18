@@ -34,7 +34,7 @@ function page({items=[amendment()],document=documentId,scope='member',language='
     snapshots:{amendments:1,text:1},...extra};
 }
 
-async function readerHarness(t,{state={},props={}}={}) {
+async function readerHarness(t,{state={},props={},focusContextChild=false}={}) {
   const window=new Window({url:'http://localhost/'}),requests=[];
   const globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -56,7 +56,7 @@ async function readerHarness(t,{state={},props={}}={}) {
     return createElement(MotionAmendments,{...currentProps,state:currentState,onStateChange:setState,renderContext:context=>{
       lastContext=context;
       return createElement('div',{'data-test-context':true},`Context ${context.documentId} ${context.amendmentId??''} ${context.listId??''} ${context.view}`,
-        createElement('button',{onClick:context.onBack},'Back from test context'));
+        createElement('button',{onClick:context.onBack,autoFocus:focusContextChild},'Back from test context'));
     }});
   }
   await act(async()=>root.render(createElement(Host)));
@@ -109,6 +109,10 @@ test('context uses the exact motion, amendment and chosen list, and Back retains
   await h.respond(result);await h.click(/^Amendment 13/);
   await h.change('.motion-amendments__version select',listB);
   await h.click('Read in context');
+  const region=h.container.querySelector('[role="region"][aria-label="Amendment in context"]');
+  assert(region,'amendment context has a named region');
+  assert.equal(region.tabIndex,-1);
+  assert(region.contains(document.activeElement),'focus follows the removed detail action into its named context');
   assert.deepEqual({documentId:h.context().documentId,amendmentId:h.context().amendmentId,listId:h.context().listId,view:h.context().view},
     {documentId,amendmentId:item.id,listId:listB,view:'document'});
   assert.equal(h.requests.length,1);
@@ -121,6 +125,30 @@ test('context uses the exact motion, amendment and chosen list, and Back retains
   assert.deepEqual({documentId:h.context().documentId,amendmentId:h.context().amendmentId,listId:h.context().listId,view:h.context().view},
     {documentId,amendmentId:undefined,listId:undefined,view:'adopted'},'the downstream reader resolves an observed adopted relation from the same B/RC target');
   assert.equal(h.requests.length,1);
+});
+
+test('context entry preserves focus already placed on a child by the parent reader',async t=>{
+  const h=await readerHarness(t,{state:{open:true},focusContextChild:true});
+  await h.respond(page());await h.click(/^Amendment 13/);await h.click('Read in context');
+  assert.equal(document.activeElement,h.button('Back from test context'));
+  assert(h.container.querySelector('[role="region"][aria-label="Amendment in context"]').contains(document.activeElement));
+  await h.click('Back from test context');
+  assert.equal(document.activeElement,h.button('Read in context'));
+});
+
+test('pending and unavailable amendment context keep focus in the same named region',async t=>{
+  const requestedId=`${documentId}-AM-99`;
+  const h=await readerHarness(t,{state:{open:true,amendmentId:requestedId}}),base=page();
+  await h.respond(base);
+  await h.updateState({view:'context',contextTarget:'amendment'});
+  const region=h.container.querySelector('[role="region"][aria-label="Amendment in context"]');
+  assert(region,'pending context has a named region');
+  assert.match(region.textContent,/Loading amendment information/);
+  assert.equal(document.activeElement,region);
+  await h.respond({...base,selection:{requestedId,status:'unavailable',item:null,inRequestedScope:null,inPage:false}});
+  assert.equal(h.container.querySelector('[role="region"][aria-label="Amendment in context"]'),region);
+  assert.match(region.textContent,/The requested context is unavailable/);
+  assert.equal(document.activeElement,region);
 });
 
 test('whole-text context ignores a missing amendment or wording version and Back preserves the selected identity',async t=>{
@@ -160,6 +188,47 @@ test('a closed reader can open the exact whole motion without an amendment respo
   await h.click('Back from test context');
   assert.equal(h.state().amendmentId,`${documentId}-AM-99`);
   assert.equal(h.state().variantListId,`${documentId}-AM-900-901`);
+});
+
+test('invalid linked amendments preserve exact whole-text access and require explicit selection clearing',async t=>{
+  const cases=[
+    {label:'wrong-motion B amendment',target:documentId,requestedId:'B-10-2026-0442-AM-13'},
+    {label:'malformed amendment on an RC motion',target:'RC-10-2026-0441',requestedId:'malformed amendment identifier'},
+  ];
+  for(const {label,target,requestedId} of cases)await t.test(label,async t=>{
+    const listId=`${target}-AM-900-901`;
+    const h=await readerHarness(t,{props:{documentId:target},state:{open:true,scope:'all',offset:20,amendmentId:requestedId,variantListId:listId}});
+    assert.equal(h.requests.length,0,'an invalid linked amendment must not be fetched or replaced');
+    assert.match(h.container.textContent,/The linked amendment is unavailable for this motion\./);
+    assert.equal(h.container.querySelector('.motion-amendments__row'),null);
+    assert.equal(h.button('Read motion').disabled,false);
+    assert.equal(h.button('Find the adopted text').disabled,false);
+    for(const [action,view] of [['Read motion','document'],['Find the adopted text','adopted']]) {
+      await h.click(action);
+      assert.deepEqual({documentId:h.context().documentId,amendmentId:h.context().amendmentId,listId:h.context().listId,view:h.context().view},
+        {documentId:target,amendmentId:undefined,listId:undefined,view});
+      assert.equal(h.requests.length,0);
+      await h.click('Back from test context');
+      assert.equal(document.activeElement,h.button(action));
+      assert.equal(h.state().amendmentId,requestedId);assert.equal(h.state().variantListId,listId);
+      assert.equal(h.state().scope,'all');assert.equal(h.state().offset,20);
+      assert.match(h.container.textContent,/The linked amendment is unavailable for this motion\./);
+      assert.equal(h.requests.length,0,'Back must retain the invalid selection without an automatic fallback');
+    }
+    await h.click('Clear selection');
+    assert.equal(document.activeElement,h.container.querySelector('h3'));
+    assert.equal(document.activeElement.textContent,'Proposed changes');
+    assert.equal(h.state().amendmentId,null);assert.equal(h.state().variantListId,null);
+    assert.equal(h.state().scope,'all');assert.equal(h.state().offset,20);
+    assert.equal(h.requests.length,1);
+    assert.equal(h.requests[0].url.pathname,'/api/motion-amendments/'+target);
+    assert.deepEqual(Object.fromEntries(h.requests[0].url.searchParams),{member:memberId,scope:'all',lang:'en',offset:'20',limit:'20'});
+    const item=amendment(13,{id:`${target}-AM-13`,targetDocumentId:target,listId:`${target}-AM-001-020`});
+    await h.respond(page({document:target,scope:'all',offset:20,total:45,items:[item]}));
+    assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,1);
+    assert.doesNotMatch(h.container.textContent,/The linked amendment is unavailable/);
+    assert.equal(h.requests.length,1);
+  });
 });
 
 test('an exact off-page selection is fetched separately and does not change member filtering, totals or its retained wording version',async t=>{
@@ -228,7 +297,7 @@ test('scope, language and target changes immediately clear old wording and rejec
   assert.match(h.container.textContent,/Libellé français/);
   const newTarget='RC-10-2026-0441';await h.updateProps({documentId:newTarget});
   assert.equal(h.container.querySelector('.motion-amendments__passage'),null);
-  assert.match(h.container.textContent,/This motion reader selection is unavailable/);
+  assert.match(h.container.textContent,/The linked amendment is unavailable for this motion/);
   assert.notEqual(h.requests.at(-1).url.pathname,'/api/motion-amendments/'+newTarget,'a selected B amendment cannot become an RC selection');
   await h.updateState({amendmentId:null,variantListId:null});
   assert.equal(h.requests.at(-1).url.pathname,'/api/motion-amendments/'+newTarget);
@@ -248,6 +317,8 @@ test('a failed read can be retried, and invalid target or payload version never 
   assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,1);
   await h.updateProps({documentId:'TA-10-2026-0339'});
   assert.match(h.container.textContent,/This motion reader selection is unavailable/);
+  assert.equal(h.button('Read motion').disabled,true);
+  assert.equal(h.button('Find the adopted text').disabled,true);
   assert.equal(h.container.querySelector('.motion-amendments__row'),null);
   assert.equal(h.requests.length,3,'invalid motion identity must not open another route');
 });
@@ -287,18 +358,29 @@ test('conflicting source versions require a choice and only checked variant prop
   assert.equal(h.requests.length,1);
 });
 
-test('all-scope row highlights distinguish aggregate authorship from a match in one checked wording version',async t=>{
-  const listA=`${documentId}-AM-001-020`,listB=`${documentId}-AM-013-014`;
+test('all-scope row highlights distinguish aggregate authorship from one or multiple checked wording versions',async t=>{
+  const listA=`${documentId}-AM-001-020`,listB=`${documentId}-AM-013-014`,listC=`${documentId}-AM-015-016`;
   const aggregate=amendment(13,{memberMatch:match(),variants:[variant(listA,{memberMatch:match(false)})]});
   const oneVersion=amendment(14,{memberMatch:match(false),variants:[variant(listA,{memberMatch:match(false)}),variant(listB,{memberMatch:match()})]});
-  const unrelated=amendment(15,{memberMatch:match(false),variants:[variant(listA,{memberMatch:match(false),authors:[{name:'Checked member',personId:'999'}]})]});
+  const multipleVersions=amendment(15,{memberMatch:match(false),variants:[variant(listA,{proposedText:'First checked version'}),
+    variant(listB,{proposedText:'Second checked version'}),variant(listC,{memberMatch:match(false),authors:[{name:'Checked member',personId:'999'}],proposedText:'Unmatched chosen version'})]});
+  const unrelated=amendment(16,{memberMatch:match(false),variants:[variant(listA,{memberMatch:match(false),authors:[{name:'Checked member',personId:'999'}]})]});
   const h=await readerHarness(t,{state:{open:true,scope:'all'}});
-  await h.respond(page({scope:'all',items:[aggregate,oneVersion,unrelated],totals:{allIndexed:3,memberMatched:2}}));
+  await h.respond(page({scope:'all',items:[aggregate,oneVersion,multipleVersions,unrelated],totals:{allIndexed:4,memberMatched:3}}));
   const rows=[...h.container.querySelectorAll('.motion-amendments__row')];
   assert.equal(rows[0].querySelector('.motion-amendments__member-tag').textContent,'Selected MEP’s proposal');
   assert.equal(rows[1].querySelector('.motion-amendments__member-tag').textContent,'Selected MEP’s proposal in one version');
-  assert.equal(rows[2].querySelector('.motion-amendments__member-tag'),null,'same display name does not establish authorship');
-  assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,3,'all scope retains other authors');
+  assert.equal(rows[2].querySelector('.motion-amendments__member-tag').textContent,'Selected MEP’s proposal in multiple versions');
+  assert.equal(rows[3].querySelector('.motion-amendments__member-tag'),null,'same display name does not establish authorship');
+  assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,4,'all scope retains other authors');
+  await h.click(/^Amendment 15/);await h.change('.motion-amendments__version select',listA);
+  let detail=h.container.querySelector('.motion-amendments__detail');
+  assert.match(detail.textContent,/First checked version/);
+  assert.equal(detail.querySelector('.motion-amendments__member-tag').textContent,'Selected MEP’s proposal');
+  await h.change('.motion-amendments__version select',listC);detail=h.container.querySelector('.motion-amendments__detail');
+  assert.match(detail.textContent,/Unmatched chosen version/);
+  assert.equal(detail.querySelector('.motion-amendments__member-tag'),null,'the row count cannot attribute an unmatched chosen version');
+  assert.equal(rows[2].querySelector('.motion-amendments__row-button .motion-amendments__member-tag').textContent,'Selected MEP’s proposal in multiple versions');
 });
 
 test('amendment context requires an exact source-list identity while whole-motion context remains available',async t=>{
