@@ -533,6 +533,84 @@ test('failed and older exact reads preserve the accepted newer page until a cohe
   assert.equal(h.requests.length,5,'the successful retry leaves its displayed primary rows selectable locally');
 });
 
+test('an earlier list refresh cannot overwrite a later exact response from the same working generation',async t=>{
+  for(const completionOrder of ['exact first','list first'])await t.test(completionOrder,async t=>{
+    const old=page({scope:'all',items:[amendment(13,{targetLabel:'Earlier list provision',proposedText:'Earlier list wording'}),amendment(15)],total:2});
+    old.coverage.workingGeneration=true;
+    const current=page({scope:'all',items:[amendment(13,{targetLabel:'Current exact provision',proposedText:'Current exact page wording'}),amendment(15),amendment(18)],total:3});
+    current.coverage.workingGeneration=true;
+    const selected=amendment(31,{proposedText:'Current off-page selection wording'});
+    const h=await readerHarness(t,{state:{open:true,scope:'all'}});
+    await h.respond(old);
+    await h.click(/^Amendments/);await h.click(/^Amendments/);
+    const pendingList=h.requests.at(-1);
+    assert.equal(pendingList.url.searchParams.has('amendment'),false);
+    assert.equal(pendingList.done,false,'the earlier list refresh remains pending');
+    await h.updateState({amendmentId:selected.id});
+    const pendingExact=h.requests.at(-1);
+    assert.equal(pendingExact.url.searchParams.get('amendment'),selected.id);
+    if(completionOrder==='list first')await h.respond(old,{request:pendingList});
+    await h.respond({...current,selection:{requestedId:selected.id,status:'available',item:selected,inRequestedScope:true,inPage:false}},{request:pendingExact});
+    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/3 available/);
+    if(completionOrder==='exact first')await h.respond(old,{request:pendingList});
+    assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,3,'request completion order must not roll the page back');
+    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/3 available/);
+    assert.match(h.container.textContent,/Current exact provision/);
+    assert.doesNotMatch(h.container.textContent,/Earlier list provision|Earlier list wording/);
+    assert.match(h.container.querySelector('.motion-amendments__selected').textContent,/Current off-page selection wording/);
+    await h.click('Read in context');
+    assert.equal(h.context().amendmentId,selected.id);assert.equal(h.context().listId,selected.listId);
+    await h.click('Back from test context');
+    await h.click(/^Amendment 13/);
+    assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Current exact page wording/);
+    assert.equal(h.requests.length,3,'the retained primary row is still a local selection');
+  });
+});
+
+test('failed exact revalidation hides earlier detail and context while preserving its page until a successful retry',async t=>{
+  for(const navigation of ['alias through primary','off-page disclosure'])await t.test(navigation,async t=>{
+    const aliasId=`${documentId}-AM-013`,primary=amendment(13,{officialIds:[aliasId],proposedText:'Earlier selected wording'});
+    const requestedId=navigation==='alias through primary'?aliasId:`${documentId}-AM-31`;
+    const initialSelected=navigation==='alias through primary'?primary:amendment(31,{proposedText:'Earlier selected wording'});
+    const base=page({scope:'all',items:[primary,amendment(15)],total:2});
+    const h=await readerHarness(t,{state:{open:true,scope:'all',amendmentId:requestedId}});
+    await h.respond(base);
+    await h.respond({...base,selection:{requestedId,status:'available',item:initialSelected,inRequestedScope:true,inPage:navigation==='alias through primary'}});
+    assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Earlier selected wording/);
+    if(navigation==='alias through primary') {
+      await h.updateState({amendmentId:primary.id});
+      await h.updateState({amendmentId:requestedId});
+    } else {
+      await h.click(/^Amendments/);await h.click(/^Amendments/);
+    }
+    const exactRequest=h.requests.findLast(request=>!request.done&&request.url.searchParams.get('amendment')===requestedId);
+    assert(exactRequest,'returning to the selection starts fresh authoritative revalidation');
+    assert.equal(h.container.querySelector('.motion-amendments__detail'),null,'earlier selection evidence cannot remain visible while revalidation is pending');
+    assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,2);
+    await h.respond({error:{message:'Revalidation unavailable'}},{request:exactRequest,status:503});
+    const pendingList=h.requests.findLast(request=>!request.done&&!request.url.searchParams.has('amendment'));
+    if(pendingList)await h.respond(base,{request:pendingList});
+    assert.equal(h.container.querySelector('.motion-amendments__detail'),null,'failed revalidation cannot expose the earlier selected record');
+    assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,2);
+    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/2 available/);
+    assert.match(h.container.textContent,/The selected amendment could not be loaded\./);
+    await h.updateState({view:'context',contextTarget:'amendment'});
+    assert.equal(h.container.querySelector('[data-test-context]'),null,'a context deep link cannot reuse failed selection evidence');
+    assert.match(h.container.textContent,/The requested context is unavailable/);
+    const requestCount=h.requests.length;await h.click('Try again');
+    assert.equal(h.requests.length,requestCount+1);
+    const freshSelected={...initialSelected,proposedText:'Fresh authoritative selected wording'};
+    const freshBase=navigation==='alias through primary'?page({scope:'all',items:[freshSelected,amendment(15)],total:2}):base;
+    await h.respond({...freshBase,selection:{requestedId,status:'available',item:freshSelected,inRequestedScope:true,inPage:navigation==='alias through primary'}});
+    assert.equal(h.context().amendmentId,freshSelected.id);assert.equal(h.context().listId,freshSelected.listId);
+    assert(h.container.querySelector('[data-test-context]'),'successful current evidence restores context');
+    await h.click('Back from test context');
+    assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Fresh authoritative selected wording/);
+    assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,2);
+    assert.equal(h.requests.length,requestCount+1,'a successful retry does not start another revalidation loop');
+  });
+});
+
 test('revisiting an older exact selection revalidates without restoring an earlier page from the same working generation',async t=>{
   const listId=`${documentId}-AM-001-040`,firstId=`${documentId}-AM-31`,secondId=`${documentId}-AM-32`;
   const earlierItems=[...Array.from({length:19},(_,index)=>amendment(index+1,{listId})),amendment(21,{listId})];
@@ -649,6 +727,11 @@ test('accepted page and wording survive disclosure and exact-route navigation ro
       assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Other member route wording/);assertNoOriginalWording();
       await h.updateProps({memberId,memberName:'Checked member'});
     }
+    assertCurrent();
+    const returnList=h.requests.findLast(request=>!request.done&&!request.url.searchParams.has('amendment')&&
+      request.url.pathname==='/api/motion-amendments/'+documentId&&request.url.searchParams.get('member')===memberId&&
+      request.url.searchParams.get('scope')==='all'&&request.url.searchParams.get('lang')==='en'&&request.url.searchParams.get('offset')==='0');
+    if(returnList)await h.respond(currentPage(),{request:returnList});
     assertCurrent();
     const requestsBeforeAlias=h.requests.length;
     await h.updateState({amendmentId:aliasId});
