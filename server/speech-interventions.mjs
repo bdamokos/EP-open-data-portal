@@ -60,11 +60,29 @@ export function interventionMetadata(activity) {
     evidence:type==='unclassified'?null:type==='procedure'?(chair?'api:xmlFragment/communication/heading/person':narrative?'api:xmlFragment/communication/narrative':'had_activity_type'):type==='written'?'had_activity_type':'api:xmlFragment/from'};
 }
 
+const docTail=value=>String(value||'').match(/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?eli\/dl\/doc\/([A-Z0-9-]+)$/)?.[1]||null;
+// The alias form of a chair change's own transcript fragment. Every document
+// field must agree on one CRE-<term>-<date>-OTH-<k> fragment in this sitting.
 const transcriptAliases=activity=>{
   const date=String(activity.activity_date||'');
-  return array(activity.recorded_in_a_realization_of).filter(d=>d&&typeof d==='object')
-    .map(d=>String(d.identifier||String(d.id||'').match(/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?eli\/dl\/doc\/([A-Z0-9-]+)$/)?.[1]||'').match(/^CRE-\d+-(\d{4}-\d{2}-\d{2})-OTH-(\d+)$/))
-    .filter(m=>m&&m[1]===date&&activity.activity_id?.startsWith('MTG-PL-'+date+'-')).map(m=>'MTG-PL-'+m[1]+'-OTH-'+m[2]).filter(id=>id!==activity.activity_id);
+  if(String(activity.had_activity_type).split('/').at(-1)!=='MEETING_NAME_CHAIR'||!activity.activity_id?.startsWith('MTG-PL-'+date+'-'))return [];
+  const docs=array(activity.recorded_in_a_realization_of).filter(d=>d&&typeof d==='object');
+  const identities=docs.map(d=>{
+    const ids=[d.identifier==null?null:String(d.identifier),d.id==null?null:docTail(d.id)].filter(v=>v!==null);
+    return ids.length&&ids.every(id=>id===ids[0])?ids[0]:null;
+  });
+  if(!docs.length||identities.some(id=>id===null)||new Set(identities).size!==1)return [];
+  const [,term,day,k]=identities[0].match(/^CRE-(\d+)-(\d{4}-\d{2}-\d{2})-OTH-(\d+)$/)||[];
+  if(!k||day!==date)return [];
+  for(const d of docs) {
+    for(const part of array(d.is_part_of)) {
+      const chapter=docTail(part?.id||part)?.match(/^CRE-(\d+)-(\d{4}-\d{2}-\d{2})-/);
+      if(!chapter||chapter[1]!==term||chapter[2]!==date)return [];
+    }
+    if(d.notation_speechId!=null&&String(d.notation_speechId)!==k)return [];
+  }
+  const alias='MTG-PL-'+date+'-OTH-'+k;
+  return alias===activity.activity_id?[]:[alias];
 };
 
 // Exact debate membership and document numbering establish the sequence. Never bridge a missing row.

@@ -165,6 +165,35 @@ test('a chair change listed again under its own transcript fragment ID counts on
   const fromUri=clone(fixture.activities),row=fromUri.find(a=>a.activity_id===chair.activity_id);delete row.recorded_in_a_realization_of[0].identifier;
   assert.equal(sequence(fromUri).coverage.complete,true,'the document URI carries the same exact identifier');
 });
+test('conflicting document evidence on a chair change never hides a genuinely missing record',()=>{
+  const statement='MTG-PL-2026-10-06-OTH-2017099548464',chairId='MTG-PL-2026-10-06-PVCRE-CHA-5',chairAlias='MTG-PL-2026-10-06-OTH-2017097917624';
+  const withoutStatement=()=>clone(fixture.activities.filter(a=>a.activity_id!==statement));
+  const chairOf=rows=>rows.find(a=>a.activity_id===chairId);
+  assert.deepEqual(sequence(withoutStatement()).coverage.missingIds,[statement]);
+  const cases={
+    'a secondary document from another term':doc=>Object.assign(doc,{identifier:'CRE-9-2026-10-06-OTH-2017099548464',id:'eli/dl/doc/CRE-9-2026-10-06-OTH-2017099548464',notation_speechId:'2017099548464'}),
+    'a secondary document with a conflicting identifier and URI':doc=>Object.assign(doc,{identifier:'CRE-10-2026-10-06-OTH-2017099548464'}),
+    'a secondary document in the same term':doc=>Object.assign(doc,{identifier:'CRE-10-2026-10-06-OTH-2017099548464',id:'eli/dl/doc/CRE-10-2026-10-06-OTH-2017099548464',notation_speechId:'2017099548464'})
+  };
+  for(const [label,mutate] of Object.entries(cases)) {
+    const rows=withoutStatement(),chair=chairOf(rows);
+    chair.recorded_in_a_realization_of.push(mutate(clone(chair.recorded_in_a_realization_of[0])));
+    const result=sequence(rows).coverage;
+    assert.equal(result.complete,false,label);assert(result.missingIds.includes(statement),label);
+  }
+  // Single-document conflicts: the row's own evidence must agree on one fragment.
+  for(const [label,mutate] of Object.entries({
+    'identifier and URI disagree':doc=>{doc.identifier='CRE-10-2026-10-06-OTH-2017099548464';},
+    'chapter from another term':doc=>{doc.identifier='CRE-9-2026-10-06-OTH-2017099548464';doc.id='eli/dl/doc/'+doc.identifier;doc.notation_speechId='2017099548464';},
+    'speech notation disagrees':doc=>{doc.identifier='CRE-10-2026-10-06-OTH-2017099548464';doc.id='eli/dl/doc/'+doc.identifier;}
+  })) {
+    const rows=withoutStatement();mutate(chairOf(rows).recorded_in_a_realization_of[0]);
+    assert(sequence(rows).coverage.missingIds.includes(statement),label);
+  }
+  // Only chair changes are aliased; another record type keeps both identifiers as expected.
+  const proceeding=clone(fixture.activities);chairOf(proceeding).had_activity_type='def/ep-activities/PROCEEDING_ACTIVITY';
+  assert(sequence(proceeding).coverage.missingIds.includes(chairAlias));
+});
 test('catch-the-eye uses paired published markers and cannot leak into subsequent speeches',()=>{
   const result=sequence(fixture.activities);
   assert.deepEqual(result.records.filter(r=>r.intervention.type==='catch-the-eye').map(r=>r.intervention.numbering),[231,232,233,234,235,236,237]);
