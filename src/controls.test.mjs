@@ -134,7 +134,7 @@ test('rapid speech navigation shares the speculative queue and cancels obsolete 
   await act(async()=>pending[1].finish());
 });
 
-test('member deep links, module selection and restored routes keep meaningful titles without extra history',async t=>{
+test('member deep links and restored routes keep meaningful titles with intentional module history',async t=>{
   const pending=[];
   const h=await harness(t,'?poc=1&member=257043&module=profile',url=>['directory','profile/257043'].includes(url.pathname.split('/api/')[1])?new Promise(resolve=>pending.push(()=>resolve(fixture(url)))):fixture(url));
   const {default:App}=await h.load('/src/App.tsx');
@@ -144,12 +144,12 @@ test('member deep links, module selection and restored routes keep meaningful ti
   await act(async()=>pending.splice(0).forEach(resolve=>resolve()));
   assert.equal(document.title,'Mika Aaltola · Profile — European Parliament data explorer');
   assert.equal(history.length,length,'data and title updates must not add history entries');
-  for(const label of ['Latest speeches','Political activities','Profile']) {
+  for(const [label,steps] of [['Latest speeches',0],['Political activities',1],['Profile',2]]) {
     await h.click(h.button(label));
     assert.equal(h.container.querySelectorAll('.explorer-tabs [aria-pressed="true"]').length,1);
     assert.equal(h.container.querySelector('.explorer-tabs [aria-pressed="true"]').textContent,label);
     assert.equal(document.title,`Mika Aaltola · ${label} — European Parliament data explorer`);
-    assert.equal(history.length,length,'module changes retain existing replaceState behavior');
+    assert.equal(history.length,length+steps,'Activities entry and departure retain Back steps; speech-only changes replace');
   }
   const routes=[];
   for(const [label,title] of [['Following','Following'],['Plenary agenda','Plenary agenda'],['Questions','Questions'],['Outside voices','Outside voices']]) {

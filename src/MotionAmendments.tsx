@@ -9,11 +9,12 @@ export const MOTION_AMENDMENTS_PAGE_SIZE=20;
 export type MotionAmendmentsState={
   open:boolean;scope:MotionAmendmentsScope;offset:number;amendmentId:string|null;variantListId:string|null;
   view:'amendments'|'context';contextView:'document'|'adopted';contextTarget:'text'|'amendment';
+  wordingLanguage?:string|null;
 };
 export function createMotionAmendmentsState():MotionAmendmentsState {
   return {open:false,scope:'member',offset:0,amendmentId:null,variantListId:null,view:'amendments',contextView:'document',contextTarget:'text'};
 }
-export type MotionAmendmentsContextRequest={documentId:string;amendmentId?:string;listId?:string;view:'document'|'adopted';onBack:()=>void};
+export type MotionAmendmentsContextRequest={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted';onBack:()=>void};
 export type MotionAmendmentsChangeReason='toggle'|'scope'|'page'|'amendment'|'variant'|'context'|'back-context';
 export type MotionAmendmentsProps={
   documentId:string;memberId:string|number;memberName?:string;language:string;state:MotionAmendmentsState;
@@ -52,6 +53,14 @@ function validState(state:MotionAmendmentsState) {
     (state.amendmentId===null||typeof state.amendmentId==='string'&&state.amendmentId.length>0&&state.amendmentId.length<=512)&&
     (state.variantListId===null||typeof state.variantListId==='string'&&state.variantListId.length>0&&state.variantListId.length<=512)&&
     !(state.variantListId&&!state.amendmentId);
+}
+function validWordingLanguage(state:MotionAmendmentsState,documentId:string) {
+  if(!Object.hasOwn(state,'wordingLanguage')||state.wordingLanguage===undefined)return true;
+  const list=typeof state.variantListId==='string'?state.variantListId.match(new RegExp('^'+documentId+'-AM-([0-9]{1,5})-([0-9]{1,5})$')):null;
+  return (state.wordingLanguage===null||typeof state.wordingLanguage==='string'&&/^[a-z]{2}$/.test(state.wordingLanguage))&&
+    state.contextTarget==='amendment'&&state.contextView==='document'&&
+    amendmentIdentity(state.amendmentId)?.documentId===documentId&&amendmentIdentity(state.amendmentId)?.id===state.amendmentId&&
+    Boolean(list&&Number(list[1])>0&&Number(list[2])>=Number(list[1]));
 }
 function matchesPage(value:unknown,documentId:string,member:string,language:string,state:MotionAmendmentsState,requestedId:string|null):value is MotionAmendmentsPage {
   if(!object(value)||value.schemaVersion!==1||!object(value.text)||value.text.id!==documentId||!object(value.scope)||
@@ -242,7 +251,7 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
     (button&&!button.disabled?button:headingRef.current)?.focus({preventScroll:true});
   },[documentId,state.view,state.open,state.contextTarget,state.contextView]);
   const motionAllowed=exactMotion(documentId)&&safeMember(member)&&validMotionState(state);
-  const allowed=motionAllowed&&validState(state)&&(!state.amendmentId||amendmentIdentity(state.amendmentId)?.documentId===documentId&&amendmentIdentity(state.amendmentId)?.id===state.amendmentId);
+  const allowed=motionAllowed&&validState(state)&&validWordingLanguage(state,documentId)&&(!state.amendmentId||amendmentIdentity(state.amendmentId)?.documentId===documentId&&amendmentIdentity(state.amendmentId)?.id===state.amendmentId);
   const listRoute=allowed&&state.open?route(documentId,member,language,state):null;
   const list=useMotionAmendmentsRead(listRoute,nextOrder);
   const basePage=list.data&&matchesPage(list.data,documentId,member,language,state,null)?list.data:null;
@@ -278,12 +287,24 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
   const inPage=Boolean(selected&&page?.items.some(item=>item.id===selected.id));
   const selectedRecord=selected?chosenRecord(selected,state.variantListId):null;
   const selectedPending=Boolean(selectedRoute&&exact.loading);
-  const change=(patch:Partial<MotionAmendmentsState>,reason:MotionAmendmentsChangeReason)=>onStateChange({...state,...patch},{reason});
+  const change=(patch:Partial<MotionAmendmentsState>,reason:MotionAmendmentsChangeReason)=>{
+    const next={...state,...patch};
+    const changedIdentity=(['amendmentId','variantListId'] as const).some(key=>Object.hasOwn(patch,key)&&patch[key]!==state[key]);
+    if(changedIdentity&&!Object.hasOwn(patch,'wordingLanguage')||patch.contextTarget==='text')delete next.wordingLanguage;
+    onStateChange(next,{reason});
+  };
   const focusHeading=()=>headingRef.current?.focus({preventScroll:true});
   const backContext=()=>change({view:'amendments'},'back-context');
   const openContext=(view:'document'|'adopted',contextTarget:'text'|'amendment')=>change({open:true,view:'context',contextView:view,contextTarget},'context');
+  const openAmendmentContext=(item:MotionAmendment)=>{
+    const record=chosenRecord(item,state.variantListId);
+    if(!record?.listId)return;
+    const wordingLanguage=record.wording?.language;
+    change({open:true,view:'context',contextView:'document',contextTarget:'amendment',variantListId:record.listId,
+      wordingLanguage:typeof wordingLanguage==='string'&&/^[a-z]{2}$/.test(wordingLanguage)?wordingLanguage:null},'context');
+  };
   const detail=(item:MotionAmendment)=><AmendmentDetail item={item} member={member} language={language} listId={state.variantListId}
-    onVariant={value=>change({variantListId:value},'variant')} onContext={()=>openContext('document','amendment')} contextButton={amendmentButton}/>;
+    onVariant={value=>change({variantListId:value},'variant')} onContext={()=>openAmendmentContext(item)} contextButton={amendmentButton}/>;
   const selectionUnavailable=Boolean(state.amendmentId&&selection?.status==='unavailable');
   const readingText=state.view==='context'&&state.contextTarget==='text';
   const message=!motionAllowed?'This motion reader selection is unavailable.':!allowed&&!readingText?'The linked amendment is unavailable for this motion.':badPage||badSelection?'Amendment information could not be loaded.':
@@ -292,7 +313,8 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
   const contextReady=state.contextTarget==='text'||Boolean(page&&selected&&selectedRecord?.listId);
   const adoptedAvailable=Boolean(page?.relations.adoptedTexts.length);
   const hasIndexedRecords=Boolean(page&&page.totals.allIndexed>0);
-  return <section className="motion-amendments" lang="en" aria-labelledby={panelId+'-heading'} aria-busy={state.open&&(list.loading||selectedPending)}>
+  const pending=state.open&&allowed&&(!page&&list.loading||Boolean(selectedRoute&&!selection&&exact.loading));
+  return <section className="motion-amendments" lang="en" aria-labelledby={panelId+'-heading'} aria-busy={state.open&&(list.loading||selectedPending)} data-motion-pending={pending?'true':undefined}>
     <Status scope={listRoute+':'+state.amendmentId+':'+state.variantListId+':'+state.view+':'+state.contextTarget} pending={list.loading||selectedPending} message={message}/>
     <header className="motion-amendments__header">
       <div><p className="motion-amendments__reference" lang="">{documentId}</p><h3 id={panelId+'-heading'} ref={headingRef} tabIndex={-1}>Proposed changes</h3></div>
@@ -308,7 +330,8 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
       </button>
       {state.open&&<div id={panelId} className="motion-amendments__panel">
         {state.view==='context'?<div ref={contextRef} className="motion-amendments__context" role="region" tabIndex={-1} aria-label={state.contextView==='adopted'?'Adopted text context':state.contextTarget==='amendment'?'Amendment in context':'Motion text'}>
-          {contextReady?renderContext({documentId,...(state.contextTarget==='amendment'?{amendmentId:selected!.id,listId:selectedRecord!.listId!}:{}),view:state.contextView,onBack:backContext}):
+          {contextReady?renderContext({documentId,...(state.contextTarget==='amendment'?{amendmentId:selected!.id,listId:selectedRecord!.listId!,
+            ...(Object.hasOwn(state,'wordingLanguage')&&state.wordingLanguage!==undefined?{wordingLanguage:state.wordingLanguage}:{})}:{}),view:state.contextView,onBack:backContext}):
             <div className="motion-amendments__context-gap"><button type="button" onClick={backContext}>Back to amendments</button>
               <p>{state.amendmentId&&selected&&!selectedRecord?.listId?'Choose an available wording version before opening context.':list.loading||selectedPending?'Loading amendment information…':'The requested context is unavailable.'}</p>
               {(list.error||badPage||selectedRoute&&(exact.error||badSelection))&&<button type="button" onClick={()=>{focusHeading();if(selectedRoute&&(exact.error||badSelection))exact.retry();else list.retry();}}>Try again</button>}
