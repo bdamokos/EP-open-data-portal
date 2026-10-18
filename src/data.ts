@@ -26,6 +26,7 @@ export function useData<T>(route: string | null) {
     route: string | null;
     data: T | null;
     error: string | null;
+    status?: number;
     retryAt?: number;
     loading: boolean;
   }>({ route, data: route ? client.peek<T>(route) : null, error: null, loading: Boolean(route) });
@@ -41,7 +42,7 @@ export function useData<T>(route: string | null) {
       client.get<T>(route, { force })
         .then((data) => { if (active) setState({ route, data, error: null, loading: false }); })
         .catch((e) => {
-          if (active) setState(previous => ({ route, data: e.status === 401 || e.status === 403 ? null : previous.data, error: e.message, retryAt: e.retryAt, loading: false }));
+          if (active) setState(previous => ({ route, data: e.status === 401 || e.status === 403 ? null : previous.data, error: e.message, status:typeof e.status==='number'?e.status:undefined,retryAt: e.retryAt, loading: false }));
         });
     return () => { active = false; };
   }, [route, retry]);
