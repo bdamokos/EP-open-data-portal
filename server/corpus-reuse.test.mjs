@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync} from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import {syncBuiltinESMExports} from 'node:module';
 import {CorpusStore} from './corpus-store.mjs';
 import {CorpusWorker,speechTexts} from './corpus-worker.mjs';
 import {ActivityStore} from './activity-index-store.mjs';
@@ -15,6 +16,8 @@ import {LegislationInsights} from './insights-legislation.mjs';
 import {retainedSpeechData,retainedSpeechMetadata,retainedSpeechPage} from './corpus-speeches.mjs';
 import {odpSpeech} from './odp.mjs';
 import {speechMedia} from './mmc.mjs';
+import {CorpusReader} from './corpus-reader.mjs';
+import {allowSlowCorpusReaders} from './test-support/corpus-reader.mjs';
 
 const fetchedAt='2026-10-17T10:00:00Z',now=()=>Date.parse(fetchedAt),url='https://data.europarl.europa.eu/api/v2/speeches?include-output=xml_fragment';
 const xml='<oralStatements><speech xml:lang="de-t-en-mtec"><from><person refersTo="person/42">Exact Speaker</person></from><p>Climate climate water.</p></speech></oralStatements>';
@@ -24,7 +27,8 @@ function activity(number,{member='42',date='2026-10-07',kind='PLENARY_DEBATE_SPE
     activity_label:{en:'Exact debate',hu:'Pontos vita'},had_participation:[{had_participant_person:['person/'+member]}],
     recorded_in_a_realization_of:[{id:'eli/dl/doc/CRE-10-'+date+'-INT-'+number,numbering:number,originalLanguage:['http://publications.europa.eu/resource/authority/language/DEU'],'api:xmlFragment':fragments}]};
 }
-function fixture(t) {
+function fixture(t,{realReaders=true}={}) {
+  if(realReaders)allowSlowCorpusReaders(t);
   const directory=mkdtempSync(path.join(os.tmpdir(),'corpus-reuse-')),store=new CorpusStore(path.join(directory,'corpus'));
   const index=new ActivityStore(path.join(directory,'index'),{clock:now});store.acquire();index.acquire();const {generation}=index.beginCycle();index.setMembers([{id:'42',name:'Exact Speaker',countryCode:'HU'}]);
   const old={CORPUS_DIR:process.env.CORPUS_DIR,CORPUS_ENABLED:process.env.CORPUS_ENABLED,ACTIVITY_INDEX_ENABLED:process.env.ACTIVITY_INDEX_ENABLED};
@@ -50,10 +54,44 @@ test('metadata-only reads work without a retained transcript and isolate damaged
   assert.equal(await retainedSpeechMetadata(id),null);
   const data=await retainedSpeechData({sourceIds:[id],language:'en'});assert.equal(data.records[0].metadataUnavailable,true);
 });
-test('parallel cloud and statistics page reads share bounded worker capacity through teardown',async t=>{
+test('parallel cloud and statistics page reads share bounded worker capacity through teardown',{timeout:120_000},async t=>{
   const {add}=fixture(t);for(let n=1;n<=51;n++)add(activity(n));
+  // Exercise real workers and all four results independently of the 250 ms
+  // admission policy, which is checked with controlled readers below.
+  t.mock.method(performance,'now',()=>0);
   const reads=await Promise.all(Array.from({length:4},(_,n)=>retainedSpeechPage({member:'42',language:'en',offset:(n%2)*50,limit:50})));
   assert(reads.every(result=>result?.total===51));assert.deepEqual(reads.map(result=>result.records.length),[50,1,50,1]);
+});
+test('retained page admission bounds active readers, queued readers and waiting time',async t=>{
+  fixture(t,{realReaders:false});
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});
+  // The pool imports timers/promises by name; publish the mocked binding too.
+  syncBuiltinESMExports();
+  t.after(()=>{t.mock.timers.reset();syncBuiltinESMExports();});
+  t.mock.method(performance,'now',()=>Date.now());
+  const active=[],turn=()=>new Promise(resolve=>setImmediate(resolve));
+  t.mock.method(CorpusReader.prototype,'query',function(operation,params) {
+    assert.equal(this.busy,false);assert.equal(operation,'speech-page');this.busy=true;
+    const {promise,resolve}=Promise.withResolvers();
+    active.push({reader:this,offset:params.offset,resolve});return promise;
+  });
+  const read=offset=>retainedSpeechPage({language:'en',offset});
+  const first=read(0),second=read(1),queued=Array.from({length:8},(_,n)=>read(n+2));
+  assert.equal(active.length,2);assert.equal(await read(10),null,'only eight readers may wait');
+  t.mock.timers.tick(240);await turn();assert.equal(active.length,2);
+  // A settled result still occupies its lane until worker teardown completes.
+  active[0].resolve({total:51});assert.deepEqual(await first,{total:51});
+  t.mock.timers.tick(9);await turn();assert.equal(active.length,2);
+  active[0].reader.busy=false;
+  t.mock.timers.tick(1);await turn();
+  assert.equal(active.length,3);assert.equal(active[2].offset,2);
+  assert.equal(active[2].reader,active[0].reader,'the exited worker lane is reused');
+  assert.deepEqual(await Promise.all(queued.slice(1)),Array(7).fill(null),'remaining waits expire at 250 ms');
+  active[1].reader.busy=false;active[1].resolve({total:52});
+  active[2].reader.busy=false;active[2].resolve({total:53});
+  assert.deepEqual(await second,{total:52});assert.deepEqual(await queued[0],{total:53});
+  const next=read(11);assert.equal(active.length,4);
+  active[3].reader.busy=false;active[3].resolve({total:54});assert.deepEqual(await next,{total:54});
 });
 test('speech pages filter exact members, types, dates and topic IDs with stable continuation and partial coverage',t=>{
   const {store,add}=fixture(t),a=add(activity(1)),b=add(activity(2)),written=add(activity(3,{kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'}));
