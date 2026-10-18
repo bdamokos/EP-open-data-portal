@@ -533,6 +533,83 @@ test('failed and older exact reads preserve the accepted newer page until a cohe
   assert.equal(h.requests.length,5,'the successful retry leaves its displayed primary rows selectable locally');
 });
 
+test('accepted page and wording survive disclosure and exact-route navigation round trips without crossing contexts',async t=>{
+  for(const navigation of ['collapse','scope','language','page','text','member'])await t.test(navigation,async t=>{
+    const aliasId=`${documentId}-AM-013`,primaryId=`${documentId}-AM-13`,first=amendment(31);
+    const currentWording='Accepted original-route generation two wording',awayWording=`Other ${navigation} route wording`;
+    const currentItems=[amendment(13,{officialIds:[aliasId],proposedText:currentWording}),amendment(15,{targetLabel:'Generation two additional provision'})];
+    const h=await readerHarness(t,{state:{open:true,scope:'all',amendmentId:first.id}});
+    await h.respond(page({scope:'all',items:[amendment(13,{proposedText:'Obsolete original-route generation one wording'})],total:1}));
+    const currentPage=(selected=null)=>{
+      const result=page({scope:'all',items:currentItems,total:4,selected});
+      result.text.generation=2;result.coverage.servingGeneration=2;result.snapshots={amendments:2,text:2};
+      return result;
+    };
+    await h.respond(currentPage(first));await h.click(/^Amendment 13/);
+    const assertCurrent=()=>{
+      assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,2);
+      assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Accepted original-route generation two wording/);
+      assert.match(h.container.textContent,/Generation two additional provision/);
+      assert.doesNotMatch(h.container.textContent,/Obsolete original-route generation one wording|Other .* route wording/);
+      assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/4 available/);
+      assert.match(h.container.querySelector('.motion-amendments__pages').textContent,/1–2 of 4/);
+    };
+    const assertNoOriginalWording=()=>assert.doesNotMatch(h.container.textContent,/Accepted original-route generation two wording|Obsolete original-route generation one wording/);
+    const otherPage=({target=documentId,scope='all',language='en',member=memberId,offset=0,numbers=[13]}={})=>{
+      const items=numbers.map(number=>amendment(number,{id:`${target}-AM-${number}`,targetDocumentId:target,listId:`${target}-AM-001-020`,
+        targetLabel:'Other route provision',language,requestedLanguage:language,proposedText:awayWording,
+        wording:wording({language,requestedLanguage:language}),memberMatch:{...match(),memberId:member},authors:[{personId:member,name:'Other route member',status:'resolved'}]}));
+      const result=page({document:target,scope,language,offset,items,total:numbers.length===3?4:6});
+      result.scope.memberId=member;result.text.memberAuthorship.memberId=member;result.text.memberPosition.memberId=member;
+      result.text.generation=3;result.coverage.servingGeneration=3;result.snapshots={amendments:3,text:3};
+      return result;
+    };
+    assertCurrent();
+    if(navigation==='collapse') {
+      await h.click(/^Amendments/);assert.equal(h.container.querySelector('.motion-amendments__panel'),null);assertNoOriginalWording();
+      await h.click(/^Amendments/);
+    } else if(navigation==='scope') {
+      await h.click(/^Checked member’s proposals/);assertNoOriginalWording();await h.respond(otherPage({scope:'member'}));
+      assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Other scope route wording/);assertNoOriginalWording();
+      await h.click(/^All available amendments/);
+    } else if(navigation==='language') {
+      await h.updateProps({language:'fr'});assertNoOriginalWording();await h.respond(otherPage({language:'fr'}));
+      assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Other language route wording/);assertNoOriginalWording();
+      await h.updateProps({language:'en'});
+    } else if(navigation==='page') {
+      // A controlled history/deep-link page can use any valid API offset.
+      await h.updateState({offset:1,amendmentId:null});assertNoOriginalWording();
+      await h.respond(otherPage({offset:1,numbers:[15,18,20]}));await h.click(/^Amendment 15/);
+      assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Other page route wording/);assertNoOriginalWording();
+      await h.updateState({offset:0,amendmentId:primaryId});
+    } else if(navigation==='text') {
+      const joint='RC-10-2026-0441';
+      await h.updateState({amendmentId:null,variantListId:null});await h.updateProps({documentId:joint});assertNoOriginalWording();
+      await h.respond(otherPage({target:joint}));await h.click(/^Amendment 13/);
+      assert.equal(h.state().amendmentId,`${joint}-AM-13`);
+      assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Other text route wording/);assertNoOriginalWording();
+      await h.updateState({amendmentId:null,variantListId:null});await h.updateProps({documentId});
+      await h.updateState({amendmentId:primaryId});
+    } else {
+      await h.updateProps({memberId:'102',memberName:'Other checked member'});assertNoOriginalWording();
+      await h.respond(otherPage({member:'102'}));
+      assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Other member route wording/);assertNoOriginalWording();
+      await h.updateProps({memberId,memberName:'Checked member'});
+    }
+    assertCurrent();
+    const requestsBeforeAlias=h.requests.length;
+    await h.updateState({amendmentId:aliasId});
+    assert.equal(h.requests.length,requestsBeforeAlias+1,'returning to a route must not turn a page alias into an unchecked local identity');
+    assert.equal(h.requests.at(-1).url.searchParams.get('amendment'),aliasId);
+    assert.equal(h.container.querySelector('.motion-amendments__detail'),null);
+    await h.respond({...currentPage(),selection:{requestedId:aliasId,status:'unavailable',item:null,inRequestedScope:null,inPage:false}});
+    assert.match(h.container.textContent,/The requested amendment is unavailable in the available records\./);
+    assert.equal(h.container.querySelector('.motion-amendments__detail'),null);
+    await h.click(/^Amendment 13/);assertCurrent();
+    assert.equal(h.requests.length,requestsBeforeAlias+1,'exact primary rows remain local after each round trip');
+  });
+});
+
 test('an alias-only page match requires the authoritative exact lookup and cannot bypass an ambiguous identity',async t=>{
   const requestedId=`${documentId}-AM-013`,primary=amendment(13,{officialIds:[requestedId],proposedText:'Primary record wording'});
   const h=await readerHarness(t,{state:{open:true,scope:'all',amendmentId:requestedId}});

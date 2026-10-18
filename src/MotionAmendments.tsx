@@ -74,7 +74,7 @@ function route(documentId:string,member:string,language:string,state:MotionAmend
   if(amendment)query.set('amendment',amendment);
   return `motion-amendments/${encodeURIComponent(documentId)}?${query}`;
 }
-type ReaderPage={route:string|null;base:MotionAmendmentsPage|null;exact:MotionAmendmentsPage|null;page:MotionAmendmentsPage|null};
+type ReaderPage={base:MotionAmendmentsPage|null;exact:MotionAmendmentsPage|null;page:MotionAmendmentsPage|null};
 function canReplacePage(candidate:MotionAmendmentsPage,current:MotionAmendmentsPage|null) {
   return !current||candidate.snapshots.amendments>=current.snapshots.amendments&&
     (candidate.snapshots.text===null||current.snapshots.text===null||candidate.snapshots.text>=current.snapshots.text);
@@ -225,8 +225,8 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
   const listRoute=allowed&&state.open?route(documentId,member,language,state):null;
   const list=useData<MotionAmendmentsPage>(listRoute);
   const basePage=list.data&&matchesPage(list.data,documentId,member,language,state,null)?list.data:null;
-  const [savedPage,setSavedPage]=useState<ReaderPage>({route:null,base:null,exact:null,page:null});
-  const previousPage:ReaderPage=savedPage.route===listRoute?savedPage:{route:listRoute,base:null,exact:null,page:null};
+  const [savedPages,setSavedPages]=useState<Map<string,ReaderPage>>(()=>new Map());
+  const previousPage:ReaderPage=listRoute&&savedPages.get(listRoute)||{base:null,exact:null,page:null};
   const newBase=basePage&&basePage!==previousPage.base;
   const currentPage=newBase&&canReplacePage(basePage,previousPage.page)?basePage:previousPage.page;
   const badPage=Boolean(list.data&&!basePage);
@@ -241,7 +241,15 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
   // selected record together and retain them through subsequent local choices.
   const newExact=exactPage&&exactPage!==previousPage.exact;
   const page=newExact?exactPage:currentPage;
-  if(savedPage.route!==listRoute||newBase||newExact)setSavedPage({route:listRoute,base:basePage,exact:exactPage||previousPage.exact,page});
+  if(listRoute&&(newBase||newExact))setSavedPages(previous=>{
+    const next=new Map(previous);
+    next.delete(listRoute);
+    next.set(listRoute,{base:basePage,exact:exactPage||previousPage.exact,page});
+    // Bound retained views to the shared client's cache capacity. Closing or
+    // visiting another query must not restore the superseded base response.
+    while(next.size>60)next.delete(next.keys().next().value!);
+    return next;
+  });
   const selection=page?.selection.requestedId===state.amendmentId?page.selection:null;
   const selected=selection?selection.item:state.amendmentId&&page?.items.find(item=>item.id===state.amendmentId)||null;
   const inPage=Boolean(selected&&page?.items.some(item=>item.id===selected.id));
