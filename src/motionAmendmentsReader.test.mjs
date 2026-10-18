@@ -460,6 +460,103 @@ test('a later exact-selection snapshot replaces its page and counts together ins
   assert.equal(h.requests.length,2);
 });
 
+test('row switches retain the newest exact-response page, wording and counts without another request',async t=>{
+  for(const firstNumber of [13,15])await t.test(`first select displayed amendment ${firstNumber}`,async t=>{
+    const offPage=amendment(31,{proposedText:'Generation two off-page wording'});
+    const h=await readerHarness(t,{state:{open:true,scope:'all',amendmentId:offPage.id}});
+    await h.respond(page({scope:'all',items:[amendment(13,{proposedText:'Generation one obsolete wording'})],total:1}));
+    assert.equal(h.requests.length,2);
+    const updated=page({scope:'all',items:[
+      amendment(13,{proposedText:'Generation two amendment 13 wording'}),
+      amendment(15,{proposedText:'Generation two amendment 15 wording'}),
+    ],total:4,selected:offPage});
+    updated.text.generation=2;updated.coverage.servingGeneration=2;updated.snapshots={amendments:2,text:2};
+    await h.respond(updated);
+    assert.match(h.container.querySelector('.motion-amendments__selected').textContent,/Generation two off-page wording/);
+    assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,2);
+    for(const number of [firstNumber,firstNumber===13?15:13,firstNumber,firstNumber===13?15:13]) {
+      await h.click(new RegExp(`^Amendment ${number}`));
+      assert.equal(h.requests.length,2,'every displayed primary-ID row belongs to the retained generation and stays local');
+      assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,2,'a local switch must not restore the earlier page');
+      assert.match(h.container.querySelector('.motion-amendments__detail').textContent,new RegExp(`Generation two amendment ${number} wording`));
+      assert.doesNotMatch(h.container.textContent,/Generation one obsolete wording/);
+      assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/4 available/);
+      assert.deepEqual([...h.container.querySelectorAll('.motion-amendments__scope button')].map(node=>node.textContent),
+        ['Checked member’s proposals · 4','All available amendments · 4']);
+      assert.match(h.container.querySelector('.motion-amendments__pages').textContent,/1–2 of 4/);
+      assert.equal(h.container.querySelector('.motion-amendments__selected'),null);
+    }
+  });
+});
+
+test('failed and older exact reads preserve the accepted newer page until a coherent selection retry succeeds',async t=>{
+  const first=amendment(31,{proposedText:'Accepted generation two first selection'}),nextId=`${documentId}-AM-32`;
+  const h=await readerHarness(t,{state:{open:true,scope:'all',amendmentId:first.id}});
+  const oldPage=page({scope:'all',items:[amendment(13,{targetLabel:'Obsolete generation one provision',proposedText:'Obsolete generation one wording'})],total:1});
+  await h.respond(oldPage);
+  const newItems=[amendment(13,{targetLabel:'Current generation two provision',proposedText:'Current generation two wording'}),amendment(15)];
+  const latest=(selected)=>{
+    const result=page({scope:'all',items:newItems,total:4,selected});
+    result.text.generation=2;result.coverage.servingGeneration=2;result.snapshots={amendments:2,text:2};
+    return result;
+  };
+  await h.respond(latest(first));
+  const assertNewerPage=()=>{
+    assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,2);
+    assert.match(h.container.textContent,/Current generation two provision/);
+    assert.doesNotMatch(h.container.textContent,/Obsolete generation one/);
+    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/4 available/);
+    assert.match(h.container.querySelector('.motion-amendments__pages').textContent,/1–2 of 4/);
+  };
+  assertNewerPage();
+  await h.updateState({amendmentId:nextId});
+  assert.equal(h.requests.at(-1).url.searchParams.get('amendment'),nextId);
+  await h.respond({error:{message:'Temporary exact-read failure'}},{status:503});
+  assertNewerPage();
+  assert.match(h.container.textContent,/The selected amendment could not be loaded\./);
+  assert.equal(h.container.querySelector('.motion-amendments__detail'),null,'a failed new selection must not keep the earlier selected wording');
+  await h.click('Try again');
+  const staleSelected=amendment(32,{proposedText:'Obsolete generation one selected wording'});
+  await h.respond({...oldPage,selection:{requestedId:nextId,status:'available',item:staleSelected,inRequestedScope:true,inPage:false}});
+  assertNewerPage();
+  assert.match(h.container.textContent,/The selected amendment could not be loaded\./);
+  assert.equal(h.container.querySelector('.motion-amendments__detail'),null,'an older exact response must not contribute selected wording to the newer page');
+  await h.click('Try again');
+  await h.respond(latest(amendment(32,{proposedText:'Current generation two selected wording'})));
+  assertNewerPage();
+  assert.match(h.container.querySelector('.motion-amendments__selected').textContent,/Current generation two selected wording/);
+  assert.doesNotMatch(h.container.textContent,/The selected amendment could not be loaded/);
+  assert.equal(h.requests.length,5);
+  await h.click(/^Amendment 13/);
+  assertNewerPage();
+  assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Current generation two wording/);
+  assert.equal(h.requests.length,5,'the successful retry leaves its displayed primary rows selectable locally');
+});
+
+test('an alias-only page match requires the authoritative exact lookup and cannot bypass an ambiguous identity',async t=>{
+  const requestedId=`${documentId}-AM-013`,primary=amendment(13,{officialIds:[requestedId],proposedText:'Primary record wording'});
+  const h=await readerHarness(t,{state:{open:true,scope:'all',amendmentId:requestedId}});
+  const base=page({scope:'all',items:[primary],total:2});
+  await h.respond(base);
+  assert.equal(h.requests.length,2,'a single page alias match cannot establish uniqueness across the complete index');
+  assert.equal(h.requests[1].url.searchParams.get('amendment'),requestedId);
+  assert.equal(h.container.querySelector('.motion-amendments__detail'),null,'an unchecked alias must not open the first matching row');
+  // Another indexed primary record can carry this alias outside this page. Only
+  // the exact endpoint can reject that globally ambiguous observation.
+  await h.respond({...base,selection:{requestedId,status:'unavailable',item:null,inRequestedScope:null,inPage:false}});
+  assert.match(h.container.textContent,/The requested amendment is unavailable in the available records\./);
+  assert.equal(h.container.querySelector('.motion-amendments__detail'),null);
+  assert.equal(h.container.querySelector('.motion-amendments__row-button').getAttribute('aria-expanded'),'false');
+  assert.doesNotMatch(h.container.textContent,/Primary record wording/);
+  await h.click(/^Amendment 13/);
+  assert.equal(h.state().amendmentId,primary.id,'a user can explicitly select the exact displayed primary identity');
+  assert.equal(h.requests.length,2,'direct primary-ID row selection remains local');
+  assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Primary record wording/);
+  await h.updateState({amendmentId:requestedId});
+  assert.equal(h.container.querySelector('.motion-amendments__detail'),null,'returning to the ambiguous alias must not reuse the primary-ID detail');
+  assert.match(h.container.textContent,/The requested amendment is unavailable in the available records\./);
+});
+
 test('an unreadable competing version stays visible and cannot fall back to the readable wording',async t=>{
   const listA=`${documentId}-AM-001-020`,listB=`${documentId}-AM-013-014`;
   const item=amendment(13,{conflicted:true,originalText:null,proposedText:null,variants:[

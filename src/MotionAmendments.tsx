@@ -1,4 +1,4 @@
-import {useEffect,useId,useRef,type ReactNode,type RefObject} from 'react';
+import {useEffect,useId,useRef,useState,type ReactNode,type RefObject} from 'react';
 import {useData} from './data';
 import {Status} from './Status';
 import {amendmentDecisionKey,amendmentDecisionPart,publicAmendmentSource} from './amendmentModel.mjs';
@@ -59,7 +59,8 @@ function matchesPage(value:unknown,documentId:string,member:string,language:stri
     value.offset!==state.offset||value.limit!==MOTION_AMENDMENTS_PAGE_SIZE||!nonnegative(value.total)||!Array.isArray(value.items)||
     value.items.length>MOTION_AMENDMENTS_PAGE_SIZE||!object(value.totals)||!nonnegative(value.totals.allIndexed)||
     !(value.totals.memberMatched===null||nonnegative(value.totals.memberMatched))||!object(value.relations)||!Array.isArray(value.relations.adoptedTexts)||
-    !object(value.coverage)||!object(value.selection)||value.selection.requestedId!==requestedId)return false;
+    !object(value.coverage)||!object(value.snapshots)||!nonnegative(value.snapshots.amendments)||
+    !(value.snapshots.text===null||nonnegative(value.snapshots.text))||!object(value.selection)||value.selection.requestedId!==requestedId)return false;
   const validItem=(item:unknown)=>object(item)&&typeof item.id==='string'&&amendmentIdentity(item.id)?.id===item.id&&amendmentIdentity(item.id)?.documentId===documentId&&item.targetDocumentId===documentId&&
     object(item.wording)&&item.wording.requestedLanguage===language&&object(item.memberMatch)&&item.memberMatch.memberId===member&&
     Array.isArray(item.decisions)&&Array.isArray(item.splitParts);
@@ -72,6 +73,11 @@ function route(documentId:string,member:string,language:string,state:MotionAmend
   const query=new URLSearchParams({member,scope:state.scope,lang:language,offset:String(state.offset),limit:String(MOTION_AMENDMENTS_PAGE_SIZE)});
   if(amendment)query.set('amendment',amendment);
   return `motion-amendments/${encodeURIComponent(documentId)}?${query}`;
+}
+type ReaderPage={route:string|null;base:MotionAmendmentsPage|null;exact:MotionAmendmentsPage|null;page:MotionAmendmentsPage|null};
+function canReplacePage(candidate:MotionAmendmentsPage,current:MotionAmendmentsPage|null) {
+  return !current||candidate.snapshots.amendments>=current.snapshots.amendments&&
+    (candidate.snapshots.text===null||current.snapshots.text===null||candidate.snapshots.text>=current.snapshots.text);
 }
 function formatNumber(value:number,language:string) {try{return value.toLocaleString(language);}catch{return String(value);}}
 function dateLabel(value:string|null|undefined,language:string) {
@@ -219,16 +225,25 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
   const listRoute=allowed&&state.open?route(documentId,member,language,state):null;
   const list=useData<MotionAmendmentsPage>(listRoute);
   const basePage=list.data&&matchesPage(list.data,documentId,member,language,state,null)?list.data:null;
+  const [savedPage,setSavedPage]=useState<ReaderPage>({route:null,base:null,exact:null,page:null});
+  const previousPage:ReaderPage=savedPage.route===listRoute?savedPage:{route:listRoute,base:null,exact:null,page:null};
+  const newBase=basePage&&basePage!==previousPage.base;
+  const currentPage=newBase&&canReplacePage(basePage,previousPage.page)?basePage:previousPage.page;
   const badPage=Boolean(list.data&&!basePage);
-  const localItem=state.amendmentId&&basePage?.items.find(item=>identifies(item,state.amendmentId!))||null;
+  // A primary row ID is exact. An official alias must be resolved by the API:
+  // a second row carrying the same alias may be outside the displayed page.
+  const localItem=state.amendmentId&&currentPage?.items.find(item=>item.id===state.amendmentId)||null;
   const selectedRoute=listRoute&&basePage&&state.amendmentId&&!localItem?route(documentId,member,language,state,state.amendmentId):null;
   const exact=useData<MotionAmendmentsPage>(selectedRoute);
-  const exactPage=selectedRoute&&exact.data&&matchesPage(exact.data,documentId,member,language,state,state.amendmentId)?exact.data:null;
+  const exactPage=selectedRoute&&exact.data&&matchesPage(exact.data,documentId,member,language,state,state.amendmentId)&&canReplacePage(exact.data,currentPage)?exact.data:null;
   const badSelection=Boolean(selectedRoute&&exact.data&&!exactPage);
   // The exact response includes this same page. Publish its page, counts and
-  // selected record together if the index changed between the two requests.
-  const page=exactPage||basePage;
-  const selected=localItem||exactPage?.selection.item||null;
+  // selected record together and retain them through subsequent local choices.
+  const newExact=exactPage&&exactPage!==previousPage.exact;
+  const page=newExact?exactPage:currentPage;
+  if(savedPage.route!==listRoute||newBase||newExact)setSavedPage({route:listRoute,base:basePage,exact:exactPage||previousPage.exact,page});
+  const selection=page?.selection.requestedId===state.amendmentId?page.selection:null;
+  const selected=selection?selection.item:state.amendmentId&&page?.items.find(item=>item.id===state.amendmentId)||null;
   const inPage=Boolean(selected&&page?.items.some(item=>item.id===selected.id));
   const selectedRecord=selected?chosenRecord(selected,state.variantListId):null;
   const selectedPending=Boolean(selectedRoute&&exact.loading);
@@ -238,7 +253,7 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
   const openContext=(view:'document'|'adopted',contextTarget:'text'|'amendment')=>change({open:true,view:'context',contextView:view,contextTarget},'context');
   const detail=(item:MotionAmendment)=><AmendmentDetail item={item} member={member} language={language} listId={state.variantListId}
     onVariant={value=>change({variantListId:value},'variant')} onContext={()=>openContext('document','amendment')} contextButton={amendmentButton}/>;
-  const selectionUnavailable=Boolean(state.amendmentId&&!localItem&&exactPage?.selection.status==='unavailable');
+  const selectionUnavailable=Boolean(state.amendmentId&&selection?.status==='unavailable');
   const readingText=state.view==='context'&&state.contextTarget==='text';
   const message=!motionAllowed?'This motion reader selection is unavailable.':!allowed&&!readingText?'The linked amendment is unavailable for this motion.':badPage||badSelection?'Amendment information could not be loaded.':
     list.error||selectedRoute&&exact.error?'Amendment information could not be loaded.':selectionUnavailable?'The requested amendment is unavailable.':
@@ -278,7 +293,7 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
           {selectedPending&&<p className="motion-amendments__notice">Loading the selected amendment…</p>}
           {selectedRoute&&(exact.error||badSelection)&&<div className="motion-amendments__notice"><p>The selected amendment could not be loaded.</p><button type="button" onClick={()=>{focusHeading();exact.retry();}}>Try again</button></div>}
           {selectionUnavailable&&<p className="motion-amendments__notice">The requested amendment is unavailable in the available records.</p>}
-          {selected&&!inPage&&<div className="motion-amendments__selected"><p className="motion-amendments__outside">{exactPage?.selection.inRequestedScope===false?'Selected amendment · outside this filter':'Selected amendment · outside this page'}</p>{detail(selected)}</div>}
+          {selected&&!inPage&&<div className="motion-amendments__selected"><p className="motion-amendments__outside">{selection?.inRequestedScope===false?'Selected amendment · outside this filter':'Selected amendment · outside this page'}</p>{detail(selected)}</div>}
           {page&&<>
             {!page.items.length&&<p className="motion-amendments__notice">{emptyMessage(page)}</p>}
             {page.items.length>0&&<ul className="motion-amendments__list">{page.items.map(item=>{
