@@ -233,7 +233,9 @@ export class CorpusWorker {
     } else if(task.kind==='docx') {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');
       await this.pace();
-      const result=await this.runUpstream(()=>this.download(body.url),{priority:'background'});
+      const signal=this.controller.signal;
+      const result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal}),{priority:'background',signal});
+      signal.throwIfAborted();
       this.store.putDocument({sourceId:body.sourceId,kind:body.kind,parentId:body.parentId,date:body.date,term:10,originalLanguages:body.originalLanguages},
         [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'docx',sourceUrl:body.url,fetchedAt:new Date(this.clock()).toISOString(),body:result.paragraphs.join('\n'),raw:null}]);
       this.store.finishTask(task);
