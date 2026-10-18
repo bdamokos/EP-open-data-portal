@@ -258,6 +258,15 @@ test('a single exact amendment version shows its wording on detail and opens ful
   assert.equal(h.calls.filter(url=>url.includes('document-context/')).length,1);
 });
 
+test('an adopted text lookup keeps the exact report and does not inherit its selected amendment',async t=>{
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}});
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},handler:url=>String(url).includes('document-context/')?Response.json({documentId:DOCUMENT,requestedLanguage:'en',amendment:{id:AMENDMENT,status:'unavailable',variants:[]}}):Response.json(responseFor(url,{items:[item]}))});
+  await h.click('Find adopted text');
+  assert.deepEqual(h.state.context,{documentId:DOCUMENT,view:'adopted'});
+  assert.equal(h.contexts.at(-1).amendmentId,undefined);assert.equal(h.contexts.at(-1).listId,undefined);
+  await h.click('Back from context');assert.equal(h.state.decisionId,item.id);assert.equal(h.state.context,null);
+});
+
 test('known unavailable wording remains a competing published version and opens only its exact selected list',async t=>{
   const variants=[wordingVariant({listId:'readable-published-list'}),wordingVariant({listId:'known-unavailable-list',wordingStatus:'unavailable',language:null,
     targetLabel:null,targetLabelLanguage:null,originalText:null,proposedText:null})];
@@ -414,7 +423,7 @@ test('document actions use only exact top-level A/B/RC contexts and cannot open 
   assert.match(h.container.textContent,/The requested document is unavailable for this vote/);assert.equal(h.contexts.length,0,'an exact top-level document must not authorize an unrelated amendment');
   await h.click('← Back to vote');
   const actions=[...h.container.querySelectorAll('.member-votes-documents button')].map(item=>item.textContent);
-  assert.deepEqual(actions,['Read report · '+DOCUMENT,'Read motion · B-10-2026-0002','Read linked adopted text','Read joint motion · RC-10-2026-0003','Read linked adopted text']);
+  assert.deepEqual(actions,['Read report · '+DOCUMENT,'Find adopted text','Read motion · B-10-2026-0002','Find adopted text','Read joint motion · RC-10-2026-0003','Find adopted text']);
   await h.click('Read report · '+DOCUMENT);assert.equal(h.contexts.at(-1).documentId,DOCUMENT);assert.equal(h.contexts.at(-1).view,'document');
   assert.equal(h.calls.filter(url=>url.includes('motion-')).length,0);
 });
@@ -468,8 +477,8 @@ test('partial period coverage is disclosed once alongside observed, filtered and
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{coverage:{status:'partial',collectionComplete:false},pagination:{observedTotal:70,filteredTotal:1},subjects:[subject([vote(1)],{counts:{observed:70,filtered:1,page:1}})]}))});
   const notice='Some voting records for this period are unavailable. More decisions or recorded positions may exist.';
   assert.equal(h.container.textContent.split(notice).length-1,1);
-  assert.match(h.container.querySelector('.member-votes-tools').textContent,/1–1 of 1 recorded positions · 70 decisions available in this period/);
-  assert.match(h.container.querySelector('.member-votes-subject-count').textContent,/1 recorded positions in this subject · 1 on this page/);
+  assert.match(h.container.querySelector('.member-votes-tools').textContent,/1–1 of 1 recorded position · 70 decisions available in this period/);
+  assert.match(h.container.querySelector('.member-votes-subject-count').textContent,/1 recorded position in this subject · 1 on this page/);
   assert(!/all.term|attendance|denominator/i.test(h.container.textContent));
 });
 

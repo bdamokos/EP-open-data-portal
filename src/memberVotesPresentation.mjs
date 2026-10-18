@@ -91,7 +91,7 @@ export function groupMemberVotes(data) {
 
 export function displayVoteTitle(title) {
   if(typeof title!=='string')return '';
-  return title.replace(/(?<![\w*])\*\*\*(?:III|II|I)(?![\w*])/g,'').replace(/\s{2,}/g,' ').trim();
+  return title.replace(/(?<![\w*])\*{2,3}(?:III|II|I)(?![\w*])/g,'').replace(/^\*{1,3}\s+|(?:^|\s)\*{1,3}$/g,'').replace(/\s{2,}/g,' ').trim();
 }
 function sourceLabel(labels,language) {
   if(!isObject(labels))return null;

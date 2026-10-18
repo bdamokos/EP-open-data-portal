@@ -206,7 +206,9 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, include
 }
 function JoinedDetails({ item, lang, member }: { item: JoinedActivity; lang: string; member: number }) {
   const hasText=item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer';
-  const document=useData<PublicationDocument>(item.recordKind!=='speech' && !hasText ? `document/${item.sourceId}?member=${member}&lang=${lang}` : null);
+  const motion=/^(?:B|RC)-10-\d{4}-\d{4,6}$/.test(item.sourceId);
+  const [documentOpen,setDocumentOpen]=useState(false);
+  const document=useData<PublicationDocument>(item.recordKind!=='speech' && !hasText && (!motion||documentOpen) ? `document/${item.sourceId}?member=${member}&lang=${lang}` : null);
   const roles: Record<string,string> = {AUTHOR:"Author",QUESTION_AUTHOR:"Author of the question",RAPPORTEUR:"Rapporteur",RAPPORTEUR_SHADOW:"Shadow rapporteur",RAPPORTEUR_OPINION:"Opinion rapporteur",RAPPORTEUR_SHADOW_OPINION:"Shadow opinion rapporteur",SPEAKER:"Plenary contribution"};
   const stage=item.provenance.stage==='RDG1'?interfaceTerm('first-reading',lang):item.provenance.stage==='RDG2'?interfaceTerm('second-reading',lang):{text:item.provenance.stage,language:''};
   if (item.recordKind === "speech") return <Detail speech={{id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null}} lang={lang} />;
@@ -219,11 +221,16 @@ function JoinedDetails({ item, lang, member }: { item: JoinedActivity; lang: str
       <PublicationText sourceId={item.sourceId} member={member} lang={lang} heading={item.recordKind==='answer' ? 'Answer' : 'Question'} includeAnswers={item.recordKind!=='answer'} question={item.recordKind==='answer'&&item.relatedQuestionId?{id:item.relatedQuestionId,title:item.relatedQuestionTitle}:undefined} />
       {item.recordKind==='answer' && item.relatedQuestionId && <PublicationText sourceId={item.relatedQuestionId} member={member} lang={lang} heading="Linked question" />}
     </>}
-    {!hasText && <section lang="en" aria-label={item.relatedJointMotions?.length ? 'Original motion document' : 'Document'}>
+    {!hasText && (motion?<details className="explorer-reader-download" lang="en" onToggle={event=>setDocumentOpen(event.currentTarget.open)}><summary>{item.relatedJointMotions?.length?'Original motion · document and authors':'Document and authors'}</summary>
+      {document.loading&&<p role="status">Loading document details…</p>}
+      {document.error&&<ErrorView message={document.error} retry={document.retry}/>}
+      <CoAuthors authors={document.data?.coAuthors} lang={lang} member={member}/>
+      <PublicationFiles files={item.files} lang={lang}/>
+    </details>:<section lang="en" aria-label={item.relatedJointMotions?.length ? 'Original motion document' : 'Document'}>
       {!!item.relatedJointMotions?.length && <h3>Original motion document</h3>}
       <CoAuthors authors={document.data?.coAuthors} lang={lang} member={member}/>
       <PublicationFiles files={item.files} lang={lang}/>
-    </section>}
+    </section>)}
 
   </div>;
 }
