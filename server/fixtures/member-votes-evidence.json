@@ -1,0 +1,779 @@
+{
+  "description": "Selected raw public EP JSON-LD fields, not derived vote evidence or a complete sitting inventory. Result consists_of and inverse_consists_of references are untrimmed. Only the listed result and decision nodes are retained; result was_motivated_by arrays retain only the five selected request nodes, also retained as top-level stream nodes. Split requests retain every source component and its exact expressionContent XML literal. Language maps retain only English, French and Hungarian when supplied. Nonessential source fields and all voter arrays are omitted; source rawSha256 identifies the original saved response, not this selected fixture.",
+  "selection": {
+    "languages": [
+      "en",
+      "fr",
+      "hu"
+    ],
+    "requestArrays": "selected exact request nodes only",
+    "childReferences": "untrimmed",
+    "actualVoters": "omitted",
+    "attribution": "European Parliament Open Data API v2, CC BY 4.0"
+  },
+  "resultSources": [
+    {
+      "source": {
+        "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-07/vote-results?format=application%2Fld%2Bjson&limit=50&offset=0",
+        "retrievedAt": "2026-10-17T18:39:39.698248+00:00",
+        "httpStatus": 200,
+        "rawSha256": "5f03d709d1aecb9bb73b3cf188c49bd1a8be43b6c7135075e2d736a93c14eda1",
+        "selectedNodePointers": [
+          "/data/0",
+          "/data/2",
+          "/data/8",
+          "/data/11",
+          "/data/13",
+          "/data/16",
+          "/data/18"
+        ]
+      },
+      "payload": {
+        "data": [
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151",
+            "type": "Activity",
+            "activity_date": "2026-10-07",
+            "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993151",
+            "activity_label": {
+              "en": "Recommendation on EU-China political relations",
+              "fr": "Recommandation relative aux relations politiques entre l’UE et la Chine",
+              "hu": "Ajánlás az EU és Kína közötti politikai kapcsolatokról"
+            },
+            "based_on_a_realization_of": [
+              "eli/dl/doc/A-10-2026-0237"
+            ],
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197862",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197825",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197398",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197440",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197411",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197852",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197832",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197831",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197395",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197392",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197858",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197837",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197819",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197436",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197407",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197865",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197827",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197844",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197861",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197397",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197840",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197410",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197830",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197839",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197391",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197438",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197846",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197444",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197836",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197434",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197451",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197863",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197399",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197843",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197842",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197822",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197412",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197428",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197848",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197446",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197838",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197855",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197425",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197453",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197871",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197389",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197824",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197851",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197450",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197841",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197821",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197820",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197449",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197857",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197427",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197455",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197847",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197829",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197826",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197445",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197854",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197833",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197452",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197423",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197431",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197860",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197823",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197850",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197859",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197457",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197408",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197849",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197866",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197828",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197856",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197835",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197454",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197433"
+            ],
+            "executed": [
+              "eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-48"
+            ],
+            "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-07-VOT-ITM-007"
+            ],
+            "was_motivated_by": [
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1",
+                "type": "Activity",
+                "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1",
+                "activity_label": {
+                  "hu": "1. bek, au) pont",
+                  "fr": "§ 1, point au",
+                  "en": "§ 1, point au"
+                },
+                "created_a_realization_of": [
+                  {
+                    "id": "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-2",
+                    "type": "Work",
+                    "number": "2",
+                    "identifier": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-2",
+                    "expressionContent": {
+                      "fr": "<partValue>\"et en achevant l’union européenne de la défense\"</partValue>",
+                      "hu": "<partValue>„és az európai védelmi unió kiteljesítésével,”</partValue>",
+                      "en": "<partValue>‘and completing the European defence union’</partValue>"
+                    },
+                    "numbering": 2
+                  },
+                  {
+                    "id": "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-3",
+                    "type": "Work",
+                    "number": "3",
+                    "identifier": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-3",
+                    "expressionContent": {
+                      "fr": "<partValue>\"ainsi qu’en mettant en œuvre une réforme institutionnelle au moyen d’une «convention d’urgence»,\"</partValue>",
+                      "hu": "<partValue>„az intézményi reform „sürgősségi egyezmény” révén történő végrehajtásával,”</partValue>",
+                      "en": "<partValue>‘implementing institutional reform through an “urgency convention”,’</partValue>"
+                    },
+                    "numbering": 3
+                  },
+                  {
+                    "id": "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-1",
+                    "type": "Work",
+                    "number": "1",
+                    "identifier": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-1",
+                    "expressionContent": {
+                      "fr": "<partValue>ensemble du texte à l'exclusion des termes: \"et en achevant l’union européenne de la défense\" et \"ainsi qu’en mettant en œuvre une réforme institutionnelle au moyen d’une «convention d’urgence»,\"</partValue>",
+                      "hu": "<partValue>a teljes szöveg, kivéve: „és az európai védelmi unió kiteljesítésével,” és „az intézményi reform „sürgősségi egyezmény” révén történő végrehajtásával,”</partValue>",
+                      "en": "<partValue>Text as a whole without the words: ‘and completing the European defence union’ and ‘implementing institutional reform through an “urgency convention”,’</partValue>"
+                    },
+                    "numbering": 1
+                  }
+                ],
+                "had_activity_type": "def/ep-activities/REQUEST_VOTE_SPLIT",
+                "had_responsible_organization": [
+                  "org/ECR"
+                ],
+                "responsible_organization_label": {
+                  "fr": "ECR",
+                  "hu": "ECR",
+                  "en": "ECR"
+                },
+                "hadResponsibleOrganization": [
+                  "org/7037"
+                ]
+              },
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-RCV-5",
+                "type": "Activity",
+                "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993151-RCV-5",
+                "activity_label": {
+                  "en": "Amendments 20, 21, 40 (second part)",
+                  "fr": "amendements 20, 21, 40 (2ème partie)",
+                  "hu": "20., 21., 40. mód. (2. rész)"
+                },
+                "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+                "responsible_organization_label": {
+                  "hu": "Verts/ALE",
+                  "en": "Verts/ALE",
+                  "fr": "Verts/ALE"
+                }
+              },
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3",
+                "type": "Activity",
+                "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3",
+                "activity_label": {
+                  "hu": "40. módosítás",
+                  "en": "Amendment 40",
+                  "fr": "amendement 40"
+                },
+                "created_a_realization_of": [
+                  {
+                    "id": "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3-1",
+                    "type": "Work",
+                    "number": "1",
+                    "identifier": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3-1",
+                    "expressionContent": {
+                      "hu": "<partValue>a teljes szöveg, kivéve: „stratégiai partnerségnek” és kivéve a következő szöveg törlése: „politikai”</partValue>",
+                      "fr": "<partValue>ensemble du texte à l'exclusion des termes: \"considérant que le partenariat stratégique\" et à l'exclusion de la suppression du terme \"politique\"</partValue>",
+                      "en": "<partValue>Text as a whole without the words: ‘comprehensive strategic partnership’ and excluding the deletion of the word ‘policy’</partValue>"
+                    },
+                    "numbering": 1
+                  },
+                  {
+                    "id": "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3-2",
+                    "type": "Work",
+                    "number": "2",
+                    "identifier": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3-2",
+                    "expressionContent": {
+                      "en": "<partValue>‘comprehensive strategic partnership’ and the deletion of the word ‘policy’</partValue>",
+                      "hu": "<partValue>„stratégiai partnerségnek” és a következő szöveg törlése: „politikai”</partValue>",
+                      "fr": "<partValue>\"considérant que le partenariat stratégique\" et la suppression du terme \"politique\"</partValue>"
+                    },
+                    "numbering": 2
+                  }
+                ],
+                "had_activity_type": "def/ep-activities/REQUEST_VOTE_SPLIT",
+                "had_responsible_organization": [
+                  "org/VERTS_ALE"
+                ],
+                "responsible_organization_label": {
+                  "fr": "Verts/ALE",
+                  "en": "Verts/ALE",
+                  "hu": "Verts/ALE"
+                },
+                "hadResponsibleOrganization": [
+                  "org/7028"
+                ]
+              },
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-RCV-2",
+                "type": "Activity",
+                "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993151-RCV-2",
+                "activity_label": {
+                  "fr": "amendements 25, 27; § 1, point au (2ème et 3ème parties)",
+                  "en": "Amendments 25, 27; § 1, point au (second and third parts);",
+                  "hu": "25., 27. mód. 1. bek. (2. és 3. rész)"
+                },
+                "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+                "responsible_organization_label": {
+                  "hu": "ECR",
+                  "fr": "ECR",
+                  "en": "ECR"
+                }
+              }
+            ],
+            "inverse_consists_of": [
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-07",
+                "consists_of": [
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993168",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993167",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993162",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993161",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993160",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993159"
+                ]
+              },
+              {
+                "id": "eli/dl/proc/2025-2117",
+                "consists_of": [
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993167",
+            "type": "Activity",
+            "activity_date": "2026-10-07",
+            "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993167",
+            "activity_label": {
+              "fr": "Protection consulaire des citoyens de l’Union non représentés dans des pays tiers *",
+              "hu": "A harmadik országokban képviselettel nem rendelkező uniós polgárok konzuli védelme *",
+              "en": "Consular protection for unrepresented citizens of the Union in third countries *"
+            },
+            "based_on_a_realization_of": [
+              "eli/dl/doc/A-10-2026-0254"
+            ],
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197816",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197506",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197815",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197818",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197813",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197509",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197817",
+              "eli/dl/event/MTG-PL-2026-10-07-DEC-197814"
+            ],
+            "executed": [
+              "eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-49"
+            ],
+            "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-07-VOT-ITM-003"
+            ],
+            "was_motivated_by": [
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993167-RCV-2",
+                "type": "Activity",
+                "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993167-RCV-2",
+                "activity_label": {
+                  "en": "Amendments 41, 42",
+                  "fr": "amendements 41, 42",
+                  "hu": "41., 42. mód."
+                },
+                "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+                "responsible_organization_label": {
+                  "hu": "S&D",
+                  "fr": "S&D",
+                  "en": "S&D"
+                }
+              }
+            ],
+            "inverse_consists_of": [
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-07",
+                "consists_of": [
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993168",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993167",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993162",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993161",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993160",
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993159"
+                ]
+              },
+              {
+                "id": "eli/dl/proc/2023-0441",
+                "consists_of": [
+                  "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993167"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1",
+            "activity_label": {
+              "hu": "1. bek, au) pont",
+              "fr": "§ 1, point au",
+              "en": "§ 1, point au"
+            },
+            "created_a_realization_of": [
+              {
+                "id": "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-2",
+                "type": "Work",
+                "number": "2",
+                "identifier": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-2",
+                "expressionContent": {
+                  "fr": "<partValue>\"et en achevant l’union européenne de la défense\"</partValue>",
+                  "hu": "<partValue>„és az európai védelmi unió kiteljesítésével,”</partValue>",
+                  "en": "<partValue>‘and completing the European defence union’</partValue>"
+                },
+                "numbering": 2
+              },
+              {
+                "id": "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-3",
+                "type": "Work",
+                "number": "3",
+                "identifier": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-3",
+                "expressionContent": {
+                  "fr": "<partValue>\"ainsi qu’en mettant en œuvre une réforme institutionnelle au moyen d’une «convention d’urgence»,\"</partValue>",
+                  "hu": "<partValue>„az intézményi reform „sürgősségi egyezmény” révén történő végrehajtásával,”</partValue>",
+                  "en": "<partValue>‘implementing institutional reform through an “urgency convention”,’</partValue>"
+                },
+                "numbering": 3
+              },
+              {
+                "id": "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-1",
+                "type": "Work",
+                "number": "1",
+                "identifier": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-1",
+                "expressionContent": {
+                  "fr": "<partValue>ensemble du texte à l'exclusion des termes: \"et en achevant l’union européenne de la défense\" et \"ainsi qu’en mettant en œuvre une réforme institutionnelle au moyen d’une «convention d’urgence»,\"</partValue>",
+                  "hu": "<partValue>a teljes szöveg, kivéve: „és az európai védelmi unió kiteljesítésével,” és „az intézményi reform „sürgősségi egyezmény” révén történő végrehajtásával,”</partValue>",
+                  "en": "<partValue>Text as a whole without the words: ‘and completing the European defence union’ and ‘implementing institutional reform through an “urgency convention”,’</partValue>"
+                },
+                "numbering": 1
+              }
+            ],
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_SPLIT",
+            "had_responsible_organization": [
+              "org/ECR"
+            ],
+            "responsible_organization_label": {
+              "fr": "ECR",
+              "hu": "ECR",
+              "en": "ECR"
+            },
+            "hadResponsibleOrganization": [
+              "org/7037"
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-RCV-5",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993151-RCV-5",
+            "activity_label": {
+              "en": "Amendments 20, 21, 40 (second part)",
+              "fr": "amendements 20, 21, 40 (2ème partie)",
+              "hu": "20., 21., 40. mód. (2. rész)"
+            },
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+            "responsible_organization_label": {
+              "hu": "Verts/ALE",
+              "en": "Verts/ALE",
+              "fr": "Verts/ALE"
+            }
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3",
+            "activity_label": {
+              "hu": "40. módosítás",
+              "en": "Amendment 40",
+              "fr": "amendement 40"
+            },
+            "created_a_realization_of": [
+              {
+                "id": "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3-1",
+                "type": "Work",
+                "number": "1",
+                "identifier": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3-1",
+                "expressionContent": {
+                  "hu": "<partValue>a teljes szöveg, kivéve: „stratégiai partnerségnek” és kivéve a következő szöveg törlése: „politikai”</partValue>",
+                  "fr": "<partValue>ensemble du texte à l'exclusion des termes: \"considérant que le partenariat stratégique\" et à l'exclusion de la suppression du terme \"politique\"</partValue>",
+                  "en": "<partValue>Text as a whole without the words: ‘comprehensive strategic partnership’ and excluding the deletion of the word ‘policy’</partValue>"
+                },
+                "numbering": 1
+              },
+              {
+                "id": "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3-2",
+                "type": "Work",
+                "number": "2",
+                "identifier": "MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3-2",
+                "expressionContent": {
+                  "en": "<partValue>‘comprehensive strategic partnership’ and the deletion of the word ‘policy’</partValue>",
+                  "hu": "<partValue>„stratégiai partnerségnek” és a következő szöveg törlése: „politikai”</partValue>",
+                  "fr": "<partValue>\"considérant que le partenariat stratégique\" et la suppression du terme \"politique\"</partValue>"
+                },
+                "numbering": 2
+              }
+            ],
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_SPLIT",
+            "had_responsible_organization": [
+              "org/VERTS_ALE"
+            ],
+            "responsible_organization_label": {
+              "fr": "Verts/ALE",
+              "en": "Verts/ALE",
+              "hu": "Verts/ALE"
+            },
+            "hadResponsibleOrganization": [
+              "org/7028"
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-RCV-2",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993151-RCV-2",
+            "activity_label": {
+              "fr": "amendements 25, 27; § 1, point au (2ème et 3ème parties)",
+              "en": "Amendments 25, 27; § 1, point au (second and third parts);",
+              "hu": "25., 27. mód. 1. bek. (2. és 3. rész)"
+            },
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+            "responsible_organization_label": {
+              "hu": "ECR",
+              "fr": "ECR",
+              "en": "ECR"
+            }
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993167-RCV-2",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-07-VOT-ITM-993167-RCV-2",
+            "activity_label": {
+              "en": "Amendments 41, 42",
+              "fr": "amendements 41, 42",
+              "hu": "41., 42. mód."
+            },
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+            "responsible_organization_label": {
+              "hu": "S&D",
+              "fr": "S&D",
+              "en": "S&D"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "source": {
+        "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-05/vote-results?format=application%2Fld%2Bjson&limit=50",
+        "retrievedAt": "2026-10-17T18:41:08.172210+00:00",
+        "httpStatus": 200,
+        "rawSha256": "f82b75aa7141af38f42feb8acd37e7d826f95ce9b1dfd7c62b264ca97fdcd20a",
+        "selectedNodePointers": [
+          "/data/0"
+        ]
+      },
+      "payload": {
+        "data": [
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-05-VOT-ITM-000001",
+            "type": "Activity",
+            "activity_date": "2026-10-05",
+            "activity_id": "MTG-PL-2026-10-05-VOT-ITM-000001",
+            "activity_label": {
+              "en": "Monday’s agenda – Request by the ECR Group – Escalating student riots in France",
+              "hu": "Hétfői napirend – Az ECR képviselőcsoport kérelme – A franciaországi diákzavargások",
+              "fr": "Ordre du jour de lundi - Demande du groupe ECR – Émeutes de lycéens en France"
+            },
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-05-DEC-197673"
+            ],
+            "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-05-VOT-ITM-001"
+            ],
+            "inverse_consists_of": [
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-05",
+                "consists_of": [
+                  "eli/dl/event/MTG-PL-2026-10-05-VOT-ITM-000001"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "decisionSources": [
+    {
+      "source": {
+        "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-07/decisions?format=application%2Fld%2Bjson&filter-output=voters&limit=1&offset=0",
+        "retrievedAt": "2026-10-17T18:39:40.480313+00:00",
+        "httpStatus": 200,
+        "rawSha256": "bcd198fd41b61046f782e2eb521960f0437810896e877806418cb74e4b42fbc6",
+        "selectedNodePointers": [
+          "/data/0",
+          "/data/29",
+          "/data/48",
+          "/data/55"
+        ]
+      },
+      "payload": {
+        "data": [
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-07-DEC-197866",
+            "type": "Vote",
+            "activity_date": "2026-10-07",
+            "activity_id": "MTG-PL-2026-10-07-DEC-197866",
+            "activity_label": {
+              "hu": "A10-0237/2026 – Hilde Vautmans – AO. preb. – 40/2. mód.",
+              "en": "A10-0237/2026 – Hilde Vautmans – Recital AO – Am 40/2",
+              "fr": "A10-0237/2026 - Hilde Vautmans - Considérant AO - Am 40/2"
+            },
+            "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+            "decision_outcome": "def/ep-statuses/ADOPTED",
+            "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+            "number_of_votes_abstention": 36,
+            "number_of_votes_against": 270,
+            "number_of_votes_favor": 357,
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-07-RCV-ITM-053"
+            ],
+            "responsible_organization_label": {
+              "en": "S&D",
+              "fr": "S&D",
+              "hu": "S&D"
+            },
+            "was_motivated_by": [
+              "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3"
+            ],
+            "referenceText": {
+              "en": "Recital AO",
+              "hu": "AO. preb.",
+              "fr": "Considérant AO"
+            },
+            "inverse_consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151"
+            ],
+            "decided_on_a_realization_of": [
+              "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-3-2",
+              "eli/dl/doc/A-10-2026-0237-AM-40"
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-07-DEC-197814",
+            "type": "Vote",
+            "activity_date": "2026-10-07",
+            "activity_id": "MTG-PL-2026-10-07-DEC-197814",
+            "activity_label": {
+              "hu": "A10-0254/2026 – Lena Düpont – 1. cikk – 1. albek. – 1. pont; (EU) 2015/637 rendelet – 7 cikk – 1 bek. után – 42 mód.",
+              "en": "A10-0254/2026 – Lena Düpont – Article 1 – § 1 – point 1; Directive (EU) 2015/637 – Article 7 – after paragraph 1 – Am 42",
+              "fr": "A10-0254/2026 - Lena Düpont - Article 1 – alinéa 1 – point 1; Directive (UE) 2015/637 – Article 7 – après le paragraphe 1 - Am 42"
+            },
+            "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+            "decision_outcome": "def/ep-statuses/REJECTED",
+            "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+            "number_of_votes_abstention": 5,
+            "number_of_votes_against": 370,
+            "number_of_votes_favor": 289,
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-07-RCV-ITM-003"
+            ],
+            "responsible_organization_label": {
+              "hu": "S&D",
+              "fr": "S&D",
+              "en": "S&D"
+            },
+            "was_motivated_by": [
+              "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993167-RCV-2"
+            ],
+            "headingLabel": {
+              "hu": "Az (EU) 2015/637 irányelv módosításai",
+              "fr": "Amendements à la Directive (UE) 2015/637",
+              "en": "Amendments to Directive (EU) 2015/637"
+            },
+            "referenceText": {
+              "hu": "1 cikk – 1 albekezdés – 1 pont; (EU) 2015/637 irányelv – 7 cikk – 1 bekezdés után",
+              "fr": "Article 1 – alinéa 1 – point 1; Directive (UE) 2015/637 – Article 7 – après le paragraphe 1",
+              "en": "Article 1 – § 1 – point 1; Directive (EU) 2015/637 – Article 7 – after paragraph 1"
+            },
+            "inverse_consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993167"
+            ],
+            "decided_on_a_realization_of": [
+              "eli/dl/doc/A-10-2026-0254-AM-42"
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-07-DEC-197847",
+            "type": "Vote",
+            "activity_date": "2026-10-07",
+            "activity_id": "MTG-PL-2026-10-07-DEC-197847",
+            "activity_label": {
+              "en": "A10-0237/2026 – Hilde Vautmans – § 1, point au/2",
+              "hu": "A10-0237/2026 – Hilde Vautmans – 1. bek., au/2. pont",
+              "fr": "A10-0237/2026 - Hilde Vautmans - § 1, point au/2"
+            },
+            "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+            "decision_outcome": "def/ep-statuses/ADOPTED",
+            "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+            "number_of_votes_abstention": 31,
+            "number_of_votes_against": 218,
+            "number_of_votes_favor": 415,
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-07-RCV-ITM-038"
+            ],
+            "responsible_organization_label": {
+              "en": "original text",
+              "hu": "eredeti szöveg"
+            },
+            "was_motivated_by": [
+              "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1"
+            ],
+            "referenceText": {
+              "hu": "1. bek, au) pont",
+              "en": "§ 1, point au",
+              "fr": "§ 1, point au"
+            },
+            "inverse_consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151"
+            ],
+            "decided_on_a_realization_of": [
+              "eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-2"
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-07-DEC-197457",
+            "type": "Vote",
+            "activity_date": "2026-10-07",
+            "activity_id": "MTG-PL-2026-10-07-DEC-197457",
+            "activity_label": {
+              "hu": "A10-0237/2026 – Hilde Vautmans – Állásfoglalási indítvány (a szöveg egésze)",
+              "en": "A10-0237/2026 – Hilde Vautmans – Motion for a resolution (as a whole)",
+              "fr": "A10-0237/2026 - Hilde Vautmans - Proposition de résolution (ensemble du texte)"
+            },
+            "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+            "decision_outcome": "def/ep-statuses/ADOPTED",
+            "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+            "number_of_votes_abstention": 110,
+            "number_of_votes_against": 86,
+            "number_of_votes_favor": 454,
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-07-RCV-ITM-054"
+            ],
+            "referenceText": {
+              "hu": "Állásfoglási indítvány (a szöveg egésze)",
+              "fr": "Proposition de résolution (ensemble du texte)",
+              "en": "Motion for a resolution (as a whole)"
+            },
+            "inverse_consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": {
+        "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-05/decisions?format=application%2Fld%2Bjson&filter-output=voters&limit=1",
+        "retrievedAt": "2026-10-17T18:40:44.415258+00:00",
+        "httpStatus": 200,
+        "rawSha256": "d8a54e69bd498bb4c0fb95665ea7505cd9b5c0e4391bae9fe796de91f2ffe911",
+        "selectedNodePointers": [
+          "/data/0"
+        ]
+      },
+      "payload": {
+        "data": [
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-05-DEC-197673",
+            "type": "Vote",
+            "activity_date": "2026-10-05",
+            "activity_id": "MTG-PL-2026-10-05-DEC-197673",
+            "activity_label": {
+              "en": "Monday’s agenda – Request by the ECR Group – Escalating student riots in France",
+              "fr": "Ordre du jour de lundi - Demande du groupe ECR – Émeutes de lycéens en France",
+              "hu": "Hétfői napirend – Az ECR képviselőcsoport kérelme – A franciaországi diákzavargások"
+            },
+            "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+            "decision_outcome": "def/ep-statuses/ADOPTED",
+            "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+            "number_of_votes_abstention": 4,
+            "number_of_votes_against": 198,
+            "number_of_votes_favor": 217,
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-05-RCV-ITM-001"
+            ],
+            "referenceText": {
+              "hu": "Az ECR képviselőcsoport kérelme – A franciaországi diákzavargások",
+              "fr": "Demande du groupe ECR – Émeutes de lycéens en France",
+              "en": "Request by the ECR Group – Escalating student riots in France"
+            },
+            "inverse_consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-05-VOT-ITM-000001"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

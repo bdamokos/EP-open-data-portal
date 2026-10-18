@@ -50,7 +50,7 @@ function setup({decisions=[finalDecision],results,agenda=fixture.foreseen.payloa
 test('single-sitting collection exposes its bounded period and reuses source reads across members',async()=>{
   const {service,calls}=setup();
   const first=await service.query(MEMBER,query('sitting='+SITTING));
-  assert.equal(first.version,1);
+  assert.equal(first.version,2);
   assert.equal(first.period.sittingId,SITTING);
   assert.equal(first.period.from,'2026-10-07');
   assert.equal(first.period.to,'2026-10-07');
@@ -465,4 +465,66 @@ test('a short nonempty duplicate-only page remains incomplete rather than an end
   assert.equal(response.coverage.sittings[0].decisions.stopReason,'repeated-page');
   assert.equal(response.coverage.sittings[0].namedDecisions.stopReason,'repeated-page');
   assert.equal(response.pagination.observedTotal,2);
+});
+
+test('recorded-only pages retain full observed counts, subject counts and off-filter selected decisions',async()=>{
+  const decisions=Array.from({length:5},(_,index)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${270000+index}`,activity_id:`${SITTING}-DEC-${270000+index}`}));
+  for(const index of [1,3]){decisions[index].decision_method='def/ep-decision-methods/VOTE_HAND';delete decisions[index].had_voter_favor;}
+  const {service,calls}=setup({decisions});
+  const all=await service.query(MEMBER,query(`sitting=${SITTING}&limit=10`));
+  const reads=calls.length;
+  const first=await service.query(MEMBER,query(`sitting=${SITTING}&positions=recorded&limit=2&decision=${decisions[3].activity_id}&snapshot=${all.snapshotId}`));
+  const next=await service.query(MEMBER,query(`sitting=${SITTING}&positions=recorded&limit=2&offset=2&snapshot=${all.snapshotId}`));
+  assert.equal(first.positions,'recorded');
+  assert.deepEqual(first.pagination,{offset:0,limit:2,returned:2,observedTotal:5,filteredTotal:3,nextOffset:2});
+  assert.deepEqual(next.pagination,{offset:2,limit:2,returned:1,observedTotal:5,filteredTotal:3,nextOffset:null});
+  assert([...first.items,...next.items].every(item=>item.actualPosition.status==='recorded'));
+  assert.equal(new Set([...first.items,...next.items].map(item=>item.id)).size,3);
+  assert.equal(first.selected.status,'found');assert.equal(first.selected.item.id,decisions[3].activity_id);
+  assert.equal(first.selected.item.actualPosition.status,'unavailable');
+  assert.deepEqual(first.subjects[0].counts,{observed:5,filtered:3,page:2});
+  assert.deepEqual(next.subjects[0].counts,{observed:5,filtered:3,page:1});
+  assert.equal(first.subjects[0].wholeTextDecisions.length,5,'whole-text evidence is independent of member filter/page');
+  const other=await service.query('999999',query(`sitting=${SITTING}&positions=recorded&snapshot=${all.snapshotId}`));
+  assert.equal(other.pagination.observedTotal,5);assert.equal(other.pagination.filteredTotal,0);assert.deepEqual(other.items,[]);
+  assert.equal(other.snapshotId,all.snapshotId);assert.equal(calls.length,reads);
+});
+
+test('invalid recorded filters are rejected and default compatibility is all',()=>{
+  assert.equal(query('sitting='+SITTING).positions,'all');
+  assert.equal(query('positions=recorded').positions,'recorded');
+  for(const value of ['positions=','positions=REcorded','positions=for','positions=all&positions=recorded'])assert.throws(()=>query(value),error=>error.status===400);
+});
+
+test('conflicting decision streams withhold all derived position, totals, outcome and subject evidence',async()=>{
+  const {service}=setup({override:({kind,supplied})=>kind==='named'?{...supplied,payload:{data:supplied.payload.data.map(row=>({...row,decision_outcome:'def/ep-statuses/REJECTED'}))}}:undefined});
+  const all=await service.query(MEMBER,query('sitting='+SITTING));
+  const item=all.items[0];
+  assert.equal(item.actualPosition.status,'conflicting');assert.equal(item.ballotStatus,'unknown');
+  assert.equal(item.method,null);assert.equal(item.outcome,null);assert.equal(item.subjectId,null);
+  assert.deepEqual(item.totals,{for:null,against:null,abstaining:null});
+  assert.deepEqual(item.parts,[]);assert.deepEqual(item.rollCallRequesters,[]);
+  assert.equal(all.subjects[0].wholeTextDecisions.length,0);
+  const recorded=await service.query(MEMBER,query(`sitting=${SITTING}&positions=recorded&snapshot=${all.snapshotId}&decision=${item.id}`));
+  assert.equal(recorded.pagination.filteredTotal,0);assert.equal(recorded.selected.item.actualPosition.status,'conflicting');
+});
+
+test('auxiliary request wording is retained with exact source JSON pointers and bound into snapshot identity',async()=>{
+  const evidence=JSON.parse(readFileSync(new URL('./fixtures/member-votes-evidence.json',import.meta.url)));
+  const results=evidence.resultSources.flatMap(source=>source.payload.data).filter(node=>node.activity_id.startsWith(SITTING));
+  const decisions=evidence.decisionSources.flatMap(source=>source.payload.data).filter(node=>node.activity_id.startsWith(SITTING));
+  let changed=false;
+  const {service}=setup({results,decisions,limits:{cacheMs:0},override:({kind,supplied})=>{
+    if(kind==='results'&&changed){const replacement=clone(supplied);for(const node of replacement.payload.data.flatMap(node=>[node,...(node.was_motivated_by||[])]))if(node.activity_id?.endsWith('993151-SPLIT-1'))node.created_a_realization_of.find(component=>component.identifier.endsWith('-1-2')).expressionContent.en='<partValue>changed public wording</partValue>';return replacement;}
+  }});
+  const first=await service.query(MEMBER,query(`sitting=${SITTING}&decision=${SITTING}-DEC-197847`));
+  const part=first.selected.item.parts[0];
+  assert.equal(part.contentByLanguage.en.text,'‘and completing the European defence union’');
+  assert(part.evidencePaths.some(path=>/^\/data\/\d+\/created_a_realization_of\/\d+$/.test(path.jsonPointer)));
+  changed=true;
+  const second=await service.query(MEMBER,query(`sitting=${SITTING}&decision=${SITTING}-DEC-197847`));
+  assert.notEqual(first.snapshotId,second.snapshotId);
+  assert.equal(second.selected.item.parts[0].contentByLanguage.en.text,'changed public wording');
+  const pinned=await service.query(MEMBER,query(`sitting=${SITTING}&decision=${SITTING}-DEC-197847&snapshot=${first.snapshotId}`));
+  assert.equal(pinned.selected.item.parts[0].contentByLanguage.en.text,part.contentByLanguage.en.text);
 });
