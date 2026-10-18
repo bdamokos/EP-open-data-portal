@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
@@ -103,6 +103,44 @@ test('document context HTTP contract is bounded, query-separated and never start
     const arrived=new Promise(resolve=>server.once('request',resolve));
     const survivor=read(route);await arrived;assert.equal(bodyReads,before+1);release();const result=await survivor;
     assert.equal(result.status,200);assert.equal(result.body.requestedWordingLanguage,null);assert.equal(result.body.target.evidence.wordingLanguage,null);assert.equal(bodyReads,before+1);assert.equal(sharedSignal.aborted,false);
+  });
+
+  await t.test('unsupported declared distributions remain exact source-language competitors over HTTP',async tt=>{
+    const fixture=JSON.parse(await readFile(new URL('./fixtures/amendment-docx-excerpts-20261016.json',import.meta.url),'utf8')).documents[0];
+    const original=fixture.expected[0],documentId=fixture.targetDocumentId,exactAmendment=documentId+'-AM-'+original.number;
+    const allowed=fixture.sourceUrl,unsupported=allowed.replace('.docx','_other.docx?download=1');
+    const entries=[['word/document.xml',fixture.documentXml],['word/styles.xml',fixture.stylesXml]],local=[],central=[];let offset=0;
+    for(const [entry,xml] of entries) {
+      const name=Buffer.from(entry),body=Buffer.from(xml),header=Buffer.alloc(30),directory=Buffer.alloc(46);
+      header.writeUInt32LE(0x04034b50);header.writeUInt32LE(body.length,18);header.writeUInt32LE(body.length,22);header.writeUInt16LE(name.length,26);
+      directory.writeUInt32LE(0x02014b50);directory.writeUInt32LE(body.length,20);directory.writeUInt32LE(body.length,24);directory.writeUInt16LE(name.length,28);directory.writeUInt32LE(offset,42);
+      local.push(header,name,body);central.push(directory,name);offset+=header.length+name.length+body.length;
+    }
+    const directory=Buffer.concat(central),end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(entries.length,8);end.writeUInt16LE(entries.length,10);end.writeUInt32LE(directory.length,12);end.writeUInt32LE(offset,16);
+    const buffer=Buffer.concat([...local,directory,end]),downloads=[];
+    const expression=(language,url)=>({language:'http://publications.europa.eu/resource/authority/language/'+language,is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:url,byteSize:1234,issued:'2026-09-30'}]});
+    let publishedList;
+    tt.mock.method(documentContext,'findAmendment',()=>null);
+    tt.mock.method(documentContext,'request',async route=>{
+      assert.equal(route,'/plenary-documents/'+documentId);
+      return {payload:{data:[{id:'eli/dl/doc/'+documentId,identifier:documentId,work_type:'def/ep-document-types/REPORT_PLENARY',document_date:'2026-09-16',is_realized_by:[],inverse_foresees_change_of:[publishedList]}]},fetchedAt:Date.parse(fetchedAt)};
+    });
+    tt.mock.method(documentContext,'readText',async()=>({...text('en'),paragraphs:[original.originalText]}));
+    tt.mock.method(documentContext,'download',async url=>{assert.equal(url,allowed,'unsupported declared files must never be downloaded');downloads.push(url);return {buffer,resolvedSourceUrl:url};});
+    const cases=[
+      {listId:documentId+'-AM-037-046',expressions:[expression('ENG',allowed),expression('ENG',unsupported)],languages:['en','en'],urls:[allowed,unsupported],found:false},
+      {listId:documentId+'-AM-040-040',expressions:[expression('ENG',unsupported)],languages:['en'],urls:[unsupported],found:false},
+      {listId:documentId+'-AM-039-041',expressions:[expression('ENG',allowed),expression('HUN',unsupported)],languages:['en','hu'],urls:[allowed,unsupported],found:true},
+    ];
+    for(const scenario of cases) {
+      publishedList={id:'eli/dl/doc/'+scenario.listId,identifier:scenario.listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+documentId],is_realized_by:scenario.expressions};
+      const route='/api/document-context/'+documentId+'?'+new URLSearchParams({amendment:exactAmendment,list:scenario.listId,'wording-lang':'en'});
+      const result=await read(route);assert.equal(result.status,200);noStore(result);assert.equal(result.body.requestedWordingLanguage,'en');
+      assert.deepEqual(result.body.amendment.variants.map(variant=>variant.language),scenario.languages);assert.deepEqual(result.body.amendment.variants.map(variant=>variant.source.url),scenario.urls);
+      const withheld=result.body.amendment.variants.find(variant=>variant.source.url===unsupported);assert.equal(withheld.wordingStatus,'unavailable');assert.equal(withheld.originalText,null);assert.equal(withheld.proposedText,null);assert.deepEqual(withheld.source.sourceVersion,{byteSize:1234,issued:'2026-09-30'});assert.equal(withheld.metadataSource.url,'https://data.europarl.europa.eu/api/v2/plenary-documents/'+documentId);
+      if(scenario.found){assert.equal(result.body.target.status,'found');assert.equal(result.body.target.quoteMatches,true);assert.equal(result.body.target.evidence.wordingLanguage,'en');assert.equal(result.body.target.evidence.wordingSource.url,allowed);assert.deepEqual(downloads,[allowed]);}
+      else {assert.equal(result.body.target.status,'unavailable');assert.equal(result.body.target.evidence,null);assert.deepEqual(downloads,[]);}
+    }
   });
 
   assert.equal(worker.running,false);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs').get().n,0);assert.equal(calls.length,2);
