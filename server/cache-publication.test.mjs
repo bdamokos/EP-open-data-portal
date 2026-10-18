@@ -31,7 +31,7 @@ for(const [index,kind] of ['document','player','view'].entries())for(const [stag
   const read=()=>kind==='document'?documentText(work,'en',{directory,download:async()=>({paragraphs:[++calls===1?'expired old text':'replacement text']})}):kind==='player'?playerContent(id,directory,{fetchContent:async()=>({commonId:id,visibility:'PUBLISHED',startDate:'2026-10-07T07:00:00Z',endDate:'2026-10-07T08:00:00Z',languageMapping:[{lang:++calls===1?'EN':'FR',sort:1}]})}):view.refresh(key,async()=>({items:[++calls===1?'expired old view':'replacement view']}));
   const first=read().then(value=>({value}),error=>({error}));
   await started;t.mock.timers.tick(50_000);const expired=await first;
-  assert(kind==='document'?expired.value.status==='error':expired.error.code==='request_timeout');
+  assert.equal(expired.error.code,'request_timeout');
   await turn();assert.equal(upstreamStatus().active,0,'expired persistence must release its admitted source slot');
   t.mock.timers.tick(3_600_001);
   const replacement=await read();assert.equal(calls,2);
