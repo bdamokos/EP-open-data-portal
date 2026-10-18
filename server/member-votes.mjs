@@ -4,7 +4,7 @@ import {odp,odpLanguage} from './odp.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
 import {requestSignal,runWithRequestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
-import {comparable,mergeSourceNodes} from './vote-evidence.mjs';
+import {comparable,mergeSourceNodes,sourceNodeKey} from './vote-evidence.mjs';
 
 export const MEMBER_VOTES_VERSION=2;
 export const MEMBER_VOTES_LIMITS=Object.freeze({pageSize:50,decisionPageSize:250,cataloguePages:10,decisionPages:4,resultsPages:4,agendaPages:4,maxRows:4000,maxSittings:5,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,cacheBytes:32*1024*1024,cacheEntries:8,cacheMs:60_000,snapshotMs:10*60_000,sourceMs:15*60_000,timeoutMs:50_000});
@@ -60,7 +60,7 @@ export class MemberVotes {
         if(bytes>this.limits.sourceBytes||budget.bytes+bytes>this.limits.periodBytes)throw new HttpError(502,'vote_source_size','Parliament vote data exceeds the bounded source size.');
         budget.bytes+=bytes;
         const source=sourceEvidence(record,record.payload);coverage.sources.push(source);coverage.pages++;
-        for(const [index,node] of data.entries()){const key=relative(node.id);(evidence[key]??=[]).push({sourceUrl:source.url,contentHash:source.contentHash,jsonPointer:'/data/'+index});}
+        for(const [index,node] of data.entries()){const key=kind==='results'?sourceNodeKey(node):relative(node.id);(evidence[key]??=[]).push({sourceUrl:source.url,contentHash:source.contentHash,jsonPointer:'/data/'+index});}
         let added=0;
         const pageNodes=new Map();
         for(const node of data){const key=relative(node.id),previous=pageNodes.get(key)||nodes.get(key);if(previous&&JSON.stringify(comparable(previous))!==JSON.stringify(comparable(node))){conflicts.push(previous,node);throw new HttpError(502,'vote_source_changed','Parliament changed a repeated source identity during pagination.');}pageNodes.set(key,node);}
@@ -135,7 +135,7 @@ export class MemberVotes {
       if(fields.length)conflictingDecisionIds.push(key);
       merged.set(key,{...node,...(fields.length?old:{}),_conflictingSourceObservations:fields.length?{fields,census:Object.fromEntries(fields.map(k=>[k,old[k]])),named:Object.fromEntries(fields.map(k=>[k,n[k]]))}:null});
     }
-    for(const n of [...all.conflicts,...named.conflicts]){const key=relative(n.id),old=merged.get(key);if(!old)continue;const {fields}=mergeSourceNodes(old,n);if(fields.length){conflictingDecisionIds.push(key);old._conflictingSourceObservations={fields,census:Object.fromEntries(fields.map(k=>[k,old[k]])),named:Object.fromEntries(fields.map(k=>[k,n[k]]))};}}
+    for(const n of [...all.conflicts,...named.conflicts]){const key=relative(n.id),old=merged.get(key);if(!old)continue;const {fields}=mergeSourceNodes(old,n);if(fields.length){conflictingDecisionIds.push(key);merged.set(key,{...old,_conflictingSourceObservations:{fields,census:Object.fromEntries(fields.map(k=>[k,old[k]])),named:Object.fromEntries(fields.map(k=>[k,n[k]]))}});}}
     const decisions=[...merged.values()],parents=resultNodes.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS');
     const resultIds=new Set(parents.map(n=>relative(n.id))),decisionIds=new Set(decisions.map(n=>relative(n.id))),namedIds=new Set(namedNodes.map(n=>relative(n.id))),agendaIds=new Set(agendaNodes.map(n=>relative(n.id)));
     const isSittingResult=id=>new RegExp('^eli/dl/event/'+sittingId+'-VOT-ITM-\\d+$').test(id);

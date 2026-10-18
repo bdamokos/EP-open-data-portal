@@ -528,3 +528,46 @@ test('auxiliary request wording is retained with exact source JSON pointers and 
   const pinned=await service.query(MEMBER,query(`sitting=${SITTING}&decision=${SITTING}-DEC-197847&snapshot=${first.snapshotId}`));
   assert.equal(pinned.selected.item.parts[0].contentByLanguage.en.text,part.contentByLanguage.en.text);
 });
+
+test('reordered repeated result pages keep every nested pointer tied to the exact retained source node',async()=>{
+  const evidence=JSON.parse(readFileSync(new URL('./fixtures/member-votes-evidence.json',import.meta.url)));
+  const result=evidence.resultSources.flatMap(source=>source.payload.data).find(node=>node.activity_id.endsWith('993151'));
+  const decisions=evidence.decisionSources.flatMap(source=>source.payload.data).filter(node=>node.activity_id.startsWith(SITTING));
+  // Add an exact RCV edge to this synthetic projection to exercise both paths.
+  const rcv={id:result.id+'-RCV-99',activity_id:result.activity_id+'-RCV-99',had_activity_type:'def/ep-activities/REQUEST_VOTE_ROLLCALL',responsible_organization_label:{en:'Exact request organization'}};
+  result.was_motivated_by.push(rcv);
+  decisions.find(node=>node.activity_id.endsWith('197847')).was_motivated_by.push(rcv.id);
+  const payloads=new Map();
+  const {service}=setup({decisions,results:[result],limits:{pageSize:1},override:({kind,endpoint,params,supplied})=>{
+    if(kind!=='results')return;
+    const node=clone(result);
+    if(params.offset){node.was_motivated_by.reverse();for(const request of node.was_motivated_by)request.created_a_realization_of?.reverse();}
+    const response=source(endpoint,params,[node]);payloads.set(response.url,response.payload);return response;
+  }});
+  const response=await service.query(MEMBER,query(`sitting=${SITTING}&decision=${SITTING}-DEC-197847`));
+  assert.equal(response.coverage.sittings[0].results.stopReason,'repeated-page');
+  const item=response.selected.item;assert.equal(item.parts.length,1);assert.equal(item.rollCallRequesters.length,1);
+  const resolve=path=>path.jsonPointer.slice(1).split('/').reduce((value,key)=>value[key.replaceAll('~1','/').replaceAll('~0','~')],payloads.get(path.sourceUrl));
+  for(const part of [item.parts[0],...item.parts[0].contextComponents])for(const path of part.evidencePaths){assert(path.jsonPointer);assert.equal(resolve(path).id.split('/').at(-1),part.componentId);}
+  for(const requester of item.rollCallRequesters)for(const path of requester.evidencePaths){assert(path.jsonPointer);assert.equal(resolve(path).id,rcv.id);}
+});
+
+test('conflicting component source observations expose alternatives only in sourceConflicts',async()=>{
+  const one='eli/dl/doc/A-10-2026-0237-AM-12',two='eli/dl/doc/A-10-2026-0237-AM-60';
+  const {service}=setup({override:({kind,supplied})=>['decisions','named'].includes(kind)?{...supplied,payload:{data:supplied.payload.data.map(node=>({...node,decided_on_a_realization_of:[kind==='decisions'?one:two]}))}}:undefined});
+  const response=await service.query(MEMBER,query(`sitting=${SITTING}`)),item=response.items[0];
+  assert.deepEqual(item.context.documentIds,[]);assert.deepEqual(item.context.amendmentIds,[]);assert.deepEqual(item.context.componentIds,[]);assert.deepEqual(item.context.resultIds,[]);assert.deepEqual(item.context.relationships,[]);
+  assert.deepEqual(item.sourceConflicts.census.decided_on_a_realization_of,[one]);
+  assert.deepEqual(item.sourceConflicts.named.decided_on_a_realization_of,[two]);
+});
+
+test('late conflicting decision pages cannot mutate the cached public source records',async()=>{
+  const first=clone(finalDecision),before=JSON.stringify(first);
+  const {service}=setup({limits:{decisionPageSize:1},override:({kind,endpoint,params})=>{
+    if(kind==='named')return source(endpoint,params,[]);
+    if(kind==='decisions')return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?offset='+params.offset,fetchedAt:NOW,payload:{data:params.offset?[{...clone(first),decision_outcome:'def/ep-statuses/REJECTED'}]:[first]}};
+  }});
+  await service.query(MEMBER,query(`sitting=${SITTING}`));
+  assert.equal(JSON.stringify(first),before);
+  assert.equal('_conflictingSourceObservations' in first,false);
+});
