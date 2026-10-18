@@ -1,5 +1,5 @@
-import {useEffect,useId,useRef,useState,type ReactNode,type RefObject} from 'react';
-import {useData} from './data';
+import {useCallback,useEffect,useId,useRef,useState,type ReactNode,type RefObject} from 'react';
+import {api,useData} from './data';
 import {Status} from './Status';
 import {amendmentDecisionKey,amendmentDecisionPart,publicAmendmentSource} from './amendmentModel.mjs';
 import type {MotionAmendment,MotionAmendmentDecision,MotionAmendmentVariant,MotionAmendmentsPage,MotionAmendmentsScope} from './MotionAmendmentsTypes';
@@ -78,6 +78,25 @@ type ReaderPage={base:MotionAmendmentsPage|null;exact:MotionAmendmentsPage|null;
 function canReplacePage(candidate:MotionAmendmentsPage,current:MotionAmendmentsPage|null) {
   return !current||candidate.snapshots.amendments>=current.snapshots.amendments&&
     (candidate.snapshots.text===null||current.snapshots.text===null||candidate.snapshots.text>=current.snapshots.text);
+}
+function useExactAmendment(route:string|null) {
+  const [result,setResult]=useState<{route:string|null;data:MotionAmendmentsPage|null;error:string|null;loading:boolean}>({route:null,data:null,error:null,loading:false});
+  const [attempt,setAttempt]=useState(0);
+  const retry=useCallback(()=>setAttempt(value=>value+1),[]);
+  useEffect(()=>{
+    let active=true;
+    const controller=new AbortController();
+    setResult({route,data:null,error:null,loading:Boolean(route)});
+    // Working generations can change in place. A fresh exact read prevents a
+    // cached selection from replacing a page accepted after that selection.
+    if(route)api<MotionAmendmentsPage>(route,controller.signal).then(data=>{
+      if(active)setResult({route,data,error:null,loading:false});
+    }).catch(error=>{
+      if(active)setResult({route,data:null,error:error.message,loading:false});
+    });
+    return ()=>{active=false;controller.abort();};
+  },[route,attempt]);
+  return {...(result.route===route?result:{route,data:null,error:null,loading:Boolean(route)}),retry};
 }
 function formatNumber(value:number,language:string) {try{return value.toLocaleString(language);}catch{return String(value);}}
 function dateLabel(value:string|null|undefined,language:string) {
@@ -234,7 +253,7 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
   // a second row carrying the same alias may be outside the displayed page.
   const localItem=state.amendmentId&&currentPage?.items.find(item=>item.id===state.amendmentId)||null;
   const selectedRoute=listRoute&&basePage&&state.amendmentId&&!localItem?route(documentId,member,language,state,state.amendmentId):null;
-  const exact=useData<MotionAmendmentsPage>(selectedRoute);
+  const exact=useExactAmendment(selectedRoute);
   const exactPage=selectedRoute&&exact.data&&matchesPage(exact.data,documentId,member,language,state,state.amendmentId)&&canReplacePage(exact.data,currentPage)?exact.data:null;
   const badSelection=Boolean(selectedRoute&&exact.data&&!exactPage);
   // The exact response includes this same page. Publish its page, counts and
