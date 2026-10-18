@@ -1,3 +1,74 @@
+// Browser budgets include the server's queue wait inside its 30s request budget,
+// plus transport headroom. Local index/corpus reads keep the short default.
+export function dataTimeoutFor(route) {
+  const path = route.split('?')[0];
+  if (path.startsWith('motion-comparison/')) return 90_000;
+  if (path.startsWith('speech-context/')) return 60_000;
+  if (path.startsWith('profile/')) return 40_000;
+  if (/^(directory$|speeches\/|activities\/|speech-statistics\/|speech\/|document\/|speech-media\/|references$|reference-summary$|source-record$)/.test(path)) return 35_000;
+  if (/^insights\/(speech-cloud|procedure-context|topic-trends|legislation|participation)$/.test(path)) return 35_000;
+  return 8_000;
+}
+
+function retryTime(value, now) {
+  if (value == null || String(value).trim() === '') return null;
+  const seconds = Number(value);
+  const at = Number.isFinite(seconds) ? now + seconds * 1000 : Date.parse(value);
+  return Number.isFinite(at) ? at : null;
+}
+
+function pause(ms, signal) {
+  return new Promise((resolve, reject) => {
+    signal.throwIfAborted();
+    const finish = () => { signal.removeEventListener('abort', abort); resolve(); };
+    const timer = setTimeout(finish, ms);
+    const abort = () => { clearTimeout(timer); reject(signal.reason); };
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
+
+// GET only: one deadline covers response bodies, backoff and every attempt.
+// Short busy responses get at most two retries and six seconds of backoff.
+export async function readJson(url, { signal, priority = 'auto', timeoutMs = 8_000, fetchImpl = fetch } = {}) {
+  const controller = new AbortController();
+  const abort = () => controller.abort(signal.reason);
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) abort();
+  const timeoutError = new Error('The request took too long. Try again.');
+  const timer = setTimeout(() => controller.abort(timeoutError), timeoutMs);
+  const active = controller.signal;
+  let waited = 0;
+  try {
+    for (let attempt = 0; ; attempt++) {
+      active.throwIfAborted();
+      const response = await fetchImpl(url, { method: 'GET', signal: active, priority, credentials: 'omit', headers: { Accept: 'application/json' } });
+      const data = await response.json().catch(() => null);
+      active.throwIfAborted();
+      if (response.ok) {
+        if (!data) throw new Error('The data service returned an unreadable response.');
+        return data;
+      }
+      const now = Date.now();
+      const retryAt = Number.isFinite(data?.error?.retryAt) ? data.error.retryAt : null;
+      const headerAt = retryTime(response.headers.get('Retry-After'), now);
+      const bodyAt = retryTime(data?.error?.retryAfter, now);
+      const times = [retryAt, headerAt, bodyAt].filter(at => at !== null);
+      const at = times.length ? Math.max(...times) : null;
+      const error = Object.assign(new Error(data?.error?.message || `The data service is unavailable (${response.status}).`), {
+        status: response.status, code: data?.error?.code, retryAt: at ?? undefined,
+      });
+      const transient = response.status === 503 && ['upstream_busy', 'odp_rate_limited', 'request_timeout'].includes(error.code);
+      const delay = at === null ? null : Math.max(250, at - now);
+      if (!transient || delay === null || delay > 3000 || waited + delay > 6000 || attempt >= 2 || priority === 'low') throw error;
+      waited += delay;
+      await pause(delay, active);
+    }
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
+  }
+}
+
 export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, timeoutFor = () => 8_000, prefetchDelay = 150 } = {}) {
   const cache = new Map();
   const pending = new Map();

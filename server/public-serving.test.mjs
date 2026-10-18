@@ -50,6 +50,6 @@ test('production runtime staging excludes examples, tests and declarations',()=>
 });
 
 test('public data reads omit credentials and have no private login dependency',()=>{
-  const source=readFileSync(new URL('../src/data.ts',import.meta.url),'utf8');
-  assert.match(source,/credentials: "omit"/);assert.doesNotMatch(source,/Work Tools|session has expired|sign in/i);
+  const source=readFileSync(new URL('../src/client.mjs',import.meta.url),'utf8');
+  assert.match(source,/credentials: 'omit'/);assert.doesNotMatch(source,/Work Tools|session has expired|sign in/i);
 });

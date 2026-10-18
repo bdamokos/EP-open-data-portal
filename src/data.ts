@@ -1,22 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_ROOT } from "./api";
-import { createDataClient } from "./client.mjs";
+import { createDataClient, dataTimeoutFor, readJson } from "./client.mjs";
 import type {SpeechDetail,StoredSpeechTranscript} from './explorerTypes';
 
-export async function api<T>(route: string, signal?: AbortSignal, { priority = 'auto' }: { priority?: 'auto' | 'low' } = {}): Promise<T> {
-  const r = await fetch(`${API_ROOT}/${route}`, {
-    signal,
-    priority,
-    credentials: "omit",
-    headers: { Accept: "application/json" },
-  });
-  const data = await r.json().catch(() => null);
-  if (!r.ok)
-    throw Object.assign(new Error(data?.error?.message || `The data service is unavailable (${r.status}).`), { status: r.status, retryAt: data?.error?.retryAt });
-  if (!data) throw new Error("The data service returned an unreadable response.");
-  return data;
+export function api<T>(route: string, signal?: AbortSignal, { priority = 'auto' }: { priority?: 'auto' | 'low' } = {}): Promise<T> {
+  return readJson<T>(`${API_ROOT}/${route}`, { signal, priority, timeoutMs: dataTimeoutFor(route) });
 }
-const client = createDataClient(api, { timeoutFor: route => route.startsWith('motion-comparison/') ? 90_000 : route.startsWith('speech-context/') ? 60_000 : route.startsWith('profile/') ? 40_000 : /^(speech\/|document\/|references\?|reference-summary\?|source-record\?)/.test(route) ? 35_000 : route.startsWith("speech-media/") ? 30_000 : 8_000 });
+const client = createDataClient(api, { timeoutFor: dataTimeoutFor });
 export function expireActivityReads() { client.expireMatching(route=>/^(document\/|latest-activities\/)/.test(route)); }
 export function useSpeechData(id:string,language:string) {
   const route=encodeURIComponent(id)+'?lang='+language;
