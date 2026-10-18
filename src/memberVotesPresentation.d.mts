@@ -1,0 +1,16 @@
+import type {MemberVote,MemberVoteSubject,MemberVotesResponse} from './MemberVotesTypes';
+export const MEMBER_VOTES_PAGE_SIZE:50;
+export type MemberVotesRequestState={week?:string;sittingId?:string|null;positions?:'recorded'|'all';offset?:number;decisionId?:string|null;snapshotId?:string|null};
+export type MemberVoteGroup={id:string;subject:MemberVoteSubject|null;items:MemberVote[]};
+export type MemberVoteCounts={for:number;against:number;abstaining:number;total:number};
+export function memberVotesRoute(memberId:number|string,state?:MemberVotesRequestState,language?:string):string;
+export function validateMemberVotesResponse(data:unknown,request:{memberId:number|string;state?:MemberVotesRequestState}):data is MemberVotesResponse;
+export function groupMemberVotes(data:MemberVotesResponse):MemberVoteGroup[];
+export function displayVoteTitle(title:string|null|undefined):string;
+export function memberVoteLabel(vote:MemberVote,language?:string):string;
+export function memberVotePosition(vote:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>):string;
+export function memberVoteOutcome(vote:Pick<MemberVote,'outcome'>):string;
+export function memberVoteTotals(vote:Pick<MemberVote,'totals'|'ballotStatus'>):MemberVoteCounts|null;
+export function votingRecordUrl(vote:MemberVote):string|null;
+export function topLevelVoteDocuments(vote:MemberVote):string[];
+export function exactAmendmentTargets(vote:MemberVote):{documentId:string;amendmentId:string}[];
