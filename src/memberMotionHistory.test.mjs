@@ -4,6 +4,7 @@ import {createElement,Fragment,act} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
 import {viewReady} from './test-support/viewReady.mjs';
+import {API_VERSION} from '../server/api-version.mjs';
 
 // Finite synthetic HTTP contracts exercise the real App and readers. These are
 // navigation fixtures, not evidence of raw DOCX parsing or public-source coverage.
@@ -236,7 +237,7 @@ test('exact amendment, list and wording language reach the shared context; adopt
  assert.equal(history.length,before+1);assert.equal(params().get('ma-amendment'),AMENDMENT);assert.equal(params().get('ma-list'),LIST);assert.equal(params().get('ma-wording-lang'),'hu');
  const source=h.requests.filter(url=>url.pathname==='/api/document-context/'+ORIGINAL&&url.searchParams.get('adopted')!=='1').at(-1);
  const semanticQuery=new URLSearchParams(source.searchParams),transportVersion=semanticQuery.getAll('v');
- assert(transportVersion.length===0||transportVersion.length===1&&transportVersion[0]==='1','only the admitted transport version may accompany the semantic query');
+ assert(transportVersion.length===0||transportVersion.length===1&&transportVersion[0]===String(API_VERSION),'only the admitted transport version may accompany the semantic query');
  semanticQuery.delete('v');
  assert.deepEqual(Object.fromEntries(semanticQuery),{lang:'hu',amendment:AMENDMENT,list:LIST,'wording-lang':'hu'});
  assert.equal(params().get('lang'),'en','source language is independent of the interface language');
