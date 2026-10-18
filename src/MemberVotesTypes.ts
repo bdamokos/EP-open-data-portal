@@ -39,7 +39,7 @@ export type MemberVote = {
     position:MemberVotePosition|null;
   };
   intention:{status:'reported'|'not-reported'|'unavailable';positions:MemberVotePosition[]};
-  sourceConflicts:{fields:string[];census:Record<string,unknown>;named:Record<string,unknown>}|null;
+  sourceConflicts:MemberVoteSourceConflicts|null;
   totals:Record<MemberVotePosition,number|null>;
   namedVoters:{
     available:boolean;
@@ -173,4 +173,12 @@ export type MemberVoteSubject = {
   gaps:MemberVoteEvidenceGap[];
   evidencePaths:MemberVoteEvidencePath[];
   sources:{results:MemberVoteSource[];decisions:MemberVoteSource[]};
+};
+
+
+export type MemberVoteSourceConflicts = {
+  fields:string[];
+  census:Record<string,unknown>;
+  named:Record<string,unknown>;
+  observations:{stream:'census'|'named';values:Record<string,unknown>;evidencePaths:MemberVoteEvidencePath[]}[];
 };
