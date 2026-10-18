@@ -20,7 +20,13 @@ export const defaultMemberVotesState:MemberVotesState={week:'latest',sittingId:n
 
 type ResultVote=Pick<MemberVote,'outcome'|'totals'|'ballotStatus'>;
 type PositionVote=Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>;
-type WordingVariant={listId:string;language:string;targetLabel:string|null;originalText:string;proposedText:string;authors:{name:string}[]};
+type WordingVariant={
+  listId:string;language:string|null;targetLabel:string|null;targetLabelLanguage?:string|null;
+  targetLabelSource?:Record<string,unknown>|null;fieldSources?:Record<string,unknown>|null;
+  wordingStatus:'available'|'unavailable';originalText:string|null;proposedText:string|null;authors:{name:string}[];
+  source?:Record<string,unknown>|null;sourceFreshness?:{status:string}|null;
+  wordingRetained?:boolean|null;proposerRetained?:boolean|null;recordRetained?:boolean|null;
+};
 type WordingResponse={documentId:string;requestedLanguage:string;amendment:null|{id:string;status:'available'|'unavailable';variants:WordingVariant[]}};
 
 const dateLabel=(value:string|null)=>{
@@ -58,12 +64,20 @@ function WholeText({vote}:{vote:MemberVoteWholeTextDecision}) {
 }
 
 function Wording({documentId,amendmentId,language,openContext}:{documentId:string;amendmentId:string;language:string;openContext:(context:MemberVotesContext)=>void}) {
-  const [listId,setListId]=useState('');
+  const [selectedVersion,setSelectedVersion]=useState<string|null>(null);
   const query=new URLSearchParams({amendment:amendmentId,lang:language,body:'0'});
   const response=useData<WordingResponse>('document-context/'+encodeURIComponent(documentId)+'?'+query);
   const data=response.data?.documentId===documentId&&response.data.requestedLanguage===language&&response.data.amendment?.id===amendmentId?response.data:null;
-  const variants=data?.amendment?.status==='available'&&Array.isArray(data.amendment.variants)?data.amendment.variants.filter(variant=>variant&&typeof variant.listId==='string'&&typeof variant.language==='string'&&typeof variant.originalText==='string'&&typeof variant.proposedText==='string'&&Array.isArray(variant.authors)&&variant.authors.every(author=>author&&typeof author.name==='string')):[];
-  const selected=variants.length===1?variants[0]:variants.find(variant=>variant.listId===listId)||null;
+  const variants=Array.isArray(data?.amendment?.variants)?data.amendment.variants.filter(variant=>variant&&typeof variant.listId==='string'&&variant.listId.trim()&&['available','unavailable'].includes(variant.wordingStatus)):[];
+  const options=variants.map((variant,index)=>({variant,key:JSON.stringify(variant),value:variants.filter(other=>other.listId===variant.listId).length===1?variant.listId:'version:'+index}));
+  const initialVersion=selectedVersion===null&&options.length===1?options[0].key:null;
+  useEffect(()=>{if(initialVersion!==null)setSelectedVersion(initialVersion);},[initialVersion]);
+  const selectedOption=selectedVersion!==null?options.find(option=>option.key===selectedVersion)||null:options.length===1?options[0]:null;
+  const selected=selectedOption?.variant||null;
+  const textLanguage=typeof selected?.language==='string'&&selected.language.trim()?selected.language:null;
+  const targetLanguage=typeof selected?.targetLabelLanguage==='string'&&selected.targetLabelLanguage.trim()?selected.targetLabelLanguage:null;
+  const readable=selected?.wordingStatus==='available'&&typeof selected.originalText==='string'&&typeof selected.proposedText==='string';
+  const authors=Array.isArray(selected?.authors)?selected.authors.filter(author=>author&&typeof author.name==='string'&&author.name):[];
   const number=/-AM-(\d+(?:-\d+)?)$/.exec(amendmentId)?.[1];
   return <section className="member-votes-wording">
     <h3>{number?'Amendment '+number:'Amendment wording'}</h3>
@@ -71,13 +85,16 @@ function Wording({documentId,amendmentId,language,openContext}:{documentId:strin
       {response.loading&&!data&&<p role="status">Loading amendment wording…</p>}
       {response.error&&<p role="alert">Amendment wording could not be loaded. <button type="button" disabled={response.loading} onClick={response.retry}>Retry wording</button></p>}
       {!response.loading&&!response.error&&!variants.length&&<p>Amendment wording unavailable here.</p>}
-      {variants.length>1&&<label className="member-votes-variant">Published version<select aria-label="Amendment published version" value={selected?.listId||''} onChange={event=>setListId(event.target.value)}>
-        <option value="">Choose a published version</option>{variants.map((variant,index)=><option key={variant.listId} value={variant.listId}>Version {index+1} · {languageLabel(variant.language)}</option>)}
+      {(options.length>1||selectedVersion!==null&&!selected)&&<label className="member-votes-variant">Published version<select aria-label="Amendment published version" value={selectedOption?.value||''} onChange={event=>setSelectedVersion(options.find(option=>option.value===event.target.value)?.key??'')}>
+        <option value="">Choose a published version</option>{options.map(({variant,value},index)=><option key={value} value={value}>Version {index+1} · {typeof variant.language==='string'&&variant.language.trim()?languageLabel(variant.language):'Language unknown'}{variant.wordingStatus==='unavailable'?' · Wording unavailable':''}</option>)}
       </select></label>}
       {selected&&<>
-        {selected.targetLabel&&<p lang={selected.language}>{selected.targetLabel}</p>}
-        <p className="member-votes-muted">Text language: {languageLabel(selected.language)}{selected.authors.length>0&&<> · Proposed by {selected.authors.map(author=>author.name).filter(Boolean).join(', ')}</>}</p>
-        <div className="member-votes-comparison" lang={selected.language}><div><h4>Original wording</h4><p>{selected.originalText}</p></div><div><h4>Proposed wording</h4><p>{selected.proposedText}</p></div></div>
+        {typeof selected.targetLabel==='string'&&selected.targetLabel&&<><p className="member-votes-target-label" lang={targetLanguage||''}>{selected.targetLabel}</p>{!targetLanguage&&<p className="member-votes-muted">Target language unknown.</p>}</>}
+        <p className="member-votes-muted">{textLanguage?'Text language: '+languageLabel(textLanguage):'Text language unknown.'}{authors.length>0&&<> · Proposed by {authors.map(author=>author.name).join(', ')}</>}</p>
+        {readable?<div className="member-votes-comparison" lang={textLanguage||''}><div><h4 lang="en">Original wording</h4><p>{selected.originalText}</p></div><div><h4 lang="en">Proposed wording</h4><p>{selected.proposedText}</p></div></div>:<p>Amendment wording unavailable here.</p>}
+        {readable&&selected.wordingRetained&&<p className="member-votes-muted">Showing saved wording.</p>}
+        {authors.length>0&&selected.proposerRetained&&<p className="member-votes-muted">Proposer details are from an earlier source version.</p>}
+        {selected.recordRetained&&<p className="member-votes-muted">Version details are from an earlier source record.</p>}
         <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,view:'document'})}>Read in context</button>
       </>}
     </>
