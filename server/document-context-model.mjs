@@ -143,7 +143,9 @@ function publishedTargets(rows) {
     match = /^\s*Article\s+([1-9]\d{0,5}[a-z]?)(?:\s*$|[ \t]*[\r\n]|\s*[:–—-]\s+)/i.exec(row.value);
     if (match) reference = {kind: 'article', number: match[1].toLowerCase()};
     match = /^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\))\s+/u.exec(value);
-    if (match && paragraph && row.complete) reference = {kind: 'point', number: paragraph, point: match[1] || match[2]};
+    // An observed label still competes for identity when its content is incomplete.
+    // Record it before the completeness check prevents selection and further scope.
+    if (match && paragraph) reference = {kind: 'point', number: paragraph, point: match[1] || match[2]};
     if (!reference) {
       // Without heading/style evidence an unlabeled block cannot safely carry
       // numbered-point scope into the next paragraph.

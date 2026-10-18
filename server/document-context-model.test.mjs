@@ -113,13 +113,75 @@ test('duplicate body provision labels remain ambiguous even if one quote is uniq
   assert.equal(resolve(text, {targetLabel: 'Recital D', originalText: 'D. first occurrence;'}).reason, 'multiple_published_targets');
 });
 
+test('an incomplete observed point label cannot hide a duplicate published target', () => {
+  for (const [secondPoint, source] of [
+    ['a) second point;', {}],
+    ['a) second point;', {complete: false}],
+    ['a) second point with an unresolved object \uFFFC;', {}],
+  ]) {
+    const text = document(['1. First section:', 'a) first point;', '1. Second section:', secondPoint], {sources: {3: source}});
+    for (const originalText of [undefined, 'a) first point;']) {
+      assert.equal(resolve(text, {targetLabel: 'Paragraph 1 – point a', originalText}).reason, 'multiple_published_targets');
+    }
+  }
+});
+
+test('a single incomplete point stays unavailable with or without its broad paragraph reference', () => {
+  for (const [point, source] of [
+    ['a) source point;', {complete: false}],
+    ['a) source point with an unresolved object \uFFFC;', {}],
+  ]) {
+    const text = document(['1. Recommends:', point], {sources: {1: source}});
+    for (const references of [
+      {targetLabel: 'Paragraph 1 – point a'},
+      {targetLabel: 'Paragraph 1', referenceText: '§1, point a'},
+      {targetLabel: 'Paragraph 1 – point a', referenceText: '§1'},
+    ]) {
+      for (const originalText of [undefined, '1. Recommends:', point]) {
+        assert.equal(resolve(text, {...references, originalText}).reason, 'source_passage_incomplete');
+      }
+    }
+  }
+});
+
+test('incomplete numbered labels remain observed without establishing following point scope', () => {
+  const duplicate = document(['1. First section:', '1. Second section \uFFFC'], {sources: {1: {complete: false}}});
+  assert.equal(resolve(duplicate, {targetLabel: 'Paragraph 1'}).reason, 'multiple_published_targets');
+  for (const source of [{complete: false}, {}]) {
+    const text = document(['1. Recommends \uFFFC:', 'a) point after missing content;'], {sources: {0: source}});
+    assert.equal(resolve(text, {targetLabel: 'Paragraph 1'}).reason, 'source_passage_incomplete');
+    assert.equal(resolve(text, {targetLabel: 'Paragraph 1 – point a'}).reason, 'target_not_found');
+  }
+});
+
 test('point scope resets on unlabeled headings, recitals, gaps and table boundaries', () => {
   for (const text of [
     document(['1. Recommends:', 'Explanatory statement', 'au) this point has no established paragraph;']),
     document(['1. Recommends:', 'A. whereas another section;', 'au) this point has no established paragraph;']),
     document(['1. Recommends:', 'au) this point has no established paragraph;'], {sources: {1: {ordinal: 3}}}),
+    document(['1. Recommends:', 'au) this point has no established paragraph;'], {sources: {1: {segment: 1}}}),
     document(['1. Recommends:', 'Unrelated table cell', 'au) this point has no established paragraph;'], {sources: {1: {container: 'table-cell', containerPath: 'cell'}}}),
   ]) assert.equal(resolve(text, {targetLabel: 'Paragraph 1 – point au'}).status, 'unavailable');
+});
+
+test('unknown labels and missing point structure cannot fall back to a broad paragraph', () => {
+  for (const text of [
+    document(['1. Recommends:', '\uFFFCa) point with an unknown prefix;']),
+    document(['1. Recommends:', 'a\uFFFC) point with an unknown label;']),
+    document(['1. Recommends:', 'a) point after a gap;'], {sources: {1: {ordinal: 2}}}),
+    document(['1. Recommends:', 'a) point in another segment;'], {sources: {1: {segment: 1}}}),
+    document(['1. Recommends:', 'b) incomplete preceding point;', 'a) point after missing content;'], {sources: {1: {complete: false}}}),
+  ]) {
+    for (const references of [
+      {targetLabel: 'Paragraph 1 – point a'},
+      {targetLabel: 'Paragraph 1', referenceText: '§1, point a'},
+      {targetLabel: 'Paragraph 1 – point a', referenceText: '§1'},
+    ]) {
+      for (const originalText of references.referenceText ? [undefined, '1. Recommends:'] : [undefined]) {
+        assert.equal(resolve(text, {...references, originalText}).reason, 'target_not_found');
+      }
+    }
+  }
 });
 
 test('point lookup is scoped to its exact numbered paragraph', () => {
