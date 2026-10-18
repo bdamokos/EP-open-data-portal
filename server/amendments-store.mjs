@@ -249,6 +249,20 @@ export function amendmentGeneration(store) {
 }
 /** One exact indexed selection, with the same wording/binding guards as a page. */
 export function amendmentById(store,{document,id,language='en'}={}) {
+  if(store.db.isTransaction)return readAmendmentById(store,{document,id,language});
+  // A deferred transaction pins metadata and the exact row to one read snapshot
+  // without taking the existing writer's reservation.
+  store.db.exec('BEGIN');
+  try {
+    const result=readAmendmentById(store,{document,id,language});
+    store.db.exec('COMMIT');
+    return result;
+  } catch(error) {
+    store.db.exec('ROLLBACK');
+    throw error;
+  }
+}
+function readAmendmentById(store,{document,id,language}) {
   if(!amendmentTarget(document)||typeof id!=='string')return null;
   const reference=canonicalEPReference(id)||canonicalEPReference('eli/dl/doc/'+id);
   const identity=amendmentReference(reference);
