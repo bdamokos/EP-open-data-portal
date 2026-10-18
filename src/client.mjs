@@ -1,3 +1,6 @@
+import {versionedApiUrl} from '../server/api-version.mjs';
+import {reportApiVersionMismatch} from './apiVersionMismatch.mjs';
+
 // Browser budgets include the server's queue wait inside its 30s request budget,
 // plus transport headroom. Local index/corpus reads keep the short default.
 export function dataTimeoutFor(route) {
@@ -41,9 +44,10 @@ export async function readJson(url, { signal, priority = 'auto', getPriority = (
   try {
     for (let attempt = 0; ; attempt++) {
       active.throwIfAborted();
-      const response = await fetchImpl(url, { method: 'GET', signal: active, priority: getPriority(), credentials: 'omit', headers: { Accept: 'application/json' } });
+      const response = await fetchImpl(versionedApiUrl(url), { method: 'GET', signal: active, priority: getPriority(), credentials: 'omit', headers: { Accept: 'application/json' } });
       const data = await response.json().catch(() => null);
       active.throwIfAborted();
+      reportApiVersionMismatch(response.status, data);
       if (response.ok) {
         if (!data) throw new Error('The data service returned an unreadable response.');
         return data;

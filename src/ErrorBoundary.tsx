@@ -1,6 +1,7 @@
-import {Component,Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
+import {Component,Fragment,useEffect,useId,useRef,useState,useSyncExternalStore,type ReactNode} from 'react';
 import {interfaceLanguages} from './interfaceCopy';
 import {interfaceTerm} from './terms.mjs';
+import {apiVersionMismatch,subscribeApiVersionMismatch} from './apiVersionMismatch.mjs';
 import './recovery.css';
 
 function urlLanguage() {
@@ -47,13 +48,26 @@ export class ErrorBoundary extends Component<Props,State> {
 }
 
 export function RootBoundary({children}:{children:ReactNode}) {
+  const mismatch=useSyncExternalStore(subscribeApiVersionMismatch,apiVersionMismatch);
   const [navigation,setNavigation]=useState(0);
   useEffect(()=>{
     const restore=()=>setNavigation(value=>value+1);
     window.addEventListener('popstate',restore);
     return ()=>window.removeEventListener('popstate',restore);
   },[]);
-  return <ErrorBoundary resetKey={String(navigation)}>{children}</ErrorBoundary>;
+  return mismatch?<ApiVersionRecovery/>:<ErrorBoundary resetKey={String(navigation)}>{children}</ErrorBoundary>;
+}
+
+function ApiVersionRecovery() {
+  const heading=useRef<HTMLHeadingElement>(null),id=useId(),language=urlLanguage();
+  const title=interfaceTerm('new-version',language),reload=interfaceTerm('reload-page',language);
+  useEffect(()=>{heading.current?.focus({preventScroll:true});},[]);
+  return <main className="explorer explorer-recovery" lang={title.language}>
+    <section className="explorer-notice" role="alert" aria-labelledby={id}>
+      <h1 id={id} ref={heading} tabIndex={-1}>{title.text}</h1>
+      <div className="explorer-recovery-actions"><button lang={reload.language} onClick={()=>location.reload()}>{reload.text}</button></div>
+    </section>
+  </main>;
 }
 
 // Evaluate view JSX inside the boundary, including inline member/directory maps.

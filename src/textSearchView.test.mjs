@@ -65,7 +65,7 @@ test('text search stays collapsed without requests, opens with focus, and posts 
   await view.input('input[type="search"]','  energy policy  ');await view.submit();
   assert.equal(view.searches().length,1);
   const request=view.searches()[0];
-  assert.equal(request.options.method,'POST');assert.equal(request.options.credentials,'omit');
+  assert.equal(request.options.method,'POST');assert.equal(request.url.searchParams.has('v'),false);assert.equal(request.options.credentials,'omit');
   assert.equal(request.options.headers['Content-Type'],'application/json');
   assert.deepEqual(request.body,{query:'energy policy',...scope,language:'en',uiLanguage:'en',sort:'relevance',limit:20,offset:0});
   assert.equal(new URL(view.window.location.href).searchParams.get('fixture-fts-text-lang'),'en','submitting pins the actual text language');
