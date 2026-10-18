@@ -9,6 +9,7 @@ import {amendmentReference,amendmentTextLosses,canonicalEPReference} from './ame
 import * as amendmentStore from './amendments-store.mjs';
 import {sharedRequest,waitForRequest,isLocalRequestFailure,requestSignal} from './request-budget.mjs';
 import {resolveDocumentTarget} from './document-context-model.mjs';
+import {languageCode} from './ep-links.mjs';
 
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id);
@@ -20,11 +21,16 @@ const knownDocumentRelationships=(node,field)=>node[field]!=null&&array(node[fie
 const procedureIds=work=>[...new Set(array(work.inverse_created_a_realization_of).flatMap(value=>{const id=String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');return /^eli\/dl\/proc\/\d{4}-\d{4}[A-Z]?$/.test(id)?[tail(id)]:[];}))];
 const workId=node=>node?.identifier||tail(node?.id);
 const unavailableTarget=reason=>({status:'unavailable',paragraphs:[],basis:null,relation:null,quoteMatches:null,reason});
-const distributionVersion=(list,url)=>{
-  const manifestations=array(list.is_realized_by).flatMap(expression=>array(expression.is_embodied_by)).filter(manifestation=>{try{return new URL(manifestation.is_exemplified_by,'https://data.europarl.europa.eu/').href===url;}catch{return false;}});
-  const descriptor=manifestations.length===1?manifestations[0]:null,rawSize=descriptor?.byteSize;
+const manifestationVersion=descriptor=>{
+  const rawSize=descriptor?.byteSize;
   return {byteSize:(typeof rawSize==='number'||typeof rawSize==='string'&&/^\d+$/.test(rawSize))&&Number.isSafeInteger(Number(rawSize))&&Number(rawSize)>=0?Number(rawSize):null,issued:typeof descriptor?.issued==='string'?descriptor.issued:null};
 };
+const distributionVersion=(list,url)=>{
+  const manifestations=array(list.is_realized_by).flatMap(expression=>array(expression.is_embodied_by)).filter(manifestation=>{try{return new URL(manifestation.is_exemplified_by,'https://data.europarl.europa.eu/').href===url;}catch{return false;}});
+  return manifestationVersion(manifestations.length===1?manifestations[0]:null);
+};
+// Declaration identity is independent of whether its download URL is supported.
+const declaredDocxFiles=list=>array(list.is_realized_by).flatMap(expression=>array(expression?.is_embodied_by).filter(manifestation=>tail(manifestation?.format)==='DOCX').map(manifestation=>({url:typeof manifestation.is_exemplified_by==='string'?manifestation.is_exemplified_by:null,language:languageCode(expression?.language),sourceVersion:manifestationVersion(manifestation)})));
 
 export function documentContextQuery(id,params) {
   if(!documentId(id))throw new HttpError(400,'invalid_document','Choose a plenary document or adopted resolution.');
@@ -162,15 +168,20 @@ export class DocumentContext {
       if(typeof candidate==='string'||!Object.hasOwn(candidate,'is_realized_by'))try {const result=await read('/plenary-documents/'+listId,listId);list=result.work;metadataSource=result.source;}catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;base.gaps.push('amendment-list-unavailable');continue;}
       if(workId(list)!==listId||canonicalType(list.work_type)!=='def/ep-document-types/AMENDMENT_LIST'||!refs(list.foresees_change_of).includes('eli/dl/doc/'+query.id)){base.gaps.push('amendment-list-target-unverified');continue;}
       const wordingSelected=Object.hasOwn(query,'wordingLanguage');
-      const files=documentFiles(list).filter(file=>file.format==='DOCX'&&(wordingSelected||file.language)&&allowedDownload(file.url));
+      const files=wordingSelected?declaredDocxFiles(list):documentFiles(list).filter(file=>file.format==='DOCX'&&file.language&&allowedDownload(file.url));
       const languages=[...new Set(files.map(file=>file.language))],language=wordingSelected?query.wordingLanguage:languages.includes(query.language)?query.language:languages.includes('en')?'en':languages[0];
       const selected=files.filter(file=>file.language===language);
       // Preserve declared alternatives without downloading unrequested wording.
       // Every same-language file competes, including one we cannot parse.
-      const alternatives=wordingSelected?files.map(file=>({listId,language:file.language,targetLabel:null,targetLabelLanguage:null,wordingStatus:'unavailable',originalText:null,proposedText:null,authors:[],source:{url:file.url,language:file.language,sourceVersion:distributionVersion(list,file.url)},metadataSource,gaps:[file.language===language?'amendment-wording-unavailable':'wording-not-requested']})):[];
+      const alternatives=wordingSelected?files.map(file=>({listId,language:file.language,targetLabel:null,targetLabelLanguage:null,wordingStatus:'unavailable',originalText:null,proposedText:null,authors:[],source:{...(file.url!==null?{url:file.url}:{}),language:file.language,sourceVersion:file.sourceVersion},metadataSource,gaps:[file.language===language?'amendment-wording-unavailable':'wording-not-requested']})):[];
       base.variants.push(...alternatives);
       if(selected.length!==1){base.gaps.push('amendment-file-unavailable-or-ambiguous');continue;}
-      const file=selected[0];
+      let file=selected[0];
+      if(wordingSelected) {
+        let url=null;try{if(file.url!==null)url=new URL(file.url,'https://data.europarl.europa.eu/').href;}catch{/* Keep malformed declarations unavailable. */}
+        file=documentFiles(list).find(candidate=>candidate.format==='DOCX'&&candidate.language===language&&candidate.url===url&&allowedDownload(candidate.url));
+        if(!file){base.gaps.push('amendment-file-unavailable-or-ambiguous');continue;}
+      }
       try {
         const {extraction,source}=await this.readList(list,file,query.id);sources.push(source);
         const rows=extraction.amendments.filter(row=>row.number===number);
@@ -178,7 +189,7 @@ export class DocumentContext {
         const row=rows[0],losses=amendmentTextLosses(extraction,row);
         if(losses.length||typeof row.originalText!=='string'||typeof row.proposedText!=='string'){base.gaps.push('amendment-wording-incomplete');continue;}
         const variant={listId,language,targetLabel:row.targetLabel,targetLabelLanguage:language,targetLabelSource:source,fieldSources:{wording:source,targetLabel:source},wordingStatus:'available',originalText:row.originalText,proposedText:row.proposedText,authors:row.authors.map(name=>({name,personId:null,status:'published-name'})),source,parserVersion:AMENDMENT_EXTRACTION_VERSION,gaps:array(row.gaps)};
-        if(wordingSelected)Object.assign(alternatives[files.indexOf(file)],variant);else base.variants.push(variant);
+        if(wordingSelected)Object.assign(alternatives[files.indexOf(selected[0])],variant);else base.variants.push(variant);
       }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;base.gaps.push('amendment-source-unavailable');}
     }
     if(base.gaps.includes('conflicting-list-metadata'))base.variants=[];

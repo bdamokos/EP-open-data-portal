@@ -245,6 +245,26 @@ test('selected published wording propagates local failures without caching sourc
   }
 });
 
+test('declared DOCX competitors remain visible before download admission and preserve legacy selection',async()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-excerpts-20261016.json',import.meta.url))).documents[0];
+  const unsupported=[fixture.sourceUrl.replace('.docx','_other.docx?download=1'),'https://other.example/wording.docx','not a download URL',null,undefined,{id:fixture.sourceUrl}];
+  const expression=(language,url)=>({language,is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:url,byteSize:4321,issued:'2026-09-30'}]});
+  const create=expressions=>{
+    const downloads=[],list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+id],is_realized_by:expressions};
+    const reader=service({request:async()=>record({...work,inverse_foresees_change_of:[list]}),readText:async()=>({...summary,paragraphs:[fixture.expected[0].originalText]}),download:async url=>{assert.equal(url,fixture.sourceUrl,'unsupported declarations must never be fetched');downloads.push(url);return {buffer:archive(fixture.documentXml,fixture.stylesXml),resolvedSourceUrl:url};}});
+    return {reader,downloads};
+  };
+  const selected=query({amendmentId,listId,wordingLanguage:'en'});
+  for(const url of unsupported) {
+    const {reader,downloads}=create([expression('language/ENG',fixture.sourceUrl),expression('language/ENG',url)]);
+    const result=await reader.query(selected);assert.equal(result.amendment.variants.length,2);assert.equal(result.target.status,'unavailable');assert.equal(result.target.evidence,null);assert.deepEqual(result.target.paragraphs,[]);assert.deepEqual(downloads,[]);
+    const alternative=result.amendment.variants[1];assert.equal(alternative.language,'en');assert.equal(alternative.wordingStatus,'unavailable');assert.deepEqual(alternative.source.sourceVersion,{byteSize:4321,issued:'2026-09-30'});assert.deepEqual(alternative.metadataSource,result.sources[0]);assert.equal(Object.hasOwn(alternative.source,'url'),typeof url==='string');if(typeof url==='string')assert.equal(alternative.source.url,url);
+    const legacy=await reader.query(query({amendmentId,listId}));assert.equal(legacy.target.status,'found');assert.equal(legacy.amendment.variants.length,1);assert.equal(Object.hasOwn(legacy,'requestedWordingLanguage'),false);assert.deepEqual(downloads,[fixture.sourceUrl]);
+    const only=create([expression('language/ENG',url)]),unavailable=await only.reader.query(selected);assert.equal(unavailable.amendment.variants.length,1);assert.equal(unavailable.amendment.status,'unavailable');assert.equal(unavailable.target.status,'unavailable');assert.equal(unavailable.target.evidence,null);assert.deepEqual(only.downloads,[]);
+    const otherLanguage=create([expression('language/ENG',fixture.sourceUrl),expression('language/HUN',url)]),found=await otherLanguage.reader.query(selected);assert.equal(found.target.status,'found');assert.equal(found.target.evidence.wordingLanguage,'en');assert.equal(found.amendment.variants.length,2);assert.equal(found.amendment.variants[1].language,'hu');assert.equal(found.amendment.variants[1].wordingStatus,'unavailable');assert.deepEqual(otherLanguage.downloads,[fixture.sourceUrl]);
+  }
+});
+
 test('absent or unrelated lists remain unavailable without a download or absence claim',async()=>{
   let downloads=0;const reader=service({download:async()=>{downloads++;throw Error();}});const result=await reader.query(query({amendmentId}));assert.equal(result.amendment.status,'unavailable');assert.equal(result.target.reason,'amendment-wording-unavailable');assert.equal(downloads,0);
 });
