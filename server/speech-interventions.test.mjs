@@ -142,7 +142,28 @@ test('live A/B/A chain links original, question, answer, reactions and another q
   assert.equal(exchange.pairs.length,2);
   assert.equal(exchange.pairs[0].respondentId,'197580');assert.equal(exchange.pairs[1].questionerId,'256971');
   assert.equal(result.records.find(r=>r.id===byNumber(182).activity_id).replyTo,byNumber(181).activity_id);
-  assert.equal(result.coverage.complete,false);assert.deepEqual(result.coverage.missingIds,['MTG-PL-2026-10-06-OTH-2017097917624']);
+  assert.equal(result.coverage.complete,true);assert.deepEqual(result.coverage.missingIds,[]);
+});
+test('a chair change listed again under its own transcript fragment ID counts once; other unserved IDs stay gaps',()=>{
+  const chair=fixture.activities.find(a=>a.activity_id==='MTG-PL-2026-10-06-PVCRE-CHA-5'),alias='MTG-PL-2026-10-06-OTH-2017097917624';
+  assert.equal(chair.recorded_in_a_realization_of[0].identifier,'CRE-10-2026-10-06-OTH-2017097917624');
+  assert(fixture.parent.consists_of.includes('eli/dl/event/'+alias)&&!fixture.activities.some(a=>a.activity_id===alias),'the live parent lists the unserved alias');
+  const live=sequence(fixture.activities);
+  assert.deepEqual(live.coverage,{complete:true,expected:116,available:116,missingIds:[],reassignedIds:[]});
+  // Without the chair row itself, both identifiers remain unobserved.
+  assert.deepEqual(sequence(fixture.activities.filter(a=>a!==chair)).coverage.missingIds.sort(),[alias,chair.activity_id].sort());
+  // An unserved fragment-style ID with no matching fetched document remains a gap.
+  const unserved='MTG-PL-2026-10-06-OTH-2017097999999';
+  const gap=buildInterventionSequence(fixture.activities,{parentId,expectedIds:[...fixture.parent.consists_of,'eli/dl/event/'+unserved]});
+  assert.equal(gap.coverage.complete,false);assert.deepEqual(gap.coverage.missingIds,[unserved]);
+  // The fragment must be the row's own exact identifier on the same sitting date.
+  for(const identifier of ['CRE-10-2026-10-07-OTH-2017097917624','CRE-10-2026-10-06-INT-2017097917624','CRE-10-2026-10-06-OTH-20170979176240']) {
+    const rows=clone(fixture.activities),row=rows.find(a=>a.activity_id===chair.activity_id);
+    row.recorded_in_a_realization_of[0].identifier=identifier;row.recorded_in_a_realization_of[0].id='eli/dl/doc/'+identifier;
+    assert.deepEqual(sequence(rows).coverage.missingIds,[alias],identifier);
+  }
+  const fromUri=clone(fixture.activities),row=fromUri.find(a=>a.activity_id===chair.activity_id);delete row.recorded_in_a_realization_of[0].identifier;
+  assert.equal(sequence(fromUri).coverage.complete,true,'the document URI carries the same exact identifier');
 });
 test('catch-the-eye uses paired published markers and cannot leak into subsequent speeches',()=>{
   const result=sequence(fixture.activities);
@@ -181,6 +202,7 @@ test('selected debate service uses bounded public sitting pages, shares in-fligh
   assert.equal(question.debates[0].exchanges.find(e=>e.ids.includes(question.speechId)).id,byNumber(172).activity_id);
   assert.equal(answer.debates[0].exchanges.find(e=>e.ids.includes(answer.speechId)).id,byNumber(172).activity_id);
   assert(question.debates[0].sources.every(s=>s.url.startsWith('https://data.europarl.europa.eu/')&&s.fetchedAt));
+  assert.equal(question.debates[0].coverage.complete,true);
 });
 test('member statistics deduplicate exact records, count historical designations, and expose incomplete observations',async()=>{
   const member='257070',rows=fixture.activities.filter(a=>a.had_participation?.had_participant_person?.includes('person/'+member));
