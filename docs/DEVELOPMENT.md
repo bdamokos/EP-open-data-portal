@@ -14,6 +14,14 @@ Health, progress, diagnostic failures, stateful speech statistics, speech clouds
 
 The application sends separate `Cache-Control` and `CDN-Cache-Control` headers. A gateway must preserve the approved public policy and keep its own errors, private routes and legacy routes uncached. A CDN needs explicit eligibility for JSON and extensionless portraits, must respect origin `no-store`, and must retain the full query string and Origin in its cache key. Mutable API entries require invalidation when a release changes their representation; refresh publication can invalidate affected entries sooner than their TTL. Hosting-specific rules and invalidation configuration belong outside this repository. Do not treat a revision response header as a cache-key change.
 
+## Client request budgets and busy responses
+
+Browser GET reads share one deadline across attempts, response parsing and retry waits. Upstream-backed directory, speech lists, activities, speech statistics, speech/document/source reading, media metadata and reference routes use 35 seconds: the server's 30-second HTTP budget already includes admission to the shared upstream queue, with five seconds left for transport. Profiles retain 40 seconds, speech context 60 seconds and motion comparison 90 seconds; the latter two have a 50-second server budget. Upstream-backed insights (speech clouds, procedure context, topic trends, legislation and participation) use 35 seconds. Local projections—including latest activities, activity-index status, retained transcripts, corpus reads, question/speech-word/saved/group-voice insights and indexed amendment readers—retain eight seconds. No timeout changes the shared upstream rate limit or adds a writer.
+
+The GET transport exposes error `code`, `status` and `retryAt`. A 503 with `upstream_busy`, `odp_rate_limited` or `request_timeout` and a valid retry hint can retry twice, keeping loading visible. It honours the latest of JSON `retryAt`, JSON `retryAfter` and HTTP `Retry-After` (seconds or date), with at least 250 ms between attempts and at most six seconds of backoff. A hinted pause over three seconds surfaces the existing error immediately. Speculative prefetches do not retry unless a foreground reader joins the pending read. Aborts, invalidation and the original route deadline cancel backoff; failed refreshes retain saved data.
+
+The HTTP process samples event-loop delay every 20 ms. Every 30 seconds it logs one compact `[event-loop-delay]` line if p99 reaches 100 ms or max reaches 250 ms, then resets the histogram. Request-budget timeout logs include the current window's p99/max delay in milliseconds alongside utilization and upstream queue state. These diagnostics add no public endpoint.
+
 ## Container
 
 ```sh
