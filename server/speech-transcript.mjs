@@ -2,14 +2,14 @@ import {existsSync} from 'node:fs';
 import path from 'node:path';
 import {CorpusReader} from './corpus-reader.mjs';
 import {HttpError} from './http-utils.mjs';
-import {config} from './config.mjs';
+import {config, booleanFromEnvironment, absolutePathFromEnvironment} from './config.mjs';
 
 // A separate, read-only lane: a search cannot occupy the transcript reader.
 // Opening this reader never creates a corpus or starts its writer.
 let readers=[],directory;
 export async function speechTranscript(id,language) {
-  const current=process.env.CORPUS_DIR;
-  if(process.env.CORPUS_ENABLED!=='true'||!current||!existsSync(path.join(current,'corpus-v1.sqlite')))
+  const current=absolutePathFromEnvironment('CORPUS_DIR');
+  if(!booleanFromEnvironment('CORPUS_ENABLED')||!current||!existsSync(path.join(current,'corpus-v1.sqlite')))
     return {id,available:false};
   if(directory!==current){directory=current;readers=Array.from({length:4},()=>new CorpusReader(current,{timeoutMs:2000}));}
   const reader=readers.find(candidate=>!candidate.busy);

@@ -1,3 +1,4 @@
+import {unthrottledUpstream} from './test-support/upstream.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -163,7 +164,7 @@ test('worker pages speeches, halves oversized pages, recovers missing graph node
   };
   const downloads=[];
   const download=async url=>{downloads.push(url);return {paragraphs:['Question text','about '+url.slice(-7,-5)]};};
-  const worker=new CorpusWorker(s.corpus,{fetchRecord,download,clock:instant,interval:0,budget:500,languages:'primary',diskLimit:1024**3});
+  const worker=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,fetchRecord,download,clock:instant,interval:0,budget:500,languages:'primary',diskLimit:1024**3});
   try {
     await worker.run();
     assert.ok(calls.some(([endpoint,limit])=>endpoint==='/speeches' && limit===12),'oversized page retried at half size');
@@ -181,7 +182,7 @@ test('worker pages speeches, halves oversized pages, recovers missing graph node
 test('worker pauses at its disk limit without fetching',async()=>{
   const s=stores();
   let fetched=0;
-  const worker=new CorpusWorker(s.corpus,{fetchRecord:async()=>{fetched++;return {payload:{data:[]},fetchedAt};},clock:instant,interval:0,diskLimit:1});
+  const worker=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,fetchRecord:async()=>{fetched++;return {payload:{data:[]},fetchedAt};},clock:instant,interval:0,diskLimit:1});
   try {
     await worker.run();
     assert.equal(fetched,0);
@@ -192,7 +193,7 @@ test('worker pauses at its disk limit without fetching',async()=>{
 
 test('backfill is not complete until question files were discovered from the index',async()=>{
   const dir=temp(),corpus=new CorpusStore(dir,{clock:instant});
-  const worker=new CorpusWorker(corpus,{fetchRecord:async()=>({payload:{data:[]},fetchedAt}),clock:instant,interval:0,diskLimit:1024**3});
+  const worker=new CorpusWorker(corpus,{runUpstream:unthrottledUpstream,fetchRecord:async()=>({payload:{data:[]},fetchedAt}),clock:instant,interval:0,diskLimit:1024**3});
   try {
     await worker.run();
     assert.equal(corpus.status().complete,false);
@@ -203,7 +204,7 @@ test('backfill is not complete until question files were discovered from the ind
 test('a partial initial index generation does not complete the backfill',async()=>{
   const s=stores();
   s.index.db.exec("DELETE FROM meta WHERE key='active'; INSERT INTO meta VALUES ('working','{\"generation\":1}')");
-  const worker=new CorpusWorker(s.corpus,{fetchRecord:async()=>({payload:{data:[]},fetchedAt}),download:async()=>({paragraphs:['Text']}),clock:instant,interval:0,diskLimit:1024**3});
+  const worker=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,fetchRecord:async()=>({payload:{data:[]},fetchedAt}),download:async()=>({paragraphs:['Text']}),clock:instant,interval:0,diskLimit:1024**3});
   try {
     await worker.run();
     assert.equal(s.corpus.status().documents.question.withText,1);
@@ -230,9 +231,9 @@ test('widening the language policy reopens every finished speech month',async()=
   const s=stores();
   const empty=async()=>({payload:{data:[]},fetchedAt});
   try {
-    await new CorpusWorker(s.corpus,{fetchRecord:empty,download:async()=>({paragraphs:['Text']}),clock:instant,interval:0,languages:'primary',diskLimit:1024**3}).run();
+    await new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,fetchRecord:empty,download:async()=>({paragraphs:['Text']}),clock:instant,interval:0,languages:'primary',diskLimit:1024**3}).run();
     assert.equal(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='speeches' AND done=0").get().n,0);
-    const wide=new CorpusWorker(s.corpus,{fetchRecord:empty,clock:instant,interval:0,languages:'all',diskLimit:1024**3});
+    const wide=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,fetchRecord:empty,clock:instant,interval:0,languages:'all',diskLimit:1024**3});
     assert.equal(s.corpus.acquire(),true);await wide.discover();
     assert.equal(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='speeches' AND done=0").get().n,s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='speeches'").get().n);
     assert.ok(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='docx' AND done=0").get().n>0,'non-primary question files are queued');
@@ -247,11 +248,11 @@ test('language widening restarts partial historical months and clears complete c
     return {payload:{data:params.offset?[]:[speech(id,{en:fragment('en','Ocean policy.'),fr:fragment('fr','Océan politique.','fr-t-en-mtec')})]},fetchedAt};
   };
   try {
-    const primary=new CorpusWorker(s.corpus,{clock:instant,languages:'primary'});await primary.discover();
+    const primary=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,clock:instant,languages:'primary'});await primary.discover();
     const key='speeches:2024-07',task=s.corpus.task(key);
     s.corpus.taskProgress(task,{...task.body,offset:1,lastPage:id});
     s.corpus.set('backfilledAt',fetchedAt);
-    const wide=new CorpusWorker(s.corpus,{fetchRecord,clock:instant,languages:'all',interval:0,budget:500,download:async()=>({paragraphs:['Text']})});
+    const wide=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,fetchRecord,clock:instant,languages:'all',interval:0,budget:500,download:async()=>({paragraphs:['Text']})});
     await wide.discover();
     assert.equal(s.corpus.task(key).body.offset,0);
     assert.equal(s.corpus.coverage().complete,false);
@@ -264,7 +265,7 @@ test('language widening restarts partial historical months and clears complete c
 
 test('rechecking a missing graph node refreshes completed recovery but preserves pending retries',async()=>{
   const s=stores(),id='MTG-PL-2026-07-08-OTH-2';let revised=false;
-  const worker=new CorpusWorker(s.corpus,{clock:instant,interval:0,fetchRecord:async endpoint=>endpoint==='/speeches'?
+  const worker=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,clock:instant,interval:0,fetchRecord:async endpoint=>endpoint==='/speeches'?
     {payload:{data:[],searchResults:{hits:[{id:'eli/dl/event/'+id}]}},fetchedAt}:
     {payload:{data:[speech(id,{en:fragment('en',revised?'Revised transcript.':'Earlier transcript.')})]},fetchedAt}});
   const month={key:'month',kind:'speeches',body:{start:'2026-07-01',end:'2026-07-31',offset:0,limit:25}};
@@ -320,7 +321,7 @@ test('read-only queries leave the API event loop free and enforce concurrency an
 
 test('the actual health route responds during initial question-file discovery',async()=>{
   const s=stores();addQuestions(s.index);
-  const worker=new CorpusWorker(s.corpus,{clock:instant});
+  const worker=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,clock:instant});
   let incompleteAtResponse=false;
   const server=http.createServer((request,response)=>{incompleteAtResponse=!s.corpus.get('discoveredAt');void handleRequest(request,response);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -341,7 +342,7 @@ test('speech ingestion serves the event loop between language parses and retains
   const s=stores(),langs=['en','fr','de'];
   const data=Array.from({length:3},(_,n)=>speech('MTG-PL-2026-07-08-OTH-'+(n+1),Object.fromEntries(langs.map(lang=>[lang,fragment(lang,'Ocean '+('<w>policy</w> '.repeat(300)),lang==='en'?lang:lang+'-t-en-mtec')]))));
   const task={key:'page',kind:'speeches',body:{start:'2026-07-01',end:'2026-07-31',offset:0,limit:25}};
-  const worker=new CorpusWorker(s.corpus,{clock:instant,interval:0,fetchRecord:async()=>({payload:{data},fetchedAt})});
+  const worker=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,clock:instant,interval:0,fetchRecord:async()=>({payload:{data},fetchedAt})});
   let ticks=0,running=true;
   let offsetAtResponse=null;
   const server=http.createServer((request,response)=>{offsetAtResponse=s.corpus.task(task.key).body.offset;void handleRequest(request,response);});
@@ -367,7 +368,7 @@ test('speech ingestion serves the event loop between language parses and retains
 
 test('stopping discovery preserves queued work without claiming completion or fetching sources',async()=>{
   const s=stores();addQuestions(s.index);let fetched=0;
-  const worker=new CorpusWorker(s.corpus,{clock:instant,fetchRecord:async()=>{fetched++;throw new Error('No source fetch expected');}});
+  const worker=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,clock:instant,fetchRecord:async()=>{fetched++;throw new Error('No source fetch expected');}});
   try {
     s.corpus.release();setImmediate(()=>worker.stop());await worker.run();
     assert.equal(fetched,0);assert.equal(s.corpus.get('discoveredAt'),null);
@@ -376,7 +377,7 @@ test('stopping discovery preserves queued work without claiming completion or fe
     assert.ok(queued>0 && queued<365);
     assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM lease').get().n,0);
     assert.equal(s.corpus.acquire(),true);
-    await new CorpusWorker(s.corpus,{clock:instant}).discover();
+    await new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,clock:instant}).discover();
     assert.equal(s.corpus.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE kind='docx'").get().n,365);
     assert.equal(s.corpus.get('discoveredAt'),fetchedAt);
   } finally {s.cleanup();}
@@ -385,7 +386,7 @@ test('stopping discovery preserves queued work without claiming completion or fe
 test('discovery fences writes after a lease change during an event-loop yield',async()=>{
   const s=stores();addQuestions(s.index);let now=instant();s.corpus.clock=()=>now;
   const other=new CorpusStore(path.dirname(s.corpus.filename),{clock:()=>now});
-  const worker=new CorpusWorker(s.corpus,{clock:()=>now});
+  const worker=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,clock:()=>now});
   let acquired=false;
   try {
     setImmediate(()=>{now+=90_001;acquired=other.acquire();});
@@ -399,7 +400,7 @@ test('discovery fences writes after a lease change during an event-loop yield',a
 test('stopped speech ingestion resumes the saved page without duplicating committed texts',async()=>{
   const s=stores();
   const data=Array.from({length:3},(_,n)=>speech('MTG-PL-2026-07-08-OTH-'+(n+1),{en:fragment('en','Ocean policy.'),fr:fragment('fr','Ocean policy.','fr-t-en-mtec')}));
-  const options={clock:instant,interval:0,budget:1,fetchRecord:async()=>({payload:{data},fetchedAt})};
+  const options={runUpstream:unthrottledUpstream,clock:instant,interval:0,budget:1,fetchRecord:async()=>({payload:{data},fetchedAt})};
   const worker=new CorpusWorker(s.corpus,options);
   const task={key:'page',kind:'speeches',body:{start:'2026-07-01',end:'2026-07-31',offset:0,limit:25}};
   let polling=true;
@@ -436,7 +437,7 @@ test('oversized translations preserve inferred original provenance and primary-l
   const expected=speechTexts(activity,'https://example.test/list',fetchedAt);
   assert.deepEqual(expected.texts.map(text=>[text.language,text.translationType]),[['fr','original']]);
   const task={key:'page',kind:'speeches',body:{start:'2026-07-01',end:'2026-07-31',offset:0,limit:25}};
-  const worker=new CorpusWorker(s.corpus,{clock:instant,interval:0,languages:'primary',fetchRecord:async()=>({payload:{data:[activity]},fetchedAt})});
+  const worker=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,clock:instant,interval:0,languages:'primary',fetchRecord:async()=>({payload:{data:[activity]},fetchedAt})});
   try {
     s.corpus.enqueue(task.key,task.kind,task.body,60);await worker.task(task);
     assert.equal(s.corpus.task(task.key).body.offset,1);

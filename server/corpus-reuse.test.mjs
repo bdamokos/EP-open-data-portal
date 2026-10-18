@@ -28,7 +28,7 @@ function fixture(t) {
   const directory=mkdtempSync(path.join(os.tmpdir(),'corpus-reuse-')),store=new CorpusStore(path.join(directory,'corpus'));
   const index=new ActivityStore(path.join(directory,'index'),{clock:now});store.acquire();index.acquire();const {generation}=index.beginCycle();index.setMembers([{id:'42',name:'Exact Speaker',countryCode:'HU'}]);
   const old={CORPUS_DIR:process.env.CORPUS_DIR,CORPUS_ENABLED:process.env.CORPUS_ENABLED,ACTIVITY_INDEX_ENABLED:process.env.ACTIVITY_INDEX_ENABLED};
-  process.env.CORPUS_DIR=path.dirname(store.filename);process.env.CORPUS_ENABLED='true';process.env.ACTIVITY_INDEX_ENABLED='false';
+  process.env.CORPUS_DIR=path.dirname(store.filename);process.env.CORPUS_ENABLED='on';process.env.ACTIVITY_INDEX_ENABLED='false';
   t.mock.method(globalThis,'fetch',()=>{throw new Error('Upstream requests forbidden');});
   t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();index.close();for(const [key,value] of Object.entries(old))value===undefined?delete process.env[key]:process.env[key]=value;rmSync(directory,{recursive:true,force:true});});
   const add=(a,{metadata=true,text=true}={})=>{if(text){const extracted=speechTexts(a,url,fetchedAt);store.putDocument(extracted.document,extracted.texts);}if(metadata)store.putSpeechMetadata(a,url,fetchedAt);index.putSource(generation,'/speeches/'+a.activity_id,'speech',{id:a.activity_id},fetchedAt,speechRows(a,fetchedAt));return a.activity_id;};

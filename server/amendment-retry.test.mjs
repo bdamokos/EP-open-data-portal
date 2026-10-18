@@ -1,3 +1,4 @@
+import {unthrottledUpstream} from './test-support/upstream.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync} from 'node:fs';
@@ -33,7 +34,7 @@ function setup(t,options={}) {
   store.putSource(generation,'outside:state','outside-state',{version:1,terms:[9,10]},stamp);
   store.updateCycle({initialized:true,motionOutcomesDay:date,reportJoinsReady:true,procedureTitlesQueued:true,amendmentsPreparedVersion:AMENDMENTS_VERSION,amendmentsPreparedDay:date,splitParserVersion:SPLIT_PARSER_VERSION,amendmentDocumentParserVersion:AMENDMENT_EXTRACTION_VERSION,amendmentDocumentLinksVersion:AMENDMENT_LINKS_VERSION,amendmentSittingProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION,amendmentDistributionProofVersion:AMENDMENT_DISTRIBUTION_PROOF_VERSION});
   store.release();
-  const worker=new ActivityWorker(store,{clock,monotonic:clock,fetchRecord:async()=>{throw new Error('Unexpected source request.');},...options});
+  const worker=new ActivityWorker(store,{runUpstream:unthrottledUpstream,clock,monotonic:clock,fetchRecord:async()=>{throw new Error('Unexpected source request.');},...options});
   const write=fn=>{assert(store.acquire());try{return fn();}finally{store.release();}};
   const writeAsync=async fn=>{assert(store.acquire());try{return await fn();}finally{store.release();}};
   t.after(()=>{worker.stop();store.close();rmSync(directory,{recursive:true,force:true});});

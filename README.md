@@ -25,6 +25,8 @@ ODP_CACHE_DIR="$PWD/var/cache" ACTIVITY_INDEX_DIR="$PWD/var/index" ACTIVITY_INDE
 
 The indexer starts with bounded requests and retains its progress. Initial coverage is partial and is shown in the interface. Do not run two processes against the same index directory. Cache and index data stay outside Git. `.env.example` lists the available settings; load environment variables through your shell or service manager.
 
+Boolean settings accept `1`, `true`, `yes`, `on` and `0`, `false`, `no`, `off` (case-insensitive); other nonempty values fail with the setting name. Worker flags are checked when accessed or started; directory and bounded job settings are read when their service is first created. Relative paths resolve from the working directory. `JSON_RESPONSE_LIMIT_BYTES` caps supported JSON responses (default 5242880 bytes).
+
 For full-text search, add `CORPUS_ENABLED=true CORPUS_DIR="$PWD/var/corpus"`. A background worker stores speech texts and question/answer texts in `corpus-v1.sqlite`, searchable through `/api/corpus/search` and joined read-only to the activity index; `/api/corpus/status` reports coverage. It pauses at `CORPUS_MAX_DISK_MIB`. See [Public data sources](docs/PUBLIC_DATA.md#full-text-corpus).
 
 When `ODP_CACHE_DIR` is set, portraits are also cached on disk in its `portraits-v1` subdirectory. Use one cache writer per directory and keep the cache mount when replacing a container.
