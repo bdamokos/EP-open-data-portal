@@ -1,4 +1,4 @@
-import {SavedNav} from './Saved';
+import {SavedNav} from './SavedControls';
 import {TextSearch} from './TextSearch';
 import './ParliamentHeader.css';
 import {publicAmendmentsEnabled} from './publicFeatures';

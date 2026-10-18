@@ -1,3 +1,4 @@
+import {viewReady} from './test-support/viewReady.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -33,12 +34,12 @@ async function harness(t,query,respond=fixture) {
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  return {window,container,load:path=>vite.ssrLoadModule(path),render:element=>act(async()=>root.render(element)),click:node=>{assert(node,'Missing button');return act(async()=>node.click());},button:text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text)};
+  return {window,container,load:path=>vite.ssrLoadModule(path),render:async element=>{await act(async()=>root.render(element));await viewReady(container);},click:async node=>{assert(node,'Missing button');await act(async()=>node.click());await viewReady(container);},button:text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text)};
 }
 
 test('Follow and Save names include their visible state and identify compact controls',async t=>{
   const h=await harness(t,'');
-  const {SaveButton}=await h.load('/src/Saved.tsx');
+  const {SaveButton}=await h.load('/src/SavedControls.tsx');
   for(const kind of ['mep','question'])for(const compact of [false,true]) {
     const item={kind,id:kind==='mep'?'257043':'E-10-2026-003031',title:kind==='mep'?'Mika Aaltola':'Question fixture'};
     await h.render(createElement(SaveButton,{item,compact}));
