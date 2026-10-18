@@ -57,7 +57,7 @@ async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),st
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root,current,props;
+  let vite,root,current,props,renderKey=0;
   const calls=[],changes=[],contexts=[];
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
@@ -79,11 +79,12 @@ async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),st
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   current={...structuredClone(module.defaultMemberVotesState),...state};
-  const draw=()=>root.render(createElement(module.MemberVotes,{...props,state:current}));
+  const draw=()=>root.render(createElement(module.MemberVotes,{...props,state:current,key:renderKey}));
   props={memberId:MEMBER,memberName:'Test member',language:'en',onStateChange:(next,options)=>{current=next;changes.push({state:structuredClone(next),options});draw();},
     renderContext:request=>{contexts.push(request);return renderContext?renderContext(request):createElement('div',{'data-testid':'context'},request.documentId,createElement('button',{onClick:request.onBack},'Back from context'));}};
   await act(async()=>draw());
   return {container,calls,changes,contexts,module,get state(){return current;},async update(patch){await act(async()=>{current={...current,...patch};draw();});},
+    async remount(){await act(async()=>{renderKey++;draw();});},
     async click(text){const target=button(container,text);assert(target,'Missing button: '+text);await act(async()=>target.click());},
     async select(selector,value){const target=container.querySelector(selector);assert(target,'Missing control: '+selector);await act(async()=>{target.value=value;target.dispatchEvent(new window.Event('change',{bubbles:true}));});}};
 }
@@ -520,6 +521,26 @@ test('returning from context preserves detail scroll, then returning to votes re
   assert.deepEqual(h.state,{...selectedState,decisionId:null});assert.equal(visiblePane(h.container).scrollTop,240);
   assert.deepEqual(h.state.expandedSubjectIds,[SUBJECT]);assert.equal(h.state.snapshotId,SNAPSHOT);
   assert.equal(document.activeElement===visiblePane(h.container).querySelector('.member-votes-row'),true,'Back returns focus to the current exact row');
+});
+
+test('revalidating a cached list preserves the parent-restored scroll on its existing pane',async t=>{
+  let finish,reads=0;
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT]},handler:url=>{
+    if(++reads===1)return Response.json(responseFor(url));
+    return new Promise(resolve=>{finish=()=>resolve(Response.json(responseFor(url,{subjects:[subject([vote(1)],{title:'Revalidated subject',titles:{en:'Revalidated subject'}})]})));});
+  }});
+  const now=Date.now();t.mock.method(Date,'now',()=>now+31_000);
+  await h.remount();
+  assert.equal(reads,2,'returning to an expired cached view revalidates its response');
+  const list=visiblePane(h.container);
+  assert.equal(Boolean(list),true,'the cached list remains visible while its response revalidates');
+  // The owning page restores this position before the new response arrives.
+  // A programmatic restoration need not emit a scroll event.
+  list.scrollTop=237;
+  await act(async()=>finish());
+  assert.equal(h.container.querySelector('[data-vote-group]').textContent.includes('Revalidated subject'),true);
+  assert.equal(visiblePane(h.container)===list,true,'a new response keeps the same visible list pane');
+  assert.equal(list.scrollTop,237);
 });
 
 test('history return restores the exact row focus without changing the saved scroll',async t=>{

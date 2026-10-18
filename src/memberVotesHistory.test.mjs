@@ -122,6 +122,41 @@ test('entering and leaving the profile Votes tab adds one entry per gesture',asy
   await h.go(-1);assert.equal(location.href,profile);assert.equal(button(h.container,'Profile').getAttribute('aria-pressed'),'true');
 });
 
+for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+': leaving Votes preserves the pinned list and scroll for browser Back and the Votes button',async t=>{
+  const h=await harness(t);
+  await h.click(h.container.querySelector('.member-votes-subject h3 button'));
+  const outer=()=>h.container.querySelector(scroller);
+  if(scroller==='main.explorer'){
+    // Model the responsive tab policy: sticky tabs would otherwise move the
+    // restored outer page back to the beginning of its content.
+    Object.defineProperties(outer(),{scrollHeight:{value:2000},clientHeight:{value:800}});
+    const computed=globalThis.getComputedStyle;
+    t.mock.method(globalThis,'getComputedStyle',node=>node.classList.contains('explorer-tabs')?{position:'sticky'}:computed(node));
+    t.mock.method(h.container.querySelector('.explorer-profile-body'),'getBoundingClientRect',()=>({top:-77}));
+  }
+  outer().scrollTop=413;h.list().scrollTop=237;
+  h.list().dispatchEvent(new h.window.Event('scroll',{bubbles:true}));
+  const votes=location.href;
+  assert.equal(params().get('mv-week'),WEEK);assert.equal(params().get('mv-snapshot'),SNAPSHOT);
+  await h.click(button(h.container,'Profile'));
+  assert.equal(button(h.container,'Profile').getAttribute('aria-pressed'),'true');
+  assert.equal(Boolean(h.list()),false);
+  outer().scrollTop=91;
+  await h.go(-1);
+  assert.equal(location.href,votes);
+  assert.equal(button(h.container,'Votes').getAttribute('aria-pressed'),'true');
+  assert.equal(outer().scrollTop,413);assert.equal(h.list().scrollTop,237);
+
+  outer().scrollTop=509;h.list().scrollTop=319;
+  h.list().dispatchEvent(new h.window.Event('scroll',{bubbles:true}));
+  await h.click(button(h.container,'Profile'));
+  assert.equal(Boolean(h.list()),false);
+  outer().scrollTop=72;
+  await h.click(button(h.container,'Votes'));
+  assert.equal(location.href,votes,'returning directly keeps the canonical period, snapshot and expanded subject');
+  assert.equal(outer().scrollTop,509);assert.equal(h.list().scrollTop,319);
+});
+
 for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+': list → detail → Back and browser Back restore scroll and exact state',async t=>{
   const h=await harness(t);
   await h.click(h.container.querySelector('.member-votes-subject h3 button'));

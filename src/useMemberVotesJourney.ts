@@ -7,13 +7,13 @@ export function useMemberVotesJourney(member:number|null,active:boolean,initial:
   // Scope during render, before the module can issue a request for another MEP.
   const journey=stored.memberId===member?stored:readMemberVotesJourney(new URLSearchParams(),member);
   const current=useRef({journey,active});current.current={journey,active};
-  const positions=useRef(new Map<string,number[]>()),pending=useRef<number[]|null>(null);
-  const remember=()=>{
+  const positions=useRef(new Map<string,number[]>()),pending=useRef<number[]|null>(null),wasActive=useRef(active);
+  const remember=useCallback(()=>{
     const value=current.current;
     if(!value.active)return;
     positions.current.set(memberVotesScrollKey(value.journey),captureMemberJourneyScroll(document));
     if(positions.current.size>40)positions.current.delete(positions.current.keys().next().value!);
-  };
+  },[]);
   const commit=useCallback((updated:MemberVotesJourney,mode:'push'|'replace')=>{
     const value=current.current;
     if(!value.active||!value.journey.memberId||new URLSearchParams(location.search).get('member')!==String(value.journey.memberId))return;
@@ -44,7 +44,8 @@ export function useMemberVotesJourney(member:number|null,active:boolean,initial:
     setStored(restored);
   };
   useLayoutEffect(()=>{
-    if(!active)return;
+    if(!active){wasActive.current=false;return;}
+    if(!wasActive.current){pending.current??=positions.current.get(memberVotesScrollKey(journey))||null;wasActive.current=true;}
     // Loading can temporarily remove the panes. Retry restoration when the exact
     // response mounts them, including after browser Back on a different page.
     const apply=()=>{if(pending.current&&document.querySelector('.member-votes-pane:not([hidden]),.member-votes-empty,.document-context-reader')){restoreMemberJourneyScroll(document,pending.current);pending.current=null;}};
@@ -54,5 +55,5 @@ export function useMemberVotesJourney(member:number|null,active:boolean,initial:
     const observer=new window.MutationObserver(apply);observer.observe(target,{childList:true,subtree:true});
     return()=>observer.disconnect();
   },[active,journey]);
-  return {journey,onStateChange,onSelectedDocumentIdChange,restore};
+  return {journey,onStateChange,onSelectedDocumentIdChange,restore,remember,hasSavedScroll:positions.current.has(memberVotesScrollKey(journey))};
 }
