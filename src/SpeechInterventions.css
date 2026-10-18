@@ -45,4 +45,9 @@
 .explorer .intervention-sequence-heading button{background:white;color:#155e71;padding:.4rem .65rem;font-size:.78rem}
 .explorer .intervention-stats-heading h3{font-size:1rem;margin:0}
 .explorer .intervention-read small{font-size:.72rem;color:#62717d}
+.explorer button.intervention-badge{min-height:0;padding:.2rem .45rem;color:#36515a;background:#f4f8f8;cursor:pointer}
+.explorer button.intervention-badge.is-blue{color:#155396;background:#edf5ff}
+.explorer button.intervention-badge:hover{border-color:#77a9ca;text-decoration:underline;text-underline-offset:3px}
+.explorer button.intervention-badge[aria-expanded=true]{border-color:#155e71;box-shadow:inset 0 0 0 1px #155e71}
+.explorer button.intervention-reply{font-size:.72rem;min-height:0;padding:0;background:transparent;color:#164f6b;text-align:left;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 @media(max-width:620px){.intervention-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.intervention-stats-grid>div:first-child{grid-column:1/-1}.intervention-statistics{padding:.85rem}.intervention-sequence>li{gap:.5rem}.intervention-sequence-heading h4{font-size:.95rem}}
