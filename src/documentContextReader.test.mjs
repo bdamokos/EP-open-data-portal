@@ -98,7 +98,19 @@ test('changing request identity clears prior text while the new request is pendi
   await h.render({request,language:'en'});assert(h.container.textContent.includes('First document only.'));
   await h.render({request:{...request,documentId:next},language:'en'},false);
   assert(!h.container.textContent.includes('First document only.'));assert(h.container.textContent.includes('Loading document…'));
+  assert.equal(h.container.querySelector('.document-context-document').getAttribute('data-context-pending'),'true');
   await act(async()=>finish());await h.settle();assert(h.container.textContent.includes('Second document only.'));
+  assert.equal(h.container.querySelector('[data-context-pending]'),null);
+});
+
+test('an uncached document body stays pending until a terminal unavailable response',async t=>{
+  let finish;
+  const h=await harness(t,()=>new Promise(resolve=>finish=()=>resolve(response(report,sourceDocument(report,[],{status:'unavailable',textLanguage:null,reason:'no-file'})))));
+  await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'},false);
+  assert.equal(h.container.querySelector('.document-context-document').getAttribute('data-context-pending'),'true');
+  await act(async()=>finish());await h.settle();
+  assert(h.container.textContent.includes('Document text unavailable here.'));
+  assert.equal(h.container.querySelector('[data-context-pending]'),null);
 });
 
 test('a mismatched returned document or language is never displayed',async t=>{
@@ -122,6 +134,32 @@ test('adopted texts require an exact choice and load their own body without an a
   assert(!h.container.textContent.includes('Adopted wording only.'));
 });
 
+test('adopted choices stay pending until their uncached lookup finishes',async t=>{
+  let finish;
+  const h=await harness(t,()=>new Promise(resolve=>finish=()=>resolve(response(original,null,{related:{status:'available',items:[choice(adopted)],gaps:[]}}))));
+  await h.render({request:{documentId:original,view:'adopted',onBack:()=>{}},language:'en'},false);
+  assert.equal(h.container.querySelector('.document-context-reader').getAttribute('data-context-pending'),'true');
+  await act(async()=>finish());await h.settle();
+  assert.equal(h.container.querySelectorAll('.document-context-choices button').length,1);
+  assert.equal(h.container.querySelector('[data-context-pending]'),null);
+});
+
+test('a selected adopted text stays pending through its relationship lookup and uncached body',async t=>{
+  let finishRelated,finishBody;
+  const h=await harness(t,(_route,params)=>params.has('adopted')?
+    new Promise(resolve=>finishRelated=()=>resolve(response(original,null,{related:{status:'available',items:[choice(adopted)],gaps:[]}}))):
+    new Promise(resolve=>finishBody=()=>resolve(response(adopted,sourceDocument(adopted,['Exact adopted body.'])))));
+  await h.render({request:{documentId:original,view:'adopted',onBack:()=>{}},language:'en',selectedDocumentId:adopted},false);
+  assert.equal(h.container.querySelector('.document-context-reader').getAttribute('data-context-pending'),'true');
+  await act(async()=>finishRelated());await h.settle();
+  assert.equal(h.container.querySelector('.document-context-reader').hasAttribute('data-context-pending'),false);
+  assert.equal(h.container.querySelector('.document-context-document').getAttribute('data-context-pending'),'true');
+  assert.deepEqual(h.requests,[`document-context/${original}?lang=en&adopted=1`,`document-context/${adopted}?lang=en`]);
+  await act(async()=>finishBody());await h.settle();
+  assert(h.container.textContent.includes('Exact adopted body.'));
+  assert.equal(h.container.querySelector('[data-context-pending]'),null);
+});
+
 test('controlled adopted selection preserves unavailable identity and never substitutes another text',async t=>{
   const h=await harness(t,(_route,params)=>params.has('adopted')?response(original,null,{related:{status:'available',items:[choice(adopted)],gaps:[]}}):assert.fail('An unverified selected document must not be fetched'));
   const changes=[];await h.render({request:{documentId:original,view:'adopted',onBack:()=>{}},language:'en',selectedDocumentId:otherAdopted,onSelectedDocumentIdChange:id=>changes.push(id)});
@@ -136,6 +174,7 @@ test('a local reader failure has an explicit retry and does not claim a parliame
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
   assert(h.container.textContent.includes('Document could not be loaded.'));
   assert(!h.container.textContent.includes('Document unavailable here.'));
+  assert.equal(h.container.querySelector('[data-context-pending]'),null);
   await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
   assert(h.container.textContent.includes('Readable after retry.'));assert.equal(calls,2);
 });
@@ -152,6 +191,7 @@ test('an extraction failure returned with HTTP 200 offers retry and never claims
   assert(!h.container.textContent.includes('Document text unavailable here.'));
   assert(!h.container.textContent.includes('official-document-download-failed'));
   assert.equal(h.container.querySelector('.document-context-text'),null);
+  assert.equal(h.container.querySelector('[data-context-pending]'),null);
   await h.click([...alert.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
   assert.equal(calls,2);
   assert.deepEqual(h.requests,[`document-context/${report}?lang=en`,`document-context/${report}?lang=en`]);
@@ -173,6 +213,26 @@ test('a background extraction failure keeps the readable saved body and qualifie
   assert(!h.container.textContent.includes('Document text unavailable here.'));
   assert(!h.container.textContent.includes('official-document-download-failed'));
   assert(h.container.querySelector('button[aria-label="Find in document"]'));
+  assert.equal(h.container.querySelector('[data-context-pending]'),null);
+});
+
+test('retained readable text does not become pending while its expired client cache revalidates',async t=>{
+  let calls=0,finish;
+  const h=await harness(t,route=>route.endsWith(report)&&++calls===2?
+    new Promise(resolve=>finish=()=>resolve(Response.json({error:{message:'Request failed.'}},{status:503}))):
+    response(route.slice('document-context/'.length),sourceDocument(route.slice('document-context/'.length),['Readable saved body.'],{stale:true,refreshInProgress:true})));
+  const request={documentId:report,view:'document',onBack:()=>{}};
+  await h.render({request,language:'en'});
+  await h.render({request:{...request,documentId:original},language:'en'});
+  const now=Date.now();t.mock.method(Date,'now',()=>now+31_000);
+  await h.render({request,language:'en'},false);
+  assert.equal(calls,2,'the expired cache starts a real client revalidation');
+  assert(h.container.querySelector('.document-context-text').textContent.includes('Readable saved body.'));
+  assert.equal(h.container.querySelector('[data-context-pending]'),null);
+  await act(async()=>finish());await h.settle();
+  assert(h.container.textContent.includes('Couldn’t update the document. Showing saved text.'));
+  assert(h.container.querySelector('.document-context-text').textContent.includes('Readable saved body.'));
+  assert.equal(h.container.querySelector('[data-context-pending]'),null);
 });
 
 test('source hyperlinks spanning an unresolved object keep both visible linked fragments',async t=>{
@@ -201,6 +261,7 @@ test('a failed adopted lookup offers retry without claiming that the selected te
   assert(h.container.textContent.includes('Linked texts could not be loaded.'));
   assert(!h.container.textContent.includes('This adopted text is unavailable here.'));
   assert.equal(h.container.querySelectorAll('.document-context-notice button').length,1);
+  assert.equal(h.container.querySelector('[data-context-pending]'),null);
 });
 
 test('references keep the interface language when the source text language changes',async t=>{

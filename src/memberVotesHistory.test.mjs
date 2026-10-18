@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createElement,act} from 'react';
+import {createElement,Fragment,act} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
 import {viewReady} from './test-support/viewReady.mjs';
@@ -29,7 +29,7 @@ const button=(container,text)=>[...container.querySelectorAll('button')].find(no
 const params=()=>new URLSearchParams(location.search);
 const contextDocument=id=>({id,titles:{en:'Source '+id},date:'2026-03-25',files:[],answers:[],selectedDocumentId:id,selectedText:{status:'available',paragraphs:['Synthetic context body.'],textLanguage:'en',notes:[],noteAnchors:[],documentLinks:[]}});
 
-async function harness(t,query='member=1&module=votes&lang=en',{activities=[]}={}) {
+async function harness(t,query='member=1&module=votes&lang=en',{activities=[],contextResponse}={}) {
   const window=new Window({url:'http://localhost/?'+query}),requests=[],unexpected=[];
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -51,8 +51,10 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[]}={
     if(url.pathname.startsWith('/api/document-context/')){
       const id=decodeURIComponent(url.pathname.split('/').at(-1));
       const choices=[ADOPTED,OTHER_ADOPTED].map(id=>({...contextDocument(id),relationship:{from:id,field:'adopts',to:DOCUMENT}}));
-      return Response.json({documentId:id,requestedLanguage:'en',document:contextDocument(id),related:{status:'available',items:choices,gaps:[]},amendment:{id:AMENDMENT,status:'available',variants:[{listId:LIST,language:'en',wordingStatus:'available',targetLabel:null,originalText:'Original',proposedText:'Proposed',authors:[]}]}});
+      const payload={documentId:id,requestedLanguage:'en',document:contextDocument(id),related:{status:'available',items:choices,gaps:[]},amendment:{id:AMENDMENT,status:'available',variants:[{listId:LIST,language:'en',wordingStatus:'available',targetLabel:null,originalText:'Original',proposedText:'Proposed',authors:[]}]}};
+      return contextResponse?.(url,payload)??Response.json(payload);
     }
+    if(url.pathname.startsWith('/api/qa-cache/'))return Response.json({id:url.pathname.split('/').at(-1)});
     if(url.pathname==='/api/insights/saved')return Response.json({members:[],questions:[]});
     if(url.pathname==='/api/corpus/search')return Response.json({results:[],total:0,nextOffset:null,coverage:{status:'partial'}});
     if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:activities,selectedItems:[],indexedTotal:activities.length,nextOffset:null,cache:{complete:true}});
@@ -61,9 +63,15 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[]}={
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {default:App}=await vite.ssrLoadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');
+  const {default:App}=await vite.ssrLoadModule('/src/App.tsx'),{useData}=await vite.ssrLoadModule('/src/data.ts'),{createRoot}=await import('react-dom/client');
+  const WarmCache=({route})=>{
+    const state=useData(route);
+    return createElement('span',{hidden:true,'data-qa-cache-ready':Boolean(state.data&&!state.loading&&!state.error)});
+  };
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  await act(async()=>root.render(createElement(App)));
+  let warmRoutes=[];
+  const draw=()=>root.render(createElement(Fragment,null,createElement(App,{key:'app'}),...warmRoutes.map(route=>createElement(WarmCache,{key:route,route}))));
+  await act(async()=>draw());
   const settle=async()=>{await viewReady(container);for(let attempt=0;attempt<200;attempt++){await act(async()=>new Promise(resolve=>setTimeout(resolve,10)));if(!container.querySelector('.member-votes-loading'))return;}assert.fail('Lazy view did not load');};
   await settle();
   const click=async node=>{await act(async()=>{assert(node,'Missing control');node.click();});await settle();};
@@ -73,8 +81,17 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[]}={
     try{history.go(delta);await popped;}finally{clearTimeout(timer);window.removeEventListener('popstate',listener);}
   });await settle();};
   const restore=async query=>{await act(async()=>{history.pushState(null,'','/?'+query);window.dispatchEvent(new window.PopStateEvent('popstate'));});await settle();};
+  const warmCache=async count=>{
+    warmRoutes=Array.from({length:count},(_,index)=>'qa-cache/'+index);
+    await act(async()=>draw());
+    for(let attempt=0;attempt<200;attempt++){
+      if(container.querySelectorAll('[data-qa-cache-ready="true"]').length===count)return;
+      await act(async()=>new Promise(resolve=>setTimeout(resolve,10)));
+    }
+    assert.fail('Local cache fixture did not finish loading');
+  };
   const list=()=>container.querySelector('.member-votes-pane:not([hidden])');
-  return {window,container,requests,click,go,restore,list};
+  return {window,container,requests,click,go,restore,warmCache,list};
 }
 
 test('Votes is public; canonical pinning replaces, every user navigation pushes once and MEP searches survive',async t=>{
@@ -224,6 +241,57 @@ for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+'
   assert.equal(Boolean(h.container.querySelector('.document-context-reader')),false);
   contextScroller().scrollTop=82;outer().scrollTop=92;
   await h.go(1);assertContext();
+});
+
+test('an evicted amendment context restores its scroll after the delayed source body loads',async t=>{
+  let delayed=false,releaseBody;
+  const h=await harness(t,'member=1&module=votes&lang=en',{contextResponse:(url,payload)=>{
+    if(url.searchParams.get('body')==='0')return;
+    payload.document.selectedText.paragraphs=Array.from({length:207},(_,index)=>'Synthetic source paragraph '+index+'.');
+    if(delayed)return new Promise(resolve=>{releaseBody=()=>resolve(Response.json(payload));});
+    return Response.json(payload);
+  }});
+  t.after(()=>releaseBody?.());
+  await h.click(h.container.querySelector('.member-votes-subject h3 button'));
+  await h.click(h.container.querySelectorAll('.member-votes-row')[1]);
+  await h.click(button(h.container,'Read in context'));
+  const context=location.href,prototype=h.window.HTMLElement.prototype,ownScroll=Object.getOwnPropertyDescriptor(prototype,'scrollTop');
+  let sourcePrototype=prototype;
+  while(!Object.hasOwn(sourcePrototype,'scrollTop'))sourcePrototype=Object.getPrototypeOf(sourcePrototype);
+  const nativeScroll=Object.getOwnPropertyDescriptor(sourcePrototype,'scrollTop'),writes=[];
+  Object.defineProperty(prototype,'scrollTop',{configurable:true,get(){return nativeScroll.get.call(this);},set(value){
+    const contextScroller=this.classList.contains('member-votes');
+    const readable=Boolean(this.querySelector('.document-context-reader [data-source-paragraph]'));
+    if(contextScroller)writes.push({value,readable});
+    nativeScroll.set.call(this,contextScroller&&!readable?0:value);
+  }});
+  t.after(()=>ownScroll?Object.defineProperty(prototype,'scrollTop',ownScroll):delete prototype.scrollTop);
+  h.container.querySelector('.member-votes').scrollTop=4237;
+  h.container.querySelector('.explorer-profile-body').scrollTop=413;
+  await h.click(button(h.container,'Profile'));
+  await h.warmCache(61);
+  assert.equal(h.requests.filter(url=>url.pathname.startsWith('/api/qa-cache/')).length,61,'successful local reads evict the earlier context from the shared 60-entry cache');
+  delayed=true;writes.length=0;
+  await h.go(-1);
+  assert.equal(location.href,context);
+  assert.equal(typeof releaseBody,'function','the full context response was fetched again after eviction');
+  assert.equal(Boolean(h.container.querySelector('.document-context-reader')),true,'the reader shell is already mounted');
+  assert.equal(Boolean(h.container.querySelector('.document-context-reader [data-source-paragraph]')),false,'its source body is still loading');
+  assert.equal(h.container.querySelector('.member-votes').scrollTop,0,'the loading shell has no native scroll range');
+  assert.equal(writes.some(write=>write.value===4237),false,'restoration must wait instead of being consumed by the loading shell');
+  await h.click(button(h.container,'Profile'));
+  await h.go(-1);
+  assert.equal(location.href,context);
+  assert.equal(Boolean(h.container.querySelector('.document-context-reader [data-source-paragraph]')),false);
+  assert.equal(writes.some(write=>write.value===4237),false,'leaving the pending shell cannot replace the last readable position with zero');
+  await act(async()=>releaseBody());
+  assert.equal(location.href,context);assert.equal(params().get('mv-snapshot'),SNAPSHOT);
+  assert.equal(params().get('mv-decision'),decision(2));assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
+  assert.equal(h.container.querySelectorAll('.document-context-reader [data-source-paragraph]').length,207);
+  assert.equal(h.container.querySelector('.document-context-reader').textContent.includes('Synthetic source paragraph 206.'),true);
+  assert.equal(h.container.querySelector('.member-votes').scrollTop,4237);
+  assert.equal(h.container.querySelector('.explorer-profile-body').scrollTop,413);
+  assert.equal(writes.some(write=>write.value===4237&&write.readable),true,'the saved position is applied to the loaded source body');
 });
 
 test('direct sitting/context/TA selection restores exactly; another MEP receives no inherited Votes state',async t=>{

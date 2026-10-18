@@ -10,7 +10,7 @@ export function useMemberVotesJourney(member:number|null,active:boolean,initial:
   const positions=useRef(new Map<string,number[]>()),pending=useRef<number[]|null>(null),wasActive=useRef(active);
   const remember=useCallback(()=>{
     const value=current.current;
-    if(!value.active)return;
+    if(!value.active||pending.current)return;
     positions.current.set(memberVotesScrollKey(value.journey),captureMemberJourneyScroll(document));
     if(positions.current.size>40)positions.current.delete(positions.current.keys().next().value!);
   },[]);
@@ -44,15 +44,22 @@ export function useMemberVotesJourney(member:number|null,active:boolean,initial:
     setStored(restored);
   };
   useLayoutEffect(()=>{
-    if(!active){wasActive.current=false;return;}
+    if(!active){pending.current=null;wasActive.current=false;return;}
     if(!wasActive.current){pending.current??=positions.current.get(memberVotesScrollKey(journey))||null;wasActive.current=true;}
     // Loading can temporarily remove the panes. Retry restoration when the exact
     // response mounts them, including after browser Back on a different page.
-    const apply=()=>{if(pending.current&&document.querySelector('.member-votes-pane:not([hidden]),.member-votes-empty,.document-context-reader')){restoreMemberJourneyScroll(document,pending.current);pending.current=null;}};
+    const apply=()=>{
+      if(!pending.current||!document.querySelector('.member-votes-pane:not([hidden]),.member-votes-empty,.document-context-reader'))return;
+      // A loading reader shell cannot hold the source document's saved position.
+      // Keep it until the body or a settled unavailable/error state is rendered.
+      const context=document.querySelector('.document-context-reader');
+      if(context&&(context.matches('[data-context-pending="true"]')||context.querySelector('[data-context-pending="true"]')))return;
+      restoreMemberJourneyScroll(document,pending.current);pending.current=null;
+    };
     apply();
     const target=document.querySelector('.explorer-profile-body');
     if(!target)return;
-    const observer=new window.MutationObserver(apply);observer.observe(target,{childList:true,subtree:true});
+    const observer=new window.MutationObserver(apply);observer.observe(target,{childList:true,subtree:true,attributes:true,attributeFilter:['data-context-pending']});
     return()=>observer.disconnect();
   },[active,journey]);
   return {journey,onStateChange,onSelectedDocumentIdChange,restore,remember,hasSavedScroll:positions.current.has(memberVotesScrollKey(journey))};
