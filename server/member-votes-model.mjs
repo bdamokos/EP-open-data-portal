@@ -1,36 +1,9 @@
 import {personId} from './insights-model.mjs';
 
-const origin='https://data.europarl.europa.eu/';
-const positions={for:'favor',against:'against',abstaining:'abstention'};
-const list=value=>Array.isArray(value)?value:value==null?[]:[value];
-const unique=values=>[...new Set(values)];
-const tail=value=>typeof value==='string'?value.split('/').at(-1):null;
+import {list,unique,term as tail,exactReference as reference,references,eventUri,identifier,labels,preferred,deriveVoteEvidence} from './vote-evidence.mjs';
 
-// Only official exact references can participate in a join. Similar labels,
-// identifiers on another host, and nested sibling records are not evidence.
-function reference(value,kind) {
-  let id=typeof value==='string'?value:value?.id;
-  if(typeof id!=='string')return null;
-  if(id.includes('://')) {
-    try {
-      const url=new URL(id);
-      if(!['https:','http:'].includes(url.protocol)||url.hostname!=='data.europarl.europa.eu'||url.port||url.username||url.password||url.search||url.hash)return null;
-      id=url.pathname.slice(1);
-    }catch{return null;}
-  }
-  return new RegExp('^eli/dl/'+kind+'/[A-Za-z0-9][A-Za-z0-9._-]*$').test(id)?origin+id:null;
-}
-const references=(value,kind)=>unique(list(value).map(value=>reference(value,kind)).filter(Boolean));
-function eventUri(node) {
-  if(node?.id!=null)return reference(node.id,'event');
-  return reference('eli/dl/event/'+(node?.activity_id||''),'event');
-}
-const identifier=uri=>uri.slice(uri.lastIndexOf('/')+1);
-const labels=value=>value&&typeof value==='object'&&!Array.isArray(value)?Object.fromEntries(Object.entries(value).filter(([,text])=>typeof text==='string')):{};
-function preferred(map,language) {
-  const key=unique([language,'en',...Object.keys(map)]).find(key=>typeof map[key]==='string'&&map[key].trim());
-  return key?{title:map[key],titleLanguage:key}:{title:null,titleLanguage:null};
-}
+const positions={for:'favor',against:'against',abstaining:'abstention'};
+
 function count(value) {
   // Null, missing, empty strings and booleans are not observations of zero.
   if(typeof value==='number')return Number.isSafeInteger(value)&&value>=0?value:null;
@@ -53,16 +26,17 @@ function voterGroups(raw,prefix) {
   return {groups,supplied,byPerson,malformedReferences};
 }
 function scope(raw,components) {
+  if(list(raw.decided_on_a_realization_of).some(value=>!reference(value,'doc')))return {kind:'unclassified',basis:'invalid-component-reference'};
   if(components.some(id=>/-SPLIT-\d+-\d+$/.test(id)))return {kind:'split-part',basis:'exact-component-reference'};
   if(components.some(id=>/-AM-\d+(?:-\d+)?$/.test(id)))return {kind:'amendment',basis:'exact-component-reference'};
-  const reference=raw.referenceText?.en?.trim()||'';
-  if(/^(?:Motion for a resolution|Draft legislative resolution|Legislative resolution) \(as a whole\)$/i.test(reference))return {kind:'whole-text',basis:'english-reference-label'};
-  if(/\b(?:Am(?:endment)?s?\s*\d|oral amendment|provisional agreement)\b/i.test(reference))return {kind:'amendment',basis:'english-reference-label'};
-  if(/^(?:Request|Referral|Motion to refer|Postponement|Closure|Adjournment)\b/i.test(reference))return {kind:'procedural',basis:'english-reference-label'};
+  const referenceLabel=raw.referenceText?.en?.trim()||'';
+  if(/^(?:Motion for a resolution|Draft legislative resolution|Legislative resolution) \(as a whole\)$/i.test(referenceLabel))return {kind:'whole-text',basis:'english-reference-label'};
+  if(/\b(?:Am(?:endment)?s?\s*\d|oral amendment|provisional agreement)\b/i.test(referenceLabel))return {kind:'amendment',basis:'english-reference-label'};
+  if(/^(?:Request|Referral|Motion to refer|Postponement|Closure|Adjournment)\b/i.test(referenceLabel))return {kind:'procedural',basis:'english-reference-label'};
   return {kind:'unclassified',basis:'unclassified'};
 }
 
-export function projectMemberDecision(raw,snapshot,memberId,language='en') {
+export function projectMemberDecision(raw,snapshot,memberId,language='en',derived=deriveVoteEvidence(snapshot)) {
   const uri=eventUri(raw),id=raw.activity_id||identifier(uri||''),method=tail(raw.decision_method),outcome=tail(raw.decision_outcome);
   const actual=voterGroups(raw,'had_voter_'),intended=voterGroups(raw,'had_voter_intended_');
   const arraysAvailable=Object.values(actual.supplied).every(Boolean);
@@ -85,6 +59,8 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en') {
   const intendedPositions=intended.byPerson.get(String(memberId))||[];
   const intention={status:intended.malformedReferences>0?'unavailable':intendedPositions.length?'reported':'not-reported',positions:intendedPositions};
 
+  const evidence=derived.decisions.get(uri)||{subjectId:null,resultRelationship:{inverseResultIds:[],forwardResultIds:[],binding:'unlinked'},parts:[],rollCallRequesters:[],evidenceGaps:[{code:'invalid-decision-identity'}],evidencePaths:[]};
+  const conflicting=!!raw._conflictingSourceObservations;
   const relationships=[],relationKeys=new Set(),documentIds=[],procedureIds=[];
   function relation(from,field,to) {
     if(!from||!to)return;
@@ -104,11 +80,12 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en') {
   const resultUris=unique([...inverseResultUris,...forwardResultUris]);
   const agendaMap=new Map(list(snapshot.agenda).map(node=>[eventUri(node),node]).filter(([uri])=>uri));
   const agendaUris=[],missingResultIds=[],missingAgendaItemIds=[];
-  contextReferences(raw);
+  if(!raw._conflictingSourceObservations)contextReferences(raw);
   for(const resultUri of resultUris) {
-    if(inverseResultUris.includes(resultUri))relation(uri,'inverse_consists_of',resultUri);
+    if(!conflicting&&inverseResultUris.includes(resultUri))relation(uri,'inverse_consists_of',resultUri);
     const result=resultMap.get(resultUri);
     if(!result){missingResultIds.push(identifier(resultUri));continue;}
+    if(evidence.subjectId!==identifier(resultUri))continue;
     if(references(result.consists_of,'event').includes(uri))relation(resultUri,'consists_of',uri);
     contextReferences(result);
     for(const agendaUri of references(result.executed,'event')) {
@@ -117,14 +94,26 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en') {
       if(agenda)contextReferences(agenda);else missingAgendaItemIds.push(identifier(agendaUri));
     }
   }
-  const decidedIds=references(raw.decided_on_a_realization_of,'doc').map(identifier);
-  const titles=labels(raw.activity_label||raw.headingLabel),referenceTexts=labels(raw.referenceText);
+  const decidedIds=conflicting?[]:references(raw.decided_on_a_realization_of,'doc').map(identifier);
+  const titles=conflicting?{}:labels(raw.activity_label||raw.headingLabel),referenceTexts=conflicting?{}:labels(raw.referenceText);
   return {
     id,uri,sittingId:snapshot.sittingId,date:raw.activity_date||snapshot.date,
     titles,referenceTexts,...preferred(Object.keys(titles).length?titles:referenceTexts,language),
-    scope:scope(raw,decidedIds),method,outcome,ballotStatus,actualPosition,intention,sourceConflicts:raw._conflictingSourceObservations||null,
-    namedVoters:{available,counts,totalsMatch,conflictingPersonIds,malformedReferences:actual.malformedReferences},totals,
-    context:{resultIds:resultUris.map(identifier),agendaItemIds:unique(agendaUris.map(identifier)),documentIds:unique(documentIds),procedureIds:unique(procedureIds),amendmentIds:decidedIds.filter(id=>/-AM-\d+(?:-\d+)?$/.test(id)),componentIds:decidedIds.filter(id=>/-SPLIT-\d+-\d+$/.test(id)),missingResultIds,missingAgendaItemIds:unique(missingAgendaItemIds),relationships},
+    scope:conflicting?{kind:'unclassified',basis:'unclassified'}:scope(raw,decidedIds),method:conflicting?null:method,outcome:conflicting?null:outcome,ballotStatus:conflicting?'unknown':ballotStatus,actualPosition:conflicting?{status:'conflicting',position:null}:actualPosition,intention:conflicting?{status:'unavailable',positions:[]}:intention,sourceConflicts:raw._conflictingSourceObservations||null,
+    ...evidence,
+    namedVoters:{available:conflicting?false:available,counts:conflicting?null:counts,totalsMatch:conflicting?null:totalsMatch,conflictingPersonIds,malformedReferences:actual.malformedReferences},totals:conflicting?{for:null,against:null,abstaining:null}:totals,
+    context:{resultIds:conflicting?[]:resultUris.map(identifier),agendaItemIds:unique(agendaUris.map(identifier)),documentIds:unique(documentIds),procedureIds:unique(procedureIds),amendmentIds:decidedIds.filter(id=>/-AM-\d+(?:-\d+)?$/.test(id)),componentIds:decidedIds.filter(id=>/-SPLIT-\d+-\d+$/.test(id)),missingResultIds:conflicting?[]:missingResultIds,missingAgendaItemIds:conflicting?[]:unique(missingAgendaItemIds),relationships},
     historicalGroup:null,sources:{decisions:snapshot.sources?.decisions||[],results:snapshot.sources?.results||[],agenda:snapshot.sources?.agenda||[]}
   };
+}
+
+
+export function projectMemberSitting(snapshot,memberId,language='en') {
+  const derived=deriveVoteEvidence(snapshot);
+  const items=list(snapshot.decisions).map(raw=>projectMemberDecision(raw,snapshot,memberId,language,derived));
+  const subjects=derived.subjects.map(subject=>{
+    const wholeTextDecisions=items.filter(item=>item.subjectId===subject.id&&item.scope.kind==='whole-text').map(item=>Object.fromEntries(['id','uri','date','scope','method','outcome','ballotStatus','actualPosition','intention','totals','evidencePaths','evidenceGaps'].map(key=>[key,item[key]])));
+    return {...subject,...preferred(subject.titles,language),wholeTextDecisions,gaps:wholeTextDecisions.length?subject.gaps:[...subject.gaps,{code:'whole-text-outcome-not-established'}],sources:{results:snapshot.sources?.results||[],decisions:snapshot.sources?.decisions||[]}};
+  });
+  return {items,subjects};
 }
