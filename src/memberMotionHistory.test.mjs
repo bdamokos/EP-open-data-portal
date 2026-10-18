@@ -235,7 +235,10 @@ test('exact amendment, list and wording language reach the shared context; adopt
  await h.click(button(h.container,'Read in context'));
  assert.equal(history.length,before+1);assert.equal(params().get('ma-amendment'),AMENDMENT);assert.equal(params().get('ma-list'),LIST);assert.equal(params().get('ma-wording-lang'),'hu');
  const source=h.requests.filter(url=>url.pathname==='/api/document-context/'+ORIGINAL&&url.searchParams.get('adopted')!=='1').at(-1);
- assert.deepEqual(Object.fromEntries(source.searchParams),{lang:'hu',amendment:AMENDMENT,list:LIST,'wording-lang':'hu'});
+ const semanticQuery=new URLSearchParams(source.searchParams),transportVersion=semanticQuery.getAll('v');
+ assert(transportVersion.length===0||transportVersion.length===1&&transportVersion[0]==='1','only the admitted transport version may accompany the semantic query');
+ semanticQuery.delete('v');
+ assert.deepEqual(Object.fromEntries(semanticQuery),{lang:'hu',amendment:AMENDMENT,list:LIST,'wording-lang':'hu'});
  assert.equal(params().get('lang'),'en','source language is independent of the interface language');
  assert.equal(h.container.querySelector('.document-context-reader [data-context-target="true"]')?.textContent,'1. Pontos magyar forrásszöveg.');
  const context=location.href;await h.click(button(h.container,'Profile'));await h.go(-1);assert.equal(location.href,context);
