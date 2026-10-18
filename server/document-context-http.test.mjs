@@ -4,6 +4,8 @@ import http from 'node:http';
 import {mkdtemp,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import {HttpError} from './http-utils.mjs';
+import {requestSignal,requestTimeout} from './request-budget.mjs';
 
 test('document context HTTP contract is bounded, query-separated and never starts a writer',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'document-context-http-'));
@@ -29,5 +31,80 @@ test('document context HTTP contract is bounded, query-separated and never start
   assert.equal((await read('/api/document-context/A-9-2026-0237')).status,400);assert.equal((await read('/api/poc/document-context/B-10-2026-0424')).status,404);
   assert.equal(worker.running,false);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs').get().n,0);assert.equal(calls.length,2);
   assert(calls.every(url=>url.startsWith('https://data.europarl.europa.eu/api/v2/')));
+
+  const {documentContext}=await import('./document-context.mjs');
+  const id='B-10-2026-0424',amendmentId=id+'-AM-13',listId=id+'-AM-001-020',fetchedAt='2026-10-18T10:00:00.000Z';
+  const wording={en:'1. Published English wording.',hu:'1. Közzétett magyar szöveg.'};
+  const variants=['en','hu',null].map(language=>{
+    const source={url:'https://data.europarl.europa.eu/distribution/doc/list_'+(language||'unknown')+'.docx',language,fetchedAt,contentHash:(language==='en'?'a':language==='hu'?'b':'c').repeat(64),sourceVersion:{byteSize:1024,issued:'2026-10-08'}};
+    return {id:amendmentId,targetDocumentId:id,listId,language,textIntegrity:'complete',originalText:wording[language]||'Unknown-language source wording.',proposedText:'Published replacement.',targetLabel:null,targetLabelLanguage:language,authors:[],wordingSource:source,fieldSources:{wording:source},sourceFreshness:{status:'fresh'},gaps:[]};
+  });
+  t.mock.method(documentContext,'findAmendment',()=>({id:amendmentId,targetDocumentId:id,variants}));
+  let bodyReads=0;
+  const text=language=>({status:'available',paragraphs:[wording[language]||wording.en],textLanguage:language,structureStatus:'extracted',paragraphSources:[{path:'w:p[0]',ordinal:0,container:'body',containerPath:'body',segment:0,complete:true}],sourceUrl:'https://data.europarl.europa.eu/distribution/doc/body_'+language+'.docx',fetchedAt});
+  let readBody=async(_work,language)=>text(language);
+  t.mock.method(documentContext,'readText',async(...args)=>{bodyReads++;return readBody(...args);});
+  const selected=(selector,{language='en',body=true}={})=>endpoint+'?'+new URLSearchParams({amendment:amendmentId,list:listId,lang:language,...(selector===undefined?{}:{'wording-lang':selector}),...(body?{}:{body:'0'})});
+  const noStore=response=>{assert.equal(response.headers['cache-control'],'no-store');assert.equal(response.headers['cdn-cache-control'],'no-store');};
+
+  await t.test('exact source language is independent of body language and preserves every source version',async()=>{
+    const responses=new Map();
+    for(const selector of [undefined,'en','hu','unknown']) {
+      const route=selected(selector),result=await read(route);assert.equal(result.status,200);noStore(result);responses.set(selector,result);
+      assert.equal(Object.hasOwn(result.body,'requestedWordingLanguage'),selector!==undefined);
+      if(selector!==undefined)assert.equal(result.body.requestedWordingLanguage,selector==='unknown'?null:selector);
+      assert.deepEqual(result.body.amendment.variants.map(variant=>variant.language),['en','hu',null]);
+      assert.deepEqual(result.body.amendment.variants.map(variant=>variant.source),variants.map(variant=>variant.wordingSource));
+      const conditional=await read(route,{headers:{'If-None-Match':result.headers.etag}});assert.equal(conditional.status,304);assert.equal(conditional.text,'');noStore(conditional);
+      const head=await read(route,{method:'HEAD'});assert.equal(head.status,200);assert.equal(head.text,'');assert.equal(head.headers.etag,result.headers.etag);noStore(head);
+      const conditionalHead=await read(route,{method:'HEAD',headers:{'If-None-Match':result.headers.etag}});assert.equal(conditionalHead.status,304);assert.equal(conditionalHead.text,'');noStore(conditionalHead);
+      const reversed=endpoint+'?'+[...new URL(route,'http://localhost').searchParams].reverse().map(([key,value])=>new URLSearchParams({[key]:value}).toString()).join('&');
+      assert.equal((await read(reversed,{headers:{'If-None-Match':result.headers.etag}})).status,304);
+    }
+    assert.equal(new Set([...responses.values()].map(result=>result.headers.etag)).size,4);
+    const english=responses.get('en');assert.equal(english.body.target.status,'found');assert.equal(english.body.target.quoteMatches,true);assert.equal(english.body.target.evidence.wordingLanguage,'en');assert.deepEqual(english.body.target.paragraphs,[0]);
+    const hungarian=responses.get('hu');assert.equal(hungarian.body.target.reason,'different-text-languages');assert.equal(hungarian.body.target.evidence.wordingLanguage,'hu');assert.deepEqual(hungarian.body.target.evidence.wordingSource,variants[1].wordingSource);
+    const unknown=responses.get('unknown');assert.equal(unknown.body.target.reason,'different-text-languages');assert.equal(unknown.body.target.evidence.wordingLanguage,null);
+    const absent=responses.get(undefined);assert.equal(absent.body.target.reason,'choose-source-version');assert.equal(absent.body.target.evidence,null);
+    for(const [selector,result] of responses)for(const [otherSelector,other] of responses)if(selector!==otherSelector)assert.equal((await read(selected(selector),{headers:{'If-None-Match':other.headers.etag}})).status,200);
+    assert.equal(bodyReads,4,'conditional and reordered reads share only their exact selector cache entry');
+    const sameLanguage=await read(selected('hu',{language:'hu'}));assert.equal(sameLanguage.body.target.status,'found');assert.equal(sameLanguage.body.target.quoteMatches,true);assert.equal(sameLanguage.body.document.selectedText.paragraphs[0],wording.hu);assert.equal(sameLanguage.body.target.evidence.wordingLanguage,'hu');
+    const missing=await read(selected('fr'));assert.equal(missing.status,200);assert.equal(missing.body.requestedWordingLanguage,'fr');assert.equal(missing.body.target.status,'unavailable');assert.equal(missing.body.target.evidence,null);assert.equal(missing.body.amendment.variants.length,3);
+    const before=bodyReads;const wordingOnly=await read(selected('hu',{body:false}));assert.equal(wordingOnly.status,200);assert.equal(wordingOnly.body.document,null);assert.equal(wordingOnly.body.target.status,'not-requested');assert.equal(wordingOnly.body.requestedWordingLanguage,'hu');assert.equal(wordingOnly.body.amendment.variants.length,3);assert.equal(bodyReads,before);
+  });
+
+  await t.test('invalid selectors and missing exact dependencies return non-cacheable 400 responses',async()=>{
+    const before=bodyReads,sourceReads=calls.length;
+    const invalid=['','EN','HU','eng','en-US','null','Unknown',' en','en ','e1','éé','a'.repeat(1000)];
+    const routes=invalid.map(value=>selected(value));
+    routes.push(endpoint+'?wording-lang=hu',endpoint+'?amendment='+amendmentId+'&wording-lang=hu',endpoint+'?list='+listId+'&wording-lang=hu',selected('hu')+'&wording-lang=hu',selected('hu')+'&wording-lang=en',endpoint+'?amendment='+amendmentId+'&list=RC-10-2026-0441-AM-001-020&wording-lang=hu');
+    for(const route of routes){const result=await read(route);assert.equal(result.status,400,route);noStore(result);assert(result.body.error.code.startsWith('invalid_'));}
+    assert.equal(bodyReads,before);assert.equal(calls.length,sourceReads);
+  });
+
+  await t.test('selected wording preserves typed local failures and permits an immediate retry',async()=>{
+    for(const failure of [Object.assign(new HttpError(503,'upstream_busy','The document reader is busy.'),{retryAfter:1}),requestTimeout()]) {
+      let attempts=0;readBody=async(_work,language)=>{if(++attempts===1)throw failure;return text(language);};
+      const route=selected('hu',{language:failure.code==='upstream_busy'?'fr':'de'});
+      const failed=await read(route);assert.equal(failed.status,503);assert.equal(failed.body.error.code,failure.code);assert.equal(failed.headers['retry-after'],'1');noStore(failed);assert.equal(Object.hasOwn(failed.body,'amendment'),false);
+      const recovered=await read(route);assert.equal(recovered.status,200);assert.equal(recovered.body.requestedWordingLanguage,'hu');assert.equal(recovered.body.target.reason,'different-text-languages');assert.equal(attempts,2);
+    }
+  });
+
+  await t.test('closing one HTTP reader leaves the selected shared source job available to another',async()=>{
+    let started,release,sharedSignal;const entered=new Promise(resolve=>{started=resolve;}),gate=new Promise(resolve=>{release=resolve;});
+    t.after(()=>release());
+    readBody=async(_work,language)=>{sharedSignal=requestSignal();started();await gate;return text(language);};
+    const route=selected('unknown',{language:'it'}),before=bodyReads;
+    const abandoned=http.request({hostname:'127.0.0.1',port:server.address().port,path:route});
+    const closed=new Promise(resolve=>{abandoned.on('error',()=>{});abandoned.once('close',resolve);});abandoned.end();
+    await entered;abandoned.destroy();await closed;
+    assert.equal(sharedSignal.aborted,false);
+    const arrived=new Promise(resolve=>server.once('request',resolve));
+    const survivor=read(route);await arrived;assert.equal(bodyReads,before+1);release();const result=await survivor;
+    assert.equal(result.status,200);assert.equal(result.body.requestedWordingLanguage,null);assert.equal(result.body.target.evidence.wordingLanguage,null);assert.equal(bodyReads,before+1);assert.equal(sharedSignal.aborted,false);
+  });
+
+  assert.equal(worker.running,false);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs').get().n,0);assert.equal(calls.length,2);
   process.env.ACTIVITY_INDEX_ENABLED='false';assert.equal((await read(endpoint)).status,200);
 });

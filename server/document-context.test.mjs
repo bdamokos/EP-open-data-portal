@@ -48,6 +48,48 @@ test('document context validates exact identity, source variant and query keys',
   for(const value of ['B-9-2026-0424','../secret',id+'-AM-40'])assert.throws(()=>documentContextQuery(value,new URLSearchParams()),{status:400});
   for(const params of ['amendment=B-10-2026-0424-AM-40','list='+listId,'amendment='+amendmentId+'&list=B-10-2026-0424-AM-001-099','adopted=0','lang=en&lang=fr','unknown=1','adopted=1&amendment='+amendmentId])assert.throws(()=>documentContextQuery(id,new URLSearchParams(params)),{status:400});
   assert.throws(()=>documentContextQuery(ta,new URLSearchParams('adopted=1')),{status:400});
+  for(const language of ['en','hu','zz','unknown']) {
+    const parsed=documentContextQuery(id,new URLSearchParams({amendment:amendmentId,list:listId,'wording-lang':language}));
+    assert.equal(parsed.wordingLanguage,language==='unknown'?null:language);
+  }
+  assert.equal(Object.hasOwn(query(),'wordingLanguage'),false);
+  for(const language of ['','EN','HU','eng','en-US','null','Unknown',' en','en ','e1','éé','a'.repeat(1000)])assert.throws(()=>documentContextQuery(id,new URLSearchParams({amendment:amendmentId,list:listId,'wording-lang':language})),{status:400});
+  for(const params of [{'wording-lang':'hu'},{amendment:amendmentId,'wording-lang':'hu'},{list:listId,'wording-lang':'unknown'}])assert.throws(()=>documentContextQuery(id,new URLSearchParams(params)),{status:400});
+});
+
+test('an explicit wording language selects only one exact list variant and retains all alternatives and provenance',async()=>{
+  const hungarian='AO. Eredeti magyar szöveg',hungarianSource={...source,url:source.url.replace('_en','_hu'),language:'hu',contentHash:'b'.repeat(64),sourceVersion:{byteSize:912,issued:'2026-09-16'}};
+  const variants=[{...indexed,sourceFreshness:{status:'fresh'},gaps:[]},{...indexed,language:'hu',originalText:hungarian,proposedText:'AO. Javasolt magyar szöveg',targetLabel:'Preambulumbekezdés AO',targetLabelLanguage:'hu',wordingSource:hungarianSource,targetLabelSource:hungarianSource,fieldSources:{wording:hungarianSource,targetLabel:hungarianSource},sourceFreshness:{status:'fresh'},gaps:[]}];
+  const bodyLanguages=[],reader=service({findAmendment:()=>({...indexed,variants}),readText:async(_work,language)=>{bodyLanguages.push(language);return {...summary,textLanguage:language,paragraphs:[language==='hu'?hungarian:indexed.originalText]};}});
+  const pinned=(wordingLanguage,language)=>query({amendmentId,listId,wordingLanguage,language});
+  const hu=await reader.query(pinned('hu','hu'),{store:{}});
+  assert.equal(hu.requestedWordingLanguage,'hu');assert.equal(hu.requestedLanguage,'hu');assert.equal(hu.target.status,'found');assert.equal(hu.target.basis,'quoted-original');assert.equal(hu.target.quoteMatches,true);assert.deepEqual(hu.target.paragraphs,[0]);
+  assert.equal(hu.target.evidence.wordingLanguage,'hu');assert.deepEqual(hu.target.evidence.wordingSource,hungarianSource);assert.deepEqual(hu.target.evidence.fieldSources,variants[1].fieldSources);assert.deepEqual(hu.amendment.variants.map(row=>row.language),['en','hu']);
+  const en=await reader.query(pinned('en','en'),{store:{}});assert.equal(en.target.status,'found');assert.equal(en.target.evidence.wordingLanguage,'en');assert.equal(en.amendment.variants[0].originalText,indexed.originalText);
+  const fallback=await reader.query(pinned('hu','en'),{store:{}});assert.equal(fallback.target.reason,'different-text-languages');assert.deepEqual(fallback.target.paragraphs,[]);assert.deepEqual(fallback.target.evidence.wordingSource,hungarianSource);
+  const absent=await reader.query(query({amendmentId,listId,language:'hu'}),{store:{}});assert.equal(absent.target.reason,'choose-source-version');assert.equal(Object.hasOwn(absent,'requestedWordingLanguage'),false);
+  const missing=await reader.query(pinned('fr','hu'),{store:{}});assert.equal(missing.target.status,'unavailable');assert.equal(missing.target.evidence,null);assert.equal(missing.amendment.variants.length,2);
+  await reader.query(pinned('hu','hu'),{store:{}});assert.deepEqual(bodyLanguages,['hu','en','en','hu','hu'],'full-query cache entries retain the independent body and wording choices');
+  const wording=await reader.query({...pinned('hu','hu'),includeBody:false},{store:{}});assert.equal(wording.document,null);assert.equal(wording.target.status,'not-requested');assert.equal(wording.target.evidence.wordingLanguage,'hu');assert.equal(bodyLanguages.length,5);
+});
+
+test('an explicit selector cannot hide a conflicting or unreadable same-list same-language alternative',async()=>{
+  for(const competing of [{originalText:'Conflicting wording'},{textIntegrity:'incomplete',originalText:null,proposedText:null}]) {
+    const reader=service({findAmendment:()=>({...indexed,variants:[indexed,{...indexed,...competing},{...indexed,language:'hu'}]})});
+    const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+    assert.equal(result.amendment.variants.length,3);assert.equal(result.target.status,'unavailable');assert.equal(result.target.reason,'choose-source-version');assert.equal(result.target.evidence,null);assert.deepEqual(result.target.paragraphs,[]);
+  }
+});
+
+test('unknown wording selects only a null source language and cannot establish body language',async()=>{
+  for(const textLanguage of ['en',null]) {
+    const variants=[indexed,{...indexed,language:null,wordingSource:{...source,language:null}}];
+    const reader=service({findAmendment:()=>({...indexed,variants}),readText:async()=>({...summary,textLanguage})});
+    const result=await reader.query(query({amendmentId,listId,wordingLanguage:null}),{store:{}});
+    assert.equal(Object.hasOwn(result,'requestedWordingLanguage'),true);assert.equal(result.requestedWordingLanguage,null);assert.equal(result.target.evidence.wordingLanguage,null);assert.equal(result.target.evidence.wordingSource.language,null);assert.equal(result.target.reason,'different-text-languages');assert.equal(result.amendment.variants.length,2);
+  }
+  const reader=service({findAmendment:()=>indexed});
+  const missing=await reader.query(query({amendmentId,listId,wordingLanguage:null}),{store:{}});assert.equal(missing.target.status,'unavailable');assert.equal(missing.target.evidence,null);assert.equal(missing.amendment.variants.length,1);
 });
 
 test('wording-only reads defer the source body until context is requested',async()=>{
@@ -144,7 +186,9 @@ test('root document types use exact canonical identities rather than the last UR
 
 test('retained or unverified indexed wording never receives a fresh computed TTL',async()=>{
   for(const fields of [{sourceFreshness:{status:'pending'}},{sourceFreshness:{status:'fresh'},gaps:['retained source']},{sourceFreshness:{status:'fresh'},wordingRetained:true}]) {
-    let reads=0;const reader=service({findAmendment:()=>({...indexed,...fields}),request:async()=>{reads++;return record(work);}});await reader.query(query({amendmentId}),{store:{}});await reader.query(query({amendmentId}),{store:{}});assert.equal(reads,2);
+    for(const selector of [{},{listId,wordingLanguage:'en'}]) {
+      let reads=0;const reader=service({findAmendment:()=>({...indexed,...fields}),request:async()=>{reads++;return record(work);}});await reader.query(query({amendmentId,...selector}),{store:{}});await reader.query(query({amendmentId,...selector}),{store:{}});assert.equal(reads,2);
+    }
   }
 });
 
@@ -169,6 +213,36 @@ test('bounded published list fallback parses actual DOCX columns and never inven
   let downloads=0;const reader=service({request:async()=>record({...work,inverse_foresees_change_of:[list]}),download:async url=>{downloads++;assert.equal(url,fixture.sourceUrl);return {buffer:archive(fixture.documentXml,fixture.stylesXml),resolvedSourceUrl:url};}});
   const result=await reader.query(query({amendmentId}));const wording=result.amendment.variants[0];assert.equal(result.amendment.basis,'published-list');assert.equal(wording.originalText,fixture.expected[0].originalText);assert.equal(wording.proposedText,fixture.expected[0].proposedText);assert(wording.authors.every(author=>author.personId===null));assert.equal(downloads,1);assert.equal(result.sources.at(-1).contentHash.length,64);
   const later=await reader.query(query({amendmentId:id+'-AM-41'}));assert.equal(later.amendment.status,'unavailable');assert.equal(downloads,1,'different amendments reuse the same bounded list extraction');assert.equal(later.sources.at(-1).fetchedAt,result.sources.at(-1).fetchedAt);assert.equal(later.sources.at(-1).contentHash,result.sources.at(-1).contentHash);
+});
+
+test('published-list reads pin exact wording language without fetching or dropping declared alternatives',async()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-excerpts-20261016.json',import.meta.url))).documents[0];
+  const urls=[fixture.sourceUrl,fixture.sourceUrl.replace('_en.docx','_hu.docx'),fixture.sourceUrl.replace('_en.docx','_unknown.docx')];
+  const expressions=['ENG','HUN',null].map((language,index)=>({language:language&&'http://publications.europa.eu/resource/authority/language/'+language,is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:urls[index],byteSize:1234,issued:'2026-09-30'}]}));
+  const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+id],is_realized_by:expressions};
+  const bytes=archive(fixture.documentXml,fixture.stylesXml),downloads=[];
+  const reader=service({request:async()=>record({...work,inverse_foresees_change_of:[list]}),download:async url=>{downloads.push(url);return {buffer:bytes,resolvedSourceUrl:url};},readText:async()=>({...summary,paragraphs:[fixture.expected[0].originalText]})});
+  const pinned=wordingLanguage=>query({amendmentId,listId,wordingLanguage});
+  const hu=await reader.query(pinned('hu'));assert.deepEqual(downloads,[urls[1]]);assert.equal(hu.target.reason,'different-text-languages');assert.equal(hu.target.evidence.wordingLanguage,'hu');assert.equal(hu.target.evidence.wordingSource.url,urls[1]);
+  assert.deepEqual(hu.amendment.variants.map(row=>row.language),['en','hu',null]);assert.deepEqual(hu.amendment.variants.map(row=>row.source.url),urls);assert.deepEqual(hu.amendment.variants.map(row=>row.wordingStatus),['unavailable','available','unavailable']);assert.equal(hu.target.evidence.wordingSource.contentHash.length,64);assert.equal(hu.target.evidence.wordingSource.retrievedByteSize,bytes.byteLength);assert.deepEqual(hu.target.evidence.wordingSource.sourceVersion,{byteSize:1234,issued:'2026-09-30'});
+  for(const variant of hu.amendment.variants){assert.deepEqual(variant.source.sourceVersion,{byteSize:1234,issued:'2026-09-30'});assert.deepEqual(variant.metadataSource,hu.sources[0]);}
+  const en=await reader.query(pinned('en'));assert.equal(en.target.status,'found');assert.equal(en.target.evidence.wordingLanguage,'en');assert.deepEqual(downloads,[urls[1],urls[0]]);
+  const unknown=await reader.query(pinned(null));assert.equal(unknown.requestedWordingLanguage,null);assert.equal(unknown.target.evidence.wordingLanguage,null);assert.equal(unknown.target.evidence.wordingSource.url,urls[2]);assert.equal(unknown.target.reason,'different-text-languages');assert.deepEqual(downloads,[urls[1],urls[0],urls[2]]);
+  const missing=await reader.query(pinned('fr'));assert.equal(missing.amendment.status,'unavailable');assert.equal(missing.amendment.variants.length,3);assert.equal(missing.target.evidence,null);assert.equal(downloads.length,3);
+  const duplicate={...list,is_realized_by:[expressions[0],{...expressions[0],is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:urls[0].replace('.docx','_revision.docx')}]}]};
+  const conflicting=service({request:async()=>record({...work,inverse_foresees_change_of:[duplicate]}),download:async()=>{throw Error('Conflicting sources must not be read');}});
+  const result=await conflicting.query(pinned('en'));assert.equal(result.amendment.variants.length,2);assert.equal(result.target.evidence,null);assert.equal(result.target.reason,'choose-source-version');assert.deepEqual(result.amendment.gaps,['amendment-file-unavailable-or-ambiguous']);
+});
+
+test('selected published wording propagates local failures without caching source gaps or reading the body',async()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-excerpts-20261016.json',import.meta.url))).documents[0];
+  const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+id],is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:fixture.sourceUrl}]}]};
+  for(const failure of [requestTimeout(),Object.assign(new HttpError(503,'upstream_busy','The source reader is busy.'),{retryAfter:1})]) {
+    let downloads=0;const reader=service({request:async()=>record({...work,inverse_foresees_change_of:[list]}),download:async url=>{if(++downloads===1)throw failure;return {buffer:archive(fixture.documentXml,fixture.stylesXml),resolvedSourceUrl:url};},readText:async()=>{assert.fail('body=0 must not read the body');}});
+    const selected=query({amendmentId,listId,wordingLanguage:'en',includeBody:false});
+    await assert.rejects(reader.query(selected),error=>error===failure);assert.equal(reader.cache.size,0);assert.equal(reader.extractions.size,0);
+    const recovered=await reader.query(selected);assert.equal(recovered.amendment.status,'available');assert.deepEqual(recovered.amendment.gaps,[]);assert.equal(recovered.target.status,'not-requested');assert.equal(downloads,2);
+  }
 });
 
 test('absent or unrelated lists remain unavailable without a download or absence claim',async()=>{
