@@ -3,8 +3,8 @@ import { API_ROOT } from "./api";
 import { createDataClient, dataTimeoutFor, readJson } from "./client.mjs";
 import type {SpeechDetail,StoredSpeechTranscript} from './explorerTypes';
 
-export function api<T>(route: string, signal?: AbortSignal, { priority = 'auto' }: { priority?: 'auto' | 'low' } = {}): Promise<T> {
-  return readJson<T>(`${API_ROOT}/${route}`, { signal, priority, timeoutMs: dataTimeoutFor(route) });
+export function api<T>(route: string, signal?: AbortSignal, { priority = 'auto', getPriority }: { priority?: 'auto' | 'low'; getPriority?: () => 'auto' | 'low' } = {}): Promise<T> {
+  return readJson<T>(`${API_ROOT}/${route}`, { signal, priority, getPriority, timeoutMs: dataTimeoutFor(route) });
 }
 const client = createDataClient(api, { timeoutFor: dataTimeoutFor });
 export function expireActivityReads() { client.expireMatching(route=>/^(document\/|latest-activities\/)/.test(route)); }

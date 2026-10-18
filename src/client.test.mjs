@@ -156,3 +156,16 @@ test('one deadline covers all attempts and backoff, including direct api reads',
   const read=readJson('x',{timeoutMs:1500,fetchImpl:async()=>{calls++;return response(503);}});
   const check=assert.rejects(read,/took too long/);await flush();await tick(1000);await tick(500);await check;await tick(3000);assert.equal(calls,2);
 });
+
+test('a foreground reader joining a prefetch promotes both retry admission and the next fetch',async t=>{
+  const tick=clock(t),first=deferred();let calls=0;const priorities=[];
+  const client=createDataClient((route,signal,options)=>readJson(route,{signal,...options,fetchImpl:async(url,request)=>{
+    priorities.push(request.priority);return ++calls===1?first.promise:response(200);
+  }}),{prefetchDelay:1});
+  const cancel=client.prefetch(['speech/context']);await tick(1);
+  assert.equal(calls,1);assert.deepEqual(priorities,['low']);
+  const foreground=client.get('speech/context');first.resolve(response(503));await flush();
+  await tick(999);assert.equal(calls,1);
+  await tick(1);assert.deepEqual(await foreground,{items:['ready']});
+  assert.equal(calls,2);assert.deepEqual(priorities,['low','auto']);cancel();
+});
