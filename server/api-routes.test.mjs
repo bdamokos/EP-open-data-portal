@@ -1,4 +1,5 @@
 import {test} from 'node:test';
+import {versionedApiUrl} from './api-version.mjs';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
 import os from 'node:os';
@@ -14,7 +15,7 @@ test('flat browser API preserves bounded reads, search POSTs and conditional res
   t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));activityIndex().store.close();await rm(directory,{recursive:true,force:true});});
   const base=`http://127.0.0.1:${server.address().port}`,read=globalThis.fetch;
   t.mock.method(globalThis,'fetch',()=>{throw Error('Route tests must not read public sources');});
-  const request=(route,options)=>read(`${base}/api/${route}`,options);
+  const request=(route,options)=>read(versionedApiUrl(`${base}/api/${route}`),options);
   for(const route of ['profile/0','profile/1?lang=en&lang=hu','directory?other=1','portrait/1?other=1','speech-context/invalid','motion-amendments/invalid','member-votes/0','speech-transcript/invalid?lang=bad','speeches/1?offset=1e2','source-record?url=x&url=y','amendments?limit=0','outside/directory?term=8','corpus/search?q=climate&other=1'])assert.equal((await request(route)).status,400,route);
   assert.equal((await request('corpus/status')).status,503,'a disabled corpus stays unavailable');
   for(const route of ['session','admin','unknown'])assert.equal((await request(route)).status,404,route);

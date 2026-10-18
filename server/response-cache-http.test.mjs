@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {API_VERSION, versionedApiUrl} from './api-version.mjs';
 import assert from 'node:assert/strict';
 import {mkdtemp, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -33,7 +34,7 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const get = (url, options) => originalFetch(base + url, options);
+  const get = (url, options) => originalFetch(base + versionedApiUrl(url), options);
   const assertNoStore = response => {
     assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.equal(response.headers.get('cdn-cache-control'), 'no-store');
@@ -56,6 +57,40 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   assert.equal(head.headers.get('cdn-cache-control'), first.headers.get('cdn-cache-control'));
   assert.equal(await head.text(), '');
   assert.equal(profileLoads, 1);
+
+  for (const resource of ['/api/profile/43?lang=en', '/api/portrait/43']) {
+    const current = await get(resource);
+    const etag = current.headers.get('etag');
+    await current.arrayBuffer();
+    for (const method of ['GET', 'HEAD']) {
+      for (const conditional of [false, true]) {
+        const unversioned = await originalFetch(base + resource, {method, headers: conditional ? {'If-None-Match': etag} : {}});
+        assert.equal(unversioned.status, conditional ? 304 : 200);
+        assert.equal(unversioned.headers.get('cdn-cache-control'), 'no-store');
+        assert.equal(unversioned.headers.get('cache-control'), current.headers.get('cache-control'));
+        await unversioned.arrayBuffer();
+        const mismatched = await originalFetch(base + resource + (resource.includes('?') ? '&' : '?') + 'v=' + (API_VERSION + 1), {method, headers: conditional ? {'If-None-Match': etag} : {}});
+        assert.equal(mismatched.status, 409);
+        assertNoStore(mismatched);
+        if (method === 'HEAD') assert.equal(await mismatched.text(), '');
+        else assert.deepEqual(await mismatched.json(), {error: {code: 'api_version_mismatch', message: 'A new version of the explorer is available.', apiVersion: API_VERSION}});
+      }
+    }
+  }
+  for (const version of ['', '0', '-1', '1.5', '1e2', '01', 'NaN', '9007199254740992', API_VERSION + '&v=' + API_VERSION]) {
+    const invalid = await originalFetch(base + '/api/healthz?v=' + version);
+    assert.equal(invalid.status, 400, version);
+    assertNoStore(invalid);
+    assert.equal((await invalid.json()).error.code, 'invalid_api_version');
+  }
+  for (const route of ['/api/healthz', '/healthz', '/api']) {
+    for (const versioned of [false, true]) {
+      const health = await originalFetch(base + (versioned ? versionedApiUrl(route) : route));
+      assert.equal(health.status, 200);
+      assertNoStore(health);
+      assert.equal((await health.json()).apiVersion, API_VERSION);
+    }
+  }
 
   const portrait = await get('/api/portrait/43');
   assert.equal(portrait.status, 200);

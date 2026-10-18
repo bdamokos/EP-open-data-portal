@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
@@ -24,7 +25,7 @@ async function harness(t,{mismatch=false}={}) {
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();frames.clear();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',()=>{});
   t.mock.method(globalThis,'fetch',async input=>{
-    const url=new URL(input,window.location.href);assert.equal(url.origin,'http://localhost','only isolated local request stubs are permitted');calls.push(url);
+    const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');assert.equal(url.origin,'http://localhost','only isolated local request stubs are permitted');calls.push(url);
     if(url.pathname==='/api/references'){
       assert.equal(url.searchParams.get('lang'),'en');assert(url.searchParams.get('keys').split(',').every(key=>references.some(reference=>reference.key===key)));
       return Response.json({references});
