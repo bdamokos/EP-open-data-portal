@@ -185,7 +185,9 @@ test('conflicting document evidence on a chair change never hides a genuinely mi
   for(const [label,mutate] of Object.entries({
     'identifier and URI disagree':doc=>{doc.identifier='CRE-10-2026-10-06-OTH-2017099548464';},
     'chapter from another term':doc=>{doc.identifier='CRE-9-2026-10-06-OTH-2017099548464';doc.id='eli/dl/doc/'+doc.identifier;doc.notation_speechId='2017099548464';},
-    'speech notation disagrees':doc=>{doc.identifier='CRE-10-2026-10-06-OTH-2017099548464';doc.id='eli/dl/doc/'+doc.identifier;}
+    'speech notation disagrees':doc=>{doc.identifier='CRE-10-2026-10-06-OTH-2017099548464';doc.id='eli/dl/doc/'+doc.identifier;},
+    'unreadable URI beside an identifier':doc=>{doc.identifier='CRE-10-2026-10-06-OTH-2017099548464';doc.id='https://elsewhere.example/eli/dl/doc/CRE-10-2026-10-06-OTH-2017097917624';doc.notation_speechId='2017099548464';},
+    'empty identifier beside a URI':doc=>{doc.identifier='';doc.id='eli/dl/doc/CRE-10-2026-10-06-OTH-2017099548464';doc.notation_speechId='2017099548464';}
   })) {
     const rows=withoutStatement();mutate(chairOf(rows).recorded_in_a_realization_of[0]);
     assert(sequence(rows).coverage.missingIds.includes(statement),label);

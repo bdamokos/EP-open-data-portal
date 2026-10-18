@@ -68,8 +68,9 @@ const transcriptAliases=activity=>{
   if(String(activity.had_activity_type).split('/').at(-1)!=='MEETING_NAME_CHAIR'||!activity.activity_id?.startsWith('MTG-PL-'+date+'-'))return [];
   const docs=array(activity.recorded_in_a_realization_of).filter(d=>d&&typeof d==='object');
   const identities=docs.map(d=>{
-    const ids=[d.identifier==null?null:String(d.identifier),d.id==null?null:docTail(d.id)].filter(v=>v!==null);
-    return ids.length&&ids.every(id=>id===ids[0])?ids[0]:null;
+    // A present field that cannot be read is conflicting evidence, not absent evidence.
+    const ids=[...(d.identifier==null?[]:[String(d.identifier)]),...(d.id==null?[]:[docTail(d.id)])];
+    return ids.length&&ids.every(id=>id&&id===ids[0])?ids[0]:null;
   });
   if(!docs.length||identities.some(id=>id===null)||new Set(identities).size!==1)return [];
   const [,term,day,k]=identities[0].match(/^CRE-(\d+)-(\d{4}-\d{2}-\d{2})-OTH-(\d+)$/)||[];
