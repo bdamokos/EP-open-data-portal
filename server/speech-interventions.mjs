@@ -66,8 +66,10 @@ const docTail=value=>String(value||'').match(/^(?:https?:\/\/data\.europarl\.eur
 const transcriptAliases=activity=>{
   const date=String(activity.activity_date||'');
   if(String(activity.had_activity_type).split('/').at(-1)!=='MEETING_NAME_CHAIR'||!activity.activity_id?.startsWith('MTG-PL-'+date+'-'))return [];
-  const docs=array(activity.recorded_in_a_realization_of).filter(d=>d&&typeof d==='object');
-  const identities=docs.map(d=>{
+  // Every listed document, including bare URI references, must name the same fragment.
+  const entries=array(activity.recorded_in_a_realization_of),docs=entries.filter(d=>d&&typeof d==='object');
+  const identities=entries.map(d=>{
+    if(!d||typeof d!=='object')return typeof d==='string'?docTail(d):null;
     // A present field that cannot be read is conflicting evidence, not absent evidence.
     const ids=[...(d.identifier==null?[]:[String(d.identifier)]),...(d.id==null?[]:[docTail(d.id)])];
     return ids.length&&ids.every(id=>id&&id===ids[0])?ids[0]:null;
