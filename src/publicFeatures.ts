@@ -12,5 +12,5 @@ export function publicExplorerView(value: string|null): ExplorerView|null {
 
 export function publicMemberModule(value: string|null): string {
   if (value === 'amendments' && !publicAmendmentsEnabled) return 'speeches';
-  return ['profile','activities','amendments'].includes(value || '') ? value! : 'speeches';
+  return ['profile','activities','amendments','votes'].includes(value || '') ? value! : 'speeches';
 }

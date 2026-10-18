@@ -103,3 +103,16 @@ test('member full-text state is cleared when navigating to a different member or
     assert.equal(saved.get('global-fts-search'),'climate');
   }
 });
+
+test('Votes fields belong to the exact member alongside both existing MEP searches',()=>{
+  const query=new URLSearchParams('member=42&mv-week=2026-03-23&mv-sitting=MTG-PL-2026-03-25&mv-positions=all&mv-offset=50&mv-decision=MTG-PL-2026-03-25-DEC-7&mv-snapshot='+('a'.repeat(64))+'&mv-expanded=%5B%22exact-subject%22%5D&mv-document=B-10-2026-0001&mv-amendment=B-10-2026-0001-AM-7&mv-list=B-10-2026-0001-AM-001-050&mv-view=document&ma-document=B-10-2026-0001&ma-view=adopted&ma-adopted=TA-10-2026-0007&mep-speech-fts-search=transport&mep-activity-fts-search=rail&global-fts-search=climate&mv-constructor=bad');
+  const owned=explorerParams(query,null,42);
+  for(const [key,value] of query)if(key!=='member'&&key!=='mv-constructor')assert.equal(owned.get(key),value,key);
+  assert.equal(owned.has('mv-constructor'),false,'only own allowlisted fields survive');
+  for(const [view,member] of [[null,43],[null,null],['questions',42],['saved',42]]){
+    const scoped=explorerParams(query,view,member);
+    assert.equal([...scoped.keys()].some(key=>key.startsWith('mv-')),false);
+    assert.equal([...scoped.keys()].some(key=>key.startsWith('ma-')),false);
+    assert.equal(scoped.get('global-fts-search'),'climate');
+  }
+});
