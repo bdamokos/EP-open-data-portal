@@ -168,6 +168,15 @@ test('canonical week and snapshot updates replace only when explicitly requested
   assert.equal(memberVotesHistoryMode(canonical,{...canonical,week:'2026-03-30'},true),'push','another explicit period is not canonical resolution of latest');
 });
 
+test('canonical replacement recognizes the same exact context reconstructed from its URL',()=>{
+  const journey={memberId:MEMBER,invalid:false,adoptedId:null,state:{...defaults(),week:WEEK,decisionId:DECISION,snapshotId:SNAPSHOT,context:{documentId:DOCUMENT,amendmentId:AMENDMENT,listId:LIST,view:'document'}}};
+  const restored=readMemberVotesJourney(saved(journey),MEMBER);
+  const canonical={...restored.state,snapshotId:'b'.repeat(64)};
+  assert.deepEqual(restored,journey);
+  assert.equal(memberVotesHistoryMode(journey.state,canonical,true),'replace','property insertion order cannot turn a canonical pin update into user navigation');
+  assert.equal(memberVotesHistoryMode(journey.state,canonical,false),'push','an explicit refresh remains a user step');
+});
+
 test('every user selection pushes despite an expansion or other replacement hint',()=>{
   const previous={...defaults(),week:WEEK,snapshotId:SNAPSHOT};
   for(const patch of [
@@ -189,6 +198,21 @@ test('scroll identity survives canonical pinning and expansion but changes for e
     {...journey,state:{...journey.state,decisionId:DECISION}},
     {...journey,state:{...journey.state,decisionId:DECISION,context:{documentId:DOCUMENT,view:'adopted'}},adoptedId:ADOPTED},
   ])assert.notEqual(memberVotesScrollKey(next),key);
+});
+
+test('exact amendment context keeps its scroll identity through URL reconstruction',()=>{
+  const journey={memberId:MEMBER,invalid:false,adoptedId:null,state:{...defaults(),week:WEEK,positions:'all',offset:50,decisionId:DECISION,snapshotId:SNAPSHOT,expandedSubjectIds:['exact-subject'],context:{documentId:DOCUMENT,amendmentId:AMENDMENT,listId:LIST,view:'document'}}};
+  const restored=readMemberVotesJourney(saved(journey),MEMBER),key=memberVotesScrollKey(journey);
+  assert.deepEqual(restored,journey);
+  assert.equal(memberVotesScrollKey(restored),key,'URL field order cannot create another saved scroll location');
+  const reordered={context:{view:'document',listId:LIST,amendmentId:AMENDMENT,documentId:DOCUMENT},expandedSubjectIds:['exact-subject'],snapshotId:SNAPSHOT,decisionId:DECISION,offset:50,positions:'all',sittingId:null,week:WEEK};
+  assert.equal(memberVotesScrollKey({...journey,state:reordered}),key,'state construction order does not change the selected view');
+  for(const context of [
+    {...journey.state.context,documentId:'B-10-2026-0002'},
+    {...journey.state.context,amendmentId:DOCUMENT+'-AM-8'},
+    {...journey.state.context,listId:DOCUMENT+'-AM-051-100'},
+    {documentId:DOCUMENT,view:'adopted'},
+  ])assert.notEqual(memberVotesScrollKey({...journey,state:{...journey.state,context}}),key,'another exact context has its own position');
 });
 
 test('scroll restoration preserves independent desktop and mobile scrollers and rejects invalid saved positions',()=>{

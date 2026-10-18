@@ -192,6 +192,40 @@ test('decision and exact wording context survive Back/Forward without selecting 
   assert.equal(h.container.querySelector('.member-votes-detail'),null);
 });
 
+for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+': exact amendment context and its scroll survive Profile and browser Back/Forward',async t=>{
+  const h=await harness(t);
+  await h.click(h.container.querySelector('.member-votes-subject h3 button'));
+  await h.click(h.container.querySelectorAll('.member-votes-row')[1]);
+  const detail=location.href;
+  await h.click(button(h.container,'Read in context'));
+  const context=location.href,outer=()=>h.container.querySelector(scroller),contextScroller=()=>h.container.querySelector('.member-votes');
+  if(scroller==='main.explorer'){
+    Object.defineProperties(outer(),{scrollHeight:{value:6000},clientHeight:{value:800}});
+    const computed=globalThis.getComputedStyle;
+    t.mock.method(globalThis,'getComputedStyle',node=>node.classList.contains('explorer-tabs')?{position:'sticky'}:computed(node));
+    t.mock.method(h.container.querySelector('.explorer-profile-body'),'getBoundingClientRect',()=>({top:-77}));
+  }
+  const assertContext=()=>{
+    assert.equal(location.href,context);
+    assert.equal(params().get('mv-decision'),decision(2));assert.equal(params().get('mv-snapshot'),SNAPSHOT);
+    assert.equal(params().get('mv-document'),DOCUMENT);assert.equal(params().get('mv-amendment'),AMENDMENT);
+    assert.equal(params().get('mv-list'),LIST);assert.equal(params().get('mv-view'),'document');
+    assert.equal(h.container.querySelector('.document-context-reader')?.textContent.includes('Synthetic context body.'),true);
+    assert.equal(contextScroller().scrollTop,4237);assert.equal(outer().scrollTop,413);
+  };
+  contextScroller().scrollTop=4237;outer().scrollTop=413;
+  await h.click(button(h.container,'Profile'));
+  assert.equal(Boolean(h.container.querySelector('.document-context-reader')),false);
+  outer().scrollTop=91;
+  await h.go(-1);assertContext();
+  await h.go(-1);
+  assert.equal(location.href,detail);assert.equal(params().get('mv-decision'),decision(2));
+  assert.equal(Boolean(h.container.querySelector('.member-votes-detail')),true);
+  assert.equal(Boolean(h.container.querySelector('.document-context-reader')),false);
+  contextScroller().scrollTop=82;outer().scrollTop=92;
+  await h.go(1);assertContext();
+});
+
 test('direct sitting/context/TA selection restores exactly; another MEP receives no inherited Votes state',async t=>{
   const selection=new URLSearchParams({member:'1',module:'votes','mv-sitting':SITTING,'mv-positions':'all','mv-offset':'2','mv-decision':decision(1),'mv-snapshot':SNAPSHOT,'mv-expanded':JSON.stringify([SUBJECT]),'mv-document':DOCUMENT,'mv-view':'adopted','mv-adopted':ADOPTED,'ma-document':DOCUMENT,'ma-view':'adopted'});
   const h=await harness(t,selection.toString()),original=location.href;
