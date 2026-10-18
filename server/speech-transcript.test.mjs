@@ -1,4 +1,4 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,rmSync,constants} from 'node:fs';
 import {open} from 'node:fs/promises';
@@ -13,6 +13,9 @@ import {server} from './index.mjs';
 import {CorpusWorker} from './corpus-worker.mjs';
 import {odp} from './odp.mjs';
 import {zstdDecompressSync} from 'node:zlib';
+import {allowSlowCorpusReaders,readerTimeoutMs} from './test-support/corpus-reader.mjs';
+
+beforeEach(allowSlowCorpusReaders);
 
 const id='MTG-PL-2026-10-07-OTH-1',date='2026-10-16T10:00:00Z';
 const xml='<oralStatements><speech xml:lang="de"><from><person refersTo="person/42">Source Name</person></from><p>Exact <inline name="i">editorial note</inline> retained.</p></speech></oralStatements>';
@@ -21,7 +24,7 @@ const activity={id:'eli/dl/event/'+id,activity_id:id,activity_date:'2026-10-07',
   inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-1'],
   recorded_in_a_realization_of:[{id:'eli/dl/doc/CRE-10-2026-10-07-INT-1',number:'CRE-10-2026-10-07-INT-1',numbering:17,originalLanguage:['http://publications.europa.eu/resource/authority/language/DEU'],'api:xmlFragment':{en:'omitted from metadata'}}]};
 async function readerIdle(reader) {
-  const deadline=Date.now()+5000;
+  const deadline=Date.now()+readerTimeoutMs;
   while(reader.busy&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,5));
   assert.equal(reader.busy,false,'reader releases its concurrency slot after worker exit');
 }
@@ -258,28 +261,26 @@ test('metadata isolation cannot advance a speech page after writer lease loss',a
 test('transcript responses return before teardown and retain their reader slot until termination completes',{skip:process.platform==='win32'},async t=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'speech-native-io-')),cache=path.join(directory,'cache'),corpus=path.join(directory,'corpus');mkdirSync(cache);
   const originalCache=process.env.ODP_CACHE_DIR,store=new CorpusStore(corpus);
-  let handle,timer,reader,releaseTermination,released=false;
+  let handle,reader,releaseTermination,released=false;
   const terminationGate=new Promise(resolve=>{releaseTermination=resolve;});
   const terminate=Worker.prototype.terminate;
   t.mock.method(Worker.prototype,'terminate',async function(...args){
     const code=await terminate.apply(this,args);await terminationGate;return code;
   });
-  const release=async()=>{if(released)return;released=true;clearTimeout(timer);releaseTermination();await handle?.close();handle=null;};
+  const release=async()=>{if(released)return;released=true;releaseTermination();await handle?.close();handle=null;};
   try {
     store.acquire();store.putDocument({sourceId:id,kind:'speech',date:'2026-10-07',term:10},[{sourceKey:'de',language:'de',translationType:'original',sourceFormat:'xml-fragment',sourceUrl:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:date,body:'Retained text.',raw:xml}]);
     store.putSpeechMetadata(activity,'https://data.europarl.europa.eu/api/v2/speeches/'+id,date);store.release();
     const url='https://data.europarl.europa.eu/api/v2/meps/show-current?limit=1000&offset=0&format=application%2Fld%2Bjson';
     const fifo=path.join(cache,createHash('sha256').update(url).digest('hex')+'.json');execFileSync('mkfifo',[fifo]);
     handle=await open(fifo,constants.O_RDWR|constants.O_NONBLOCK);
-    process.env.ODP_CACHE_DIR=cache;reader=new CorpusReader(corpus,{timeoutMs:2000});
+    process.env.ODP_CACHE_DIR=cache;reader=new CorpusReader(corpus,{timeoutMs:readerTimeoutMs});
     // FIFO reads can block native I/O, but some Node/platform combinations
     // finish them immediately. Hold the termination promise in either case:
     // the response must return while the reader slot remains occupied.
-    timer=setTimeout(()=>{void release();},3500);
     const result=await reader.query('speech-transcript',{sourceId:id,language:'de'});
     assert.equal(released,false,'return the settled result before termination completes');
     assert.equal(result.xml,xml);assert.equal(result.metadata.speakers[0].id,'42');
-    await new Promise(resolve=>setTimeout(resolve,50));
     assert.equal(reader.busy,true,'a terminating worker still consumes its concurrency slot');
     await assert.rejects(reader.query('speech-transcript',{sourceId:id,language:'de'}),error=>error.code==='corpus_busy');
     await release();await readerIdle(reader);rmSync(fifo);
