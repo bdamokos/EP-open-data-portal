@@ -122,7 +122,7 @@ test('real EP records verify report-to-procedure shadow and question-to-answer j
 });
 
 test('HTTP joined endpoints read the persistent cache and validate categories, paging, methods and origin',async t=> {
-  const dir=temp();process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=dir;
+  const dir=temp();process.env.ACTIVITY_INDEX_ENABLED='1';process.env.ACTIVITY_INDEX_DIR=dir;
   const {activityIndex}=await import('./activity-index-worker.mjs');const {store}=activityIndex();
   assert(store.acquire());const cycle=store.beginCycle();store.setMembers([{id:'257043',name:'MEP'}]);store.putSource(cycle.generation,'/q','document',projectDocument(question),fetchedAt,documentRows(question,'/q',fetchedAt).rows);
   const early={...question,id:'eli/dl/doc/E-10-2024-000001',identifier:'E-10-2024-000001',document_date:'2024-07-16',inverse_answers_to:[]};store.putSource(cycle.generation,'/parliamentary-questions/'+early.identifier,'document',projectDocument(early),fetchedAt,documentRows(early,'/parliamentary-questions/'+early.identifier,fetchedAt).rows);store.publish(cycle.generation);store.release();

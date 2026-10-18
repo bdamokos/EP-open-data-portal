@@ -1,3 +1,4 @@
+import {booleanFromEnvironment} from './config.mjs';
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { createHash } from "node:crypto";
 import {readFile} from "node:fs/promises";
@@ -128,7 +129,7 @@ export async function activityDocument(id, person, language, {request=odp,readTe
   const endpoint = documentEndpoint(id);
   if (!endpoint) throw new HttpError(400, "unsupported_document", "This publication has no supported document-detail API. Open it on Parliament’s website.");
   let record, store;
-  if(process.env.ACTIVITY_INDEX_ENABLED==='true') {
+  if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED')) {
     const {activityIndex}=await import('./activity-index-worker.mjs');
     store=activityIndex().store;
     const saved=store.source(store.status().servingGeneration,endpoint);
