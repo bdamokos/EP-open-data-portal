@@ -1,6 +1,10 @@
 import {XMLParser, XMLValidator} from 'fast-xml-parser';
 import {speechSpeakerDetails,speakerIsChair} from './speech-speakers.mjs';
 import {speechAgendaMembership,speechParentEvidence} from './speech-agenda.mjs';
+import {verifiedIntervention} from './speech-intervention-annotations.mjs';
+import {languageCode} from './ep-links.mjs';
+
+export const INTERVENTION_CLASSIFICATION_VERSION=2;
 
 const array=value=>value==null?[]:Array.isArray(value)?value:[value];
 const parser=new XMLParser({ignoreAttributes:false,parseTagValue:false,trimValues:false});
@@ -10,6 +14,40 @@ export const speechId=value=>String(value?.id||value||'').match(/^(?:(?:https?:\
 export const speechPeople=activity=>[...new Set(array(activity.had_participation).flatMap(p=>array(p.had_participant_person)).map(p=>String(p?.id||p||'').match(/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?person\/([1-9]\d*)$/)?.[1]).filter(Boolean))];
 const groupLabels={PPE:'PPE',S_D:'S&D',PFE:'PfE',ECR:'ECR',RENEW:'Renew',VERTS_ALE:'Verts/ALE',THE_LEFT:'The Left',ESN:'ESN',NI:'NI'};
 const chairLabels=new Set(['president','the president','le president','la presidente','presidente','el presidente','la presidenta','der prasident','die prasidentin','priekssedetajs','przewodniczacy','przewodniczaca','predsedajuci','predsedajuca','predsedajici','predsednik','predsednica','presedinte','προεδρος','elnok','pirmininkas','puhemies','talman','talmannen','voorzitter','o presidente','a presidente']);
+
+// These complete labels were checked against the original-language headers.
+// The element is a guard for an ambiguous translation, never evidence of a
+// blue card on its own: an ordinary <question> is not a blue-card question.
+const blueCardLabels=new Map([
+  ['blue carton response',['answer','blue-card-answer']],
+  ['reponse carton bleu',['answer','blue-card-answer']],
+  ['réponse carton bleu',['answer','blue-card-answer']],
+  ['responding to blue card questions',['speech','blue-card-reaction']],
+  ['reaktion på blåt kort spørgsmål',['speech','blue-card-reaction']],
+  ['blue card responding',['speech','blue-card-reaction']],
+  ['kékkártyás viszontválasz',['speech','blue-card-reaction']],
+  ['replica under the blue card procedure',['speech','blue-card-reaction']],
+  ['replika pagal mėlynosios kortelės procedūrą',['speech','blue-card-reaction']],
+  ['blue card issue',['question','blue-card-question']],
+  ['sinise kaardi küsimus',['question','blue-card-question']],
+]);
+function blueCardType(process,statementKind,language='') {
+  const label=normalize(process),known=blueCardLabels.get(label);
+  if(known)return known[0]===statementKind?known[1]:'unclassified';
+  if(label==='blue card response'&&statementKind==='speech'&&/-t-en-.*\bmtec\b/i.test(language))return 'blue-card-reaction';
+  if(/blue card/.test(label))return /\b(?:reaction|counter ?reply)\b/.test(label)?'blue-card-reaction':/\b(?:answer|reply|response)\b/.test(label)?'blue-card-answer':/\bquestion\b/.test(label)?'blue-card-question':/\b(?:speech|intervention)\b/.test(label)?'blue-card-intervention':'blue-card';
+  if(/blau(?:e|en) karte/.test(label))return /\b(?:antwort|erwiderung)\b/.test(label)?'blue-card-answer':/\breaktion\b/.test(label)?'blue-card-reaction':/\bfrage\b/.test(label)?'blue-card-question':'blue-card';
+  return null;
+}
+function fragmentHeader(xml,people) {
+  if(typeof xml!=='string'||Buffer.byteLength(xml)>2*1024*1024||/<!DOCTYPE|<!ENTITY/i.test(xml)||XMLValidator.validate(xml)!==true)return null;
+  try {
+    const root=parser.parse(xml);
+    const [kind,statement]=Object.entries(root?.oralStatements||root?.writtenStatements||{}).flatMap(([k,nodes])=>array(nodes).map(node=>[k,node])).find(([,node])=>node?.from)||[];
+    const from=statement?.from,speaker=array(from?.person).find(p=>people.includes(String(p?.['@_refersTo']||'').match(/^(?:epdata:)?person\/(\d+)$/)?.[1]));
+    return speaker?{kind,from,speaker,language:String(statement['@_xml:lang']||from['@_xml:lang']||''),process:array(from.process).map(text).join(' ').trim()}:null;
+  }catch{return null;}
+}
 
 export function interventionMetadata(activity) {
   const docs=array(activity.recorded_in_a_realization_of).filter(d=>d&&typeof d==='object');
@@ -38,15 +76,20 @@ export function interventionMetadata(activity) {
   if(String(activity.had_activity_type).endsWith('/PLENARY_DEBATE_WRITTEN_STATEMENT'))type='written';
   else if(catchMarker||['PROCEEDING_ACTIVITY','MEETING_NAME_CHAIR'].includes(kind))type='procedure';
   else if(from&&speaker) {
-    // Machine translation can collapse both Dutch answers and reactions to "Blue Card Response".
-    // The published XML retains <answer> for answers and <speech> for these reactions.
-    if(normalized==='blue card response'&&statementKind==='speech'&&/-t-en-.*\bmtec\b/i.test(String(statement['@_xml:lang']||from['@_xml:lang']||'')))type='blue-card-reaction';
-    else if(/blue card/.test(normalized))type=/\b(?:reaction|counter ?reply)\b/.test(normalized)?'blue-card-reaction':/\b(?:answer|reply|response)\b/.test(normalized)?'blue-card-answer':/\bquestion\b/.test(normalized)?'blue-card-question':/\b(?:speech|intervention)\b/.test(normalized)?'blue-card-intervention':'blue-card';
-    else if(/blau(?:e|en) karte/.test(normalized))type=/\b(?:antwort|erwiderung)\b/.test(normalized)?'blue-card-answer':/\breaktion\b/.test(normalized)?'blue-card-reaction':/\bfrage\b/.test(normalized)?'blue-card-question':'blue-card';
+    const blue=blueCardType(process,statementKind,String(statement['@_xml:lang']||from['@_xml:lang']||''));
+    if(blue)type=blue;
     else if(/catch the eye/.test(normalized))type='catch-the-eye';
     else if(!from.organization&&!from.role&&!process&&speaker&&(speakerIsChair(text(speaker))||chairLabels.has(normalize(text(speaker).normalize('NFD').replace(/\p{M}/gu,'')))))type='chair';
     else type=process?'unclassified':'speech';
   }
+  // Original headers can recover an absent English fragment and prevent an
+  // ambiguous machine label from overriding conflicting original evidence.
+  const originalLanguages=new Set(docs.flatMap(doc=>array(doc.originalLanguage||doc.originalLanguageURI)).map(languageCode).filter(Boolean));
+  const originalTypes=new Set(kind==='PLENARY_DEBATE_SPEECH'?Object.entries(fragments).filter(([key])=>!originalLanguages.size||key==='mul'||originalLanguages.has(key)).map(([,xml])=>fragmentHeader(xml,people)).filter(header=>header&&header.language&&!header.language.includes('-t-')).map(header=>blueCardType(header.process,header.kind,header.language)).filter(value=>value&&!['unclassified','blue-card'].includes(value)):[]);
+  if(originalTypes.size>1)type='unclassified';
+  else if(originalTypes.size===1){const original=[...originalTypes][0];if(['unclassified','blue-card'].includes(type))type=original;else if(type.startsWith('blue-card')&&type!==original)type='unclassified';}
+  const verified=type==='unclassified'&&originalTypes.size===0&&!(from&&speaker)?verifiedIntervention(activity):null;
+  if(verified)type=verified.type;
   const speakerDetail=speaker?speechSpeakerDetails(activity).find(person=>person.id===String(speaker['@_refersTo']).split('/').at(-1)):null;
   const reportedParents=[...new Set(array(activity.inverse_consists_of).map(speechId).filter(Boolean))];
   const documentEvidence=speechParentEvidence(activity);
@@ -57,7 +100,8 @@ export function interventionMetadata(activity) {
     procedureKind:type==='procedure'?(kind==='MEETING_NAME_CHAIR'?'chair-change':'note'):null,chair,
     numbering:docs.find(d=>Number.isSafeInteger(d.numbering))?.numbering??null,
     parentIds:membership.parentIds,...(membership.reportedParentIds?{reportedParentIds:membership.reportedParentIds}:{}),
-    evidence:type==='unclassified'?null:type==='procedure'?(chair?'api:xmlFragment/communication/heading/person':narrative?'api:xmlFragment/communication/narrative':'had_activity_type'):type==='written'?'had_activity_type':'api:xmlFragment/from'};
+    evidence:type==='unclassified'?null:verified?'verified-official-transcript':type==='procedure'?(chair?'api:xmlFragment/communication/heading/person':narrative?'api:xmlFragment/communication/narrative':'had_activity_type'):type==='written'?'had_activity_type':'api:xmlFragment/from',
+    ...(verified?{classificationSources:verified.sources}:{})};
 }
 
 const docTail=value=>String(value||'').match(/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?eli\/dl\/doc\/([A-Z0-9-]+)$/)?.[1]||null;
