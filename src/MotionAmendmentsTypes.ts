@@ -1,15 +1,18 @@
 import type {Amendment, AmendmentDecision, AmendmentOutcome, AmendmentSource, AmendmentSplit, AmendmentVariant} from './AmendmentTypes';
-import type {DocumentFile} from './explorerTypes';
+import type {DocumentFile,MotionOutcome} from './explorerTypes';
 
 /** The server validates the complete term-10 identifier, including its numeric widths. */
 export type MotionAmendmentsDocumentId = `${'B' | 'RC'}-10-${number}-${string}`;
 export type MotionAmendmentsScope = 'all' | 'member';
 export type MotionAmendmentsQuery = {
   document:MotionAmendmentsDocumentId;
-  language:string;offset:number;limit:number;
+  language:string;offset:number;limit:number;amendment:string|null;
 } & ({scope:'all';member:string|null}|{scope:'member';member:string});
 export type MotionAmendmentsFile = DocumentFile & {
   translationType:'original'|'unspecified';humanReviewStatus:'unspecified';
+};
+export type MotionAmendmentsOutcome = MotionOutcome & {
+  totalsStatus:'available'|'partial'|'unavailable'|'conflicting';evidenceGaps:string[];
 };
 export type MotionAmendmentsText = {
   id:MotionAmendmentsDocumentId;reference:string;status:'indexed'|'unavailable';kind:'original'|'joint'|null;
@@ -22,11 +25,18 @@ export type MotionAmendmentsText = {
     relationships:string[];sources:AmendmentSource[];
   };
   sources:AmendmentSource[];generation:number|null;
+  outcome:MotionAmendmentsOutcome;
+  /** Motion result sources do not contain the selected member's named ballot. */
+  memberPosition:{memberId:string|null;status:'not-requested'|'unavailable';position:null;reason:'named-member-votes-not-in-motion-sources'|null};
 };
 export type MotionAmendmentsRelationship = {
   type:'is_derivative_of';from:MotionAmendmentsDocumentId;to:MotionAmendmentsDocumentId;sources:AmendmentSource[];
 };
 export type MotionAmendmentsRelatedText = MotionAmendmentsText & {relationship:MotionAmendmentsRelationship};
+export type MotionAmendmentsAdoptedText = Omit<MotionAmendmentsText,'id'|'kind'|'reference'> & {
+  id:`TA-10-${number}-${string}`;reference:string;kind:'adopted';
+  relationship:{type:'adopts';from:string;to:MotionAmendmentsDocumentId;sources:AmendmentSource[]};
+};
 
 export type MotionAmendmentMemberMatch = {
   memberId:string|null;matched:boolean;aggregateMatched:boolean;
@@ -76,8 +86,11 @@ export type MotionAmendmentsCoverage = {
 };
 export type MotionAmendmentsPage = {
   schemaVersion:1;text:MotionAmendmentsText;
-  relations:{originalMotions:MotionAmendmentsRelatedText[];jointMotions:MotionAmendmentsRelatedText[];complete:false;limit:5};
+  relations:{originalMotions:MotionAmendmentsRelatedText[];jointMotions:MotionAmendmentsRelatedText[];adoptedTexts:MotionAmendmentsAdoptedText[];
+    adoptedCoverage:{status:'indexed'|'unavailable';complete:false;gaps:string[]};complete:false;limit:5};
   scope:{documentId:MotionAmendmentsDocumentId;memberId:string|null;results:MotionAmendmentsScope;requestedLanguage:string};
   items:MotionAmendment[];total:number;totals:{allIndexed:number;memberMatched:number|null};offset:number;limit:number;
+  /** Does not alter the requested page, scope or totals; an exact official alias may resolve to a different primary row ID. */
+  selection:{requestedId:string|null;status:'not-requested'|'available'|'unavailable';item:MotionAmendment|null;inRequestedScope:boolean|null;inPage:boolean};
   coverage:MotionAmendmentsCoverage;snapshots:{amendments:number;text:number|null};
 };
