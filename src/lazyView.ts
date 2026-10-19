@@ -10,7 +10,7 @@ export class LazyViewError extends Error {
 // React caches rejected loaders, and the browser can also cache failed modules.
 // Recover with an explicit document reload, preserving the selected URL and
 // ordinary asset caching, rather than remounting or changing import URLs.
-export function lazyView<Props extends object>(load:()=>Promise<{default:ComponentType<Props>}>) {
+export function lazyView<View extends ComponentType<any>>(load:()=>Promise<{default:View}>) {
   return lazy(async()=>{
     try{return await load();}
     catch(cause){throw new LazyViewError(cause);}
