@@ -65,25 +65,31 @@ export class ActivityStore {
     catch(e) { this.db.exec('ROLLBACK'); throw e; }
   }
   acquire(ttl=90_000) {
-    return this.transaction(()=> {
+    let initialized=false;
+    const acquired=this.transaction(()=> {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
-      const initialize=this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion;
-      // Index creation holds the SQLite writer lock throughout. Allow a bounded
-      // startup window because synchronous builds cannot run the heartbeat.
-      this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+(initialize?30*60_000:ttl));
-      if(initialize)this.initializeResourceIndexes();
+      const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion;
+      this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
+      // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
+      // Refresh against the current clock before commit; elapsed build time must
+      // never roll back a completed build solely because its old TTL expired.
+      const refresh=()=>{if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner).changes!==1)throw new Error('Activity-index writer lease was lost.');};
+      if(initialize){this.initializeResourceIndexes();initialized=true;refresh();}
+      if(initializeProofs){amendmentReadIndexes(this.db);this.set('amendmentReadVersion',amendmentReadVersion);initialized=true;refresh();}
       if(this.get('motionLinksIndexVersion')!==1) {
         this.assertWriter();
         this.db.exec('INSERT OR IGNORE INTO motion_links '+motionLinkSelect('source','sources AS source, '));
-        this.assertWriter();
+        refresh();this.assertWriter();
         this.set('motionLinksIndexVersion',1);
       }
-      this.assertWriter();
-      this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner);
+      refresh();
       return true;
     });
+    if(acquired&&initialized)this.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    return acquired;
   }
+  // Increment resourceIndexes and rebuild these projections if relationship SQL changes.
   initializeResourceIndexes() {
     this.assertWriter();
     for(const sql of [
@@ -124,8 +130,6 @@ export class ActivityStore {
       DELETE FROM amendment_sitting_references WHERE generation=${ref||'OLD'}.generation AND source_key=${ref||'OLD'}.key;
       ${ref?'INSERT OR IGNORE INTO amendment_sitting_references '+references(ref)+';':''} END`);
     this.db.exec('INSERT OR IGNORE INTO amendment_sitting_references '+references('source','sources source,'));
-    amendmentReadIndexes(this.db);
-    this.set('amendmentReadVersion',amendmentReadVersion);
     this.set('resourceIndexes',1);
   }
   renew(ttl=90_000) { return this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=? AND expires>?').run(this.clock()+ttl,this.owner,this.clock()).changes===1; }
