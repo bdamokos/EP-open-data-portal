@@ -4,7 +4,8 @@ import path from 'node:path';
 import { HttpError } from './http-utils.mjs';
 import {countryCode,countryQuestions,memberCountry} from './insights-countries.mjs';
 import { odpLanguage } from './odp.mjs';
-import { analyzeQuestions, questionFromSource, demographicStats, memberPeople,personId,questionTrend } from './insights-model.mjs';
+import { analyzeQuestionsAsync, questionFromSource, demographicStats, memberPeople,personId,questionTrend } from './insights-model.mjs';
+import {requestSignal} from './request-budget.mjs';
 import {cachedEnglishQuestionBodies} from './insights-phrases.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
 export {brusselsDay} from './analysis-period.mjs';
@@ -87,7 +88,7 @@ export class QuestionInsights {
       const metadata=await this.loadMetadata({members});
       const sources=rows.map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at}));
       const bodies=await this.loadQuestionBodies(sources);
-      const analysis=analyzeQuestions(sources.map(questionFromSource).filter(Boolean),{bodies});
+      const analysis=await analyzeQuestionsAsync(sources.map(questionFromSource).filter(Boolean),{bodies,signal:requestSignal()});
       const geography=countryQuestions(analysis,members,metadata);
       const value={...analysis,...geography,members,metadata,status,indexedMatchingQuestions:count,truncated:count>rows.length,computedAt:new Date(this.clock()).toISOString()};
       const bytes=Buffer.byteLength(JSON.stringify({...analysis,...geography}));
