@@ -25,7 +25,7 @@ for(const [module,name,route] of [['data.ts','useData','profile/43'],['InsightDa
     const state=()=>JSON.parse(h.container.querySelector('output').textContent);
     await render(route);assert.equal(h.requests.length,1,'StrictMode and joined consumers share one request');
     await render(route,false);assert.equal(h.requests[0].signal.aborted,false,'surviving consumer retains the request');
-    const next=route+'&selection=new';await render(next,false);
+    const next=route+(route.includes('?')?'&':'?')+'selection=new';await render(next,false);
     assert(h.requests[0].signal.aborted,'navigation releases the old transport');assert.equal(h.requests.length,2);
     await h.finish(h.requests[0],{id:'obsolete'});assert.equal(state().data,null);assert(state().loading);
     await h.finish(h.requests[1],{id:'new',coverage:{complete:false}});assert.equal(state().data.id,'new');assert.equal(state().data.coverage.complete,false);
@@ -44,3 +44,25 @@ for(const [file,name,first,next] of [['SpeechCloud.tsx','SpeechCloud',{member:43
     await h.unmount();assert(h.requests[1].signal.aborted);
   });
 }
+
+test('speech retry checks the corpus before starting exactly one forced detail refresh',async t=>{
+  const h=await harness(t),{useSpeechData}=await h.load('/src/data.ts');
+  function Reader(){const state=useSpeechData('X','en');return createElement('section',null,createElement('output',null,JSON.stringify(state)),createElement('button',{onClick:state.retry},'Retry'));}
+  const state=()=>JSON.parse(h.container.querySelector('output').textContent);
+  const retry=()=>act(async()=>h.container.querySelector('button').click());
+  await h.render(createElement(Reader));assert.equal(h.requests.length,1);
+  await h.finish(h.requests[0],{id:'X',available:false});assert.equal(h.requests.length,2);
+  await h.finish(h.requests[1],{error:{message:'Detail unavailable'}},503);
+  await retry();assert.equal(h.requests.length,3,'retry only starts the retained corpus lookup');
+  assert.equal(h.requests[2].url.pathname,'/api/speech-transcript/X');
+  await h.finish(h.requests[2],{id:'X',available:false});assert.equal(h.requests.length,4);
+  assert.equal(h.requests[3].url.pathname,'/api/speech/X');assert.equal(h.requests[3].signal.aborted,false);
+  await h.finish(h.requests[3],{id:'X',xml:null,textLanguage:'en'});assert.equal(state().loading,false);
+  await retry();assert.equal(h.requests.length,5,'a successful cached fallback also waits for the corpus recheck');
+  await h.finish(h.requests[4],{id:'X',available:false});assert.equal(h.requests.length,6,'retry intent survives a disabled fallback route and forces its cached data to refresh');
+  await h.finish(h.requests[5],{id:'X',xml:'<speech><p>Fresh detail.</p></speech>',textLanguage:'en'});
+  assert.match(state().transcript.xml,/Fresh detail/);assert.equal(state().error,null);
+  await retry();assert.equal(h.requests.length,7);
+  await h.finish(h.requests[6],{id:'X',available:true,xml:'<speech><p>Now retained.</p></speech>',metadata:{id:'X'}});
+  assert.equal(h.requests.length,7,'complete retained metadata suppresses the fallback');assert.match(state().transcript.xml,/Now retained/);
+});
