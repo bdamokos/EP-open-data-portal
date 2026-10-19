@@ -15,7 +15,7 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
     const url = new URL(value);
     if (url.origin === 'https://data.europarl.europa.eu' && url.pathname === '/api/v2/meps/43') {
       profileLoads++;
-      return new Response(JSON.stringify({data: [{identifier: '43', givenName: 'Public', familyName: 'Member'}]}), {headers: {'content-type': 'application/ld+json'}});
+      return new Response(JSON.stringify({data: [{identifier: '43', givenName: 'Public', familyName: 'Member',hasMembership:[{id:'membership/43-m-10',organization:'org/ep-10',role:'def/ep-roles/MEMBER_PARLIAMENT',memberDuring:{startDate:'2024-07-16'}}]}]}), {headers: {'content-type': 'application/ld+json'}});
     }
     if (url.href === 'https://www.europarl.europa.eu/mepphoto/43.jpg') {
       imageLoads++;
@@ -48,6 +48,7 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   const body = await first.json();
   assert.equal(body.id, 43);
   assert(body.fetchedAt);
+  assert.equal(body.parliamentaryService.currentSince,'2024-07-16');
   const unchanged = await get('/api/profile/43?lang=en', {headers: {'If-None-Match': first.headers.get('etag')}});
   assert.equal(unchanged.status, 304);
   assert.equal(unchanged.headers.get('cdn-cache-control'), first.headers.get('cdn-cache-control'));
