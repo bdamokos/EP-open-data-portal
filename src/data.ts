@@ -13,12 +13,22 @@ export function useSpeechData(id:string,language:string) {
   const saved=useData<StoredSpeechTranscript>('speech-transcript/'+route);
   const retained=saved.data?.available&&saved.data.xml&&saved.data.id===id&&saved.data.metadata?.id===id?saved.data.metadata:null;
   const detail=useData<SpeechDetail>(!saved.loading&&!retained?'speech/'+route:null);
-  const data=retained||detail.data;
+  const previousDetail=useRef<{route:string;data:SpeechDetail}|null>(null);
+  const denied=[saved.status,detail.status].some(status=>status===401||status===403);
+  useEffect(()=>{
+    if(denied||previousDetail.current?.route!==route)previousDetail.current=null;
+    if(!denied&&detail.data?.id===id)previousDetail.current={route,data:detail.data};
+  },[route,id,detail.data,denied]);
+  // Keep the selected text while the retained lookup refreshes and temporarily
+  // disables the fallback. Never carry a body across an ID or language change.
+  const data=retained||detail.data||(!denied&&previousDetail.current?.route===route?previousDetail.current.data:null);
   const transcript=saved.data?.id===id&&saved.data.available&&saved.data.xml?saved.data:data?.id===id?data:null;
+  const body=saved.data?.id===id&&saved.data.available&&saved.data.xml?saved:detail;
   const retry=useCallback(()=>{saved.retry();detail.retry();},[saved.retry,detail.retry]);
   const availableTextLanguages=[...new Set([...(saved.data?.id===id?saved.data.availableTextLanguages||[]:[]),...(data?.id===id?data.availableTextLanguages||[]:[])])];
   return {...detail,data,transcript,retry,availableTextLanguages,loading:!transcript&&(saved.loading||detail.loading),
-    error:transcript?null:saved.loading?null:detail.error};
+    error:transcript?null:saved.loading?null:detail.error,
+    refreshing:saved.loading||detail.loading,refreshError:transcript?.xml?body.error:null,refreshRetryAt:transcript?.xml?body.retryAt:undefined};
 }
 export function prefetchData(routes: string[]) { return client.prefetch(routes); }
 export function useData<T>(route: string | null) {
