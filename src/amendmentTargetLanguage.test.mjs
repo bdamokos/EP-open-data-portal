@@ -104,7 +104,7 @@ for(const locale of ['en','hu','fr'])test(`${locale}: target labels and topics k
     }
     for(const control of container.querySelectorAll('button,select,.explorer-amendment-evidence summary'))assert.equal(effectiveLanguage(control),'en');
     for(const date of container.querySelectorAll('time'))assert.equal(effectiveLanguage(date),locale);
-    assert.equal(card('retained').querySelector('.explorer-amendment-texts p').getAttribute('lang'),'fr','target-label language does not change refreshed wording');
+    assert.equal(card('retained').querySelector('.wording-diff__passage').getAttribute('lang'),'fr','target-label language does not change refreshed wording');
     assert.equal(card('retained').querySelector(':scope>.explorer-amendment-meta time').textContent,fmt('2026-10-16',locale));
     assert.match(card('decision-fallback').textContent,/Exact decision source page unavailable/);
     assert.equal([...container.querySelectorAll('a')].some(link=>link.href===candidate.url),false,'a candidate decision page never becomes exact target-label evidence');

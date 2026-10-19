@@ -1,3 +1,4 @@
+import {wordingText,wordingViewText} from './test-support/wordingText.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
@@ -240,8 +241,8 @@ test('amendment wording loads only after decision selection and requires an expl
   assert.equal(h.container.querySelector('select[aria-label="Amendment published version"]').value,'');
   await h.select('select[aria-label="Amendment published version"]',variants[1].listId);
   const comparison=h.container.querySelector('.member-votes-comparison');assert.equal(comparison.lang,'hu');
-  assert.match(comparison.textContent,/Eredeti pontos szöveg.*Javasolt pontos szöveg/);
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Text language: Hungarian · Proposed by Második pontos javaslattevő/);
+  assert.match(wordingViewText(comparison),/Eredeti pontos szöveg.*Javasolt pontos szöveg/);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Text language: Hungarian · Proposed by Második pontos javaslattevő/);
   assert.equal(h.contexts.length,0,'reading wording must not open the full source context');
   await h.click('Read in context');
   assert.deepEqual(h.state,{...initial,context:{documentId:DOCUMENT,amendmentId:AMENDMENT,listId:variants[1].listId,wordingLanguage:'hu',view:'document'}});
@@ -259,8 +260,12 @@ test('a single exact amendment version shows its wording on detail and opens ful
   assert.equal(h.calls.filter(url=>url.includes('document-context/')).length,1);
   assert.equal(h.container.querySelector('select[aria-label="Amendment published version"]'),null);
   const comparison=h.container.querySelector('.member-votes-comparison');assert.equal(comparison.lang,'fr');
-  assert.match(comparison.textContent,/Texte original exact.*Texte proposé exact/);
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Text language: French · Proposed by Exact amendment proposer/);
+  assert(comparison.querySelector('ins'));assert(comparison.querySelector('del'));
+  assert.equal(wordingText(comparison,'original'),variant.originalText);assert.equal(wordingText(comparison,'proposed'),variant.proposedText);
+  await h.click('Side by side');assert.equal(comparison.querySelectorAll('.wording-diff__columns section').length,2);
+  await h.click('Changes');assert.equal(button(comparison,'Changes').getAttribute('aria-pressed'),'true');
+  assert.match(wordingViewText(comparison),/Texte original exact.*Texte proposé exact/);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Text language: French · Proposed by Exact amendment proposer/);
   assert.equal(h.contexts.length,0);
   await h.click('Read in context');
   assert.equal(h.contexts.at(-1).documentId,DOCUMENT);assert.equal(h.contexts.at(-1).amendmentId,AMENDMENT);assert.equal(h.contexts.at(-1).listId,variant.listId);assert.equal(h.contexts.at(-1).view,'document');
@@ -288,12 +293,12 @@ test('known unavailable wording remains a competing published version and opens 
   assert.equal(h.container.querySelector('.member-votes-comparison'),null);
   assert.equal(button(h.container,'Read in context'),undefined);
   await h.select(selector,variants[0].listId);
-  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Texte original exact.*Texte proposé exact/);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-comparison')),/Texte original exact.*Texte proposé exact/);
   await h.select(selector,variants[1].listId);
   assert.equal(h.container.querySelector('.member-votes-comparison'),null);
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Amendment wording unavailable here\./);
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Text language unknown\./);
-  assert(!h.container.querySelector('.member-votes-wording').textContent.includes(variants[0].proposedText));
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Amendment wording unavailable here\./);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Text language unknown\./);
+  assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes(variants[0].proposedText));
   await h.click('Read in context');
   assert.equal(h.contexts.at(-1).listId,variants[1].listId);
   assert.equal(h.contexts.at(-1).documentId,DOCUMENT);assert.equal(h.contexts.at(-1).amendmentId,AMENDMENT);
@@ -313,18 +318,18 @@ test('nullable wording language is explicit, null text stays unavailable and emp
   await h.select(selector,variants[0].listId);
   const comparison=h.container.querySelector('.member-votes-comparison');
   assert.equal(comparison.getAttribute('lang'),'');
-  assert.match(comparison.textContent,/Texte original exact.*Texte proposé exact/);
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Text language unknown\./);
+  assert.match(wordingViewText(comparison),/Texte original exact.*Texte proposé exact/);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Text language unknown\./);
   for(const variant of variants.slice(1,3)) {
     await h.select(selector,variant.listId);
     assert.equal(h.container.querySelector('.member-votes-comparison'),null);
-    assert.match(h.container.querySelector('.member-votes-wording').textContent,/Amendment wording unavailable here\./);
+    assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Amendment wording unavailable here\./);
   }
   await h.select(selector,variants[3].listId);
   const insertion=h.container.querySelector('.member-votes-comparison');
-  assert(insertion);assert.equal(insertion.querySelector('div:first-child p').textContent,'');
-  assert.equal(insertion.querySelector('div:last-child p').textContent,variants[3].proposedText);
-  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('Amendment wording unavailable here.'));
+  assert(insertion);assert.equal(wordingText(insertion,'original'),'');
+  assert.equal(wordingText(insertion,'proposed'),variants[3].proposedText);assert(insertion.querySelector('ins'));
+  assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('Amendment wording unavailable here.'));
   await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,variants[3].listId);
 });
 
@@ -336,31 +341,31 @@ test('target labels use their own source language independently of amendment wor
   await h.select(selector,variants[0].listId);
   const label=[...h.container.querySelectorAll('.member-votes-wording p')].find(paragraph=>paragraph.textContent===variants[0].targetLabel);
   assert.equal(label.getAttribute('lang'),'fr');assert.equal(h.container.querySelector('.member-votes-comparison').getAttribute('lang'),'hu');
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Text language: Hungarian/);
-  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('Target language unknown.'));
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Text language: Hungarian/);
+  assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('Target language unknown.'));
   await h.select(selector,variants[1].listId);
   const unknown=[...h.container.querySelectorAll('.member-votes-wording p')].find(paragraph=>paragraph.textContent===variants[1].targetLabel);
   assert.equal(unknown.getAttribute('lang'),'');assert.equal(h.container.querySelector('.member-votes-comparison').getAttribute('lang'),'hu');
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Target language unknown\./);
-  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('English'));
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Target language unknown\./);
+  assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('English'));
 });
 
 test('saved wording and proposer qualifications apply only to the explicitly selected version',async t=>{
   const variants=[wordingVariant({listId:'retained-version',wordingRetained:true,proposerRetained:true,recordRetained:true,authors:[{name:'Exact retained proposer'}]}),
     wordingVariant({listId:'current-version',wordingRetained:false,proposerRetained:false,recordRetained:false,authors:[{name:'Exact current proposer'}]})];
   const h=await mountWording(t,{variants}),selector='select[aria-label="Amendment published version"]';
-  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('Showing saved wording.'));
+  assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('Showing saved wording.'));
   await h.select(selector,variants[0].listId);
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Showing saved wording\./);
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Proposer details are from an earlier source version\./);
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Version details are from an earlier source record\./);
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Exact retained proposer/);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Showing saved wording\./);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Proposer details are from an earlier source version\./);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Version details are from an earlier source record\./);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Exact retained proposer/);
   await h.select(selector,variants[1].listId);
-  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('Showing saved wording.'));
-  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('earlier source version'));
-  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('earlier source record'));
-  assert(!h.container.querySelector('.member-votes-wording').textContent.includes('Exact retained proposer'));
-  assert.match(h.container.querySelector('.member-votes-wording').textContent,/Exact current proposer/);
+  assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('Showing saved wording.'));
+  assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('earlier source version'));
+  assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('earlier source record'));
+  assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('Exact retained proposer'));
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Exact current proposer/);
 });
 
 test('same-list language variants pass the exact source list and chosen language to context',async t=>{
@@ -372,7 +377,7 @@ test('same-list language variants pass the exact source list and chosen language
   assert.equal(h.container.querySelector('.member-votes-comparison'),null);
   await h.select(selector,options[1].value);
   assert.equal(h.container.querySelector('.member-votes-comparison').getAttribute('lang'),'hu');
-  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Javasolt pontos szöveg/);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-comparison')),/Javasolt pontos szöveg/);
   await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,'same-exact-list');
   assert.equal(h.contexts.at(-1).wordingLanguage,'hu');
   await h.click('Back from context');assert.equal(h.container.querySelector(selector).value,options[1].value);
@@ -389,14 +394,14 @@ test('a selected published version disappearing from refreshed data never silent
     const response=new Response();response.json=async()=>wordingData;return response;
   }}),selector='select[aria-label="Amendment published version"]';
   await h.select(selector,variants[0].listId);
-  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Texte proposé exact/);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-comparison')),/Texte proposé exact/);
   wordingData.amendment.variants=[variants[1]];
   await h.update({expandedSubjectIds:[SUBJECT]});
   assert.equal(h.container.querySelector('.member-votes-comparison'),null);
   assert.equal(button(h.container,'Read in context'),undefined);
   assert.equal(h.container.querySelector(selector)?.value,'');
   await h.select(selector,variants[1].listId);
-  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Different source version/);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-comparison')),/Different source version/);
   await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,variants[1].listId);
 });
 
@@ -408,21 +413,21 @@ test('an initially automatic single version remains pinned when another sole ver
     if(!String(url).includes('document-context/'))return Response.json(responseFor(url,{items:[item]}));
     const response=new Response();response.json=async()=>wordingData;return response;
   }}),selector='select[aria-label="Amendment published version"]';
-  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Texte proposé exact/);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-comparison')),/Texte proposé exact/);
   assert(button(h.container,'Read in context'));assert.equal(h.container.querySelector(selector),null);
   wordingData.amendment.variants=[replacement];
   await h.update({expandedSubjectIds:[SUBJECT]});
   assert.equal(h.container.querySelector('.member-votes-comparison'),null);
   assert.equal(button(h.container,'Read in context'),undefined);assert.equal(h.container.querySelector(selector)?.value,'');
   await h.select(selector,replacement.listId);
-  assert.match(h.container.querySelector('.member-votes-comparison').textContent,/Different replacement wording/);
+  assert.match(wordingViewText(h.container.querySelector('.member-votes-comparison')),/Different replacement wording/);
   await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,replacement.listId);
 });
 
 test('unavailable amendment wording uses plain missing copy and never opens the shared reader',async t=>{
   const item=vote(1,{context:{...vote(1).context,amendmentIds:[AMENDMENT]}});
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},handler:url=>String(url).includes('document-context/')?Response.json({documentId:DOCUMENT,requestedLanguage:'en',amendment:{id:AMENDMENT,status:'unavailable',variants:[]}}):Response.json(responseFor(url,{items:[item]}))});
-  assert.match(h.container.textContent,/Amendment wording unavailable here\./);
+  assert.match(wordingViewText(h.container),/Amendment wording unavailable here\./);
   assert.equal(h.calls.filter(url=>url.includes('document-context/')).length,1);
   assert.equal(button(h.container,'Read in context'),undefined);assert.equal(h.contexts.length,0);
 });
