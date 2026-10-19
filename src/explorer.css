@@ -74,6 +74,17 @@
 .explorer-source-link small { margin-left: 8px; }
 .explorer-membership { background: white; border-left: 3px solid var(--signal-blue); padding: 16px 20px; margin-bottom: 14px; }
 .explorer-membership p { margin: 6px 0; }
+.explorer-membership-periods { list-style: none; padding: 0; margin: 16px 0 0 5px; font-size: 15px; }
+.explorer-membership-periods li { position: relative; display: grid; grid-template-columns: minmax(100px, .7fr) minmax(0, 2fr); gap: 4px 16px; border-left: 1px solid #c2d0e4; padding: 0 0 14px 18px; color: #53677e; }
+.explorer-membership-periods li:last-child { padding-bottom: 0; }
+.explorer-membership-periods li::before { content: ''; position: absolute; left: -4px; top: 5px; width: 7px; height: 7px; border-radius: 50%; background: #7892b5; }
+.explorer-membership-periods .is-current { color: var(--institutional-ink); }
+.explorer-membership-periods .is-current::before { background: var(--signal-blue); }
+.explorer-membership-periods .is-current .explorer-membership-role { font-weight: 600; }
+.explorer-membership-periods small { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.explorer-membership-gap { font-size: 14px; line-height: 1.5; }
+.explorer .explorer-membership-gap button { font: inherit; color: var(--signal-blue); background: transparent; padding: 0; text-decoration: underline; }
+@media (max-width: 600px) { .explorer-membership-periods li { grid-template-columns: 1fr; gap: 3px; } }
 .explorer-historical { border-left-color: #7892b5; opacity: .75; }
 .explorer-notice { padding: 18px; margin: 14px 0; background: #e9eff8; color: var(--institutional-ink); }
 .explorer-notice p:first-child, .explorer-video-gap p:first-child { margin-top: 0; }
