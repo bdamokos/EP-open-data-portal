@@ -223,10 +223,10 @@ test('joint-motion links use indexed lookups and follow replacement, generation 
   assert.equal(store.relatedJointMotions(next.generation,id).length,0);assert.equal(store.relatedJointMotions(cycle.generation,id).length,1);
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM motion_links AS link LEFT JOIN sources AS source ON source.generation=link.generation AND source.key=link.joint_key WHERE source.key IS NULL').get().n,0);
 });
-test('relationship-index migration waits for the writer lease and backfills retained joint sources',t=>{
+test('explicit relationship preparation waits for the writer lease and backfills retained joint sources',t=>{
   const store=storeTest(t),cycle=seed(store),id='B-10-2026-0441';
   store.db.exec("DELETE FROM motion_links; DELETE FROM meta WHERE key='motionLinksIndexVersion'");
-  const reader=new ActivityStore(path.dirname(store.filename),{clock});
+  const reader=new ActivityStore(path.dirname(store.filename),{clock,initializeIndexes:true});
   try {
     assert.equal(reader.acquire(),false);assert.equal(reader.relatedJointMotions(cycle.generation,id).length,0);
     store.release();assert(reader.acquire());assert.equal(reader.relatedJointMotions(cycle.generation,id).length,1);

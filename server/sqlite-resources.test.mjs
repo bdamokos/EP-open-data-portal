@@ -14,6 +14,7 @@ import {observeSqlite,loopTimer} from './sqlite-observability.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {AMENDMENT_DISTRIBUTION_PROOF_VERSION} from './amendments.mjs';
 import {amendmentsPage} from './amendments-store.mjs';
+import {prepareIndexes} from './migrate-indexes.mjs';
 
 const instant=()=>Date.parse('2026-10-19T09:00:00Z');
 function fixture(t,Store) {
@@ -115,12 +116,31 @@ test('due checks find ready continuations in the working generation while direct
 test('amendment reads report initialization until the writer publishes the proof projection',t=>{
   const store=fixture(t,ActivityStore);
   store.set('amendmentReadVersion',null);store.release();
-  const other=new ActivityStore(path.dirname(store.filename),{clock:instant});
+  assert.throws(()=>new ActivityStore(path.dirname(store.filename),{clock:instant}),/migrate-indexes/);
+  const other=new ActivityStore(path.dirname(store.filename),{clock:instant,initializeIndexes:true});
   t.after(()=>other.close());assert(other.acquire());
   store.set('amendmentReadVersion',null);
   assert.equal(store.acquire(),false);
   assert.throws(()=>amendmentsPage(store),error=>error.status===503&&error.code==='activity_index_initializing');
   other.release();assert(store.acquire());assert.equal(amendmentsPage(store).total,0);
+});
+test('offline preparation refuses a live writer, prepares before serving and becomes a no-op',t=>{
+  const store=fixture(t,ActivityStore),directory=path.dirname(store.filename),logs=[];
+  store.set('resourceIndexes',null);store.db.exec('DROP INDEX source_identifier');
+  assert.throws(()=>new ActivityStore(directory,{clock:instant}),/migrate-indexes/);
+  assert.throws(()=>prepareIndexes({activityDirectory:directory,clock:instant,log:(...parts)=>logs.push(parts)}),/writer lease is active/);
+  assert.equal(store.get('resourceIndexes'),null);store.release();
+  const first=prepareIndexes({activityDirectory:directory,clock:instant,log:(...parts)=>logs.push(parts)});
+  assert.equal(first[0].noop,false);assert(logs.some(parts=>parts.join(' ').includes('CREATE INDEX')));
+  const ready=new ActivityStore(directory,{clock:instant});ready.close();logs.length=0;
+  const second=prepareIndexes({activityDirectory:directory,clock:instant,log:(...parts)=>logs.push(parts)});
+  assert.equal(second[0].noop,true);assert(!logs.some(parts=>parts.join(' ').includes('CREATE INDEX')));
+});
+test('corpus initialization checkpoints only main with the activity database attached read-only',t=>{
+  const index=fixture(t,ActivityStore),directory=mkdtempSync(path.join(os.tmpdir(),'corpus-attached-index-'));
+  const store=new CorpusStore(directory,{clock:instant,indexFile:index.filename});
+  t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
+  assert(store.acquire());assert.equal(store.get('resourceIndexes'),1);assert(store.indexAttached);
 });
 test('amendment proof flags follow direct writes, replacements and deletions without weakening stale guards',t=>{
   const store=fixture(t,ActivityStore),put=store.db.prepare('INSERT OR REPLACE INTO amendments VALUES (?,?,?,?,?,?)');

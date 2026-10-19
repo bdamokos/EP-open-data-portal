@@ -74,7 +74,7 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
   },{priority:'background',signal});
 }
 export class ActivityWorker {
-  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=1024*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml}={}) {
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml}={}) {
     this.store=store;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;
@@ -586,7 +586,7 @@ export function activityIndex() {
   const options={
     budget:integerFromEnvironment('ACTIVITY_INDEX_JOB_REQUEST_BUDGET',1000,1,2000),
     maxDuration:integerFromEnvironment('ACTIVITY_INDEX_JOB_MAX_MINUTES',90,1,120)*60_000,
-    diskLimit:integerFromEnvironment('ACTIVITY_INDEX_MAX_DISK_MIB',2048,64,4096)*1024*1024,
+    diskLimit:integerFromEnvironment('ACTIVITY_INDEX_MAX_DISK_MIB',8192,64,131072)*1024*1024,
   };
   const store=new ActivityStore(directory),worker=new ActivityWorker(store,options);
   service={store,worker};return service;
