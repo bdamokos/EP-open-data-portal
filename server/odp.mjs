@@ -12,6 +12,7 @@ import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
 import {createCommitteeMembershipReader} from './committee-memberships.mjs';
+import {parliamentaryService} from './parliamentary-service.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
@@ -533,6 +534,7 @@ export async function odpProfile(id, force = false, {priority='interactive'}={})
     ...memberSummary(person),
     birthDate: person.bday,
     birthPlace: person.placeOfBirth,
+    parliamentaryService: parliamentaryService(person,today()),
     email: firstString(person.hasEmail).replace(/^mailto:/, ""),
     memberships: memberships(person),
     accounts: (person.account || []).map((a) => a.id),

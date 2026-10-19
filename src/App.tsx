@@ -8,6 +8,7 @@ import {InterventionBadges,SpeechContextPanel,InterventionStatistics} from './Sp
 import {SpeakerName,SpeakerRoleLine} from './SpeakerIdentity';
 import {publicationBody} from './publication-body.mjs';
 import {CommitteeMemberships} from './CommitteeMemberships';
+import {ParliamentaryService} from './ParliamentaryService';
 import {SaveButton,useSavedChecks} from './SavedControls';
 import {interfaceTerm} from './terms.mjs';
 import {ParliamentHeader} from './ParliamentHeader';
@@ -765,6 +766,7 @@ export default function App() {
                   {profile.data && (
                     <>
                       <h2 lang={lang}>{c.profile}</h2>
+                      <ParliamentaryService profile={profile.data} lang={lang} date={date}/>
                       {profile.data.birthDate && (
                         <p lang="en">
                           Born <span lang={lang}>{date(profile.data.birthDate, lang)}</span>

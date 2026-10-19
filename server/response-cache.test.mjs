@@ -9,6 +9,10 @@ const request = {method: 'GET', headers: {}};
 const policy = (path, value = {}, options = {}) => apiCachePolicy({...request, ...options}, new URL(path, 'https://example.test'), value, {now});
 const seconds = value => Number(value.cdnCacheControl.match(/max-age=(\d+)/)?.[1]);
 
+test('unavailable parliamentary service dates remain an explicit uncached profile gap',()=>{
+  assert.equal(policy('/api/profile/43',{parliamentaryService:{complete:false,currentSince:null,error:'Some parliamentary service dates are unavailable or inconsistent.'}}).cdnCacheControl,'no-store');
+});
+
 test('incomplete or stale profile committee history cannot acquire a public cache lifetime',()=>{
   for(const history of [{complete:false,error:'Some committee history is unavailable.'},{complete:false,error:'Some committee history is unavailable.',sources:[]},{complete:true,error:null,sources:[{stale:true}]}])
     assert.equal(policy('/api/profile/43',{committeeMemberships:history}).cdnCacheControl,'no-store');
