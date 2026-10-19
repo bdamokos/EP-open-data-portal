@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {setImmediate as yieldTurn} from 'node:timers/promises';
 import {analyzeQuestions,analyzeQuestionsAsync} from './insights-model.mjs';
 import {cooperativeWork} from './cooperative-work.mjs';
+import {QuestionInsights,insightQuery} from './insights-store.mjs';
+import {createInsights} from './insights.mjs';
 
 const titles=['Digital Services Act and platform transparency','Fishing quotas and marine safety in France','Regional broadband infrastructure and healthcare','Court of Justice and Åland Convention'];
 const questions=count=>Array.from({length:count},(_,i)=>({id:'E-10-2026-'+String(i).padStart(6,'0'),date:'2026-10-01',kind:'QUESTION_WRITTEN',titles:i%11?{en:titles[i%titles.length]+' '+i,fr:'Titre fourni'}:{fr:'Titre fourni'},authors:[{id:String(1+i%10)}],answers:[],apiUrl:'https://data.europarl.europa.eu/api/v2/parliamentary-questions/E-10-2026-'+String(i).padStart(6,'0'),fetchedAt:'2026-10-02T10:00:00Z'}));
@@ -39,4 +41,57 @@ test('cancelled cooperative work closes the iterator before consuming further st
   await assert.rejects(job,error=>error===reason);
   assert.deepEqual(events,['first','closed']);
   await yieldTurn();
+});
+
+function savedStore() {
+  const work={id:'eli/dl/doc/E-10-2026-000001',identifier:'E-10-2026-000001',document_date:'2026-10-01',work_type:'def/QUESTION_WRITTEN',title_dcterms:{en:'Digital Services Act and platform safety',fr:'Titre fourni'},creator:['person/1']};
+  return {status:()=>({currentMeps:1,servingGeneration:1,complete:false,sourceCounts:{document:1}}),db:{prepare(sql){
+    if(sql.startsWith('SELECT COUNT(*)'))return {get:()=>({n:1})};
+    if(sql.startsWith('SELECT key,body'))return {all:()=>[{key:'/parliamentary-questions/'+work.identifier,body:JSON.stringify(work),fetched_at:'2026-10-02T10:00:00Z'}]};
+    if(sql.startsWith('SELECT id,body'))return {all:()=>[{id:'1',body:JSON.stringify({id:'1',countryCode:'FR'})}]};
+    throw new Error('Unexpected statement: '+sql);
+  }}};
+}
+const clock=()=>Date.parse('2026-10-19T12:00:00Z');
+const settled=promise=>promise.then(value=>({value}),error=>({error}));
+
+test('a staggered language view survives the first view owner expiring during shared analysis',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  let entered,release,loads=0;
+  const started=new Promise(resolve=>{entered=resolve;}),bodies=new Promise(resolve=>{release=resolve;});
+  const views=createInsights(savedStore(),{clock,viewCache:{directory:null},loadMetadata:async()=>new Map(),loadQuestionBodies:()=>{loads++;entered();return bodies;}});
+  const first=settled(views.query('questions',new URLSearchParams('days=90&lang=en')));
+  await Promise.resolve();await Promise.resolve();
+  // The first view owns 50 seconds from t=0; its analysis begins at t=10s.
+  t.mock.timers.tick(10_000);await started;
+  t.mock.timers.tick(15_000);
+  const second=settled(views.query('questions',new URLSearchParams('days=90&lang=fr')));
+  await yieldTurn();await yieldTurn();
+  t.mock.timers.tick(25_000);
+  assert.equal((await first).error?.code,'request_timeout');
+  release(new Map());
+  const result=await second;
+  assert.equal(result.error,undefined);
+  assert.equal(result.value.questions[0].titleLanguage,'fr');
+  assert.equal(result.value.counts.totalQuestions,null);
+  assert.equal(result.value.coverage.indexComplete,false);
+  assert.equal(loads,1);
+});
+
+test('expired analysis owners cannot publish late results or erase a replacement job',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  let entered,release,loads=0;
+  const started=new Promise(resolve=>{entered=resolve;}),bodies=new Promise(resolve=>{release=resolve;});
+  const service=new QuestionInsights(savedStore(),{clock,loadMetadata:async()=>new Map(),loadQuestionBodies:()=>{if(++loads===1){entered();return bodies;}return new Map();}});
+  const query=insightQuery(new URLSearchParams('days=90'),{now:clock()});
+  const first=settled(service.query(query));await started;
+  t.mock.timers.tick(50_000);
+  assert.equal((await first).error?.code,'request_timeout');
+  assert.equal(service.pending.size,0);
+  const replacement=service.query(query);release(new Map());
+  const result=await replacement;await yieldTurn();
+  assert.equal(result.questions[0].id,'E-10-2026-000001');
+  assert.equal(loads,2);
+  assert.equal(service.cache.size,1);
+  assert.equal(service.pending.size,0);
 });
