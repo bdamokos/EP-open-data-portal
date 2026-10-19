@@ -74,6 +74,9 @@
 .explorer-source-link small { margin-left: 8px; }
 .explorer-membership { background: white; border-left: 3px solid var(--signal-blue); padding: 16px 20px; margin-bottom: 14px; }
 .explorer-membership p { margin: 6px 0; }
+.explorer-parliamentary-service { margin: 0 0 18px; }
+.explorer-parliamentary-service p { margin: 5px 0; }
+.explorer-service-previous { font-size: 14px; line-height: 1.5; color: #53677e; }
 .explorer-membership-periods { list-style: none; padding: 0; margin: 16px 0 0 5px; font-size: 15px; }
 .explorer-membership-periods li { position: relative; display: grid; grid-template-columns: minmax(100px, .7fr) minmax(0, 2fr); gap: 4px 16px; border-left: 1px solid #c2d0e4; padding: 0 0 14px 18px; color: #53677e; }
 .explorer-membership-periods li:last-child { padding-bottom: 0; }
