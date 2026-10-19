@@ -216,11 +216,20 @@ test('HTTP error cooldowns disable the local speech and document retry until the
 });
 
 
-test('an in-progress source refresh does not accept a second reader retry',async t=>{
-  const h=await harness(t),route=`document/${questionId}?lang=en`,data=question();
-  data.selectedText.refreshError='Last source refresh failed.';data.selectedText.refreshInProgress=true;
-  await h.render(h.reader('question',{includeAnswers:true}));await h.finish(route,data);
-  const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);
-  await act(async()=>retry.click());assert.equal(h.requests.length,1);assert.equal(h.container.querySelector('.insight-reader-text').textContent,body);
-  assert(!h.container.textContent.includes('No answer published.'));
+test('a background-refresh snapshot stays locally recoverable through completion or another failure',async t=>{
+  for(const outcome of ['completed','failed'])await t.test(outcome,async t=>{
+    const h=await harness(t),route=`document/${questionId}?lang=en`,data=question();
+    data.selectedText.refreshError='Last source refresh failed.';data.selectedText.refreshInProgress=true;
+    await h.render(h.reader('question',{includeAnswers:true}));await h.finish(route,data);
+    const text=h.container.querySelector('.insight-reader-text'),retry=h.container.querySelector('.reader-retry button');
+    assert(retry);assert.equal(retry.disabled,false,'a server snapshot is not an active browser request');
+    await act(async()=>{retry.focus();retry.click();retry.click();});assert.equal(h.requests.length,2);assert.equal(h.container.querySelector('.insight-reader-text'),text);
+    if(outcome==='failed'){
+      await h.finish(route,data);const again=h.container.querySelector('.reader-retry button');assert(again);assert.equal(again.disabled,false);
+      assert(!h.container.textContent.includes('No answer published.'));
+      await act(async()=>again.click());assert.equal(h.requests.length,3);
+    }
+    await h.finish(route,question());assert.equal(h.container.querySelector('.reader-retry'),null);assert.equal(h.container.querySelector('.insight-reader-text'),text);
+    assert.equal(document.activeElement,h.container.querySelector('h3'));assert.equal(text.lang,'en');assert.equal(text.textContent,body);
+  });
 });
