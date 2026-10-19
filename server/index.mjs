@@ -17,6 +17,7 @@ import {recentActivities,activityDocument} from './activities.mjs';
 import {motionComparison} from './motion-comparison.mjs';
 import {motionAmendmentsQuery,motionAmendmentsPage} from './motion-amendments.mjs';
 import {memberVotes,memberVotesQuery} from './member-votes.mjs';
+import {memberVoteWeeks} from './member-vote-weeks.mjs';
 import {documentContext,documentContextQuery} from './document-context.mjs';
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
@@ -156,6 +157,10 @@ async function handleApi(request,response,url,apiPrefix){
     else if(segments[0]==='motion-amendments' && segments.length===2) {
       const query=motionAmendmentsQuery(segments[1],url.searchParams);
       result=motionAmendmentsPage(activityIndex().store,query);
+    }
+    else if (segments[0] === 'member-votes' && segments.length===2 && segments[1]==='weeks') {
+      requireQuery(url.searchParams,['lang']);
+      result=memberVoteWeeks(activityIndex().store);
     }
     else if (segments[0] === 'member-votes' && segments.length===2) {
       result=await memberVotes.query(positiveId(segments[1]),memberVotesQuery(url.searchParams));
