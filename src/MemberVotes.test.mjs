@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
+import {projectMemberDecision} from '../server/member-votes-model.mjs';
 
 const MEMBER=197673,WEEK='2026-03-23',SITTING='MTG-PL-2026-03-25',SNAPSHOT='a'.repeat(64);
 const SUBJECT='MTG-PL-2026-03-25-VOT-ITM-8',DOCUMENT='A-10-2026-0001',AMENDMENT=DOCUMENT+'-AM-7';
@@ -127,6 +128,19 @@ async function mountWording(t,{variants,amendmentStatus='available',state={}}) {
   return mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id,...state},handler:url=>String(url).includes('document-context/')?
     Response.json({documentId:DOCUMENT,requestedLanguage:'en',document:null,amendment:{id:AMENDMENT,status:amendmentStatus,variants}}):Response.json(responseFor(url,{items:[item]}))});
 }
+
+test('decoded source reference text renders literally in vote cards and detail headings',async t=>{
+  const source='S&amp;D: 10% &lt; 20% &amp; &lt;img src=x onerror=alert(1)&gt;',
+    expected='S&D: 10% < 20% & <img src=x onerror=alert(1)>',
+    projected=projectMemberDecision({id:'eli/dl/event/'+decision(1),referenceText:{en:source}},{sittingId:SITTING,date:'2026-03-25'},MEMBER),
+    item=vote(1,{referenceTexts:projected.referenceTexts});
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items:[item]}))});
+  assert.equal(h.container.querySelector('.member-votes-row-copy > span').textContent,expected);
+  assert.equal(h.container.querySelector('img'),null,'decoded markup must remain text');
+  await act(async()=>h.container.querySelector('.member-votes-row').click());
+  assert.equal(visiblePane(h.container).querySelector('h2').textContent,expected);
+  assert.equal(h.container.querySelector('img'),null);
+});
 
 test('default request explicitly filters recorded positions and canonical period/snapshot replace navigation',async t=>{
   const h=await mount(t);
