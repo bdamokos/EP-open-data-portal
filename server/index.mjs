@@ -11,7 +11,7 @@ import {assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} 
 import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
 import {API_VERSION} from './api-version.mjs';
-import {odpDirectory,odpProfile,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,upstreamStatus} from './odp.mjs';
+import {odpDirectory,odpProfileWithMemberships,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,upstreamStatus} from './odp.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
 import {motionComparison} from './motion-comparison.mjs';
@@ -261,7 +261,7 @@ async function handleApi(request,response,url,apiPrefix){
       if (retry!==null && retry!=='committee-details') throw new HttpError(400,'invalid_retry','Unsupported directory retry.');
       result = await odpDirectory({retryCommitteeDetails:retry==='committee-details'});
     }
-    else if (segments.length === 2 && segments[0] === "profile") result = await odpProfile(positiveId(segments[1]));
+    else if (segments.length === 2 && segments[0] === "profile") result = await odpProfileWithMemberships(positiveId(segments[1]));
     else if (segments.length === 2 && segments[0] === "activities") result = await recentActivities(positiveId(segments[1]), language);
     else if (segments.length === 2 && segments[0] === "document" && /^[A-Z0-9-]{1,100}$/.test(segments[1])) result = await activityDocument(segments[1], url.searchParams.has("member")?positiveId(url.searchParams.get("member")):null, language);
     else if (segments.length === 2 && segments[0] === "speeches") {
