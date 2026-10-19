@@ -101,3 +101,42 @@ test('a joined background retry survives reader departure and the foreground adm
   t.mock.timers.tick(10_000);await turn();assert.equal(queue.waiters.length,1);assert.equal(calls,1);
   t.mock.timers.tick(50_001);await background;assert.equal(calls,2);
 });
+
+test('a late background owner survives admission and job deadlines after foreground departure',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:80_000});
+  const queue=new UpstreamQueue({maximum:1});sharedAdmission(t,queue);
+  const release=await queue.acquire();let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({data:[]});});
+  const foreground=assert.rejects(odp('/late-background-deadlines'),e=>e.code==='upstream_busy');await turn();
+  assert.notEqual(queue.waiters[0].timer,null);
+  const background=odp('/late-background-deadlines',{}, {priority:'background'});await turn();
+  assert.equal(queue.waiters[0].backgroundOwner,true);assert.equal(queue.waiters[0].timer,null);
+  t.mock.timers.tick(10_000);await foreground;
+  t.mock.timers.tick(20_001);await turn();
+  assert.equal(queue.waiters.length,1);assert.equal(queue.waiters[0].priority,'background');assert.equal(calls,0);
+  release();await background;assert.equal(calls,1);
+});
+
+test('a late background owner retains queued work through another source cooldown',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:120_000});
+  const queue=new UpstreamQueue({maximum:1});sharedAdmission(t,queue);
+  const release=await queue.acquire();let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({data:[]});});
+  const foreground=assert.rejects(odp('/late-background-cooldown'),e=>e.code==='upstream_busy');await turn();
+  const background=odp('/late-background-cooldown',{}, {priority:'background'});await turn();
+  queue.backoff(60);await foreground;release();
+  t.mock.timers.tick(30_001);await turn();assert.equal(calls,0);assert.equal(queue.waiters.length,1);
+  t.mock.timers.tick(29_999);await background;assert.equal(calls,1);
+});
+
+test('a late background owner upgrades retries while the original foreground reader stays bounded',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:200_000});
+  const queue=new UpstreamQueue();sharedAdmission(t,queue);
+  let reply,calls=0;
+  t.mock.method(globalThis,'fetch',()=>++calls===1?new Promise(resolve=>reply=resolve):Promise.resolve(Response.json({data:[]})));
+  const foreground=assert.rejects(odp('/late-background-retry'),e=>e.code==='upstream_busy');await turn();
+  const background=odp('/late-background-retry',{}, {priority:'background'});await turn();
+  reply(new Response(null,{status:429,headers:{'Retry-After':'60'}}));await foreground;await turn();
+  assert.equal(calls,1);assert.equal(queue.waiters.length,1);
+  t.mock.timers.tick(60_000);await background;assert.equal(calls,2);
+});
