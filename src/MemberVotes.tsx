@@ -2,7 +2,7 @@ import {useEffect,useId,useLayoutEffect,useMemo,useRef,useState,type ReactNode} 
 import {useData} from './data';
 import {selectLanguageText} from './language.mjs';
 import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from './MemberVotesTypes';
-import {MEMBER_VOTES_PAGE_SIZE,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteOutcome,memberVotePosition,memberVoteTotals,memberVotesRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
+import {MEMBER_VOTES_PAGE_SIZE,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteOutcome,memberVotePosition,memberVotePositionSummary,memberVoteTotals,memberVotesRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
 
 export type MemberVotesContext={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted'};
@@ -55,13 +55,13 @@ function Result({vote}:{vote:ResultVote}) {
   </span>;
 }
 
-function Position({vote,memberName}:{vote:PositionVote;memberName:string}) {
+function Position({vote,memberName,compact=false}:{vote:PositionVote;memberName:string;compact?:boolean}) {
   const label=memberVotePosition(vote),position=label==='For'?'for':label==='Against'?'against':label==='Abstained'?'abstaining':'unknown';
-  return <span className={'member-votes-position member-votes-position-'+position}><span className="member-votes-position-label">{memberName}</span><strong>{label}</strong></span>;
+  return <span className={'member-votes-position member-votes-position-'+position+(compact?' member-votes-position-compact':'')}><span className="member-votes-position-label">{memberName}{compact&&['For','Against','Abstained'].includes(label)?' voted':''}{compact?' ':''}</span><strong>{label}</strong></span>;
 }
 
-function WholeText({vote}:{vote:MemberVoteWholeTextDecision}) {
-  return <span className="member-votes-whole">Whole text: <strong>{memberVoteOutcome(vote)}</strong>{vote.actualPosition.status!=='recorded'&&' · No recorded MEP position'}</span>;
+function WholeText({vote,memberName,onDecision}:{vote:MemberVoteWholeTextDecision;memberName:string;onDecision:(id:string)=>void}) {
+  return <button type="button" className="member-votes-whole" onClick={()=>onDecision(vote.id)}>Final vote · <strong>{memberVoteOutcome(vote)}</strong> · <Position vote={vote} memberName={memberName} compact/></button>;
 }
 
 function Wording({documentId,amendmentId,language,openContext}:{documentId:string;amendmentId:string;language:string;openContext:(context:MemberVotesContext)=>void}) {
@@ -111,7 +111,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext}:{vote:Mem
   const contexts=vote.parts.flatMap(part=>part.contextComponents).filter((component,index,all)=>all.findIndex(other=>other.componentId===component.componentId)===index&&!vote.parts.some(part=>part.componentId===component.componentId));
   return <article className="member-votes-detail">
     <header><p className="member-votes-eyebrow">{dateLabel(vote.date)}</p>{title&&<p className="member-votes-detail-subject" lang={title.language} title={title.raw}>{title.text}</p>}<h2 tabIndex={-1}>{memberVoteLabel(vote,language)}</h2></header>
-    {subject?.wholeTextDecisions.length?subject.wholeTextDecisions.map(whole=><WholeText key={whole.id} vote={whole}/>):null}
+    {subject?.wholeTextDecisions.length?subject.wholeTextDecisions.map(whole=><WholeText key={whole.id} vote={whole} memberName={memberName} onDecision={onDecision}/>):null}
     <section className="member-votes-strip" aria-label="Member position and Parliament result"><Position vote={vote} memberName={memberName}/><Result vote={vote}/>
       {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention">Declared intention: <strong>{vote.intention.positions.map(position=>({for:'For',against:'Against',abstaining:'Abstain'}[position])).join(', ')}</strong>. Declared afterwards; the official result and totals are unchanged.</p>}
     </section>
@@ -206,8 +206,8 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
         <div className="member-votes-tools"><p>{data.pagination.returned?`${data.pagination.offset+1}–${data.pagination.offset+data.pagination.returned} of ${data.pagination.filteredTotal}`:'0'} {countLabel(data.pagination.filteredTotal,state.positions==='recorded'?'recorded position':'decision')} · {data.pagination.observedTotal} {countLabel(data.pagination.observedTotal,'decision')} available in this period</p><div className="member-votes-filter" role="group" aria-label="Votes shown"><button type="button" aria-pressed={state.positions==='recorded'} onClick={()=>{listScroll.current=0;change({positions:'recorded',offset:0});}}>Recorded positions</button><button type="button" aria-pressed={state.positions==='all'} onClick={()=>{listScroll.current=0;change({positions:'all',offset:0});}}>All decisions</button></div></div>
         {groups.map(group=>{
           const title=group.subject?chosenTitle(group.subject,language):null;
-          return <section className="member-votes-subject" key={group.id}><h3><button type="button" data-vote-group={group.id} aria-expanded={state.expandedSubjectIds.includes(group.id)} onClick={()=>change({expandedSubjectIds:state.expandedSubjectIds.includes(group.id)?state.expandedSubjectIds.filter(item=>item!==group.id):[...state.expandedSubjectIds,group.id]},true)}><span className="member-votes-disclosure" aria-hidden="true">{state.expandedSubjectIds.includes(group.id)?'−':'+'}</span><span><span lang={title?.language} title={title?.raw}>{title?.text||'Vote without a linked subject'}</span><span className="member-votes-subject-count">{group.subject?`${group.subject.counts.filtered} ${countLabel(group.subject.counts.filtered,state.positions==='recorded'?'recorded position':'decision')} in this subject · ${group.subject.counts.page} on this page`:dateLabel(group.items[0]?.date||null)}</span></span></button></h3>
-            {group.subject?.wholeTextDecisions.map(whole=><WholeText key={whole.id} vote={whole}/>)}
+          return <section className="member-votes-subject" key={group.id}><h3><button type="button" data-vote-group={group.id} aria-expanded={state.expandedSubjectIds.includes(group.id)} onClick={()=>change({expandedSubjectIds:state.expandedSubjectIds.includes(group.id)?state.expandedSubjectIds.filter(item=>item!==group.id):[...state.expandedSubjectIds,group.id]},true)}><span className="member-votes-disclosure" aria-hidden="true">{state.expandedSubjectIds.includes(group.id)?'−':'+'}</span><span><span lang={title?.language} title={title?.raw}>{title?.text||'Vote without a linked subject'}</span><span className="member-votes-subject-count">{group.subject?`${group.subject.counts.filtered} ${countLabel(group.subject.counts.filtered,state.positions==='recorded'?'recorded position':'decision')} in this subject · ${group.subject.counts.page} on this page`:dateLabel(group.items[0]?.date||null)}</span><span className="member-votes-subject-count">{memberVotePositionSummary(group.items)}</span></span></button></h3>
+            {group.subject?.wholeTextDecisions.map(whole=><WholeText key={whole.id} vote={whole} memberName={memberName} onDecision={selectDecision}/>)}
             <div hidden={!state.expandedSubjectIds.includes(group.id)}>{group.items.map(vote=><button type="button" className="member-votes-row" key={vote.id} data-vote-id={vote.id} onClick={()=>selectDecision(vote.id)}><span className="member-votes-row-copy"><span>{memberVoteLabel(vote,language)}</span>{vote.intention.status==='reported'&&<span className="member-votes-muted">Intention declared</span>}</span><Position vote={vote} memberName={memberName}/><Result vote={vote}/><span aria-hidden="true">›</span></button>)}</div>
           </section>;
         })}

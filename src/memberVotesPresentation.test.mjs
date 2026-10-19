@@ -97,8 +97,8 @@ test('actual positions, independent intentions, outcomes and supplied totals rem
   vote.method='VOTE_ELECTRONIC_ROLLCALL';vote.ballotStatus='conducted';vote.actualPosition={status:'recorded',position:'for'};vote.intention={status:'reported',positions:['abstaining']};vote.totals={for:454,against:86,abstaining:0};
   assert.equal(memberVotePosition(vote),'For');assert.deepEqual(memberVoteTotals(vote),{for:454,against:86,abstaining:0,total:540});
   assert.deepEqual(vote.intention.positions,['abstaining']);vote.outcome='REJECTED';assert.equal(memberVoteOutcome(vote),'Rejected');
-  for(const method of ['VOTE_HAND','VOTE_SECRET','VOTE_SECRET_BALLOT'])assert.equal(memberVotePosition({...vote,method}),'No recorded position for this vote.');
-  assert.equal(memberVotePosition({...vote,actualPosition:{status:'no-record',position:null}}),'No recorded position for this vote.');
+  for(const method of ['VOTE_HAND','VOTE_SECRET','VOTE_SECRET_BALLOT'])assert.equal(memberVotePosition({...vote,method}),'No recorded position');
+  assert.equal(memberVotePosition({...vote,actualPosition:{status:'no-record',position:null}}),'No recorded position');
   assert.equal(memberVoteTotals({...vote,totals:{for:0,against:0,abstaining:0}}).total,0);
   for(const value of [null,undefined,NaN,Infinity,-1,'0'])assert.equal(memberVoteTotals({...vote,totals:{for:0,against:value,abstaining:0}}),null);
   const lapsed={...vote,outcome:'LAPSED',ballotStatus:'not-conducted'};
@@ -113,4 +113,9 @@ test('voting record and context links require exact validated identifiers',()=>{
   assert.deepEqual(topLevelVoteDocuments(vote),['A-10-2026-0237','B-10-2026-0424','RC-10-2026-0424']);
   vote.context.amendmentIds=['A-10-2026-0237-AM-12','A-10-2026-0237-AM-12','RC-10-2026-0424-AM-001-004','AM-12','B-11-2030-0001-AM-2'];
   assert.deepEqual(exactAmendmentTargets(vote),[{documentId:'A-10-2026-0237',amendmentId:'A-10-2026-0237-AM-12'},{documentId:'RC-10-2026-0424',amendmentId:'RC-10-2026-0424-AM-001-004'}]);
+});
+
+test('position labels distinguish unavailable, conflicting and absent records',()=>{
+  for(const [status,label] of Object.entries({'no-record':'No recorded position',unavailable:'Position unavailable',conflicting:'Conflicting records','not-conducted':'Not put to a vote'}))assert.equal(memberVotePosition({ballotStatus:'conducted',actualPosition:{status,position:null}}),label);
+  for(const [position,label] of Object.entries({for:'For',against:'Against',abstaining:'Abstained'}))assert.equal(memberVotePosition({ballotStatus:'conducted',method:'VOTE_ELECTRONIC_ROLLCALL',actualPosition:{status:'recorded',position}}),label);
 });
