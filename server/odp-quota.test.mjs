@@ -128,6 +128,57 @@ test('a late retained owner yields its foreground connection when the last reade
   assert.equal(queue.active,0);assert.equal(queue.background,0);
 });
 
+test('yielding during rate-limit body cancellation uses a fresh replacement signal',async t=>{
+  const queue=new UpstreamQueue({rateLimit:{maximum:10,windowMs:300_000}});sharedAdmission(t,queue);
+  let finishA,replyB,finishCancel,bCalls=0;const signals=[];
+  t.mock.method(globalThis,'fetch',(url,options)=>{
+    signals.push(options.signal.aborted);
+    if(options.signal.aborted)return Promise.reject(options.signal.reason);
+    if(String(url).includes('/boundary-held?'))return new Promise(resolve=>finishA=resolve);
+    if(String(url).includes('/boundary-retry?')&&++bCalls===1)return new Promise(resolve=>replyB=resolve);
+    return Promise.resolve(Response.json({data:[]}));
+  });
+  const a=odp('/boundary-held',{}, {priority:'background'});await turn();
+  const controller=new AbortController(),reader=assert.rejects(odp('/boundary-retry',{}, {signal:controller.signal}));await turn();
+  const b=odp('/boundary-retry',{}, {priority:'background'});await turn();
+  replyB({status:429,ok:false,headers:new Headers({'Retry-After':'0'}),body:{cancel:()=>new Promise(resolve=>finishCancel=resolve)}});await turn();
+  controller.abort();await reader;finishCancel();await turn();
+  assert.equal(queue.active,1);assert.equal(queue.waiters.length,1);
+  await odp('/boundary-foreground');finishA(Response.json({data:[]}));await Promise.all([a,b]);
+  assert.deepEqual(signals,[false,false,false,false]);assert.equal(queue.starts.length,signals.length);
+  assert.equal(bCalls,2);assert.equal(queue.active,0);assert.equal(queue.background,0);
+});
+
+test('rescheduling during the final rate-limit cancellation preserves the terminal hint and saved error',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:500_000});
+  const queue=new UpstreamQueue({rateLimit:{maximum:20,windowMs:300_000}});sharedAdmission(t,queue);
+  let replyFinal,finishCancel,aCalls=0,bCalls=0;
+  t.mock.method(globalThis,'fetch',(url,options)=>{
+    assert.equal(options.signal.aborted,false);
+    if(String(url).includes('/boundary-final-other?')&&++aCalls===1)return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(options.signal.reason),{once:true}));
+    if(String(url).includes('/boundary-final-limit?')){
+      bCalls++;
+      if(bCalls===1)return Promise.resolve(Response.json({data:[{id:'retained'}]}));
+      if(bCalls<4)return Promise.resolve(new Response(null,{status:429,headers:{'Retry-After':'0'}}));
+      return new Promise(resolve=>replyFinal=resolve);
+    }
+    return Promise.resolve(Response.json({data:[]}));
+  });
+  await odp('/boundary-final-limit');
+  const aReader=assert.rejects(odp('/boundary-final-other'),e=>e.code==='upstream_busy');await turn();
+  const b=assert.rejects(odp('/boundary-final-limit',{}, {force:true,priority:'background'}),e=>e.code==='odp_rate_limited'&&e.retryAfter===60&&e.retryAt===560_000);await turn();
+  assert.equal(bCalls,4);
+  const bReader=assert.rejects(odp('/boundary-final-limit',{}, {force:true}),e=>e.code==='upstream_busy');
+  const a=odp('/boundary-final-other',{}, {priority:'background'});await turn();
+  replyFinal({status:429,ok:false,headers:new Headers({'Retry-After':'60'}),body:{cancel:()=>new Promise(resolve=>finishCancel=resolve)}});
+  await Promise.all([aReader,bReader]);await turn();finishCancel();await b;
+  const saved=await odp('/boundary-final-limit',{}, {ttl:0,staleWhileRevalidate:true});
+  assert.equal(saved.payload.data[0].id,'retained');assert.match(saved.refreshError,/temporarily limiting/);
+  assert.doesNotMatch(saved.refreshError,/undefined|reading 'ok'/);assert.equal(bCalls,4);
+  t.mock.timers.tick(60_000);await a;
+  assert.equal(aCalls,2);assert.equal(queue.active,0);assert.equal(queue.background,0);assert.equal(queue.waiters.length,0);
+});
+
 test('cooldown evicts foreground joins while preserving a promoted background owner for recovery',async t=>{
   t.mock.timers.enable({apis:['Date','setTimeout'],now:5000});
   const queue=new UpstreamQueue();sharedAdmission(t,queue);
