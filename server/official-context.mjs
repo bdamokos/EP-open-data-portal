@@ -27,6 +27,8 @@ export class OfficialContextSources {
   }
   async schedule(operation,{origin,priority='interactive',signal}) {
     let queue=this.queues.get(origin);
+    // OEIL and Publications Office have no ODP quota. These are local resource
+    // caps per origin; their own Retry-After pauses still apply.
     if(!queue){queue=new UpstreamQueue();this.queues.set(origin,queue);}
     let release;
     try{release=await queue.acquire(priority,{signal});}

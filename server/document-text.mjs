@@ -5,7 +5,7 @@ import {writeCacheFile} from './cache-publication.mjs';
 import path from 'node:path';
 import https from 'node:https';
 import { XMLParser,XMLValidator } from 'fast-xml-parser';
-import { boundedUpstream } from './odp.mjs';
+import { boundedUpstream, upstreamResponseError } from './odp.mjs';
 import { documentFiles,array,tail } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
 import {sharedRequest,waitForRequest,requestSignal,isLocalRequestFailure} from './request-budget.mjs';
@@ -266,6 +266,8 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal()}={}) 
     // This published distribution route returns 500 to Node fetch but a normal
     // 302 to Node HTTPS/Python. Use standard HTTPS without browser impersonation.
     const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'*/*','User-Agent':userAgent('document text')},signal:AbortSignal.any([AbortSignal.timeout(25000),...(signal?[signal]:[])])},resolve).on('error',reject));
+    const limited=upstreamResponseError(response,{source:'documents'});
+    if(limited){response.resume();throw limited;}
     if([301,302,303,307,308].includes(response.statusCode)){const target=response.headers.location;response.resume();if(!target)throw new Error('Invalid document redirect.');url=new URL(target,url).href;continue;}
     if(response.statusCode!==200){response.resume();throw new Error(`Official document download unavailable (${response.statusCode}).`);}
     if(!/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw new Error('Unexpected document download format.');}
@@ -313,7 +315,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
       if(file&&await writeCacheFile(file,serialized,{signal}))void budget.saved(name,Buffer.byteLength(serialized));
       signal.throwIfAborted();
       memory.set(key,record);if(memory.size>100)memory.delete(memory.keys().next().value);failures.delete(key);return record;
-    },{priority,signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(key,{retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
+    },{source:'documents',priority,signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(key,{retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
     pending.set(key,job);return job;
   };
   const failure=failures.get(key);

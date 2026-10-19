@@ -88,7 +88,7 @@ async function refresh(id, directory, key, fetchContent, priority) {
     if (memory.size > 256) memory.delete(memory.keys().next().value);
     failures.delete(key);
     return { ...record, stale: false, refreshError: null };
-  }, { priority,signal })).catch(error => {
+  }, { source:'player',priority,signal })).catch(error => {
     if(!isLocalRequestFailure(error))failures.set(key, { retryAt: Date.now() + 3600000, message: String(error.message).slice(0, 200) });
     throw error;
   }).finally(() => pending.delete(key));
