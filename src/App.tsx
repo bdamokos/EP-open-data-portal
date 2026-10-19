@@ -947,7 +947,7 @@ export default function App() {
                 )}
                 {!unavailable && (
                   <div className="explorer-portraits" data-portrait-scroll-root>
-                    {filtered.map((m, index) => (
+                    {filtered.map(m => (
                       <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>
                         <Portrait
                           member={{
@@ -957,7 +957,6 @@ export default function App() {
                               : publicUrl("assets/portrait-placeholder.svg"),
                           }}
                           labelled
-                          eager={index < 18}
                           onClick={() => {
                             memberOpener.current=m.id;
                             pendingDestination.current={view:null,member:m.id};
