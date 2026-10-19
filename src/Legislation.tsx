@@ -1,4 +1,4 @@
-import {legislationContributors,mergeSpeechSpeakers,type SpeechHeaders,type SpeechSpeaker} from './legislationContributors.mjs';
+import {legislationContributors,mergeSpeechSpeakers,orderLegislationPeople,type SpeechHeaders,type SpeechSpeaker} from './legislationContributors.mjs';
 import {matchesCountry} from './countries.mjs';
 import {useExplorerParam} from './explorerUrl';
 import {useState,useEffect,useRef,useCallback,useId} from 'react';
@@ -17,6 +17,7 @@ import {ProcedureContext} from './ProcedureContext';
 import {TopicTrends} from './TopicTrends';
 import {parseProcedureReference} from './procedureReference.mjs';
 import type {LegislationResponse,NamedVote} from './LegislationTypes';
+import type {DirectoryMember} from './explorerTypes';
 const contributionTime=(value:string|null,language:string)=>value&&Number.isFinite(Date.parse(value))?new Intl.DateTimeFormat(language,{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Europe/Brussels'}).format(new Date(value)):null;
 const positions={for:'For',against:'Against',abstaining:'Abstaining'};
 const committeeAction=(kind:string)=>({COMMITTEE_TABLING_REPORT:'Draft report',COMMITTEE_TABLING_OPINION:'Draft opinion',COMMITTEE_TABLING_AMENDMENT:'Amendments',COMMITTEE_ADOPTING_REPORT:'Report adopted',COMMITTEE_ADOPTING_OPINION:'Opinion adopted',COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT:'Provisional agreement'} as Record<string,string>)[kind]||'Committee decision';
@@ -56,7 +57,7 @@ function TopicVotes({detail,route,country,language,onMember}:{detail:NonNullable
   const shown=requested?selected.data?.detail?.selectedVote:detail.selectedVote;
   return <section lang="en" aria-busy={requested&&selected.loading}><h2>How MEPs voted</h2>{detail.votes.length?<><label className="insight-vote-select">Vote<select value={vote||detail.selectedVote?.id||''} onChange={e=>setVote(e.target.value)}>{detail.votes.map(v=><option lang="" key={v.id} value={v.id}>{voteScope(v.scope,language).text} · {v.subject||v.title}</option>)}</select></label><InsightStatus loading={requested&&selected.loading&&!shown} error={requested?selected.error:null} retry={selected.retry}/>{shown&&<VoteView country={country} vote={shown} language={language} onMember={onMember}/>}</>:<p>Roll-call results unavailable.</p>}</section>;
 }
-export function Legislation(props:InsightProps) {
+export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const readerId=useId(),speechTop=useRef<HTMLElement>(null),speechJump=useRef<HTMLDetailsElement>(null),speechJumpSummary=useRef<HTMLElement>(null);
   const [country,setCountry]=useExplorerParam<string|null>('agenda-country',null);
   const [mode,setMode]=useExplorerParam<'agenda'|'participation'|'cloud'|'trends'|'dossier'>('pl-mode','agenda',['agenda','participation','cloud','trends','dossier']),[officialTopic,setOfficialTopic]=useExplorerParam<string|null>('trend-source',null),[referenceDraft,setReferenceDraft]=useState(''),[reference,setReference]=useExplorerParam<string>('dossier-ref',''),[referenceError,setReferenceError]=useState('');
@@ -90,7 +91,7 @@ export function Legislation(props:InsightProps) {
   const rememberSpeechSpeakers=useCallback((speeches:{id:string;people:SpeechSpeaker[]}[])=>{setSpeechHeaders(previous=>mergeSpeechSpeakers(previous,speeches));},[]);
   const rememberSpeakers=useCallback((people:{id:string;name:string;role:string|null}[],speechId?:string)=>{setSpeakerNames(previous=>{const changed=people.filter(p=>previous[p.id]!==p.name);return changed.length?{...previous,...Object.fromEntries(changed.map(p=>[p.id,p.name]))}:previous;});if(speechId)rememberSpeechSpeakers([{id:speechId,people}]);},[rememberSpeechSpeakers]);
   const contributors=detail?legislationContributors(detail,speechHeaders):null;
-  const shownPeople=contributors?.people.filter(p=>matchesCountry(country,p.country))||[],shownSpeeches=detail?.speeches.filter(s=>!country||s.people.some(p=>matchesCountry(country,p.country)))||[];
+  const shownPeople=contributors?orderLegislationPeople(contributors.people,contributors.roles,props.members).filter(p=>matchesCountry(country,p.country)):[],shownSpeeches=detail?.speeches.filter(s=>!country||s.people.some(p=>matchesCountry(country,p.country)))||[];
   useEffect(()=>{setSpeech(shownSpeeches[0]?.sourceId||null);},[country,detail?.id]);
   const speechIndex=shownSpeeches.findIndex(s=>s.sourceId===speech),currentSpeech=shownSpeeches[speechIndex];
   const speechLabel=(s:typeof shownSpeeches[number])=>(s.people.map(p=>(p.currentMep?p.name:speakerNames[p.id]||p.name)||'Speaker').join(', ')||'Speech')+(contributionTime(s.start,language)?` · ${contributionTime(s.start,language)} Brussels`:'')+(s.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT'?' · Written statement':'');
