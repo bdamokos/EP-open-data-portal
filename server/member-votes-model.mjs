@@ -4,6 +4,20 @@ import {list,unique,term as tail,exactReference as reference,references,eventUri
 
 const positions={for:'favor',against:'against',abstaining:'abstention'};
 
+// Decision referenceText can contain escaped XML characters even when the
+// adjacent activity_label is plain text. Decode one layer without parsing tags
+// or treating percentages as URL escapes; source snapshots stay untouched.
+function referenceText(value) {
+  const named={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'"};
+  return value.replace(/&(?:amp|lt|gt|quot|apos|#(?:[0-9]+|x[0-9a-fA-F]+));/g,whole=>{
+    const entity=whole.slice(1,-1);
+    if(Object.hasOwn(named,entity))return named[entity];
+    const point=entity[1]==='x'?Number.parseInt(entity.slice(2),16):Number(entity.slice(1));
+    if(!Number.isSafeInteger(point)||point<1||point>0x10ffff||point>=0xd800&&point<=0xdfff||point<0x20&&![9,10,13].includes(point)||point===0xfffe||point===0xffff)return whole;
+    return String.fromCodePoint(point);
+  });
+}
+
 function count(value) {
   // Null, missing, empty strings and booleans are not observations of zero.
   if(typeof value==='number')return Number.isSafeInteger(value)&&value>=0?value:null;
@@ -95,7 +109,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
     }
   }
   const decidedIds=conflicting?[]:references(raw.decided_on_a_realization_of,'doc').map(identifier);
-  const titles=conflicting?{}:labels(raw.activity_label||raw.headingLabel),referenceTexts=conflicting?{}:labels(raw.referenceText);
+  const titles=conflicting?{}:labels(raw.activity_label||raw.headingLabel),referenceTexts=conflicting?{}:Object.fromEntries(Object.entries(labels(raw.referenceText)).map(([language,text])=>[language,referenceText(text)]));
   return {
     id,uri,sittingId:snapshot.sittingId,date:raw.activity_date||snapshot.date,
     titles,referenceTexts,...preferred(Object.keys(titles).length?titles:referenceTexts,language),
