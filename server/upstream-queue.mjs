@@ -13,7 +13,7 @@ export class UpstreamQueue {
   constructor({ interval=0, maximum=2, backgroundMaximum=1, interactiveWaitMs=10_000, rateLimit=null }={}) {
     this.interval=interval;this.maximum=maximum;this.backgroundMaximum=backgroundMaximum;
     this.interactiveWaitMs=interactiveWaitMs;this.rateLimit=rateLimit;this.starts=[];
-    this.active=0;this.background=0;this.nextStart=0;this.cooldownUntil=0;this.waiters=[];this.joiners=new Set();this.timer=null;
+    this.active=0;this.background=0;this.nextStart=0;this.cooldownUntil=0;this.waiters=[];this.admitted=new Set();this.joiners=new Set();this.timer=null;
   }
   joinBackground(promise,{signal}={}) {
     if(signal?.aborted)return Promise.reject(signal.reason);
@@ -38,24 +38,33 @@ export class UpstreamQueue {
       catch(error){release();reject(error);}
     });
   }
-  runHeld(operation,{priority='interactive',signal,owner,backgroundOwner=priority==='background'}={}) {
-    return this.enqueue(priority,{signal,owner,backgroundOwner},(release,resolve,reject)=>{
+  runHeld(operation,{priority='interactive',signal,owner,backgroundOwner=priority==='background',yieldBackground}={}) {
+    return this.enqueue(priority,{signal,owner,backgroundOwner,yieldBackground},(release,resolve,reject)=>{
       try{Promise.resolve(operation(release,signal)).then(resolve,error=>{release();reject(error);});}
       catch(error){release();reject(error);}
     });
   }
   reprioritize(owner,priority) {
-    for(const waiter of this.waiters)if(waiter.owner===owner){
+    for(const waiter of [...this.waiters,...this.admitted])if(waiter.owner===owner){
       waiter.priority=priority;
-      if(owner.backgroundOwner){waiter.backgroundOwner=true;clearTimeout(waiter.timer);waiter.timer=null;}
+      if(owner.backgroundOwner&&!waiter.backgroundOwner){
+        waiter.backgroundOwner=true;clearTimeout(waiter.timer);waiter.timer=null;
+        // An already running foreground request may gain a durable owner. Keep
+        // it in flight, but account for it before admitting more background work.
+        if(this.admitted.has(waiter))this.background++;
+      }
+      // A foreground-started request can gain an owner while another background
+      // job is active. Once its readers leave, reschedule its retained GET rather
+      // than keeping both resource slots occupied by background work.
+      if(priority==='background'&&this.admitted.has(waiter)&&this.background>this.backgroundMaximum)waiter.yieldBackground?.();
     }
     this.drain();
   }
-  enqueue(priority,{signal,owner,backgroundOwner=priority==='background'}={},start=(release,resolve)=>resolve(release)) {
+  enqueue(priority,{signal,owner,backgroundOwner=priority==='background',yieldBackground}={},start=(release,resolve)=>resolve(release)) {
     return new Promise((resolve,reject)=>{
       if(signal?.aborted){reject(signal.reason);return;}
       if(!backgroundOwner&&priority!=='background'&&this.cooldownUntil>Date.now()){reject(this.unavailable());return;}
-      const waiter={priority,owner,backgroundOwner,resolve,reject,start,timer:null,cleanup:()=>signal?.removeEventListener('abort',abort)};
+      const waiter={priority,owner,backgroundOwner,yieldBackground,resolve,reject,start,timer:null,cleanup:()=>signal?.removeEventListener('abort',abort)};
       const abort=()=>{
         const index=this.waiters.indexOf(waiter);if(index<0)return;
         this.waiters.splice(index,1);clearTimeout(waiter.timer);waiter.cleanup();reject(signal.reason);this.drain();
@@ -99,17 +108,21 @@ export class UpstreamQueue {
   drain() {
     clearTimeout(this.timer);this.timer=null;
     if(this.active>=this.maximum)return;
-    let i=this.waiters.findIndex(w=>w.priority!=='background');
-    if(i<0 && this.background<this.backgroundMaximum)i=this.waiters.findIndex(w=>w.priority==='background');
+    // Foreground readers can use reserved quota without lending their reserved
+    // connection to a second durable background job.
+    const eligible=w=>!w.backgroundOwner||this.background<this.backgroundMaximum;
+    let i=this.waiters.findIndex(w=>w.priority!=='background'&&eligible(w));
+    if(i<0)i=this.waiters.findIndex(w=>w.priority==='background'&&eligible(w));
     if(i<0)return;
     const delay=this.readyAt(this.waiters[i].priority)-Date.now();
     if(delay>0){this.timer=setTimeout(()=>this.drain(),Math.min(delay,2**31-1));return;}
     const waiter=this.waiters.splice(i,1)[0];clearTimeout(waiter.timer);waiter.cleanup();this.active++;
-    if(waiter.priority==='background')this.background++;
+    this.admitted.add(waiter);
+    if(waiter.backgroundOwner)this.background++;
     this.nextStart=Date.now()+this.interval;
     if(this.rateLimit)this.starts.push(Date.now());
     let released=false;
-    waiter.start(()=>{if(released)return;released=true;this.active--;if(waiter.priority==='background')this.background--;this.drain();},waiter.resolve,waiter.reject);
+    waiter.start(()=>{if(released)return;released=true;this.admitted.delete(waiter);this.active--;if(waiter.backgroundOwner)this.background--;this.drain();},waiter.resolve,waiter.reject);
     this.drain();
   }
 }

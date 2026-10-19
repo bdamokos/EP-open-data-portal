@@ -194,11 +194,14 @@ export async function odp(
   const budget=priority==='background'?{signal:undefined,abort:()=>{},dispose:()=>{}}:createRequestBudget(30_000);
   const entry={priority,budget,backgroundOwner:priority==='background',readers:0,foregroundWaiters:new Set(),settled:false,promise:null};
   const job = runWithRequestSignal(undefined,async () => {
+    let attempt=0;
+    for(;;){
     let release;
+    const reschedule=new AbortController();
     try {
       let response;
       let retryAfter;
-      for (let attempt = 0; attempt < (entry.backgroundOwner?3:1); attempt++) {
+      for (; attempt < (entry.backgroundOwner?3:1); attempt++) {
         // Each attempt is admitted separately, including background retries.
         response = await upstreamQueue.runHeld(releaseSlot=>{
           // Retain the connection through status handling and body consumption.
@@ -209,10 +212,10 @@ export async function odp(
             "User-Agent":
               userAgent("parliamentary data"),
           },
-          signal: budget.signal?AbortSignal.any([budget.signal,AbortSignal.timeout(25_000)]):AbortSignal.timeout(25_000),
+          signal: AbortSignal.any([reschedule.signal,AbortSignal.timeout(25_000),...(budget.signal?[budget.signal]:[])]),
           redirect: 'error',
           });
-        },{priority:entry.readers>0||!entry.backgroundOwner?'interactive':'background',signal:budget.signal,owner:entry,backgroundOwner:entry.backgroundOwner});
+        },{priority:entry.readers>0||!entry.backgroundOwner?'interactive':'background',signal:budget.signal,owner:entry,backgroundOwner:entry.backgroundOwner,yieldBackground:()=>reschedule.abort()});
         retryAfter=undefined;
         if (response.status !== 429 && response.status !== 503) break;
         const seconds = retryAfterSeconds(response.headers.get("retry-after"));
@@ -242,6 +245,8 @@ export async function odp(
       }
       const parts=[];let bytes=0;
       for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>MAX_SOURCE_BYTES)throw new HttpError(502,'odp_size','Parliament response exceeded the allowed size.');parts.push(chunk);}
+      reschedule.signal.throwIfAborted();
+      release?.();release=null;
       budget.signal?.throwIfAborted();
       const text=Buffer.concat(parts).toString('utf8');
       const payload = JSON.parse(text);
@@ -261,6 +266,10 @@ export async function odp(
       budget.signal?.throwIfAborted();
       return record;
     } catch(error) {
+      // Losing the last foreground reader must leave a retained owner, but not
+      // a second background connection. Its replacement spends a real quota
+      // start and waits for background capacity without a foreground deadline.
+      if(reschedule.signal.aborted&&entry.backgroundOwner&&!budget.signal?.aborted)continue;
       if(!budget.signal?.aborted&&!isLocalRequestFailure(error)) {
         refreshFailures.delete(key);
         refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});
@@ -269,10 +278,10 @@ export async function odp(
       throw error;
     } finally {
       release?.();
-      entry.settled=true;budget.dispose();
+    }
     }
   });
-  entry.promise=job.finally(()=>{if(pending.get(key)===entry)pending.delete(key);});
+  entry.promise=job.finally(()=>{entry.settled=true;budget.dispose();if(pending.get(key)===entry)pending.delete(key);});
   pending.set(key,entry);
   return observeSource(entry,priority,signal);
 }
