@@ -45,7 +45,10 @@ export class UpstreamQueue {
     });
   }
   reprioritize(owner,priority) {
-    for(const waiter of this.waiters)if(waiter.owner===owner)waiter.priority=priority;
+    for(const waiter of this.waiters)if(waiter.owner===owner){
+      waiter.priority=priority;
+      if(owner.backgroundOwner){waiter.backgroundOwner=true;clearTimeout(waiter.timer);waiter.timer=null;}
+    }
     this.drain();
   }
   enqueue(priority,{signal,owner,backgroundOwner=priority==='background'}={},start=(release,resolve)=>resolve(release)) {

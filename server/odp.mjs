@@ -117,13 +117,28 @@ const dayOf = (timestamp) =>
   }).format(new Date(timestamp));
 const today = () => dayOf(Date.now());
 function observeSource(entry,priority,signal) {
-  if(priority==='background'){entry.backgroundOwner=true;return entry.promise;}
+  if(priority==='background'){
+    if(!entry.backgroundOwner){
+      entry.backgroundOwner=true;entry.budget.dispose();
+      // Existing readers gain their own bounded background wait. Their departure
+      // or the old foreground job deadline must not cancel the new durable owner.
+      for(const follow of entry.foregroundWaiters)follow();
+    }
+    upstreamQueue.reprioritize(entry,entry.readers>0?'interactive':'background');
+    return entry.promise;
+  }
   entry.readers++;
-  if(entry.priority==='background')upstreamQueue.reprioritize(entry,'interactive');
-  const read=entry.priority==='background'?upstreamQueue.joinBackground(entry.promise,{signal}):waitForRequest(entry.promise,signal);
+  if(entry.backgroundOwner)upstreamQueue.reprioritize(entry,'interactive');
+  let follow;
+  const read=entry.backgroundOwner?upstreamQueue.joinBackground(entry.promise,{signal}):new Promise((resolve,reject)=>{
+    follow=()=>upstreamQueue.joinBackground(entry.promise,{signal}).then(resolve,reject);
+    entry.foregroundWaiters.add(follow);
+    waitForRequest(entry.promise,signal).then(resolve,reject);
+  });
   return read.finally(()=>{
+    if(follow)entry.foregroundWaiters.delete(follow);
     entry.readers--;
-    if(entry.priority==='background'&&entry.readers===0)upstreamQueue.reprioritize(entry,'background');
+    if(entry.backgroundOwner&&entry.readers===0)upstreamQueue.reprioritize(entry,'background');
     if(!entry.settled&&!entry.backgroundOwner&&entry.readers===0)entry.budget.abort(signal?.reason||cancelledRequest());
   });
 }
@@ -177,13 +192,13 @@ export async function odp(
   // Cold interactive work includes admission and body in one bounded job.
   // Background retries retain their owner while waiting through upstream pauses.
   const budget=priority==='background'?{signal:undefined,abort:()=>{},dispose:()=>{}}:createRequestBudget(30_000);
-  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,settled:false,promise:null};
+  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,foregroundWaiters:new Set(),settled:false,promise:null};
   const job = runWithRequestSignal(undefined,async () => {
     let release;
     try {
       let response;
       let retryAfter;
-      for (let attempt = 0; attempt < (priority==='background'?3:1); attempt++) {
+      for (let attempt = 0; attempt < (entry.backgroundOwner?3:1); attempt++) {
         // Each attempt is admitted separately, including background retries.
         response = await upstreamQueue.runHeld(releaseSlot=>{
           // Retain the connection through status handling and body consumption.
@@ -197,7 +212,7 @@ export async function odp(
           signal: budget.signal?AbortSignal.any([budget.signal,AbortSignal.timeout(25_000)]):AbortSignal.timeout(25_000),
           redirect: 'error',
           });
-        },{priority:entry.readers>0?'interactive':priority,signal:budget.signal,owner:entry,backgroundOwner:entry.backgroundOwner});
+        },{priority:entry.readers>0||!entry.backgroundOwner?'interactive':'background',signal:budget.signal,owner:entry,backgroundOwner:entry.backgroundOwner});
         retryAfter=undefined;
         if (response.status !== 429 && response.status !== 503) break;
         const seconds = retryAfterSeconds(response.headers.get("retry-after"));
