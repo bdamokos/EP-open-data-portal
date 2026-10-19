@@ -6,6 +6,7 @@ import type {Intervention,InterventionStatistics,Speech,SpeechContext,SpeechDeta
 import './SpeechInterventions.css';
 import {SpeakerName,SpeakerRoles,SpeakerRoleLine} from './SpeakerIdentity';
 import {speakerTerm} from './speakerPresentation.mjs';
+import {humanDate} from './InsightCharts';
 
 const labels:Record<Intervention['type'],string>={speech:'Speech',written:'Written statement',chair:'Chair',procedure:'Procedure','oral-explanation-of-vote':'Oral explanation of vote','catch-the-eye':'Catch the eye','blue-card-question':'Blue-card question','blue-card-intervention':'Blue-card intervention','blue-card-answer':'Blue-card answer','blue-card-reaction':'Blue-card reaction','blue-card':'Blue card',unclassified:'Unclassified'};
 export function InterventionIcon({type}:{type:Intervention['type']}) {
@@ -24,6 +25,9 @@ export function InterventionStatistics({member,onItems}:{member:number;onItems?:
   const [state,setState]=useState<{member:number;data:InterventionStatistics|null;loading:boolean;error:string|null}>({member,data:null,loading:true,error:null});
   const [attempt,setAttempt]=useState(0);
   const {data:result,loading,error}=state.member===member?state:{data:null,loading:true,error:null};
+  const latestDataDate=result?.coverage.latestDataDate;
+  const refreshedAt=(result?.sources||[]).map(source=>source.fetchedAt).filter(value=>Number.isFinite(Date.parse(value))).sort().at(-1);
+  const missingContributions=result&&((result.coverage.total!==null&&result.coverage.available<result.coverage.total)||(result.coverage.issues||[]).some(issue=>!['retained-corpus','total-unavailable'].includes(issue)));
   useEffect(()=>{
     let active=true;const controller=new AbortController();
     void(async()=>{
@@ -46,7 +50,11 @@ export function InterventionStatistics({member,onItems}:{member:number;onItems?:
     {result&&<><div className="intervention-stats-grid" aria-busy={loading}>{[
       ['total','Total contributions','speech'],['groupOrations','On behalf of a group','speech'],['blueQuestions','Blue cards raised','blue-card-question'],['blueAnswers','Blue cards answered','blue-card-answer'],['blueReactions','Blue-card reactions','blue-card-reaction']
     ].map(([key,label,type])=><div key={key}><InterventionIcon type={type as Intervention['type']}/><strong>{key==='total'?result.coverage.available:result.counts[key as keyof typeof result.counts]??'—'}</strong><span>{label}</span></div>)}</div>
-      {!loading&&!result.coverage.complete&&<p className="intervention-caption">Partial coverage</p>}
+      {!loading&&<>
+        {latestDataDate?<p className="intervention-caption" title="Latest contribution date in the speech collection.">Latest data: <time dateTime={latestDataDate}>{humanDate(latestDataDate)}</time></p>:refreshedAt&&<p className="intervention-caption">Source refreshed: <time dateTime={refreshedAt}>{humanDate(refreshedAt)}</time></p>}
+        {missingContributions&&<p className="intervention-caption">Some contributions are unavailable.</p>}
+        {result.coverage.unclassified>0&&<p className="intervention-caption">{result.coverage.unclassified} {result.coverage.unclassified===1?'contribution could':'contributions could'} not be classified.</p>}
+      </>}
     </>}
     {error&&<p role="alert">{error} <button onClick={()=>setAttempt(a=>a+1)}>Retry counts</button></p>}
   </section>;

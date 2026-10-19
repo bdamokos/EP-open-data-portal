@@ -95,7 +95,7 @@ export interface SpeechContext {
 export interface InterventionStatistics {
   restarted?:boolean;
   memberId:string;items:Speech[];counts:{groupOrations:number|null;blueQuestions:number|null;blueAnswers:number|null;blueReactions:number|null;catchTheEye:number|null};
-  groups:{id:string;label:string;count:number}[];coverage:{complete:boolean;available:number;total:number|null;headers:number;unclassified:number;issues:string[]};
+  groups:{id:string;label:string;count:number}[];coverage:{complete:boolean;available:number;total:number|null;headers:number;unclassified:number;issues:string[];latestDataDate?:string|null};
   nextPage:number|null;sources:{url:string;fetchedAt:string;stale:boolean}[];
 }
 export interface Publication {
