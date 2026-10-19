@@ -61,9 +61,10 @@ export function createCommitteeMembershipReader({request, budgetMs = 8000} = {})
     parentSignal?.throwIfAborted();
     const memberships = (profile.memberships || []).filter(m => committeeClass.test(m.classification));
     const current = memberships.filter(m => committeeClass.test(m.classification) && dayNumber(m.start) !== null && m.start <= day && (!m.end || dayNumber(m.end) !== null && m.end >= day));
-    const ids = current.length ? [...new Set([...current, ...memberships].map(m => m.id).filter(id => /^[1-9]\d*$/.test(id)))] : [];
+    const candidates = current.length ? [...new Set([...current, ...memberships].map(m => m.id))] : [];
+    const ids = candidates.filter(id => /^[1-9]\d*$/.test(id));
     const selected = ids.slice(0, 64), bodies = [], sources = [];
-    let cursor = 0, failed = ids.length > selected.length;
+    let cursor = 0, failed = ids.length > selected.length || candidates.length !== ids.length;
     const signal = AbortSignal.any([AbortSignal.timeout(budgetMs), ...(parentSignal ? [parentSignal] : [])]);
     await Promise.all(Array.from({length:Math.min(2, selected.length)}, async () => {
       while (cursor < selected.length) {

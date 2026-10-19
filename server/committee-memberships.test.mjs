@@ -113,3 +113,9 @@ test('excluded joint memberships neither download bodies nor make history incomp
   const value=await read({memberships:[row('1','MEMBER','2026-01-01'),{...row('2','MEMBER','2020-01-01','2021-01-01'),classification:'COMMITTEE_PARLIAMENTARY_JOINT'}]},'2026-10-19');
   assert.equal(value.complete,true);assert.deepEqual(calls,['/corporate-bodies/1']);
 });
+test('unreadable committee IDs remain an explicit gap while valid current roles stay usable',async()=>{
+  const calls=[];
+  const read=createCommitteeMembershipReader({request:async endpoint=>{calls.push(endpoint);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.now(),payload:{data:[body('1')]}};}});
+  const value=await read({memberships:[row('1','MEMBER','2026-01-01'),row('not-numeric','CHAIR','2020-01-01','2021-01-01')]},'2026-10-19');
+  assert.equal(value.complete,false);assert(value.error);assert.equal(value.items[0].roles[0],'MEMBER');assert.deepEqual(calls,['/corporate-bodies/1']);
+});
