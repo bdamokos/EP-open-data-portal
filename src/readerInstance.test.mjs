@@ -114,5 +114,5 @@ test('local find stays within each repeated question and answer text instance',a
 test('rendered instance identity does not admit a mismatched source response',async t=>{
   const h=await harness(t,{mismatch:true});assert.equal(h.ownText(h.container.firstElementChild),null);assert(!h.container.textContent.includes('Beta question body.'));
   await act(async()=>new Promise(resolve=>setTimeout(resolve,400)));
-  assert.equal(h.container.querySelector('[role="status"][aria-live="polite"]').textContent,'Question A: Text unavailable.');assert.equal(h.calls[0].pathname,'/api/document/'+questionA);
+  assert.equal(h.container.querySelector('[role="status"][aria-live="polite"]').textContent,'Question A: Text temporarily unavailable.');assert.equal(h.calls[0].pathname,'/api/document/'+questionA);assert(h.container.querySelector('.reader-retry button'),'a mismatched read remains locally recoverable');
 });

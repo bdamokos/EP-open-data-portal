@@ -4,7 +4,8 @@ import path from 'node:path';
 import { HttpError } from './http-utils.mjs';
 import {countryCode,countryQuestions,memberCountry} from './insights-countries.mjs';
 import { odpLanguage } from './odp.mjs';
-import { analyzeQuestions, questionFromSource, demographicStats, memberPeople,personId,questionTrend } from './insights-model.mjs';
+import { analyzeQuestionsAsync, questionFromSource, demographicStats, memberPeople,personId,questionTrend } from './insights-model.mjs';
+import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 import {cachedEnglishQuestionBodies} from './insights-phrases.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
 export {brusselsDay} from './analysis-period.mjs';
@@ -73,11 +74,14 @@ export async function savedMetadata({directory=process.env.ODP_CACHE_DIR,members
 export class QuestionInsights {
   constructor(store,{clock=Date.now,loadMetadata=savedMetadata,loadQuestionBodies=cachedEnglishQuestionBodies}={}) {this.store=store;this.clock=clock;this.loadMetadata=loadMetadata;this.loadQuestionBodies=loadQuestionBodies;this.cache=new Map();this.pending=new Map();this.cacheBytes=0;}
   async analysis(query) {
+    requestSignal()?.throwIfAborted();
     const status=this.store.status();if(!status.currentMeps||!status.servingGeneration)throw new HttpError(503,'insights_loading','The saved activity index is not available yet.');
     const key=JSON.stringify([status.servingGeneration,status.complete,status.progress?.completed,status.rosterFetchedAt,query.start,query.end]);
     const old=this.cache.get(key);if(old && this.clock()-old.at<INSIGHTS_LIMITS.cacheMs)return old.value;
-    if(this.pending.has(key))return this.pending.get(key);
-    const job=(async()=>{
+    if(this.pending.has(key))return waitForRequest(this.pending.get(key));
+    // Language and filter views share this analysis, but each view has its own
+    // owner. Expiring one view must cancel only its wait on the shared work.
+    const job=sharedRequest(async signal=>{
       // Use the existing store, not a second ActivityStore or worker. All statements are SELECTs.
       const params=[status.servingGeneration,query.start,query.end];
       const where="generation=? AND kind='document' AND json_extract(body,'$.document_date') BETWEEN ? AND ? AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')";
@@ -87,17 +91,19 @@ export class QuestionInsights {
       const metadata=await this.loadMetadata({members});
       const sources=rows.map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at}));
       const bodies=await this.loadQuestionBodies(sources);
-      const analysis=analyzeQuestions(sources.map(questionFromSource).filter(Boolean),{bodies});
+      const analysis=await analyzeQuestionsAsync(sources.map(questionFromSource).filter(Boolean),{bodies,signal});
       const geography=countryQuestions(analysis,members,metadata);
       const value={...analysis,...geography,members,metadata,status,indexedMatchingQuestions:count,truncated:count>rows.length,computedAt:new Date(this.clock()).toISOString()};
       const bytes=Buffer.byteLength(JSON.stringify({...analysis,...geography}));
+      signal.throwIfAborted();
       if(bytes<=INSIGHTS_LIMITS.cacheBytes) {
         if(this.cache.has(key)){this.cacheBytes-=this.cache.get(key).bytes;this.cache.delete(key);}
         this.cache.set(key,{at:this.clock(),value,bytes});this.cacheBytes+=bytes;
         while(this.cache.size>INSIGHTS_LIMITS.cacheEntries||this.cacheBytes>INSIGHTS_LIMITS.cacheBytes){const oldest=this.cache.keys().next().value;this.cacheBytes-=this.cache.get(oldest).bytes;this.cache.delete(oldest);}
       }
       return value;
-    })();this.pending.set(key,job);try{return await job;}finally{this.pending.delete(key);}
+    }).finally(()=>{if(this.pending.get(key)===job)this.pending.delete(key);});
+    this.pending.set(key,job);return waitForRequest(job);
   }
   async query(query) {
     const a=await this.analysis(query);

@@ -8,6 +8,6 @@ export function createDataClient(
 ): {
   expireMatching(matches: (route: string) => boolean): void;
   peek<T>(route: string): T | null;
-  get<T>(route: string, options?: { force?: boolean; priority?: 'auto' | 'low' }): Promise<T>;
+  get<T>(route: string, options?: { force?: boolean; priority?: 'auto' | 'low'; signal?: AbortSignal }): Promise<T>;
   prefetch(routes: string[]): () => void;
 };
