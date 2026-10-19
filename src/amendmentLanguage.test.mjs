@@ -58,7 +58,8 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
   const {AmendmentsPage,Amendments}=await vite.ssrLoadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(AmendmentsPage,{language:locale,onBack(){}})));
-  const card=id=>container.querySelector('#amendment-'+id),wording=(row,index)=>row.querySelectorAll('.explorer-amendment-texts section>p')[index];
+  await act(async()=>{for(const button of container.querySelectorAll('.wording-diff button'))if(button.textContent==='Side by side')button.click();});
+  const card=id=>container.querySelector('#amendment-'+id),wording=(row,index)=>row.querySelectorAll('.explorer-amendment-texts section>p,.wording-diff__columns section>p')[index];
   assert.equal(document.documentElement.lang,locale);
   assert.equal(effectiveLanguage(container.querySelector('main')),locale);
   for(const control of container.querySelectorAll('.explorer-amendment-finder button,.explorer-amendment-finder input,.explorer-amendment-finder select,.explorer-amendment-controls select,.explorer-amendment-pagination button'))assert.equal(effectiveLanguage(control),'en');
@@ -72,12 +73,12 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
   assert.equal(effectiveLanguage(card('known-fr').querySelector('.explorer-amendment-authors small')),'en');
   const proposer=[...card('known-fr').querySelectorAll('.explorer-amendment-authors p span')];
   assert.deepEqual(proposer.map(effectiveLanguage),['fr','']);
-  for(const row of container.querySelectorAll('.explorer-amendment-card'))for(const label of row.querySelectorAll('.explorer-amendment-texts h5,.explorer-amendment-wording summary,.explorer-amendment-evidence summary'))assert.equal(effectiveLanguage(label),'en');
+  for(const row of container.querySelectorAll('.explorer-amendment-card'))for(const label of row.querySelectorAll('.wording-diff h5,.explorer-amendment-texts h5,.explorer-amendment-wording summary,.explorer-amendment-evidence summary'))assert.equal(effectiveLanguage(label),'en');
   assert.equal(effectiveLanguage(wording(card('known-fr'),0)),'fr');assert.equal(effectiveLanguage(wording(card('known-fr'),1)),'fr');
   assert.equal(effectiveLanguage(wording(card('deleted'),1)),'en');assert.equal(wording(card('deleted'),1).textContent,'Text deleted.');
   assert.equal(effectiveLanguage(wording(card('inserted'),0)),'en');assert.equal(effectiveLanguage(wording(card('inserted'),1)),'hu');
   for(const paragraph of card('unavailable').querySelectorAll('.explorer-amendment-texts p'))assert.equal(effectiveLanguage(paragraph),'en');
-  for(const id of ['unknown','explicit-unknown'])for(const paragraph of card(id).querySelectorAll('.explorer-amendment-texts p'))assert.equal(effectiveLanguage(paragraph),'');
+  for(const id of ['unknown','explicit-unknown'])for(const paragraph of card(id).querySelectorAll('.wording-diff__passage'))assert.equal(effectiveLanguage(paragraph),'');
   assert.equal(effectiveLanguage(wording(card('mixed'),0)),'mul');assert.equal(effectiveLanguage(wording(card('undetermined'),0)),'und');
   const parts=card('known-fr').querySelectorAll('.explorer-amendment-part');
   assert.equal(effectiveLanguage(parts[0].querySelector('blockquote')),'fr');assert.equal(effectiveLanguage(parts[1].querySelector('blockquote')),'');

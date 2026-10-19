@@ -37,6 +37,7 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   await act(async()=>root.render(createElement('div',{lang:language},createElement(Amendments,{language,document:'A-10-2026-0254',showFailures:false}))));
   const card=id=>container.querySelector('#amendment-'+id);
   const withheld=card('withheld');
+  assert.equal(withheld.querySelector('.wording-diff,ins,del'),null);
   assert.match(withheld.querySelector(':scope>.explorer-amendment-evidence-state').textContent,/withheld because extraction or verification is incomplete/);
   assert.match(withheld.textContent,/current relationship to this amendment list is unverified/);
   assert.match(withheld.textContent,/record is retained from an earlier indexed source/);
@@ -48,7 +49,7 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   assert.match(absent.querySelector(':scope>.explorer-amendment-evidence-state').textContent,/absent from the current recorded document relationship/);
   assert.match(absent.textContent,/Showing previously indexed wording/);
   assert.match(absent.textContent,/No original text \(insertion\)/);
-  assert.equal(absent.querySelector('.explorer-amendment-texts section:nth-child(2)>p').lang,'fr');
+  assert.equal(absent.querySelector('.wording-diff__columns section:nth-child(2)>p').lang,'fr');
   assert.doesNotMatch(absent.textContent,/record is retained from an earlier indexed source/,'a retained wording flag does not invent whole-record retention');
   const missing=card('missing');
   assert.match(missing.textContent,/Original text unavailable in the extracted document/);
@@ -61,8 +62,8 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   assert.match(variants[1].textContent,/Text deleted/);
   for(const state of container.querySelectorAll('.explorer-amendment-evidence-state'))assert.equal(effectiveLanguage(state),'en');
   for(const row of [withheld,card('unsafe-baseline'),missing,variants[0]])for(const paragraph of row.querySelectorAll('.explorer-amendment-texts p'))assert.equal(effectiveLanguage(paragraph),'en','withheld and unavailable wording explanations stay English');
-  assert.equal(variants[1].querySelector('.explorer-amendment-texts section:first-child>p').lang,'fr');
-  assert.equal(effectiveLanguage(variants[1].querySelector('.explorer-amendment-texts section:nth-child(2)>p')),'en');
+  assert.equal(variants[1].querySelector('.wording-diff__columns section:first-child>p').lang,'fr');
+  assert.equal(effectiveLanguage(variants[1].querySelector('.wording-diff__columns section:nth-child(2)>p')),'en');
   const count=container.querySelector('.explorer-amendment-coverage strong>span');
   assert.equal(count.textContent,(1234).toLocaleString(language));assert.equal(count.lang,language);assert.equal(effectiveLanguage(count.parentElement),'en');
   for(const date of container.querySelectorAll('time'))assert.equal(date.lang,language);

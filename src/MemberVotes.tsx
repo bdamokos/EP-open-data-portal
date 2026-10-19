@@ -4,6 +4,7 @@ import {selectLanguageText} from './language.mjs';
 import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from './MemberVotesTypes';
 import {MEMBER_VOTES_PAGE_SIZE,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteOutcome,memberVotePosition,memberVotePositionSummary,memberVoteTotals,memberVotesRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
+import {WordingDiff} from './components/WordingDiff';
 
 export type MemberVotesContext={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted'};
 export type MemberVotesState={
@@ -92,7 +93,7 @@ function Wording({documentId,amendmentId,language,openContext}:{documentId:strin
       {selected&&<>
         {typeof selected.targetLabel==='string'&&selected.targetLabel&&<><p className="member-votes-target-label" lang={targetLanguage||''}>{selected.targetLabel}</p>{!targetLanguage&&<p className="member-votes-muted">Target language unknown.</p>}</>}
         <p className="member-votes-muted">{textLanguage?'Text language: '+languageLabel(textLanguage):'Text language unknown.'}{authors.length>0&&<> · Proposed by {authors.map(author=>author.name).join(', ')}</>}</p>
-        {readable?<div className="member-votes-comparison" lang={textLanguage||''}><div><h4 lang="en">Original wording</h4><p>{selected.originalText}</p></div><div><h4 lang="en">Proposed wording</h4><p>{selected.proposedText}</p></div></div>:<p>Amendment wording unavailable here.</p>}
+        {readable?<div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:'Original wording',proposed:'Proposed wording',emptyOriginal:'',emptyProposed:''}}/></div>:<p>Amendment wording unavailable here.</p>}
         {readable&&selected.wordingRetained&&<p className="member-votes-muted">Showing saved wording.</p>}
         {authors.length>0&&selected.proposerRetained&&<p className="member-votes-muted">Proposer details are from an earlier source version.</p>}
         {selected.recordRetained&&<p className="member-votes-muted">Version details are from an earlier source record.</p>}

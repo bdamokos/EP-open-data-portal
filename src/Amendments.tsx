@@ -8,6 +8,7 @@ import type {Amendment,AmendmentDecision,AmendmentFailurePage,AmendmentPage,Amen
 import {amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentFailureKey,amendmentFailureLabel,amendmentOutcomeLabel,amendmentPlanSummary,amendmentRoute,publicAmendmentSource} from './amendmentModel.mjs';
 import type {Directory} from './explorerTypes';
 import './Amendments.css';
+import {WordingDiff} from './components/WordingDiff';
 
 const outcomes=['','ADOPTED','REJECTED','LAPSED','WITHDRAWN','mixed','unavailable'] as const;
 const methods:Record<string,string>={VOTE_HAND:'Show of hands',VOTE_ELECTRONIC_ROLLCALL:'Roll-call vote',VOTE_ELECTRONIC:'Electronic vote',VOTE_SECRET_BALLOT:'Secret ballot'};
@@ -94,10 +95,11 @@ function SplitPart({part,item,language}:{part:AmendmentSplit;item:Amendment;lang
 }
 function AmendmentWording({item}:{item:AmendmentVariant}) {
   const withheld=item.textIntegrity==='incomplete';
-  return <>{item.wordingRetained&&!withheld&&<p className="explorer-amendment-secondary">Showing previously indexed wording. Proposer information and document metadata have separate source records.</p>}<div className="explorer-amendment-texts" lang="en">
+  const readable=!withheld&&typeof item.originalText==='string'&&typeof item.proposedText==='string';
+  return <>{item.wordingRetained&&!withheld&&<p className="explorer-amendment-secondary">Showing previously indexed wording. Proposer information and document metadata have separate source records.</p>}{readable?<WordingDiff original={item.originalText!} proposed={item.proposedText!} language={wordingLanguage(item)} emptySemantics="insertion-deletion"/>:<div className="explorer-amendment-texts" lang="en">
     <section><h5>Original text</h5>{withheld?<p className="explorer-amendment-secondary">Original wording withheld pending extraction or verification.</p>:item.originalText!==null&&item.originalText!==undefined?item.originalText===''?<p>No original text (insertion).</p>:<p lang={wordingLanguage(item)}>{item.originalText}</p>:<p className="explorer-amendment-secondary">Original text unavailable in the extracted document.</p>}</section>
     <section><h5>Proposed text</h5>{withheld?<p className="explorer-amendment-secondary">Proposed wording withheld pending extraction or verification.</p>:item.proposedText!==null&&item.proposedText!==undefined?item.proposedText===''?<p>Text deleted.</p>:<p lang={wordingLanguage(item)}>{item.proposedText}</p>:<p className="explorer-amendment-secondary">Proposed text unavailable in the extracted document.</p>}</section>
-  </div></>;
+  </div>}</>;
 }
 function AmendmentEvidenceState({item}:{item:AmendmentVariant}) {
   if(item.textIntegrity!=='incomplete'&&!['absent-current-relationship','unverified'].includes(item.listRelationship||'')&&!item.recordRetained)return null;

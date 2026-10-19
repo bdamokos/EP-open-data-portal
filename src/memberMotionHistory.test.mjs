@@ -1,3 +1,4 @@
+import {wordingText} from './test-support/wordingText.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,Fragment,act} from 'react';
@@ -253,7 +254,7 @@ test('exact amendment, list and wording language reach the shared context; adopt
  }});
  await h.click(h.container.querySelector('.motion-amendments__disclosure'));
  await h.click(h.container.querySelector('.motion-amendments__row-button'));
- assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Pontos magyar javaslat/);
+ assert.equal(wordingText(h.container.querySelector('.motion-amendments__detail'),'proposed'),'1. Pontos magyar javaslat.');
  const before=history.length;
  await h.click(button(h.container,'Read in context'));
  assert.equal(history.length,before+1);assert.equal(params().get('ma-amendment'),AMENDMENT);assert.equal(params().get('ma-list'),LIST);assert.equal(params().get('ma-wording-lang'),'hu');
@@ -268,7 +269,7 @@ test('exact amendment, list and wording language reach the shared context; adopt
  assert.equal(h.container.querySelector('.document-context-text')?.lang,'hu');
  await h.click(h.container.querySelector('.document-context-back'));
  assert.equal(params().get('ma-view'),'amendments');assert.equal(params().get('ma-amendment'),AMENDMENT);assert.equal(params().get('ma-list'),LIST);assert.equal(params().get('ma-wording-lang'),'hu');
- assert.match(h.container.querySelector('.motion-amendments__detail').textContent,/Pontos magyar javaslat/);
+ assert.equal(wordingText(h.container.querySelector('.motion-amendments__detail'),'proposed'),'1. Pontos magyar javaslat.');
  await h.click(button(h.container,'Find the adopted text'));
  const choices=location.href,choice=[...h.container.querySelectorAll('.document-context-choices button')].find(node=>node.textContent.includes('Source '+ADOPTED));
  assert(choice);const choiceLength=history.length;await h.click(choice);
