@@ -14,6 +14,7 @@ import { savedMetadata } from './insights-store.mjs';
 import { config, booleanFromEnvironment, integerFromEnvironment, absolutePathFromEnvironment } from './config.mjs';
 import { corpusSearchResponse } from './corpus-search-response.mjs';
 import {INTERVENTION_CLASSIFICATION_VERSION} from './speech-interventions.mjs';
+import {loopTimer} from './sqlite-observability.mjs';
 
 const DAY=24*60*60_000;
 const day=t=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
@@ -124,6 +125,18 @@ export class CorpusWorker {
     }
   }
   // Month windows for speeches; question and answer files from the saved index.
+  discoveryDue() {
+    if(this.store.get('resourceIndexes')!==1)return true;
+    if(this.store.db.prepare('SELECT 1 FROM speech_catalog_dirty LIMIT 1').get())return true;
+    if(this.store.get('speechInterventionClassificationVersion')!==INTERVENTION_CLASSIFICATION_VERSION)return true;
+    if(this.store.get('speechLanguages')!==this.languages)return true;
+    const index=this.store.indexState();
+    if(index.generation!==null&&this.store.get('documentLanguages')!==this.languages)return true;
+    const checked=this.store.get('discoveryCheckedAt');
+    if(!checked||this.clock()-checked>=60*60_000)return true;
+    return index.generation!==null&&(this.store.get('discoveredGeneration')!==index.generation||this.store.get('discoveredPublished')!==index.published);
+  }
+  due(){return this.discoveryDue()||this.store.hasDueTask();}
   async discover() {
     const now=this.clock(), today=day(now);
     // Build the queryable projection locally through this leased writer. No
@@ -131,7 +144,7 @@ export class CorpusWorker {
     const projectionStarted=this.clock();
     catalog:for(;;) {
       if(this.clock()-projectionStarted>=Math.min(10_000,this.maxDuration)||await this.store.diskBytes()>=this.diskLimit)break;
-      const rows=this.store.db.prepare('SELECT m.source_id,m.fetched_at FROM speech_metadata m LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL OR c.fetched_at IS NOT m.fetched_at ORDER BY m.source_id LIMIT 100').all();
+      const rows=this.store.db.prepare('SELECT m.source_id,m.fetched_at FROM speech_catalog_dirty pending CROSS JOIN speech_metadata m ON m.source_id=pending.source_id ORDER BY pending.source_id LIMIT 100').all();
       if(!rows.length)break;
       for(const row of rows) {
         try {const saved=this.store.speechMetadata(row.source_id);this.store.projectSpeechCatalog(saved.activity,saved.availableTextLanguages);}
@@ -164,9 +177,9 @@ export class CorpusWorker {
     }
     this.store.set('speechLanguages',this.languages);
     const index=this.store.indexState();
-    if(index.generation==null)return;
+    if(index.generation==null){this.store.set('discoveryCheckedAt',now);return;}
     const discovered=this.store.get('discoveredAt'), sameIndex=this.store.get('discoveredGeneration')===index.generation && this.store.get('discoveredPublished')===index.published;
-    if(discovered && sameIndex && this.store.get('documentLanguages')===this.languages && now-Date.parse(discovered)<DISCOVER_EVERY)return;
+    if(discovered && sameIndex && this.store.get('documentLanguages')===this.languages && now-Date.parse(discovered)<DISCOVER_EVERY){this.store.set('discoveryCheckedAt',now);return;}
     // Explicit binary bounds let the existing (generation,key) index seek
     // directly to question records instead of scanning unrelated source bodies.
     const sources=this.store.db.prepare(`SELECT body FROM idx.sources WHERE generation=? AND kind='document' AND key>='/parliamentary-questions/' AND key<'/parliamentary-questions0' AND key LIKE '/parliamentary-questions/%'`);
@@ -180,6 +193,7 @@ export class CorpusWorker {
     }
     this.store.set('discoveredAt',new Date(now).toISOString());this.store.set('documentLanguages',this.languages);
     this.store.set('discoveredGeneration',index.generation);this.store.set('discoveredPublished',index.published);
+    this.store.set('discoveryCheckedAt',now);
   }
   async task(task) {
     const {body}=task;
@@ -251,29 +265,35 @@ export class CorpusWorker {
     } else throw new Error('Unknown corpus task.');
   }
   async run() {
-    if(this.stopped || this.running || !this.store.acquire())return;
+    if(this.stopped || this.running)return;
+    const iteration=loopTimer('corpus');
+    try {await this.runIteration();}finally {iteration();}
+  }
+  async runIteration() {
+    if(!this.due() || !this.store.acquire())return;
     this.running=true;const started=this.clock();let requests=0;
     const heartbeat=setInterval(()=>{if(!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
     try {
       this.store.set('phase',this.store.get('backfilledAt')?'refreshing':'backfilling');
-      await this.discover();
+      if(this.discoveryDue())await this.discover();
       while(!this.stopped && requests<this.budget && this.clock()-started<this.maxDuration) {
-        if(await this.store.diskBytes()>this.diskLimit){this.store.set('phase','paused: disk limit reached');break;}
-        const task=this.store.nextTask();
-        if(!task) {
-          if(!this.store.db.prepare('SELECT 1 FROM tasks WHERE done=0 LIMIT 1').get()) {
-            // Complete only after question files were discovered from a published
-            // index generation; a partial initial index may still lack questions.
-            if(this.store.get('discoveredPublished')) {
-              if(!this.store.get('backfilledAt'))this.store.set('backfilledAt',new Date(this.clock()).toISOString());
-              this.store.set('phase','ready');
-            } else this.store.set('phase','waiting for activity index');
-          }
-          break;
-        }
-        requests++;
-        try{await this.task(task);}
-        catch(error){if(this.stopped)break;this.store.failTask(task,error,error.retryAfter||0);}
+        const taskIteration=loopTimer('corpus-task',{threshold:5000});
+        try {
+          if(await this.store.diskBytes()>this.diskLimit){this.store.set('phase','paused: disk limit reached');break;}
+          const task=this.store.nextTask();
+          if(!task)break;
+          requests++;
+          try{await this.task(task);}
+          catch(error){if(this.stopped)break;this.store.failTask(task,error,error.retryAfter||0);}
+        } finally {taskIteration();}
+      }
+      // A budget can end immediately after the last task. Settle that run now;
+      // the next idle tick should not need a writer just to publish readiness.
+      if(!this.stopped&&!this.store.db.prepare('SELECT 1 FROM tasks WHERE done=0 LIMIT 1').get()) {
+        if(this.store.get('discoveredPublished')) {
+          if(!this.store.get('backfilledAt'))this.store.set('backfilledAt',new Date(this.clock()).toISOString());
+          this.store.set('phase','ready');
+        } else this.store.set('phase','waiting for activity index');
       }
       this.store.set('lastRunAt',new Date(this.clock()).toISOString());
     } catch(error) {if(!this.stopped)throw error;}

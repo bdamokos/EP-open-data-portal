@@ -1,12 +1,13 @@
 import {groupVoicesSchema,groupVoicesCopy,groupVoicesPrune,recordGroupVoice} from './group-voices-store.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
-import { amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
+import { amendmentReadVersion, amendmentReadIndexes, amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
+import {observeSqlite} from './sqlite-observability.mjs';
 
 const parse = value => value == null ? null : JSON.parse(value);
 const motionReferenceValue = `CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END`;
@@ -23,12 +24,18 @@ const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
   WHERE link.generation=? AND link.original_ref=?
   ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
 export class ActivityStore {
-  constructor(directory, { clock = Date.now } = {}) {
+  constructor(directory, { clock = Date.now, initializeIndexes=false } = {}) {
     mkdirSync(directory, { recursive: true });
     this.clock = clock; this.owner = randomUUID();
     this.filename = path.join(directory, 'activities-v1.sqlite');
-    this.db = new DatabaseSync(this.filename);
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
+    this.initializeIndexes=initializeIndexes||!existsSync(this.filename);
+    this.db = observeSqlite(new DatabaseSync(this.filename),'activity');
+    if(!this.initializeIndexes) {
+      try {
+        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('motionLinksIndexVersion')!==1)throw new Error('Unprepared activity indexes.');
+      } catch {this.db.close();throw new Error('Activity indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
+    }
+    if(this.initializeIndexes)this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS lease (id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT, expires INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS sources (generation INTEGER, key TEXT, kind TEXT, body TEXT, fetched_at TEXT, seen INTEGER DEFAULT 0, PRIMARY KEY(generation,key));
@@ -51,10 +58,9 @@ export class ActivityStore {
       CREATE TABLE IF NOT EXISTS tasks (generation INTEGER, key TEXT, kind TEXT, body TEXT, priority INTEGER, done INTEGER DEFAULT 0, attempts INTEGER DEFAULT 0, retry_at INTEGER DEFAULT 0, error TEXT, PRIMARY KEY(generation,key));
       CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, body TEXT);
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
+    if(!this.initializeIndexes)this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;');
     if (this.get('schema') !== 1) throw new Error('Unsupported activity-index schema.');
-    outsideSchema(this.db);
-    amendmentsSchema(this.db);
-    groupVoicesSchema(this.db);
+    if(this.initializeIndexes){outsideSchema(this.db);amendmentsSchema(this.db);groupVoicesSchema(this.db);}
   }
   get(key) { return parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value); }
   set(key,value) { this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value)); }
@@ -64,18 +70,73 @@ export class ActivityStore {
     catch(e) { this.db.exec('ROLLBACK'); throw e; }
   }
   acquire(ttl=90_000) {
-    return this.transaction(()=> {
+    let initialized=false;
+    const acquired=this.transaction(()=> {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
+      const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion;
+      if((initialize||initializeProofs)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
+      // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
+      // Refresh against the current clock before commit; elapsed build time must
+      // never roll back a completed build solely because its old TTL expired.
+      const refresh=()=>{if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner).changes!==1)throw new Error('Activity-index writer lease was lost.');};
+      if(initialize){this.initializeResourceIndexes();initialized=true;refresh();}
+      if(initializeProofs){amendmentReadIndexes(this.db);this.set('amendmentReadVersion',amendmentReadVersion);initialized=true;refresh();}
       if(this.get('motionLinksIndexVersion')!==1) {
         this.assertWriter();
         this.db.exec('INSERT OR IGNORE INTO motion_links '+motionLinkSelect('source','sources AS source, '));
-        this.assertWriter();
+        refresh();this.assertWriter();
         this.set('motionLinksIndexVersion',1);
       }
+      refresh();
       return true;
     });
+    if(acquired&&initialized)this.db.exec('PRAGMA main.wal_checkpoint(TRUNCATE)');
+    return acquired;
+  }
+  // Increment resourceIndexes and rebuild these projections if relationship SQL changes.
+  initializeResourceIndexes() {
+    this.assertWriter();
+    for(const sql of [
+      'CREATE INDEX IF NOT EXISTS task_pending_order ON tasks(generation,priority DESC,key DESC,retry_at) WHERE done IN (-1,0) OR done IS NULL',
+      'CREATE INDEX IF NOT EXISTS task_pending_due ON tasks(generation,retry_at) WHERE done IN (-1,0) OR done IS NULL',
+      'CREATE INDEX IF NOT EXISTS task_counts ON tasks(generation,done,error,kind)',
+      "CREATE INDEX IF NOT EXISTS task_sitting ON tasks(generation,kind,json_extract(body,'$.sittingId'),done)",
+      "CREATE INDEX IF NOT EXISTS amendment_job_sitting ON amendment_jobs(generation,kind,json_extract(body,'$.sittingId'),done)",
+      "CREATE INDEX IF NOT EXISTS task_recoveries ON tasks(generation,key) WHERE done=0 AND kind='speeches' AND json_extract(body,'$.recoveryId') IS NOT NULL",
+      'CREATE INDEX IF NOT EXISTS task_last_error ON tasks(generation,retry_at DESC,error) WHERE (done IN (-1,0) OR done IS NULL) AND error IS NOT NULL',
+      'CREATE INDEX IF NOT EXISTS source_kind_key ON sources(generation,kind,key)',
+      "CREATE INDEX IF NOT EXISTS source_identifier ON sources(generation,kind,json_extract(body,'$.identifier'))",
+      "CREATE INDEX IF NOT EXISTS question_window ON sources(generation,json_extract(body,'$.document_date') DESC,key) WHERE kind='document' AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')",
+      "CREATE INDEX IF NOT EXISTS amendment_preparation ON sources(generation,kind,key) WHERE json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT'",
+      'CREATE INDEX IF NOT EXISTS amendment_job_pending ON amendment_jobs(generation,priority DESC,key DESC,retry_at) WHERE done=0',
+      'CREATE INDEX IF NOT EXISTS group_voice_job_pending ON group_voice_jobs(generation,priority DESC,key DESC,retry_at) WHERE done=0',
+      "CREATE INDEX IF NOT EXISTS outside_agenda_upgrade ON outside_contributions(generation,speech) WHERE json_array_length(body,'$.parentIds')>1 AND (COALESCE(json_type(body,'$.parentDocumentIds'),'')<>'array' OR COALESCE(json_type(body,'$.parentDocumentsComplete'),'') NOT IN ('true','false'))",
+      "CREATE INDEX IF NOT EXISTS outside_term_date ON outside_contributions(generation,json_extract(body,'$.term'),date DESC,speech)",
+      'CREATE INDEX IF NOT EXISTS outside_directory_date ON outside_contributions(generation,date DESC,speech)',
+      "CREATE INDEX IF NOT EXISTS outside_unresolved ON outside_contributions(generation,speech) WHERE json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0",
+      "CREATE INDEX IF NOT EXISTS amendment_failure_status ON amendment_split_failures(json_extract(body,'$.status'))",
+    ])this.db.exec(sql);
+    // Invert the exact multi-valued report relationship once, instead of
+    // parsing every report body again for every procedure-detail task.
+    this.db.exec('CREATE TABLE IF NOT EXISTS report_procedures(generation INTEGER,procedure_ref TEXT,source_key TEXT,PRIMARY KEY(generation,procedure_ref,source_key))');
+    this.db.exec('CREATE INDEX IF NOT EXISTS report_procedure_source ON report_procedures(generation,source_key)');
+    const links=source=>`SELECT ${source}.generation,${originalMotionRef},${source}.key FROM json_each(${source}.body,'$.inverse_created_a_realization_of') ref WHERE ${source}.kind='document' AND json_extract(${source}.body,'$.work_type') LIKE '%/REPORT_PLENARY'`;
+    for(const [event,reference] of [['INSERT','NEW'],['UPDATE OF body,kind','NEW'],['DELETE',null]])this.db.exec(`CREATE TRIGGER IF NOT EXISTS report_procedures_${event.split(' ')[0].toLowerCase()} AFTER ${event} ON sources BEGIN
+      DELETE FROM report_procedures WHERE generation=${reference||'OLD'}.generation AND source_key=${reference||'OLD'}.key;
+      ${reference?'INSERT OR IGNORE INTO report_procedures '+links(reference)+';':''} END`);
+    this.db.exec(`INSERT OR IGNORE INTO report_procedures SELECT source.generation,${originalMotionRef},source.key FROM sources source,json_each(source.body,'$.inverse_created_a_realization_of') ref WHERE source.kind='document' AND json_extract(source.body,'$.work_type') LIKE '%/REPORT_PLENARY'`);
+    this.db.exec('CREATE TABLE IF NOT EXISTS amendment_sitting_references(generation INTEGER,version INTEGER,reference TEXT COLLATE NOCASE,source_key TEXT,PRIMARY KEY(generation,version,reference,source_key))');
+    this.db.exec('CREATE INDEX IF NOT EXISTS amendment_sitting_source ON amendment_sitting_references(generation,source_key)');
+    const references=(source,from='')=>`SELECT ${source}.generation,COALESCE(json_extract(${source}.body,'$.amendmentEvidence.amendmentVersion'),json_extract(${source}.body,'$.amendmentVersion')),${originalMotionRef},${source}.key
+      FROM ${from}json_each(COALESCE(json_extract(${source}.body,'$.amendmentEvidence.decisions'),json_extract(${source}.body,'$.decisions'))) decision,
+      json_each(decision.value,'$.decided_on_a_realization_of') ref WHERE ${source}.kind='motion-outcomes' AND ref.type='text'`;
+    for(const [event,ref] of [['INSERT','NEW'],['UPDATE OF body,kind','NEW'],['DELETE',null]])this.db.exec(`CREATE TRIGGER IF NOT EXISTS amendment_sitting_${event.split(' ')[0].toLowerCase()} AFTER ${event} ON sources BEGIN
+      DELETE FROM amendment_sitting_references WHERE generation=${ref||'OLD'}.generation AND source_key=${ref||'OLD'}.key;
+      ${ref?'INSERT OR IGNORE INTO amendment_sitting_references '+references(ref)+';':''} END`);
+    this.db.exec('INSERT OR IGNORE INTO amendment_sitting_references '+references('source','sources source,'));
+    this.set('resourceIndexes',1);
   }
   renew(ttl=90_000) { return this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=? AND expires>?').run(this.clock()+ttl,this.owner,this.clock()).changes===1; }
   assertWriter() {
@@ -113,7 +174,8 @@ export class ActivityStore {
     this.db.prepare('INSERT OR IGNORE INTO tasks(generation,key,kind,body,priority,done) VALUES (?,?,?,?,?,?)').run(generation,key,kind,JSON.stringify(body),priority,pending);
     if(refreshCompleted)this.db.prepare('UPDATE tasks SET done=?,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE generation=? AND key=? AND done=1').run(pending,JSON.stringify(body),priority,generation,key);
   }
-  nextTask(generation) { const r=this.db.prepare('SELECT * FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,this.clock()); return r && {...r,body:parse(r.body)}; }
+  hasDueTask(generation) {return Boolean(this.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND retry_at<=? LIMIT 1').get(generation,this.clock()));}
+  nextTask(generation) { if(!this.hasDueTask(generation))return;const r=this.db.prepare('SELECT * FROM tasks INDEXED BY task_pending_order WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,this.clock()); return r && {...r,body:parse(r.body)}; }
   taskProgress(task,body) { this.assertWriter();this.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET body=?,attempts=0,error=NULL,retry_at=0 WHERE generation=? AND key=?`).run(JSON.stringify(body),task.generation,task.key); }
   finishTask(task) { this.assertWriter();this.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET done=1,error=NULL WHERE generation=? AND key=?`).run(task.generation,task.key); }
   failTask(task,error) {
@@ -133,11 +195,10 @@ export class ActivityStore {
   }
   *reportsForProcedure(generation,id) {
     const relative='eli/dl/proc/'+id;
-    const sql=`SELECT key,body,fetched_at FROM sources AS source
-      WHERE generation=? AND kind='document' AND json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY'
-      AND EXISTS(SELECT 1 FROM json_each(source.body,'$.inverse_created_a_realization_of') AS ref
-        WHERE (CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END) IN (?,?,?))`;
-    for(const source of this.db.prepare(sql).iterate(generation,relative,'https://data.europarl.europa.eu/'+relative,'http://data.europarl.europa.eu/'+relative))
+    const sql=`SELECT source.key,source.body,source.fetched_at FROM report_procedures link
+      JOIN sources source ON source.generation=link.generation AND source.key=link.source_key
+      WHERE link.generation=? AND link.procedure_ref=?`;
+    for(const source of this.db.prepare(sql).iterate(generation,relative))
       yield {key:source.key,work:parse(source.body),fetchedAt:source.fetched_at};
   }
   relatedJointMotions(generation,id) {

@@ -409,12 +409,10 @@ function rosterMembers(worker,generation,date,profiles) {
 }
 function cachedDirectSittings(store,generation,targetId) {
   const reference='eli/dl/doc/'+targetId+'-AM-%';
-  const candidates=store.db.prepare(`SELECT key,body FROM sources AS source WHERE generation=? AND kind='motion-outcomes'
-    AND COALESCE(json_extract(source.body,'$.amendmentEvidence.amendmentVersion'),json_extract(source.body,'$.amendmentVersion'))=? AND EXISTS(
-      SELECT 1 FROM json_each(COALESCE(json_extract(source.body,'$.amendmentEvidence.decisions'),json_extract(source.body,'$.decisions'))) AS decision,
-        json_each(decision.value,'$.decided_on_a_realization_of') AS reference
-      WHERE reference.type='text' AND (reference.value LIKE ? OR reference.value LIKE ? OR reference.value LIKE ?))
-    ORDER BY key DESC LIMIT ?`).all(generation,AMENDMENTS_VERSION,reference,'https://data.europarl.europa.eu/'+reference,'http://data.europarl.europa.eu/'+reference,AMENDMENT_LIMITS.sittingsPerTarget+1);
+  const candidates=store.db.prepare(`SELECT source.key,source.body FROM (
+    SELECT DISTINCT source_key FROM amendment_sitting_references WHERE generation=? AND version=? AND reference LIKE ?
+    ORDER BY source_key DESC LIMIT ?) matched CROSS JOIN sources source ON source.generation=? AND source.key=matched.source_key
+    ORDER BY source.key DESC`).all(generation,AMENDMENTS_VERSION,reference,AMENDMENT_LIMITS.sittingsPerTarget+1,generation);
   return {limited:candidates.length>AMENDMENT_LIMITS.sittingsPerTarget,sittingIds:candidates.slice(0,AMENDMENT_LIMITS.sittingsPerTarget).filter(source=>array(amendmentSitting(JSON.parse(source.body)).decisions).some(decision=>array(decision.decided_on_a_realization_of).some(value=>amendmentReference(value)?.targetDocumentId===targetId))).map(source=>source.key.replace(/^motion-outcomes:/,'')).filter(id=>/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(id))};
 }
 export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,observedDecisionIds=[],discoveredSittingIds=[]}={}) {

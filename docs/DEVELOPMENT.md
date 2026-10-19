@@ -28,6 +28,18 @@ The GET transport exposes error `code`, `status` and `retryAt`. A 503 with `upst
 
 The HTTP process samples event-loop delay every 20 ms. Every 30 seconds it logs one compact `[event-loop-delay]` line if p99 reaches 100 ms or max reaches 250 ms, then resets the histogram. Request-budget timeout logs include the current window's p99/max delay in milliseconds alongside utilization and upstream queue state. These diagnostics add no public endpoint.
 
+Main-thread SQLite calls taking at least 250 ms emit `[sqlite-slow]` with the store, statement prefix and SHA-256 prefix, elapsed milliseconds and returned/changed rows when available. Bindings and retained text are excluded. Streaming reads measure SQLite stepping time, excluding work between rows. Background runs use a 250 ms log threshold; task iterations use five seconds and include upstream waits. SQLite uses a 2 MiB cache per database, disabled mmap and file-backed temporary storage. Idle ticks use metadata and pending-queue indexes without taking a writer lease; catalogue repair uses a durable queue.
+
+Prepare existing data directories before starting a new revision that changes SQLite indexes or proof projections:
+
+```sh
+node server/migrate-indexes.mjs
+```
+
+Run this command from the candidate image or checkout with its normal `ACTIVITY_INDEX_DIR`, `CORPUS_DIR` and disk-limit environment and persistent mounts, while the old app is stopped. It refuses an active writer lease, logs each build stage and final byte counts, checkpoints only its writable database, and skips completed preparation on repeat runs. It makes no upstream requests or generation changes. Normal startup fails fast on an unprepared existing database; only a newly created empty database can initialize in-process. Preparation can take 20–30 minutes or longer on a slow shared disk and is outside HTTP readiness gates. Stop the old app, prepare with the candidate revision, start the candidate normally, then run health/readiness and user-path acceptance. Keep deployment configuration and the selected maintenance window outside this repository.
+
+The activity disk cap defaults to 8192 MiB and accepts 64–131072 MiB. Explicit environments override the default. Allow space for retained generations and WAL, not only new indexes. The preparation command checks the configured cap after its commit and truncating checkpoint; temporary sort files and duplicate WAL pages during the build do not trigger the normal worker cap. Normal worker checks count the database, WAL and SHM files. Corpus limits remain independently configured. Amendment pages return HTTP 503 until their current proof projection is initialized.
+
 ## Container
 
 ```sh

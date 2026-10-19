@@ -50,7 +50,7 @@ export function nextGroupVoiceTask(store,generation){
 }
 export function groupVoiceWorkDue(store,generation){
   const saved=store.db.prepare('SELECT generation,version FROM group_voice_state WHERE generation<=? ORDER BY generation DESC LIMIT 1').get(generation);
-  return !saved||saved.version!==GROUP_VOICE_VERSION||Boolean(nextGroupVoiceTask(store,saved.generation));
+  return !saved||saved.version!==GROUP_VOICE_VERSION||Boolean(store.db.prepare('SELECT 1 FROM group_voice_jobs WHERE generation=? AND done=0 AND retry_at<=? LIMIT 1').get(saved.generation,store.clock()));
 }
 // The ordinary writer's budgets, lease, backoff and disk limit apply. These
 // optional jobs never enter core publication or the amendment continuation log.
