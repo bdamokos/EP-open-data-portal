@@ -86,7 +86,6 @@ export class CorpusStore {
         parent_id TEXT, date TEXT, term INTEGER, original_languages TEXT NOT NULL DEFAULT '[]');
       CREATE TABLE IF NOT EXISTS speech_metadata (source_id TEXT PRIMARY KEY, body BLOB NOT NULL, source_url TEXT NOT NULL, fetched_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS speech_catalog (source_id TEXT PRIMARY KEY, date TEXT, kind TEXT, start TEXT, numbering INTEGER, participants TEXT NOT NULL DEFAULT '[]',available_languages TEXT NOT NULL DEFAULT '[]',revision INTEGER NOT NULL DEFAULT 0,fetched_at TEXT);
-      CREATE TABLE IF NOT EXISTS speech_catalog_dirty (source_id TEXT PRIMARY KEY);
       CREATE INDEX IF NOT EXISTS speech_catalog_window ON speech_catalog(kind,date,source_id);
       CREATE INDEX IF NOT EXISTS document_kind_date ON documents(kind,date DESC);
       CREATE INDEX IF NOT EXISTS document_parent ON documents(parent_id) WHERE parent_id IS NOT NULL;
@@ -148,6 +147,7 @@ export class CorpusStore {
       if(initialize&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       if(initialize) {
+        this.db.exec('CREATE TABLE IF NOT EXISTS speech_catalog_dirty (source_id TEXT PRIMARY KEY)');
         for(const sql of [
           'CREATE INDEX IF NOT EXISTS task_pending_order ON tasks(priority DESC,key DESC,retry_at) WHERE done=0',
           'CREATE INDEX IF NOT EXISTS task_pending_due ON tasks(retry_at) WHERE done=0',
