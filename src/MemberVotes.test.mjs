@@ -135,7 +135,7 @@ test('a selected off-page decision uses its pinned projection without selecting 
   const h=await mount(t,{state:{week:WEEK,decisionId:selected.id,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items:[page],selected:{status:'found',item:selected}}))});
   const detail=visiblePane(h.container);
   assert.equal(detail.querySelector('h2').textContent,'Exact off-page decision');
-  assert.match(detail.textContent,/No recorded position for this vote\./);assert.match(detail.textContent,/Show of hands/);
+  assert.match(detail.textContent,/No recorded position/);assert.match(detail.textContent,/Show of hands/);
   assert(!detail.textContent.includes('On-page decision'));
   assert.equal(h.state.decisionId,selected.id);assert.equal(h.state.positions,'recorded');
 });
@@ -160,7 +160,7 @@ test('exact subject grouping keeps split parts separate, preserves title languag
   const groups=[...h.container.querySelectorAll('.member-votes-subject')];
   assert.equal(groups[0].querySelectorAll('.member-votes-row').length,2);
   const heading=groups[0].querySelector('span[title]');assert.equal(heading.textContent,'Objet de test');assert.equal(heading.title,'Objet de test ***III');assert.equal(heading.lang,'fr');
-  assert.match(groups[0].querySelector('.member-votes-whole').textContent,/Whole text: Adopted · No recorded MEP position/);
+  assert.match(groups[0].querySelector('.member-votes-whole').textContent,/Final vote · Adopted · Test member No recorded position/);
   assert.match(groups[0].querySelectorAll('.member-votes-row')[0].textContent,/Part 1.*Rejected/);
   assert.match(groups[0].querySelectorAll('.member-votes-row')[1].textContent,/Part 2.*Adopted/);
   await act(async()=>groups[0].querySelector('h3 button').click());
@@ -195,7 +195,7 @@ test('null totals, real zero totals and lapsed decisions remain distinct without
   assert.equal(rows[0].querySelector('.member-votes-bar'),null);assert.deepEqual([...rows[0].querySelectorAll('.member-votes-counts b')].map(item=>item.textContent),['0','0','0']);
   assert.equal(rows[1].querySelector('.member-votes-bar,.member-votes-counts'),null);assert.match(rows[1].textContent,/Tallies unavailable/);
   assert.match(rows[2].textContent,/Not put to a vote.*Lapsed/);assert.equal(rows[2].querySelector('.member-votes-bar,.member-votes-counts'),null);
-  assert.match(rows[3].textContent,/No recorded position for this vote\./);assert.equal(rows[3].querySelector('.member-votes-position-for'),null);
+  assert.match(rows[3].textContent,/No recorded position/);assert.equal(rows[3].querySelector('.member-votes-position-for'),null);
 });
 
 test('actual FOR, later intention to abstain and official raw counts are displayed independently',async t=>{
@@ -562,4 +562,24 @@ test('return focus falls back to a collapsed subject, an off-page subject, or th
     assert.equal(document.activeElement===(mode==='unlinked'?h.container.querySelector('.member-votes-period h2'):h.container.querySelector('[data-vote-group]')),true,mode+' has a visible focus destination');
     assert.equal(visiblePane(h.container).scrollTop,0);
   });
+});
+
+test('collapsed subjects expose final positions, page-scoped summaries and off-page final-vote navigation',async t=>{
+  const items=[vote(1),vote(2,{actualPosition:{status:'recorded',position:'against'}}),vote(3,{actualPosition:{status:'recorded',position:'abstaining'}})];
+  const whole=vote(99,{scope:{kind:'whole-text',basis:'exact-component-reference'}});
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items,subjects:[subject(items,{wholeTextDecisions:[whole]})],selected:stateFrom(url).decisionId?{status:'found',item:whole}:{status:'not-requested',item:null}}))});
+  const group=h.container.querySelector('[data-vote-group]');assert.equal(group.getAttribute('aria-expanded'),'false');
+  assert.match(group.textContent,/Recorded positions on this page: 1 For · 1 Against · 1 Abstained/);
+  const final=h.container.querySelector('button.member-votes-whole');assert.match(final.textContent,/Final vote · Adopted · Test member voted For/);
+  await act(async()=>final.click());assert.equal(h.state.decisionId,whole.id);assert.equal(h.state.snapshotId,SNAPSHOT);
+  assert.equal(visiblePane(h.container).querySelector('h2').textContent,'Final vote');
+  await h.click('← Back to votes');assert.equal(document.activeElement===h.container.querySelector('[data-vote-group]'),true);assert.deepEqual(h.state.expandedSubjectIds,[]);
+});
+
+test('a filtered-out final vote opens its exact decision and keeps missing-position states distinct',async t=>{
+  const item=vote(1),whole=vote(99,{scope:{kind:'whole-text',basis:'exact-component-reference'},actualPosition:{status:'conflicting',position:null}});
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items:[item],subjects:[subject([item],{wholeTextDecisions:[whole]})],selected:stateFrom(url).decisionId?{status:'found',item:whole}:{status:'not-requested',item:null}}))});
+  const final=h.container.querySelector('button.member-votes-whole');assert.match(final.textContent,/Conflicting records/);
+  await act(async()=>final.click());assert.match(visiblePane(h.container).textContent,/Conflicting records/);assert.equal(h.state.positions,'recorded');
+  await h.click('← Back to votes');assert.equal(document.activeElement,h.container.querySelector('[data-vote-group]'));
 });

@@ -107,8 +107,17 @@ export function memberVoteLabel(vote,language='en') {
 }
 export function memberVotePosition(vote) {
   if(vote.ballotStatus==='not-conducted'||vote.actualPosition?.status==='not-conducted')return 'Not put to a vote';
-  if(vote.actualPosition?.status==='recorded'&&!['VOTE_HAND','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(vote.method))return {for:'For',against:'Against',abstaining:'Abstained'}[vote.actualPosition.position]||'No recorded position for this vote.';
-  return 'No recorded position for this vote.';
+  if(vote.actualPosition?.status==='conflicting')return 'Conflicting records';
+  if(vote.actualPosition?.status==='unavailable')return 'Position unavailable';
+  if(vote.actualPosition?.status==='recorded'&&!['VOTE_HAND','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(vote.method))return {for:'For',against:'Against',abstaining:'Abstained'}[vote.actualPosition.position]||'Position unavailable';
+  return 'No recorded position';
+}
+
+export function memberVotePositionSummary(items) {
+  const counts={For:0,Against:0,Abstained:0};
+  for(const item of items){const label=memberVotePosition(item);if(Object.hasOwn(counts,label))counts[label]++;}
+  const recorded=Object.entries(counts).filter(([,count])=>count).map(([label,count])=>count+' '+label);
+  return 'Recorded positions on this page: '+(recorded.join(' · ')||'none');
 }
 export function memberVoteOutcome(vote) {
   return {ADOPTED:'Adopted',REJECTED:'Rejected',LAPSED:'Lapsed',WITHDRAWN:'Withdrawn',CANCELLED:'Cancelled'}[vote.outcome]||'Outcome unavailable';
