@@ -16,7 +16,7 @@ const speech=(id=speechId,language='en',available=true)=>({
   availableTextLanguages:['en','fr'],translationType:'original',websiteUrl:'https://www.europarl.europa.eu/doceo/document/'+id+'_EN.html',
 });
 
-async function harness(t) {
+async function harness(t,{stored=false}={}) {
   const window=new Window({url:'http://localhost/'}),requests=[];
   class ReaderDOMParser extends window.DOMParser {
     parseFromString(...args) {
@@ -41,8 +41,8 @@ async function harness(t) {
   });
   t.mock.method(globalThis,'fetch',input=>{
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1]+url.search;
-    if(route.startsWith('speech-transcript/'))return Promise.resolve(Response.json({id:route.split('/')[1].split('?')[0],available:false}));
-    assert.match(route,/^(document|speech)\//,'reader tests must not contact unrelated services');
+    if(!stored&&route.startsWith('speech-transcript/'))return Promise.resolve(Response.json({id:route.split('/')[1].split('?')[0],available:false}));
+    assert.match(route,/^(document|speech|speech-transcript)\//,'reader tests must not contact unrelated services');
     return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
@@ -232,4 +232,33 @@ test('a background-refresh snapshot stays locally recoverable through completion
     await h.finish(route,question());assert.equal(h.container.querySelector('.reader-retry'),null);assert.equal(h.container.querySelector('.insight-reader-text'),text);
     assert.equal(document.activeElement,h.container.querySelector('h3'));assert.equal(text.lang,'en');assert.equal(text.textContent,body);
   });
+});
+
+
+test('retained speech refresh failures retry locally without losing body, language or source access',async t=>{
+  for(const stored of [false,true])await t.test(stored?'retained corpus':'retained detail',async t=>{
+    let now=Date.now();t.mock.method(Date,'now',()=>now);
+    const h=await harness(t,{stored}),route=`speech/${speechId}?lang=fr`,savedRoute=`speech-transcript/${speechId}?lang=fr`,response=stored?{id:speechId,available:true,xml:speech(speechId,'fr').xml,textLanguage:'fr',availableTextLanguages:['en','fr'],metadata:speech(speechId,'fr')}:speech(speechId,'fr');
+    await h.render(h.reader('speech',{language:'hu',transcriptLanguage:'fr'}));await h.finish(stored?savedRoute:route,response);
+    await h.render(null);now+=31_000;await h.render(h.reader('speech',{language:'hu',transcriptLanguage:'fr'}));
+    const text=h.container.querySelector('.insight-reader-text');assert(text);const source=h.container.querySelector('.insight-source-document');assert(source);
+    await h.finish(stored?savedRoute:route,Response.json({error:{code:'upstream_busy',message:'Refresh failed.',retryAt:now+4_000}},{status:503}));
+    const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);assert.equal(retry.lang,'hu');
+    assert.equal(h.container.querySelector('.insight-reader-text'),text);assert.equal(text.lang,'fr');assert.equal(text.textContent,body);assert.equal(h.container.querySelector('.insight-source-document'),source);
+    now+=4_001;await act(async()=>new Promise(resolve=>setTimeout(resolve,4_050)));
+    assert.equal(retry.disabled,false);
+    await act(async()=>{retry.focus();retry.click();retry.click();});assert.equal(h.container.querySelector('.reader-retry'),null,'active refresh cannot start a second retry');
+    assert.equal(h.container.querySelector('.insight-reader-text'),text,'manual refresh never removes the saved body');
+    await h.finish(stored?savedRoute:route,null,true);assert.equal(h.container.querySelector('.insight-reader-text'),text);assert(h.container.querySelector('.reader-retry button'));
+    await act(async()=>h.container.querySelector('.reader-retry button').click());await h.finish(stored?savedRoute:route,response);await h.wait();
+    assert.equal(h.container.querySelector('.reader-retry'),null);assert.equal(h.status().textContent,'Speech loaded.');assert.equal(text.lang,'fr');assert.equal(document.activeElement,h.container.querySelector('h3'));
+  });
+});
+
+test('stale speech source refresh errors offer a local retry while retained transcript stays readable',async t=>{
+  const h=await harness(t),route=`speech/${speechId}?lang=en`,data=speech();data.textCache={refreshError:'Last source update failed.',refreshInProgress:true};
+  await h.render(h.reader('speech'));await h.finish(route,data);
+  const text=h.container.querySelector('.insight-reader-text'),retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,false);
+  await act(async()=>{retry.focus();retry.click();});assert.equal(h.container.querySelector('.insight-reader-text'),text);
+  await h.finish(route,speech());await h.wait();assert.equal(h.container.querySelector('.reader-retry'),null);assert.equal(h.status().textContent,'Speech loaded.');assert.equal(text.textContent,body);assert.equal(document.activeElement,h.container.querySelector('h3'));
 });
