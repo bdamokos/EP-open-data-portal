@@ -79,47 +79,83 @@ export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, timeo
   const prefetches = new Set();
   let prefetchTimer, prefetching = false;
   const peek = route => cache.get(route)?.data ?? null;
-  const get = (route, { force = false, priority = 'auto' } = {}) => {
-    const saved = cache.get(route);
-    if (!force && saved && Date.now() - saved.at < maxAge) return Promise.resolve(saved.data);
-    if (pending.has(route)) {
-      if (priority !== 'low') pending.get(route).priority = priority;
-      return pending.get(route).promise;
-    }
-    const controller = new AbortController();
-    const entry = { controller, priority, invalidated: false, promise: null, invalidate: null };
-    let timer;
-    const timeout = new Promise((_, reject) => {
-      timer = setTimeout(() => {
-        controller.abort();
-        reject(new Error("The request took too long. Try again."));
-      }, timeoutFor(route));
+  const updatePriority = entry => {
+    entry.priority = [...entry.consumers].some(consumer => consumer.priority !== 'low') ? 'auto' : 'low';
+  };
+  const release = consumer => {
+    const entry = consumer.entry;
+    entry.consumers.delete(consumer);
+    updatePriority(entry);
+    // React StrictMode can release and reacquire in the same effect flush.
+    // Let that consumer rejoin before cancelling the underlying read.
+    if (!entry.consumers.size) queueMicrotask(() => {
+      if (entry.settled || entry.invalidated || entry.consumers.size) return;
+      entry.abandoned = true;
+      if (pending.get(entry.route) === entry) pending.delete(entry.route);
+      entry.stop(new DOMException('The request is no longer needed.', 'AbortError'));
     });
-    const invalidation = new Promise(resolve => { entry.invalidate = () => {
-      entry.invalidated = true;
-      controller.abort();
-      resolve();
+  };
+  const start = (route, priority) => {
+    const controller = new AbortController();
+    const entry = { route, controller, priority, consumers: new Set(), settled: false, abandoned: false, invalidated: false, replacement: null, promise: null, stop: null };
+    let timer;
+    const stopped = new Promise((_, reject) => { entry.stop = reason => {
+      clearTimeout(timer);
+      controller.abort(reason);
+      reject(reason);
     }; });
-    const request = Promise.race([Promise.resolve().then(() => load(route, controller.signal, { priority, getPriority: () => entry.priority })), timeout, invalidation])
+    timer = setTimeout(() => entry.stop(new Error('The request took too long. Try again.')), timeoutFor(route));
+    const request = Promise.race([Promise.resolve().then(() => {
+      controller.signal.throwIfAborted();
+      return load(route, controller.signal, { priority: entry.priority, getPriority: () => entry.priority });
+    }), stopped])
       .then(data => {
-        // Superseded callers receive the replacement too, even if the loader ignores abort.
-        if (entry.invalidated) return get(route);
+        // Superseded callers receive the replacement, even if a loader ignores abort.
+        if (entry.invalidated) return entry.replacement.promise;
+        if (entry.abandoned) throw controller.signal.reason;
         cache.delete(route);
         cache.set(route, { data, at: Date.now() });
         while (cache.size > maxEntries) cache.delete(cache.keys().next().value);
         return data;
       }, error => {
-        if (entry.invalidated) return get(route);
-        if (error.status === 401 || error.status === 403) cache.clear();
+        if (entry.invalidated) return entry.replacement.promise;
+        if (!entry.abandoned && (error.status === 401 || error.status === 403)) cache.clear();
         throw error;
       })
       .finally(() => {
         clearTimeout(timer);
+        entry.settled = true;
+        entry.consumers.clear();
         if (pending.get(route) === entry) pending.delete(route);
       });
     entry.promise = request;
     pending.set(route, entry);
-    return request;
+    return entry;
+  };
+  const get = (route, { force = false, priority = 'auto', signal } = {}) => {
+    if (signal?.aborted) return Promise.reject(signal.reason);
+    const saved = cache.get(route);
+    if (!force && saved && Date.now() - saved.at < maxAge) return Promise.resolve(saved.data);
+    const entry = pending.get(route) || start(route, priority);
+    const consumer = { entry, priority };
+    entry.consumers.add(consumer);
+    updatePriority(entry);
+    // Calls without a signal deliberately retain the read until it settles,
+    // including an in-flight prefetch whose remaining batch was cancelled.
+    if (!signal) return entry.promise;
+    return new Promise((resolve, reject) => {
+      const abort = () => { release(consumer); reject(signal.reason); };
+      signal.addEventListener('abort', abort, { once: true });
+      entry.promise.then(data => {
+        signal.removeEventListener('abort', abort);
+        release(consumer);
+        resolve(data);
+      }, error => {
+        signal.removeEventListener('abort', abort);
+        release(consumer);
+        reject(error);
+      });
+    });
   };
   const schedulePrefetch = () => {
     if (prefetchTimer || prefetching || !prefetches.size) return;
@@ -149,9 +185,22 @@ export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, timeo
     };
   }, expireMatching(matches) {
     for (const [route, entry] of cache) if (matches(route)) entry.at = -Infinity;
-    for (const [route, entry] of pending) if (matches(route)) {
+    for (const [route, entry] of [...pending]) if (matches(route)) {
       pending.delete(route);
-      entry.invalidate();
+      if (!entry.consumers.size) {
+        entry.abandoned = true;
+        entry.stop(new DOMException('The request is no longer needed.', 'AbortError'));
+        continue;
+      }
+      const replacement = start(route, entry.priority);
+      for (const consumer of entry.consumers) {
+        consumer.entry = replacement;
+        replacement.consumers.add(consumer);
+      }
+      entry.consumers.clear();
+      entry.replacement = replacement;
+      entry.invalidated = true;
+      entry.stop(new DOMException('The request was replaced.', 'AbortError'));
     }
   } };
 }
