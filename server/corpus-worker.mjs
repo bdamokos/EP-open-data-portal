@@ -13,6 +13,7 @@ import { countryCode } from './insights-countries.mjs';
 import { savedMetadata } from './insights-store.mjs';
 import { config, booleanFromEnvironment, integerFromEnvironment, absolutePathFromEnvironment } from './config.mjs';
 import { corpusSearchResponse } from './corpus-search-response.mjs';
+import {INTERVENTION_CLASSIFICATION_VERSION} from './speech-interventions.mjs';
 
 const DAY=24*60*60_000;
 const day=t=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
@@ -20,7 +21,7 @@ const SPEECH_ID=/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/;
 const SPEECH_TYPES='PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT';
 // Verbatim translations are added for weeks after a sitting; recheck recent months.
 const RECHECK_WINDOW=120*DAY, RECHECK_EVERY=7*DAY, DISCOVER_EVERY=6*60*60_000;
-const PRIORITY={speeches:60,speech:61,primaryDocument:50,otherDocument:10};
+const PRIORITY={speeches:60,speech:61,speechClassification:63,primaryDocument:50,otherDocument:10};
 const FRAGMENT_LIMIT=2*1024*1024;
 
 // Retain only language attributes. Returning false from updateTag discards
@@ -139,6 +140,11 @@ export class CorpusWorker {
         if(this.clock()-projectionStarted>=Math.min(10_000,this.maxDuration))break catalog;
       }
     }
+    if(this.store.get('speechInterventionClassificationVersion')!==INTERVENTION_CLASSIFICATION_VERSION) {
+      if(this.store.db.prepare('SELECT 1 FROM speech_metadata LIMIT 1').get())
+        this.store.enqueue('speech-interventions:'+INTERVENTION_CLASSIFICATION_VERSION,'speech-intervention-refresh',{version:INTERVENTION_CLASSIFICATION_VERSION,afterId:''},PRIORITY.speechClassification);
+      else this.store.set('speechInterventionClassificationVersion',INTERVENTION_CLASSIFICATION_VERSION);
+    }
     // Widening the language policy must revisit months already read under `primary`.
     const widened=this.languages==='all' && this.store.get('speechLanguages')==='primary';
     if(this.store.get('speechMetadataBackfill')) {
@@ -177,7 +183,10 @@ export class CorpusWorker {
   }
   async task(task) {
     const {body}=task;
-    if(task.kind==='speeches'||task.kind==='speech-metadata') {
+    if(task.kind==='speech-intervention-refresh') {
+      this.store.refreshSpeechInterventions(task,{maxDuration:Math.min(1000,this.maxDuration)});
+      await this.checkpoint();
+    } else if(task.kind==='speeches'||task.kind==='speech-metadata') {
       const metadataOnly=task.kind==='speech-metadata';
       const params={'parliamentary-term':10,'activity-type':SPEECH_TYPES,'sort-by':'sitting-date:desc,numbering:desc','sitting-date':body.start,'sitting-date-end':body.end,...(!metadataOnly?{'include-output':'xml_fragment'}:{}),limit:body.limit,offset:body.offset};
       let record;
