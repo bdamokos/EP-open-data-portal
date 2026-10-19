@@ -5,7 +5,9 @@ import {HttpError} from './http-utils.mjs';
 import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {browserCompatibleUserAgent} from './user-agent.mjs';
 
-const IMAGE_LIMIT = 2 * 1024 * 1024;
+// Official high-resolution JPEGs can exceed 3 MiB. Allow bounded headroom for
+// those originals; downloads and saved-image reads must accept the same sizes.
+const IMAGE_LIMIT = 8 * 1024 * 1024;
 const HEADER_LIMIT = 4096;
 const digest = body => createHash('sha256').update(body).digest('hex');
 const unavailable = () => new HttpError(502, 'portrait_unavailable', 'Portrait unavailable.');
@@ -25,7 +27,7 @@ function officialPortrait(value) {
 export class PortraitCache {
   constructor({directory = process.env.ODP_CACHE_DIR && path.join(process.env.ODP_CACHE_DIR, 'portraits-v1'),
     clock = Date.now, fetchImpl = (...args) => fetch(...args), freshMs = 7 * 86400_000,
-    retryMs = 5 * 60_000, maxDiskBytes = 128 * 1024 * 1024, maxDiskEntries = 2048,
+    retryMs = 5 * 60_000, maxDiskBytes = 1_400_000_000, maxDiskEntries = 2048,
     maxMemoryBytes = 8 * 1024 * 1024, maxMemoryEntries = 120,
     maxBackground = 2, maxBackgroundQueued = 120,
     warn = message => console.warn(message)} = {}) {

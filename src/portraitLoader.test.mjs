@@ -262,3 +262,85 @@ test('bounds queued work and removes an aborted pending job from that bound', as
   const replacement = loader.load(path(3));
   response.resolve(image()); await Promise.all([active, replacement]);
 });
+
+test('cached visible portraits fill six response slots without artificial gaps', async () => {
+  const time = clock(), calls = [], bodies = [];
+  let active = 0, peak = 0;
+  const loader = createPortraitLoader({...time, fetchImpl: url => {
+    calls.push({url, at: time.now()});
+    active++; peak = Math.max(peak, active);
+    const body = deferred(); bodies.push(body);
+    return Promise.resolve({ok: true, blob: () => body.promise.finally(() => active--)});
+  }});
+  const pending = Array.from({length: 18}, (_, i) => loader.load(path(i + 1), {priority: 'visible'}));
+  assert.equal(calls.length, 6);
+  await flush(); assert.equal(calls.length, 6, 'headers do not release a response slot');
+  for (let i = 0; i < 18; i++) {bodies[i].resolve(new Blob(['face'])); await flush();}
+  await Promise.all(pending);
+  assert.equal(peak, 6);
+  assert(calls.every(call => call.at === 0), 'cached bodies can replenish the pool without a 250 ms wait');
+});
+
+test('visible work overtakes paced look-ahead without giving up reserved response slots', async () => {
+  const time = clock(), calls = [], held = deferred();
+  const loader = createPortraitLoader({...time, fetchImpl: url => {
+    calls.push({url, at: time.now()});
+    return Number(url.match(/portrait\/(\d+)/)[1]) <= 3 ? held.promise.then(() => image()) : Promise.resolve(image());
+  }});
+  const background = Array.from({length: 7}, (_, i) => loader.load(path(i + 1)));
+  assert.equal(calls.length, 3);
+  background[6].setPriority('visible');
+  const foreground = loader.load(path(8), {priority: 'visible'});
+  await flush();
+  assert.deepEqual(calls.map(call => call.url), [1,2,3,7,8].map(fetchedPath));
+  assert(calls.every(call => call.at === 0));
+  held.resolve(image()); await flush();
+  await time.advance(1_000);
+  await Promise.all([...background, foreground]);
+});
+
+test('a visible consumer preserves shared priority when another consumer leaves the viewport', async () => {
+  const time = clock(), held = deferred(), calls = [];
+  const loader = createPortraitLoader({...time, concurrency: 1, fetchImpl: url => {
+    calls.push(url); return url === fetchedPath(1) ? held.promise : Promise.resolve(image());
+  }});
+  const first = loader.load(path(1));
+  const earlier = loader.load(path(2));
+  const one = loader.load(path(3), {priority: 'visible'});
+  const two = loader.load(path(3), {priority: 'visible'});
+  one.setPriority('background');
+  held.resolve(image()); await flush();
+  assert.deepEqual(calls, [1,3].map(fetchedPath));
+  await time.advance(250);
+  assert.deepEqual(calls, [1,3,2].map(fetchedPath));
+  await Promise.all([first, earlier, one, two]);
+});
+
+test('successive visible screens can use cached portraits without acquiring background pacing', async () => {
+  const time = clock(), calls = [];
+  const loader = createPortraitLoader({...time, fetchImpl: async url => {calls.push({url, at: time.now()}); return image();}});
+  for (let screen = 0; screen < 3; screen++) {
+    await Promise.all(Array.from({length: 18}, (_, i) => loader.load(path(screen * 18 + i + 1), {priority: 'visible'})));
+  }
+  assert.equal(calls.length, 54);
+  assert(calls.every(call => call.at === 0));
+});
+
+test('a busy visible response pauses both priorities and prevents a burst when the cooldown ends', async () => {
+  const time = clock(), calls = [], busy = deferred();
+  const loader = createPortraitLoader({...time, fetchImpl: url => {
+    calls.push({url, at: time.now()});
+    return url === fetchedPath(1) && calls.filter(call => call.url === url).length === 1 ? busy.promise : Promise.resolve(image());
+  }});
+  const foreground = loader.load(path(1), {priority: 'visible'});
+  busy.resolve(new Response('busy', {status: 429, headers: {'Retry-After': '4'}}));
+  await flush();
+  const pending = [loader.load(path(2)), loader.load(path(3), {priority: 'visible'})];
+  await time.advance(3_999); assert.equal(calls.length, 1);
+  await time.advance(1); assert.equal(calls.length, 2);
+  await time.advance(750); await Promise.all([foreground, ...pending]);
+  assert.deepEqual(calls.map(call => call.at), [0,4000,4250,4500]);
+  const afterIdle = Array.from({length: 8}, (_, i) => loader.load(path(i + 10), {priority: 'visible'}));
+  await Promise.all(afterIdle);
+  assert(calls.slice(4).every(call => call.at === time.now()), 'successful idle recovery restores ordinary parallel loading');
+});

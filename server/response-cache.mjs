@@ -48,6 +48,9 @@ function publicPolicy(seconds, browserSeconds = 0) {
 
 export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   if (!['GET', 'HEAD'].includes(request.method) || request.headers?.authorization || !approvedPath(url.pathname) || transientState(payload)) return noStore;
+  // Memberships are assembled after a process restart. Polls must reach the
+  // origin until that work finishes instead of retaining its first snapshot.
+  if (url.pathname === '/api/directory' && (payload?.index?.complete !== true || payload?.committeeDetails?.complete === false)) return noStore;
   if (url.pathname.includes('/speech-media/') && payload?.available === false) return noStore;
   const resource = url.pathname.split('/')[2];
   if (resource === 'speech' && !payload?.xml) return noStore;

@@ -29,6 +29,13 @@ export interface Directory {
     changedCommittees: number;
     error: string | null;
   };
+  committeeDetails?: {
+    complete: boolean;
+    loaded: number;
+    total: number;
+    failed: number;
+    error: string | null;
+  };
   index: {
     complete: boolean;
     loaded: number;

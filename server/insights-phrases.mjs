@@ -2,6 +2,7 @@ import {readFile,readdir,stat} from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {documentFiles} from './activity-index-model.mjs';
+import {finishWork} from './cooperative-work.mjs';
 
 const connectors=new Set('of the and for on to in'.split(' '));
 const boilerplate=new Set(['european commission','european parliament','european union','member state','member states','eu member states','eu rules','eu legislation','eu law','new eu','use of eu','written question','oral question','question for written answer']);
@@ -35,7 +36,8 @@ export function capitalPhrases(value,{title=false}={}) {
 }
 
 // Every count is a distinct question, even when a phrase repeats in its body.
-export function phraseModel(questions,{bodies=new Map(),stopwords=new Set(),minCount=3,maxShare=.15}={}) {
+export function phraseModel(questions,options) {return finishWork(phraseModelSteps(questions,options));}
+export function* phraseModelSteps(questions,{bodies=new Map(),stopwords=new Set(),minCount=3,maxShare=.15}={}) {
   const candidates=new Map(),wordCounts=new Map(),grams=new Map();let processedTokens=0;
   const add=(phrase,id,body=false)=>{if(!candidates.has(phrase.key)&&candidates.size>=4000)return;const old=candidates.get(phrase.key)||{...phrase,ids:new Set(),inBody:false};old.ids.add(id);old.inBody||=body;candidates.set(phrase.key,old);};
   for(const q of questions) {
@@ -51,12 +53,15 @@ export function phraseModel(questions,{bodies=new Map(),stopwords=new Set(),minC
         if(seq.slice(1,-1).some(w=>stopwords.has(w.lower)&&!connectors.has(w.lower)))continue;
         seenGrams.set(token,{label,terms:seq.map(w=>w.lower)});
       }
+      yield;
     }
     for(const w of seenWords)wordCounts.set(w,(wordCounts.get(w)||0)+1);
     for(const [token,g] of seenGrams){if(!grams.has(token)&&grams.size>=100000)continue;const old=grams.get(token)||{...g,ids:new Set()};old.ids.add(q.id);grams.set(token,old);}
+    yield;
   }
   const total=questions.length||1;
   for(const [token,g] of grams) {
+    yield;
     const count=g.ids.size;if(count<minCount||count/total>maxShare)continue;
     const p=count/total,association=Math.log(p/g.terms.reduce((v,w)=>v*(wordCounts.get(w)||1)/total,1))/(-(g.terms.length-1)*Math.log(p));
     if(association<.45)continue;

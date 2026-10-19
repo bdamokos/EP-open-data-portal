@@ -320,6 +320,10 @@ let directoryPromise;
 let directoryCheckedAt = 0;
 let directoryStale = false;
 let directorySources = [];
+let directoryDetailsPromise;
+let directoryDetailWork;
+let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
+export const DIRECTORY_VERSION = 1;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -346,39 +350,35 @@ async function directoryData() {
       list("/corporate-bodies/show-current"),
     ]);
     const selected = bodies.nodes.filter((b) => activeCommittee(b, day));
-    const committees = [];
     const sources = [...roster.sources, ...bodies.sources];
-    // Queue in small batches to leave capacity for interactive requests.
-    for (let i = 0; i < selected.length; i += 2) {
-      committees.push(
-        ...(await Promise.all(
-          selected.slice(i, i + 2).map(async (b) => {
-            const record = await odp(`/corporate-bodies/${b.identifier}`, {}, {staleWhileRevalidate:true});
-            sources.push(record);
-            const full = record.payload.data[0];
-            if (!full || !activeCommittee(full, day)) return null;
-            return {
-              id: b.identifier,
-              code: b.label,
-              names: full.prefLabel || {},
-              classification: tail(b.classification),
-              start: full.temporal?.startDate,
-              end: full.temporal?.endDate,
-            };
-          }),
-        )),
-      );
-    }
+    const retained = directoryDetailWork?.details;
+    const details = new Map();
+    // Read retained details locally first. Missing optional names must not hold
+    // the current roster and committee identifiers behind upstream requests.
+    await Promise.all(selected.map(async body => {
+      try {
+        const record = await odp(`/corporate-bodies/${body.identifier}`, {}, {cachedOnly:true});
+        if (committeeRecord(body, record)) {details.set(body.identifier, record);sources.push(record);}
+      } catch { /* The public catalogue remains usable without a detail record. */ }
+      if (!details.has(body.identifier) && retained?.has(body.identifier)) {
+        const record = {...retained.get(body.identifier),stale:true};
+        details.set(body.identifier,record);sources.push(record);
+      }
+    }));
+    requestSignal()?.throwIfAborted();
     directory = {
       day,
       fetchedAt: Math.min(...sources.map(source => source.fetchedAt)),
       members: roster.nodes
         .map(memberSummary)
         .sort((a, b) => a.sortName.localeCompare(b.sortName)),
-      committees: committees.filter(Boolean).sort((a, b) => a.code.localeCompare(b.code)),
+      committees: selected.map(body => committeeSummary(body, details.get(body.identifier)?.payload.data[0], day)).filter(Boolean).sort((a, b) => a.code.localeCompare(b.code)),
     };
-    directorySources = sources.map(source => source.url);
+    directorySources = sources;
     directoryStale = sources.some(source => source.stale);
+    committeeDetails = {complete:details.size === selected.length,loaded:details.size,total:selected.length,failed:0,error:null};
+    directoryDetailWork = {target:directory, selected, details, invalid:new Set(), errors:new Set()};
+    startDirectoryDetails(directoryDetailWork);
     directoryError = null;
     const ids = new Set(directory.members.map(member => member.id));
     for (const id of profileIndex.keys()) if (!ids.has(id)) profileIndex.delete(id);
@@ -402,6 +402,71 @@ async function directoryData() {
     return directory;
   }
   return waitForRequest(directoryPromise);
+}
+function committeeRecord(body, record) {
+  const full = record?.payload.data[0];
+  return full && String(full.identifier) === String(body.identifier) && full.classification ? full : null;
+}
+function committeeSummary(body, full = body, day = today()) {
+  if (!activeCommittee(full, day)) return null;
+  return {
+    id: body.identifier,
+    code: full.label || body.label,
+    names: full.prefLabel || body.prefLabel || {},
+    classification: tail(full.classification),
+    start: full.temporal?.startDate,
+    end: full.temporal?.endDate,
+  };
+}
+function publishCommitteeRecord(target, body, record) {
+  if (directory !== target) return;
+  const prior = directorySources.find(source => source.url === record.url);
+  if (prior && prior.fetchedAt > record.fetchedAt) return;
+  if (directoryDetailWork?.target === target) directoryDetailWork.details.set(body.identifier,record);
+  directorySources = directorySources.filter(source => source.url !== record.url).concat(record);
+  const summary = committeeSummary(body,record.payload.data[0],target.day);
+  target.committees = target.committees.filter(value => value.id !== body.identifier).concat(summary || []).sort((a,b) => a.code.localeCompare(b.code));
+  target.fetchedAt = Math.min(...directorySources.map(source => source.fetchedAt));
+  directoryStale = directorySources.some(source => source.stale);
+}
+function detailCoverage({target, selected, details, errors}) {
+  if (directory === target) committeeDetails = {
+    complete:details.size === selected.length,loaded:details.size,total:selected.length,failed:errors.size,
+    error:errors.size ? 'Some committee details are unavailable. Showing retained names or committee codes.' : null,
+  };
+}
+function startDirectoryDetails(work, {retry=false}={}) {
+  if (directoryDetailsPromise) return;
+  const {target, selected, details, invalid, errors} = work;
+  const missing = selected.filter(body => {
+    if (details.has(body.identifier) && !details.get(body.identifier).stale) return false;
+    const url = new URL(ODP_BASE + `/corporate-bodies/${body.identifier}`);
+    url.searchParams.set('format','application/ld+json');
+    const failure = refreshFailures.get(url.href);
+    if (failure) errors.add(body.identifier);
+    // Preserve the source client's failure cooldown on automatic polling. A
+    // malformed retained record requires an explicit refresh rather than loops.
+    return retry || !invalid.has(body.identifier) && (!failure || failure.retryAt <= Date.now());
+  });
+  detailCoverage(work);
+  if (!missing.length) return;
+  // This uses the existing source writer and background queue. Readers never
+  // wait for optional enrichment, and a failed detail never discards the roster.
+  directoryDetailsPromise = (async () => {
+    for (let i = 0; i < missing.length; i += 2) {
+      await Promise.all(missing.slice(i, i + 2).map(async body => {
+        try {
+          const record = await odp(`/corporate-bodies/${body.identifier}`, {}, {priority:'background',force:invalid.has(body.identifier)});
+          if (!committeeRecord(body, record)) {invalid.add(body.identifier);throw new Error('Committee details are unavailable.');}
+          invalid.delete(body.identifier);errors.delete(body.identifier);
+          publishCommitteeRecord(target,body,record);
+        } catch {
+          errors.add(body.identifier);
+        }
+        detailCoverage(work);
+      }));
+    }
+  })().finally(() => {directoryDetailsPromise = null;});
 }
 export async function odpProfile(id, force = false, {priority='interactive'}={}) {
   const record = await odp(
@@ -430,29 +495,34 @@ export async function odpProfile(id, force = false, {priority='interactive'}={})
 }
 function startIndex() {
   if (indexPromise || indexState.complete) return;
+  // Successful profiles remain usable when another profile fails. Retrying a
+  // partial index only reads missing exact IDs, rather than the whole roster.
+  const missing = directory.members.filter(member => !profileIndex.has(member.id));
   indexPromise = (async () => {
-    const failed = [];
-    for (let i = 0; i < directory.members.length; i += 2) {
+    const failed = new Set();
+    for (let i = 0; i < missing.length; i += 2) {
       await Promise.all(
-        directory.members.slice(i, i + 2).map(async (m) => {
+        missing.slice(i, i + 2).map(async (m) => {
           try {
             await odpProfile(m.id,false,{priority:'background'});
           } catch (e) {
-            failed.push(m.id);
+            failed.add(m.id);
             console.warn(`[odp] membership ${m.id}: ${e.message}`);
+          } finally {
+            indexState = {
+              ...indexState,
+              loaded: directory.members.filter(m => profileIndex.has(m.id)).length,
+              failed: directory.members.filter(m => failed.has(m.id) && !profileIndex.has(m.id)).length,
+            };
           }
         }),
       );
-      indexState = {
-        ...indexState,
-        loaded: directory.members.filter((m) => profileIndex.has(m.id)).length,
-        failed: failed.length,
-      };
     }
+    const loaded = directory.members.filter(m => profileIndex.has(m.id)).length;
     indexState = {
-      ...indexState,
-      complete: failed.length === 0,
-      error: failed.length
+      ...indexState, loaded, total:directory.members.length,
+      complete: loaded === directory.members.length,
+      error: loaded < directory.members.length
         ? "Some membership profiles could not be loaded. Retry the membership index."
         : null,
     };
@@ -464,8 +534,9 @@ function startIndex() {
       indexPromise = null;
     });
 }
-export async function odpDirectory() {
+export async function odpDirectory({retryCommitteeDetails=false}={}) {
   const d = await directoryData();
+  if (directoryDetailWork) startDirectoryDetails(directoryDetailWork,{retry:retryCommitteeDetails});
   startIndex();
   if (indexState.complete) scheduleSync();
   return {
@@ -474,12 +545,13 @@ export async function odpDirectory() {
     fetchedAt: new Date(d.fetchedAt).toISOString(),
     source: "European Parliament Open Data API v2",
     index: { ...indexState },
+    committeeDetails: { ...committeeDetails },
     sync: { ...syncState },
     directoryCache: {
       computedAt: new Date(directoryCheckedAt).toISOString(),
       stale: directoryStale || d.day !== today() || Date.now() - d.fetchedAt >= TTL,
-      refreshInProgress: Boolean(directoryPromise) || directorySources.some(key => pending.has(key)),
-      refreshError: directoryError || directorySources.map(key => refreshFailures.get(key)?.message).find(Boolean) || null,
+      refreshInProgress: Boolean(directoryPromise || directoryDetailsPromise) || directorySources.some(source => pending.has(source.url)),
+      refreshError: directoryError || directorySources.map(source => refreshFailures.get(source.url)?.message).find(Boolean) || null,
     },
     members: d.members.map((m) => ({
       ...m,
@@ -750,14 +822,14 @@ export async function syncOdpFeeds({ force = false } = {}) {
         if (!body) continue;
         const prior = await odp(`/corporate-bodies/${update.id}`,{}, {priority:'background'});
         if (Date.parse(update.updated) > prior.fetchedAt) {
-          const fresh = (
-            await odp(`/corporate-bodies/${update.id}`, {}, { force: true,priority:'background' })
-          ).payload.data[0];
-          body.names = fresh.prefLabel || {};
-          body.code = fresh.label;
-          body.classification = tail(fresh.classification);
-          body.start = fresh.temporal?.startDate;
-          body.end = fresh.temporal?.endDate;
+          const record = await odp(`/corporate-bodies/${update.id}`, {}, {force:true,priority:'background'});
+          const catalogue = {identifier:body.id,label:body.code};
+          if (!committeeRecord(catalogue,record)) throw new Error('Committee details are unavailable.');
+          publishCommitteeRecord(d,catalogue,record);
+          if (directoryDetailWork?.target === d) {
+            directoryDetailWork.invalid.delete(body.id);directoryDetailWork.errors.delete(body.id);
+            detailCoverage(directoryDetailWork);
+          }
           changedCommittees++;
         }
       }
@@ -790,6 +862,9 @@ function scheduleSync() {
 export async function preloadOdp() {
   await odpDirectory();
   if (indexPromise) await indexPromise;
+  if (directoryDetailsPromise) await directoryDetailsPromise;
+  if (!committeeDetails.complete)
+    throw new Error(committeeDetails.error || "Committee detail preload is incomplete.");
   if (!indexState.complete)
     throw new Error(indexState.error || "Membership preload is incomplete.");
   const sync = await syncOdpFeeds({ force: true });
