@@ -2,14 +2,15 @@ import {versionedApiUrl} from '../server/api-version.mjs';
 import {reportApiVersionMismatch} from './apiVersionMismatch.mjs';
 
 // Browser budgets include the server's queue wait inside its 30s request budget,
-// plus transport headroom. Local index/corpus reads keep the short default.
+// plus transport headroom. Questions can prepare an analysis of 5,000 saved
+// sources inside that budget; other local index/corpus reads keep the short default.
 export function dataTimeoutFor(route) {
   const path = route.split('?')[0];
   if (path.startsWith('motion-comparison/')) return 90_000;
   if (path.startsWith('speech-context/')) return 60_000;
   if (path.startsWith('profile/')) return 40_000;
   if (/^(directory$|speeches\/|activities\/|speech-statistics\/|speech\/|document\/|document-context\/|member-votes\/|speech-media\/|references$|reference-summary$|source-record$)/.test(path)) return 35_000;
-  if (/^insights\/(speech-cloud|procedure-context|topic-trends|legislation|participation)$/.test(path)) return 35_000;
+  if (/^insights\/(questions|speech-cloud|procedure-context|topic-trends|legislation|participation)$/.test(path)) return 35_000;
   return 8_000;
 }
 
