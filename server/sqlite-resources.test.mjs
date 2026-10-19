@@ -13,6 +13,7 @@ import {INTERVENTION_CLASSIFICATION_VERSION} from './speech-interventions.mjs';
 import {observeSqlite,loopTimer} from './sqlite-observability.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {AMENDMENT_DISTRIBUTION_PROOF_VERSION} from './amendments.mjs';
+import {amendmentsPage} from './amendments-store.mjs';
 
 const instant=()=>Date.parse('2026-10-19T09:00:00Z');
 function fixture(t,Store) {
@@ -59,6 +60,14 @@ test('corpus queue uses separate due and priority indexes with deterministic tie
     assert.match(record.plan,/task_pending_(order|due)/);assert.doesNotMatch(record.plan,/TEMP B-TREE/);
   }
 });
+for(const Store of [ActivityStore,CorpusStore])test(Store.name+' initialization survives a build longer than the lease TTL',t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'sqlite-slow-build-'));let now=instant();
+  const store=new Store(directory,{clock:()=>now}),exec=store.db.exec.bind(store.db);let advanced=false;
+  t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
+  t.mock.method(store.db,'exec',sql=>{const result=exec(sql);if(!advanced&&sql.startsWith('CREATE INDEX')){now+=31*60_000;advanced=true;}return result;});
+  assert(store.acquire());assert(advanced);assert.doesNotThrow(()=>store.assertWriter());
+  assert.equal(store.get('resourceIndexes'),1);
+});
 test('report relationships track exact references through replacements, deletes and generation copy',t=>{
   const store=fixture(t,ActivityStore),records=plans(t,store);
   const report=refs=>({work_type:'x/REPORT_PLENARY',inverse_created_a_realization_of:refs});
@@ -91,6 +100,27 @@ test('idle workers and deferred retries do not acquire leases, discover or compu
   t.mock.method(corpus,'acquire',()=>assert.fail('idle corpus lease'));
   t.mock.method(worker,'discover',()=>assert.fail('idle discover'));
   await worker.run();
+});
+test('due checks find ready continuations in the working generation while direct tasks wait',t=>{
+  const store=fixture(t,ActivityStore);
+  store.set('active',1);store.set('lastSuccess',new Date(instant()).toISOString());
+  store.set('working',{generation:2,initialized:true,reportJoinsReady:true,procedureTitlesQueued:true,motionOutcomesDay:'2026-10-19',startedAt:new Date(instant()).toISOString()});
+  store.db.prepare('INSERT INTO group_voice_state VALUES (?,?)').run(2,GROUP_VOICE_VERSION);
+  store.enqueue(2,'deferred','document',{},1);store.failTask(store.nextTask(2),new Error('later'));
+  store.putSource(2,'amendment:continuations','amendment-continuations',{discovery:[{key:'ready',kind:'document',endpoint:'/plenary-documents/A-10-2026-0001',priority:100}]},'2026-10-19');
+  const worker=new ActivityWorker(store,{clock:instant});
+  assert.equal(worker.due(),true);worker.checkpointContinuations(2,{includeCore:false});
+  assert.equal(store.db.prepare('SELECT key FROM amendment_jobs WHERE generation=2 AND key=?').get('ready').key,'ready');
+});
+test('amendment reads report initialization until the writer publishes the proof projection',t=>{
+  const store=fixture(t,ActivityStore);
+  store.set('amendmentReadVersion',null);store.release();
+  const other=new ActivityStore(path.dirname(store.filename),{clock:instant});
+  t.after(()=>other.close());assert(other.acquire());
+  store.set('amendmentReadVersion',null);
+  assert.equal(store.acquire(),false);
+  assert.throws(()=>amendmentsPage(store),error=>error.status===503&&error.code==='activity_index_initializing');
+  other.release();assert(store.acquire());assert.equal(amendmentsPage(store).total,0);
 });
 test('amendment proof flags follow direct writes, replacements and deletions without weakening stale guards',t=>{
   const store=fixture(t,ActivityStore),put=store.db.prepare('INSERT OR REPLACE INTO amendments VALUES (?,?,?,?,?,?)');

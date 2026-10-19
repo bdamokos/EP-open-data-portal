@@ -87,8 +87,8 @@ export class ActivityWorker {
     if(!cycle&&this.coreDue())return true;
     if(cycle&&(!cycle.initialized||!cycle.reportJoinsReady||!cycle.procedureTitlesQueued||
       cycle.motionOutcomesDay!==day(this.clock())||day(Date.parse(cycle.startedAt))!==day(this.clock())&&cycle.catchupDay!==day(this.clock())||
-      !this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(generation)))return true;
-    const checkpoint=this.store.source(active,CONTINUATIONS_KEY)?.work;
+      !this.store.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(generation)))return true;
+    const checkpoint=this.store.source(generation,CONTINUATIONS_KEY)?.work;
     return outsideAgendaUpgradeDue(this.store,generation) || this.store.hasDueTask(generation) || Boolean(nextAmendmentTask(this.store,amendmentGeneration(this.store)) || groupVoiceWorkDue(this.store,generation) || checkpoint?.discovery?.length || checkpoint?.tasks?.some(task=>task.retry_at<=this.clock()));
   }
   checkpointContinuations(generation,{includeCore=true}={}) {

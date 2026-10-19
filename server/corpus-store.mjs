@@ -134,11 +134,12 @@ export class CorpusStore {
     try{const out=fn();this.db.exec('COMMIT');return out;}catch(error){this.db.exec('ROLLBACK');throw error;}
   }
   acquire(ttl=90_000) {
-    return this.transaction(()=>{
+    let initialized=false;
+    const acquired=this.transaction(()=>{
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if(old && old.owner!==this.owner && old.expires>this.clock())return false;
       const initialize=this.get('resourceIndexes')!==1;
-      this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+(initialize?30*60_000:ttl));
+      this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       if(initialize) {
         for(const sql of [
           'CREATE INDEX IF NOT EXISTS task_pending_order ON tasks(priority DESC,key DESC,retry_at) WHERE done=0',
@@ -162,12 +163,15 @@ export class CorpusStore {
           DELETE FROM speech_catalog_dirty WHERE source_id=OLD.source_id; END;`);
         this.db.exec(`INSERT OR IGNORE INTO speech_catalog_dirty SELECT m.source_id FROM speech_metadata m
           LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL OR c.fetched_at IS NOT m.fetched_at`);
-        this.set('resourceIndexes',1);
+        this.set('resourceIndexes',1);initialized=true;
       }
-      this.assertWriter();
-      this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner);
+      // The writer reservation prevents takeover even if initialization exceeds
+      // its original TTL. Renew ownership before publishing the transaction.
+      if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner).changes!==1)throw new Error('Corpus writer lease was lost.');
       return true;
     });
+    if(acquired&&initialized)this.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    return acquired;
   }
   renew(ttl=90_000){return this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=? AND expires>?').run(this.clock()+ttl,this.owner,this.clock()).changes===1;}
   assertWriter() {
