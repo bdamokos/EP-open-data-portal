@@ -5,7 +5,7 @@ import {readFile} from "node:fs/promises";
 import {writeCacheFile} from './cache-publication.mjs';
 import path from "node:path";
 import { HttpError } from "./http-utils.mjs";
-import { boundedUpstream, odp, odpProfile } from "./odp.mjs";
+import { boundedUpstream, upstreamResponseError, odp, odpProfile } from "./odp.mjs";
 import { languageCode } from "./ep-links.mjs";
 import { documentText } from './document-text.mjs';
 import { documentAuthorIdentities, documentCoAuthors } from './document-authors.mjs';
@@ -76,6 +76,8 @@ export async function recentActivities(id, language) {
     signal.throwIfAborted();
     const record = await boundedUpstream(async signal => {
       const response = await fetch(url, { headers: { Accept: "application/rss+xml, application/xml", "User-Agent": browserCompatibleUserAgent("MEP activity feeds") }, signal: AbortSignal.any([AbortSignal.timeout(25_000),...(signal?[signal]:[])]), redirect: "error" });
+      const limited=upstreamResponseError(response,{source:'website'});
+      if(limited){await response.body?.cancel();throw limited;}
       if (response.status !== 200 || !/xml/.test(response.headers.get("content-type") || "")) {
         await response.body?.cancel();
         throw new HttpError(502, "activity_feed_unavailable", "Parliament’s activity feed is unavailable. Please try again.");
@@ -83,7 +85,7 @@ export async function recentActivities(id, language) {
       const xml = await response.text();
       if (xml.length > 2 * 1024 * 1024) throw new HttpError(502, "activity_feed_size", "Parliament’s activity feed exceeded the supported size.");
       return { url, fetchedAt: Date.now(), xml };
-    },{signal});
+    },{source:'website',signal});
     let items;
     try { items = parseActivities(record.xml); }
     catch { throw new HttpError(502, "activity_feed_invalid", "Parliament’s activity feed could not be read."); }

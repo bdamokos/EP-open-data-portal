@@ -12,7 +12,7 @@ const turn=()=>new Promise(resolve=>setImmediate(resolve));
 for(const kind of ['recording','player','document','legislation','portrait'])for(const mode of ['admission','cooldown'])test(`${kind} recovers after local ${mode} and still bounds genuine source failures`,async t=>{
   t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()});
   const queue=new UpstreamQueue({interval:0,maximum:1}),acquire=queue.acquire.bind(queue);
-  t.mock.method(UpstreamQueue.prototype,'acquire',acquire);
+  t.mock.method(UpstreamQueue.prototype,'enqueue',queue.enqueue.bind(queue));
   let held;if(mode==='admission')held=await acquire();else queue.backoff(30);
   const calls={local:0,source:0},base='20261009-'+kind.toUpperCase()+'-'+mode.toUpperCase();
   const legislation=new LegislationInsights(null,{request:async endpoint=>boundedUpstream(async()=>{const bad=endpoint.endsWith('-SOURCE');calls[bad?'source':'local']++;if(bad)throw new Error('genuine source failed');return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.now(),payload:{data:[]}};})});

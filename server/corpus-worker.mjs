@@ -92,7 +92,7 @@ export function questionFiles(work,policy='all') {
 }
 
 export class CorpusWorker {
-  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,download=downloadDocx,clock=Date.now,budget=300,maxDuration=60*60_000,diskLimit=2*1024**3,interval=1000,languages='all',pageSize=25}={}) {
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,download=downloadDocx,clock=Date.now,budget=300,maxDuration=60*60_000,diskLimit=2*1024**3,interval=0,languages='all',pageSize=25}={}) {
     Object.assign(this,{store,runUpstream,fetchRecord,download,clock,budget,maxDuration,diskLimit,interval,languages,pageSize});
     this.running=false;this.stopped=false;this.controller=new AbortController();this.lastRequest=0;
   }
@@ -243,7 +243,7 @@ export class CorpusWorker {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');
       await this.pace();
       const signal=this.controller.signal;
-      const result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal}),{priority:'background',signal});
+      const result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal}),{source:'documents',priority:'background',signal});
       signal.throwIfAborted();
       this.store.putDocument({sourceId:body.sourceId,kind:body.kind,parentId:body.parentId,date:body.date,term:10,originalLanguages:body.originalLanguages},
         [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'docx',sourceUrl:body.url,fetchedAt:new Date(this.clock()).toISOString(),body:result.paragraphs.join('\n'),raw:null}]);
@@ -295,7 +295,7 @@ export function corpus() {
   const diskLimit=integerFromEnvironment('CORPUS_MAX_DISK_MIB',2048,64,131072)*1024*1024;
   const options={
     budget:integerFromEnvironment('CORPUS_JOB_REQUEST_BUDGET',300,1,5000),
-    interval:integerFromEnvironment('CORPUS_REQUEST_INTERVAL_MS',1000,250,60_000),
+    interval:integerFromEnvironment('CORPUS_REQUEST_INTERVAL_MS',0,0,60_000),
     languages,diskLimit,
   };
   const store=new CorpusStore(directory,{indexFile}),worker=new CorpusWorker(store,options);

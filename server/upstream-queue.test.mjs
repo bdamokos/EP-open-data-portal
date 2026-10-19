@@ -1,16 +1,87 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {UpstreamQueue,retryAfterSeconds} from './upstream-queue.mjs';
-import {odp} from './odp.mjs';
+import {odp,boundedUpstream,ODP_RATE_LIMIT,backoffUpstream} from './odp.mjs';
 import {sendError} from './http-utils.mjs';
 
-test('Retry-After accepts seconds and HTTP dates, with bounded defaults',()=>{
+test('ODP quota counts real starts in an inclusive rolling five-minute window',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:1000});
+  const q=new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,interactiveWaitMs:400_000});
+  let calls=0;
+  for(let i=0;i<500;i++)await q.run(()=>{calls++;});
+  const next=q.run(()=>{calls++;});
+  await Promise.resolve();assert.equal(calls,500);
+  t.mock.timers.tick(300_000);await Promise.resolve();assert.equal(calls,500,'the exact window boundary is still counted');
+  t.mock.timers.tick(1);await next;assert.equal(calls,501);
+});
+
+test('rolling expiry follows each start rather than resetting a fixed window',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:1000});
+  const q=new UpstreamQueue({rateLimit:{maximum:2,windowMs:100},interactiveWaitMs:1000});
+  await q.run(()=>{});t.mock.timers.tick(50);await q.run(()=>{});
+  let calls=0;const third=q.run(()=>{calls++;});
+  t.mock.timers.tick(51);await third;
+  const fourth=q.run(()=>{calls++;});
+  t.mock.timers.tick(49);await Promise.resolve();assert.equal(calls,1);
+  t.mock.timers.tick(1);await fourth;assert.equal(calls,2);
+});
+
+test('background respects a foreground quota reserve and readers pass queued background jobs',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:1000});
+  const q=new UpstreamQueue({rateLimit:{maximum:3,windowMs:100,foregroundReserve:1}}),order=[];
+  await q.run(()=>{}, {priority:'background'});await q.run(()=>{}, {priority:'background'});
+  const background=q.run(()=>{order.push('background');},{priority:'background'});
+  await q.run(()=>{order.push('reader');});assert.deepEqual(order,['reader']);
+  t.mock.timers.tick(101);await background;assert.deepEqual(order,['reader','background']);
+});
+
+test('quota waiting and cancellation consume neither a connection nor a request start',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:1000});
+  const q=new UpstreamQueue({rateLimit:{maximum:1,windowMs:100},interactiveWaitMs:1000});
+  await q.run(()=>{});await Promise.resolve();
+  const controller=new AbortController();let calls=0;
+  const cancelled=assert.rejects(q.run(()=>{calls++;},{signal:controller.signal}));
+  assert.equal(q.active,0);controller.abort();await cancelled;
+  assert.equal(q.starts.length,1);assert.equal(q.waiters.length,0);
+  t.mock.timers.tick(101);assert.equal(calls,0);
+});
+
+test('independent sources do not spend ODP quota or inherit its cooldown',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:1000});
+  backoffUpstream(100);let calls=0;
+  for(const source of ['website','documents','multimedia','player'])await boundedUpstream(()=>{calls++;},{source});
+  assert.equal(calls,4);
+  await assert.rejects(boundedUpstream(()=>{}),e=>e.retryAfter===100);
+  t.mock.timers.tick(100_000);
+});
+
+test('long server cooldowns remain valid beyond the timer range and never shorten an existing pause',async t=>{
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:1000});
+  const q=new UpstreamQueue();q.backoff(3_000_000);q.backoff(1);
+  await assert.rejects(q.run(()=>{}),e=>e.retryAfter===3_000_000);
+  let calls=0;const work=q.run(()=>{calls++;},{priority:'background'});
+  t.mock.timers.tick(2**31-1);await Promise.resolve();assert.equal(calls,0);
+  t.mock.timers.tick(3_000_000_000-(2**31-1));await work;assert.equal(calls,1);
+});
+
+test('a zero-second hint preserves queued readers, shared joins and any existing longer pause',async()=>{
+  const q=new UpstreamQueue({maximum:1}),release=await q.acquire();
+  let complete;const shared=new Promise(resolve=>complete=resolve),joined=q.joinBackground(shared),next=q.acquire();
+  q.backoff(0);assert.equal(q.waiters.length,1);assert.equal(q.joiners.size,1);
+  release();(await next)();complete('saved');assert.equal(await joined,'saved');
+  q.backoff(300);const until=q.cooldownUntil;q.backoff(0);assert.equal(q.cooldownUntil,until);
+});
+
+test('Retry-After accepts seconds and HTTP dates without shortening valid server hints',()=>{
   const now=Date.parse('2026-10-16T16:00:00Z');
   assert.equal(retryAfterSeconds('300',now),300);
   assert.equal(retryAfterSeconds('Fri, 16 Oct 2026 16:05:00 GMT',now),300);
-  for(const value of ['0','-1','Fri, 16 Oct 2026 15:00:00 GMT'])assert.equal(retryAfterSeconds(value,now),30);
-  for(const value of [null,'garbage'])assert.equal(retryAfterSeconds(value,now),60);
-  assert.equal(retryAfterSeconds('999999',now),1800);
+  for(const value of ['0','Fri, 16 Oct 2026 15:00:00 GMT'])assert.equal(retryAfterSeconds(value,now),0);
+  for(const value of [null,'garbage','-1'])assert.equal(retryAfterSeconds(value,now),60);
+  assert.equal(retryAfterSeconds('999999',now),999999);
+  assert.equal(retryAfterSeconds('0.1',now),1);
+  assert.equal(retryAfterSeconds('Friday, 16-Oct-26 16:05:00 GMT',now),300);
+  assert.equal(retryAfterSeconds('Fri Oct 16 16:05:00 2026',now),300);
 });
 
 test('concurrent speech reads stay spaced, coalesce nothing at the queue, and reserve background capacity',async t=>{
@@ -80,23 +151,23 @@ test('ODP shares cold reads, exposes 429 cooldown, serves cached data and retrie
     return Response.json({data:[{id:'saved'}]});
   });
   const cached=await odp('/queue-test-cached');
-  const failed=odp('/queue-test-limited');t.mock.timers.tick(2100);
-  await assert.rejects(failed,e=>e.code==='odp_rate_limited'&&e.retryAfter===301&&e.retryAt>Date.now());
+  const failed=odp('/queue-test-limited');
+  await assert.rejects(failed,e=>e.code==='odp_rate_limited'&&e.retryAfter===303&&e.retryAt>Date.now());
   assert.equal(await odp('/queue-test-cached'),cached);
   await assert.rejects(odp('/queue-test-other'),e=>e.code==='upstream_busy');assert.equal(calls,2);
   const headers={};let body;
   sendError({method:'GET',headers:{}},{setHeader:(key,value)=>headers[key]=value,end:value=>body=value},Object.assign(new Error('pause'),{retryAfter:300}));
   assert.equal(headers['Retry-After'],'300');assert.equal(JSON.parse(body).error.retryAfter,300);
-  t.mock.timers.tick(301000);
+  t.mock.timers.tick(303000);
   const [a,b]=await Promise.all([odp('/queue-test-limited'),odp('/queue-test-limited')]);
   assert.equal(a,b);assert.equal(calls,3);
   const background=odp('/queue-test-background',{}, {priority:'background'});
-  t.mock.timers.tick(2100);await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,4);
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,4);
   assert.equal(await odp('/queue-test-cached'),cached);
   await assert.rejects(odp('/queue-test-busy'),e=>e.code==='upstream_busy');assert.equal(calls,4);
   t.mock.timers.tick(30000);await background;assert.equal(calls,5);
   const exhausted=assert.rejects(odp('/queue-test-exhausted',{}, {priority:'background'}),e=>e.code==='odp_rate_limited');
-  t.mock.timers.tick(2100);await new Promise(resolve=>setImmediate(resolve));
+  await new Promise(resolve=>setImmediate(resolve));
   for(let attempt=0;attempt<2;attempt++){t.mock.timers.tick(30000);await new Promise(resolve=>setImmediate(resolve));}
   await exhausted;assert.equal(calls,8,'background retry budget is three attempts');
 });

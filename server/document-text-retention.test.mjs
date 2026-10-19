@@ -43,11 +43,15 @@ test('a changed file listing refreshes a saved text in the background', async t 
   assert.equal(unchanged.stale, false); assert.equal(calls, 1);
   const changed = await documentText(work(url, {byteSize: 2000}), 'en', {directory, download, clock});
   assert.equal(changed.stale, true); assert.deepEqual(changed.paragraphs, ['version 1']);
-  // The shared upstream queue spaces requests, so the refresh starts a little later.
-  for (let waited = 0; calls < 2 && waited < 5000; waited += 50) await new Promise(resolve => setTimeout(resolve, 50));
+  // A download start does not prove that its cache publication has completed.
+  let refreshed=changed;const deadline=performance.now()+5000;
+  while(refreshed.refreshInProgress&&performance.now()<deadline){
+    await new Promise(resolve=>setTimeout(resolve,20));
+    refreshed=await documentText(work(url,{byteSize:2000}),'en',{directory,download,clock});
+  }
   assert.equal(calls, 2);
-  await new Promise(resolve => setTimeout(resolve, 50));
-  assert.deepEqual((await documentText(work(url, {byteSize: 2000}), 'en', {directory, download, clock})).paragraphs, ['version 2']);
+  assert.equal(refreshed.refreshInProgress,false);
+  assert.deepEqual(refreshed.paragraphs, ['version 2']);
 });
 
 test('the disk budget evicts the least recently read records and leaves other files alone', async t => {
