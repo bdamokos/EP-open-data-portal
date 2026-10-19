@@ -9,6 +9,7 @@ import {countryCode} from './insights-countries.mjs';
 import {speechSummary,chooseTranscript} from './odp.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {speechPeople,interventionMetadata,INTERVENTION_CLASSIFICATION_VERSION} from './speech-interventions.mjs';
+import {observeSqlite} from './sqlite-observability.mjs';
 
 // Full-text corpus of speeches, questions and answers. It lives beside the
 // activity index but outside its refresh generations, so a refresh never copies
@@ -70,7 +71,7 @@ export class CorpusStore {
     if(!readOnly)mkdirSync(directory,{recursive:true});
     this.clock=clock;this.owner=randomUUID();this.readOnly=readOnly;
     this.filename=path.join(directory,'corpus-v1.sqlite');
-    this.db=new DatabaseSync(this.filename,{readOnly});
+    this.db=observeSqlite(new DatabaseSync(this.filename,{readOnly}),'corpus');
     if(readOnly)this.db.exec('PRAGMA busy_timeout=250; PRAGMA query_only=ON;');
     else this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -80,6 +81,7 @@ export class CorpusStore {
         parent_id TEXT, date TEXT, term INTEGER, original_languages TEXT NOT NULL DEFAULT '[]');
       CREATE TABLE IF NOT EXISTS speech_metadata (source_id TEXT PRIMARY KEY, body BLOB NOT NULL, source_url TEXT NOT NULL, fetched_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS speech_catalog (source_id TEXT PRIMARY KEY, date TEXT, kind TEXT, start TEXT, numbering INTEGER, participants TEXT NOT NULL DEFAULT '[]',available_languages TEXT NOT NULL DEFAULT '[]',revision INTEGER NOT NULL DEFAULT 0,fetched_at TEXT);
+      CREATE TABLE IF NOT EXISTS speech_catalog_dirty (source_id TEXT PRIMARY KEY);
       CREATE INDEX IF NOT EXISTS speech_catalog_window ON speech_catalog(kind,date,source_id);
       CREATE INDEX IF NOT EXISTS document_kind_date ON documents(kind,date DESC);
       CREATE INDEX IF NOT EXISTS document_parent ON documents(parent_id) WHERE parent_id IS NOT NULL;
@@ -114,6 +116,7 @@ export class CorpusStore {
   attachIndex() {
     if(!this.indexAttached && this.indexFile && existsSync(this.indexFile)) {
       this.db.prepare('ATTACH DATABASE ? AS idx').run('file:'+encodeURI(this.indexFile)+'?mode=ro');
+      this.db.exec('PRAGMA idx.cache_size=-2048; PRAGMA idx.mmap_size=0;');
       this.indexAttached=true;
     }
     return this.indexAttached;
@@ -134,7 +137,36 @@ export class CorpusStore {
     return this.transaction(()=>{
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if(old && old.owner!==this.owner && old.expires>this.clock())return false;
-      this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);return true;
+      const initialize=this.get('resourceIndexes')!==1;
+      this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+(initialize?30*60_000:ttl));
+      if(initialize) {
+        for(const sql of [
+          'CREATE INDEX IF NOT EXISTS task_pending_order ON tasks(priority DESC,key DESC,retry_at) WHERE done=0',
+          'CREATE INDEX IF NOT EXISTS task_pending_due ON tasks(retry_at) WHERE done=0',
+          'CREATE INDEX IF NOT EXISTS speech_metadata_projection ON speech_metadata(source_id,fetched_at)',
+          'CREATE INDEX IF NOT EXISTS speech_catalog_projection ON speech_catalog(source_id,fetched_at)',
+          'CREATE INDEX IF NOT EXISTS speech_catalog_latest ON speech_catalog(date DESC) WHERE kind IN (\'PLENARY_DEBATE_SPEECH\',\'PLENARY_DEBATE_WRITTEN_STATEMENT\')',
+        ])this.db.exec(sql);
+        this.db.exec(`CREATE TRIGGER IF NOT EXISTS speech_metadata_catalog_insert AFTER INSERT ON speech_metadata BEGIN
+          INSERT OR IGNORE INTO speech_catalog_dirty VALUES (NEW.source_id); END;
+          CREATE TRIGGER IF NOT EXISTS speech_metadata_catalog_update AFTER UPDATE OF fetched_at ON speech_metadata BEGIN
+          INSERT OR IGNORE INTO speech_catalog_dirty VALUES (NEW.source_id); END;
+          CREATE TRIGGER IF NOT EXISTS speech_catalog_clean_insert AFTER INSERT ON speech_catalog BEGIN
+          DELETE FROM speech_catalog_dirty WHERE source_id=NEW.source_id AND EXISTS(SELECT 1 FROM speech_metadata WHERE source_id=NEW.source_id AND fetched_at IS NEW.fetched_at); END;
+          CREATE TRIGGER IF NOT EXISTS speech_catalog_clean_update AFTER UPDATE OF fetched_at ON speech_catalog BEGIN
+          DELETE FROM speech_catalog_dirty WHERE source_id=NEW.source_id AND EXISTS(SELECT 1 FROM speech_metadata WHERE source_id=NEW.source_id AND fetched_at IS NEW.fetched_at);
+          INSERT OR IGNORE INTO speech_catalog_dirty SELECT NEW.source_id WHERE EXISTS(SELECT 1 FROM speech_metadata WHERE source_id=NEW.source_id AND fetched_at IS NOT NEW.fetched_at); END;
+          CREATE TRIGGER IF NOT EXISTS speech_catalog_dirty_delete AFTER DELETE ON speech_catalog BEGIN
+          INSERT OR IGNORE INTO speech_catalog_dirty SELECT OLD.source_id WHERE EXISTS(SELECT 1 FROM speech_metadata WHERE source_id=OLD.source_id); END;
+          CREATE TRIGGER IF NOT EXISTS speech_metadata_catalog_delete AFTER DELETE ON speech_metadata BEGIN
+          DELETE FROM speech_catalog_dirty WHERE source_id=OLD.source_id; END;`);
+        this.db.exec(`INSERT OR IGNORE INTO speech_catalog_dirty SELECT m.source_id FROM speech_metadata m
+          LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL OR c.fetched_at IS NOT m.fetched_at`);
+        this.set('resourceIndexes',1);
+      }
+      this.assertWriter();
+      this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner);
+      return true;
     });
   }
   renew(ttl=90_000){return this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=? AND expires>?').run(this.clock()+ttl,this.owner,this.clock()).changes===1;}
@@ -166,7 +198,8 @@ export class CorpusStore {
     this.db.prepare('UPDATE tasks SET done=0,done_at=NULL,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE key=?').run(JSON.stringify(body),priority,key);
   }
   task(key){const row=this.db.prepare('SELECT * FROM tasks WHERE key=?').get(key);return row && {...row,body:parse(row.body)};}
-  nextTask(){const row=this.db.prepare('SELECT * FROM tasks WHERE done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(this.clock());return row && {...row,body:parse(row.body)};}
+  hasDueTask(){return Boolean(this.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE done=0 AND retry_at<=? LIMIT 1').get(this.clock()));}
+  nextTask(){if(!this.hasDueTask())return;const row=this.db.prepare('SELECT * FROM tasks INDEXED BY task_pending_order WHERE done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(this.clock());return row && {...row,body:parse(row.body)};}
   taskProgress(task,body){this.assertWriter();this.db.prepare('UPDATE tasks SET body=?,attempts=0,error=NULL,retry_at=0 WHERE key=?').run(JSON.stringify(body),task.key);}
   finishTask(task){this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=?').run(this.clock(),task.key);}
   failTask(task,error,retryAfter=0) {
@@ -393,7 +426,7 @@ export class CorpusStore {
     if(!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_catalog'").get())return null;
     // A projection is usable only after the existing writer has visited every
     // retained metadata row. This is not a claim of complete upstream coverage.
-    if(this.db.prepare('SELECT 1 FROM speech_metadata m LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL OR c.fetched_at IS NOT m.fetched_at LIMIT 1').get())return null;
+    if(this.get('resourceIndexes')!==1||this.db.prepare('SELECT 1 FROM speech_catalog_dirty LIMIT 1').get())return null;
     const {member=null,from='2024-07-16',to='9999-12-31',dates=null,kinds=['PLENARY_DEBATE_SPEECH'],sourceIds=null,offset=0,limit=50,descending=false}=params;
     if(!Number.isSafeInteger(offset)||offset<0||offset>10000||!Number.isSafeInteger(limit)||limit<1||limit>100||
       !Array.isArray(kinds)||!kinds.length||kinds.some(kind=>!['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'].includes(kind))||

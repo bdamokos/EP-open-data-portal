@@ -8,7 +8,7 @@ import { performance } from 'node:perf_hooks';
 import { ODP_BASE, boundedUpstream, backoffUpstream } from './odp.mjs';
 import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
 import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
-import { nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker } from './amendments-store.mjs';
+import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker } from './amendments-store.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
@@ -18,6 +18,7 @@ import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade} fr
 
 import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
 import { userAgent } from './user-agent.mjs';
+import {loopTimer} from './sqlite-observability.mjs';
 
 const DAY = 24*60*60_000;
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
@@ -78,11 +79,17 @@ export class ActivityWorker {
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;
   }
-  coreDue() { const s=this.store.status();return Boolean(this.store.get('working') || !s.complete || day(Date.parse(s.lastSuccessfulRefresh))!==day(this.clock()) && hour(this.clock())>=3); }
+  coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
     const active=this.store.get('active') || 0;
+    const cycle=this.store.get('working'),generation=cycle?.generation || active;
+    if(this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
+    if(!cycle&&this.coreDue())return true;
+    if(cycle&&(!cycle.initialized||!cycle.reportJoinsReady||!cycle.procedureTitlesQueued||
+      cycle.motionOutcomesDay!==day(this.clock())||day(Date.parse(cycle.startedAt))!==day(this.clock())&&cycle.catchupDay!==day(this.clock())||
+      !this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(generation)))return true;
     const checkpoint=this.store.source(active,CONTINUATIONS_KEY)?.work;
-    return this.coreDue() || outsideAgendaUpgradeDue(this.store,active) || Boolean(nextAmendmentTask(this.store,amendmentGeneration(this.store)) || this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(active) || groupVoiceWorkDue(this.store,active) || checkpoint?.discovery?.length || checkpoint?.tasks?.some(task=>task.retry_at<=this.clock()));
+    return outsideAgendaUpgradeDue(this.store,generation) || this.store.hasDueTask(generation) || Boolean(nextAmendmentTask(this.store,amendmentGeneration(this.store)) || groupVoiceWorkDue(this.store,generation) || checkpoint?.discovery?.length || checkpoint?.tasks?.some(task=>task.retry_at<=this.clock()));
   }
   checkpointContinuations(generation,{includeCore=true}={}) {
     this.store.transaction(()=>{
@@ -101,7 +108,7 @@ export class ActivityWorker {
         ORDER BY (attempts>0 OR retry_at>0 OR COALESCE(json_extract(body,'$.offset'),0)>0 OR COALESCE(json_extract(body,'$.stage'),'results')<>'results' OR COALESCE(json_array_length(body,'$.results'),0)>0 OR COALESCE(json_array_length(body,'$.decisions'),0)>0 OR COALESCE(json_array_length(body,'$.splits'),0)>0 OR COALESCE(json_array_length(body,'$.sources'),0)>0 OR kind NOT IN ('document','procedure','motion-outcomes')) DESC,priority DESC,key
         LIMIT ?`).all(generation,2*CONTINUATION_LIMIT+1):[];
       const incomingTotal=includeCore?this.store.db.prepare("SELECT COUNT(*) AS n FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key NOT LIKE 'outside:agenda-membership:%'").get(generation).n:0;
-      const queued=new Map(this.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=?').all(generation).map(task=>[task.key,task]));
+      const queued=new Map(this.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? ORDER BY key').all(generation).map(task=>[task.key,task]));
       const completed=new Map((saved.completed || []).filter(task=>task.key.includes(':'+today)).map(task=>[task.key,task]));
       for(const task of incoming)if(!pending.has(task.key))pending.set(task.key,{...task,done:0});
       for(const [key] of pending)if(queued.get(key)?.done===0)pending.delete(key);
@@ -494,7 +501,12 @@ export class ActivityWorker {
     this.store.publish(generation,unresolved);
   }
   async run() {
-    if(this.stopped || this.running || !this.due() || !this.store.acquire())return;
+    if(this.stopped || this.running)return;
+    const iteration=loopTimer('activity');
+    try {await this.runIteration();}finally {iteration({requests:this.requests||0});}
+  }
+  async runIteration() {
+    if(!this.due() || !this.store.acquire())return;
     this.running=true;this.requests=0;const started=this.clock();
     this.runDeadline=this.monotonic()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
@@ -544,19 +556,22 @@ export class ActivityWorker {
       initializeOutsideAgendaUpgrade(this.store,generation,new Date(this.clock()).toISOString());
       initializeGroupVoices(this,generation,freshSpeechLoad?[]:speechWindows(day(this.clock())));
       while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration && this.monotonic()<this.runDeadline) {
-        const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
-        if(size>this.diskLimit){if(this.store.get('working'))this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
-        const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
-        const coreTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
-        // Publish a finished core generation before spending budget on optional metadata.
-        if(!coreTask&&cycle&&this.store.get('working')){
-          const counts=this.store.taskCounts(generation);
-          if(counts.total===counts.completed){if(this.catchUp(this.store.get('working')))continue;this.finalize(generation);}
-        }
-        const task=coreTask||nextGroupVoiceTask(this.store,generation);
-        if(!task)break;
-        try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
-        finally {if(!task.groupVoiceJob&&(!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
+        const taskIteration=loopTimer('activity-task',{threshold:5000});
+        try {
+          const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
+          if(size>this.diskLimit){if(this.store.get('working'))this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
+          const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
+          const coreTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
+          // Publish a finished core generation before spending budget on optional metadata.
+          if(!coreTask&&cycle&&this.store.get('working')){
+            const counts=this.store.taskCounts(generation);
+            if(counts.total===counts.completed){if(this.catchUp(this.store.get('working')))continue;this.finalize(generation);}
+          }
+          const task=coreTask||nextGroupVoiceTask(this.store,generation);
+          if(!task)break;
+          try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
+          finally {if(!task.groupVoiceJob&&(!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
+        } finally {taskIteration();}
       }
     } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }
