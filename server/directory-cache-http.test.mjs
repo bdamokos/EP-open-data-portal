@@ -17,7 +17,7 @@ test('directory polling and conditional reads cannot retain a loading membership
     for (const [key, value] of Object.entries({limit: 1000, offset: 0, format: 'application/ld+json'})) url.searchParams.set(key, value);
     await writeFile(path.join(directory, createHash('sha256').update(url.href).digest('hex') + '.json'), JSON.stringify({url: url.href, fetchedAt: Date.now(), payload: {data}}));
   }
-  await writeFile(path.join(directory, 'sync-state.json'), JSON.stringify({lastAttempt: new Date(Date.now() + 86400_000).toISOString()}));
+  await writeFile(path.join(directory, 'sync-state.json'), JSON.stringify({lastSuccess: new Date().toISOString(), lastAttempt: new Date(Date.now() + 86400_000).toISOString()}));
   let finishProfile;
   const profileReady = new Promise(resolve => {finishProfile = resolve;});
   globalThis.fetch = async value => {
