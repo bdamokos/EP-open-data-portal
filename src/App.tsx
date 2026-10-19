@@ -963,6 +963,7 @@ export default function App() {
                             memberStep.current=true;setMember(m.id);
                             setSpeechLink(null);
                             setActivityLink(null);
+                            setActivityCategory('');
                             setActivityOffset(0);
                             setTab("speeches");
                           }}
