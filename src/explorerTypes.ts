@@ -53,6 +53,7 @@ export interface MemberProfile extends DirectoryMember {
   fetchedAt: string;
   parliamentaryService?:{
     version:number;day:string;currentSince:string|null;complete:boolean;error:string|null;
+    rejected:{membershipId:string|null;parliamentId:string;start:unknown;end:unknown;reason:string}[];overlaps:boolean;
     periods:{start:string;end:string|null;observations:{membershipId:string|null;parliamentId:string;start:string;end:string|null}[]}[];
   };
   sources?:{url:string;fetchedAt:string;stale:boolean}[];
