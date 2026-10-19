@@ -1,15 +1,19 @@
 import {HttpError} from './http-utils.mjs';
 
 export function retryAfterSeconds(value, now=Date.now()) {
-  const seconds=/^\d+(?:\.\d+)?$/.test(String(value||'').trim())?Number(value):(Date.parse(value)-now)/1000;
-  return Math.min(1800,Math.max(30,Number.isFinite(seconds)?Math.ceil(seconds):60));
+  const text=String(value??'').trim();
+  // The obsolete asctime form has no zone, but HTTP dates are always UTC.
+  const date=/^[A-Za-z]{3} [A-Za-z]{3} {1,2}\d{1,2} \d{2}:\d{2}:\d{2} \d{4}$/.test(text)?text+' GMT':text;
+  const seconds=/^\d+(?:\.\d+)?$/.test(text)?Number(text):/^[A-Za-z]{3,9},? /.test(text)?(Date.parse(date)-now)/1000:NaN;
+  // A valid server pause is never shortened to a local retry cap.
+  return Number.isFinite(seconds)&&Math.abs(seconds)<=Number.MAX_SAFE_INTEGER/1000?Math.max(0,Math.ceil(seconds)):60;
 }
-// One shared rate limit; background work never occupies both connection slots.
+// Concurrency is a resource bound. Only sources with published quotas set rateLimit.
 export class UpstreamQueue {
-  constructor({ interval=2100, maximum=2, backgroundMaximum=1, interactiveWaitMs=10_000 }={}) {
+  constructor({ interval=0, maximum=2, backgroundMaximum=1, interactiveWaitMs=10_000, rateLimit=null }={}) {
     this.interval=interval;this.maximum=maximum;this.backgroundMaximum=backgroundMaximum;
-    this.interactiveWaitMs=interactiveWaitMs;
-    this.active=0;this.background=0;this.nextStart=0;this.cooldownUntil=0;this.waiters=[];this.joiners=new Set();this.timer=null;
+    this.interactiveWaitMs=interactiveWaitMs;this.rateLimit=rateLimit;this.starts=[];
+    this.active=0;this.background=0;this.nextStart=0;this.cooldownUntil=0;this.waiters=[];this.admitted=new Set();this.joiners=new Set();this.timer=null;
   }
   joinBackground(promise,{signal}={}) {
     if(signal?.aborted)return Promise.reject(signal.reason);
@@ -26,17 +30,47 @@ export class UpstreamQueue {
       promise.then(value=>finish(resolve,value),error=>finish(reject,error));
     });
   }
-  acquire(priority='interactive',{signal}={}) {
+  acquire(priority='interactive',options={}) {return this.enqueue(priority,options);}
+  run(operation,{priority='interactive',signal}={}) {
+    return this.enqueue(priority,{signal},(release,resolve,reject)=>{
+      // Invoke synchronously on admission: queued/cancelled jobs never consume starts.
+      try{Promise.resolve(operation(signal)).then(resolve,reject).finally(release);}
+      catch(error){release();reject(error);}
+    });
+  }
+  runHeld(operation,{priority='interactive',signal,owner,backgroundOwner=priority==='background',yieldBackground}={}) {
+    return this.enqueue(priority,{signal,owner,backgroundOwner,yieldBackground},(release,resolve,reject)=>{
+      try{Promise.resolve(operation(release,signal)).then(resolve,error=>{release();reject(error);});}
+      catch(error){release();reject(error);}
+    });
+  }
+  reprioritize(owner,priority) {
+    for(const waiter of [...this.waiters,...this.admitted])if(waiter.owner===owner){
+      waiter.priority=priority;
+      if(owner.backgroundOwner&&!waiter.backgroundOwner){
+        waiter.backgroundOwner=true;clearTimeout(waiter.timer);waiter.timer=null;
+        // An already running foreground request may gain a durable owner. Keep
+        // it in flight, but account for it before admitting more background work.
+        if(this.admitted.has(waiter))this.background++;
+      }
+      // A foreground-started request can gain an owner while another background
+      // job is active. Once its readers leave, reschedule its retained GET rather
+      // than keeping both resource slots occupied by background work.
+      if(priority==='background'&&this.admitted.has(waiter)&&this.background>this.backgroundMaximum)waiter.yieldBackground?.();
+    }
+    this.drain();
+  }
+  enqueue(priority,{signal,owner,backgroundOwner=priority==='background',yieldBackground}={},start=(release,resolve)=>resolve(release)) {
     return new Promise((resolve,reject)=>{
       if(signal?.aborted){reject(signal.reason);return;}
-      if(priority!=='background'&&this.cooldownUntil>Date.now()){reject(this.unavailable());return;}
-      const waiter={priority,resolve,reject,timer:null,cleanup:()=>signal?.removeEventListener('abort',abort)};
+      if(!backgroundOwner&&priority!=='background'&&this.cooldownUntil>Date.now()){reject(this.unavailable());return;}
+      const waiter={priority,owner,backgroundOwner,yieldBackground,resolve,reject,start,timer:null,cleanup:()=>signal?.removeEventListener('abort',abort)};
       const abort=()=>{
         const index=this.waiters.indexOf(waiter);if(index<0)return;
         this.waiters.splice(index,1);clearTimeout(waiter.timer);waiter.cleanup();reject(signal.reason);this.drain();
       };
       signal?.addEventListener('abort',abort,{once:true});
-      if(priority!=='background')waiter.timer=setTimeout(()=>{
+      if(!backgroundOwner&&priority!=='background')waiter.timer=setTimeout(()=>{
         const index=this.waiters.indexOf(waiter);if(index<0)return;
         this.waiters.splice(index,1);waiter.cleanup();reject(this.unavailable());this.drain();
       },this.interactiveWaitMs);
@@ -44,33 +78,51 @@ export class UpstreamQueue {
     });
   }
   unavailable() {
-    const retryAfter=Math.max(1,Math.ceil((Math.max(this.cooldownUntil,this.nextStart)-Date.now())/1000));
+    const retryAfter=Math.max(1,Math.ceil((this.readyAt('interactive')-Date.now())/1000));
     return Object.assign(new HttpError(503,'upstream_busy',this.cooldownUntil>Date.now()?'Parliament is temporarily limiting requests. Please try again after the pause.':'Parliament requests are busy. Please try again.'),{retryAfter,retryAt:Date.now()+retryAfter*1000});
   }
   snapshot() {return {active:this.active,background:this.background,queued:this.waiters.length,joining:this.joiners.size,cooldownMs:Math.max(0,this.cooldownUntil-Date.now())};}
   backoff(seconds) {
+    if(!Number.isFinite(seconds)||seconds<=0)return;
     this.cooldownUntil=Math.max(this.cooldownUntil,Date.now()+seconds*1000);
     this.nextStart=Math.max(this.nextStart,this.cooldownUntil);
     for(const fail of this.joiners)fail();
     this.waiters=this.waiters.filter(waiter=>{
-      if(waiter.priority==='background')return true;
+      // Foreground joiners may promote scheduling, never the durable owner.
+      if(waiter.backgroundOwner){waiter.priority='background';return true;}
       clearTimeout(waiter.timer);waiter.cleanup();waiter.reject(this.unavailable());return false;
     });
     this.drain();
   }
+  readyAt(priority) {
+    const now=Date.now();
+    if(this.rateLimit){
+      const {maximum,windowMs,foregroundReserve=0}=this.rateLimit;
+      // Keep the boundary inclusive; a start exactly one window old still counts.
+      while(this.starts.length&&this.starts[0]<now-windowMs)this.starts.shift();
+      const allowance=maximum-(priority==='background'?foregroundReserve:0);
+      if(this.starts.length>=allowance)return Math.max(this.cooldownUntil,this.nextStart,this.starts[this.starts.length-allowance]+windowMs+1);
+    }
+    return Math.max(this.cooldownUntil,this.nextStart);
+  }
   drain() {
     clearTimeout(this.timer);this.timer=null;
     if(this.active>=this.maximum)return;
-    let i=this.waiters.findIndex(w=>w.priority!=='background');
-    if(i<0 && this.background<this.backgroundMaximum)i=this.waiters.findIndex(w=>w.priority==='background');
+    // Foreground readers can use reserved quota without lending their reserved
+    // connection to a second durable background job.
+    const eligible=w=>!w.backgroundOwner||this.background<this.backgroundMaximum;
+    let i=this.waiters.findIndex(w=>w.priority!=='background'&&eligible(w));
+    if(i<0)i=this.waiters.findIndex(w=>w.priority==='background'&&eligible(w));
     if(i<0)return;
-    const delay=this.nextStart-Date.now();
-    if(delay>0){this.timer=setTimeout(()=>this.drain(),delay);return;}
+    const delay=this.readyAt(this.waiters[i].priority)-Date.now();
+    if(delay>0){this.timer=setTimeout(()=>this.drain(),Math.min(delay,2**31-1));return;}
     const waiter=this.waiters.splice(i,1)[0];clearTimeout(waiter.timer);waiter.cleanup();this.active++;
-    if(waiter.priority==='background')this.background++;
+    this.admitted.add(waiter);
+    if(waiter.backgroundOwner)this.background++;
     this.nextStart=Date.now()+this.interval;
+    if(this.rateLimit)this.starts.push(Date.now());
     let released=false;
-    waiter.resolve(()=>{if(released)return;released=true;this.active--;if(waiter.priority==='background')this.background--;this.drain();});
+    waiter.start(()=>{if(released)return;released=true;this.admitted.delete(waiter);this.active--;if(waiter.backgroundOwner)this.background--;this.drain();},waiter.resolve,waiter.reject);
     this.drain();
   }
 }

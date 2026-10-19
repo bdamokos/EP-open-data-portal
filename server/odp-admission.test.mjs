@@ -10,7 +10,7 @@ const turn=()=>new Promise(resolve=>setImmediate(resolve));
 for(const [index,mode] of ['admission','cooldown'].entries())test(`ODP local ${mode} does not suppress stale insight refresh after recovery`,async t=>{
   t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()});
   const queue=new UpstreamQueue({interval:0,maximum:1}),acquire=queue.acquire.bind(queue);
-  t.mock.method(UpstreamQueue.prototype,'acquire',acquire);
+  t.mock.method(UpstreamQueue.prototype,'runHeld',queue.runHeld.bind(queue));
   const id=987650+index,endpoint='/meps/'+id;let calls=0,phase='seed',finish,reached;
   const started=new Promise(resolve=>reached=resolve);
   const response=label=>Response.json({data:[{identifier:String(id),givenName:label,familyName:'Member'}]});
