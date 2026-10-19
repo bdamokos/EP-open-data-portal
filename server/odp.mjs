@@ -25,7 +25,16 @@ const MAX_CACHE_BYTES = 64 * 1024 * 1024;
 const cache = new Map();
 let cacheBytes = 0;
 const pending = new Map();
-const upstreamQueue = new UpstreamQueue();
+// The published 500/5min endpoint ceiling is conservatively shared across ALL
+// API v2 paths/IDs/queries. Reserve 50 starts for readers as a local fairness rule.
+export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregroundReserve:50});
+const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT});
+const sourceQueues=new Map([['odp',upstreamQueue]]);
+function sourceQueue(source) {
+  if(!['odp','website','documents','multimedia','player'].includes(source))throw new Error('Unknown upstream source.');
+  if(!sourceQueues.has(source))sourceQueues.set(source,new UpstreamQueue());
+  return sourceQueues.get(source);
+}
 export const upstreamStatus=()=>upstreamQueue.snapshot();
 const refreshFailures = new Map();
 const cacheDir = process.env.ODP_CACHE_DIR;
@@ -43,13 +52,17 @@ export function odpLanguage(value) {
     );
   return value;
 }
-const slot = (priority,signal) => upstreamQueue.acquire(priority,{signal});
-export async function boundedUpstream(operation, {priority='interactive',signal=priority==='background'?undefined:requestSignal()}={}) {
-  const release = await slot(priority,signal);
-  try { signal?.throwIfAborted();return await operation(signal); } finally { release(); }
+export async function boundedUpstream(operation, {source='odp',priority='interactive',signal=priority==='background'?undefined:requestSignal()}={}) {
+  return sourceQueue(source).run(operation,{priority,signal});
 }
-export function backoffUpstream(seconds) {
-  upstreamQueue.backoff(Math.min(1800, Math.max(30, seconds)));
+export function backoffUpstream(seconds,{source='odp'}={}) {
+  sourceQueue(source).backoff(seconds);
+}
+export function upstreamResponseError(response,{source='odp'}={}) {
+  if(![429,503].includes(response.status??response.statusCode))return null;
+  const seconds=retryAfterSeconds(response.headers?.get?response.headers.get('retry-after'):response.headers?.['retry-after']);
+  backoffUpstream(seconds,{source});
+  return Object.assign(new HttpError(503,'upstream_busy','The public source is temporarily limiting requests. Please try again after the pause.'),{retryAfter:seconds,retryAt:Date.now()+seconds*1000});
 }
 const firstString = (value) =>
   typeof value === "string"
@@ -104,11 +117,28 @@ const dayOf = (timestamp) =>
   }).format(new Date(timestamp));
 const today = () => dayOf(Date.now());
 function observeSource(entry,priority,signal) {
-  if(priority==='background'){entry.backgroundOwner=true;return entry.promise;}
+  if(priority==='background'){
+    if(!entry.backgroundOwner){
+      entry.backgroundOwner=true;entry.budget.dispose();
+      // Existing readers gain their own bounded background wait. Their departure
+      // or the old foreground job deadline must not cancel the new durable owner.
+      for(const follow of entry.foregroundWaiters)follow();
+    }
+    upstreamQueue.reprioritize(entry,entry.readers>0?'interactive':'background');
+    return entry.promise;
+  }
   entry.readers++;
-  const read=entry.priority==='background'?upstreamQueue.joinBackground(entry.promise,{signal}):waitForRequest(entry.promise,signal);
+  if(entry.backgroundOwner)upstreamQueue.reprioritize(entry,'interactive');
+  let follow;
+  const read=entry.backgroundOwner?upstreamQueue.joinBackground(entry.promise,{signal}):new Promise((resolve,reject)=>{
+    follow=()=>upstreamQueue.joinBackground(entry.promise,{signal}).then(resolve,reject);
+    entry.foregroundWaiters.add(follow);
+    waitForRequest(entry.promise,signal).then(resolve,reject);
+  });
   return read.finally(()=>{
+    if(follow)entry.foregroundWaiters.delete(follow);
     entry.readers--;
+    if(entry.backgroundOwner&&entry.readers===0)upstreamQueue.reprioritize(entry,'background');
     if(!entry.settled&&!entry.backgroundOwner&&entry.readers===0)entry.budget.abort(signal?.reason||cancelledRequest());
   });
 }
@@ -162,83 +192,99 @@ export async function odp(
   // Cold interactive work includes admission and body in one bounded job.
   // Background retries retain their owner while waiting through upstream pauses.
   const budget=priority==='background'?{signal:undefined,abort:()=>{},dispose:()=>{}}:createRequestBudget(30_000);
-  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,settled:false,promise:null};
+  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,foregroundWaiters:new Set(),settled:false,promise:null};
   const job = runWithRequestSignal(undefined,async () => {
-    let release;
-    try {
-      let response;
-      let retryAfter;
-      for (let attempt = 0; attempt < (priority==='background'?3:1); attempt++) {
-        release = await slot(priority,budget.signal);
-        response = await fetch(url, {
+    let rateFailures=0;
+    for(;;){
+      let release;
+      let rateLimitError;
+      const reschedule=new AbortController();
+      try {
+        // Each attempt is admitted separately, including background retries.
+        const response = await upstreamQueue.runHeld(releaseSlot=>{
+          // Retain the connection through status handling and body consumption.
+          release=releaseSlot;
+          return fetch(url, {
           headers: {
             Accept: "application/ld+json",
             "User-Agent":
               userAgent("parliamentary data"),
           },
-          signal: budget.signal?AbortSignal.any([budget.signal,AbortSignal.timeout(25_000)]):AbortSignal.timeout(25_000),
+          signal: AbortSignal.any([reschedule.signal,AbortSignal.timeout(25_000),...(budget.signal?[budget.signal]:[])]),
           redirect: 'error',
-        });
-        retryAfter=undefined;
-        if (response.status !== 429 && response.status !== 503) break;
-        const seconds = retryAfterSeconds(response.headers.get("retry-after"));
-        retryAfter=seconds;
-        backoffUpstream(seconds);
-        await response.body?.cancel();
-        release();release=null;
-      }
-      if(retryAfter&&!response.ok)throw Object.assign(new HttpError(503,'odp_rate_limited','Parliament is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:Date.now()+retryAfter*1000});
-      if (!response.ok) {
-        await response.body?.cancel();
-        throw new HttpError(
-          502,
-          "odp_unavailable",
-          `Parliament data is unavailable (${response.status}). Please try again.`,
-        );
-      }
-      if (response.status === 204)
-        throw new HttpError(502, "odp_no_content", "Parliament supplied no content for this request.");
-      if (!response.headers.get("content-type")?.includes("json")) {
-        await response.body?.cancel();
-        throw new HttpError(
-          502,
-          "odp_invalid",
-          "Parliament returned an unexpected response.",
-        );
-      }
-      const parts=[];let bytes=0;
-      for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>MAX_SOURCE_BYTES)throw new HttpError(502,'odp_size','Parliament response exceeded the allowed size.');parts.push(chunk);}
-      budget.signal?.throwIfAborted();
-      const text=Buffer.concat(parts).toString('utf8');
-      const payload = JSON.parse(text);
-      if (!Array.isArray(payload.data))
-        throw new HttpError(
-          502,
-          "odp_invalid",
-          "Parliament returned an unexpected data structure.",
-        );
-      const record = { url: key, fetchedAt: Date.now(), payload };
-      const serialized = JSON.stringify(record);
-      refreshFailures.delete(key);
-      rememberSource(key, record, serialized);
-      if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) {
-        await writeCacheFile(filename(key),serialized,{signal:budget.signal}).catch(()=>{});
-      }
-      budget.signal?.throwIfAborted();
-      return record;
-    } catch(error) {
-      if(!budget.signal?.aborted&&!isLocalRequestFailure(error)) {
+          });
+        },{priority:entry.readers>0||!entry.backgroundOwner?'interactive':'background',signal:budget.signal,owner:entry,backgroundOwner:entry.backgroundOwner,yieldBackground:()=>reschedule.abort()});
+        if(response.status===429||response.status===503){
+          const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));
+          rateFailures++;
+          rateLimitError=Object.assign(new HttpError(503,'odp_rate_limited','Parliament is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:Date.now()+retryAfter*1000});
+          backoffUpstream(retryAfter);
+          await response.body?.cancel();
+          if(rateFailures>=(entry.backgroundOwner?3:1))throw rateLimitError;
+          // Body cancellation may have yielded this operation. Always enter the
+          // next admission with a fresh controller and the consumed failure count.
+          continue;
+        }
+        if (!response.ok) {
+          await response.body?.cancel();
+          throw new HttpError(
+            502,
+            "odp_unavailable",
+            `Parliament data is unavailable (${response.status}). Please try again.`,
+          );
+        }
+        if (response.status === 204)
+          throw new HttpError(502, "odp_no_content", "Parliament supplied no content for this request.");
+        if (!response.headers.get("content-type")?.includes("json")) {
+          await response.body?.cancel();
+          throw new HttpError(
+            502,
+            "odp_invalid",
+            "Parliament returned an unexpected response.",
+          );
+        }
+        const parts=[];let bytes=0;
+        for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>MAX_SOURCE_BYTES)throw new HttpError(502,'odp_size','Parliament response exceeded the allowed size.');parts.push(chunk);}
+        reschedule.signal.throwIfAborted();
+        release?.();release=null;
+        budget.signal?.throwIfAborted();
+        const text=Buffer.concat(parts).toString('utf8');
+        const payload = JSON.parse(text);
+        if (!Array.isArray(payload.data))
+          throw new HttpError(
+            502,
+            "odp_invalid",
+            "Parliament returned an unexpected data structure.",
+          );
+        const record = { url: key, fetchedAt: Date.now(), payload };
+        const serialized = JSON.stringify(record);
         refreshFailures.delete(key);
-        refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});
-        while(refreshFailures.size>MAX_CACHE_ENTRIES)refreshFailures.delete(refreshFailures.keys().next().value);
+        rememberSource(key, record, serialized);
+        if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) {
+          await writeCacheFile(filename(key),serialized,{signal:budget.signal}).catch(()=>{});
+        }
+        budget.signal?.throwIfAborted();
+        return record;
+      } catch(error) {
+        // Losing the last foreground reader must leave a retained owner, but not
+        // a second background connection. Its replacement spends a real quota
+        // start and waits for background capacity without a foreground deadline.
+        if(!budget.signal?.aborted){
+          if(rateLimitError&&rateFailures>=(entry.backgroundOwner?3:1))error=rateLimitError;
+          else if(reschedule.signal.aborted&&entry.backgroundOwner)continue;
+        }
+        if(!budget.signal?.aborted&&!isLocalRequestFailure(error)) {
+          refreshFailures.delete(key);
+          refreshFailures.set(key,{retryAt:Date.now()+60*60*1000,message:String(error.message).slice(0,250)});
+          while(refreshFailures.size>MAX_CACHE_ENTRIES)refreshFailures.delete(refreshFailures.keys().next().value);
+        }
+        throw error;
+      } finally {
+        release?.();
       }
-      throw error;
-    } finally {
-      release?.();
-      entry.settled=true;budget.dispose();
     }
   });
-  entry.promise=job.finally(()=>{if(pending.get(key)===entry)pending.delete(key);});
+  entry.promise=job.finally(()=>{entry.settled=true;budget.dispose();if(pending.get(key)===entry)pending.delete(key);});
   pending.set(key,entry);
   return observeSource(entry,priority,signal);
 }
@@ -728,8 +774,7 @@ export function parseFeed(xml, entity) {
 async function feed(endpoint, params, entity) {
   const url = new URL(ODP_BASE + endpoint);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const release = await slot('background');
-  try {
+  return boundedUpstream(async()=>{
     const r = await fetch(url, {
       headers: {
         Accept: "application/atom+xml",
@@ -737,7 +782,10 @@ async function feed(endpoint, params, entity) {
           userAgent("update feed"),
       },
       signal: AbortSignal.timeout(25000),
+      redirect: 'error',
     });
+    const limited=upstreamResponseError(r);
+    if(limited){await r.body?.cancel();throw limited;}
     if (r.status === 204) return [];
     if (!r.ok)
       throw new HttpError(
@@ -753,9 +801,7 @@ async function feed(endpoint, params, entity) {
         "Parliament update feed exceeded the allowed size.",
       );
     return parseFeed(xml, entity);
-  } finally {
-    release();
-  }
+  },{priority:'background'});
 }
 let syncState = {
   lastSuccess: null,

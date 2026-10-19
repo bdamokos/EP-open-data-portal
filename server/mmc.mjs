@@ -2,7 +2,7 @@ import {booleanFromEnvironment} from './config.mjs';
 import {readFile} from 'node:fs/promises';
 import {writeCacheFile} from './cache-publication.mjs';
 import path from 'node:path';
-import { boundedUpstream, odp, speechSummary } from './odp.mjs';
+import { boundedUpstream, upstreamResponseError, odp, speechSummary } from './odp.mjs';
 import { activityIndex } from './activity-index-worker.mjs';
 import { HttpError } from './http-utils.mjs';
 import { playerContent, playerAudioMapping } from './player-content.mjs';
@@ -70,6 +70,8 @@ async function freshDetail(id, directory) {
   const task = sharedRequest(signal=>boundedUpstream(async () => {
     const url = MMC_BASE + '/media/' + id;
     const response = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': userAgent('recording metadata') }, signal: AbortSignal.any([signal,AbortSignal.timeout(25000)]), redirect: 'error' });
+    const limited=upstreamResponseError(response,{source:'multimedia'});
+    if(limited){await response.body?.cancel();throw limited;}
     if (!response.ok) {await response.body?.cancel();throw new Error(`Multimedia recording details unavailable (${response.status}).`);}
     const text = await response.text();
     if (Buffer.byteLength(text) > 2 * 1024 * 1024) throw new Error('Multimedia metadata exceeded size limit.');
@@ -85,7 +87,7 @@ async function freshDetail(id, directory) {
     }
     signal.throwIfAborted();
     return { ...record, stale: false };
-  },{signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(id,{retryAt:Date.now()+3600000,message:String(error.message).slice(0,200)});throw error;}).finally(() => pending.delete(id));
+  },{source:'multimedia',signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(id,{retryAt:Date.now()+3600000,message:String(error.message).slice(0,200)});throw error;}).finally(() => pending.delete(id));
   pending.set(id, task);
   return waitForRequest(task);
 }

@@ -60,13 +60,16 @@ test('a cold process serves the expired saved directory without waiting for Parl
 test('expiry keeps a loaded directory and memberships available while refresh is pending or fails',async()=>{
   const f=await fixture(0);
   try {
-    const out=run(f.directory,`let requests=0;globalThis.fetch=async()=>{requests++;return new Response('{}',{status:500,headers:{'content-type':'application/json'}});};const {odpDirectory}=await import(${moduleUrl});await odpDirectory();let warm;for(let i=0;i<25;i++){warm=await odpDirectory();if(warm.index.complete)break;await new Promise(r=>setTimeout(r,10));}const now=Date.now();Date.now=()=>now+7*3600000;const result=await Promise.race([odpDirectory().then(data=>({ready:true,data})),new Promise(resolve=>setTimeout(()=>resolve({ready:false}),250))]);await new Promise(r=>setTimeout(r,100));const after=result.ready?await odpDirectory():null;console.log(JSON.stringify({warm,result,after,requests}));process.exit(0);`);
+    const out=run(f.directory,`let requests=0;const requestUrls=[];globalThis.fetch=async url=>{requests++;requestUrls.push(String(url));return new Response('{}',{status:500,headers:{'content-type':'application/json'}});};const {odpDirectory}=await import(${moduleUrl});await odpDirectory();let warm;for(let i=0;i<25;i++){warm=await odpDirectory();if(warm.index.complete)break;await new Promise(r=>setTimeout(r,10));}const now=Date.now();Date.now=()=>now+7*3600000;const result=await Promise.race([odpDirectory().then(data=>({ready:true,data})),new Promise(resolve=>setTimeout(()=>resolve({ready:false}),250))]);await new Promise(r=>setTimeout(r,100));const after=result.ready?await odpDirectory():null;const settledRequests=requests;for(let i=0;i<5;i++)await odpDirectory();await new Promise(r=>setTimeout(r,50));console.log(JSON.stringify({warm,result,after,requests,settledRequests,requestUrls}));process.exit(0);`);
     assert(out.warm.index.complete);assert(out.result.ready,'expiry must not block an already loaded wall');
     assert.equal(out.result.data.members[0].memberships[0].role,'MEMBER');
     assert(out.after.index.complete,'refresh must not clear the loaded membership map');
     assert.equal(out.after.members.length,1);assert(out.after.directoryCache.stale);
     assert.match(out.after.directoryCache.refreshError,/500/);
-    assert.equal(out.requests,1,'failure is backed off instead of restarting on every wall request');
+    assert.equal(out.requests,out.settledRequests,'polling does not restart failed sources');
+    const counts=Object.values(out.requestUrls.reduce((all,url)=>({...all,[url]:(all[url]||0)+1}),{}));
+    assert(counts.length>=2,'independent stale roster and committee sources can refresh without fixed spacing');
+    assert(counts.every(count=>count===1),'each failed source is fetched only once before its retry deadline');
   }finally{await rm(f.directory,{recursive:true,force:true});}
 });
 test('a completed source refresh replaces saved names without clearing loaded memberships',async()=>{
@@ -97,12 +100,12 @@ test('a completed source refresh replaces saved names without clearing loaded me
       }
       completeRoster();
       // Join the actual source refresh before triggering a new projection.
-      // Keep this serverless child alive while the queue's unref'ed timer waits.
+      // Keep this serverless child alive until the shared refresh settles.
       let refreshDeadline;
       try {
         await Promise.race([
           odp('/meps/show-current',{limit:1000,offset:0}),
-          // A queued source read may wait for the shared 2.1-second request interval.
+          // Bound a failed shared source refresh without assuming fixed request spacing.
           new Promise((_,reject)=>{refreshDeadline=setTimeout(()=>reject(new Error('Source refresh did not finish')),4000);}),
         ]);
       }finally{clearTimeout(refreshDeadline);}

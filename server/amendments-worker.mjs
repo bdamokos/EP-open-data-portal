@@ -10,6 +10,7 @@ import { recordSplitResults, saveAmendmentRows, enqueueAmendment } from './amend
 import { motionSourceKey } from './motion-outcomes.mjs';
 import { runAmendmentWorkSlice } from './amendment-work-slices.mjs';
 import { userAgent } from './user-agent.mjs';
+import {upstreamResponseError} from './odp.mjs';
 const DAY=86400000;
 const sourceKey=id=>'amendment:list:'+id;
 const rosterKey=date=>'amendment:roster:'+date;
@@ -574,6 +575,8 @@ async function downloadVotingXml(url,{signal}={}) {
   const parsed=new URL(url);
   if(parsed.protocol!=='https:'||parsed.hostname!=='data.europarl.europa.eu'||parsed.port||parsed.username||parsed.password||parsed.search||parsed.hash||!/^\/distribution\/.+\.xml$/.test(parsed.pathname))throw new Error('Unapproved official voting XML URL.');
   const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'application/xml,application/octet-stream','User-Agent':userAgent('voting aliases')},signal:AbortSignal.any([AbortSignal.timeout(45000),...(signal?[signal]:[])])},resolve).on('error',reject));
+  const limited=upstreamResponseError(response,{source:'documents'});
+  if(limited){response.resume();throw limited;}
   if(response.statusCode!==200){response.resume();throw new Error(`Official voting XML unavailable (${response.statusCode}).`);}
   if(!/(?:xml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw new Error('Unexpected official voting XML format.');}
   const chunks=[];let bytes=0;
@@ -615,7 +618,7 @@ export async function amendmentTask(worker,task) {
     }
     worker.requests++;const cycle=store.get('working');if(cycle)store.updateCycle({requests:(cycle.requests || 0)+1});
     let downloaded;
-    try {downloaded=await worker.runUpstream(admittedSignal=>worker.downloadAmendmentDocx(file.url,{signal:admittedSignal}),{priority:'background',signal});}
+    try {downloaded=await worker.runUpstream(admittedSignal=>worker.downloadAmendmentDocx(file.url,{signal:admittedSignal}),{source:'documents',priority:'background',signal});}
     catch(error){signal.throwIfAborted();throw error;}
     signal.throwIfAborted();
     const fetchedAt=new Date(worker.clock()).toISOString(),extraction=extractAmendments(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt});
@@ -665,7 +668,7 @@ export async function amendmentTask(worker,task) {
     }
     const file=body.file;
     worker.requests++;const cycle=store.get('working');if(cycle)store.updateCycle({requests:(cycle.requests || 0)+1});
-    const xml=await worker.runUpstream(admittedSignal=>worker.downloadVotingXml(file.url,{signal:admittedSignal}),{priority:'background',signal});
+    const xml=await worker.runUpstream(admittedSignal=>worker.downloadVotingXml(file.url,{signal:admittedSignal}),{source:'documents',priority:'background',signal});
     signal.throwIfAborted();
     const fetchedAt=new Date(worker.clock()).toISOString(),aliases=votingAliases(xml,{sourceUrl:file.url,fetchedAt,sittingDate:date});
     store.putSource(generation,'amendment:aliases:'+body.sittingId,'amendment-aliases',{aliases,sources:[body.documentSource,{url:file.url,fetchedAt}]},fetchedAt);

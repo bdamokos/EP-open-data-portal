@@ -49,7 +49,7 @@ export function documentContextQuery(id,params) {
 // This reader discovers only exact linked records for the document being opened.
 // It never enqueues indexing or turns missing indexed wording into an empty list.
 export class DocumentContext {
-  constructor({request=odp,readText=documentText,download=url=>boundedUpstream(()=>downloadDocxBuffer(url)),findAmendment=(store,query)=>amendmentStore.amendmentById?.(store,query)||null,clock=Date.now,limits={}}={}) {
+  constructor({request=odp,readText=documentText,download=url=>boundedUpstream(()=>downloadDocxBuffer(url),{source:'documents'}),findAmendment=(store,query)=>amendmentStore.amendmentById?.(store,query)||null,clock=Date.now,limits={}}={}) {
     Object.assign(this,{request,readText,download,findAmendment,clock});this.limits={...DOCUMENT_CONTEXT_LIMITS,...limits};this.pending=new Map();this.cache=new Map();this.bytes=0;this.extractions=new Map();this.extractionPending=new Map();this.extractionBytes=0;
   }
   async query(query,{store=null}={}) {

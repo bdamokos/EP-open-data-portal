@@ -22,7 +22,7 @@ test('cold official sources use independent origins during a Parliament cooldown
   try{assert.equal(calls.length,2,'neither public origin waits for Parliament');}
   finally{t.mock.timers.tick(60_000);await Promise.all([first,second]);}
   assert.equal(reader.queues.size,2);
-  for(const queue of reader.queues.values()){assert.equal(queue.interval,2100);assert.equal(queue.maximum,2);assert.equal(queue.active,0);}
+  for(const queue of reader.queues.values()){assert.equal(queue.interval,0);assert.equal(queue.maximum,2);assert.equal(queue.active,0);}
 });
 
 test('an aborted reader detaches from a shared cold source without cancelling its survivor or cache write',async()=>{
