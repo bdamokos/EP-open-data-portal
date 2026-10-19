@@ -1,7 +1,7 @@
 import {groupVoicesSchema,groupVoicesCopy,groupVoicesPrune,recordGroupVoice} from './group-voices-store.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
@@ -24,12 +24,18 @@ const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
   WHERE link.generation=? AND link.original_ref=?
   ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
 export class ActivityStore {
-  constructor(directory, { clock = Date.now } = {}) {
+  constructor(directory, { clock = Date.now, initializeIndexes=false } = {}) {
     mkdirSync(directory, { recursive: true });
     this.clock = clock; this.owner = randomUUID();
     this.filename = path.join(directory, 'activities-v1.sqlite');
+    this.initializeIndexes=initializeIndexes||!existsSync(this.filename);
     this.db = observeSqlite(new DatabaseSync(this.filename),'activity');
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
+    if(!this.initializeIndexes) {
+      try {
+        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('motionLinksIndexVersion')!==1)throw new Error('Unprepared activity indexes.');
+      } catch {this.db.close();throw new Error('Activity indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
+    }
+    if(this.initializeIndexes)this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS lease (id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT, expires INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS sources (generation INTEGER, key TEXT, kind TEXT, body TEXT, fetched_at TEXT, seen INTEGER DEFAULT 0, PRIMARY KEY(generation,key));
@@ -52,10 +58,9 @@ export class ActivityStore {
       CREATE TABLE IF NOT EXISTS tasks (generation INTEGER, key TEXT, kind TEXT, body TEXT, priority INTEGER, done INTEGER DEFAULT 0, attempts INTEGER DEFAULT 0, retry_at INTEGER DEFAULT 0, error TEXT, PRIMARY KEY(generation,key));
       CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, body TEXT);
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
+    if(!this.initializeIndexes)this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;');
     if (this.get('schema') !== 1) throw new Error('Unsupported activity-index schema.');
-    outsideSchema(this.db);
-    amendmentsSchema(this.db);
-    groupVoicesSchema(this.db);
+    if(this.initializeIndexes){outsideSchema(this.db);amendmentsSchema(this.db);groupVoicesSchema(this.db);}
   }
   get(key) { return parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value); }
   set(key,value) { this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value)); }
@@ -70,6 +75,7 @@ export class ActivityStore {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
       const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion;
+      if((initialize||initializeProofs)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
       // Refresh against the current clock before commit; elapsed build time must
@@ -86,7 +92,7 @@ export class ActivityStore {
       refresh();
       return true;
     });
-    if(acquired&&initialized)this.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    if(acquired&&initialized)this.db.exec('PRAGMA main.wal_checkpoint(TRUNCATE)');
     return acquired;
   }
   // Increment resourceIndexes and rebuild these projections if relationship SQL changes.

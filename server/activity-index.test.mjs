@@ -54,8 +54,9 @@ test('speech summary retains original-language link and excludes non-contributio
 });
 test('exclusive writer leases survive overlap: expiry transfers ownership and fences the old process',()=> {
   const dir=temp();let now=instant();const clock=()=>now;
-  const a=new ActivityStore(dir,{clock}),b=new ActivityStore(dir,{clock});
-  try {assert.equal(a.acquire(),true);assert.equal(b.acquire(),false);now+=91_000;assert.equal(b.acquire(),true);assert.equal(a.renew(),false);assert.throws(()=>a.beginCycle(),/lease/);b.beginCycle();assert.equal(b.get('sequence'),1);}
+  const a=new ActivityStore(dir,{clock});assert.equal(a.acquire(),true);
+  const b=new ActivityStore(dir,{clock});
+  try {assert.equal(b.acquire(),false);now+=91_000;assert.equal(b.acquire(),true);assert.equal(a.renew(),false);assert.throws(()=>a.beginCycle(),/lease/);b.beginCycle();assert.equal(b.get('sequence'),1);}
   finally {a.close();b.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('failed daily updates retain the last published generation; restart resumes the unpublished generation',()=> {

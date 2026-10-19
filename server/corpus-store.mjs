@@ -67,13 +67,18 @@ export function corpusQuery(input) {
 }
 
 export class CorpusStore {
-  constructor(directory,{indexFile=null,clock=Date.now,readOnly=false}={}) {
+  constructor(directory,{indexFile=null,clock=Date.now,readOnly=false,initializeIndexes=false}={}) {
     if(!readOnly)mkdirSync(directory,{recursive:true});
     this.clock=clock;this.owner=randomUUID();this.readOnly=readOnly;
     this.filename=path.join(directory,'corpus-v1.sqlite');
+    this.initializeIndexes=!readOnly&&(initializeIndexes||!existsSync(this.filename));
     this.db=observeSqlite(new DatabaseSync(this.filename,{readOnly}),'corpus');
+    if(!this.initializeIndexes) {
+      try {if(this.get('resourceIndexes')!==1)throw new Error('Unprepared corpus indexes.');}
+      catch {this.db.close();throw new Error('Corpus indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
+    }
     if(readOnly)this.db.exec('PRAGMA busy_timeout=250; PRAGMA query_only=ON;');
-    else this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;
+    else if(this.initializeIndexes)this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS lease (id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT, expires INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS documents (
@@ -105,6 +110,7 @@ export class CorpusStore {
       CREATE INDEX IF NOT EXISTS task_status_counts ON tasks(kind,done,error);
       CREATE INDEX IF NOT EXISTS task_status_error ON tasks(done,retry_at DESC,key,error,attempts) WHERE done=0 AND error IS NOT NULL;
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
+    if(!readOnly&&!this.initializeIndexes)this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;');
     if(this.get('schema')!==1)throw new Error('Unsupported corpus schema.');
     if(!readOnly&&this.get('speechMetadataVersion')!==1) {
       this.set('speechMetadataBackfill',Boolean(this.db.prepare("SELECT 1 FROM documents WHERE kind='speech' LIMIT 1").get()));
@@ -139,6 +145,7 @@ export class CorpusStore {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if(old && old.owner!==this.owner && old.expires>this.clock())return false;
       const initialize=this.get('resourceIndexes')!==1;
+      if(initialize&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       if(initialize) {
         for(const sql of [
@@ -170,7 +177,7 @@ export class CorpusStore {
       if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner).changes!==1)throw new Error('Corpus writer lease was lost.');
       return true;
     });
-    if(acquired&&initialized)this.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    if(acquired&&initialized)this.db.exec('PRAGMA main.wal_checkpoint(TRUNCATE)');
     return acquired;
   }
   renew(ttl=90_000){return this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=? AND expires>?').run(this.clock()+ttl,this.owner,this.clock()).changes===1;}
