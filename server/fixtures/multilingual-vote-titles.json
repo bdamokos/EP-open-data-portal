@@ -1,0 +1,362 @@
+{
+  "description": "Public vote-result and voter-excluded decision responses for the exact multilingual agenda titles. Full returned source nodes; no named voter data.",
+  "sources": [
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-19/vote-results?format=application%2Fld%2Bjson&offset=0&limit=100",
+      "retrievedAt": "2026-10-19T18:34:03.913776+00:00",
+      "rawSha256": "99641893ce79e0d393187b22a68927c5a5ebf58908745107f3d06fed77c50347",
+      "payload": {
+        "data": [
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000005",
+            "type": "Activity",
+            "activity_date": "2026-10-19",
+            "activity_id": "MTG-PL-2026-10-19-VOT-ITM-000005",
+            "activity_label": {
+              "fr": "Ordre du jour de mardi - Demande du groupe Renew - Levée, par l'administration Trump, des sanctions et des droits de douane imposés à la Russie",
+              "mul": "Ordre du jour de mardi - Demande du groupe Renew - Levée, par l'administration Trump, des sanctions et des droits de douane imposés à la Russie - Tuesday’s Agenda - Request from the Renew group - The Trump administration waiving of sanctions and tariffs required on Russia - Tagesordnung für Dienstag - Antrag der Renew-Fraktion - Aussetzung der gegen Russland vorgesehenen Sanktionen und Zölle durch die Regierung Trump"
+            },
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-19-DEC-198884"
+            ],
+            "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-19-VOT-ITM-005"
+            ],
+            "notation_dlvId": "000005",
+            "structuredLabel": {
+              "fr": "<structuredLabel><title>Ordre du jour de mardi - Demande du groupe Renew - Levée, par l'administration Trump, des sanctions et des droits de douane imposés à la Russie</title><label> (Majorité des suffrages exprimés requise)</label></structuredLabel>"
+            },
+            "inverse_consists_of": [
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-19",
+                "consists_of": [
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000005",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000004",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000002",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000001",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000003"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000004",
+            "type": "Activity",
+            "activity_date": "2026-10-19",
+            "activity_id": "MTG-PL-2026-10-19-VOT-ITM-000004",
+            "activity_label": {
+              "mul": "Ordre du jour de lundi - Demande des groupes PPE et ECR - Émeutes - Monday’s Agenda - Request from the PPE and ECR groups - Riots - Tagesordnung für Montag - Antrag der Fraktionen PPE und ECR - Proteste ",
+              "fr": "Ordre du jour de lundi - Demande des groupes PPE et ECR - Émeutes"
+            },
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-19-DEC-198883"
+            ],
+            "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-19-VOT-ITM-004"
+            ],
+            "notation_dlvId": "000004",
+            "structuredLabel": {
+              "fr": "<structuredLabel><title>Ordre du jour de lundi - Demande des groupes PPE et ECR - Émeutes </title><label> (Majorité des suffrages exprimés requise)</label></structuredLabel>"
+            },
+            "inverse_consists_of": [
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-19",
+                "consists_of": [
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000005",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000004",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000002",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000001",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000003"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000002",
+            "type": "Activity",
+            "activity_date": "2026-10-19",
+            "activity_id": "MTG-PL-2026-10-19-VOT-ITM-000002",
+            "activity_label": {
+              "mul": "Ordre du jour de lundi - Demande du groupe The Left - Émeutes - Monday’s Agenda - Request from The Left Group - Riots - Tagesordnung für Montag - Antrag der Fraktion The Left - Proteste ",
+              "fr": "Ordre du jour de lundi - Demande du groupe The Left - Émeutes"
+            },
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-19-DEC-198881"
+            ],
+            "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-19-VOT-ITM-002"
+            ],
+            "notation_dlvId": "000002",
+            "structuredLabel": {
+              "fr": "<structuredLabel><title>Ordre du jour de lundi - Demande du groupe The Left - Émeutes </title><label> (Majorité des suffrages exprimés requise)</label></structuredLabel>"
+            },
+            "inverse_consists_of": [
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-19",
+                "consists_of": [
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000005",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000004",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000002",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000001",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000003"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000001",
+            "type": "Activity",
+            "activity_date": "2026-10-19",
+            "activity_id": "MTG-PL-2026-10-19-VOT-ITM-000001",
+            "activity_label": {
+              "mul": "Ordre du jour de lundi - Demande du groupe PfE - Émeutes - Monday’s Agenda - Request from the PfE Group - Riots - Tagesordnung für Montag - Antrag der PfE-Fraktion - Proteste",
+              "fr": "Ordre du jour de lundi - Demande du groupe PfE - Émeutes"
+            },
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-19-DEC-198880"
+            ],
+            "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-19-VOT-ITM-001"
+            ],
+            "notation_dlvId": "000001",
+            "structuredLabel": {
+              "fr": "<structuredLabel><title>Ordre du jour de lundi - Demande du groupe PfE - Émeutes </title><label> (Majorité des suffrages exprimés requise)</label></structuredLabel>"
+            },
+            "inverse_consists_of": [
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-19",
+                "consists_of": [
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000005",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000004",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000002",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000001",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000003"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000003",
+            "type": "Activity",
+            "activity_date": "2026-10-19",
+            "activity_id": "MTG-PL-2026-10-19-VOT-ITM-000003",
+            "activity_label": {
+              "fr": "Ordre du jour de lundi - Demande du groupe S&D - Émeutes",
+              "mul": "Ordre du jour de lundi - Demande du groupe S&D - Émeutes - Monday’s Agenda - Request from the S&D Group - Riots  - Tagesordnung für Montag - Antrag der S&D-Fraktion - Proteste "
+            },
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-19-DEC-198882"
+            ],
+            "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-19-VOT-ITM-003"
+            ],
+            "notation_dlvId": "000003",
+            "structuredLabel": {
+              "fr": "<structuredLabel><title>Ordre du jour de lundi - Demande du groupe S&amp;D - Émeutes </title><label> (Majorité des suffrages exprimés requise)</label></structuredLabel>"
+            },
+            "inverse_consists_of": [
+              {
+                "id": "eli/dl/event/MTG-PL-2026-10-19",
+                "consists_of": [
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000005",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000004",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000002",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000001",
+                  "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000003"
+                ]
+              }
+            ]
+          }
+        ],
+        "@context": [
+          {
+            "data": "@graph",
+            "@base": "https://data.europarl.europa.eu/"
+          },
+          "https://data.europarl.europa.eu/api/v2/context.jsonld"
+        ]
+      }
+    },
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-19/decisions?format=application%2Fld%2Bjson&filter-output=voters&offset=0&limit=100",
+      "retrievedAt": "2026-10-19T18:34:03.914091+00:00",
+      "rawSha256": "dac1380019c65b6e38e82f7f209c9850a00d1e546f5528047c30b9db8efa812e",
+      "payload": {
+        "data": [
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-19-DEC-198880",
+            "type": "Vote",
+            "activity_date": "2026-10-19",
+            "activity_id": "MTG-PL-2026-10-19-DEC-198880",
+            "activity_label": {
+              "fr": "Ordre du jour de lundi - Demande du groupe PfE - Émeutes",
+              "mul": "Ordre du jour de lundi - Demande du groupe PfE - Émeutes"
+            },
+            "activity_order": "1.0",
+            "activity_start_date": "2026-10-19T18:11:51+02:00",
+            "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+            "decision_outcome": "def/ep-statuses/REJECTED",
+            "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+            "number_of_attendees": 444,
+            "number_of_votes_abstention": 12,
+            "number_of_votes_against": 317,
+            "number_of_votes_favor": 115,
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-19-RCV-ITM-001"
+            ],
+            "comment": {
+              "fr": "AN"
+            },
+            "notation_votingId": "198880",
+            "referenceText": {
+              "fr": "Demande du groupe PfE - Émeutes "
+            },
+            "inverse_consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000001"
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-19-DEC-198881",
+            "type": "Vote",
+            "activity_date": "2026-10-19",
+            "activity_id": "MTG-PL-2026-10-19-DEC-198881",
+            "activity_label": {
+              "fr": "Ordre du jour de lundi - Demande du groupe The Left - Émeutes",
+              "mul": "Ordre du jour de lundi - Demande du groupe The Left - Émeutes"
+            },
+            "activity_order": "1.0",
+            "activity_start_date": "2026-10-19T18:12:17+02:00",
+            "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+            "decision_outcome": "def/ep-statuses/REJECTED",
+            "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+            "number_of_attendees": 444,
+            "number_of_votes_abstention": 11,
+            "number_of_votes_against": 369,
+            "number_of_votes_favor": 64,
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-19-RCV-ITM-002"
+            ],
+            "comment": {
+              "fr": "AN"
+            },
+            "notation_votingId": "198881",
+            "referenceText": {
+              "fr": " Demande du groupe The Left - Émeutes "
+            },
+            "inverse_consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000002"
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-19-DEC-198882",
+            "type": "Vote",
+            "activity_date": "2026-10-19",
+            "activity_id": "MTG-PL-2026-10-19-DEC-198882",
+            "activity_label": {
+              "fr": "Ordre du jour de lundi - Demande du groupe S&D - Émeutes",
+              "mul": "Ordre du jour de lundi - Demande du groupe S&D - Émeutes"
+            },
+            "activity_order": "1.0",
+            "activity_start_date": "2026-10-19T18:12:36+02:00",
+            "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+            "decision_outcome": "def/ep-statuses/REJECTED",
+            "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+            "number_of_attendees": 448,
+            "number_of_votes_abstention": 1,
+            "number_of_votes_against": 281,
+            "number_of_votes_favor": 166,
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-19-RCV-ITM-003"
+            ],
+            "comment": {
+              "fr": "AN"
+            },
+            "notation_votingId": "198882",
+            "referenceText": {
+              "fr": "Demande du groupe S&amp;D - Émeutes "
+            },
+            "inverse_consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000003"
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-19-DEC-198883",
+            "type": "Vote",
+            "activity_date": "2026-10-19",
+            "activity_id": "MTG-PL-2026-10-19-DEC-198883",
+            "activity_label": {
+              "fr": "Ordre du jour de lundi - Demande des groupes PPE et ECR - Émeutes",
+              "mul": "Ordre du jour de lundi - Demande des groupes PPE et ECR - Émeutes"
+            },
+            "activity_order": "1.0",
+            "activity_start_date": "2026-10-19T18:13:02+02:00",
+            "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+            "decision_outcome": "def/ep-statuses/ADOPTED",
+            "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+            "number_of_attendees": 449,
+            "number_of_votes_abstention": 6,
+            "number_of_votes_against": 161,
+            "number_of_votes_favor": 282,
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-19-RCV-ITM-004"
+            ],
+            "comment": {
+              "fr": "AN"
+            },
+            "notation_votingId": "198883",
+            "referenceText": {
+              "fr": "Demande des groupes PPE et ECR - Émeutes"
+            },
+            "inverse_consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000004"
+            ]
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-19-DEC-198884",
+            "type": "Vote",
+            "activity_date": "2026-10-19",
+            "activity_id": "MTG-PL-2026-10-19-DEC-198884",
+            "activity_label": {
+              "fr": "Ordre du jour de mardi - Demande du groupe Renew - Levée, par l'administration Trump, des sanctions et des droits de douane imposés à la Russie",
+              "mul": "Ordre du jour de mardi - Demande du groupe Renew - Levée, par l'administration Trump, des sanctions et des droits de douane imposés à la Russie"
+            },
+            "activity_order": "1.0",
+            "activity_start_date": "2026-10-19T18:15:08+02:00",
+            "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+            "decision_outcome": "def/ep-statuses/ADOPTED",
+            "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+            "number_of_attendees": 444,
+            "number_of_votes_abstention": 55,
+            "number_of_votes_against": 38,
+            "number_of_votes_favor": 351,
+            "recorded_in_a_realization_of": [
+              "eli/dl/doc/PV-10-2026-10-19-RCV-ITM-005"
+            ],
+            "comment": {
+              "fr": "AN"
+            },
+            "notation_votingId": "198884",
+            "referenceText": {
+              "fr": "Demande du groupe Renew - Levée des sanctions et des droits de douane par l’administration Trump"
+            },
+            "inverse_consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-19-VOT-ITM-000005"
+            ]
+          }
+        ],
+        "@context": [
+          {
+            "data": "@graph",
+            "@base": "https://data.europarl.europa.eu/"
+          },
+          "https://data.europarl.europa.eu/api/v2/context.jsonld"
+        ]
+      }
+    }
+  ]
+}
