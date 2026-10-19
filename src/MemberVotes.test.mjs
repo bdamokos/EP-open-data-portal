@@ -573,7 +573,7 @@ test('collapsed subjects expose final positions, page-scoped summaries and off-p
   const final=h.container.querySelector('button.member-votes-whole');assert.match(final.textContent,/Final vote · Adopted · Test member voted For/);
   await act(async()=>final.click());assert.equal(h.state.decisionId,whole.id);assert.equal(h.state.snapshotId,SNAPSHOT);
   assert.equal(visiblePane(h.container).querySelector('h2').textContent,'Final vote');
-  await h.click('← Back to votes');assert.equal(document.activeElement,group);assert.deepEqual(h.state.expandedSubjectIds,[]);
+  await h.click('← Back to votes');assert.equal(document.activeElement===h.container.querySelector('[data-vote-group]'),true);assert.deepEqual(h.state.expandedSubjectIds,[]);
 });
 
 test('a filtered-out final vote opens its exact decision and keeps missing-position states distinct',async t=>{
