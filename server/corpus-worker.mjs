@@ -281,21 +281,19 @@ export class CorpusWorker {
         try {
           if(await this.store.diskBytes()>this.diskLimit){this.store.set('phase','paused: disk limit reached');break;}
           const task=this.store.nextTask();
-          if(!task) {
-            if(!this.store.db.prepare('SELECT 1 FROM tasks WHERE done=0 LIMIT 1').get()) {
-              // Complete only after question files were discovered from a published
-              // index generation; a partial initial index may still lack questions.
-              if(this.store.get('discoveredPublished')) {
-                if(!this.store.get('backfilledAt'))this.store.set('backfilledAt',new Date(this.clock()).toISOString());
-                this.store.set('phase','ready');
-              } else this.store.set('phase','waiting for activity index');
-            }
-            break;
-          }
+          if(!task)break;
           requests++;
           try{await this.task(task);}
           catch(error){if(this.stopped)break;this.store.failTask(task,error,error.retryAfter||0);}
         } finally {taskIteration();}
+      }
+      // A budget can end immediately after the last task. Settle that run now;
+      // the next idle tick should not need a writer just to publish readiness.
+      if(!this.stopped&&!this.store.db.prepare('SELECT 1 FROM tasks WHERE done=0 LIMIT 1').get()) {
+        if(this.store.get('discoveredPublished')) {
+          if(!this.store.get('backfilledAt'))this.store.set('backfilledAt',new Date(this.clock()).toISOString());
+          this.store.set('phase','ready');
+        } else this.store.set('phase','waiting for activity index');
       }
       this.store.set('lastRunAt',new Date(this.clock()).toISOString());
     } catch(error) {if(!this.stopped)throw error;}

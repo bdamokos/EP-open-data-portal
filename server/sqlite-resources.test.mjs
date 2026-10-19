@@ -102,6 +102,17 @@ test('amendment proof flags follow direct writes, replacements and deletions wit
   assert.deepEqual({...flags()},{target:'B-10-2026-0002',wording:0,proposer:0,freshness:0});
   store.db.prepare('DELETE FROM amendments WHERE generation=1 AND id=?').run('am');assert.equal(flags(),undefined);
 });
+test('corpus completion settles when the last task exactly consumes the run budget',async t=>{
+  const store=fixture(t,CorpusStore);
+  store.set('speechLanguages','all');store.set('speechInterventionClassificationVersion',INTERVENTION_CLASSIFICATION_VERSION);
+  store.set('discoveryCheckedAt',instant());store.set('discoveredPublished',true);
+  store.enqueue('last','speech',{},1);store.release();
+  const worker=new CorpusWorker(store,{clock:instant,budget:1});
+  t.mock.method(worker,'task',async task=>store.finishTask(task));
+  await worker.run();
+  assert.equal(store.get('phase'),'ready');assert.equal(store.get('backfilledAt'),new Date(instant()).toISOString());
+  t.mock.method(store,'acquire',()=>assert.fail('settled idle lease'));await worker.run();
+});
 test('SQLite memory limits and slow logs exclude bindings and caller time between rows',()=>{
   const logs=[];let tick=0,step=0;
   const db=observeSqlite(new DatabaseSync(':memory:'),'test',{enabled:true,threshold:250,now:()=>{const value=tick;tick+=step;return value;},log:(...parts)=>logs.push(parts)});
