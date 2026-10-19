@@ -11,6 +11,32 @@ const decision=suffix=>snapshot.decisions.find(node=>node.activity_id.endsWith(s
 // same public decision before reusing that fixture's untrimmed voter arrays.
 const fullDecision={...decision('197457'),...full.decisions.payload.data.find(node=>node.activity_id.endsWith('197457'))};
 const project=(raw,memberId='197591',state=snapshot,language='en')=>projectMemberDecision(raw,state,memberId,language);
+
+test('decision reference text decodes XML characters once while preserving percentages and source labels',()=>{
+  const raw={...fullDecision,activity_label:{fr:'Ordre du jour - S&D - Émeutes'},referenceText:{
+    fr:'Demande du groupe S&amp;D - Émeutes ',
+    en:'10% &lt; 20% &amp; &#49;&#48;&#37; &#x1F600; &quot;quoted&quot; &apos;text&apos;',
+    hu:'Árvíztűrő tükörfúrógép: 10% > 5% & S&D',
+  }},before=structuredClone(raw),vote=project(raw);
+  assert.equal(vote.referenceTexts.fr,'Demande du groupe S&D - Émeutes ');
+  assert.equal(vote.referenceTexts.en,'10% < 20% & 10% 😀 "quoted" \'text\'');
+  assert.equal(vote.referenceTexts.hu,raw.referenceText.hu);
+  assert.deepEqual(vote.titles,raw.activity_label);
+  assert.deepEqual(raw,before,'decoding must not change retained source text');
+  const fallback=project({...raw,activity_label:undefined,headingLabel:undefined},'197591',snapshot,'fr');
+  assert.equal(fallback.title,'Demande du groupe S&D - Émeutes ');
+  assert.equal(fallback.titleLanguage,'fr');
+});
+
+test('reference text preserves unknown, invalid and nested escapes without interpreting markup or URL encoding',()=>{
+  for(const [input,expected] of [
+    ['&amp;lt;tag&amp;gt;','&lt;tag&gt;'],
+    ['&lt;img src=x onerror=alert(1)&gt;','<img src=x onerror=alert(1)>'],
+    ['10% / 10%20 / %26 / A+B','10% / 10%20 / %26 / A+B'],
+    ['&unknown; &nbsp; &amp without semicolon','&unknown; &nbsp; &amp without semicolon'],
+    ['&#0; &#xD800; &#1114112; &#xFFFF; &#999999999999999999999;','&#0; &#xD800; &#1114112; &#xFFFF; &#999999999999999999999;'],
+  ])assert.equal(project({...fullDecision,referenceText:{en:input}}).referenceTexts.en,expected);
+});
 const absolute=path=>'https://data.europarl.europa.eu/'+path;
 
 test('public Tinagli sample keeps actual FOR separate from intended abstention and preserves source provenance',()=>{
