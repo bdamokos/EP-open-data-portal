@@ -14,27 +14,45 @@ export function usePortraitImage(url: string, fallback: string, lazy = true) {
     if (!managed) return;
     const controller = new AbortController();
     let objectUrl = '', started = false;
-    let observer: IntersectionObserver | undefined;
+    let observer: IntersectionObserver | undefined, viewportObserver: IntersectionObserver | undefined;
+    let request: ReturnType<typeof portraitLoader.load> | undefined;
+    let visible = false;
     setState({url, src: fallback, phase: 'loading'});
     const start = () => {
       if (started || controller.signal.aborted) return;
       started = true;
       observer?.disconnect();
-      portraitLoader.load(url, {signal: controller.signal}).then(blob => {
+      request = portraitLoader.load(url, {signal: controller.signal, priority: visible ? 'visible' : 'background'});
+      request.then(blob => {
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
         setState({url, src: objectUrl, phase: 'ready'});
       }).catch(error => {
         if (error.name !== 'AbortError' && !controller.signal.aborted) setState({url, src: fallback, phase: 'error'});
-      });
+      }).finally(() => viewportObserver?.disconnect());
     };
-    startRef.current = start;
+    const foreground = () => {
+      visible = true;
+      request?.setPriority('visible');
+      start();
+    };
+    startRef.current = foreground;
     if (!('IntersectionObserver' in window)) start();
     else if (imageRef.current) {
       // Expand the scrolling wall itself: viewport margins cannot extend past
       // an intervening overflow container's clip.
-      const root = imageRef.current.closest<HTMLElement>('[data-portrait-scroll-root]');
-      const margin = root ? Math.max(800, root.clientHeight * 2) : 200;
+      const wall = imageRef.current.closest<HTMLElement>('[data-portrait-scroll-root]');
+      let root = wall;
+      while (root && !['auto', 'scroll'].includes(window.getComputedStyle(root).overflowY)) root = root.parentElement;
+      const margin = wall ? Math.max(800, (root?.clientHeight || window.innerHeight) * 2) : 200;
+      // A separate viewport observer respects clipping by the wall and window.
+      // Keep it until the request settles so scrolling can promote queued work.
+      viewportObserver = new IntersectionObserver(entries => {
+        visible = entries.some(entry => entry.isIntersecting);
+        request?.setPriority(visible ? 'visible' : 'background');
+        if (visible) start();
+      });
+      viewportObserver.observe(imageRef.current);
       observer = new IntersectionObserver(entries => {
         if (entries.some(entry => entry.isIntersecting)) {
           start();
@@ -45,6 +63,7 @@ export function usePortraitImage(url: string, fallback: string, lazy = true) {
     return () => {
       startRef.current = null;
       observer?.disconnect();
+      viewportObserver?.disconnect();
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
