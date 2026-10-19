@@ -7,6 +7,9 @@ import {createServer} from 'vite';
 test('priority changes preserve requests and decoded portraits, and can start a waiting portrait', async t => {
   const window = new Window({url: 'http://localhost/'});
   const observers = [], requests = [], revoked = [];
+  const frames = new Map(); let nextFrame = 0;
+  t.mock.method(window, 'requestAnimationFrame', callback => {frames.set(++nextFrame, callback); return nextFrame;});
+  t.mock.method(window, 'cancelAnimationFrame', id => frames.delete(id));
   class Observer {
     constructor(callback, options) {this.callback = callback; this.options = options; observers.push(this);}
     observe() {}
@@ -51,6 +54,8 @@ test('priority changes preserve requests and decoded portraits, and can start a 
   assert.equal(observers.at(-1).options.root, container, 'mobile look-ahead expands the actual page scroll container');
   assert.equal(observers.at(-1).options.rootMargin, '1688px 0px', 'look-ahead remains two viewports rather than the full roster height');
   await act(async () => observers.at(-1).callback([{isIntersecting: true}]));
+  assert.equal(requests.length, 0, 'speculative work gives viewport observations the first response slots');
+  await act(async () => {for (const [id, callback] of frames) {frames.delete(id); callback();}});
   assert.equal(requests.length, 1);
   assert.equal(requests[0].priorities[0], 'background', 'look-ahead starts a paced request');
   const viewportObserver = observers.find(observer => !observer.options);

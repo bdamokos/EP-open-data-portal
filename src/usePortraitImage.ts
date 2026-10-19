@@ -14,6 +14,7 @@ export function usePortraitImage(url: string, fallback: string, lazy = true) {
     if (!managed) return;
     const controller = new AbortController();
     let objectUrl = '', started = false;
+    let backgroundFrame = 0;
     let observer: IntersectionObserver | undefined, viewportObserver: IntersectionObserver | undefined;
     let request: ReturnType<typeof portraitLoader.load> | undefined;
     let visible = false;
@@ -55,7 +56,12 @@ export function usePortraitImage(url: string, fallback: string, lazy = true) {
       viewportObserver.observe(imageRef.current);
       observer = new IntersectionObserver(entries => {
         if (entries.some(entry => entry.isIntersecting)) {
-          start();
+          // Let all viewport observations promote visible images before
+          // speculative work can occupy response slots on initial layout.
+          backgroundFrame ||= window.requestAnimationFrame(() => {
+            backgroundFrame = 0;
+            start();
+          });
         }
       }, {root, rootMargin: `${margin}px 0px`});
       observer.observe(imageRef.current);
@@ -64,6 +70,7 @@ export function usePortraitImage(url: string, fallback: string, lazy = true) {
       startRef.current = null;
       observer?.disconnect();
       viewportObserver?.disconnect();
+      window.cancelAnimationFrame(backgroundFrame);
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
