@@ -11,6 +11,7 @@ import { UpstreamQueue, retryAfterSeconds } from './upstream-queue.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
+import {createCommitteeMembershipReader} from './committee-memberships.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
@@ -335,6 +336,7 @@ export function memberships(person, day) {
       ),
     )
     .map((m) => ({
+      membershipId: m.id || null,
       id: tail(m.organization),
       role: tail(m.role),
       classification: tail(m.membershipClassification),
@@ -535,9 +537,15 @@ export async function odpProfile(id, force = false, {priority='interactive'}={})
     memberships: memberships(person),
     accounts: (person.account || []).map((a) => a.id),
     fetchedAt: new Date(record.fetchedAt).toISOString(),
+    sources: [{url:record.url, fetchedAt:new Date(record.fetchedAt).toISOString(), stale:Boolean(record.stale)}],
   };
   profileIndex.set(Number(id), result);
   return result;
+}
+const readCommitteeMemberships = createCommitteeMembershipReader({request:odp});
+export async function odpProfileWithMemberships(id) {
+  const profile = await odpProfile(id);
+  return {...profile, committeeMemberships:await readCommitteeMemberships(profile,today(),{signal:requestSignal()})};
 }
 function startIndex() {
   if (indexPromise || indexState.complete) return;

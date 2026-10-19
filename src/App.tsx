@@ -7,7 +7,7 @@ import {FindInText,TextSearch} from './TextSearch';
 import {InterventionBadges,SpeechContextPanel,InterventionStatistics} from './SpeechInterventions';
 import {SpeakerName,SpeakerRoleLine} from './SpeakerIdentity';
 import {publicationBody} from './publication-body.mjs';
-import {orderedMemberships} from './memberships.mjs';
+import {CommitteeMemberships} from './CommitteeMemberships';
 import {SaveButton,useSavedChecks} from './SavedControls';
 import {interfaceTerm} from './terms.mjs';
 import {ParliamentHeader} from './ParliamentHeader';
@@ -781,36 +781,7 @@ export default function App() {
                         </p>
                       )}
                       <h2 lang={lang}>{c.committee}</h2>
-                      {!profile.data.memberships?.some(m => m.current && directory?.committees.some(b => b.id === m.id)) && (
-                        <p lang="en">No active committee memberships were returned.</p>
-                      )}
-                      {orderedMemberships(profile.data.memberships||[],directory?.committees||[]).map((m, i) => {
-                        const body = directory?.committees.find(
-                          (b) => b.id === m.id,
-                        );
-                        // This view intentionally has no first-entry name fallback.
-                        const bodyName=body?.names[lang] ? {text:body.names[lang],language:lang} : body?.names.en ? {text:body.names.en,language:'en'} : {text:m.classification.replaceAll("_", " ").toLowerCase(),language:''};
-                        return (
-                          <div
-                            className={`explorer-membership ${m.current ? "" : "explorer-historical"}`}
-                            key={i}
-                          >
-                            <strong>
-                              <span lang="">{body?.code || m.id}</span> · <span lang={['MEMBER_SUBSTITUTE','MEMBER','CHAIR','CHAIR_VICE'].includes(m.role) ? lang : ''}>{roleName(m.role)}</span>
-                            </strong>
-                            <p lang={bodyName.language}>
-                              {bodyName.text}
-                            </p>
-                            <small lang={lang}>
-                              {m.start
-                                ? date(m.start, lang)
-                                : <span lang="en">Start date unavailable</span>}{" "}
-                              — {m.end ? date(m.end, lang) : c.ongoing}
-                              {m.current ? "" : <span lang="en"> · Historical / future</span>}
-                            </small>
-                          </div>
-                        );
-                      })}
+                      <CommitteeMemberships profile={profile.data} committees={directory?.committees||[]} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
                     </>
                   )}
                 </>

@@ -9,6 +9,12 @@ const request = {method: 'GET', headers: {}};
 const policy = (path, value = {}, options = {}) => apiCachePolicy({...request, ...options}, new URL(path, 'https://example.test'), value, {now});
 const seconds = value => Number(value.cdnCacheControl.match(/max-age=(\d+)/)?.[1]);
 
+test('incomplete or stale profile committee history cannot acquire a public cache lifetime',()=>{
+  for(const history of [{complete:false,error:'Some committee history is unavailable.'},{complete:false,error:'Some committee history is unavailable.',sources:[]},{complete:true,error:null,sources:[{stale:true}]}])
+    assert.equal(policy('/api/profile/43',{committeeMemberships:history}).cdnCacheControl,'no-store');
+  assert.equal(seconds(policy('/api/profile/43',{committeeMemberships:{complete:true,error:null,sources:[{stale:false}]}})),21600);
+});
+
 test('ordinary public reads use six hours and recent lists one hour without changing browser freshness', () => {
   for (const path of ['/api/directory', '/api/profile/43?lang=hu', '/api/insights/questions?lang=en', '/api/corpus/search?lang=hu&q=water', '/api/amendments', '/api/outside/directory']) {
     const value = {index: {complete: true}, coverage: {complete: false, authoritativeComplete: false}, fetchedAt: '2026-10-16T00:00:00Z'};
