@@ -45,16 +45,22 @@ export function useData<T>(route: string | null) {
   const refresh = useCallback(() => setRetry(x => x + 1), []);
   useEffect(() => {
     let active = true;
-    const force = previousRequest.current.route === route && previousRequest.current.retry !== retry;
-    previousRequest.current = { route, retry };
+    const controller = new AbortController();
+    const force = previousRequest.current.retry !== retry;
+    // A dependent read can be disabled while its prerequisite refreshes. Keep
+    // its explicit retry pending until it has a route again.
+    previousRequest.current = { route, retry: route ? retry : previousRequest.current.retry };
     setState(previous => ({ route, data: route ? (previous.route === route ? previous.data : client.peek<T>(route)) : null, error: null, loading: Boolean(route) }));
     if (route)
-      client.get<T>(route, { force })
+      client.get<T>(route, { force, signal: controller.signal })
         .then((data) => { if (active) setState({ route, data, error: null, loading: false }); })
         .catch((e) => {
           if (active) setState(previous => ({ route, data: e.status === 401 || e.status === 403 ? null : previous.data, error: e.message, status:typeof e.status==='number'?e.status:undefined,retryAt: e.retryAt, loading: false }));
         });
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [route, retry]);
-  return { ...(state.route === route ? state : {route,data:route ? client.peek<T>(route) : null,error:null,loading:Boolean(route)}), retry: refresh };
+  const current = state.route === route ? state : {route,data:route ? client.peek<T>(route) : null,error:null,loading:Boolean(route)};
+  // Expose a retry before effects run, so dependent hooks do not briefly start
+  // a fallback while this prerequisite is about to refresh.
+  return { ...current, ...(previousRequest.current.retry !== retry ? {error:null,status:undefined,retryAt:undefined,loading:Boolean(route)} : {}), retry: refresh };
 }
