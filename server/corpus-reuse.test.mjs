@@ -102,6 +102,21 @@ test('speech pages filter exact members, types, dates and topic IDs with stable 
   assert.equal(store.speechPage({member:'42',dates:['2026-10-07'],sourceIds:[b,written],language:'en',limit:50}).records[0].id,b);
   const next=store.speechPage({member:'42',from:'2026-10-07',to:'2026-10-07',language:'en',limit:1,offset:1});assert.equal(next.records[0].id,b);assert.equal(next.nextOffset,null);
 });
+test('statistics report the latest collection date independently of the selected member',async t=>{
+  const {store,add}=fixture(t);
+  add(activity(1,{date:'2026-10-07'}));
+  add(activity(2,{member:'7',date:'2026-10-09',kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'}));
+  const first=store.speechPage({member:'42',to:'2026-10-07',metadataOnly:true});
+  assert.equal(first.coverage.latestDataDate,'2026-10-09');
+  assert.equal(first.coverage.authoritativeComplete,false);
+  const service=new SpeechInterventions({identities:null,readCorpusPage:params=>store.speechPage(params)});
+  const older=await service.member('42'),newer=await service.member('7');
+  assert.equal(older.items[0].date,'2026-10-07');
+  assert.equal(newer.items[0].date,'2026-10-09');
+  assert.equal(older.coverage.latestDataDate,'2026-10-09');
+  assert.equal(newer.coverage.latestDataDate,'2026-10-09');
+  assert.equal(older.coverage.complete,false);
+});
 test('legacy catalogue projection is populated by the leased writer without source calls and fences lease loss',async t=>{
   const {store,add}=fixture(t);add(activity(1));store.db.exec('DELETE FROM speech_catalog');
   assert.equal(store.speechPage({language:'en'}),null);
