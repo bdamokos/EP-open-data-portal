@@ -124,7 +124,7 @@ async function handleApi(request,response,url,apiPrefix){
  if(request.method==='OPTIONS'){setCommonSecurityHeaders(response);response.statusCode=204;response.setHeader('Allow',isCorpusSearch?'GET, HEAD, POST, OPTIONS':'GET, HEAD, OPTIONS');response.setHeader('Cache-Control','no-store');response.setHeader('CDN-Cache-Control','no-store');response.setHeader('Vary','Origin');response.end();return;}
  requireMethod(request,isCorpusSearch?['GET','HEAD','POST']:['GET','HEAD']);
  if(!endpoint||endpoint==='healthz'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:API_VERSION,...(!endpoint?{endpoints:[...apiEndpoints]}:{}),time:new Date().toISOString()});return;}
-    const queryKeys={directory:['lang'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang'],'speech-transcript':['lang'],'source-record':['lang','url'],'motion-comparison':['lang','joint','stage']};
+    const queryKeys={directory:['lang','retry'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang'],'speech-transcript':['lang'],'source-record':['lang','url'],'motion-comparison':['lang','joint','stage']};
     if(Object.hasOwn(queryKeys,segments[0]))requireQuery(url.searchParams,queryKeys[segments[0]]);
     const language = odpLanguage(url.searchParams.get("lang") || "en");
     if (segments.length === 2 && segments[0] === "portrait") {
@@ -251,7 +251,11 @@ async function handleApi(request,response,url,apiPrefix){
       if (audio!==null && audio!=='or') throw new HttpError(400,'invalid_audio','Use audio=or for explicitly selected original audio; otherwise the interface language is requested.');
       result=await speechMedia(segments[1],language,audio || language);
     }
-    else if (segments.length === 1 && segments[0] === "directory") result = await odpDirectory();
+    else if (segments.length === 1 && segments[0] === "directory") {
+      const retry=url.searchParams.get('retry');
+      if (retry!==null && retry!=='committee-details') throw new HttpError(400,'invalid_retry','Unsupported directory retry.');
+      result = await odpDirectory({retryCommitteeDetails:retry==='committee-details'});
+    }
     else if (segments.length === 2 && segments[0] === "profile") result = await odpProfile(positiveId(segments[1]));
     else if (segments.length === 2 && segments[0] === "activities") result = await recentActivities(positiveId(segments[1]), language);
     else if (segments.length === 2 && segments[0] === "document" && /^[A-Z0-9-]{1,100}$/.test(segments[1])) result = await activityDocument(segments[1], url.searchParams.has("member")?positiveId(url.searchParams.get("member")):null, language);

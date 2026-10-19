@@ -29,6 +29,7 @@ test('directory membership progress is never stored while completed snapshots re
   }
   assert.equal(seconds(policy('/api/directory', {index: {complete: true, loaded: 719, total: 719, failed: 0, error: null}})), 21600);
   assert.equal(seconds(policy('/api/directory', {index: {complete: true, loaded: 0, total: 0, failed: 0, error: null}})), 21600);
+  assert.deepEqual(policy('/api/directory', {index:{complete:true},committeeDetails:{complete:false,loaded:0,total:26,failed:0,error:null}}), {cacheControl:'no-store',cdnCacheControl:'no-store'});
 });
 
 test('only established positive speech and document reads use a day; unanswered questions remain mutable', () => {
