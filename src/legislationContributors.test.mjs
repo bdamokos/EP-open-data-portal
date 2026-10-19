@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {legislationContributors,mergeSpeechSpeakers} from './legislationContributors.mjs';
+import {legislationContributors,mergeSpeechSpeakers,orderLegislationPeople} from './legislationContributors.mjs';
 const person=(id,currentMep=true)=>({id,name:'Person '+id,currentMep,demographics:currentMep?{country:'HU',group:'PPE',gender:'Female',age:'50–64'}:null});
 const speech=(sourceId,people,kind='PLENARY_DEBATE_SPEECH')=>({sourceId,people,kind});
 const header=(id,personId,role='Chairing the sitting',name=null)=>({id,people:[{id:personId,name,role}]});
@@ -42,4 +42,44 @@ test('evidence survives country/language subsets and a chair label is scoped to 
   const next=mergeSpeechSpeakers(first,[header('intro','1',null,'Chair name')]);
   assert.equal(next.intro['1'].role,'Chairing the sitting');assert.equal(next.other['2'].role,null);
   assert(next.other);assert(next.intro);
+});
+
+test('plenary people put guests first, then the highest documented role and full-roster group size',()=>{
+  const people=[
+    {...person('speaker-small'),group:'Small'},
+    {...person('shadow-large'),group:'Large'},
+    {...person('rapporteur-small'),group:'Small'},
+    {...person('guest',false),name:'Outside speaker'},
+    {...person('speaker-large'),group:'Large'},
+    {...person('opinion-large'),group:'Large'},
+    {...person('shadow-opinion-large'),group:'Large'},
+    {...person('shadow-small'),group:'Small'},
+    {...person('multi-role'),group:'Large'},
+  ];
+  const roles=[['shadow-large','RAPPORTEUR_SHADOW'],['rapporteur-small','RAPPORTEUR'],['opinion-large','RAPPORTEUR_OPINION'],['shadow-opinion-large','RAPPORTEUR_SHADOW_OPINION'],['shadow-small','RAPPORTEUR_SHADOW'],['multi-role','RAPPORTEUR'],['multi-role','SPEAKER'],['multi-role','RAPPORTEUR_SHADOW']].map(([id,role])=>({id,role}));
+  const members=[{groupCode:'Small'},{groupCode:'Large'},{groupCode:'Large'}],before=structuredClone({people,roles,members});
+  const ordered=orderLegislationPeople(people,roles,members);
+  assert.deepEqual(ordered.map(p=>p.id),['guest','multi-role','rapporteur-small','opinion-large','shadow-large','shadow-small','shadow-opinion-large','speaker-large','speaker-small']);
+  assert.deepEqual({people,roles,members},before);
+  assert.deepEqual(orderLegislationPeople([...people].reverse(),[...roles].reverse(),members),ordered);
+});
+
+test('group ranking uses the whole roster, with non-attached and missing groups last and stable name/ID ties',()=>{
+  const people=[
+    {...person('z'),name:'Zulu',group:'Large',country:'HU'},
+    {...person('s1'),group:'Small',country:'HU'},
+    {...person('s2'),group:'Small',country:'HU'},
+    {...person('2'),name:'Alpha',group:'Large',country:'FR'},
+    {...person('1'),name:'Alpha',group:'Large',country:'HU'},
+    {...person('ni'),group:'NI',country:'HU'},
+    {...person('unknown'),group:null,country:'HU'},
+    {...person('unnamed'),name:null,group:'Large',country:'HU'},
+  ];
+  const members=['Large','Large','Large','Small',...Array(5).fill('NI')].map(groupCode=>({groupCode}));
+  const ordered=orderLegislationPeople(people,[],members);
+  assert.deepEqual(ordered.map(p=>p.id),['1','2','z','unnamed','s1','s2','ni','unknown']);
+  const subset=people.filter(p=>p.country==='HU');
+  assert.deepEqual(orderLegislationPeople(subset,[],members),ordered.filter(p=>p.country==='HU'));
+  assert.deepEqual(orderLegislationPeople(people,[]),orderLegislationPeople([...people].reverse(),[]));
+  assert.deepEqual(orderLegislationPeople([],[],members),[]);
 });
