@@ -40,7 +40,7 @@ import "./explorer.css";
 import { activitySourceId } from "../server/activity-links.mjs";
 import {transcriptParagraphs,TranscriptText} from "./Transcript";
 import { transcriptLanguage } from "../server/transcript-language.mjs";
-import { useSpeechData, useData } from "./data";
+import { api, useSpeechData, useData } from "./data";
 import { useSpeechVideo } from "./SpeechPlayer";
 import {AmendmentTrailLink} from './AmendmentTrailLink';
 import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule} from './publicFeatures';
@@ -515,9 +515,10 @@ export default function App() {
     return ()=>document.removeEventListener('focusin',cancel);
   },[view,member,speechLink]);
   useEffect(() => {
-    const timer=window.setInterval(directoryState.retry,directory?.index.complete ? 60_000 : 10_000);
+    const settled=directory?.index.complete && directory?.committeeDetails?.complete!==false;
+    const timer=window.setInterval(directoryState.retry,settled ? 60_000 : 10_000);
     return ()=>window.clearInterval(timer);
-  }, [directory?.index.complete,directoryState.retry]);
+  }, [directory?.index.complete,directory?.committeeDetails?.complete,directoryState.retry]);
   useEffect(() => {
     if (!directory?.members.length) return;
     if (committee) {
@@ -580,7 +581,7 @@ export default function App() {
       ) || [],
     [directory, country, group, search, committee, role],
   );
-  const unavailable = Boolean(committee && !directory?.index.complete);
+  const partialCommittee = Boolean(committee && !directory?.index.complete);
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = profile.data?.id === member ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || `MEP ${member}`;
@@ -830,11 +831,12 @@ export default function App() {
                   {committee && !directory?.committees.some(b => b.id === committee) && (
                     <option lang="en" value={committee}>Checking committee {committee}…</option>
                   )}
-                  {directory?.committees.map((b) => (
-                    <option lang={b.names[lang]?lang:b.names.en?'en':''} key={b.id} value={b.id}>
-                      {b.code} · {b.names[lang] || b.names.en}
-                    </option>
-                  ))}
+                  {directory?.committees.map((b) => {
+                    const name=selectLanguageText(b.names,lang,'Name unavailable');
+                    return <option lang={name.language} key={b.id} value={b.id}>
+                      {b.code} · {name.text}
+                    </option>;
+                  })}
                 </select>
               </label>
               <div className="explorer-filter-line">
@@ -893,7 +895,7 @@ export default function App() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Status scope={JSON.stringify([lang,committee,country,group,search,role])} pending={directoryState.loading||unavailable} oncePerScope message={!directory||error||unavailable?null:(filtered.length?`${filtered.length} ${filtered.length===1?'MEP matches':'MEPs match'} these filters.`:'No MEPs match these filters.')+(!directory.index.complete?' Committee memberships are incomplete.':'')}/>
+            <Status scope={JSON.stringify([lang,committee,country,group,search,role])} pending={directoryState.loading} oncePerScope message={!directory||error?null:(partialCommittee?(filtered.length?`${filtered.length} known ${filtered.length===1?'MEP matches':'MEPs match'} these filters.`:'No matches in the loaded memberships yet.'):(filtered.length?`${filtered.length} ${filtered.length===1?'MEP matches':'MEPs match'} these filters.`:'No MEPs match these filters.'))+(!directory.index.complete?' Committee memberships are incomplete.':'')}/>
             {error && (
               <ErrorView
                 message={error}
@@ -906,7 +908,7 @@ export default function App() {
             {directory && (
               <>
                 <div className="explorer-results">
-                  <strong>{unavailable ? "—" : filtered.length}</strong>
+                  <strong>{partialCommittee ? filtered.length ? `${filtered.length}+` : "—" : filtered.length}</strong>
                   <span lang={lang}>
                     {c.members}{" "}
                     <small lang="en">Current at <time lang={lang} dateTime={directory.day}>{date(directory.day, lang)}</time></small>
@@ -931,15 +933,18 @@ export default function App() {
                     <span lang={directory.sync.lastSuccess ? "" : "en"}>{directory.sync.lastSuccess || "not yet completed"}</span>.
                   </div>
                 )}
+                {directory.committeeDetails && (!directory.committeeDetails.complete || directory.committeeDetails.error) && (
+                  <div className="explorer-index" role="status" lang="en">
+                    {directory.committeeDetails.error || 'Loading committee names. Committee codes remain selectable.'}
+                    {directory.committeeDetails.error && <button onClick={() => {void api("directory?retry=committee-details").catch(() => {}).finally(directoryState.retry);}}>Retry committee details</button>}
+                  </div>
+                )}
                 {!directory.index.complete && (
                   <div className="explorer-index" role="status" lang="en">
                     {directory.index.error ||
                       `Loading committee memberships: ${directory.index.loaded} / ${directory.index.total}.`}
-                    {unavailable && (
-                      <p>
-                        Committee results will appear when all memberships are
-                        loaded.
-                      </p>
+                    {partialCommittee && (
+                      <p>Showing known matches from loaded profiles; committee results are incomplete.</p>
                     )}
                     {directory.index.error && (
                       <button onClick={directoryState.retry}>
@@ -948,8 +953,7 @@ export default function App() {
                     )}
                   </div>
                 )}
-                {!unavailable && (
-                  <div className="explorer-portraits" data-portrait-scroll-root>
+                <div className="explorer-portraits" data-portrait-scroll-root>
                     {filtered.map(m => (
                       <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>
                         <Portrait
@@ -980,9 +984,8 @@ export default function App() {
                         )}
                       </div>
                     ))}
-                    {!filtered.length && <p lang="en">No MEPs match these filters.</p>}
+                    {!filtered.length && <p lang="en">{partialCommittee ? 'No matches in the loaded memberships yet. Other profiles are still unavailable.' : 'No MEPs match these filters.'}</p>}
                   </div>
-                )}
               </>
             )}
           </section>
