@@ -1,0 +1,860 @@
+{
+  "bodies": [
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/5099?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "5099",
+        "label": "FEMM",
+        "isVersionOf": "org/FEMM",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20190702-20220119",
+          "type": "PeriodOfTime",
+          "endDate": "2022-01-19",
+          "startDate": "2019-07-02"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/6363?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "6363",
+        "label": "FEMM",
+        "isVersionOf": "org/FEMM",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20220120-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2022-01-20"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/5087?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "5087",
+        "label": "EMPL",
+        "isVersionOf": "org/EMPL",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20190702-20220119",
+          "type": "PeriodOfTime",
+          "endDate": "2022-01-19",
+          "startDate": "2019-07-02"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/6356?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "6356",
+        "label": "EMPL",
+        "isVersionOf": "org/EMPL",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20220120-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2022-01-20"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/5091?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "5091",
+        "label": "TRAN",
+        "isVersionOf": "org/TRAN",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20190702-20220119",
+          "type": "PeriodOfTime",
+          "endDate": "2022-01-19",
+          "startDate": "2019-07-02"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/6361?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "6361",
+        "label": "TRAN",
+        "isVersionOf": "org/TRAN",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20220120-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2022-01-20"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/5081?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "5081",
+        "label": "AFET",
+        "isVersionOf": "org/AFET",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20190702-20220119",
+          "type": "PeriodOfTime",
+          "endDate": "2022-01-19",
+          "startDate": "2019-07-02"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/6365?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "6365",
+        "label": "AFET",
+        "isVersionOf": "org/AFET",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20220120-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2022-01-20"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/5092?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "5092",
+        "label": "REGI",
+        "isVersionOf": "org/REGI",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20190702-20220119",
+          "type": "PeriodOfTime",
+          "endDate": "2022-01-19",
+          "startDate": "2019-07-02"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/6349?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "6349",
+        "label": "REGI",
+        "isVersionOf": "org/REGI",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20220120-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2022-01-20"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/5093?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "5093",
+        "label": "AGRI",
+        "isVersionOf": "org/AGRI",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20190702-20220119",
+          "type": "PeriodOfTime",
+          "endDate": "2022-01-19",
+          "startDate": "2019-07-02"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/6351?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "6351",
+        "label": "AGRI",
+        "isVersionOf": "org/AGRI",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20220120-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2022-01-20"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/5086?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "5086",
+        "label": "ECON",
+        "isVersionOf": "org/ECON",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20190702-20220119",
+          "type": "PeriodOfTime",
+          "endDate": "2022-01-19",
+          "startDate": "2019-07-02"
+        }
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/corporate-bodies/6366?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "6366",
+        "label": "ECON",
+        "isVersionOf": "org/ECON",
+        "classification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+        "temporal": {
+          "id": "time-period/20220120-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2022-01-20"
+        }
+      }
+    }
+  ],
+  "people": [
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/meps/96998?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "96998",
+        "label": "Evelyn REGNER",
+        "hasMembership": [
+          {
+            "id": "membership/96998-f-165363",
+            "organization": "org/6356",
+            "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-20"
+            }
+          },
+          {
+            "id": "membership/96998-f-156989",
+            "organization": "org/5087",
+            "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2019-07-02"
+            }
+          },
+          {
+            "id": "membership/96998-f-156880",
+            "organization": "org/5086",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2019-07-02"
+            }
+          },
+          {
+            "id": "membership/96998-f-166114",
+            "organization": "org/6363",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20220124",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-24",
+              "startDate": "2022-01-20"
+            }
+          },
+          {
+            "id": "membership/96998-f-166992",
+            "organization": "org/6363",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220125-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-25"
+            }
+          },
+          {
+            "id": "membership/96998-f-158062",
+            "organization": "org/5099",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20190709",
+              "type": "PeriodOfTime",
+              "endDate": "2019-07-09",
+              "startDate": "2019-07-02"
+            }
+          },
+          {
+            "id": "membership/96998-f-158405",
+            "organization": "org/5099",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190710-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2019-07-10"
+            }
+          },
+          {
+            "id": "membership/96998-f-166390",
+            "organization": "org/6366",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-20"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/meps/197498?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "197498",
+        "label": "Robert BIEDROŃ",
+        "hasMembership": [
+          {
+            "id": "membership/197498-f-166214",
+            "organization": "org/6365",
+            "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-20"
+            }
+          },
+          {
+            "id": "membership/197498-f-158413",
+            "organization": "org/5099",
+            "role": "def/ep-roles/CHAIR_VICE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190710-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2019-07-10"
+            }
+          },
+          {
+            "id": "membership/197498-f-156410",
+            "organization": "org/5081",
+            "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2019-07-02"
+            }
+          },
+          {
+            "id": "membership/197498-f-168132",
+            "organization": "org/6356",
+            "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20230106-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2023-01-06"
+            }
+          },
+          {
+            "id": "membership/197498-f-166990",
+            "organization": "org/6363",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220125-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-25"
+            }
+          },
+          {
+            "id": "membership/197498-f-158019",
+            "organization": "org/5099",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20190709",
+              "type": "PeriodOfTime",
+              "endDate": "2019-07-09",
+              "startDate": "2019-07-02"
+            }
+          },
+          {
+            "id": "membership/197498-f-166116",
+            "organization": "org/6363",
+            "role": "def/ep-roles/CHAIR_VICE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20220124",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-24",
+              "startDate": "2022-01-20"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/meps/197766?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "197766",
+        "label": "Lucia ĎURIŠ NICHOLSONOVÁ",
+        "hasMembership": [
+          {
+            "id": "membership/197766-f-164443",
+            "organization": "org/5087",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20210520-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2021-05-20"
+            }
+          },
+          {
+            "id": "membership/197766-f-166978",
+            "organization": "org/6356",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220124-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-24"
+            }
+          },
+          {
+            "id": "membership/197766-f-156937",
+            "organization": "org/5087",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20190717",
+              "type": "PeriodOfTime",
+              "endDate": "2019-07-17",
+              "startDate": "2019-07-02"
+            }
+          },
+          {
+            "id": "membership/197766-f-160266",
+            "organization": "org/5087",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190718-20210519",
+              "type": "PeriodOfTime",
+              "endDate": "2021-05-19",
+              "startDate": "2019-07-18"
+            }
+          },
+          {
+            "id": "membership/197766-f-165398",
+            "organization": "org/6356",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20220123",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-23",
+              "startDate": "2022-01-20"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/meps/197663?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "197663",
+        "label": "Dragoş PÎSLARU",
+        "hasMembership": [
+          {
+            "id": "membership/197663-f-164762",
+            "organization": "org/5086",
+            "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20211122-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2021-11-22"
+            }
+          },
+          {
+            "id": "membership/197663-f-156874",
+            "organization": "org/5086",
+            "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20190716",
+              "type": "PeriodOfTime",
+              "endDate": "2019-07-16",
+              "startDate": "2019-07-02"
+            }
+          },
+          {
+            "id": "membership/197663-f-166982",
+            "organization": "org/6356",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220124-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-24"
+            }
+          },
+          {
+            "id": "membership/197663-f-166935",
+            "organization": "org/6366",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20220705",
+              "type": "PeriodOfTime",
+              "endDate": "2022-07-05",
+              "startDate": "2022-01-20"
+            }
+          },
+          {
+            "id": "membership/197663-f-165356",
+            "organization": "org/6356",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20220123",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-23",
+              "startDate": "2022-01-20"
+            }
+          },
+          {
+            "id": "membership/197663-f-160262",
+            "organization": "org/5086",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190717-20211121",
+              "type": "PeriodOfTime",
+              "endDate": "2021-11-21",
+              "startDate": "2019-07-17"
+            }
+          },
+          {
+            "id": "membership/197663-f-156982",
+            "organization": "org/5087",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2019-07-02"
+            }
+          },
+          {
+            "id": "membership/197663-f-167751",
+            "organization": "org/6366",
+            "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220706-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-07-06"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/meps/96868?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "96868",
+        "label": "Karima DELLI",
+        "hasMembership": [
+          {
+            "id": "membership/96868-f-158453",
+            "organization": "org/5091",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190710-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2019-07-10"
+            }
+          },
+          {
+            "id": "membership/96868-f-165993",
+            "organization": "org/6361",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-20"
+            }
+          },
+          {
+            "id": "membership/96868-f-166431",
+            "organization": "org/6366",
+            "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-20"
+            }
+          },
+          {
+            "id": "membership/96868-f-161048",
+            "organization": "org/5086",
+            "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20200210-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2020-02-10"
+            }
+          },
+          {
+            "id": "membership/96868-f-157420",
+            "organization": "org/5091",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20190709",
+              "type": "PeriodOfTime",
+              "endDate": "2019-07-09",
+              "startDate": "2019-07-02"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/meps/124806?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "124806",
+        "label": "David MCALLISTER",
+        "hasMembership": [
+          {
+            "id": "membership/124806-f-166321",
+            "organization": "org/6365",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-20"
+            }
+          },
+          {
+            "id": "membership/124806-f-158378",
+            "organization": "org/5081",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190710-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2019-07-10"
+            }
+          },
+          {
+            "id": "membership/124806-f-156477",
+            "organization": "org/5081",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20190709",
+              "type": "PeriodOfTime",
+              "endDate": "2019-07-09",
+              "startDate": "2019-07-02"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/meps/30482?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "30482",
+        "label": "Younous OMARJEE",
+        "hasMembership": [
+          {
+            "id": "membership/30482-f-164829",
+            "organization": "org/6349",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-20"
+            }
+          },
+          {
+            "id": "membership/30482-f-158471",
+            "organization": "org/5092",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190710-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2019-07-10"
+            }
+          },
+          {
+            "id": "membership/30482-f-157558",
+            "organization": "org/5092",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20190709",
+              "type": "PeriodOfTime",
+              "endDate": "2019-07-09",
+              "startDate": "2019-07-02"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/meps/124808?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "124808",
+        "label": "Norbert LINS",
+        "hasMembership": [
+          {
+            "id": "membership/124808-f-158473",
+            "organization": "org/5093",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190710-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2019-07-10"
+            }
+          },
+          {
+            "id": "membership/124808-f-157640",
+            "organization": "org/5093",
+            "role": "def/ep-roles/MEMBER",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20190709",
+              "type": "PeriodOfTime",
+              "endDate": "2019-07-09",
+              "startDate": "2019-07-02"
+            }
+          },
+          {
+            "id": "membership/124808-f-164976",
+            "organization": "org/6351",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-20"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sourceUrl": "https://data.europarl.europa.eu/api/v2/meps/197591?format=application%2Fld%2Bjson",
+      "retrievedAt": "2026-10-19",
+      "data": {
+        "identifier": "197591",
+        "label": "Irene TINAGLI",
+        "hasMembership": [
+          {
+            "id": "membership/197591-f-166427",
+            "organization": "org/6366",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20220120-20240715",
+              "type": "PeriodOfTime",
+              "endDate": "2024-07-15",
+              "startDate": "2022-01-20"
+            }
+          },
+          {
+            "id": "membership/197591-f-156900",
+            "organization": "org/5086",
+            "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190702-20190915",
+              "type": "PeriodOfTime",
+              "endDate": "2019-09-15",
+              "startDate": "2019-07-02"
+            }
+          },
+          {
+            "id": "membership/197591-f-160358",
+            "organization": "org/5086",
+            "role": "def/ep-roles/CHAIR",
+            "membershipClassification": "def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING",
+            "memberDuring": {
+              "id": "time-period/20190916-20220119",
+              "type": "PeriodOfTime",
+              "endDate": "2022-01-19",
+              "startDate": "2019-09-16"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

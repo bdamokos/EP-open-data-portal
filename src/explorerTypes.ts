@@ -1,5 +1,6 @@
 import type { MemberSummary } from "./types";
 export interface Membership {
+  membershipId?:string|null;
   id: string;
   role: string;
   classification: string;
@@ -50,6 +51,14 @@ export interface MemberProfile extends DirectoryMember {
   email?: string;
   accounts: string[];
   fetchedAt: string;
+  sources?:{url:string;fetchedAt:string;stale:boolean}[];
+  committeeMemberships?:{
+    version:number;day:string;complete:boolean;error:string|null;
+    sources:{url:string;fetchedAt:string;stale:boolean}[];
+    items:{id:string;identity:string;code:string;names:Record<string,string>;roles:string[];
+      periods:{role:string;classification:string;start:string|null;end:string|null;current:boolean;
+        observations:{membershipId:string|null;bodyId:string;role:string;classification:string;start:string|null;end:string|null}[]}[]}[];
+  };
 }
 export interface SpeechSpeaker {
   id:string;
