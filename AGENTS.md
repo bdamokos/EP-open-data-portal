@@ -14,6 +14,19 @@ Run npm test, npm run check and npm run build for structural changes. Verify cha
 
 ## Pull requests and deployment
 
+- PR descriptions for visible changes must include labelled before-and-after screenshots of the affected UI at both mobile and desktop widths. Capture the base and proposed revisions with the same viewport, route and representative state; identify those revisions and any data or state differences in the captions. Inspect each screenshot before uploading. For changes with no visible effect, state that in the PR's validation section.
+- Upload screenshots directly to GitHub as PR attachments; keep the local files outside Git. Use GitHub CLI 2.99.0 or later and confirm `gh pr edit --help` lists `--attach`. See [attaching files with GitHub CLI](https://docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli) and [`gh pr edit`](https://cli.github.com/manual/gh_pr_edit).
+
+  ```sh
+  # Append screenshots without replacing the existing PR description.
+  gh pr edit PR_NUMBER \
+    --attach '/tmp/before-desktop.png#Before - desktop' \
+    --attach '/tmp/after-desktop.png#After - desktop' \
+    --attach '/tmp/before-mobile.png#Before - mobile' \
+    --attach '/tmp/after-mobile.png#After - mobile'
+  ```
+
+  For placement within the description, reference each local image path in a Markdown body file and pass the same paths with `--attach` alongside `--body-file`; the CLI replaces those references with hosted URLs. `gh pr create` also supports these flags. Preserve the full existing description when using `--body-file`. If an upload fails, read back the PR before retrying: some attachments may already have succeeded. Verify that every image renders in the saved PR description. If the CLI lacks `--attach`, update it or use GitHub's browser attachment control.
 - Keep the user's personal name out of repository files, commit messages and PR text.
 - For this repository, agents have standing authorization to merge and deploy reviewed PRs once required checks are green and actionable review findings are resolved, unless the user explicitly withholds merging or deployment or asks the agent to stop at an earlier stage. Follow project deployment ownership and coordination rules, verify the deployed revision and user-visible outcome, and report the merge commit and deployment result.
 - Complete review before treating a PR as ready. Inspect feedback, implement valid fixes, rerun relevant checks, and resolve actionable review threads. A timed-out or quota-skipped bot run does not count as completed review.
