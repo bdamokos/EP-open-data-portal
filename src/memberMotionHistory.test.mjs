@@ -108,6 +108,28 @@ test('activity page/category are controlled App history and survive Profile, bro
  await h.go(-1);assert.equal(location.href,page);
 });
 
+for(const exit of ['Back to members','Members'])test('opening another MEP through '+exit+' resets the activity category and page',async t=>{
+ const h=await harness(t,query({activity:'','activity-category':'motions','activity-offset':'10'}));
+ const firstMemberPage=location.href;
+ await h.click(button(h.container,exit==='Back to members'?/←/:exit));
+ await h.click(h.container.querySelector('[data-member-id="2"] .portrait--button'));
+ assert.equal(params().get('member'),'2');
+ assert.equal(params().get('activity-category'),null,'a fresh member must not inherit the previous category');
+ assert.equal(params().get('activity-offset'),null,'a fresh member starts on the first page');
+ await h.click(button(h.container,'Political activities'));
+ assert.match(h.container.querySelector('.explorer-activity-results-title').textContent,/^All activities/);
+ assert(h.requests.some(url=>url.pathname==='/api/latest-activities/2'&&url.searchParams.get('offset')==='0'&&!url.searchParams.has('category')));
+ if(exit==='Back to members'){
+  await h.go(-3);
+  assert.equal(location.href,firstMemberPage,'browser Back restores the original member’s exact selection');
+  assert.match(h.container.querySelector('.explorer-activity-results-title').textContent,/^Motions for resolutions/);
+  await h.go(3);
+  assert.equal(params().get('member'),'2');
+  assert.equal(params().get('activity-category'),null);
+  assert.match(h.container.querySelector('.explorer-activity-results-title').textContent,/^All activities/);
+ }
+});
+
 for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+': actual motion body scroll survives cold pending restore, a second departure, and Refresh list',async t=>{
  let delayed=false,releaseBody;
  const h=await harness(t,query({}),{context:url=>{

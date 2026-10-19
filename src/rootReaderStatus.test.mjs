@@ -211,3 +211,28 @@ test('member transcript preserves editorial italics in place without importing s
   assert.deepEqual([...body.querySelectorAll('i')].map(node=>node.textContent),['(A video was played in the Chamber)','(Applause)']);
   assert.equal(body.querySelector('script,[style],[onclick],inline'),null);
 });
+
+
+test('member question retries the selected source language locally and keeps saved text through repeated failure',async t=>{
+  const h=await harness(t),toggle=h.container.querySelector('.explorer-speech-toggle');await h.click(toggle);
+  const route=`document/${questionId}?member=${member.id}&lang=fr`;
+  await h.finish(`document/${questionId}?member=${member.id}&lang=en`,documentResult());
+  const reader=h.container.querySelector('.explorer-document-text'),select=reader.querySelector('select');
+  await act(async()=>{select.value='fr';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+  await h.finish(route,documentResult('fr'));
+  h.expireActivityReads();await h.click(toggle);await h.click(toggle);
+  // Reopening resets the reader to the interface language; choose the same source variant.
+  const reopened=h.container.querySelector('.explorer-document-text'),picker=reopened.querySelector('select');
+  await act(async()=>{picker.value='fr';picker.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+  const text=reopened.querySelector('.explorer-transcript'),source=reopened.querySelector('.explorer-reader-download');
+  await h.finish(route,{error:{code:'upstream_busy',message:'Busy.'}},503);
+  assert(!reopened.textContent.includes('No answer published.'));assertOrdinaryText(reopened);
+  const retry=reopened.querySelector('.reader-retry button');assert(retry);const heading=reopened.querySelector('h3');
+  await act(async()=>{retry.focus();retry.click();retry.click();});
+  assert.equal(document.activeElement,heading);assert.equal(reopened.querySelector('.explorer-transcript'),text);assert.equal(reopened.querySelector('.explorer-reader-download'),source);
+  assert.equal(h.pending.filter(request=>request.route===route).length,3,'initial read, failed refresh and exactly one retry');
+  await h.finish(route,{error:{message:'Still busy.'}},503);assert.equal(reopened.querySelector('.explorer-transcript'),text);assert(reopened.querySelector('.reader-retry button'));
+  await h.click(reopened.querySelector('.reader-retry button'));await h.finish(route,documentResult('fr'));await h.wait();
+  assert.equal(reopened.querySelector('.reader-retry'),null);assert.equal(reopened.querySelector('.explorer-transcript').lang,'fr');assertOrdinaryText(reopened);assertDownloads(reopened,'fr');
+  assert.equal(document.activeElement,heading);assert.equal(status(reopened).textContent,'Question: Text loaded.');
+});

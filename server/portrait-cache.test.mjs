@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {chmod, mkdtemp, readFile, readdir, rm, stat, writeFile} from 'node:fs/promises';
+import {chmod, mkdtemp, readFile, readdir, rm, stat, truncate, writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
@@ -49,6 +50,66 @@ test('memory eviction reuses disk and concurrent callers share the profile looku
   await cache.get(2, lookup); assert.equal(cache.memory.size, 1);
   await cache.get(1, lookup); assert.equal(sources, 2); assert.equal(downloads, 2);
   assert.equal(cache.memory.size, 1); assert.equal(cache.pending.size, 0); assert.equal(cache.refreshes.size, 0);
+});
+
+test('official-sized portraits above 2 MiB survive restart with their hashes, provenance and validators', async t => {
+  const directory = await fixture(t);
+  // Representative published image lengths, with entirely synthetic bytes.
+  const sizes = new Map([[197475, 3174585], [197492, 2372526], [24922, 2524568]]);
+  const etag = '"portrait"', lastModified = 'Mon, 14 Oct 2024 09:53:57 GMT';
+  const cache = new PortraitCache({directory, clock: () => 1000, fetchImpl: async url => {
+    const id = Number(new URL(url).pathname.split('/').at(-1).split('.')[0]);
+    const body = Buffer.alloc(sizes.get(id), id % 256);
+    return new Response(body, {headers: {'content-type': 'image/jpeg', 'content-length': String(body.length), etag, 'last-modified': lastModified}});
+  }});
+  for (const [id, size] of sizes) {
+    const image = await cache.get(id, source);
+    assert.equal(image.body.length, size);
+    const restarted = new PortraitCache({directory, clock: () => 1050, fetchImpl: () => assert.fail('fresh saved image needs no download')});
+    const saved = await restarted.get(id, () => assert.fail('fresh saved image needs no profile read'));
+    assert.deepEqual(saved.body, image.body);
+    assert.equal(saved.sha256, createHash('sha256').update(image.body).digest('hex'));
+    assert.equal(saved.memberId, id); assert.equal(saved.sourceUrl, source(id)); assert.equal(saved.fetchedAt, 1000);
+    assert.equal(saved.etag, etag); assert.equal(saved.lastModified, lastModified);
+  }
+  let confirmations = 0;
+  const stale = new PortraitCache({directory, clock: () => 1200, freshMs: 100, fetchImpl: async (url, {headers}) => {
+    confirmations++; assert.equal(url, source(197475));
+    assert.equal(headers['If-None-Match'], etag); assert.equal(headers['If-Modified-Since'], lastModified);
+    return new Response(null, {status: 304, headers: {etag}});
+  }});
+  assert.equal((await stale.get(197475, source)).fetchedAt, 1000);
+  await stale.refreshes.get(197475);
+  assert.equal((await stale.get(197475, source)).fetchedAt, 1200);
+  assert.equal(confirmations, 1);
+});
+
+test('the inclusive 8 MiB image limit preserves the smaller retained-memory budget and disk reuse', async t => {
+  const directory = await fixture(t), size = 8 * 1024 * 1024;
+  let downloads = 0;
+  const cache = new PortraitCache({directory, fetchImpl: async () => {
+    downloads++;
+    return new Response(Buffer.alloc(size, downloads), {headers: {'content-type': 'image/jpeg', ...(downloads === 1 ? {'content-length': String(size)} : {})}});
+  }});
+  await cache.get(1, source); await cache.get(2, source);
+  assert.equal(cache.memory.size, 1); assert.equal(cache.memoryBytes, size);
+  assert.equal((await cache.get(1, source)).body[0], 1); assert.equal(downloads, 2);
+  const restarted = new PortraitCache({directory, fetchImpl: () => assert.fail('limit-sized saved image remains readable')});
+  assert.equal((await restarted.get(2, source)).body.length, size);
+  assert.equal(restarted.memoryBytes, size);
+});
+
+test('the default disk budget retains more than 128 MiB and remains capped at 1.4 GB on startup', async t => {
+  const directory = await fixture(t), size = 8 * 1024 * 1024;
+  // Sparse files exercise byte accounting without downloading or allocating a roster.
+  for (let id = 1; id <= 168; id++) {
+    const file = path.join(directory, `${id}.portrait`);
+    await writeFile(file, ''); await truncate(file, size);
+  }
+  const cache = new PortraitCache({directory}); await cache.initialize();
+  assert.equal(cache.files.size, 166);
+  assert.equal(cache.diskBytes, 166 * size);
+  assert(cache.diskBytes <= 1_400_000_000); assert.equal(await diskBytes(directory), cache.diskBytes);
 });
 
 test('expired saved portraits return promptly and share one background refresh with original provenance', async t => {
@@ -209,7 +270,7 @@ test('unrelated files survive cache pruning and abandoned writes are removed', a
 
 test('corrupt saved bytes are rejected and replaced using the validated source', async t => {
   const directory = await fixture(t);
-  await new PortraitCache({directory, fetchImpl: async () => jpeg('first')}).get(1, source);
+  await new PortraitCache({directory, fetchImpl: async () => jpeg(Buffer.alloc(3174585))}).get(1, source);
   const filename = path.join(directory, '1.portrait');
   const bytes = await readFile(filename); bytes[bytes.length - 1] ^= 1; await writeFile(filename, bytes);
   let calls = 0;
@@ -243,17 +304,32 @@ test('a failed atomic replacement preserves the previously saved file', async t 
 });
 
 test('download rejects non-images, empty responses, declared and streamed oversized images without persisting them', async t => {
-  const directory = await fixture(t), limit = 2 * 1024 * 1024;
+  const directory = await fixture(t), limit = 8 * 1024 * 1024;
   let cancelled = 0, pulled = 0;
+  const stream = headers => new Response(new ReadableStream({pull(controller) {pulled++; controller.enqueue(new Uint8Array(1024 * 1024));}, cancel() {cancelled++;}}), {headers: {'content-type': 'image/jpeg', ...headers}});
   const responses = [
     new Response('<html>', {headers: {'content-type': 'text/html'}}), jpeg(''),
     new Response('small', {headers: {'content-type': 'image/jpeg', 'content-length': String(limit + 1)}}),
-    new Response(new ReadableStream({pull(controller) {pulled++; controller.enqueue(new Uint8Array(1024 * 1024));}, cancel() {cancelled++;}}), {headers: {'content-type': 'image/jpeg'}}),
+    stream({}), stream({'content-length': '1'}),
   ];
   const cache = new PortraitCache({directory, fetchImpl: async () => responses.shift()});
   for (const id of [1, 2]) await assert.rejects(cache.get(id, source), {code: 'portrait_unavailable'});
-  for (const id of [3, 4]) await assert.rejects(cache.get(id, source), {code: 'portrait_size'});
-  assert.equal(cancelled, 1); assert(pulled <= 4); assert.equal(cache.memory.size, 0); assert.equal(await diskBytes(directory), 0);
+  for (const id of [3, 4, 5]) await assert.rejects(cache.get(id, source), {code: 'portrait_size'});
+  assert.equal(cancelled, 2); assert(pulled <= 20); assert.equal(cache.memory.size, 0); assert.equal(await diskBytes(directory), 0);
+});
+
+test('saved portraits above 8 MiB are rejected even with a valid checksum and bounded file header', async t => {
+  const directory = await fixture(t), body = Buffer.alloc(8 * 1024 * 1024 + 1);
+  const header = Buffer.from(JSON.stringify({version: 1, memberId: 1, sourceUrl: source(1), fetchedAt: 1000,
+    contentType: 'image/jpeg', sha256: createHash('sha256').update(body).digest('hex')}));
+  const prefix = Buffer.alloc(4); prefix.writeUInt32BE(header.length);
+  await writeFile(path.join(directory, '1.portrait'), Buffer.concat([prefix, header, body]));
+  let downloads = 0;
+  const cache = new PortraitCache({directory, fetchImpl: async () => {downloads++; return jpeg('replacement');}});
+  assert.equal((await cache.get(1, source)).body.toString(), 'replacement'); assert.equal(downloads, 1);
+  assert(cache.memoryBytes < body.length);
+  const restarted = new PortraitCache({directory, fetchImpl: () => assert.fail('replacement was persisted')});
+  assert.equal((await restarted.get(1, source)).body.toString(), 'replacement');
 });
 
 test('invalid member and upstream identities never make an upstream request', async () => {

@@ -81,7 +81,7 @@ test('pending requests cancel queued success, and a repeated explicit reader fai
 
 const member=(id,countryCode)=>({id,firstName:'Fixture',lastName:String(id),sortName:String(id),countryCode,groupCode:'EPP',gender:'f',memberships:[],accounts:[]});
 const directory={day:'2026-10-16',members:[member(1,'BE'),member(2,'FI')],committees:[{id:'ENVI',code:'ENVI',names:{en:'Environment'}}],index:{complete:false,loaded:0,total:2,failed:0,error:null}};
-test('member count waits for directory and committee coverage, and polling never reannounces a settled filter',async t=>{
+test('member count labels partial committee coverage, and polling never reannounces a settled filter',async t=>{
   let resolve,response=directory;
   const pending=new Promise(done=>{resolve=done;});
   const h=await harness(t,'?committee=ENVI',url=>{
@@ -93,12 +93,55 @@ test('member count waits for directory and committee coverage, and polling never
   const {default:App}=await h.load('/src/App.tsx');await h.render(createElement(App));
   const status=h.container.querySelector('[role="status"][aria-atomic="true"]');assert(status);assert.equal(status.textContent,'');
   await act(async()=>resolve(directory));await wait(380);
-  assert.equal(status.textContent,'','incomplete membership data must not announce a false zero');assert.equal(h.container.querySelector('.explorer-results strong').textContent,'—');
+  assert.equal(status.textContent,'No matches in the loaded memberships yet. Committee memberships are incomplete.','incomplete membership data must not announce a false zero');assert.equal(h.container.querySelector('.explorer-results strong').textContent,'—');
   response={...directory,index:{...directory.index,complete:true,loaded:2},members:directory.members.map(m=>({...m,memberships:[{id:'ENVI',current:true,role:'MEMBER'}]}))};
-  await act(async()=>poll.at(-1)());await wait(380);assert.equal(status.textContent,'2 MEPs match these filters.');
+  await act(async()=>poll.at(-1)());await wait(380);assert.equal(status.textContent,'','background completion must not reannounce the same filter');
   const country=h.container.querySelector('select[aria-label="Country"]')||[...h.container.querySelectorAll('select')].find(n=>[...n.options].some(o=>o.value==='FI'));assert(country);country.focus();
   await act(async()=>{country.value='FI';country.dispatchEvent(new h.window.Event('change',{bubbles:true}));});await wait(380);
   assert.equal(status.textContent,'1 MEP matches these filters.');assert.equal(document.activeElement,country);assert.equal(new URL(location.href).searchParams.get('country'),'FI');
   let updates=0;const observer=new h.window.MutationObserver(()=>{if(status.textContent)updates++;});observer.observe(status,{subtree:true,childList:true,characterData:true});t.after(()=>observer.disconnect());
   await act(async()=>poll.at(-1)());await wait(380);assert.equal(updates,0);assert.equal(document.activeElement,country);
+});
+
+
+test('known committee matches stay usable after another profile fails, with honest counts and recoverable details',async t=>{
+  let response={...directory,committeeDetails:{complete:false,loaded:0,total:1,failed:1,error:'Some committee details are unavailable. Showing retained names or committee codes.'},committees:[{id:'ENVI',code:'ENVI',names:{}}],index:{...directory.index,loaded:1,failed:1,error:'Some membership profiles could not be loaded. Retry the membership index.'},members:[{...member(1,'BE'),memberships:[{id:'ENVI',current:true,role:'MEMBER'}]},{...member(2,'FI'),memberships:null}]};
+  const directoryReads=[];
+  const h=await harness(t,'?committee=ENVI',url=>{
+    if(url.pathname.endsWith('/directory')){directoryReads.push(url);return response;}
+    if(url.pathname.endsWith('/insights/saved'))return {members:[],questions:[]};
+    throw Error('Unexpected fixture request: '+url);
+  });
+  const {default:App}=await h.load('/src/App.tsx');await h.render(createElement(App));await wait(380);
+  assert.equal(h.container.querySelector('.explorer-results strong').textContent,'1+');
+  assert.equal(h.container.querySelectorAll('.explorer-portrait-item').length,1);
+  assert.match(h.container.textContent,/Showing known matches.*results are incomplete/);
+  assert.match(h.container.querySelector('option[value="ENVI"]').textContent,/ENVI.*Name unavailable/);
+  const retry=[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Retry membership index');assert(retry);
+  const detailsRetry=[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Retry committee details');assert(detailsRetry);
+  await act(async()=>detailsRetry.click());await wait(30);assert(directoryReads.some(url=>url.searchParams.get('retry')==='committee-details'));
+  response={...response,committeeDetails:{complete:true,loaded:1,total:1,failed:0,error:null},committees:[{id:'ENVI',code:'ENVI',names:{fr:'Environnement'}}],index:{complete:true,loaded:2,total:2,failed:0,error:null},members:response.members.map(m=>({...m,memberships:[{id:'ENVI',current:true,role:'MEMBER'}]}))};
+  await act(async()=>retry.click());await wait(380);
+  assert.equal(h.container.querySelector('.explorer-results strong').textContent,'2');assert.equal(h.container.querySelectorAll('.explorer-portrait-item').length,2);
+  const option=h.container.querySelector('option[value="ENVI"]');assert.match(option.textContent,/Environnement/);assert.equal(option.lang,'fr');
+  assert.doesNotMatch(h.container.textContent,/results are incomplete|Retry membership index|Retry committee details/);
+});
+
+
+test('completed memberships keep polling promptly until optional committee names arrive',async t=>{
+  let response={...directory,committees:[{id:'ENVI',code:'ENVI',names:{}}],committeeDetails:{complete:false,loaded:0,total:1,failed:0,error:null},index:{complete:true,loaded:2,total:2,failed:0,error:null}};
+  const h=await harness(t,'',url=>{
+    if(url.pathname.endsWith('/directory'))return response;
+    if(url.pathname.endsWith('/insights/saved'))return {members:[],questions:[]};
+    throw Error('Unexpected fixture request: '+url);
+  });
+  const polling=[];t.mock.method(h.window,'setInterval',(callback,delay)=>{if(delay===10_000||delay===60_000)polling.push({callback,delay});return 1;});t.mock.method(h.window,'clearInterval',()=>{});
+  const {default:App}=await h.load('/src/App.tsx');await h.render(createElement(App));await wait();
+  assert.match(h.container.querySelector('option[value="ENVI"]').textContent,/Name unavailable/);
+  assert.equal(polling.at(-1).delay,10_000,'finishing the profile index must not delay incomplete committee names for a minute');
+  response={...response,committees:[{id:'ENVI',code:'ENVI',names:{en:'Environment'}}],committeeDetails:{complete:true,loaded:1,total:1,failed:0,error:null}};
+  await act(async()=>polling.at(-1).callback());await wait();
+  assert.match(h.container.querySelector('option[value="ENVI"]').textContent,/Environment/);
+  assert.doesNotMatch(h.container.textContent,/Loading committee names/);
+  assert.equal(polling.at(-1).delay,60_000,'settled names and memberships use the normal refresh interval');
 });
