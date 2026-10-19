@@ -90,16 +90,17 @@ test('corpus transcript reads retain XML, exact keys, languages and provenance w
   }
 });
 
-test('legacy corpus metadata upgrades through the existing lease and metadata-only monthly cursor',async()=>{
+test('explicit corpus preparation restores metadata before the leased metadata-only monthly cursor runs',async()=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'speech-metadata-backfill-'));
   let store=new CorpusStore(directory);
   try {
     store.acquire();store.putDocument({sourceId:id,kind:'speech',date:'2026-10-07',term:10},[{sourceKey:'de',language:'de',translationType:'original',sourceFormat:'xml-fragment',sourceUrl:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:date,body:'Retained text.',raw:xml}]);
-    store.db.exec("DROP TABLE speech_metadata; DELETE FROM meta WHERE key IN ('speechMetadataVersion','speechMetadataBackfill');");
+    store.db.exec("DROP TABLE speech_metadata; DELETE FROM meta WHERE key IN ('speechMetadataVersion','speechMetadataBackfill','resourceIndexes');");
     store.release();store.close();
-    const legacy=new CorpusStore(directory,{readOnly:true});
-    assert.equal(legacy.speechTranscript({sourceId:id,language:'de'}).xml,xml);legacy.close();
-    store=new CorpusStore(directory);assert.equal(store.get('speechMetadataBackfill'),true);store.acquire();
+    assert.throws(()=>new CorpusStore(directory,{readOnly:true}),/migrate-indexes/);
+    store=new CorpusStore(directory,{initializeIndexes:true});assert.equal(store.get('speechMetadataBackfill'),true);store.acquire();
+    const prepared=new CorpusStore(directory,{readOnly:true});
+    assert.equal(prepared.speechTranscript({sourceId:id,language:'de'}).xml,xml);prepared.close();
     const before=store.db.prepare('SELECT sha256,checked_at FROM texts').get();let requests=0;
     const worker=new CorpusWorker(store,{clock:()=>Date.parse(date),interval:0,fetchRecord:async(endpoint,params)=>{
       requests++;assert.equal(endpoint,'/speeches');assert.equal(params['include-output'],undefined);assert.equal(params.limit,500);
