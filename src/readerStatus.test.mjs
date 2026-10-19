@@ -41,6 +41,7 @@ async function harness(t) {
   });
   t.mock.method(globalThis,'fetch',input=>{
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1]+url.search;
+    if(route.startsWith('speech-transcript/'))return Promise.resolve(Response.json({id:route.split('/')[1].split('?')[0],available:false}));
     assert.match(route,/^(document|speech)\//,'reader tests must not contact unrelated services');
     return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));
   });
@@ -55,11 +56,11 @@ async function harness(t) {
   const finish=(route,data,error=false)=>act(async()=>{
     const request=requests.find(request=>request.route===route&&!request.finished);
     assert(request,'Missing request: '+route);request.finished=true;
-    if(error)request.reject(new Error('Fixture request failed.'));else request.resolve(Response.json(data));
+    if(error)request.reject(new Error('Fixture request failed.'));else request.resolve(data instanceof Response?data:Response.json(data));
   });
   const wait=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,400)));
   const status=()=>container.querySelector('[role="status"][aria-live="polite"]');
-  return {window,container,trigger,reader,render,finish,wait,status,expireActivityReads};
+  return {window,container,trigger,reader,render,finish,wait,status,expireActivityReads,requests};
 }
 
 test('settled readers announce concise status once and keep document bodies out of live regions',async t=>{
@@ -140,9 +141,86 @@ test('a mismatched response identifier is announced as unavailable instead of re
     const h=await harness(t);
     await h.render(h.reader(kind));
     await h.finish(kind==='question'?`document/${questionId}?lang=en`:`speech/${speechId}?lang=en`,kind==='question'?question('E-10-2026-003032'):speech('MTG-PL-2026-03-25-OTH-2017069380112'));await h.wait();
-    assert.equal(h.status().textContent,kind==='question'?'Question: Text unavailable.':'Speech temporarily unavailable.');
+    assert.equal(h.status().textContent,kind==='question'?'Question: Text temporarily unavailable.':'Speech temporarily unavailable.');
     assert.equal(h.container.querySelector('.insight-reader-text'),null);
     assert(!h.container.textContent.includes(body));
     assert.equal(document.activeElement,h.trigger);
   });
+});
+
+
+test('inline retries recover the same ID and chosen language once, retaining local keyboard focus',async t=>{
+  for(const kind of ['question','speech'])await t.test(kind,async t=>{
+    const h=await harness(t),id=kind==='question'?questionId:speechId,prefix=kind==='question'?'document':'speech';
+    await h.render(h.reader(kind));
+    await h.finish(`${prefix}/${id}?lang=en`,kind==='question'?question():speech());
+    const select=h.container.querySelector('select');
+    await act(async()=>{select.value='fr';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+    const route=`${prefix}/${id}?lang=fr`;
+    await h.finish(route,Response.json({error:{code:'upstream_busy',message:'Busy.'}},{status:503}));await h.wait();
+    const retry=h.container.querySelector('.reader-retry button'),heading=h.container.querySelector('h3'),section=heading.closest('section');
+    assert(retry,'the failed reader has a local retry');assert.equal(retry.lang,'en');
+    const originalSection=section,href=h.window.location.href;section.scrollTop=147;
+    assert.equal(h.container.querySelectorAll('[role="status"],[role="alert"]').length,1);
+    await act(async()=>{retry.focus();retry.click();retry.click();});
+    assert.equal(document.activeElement,heading,'focus moves to the stable heading before the retry control disappears');
+    assert.equal(section.scrollTop,147);assert.equal(h.window.location.href,href);
+    assert.equal(h.requests.filter(request=>request.route===route).length,2,'double activation starts only one replacement request');
+    assert.equal(h.container.querySelector('.reader-retry button'),null,'no second retry can be issued while loading');
+    await h.finish(route,kind==='question'?question(id,'fr'):speech(id,'fr'));await h.wait();
+    assert.equal(heading.closest('section'),originalSection);assert.equal(section.scrollTop,147);
+    assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');assert.equal(document.activeElement,heading);
+    assert.equal(h.status().textContent,kind==='question'?'Question: Text loaded.':'Speech loaded.');
+    assert.equal(h.requests.filter(request=>request.route===route).length,2,'completion does not start another retry');
+  });
+});
+
+test('failed refresh retries retain readable text, exact source metadata and selected document',async t=>{
+  const h=await harness(t),route=`document/${questionId}?lang=en`;
+  await h.render(h.reader('question',{includeAnswers:true}));await h.finish(route,question());
+  await h.render(null);h.expireActivityReads();await h.render(h.reader('question',{includeAnswers:true}));
+  const text=h.container.querySelector('.insight-reader-text'),source=h.container.querySelector('.insight-reader-source a');
+  await h.finish(route,null,true);
+  assert(!h.container.textContent.includes('No answer published.'),'a failed read must not claim parliamentary absence');
+  assert.match(h.container.querySelector('.reader-retry').textContent,/Saved text remains readable/);
+  let retry=h.container.querySelector('.reader-retry button');
+  await act(async()=>{retry.focus();retry.click();});
+  assert.equal(h.container.querySelector('.insight-reader-text'),text);assert.equal(text.textContent,body);assert.equal(text.lang,'en');assert.equal(h.container.querySelector('.insight-reader-source a'),source);
+  await h.finish(route,null,true);assert.equal(h.container.querySelector('.insight-reader-text'),text);
+  retry=h.container.querySelector('.reader-retry button');assert(retry,'a failed retry remains recoverable');
+  await act(async()=>retry.click());await h.finish(route,question());
+  assert.equal(h.container.querySelector('.reader-retry'),null);assert.equal(text.textContent,body);
+});
+
+test('HTTP-200 extraction failures honor their retry hint and localized retry label without declaring absence',async t=>{
+  const h=await harness(t),route=`document/${questionId}?lang=hu`,data=question(questionId,'hu','error');
+  data.selectedText.nextRetryAt=new Date(Date.now()+900).toISOString();
+  await h.render(h.reader('question',{language:'hu',includeAnswers:true}));await h.finish(route,data);
+  const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);assert.equal(retry.lang,'hu');assert.equal(retry.textContent,'Újrapróbálkozás');
+  retry.click();assert.equal(h.requests.length,1);assert(!h.container.textContent.includes('No answer published.'));
+  assert(!h.container.textContent.includes('Text unavailable.'));
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,950)));
+  assert.equal(retry.disabled,false,'the server hint expiring enables a manual retry');assert.equal(h.requests.length,1,'a hint does not start an automatic retry');
+  await act(async()=>{retry.focus();retry.click();});await h.finish(route,question(questionId,'hu'));
+  assert.equal(h.container.querySelector('.insight-reader-text').lang,'hu');assert.equal(h.container.querySelector('.reader-retry'),null);
+});
+
+test('HTTP error cooldowns disable the local speech and document retry until the supplied time',async t=>{
+  for(const kind of ['question','speech'])await t.test(kind,async t=>{
+    const h=await harness(t),route=kind==='question'?`document/${questionId}?lang=en`:`speech/${speechId}?lang=en`;
+    await h.render(h.reader(kind));
+    await h.finish(route,Response.json({error:{code:'upstream_busy',message:'Busy.',retryAt:Date.now()+60_000}},{status:503}));
+    const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);
+    await act(async()=>retry.click());assert.equal(h.requests.length,1);
+  });
+});
+
+
+test('an in-progress source refresh does not accept a second reader retry',async t=>{
+  const h=await harness(t),route=`document/${questionId}?lang=en`,data=question();
+  data.selectedText.refreshError='Last source refresh failed.';data.selectedText.refreshInProgress=true;
+  await h.render(h.reader('question',{includeAnswers:true}));await h.finish(route,data);
+  const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);
+  await act(async()=>retry.click());assert.equal(h.requests.length,1);assert.equal(h.container.querySelector('.insight-reader-text').textContent,body);
+  assert(!h.container.textContent.includes('No answer published.'));
 });
