@@ -28,9 +28,9 @@ export function TopicTrends({language='en',initialTopic}:{language?:string;initi
   const heading=useRef<HTMLHeadingElement>(null),chart=useRef<SVGSVGElement>(null),[chartWidth,setChartWidth]=useState(960);
   useEffect(()=>{if(!chart.current)return;const observer=new ResizeObserver(entries=>setChartWidth(Math.max(260,Math.round(entries[0].contentRect.width))));observer.observe(chart.current);return()=>observer.disconnect();},[data,selection]);
   useEffect(()=>{
-    let active=true;setLoading(true);setError(false);setData(null);
-    void(async()=>{let page:number|null=0;try{while(active&&page!==null){const result:Trends=await client.get('insights/topic-trends?'+new URLSearchParams({lang:language,days:String(days),page:String(page),...(end?{end}:{}),...(initialTopic?{concept:initialTopic.split('/').at(-1)!}:{})}),{force:attempt>0});if(!active)return;setData(result);page=result.nextPage;}if(active)setLoading(false);}catch{if(active){setError(true);setLoading(false);}}})();
-    return()=>{active=false;};
+    let active=true;const controller=new AbortController();setLoading(true);setError(false);setData(null);
+    void(async()=>{let page:number|null=0;try{while(active&&page!==null){const result:Trends=await client.get('insights/topic-trends?'+new URLSearchParams({lang:language,days:String(days),page:String(page),...(end?{end}:{}),...(initialTopic?{concept:initialTopic.split('/').at(-1)!}:{})}),{force:attempt>0,signal:controller.signal});if(!active)return;setData(result);page=result.nextPage;}if(active)setLoading(false);}catch{if(active){setError(true);setLoading(false);}}})();
+    return()=>{active=false;controller.abort();};
   },[language,days,end,attempt,initialTopic]);
   const total=(topic:Trend)=>topic.series.reduce((sum,row)=>sum+row[metric],0);
   const available=(data?.topics||[]).filter(topic=>total(topic)>0&&topic.label.toLocaleLowerCase(language).includes(search.toLocaleLowerCase(language))).sort((a,b)=>total(b)-total(a)||a.label.localeCompare(b.label,language));
