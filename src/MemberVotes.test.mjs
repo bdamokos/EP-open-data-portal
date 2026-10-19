@@ -1,6 +1,7 @@
 import {wordingText,wordingViewText} from './test-support/wordingText.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
@@ -176,6 +177,24 @@ test('a subject without agenda/document context remains visible with only its ex
   const sources=h.container.querySelectorAll('.member-votes-source a');assert.equal(sources.length,1);
   assert.equal(sources[0].href,'https://www.europarl.europa.eu/doceo/document/PV-10-2026-03-25-VOT_EN.html');
   assert(!visiblePane(h.container).textContent.includes(decision(1)));assert(!visiblePane(h.container).textContent.includes(SNAPSHOT));
+});
+
+test('multilingual source subjects show one English title in list and detail while preserving the source literal',async t=>{
+  const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/multilingual-vote-titles.json',import.meta.url)));
+  const source=fixture.sources[0].payload.data.find(node=>node.activity_id.endsWith('000001'));
+  const decisionSource=fixture.sources[1].payload.data.find(node=>node.activity_id.endsWith('198880'));
+  const item=vote(1,{scope:{kind:'unclassified',basis:'unclassified'},referenceTexts:decisionSource.referenceText,
+    context:{...vote(1).context,amendmentIds:[]}});
+  const sourceSubject=subject([item],{titles:source.activity_label,title:source.activity_label.mul,titleLanguage:'mul'});
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items:[item],subjects:[sourceSubject]}))});
+  const title=h.container.querySelector('.member-votes-subject h3 span[title]');
+  assert.equal(title.textContent,'Monday’s Agenda - Request from the PfE Group - Riots');
+  assert.equal(title.lang,'en');assert.equal(title.title,source.activity_label.mul);
+  assert.match(h.container.querySelector('.member-votes-row').textContent,/Demande du groupe PfE - Émeutes/);
+  await act(async()=>h.container.querySelector('.member-votes-row').click());
+  const detail=h.container.querySelector('.member-votes-detail-subject');
+  assert.equal(detail.textContent,title.textContent);assert.equal(detail.lang,'en');assert.equal(detail.title,source.activity_label.mul);
+  assert.equal(h.container.querySelector('.member-votes-detail h2').textContent,decisionSource.referenceText.fr);
 });
 
 test('off-page whole-text outcomes do not add empty subjects or hide the recorded-position empty state',async t=>{

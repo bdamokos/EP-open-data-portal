@@ -1,6 +1,7 @@
 import {useEffect,useId,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {useData} from './data';
 import {selectLanguageText} from './language.mjs';
+import {selectVoteTitle} from './voteTitles.mjs';
 import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from './MemberVotesTypes';
 import {MEMBER_VOTES_PAGE_SIZE,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteOutcome,memberVotePosition,memberVotePositionSummary,memberVoteTotals,memberVotesRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
@@ -38,8 +39,8 @@ const dateLabel=(value:string|null)=>{
 };
 const languageLabel=(code:string)=>{try{return new Intl.DisplayNames(['en'],{type:'language'}).of(code)||code.toUpperCase();}catch{return code.toUpperCase();}};
 const chosenTitle=(record:{titles:Record<string,string>;title:string|null;titleLanguage:string|null},language:string)=>{
-  const selected=selectLanguageText(record.titles,language,record.title||'',record.titleLanguage||'en');
-  return {raw:selected.text,text:displayVoteTitle(selected.text)||'Subject title unavailable',language:selected.language};
+  const selected=selectVoteTitle(record.titles,language,record.title||'',record.titleLanguage||'en');
+  return {raw:selected.sourceLiteral,text:displayVoteTitle(selected.text)||'Subject title unavailable',language:selected.language};
 };
 const periodLabel=(data:MemberVotesResponse|null,state:MemberVotesState)=>state.sittingId?'Sitting · '+dateLabel(state.sittingId.slice(7)):data?.period.from?'Week of '+dateLabel(data.period.from):state.week==='latest'?'Latest sitting week':'Week of '+dateLabel(state.week);
 const methodLabel=(vote:MemberVote)=>vote.ballotStatus==='not-conducted'?'Not put to a vote':({VOTE_ELECTRONIC_ROLLCALL:'Roll-call vote',VOTE_HAND:'Show of hands',VOTE_ELECTRONIC:'Electronic vote',VOTE_SECRET:'Secret ballot'}[vote.method||'']||'Voting method unavailable');
