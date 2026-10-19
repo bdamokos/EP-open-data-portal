@@ -4,6 +4,7 @@ import {Status} from './Status';
 import {amendmentDecisionKey,amendmentDecisionPart,publicAmendmentSource} from './amendmentModel.mjs';
 import type {MotionAmendment,MotionAmendmentDecision,MotionAmendmentVariant,MotionAmendmentsPage,MotionAmendmentsScope} from './MotionAmendmentsTypes';
 import './MotionAmendments.css';
+import {WordingDiff} from './components/WordingDiff';
 
 export const MOTION_AMENDMENTS_PAGE_SIZE=20;
 export type MotionAmendmentsState={
@@ -214,7 +215,9 @@ function AmendmentDetail({item,member,language,listId,onVariant,onContext,contex
         {record.listDocumentDate&&<> · <span lang={language}>{dateLabel(record.listDocumentDate,language)}</span></>}
       </p>
       {(record.wordingRetained||record.recordRetained||record.proposerRetained||record.sourceFreshness?.status==='failed')&&<p className="motion-amendments__notice">Saved wording or proposer information is shown. The latest source check is incomplete.</p>}
-      <div className="motion-amendments__wording-grid"><Wording record={record} kind="original"/><Wording record={record} kind="proposed"/></div>
+      {record.wording?.originalStatus==='available'&&record.wording.proposedStatus==='available'&&typeof record.originalText==='string'&&record.originalText!==''&&typeof record.proposedText==='string'&&record.proposedText!==''?
+        <WordingDiff key={JSON.stringify(record)} original={record.originalText} proposed={record.proposedText} language={sourceLanguage(record.wording.language)} emptySemantics="not-supplied" labels={{original:'Original wording quoted in the amendment',proposed:'Proposed wording'}}/>:
+        <div className="motion-amendments__wording-grid"><Wording record={record} kind="original"/><Wording record={record} kind="proposed"/></div>}
       {url&&<p className="motion-amendments__source"><a href={url} target="_blank" rel="noreferrer">Official amendment wording ↗</a></p>}
     </>}
     <div className="motion-amendments__detail-actions"><button type="button" ref={contextButton} onClick={onContext} disabled={!record?.listId}>Read in context</button></div>
