@@ -50,11 +50,13 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   assert.equal(cards.length,5);
   assert.match(cards[0].textContent,/No original text \(insertion\)/);
   assert.match(cards[1].textContent,/Text deleted/);
+  assert(cards[0].querySelector('ins'));assert(cards[1].querySelector('del'));
+  assert.equal(cards[2].querySelector('.wording-diff'),null);
   assert.match(cards[2].textContent,/Original text unavailable/);
   assert.match(cards[2].textContent,/No outcome is recorded/);
   assert.match(container.querySelector('.explorer-amendment-coverage').textContent,/partial coverage/);
-  assert.equal(cards[0].querySelector('.explorer-amendment-texts').lang,'en');
-  assert.equal(cards[0].querySelector('.explorer-amendment-texts section:nth-child(2) p').lang,'fr');
+  assert.equal(cards[0].querySelector('.wording-diff').lang,'en');
+  assert.equal(cards[0].querySelector('.wording-diff__columns section:nth-child(2) p').lang,'fr');
   const parts=[...cards[0].querySelectorAll('.explorer-amendment-part')];
   assert.equal(parts[0].querySelector('blockquote').lang,'en');
   assert.equal(parts[0].querySelectorAll('.explorer-amendment-decision').length,1);
@@ -72,7 +74,8 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   assert.match(cards[3].querySelector('.explorer-amendment-meta').textContent,/Amendment-list document date Feb 2, 2026/);
   assert.match(cards[3].querySelector('.explorer-amendment-evidence').textContent,/retrieved Oct 16, 2026/);
   assert.doesNotMatch(cards[3].textContent,/Jan 1, 2026/);
-  assert.equal(cards[3].querySelector('.explorer-amendment-texts').lang,'en','retained wording keeps its actual language independently of fresh metadata');
+  assert.equal(cards[3].querySelector('.wording-diff').lang,'en','retained wording keeps its actual language independently of fresh metadata');
+  assert.equal(cards[3].querySelector('.wording-diff__passage').lang,'en');
   assert.match(cards[3].textContent,/Showing previously indexed wording/);
   assert.match(cards[3].textContent,/Retained wording source: official document · EN ↗ · retrieved Oct 15, 2026/);
   assert.match(cards[3].textContent,/Proposer source: official document · FR ↗ · retrieved Oct 16, 2026/);
