@@ -63,8 +63,27 @@ export function amendmentsSchema(db) {
     CREATE TABLE IF NOT EXISTS amendment_split_failures (request_id TEXT,part_id TEXT,language TEXT,body TEXT,PRIMARY KEY(request_id,part_id,language));
     CREATE INDEX IF NOT EXISTS amendment_list_target ON sources(generation,kind,json_extract(body,'$.targetDocumentId'));`);
 }
+export const amendmentReadVersion=JSON.stringify([AMENDMENT_EXTRACTION_VERSION,AMENDMENT_OUTCOME_PROOF_VERSION,AMENDMENT_DISTRIBUTION_PROOF_VERSION,PROPOSER_DATE_BASES]);
+
+// Compact proof flags are derived by the leased writer, once per changed row.
+// They retain the exact full-scope guards without rereading wording on each page.
+export function amendmentReadIndexes(db) {
+  db.exec('CREATE TABLE IF NOT EXISTS amendment_read_flags(generation INTEGER,id TEXT,target TEXT,wording INTEGER,proposer INTEGER,splits INTEGER,freshness INTEGER,PRIMARY KEY(generation,id))');
+  db.exec('CREATE INDEX IF NOT EXISTS amendment_read_scope ON amendment_read_flags(generation,target,wording,proposer,splits,freshness)');
+  const flags=body=>`
+    CASE WHEN ${incompatibleWordingSql(body).replaceAll('?',"'"+AMENDMENT_EXTRACTION_VERSION+"'")} OR EXISTS(SELECT 1 FROM json_each(${body},'$.variants') AS variant WHERE ${incompatibleWordingSql('variant.value').replaceAll('?',"'"+AMENDMENT_EXTRACTION_VERSION+"'")}) THEN 1 ELSE 0 END AS wording,
+    CASE WHEN (json_array_length(json_extract(${body},'$.authors'))>0 AND NOT ${supportedProposerDateSql(body)}) OR EXISTS(SELECT 1 FROM json_each(${body},'$.variants') AS variant WHERE json_array_length(json_extract(variant.value,'$.authors'))>0 AND NOT ${supportedProposerDateSql('variant.value')}) THEN 1 ELSE 0 END AS proposer,
+    CASE WHEN ${splitUnverifiedSql(body)} THEN 1 ELSE 0 END AS splits,
+    CASE WHEN ${unverifiedSourceSql(body)} OR EXISTS(SELECT 1 FROM json_each(${body},'$.variants') AS variant WHERE ${unverifiedSourceSql('variant.value')}) THEN 1 ELSE 0 END AS freshness`;
+  for(const name of ['insert','update'])db.exec('DROP TRIGGER IF EXISTS amendment_read_'+name);
+  for(const event of ['INSERT','UPDATE OF body,target'])db.exec(`CREATE TRIGGER IF NOT EXISTS amendment_read_${event.split(' ')[0].toLowerCase()} AFTER ${event} ON amendments BEGIN
+    INSERT OR REPLACE INTO amendment_read_flags SELECT NEW.generation,NEW.id,NEW.target,${flags('NEW.body')}; END`);
+  db.exec('CREATE TRIGGER IF NOT EXISTS amendment_read_delete AFTER DELETE ON amendments BEGIN DELETE FROM amendment_read_flags WHERE generation=OLD.generation AND id=OLD.id; END');
+  db.exec(`INSERT OR REPLACE INTO amendment_read_flags SELECT generation,id,target,${flags('body')} FROM amendments`);
+}
+
 function extensionGeneration(db) {
-  return db.prepare('SELECT MAX(generation) AS generation FROM (SELECT generation FROM amendments UNION SELECT generation FROM amendment_targets UNION SELECT generation FROM amendment_jobs)').get()?.generation || 0;
+  return db.prepare('SELECT MAX(generation) AS generation FROM (SELECT MAX(generation) generation FROM amendments UNION ALL SELECT MAX(generation) FROM amendment_targets UNION ALL SELECT MAX(generation) FROM amendment_jobs)').get()?.generation || 0;
 }
 export function amendmentsCopy(db,generation,active) {
   // Legacy workers advance core generations without knowing these additive
@@ -312,12 +331,9 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   // Verify the cached scope before pagination, so a stale later page cannot
   // produce complete coverage on an otherwise current first page. Reads never
   // rewrite the retained source or indexed JSON used by older workers.
-  const readCoverage=store.db.prepare(`SELECT COUNT(*) AS rows,
-    COALESCE(MAX(CASE WHEN ${incompatibleWordingSql('amendments.body')} OR EXISTS(SELECT 1 FROM json_each(amendments.body,'$.variants') AS variant WHERE ${incompatibleWordingSql('variant.value')}) THEN 1 ELSE 0 END),0) AS wording,
-    COALESCE(MAX(CASE WHEN (json_array_length(json_extract(amendments.body,'$.authors'))>0 AND NOT ${supportedProposerDateSql('amendments.body')}) OR EXISTS(SELECT 1 FROM json_each(amendments.body,'$.variants') AS variant WHERE json_array_length(json_extract(variant.value,'$.authors'))>0 AND NOT ${supportedProposerDateSql('variant.value')}) THEN 1 ELSE 0 END),0) AS proposer,
-    COALESCE(MAX(CASE WHEN ${splitUnverifiedSql('amendments.body')} THEN 1 ELSE 0 END),0) AS splits,
-    COALESCE(MAX(CASE WHEN ${unverifiedSourceSql('amendments.body')} OR EXISTS(SELECT 1 FROM json_each(amendments.body,'$.variants') AS variant WHERE ${unverifiedSourceSql('variant.value')}) THEN 1 ELSE 0 END),0) AS freshness
-    FROM amendments WHERE generation=?${document?' AND target=?':''}`).get(AMENDMENT_EXTRACTION_VERSION,AMENDMENT_EXTRACTION_VERSION,generation,...(document?[document]:[]));
+  const readCoverage=store.db.prepare(`SELECT COUNT(*) AS rows,COALESCE(MAX(wording),0) wording,COALESCE(MAX(proposer),0) proposer,
+    COALESCE(MAX(splits),0) splits,COALESCE(MAX(freshness),0) freshness FROM amendment_read_flags WHERE generation=?${document?' AND target=?':''}`)
+    .get(generation,...(document?[document]:[]));
   if(readCoverage.wording)gaps.push(wordingUpgradeGap);
   if(readCoverage.proposer)gaps.push(proposerDateGap);
   if(readCoverage.splits)gaps.push(SPLIT_BINDING_GAP);
