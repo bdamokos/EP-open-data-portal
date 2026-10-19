@@ -1,6 +1,7 @@
 import { array, tail } from './activity-index-model.mjs';
 import {titlePlaces,countryLabelSource} from './insights-places.mjs';
-import {phraseModel} from './insights-phrases.mjs';
+import {phraseModelSteps} from './insights-phrases.mjs';
+import {finishWork,cooperativeWork} from './cooperative-work.mjs';
 
 export const INSIGHTS_VERSION = 'titles-phrases-facets-v7-source-freshness';
 export const officialApi = path => 'https://data.europarl.europa.eu/api/v2' + path;
@@ -83,14 +84,17 @@ export function questionTrend(all,selected,{start,end,days}) {
   }
   return {interval:step===1?'day':'week',bins};
 }
-export function analyzeQuestions(questions,{bodies=new Map()}={}) {
+export function analyzeQuestions(questions,options) {return finishWork(questionAnalysisSteps(questions,options));}
+export function analyzeQuestionsAsync(questions,{signal,...options}={}) {return cooperativeWork(questionAnalysisSteps(questions,options),{signal});}
+function* questionAnalysisSteps(questions,{bodies=new Map()}={}) {
   // Each title is one observation, regardless of its author count or repeated words.
   const unique = [...new Map(questions.map(q => [q.id,q])).values()].sort((a,b) => (b.date || '').localeCompare(a.date || '') || a.id.localeCompare(b.id));
-  const phrases=phraseModel(unique,{bodies,stopwords});
-  const tokens = unique.map(q => titleTokens(q.titles.en,phrases));
+  const phrases=yield* phraseModelSteps(unique,{bodies,stopwords});
+  const tokens=[],places=[];
+  for(const q of unique) {tokens.push(titleTokens(q.titles.en,phrases));places.push(titlePlaces(q.titles.en).places);yield;}
   const index = new Map();
   tokens.forEach((ts,i) => ts.forEach(t => { const list = index.get(t) || []; list.push(i);index.set(t,list); }));
-  const parents=unique.map((_,i)=>i),places=unique.map(q=>titlePlaces(q.titles.en).places),componentPlaces=places.map(ps=>new Set(ps.map(p=>p.id)));
+  const parents=unique.map((_,i)=>i),componentPlaces=places.map(ps=>new Set(ps.map(p=>p.id)));
   const common=new Set([...index].filter(([,items])=>items.length>Math.max(30,unique.length*.15)).map(([word])=>word));
   function find(i) { while(parents[i]!==i) {parents[i]=parents[parents[i]];i=parents[i];}return i; }
   // Exact informative title signatures remain linear even when every term is common.
@@ -99,6 +103,7 @@ export function analyzeQuestions(questions,{bodies=new Map()}={}) {
   const maximumFrequency=Math.max(30,Math.floor(unique.length*.15));
   // Per-title candidates keep memory bounded, rather than retaining all corpus pairs.
   for(let a=0;a<unique.length;a++) {
+    yield;
     const candidates=new Map();
     for(const t of tokens[a]) {
       const list=index.get(t);
@@ -115,9 +120,11 @@ export function analyzeQuestions(questions,{bodies=new Map()}={}) {
   const components = new Map();
   unique.forEach((q,i) => {const root=find(i),items=components.get(root)||[];items.push(q);components.set(root,items);});
   const clusters=[];const assignments=new Map();
+  const tokensById=new Map(unique.map((q,i)=>[q.id,tokens[i]]));
   for(const items of components.values()) {
+    yield;
     if(items.length<2)continue;
-    const frequencies=new Map();items.forEach(q=>titleTokens(q.titles.en,phrases).forEach(t=>frequencies.set(t,(frequencies.get(t)||0)+1)));
+    const frequencies=new Map();items.forEach(q=>tokensById.get(q.id).forEach(t=>frequencies.set(t,(frequencies.get(t)||0)+1)));
     const keywords=[...frequencies].filter(([,n])=>n>=2).sort((a,b)=> b[1]*Math.log(1+unique.length/(index.get(b[0])?.length||1))-a[1]*Math.log(1+unique.length/(index.get(a[0])?.length||1)) || a[0].localeCompare(b[0])).slice(0,4).map(([word])=>word);
     const id='topic-'+items.map(q=>q.id).sort()[0];items.forEach(q=>assignments.set(q.id,id));
     clusters.push({id,label:keywords.map(k=>phrases.labels[k]||k).join(' · '),keywords,questionCount:items.length,uniqueAuthorCount:new Set(items.flatMap(q=>q.authors.map(a=>a.id))).size});

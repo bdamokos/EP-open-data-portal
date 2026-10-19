@@ -453,6 +453,40 @@
       "humanReviewed": false,
       "sourceText": "You can try again, return to Members, or reload the page."
     },
+    "view-reload-help": {
+      "labels": {
+        "bg": "Презаредете страницата, за да опитате да заредите този изглед отново.",
+        "cs": "Znovu načtěte stránku a zkuste toto zobrazení načíst znovu.",
+        "da": "Genindlæs siden for at prøve at indlæse denne visning igen.",
+        "de": "Laden Sie die Seite neu, um diese Ansicht erneut zu laden.",
+        "el": "Φορτώστε ξανά τη σελίδα για να προσπαθήσετε να φορτώσετε ξανά αυτήν την προβολή.",
+        "en": "Reload the page to try loading this view again.",
+        "es": "Recargue la página para intentar cargar esta vista de nuevo.",
+        "et": "Selle vaate uuesti laadimiseks laadige leht uuesti.",
+        "fi": "Lataa sivu uudelleen yrittääksesi ladata tämän näkymän uudestaan.",
+        "fr": "Rechargez la page pour essayer de charger cette vue à nouveau.",
+        "ga": "Athlódáil an leathanach chun iarracht a dhéanamh an t-amharc seo a lódáil arís.",
+        "hr": "Ponovno učitajte stranicu kako biste pokušali ponovno učitati ovaj prikaz.",
+        "hu": "Töltse újra az oldalt a nézet betöltésének újrapróbálásához.",
+        "it": "Ricarica la pagina per provare a caricare nuovamente questa vista.",
+        "lt": "Įkelkite puslapį iš naujo, kad pabandytumėte dar kartą įkelti šį rodinį.",
+        "lv": "Pārlādējiet lapu, lai mēģinātu vēlreiz ielādēt šo skatu.",
+        "mt": "Erġa’ tella’ l-paġna biex tipprova ttella’ din il-veduta mill-ġdid.",
+        "nl": "Laad de pagina opnieuw om deze weergave opnieuw te proberen te laden.",
+        "pl": "Odśwież stronę, aby spróbować ponownie załadować ten widok.",
+        "pt": "Recarregue a página para tentar carregar esta vista novamente.",
+        "ro": "Reîncărcați pagina pentru a încerca să încărcați din nou această vizualizare.",
+        "sk": "Znova načítajte stránku a skúste toto zobrazenie načítať znova.",
+        "sl": "Znova naložite stran, da poskusite znova naložiti ta pogled.",
+        "sv": "Ladda om sidan för att försöka läsa in den här vyn igen."
+      },
+      "provenance": "machine-translation",
+      "sourceLanguage": "en",
+      "model": "gpt-6.1-sol",
+      "generatedAt": "2026-10-19",
+      "humanReviewed": false,
+      "sourceText": "Reload the page to try loading this view again."
+    },
     "try-again": {
       "labels": {
         "bg": "Опитайте отново",

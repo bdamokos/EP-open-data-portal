@@ -1,4 +1,5 @@
 import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
+import {lazyView} from './lazyView';
 import {filterCountry,matchesCountry} from './countries.mjs';
 import {explorerParams} from './explorerUrl';
 import {SpeechCloud} from './SpeechCloud';
@@ -12,7 +13,7 @@ import {interfaceTerm} from './terms.mjs';
 import {ParliamentHeader} from './ParliamentHeader';
 import {QuestionStatus} from './QuestionStatus';
 import {MotionStatuses,MotionOutcome} from './MotionOutcome';
-import { lazy, Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from "./References";
 import { Portrait } from "./components/Portrait";
 import './focus.css';
@@ -44,6 +45,7 @@ import { useSpeechVideo } from "./SpeechPlayer";
 import {AmendmentTrailLink} from './AmendmentTrailLink';
 import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule} from './publicFeatures';
 import {Status} from './Status';
+import {ReaderRetry} from './ReaderRetry';
 import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './coAuthors.mjs';
 import {selectLanguageText} from './language.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
@@ -51,17 +53,17 @@ import {useMemberVotesJourney} from './useMemberVotesJourney';
 import {useMemberMotionJourney} from './useMemberMotionJourney';
 import type {MemberMotionReaderProps} from './MemberMotionReader';
 
-const MemberVotes=lazy(()=>import('./MemberVotes').then(module=>({default:module.MemberVotes})));
-const DocumentContextReader=lazy(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
-const MemberMotionReader=lazy(()=>import('./MemberMotionReader').then(module=>({default:module.MemberMotionReader})));
+const MemberVotes=lazyView(()=>import('./MemberVotes').then(module=>({default:module.MemberVotes})));
+const DocumentContextReader=lazyView(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
+const MemberMotionReader=lazyView(()=>import('./MemberMotionReader').then(module=>({default:module.MemberMotionReader})));
 
-const GroupVoices=lazy(()=>import('./GroupVoices').then(module=>({default:module.GroupVoices})));
-const Legislation=lazy(()=>import('./Legislation').then(module=>({default:module.Legislation})));
-const QuestionTopics=lazy(()=>import('./QuestionTopics').then(module=>({default:module.QuestionTopics})));
-const OutsideVoices=lazy(()=>import('./OutsideVoices').then(module=>({default:module.OutsideVoices})));
-const Saved=lazy(()=>import('./Saved').then(module=>({default:module.Saved})));
-const Amendments=lazy(()=>import('./Amendments').then(module=>({default:module.Amendments})));
-const AmendmentsPage=lazy(()=>import('./Amendments').then(module=>({default:module.AmendmentsPage})));
+const GroupVoices=lazyView(()=>import('./GroupVoices').then(module=>({default:module.GroupVoices})));
+const Legislation=lazyView(()=>import('./Legislation').then(module=>({default:module.Legislation})));
+const QuestionTopics=lazyView(()=>import('./QuestionTopics').then(module=>({default:module.QuestionTopics})));
+const OutsideVoices=lazyView(()=>import('./OutsideVoices').then(module=>({default:module.OutsideVoices})));
+const Saved=lazyView(()=>import('./Saved').then(module=>({default:module.Saved})));
+const Amendments=lazyView(()=>import('./Amendments').then(module=>({default:module.Amendments})));
+const AmendmentsPage=lazyView(()=>import('./Amendments').then(module=>({default:module.AmendmentsPage})));
 
 const normalize = (s: string) =>
   s
@@ -192,7 +194,7 @@ function CoAuthors({authors,lang,member}:{authors?:CoAuthor[];lang:string;member
   return <details className="explorer-coauthors" lang="en"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id} lang="">{person.id===member ? <strong>{person.name}</strong> : <a href={coAuthorProfileUrl(location.pathname,lang,person.id)}>{person.name}</a>}</li>)}</ul></details>;
 }
 function PublicationText({ sourceId, member, lang, heading, headingDate, includeAnswers = false,question }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string} }) {
-  const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang]);
+  const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang,sourceId]);
   const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`);
   const text=state.data?.selectedDocumentId===sourceId ? state.data.selectedText : null;
   const files=sourceId.endsWith('-ASW')?state.data?.answers.find(answer=>answer.id===sourceId)?.files||[]:state.data?.files||[];
@@ -200,15 +202,16 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, include
   const notes=text?.notes||[],anchors=body.exact?text?.noteAnchors||[]:[],documentLinks=body.exact?text?.documentLinks||[]:[];
   const languageName=(code:string)=>{try{const text=new Intl.DisplayNames([lang],{type:'language'}).of(code);return {text:text||code.toUpperCase(),language:text&&text!==code?lang:''};}catch{return {text:code.toUpperCase(),language:''};}};
   const requestedName=languageName(requestedLanguage),textName=languageName(text?.textLanguage||requestedLanguage);
+  const failed=Boolean(state.error||text?.status==='error'||text?.refreshError||state.data&&!text),retryAt=state.retryAt??(text?.nextRetryAt?Date.parse(text.nextRetryAt):undefined);
   return <section className="explorer-document-text" lang="en" id={'document-'+sourceId}>
-    <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={state.error?`${heading}: Text temporarily unavailable.`:state.data?`${heading}: ${text?.status==='available'?'Text loaded.':'Text unavailable.'}`:null}/>
+    <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={failed?`${heading}: Text temporarily unavailable.`:state.data?`${heading}: ${text?.status==='available'?'Text loaded.':'Text unavailable.'}`:null}/>
     <div className="explorer-reader-heading"><h3>{headingDate ? <>Answer · <span lang={lang}>{date(headingDate,lang)}</span></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang="en">Read question</span></a>}{text?.availableTextLanguages.length ? <select aria-label={`${heading} language`} title={text.translationType==='original'?'Original text':'Translation method not specified'} value={text.textLanguage||requestedLanguage} onChange={event=>setRequestedLanguage(event.target.value)}>{text.availableTextLanguages.map(code=><option lang="" key={code} value={code}>{code.toUpperCase()}</option>)}</select> : null}{text?.textLanguage&&text.textLanguage!==requestedLanguage&&<small><span lang={requestedName.language}>{requestedName.text}</span> unavailable · showing <span lang={textName.language}>{textName.text}</span></small>}</div>
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}>Amendments to this document</AmendmentTrailLink>}
-    {state.loading&&!text&&<p role="status">Loading text…</p>}{state.error&&<p>Text temporarily unavailable.</p>}
-    {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="explorer-transcript" lang={text.textLanguage||""}>{body.paragraphs.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===body.start+index)} links={documentLinks.filter(link=>link.paragraph===body.start+index)} notePrefix={notePrefix}/></p>)}<DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&<p>Text unavailable. Download the document below.</p>}
+    {state.loading&&!text&&<p role="status">Loading text…</p>}{failed&&!state.loading&&<ReaderRetry message={'Text temporarily unavailable.'+(text?.status==='available'?' Saved text remains readable.':'')} language={lang} retry={state.retry} retryAt={retryAt}/>}
+    {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="explorer-transcript" lang={text.textLanguage||""}>{body.paragraphs.map((paragraph,index)=><p key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===body.start+index)} links={documentLinks.filter(link=>link.paragraph===body.start+index)} notePrefix={notePrefix}/></p>)}<DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&!failed&&<p>Text unavailable. Download the document below.</p>}
     {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/><details className="explorer-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details></>}
     {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={"Answer"+(answer.date?" · "+date(answer.date,lang):"")} headingDate={answer.date}/>)}
-    {includeAnswers&&state.data&&!state.data.answers.length&&<p>No answer published.</p>}
+    {includeAnswers&&state.data&&!failed&&!state.loading&&!state.data.answers.length&&<p>No answer published.</p>}
   </section>;
 }
 function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionChange }: { item: JoinedActivity; lang: string; member: number; memberName?:string; motionQuery:URLSearchParams; onMotionChange:MemberMotionReaderProps['onJourneyChange'] }) {
