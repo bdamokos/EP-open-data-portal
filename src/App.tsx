@@ -1,4 +1,5 @@
 import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
+import {lazyView} from './lazyView';
 import {filterCountry,matchesCountry} from './countries.mjs';
 import {explorerParams} from './explorerUrl';
 import {SpeechCloud} from './SpeechCloud';
@@ -12,7 +13,7 @@ import {interfaceTerm} from './terms.mjs';
 import {ParliamentHeader} from './ParliamentHeader';
 import {QuestionStatus} from './QuestionStatus';
 import {MotionStatuses,MotionOutcome} from './MotionOutcome';
-import { lazy, Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from "./References";
 import { Portrait } from "./components/Portrait";
 import './focus.css';
@@ -51,17 +52,17 @@ import {useMemberVotesJourney} from './useMemberVotesJourney';
 import {useMemberMotionJourney} from './useMemberMotionJourney';
 import type {MemberMotionReaderProps} from './MemberMotionReader';
 
-const MemberVotes=lazy(()=>import('./MemberVotes').then(module=>({default:module.MemberVotes})));
-const DocumentContextReader=lazy(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
-const MemberMotionReader=lazy(()=>import('./MemberMotionReader').then(module=>({default:module.MemberMotionReader})));
+const MemberVotes=lazyView(()=>import('./MemberVotes').then(module=>({default:module.MemberVotes})));
+const DocumentContextReader=lazyView(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
+const MemberMotionReader=lazyView(()=>import('./MemberMotionReader').then(module=>({default:module.MemberMotionReader})));
 
-const GroupVoices=lazy(()=>import('./GroupVoices').then(module=>({default:module.GroupVoices})));
-const Legislation=lazy(()=>import('./Legislation').then(module=>({default:module.Legislation})));
-const QuestionTopics=lazy(()=>import('./QuestionTopics').then(module=>({default:module.QuestionTopics})));
-const OutsideVoices=lazy(()=>import('./OutsideVoices').then(module=>({default:module.OutsideVoices})));
-const Saved=lazy(()=>import('./Saved').then(module=>({default:module.Saved})));
-const Amendments=lazy(()=>import('./Amendments').then(module=>({default:module.Amendments})));
-const AmendmentsPage=lazy(()=>import('./Amendments').then(module=>({default:module.AmendmentsPage})));
+const GroupVoices=lazyView(()=>import('./GroupVoices').then(module=>({default:module.GroupVoices})));
+const Legislation=lazyView(()=>import('./Legislation').then(module=>({default:module.Legislation})));
+const QuestionTopics=lazyView(()=>import('./QuestionTopics').then(module=>({default:module.QuestionTopics})));
+const OutsideVoices=lazyView(()=>import('./OutsideVoices').then(module=>({default:module.OutsideVoices})));
+const Saved=lazyView(()=>import('./Saved').then(module=>({default:module.Saved})));
+const Amendments=lazyView(()=>import('./Amendments').then(module=>({default:module.Amendments})));
+const AmendmentsPage=lazyView(()=>import('./Amendments').then(module=>({default:module.AmendmentsPage})));
 
 const normalize = (s: string) =>
   s
