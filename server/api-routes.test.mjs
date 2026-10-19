@@ -16,7 +16,7 @@ test('flat browser API preserves bounded reads, search POSTs and conditional res
   const base=`http://127.0.0.1:${server.address().port}`,read=globalThis.fetch;
   t.mock.method(globalThis,'fetch',()=>{throw Error('Route tests must not read public sources');});
   const request=(route,options)=>read(versionedApiUrl(`${base}/api/${route}`),options);
-  for(const route of ['profile/0','profile/1?lang=en&lang=hu','directory?other=1','portrait/1?other=1','speech-context/invalid','motion-amendments/invalid','member-votes/0','speech-transcript/invalid?lang=bad','speeches/1?offset=1e2','source-record?url=x&url=y','amendments?limit=0','outside/directory?term=8','corpus/search?q=climate&other=1'])assert.equal((await request(route)).status,400,route);
+  for(const route of ['profile/0','profile/1?lang=en&lang=hu','directory?other=1','directory?retry=invalid','directory?retry=committee-details&retry=committee-details','portrait/1?other=1','speech-context/invalid','motion-amendments/invalid','member-votes/0','speech-transcript/invalid?lang=bad','speeches/1?offset=1e2','source-record?url=x&url=y','amendments?limit=0','outside/directory?term=8','corpus/search?q=climate&other=1'])assert.equal((await request(route)).status,400,route);
   assert.equal((await request('corpus/status')).status,503,'a disabled corpus stays unavailable');
   for(const route of ['session','admin','unknown'])assert.equal((await request(route)).status,404,route);
   assert.equal((await request('profile/1',{method:'POST'})).status,405);

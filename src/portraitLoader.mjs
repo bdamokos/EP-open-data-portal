@@ -8,27 +8,36 @@ export function isManagedPortrait(url) {
   return portraitPath.test(url);
 }
 
-export function createPortraitLoader({concurrency = 3, maxQueued = 1024, startInterval = 250, fetchImpl = (...args) => fetch(...args), wait = ms => new Promise(resolve => setTimeout(resolve, ms)), now = () => Date.now()} = {}) {
+export function createPortraitLoader({concurrency = 6, backgroundConcurrency = Math.min(3, concurrency), maxQueued = 1024, startInterval = 250, fetchImpl = (...args) => fetch(...args), wait = ms => new Promise(resolve => setTimeout(resolve, ms)), now = () => Date.now()} = {}) {
   const queue = [], jobs = new Map();
-  let active = 0;
-  let credit = concurrency, refilledAt = now(), pausedUntil = 0;
+  let active = 0, backgroundActive = 0;
+  let credit = backgroundConcurrency, refilledAt = now(), pausedUntil = 0, recovering = false;
+  let wakeAt = Infinity, wakeGeneration = 0;
+  const visible = job => [...job.listeners].some(listener => listener.priority === 'visible');
+  const rejected = error => Object.assign(Promise.reject(error), {setPriority() {}});
 
-  function admit(job) {
-    if (!job.listeners.size) throw aborted();
+  function schedule(delay) {
+    const bounded = Math.min(delay, 30_000), deadline = now() + bounded;
+    if (deadline >= wakeAt) return;
+    wakeAt = deadline;
+    const generation = ++wakeGeneration;
+    wait(bounded).then(() => {
+      if (generation !== wakeGeneration) return;
+      wakeAt = Infinity;
+      pump();
+    });
+  }
+
+  function admissionDelay(foreground) {
     const time = now();
     if (startInterval > 0 && time > refilledAt) {
-      credit = Math.min(concurrency, credit + (time - refilledAt) / startInterval);
+      const refill = (time - refilledAt) / startInterval;
+      credit = Math.min(backgroundConcurrency, credit + refill);
       refilledAt = time;
     }
-    const pacing = startInterval > 0 && credit < 1 ? Math.max(0, refilledAt - time) + Math.ceil((1 - credit) * startInterval) : 0;
-    const delay = Math.max(pausedUntil - time, pacing);
-    // Check again after each bounded wait: another response can extend the
-    // cooldown, and a filtered/unmounted consumer may no longer need the job.
-    if (delay > 0) return wait(Math.min(delay, 30_000)).then(() => admit(job));
-    if (startInterval > 0) credit--;
-    // Do not yield between checking the shared cooldown and starting HTTP.
-    // Another response may otherwise establish a cooldown in that gap.
-    return fetchImpl(versionedApiUrl(job.url), {credentials: 'omit', redirect: 'error'});
+    const available = foreground && !recovering ? 1 : credit;
+    const pacing = startInterval > 0 && available < 1 ? Math.max(0, refilledAt - time) + Math.ceil((1 - available) * startInterval) : 0;
+    return Math.max(pausedUntil - time, pacing);
   }
 
   function pause(response) {
@@ -39,24 +48,27 @@ export function createPortraitLoader({concurrency = 3, maxQueued = 1024, startIn
     pausedUntil = Math.max(pausedUntil, now() + delay);
     // Refill one start at the deadline, then resume at the normal pace rather
     // than releasing all waiting retries and new portraits together.
+    recovering = true;
     credit = 0;
     refilledAt = pausedUntil - startInterval;
   }
 
   async function read(job) {
-    for (let attempt = 0; ; attempt++) {
-      const response = await admit(job);
-      if (response.ok) return response.blob();
+    try {
+      const response = await fetchImpl(versionedApiUrl(job.url), {credentials: 'omit', redirect: 'error'});
+      if (response.ok) return settle(job, null, await response.blob());
       if (response.status === 409) {
         reportApiVersionMismatch(response.status, await response.json().catch(() => null));
         throw new Error('Portrait request failed (409)');
       }
       const limited = [429, 503].includes(response.status);
       if (limited) pause(response);
-      const retry = limited && attempt < 2 && job.listeners.size;
       await response.arrayBuffer();
-      if (!retry) throw new Error(`Portrait request failed (${response.status})`);
-    }
+      if (limited && job.attempt++ < 2 && job.listeners.size) {
+        job.started = false;
+        queue.push(job);
+      } else throw new Error(`Portrait request failed (${response.status})`);
+    } catch (error) { settle(job, error); }
   }
 
   function settle(job, error, blob) {
@@ -69,33 +81,50 @@ export function createPortraitLoader({concurrency = 3, maxQueued = 1024, startIn
     job.listeners.clear();
   }
 
+  function resetIfIdle() {
+    if (!active && !queue.length && now() >= pausedUntil) recovering = false;
+  }
+
   function pump() {
+    resetIfIdle();
     while (active < concurrency && queue.length) {
-      const job = queue.shift();
-      if (!job.listeners.size) continue;
+      const foregroundIndex = queue.findIndex(visible);
+      const index = foregroundIndex < 0 ? 0 : foregroundIndex;
+      const job = queue[index], foreground = visible(job);
+      if (!job.listeners.size) {queue.splice(index, 1); settle(job, aborted()); continue;}
+      if (!foreground && backgroundActive >= backgroundConcurrency) return;
+      const delay = admissionDelay(foreground);
+      if (delay > 0) {schedule(delay); return;}
+      queue.splice(index, 1);
+      if (startInterval > 0 && (!foreground || recovering)) credit--;
       active++;
+      if (!foreground) backgroundActive++;
       job.started = true;
-      // A detached consumer does not abort active HTTP work: the backend may
-      // still be serving it. Keep its slot until the response body settles.
-      read(job).then(blob => settle(job, null, blob), error => settle(job, error)).finally(() => {
+      // Admission and HTTP dispatch are synchronous. Paced jobs keep no active
+      // slot, so newly visible portraits can overtake look-ahead work.
+      // Detached HTTP work keeps its slot until its response body settles.
+      read(job).finally(() => {
         active--;
+        if (!foreground) backgroundActive--;
         pump();
       });
     }
   }
 
-  function load(url, {signal} = {}) {
+  function load(url, {signal, priority = 'background'} = {}) {
+    resetIfIdle();
     const match = portraitPath.exec(url);
-    if (!match) return Promise.reject(new Error('Invalid portrait path'));
+    if (!match) return rejected(new Error('Invalid portrait path'));
     url = `/api/portrait/${match[1]}`;
-    if (signal?.aborted) return Promise.reject(aborted());
+    if (signal?.aborted) return rejected(aborted());
     let job = jobs.get(url);
     if (!job) {
-      if (queue.length >= maxQueued) return Promise.reject(new Error('Portrait queue is full'));
-      job = {url, started: false, listeners: new Set()};
+      if (queue.length >= maxQueued) return rejected(new Error('Portrait queue is full'));
+      job = {url, started: false, attempt: 0, listeners: new Set()};
       jobs.set(url, job);
       queue.push(job);
     }
+    let listener;
     const promise = new Promise((resolve, reject) => {
       const cancel = () => {
         job.listeners.delete(listener);
@@ -106,10 +135,15 @@ export function createPortraitLoader({concurrency = 3, maxQueued = 1024, startIn
           jobs.delete(url);
         }
       };
-      const listener = {resolve, reject, cleanup: () => signal?.removeEventListener('abort', cancel)};
+      listener = {resolve, reject, priority, cleanup: () => signal?.removeEventListener('abort', cancel)};
       job.listeners.add(listener);
       signal?.addEventListener('abort', cancel, {once: true});
     });
+    promise.setPriority = value => {
+      if (!job.listeners.has(listener)) return;
+      listener.priority = value;
+      pump();
+    };
     pump();
     return promise;
   }
@@ -118,6 +152,8 @@ export function createPortraitLoader({concurrency = 3, maxQueued = 1024, startIn
 }
 
 // Shared by the wall, profiles, question authors and plenary/vote cards.
-// Admit the first three immediately, then pace starts even for fast cache hits.
+// Visible portraits fill six response slots without fixed start spacing.
+// Look-ahead work keeps its three-slot limit and 250 ms start pacing; busy
+// responses temporarily apply that pacing to both priorities until idle.
 // Text and other interactive API reads do not wait behind this portrait queue.
 export const portraitLoader = createPortraitLoader();

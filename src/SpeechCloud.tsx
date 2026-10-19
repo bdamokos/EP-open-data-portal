@@ -19,7 +19,7 @@ function useCloud(route:string) {
   const [attempt,setAttempt]=useState(0),failedPage=useRef(0);
   const [state,setState]=useState<{route:string;data:SpeechCloudResult|null;loading:boolean;error:string|null}>({route,data:null,loading:true,error:null});
   useEffect(()=>{
-    let active=true;
+    let active=true;const controller=new AbortController();
     const forcePage=state.route===route?failedPage.current:null;
     setState(previous=>({route,data:previous.route===route?previous.data:null,loading:true,error:null}));
     void (async()=>{
@@ -27,7 +27,7 @@ function useCloud(route:string) {
       try {
         while(active&&page!==null) {
           failedPage.current=page;
-          const data:SpeechCloudResult=await client.get(route+'&page='+page,{force:attempt>0&&page===forcePage});
+          const data:SpeechCloudResult=await client.get(route+'&page='+page,{force:attempt>0&&page===forcePage,signal:controller.signal});
           if(!active)return;
           if(data.restarted) {
             client.expireMatching(cachedRoute=>cachedRoute.startsWith(route+'&page='));
@@ -38,7 +38,7 @@ function useCloud(route:string) {
         }
       }catch(error){if(active)setState(previous=>({...previous,loading:false,error:(error as Error).message}));}
     })();
-    return()=>{active=false;};
+    return()=>{active=false;controller.abort();};
   },[route,attempt]);
   return {...(state.route===route?state:{route,data:null,loading:true,error:null}),retry:()=>setAttempt(value=>value+1)};
 }
