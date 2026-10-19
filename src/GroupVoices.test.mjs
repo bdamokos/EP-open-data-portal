@@ -91,7 +91,7 @@ test('person toggles from Contributions retain their local focus while the filte
  });
 });
 
-test('defaults to the largest group and People; a person subject applies both filters; group columns compare classified shares',async t=>{
+test('defaults to People and retains subject counts and filters without bar charts or group comparisons',async t=>{
  const h=await harness(t,'?view=groups'),params=()=>new URLSearchParams(location.search);
  assert.equal(h.calls[0].searchParams.get('group'),'PPE');assert.equal(h.container.querySelector('.gv-tabs [aria-pressed=true]').textContent,'People');assert.match(h.container.querySelector('.gv-people h2').textContent,/Who speaks for PPE/);
  assert(h.container.querySelector('.gv-person .insight-portrait'));
@@ -100,11 +100,16 @@ test('defaults to the largest group and People; a person subject applies both fi
  const chip=h.container.querySelector('.gv-person.is-selected .gv-person-subjects button');assert.equal(chip.getAttribute('aria-pressed'),'true');
  await h.click(chip);assert.equal(params().get('gv-person'),'100');assert.equal(params().get('gv-subject'),null);
  await h.click([...h.container.querySelectorAll('.gv-tabs button')].find(b=>b.textContent==='Subjects'));
- const columns=[...h.container.querySelector('.gv-subject .gv-compare').querySelectorAll('button')];assert.equal(columns.length,8);
- assert.match(columns[0].getAttribute('aria-label'),/^PPE: 75% of classified contributions \(6\)/);assert.equal(columns[0].getAttribute('aria-pressed'),'true');
- assert.match(columns.find(b=>/^ESN/.test(b.getAttribute('aria-label'))).getAttribute('aria-label'),/No classified records/);
- await h.click(columns.find(b=>/^ECR/.test(b.getAttribute('aria-label'))));assert.equal(params().get('gv-group'),'ECR');assert.equal(params().get('gv-subject'),'foreign');assert.equal(params().get('gv-person'),null);
- assert.equal(document.activeElement,h.container.querySelector('[data-gv-compare="foreign:ECR"]'),'Focus returns to the destination column after loading.');
- await h.click(h.container.querySelector('[data-gv-compare="foreign:ESN"]'));assert.equal(params().get('gv-group'),'ESN');
- const card=h.container.querySelector('.gv-subject');assert.match(card.textContent,/Foreign affairs0/);assert(card.querySelector('.gv-compare'));assert.equal(document.activeElement,h.container.querySelector('[data-gv-compare="foreign:ESN"]'));assert(h.container.querySelector('.gv-subjects .gv-empty'));
+ assert.equal(h.container.querySelector('.gv-bar, .gv-compare, [data-gv-compare]'),null);
+ assert.match(h.container.querySelector('.gv-subject-title').textContent,/Foreign affairs1/);
+ assert.doesNotMatch(h.container.querySelector('.gv-section-heading').textContent,/columns|classified contributions/);
+ await h.click(h.container.querySelector('.gv-subject-title button'));assert.equal(params().get('gv-subject'),'foreign');
+ const group=h.container.querySelector('.gv-controls select');
+ await act(async()=>{group.value='ECR';group.dispatchEvent(new window.Event('change',{bubbles:true}));});await viewReady(h.container);
+ assert.equal(params().get('gv-group'),'ECR');assert.equal(params().get('gv-subject'),'foreign');assert.equal(params().get('gv-person'),null);
+ assert.match(h.container.querySelector('.gv-subject-title').textContent,/Foreign affairs24/);
+ await act(async()=>{group.value='ESN';group.dispatchEvent(new window.Event('change',{bubbles:true}));});await viewReady(h.container);
+ assert.equal(params().get('gv-group'),'ESN');assert.equal(params().get('gv-subject'),'foreign');
+ const card=h.container.querySelector('.gv-subject');assert.match(card.textContent,/Foreign affairs0/);assert.equal(card.querySelector('.gv-bar, .gv-compare'),null);assert(h.container.querySelector('.gv-subjects .gv-empty'));
+ await h.click(card.querySelector('.gv-subject-title button'));assert.equal(params().get('gv-subject'),null);assert.match(h.container.querySelector('.gv-subject-title').textContent,/Climate & energy1/);
 });
