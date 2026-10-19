@@ -58,7 +58,7 @@ export interface SpeechSpeaker {
   identityIssues?:string[];
 }
 export interface Intervention {
-  type:'speech'|'written'|'chair'|'procedure'|'catch-the-eye'|'blue-card-question'|'blue-card-intervention'|'blue-card-answer'|'blue-card-reaction'|'blue-card'|'unclassified';
+  type:'speech'|'written'|'chair'|'procedure'|'oral-explanation-of-vote'|'catch-the-eye'|'blue-card-question'|'blue-card-intervention'|'blue-card-answer'|'blue-card-reaction'|'blue-card'|'unclassified';
   process:string|null;
   speaker:SpeechSpeaker|null;
   onBehalfOf:{id:string;uri:string;label:string;politicalGroup:boolean;source:string}[];
@@ -70,6 +70,7 @@ export interface Intervention {
   numbering:number|null;
   parentIds:string[];
   evidence:string|null;
+  classificationSources?:{url:string;fetchedAt:string;interfaceLanguage:string;textLanguage:string;sha256:string;selector:string;basis:string}[];
 }
 export interface Speech {
   id: string;

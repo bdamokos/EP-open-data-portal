@@ -1,0 +1,379 @@
+[
+  {
+    "id": "MTG-PL-2025-03-31-OTH-2017020224062",
+    "personId": "37312",
+    "start": "2025-03-31T19:13:41+02:00",
+    "end": "2025-03-31T19:14:00+02:00",
+    "parentId": "MTG-PL-2025-03-31-PVCRE-ITM-14",
+    "type": "chair",
+    "sources": [
+      {
+        "url": "https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2025-03-31-OTH-2017020224062?include-output=xml_fragment&format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-18T21:12:50.418668+00:00",
+        "interfaceLanguage": "en",
+        "textLanguage": "en",
+        "sha256": "a1ad2e21fc53b3cbfb1cc012dda0a38fb59454af1923f6cca710cd51068f9cf3",
+        "sha256Scope": "selected-fragment",
+        "selector": "/data/0/recorded_in_a_realization_of/0/api:xmlFragment/en",
+        "basis": "Exact API participant 37312 is explicitly labelled President in from/person; all 24 supplied language variants agree. The paragraph is empty."
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2025-11-13-OTH-2017047999789",
+    "personId": "37312",
+    "start": "2025-11-13T12:30:41.2+01:00",
+    "end": "2025-11-13T12:30:53.541+01:00",
+    "parentId": "MTG-PL-2025-11-13-PVCRE-ITM-8-1",
+    "type": "chair",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2025-11-13-ITM-008-01_EN.xml",
+        "fetchedAt": "2026-10-18T21:14:16.146Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "en",
+        "sha256": "b999faed801cbc253bfa66a94f62c16ffbedeb3aee789523272d2620cb1d6796",
+        "sha256Scope": "response",
+        "selector": "NUMERO[@ACT=\"2017047999789\"] + INTERVENTION/ORATEUR[@MEPID=\"37312\"]",
+        "basis": "Exact CRE event and person identifiers and both VOD timestamps match the API; ORATEUR labels the President.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2025-11-13_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2025-11-13-OTH-2017047999790",
+    "personId": "256971",
+    "start": "2025-11-13T12:30:53.541+01:00",
+    "end": "2025-11-13T12:32:14.207+01:00",
+    "parentId": "MTG-PL-2025-11-13-PVCRE-ITM-8-1",
+    "type": "oral-explanation-of-vote",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2025-11-13-ITM-008-01_EN.xml",
+        "fetchedAt": "2026-10-18T21:14:16.146Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "en",
+        "sha256": "b999faed801cbc253bfa66a94f62c16ffbedeb3aee789523272d2620cb1d6796",
+        "sha256Scope": "response",
+        "selector": "NUMERO[@ACT=\"2017047999790\"] + INTERVENTION/ORATEUR[@MEPID=\"256971\"]",
+        "basis": "Exact CRE event and person identifiers and both VOD timestamps match the API; Official minutes and the chair introduction identify oral explanations of vote under Rule 201.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2025-11-13_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2025-11-13-OTH-2017047999791",
+    "personId": "37312",
+    "start": "2025-11-13T12:32:11.933+01:00",
+    "end": "2025-11-13T12:32:31.387+01:00",
+    "parentId": "MTG-PL-2025-11-13-PVCRE-ITM-8-1",
+    "type": "chair",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2025-11-13-ITM-008-01_EN.xml",
+        "fetchedAt": "2026-10-18T21:14:16.146Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "en",
+        "sha256": "b999faed801cbc253bfa66a94f62c16ffbedeb3aee789523272d2620cb1d6796",
+        "sha256Scope": "response",
+        "selector": "NUMERO[@ACT=\"2017047999791\"] + INTERVENTION/ORATEUR[@MEPID=\"37312\"]",
+        "basis": "Exact CRE event and person identifiers and both VOD timestamps match the API; ORATEUR labels the President.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2025-11-13_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2025-11-13-OTH-2017047999793",
+    "personId": "37312",
+    "start": "2025-11-13T12:32:31.387+01:00",
+    "end": "2025-11-13T12:32:48.283+01:00",
+    "parentId": "MTG-PL-2025-11-13-PVCRE-ITM-8-2",
+    "type": "chair",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2025-11-13-ITM-008-02_EN.xml",
+        "fetchedAt": "2026-10-18T21:14:16.147Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "en",
+        "sha256": "1d9d8b0b7084c959026a8ff7cf44c4149819a1a8fab0b522ada5cd61a9c7352d",
+        "sha256Scope": "response",
+        "selector": "NUMERO[@ACT=\"2017047999793\"] + INTERVENTION/ORATEUR[@MEPID=\"37312\"]",
+        "basis": "Exact CRE event and person identifiers and both VOD timestamps match the API; ORATEUR labels the President.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2025-11-13_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2025-11-13-OTH-2017047999794",
+    "personId": "34232",
+    "start": "2025-11-13T12:32:47.155+01:00",
+    "end": "2025-11-13T12:34:04.996+01:00",
+    "parentId": "MTG-PL-2025-11-13-PVCRE-ITM-8-2",
+    "type": "oral-explanation-of-vote",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2025-11-13-ITM-008-02_EN.xml",
+        "fetchedAt": "2026-10-18T21:14:16.147Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "en",
+        "sha256": "1d9d8b0b7084c959026a8ff7cf44c4149819a1a8fab0b522ada5cd61a9c7352d",
+        "sha256Scope": "response",
+        "selector": "NUMERO[@ACT=\"2017047999794\"] + INTERVENTION/ORATEUR[@MEPID=\"34232\"]",
+        "basis": "Exact CRE event and person identifiers and both VOD timestamps match the API; Official minutes and the chair introduction identify oral explanations of vote under Rule 201.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2025-11-13_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2025-11-13-OTH-2017047999814",
+    "personId": "37312",
+    "start": "2025-11-13T12:42:03.2+01:00",
+    "end": "2025-11-13T12:42:19.488+01:00",
+    "parentId": "MTG-PL-2025-11-13-PVCRE-ITM-8-4",
+    "type": "chair",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2025-11-13-ITM-008-04_EN.xml",
+        "fetchedAt": "2026-10-18T21:14:16.148Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "en",
+        "sha256": "9af93b31b700af48e9013823f2c167343eec0c669ec6a0f2cefcb8f475d6c7cd",
+        "sha256Scope": "response",
+        "selector": "NUMERO[@ACT=\"2017047999814\"] + INTERVENTION/ORATEUR[@MEPID=\"37312\"]",
+        "basis": "Exact CRE event and person identifiers and both VOD timestamps match the API; ORATEUR labels the President.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2025-11-13_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2025-11-13-OTH-2017047999815",
+    "personId": "197677",
+    "start": "2025-11-13T12:42:19.828+01:00",
+    "end": "2025-11-13T12:43:07.9+01:00",
+    "parentId": "MTG-PL-2025-11-13-PVCRE-ITM-8-4",
+    "type": "oral-explanation-of-vote",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2025-11-13-ITM-008-04_EN.xml",
+        "fetchedAt": "2026-10-18T21:14:16.148Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "de",
+        "sha256": "9af93b31b700af48e9013823f2c167343eec0c669ec6a0f2cefcb8f475d6c7cd",
+        "sha256Scope": "response",
+        "selector": "NUMERO[@ACT=\"2017047999815\"] + INTERVENTION/ORATEUR[@MEPID=\"197677\"]",
+        "basis": "Exact CRE event and person identifiers and both VOD timestamps match the API; Official minutes and the chair introduction identify oral explanations of vote under Rule 201.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2025-11-13_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2026-03-26-OTH-2017069542695",
+    "personId": "257113",
+    "start": "2026-03-26T11:44:44.082+01:00",
+    "end": "2026-03-26T11:45:07.593+01:00",
+    "parentId": "MTG-PL-2026-03-26-PVCRE-ITM-9-1",
+    "type": "chair",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-26_EN.html#2017069542695",
+        "fetchedAt": "2026-10-18T21:14:20.923Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "it",
+        "sha256": "56904092585a430e074b0f444b4f7bfeb791e5953bab26851884563dd99991b2",
+        "sha256Scope": "response",
+        "selector": "a[name=\"2017069542695\"] + table; img[src=\"/mepphoto/257113.jpg\"]",
+        "basis": "Exact CRE speech anchor and person identifier match the API; official VOD times match to whole seconds; the header identifies the chair.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2026-03-26_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2026-03-26-OTH-2017069542696",
+    "personId": "197655",
+    "start": "2026-03-26T11:45:07.593+01:00",
+    "end": "2026-03-26T11:46:14.893+01:00",
+    "parentId": "MTG-PL-2026-03-26-PVCRE-ITM-9-1",
+    "type": "oral-explanation-of-vote",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-26_EN.html#2017069542696",
+        "fetchedAt": "2026-10-18T21:14:20.923Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "ro",
+        "sha256": "56904092585a430e074b0f444b4f7bfeb791e5953bab26851884563dd99991b2",
+        "sha256Scope": "response",
+        "selector": "a[name=\"2017069542696\"] + table; img[src=\"/mepphoto/197655.jpg\"]",
+        "basis": "Exact CRE speech anchor and person identifier match the API; official VOD times match to whole seconds; Official minutes item 9 and chair introductions identify oral explanations of vote under Rule 201.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2026-03-26_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2026-03-26-OTH-2017069542699",
+    "personId": "257113",
+    "start": "2026-03-26T11:46:17.404+01:00",
+    "end": "2026-03-26T11:46:26.4+01:00",
+    "parentId": "MTG-PL-2026-03-26-PVCRE-ITM-9-2",
+    "type": "chair",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-26_EN.html#2017069542699",
+        "fetchedAt": "2026-10-18T21:14:20.923Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "it",
+        "sha256": "56904092585a430e074b0f444b4f7bfeb791e5953bab26851884563dd99991b2",
+        "sha256Scope": "response",
+        "selector": "a[name=\"2017069542699\"] + table; img[src=\"/mepphoto/257113.jpg\"]",
+        "basis": "Exact CRE speech anchor and person identifier match the API; official VOD times match to whole seconds; the header identifies the chair.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2026-03-26_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2026-03-26-OTH-2017069542700",
+    "personId": "197655",
+    "start": "2026-03-26T11:46:24.852+01:00",
+    "end": "2026-03-26T11:47:40.073+01:00",
+    "parentId": "MTG-PL-2026-03-26-PVCRE-ITM-9-2",
+    "type": "oral-explanation-of-vote",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-26_EN.html#2017069542700",
+        "fetchedAt": "2026-10-18T21:14:20.923Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "ro",
+        "sha256": "56904092585a430e074b0f444b4f7bfeb791e5953bab26851884563dd99991b2",
+        "sha256Scope": "response",
+        "selector": "a[name=\"2017069542700\"] + table; img[src=\"/mepphoto/197655.jpg\"]",
+        "basis": "Exact CRE speech anchor and person identifier match the API; official VOD times match to whole seconds; Official minutes item 9 and chair introductions identify oral explanations of vote under Rule 201.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2026-03-26_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2026-03-26-OTH-2017069542703",
+    "personId": "257113",
+    "start": "2026-03-26T11:47:43.665+01:00",
+    "end": "2026-03-26T11:47:51.698+01:00",
+    "parentId": "MTG-PL-2026-03-26-PVCRE-ITM-9-3",
+    "type": "chair",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-26_EN.html#2017069542703",
+        "fetchedAt": "2026-10-18T21:14:20.923Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "it",
+        "sha256": "56904092585a430e074b0f444b4f7bfeb791e5953bab26851884563dd99991b2",
+        "sha256Scope": "response",
+        "selector": "a[name=\"2017069542703\"] + table; img[src=\"/mepphoto/257113.jpg\"]",
+        "basis": "Exact CRE speech anchor and person identifier match the API; official VOD times match to whole seconds; the header identifies the chair.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2026-03-26_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2026-03-26-OTH-2017069542706",
+    "personId": "197655",
+    "start": "2026-03-26T11:47:51.698+01:00",
+    "end": "2026-03-26T11:49:14.546+01:00",
+    "parentId": "MTG-PL-2026-03-26-PVCRE-ITM-9-3",
+    "type": "oral-explanation-of-vote",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-26_EN.html#2017069542706",
+        "fetchedAt": "2026-10-18T21:14:20.923Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "ro",
+        "sha256": "56904092585a430e074b0f444b4f7bfeb791e5953bab26851884563dd99991b2",
+        "sha256Scope": "response",
+        "selector": "a[name=\"2017069542706\"] + table; img[src=\"/mepphoto/197655.jpg\"]",
+        "basis": "Exact CRE speech anchor and person identifier match the API; official VOD times match to whole seconds; Official minutes item 9 and chair introductions identify oral explanations of vote under Rule 201.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2026-03-26_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2026-03-26-OTH-2017069542707",
+    "personId": "257113",
+    "start": "2026-03-26T11:49:13.379+01:00",
+    "end": "2026-03-26T11:49:20.04+01:00",
+    "parentId": "MTG-PL-2026-03-26-PVCRE-ITM-9-3",
+    "type": "chair",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-26_EN.html#2017069542707",
+        "fetchedAt": "2026-10-18T21:14:20.923Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "it",
+        "sha256": "56904092585a430e074b0f444b4f7bfeb791e5953bab26851884563dd99991b2",
+        "sha256Scope": "response",
+        "selector": "a[name=\"2017069542707\"] + table; img[src=\"/mepphoto/257113.jpg\"]",
+        "basis": "Exact CRE speech anchor and person identifier match the API; official VOD times match to whole seconds; the header identifies the chair.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2026-03-26_EN.html"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2026-06-16-OTH-2017082084299",
+    "personId": "197525",
+    "start": "2026-06-16T18:53:44.816+02:00",
+    "end": "2026-06-16T18:53:48.599+02:00",
+    "parentId": "MTG-PL-2026-06-16-PVCRE-ITM-18-1",
+    "type": "chair",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2026-06-16_EN.xml",
+        "fetchedAt": "2026-10-18T21:16:15.179Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "pl",
+        "sha256": "1d15490269b38feb29bfe08a0044d26e9b5c02a9c7c5a65b3311ea091fd113f5",
+        "sha256Scope": "response",
+        "selector": "NUMERO[@ACT=\"2017082084299\"] + INTERVENTION/ORATEUR[@MEPID=\"197525\"]",
+        "basis": "Exact CRE event and person identifiers and both VOD timestamps match the API; ORATEUR labels the President.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2026-06-16_EN.xml"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2026-06-16-OTH-2017082084300",
+    "personId": "257083",
+    "start": "2026-06-16T18:53:48.599+02:00",
+    "end": "2026-06-16T18:55:09.069+02:00",
+    "parentId": "MTG-PL-2026-06-16-PVCRE-ITM-18-1",
+    "type": "oral-explanation-of-vote",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2026-06-16_EN.xml",
+        "fetchedAt": "2026-10-18T21:16:15.179Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "pt",
+        "sha256": "1d15490269b38feb29bfe08a0044d26e9b5c02a9c7c5a65b3311ea091fd113f5",
+        "sha256Scope": "response",
+        "selector": "NUMERO[@ACT=\"2017082084300\"] + INTERVENTION/ORATEUR[@MEPID=\"257083\"]",
+        "basis": "Exact CRE event and person identifiers and both VOD timestamps match the API; Official minutes and the chair introduction identify oral explanations of vote under Rule 201.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2026-06-16_EN.xml"
+      }
+    ]
+  },
+  {
+    "id": "MTG-PL-2026-06-16-OTH-2017082084301",
+    "personId": "197525",
+    "start": "2026-06-16T18:55:06.246+02:00",
+    "end": "2026-06-16T18:55:23.337+02:00",
+    "parentId": "MTG-PL-2026-06-16-PVCRE-ITM-18-1",
+    "type": "chair",
+    "sources": [
+      {
+        "url": "https://www.europarl.europa.eu/doceo/document/CRE-10-2026-06-16_EN.xml",
+        "fetchedAt": "2026-10-18T21:16:15.179Z",
+        "interfaceLanguage": "en",
+        "textLanguage": "pl",
+        "sha256": "1d15490269b38feb29bfe08a0044d26e9b5c02a9c7c5a65b3311ea091fd113f5",
+        "sha256Scope": "response",
+        "selector": "NUMERO[@ACT=\"2017082084301\"] + INTERVENTION/ORATEUR[@MEPID=\"197525\"]",
+        "basis": "Exact CRE event and person identifiers and both VOD timestamps match the API; ORATEUR labels the President.",
+        "minutesUrl": "https://www.europarl.europa.eu/doceo/document/PV-10-2026-06-16_EN.xml"
+      }
+    ]
+  }
+]
