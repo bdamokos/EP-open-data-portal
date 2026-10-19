@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createElement as h,act,lazy,Suspense} from 'react';
+import {createElement as h,act,Suspense} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
 
@@ -115,14 +115,84 @@ test('root fallback reads the current URL language and recovers on browser navig
   assert.equal(x.container.querySelector('h1').textContent,'Members');
 });
 
-test('a rejected lazy import reaches recovery with a page reload option',async t=>{
-  const x=await harness(t);let reject;
-  const View=lazy(()=>new Promise((_,failure)=>{reject=failure;}));
-  await x.render(h(x.ErrorBoundary,{resetKey:'lazy',language:'fr'},h(Suspense,{fallback:h('p',{role:'status'},'Chargement…')},h(View))));
-  assert.equal(x.container.querySelector('[role=status]').textContent,'Chargement…');
-  await act(async()=>reject(new TypeError('Failed to fetch dynamically imported module')));
+test('a rejected lazy loader offers only an explicit reload, preserves the share URL and resets on navigation',async t=>{
+  const x=await harness(t),reloads=[];let reject,loads=0,retries=0;
+  const {lazyView,LazyViewError}=await x.load('/src/lazyView.ts');
+  history.replaceState(null,'','?lang=fr&view=groups&group=RE&country=BE#contribution');
+  const before=location.href;
+  t.mock.method(location,'reload',()=>reloads.push(location.href));
+  const View=lazyView(()=>{loads++;return new Promise((_,failure)=>{reject=failure;});});
+  const render=(key,child)=>x.render(h(x.ErrorBoundary,{resetKey:key,language:'fr',navigation:h('nav',null,h('button',null,'Questions')),onRetry:()=>{retries++;}},child));
+  const view=h(Suspense,{fallback:h(x.ViewLoading,{language:'fr'})},h(View));
+  await render('lazy',view);
+  assert.equal(x.container.querySelector('[role=status]').textContent,'Chargement de la vue…');
+  assert.equal(x.container.querySelector('[aria-busy]').getAttribute('aria-busy'),'true');
+  assert.equal(x.container.querySelector('[role=alert]'),null);
+  assert.deepEqual(reloads,[],'delayed chunks never trigger automatic reloads');
+  const cause=new TypeError('Load failed');
+  await act(async()=>reject(cause));
+  assert(x.caught[0] instanceof LazyViewError);
+  assert.equal(x.caught[0].cause,cause,'preserve the original loader error for diagnostics');
   assert.equal(x.container.querySelector('main').lang,'fr');
   assert.equal(document.activeElement,x.container.querySelector('h1'));
-  assert([...x.container.querySelectorAll('button')].some(node=>node.textContent==='Recharger la page'));
+  assert.equal(x.container.querySelector('[role=alert]').getAttribute('aria-labelledby'),document.activeElement.id);
+  assert.equal(x.container.querySelector('p').textContent,'Rechargez la page pour essayer de charger cette vue à nouveau.');
+  assert.deepEqual([...x.container.querySelectorAll('[role=alert] button')].map(node=>node.textContent),['Recharger la page']);
+  assert(x.container.querySelector('nav button'),'view navigation remains available');
   assert.equal(x.container.querySelector('a').getAttribute('href'),'?lang=fr');
+  assert.equal(location.href,before);
+  await render('lazy',view);
+  assert.equal(loads,1,'rerendering keeps the rejected lazy loader cached');
+  assert.equal(reloads.length,0,'failed chunks never cause a reload loop');
+  await x.click('Recharger la page');
+  assert.deepEqual(reloads,[before],'reload keeps every selection, language and fragment');
+  assert.equal(retries,0,'do not pretend to retry the cached loader');
+  await render('questions',h('h1',null,'Questions'));
+  assert.equal(x.container.querySelector('[role=alert]'),null);
+  await render('ordinary-error',h(broken));
+  assert([...x.container.querySelectorAll('button')].some(node=>node.textContent==='Réessayer'),'navigation clears the chunk recovery policy');
+});
+
+test('a delayed lazy loader can resolve without recovery, while its render errors still support retry',async t=>{
+  const x=await harness(t);let resolve,fail=true,loads=0;
+  const {lazyView}=await x.load('/src/lazyView.ts');
+  function View(){if(fail)throw new TypeError('Failed to fetch dynamically imported module');return h('h1',{tabIndex:-1},'Recovered view');}
+  const ViewModule=lazyView(()=>{loads++;return new Promise(success=>{resolve=success;});});
+  await x.render(h(x.ErrorBoundary,{resetKey:'lazy',language:'en'},h(Suspense,{fallback:h('p',{role:'status'},'Loading…')},h(x.ViewContent,{render:()=>h(ViewModule),onReady:()=>document.querySelector('h1')?.focus()}))));
+  assert.equal(x.container.querySelector('[role=status]').textContent,'Loading…');
+  await act(async()=>resolve({default:View}));
+  assert([...x.container.querySelectorAll('button')].some(node=>node.textContent==='Try again'),'render failures are not classified by matching error messages');
+  fail=false;await x.click('Try again');
+  assert.equal(x.container.querySelector('[role=alert]'),null);
+  assert.equal(document.activeElement.textContent,'Recovered view');
+  assert.equal(loads,1,'ordinary retry keeps the successfully loaded module');
+});
+
+test('root recovery recognizes lazy loader failures without app navigation',async t=>{
+  const x=await harness(t),reloads=[];
+  const {lazyView}=await x.load('/src/lazyView.ts');
+  t.mock.method(location,'reload',()=>reloads.push(location.href));
+  const View=lazyView(()=>Promise.reject('Module unavailable'));
+  await x.render(h(x.RootBoundary,null,h(Suspense,{fallback:'Loading…'},h(View))));
+  assert.equal(x.container.querySelector('nav'),null);
+  assert.equal(x.container.querySelector('main').lang,'hu');
+  assert.equal(x.container.querySelector('[role=alert] button').textContent,'Oldal újratöltése');
+  assert(!x.container.textContent.includes('Újrapróbálkozás'));
+  assert.equal(reloads.length,0);
+  await x.click('Oldal újratöltése');
+  assert.deepEqual(reloads,[location.href]);
+});
+
+test('a successful delayed lazy import retains the selected view without a recovery notice',async t=>{
+  const x=await harness(t);let resolve;
+  const {lazyView}=await x.load('/src/lazyView.ts');
+  const before=location.href;
+  const View=lazyView(()=>new Promise(success=>{resolve=success;}));
+  await x.render(h(x.ErrorBoundary,{resetKey:'lazy',language:'fr'},h(Suspense,{fallback:h('p',{role:'status'},'Chargement…')},h(View))));
+  assert.equal(x.container.querySelector('[role=status]').textContent,'Chargement…');
+  await act(async()=>resolve({default:()=>h('h1',null,'Selected view')}));
+  assert.equal(x.container.querySelector('[role=alert]'),null);
+  assert.equal(x.container.querySelector('[role=status]'),null);
+  assert.equal(x.container.querySelector('h1').textContent,'Selected view');
+  assert.equal(location.href,before);
 });
