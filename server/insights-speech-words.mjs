@@ -36,8 +36,8 @@ export class SpeechWordInsights {
   async build(query,status){
     const person=this.store.db.prepare('SELECT body FROM members WHERE id=?').get(query.member);if(!person)throw new HttpError(404,'member_not_found','This MEP is not in the current roster.');
     const where="generation=? AND mep=? AND category='plenary-contributions' AND json_extract(body,'$.speechKind')='PLENARY_DEBATE_SPEECH' AND date BETWEEN ? AND ?",params=[status.servingGeneration,query.member,query.start,query.end];
-    const count=this.store.db.prepare('SELECT COUNT(DISTINCT source_id) n FROM items WHERE '+where).get(...params).n;
-    const rows=this.store.db.prepare('SELECT source_id,MIN(body) body FROM items WHERE '+where+' GROUP BY source_id ORDER BY MAX(date) DESC,source_id LIMIT 100').all(...params),words=new Map(),speeches=[];let rawBytes=0,xmlBytes=0,bounded=false,missing=0,wrongLanguage=0,invalid=0;
+    const count=this.store.db.prepare('SELECT COUNT(*) n FROM items WHERE '+where).get(...params).n;
+    const rows=this.store.db.prepare('SELECT source_id,body FROM items WHERE '+where+' ORDER BY date DESC,source_id LIMIT 100').all(...params),words=new Map(),speeches=[];let rawBytes=0,xmlBytes=0,bounded=false,missing=0,wrongLanguage=0,invalid=0;
     const retained=await this.readCorpusData({sourceIds:rows.map(row=>row.source_id),language:query.language});
     const stored=new Map((retained?.records||[]).map(record=>[record.id,record]));
     for(const row of rows){
