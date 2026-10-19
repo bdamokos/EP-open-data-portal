@@ -55,7 +55,7 @@ function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,
 const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>item.textContent.trim()===text);
 const visiblePane=container=>[...container.querySelectorAll('.member-votes-pane')].find(item=>!item.hidden);
 
-async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),statusCompatibility=false,renderContext}={}) {
+async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),weeksHandler=()=>Response.json({version:1,weeks:[],coverage:{status:'partial',termWide:false}}),statusCompatibility=false,renderContext}={}) {
   const window=new Window({url:'http://localhost/'});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -68,7 +68,7 @@ async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),st
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  t.mock.method(globalThis,'fetch',async(url,options)=>{calls.push(String(url));return handler(url,options,calls.length);});
+  t.mock.method(globalThis,'fetch',async(url,options)=>{if(new URL(String(url),'http://localhost').pathname==='/api/member-votes/weeks')return weeksHandler(url,options);calls.push(String(url));return handler(url,options,calls.length);});
   // The parent owns the hook's optional HTTP status field. Exercise that integration in memory
   // until it lands here; all other cases use the worktree's unmodified shared hook.
   const plugins=statusCompatibility?[{name:'member-votes-shared-status-contract',enforce:'pre',transform(source,id){
@@ -96,6 +96,34 @@ function wordingVariant(patch={}) {
   return {listId:'exact-published-list',wordingStatus:'available',language:'fr',targetLabel:'Paragraphe 4',targetLabelLanguage:'fr',
     originalText:'Texte original exact',proposedText:'Texte proposé exact',authors:[],...patch};
 }
+
+test('stored weeks are newest first, keep an unlisted selection, and clear exact-sitting state on navigation',async t=>{
+  const initial={week:WEEK,sittingId:SITTING,positions:'recorded',offset:50,decisionId:decision(1),snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT],context:null};
+  const h=await mount(t,{state:initial,weeksHandler:()=>Response.json({version:1,weeks:[{week:'2026-03-09'},{week:'2026-03-16'},{week:'2026-03-16'},{week:'2026-03-17'}],coverage:{status:'partial',termWide:false}})});
+  const selector='.member-votes-week-browser select';
+  assert.deepEqual([...h.container.querySelector(selector).options].map(option=>option.value),['latest','sitting','2026-03-16','2026-03-09']);
+  assert.equal(h.container.querySelector(selector).value,'sitting');
+  const date=h.container.querySelector('input[type="date"]'),suggestions=h.container.querySelector('datalist');
+  assert.equal(date.getAttribute('list'),suggestions.id);
+  assert.deepEqual([...suggestions.options].map(option=>option.value),['2026-03-16','2026-03-09']);
+  assert.match(h.container.querySelector('.member-votes-week-hint').textContent,/Coverage and individual positions may be incomplete/);
+  await h.select(selector,'2026-03-09');
+  const change=h.changes.find(change=>change.state.week==='2026-03-09'&&!change.options.replace);
+  assert.deepEqual(change.state,{...initial,week:'2026-03-09',sittingId:null,offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[]});
+  await h.update({week:'2026-03-02',snapshotId:null});
+  assert.equal(h.container.querySelector(selector).value,'2026-03-02');
+  await h.select(selector,'latest');
+  assert(h.calls.some(url=>new URL(url,'http://localhost').searchParams.get('week')==='latest'));
+});
+
+test('failed stored-week hints keep date selection available and can be retried',async t=>{
+  let attempts=0;
+  const h=await mount(t,{weeksHandler:()=>++attempts===1?Response.json({error:{message:'Unavailable'}},{status:503}):Response.json({version:1,weeks:[{week:WEEK}],coverage:{status:'partial',termWide:false}})});
+  assert.match(h.container.querySelector('.member-votes-week-hint').textContent,/could not be loaded/);
+  assert(h.container.querySelector('input[type="date"]'));
+  await h.click('Retry sitting weeks');
+  assert.equal(attempts,2);assert(h.container.querySelector('optgroup option'));
+});
 async function mountWording(t,{variants,amendmentStatus='available',state={}}) {
   const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}});
   return mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id,...state},handler:url=>String(url).includes('document-context/')?
