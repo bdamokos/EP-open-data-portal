@@ -11,7 +11,7 @@ const seconds = value => Number(value.cdnCacheControl.match(/max-age=(\d+)/)?.[1
 
 test('ordinary public reads use six hours and recent lists one hour without changing browser freshness', () => {
   for (const path of ['/api/directory', '/api/profile/43?lang=hu', '/api/insights/questions?lang=en', '/api/corpus/search?lang=hu&q=water', '/api/amendments', '/api/outside/directory']) {
-    const value = {coverage: {complete: false, authoritativeComplete: false}, fetchedAt: '2026-10-16T00:00:00Z'};
+    const value = {index: {complete: true}, coverage: {complete: false, authoritativeComplete: false}, fetchedAt: '2026-10-16T00:00:00Z'};
     assert.equal(seconds(policy(path, value)), 21600, path);
     assert.equal(policy(path, value).cacheControl, 'public, max-age=0');
     assert.match(policy(path, value).cdnCacheControl, /stale-if-error=0/);
@@ -19,6 +19,16 @@ test('ordinary public reads use six hours and recent lists one hour without chan
   }
   for (const path of ['/api/activities/43', '/api/latest-activities/43', '/api/speeches/43?offset=20']) assert.equal(seconds(policy(path)), 3600, path);
   assert.equal(seconds(policy('/api/profile/43', {}, {method: 'HEAD'})), 21600);
+});
+
+test('directory membership progress is never stored while completed snapshots retain their public lifetime', () => {
+  for (const index of [undefined, {}, {complete: false, loaded: 0, total: 719, failed: 0, error: null}, {complete: false, loaded: 300, total: 719, failed: 0, error: null}, {complete: false, loaded: 718, total: 719, failed: 1, error: null}]) {
+    for (const method of ['GET', 'HEAD']) {
+      assert.deepEqual(policy('/api/directory', {index}, {method}), {cacheControl: 'no-store', cdnCacheControl: 'no-store'});
+    }
+  }
+  assert.equal(seconds(policy('/api/directory', {index: {complete: true, loaded: 719, total: 719, failed: 0, error: null}})), 21600);
+  assert.equal(seconds(policy('/api/directory', {index: {complete: true, loaded: 0, total: 0, failed: 0, error: null}})), 21600);
 });
 
 test('only established positive speech and document reads use a day; unanswered questions remain mutable', () => {
@@ -48,7 +58,7 @@ test('flat transport preserves the finite cache allowlist and excludes retired n
     'outside/directory', 'outside/43', ...['questions', 'legislation', 'saved', 'participation',
       'speech-words', 'procedure-context', 'group-voices'].map(view => 'insights/' + view)];
   for (const suffix of paths) {
-    const payload = {xml: '<speech>Retained text</speech>'};
+    const payload = {index: {complete: true}, xml: '<speech>Retained text</speech>'};
     const expected = /^(activities|speeches|latest-activities)\//.test(suffix) ? 3600 : 21600;
     assert.equal(seconds(policy('/api/' + suffix, payload)), expected, suffix);
     for (const prefix of ['/api/poc/', '/api/explorer/']) {
