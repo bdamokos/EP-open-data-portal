@@ -67,6 +67,67 @@ test('departing shared foreground reader restores queued background priority wit
   release();await background;assert.equal(calls,1);assert.equal(queue.waiters.length,0);
 });
 
+test('promoted background owners leave a connection for unrelated foreground reads',async t=>{
+  const queue=new UpstreamQueue();sharedAdmission(t,queue);
+  const calls=[];let finishA;
+  t.mock.method(globalThis,'fetch',url=>{
+    calls.push(String(url));
+    return String(url).includes('/resource-background-a?')?new Promise(resolve=>finishA=resolve):Promise.resolve(Response.json({data:[]}));
+  });
+  const a=odp('/resource-background-a',{}, {priority:'background'});await turn();
+  const b=odp('/resource-background-b',{}, {priority:'background'});await turn();
+  const controller=new AbortController(),reader=assert.rejects(odp('/resource-background-b',{}, {signal:controller.signal}));
+  await turn();assert.equal(queue.active,1);assert.equal(queue.background,1);assert.equal(calls.length,1);
+  controller.abort();await reader;
+  await odp('/resource-foreground-c');
+  assert.equal(calls.length,2);assert.match(calls[1],/resource-foreground-c/);
+  assert.equal(queue.background,1);assert.equal(queue.waiters.length,1);
+  finishA(Response.json({data:[]}));await Promise.all([a,b]);
+  assert.match(calls[2],/resource-background-b/);assert.equal(queue.active,0);assert.equal(queue.background,0);
+});
+
+test('late background ownership accounts for in-flight work before further background admission',async t=>{
+  const queue=new UpstreamQueue();sharedAdmission(t,queue);
+  let finish;const calls=[];
+  t.mock.method(globalThis,'fetch',url=>{
+    calls.push(String(url));
+    return String(url).includes('/resource-late-owner?')?new Promise(resolve=>finish=resolve):Promise.resolve(Response.json({data:[]}));
+  });
+  const controller=new AbortController(),reader=assert.rejects(odp('/resource-late-owner',{}, {signal:controller.signal}));await turn();
+  assert.equal(queue.background,0);
+  const owner=odp('/resource-late-owner',{}, {priority:'background'});await turn();
+  assert.equal(queue.background,1);controller.abort();await reader;
+  const next=odp('/resource-next-background',{}, {priority:'background'});await turn();
+  await odp('/resource-next-foreground');
+  assert.equal(calls.length,2);assert.match(calls[1],/resource-next-foreground/);assert.equal(queue.waiters.length,1);
+  finish(Response.json({data:[]}));await Promise.all([owner,next]);
+  assert.equal(queue.active,0);assert.equal(queue.background,0);assert.equal(queue.admitted.size,0);
+});
+
+test('a late retained owner yields its foreground connection when the last reader leaves',async t=>{
+  const queue=new UpstreamQueue({rateLimit:{maximum:10,windowMs:300_000}});sharedAdmission(t,queue);
+  let finishA,body,signalB,bCalls=0;const calls=[];
+  t.mock.method(globalThis,'fetch',(url,options)=>{
+    calls.push(String(url));
+    if(String(url).includes('/resource-held-background?'))return new Promise(resolve=>finishA=resolve);
+    if(String(url).includes('/resource-yield-owner?')&&++bCalls===1){
+      signalB=options.signal;
+      return Promise.resolve(new Response(new ReadableStream({start(controller){body=controller;options.signal.addEventListener('abort',()=>controller.error(options.signal.reason),{once:true});}}),{headers:{'content-type':'application/ld+json'}}));
+    }
+    return Promise.resolve(Response.json({data:[]}));
+  });
+  const a=odp('/resource-held-background',{}, {priority:'background'});await turn();
+  const controller=new AbortController(),reader=assert.rejects(odp('/resource-yield-owner',{}, {signal:controller.signal}));await turn();
+  assert.ok(body);const b=odp('/resource-yield-owner',{}, {priority:'background'});await turn();
+  controller.abort();await reader;await turn();
+  assert.equal(signalB.aborted,true);assert.equal(queue.active,1);assert.equal(queue.background,1);assert.equal(queue.waiters.length,1);
+  await odp('/resource-yield-foreground');assert.equal(calls.length,3);assert.equal(queue.starts.length,3);
+  finishA(Response.json({data:[]}));await Promise.all([a,b]);
+  assert.equal(bCalls,2,'retained owner restarts only after background capacity is free');
+  assert.equal(queue.starts.length,4,'replacement counts as a real network start');
+  assert.equal(queue.active,0);assert.equal(queue.background,0);
+});
+
 test('cooldown evicts foreground joins while preserving a promoted background owner for recovery',async t=>{
   t.mock.timers.enable({apis:['Date','setTimeout'],now:5000});
   const queue=new UpstreamQueue();sharedAdmission(t,queue);
