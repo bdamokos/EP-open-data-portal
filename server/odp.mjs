@@ -545,7 +545,7 @@ export async function odpProfile(id, force = false, {priority='interactive'}={})
 const readCommitteeMemberships = createCommitteeMembershipReader({request:odp});
 export async function odpProfileWithMemberships(id) {
   const profile = await odpProfile(id);
-  return {...profile, committeeMemberships:await readCommitteeMemberships(profile,today())};
+  return {...profile, committeeMemberships:await readCommitteeMemberships(profile,today(),{signal:requestSignal()})};
 }
 function startIndex() {
   if (indexPromise || indexState.complete) return;

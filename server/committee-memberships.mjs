@@ -52,27 +52,38 @@ export function committeeMemberships(memberships, bodies = [], day) {
 }
 
 export function createCommitteeMembershipReader({request, budgetMs = 8000} = {}) {
-  return async function readCommitteeMemberships(profile, day) {
-    const memberships = profile.memberships || [];
+  const rejectedBodies = new Set();
+  const rejectBody = id => {
+    rejectedBodies.delete(id); rejectedBodies.add(id);
+    if (rejectedBodies.size > 256) rejectedBodies.delete(rejectedBodies.values().next().value);
+  };
+  return async function readCommitteeMemberships(profile, day, {signal:parentSignal} = {}) {
+    parentSignal?.throwIfAborted();
+    const memberships = (profile.memberships || []).filter(m => committeeClass.test(m.classification));
     const current = memberships.filter(m => committeeClass.test(m.classification) && dayNumber(m.start) !== null && m.start <= day && (!m.end || dayNumber(m.end) !== null && m.end >= day));
     const ids = current.length ? [...new Set([...current, ...memberships].map(m => m.id).filter(id => /^[1-9]\d*$/.test(id)))] : [];
     const selected = ids.slice(0, 64), bodies = [], sources = [];
     let cursor = 0, failed = ids.length > selected.length;
-    const signal = AbortSignal.timeout(budgetMs);
+    const signal = AbortSignal.any([AbortSignal.timeout(budgetMs), ...(parentSignal ? [parentSignal] : [])]);
     await Promise.all(Array.from({length:Math.min(2, selected.length)}, async () => {
       while (cursor < selected.length) {
         const id = selected[cursor++];
-        if (signal.aborted) { failed = true; continue; }
+        if (signal.aborted) { failed = true; break; }
         try {
-          const record = await request('/corporate-bodies/' + id, {}, {signal, staleWhileRevalidate:true});
+          const record = await request('/corporate-bodies/' + id, {}, {signal, staleWhileRevalidate:true, force:rejectedBodies.has(id)});
           const body = record.payload?.data?.[0];
-          if (record.payload.data.length !== 1 || String(body?.identifier) !== id || !committeeClass.test(tail(body.classification))) throw Error('Committee identity unavailable');
+          if (record.payload?.data?.length !== 1 || String(body?.identifier) !== id || !committeeClass.test(tail(body.classification))) {
+            rejectBody(id); throw Error('Committee identity unavailable');
+          }
           bodies.push(body);
           sources.push({url:record.url, fetchedAt:new Date(record.fetchedAt).toISOString(), stale:Boolean(record.stale)});
-          if (record.stale || record.refreshError || !identity(body) || memberships.some(m => m.id === id && m.classification !== tail(body.classification))) failed = true;
-        } catch { failed = true; }
+          if (!identity(body) || memberships.some(m => m.id === id && m.classification !== tail(body.classification))) {rejectBody(id);failed = true;}
+          else rejectedBodies.delete(id);
+          if (record.stale || record.refreshError) failed = true;
+        } catch { parentSignal?.throwIfAborted(); failed = true; }
       }
     }));
+    parentSignal?.throwIfAborted();
     return {version:COMMITTEE_MEMBERSHIP_VERSION, day, items:committeeMemberships(memberships,bodies,day), complete:!failed,
       error:failed ? 'Some committee history is unavailable. Showing the available role periods.' : null, sources};
   };

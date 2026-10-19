@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {committeeMemberships,createCommitteeMembershipReader} from './committee-memberships.mjs';
-import {memberships} from './odp.mjs';
+import {memberships,odp} from './odp.mjs';
 
 const fixture=JSON.parse(await readFile(new URL('./fixtures/committee-roles.json',import.meta.url)));
 const bodies=fixture.bodies.map(x=>x.data);
@@ -85,4 +85,31 @@ test('body enrichment caps downloads at 64 and retains every current membership'
 test('profiles without active committee service perform no historical reads',async()=>{
   const read=createCommitteeMembershipReader({request:()=>{throw Error('Unexpected historical download');}});
   const value=await read({memberships:[row('1','CHAIR','2019-07-10','2024-07-15')]},'2026-10-19');assert.equal(value.complete,true);assert.deepEqual(value.items,[]);
+});
+test('leaving the profile aborts in-flight history reads and prevents additional requests',async()=>{
+  const parent=new AbortController(),started=[],active=[];
+  const read=createCommitteeMembershipReader({request:async(endpoint,_params,{signal})=>{
+    started.push(endpoint);
+    return new Promise((resolve,reject)=>{
+      const abort=()=>{active.push(endpoint);reject(signal.reason);};
+      if(signal.aborted)abort();else signal.addEventListener('abort',abort,{once:true});
+      if(started.length===2)parent.abort(new Error('Profile closed'));
+    });
+  }});
+  await assert.rejects(read({memberships:Array.from({length:6},(_,i)=>row(String(i+1),'MEMBER','2026-01-01'))},'2026-10-19',{signal:parent.signal}),/Profile closed/);
+  assert.equal(started.length,2);assert.equal(active.length,2);
+});
+test('retry revalidates an identity-invalid body retained by the real source cache',async t=>{
+  let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({data:[body(calls===1?'999999':'981012')]});});
+  const read=createCommitteeMembershipReader({request:odp});
+  const profile={memberships:[row('981012','MEMBER','2026-01-01')]};
+  const first=await read(profile,'2026-10-19');assert.equal(first.complete,false);assert.equal(calls,1);
+  const second=await read(profile,'2026-10-19');assert.equal(second.complete,true);assert.equal(second.items[0].code,'TEST');assert.equal(calls,2);
+});
+test('excluded joint memberships neither download bodies nor make history incomplete',async()=>{
+  const calls=[];
+  const read=createCommitteeMembershipReader({request:async endpoint=>{calls.push(endpoint);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.now(),payload:{data:[body('1')]}};}});
+  const value=await read({memberships:[row('1','MEMBER','2026-01-01'),{...row('2','MEMBER','2020-01-01','2021-01-01'),classification:'COMMITTEE_PARLIAMENTARY_JOINT'}]},'2026-10-19');
+  assert.equal(value.complete,true);assert.deepEqual(calls,['/corporate-bodies/1']);
 });
