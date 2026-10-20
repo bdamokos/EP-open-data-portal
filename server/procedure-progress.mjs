@@ -27,10 +27,10 @@ export function progressSparql({reference,language,detail='events'}) {
   const ref=sourceReference(reference);odpLanguage(language);
   if(!['events','documents'].includes(detail))throw new HttpError(400,'invalid_detail','Choose events or documents.');
   const identity=`?dossier cdm:procedure_code_interinstitutional_reference_procedure "${ref}"^^xsd:string.`;
-  const fields=detail==='documents'?`?event cdm:event_legal_contains_work ?work.
+  const fields=detail==='documents'?`OPTIONAL { ?event cdm:event_legal_contains_work ?work.
  OPTIONAL { ?work cdm:resource_legal_id_celex ?celex }
  OPTIONAL { ?work owl:sameAs ?alias }
- OPTIONAL { ?expression cdm:expression_belongs_to_work ?work; cdm:expression_title ?title. FILTER(lang(?title) IN ("${language}","en")) }`:
+ OPTIONAL { ?expression cdm:expression_belongs_to_work ?work; cdm:expression_title ?title. FILTER(lang(?title) IN ("${language}","en")) } }`:
  `OPTIONAL { ?event cdm:event_legal_date ?date }
  OPTIONAL { ?event cdm:event_legal_has_type_concept_type_event_legal ?type.
   OPTIONAL { ?type skos:prefLabel ?label. FILTER(lang(?label) IN ("${language}","en")) } }
@@ -48,7 +48,7 @@ SELECT DISTINCT ?kind ?reference ?dossier ?event ?date ?type ?label ?status ?sta
  UNION { { SELECT DISTINCT ?dossier ?event WHERE { ${identity} ?event cdm:event_legal_part_of_dossier ?dossier. } ORDER BY ?event LIMIT ${PROGRESS_LIMITS.events+1} }
  BIND("1" AS ?kind) ${fields} }
  BIND("${ref}" AS ?reference)
-} ORDER BY ?kind ?dossier ?event ?work ?date ?type ?institution ?label ?alias ?title LIMIT ${detail==='documents'?PROGRESS_LIMITS.documentRows:PROGRESS_LIMITS.eventRows}`;
+} ORDER BY ?kind ?dossier ?event ?work ?date ?type ?institution ?label ?celex ?alias ?title LIMIT ${detail==='documents'?PROGRESS_LIMITS.documentRows:PROGRESS_LIMITS.eventRows}`;
 }
 function labels(map,id,binding,language) {
   if(!id)return;
@@ -86,7 +86,7 @@ export function parseProgress(data,query) {
     if(row.dossier.value!==base.dossier||!id){base.coverage.invalidRows++;continue;}
     if(!groups.has(id))groups.set(id,{id,dates:new Set(),types:new Map(),statuses:new Map(),institutions:new Map(),works:new Set(),invalidDate:false});
     const e=groups.get(id),rawDate=literal(row.date),validDate=date(rawDate);
-    if(rawDate&&!validDate)e.invalidDate=true;if(validDate)e.dates.add(validDate);
+    if(row.date!==undefined&&!validDate)e.invalidDate=true;if(validDate)e.dates.add(validDate);
     labels(e.types,code(row.type,'event'),row.label,query.language);
     labels(e.statuses,code(row.status,'event-status'),row.statusLabel,query.language);
     labels(e.institutions,code(row.institution,'corporate-body'),row.institutionLabel,query.language);
@@ -111,10 +111,13 @@ export function readableDocumentUrl({celex},language) {
   return null;
 }
 export function parseProgressDocuments(data,query) {
-  const {rows,...base}=envelope(data,{...query,detail:'documents'}),groups=new Map();
+  const {rows,...base}=envelope(data,{...query,detail:'documents'}),groups=new Map(),events=new Set();
   if(base.state==='mapped')for(const row of rows.filter(row=>literal(row.kind)==='1')) {
     const event=uri(row.event,eventPattern),work=uri(row.work,workPattern);
-    if(row.dossier.value!==base.dossier||!event||!work){base.coverage.invalidRows++;continue;}
+    if(row.dossier.value!==base.dossier||!event){base.coverage.invalidRows++;continue;}
+    // Keep events without works so the 301st-event sentinel survives the join.
+    events.add(event);
+    if(!work){if(row.work!==undefined)base.coverage.invalidRows++;continue;}
     const key=event+'|'+work;
     if(!groups.has(key))groups.set(key,{event,work,celex:new Set(),aliases:new Set(),titles:new Map()});
     const d=groups.get(key),celex=literal(row.celex),alias=row.alias?.type==='uri'?row.alias.value:null;
@@ -124,9 +127,13 @@ export function parseProgressDocuments(data,query) {
     if(alias)d.aliases.add(alias);
     labels(d.titles,work,row.title,query.language);
   }
-  const documents=[...groups.values()].map(d=>{
+  if(events.size>PROGRESS_LIMITS.events)base.coverage.limited=true;
+  const retained=new Set([...events].sort().slice(0,PROGRESS_LIMITS.events));
+  const documents=[...groups.values()].filter(d=>retained.has(d.event)).map(d=>{
     const title=labelled(d.titles,query.language)[0],celex=[...d.celex].sort(),aliases=[...d.aliases].sort();
-    return {event:d.event,work:d.work,celex,aliases,title:title?.label||null,titleLanguage:title?.language||null,url:readableDocumentUrl({celex,aliases},title?.language||'en')};
+    // A capped response can omit a conflicting identifier. Retain metadata,
+    // but expose reader links only after an uncapped observation.
+    return {event:d.event,work:d.work,celex,aliases,title:title?.label||null,titleLanguage:title?.language||null,url:base.coverage.limited?null:readableDocumentUrl({celex,aliases},title?.language||'en')};
   });
   return {...base,documents};
 }

@@ -59,6 +59,16 @@ test('missing and contradictory dates/types/statuses retain the event with expli
   assert(parsed.events.every(e=>e.date===null));
   assert.equal(parsed.events.find(e=>e.id.endsWith('0003')).status,'unknown');
 });
+test('explicit empty or invalid date bindings cannot be hidden by a valid date row',()=>{
+  for(const invalid of [l(''),u('2026-10-01'),null,l('2026-02-30')]){
+    const parsed=parseProgress(data([mapping,row(),row('0001',{date:invalid})]),query);
+    assert.equal(parsed.events[0].date,null);
+    assert.deepEqual(parsed.events[0].dates,['2026-10-01']);
+    assert(parsed.events[0].issues.includes('date'));
+    assert.equal(parsed.coverage.incompleteEvents,1);
+    assert.equal(apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/insights/procedure-progress'),parsed).cdnCacheControl,'no-store');
+  }
+});
 test('exact missing, ambiguous and mismatched references do not become a zero-event mapped file',()=>{
   assert.equal(parseProgress(data([]),query).state,'unmapped');
   const alternative={...mapping,dossier:u(work)};
@@ -87,6 +97,29 @@ test('document links use exact CELEX and withhold conflicting or unsupported ide
   assert.equal(conflict.documents[0].url,null);
   assert.equal(readableDocumentUrl({celex:[],aliases:['http://publications.europa.eu/resource/consil/ST_12778_2021_REV_1']},'en'),null);
   assert.equal(readableDocumentUrl({celex:[],aliases:[work,'https://example.test/doc','http://publications.europa.eu/resource/consil/ST_12778_2021_INIT/evil']},'en'),null);
+});
+test('row-capped document metadata retains observations without asserting readable identifiers',()=>{
+  const doc=row('0001',{work:u(work),celex:l('52021PC0206')});
+  // A conflicting CELEX can be outside the returned slice of this work group.
+  const parsed=parseProgressDocuments(data([mapping,...Array.from({length:PROGRESS_LIMITS.documentRows-1},()=>doc)]),query);
+  assert.equal(parsed.coverage.limited,true);
+  assert.deepEqual(parsed.documents[0].celex,['52021PC0206']);
+  assert.equal(parsed.documents[0].url,null);
+  assert.equal(apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/insights/procedure-progress?detail=documents'),parsed).cdnCacheControl,'no-store');
+});
+test('document event caps retain at most 300 events and preserve the sentinel without a work',()=>{
+  const docRows=Array.from({length:301},(_,i)=>row(String(i).padStart(4,'0'),{work:u(work),celex:l('52021PC0206')}));
+  for(const rows of [docRows,[...docRows.slice(0,300),row('0300')]]){
+    const parsed=parseProgressDocuments(data([mapping,...rows]),query);
+    assert.equal(parsed.documents.length,300);
+    assert.equal(new Set(parsed.documents.map(d=>d.event)).size,300);
+    assert.equal(parsed.coverage.limited,true);
+    assert.equal(parsed.coverage.invalidRows,0);
+    assert(parsed.documents.every(d=>d.url===null));
+    assert.equal(apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/insights/procedure-progress?detail=documents'),parsed).cdnCacheControl,'no-store');
+  }
+  const sparql=progressSparql({...query,detail:'documents'});
+  assert.match(sparql,/OPTIONAL \{ \?event cdm:event_legal_contains_work \?work\./);
 });
 test('shared official-source cache coalesces views and preserves stale progress after a failed one-hour refresh',async()=>{
   let now=Date.parse('2026-10-20T10:00:00Z'),calls=0,fail=false;
