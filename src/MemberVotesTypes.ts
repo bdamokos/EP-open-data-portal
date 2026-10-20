@@ -14,7 +14,7 @@ export type MemberVoteSourcePageCoverage = {
   state:'complete'|'partial'|'unavailable';
   pages:number;
   rows:number;
-  stopReason:'end'|'no-content'|'repeated-page'|'page-budget'|'row-budget'|'error'|'not-scanned';
+  stopReason:'end'|'no-content'|'not-found'|'repeated-page'|'page-budget'|'row-budget'|'error'|'not-scanned';
   error:{code:string;message:string}|null;
   sources:MemberVoteSource[];
 };

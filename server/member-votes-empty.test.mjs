@@ -70,3 +70,10 @@ test('a later-page 404 cannot certify an already observed collection as complete
  const data=await service.query('42',query('sitting=MTG-PL-2026-01-27'));
  assert.equal(data.coverage.status,'partial');assert.equal(data.pagination.observedTotal,1);assert.equal(data.coverage.sittings[0].decisions.stopReason,'error');
 });
+
+
+test('a 404 during today’s unfinished sitting remains partial without a no-votes claim',async t=>{
+ const {service}=setup(t,{dates:['2026-10-20']}),data=await service.query('42',query('sitting=MTG-PL-2026-10-20'));
+ assert.equal(data.coverage.status,'partial');assert.equal(data.coverage.collectionComplete,false);assert.equal(data.coverage.sittings[0].state,'partial');assert.equal(data.pagination.observedTotal,0);
+ assert.equal(data.coverage.sittings[0].decisions.stopReason,'not-found');assert.equal(data.coverage.sittings[0].decisions.sources[0].httpStatus,404);
+});

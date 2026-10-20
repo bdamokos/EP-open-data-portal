@@ -79,7 +79,7 @@ export class MemberVotes {
           const expected=new URL(API+endpoint);for(const [key,value] of Object.entries({...params,limit:size,offset:0,format:'application/ld+json'}))expected.searchParams.set(key,String(value));
           const fetchedAt=typeof source.fetchedAt==='number'&&Number.isFinite(source.fetchedAt)?new Date(source.fetchedAt).toISOString():source.fetchedAt;
           if(source.url===expected.href&&Number.isFinite(Date.parse(fetchedAt))&&/^[a-f0-9]{64}$/.test(source.contentHash)&&Number.isSafeInteger(bytes)&&bytes>=0&&bytes<=this.limits.sourceBytes&&budget.bytes+bytes<=this.limits.periodBytes){
-            budget.bytes+=bytes;coverage.state='complete';coverage.stopReason='not-found';coverage.pages=1;
+            budget.bytes+=bytes;coverage.state=heldSitting<brusselsDay(this.clock())?'complete':'partial';coverage.stopReason='not-found';coverage.pages=1;
             coverage.sources.push({...source,fetchedAt,stale:false,refreshInProgress:false,refreshError:null});break;
           }
         }
@@ -123,10 +123,10 @@ export class MemberVotes {
     // A local failure ends this collection, so sibling reads must lose their
     // ownership too, before sharedRequest disposes the collection deadline.
     const [all,named,results,agenda]=await runWithRequestSignal(signal,()=>Promise.all([
-      this.pages('/meetings/'+sittingId+'/decisions',{'filter-output':'voters'},'decisions',budget,{heldSitting:true}),
-      this.pages('/meetings/'+sittingId+'/decisions',{'vote-method':'ROLL_CALL_EV'},'decisions',budget,{heldSitting:true}),
-      this.pages('/meetings/'+sittingId+'/vote-results',{},'results',budget,{heldSitting:true}),
-      this.pages('/meetings/'+sittingId+'/foreseen-activities',{},'agenda',budget,{heldSitting:true})
+      this.pages('/meetings/'+sittingId+'/decisions',{'filter-output':'voters'},'decisions',budget,{heldSitting:date}),
+      this.pages('/meetings/'+sittingId+'/decisions',{'vote-method':'ROLL_CALL_EV'},'decisions',budget,{heldSitting:date}),
+      this.pages('/meetings/'+sittingId+'/vote-results',{},'results',budget,{heldSitting:date}),
+      this.pages('/meetings/'+sittingId+'/foreseen-activities',{},'agenda',budget,{heldSitting:date})
     ]).catch(error=>{failure.abort(error);throw error;}));
     const errors=[];
     const eligible=(collection,suffix)=>collection.nodes.filter(n=>{
