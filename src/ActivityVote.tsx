@@ -28,7 +28,7 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
   // observations must stay separate and never fill a source-conflict shell.
   const retained=Boolean(observed&&indexed&&!sourceConflict&&!conflict&&((!observed.outcome&&indexed.outcome)||(!observed.method&&indexed.method)||(['for','against','abstaining'] as const).some(key=>observed.totals[key]==null&&indexed.totals?.[key]!=null)));
   const vote:MemberVote|null=observed&&retained?{...observed,outcome:observed.outcome||indexed!.outcome||null,method:observed.method||indexed!.method||null,
-    ballotStatus:observed.ballotStatus==='unknown'&&['ADOPTED','REJECTED'].includes(indexed!.outcome||'')?'conducted':observed.ballotStatus,
+    ballotStatus:observed.ballotStatus==='unknown'?(indexedBallot??'unknown'):observed.ballotStatus,
     totals:Object.fromEntries((['for','against','abstaining'] as const).map(key=>[key,observed.totals[key]??indexed!.totals?.[key]??null])) as MemberVote['totals']}:observed;
   let href:string|null=null;
   if(route&&typeof window!=='undefined') {

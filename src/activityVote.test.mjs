@@ -86,3 +86,12 @@ test('known show-of-hands method explains unrecorded positions even when source 
   const h=await mount(t,async()=>Response.json(exactResponse({method:'VOTE_HAND',outcome:'ADOPTED',ballotStatus:'unknown',position:{status:'unavailable',position:null}})));await h.render({indexed:{outcome:'ADOPTED',method:'VOTE_HAND'}});
   assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/Individual positions are not recorded/);assert.doesNotMatch(h.container.textContent,/Position unavailable/);
 });
+
+test('published counts remain visible when named-ballot collection is unknown',async t=>{
+  const h=await mount(t,async()=>{const value=exactResponse({ballotStatus:'unknown',position:{status:'unavailable',position:null}});value.selected.item.totals={for:445,against:0,abstaining:null};return Response.json(value);});await h.render({indexed:{outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:445,against:0,abstaining:null}}});
+  assert.match(h.container.textContent,/For 445Against 0Abstaining —/);assert.doesNotMatch(h.container.textContent,/Tallies unavailable/);assert.equal(h.container.querySelector('.member-votes-bar'),null);
+});
+test('retained lapsed outcomes retain their not-conducted semantics',async t=>{
+  const h=await mount(t,async()=>{const value=exactResponse({outcome:null,method:null,ballotStatus:'unknown',position:{status:'unavailable',position:null}});value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});await h.render({indexed:{outcome:'LAPSED',method:'VOTE_HAND'}});
+  assert.match(h.container.textContent,/Lapsed/);assert.match(h.container.textContent,/Not put to a vote/);assert.doesNotMatch(h.container.textContent,/Position unavailable|Tallies unavailable|Individual positions are not recorded/);
+});
