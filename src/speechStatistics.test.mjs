@@ -63,6 +63,7 @@ test('automatically counts every page including written and unreadable contribut
   await ui.render({member:257070,onItems:items=>enriched.push(items.length)});
   assert.deepEqual(pages,[0,1],'next page starts without a click or a redundant page-zero request');
   assert.equal(ui.stat('Total contributions'),'50');
+  assert.equal(ui.stat('Written statements'),'1');
   assert.equal(ui.stat('On behalf of a group'),'0');
   assert.equal(ui.stat('Blue cards raised'),'—');
   assert.match(ui.container.querySelector('[role="status"]').textContent,/Counting contributions/);
@@ -85,7 +86,7 @@ test('complete empty coverage displays known zeroes without a duplicate footer o
   const data=result(0,null);data.coverage.total=0;
   const ui=await statistics(t,async()=>Response.json(data));
   await ui.render({member:257070});
-  for(const label of ['Total contributions','On behalf of a group','Blue cards raised','Blue cards answered','Blue-card reactions'])assert.equal(ui.stat(label),'0');
+  for(const label of ['Total contributions','On behalf of a group','Written statements','Blue cards raised','Blue cards answered','Blue-card reactions'])assert.equal(ui.stat(label),'0');
   assert.equal(ui.container.querySelector('[role="status"],details'),null);
   assert.match(ui.container.textContent,/Source refreshed: Oct 15, 2026/);
   assert(!ui.container.textContent.includes('The Left'),'redundant group counts are omitted');

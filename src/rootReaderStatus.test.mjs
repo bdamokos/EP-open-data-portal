@@ -17,8 +17,9 @@ const questionItem={id:'question:'+questionId,sourceId:questionId,date:'2026-10-
 const speechItem={id:'speech:'+speechId,sourceId:speechId,date:'2026-03-25',title:'Plenary speech fixture',titles:{en:'Plenary speech fixture'},recordKind:'speech',category:'plenary-contributions',categoryLabel:'Plenary contributions',reference:speechId,files:[],speechKind:'PLENARY_DEBATE_SPEECH',start:'2026-03-25T10:00:00Z',end:'2026-03-25T10:01:00Z',websiteUrl:'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-25-INT-2017069380111_EN.html',websiteLanguage:'en',provenance:{role:'SPEAKER'}};
 const page=items=>({categories:{'written-questions':'Written questions','plenary-contributions':'Plenary contributions'},categoryGroups:[],categoryCoverage:{},items,selectedItems:[],indexedTotal:items.length,nextOffset:null,cache:{complete:true}});
 
-async function harness(t,{items=[questionItem],activity,module='activities',language='en',stored=false}={}) {
+async function harness(t,{items=[questionItem],activity,module='activities',language='en',stored=false,summary=null,category}={}) {
   const query=new URLSearchParams({member:String(member.id),module,lang:language});if(activity)query.set('activity',activity);
+  if(category)query.set('mep-speech-category',category);
   const window=new Window({url:'http://localhost/?'+query}),pending=[],unexpected=[];
   class ReaderDOMParser extends window.DOMParser {
     parseFromString(...args) {
@@ -49,7 +50,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
     if(route==='directory')return Response.json({day:'2026-10-16',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}});
     if(route===`portrait/${member.id}`)return new Response(null,{status:404});
     if(route?.startsWith('latest-activities/'))return Response.json(page(items));
-    if(route?.startsWith('speech-statistics/'))return Response.json({memberId:String(member.id),items:[],counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:true,available:0,total:0},nextPage:null,sources:[]});
+    if(route?.startsWith('speech-statistics/'))return Response.json((typeof summary==='function'?await summary(url):summary)||{memberId:String(member.id),items:[],counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:true,available:0,total:0},nextPage:null,sources:[]});
     if(route==='insights/speech-cloud')return Response.json({scope:{kind:'member',phase:'past'},language:url.searchParams.get('lang'),words:[{word:'fixture',label:'Fixture',speechCount:1,occurrences:1,speechIds:[speechId]}],speeches:[{id:speechId,date:'2026-03-25',title:'Plenary speech fixture',titleLanguage:'en',machineTranslation:false,people:[]}],coverage:{transcripts:1,matchedSpeechRecords:1,missingLanguage:0,unreadableText:0,complete:true,truncated:false,associationUnavailable:false},window:{start:'2026-03-25',end:'2026-03-25'},nextPage:null});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
     if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
@@ -66,6 +67,59 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   return {window,container,pending,click,finish,expireActivityReads,wait:()=>act(async()=>new Promise(resolve=>setTimeout(resolve,400)))};
 }
 const status=reader=>reader.querySelector('[role="status"][aria-live="polite"]');
+test('a statistics restart clamps a filtered page when fewer matching records remain',async t=>{
+  const records=Array.from({length:25},(_,index)=>({id:`MTG-PL-2026-03-25-OTH-${100+index}`,date:'2026-03-25',start:null,end:null,titles:{en:'Written contribution '+index},kind:'PLENARY_DEBATE_WRITTEN_STATEMENT',intervention:{type:'written',onBehalfOf:[]}}));
+  const result=items=>({memberId:String(member.id),items,counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:false,available:items.length,total:25,unclassified:0,issues:[]},nextPage:null,sources:[]});
+  let finish;
+  const h=await harness(t,{module:'speeches',items:[speechItem],summary:url=>url.searchParams.get('page')==='0'?{...result(records),nextPage:1}:new Promise(resolve=>finish=resolve)});
+  await h.click(h.container.querySelector('a[aria-label^="Written statements:"]'));
+  const older=()=>[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Older');
+  await h.click(older());await h.click(older());
+  assert.equal(h.container.querySelector('article.explorer-speech').id,'speech-'+records[20].id);
+  await act(async()=>finish({...result(records.slice(0,5)),restarted:true}));
+  assert.match(h.container.querySelector('#speech-filter-results-'+member.id).textContent,/5 loaded/);
+  assert.equal(h.container.querySelectorAll('article.explorer-speech').length,5);
+  assert.equal(h.container.querySelector('article.explorer-speech').id,'speech-'+records[0].id);
+  assert.equal(older(),undefined);
+});
+test('summary links filter all loaded records, paginate, preserve the reader category and clear back to the indexed list',async t=>{
+  const types=['speech','blue-card-question','blue-card-intervention','blue-card-answer','blue-card-reaction','blue-card','unclassified'];
+  const records=Array.from({length:22},(_,index)=>({id:`MTG-PL-2026-03-25-OTH-${100+index}`,date:'2026-03-25',start:null,end:null,titles:{en:'Contribution '+index},kind:index>=7?'PLENARY_DEBATE_WRITTEN_STATEMENT':'PLENARY_DEBATE_SPEECH',intervention:{type:index>=7?'written':types[index],onBehalfOf:index===0?[{id:'EPP',uri:'org/EPP',label:'EPP',politicalGroup:true}]:[]}}));
+  const summary={memberId:String(member.id),items:records,counts:{groupOrations:1,blueQuestions:2,blueAnswers:1,blueReactions:1},groups:[],coverage:{complete:false,available:22,total:22,unclassified:2,issues:['retained-corpus']},nextPage:null,sources:[]};
+  const h=await harness(t,{module:'speeches',items:[speechItem],summary});
+  const link=label=>[...h.container.querySelectorAll('.intervention-stats-grid a')].find(node=>node.getAttribute('aria-label').startsWith(label+':'));
+  const ids=()=>[...h.container.querySelectorAll('article.explorer-speech')].map(node=>node.id);
+  assert.equal(ids().length,1);
+  assert.match(link('Written statements').href,/mep-speech-category=written/);
+  await h.click(link('Written statements'));
+  assert.equal(new URLSearchParams(location.search).get('mep-speech-category'),'written');
+  assert.equal(ids().length,10);assert.equal(ids()[0],'speech-'+records[7].id);
+  assert.match(h.container.querySelector('#speech-filter-results-'+member.id).textContent,/Written statements · 15 loaded/);
+  assert.equal(document.activeElement.id,'speech-filter-results-'+member.id);
+  await h.click([...h.container.querySelectorAll('button')].find(node=>node.textContent==='Older'));
+  assert.equal(ids().length,5);assert.equal(ids()[0],'speech-'+records[17].id);
+  await h.click(h.container.querySelector('.explorer-speech-toggle'));
+  assert.equal(new URLSearchParams(location.search).get('speech'),records[17].id);
+  assert.equal(new URLSearchParams(location.search).get('mep-speech-category'),'written');
+  for(const [label,expected] of [['Blue cards raised',[1,2]],['Blue cards answered',[3]],['Blue-card reactions',[4]],['On behalf of a group',[0]]]){
+    await h.click(link(label));assert.deepEqual(ids(),expected.map(index=>'speech-'+records[index].id));
+  }
+  await h.click(link('Total contributions'));assert.equal(ids().length,10);
+  await h.click([...h.container.querySelectorAll('button')].find(node=>node.textContent==='Clear filter'));
+  assert.equal(new URLSearchParams(location.search).has('mep-speech-category'),false);
+  assert.deepEqual(ids(),['speech-'+speechId]);
+});
+
+test('a shared summary category restores directly and unknown counts remain unavailable',async t=>{
+  const summary={memberId:String(member.id),items:[],counts:{groupOrations:null,blueQuestions:null,blueAnswers:null,blueReactions:null},groups:[],coverage:{complete:false,available:0,total:null,unclassified:0,issues:['retained-corpus']},nextPage:null,sources:[]};
+  const h=await harness(t,{module:'speeches',items:[speechItem],summary,category:'blueAnswers'});
+  assert.match(h.container.textContent,/No matching contributions in the records loaded so far/);
+  assert.equal(h.container.querySelectorAll('.intervention-stats-grid a').length,1,'only the known total has a filter link');
+  assert.equal(h.container.querySelectorAll('article.explorer-speech').length,0);
+  await act(async()=>{const url=new URL(location.href);url.searchParams.set('mep-speech-category','written');history.replaceState(null,'',url);window.dispatchEvent(new h.window.PopStateEvent('popstate'));});
+  assert.match(h.container.querySelector('#speech-filter-results-'+member.id).textContent,/Written statements/);
+});
+
 function assertOrdinaryText(reader) {
   const transcript=reader.querySelector('.explorer-transcript');assert(transcript,'the full reader text is rendered');
   assert.equal(transcript.textContent,paragraphs.join(''));

@@ -1,10 +1,11 @@
 import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
 import {lazyView} from './lazyView';
 import {filterCountry,matchesCountry} from './countries.mjs';
-import {explorerParams} from './explorerUrl';
+import {explorerParams,useExplorerParam} from './explorerUrl';
 import {SpeechCloud} from './SpeechCloud';
 import {FindInText,TextSearch} from './TextSearch';
-import {InterventionBadges,SpeechContextPanel,InterventionStatistics} from './SpeechInterventions';
+import {InterventionBadges,SpeechContextPanel,InterventionStatistics,speechCategories,matchesSpeechCategory} from './SpeechInterventions';
+import type {SpeechCategory} from './SpeechInterventions';
 import {SpeakerName,SpeakerRoleLine} from './SpeakerIdentity';
 import {publicationBody} from './publication-body.mjs';
 import {CommitteeMemberships} from './CommitteeMemberships';
@@ -386,6 +387,18 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const c=interfaceCopy(lang);
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
+  const [category,setCategory]=useExplorerParam<string>('mep-speech-category','',speechCategories.map(([key])=>key));
+  const [categoryOffset,setCategoryOffset]=useState(0);
+  const filtered=category?enrichedSpeeches.filter(speech=>matchesSpeechCategory(speech,category as SpeechCategory)):null;
+  const lastCategoryOffset=Math.max(0,Math.ceil((filtered?.length||0)/10)-1)*10;
+  const filteredOffset=Math.min(categoryOffset,lastCategoryOffset);
+  const filterHeading=useRef<HTMLHeadingElement>(null),revealFilter=useRef(false);
+  const filterHref=(value:SpeechCategory)=>{const url=new URL(location.href);url.searchParams.set('mep-speech-category',value);url.searchParams.delete('speech');url.hash='speech-filter-results-'+id;return url.href;};
+  const selectCategory=(value:SpeechCategory)=>{revealFilter.current=true;filterHeading.current?.focus({preventScroll:true});if(filterHeading.current)revealSpeech(filterHeading.current);setCategoryOffset(0);setCategory(value);setSpeechLanguage(null);onOpen(null);};
+  useEffect(()=>{setCategoryOffset(0);},[category]);
+  useEffect(()=>{setCategoryOffset(value=>Math.min(value,lastCategoryOffset));},[lastCategoryOffset]);
+  useEffect(()=>{if(!category||!initialSpeech)return;const index=enrichedSpeeches.filter(speech=>matchesSpeechCategory(speech,category as SpeechCategory)).findIndex(speech=>speech.id===initialSpeech);if(index>=0)setCategoryOffset(Math.floor(index/10)*10);},[category,initialSpeech,enrichedSpeeches]);
+  useEffect(()=>{if(revealFilter.current){revealFilter.current=false;filterHeading.current?.focus({preventScroll:true});if(filterHeading.current)revealSpeech(filterHeading.current);}},[category,categoryOffset]);
   const focusedSpeech=useRef<string|null>(null);
   const resultsHeading=useRef<HTMLHeadingElement>(null);
   const speechOrigin=useRef<{key:string;owner:Element|null}|null>(null);
@@ -409,24 +422,25 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else heading?.scrollIntoView({block:'start'});
     setOffset(next);onOpen(null);
   };
-  useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){revealSpeech(target);target.querySelector<HTMLButtonElement>('.explorer-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data]);
+  useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){revealSpeech(target);target.querySelector<HTMLButtonElement>('.explorer-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data,enrichedSpeeches,category,categoryOffset]);
   return <section lang={lang}>
     <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2><TextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" scopeNote="Searches saved speech text for this MEP in the current term. Transcript and language coverage may be incomplete."/></div>
-    <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches}/>
-    <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setSpeechLanguage(language);onOpen(speech);}}/>
-    <div className="explorer-section-title" lang="en"><span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span></div>
-    {state.loading && !state.data && <p role="status" lang="en">Loading saved speeches…</p>}
-    {state.error && <ErrorView message={state.error} retry={state.retry} />}
-    {state.data && !items.length && <p className="explorer-notice" lang="en">{state.data.cache.complete ? "No indexed plenary contributions were found for this MEP." : "No plenary contributions have been loaded for this MEP yet."}</p>}
-    {initialSpeech && pinned.loading && <p role="status" lang="en">Checking the saved linked speech…</p>}
-    {initialSpeech && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
-    {initialSpeech && state.data && !pinned.loading && !items.some(item=>item.sourceId===initialSpeech) && <LinkedActivityFallback key={initialSpeech} sourceId={initialSpeech} member={id} lang={lang} complete={state.data.cache.complete} />}
-    {items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId),speech={...base,...enriched,titles:{...base.titles,...enriched?.titles}};const open=initialSpeech===speech.id,speechTitle=title(speech,lang);return <article className="explorer-speech" key={item.id} id={`speech-${speech.id}`}>
+    <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} filter={{selected:category,href:filterHref,select:selectCategory}}/>
+    <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
+    <div className="explorer-section-title" lang="en">{filtered?<h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{speechCategories.find(([key])=>key===category)?.[1]} · {filtered.length} loaded</h3>:<span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span>}</div>
+    {filtered&&<p className="intervention-caption" lang="en">Filtered from the contributions loaded for the summary. Source coverage may be incomplete.</p>}
+    {!filtered&&state.loading && !state.data && <p role="status" lang="en">Loading saved speeches…</p>}
+    {!filtered&&state.error && <ErrorView message={state.error} retry={state.retry} />}
+    {filtered&&!filtered.length?<p className="explorer-notice" lang="en">No matching contributions in the records loaded so far.</p>:!filtered&&state.data && !items.length && <p className="explorer-notice" lang="en">{state.data.cache.complete ? "No indexed plenary contributions were found for this MEP." : "No plenary contributions have been loaded for this MEP yet."}</p>}
+    {!filtered&&initialSpeech && pinned.loading && <p role="status" lang="en">Checking the saved linked speech…</p>}
+    {!filtered&&initialSpeech && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
+    {!filtered&&initialSpeech && state.data && !pinned.loading && !items.some(item=>item.sourceId===initialSpeech) && <LinkedActivityFallback key={initialSpeech} sourceId={initialSpeech} member={id} lang={lang} complete={state.data.cache.complete} />}
+    {(filtered?filtered.slice(filteredOffset,filteredOffset+10):items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId);return {...base,...enriched,titles:{...base.titles,...enriched?.titles}};})).map(speech=>{const open=initialSpeech===speech.id,speechTitle=title(speech,lang);return <article className="explorer-speech" key={speech.id} id={`speech-${speech.id}`}>
       <button className="explorer-speech-toggle" lang="en" onClick={()=>{setSpeechLanguage(null);onOpen(open ? null : speech.id);}} aria-expanded={open}><span><span lang={lang}>{date(speech.date,lang)}</span> · {speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT' ? 'Written statement' : 'Plenary speech'}{speech.start ? <> · <span lang={lang}>{time(speech.start,lang)}</span> Brussels</> : ''}</span><span className="explorer-speech-heading"><strong lang={speechTitle.language}>{speechTitle.text}</strong><b aria-hidden="true">{open ? '−' : '+'}</b></span></button>
       {!open&&<div className="explorer-speech-list-badges"><InterventionBadges value={speech.intervention} language={lang}/></div>}
       {open && <Detail speech={speech} lang={lang} transcriptLanguage={speechLanguage||lang} />}
     </article>})}
-    {state.data && <div className="explorer-category-top" lang="en">{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
+    {filtered?<div className="explorer-category-top" lang="en">{filteredOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,filteredOffset-10));onOpen(null);}}>Newer</button>}{filteredOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(filteredOffset+10);onOpen(null);}}>Older</button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}>Clear filter</button></div>:state.data && <div className="explorer-category-top" lang="en">{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
   </section>;
 }
 export default function App() {
@@ -744,6 +758,7 @@ export default function App() {
             <div className="explorer-profile-body">
               {tab === "speeches" ? (
                 <Speeches
+                  key={member}
                   id={member}
                   lang={lang}
                   initialSpeech={speechLink}
