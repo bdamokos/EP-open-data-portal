@@ -1,23 +1,23 @@
-.legal-reference-scope {--focus-outline-color:var(--signal-blue,#1e6cff);position:relative;}
+.legal-reference-scope {--focus-outline-color:var(--focus);position:relative;}
 :is(.explorer,.explorer-insights,.insight-inline-reader) button.legal-ref {display:inline;min-height:0;padding:0;margin:0;border:0;border-bottom:1.5px dotted currentColor;background:none;color:inherit;font:inherit;line-height:inherit;text-align:inherit;cursor:pointer;overflow-wrap:anywhere;}
 :is(.explorer,.explorer-insights,.insight-inline-reader) button.legal-ref:hover,:is(.explorer,.explorer-insights,.insight-inline-reader) button.legal-ref[aria-expanded="true"] {background:color-mix(in srgb,currentColor 12%,transparent);border-bottom-style:solid;}
-button.legal-ref:is(:focus,:focus-visible) {outline:3px solid var(--focus-outline-color,var(--selected-yellow,#fff200));outline-offset:2px;}
+button.legal-ref:is(:focus,:focus-visible) {outline:3px solid var(--focus-outline-color,var(--focus));outline-offset:2px;}
 .legal-note-mark {font-size:.7em;line-height:0;margin-left:1px;}
 .legal-note-mark a {text-decoration:none;padding:0 2px;}
-.legal-reference-card {--focus-outline-color:var(--signal-blue,#1e6cff);position:absolute;z-index:20;max-height:min(70vh,560px);overflow:auto;padding:16px 40px 14px 16px;background:#fff;color:var(--institutional-ink);box-shadow:0 10px 30px #00000059;border-top:3px solid var(--parliament-blue);font-size:15px;line-height:1.45;text-align:left;}
-.legal-reference-scope .legal-reference-card:is(:focus,:focus-visible),.legal-reference-scope :is(a,button,input,select,summary,[tabindex]):is(:focus,:focus-visible) {outline:3px solid var(--focus-outline-color,var(--signal-blue,#1e6cff));outline-offset:3px;}
-.legal-reference-scope:is(:focus,:focus-visible),.legal-reference-question:is(:focus,:focus-visible) {outline:3px solid var(--focus-outline-color,var(--signal-blue,#1e6cff));outline-offset:4px;}
+.legal-reference-card {--focus-outline-color:var(--focus);position:absolute;z-index:20;max-height:min(70vh,560px);overflow:auto;padding:16px 40px 14px 16px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:var(--radius-sm);font-size:15px;line-height:1.45;text-align:left;}
+.legal-reference-scope .legal-reference-card:is(:focus,:focus-visible),.legal-reference-scope :is(a,button,input,select,summary,[tabindex]):is(:focus,:focus-visible) {outline:3px solid var(--focus-outline-color,var(--focus));outline-offset:3px;}
+.legal-reference-scope:is(:focus,:focus-visible),.legal-reference-question:is(:focus,:focus-visible) {outline:3px solid var(--focus-outline-color,var(--focus));outline-offset:4px;}
 .legal-reference-card p {margin:0 0 8px;}
-.legal-reference-kind {font-size:12px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase;color:var(--parliament-blue);}
+.legal-reference-kind {font-size:12px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);}
 .legal-reference-title {font-weight:bold;}
-.legal-reference-meta {font-size:13px;color:#46566e;}
-.legal-reference-source {font-size:12px;color:#5d6b80;margin-top:10px!important;}
+.legal-reference-meta {font-size:13px;color:var(--ink-muted);}
+.legal-reference-source {font-size:12px;color:var(--ink-muted);margin-top:10px!important;}
 .legal-reference-actions {display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px;}
-.legal-reference-card .legal-reference-actions :is(a,button) {display:inline-flex;align-items:center;min-height:40px;padding:8px 12px;font-size:14px;line-height:1.2;text-decoration:none;background:var(--institutional-ink);color:#fff;border:0;}
-.legal-reference-card .legal-reference-actions .legal-reference-secondary {background:#e6edf7;color:var(--institutional-ink);}
-.legal-reference-card .legal-reference-actions button[aria-expanded="true"] {background:var(--selected-yellow);color:var(--institutional-ink);}
-.legal-reference-card button.legal-reference-close {position:absolute;top:6px;right:6px;width:32px;min-width:0;height:32px;min-height:0;padding:0;font-size:22px;line-height:1;background:none;color:var(--institutional-ink);}
-.legal-reference-summary {margin-top:10px;padding-top:10px;border-top:1px solid #d7deea;}
+.legal-reference-card .legal-reference-actions :is(a,button) {display:inline-flex;align-items:center;min-height:40px;padding:8px 12px;font-size:14px;line-height:1.2;text-decoration:none;background:var(--accent);color:var(--accent-ink);border:0;border-radius:var(--radius-sm);}
+.legal-reference-card .legal-reference-actions .legal-reference-secondary {background:var(--surface-2);color:var(--ink);}
+.legal-reference-card .legal-reference-actions button[aria-expanded="true"] {background:var(--accent-soft);color:var(--ink);}
+.legal-reference-card button.legal-reference-close {position:absolute;top:6px;right:6px;width:32px;min-width:0;height:32px;min-height:0;padding:0;font-size:22px;line-height:1;background:none;color:var(--ink);}
+.legal-reference-summary {margin-top:10px;padding-top:10px;border-top:1px solid var(--line);}
 .legal-reference-summary h4 {margin:10px 0 4px;font-size:14px;}
 .legal-reference-summary p {font-size:14px;}
 :is(.explorer,.explorer-insights,.insight-inline-reader) button.legal-reference-text-button {min-height:0;padding:0;background:none;color:inherit;text-decoration:underline;font:inherit;}
@@ -29,10 +29,10 @@ button.legal-ref:is(:focus,:focus-visible) {outline:3px solid var(--focus-outlin
 .legal-notes summary {cursor:pointer;font-weight:bold;}
 .legal-notes ol {margin:8px 0 0;padding-left:26px;}
 .legal-notes li {margin-bottom:6px;overflow-wrap:anywhere;scroll-margin-top:12px;}
-.legal-notes li:target {background:color-mix(in srgb,var(--selected-yellow) 30%,transparent);}
+.legal-notes li:target {background:color-mix(in srgb,var(--accent-soft) 30%,transparent);}
 @media(max-width:560px) {.legal-reference-card {font-size:14px;max-height:65vh;}}
-.legal-reference-evidence {font-size:13px;padding:6px 8px;margin:8px 0!important;background:#f1f4f9;border-left:3px solid #9aa9bf;}
-.legal-reference-evidence.is-confirmed {background:#eaf6ee;border-left-color:#2e7d4f;}
+.legal-reference-evidence {font-size:13px;padding:6px 8px;margin:8px 0!important;background:var(--surface-2);border-left:3px solid var(--line-strong);}
+.legal-reference-evidence.is-confirmed {background:var(--positive-soft);border-left-color:var(--positive);}
 .legal-reference-evidence a {color:inherit;}
 /* The superscript wrapper uses zero line height; the button needs room below its number for the border. */
 :is(.explorer,.explorer-insights,.insight-inline-reader) button.legal-note-ref {padding:0 2px;border-bottom-width:1px;line-height:normal;}

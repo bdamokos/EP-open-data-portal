@@ -1,0 +1,81 @@
+/* Design tokens. Components use these names, never raw colours, so every view
+   reads the same in light and dark schemes. Each pair is light-dark(light, dark);
+   src/theme.test.mjs checks the contrast of the documented text and control pairs. */
+:root {
+  color-scheme: light dark;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, "Noto Serif", serif;
+  --radius: 8px;
+  --radius-sm: 5px;
+
+  /* Surfaces: page, raised panel and inset, from back to front. */
+  --bg: light-dark(#f6f5f1, #141618);
+  --surface: light-dark(#ffffff, #1c1f22);
+  --surface-2: light-dark(#efede8, #24282c);
+  --surface-3: light-dark(#e3e0d8, #2e3237);
+  --line: light-dark(#dcd8cf, #363b41);
+  /* Borders that identify controls; at least 3:1 against bg and surface. */
+  --line-strong: light-dark(#878c93, #7a8189);
+  --shadow: 0 1px 2px rgb(0 0 0 / .06), 0 10px 28px rgb(0 0 0 / .14);
+  /* Behind modal dialogs. */
+  --scrim: rgb(12 14 16 / .55);
+
+  /* Text. */
+  --ink: light-dark(#1c1f23, #ecebe6);
+  --ink-muted: light-dark(#595e65, #a9aeb4);
+
+  /* One interface accent, kept away from the vote and status hues. */
+  --accent: light-dark(#0b5f69, #6cc7cf);
+  --accent-strong: light-dark(#084a52, #9adde3);
+  --accent-ink: light-dark(#ffffff, #0a1c1f);
+  --accent-soft: light-dark(#dcedee, #163a40);
+  --focus: var(--accent);
+
+  /* Search and highlight marks. */
+  --mark: light-dark(#ffe28a, #5b4a12);
+  --mark-active: light-dark(#ffbf3c, #8a6a10);
+  --mark-ink: light-dark(#1c1f23, #fff3c4);
+
+  /* Status. */
+  --positive: light-dark(#276b2d, #7fcf84);
+  --positive-soft: light-dark(#e2f1e3, #1a3220);
+  --warning: light-dark(#7f5800, #e6b858);
+  --warning-soft: light-dark(#fbf0d2, #3a2f12);
+  --danger: light-dark(#b3261e, #ff8f87);
+  --danger-soft: light-dark(#fbe4e2, #3e1f1d);
+
+  /* Vote positions. */
+  --vote-for: light-dark(#276b2d, #74c779);
+  --vote-against: light-dark(#b3261e, #ff8c84);
+  --vote-abstain: light-dark(#7f5800, #e2b34c);
+  --vote-for-soft: light-dark(#d4e9d5, #23432a);
+  --vote-against-soft: light-dark(#f6d6d3, #4b2522);
+  --vote-abstain-soft: light-dark(#f1e3c2, #43381a);
+
+  /* Political groups, at least 3:1 against bg and surface in each scheme. */
+  --group-ppe: light-dark(#2a6fbd, #55aaff);
+  --group-sd: light-dark(#c8323f, #ff677b);
+  --group-renew: light-dark(#9a7000, #f8d35b);
+  --group-greens: light-dark(#23845a, #48c78e);
+  --group-ecr: light-dark(#41609f, #87a8df);
+  --group-pfe: light-dark(#7d4cb3, #b98ae3);
+  --group-esn: light-dark(#86603a, #cda681);
+  --group-left: light-dark(#b0407a, #eb8ac1);
+  --group-ni: light-dark(#69737f, #a4b4ca);
+  --group-unknown: light-dark(#7a828c, #6f8197);
+
+  /* Other categorical chart series. */
+  --chart-1: light-dark(#2f6fa8, #78b9ed);
+  --chart-2: light-dark(#23845a, #83d8bc);
+  --chart-neutral: light-dark(#8a929c, #8292a6);
+  /* Sequential map scale; values blend from low to high. */
+  --map-low: light-dark(#d9e9ea, #1f3437);
+  --map-high: light-dark(#0b5f69, #6cc7cf);
+  --map-empty: light-dark(#ebe8e1, #2a2e33);
+}
+:root[data-theme=light] { color-scheme: light; }
+:root[data-theme=dark] { color-scheme: dark; }
+
+html { background: var(--bg); color: var(--ink); font-family: var(--font-sans); }
+::selection { background: var(--accent-soft); color: var(--ink); }
+mark { background: var(--mark); color: var(--mark-ink); }
