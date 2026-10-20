@@ -20,7 +20,9 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
   const data=route&&response.data&&validateMemberVotesResponse(response.data,{memberId:String(memberId),state})?response.data:null;
   // A failed revalidation cannot keep a previously observed named ballot authoritative.
   const observed=!response.error&&data?.selected.status==='found'?data.selected.item:null;
-  const conflict=Boolean(observed&&indexed&&(['outcome','method'] as const).some(key=>observed[key]&&indexed[key]&&observed[key]!==indexed[key])||observed&&indexed?.totals&&(['for','against','abstaining'] as const).some(key=>observed.totals[key]!=null&&indexed.totals?.[key]!=null&&observed.totals[key]!==indexed.totals[key]));
+  const indexedBallot=indexed?.outcome&&['ADOPTED','REJECTED'].includes(indexed.outcome)?'conducted':indexed?.outcome&&['LAPSED','WITHDRAWN','CANCELLED'].includes(indexed.outcome)?'not-conducted':null;
+  const ballotConflict=Boolean(observed&&indexedBallot&&(observed.ballotStatus!=='unknown'&&observed.ballotStatus!==indexedBallot||indexedBallot==='not-conducted'&&observed.actualPosition.status==='recorded'));
+  const conflict=ballotConflict||Boolean(observed&&indexed&&(['outcome','method'] as const).some(key=>observed[key]&&indexed[key]&&observed[key]!==indexed[key])||observed&&indexed?.totals&&(['for','against','abstaining'] as const).some(key=>observed.totals[key]!=null&&indexed.totals?.[key]!=null&&observed.totals[key]!==indexed.totals[key]));
   const sourceConflict=Boolean(observed?.sourceConflicts);
   // Missing fields do not revoke a saved observation. Explicit contradictory
   // observations must stay separate and never fill a source-conflict shell.
@@ -40,7 +42,7 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
   if(!route)return <>{children}</>;
   const record=vote?votingRecordUrl(vote):null;
   const method=vote?({VOTE_HAND:'Show of hands',VOTE_ELECTRONIC_ROLLCALL:'Roll-call vote',VOTE_ELECTRONIC:'Electronic vote',VOTE_SECRET:'Secret ballot',VOTE_SECRET_BALLOT:'Secret ballot'}[vote.method||'']):null;
-  const noIndividualPositions=vote?.ballotStatus==='conducted'&&['VOTE_HAND','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(vote.method||'');
+  const noIndividualPositions=Boolean(vote&&vote.ballotStatus!=='not-conducted'&&!['LAPSED','WITHDRAWN','CANCELLED'].includes(vote.outcome||''))&&['VOTE_HAND','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(vote?.method||'');
   const requesters=vote?.rollCallRequesters.map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text)||[];
   return <div className="activity-vote" lang="en">
     {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p>{sourceConflict?'Current vote sources disagree. The saved activity result is shown separately.':'The saved activity result differs from the current voting record. The current record is shown below.'}</p><div aria-label="Saved activity result">{children}</div></div>}

@@ -77,3 +77,12 @@ test('explicit source conflict never revives a saved result as a current confirm
   const h=await mount(t,async()=>{const value=exactResponse({outcome:null,method:null,ballotStatus:'unknown',position:{status:'conflicting',position:null}});value.selected.item.sourceConflicts={fields:['decision_outcome']};value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});await h.render({indexed:{outcome:'ADOPTED',method:'VOTE_HAND'}});
   assert.match(h.container.textContent,/Current vote sources disagree/);assert.match(h.container.querySelector('[aria-label="Saved activity result"]').textContent,/Adopted/);assert.match(h.container.querySelector('.member-votes-result').textContent,/Outcome unavailable/);assert.doesNotMatch(h.container.textContent,/retained from the saved/);
 });
+
+test('a conducted named ballot cannot inherit a saved lapsed outcome',async t=>{
+  const h=await mount(t,async()=>Response.json(exactResponse({outcome:null,ballotStatus:'conducted'})));await h.render({indexed:{outcome:'LAPSED',method:'VOTE_ELECTRONIC_ROLLCALL'}});
+  assert.match(h.container.textContent,/saved activity result differs/);assert.doesNotMatch(h.container.querySelector('.member-votes-result').textContent,/Lapsed/);
+});
+test('known show-of-hands method explains unrecorded positions even when source ballot type is absent',async t=>{
+  const h=await mount(t,async()=>Response.json(exactResponse({method:'VOTE_HAND',outcome:'ADOPTED',ballotStatus:'unknown',position:{status:'unavailable',position:null}})));await h.render({indexed:{outcome:'ADOPTED',method:'VOTE_HAND'}});
+  assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/Individual positions are not recorded/);assert.doesNotMatch(h.container.textContent,/Position unavailable/);
+});
