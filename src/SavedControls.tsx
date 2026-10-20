@@ -18,8 +18,9 @@ export function checkSaved(language:string,force=false) {
   const requestedKey=items.map(savedKey).sort().join(',');const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),12_000);
   pending=api<SavedStates>('insights/saved?'+params,ctrl.signal).then(data=>{expireActivityReads();savedStore.observe(data);lastCheck=Date.now();return {data,requestedKey};}).finally(()=>{clearTimeout(timer);pending=null;if(savedStore.snapshot().items.map(savedKey).sort().join(',')!==requestedKey)void checkSaved(language,true).catch(()=>{});});requestedKeys.set(pending,requestedKey);return pending;
 }
-export function useSavedChecks(language:string) {
+export function useSavedChecks(language:string,following=false) {
   const {items}=useSaved(),key=items.map(savedKey).sort().join(',');
+  useEffect(()=>{if(following)void checkSaved(language,true).catch(()=>{});},[following,language]);
   useEffect(()=>{void checkSaved(language,true).catch(()=>{});const check=()=>{if(document.visibilityState==='visible')void checkSaved(language).catch(()=>{});};window.addEventListener('focus',check);document.addEventListener('visibilitychange',check);return()=>{window.removeEventListener('focus',check);document.removeEventListener('visibilitychange',check);};},[key,language]);
 }
 export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;compact?:boolean;language?:string}) {

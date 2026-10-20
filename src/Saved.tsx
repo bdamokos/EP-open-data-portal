@@ -13,6 +13,19 @@ export function Saved({language,onBack,onMember}:{language:string;onBack:()=>voi
   const saved=useSaved(),items=saved.items,[checking,setChecking]=useState(false),[error,setError]=useState('');
   const key=items.map(savedKey).sort().join(','),context=language+':'+key,request=useRef(0),active=useRef(false);
   const [attempt,setAttempt]=useState(0),[completion,setCompletion]=useState<{items:SavedItem[];message:string}|null>(null);
+  const displayed=useRef<SavedItem[]>([]),visit=useRef(0);
+  useEffect(()=>{if(document.visibilityState!=='hidden')displayed.current=items;},[items]);
+  useEffect(()=>{
+    const epoch=++visit.current;
+    const visible=()=>{if(document.visibilityState==='visible')displayed.current=store.snapshot().items;};
+    const leave=()=>store.markVisitRead(displayed.current);
+    document.addEventListener('visibilitychange',visible);window.addEventListener('pagehide',leave);
+    return()=>{
+      document.removeEventListener('visibilitychange',visible);window.removeEventListener('pagehide',leave);
+      // StrictMode remounts effects; only a real departure acknowledges this visit.
+      queueMicrotask(()=>{if(visit.current===epoch)leave();});
+    };
+  },[]);
   useEffect(()=>{active.current=true;setChecking(false);setError('');setCompletion(null);return()=>{active.current=false;request.current++;};},[context]);
   const check=()=>{
     if(checking)return;
@@ -35,7 +48,7 @@ export function Saved({language,onBack,onMember}:{language:string;onBack:()=>voi
     <Status scope={`saved-check:${context}:${attempt}`} message={completion?.items===items?completion.message:null} pending={checking}/>
     <button onClick={onBack}>← Back</button>
     <div className="explorer-saved-heading"><h1>Following</h1><button onClick={check} disabled={!items.length} aria-disabled={checking||undefined} style={checking?{opacity:.45,cursor:'default'}:undefined}>{checking?'Checking…':'Check for updates'}</button></div>
-    <p className="explorer-saved-caption">MEPs and questions you follow on this device.</p>
+    <p className="explorer-saved-caption">Changes to MEPs and questions you follow on this device since your last visit. Displayed updates are marked as seen when you leave Following.</p>
     {!saved.persistent&&<p role="alert">Browser storage is unavailable. Your follows will last until this page closes.</p>}
     {error&&<p>{error}</p>}
     {!items.length&&<p>Follow a MEP or save a question to see new activity and answers here.</p>}
@@ -43,9 +56,13 @@ export function Saved({language,onBack,onMember}:{language:string;onBack:()=>voi
       <div className="explorer-saved-heading"><h3 lang={item.titleLanguage||''}>{item.title}</h3><SaveButton item={item} language={language} compact/></div>
       {item.updated&&<strong className="explorer-update-label">{item.newAnswer?(item.newActivity?'New activity and new answer':'New answer'):item.newActivity?'New activity':'Updated'}</strong>}
       {item.availability==='outside-roster'&&<p>No longer on the current roster.</p>}
-      {(item.kind==='mep'||item.memberId)&&<button onClick={()=>{item.kind==='mep'?store.markActivityRead(savedKey(item)):store.markRead(savedKey(item));onMember(Number(item.kind==='mep'?item.id:item.memberId),item.kind==='question'?item.id:undefined);}}>{item.kind==='mep'?'Profile':'Read question and answers'}</button>}
+      {item.kind==='question'&&<p>{item.current?.answerIds?.length?'Answer available.':item.availability==='available'?'No answer available in the indexed data yet.':'Answer availability has not been checked.'}</p>}
+      {!item.updated&&<p>{item.availability==='available'?'No new updates since your last visit.':item.checkedAt?'Update information is unavailable.':'Checking will establish a starting point for future updates.'}</p>}
+      {item.updated&&!item.newAnswer&&!item.newActivity&&<p>{item.kind==='question'?'Question details changed.':'Activity details changed.'}</p>}
+      {!item.indexComplete&&<small>The index is incomplete; more updates may be available.</small>}
+      {(item.kind==='mep'||item.memberId)&&<button onClick={()=>{if(item.kind==='mep')store.markActivityRead(savedKey(item));onMember(Number(item.kind==='mep'?item.id:item.memberId),item.kind==='question'?item.id:undefined);}}>{item.kind==='mep'?'Profile':item.current?.answerIds?.length?'Read question and answers':'Read question'}</button>}
       {item.kind==='question'&&item.availability==='not-saved'&&<p>Question metadata is not available yet.</p>}
-      {(item.kind==='mep'||item.memberId)&&savedLinks(item).map(activity=><a key={activity.id} href={'?lang='+language+'&member='+(item.kind==='mep'?item.id:item.memberId)+'&module=activities&activity='+encodeURIComponent(activity.id)} onClick={event=>{activity.recordKind==='answer'?store.markAnswerRead(savedKey(item),activity.id):store.markActivityRead(savedKey(item));if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();onMember(Number(item.kind==='mep'?item.id:item.memberId),activity.id);}}>{activity.recordKind==='answer'?'Answer: ':''}<span lang={activity.titleLanguage||''}>{activity.title}</span><small lang={activity.date?language:'en'}>{activity.date?humanDate(activity.date,language):'Date unavailable'}</small></a>)}
+      {(item.kind==='mep'||item.memberId)&&savedLinks(item).map(activity=><a key={activity.id} href={'?lang='+language+'&member='+(item.kind==='mep'?item.id:item.memberId)+'&module=activities&activity='+encodeURIComponent(activity.id)} onClick={event=>{activity.recordKind==='answer'?store.markAnswerRead(savedKey(item),activity.id):store.markActivityRead(savedKey(item),activity.id);if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();onMember(Number(item.kind==='mep'?item.id:item.memberId),activity.id);}}>{activity.recordKind==='answer'?'New answer: ':'New activity: '}<span lang={activity.titleLanguage||''}>{activity.title}</span><small lang={activity.date?language:'en'}>{activity.date?humanDate(activity.date,language):'Date unavailable'}</small></a>)}
     </article>)}</div>
   </section>;
 }

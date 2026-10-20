@@ -479,7 +479,7 @@ export default function App() {
   const error = directoryState.error;
   const profile = useData<MemberProfile>(!view && member && tab === "profile" ? `profile/${member}` : null);
   const c = interfaceCopy(lang);
-  useSavedChecks(lang);
+  useSavedChecks(lang,view==='saved');
   const label = (key: string, fallback: string) => interfaceLabel(lang,key,fallback);
   useLayoutEffect(() => {
     const page=document.querySelector<HTMLElement>(".explorer"),tabs=page?.querySelector<HTMLElement>(".explorer-tabs");
