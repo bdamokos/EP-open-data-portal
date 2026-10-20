@@ -10,6 +10,7 @@ import {speechSummary,chooseTranscript} from './odp.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {speechPeople,interventionMetadata,INTERVENTION_CLASSIFICATION_VERSION} from './speech-interventions.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
+import {questionAddressees} from './question-addressees.mjs';
 
 // Full-text corpus of speeches, questions and answers. It lives beside the
 // activity index but outside its refresh generations, so a refresh never copies
@@ -73,6 +74,7 @@ export class CorpusStore {
     this.filename=path.join(directory,'corpus-v1.sqlite');
     this.initializeIndexes=!readOnly&&(initializeIndexes||!existsSync(this.filename));
     this.db=observeSqlite(new DatabaseSync(this.filename,{readOnly}),'corpus');
+    this.db.function('question_addressee_ids',{deterministic:true},body=>body===null?null:JSON.stringify(questionAddressees(parse(body)).map(item=>item.id)));
     if(!this.initializeIndexes) {
       try {if(this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1)throw new Error('Unprepared corpus indexes.');}
       catch {this.db.close();throw new Error('Corpus indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
@@ -556,7 +558,7 @@ export class CorpusStore {
 
   // Full-text search with optional joins to the attached activity index.
   search(params){return this.snapshot(()=>this.searchSnapshot(params));}
-  searchSnapshot({query,kind=null,kinds=null,language=null,uiLanguage='en',member=null,country=null,countryMemberIds=null,countryMetadataIds=null,from=null,to=null,limit=20,offset=0,group='document',dateBasis=group==='question'?'question':'document',sort='relevance',sourceIds=null}) {
+  searchSnapshot({query,kind=null,kinds=null,language=null,uiLanguage='en',member=null,country=null,addressee=null,countryMemberIds=null,countryMetadataIds=null,from=null,to=null,limit=20,offset=0,group='document',dateBasis=group==='question'?'question':'document',sort='relevance',sourceIds=null}) {
     const match=corpusQuery(query);
     if(!match)return null;
     const where=['texts_fts MATCH ?'],params=[match];
@@ -568,12 +570,15 @@ export class CorpusStore {
     if(language){where.push('+t.language=?');params.push(language);}
     const generation=this.indexGeneration();
     const questionId="CASE WHEN d.kind='answer' THEN d.parent_id WHEN d.kind='question' THEN d.source_id END";
+    if(addressee!==null&&generation==null)return {unavailableCode:'corpus_addressee_metadata_unavailable',unavailable:'The activity index is not loaded, so addressee filters are unavailable.'};
+    const recipientQuestion=addressee===null?'NULL':`(SELECT s.body FROM idx.sources s WHERE s.generation=${Number(generation)} AND s.key='/parliamentary-questions/' || ${questionId} AND s.kind='document')`;
+    if(addressee!==null)where.push("d.kind IN ('question','answer')");
     const groupId=group==='question'?"CASE WHEN d.kind='answer' THEN COALESCE(d.parent_id,d.source_id) ELSE d.source_id END":'d.source_id';
     const savedQuestionDate=generation==null?'NULL':`(SELECT json_extract(s.body,'$.document_date') FROM idx.sources s WHERE s.generation=${Number(generation)} AND s.key='/parliamentary-questions/' || ${questionId} AND s.kind='document')`;
     const questionDate=`CASE WHEN d.kind='question' THEN d.date WHEN d.kind='answer' THEN COALESCE(q.date,${savedQuestionDate}) END`;
     const filterDate=dateBasis==='question'?`CASE WHEN d.kind='speech' THEN d.date ELSE ${questionDate} END`:'d.date';
-    if(from){where.push(`${filterDate}>=?`);params.push(from);}
-    if(to){where.push(`${filterDate}<=?`);params.push(to);}
+    if(from){where.push(addressee!==null?`(${filterDate}>=? OR (${filterDate} IS NULL AND ${recipientQuestion} IS NULL))`:`${filterDate}>=?`);params.push(from);}
+    if(to){where.push(addressee!==null?`(${filterDate}<=? OR (${filterDate} IS NULL AND ${recipientQuestion} IS NULL))`:`${filterDate}<=?`);params.push(to);}
     if(sourceIds!==null){where.push('d.source_id IN (SELECT value FROM json_each(?))');params.push(JSON.stringify(sourceIds));}
     if(member || country) {
       if(generation==null)return {unavailable:'The activity index is not loaded, so member filters are unavailable.'};
@@ -602,11 +607,18 @@ export class CorpusStore {
     // Count and select groups from one FTS traversal instead of repeating the
     // same full match for COUNT. The singleton LEFT JOIN retains the true total
     // for empty and out-of-range pages without a second count query.
-    const page=this.db.prepare(`WITH ${textScope}matched AS MATERIALIZED (SELECT ${groupId} AS group_id,${filterDate} AS date,texts_fts.rank AS score,t.id AS text_id ${sql}),
-      grouped AS MATERIALIZED (SELECT group_id,MIN(score) AS score,MAX(date) AS date FROM matched GROUP BY group_id),
+    const recipientColumns=addressee===null?'':`,question_addressee_ids(${recipientQuestion}) AS recipient_ids`;
+    const recipientCondition=addressee==='unavailable'?'json_array_length(recipient_ids)=0':'EXISTS (SELECT 1 FROM json_each(recipient_ids) recipient WHERE recipient.value=?)';
+    const recipientCte=addressee===null?'':`qualified AS MATERIALIZED (SELECT * FROM matched WHERE ${recipientCondition}),`;
+    const matchingSet=addressee===null?'matched':'qualified';
+    const recipientParams=addressee!==null&&addressee!=='unavailable'?[addressee]:[];
+    const gap=addressee===null?'0':'EXISTS (SELECT 1 FROM matched WHERE recipient_ids IS NULL)';
+    const page=this.db.prepare(`WITH ${textScope}matched AS MATERIALIZED (SELECT ${groupId} AS group_id,${filterDate} AS date,texts_fts.rank AS score,t.id AS text_id ${recipientColumns} ${sql}),
+      ${recipientCte}grouped AS MATERIALIZED (SELECT group_id,MIN(score) AS score,MAX(date) AS date FROM ${matchingSet} GROUP BY group_id),
       page AS MATERIALIZED (SELECT * FROM grouped ORDER BY ${order} LIMIT ? OFFSET ?)
-      SELECT (SELECT COUNT(*) FROM grouped) AS total,page.*,matched.text_id,DENSE_RANK() OVER (ORDER BY matched.score) AS hit_rank
-      FROM (SELECT 1) LEFT JOIN page ON 1 LEFT JOIN matched ON matched.group_id=page.group_id ORDER BY ${pageOrder}`).all(...(language?[language]:[]),...params,limit,offset);
+      SELECT ${gap} AS addressee_gap,(SELECT COUNT(*) FROM grouped) AS total,page.*,matched.text_id,DENSE_RANK() OVER (ORDER BY matched.score) AS hit_rank
+      FROM (SELECT 1) LEFT JOIN page ON 1 LEFT JOIN ${matchingSet} matched ON matched.group_id=page.group_id ORDER BY ${pageOrder}`).all(...(language?[language]:[]),...params,...recipientParams,limit,offset);
+    if(page[0].addressee_gap)return {unavailableCode:'corpus_addressee_metadata_unavailable',unavailable:'Some matching text has no saved parent-question metadata. Addressee filtering is unavailable for this selection.'};
     const total=page[0].total,selected=[...new Map(page.filter(row=>row.group_id!==null).map(row=>[row.group_id,row])).values()];
     // Keep exact matching variants from the same snapshot. Integer score ranks
     // preserve ties without serializing floating-point scores into JSON.

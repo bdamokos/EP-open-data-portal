@@ -2,8 +2,9 @@ import { array, tail } from './activity-index-model.mjs';
 import {titlePlaces,countryLabelSource} from './insights-places.mjs';
 import {phraseModelSteps} from './insights-phrases.mjs';
 import {finishWork,cooperativeWork} from './cooperative-work.mjs';
+import {questionAddressees} from './question-addressees.mjs';
 
-export const INSIGHTS_VERSION = 'titles-phrases-facets-v7-source-freshness';
+export const INSIGHTS_VERSION = 'titles-phrases-facets-v9-addressees-subjects';
 export const officialApi = path => 'https://data.europarl.europa.eu/api/v2' + path;
 export function personId(value) {
   let reference=typeof value==='string' ? value : value?.id;
@@ -39,7 +40,7 @@ export function authorEvidence(work, endpoint, fetchedAt) {
 export function questionFromSource({ work, key, fetchedAt }) {
   if (!['QUESTION_WRITTEN', 'QUESTION_WRITTEN_PRIORITY', 'QUESTION_ORAL'].includes(tail(work.work_type))) return null;
   const id = work.identifier || tail(work.id);
-  return { id, date: work.document_date || null, kind: tail(work.work_type), titles: suppliedTitles(work), authors: authorEvidence(work, key, fetchedAt),
+  return { id, date: work.document_date || null, kind: tail(work.work_type), titles: suppliedTitles(work), authors: authorEvidence(work, key, fetchedAt), addressees: questionAddressees(work),
     answers: array(work.inverse_answers_to).filter(a => a && typeof a === 'object').map(a => ({ id: a.identifier || tail(a.id), date: a.document_date || null, creatorUris: array(a.creator).map(canonical), apiUrl: officialApi('/parliamentary-questions/' + (a.identifier || tail(a.id))) })),
     apiUrl: officialApi(key), fetchedAt };
 }

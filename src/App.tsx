@@ -227,8 +227,7 @@ function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionCh
   return <div className="explorer-speech-detail" lang={lang}>
     {!hasText&&<p lang="en"><strong lang={roles[item.provenance.role] ? "en" : ""}>{item.relatedJointMotions?.length && item.provenance.role==="AUTHOR" ? "Author of the original motion" : roles[item.provenance.role] || item.provenance.role}</strong>{item.provenance.stage ? <> · <span lang={stage.language}>{stage.text}</span></> : ""}</p>}
     {!hasText&&<span lang="en"><AmendmentTrailLink document={item.sourceId} language={lang}>Amendments to this document</AmendmentTrailLink></span>}
-    <MotionOutcome outcome={item.resolutionOutcome} related={item.relatedJointMotions} reference={item.reference} sourceId={item.sourceId} language={lang}/>
-    {motion&&<p lang="en">Individual votes are not shown in this reader.</p>}
+    <MotionOutcome outcome={item.resolutionOutcome} related={item.relatedJointMotions} reference={item.reference} sourceId={item.sourceId} language={lang} memberId={member} memberName={memberName}/>
     {motion&&<Suspense fallback={<p data-motion-pending="true" role="status" lang="en">Loading motion reader…</p>}>
       <MemberMotionReader activity={item} memberId={member} memberName={memberName} language={lang} query={motionQuery} onJourneyChange={onMotionChange}/>
     </Suspense>}

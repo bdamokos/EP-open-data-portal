@@ -1,4 +1,5 @@
 import {filterCountry} from './countries.mjs';
+import {validAddresseeFilter} from '../server/question-addressees.mjs';
 import {isMemberVotesParam} from './memberVotesJourney.mjs';
 
 const countries=new Set('AT BE BG HR CY CZ DK EE FI FR DE EL HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE'.split(' '));
@@ -14,6 +15,7 @@ export function readExplorerParam(query,key,fallback,allowed) {
   if(key.endsWith('-country')&&!countries.has(value))return fallback;
   if((key.endsWith('-until')||key==='trend-week')&&raw&&!validDate(raw))return fallback;
   if(['q-offset','am-offset'].includes(key)&&(!Number.isInteger(value)||value<0||value>(key==='am-offset'?1000000:5000)))return fallback;
+  if(key==='q-addressee'&&raw&&!validAddresseeFilter(raw))return fallback;
   if(key==='am-member'&&raw&&!/^[1-9]\d{0,12}$/.test(raw))return fallback;
   if(key.endsWith('-fts-offset')&&(!Number.isInteger(Number(value))||Number(value)<0||Number(value)>1000))return fallback;
   if(key.endsWith('-fts-page')&&(!Number.isInteger(Number(value))||Number(value)<0||Number(value)>50))return fallback;

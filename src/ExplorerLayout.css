@@ -25,9 +25,13 @@
 .insight-question-list { border-top:0; padding-top:0; }
 .insight-question-list>article:first-child { padding-top:20px; }
 .insight-question-list .insight-people { gap:8px; }
-.insight-question-list .insight-people article { width:132px; }
+/* Size author cards for whole words; wrap cards before splitting a surname. */
+.insight-question-list .insight-people article { width:min-content; min-width:min(145px,100%); max-width:100%; overflow-wrap:break-word; }
+.insight-question-list .insight-people a { width:100%; max-width:100%; }
+.insight-question-list .insight-people strong { max-width:100%; }
+.insight-question-list .insight-guest { max-width:100%; }
 .insight-eyebrow { text-transform:none; letter-spacing:0; }
-.insight-agenda-select { display:none; }
+.insight-agenda-navigation { display:none; scroll-margin-top:18px; }
 .insight-legislation-grid { padding-top:8px; }
 .insight-agenda { max-height:min(720px,75dvh); }
 /* Let cards grow with wrapped titles after Safari resizes the sidebar. */
@@ -72,8 +76,13 @@
 .explorer-insights .explorer-video-heading button,.explorer-insights .explorer-video-controls button,.explorer-insights .explorer-video-controls select { min-height:44px; }
 .explorer-insights .explorer-video-controls select { width:100%; }
 @media(max-width:1000px) {
-  .insight-agenda { display:none; }
-  .insight-agenda-select { display:grid; gap:7px; font-size:15px; margin-bottom:18px; }
+  /* Start with readable agenda cards; show the compact picker inside an item. */
+  .insight-agenda { display:grid; grid-template-columns:1fr; max-height:none; overflow:visible; }
+  .insight-agenda-view[data-topic-selected=true] .insight-agenda { display:none; }
+  .insight-agenda-view[data-topic-selected=false] .insight-topic-detail { display:none; }
+  .insight-agenda-view[data-topic-selected=true] .insight-agenda-navigation { display:grid; gap:10px; margin-bottom:18px; }
+  .insight-agenda-navigation>button { justify-self:start; }
+  .insight-agenda-select { display:grid; gap:7px; font-size:15px; }
   .insight-agenda-select select { width:100%; min-width:0; padding:12px; border:1px solid var(--line-strong); border-radius:var(--radius-sm); }
   .insight-legislation-grid { gap:0; }
 }
@@ -99,7 +108,6 @@
   .insight-vote-matrix-head,.insight-vote-group-row { grid-template-columns:minmax(90px,1.2fr) repeat(3,minmax(46px,1fr)); gap:6px; }
   .insight-vote-matrix-head { font-size:12px; }
   .insight-vote-group-row>span { font-size:13px; gap:5px; }
-  .insight-question-list .insight-people article { width:calc((100% - 16px)/3); }
   .explorer-insights .explorer-video-actions button { flex:1 1 140px; min-width:0; }
   .insight-reader-text { font-size:16px; }
 }

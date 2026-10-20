@@ -200,7 +200,7 @@ async function handleApi(request,response,url,apiPrefix){
       result = await corpusStatus();
     }
     else if (segments.length === 2 && segments[0] === 'corpus' && segments[1] === 'search') {
-      const allowed = new Set(['lang','q','kind','kinds','text-lang','member','country','from','to','limit','offset','group','date-basis','sort','source-ids']);
+      const allowed = new Set(['lang','q','kind','kinds','text-lang','member','country','addressee','from','to','limit','offset','group','date-basis','sort','source-ids']);
       if ([...url.searchParams.keys()].some(key => !allowed.has(key) || url.searchParams.getAll(key).length !== 1)) throw new HttpError(400,'invalid_query','Unsupported or repeated search query parameter.');
       if(request.method==='POST') {
         requireQuery(url.searchParams,['lang']);
@@ -215,7 +215,7 @@ async function handleApi(request,response,url,apiPrefix){
         return number;
       };
       result = await corpusSearch(corpusSearchOptions({query:value('q'),kind:value('kind'),kinds:value('kinds')===null?null:value('kinds').split(','),language:value('text-lang'),uiLanguage:language,
-        member:value('member')===null?null:positiveId(value('member')),country:value('country'),from:value('from'),to:value('to'),group:value('group'),dateBasis:value('date-basis'),sort:value('sort'),
+        member:value('member')===null?null:positiveId(value('member')),country:value('country'),addressee:value('addressee'),from:value('from'),to:value('to'),group:value('group'),dateBasis:value('date-basis'),sort:value('sort'),
         sourceIds:value('source-ids')===null?null:value('source-ids')===''?[]:value('source-ids').split(','),limit:integer('limit',20,CORPUS_LIMITS.searchLimit,1),offset:integer('offset',0,CORPUS_LIMITS.searchOffset)}));
       }
     }

@@ -24,3 +24,5 @@ export function titlePlaces(title) {
   cache.set(raw,result);if(cache.size>6000)cache.delete(cache.keys().next().value);return result;
 }
 export const countryLabelSource={url:authority.sourceUrl,scheme:authority.scheme,fetchedAt:authority.fetchedAt,count:authority.labels.length};
+
+export const subjectPlace=id=>authority.labels.find(place=>place.id===id)||null;

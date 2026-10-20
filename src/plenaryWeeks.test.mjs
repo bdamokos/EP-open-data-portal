@@ -6,7 +6,7 @@ import {createServer} from 'vite';
 
 test('all plenary defaults use weeks while exact item links, single days and history keep their scope',async t=>{
   const window=new Window({url:'http://localhost/?view=legislation&pl-mode=cloud&pl-sitting=MTG-PL-2026-10-07'});
-  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:390,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let vite,root;
@@ -47,6 +47,18 @@ test('all plenary defaults use weeks while exact item links, single days and his
   await click('DebateDebate on 2026-10-08');
   assert.equal(new URL(location.href).searchParams.get('agenda-period'),'week:2026-10-05','opening a topic pins its concrete week for saved links');
   assert.equal(last('legislation').searchParams.get('sitting'),'MTG-PL-2026-10-08');
+  assert.equal(container.querySelector('.insight-topic-detail h2').textContent,'Debate on 2026-10-08');
+  assert.equal(container.querySelector('.insight-agenda-view').dataset.topicSelected,'true');
+  const selectedCard=container.querySelector('.insight-agenda button[aria-pressed=true]');
+  assert.equal(document.activeElement,container.querySelector('.insight-topic-detail'),'mobile selection moves keyboard focus into the detail');
+  await click('Back to agenda');
+  await act(async()=>new Promise(resolve=>window.requestAnimationFrame(resolve)));
+  assert.equal(container.querySelector('.insight-agenda-view').dataset.topicSelected,'false');
+  assert.equal(document.activeElement,selectedCard,'return restores focus to the agenda item');
+  assert.equal(new URL(location.href).searchParams.has('agenda-topic'),false);
+  assert.equal(period().value,'week:2026-10-05','return preserves the week');
+  await act(async()=>{const popped=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history.back();await popped;});
+  assert.equal(container.querySelector('.insight-agenda-view').dataset.topicSelected,'true','browser Back restores the exact item');
   assert.equal(container.querySelector('.insight-topic-detail h2').textContent,'Debate on 2026-10-08');
   await choose('sitting:MTG-PL-2026-10-07');
   assert.equal(period().value,'sitting:MTG-PL-2026-10-07');
