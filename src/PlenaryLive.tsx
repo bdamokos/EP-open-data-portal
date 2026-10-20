@@ -24,7 +24,8 @@ function AgendaLink({data,id,children}:{data:LiveState;id?:string;children:React
 
 export function PlenaryLiveProvider({children}:{children:ReactNode}) {
   const [data,setData]=useState<LiveState|null>(null),[now,setNow]=useState(Date.now),[opened,setOpened]=useState(false),[minimised,setMinimised]=useState(false);
-  const opener=useRef<HTMLElement|null>(null),panel=useRef<HTMLElement>(null);
+  const opener=useRef<HTMLElement|null>(null),panel=useRef<HTMLElement>(null),launcher=useRef<HTMLButtonElement>(null),restoreFocus=useRef(false);
+  useEffect(()=>{if(!opened&&restoreFocus.current){restoreFocus.current=false;if(opener.current?.isConnected)opener.current.focus();else launcher.current?.focus();}},[opened]);
   useEffect(()=>{
     let active=true,timer:ReturnType<typeof setTimeout>|undefined,controller:AbortController|undefined;
     async function refresh(){
@@ -44,9 +45,9 @@ export function PlenaryLiveProvider({children}:{children:ReactNode}) {
   // URL allowlist belongs here too: no API string becomes an arbitrary iframe.
   const playable=broadcast?.embedUrl==='https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN';
   function open(){opener.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setOpened(true);setMinimised(false);requestAnimationFrame(()=>panel.current?.focus());}
-  function close(){setOpened(false);setMinimised(false);requestAnimationFrame(()=>{if(opener.current?.isConnected)opener.current.focus();});}
+  function close(){restoreFocus.current=true;setOpened(false);setMinimised(false);}
   return <LiveContext.Provider value={{data,fresh,open,opened}}>{children}
-    {!opened&&broadcast&&<button className="plenary-live-launcher" lang="en" onClick={open}><span className="plenary-live-dot"/>Watch plenary live <span aria-hidden="true">↗</span></button>}
+    {!opened&&broadcast&&<button ref={launcher} className="plenary-live-launcher" lang="en" onClick={open}><span className="plenary-live-dot"/>Watch plenary live <span aria-hidden="true">↗</span></button>}
     {opened&&<section ref={panel} tabIndex={-1} className={'plenary-live-player'+(minimised?' is-minimised':'')} aria-label="Plenary live player" lang="en">
       <div className="plenary-live-player-heading"><strong><span className="plenary-live-dot"/>{broadcast?'Plenary live':'Plenary player'}</strong><div><button onClick={()=>setMinimised(!minimised)} aria-label={minimised?'Expand player':'Minimise player'} aria-expanded={!minimised}>{minimised?'Expand':'Minimise'}</button><button onClick={close} aria-label="Close live player">Close</button></div></div>
       <div className="plenary-live-video" hidden={minimised}>{playable?<iframe title="European Parliament live on EbS+" src={broadcast!.embedUrl} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen/>:<p role="status">{fresh?'A plenary broadcast is not available right now.':'Live status could not be refreshed.'} <a href="https://audiovisual.ec.europa.eu/en/ebs/grid?ebs=no&ebsplus=yes" target="_blank" rel="noreferrer">Check EbS+ ↗</a></p>}</div>

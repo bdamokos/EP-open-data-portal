@@ -55,11 +55,15 @@ export function scheduledAgenda(rows,day,now) {
   const sitting='MTG-PL-'+day,prefix=sitting+'-OJ-ITM-',byId=new Map(rows.map(row=>[tail(row.id),row]));
   const blocks=rows.filter(row=>tail(row.had_activity_type)==='MEETING_PART'&&row.activity_id?.startsWith(sitting+'-TF-')).flatMap(row=>{
     const starts=[...new Set(list(row.activity_start_date))],ends=[...new Set(list(row.activity_end_date))];
-    if(starts.length!==1||!Number.isFinite(Date.parse(starts[0])))return [];
-    const start=Date.parse(starts[0]),validEnds=ends.map(Date.parse).filter(end=>Number.isFinite(end)&&end>start);
-    if(start>now||!validEnds.length||now>=Math.max(...validEnds))return [];
-    const items=list(row.consists_of).map(id=>byId.get(tail(id))).filter(item=>item?.activity_id?.startsWith(prefix)&&item.activity_date===day&&['PLENARY_DEBATE','PLENARY_VOTE'].includes(tail(item.had_activity_type))).map(item=>({id:item.activity_id,titles:item.activity_label||{},kind:tail(item.had_activity_type)}));
-    return [{id:row.activity_id,start:starts[0],ends,items,conflict:ends.length!==1||validEnds.length!==1}];
+    const parsedStarts=starts.map(Date.parse),parsedEnds=ends.map(Date.parse);
+    // Only discard a block when every published possibility rules out now.
+    // Missing or conflicting timing must not make a competing block disappear.
+    if(parsedStarts.length&&parsedStarts.every(start=>Number.isFinite(start)&&start>now)||parsedEnds.length&&parsedEnds.every(end=>Number.isFinite(end)&&end<=now))return [];
+    const children=[...new Set(list(row.consists_of).map(tail))];
+    const items=children.map(id=>byId.get(id)).filter(item=>item?.activity_id?.startsWith(prefix)&&item.activity_date===day&&['PLENARY_DEBATE','PLENARY_VOTE'].includes(tail(item.had_activity_type))).map(item=>({id:item.activity_id,titles:item.activity_label||{},kind:tail(item.had_activity_type)}));
+    const timingCertain=starts.length===1&&ends.length===1&&Number.isFinite(parsedStarts[0])&&Number.isFinite(parsedEnds[0])&&parsedEnds[0]>parsedStarts[0];
+    const childrenCertain=children.length===1&&items.length===1&&rows.filter(candidate=>tail(candidate.id)===children[0]).length===1;
+    return [{id:row.activity_id,starts,ends,items,conflict:!timingCertain||!childrenCertain}];
   });
   const items=[...new Map(blocks.flatMap(block=>block.items).map(item=>[item.id,item])).values()];
   const unique=blocks.length===1&&!blocks[0].conflict&&items.length===1;

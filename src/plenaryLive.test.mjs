@@ -24,6 +24,11 @@ test('live playback survives browsing and minimising, expires safely, and closes
   await act(async()=>root.render(createElement(PlenaryLiveProvider,null,createElement(Browse))));
   assert.equal(container.querySelector('iframe'),null,'No player before explicit Watch');
   assert.match(container.textContent,/Scheduled now/);
+  const launcher=container.querySelector('.plenary-live-launcher');launcher.focus();
+  await act(async()=>launcher.click());
+  const close=container.querySelector('[aria-label="Close live player"]');close.focus();
+  await act(async()=>close.click());
+  assert.equal(document.activeElement,container.querySelector('.plenary-live-launcher'),'Closing returns focus to the recreated launcher');
   const watch=container.querySelector('.plenary-live-banner button');watch.focus();
   await act(async()=>watch.click());
   const iframe=container.querySelector('iframe');assert(iframe);assert(!iframe.src.includes('autoplay=true'));
