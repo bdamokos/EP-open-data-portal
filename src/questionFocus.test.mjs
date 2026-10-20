@@ -187,12 +187,12 @@ test('Timeline selects topics and words directly, retaining exact filters, saved
 
 test('subject chip clears topic and paging in one history step, focuses results, and restores saved filters on navigation',async t=>{
   const response=subject=>({...questions(),selection:{subject,subjectLabel:subject?'United States':null},questions:[{...question(1),places:[{id:'USA',label:'United States',token:'united-states'}]}]});
-  const h=await harness(t,url=>response(url.searchParams.get('subject')),{query:'?view=questions&q-country=IT&q-word=water&q-range=2026-10-01_2026-10-11&q-offset=25&q-read=E-10-2026-000001'});
+  const h=await harness(t,url=>response(url.searchParams.get('subject')),{query:'?view=questions&q-country=IT&q-addressee=org%2FCOM&q-word=water&q-range=2026-10-01_2026-10-11&q-offset=25&q-read=E-10-2026-000001'});
   const oldLength=history.length;
   await act(async()=>{h.container.querySelector('button.insight-place').focus();h.container.querySelector('button.insight-place').click();});
   const url=new URL(location.href),request=h.calls.at(-1);assert.equal(url.searchParams.get('q-subject'),'USA');assert.equal(request.searchParams.get('subject'),'USA');
   for(const key of ['q-word','q-topic','q-offset','q-read'])assert.equal(url.searchParams.get(key),null);
-  assert.equal(request.searchParams.get('country'),'IT');assert.equal(request.searchParams.get('offset'),'0');assert.equal(history.length,oldLength+1);
+  assert.equal(request.searchParams.get('country'),'IT');assert.equal(request.searchParams.get('addressee'),'org/COM');assert.equal(request.searchParams.get('offset'),'0');assert.equal(history.length,oldLength+1);
   assert.equal(document.activeElement===h.resultHeading(),true);assert(h.container.textContent.includes('not official subject indexing'));
   const remove=h.container.querySelector('[aria-label="Remove subject filter: United States"]');assert(remove);
   await act(async()=>remove.click());assert.equal(new URL(location.href).searchParams.get('q-subject'),null);assert.equal(h.calls.at(-1).searchParams.get('subject'),null);
@@ -203,10 +203,10 @@ test('subject chip clears topic and paging in one history step, focuses results,
 
 test('clear all subject and combined filters focuses the fully reset results in one history step',async t=>{
   const response=subject=>({...questions(),selection:{subject,subjectLabel:subject?'United States':null}});
-  const h=await harness(t,url=>response(url.searchParams.get('subject')),{query:'?view=questions&q-country=IT&q-subject=USA&q-word=water&q-range=2026-10-01_2026-10-11&q-offset=25'});
+  const h=await harness(t,url=>response(url.searchParams.get('subject')),{query:'?view=questions&q-country=IT&q-addressee=org%2FCS&q-subject=USA&q-word=water&q-range=2026-10-01_2026-10-11&q-offset=25'});
   const oldLength=history.length;await h.click('Clear all filters');
   const request=h.calls.at(-1),query=new URL(location.href).searchParams;
-  for(const key of ['subject','country','word','cluster','from','to'])assert.equal(request.searchParams.has(key),false);
-  for(const key of ['q-subject','q-country','q-word','q-topic','q-range','q-offset'])assert.equal(query.has(key),false);
+  for(const key of ['subject','addressee','country','word','cluster','from','to'])assert.equal(request.searchParams.has(key),false);
+  for(const key of ['q-subject','q-addressee','q-country','q-word','q-topic','q-range','q-offset'])assert.equal(query.has(key),false);
   assert.equal(request.searchParams.get('offset'),'0');assert.equal(history.length,oldLength+1);assert.equal(document.activeElement===h.resultHeading(),true);
 });

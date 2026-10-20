@@ -5,7 +5,7 @@ import {Window} from 'happy-dom';
 import {createServer} from 'vite';
 
 test('question text search keeps country and dates while visual topic filters remain a separate browsing state',async t=>{
-  const window=new Window({url:'http://localhost/?view=questions&q-days=365&q-until=2026-10-11&q-country=IT&q-subject=USA&q-word=water&q-range=2026-10-05_2026-10-11'});
+  const window=new Window({url:'http://localhost/?view=questions&q-days=365&q-until=2026-10-11&q-country=IT&q-addressee=org%2FCOM&q-subject=USA&q-word=water&q-range=2026-10-05_2026-10-11'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
@@ -42,6 +42,7 @@ test('question text search keeps country and dates while visual topic filters re
   assert.equal(search.country,'IT');assert.equal(search.from,'2026-10-05');assert.equal(search.to,'2026-10-11');assert.equal(search.group,'question');
   assert.equal(search.dateBasis||search['date-basis'],'question');
   assert.deepEqual(Array.isArray(search.kinds)?search.kinds:search.kinds.split(','),['question','answer']);
+  assert.equal(search.addressee,'org/COM');
   assert.equal('subject' in search,false);assert.equal(new URL(location.href).searchParams.get('q-subject'),'USA');
   assert.equal('word' in search,false);assert.equal('cluster' in search,false);
   await act(async()=>toggle.click());
