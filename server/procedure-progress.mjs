@@ -141,8 +141,9 @@ export class ProcedureProgress {
   constructor(sources){this.sources=sources;}
   async query(query) {
     const url=new URL(endpoint);url.searchParams.set('query',progressSparql(query));url.searchParams.set('format','application/sparql-results+json');
-    const source=await this.sources.get(url.href,{freshMs:PROGRESS_LIMITS.freshMs});
-    const parsed=query.detail==='documents'?parseProgressDocuments(source.data,query):parseProgress(source.data,query);
+    const parse=query.detail==='documents'?parseProgressDocuments:parseProgress;
+    const source=await this.sources.get(url.href,{freshMs:PROGRESS_LIMITS.freshMs,validate:record=>parse(record.data,query)});
+    const parsed=parse(source.data,query);
     return {view:'procedure-progress',version:PROCEDURE_PROGRESS_VERSION,reference:query.reference,language:query.language,detail:query.detail,...parsed,source:{name:'EU Publications Office',url:source.url,fetchedAt:source.fetchedAt,stale:Boolean(source.viewCache?.stale),refreshInProgress:Boolean(source.viewCache?.refreshInProgress),refreshError:source.viewCache?.refreshError||null}};
   }
 }

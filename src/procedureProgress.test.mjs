@@ -19,12 +19,12 @@ test('progress is independent, preserves exact selection and lazy readable docum
   const event=(id,date,label,extra={})=>({id:dossier+'.'+id,date,dates:[date],label,labelLanguage:'en',types:[],statuses:[],status:'recorded',institutions:[{id:'EP',code:'EP',label:'European Parliament',language:'en'}],works:[],milestone:true,issues:[],...extra});
   const progress={reference:ref,state:'mapped',dossier,coverage,source,events:[event('0001','2026-10-01','Committee report adopted',{works:[work]}),event('0002','2099-11-12','Plenary vote',{status:'projected'}),event('0003','2020-01-01','Past scheduled event',{status:'projected'}),event('0004','2099-11-13','Future unconfirmed event'),event('0005','2026-10-02','Working party',{milestone:false})]};
   const calls=[];
-  const pendingSummary=new Promise(resolve=>{answerSummary=resolve;}),pendingProgress=new Promise(resolve=>{answerProgress=resolve;});
+  const pendingSummary=new Promise(resolve=>{answerSummary=resolve;});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);calls.push(url);
     if(url.pathname.endsWith('/procedure-context'))return pendingSummary;
     if(url.searchParams.get('detail')==='documents')return new Promise(resolve=>{answerDocuments=resolve;});
-    if(url.pathname.endsWith('/procedure-progress'))return pendingProgress;
+    if(url.pathname.endsWith('/procedure-progress'))return new Promise(resolve=>{answerProgress=resolve;});
     throw new Error('Unexpected request '+url);
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
@@ -32,7 +32,9 @@ test('progress is independent, preserves exact selection and lazy readable docum
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(ProcedureContext,{reference:ref,language:'en'})));
   assert.match(container.textContent,/Loading legislative progress/);assert.match(container.textContent,/Loading summary/);
-  await act(async()=>answerProgress(Response.json(progress)));
+  await act(async()=>answerProgress(Response.json({...progress,source:{...source,stale:true,refreshInProgress:true}})));
+  assert.match(container.textContent,/Saved progress · Updates may be available/);
+  assert.doesNotMatch(container.textContent,/Checking for updates/,'a completed progress read must not imply continued checking');
   assert.match(container.textContent,/Committee report adopted/);assert.match(container.textContent,/Loading summary/,'a delayed summary does not block progress');
   const checked=container.querySelector('.procedure-progress header time');
   assert.equal(checked.dateTime,source.fetchedAt);assert.equal(checked.textContent,'Oct 21, 2026','retrieval instants use the Brussels calendar day');
@@ -47,6 +49,12 @@ test('progress is independent, preserves exact selection and lazy readable docum
   assert.equal(document.activeElement,filter);
   await act(async()=>answerSummary(Response.json({reference:ref,title:'Civil protection',language:'en',summary:{id:'1',stage:'proposal',date:'2026-10-01',blocks:[{kind:'paragraph',text:'Existing official summary.'}],source:{url:'https://oeil.europarl.europa.eu/oeil/en/document-summary?id=1'}},summaries:[{id:'1',stage:'proposal',date:'2026-10-01'}],subjects:[],topics:[],source:{url:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference='+ref}})));
   assert.match(container.textContent,/Existing official summary/);assert(button('Hide timeline'),'summary completion retains the expanded progress selection');
+  assert.match(container.textContent,/Saved progress · Updates may be available/,'late OEIL completion does not imply a progress read');
+  await act(async()=>button('Check again').click());
+  assert.match(container.textContent,/Saved progress · Checking for updates/);
+  assert(button('Check again').disabled);
+  await act(async()=>answerProgress(Response.json(progress)));
+  assert.doesNotMatch(container.textContent,/Saved progress/);assert(button('Hide timeline'));
   const details=container.querySelector('.procedure-progress-documents');
   await act(async()=>{details.open=true;details.dispatchEvent(new window.Event('toggle'));});
   assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,1);

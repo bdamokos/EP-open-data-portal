@@ -44,7 +44,7 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
     {!data&&state.loading&&<p role="status">Loading legislative progress…</p>}
     {!data&&state.error&&<p className="procedure-progress-status" role="status">Legislative progress is temporarily unavailable. <button type="button" onClick={state.retry}>Try again</button></p>}
     {data&&<>
-      {(savedFailure||data.source.stale)&&<p className="procedure-progress-status" role="status">{savedFailure?'Saved progress · Refresh unavailable.':'Saved progress · Checking for updates…'} <button type="button" onClick={state.retry}>Check again</button></p>}
+      {(savedFailure||data.source.stale)&&<p className="procedure-progress-status" role="status">Saved progress · {state.loading?'Checking for updates…':savedFailure?'Refresh unavailable.':'Updates may be available.'} <button type="button" onClick={state.retry} disabled={state.loading}>Check again</button></p>}
       {data.state==='unmapped'&&<p className="procedure-progress-muted">No exact match was returned by the EU legislative source. Parliament information remains available below.</p>}
       {data.state==='ambiguous'&&<p className="procedure-progress-muted">The EU legislative source returned more than one procedure match. Progress is unavailable for this selection.</p>}
       {data.state==='mapped'&&<>

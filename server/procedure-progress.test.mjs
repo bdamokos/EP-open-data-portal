@@ -132,6 +132,27 @@ test('shared official-source cache coalesces views and preserves stale progress 
   await Promise.allSettled([...sources.cache.pending.values()]);
   const saved=await service.query(query);assert.equal(saved.source.refreshError,'Source failed');assert.equal(saved.source.fetchedAt,a.source.fetchedAt);assert.equal(calls,2);
 });
+for(const detail of ['events','documents'])test('malformed '+detail+' cannot replace good cached progress and recovery remains retryable',async()=>{
+  let now=Date.parse('2026-10-20T10:00:00Z'),calls=0,malformed=false;
+  const good=data([mapping,row('0001',{work:u(work),celex:l('52021PC0206')})]);
+  const sources=new OfficialContextSources({directory:null,clock:()=>now,run:operation=>operation(),fetchSource:async()=>{calls++;return Response.json(malformed?{results:{bindings:null}}:good);}});
+  const service=new ProcedureProgress(sources),selected={...query,detail},initial=await service.query(selected);
+  now+=PROGRESS_LIMITS.freshMs+1;malformed=true;
+  const stale=await service.query(selected);assert.equal(stale.source.fetchedAt,initial.source.fetchedAt);
+  await Promise.allSettled([...sources.cache.pending.values()]);
+  const retained=await service.query(selected);
+  assert.equal(retained.source.stale,true);assert.equal(retained.source.refreshError,'Legislative progress could not be read.');
+  assert.deepEqual(retained[detail],initial[detail]);assert.equal(calls,2);
+  assert.equal(apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/insights/procedure-progress'),retained).cdnCacheControl,'no-store');
+  malformed=false;now+=60_001;
+  await service.query(selected);await Promise.allSettled([...sources.cache.pending.values()]);
+  const recovered=await service.query(selected);assert.equal(recovered.source.stale,false);assert.equal(recovered.source.refreshError,null);assert.equal(calls,3);
+  assert.notEqual(recovered.source.fetchedAt,initial.source.fetchedAt);
+  const cold=new OfficialContextSources({directory:null,run:operation=>operation(),fetchSource:async()=>Response.json(malformed?{results:{bindings:null}}:good)});
+  const firstRead=new ProcedureProgress(cold);malformed=true;
+  await assert.rejects(firstRead.query(selected),{code:'progress_source_shape'});
+  malformed=false;assert.deepEqual((await firstRead.query(selected))[detail],initial[detail],'a rejected cold response is not cached for an hour');
+});
 test('progress transport caches only fresh complete mapped or explicit unmatched observations',()=>{
   const request={method:'GET',headers:{}},url=new URL('https://example.test/api/insights/procedure-progress?reference=2025%2F0223(COD)&lang=en');
   const result={state:'mapped',coverage:{limited:false,invalidRows:0,incompleteEvents:0},source:{stale:false,refreshError:null}};

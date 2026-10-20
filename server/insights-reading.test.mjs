@@ -97,6 +97,22 @@ test('view cache pruning is limited to its generated records, not unrelated file
   const directory=mkdtempSync(path.join(os.tmpdir(),'insights-prune-'));
   try {writeFileSync(path.join(directory,'keep.txt'),'keep');const cache=new InsightViewCache({directory,maxEntries:2});for(let i=0;i<4;i++)await cache.get([i],async()=>({id:i}));assert.equal(readdirSync(directory).filter(n=>n.endsWith('.json')).length,2);assert.equal(readFileSync(path.join(directory,'keep.txt'),'utf8'),'keep');}finally{rmSync(directory,{recursive:true,force:true});}
 });
+test('view validators reject old disk records and cannot publish an invalid replacement',async()=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'insights-validate-'));let now=1000;
+  const value=['validated'],validate=record=>{if(!Array.isArray(record.items))throw new Error('Invalid items');};
+  try {
+    await new InsightViewCache({directory,clock:()=>now}).get(value,async()=>({items:null}));
+    const cache=new InsightViewCache({directory,clock:()=>now,freshMs:100});
+    await assert.rejects(cache.get(value,async()=>({items:null}),{validate}),/Invalid items/);
+    assert.deepEqual((await cache.get(value,async()=>({items:['good']}),{validate})).items,['good']);
+    now+=101;
+    assert.deepEqual((await cache.get(value,async()=>({items:null}),{validate})).items,['good']);
+    await Promise.allSettled([...cache.pending.values()]);
+    const saved=await cache.get(value,()=>assert.fail('refresh retry respects backoff'),{validate});
+    assert.equal(saved.viewCache.refreshError,'Invalid items');
+    assert.deepEqual(JSON.parse(readFileSync(path.join(directory,cache.key(value)+'.json'),'utf8')).value.items,['good'],'a rejected refresh cannot overwrite the disk record');
+  }finally{rmSync(directory,{recursive:true,force:true});}
+});
 test('the Brussels day invalidates an assembled upcoming sitting before its five-minute cache expires',async()=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'insights-day-')),store=new ActivityStore(directory);
   const source=JSON.parse(readFileSync(new URL('./fixtures/insights-live-20261014.json',import.meta.url)));
