@@ -1,0 +1,46 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createElement,act,useState} from 'react';
+import {Window} from 'happy-dom';
+import {createServer} from 'vite';
+
+test('live playback survives browsing and minimising, expires safely, and closes back to its opener',async t=>{
+  const window=new Window({url:'http://localhost/?view=legislation&lang=en'}),initial=Date.parse('2026-10-20T07:10:00Z');let now=initial,tick;
+  t.mock.method(Date,'now',()=>now);
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>{callback();return 0;},IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  let root,vite;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,d] of originals)d?Object.defineProperty(globalThis,key,d):delete globalThis[key];});
+  const item={id:'MTG-PL-2026-10-20-OJ-ITM-D-72',titles:{en:'Debate in the timetable'},kind:'PLENARY_DEBATE'};
+  const payload={status:'live',checkedAt:new Date(initial).toISOString(),validUntil:new Date(initial+75_000).toISOString(),current:{id:'D27530',title:'Current source debate',updatedAt:new Date(initial).toISOString()},broadcast:{id:'broadcast-1',channel:'EbS+',title:'Broadcast title',embedUrl:'https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN',languages:['EN']},agenda:{state:'presumed',sittingId:'MTG-PL-2026-10-20',items:[item]},sources:[]};
+  t.mock.method(globalThis,'fetch',async url=>{assert(new URL(url,location.href).pathname.endsWith('/plenary-live'));return Response.json(payload);});
+  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {PlenaryLiveProvider,PlenaryLiveBanner,ScheduledNow}=await vite.ssrLoadModule('/src/PlenaryLive.tsx');
+  const originalInterval=globalThis.setInterval;
+  t.mock.method(globalThis,'setInterval',(callback,ms,...args)=>{if(ms===1000)tick=callback;return originalInterval(callback,ms,...args);});
+  function Browse(){const [page,setPage]=useState('Agenda');return createElement('main',null,createElement(PlenaryLiveBanner),createElement(ScheduledNow,{id:item.id}),createElement('button',{onClick:()=>setPage(page==='Agenda'?'Members':'Agenda')},'Browse '+page));}
+  const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  await act(async()=>root.render(createElement(PlenaryLiveProvider,null,createElement(Browse))));
+  assert.equal(container.querySelector('iframe'),null,'No player before explicit Watch');
+  assert.match(container.textContent,/Scheduled now/);
+  const launcher=container.querySelector('.plenary-live-launcher');launcher.focus();
+  await act(async()=>launcher.click());
+  const close=container.querySelector('[aria-label="Close live player"]');close.focus();
+  await act(async()=>close.click());
+  assert.equal(document.activeElement,container.querySelector('.plenary-live-launcher'),'Closing returns focus to the recreated launcher');
+  const watch=container.querySelector('.plenary-live-banner button');watch.focus();
+  await act(async()=>watch.click());
+  const iframe=container.querySelector('iframe');assert(iframe);assert(!iframe.src.includes('autoplay=true'));
+  await act(async()=>[...container.querySelectorAll('button')].find(x=>x.textContent==='Browse Agenda').click());
+  assert.equal(container.querySelector('iframe'),iframe,'Browsing keeps the same player');
+  await act(async()=>container.querySelector('[aria-label="Minimise player"]').click());
+  assert.equal(container.querySelector('iframe'),iframe);assert(iframe.parentElement.hidden);
+  await act(async()=>container.querySelector('[aria-label="Expand player"]').click());
+  assert.equal(container.querySelector('iframe'),iframe);
+  now+=76_000;await act(async()=>tick());
+  assert.equal(container.querySelector('iframe'),null,'Expired verification cannot keep playing a channel that may have switched');
+  assert.equal(container.querySelector('.plenary-scheduled-now'),null);assert.match(container.textContent,/could not be refreshed/);
+  await act(async()=>container.querySelector('[aria-label="Close live player"]').click());
+  assert.equal(container.querySelector('.plenary-live-player'),null);
+});

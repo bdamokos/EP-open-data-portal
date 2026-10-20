@@ -142,7 +142,7 @@ function staticSecurityHeaders(response) {
   setCommonSecurityHeaders(response);
   response.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self' data:; frame-src https://webstreaming.europarl.europa.eu; frame-ancestors 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'",
+    "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self' data:; frame-src https://webstreaming.europarl.europa.eu https://audiovisual.ec.europa.eu; frame-ancestors 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'",
   );
 }
 
