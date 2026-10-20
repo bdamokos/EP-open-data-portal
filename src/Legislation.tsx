@@ -91,6 +91,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const rememberSpeechSpeakers=useCallback((speeches:{id:string;people:SpeechSpeaker[]}[])=>{setSpeechHeaders(previous=>mergeSpeechSpeakers(previous,speeches));},[]);
   const rememberSpeakers=useCallback((people:{id:string;name:string;role:string|null}[],speechId?:string)=>{setSpeakerNames(previous=>{const changed=people.filter(p=>previous[p.id]!==p.name);return changed.length?{...previous,...Object.fromEntries(changed.map(p=>[p.id,p.name]))}:previous;});if(speechId)rememberSpeechSpeakers([{id:speechId,people}]);},[rememberSpeechSpeakers]);
   const contributors=detail?legislationContributors(detail,speechHeaders):null;
+  const sourceRecordsUnavailable=Boolean(detail&&(detail.voteCoverage.truncated||detail.coverage.roleRowsTruncated||detail.coverage.gaps.length>0||detail.coverage.missingDocumentIds?.length));
   const shownPeople=contributors?orderLegislationPeople(contributors.people,contributors.roles,props.members).filter(p=>matchesCountry(country,p.country)):[],shownSpeeches=detail?.speeches.filter(s=>!country||s.people.some(p=>matchesCountry(country,p.country)))||[];
   useEffect(()=>{setSpeech(shownSpeeches[0]?.sourceId||null);},[country,detail?.id]);
   const speechIndex=shownSpeeches.findIndex(s=>s.sourceId===speech),currentSpeech=shownSpeeches[speechIndex];
@@ -139,9 +140,9 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
       {!shownSpeeches.length&&detail.phase!=='upcoming'&&detail.kind==='PLENARY_DEBATE'&&<p className="insight-secondary">Speeches unavailable.</p>}
       {detail.committeeWork.length>0&&<section className="insight-committee-work"><h3>Committee work</h3><ol>{detail.committeeWork.map(event=><li key={event.id}><time lang={language}>{humanDate(event.date,language)}</time><div><strong>{committeeAction(event.kind)}</strong>{event.committees?.map(c=><p key={c.code}>{c.websiteUrl?<a lang="" href={c.websiteUrl} target="_blank" rel="noreferrer">{c.code} · {c.name.replace(/^Committee on /,'')} ↗</a>:c.code}</p>)}<div className="insight-document-links">{event.documentIds.map(id=><button key={id} aria-expanded={document===id&&documentEvent===event.id} aria-controls={readerId+'-committee-'+encodeURIComponent(event.id)} onClick={()=>{setDocument(document===id&&documentEvent===event.id?null:id);setDocumentEvent(event.id);}}>Read {id}</button>)}{!event.documentIds.length&&detail.procedures.find(p=>p.id===event.procedureId)?.websiteUrl&&<a href={detail.procedures.find(p=>p.id===event.procedureId)!.websiteUrl!} target="_blank" rel="noreferrer">Dossier ↗</a>}</div><div id={readerId+'-committee-'+encodeURIComponent(event.id)} hidden={documentEvent!==event.id||!document}>{documentEvent===event.id&&document&&<InsightQuestionReader key={document} id={document} member={documentMember} language={language} heading="Document"/>}</div></div></li>)}</ol></section>}
       {!country&&detail.kind!=='PLENARY_VOTE'&&contributors!.stats.denominator>0&&<details className="insight-author-analysis" open><summary>About the contributors</summary><InsightDemographics stats={contributors!.stats} language={language}/></details>}
-      {(detail.coverage.speechAssociations.truncated||detail.voteCoverage.truncated||detail.coverage.roleRowsTruncated||detail.coverage.gaps.length>0)&&<p className="insight-secondary" lang="en">{[
+      {(detail.coverage.speechAssociations.truncated||sourceRecordsUnavailable)&&<p className="insight-secondary" lang="en">{[
         detail.coverage.speechAssociations.truncated&&'Selected debates only',
-        (detail.voteCoverage.truncated||detail.coverage.roleRowsTruncated||detail.coverage.gaps.length>0)&&'Some source records are unavailable',
+        sourceRecordsUnavailable&&'Some source records are unavailable',
       ].filter(Boolean).join(' · ')}</p>}
     </>}</section></div></>}
   </InsightShell>;
