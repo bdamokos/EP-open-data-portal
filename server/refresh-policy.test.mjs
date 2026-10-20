@@ -381,6 +381,58 @@ test('retry queue admission and its durable marker roll back together on failure
   assert.equal(JSON.parse(prepare("SELECT body FROM refresh_gaps WHERE key='atomic-retry'").get().body).offset,750);
 });
 
+test('an expired admitted retry cannot duplicate a checkpointed cursor across generations',t=>{
+  const {store,generation,worker,advance}=setup(t,'2026-11-01T10:00Z');
+  const key='motion-outcomes:'+sitting+':retry',original={sittingId:sitting,stage:'decisions',offset:100,results:[{id:'retained-result'}],decisions:[],sources:[]};
+  store.enqueue(generation,key,'motion-outcomes',original,100);
+  assert(recordTaskGap(worker,{...store.nextTask(generation),attempts:4},new Error('Unavailable')));
+  advance(7*DAY);scheduleMutable(worker,generation);
+  const progressed={...original,offset:750};store.taskProgress(store.nextTask(generation),progressed);
+  for(let n=0;n<200;n++)store.db.prepare('INSERT INTO amendment_jobs VALUES (?,?,?,?,?,?,?,?,?)').run(generation,'full:'+n,'amendment-reparse','{}',200,0,0,0,null);
+  worker.checkpointContinuations(generation);store.publish(generation);
+  advance(7*DAY);const cycle=store.beginCycle();
+  scheduleMutable(worker,cycle.generation);
+  assert.equal(store.get('slowGapAdmissions').count,0,'an already admitted retry does not consume the new daily cap');
+  assert.equal(store.enqueue(cycle.generation,key,'motion-outcomes',{},100,true,{retryGap:true}),false,'even direct duplicate admission is refused after the due date');
+  assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(cycle.generation,key),undefined);
+  worker.checkpointContinuations(cycle.generation);
+  assert.deepEqual(JSON.parse(store.source(cycle.generation,'amendment:continuations').work.tasks.find(task=>task.key===key).body),progressed);
+  store.db.prepare("DELETE FROM amendment_jobs WHERE generation=? AND key='full:0'").run(cycle.generation);
+  worker.checkpointContinuations(cycle.generation);
+  const resumed=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(cycle.generation,key);
+  assert.deepEqual(JSON.parse(resumed.body),progressed);
+  assert(recordTaskGap(worker,{...resumed,body:JSON.parse(resumed.body),amendmentJob:true,attempts:4},new Error('Still unavailable')));
+  worker.checkpointContinuations(cycle.generation);
+  assert.equal(store.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(cycle.generation,key),undefined);
+  assert.deepEqual(JSON.parse(store.db.prepare('SELECT body FROM refresh_gaps WHERE generation=? AND key=?').get(cycle.generation,key).body),progressed,'re-retirement saves the progressed cursor');
+  advance(7*DAY);scheduleMutable(worker,cycle.generation);
+  assert.deepEqual(store.nextTask(cycle.generation).body,progressed);
+});
+
+test('expired feed gaps discover catalogue IDs while retries wait or fail',async t=>{
+  const {store,generation,worker,advance}=setup(t,'2026-10-02T10:00Z');
+  const key='feed:/parliamentary-questions',endpoint='/parliamentary-questions',start='2026-09-30';
+  store.enqueue(generation,key,'feed',{endpoint,start},105);
+  assert(recordTaskGap(worker,{...store.nextTask(generation),attempts:4},new Error('Feed unavailable')));
+  store.publish(generation);advance(40*DAY);const cycle=store.beginCycle();
+  store.db.prepare('UPDATE refresh_gaps SET retry_at=retry_at+? WHERE generation=? AND key=?').run(60*DAY,cycle.generation,key);
+  worker.enqueueFeeds(cycle.generation,'feed:',store.get('lastSuccess'));
+  const catalogues=store.db.prepare("SELECT * FROM tasks WHERE generation=? AND kind='catalog' AND json_extract(body,'$.endpoint')=?").all(cycle.generation,endpoint);
+  assert(catalogues.length>0,'catalogues are scheduled even while the saved feed gap is not due');
+  assert(catalogues.every(row=>JSON.parse(row.body).feedRecovery.start===start));
+  assert.equal(store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=?").get(cycle.generation,endpoint),undefined);
+  assert.equal(store.db.prepare('SELECT start FROM feed_catalog_recovery WHERE generation=? AND endpoint=?').get(cycle.generation,endpoint).start,start);
+  // Exercise execution directly too: expired work may be retained between
+  // daily initialization passes, and recovery cannot depend on a valid XML body.
+  store.db.prepare('DELETE FROM feed_catalog_recovery WHERE generation=? AND endpoint=?').run(cycle.generation,endpoint);
+  store.db.prepare("DELETE FROM tasks WHERE generation=? AND kind='catalog'").run(cycle.generation);
+  worker.fetchRecord=async()=>{throw new Error('Feed still unavailable');};
+  await assert.rejects(worker.task({generation:cycle.generation,key,kind:'feed',body:{endpoint,start}}),/Feed still unavailable/);
+  assert(store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND kind='catalog'").get(cycle.generation));
+  assert(store.db.prepare('SELECT 1 FROM feed_catalog_recovery WHERE generation=? AND endpoint=?').get(cycle.generation,endpoint));
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM refresh_gaps WHERE generation=? AND json_extract(body,'$.endpoint')=?").get(cycle.generation,endpoint).n,2,'both failed feed and expired window remain incomplete');
+});
+
 test('further expiry of the same failed feed start advances catalogue recovery without duplicating identical bounds',t=>{
   const {store,generation,worker,advance}=setup(t,'2026-11-15T10:00Z');
   worker.recoverFeedWindow(generation,'/parliamentary-questions','2026-09-01');

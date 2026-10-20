@@ -176,10 +176,14 @@ export class ActivityWorker {
     for(const endpoint of ['/plenary-documents','/committee-documents','/parliamentary-questions','/procedures']) {
       // A partially published cycle advances lastSuccess, not a failed feed's
       // coverage cursor. Its saved task owns that interval until recovery.
-      if(this.store.db.prepare("SELECT 1 FROM refresh_gaps WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? LIMIT 1").get(generation,endpoint))continue;
-      if(this.store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1").get(generation,endpoint))continue;
+      const saved=this.store.db.prepare("SELECT body FROM refresh_gaps WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? LIMIT 1").get(generation,endpoint) ||
+        this.store.db.prepare("SELECT body FROM tasks WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1").get(generation,endpoint);
+      const earliest=saved?JSON.parse(saved.body).start || start:start;
+      // Catalogue discovery is independent of feed availability and retry due
+      // dates. A failed feed must not hide IDs after its window has expired.
+      if(endpoint!=='/procedures' && Date.parse(earliest)<this.clock()-28*DAY)this.recoverFeedWindow(generation,endpoint,earliest);
+      if(saved)continue;
       this.store.enqueue(generation,prefix+endpoint,'feed',{endpoint,start},105);
-      if(endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY)this.recoverFeedWindow(generation,endpoint,start);
     }
   }
   recoverFeedWindow(generation,endpoint,start) {
@@ -272,11 +276,10 @@ export class ActivityWorker {
       this.store.taskProgress(task,{...body,offset:body.offset+hitCount,lastPage:signatures});
     } else if(task.kind==='feed') {
       const start=body.start || day(Date.parse(this.store.get('lastSuccess') || this.store.get('working')?.startedAt)-2*DAY);
+      // Recovery must survive HTTP failures and malformed feed responses too.
+      if(body.endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY)this.recoverFeedWindow(generation,body.endpoint,start);
       const r=await this.request(body.endpoint+'/feed',body.endpoint==='/procedures'?{timeframe:'custom','start-date':start}:{},{xml:true});
       const entries=feedDocuments(r.xml,body.endpoint);
-      // A saved retry can outlive a fixed feed's retention even when its
-      // original scheduling date was covered. Keep that lost interval explicit.
-      if(body.endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY)this.recoverFeedWindow(generation,body.endpoint,start);
       for(const e of entries){
         if(e.updated && Date.parse(e.updated)<Date.parse(start))continue;
         const endpoint=body.endpoint+'/'+e.id;
