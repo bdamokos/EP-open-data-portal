@@ -14,5 +14,5 @@ export function plenaryAvailability(detail,kind,today=brusselsDate()) {
   const age=(Date.parse(today+'T12:00:00Z')-Date.parse(date+'T12:00:00Z'))/86400_000;
   // A short grace period is a display rule, not a completeness claim or publication deadline.
   if(age>0&&age<=3)return {state:'awaiting',message:speech?'Speeches are not available here yet. Allow a few days for transcript publication and indexing; timing varies.':'Results are not available here yet. Vote records can start appearing on the day of voting; publication and indexing may take longer.'};
-  return {state:'unknown',message:speech?'No linked speech records are available here. Source coverage or debate links may be incomplete.':'No linked roll-call results are available here. Source coverage or vote links may be incomplete; not every vote is a roll call.'};
+  return {state:'unknown',message:speech?'No linked speech records for this agenda date are available here. Source coverage or debate links may be incomplete.':'No linked roll-call results are available here. Source coverage or vote links may be incomplete; not every vote is a roll call.'};
 }
