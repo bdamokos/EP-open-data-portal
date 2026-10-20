@@ -41,11 +41,20 @@ export async function verifyAgendaTitleLayout(page, {baseUrl = 'http://127.0.0.1
     await enlarged.evaluate(element => element.remove());
     for (const width of [320, 390, 1000]) {
       await page.setViewportSize({width, height: 844});
-      assert(await page.locator('.insight-agenda').isHidden(), 'Narrow screens retain the agenda dropdown');
+      assert(await page.locator('.insight-agenda').isVisible(), 'Narrow screens start with agenda cards');
+      assert(await page.locator('.insight-topic-detail').isHidden(), 'No empty detail prompt');
+      assert(await page.locator('.insight-agenda-navigation').isHidden());
+      await checkCards();
+      assert(await page.locator('.insight-agenda').evaluate(agenda => agenda.clientHeight >= agenda.scrollHeight), 'Agenda uses page scrolling without a nested scroll pane');
+      await page.locator('.insight-agenda-view').evaluate(view => view.dataset.topicSelected = 'true');
+      assert(await page.locator('.insight-agenda').isHidden());
       assert(await page.locator('.insight-agenda-select select').isVisible());
+      assert(await page.getByRole('button', {name:'Back to agenda'}).isVisible());
+      assert(await page.locator('.insight-topic-detail').isVisible());
+      await page.locator('.insight-agenda-view').evaluate(view => view.dataset.topicSelected = 'false');
       assert(await page.evaluate(() => document.querySelector('main').scrollWidth <= innerWidth), 'No horizontal page overflow');
     }
-    return {resize: true, wrappedTitles: true, keyboardScroll: true, enlargedText: true, mobileDropdown: true};
+    return {resize: true, wrappedTitles: true, keyboardScroll: true, enlargedText: true, mobileAgendaAndPicker: true};
   } finally {
     if (originalViewport) await page.setViewportSize(originalViewport);
   }

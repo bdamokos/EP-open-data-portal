@@ -13,9 +13,9 @@ function response(params) {
     ...selected,phase:'past',procedures:[],committeeWork:[],roles:[],speeches:[],people:[],stats,votes:[],selectedVote:null,voteCoverage:{truncated:false},coverage:{roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}
   }:null};
 }
-async function harness(t) {
+async function harness(t,width=1440) {
   const window=new Window({url:'http://localhost/?view=legislation'}),originals=new Map(),requests=[];
-  for(const [key,value] of Object.entries({window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:1440,requestAnimationFrame:callback=>{callback();return 0;},IS_REACT_ACT_ENVIRONMENT:true})) {
+  for(const [key,value] of Object.entries({window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:width,requestAnimationFrame:callback=>{callback();return 0;},IS_REACT_ACT_ENVIRONMENT:true})) {
     originals.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});
   }
   let root,vite;
@@ -83,4 +83,19 @@ test('keyboard intent preloads, while language, period, mode and unmount cancel 
   await h.hover(h.item(2));await act(async()=>[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Dossiers').click());await h.wait();assert.equal(requests.length,1,'mode change cancels queued work');
   await act(async()=>[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Agenda').click());
   await h.hover(h.item(2));await h.unmount();await h.wait();assert.equal(requests.length,1,'unmount cancels queued work');
+});
+
+test('mobile detail completion respects intervening keyboard focus',async t=>{
+  const h=await harness(t,390),{container,requests}=h;
+  await act(async()=>{h.item(0).focus();h.item(0).click();});
+  const period=container.querySelector('.insight-controls select');
+  await act(async()=>period.focus());
+  await h.finish(requests[0]);
+  assert.equal(document.activeElement,period,'the response must not steal focus from period navigation');
+  await act(async()=>{h.item(1).focus();h.item(1).click();});
+  await h.finish(requests[1]);
+  assert.equal(document.activeElement,container.querySelector('.insight-topic-detail'),'uninterrupted selection still hands focus to the detail');
+  await h.render('fr');
+  const navigation=container.querySelector('.insight-agenda-navigation');
+  assert.equal(navigation.lang,'en','English navigation retains its own language');
 });
