@@ -31,7 +31,9 @@
 .insight-agenda-select { display:none; }
 .insight-legislation-grid { padding-top:8px; }
 .insight-agenda { max-height:min(720px,75dvh); }
-.insight-agenda>div { display:grid; gap:10px; }
+/* Let cards grow with wrapped titles after Safari resizes the sidebar. */
+.insight-agenda>div { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.insight-agenda>div>button { flex:none; }
 .insight-agenda h3 { margin:14px 0 2px; font-size:16px; }
 .insight-agenda button[aria-pressed=true] { background:#fff2000b; }
 .insight-topic-detail>h2 { max-width:38ch; }
