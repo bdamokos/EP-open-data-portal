@@ -172,9 +172,10 @@ export class ActivityStore {
         copyQuestionFiles(this.db,generation,active);
         this.db.prepare('INSERT INTO refresh_gaps SELECT ?,key,kind,body,priority,error,attempts,failed_at,retry_at,sitting_id FROM refresh_gaps WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO sitting_refresh SELECT ?,sitting_id,next_check FROM sitting_refresh WHERE generation=?').run(generation,active);
+        this.db.prepare('INSERT INTO feed_catalog_recovery SELECT ?,endpoint,start,end FROM feed_catalog_recovery WHERE generation=?').run(generation,active);
         // Preserve bounded selection progress across generations.
         this.db.prepare('INSERT INTO mutable_documents SELECT ?,key,next_check FROM mutable_documents WHERE generation=?').run(generation,active);
-        for(const table of ['refresh_gaps','mutable_documents','continuation_sittings','sitting_refresh'])this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(active,generation);
+        for(const table of ['refresh_gaps','mutable_documents','continuation_sittings','sitting_refresh','feed_catalog_recovery'])this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(active,generation);
         outsideCopy(this.db,generation,active);
         groupVoicesCopy(this.db,generation,active);
         amendmentsCopy(this.db,generation,active);
@@ -184,8 +185,15 @@ export class ActivityStore {
     });
   }
   updateCycle(values) { this.assertWriter();this.set('working',{...this.get('working'),...values}); }
-  enqueue(generation,key,kind,body,priority=50,refreshCompleted=false) {
+  enqueue(generation,key,kind,body,priority=50,refreshCompleted=false,{retryGap=false}={}) {
     this.assertWriter();
+    const gap=this.db.prepare('SELECT kind,body,priority,retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
+    if(gap) {
+      if(!retryGap || gap.retry_at>this.clock())return false;
+      // Only the bounded retry admission paths can reopen a failed task, and
+      // they always resume its saved cursor rather than discovery's new body.
+      kind=gap.kind;body=parse(gap.body);priority=gap.priority;
+    }
     // Older workers select done=0 or NULL. A separate pending sentinel fences
     // outside-speaker work during rollback and keeps the accepted generation.
     const outside=kind.startsWith('outside-') || body.outsideOnly || key.startsWith('outside:upgrade:');

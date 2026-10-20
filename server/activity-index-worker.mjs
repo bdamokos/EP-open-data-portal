@@ -163,7 +163,7 @@ export class ActivityWorker {
     const last=this.store.get('lastSuccess');
     // Initial discovery and a missed fixed monthly feed window need catalogue
     // IDs only. Existing detail records are never blanket-refreshed.
-    if(cycle.initial || this.clock()-Date.parse(last)>28*DAY)for (const collection of collections(new Date(this.clock()).getUTCFullYear())) this.store.enqueue(generation,'catalog:'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
+    if(cycle.initial)for (const collection of collections(new Date(this.clock()).getUTCFullYear())) this.store.enqueue(generation,'catalog:'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
     const base={'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','sort-by':'sitting-date:desc,numbering:desc'};
     const windows=cycle.initial?speechWindows(day(this.clock())):[{start:day(Date.parse(last)-2*DAY),end:day(this.clock())}];
     for(const range of windows)this.store.enqueue(generation,'catalog:/speeches:'+range.start+':'+range.end,'speeches',{endpoint:'/speeches',params:{...base,'sitting-date':range.start,'sitting-date-end':range.end},offset:0},100);
@@ -179,8 +179,18 @@ export class ActivityWorker {
       if(this.store.db.prepare("SELECT 1 FROM refresh_gaps WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? LIMIT 1").get(generation,endpoint))continue;
       if(this.store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1").get(generation,endpoint))continue;
       this.store.enqueue(generation,prefix+endpoint,'feed',{endpoint,start},105);
-      if(endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY)coverageGap(this.store,generation,'feed-window:'+endpoint,{endpoint,start,end:day(this.clock()-28*DAY)},'The fixed monthly feed cannot establish updates across this earlier interval; retained records are checked by the bounded mutable-record queue.',this.clock());
+      if(endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY)this.recoverFeedWindow(generation,endpoint,start);
     }
+  }
+  recoverFeedWindow(generation,endpoint,start) {
+    const end=day(this.clock()-28*DAY);
+    coverageGap(this.store,generation,'feed-window:'+endpoint,{endpoint,start,end},'The fixed monthly feed cannot establish updates across this earlier interval; retained records are checked by the bounded mutable-record queue.',this.clock());
+    // The public window gap remains unresolved even after ID discovery. Track
+    // scheduled catalogue recovery separately so a later outage gets its own
+    // durable cursors while repeated reads of one interval remain coalesced.
+    if(this.store.db.prepare('SELECT 1 FROM feed_catalog_recovery WHERE generation=? AND endpoint=? AND start=?').get(generation,endpoint,start))return;
+    for(const collection of collections(new Date(this.clock()).getUTCFullYear()).filter(collection=>collection.endpoint===endpoint))this.store.enqueue(generation,'gap-catalog:'+endpoint+':'+start+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true,feedRecovery:{start,end}},100);
+    this.store.db.prepare('INSERT INTO feed_catalog_recovery VALUES (?,?,?,?)').run(generation,endpoint,start,end);
   }
   async task(task) {
     const {generation,body}=task;
@@ -265,11 +275,7 @@ export class ActivityWorker {
       const entries=feedDocuments(r.xml,body.endpoint);
       // A saved retry can outlive a fixed feed's retention even when its
       // original scheduling date was covered. Keep that lost interval explicit.
-      if(body.endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY) {
-        const known=this.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,'feed-window:'+body.endpoint);
-        coverageGap(this.store,generation,'feed-window:'+body.endpoint,{endpoint:body.endpoint,start,end:day(this.clock()-28*DAY)},'The fixed monthly feed cannot establish updates across this earlier interval; retained records are checked by the bounded mutable-record queue.',this.clock());
-        if(!known)for(const collection of collections(new Date(this.clock()).getUTCFullYear()).filter(collection=>collection.endpoint===body.endpoint))this.store.enqueue(generation,'gap-catalog:'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
-      }
+      if(body.endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY)this.recoverFeedWindow(generation,body.endpoint,start);
       for(const e of entries){
         if(e.updated && Date.parse(e.updated)<Date.parse(start))continue;
         const endpoint=body.endpoint+'/'+e.id;
@@ -509,7 +515,7 @@ export class ActivityWorker {
   catchUp(cycle) {
     const today=day(this.clock());
     if(day(Date.parse(cycle.startedAt))===today || cycle.catchupDay===today)return false;
-    for(const collection of collections(new Date(this.clock()).getUTCFullYear())) this.store.enqueue(cycle.generation,'catchup:'+today+':'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
+    if(cycle.initial)for(const collection of collections(new Date(this.clock()).getUTCFullYear())) this.store.enqueue(cycle.generation,'catchup:'+today+':'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
     this.enqueueFeeds(cycle.generation,'catchup:'+today+':feed:',cycle.startedAt);
     this.store.enqueue(cycle.generation,'catchup:'+today+':roster','roster',{offset:0,nodes:[]},110);
     const start=day(Date.parse(cycle.startedAt)-2*DAY);
@@ -559,7 +565,7 @@ export class ActivityWorker {
           }
           if(gap.retry_at<=this.clock()) {
             const pending=this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=? AND (done IS NULL OR done<>1) UNION ALL SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND done<>1 LIMIT 1').get(generation,gap.key,generation,gap.key);
-            if(!pending)this.store.enqueue(generation,gap.key,gap.kind,JSON.parse(gap.body),gap.priority,true);
+            if(!pending)this.store.enqueue(generation,gap.key,gap.kind,JSON.parse(gap.body),gap.priority,true,{retryGap:true});
             this.store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(this.clock()+delay,generation,gap.key);
           }
         } else scheduleSittingOutcomes(this,generation,row.sitting_id);

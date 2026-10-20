@@ -193,8 +193,9 @@ export function scheduleSittingOutcomes(worker,generation,sittingId,{priority=11
   if(pending)return false;
   if(worker.store.db.prepare("SELECT 1 FROM continuation_sittings WHERE generation=? AND sitting_id=? AND bucket IN ('tasks','discovery') LIMIT 1").get(generation,sittingId))return false;
   const upgrade=work&&evidence.amendmentProjectionVersion!==AMENDMENT_SITTING_PROJECTION_VERSION;
-  const taskKey=key+':'+today+(upgrade?':amendments-v'+AMENDMENT_SITTING_PROJECTION_VERSION:complete&&today<confirmationDay?':refresh:'+Math.floor(worker.clock()/(6*60*60_000)):'');
-  const exactAttempt=upgrade||complete?1:0;
+  const correctionAttempt=Boolean(work&&today<confirmationDay);
+  const taskKey=key+':'+today+(upgrade?':amendments-v'+AMENDMENT_SITTING_PROJECTION_VERSION:correctionAttempt?':refresh:'+Math.floor(worker.clock()/(6*60*60_000)):'');
+  const exactAttempt=upgrade||complete||correctionAttempt?1:0;
   if(worker.store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND kind='motion-outcomes' AND json_extract(body,'$.sittingId')=? AND done=1 AND (key=? OR (?=0 AND key LIKE ?)) UNION ALL SELECT 1 FROM amendment_jobs WHERE generation=? AND kind='motion-outcomes' AND json_extract(body,'$.sittingId')=? AND done=1 AND (key=? OR (?=0 AND key LIKE ?)) LIMIT 1").get(generation,sittingId,taskKey,exactAttempt,'%:'+today+'%',generation,sittingId,taskKey,exactAttempt,'%:'+today+'%'))return false;
   if(worker.store.db.prepare("SELECT 1 FROM continuation_sittings WHERE generation=? AND sitting_id=? AND bucket='completed' AND (key=? OR (?=0 AND key LIKE ?)) LIMIT 1").get(generation,sittingId,taskKey,exactAttempt,'%:'+today+'%'))return false;
   worker.store.enqueue(generation,taskKey,'motion-outcomes',{sittingId,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]},priority);

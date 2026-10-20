@@ -287,3 +287,57 @@ test('historical sitting gaps share a global daily admission cap across new cycl
   advance(DAY);scheduleMutable(worker,next.generation);
   assert.equal(store.get('slowGapAdmissions').count,5);
 });
+
+test('ordinary document and speech discovery cannot reopen gaps or replace their saved cursors',async t=>{
+  const {prepareAmendments}=await import('./amendments-worker.mjs');
+  const {enqueueAmendment}=await import('./amendments-store.mjs');
+  const {store,generation,worker,clock,advance}=setup(t);
+  const pilot='/plenary-documents/A-10-2026-0254',speech='MTG-PL-2026-09-16-OTH-987',recovery='recovery:/speeches/'+speech;
+  store.enqueue(generation,pilot,'document',{endpoint:pilot,offset:750},109);
+  assert(recordTaskGap(worker,{...store.nextTask(generation),attempts:4},new Error('Missing pilot')));
+  const savedRecovery={recoveryId:speech,offset:750,detectedAt:'2026-10-01',searchWindow:{start:'2026-09-01',end:'2026-09-30',offset:500}};
+  store.enqueue(generation,recovery,'speeches',savedRecovery,103);
+  assert(recordTaskGap(worker,{...store.nextTask(generation),attempts:4},new Error('Missing speech')));
+  store.publish(generation);advance(DAY);const cycle=store.beginCycle();
+  await prepareAmendments(worker,cycle);
+  assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(cycle.generation,pilot),undefined);
+  assert.equal(store.enqueue(cycle.generation,recovery,'speeches',{recoveryId:speech,offset:0},103),false);
+  assert.equal(enqueueAmendment(store,cycle.generation,recovery,'speeches',{recoveryId:speech,offset:0},103),false);
+  assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(cycle.generation,recovery),undefined);
+  const gap=store.db.prepare('SELECT body FROM refresh_gaps WHERE generation=? AND key=?').get(cycle.generation,recovery);
+  assert.deepEqual(JSON.parse(gap.body),savedRecovery);
+  advance(6*DAY);scheduleMutable(worker,cycle.generation);
+  const admitted=store.db.prepare('SELECT body FROM tasks WHERE generation=? AND key=?').get(cycle.generation,recovery);
+  assert.deepEqual(JSON.parse(admitted.body),savedRecovery);
+  assert.equal(store.db.prepare('SELECT retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(cycle.generation,recovery).retry_at,clock()+7*DAY);
+});
+
+test('incomplete current sitting snapshots receive a new correction-period attempt six hours later',t=>{
+  for(const patch of [{truncated:true},{coverage:{missingResultIds:['missing'],missingDecisionIds:[]}},{splitProjectionTruncated:true}]) {
+    const {store,generation,worker,clock,advance}=setup(t,'2026-10-08T08:00Z');
+    const partial={...complete(),...patch};store.putSource(generation,'motion-outcomes:'+sitting,'motion-outcomes',partial,new Date(clock()).toISOString());
+    assert.equal(scheduleSittingOutcomes(worker,generation,sitting),true);
+    store.finishTask(store.nextTask(generation));
+    assert.equal(scheduleSittingOutcomes(worker,generation,sitting),false,'same attempt is coalesced');
+    advance(6*60*60_000);assert.equal(scheduleSittingOutcomes(worker,generation,sitting),true,JSON.stringify(patch));
+    const key=store.nextTask(generation).key;
+    assert(key.includes(':refresh:'));assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='motion-outcomes'").get().n,2);
+  }
+});
+
+test('each later expired feed interval starts catalogue recovery independently of persistent coverage gaps',async t=>{
+  const {store,generation,worker,clock,advance}=setup(t,'2026-10-20T10:00Z');
+  worker.recoverFeedWindow(generation,'/parliamentary-questions','2026-09-01');
+  for(const task of store.db.prepare('SELECT * FROM tasks').all())store.finishTask(task);
+  store.publish(generation);advance(60*DAY);const cycle=store.beginCycle();
+  store.enqueue(cycle.generation,'second-feed','feed',{endpoint:'/parliamentary-questions',start:'2026-11-01'},105);
+  worker.fetchRecord=async()=>({fetchedAt:new Date(clock()).toISOString(),xml:'<feed/>'});
+  await worker.task(store.nextTask(cycle.generation));
+  const catalogues=store.db.prepare("SELECT body FROM tasks WHERE generation=? AND kind='catalog'").all(cycle.generation);
+  assert(catalogues.length>0);assert(catalogues.every(task=>JSON.parse(task.body).feedRecovery.start==='2026-11-01'));
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM feed_catalog_recovery WHERE generation=?').get(cycle.generation).n,2);
+  worker.recoverFeedWindow(cycle.generation,'/parliamentary-questions','2026-11-01');
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE generation=? AND kind='catalog'").get(cycle.generation).n,catalogues.length);
+  const gap=store.db.prepare("SELECT body FROM refresh_gaps WHERE generation=? AND kind='coverage'").get(cycle.generation);
+  assert.equal(JSON.parse(gap.body).start,'2026-09-01','the oldest unavailable window remains explicit');
+});
