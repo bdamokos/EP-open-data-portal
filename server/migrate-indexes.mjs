@@ -1,3 +1,4 @@
+import {activityReadVersion} from './activity-read-projections.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {existsSync,statSync} from 'node:fs';
 import path from 'node:path';
@@ -8,7 +9,7 @@ import {CorpusStore} from './corpus-store.mjs';
 import {absolutePathFromEnvironment,integerFromEnvironment} from './config.mjs';
 
 const bytes=filename=>['','-wal','-shm'].reduce((sum,suffix)=>sum+(existsSync(filename+suffix)?statSync(filename+suffix).size:0),0);
-const prepared=(store,kind)=>store.get('resourceIndexes')===1&&(kind!=='activity'||store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('motionLinksIndexVersion')===1);
+const prepared=(store,kind)=>store.get('resourceIndexes')===1&&(kind==='activity'?store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion:store.get('questionDiscoveryVersion')===1);
 
 // No HTTP server, upstream calls, background jobs or generation changes. The
 // normal leases still fence another writer; never override an unexpired lease.
@@ -36,7 +37,7 @@ export function prepareIndexes({activityDirectory,corpusDirectory,activityLimitM
   for(const entry of entries) {
     const filename=path.join(entry.directory,entry.file),before=existsSync(filename)?bytes(filename):0,started=performance.now();
     log('[index-prepare]',entry.kind+': opening schema');
-    const store=new entry.Store(entry.directory,{clock,initializeIndexes:true});
+    const store=new entry.Store(entry.directory,{clock,initializeIndexes:true,prepareLog:message=>log('[index-prepare]',message)});
     try {
       const noop=prepared(store,entry.kind);
       if(!noop) {
