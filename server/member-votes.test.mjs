@@ -50,7 +50,7 @@ function setup({decisions=[finalDecision],results,agenda=fixture.foreseen.payloa
 test('single-sitting collection exposes its bounded period and reuses source reads across members',async()=>{
   const {service,calls}=setup();
   const first=await service.query(MEMBER,query('sitting='+SITTING));
-  assert.equal(first.version,2);
+  assert.equal(first.version,3);
   assert.equal(first.period.sittingId,SITTING);
   assert.equal(first.period.from,'2026-10-07');
   assert.equal(first.period.to,'2026-10-07');
@@ -612,4 +612,43 @@ test('every changed identity on a later page is withheld, including rows after t
   assert.equal(response.items.length,2);
   assert.equal(response.coverage.sittings[0].completeness.conflictingDecisionIds.length,2);
   assert(response.items.every(item=>item.actualPosition.status==='conflicting'&&item.outcome===null&&item.sourceConflicts.observations.length===2));
+});
+
+test('alignment filters the pinned period before pagination while counts and selected remain independent',async()=>{
+  const cases=[['for','ADOPTED'],['for','REJECTED'],['against','ADOPTED'],['against','REJECTED'],['abstaining','ADOPTED'],['for','LAPSED'],[null,'ADOPTED']];
+  const decisions=cases.map(([position,outcome],index)=>{
+    const row={...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${280000+index}`,activity_id:`${SITTING}-DEC-${280000+index}`,decision_outcome:'def/ep-statuses/'+outcome};
+    for(const field of ['had_voter_favor','had_voter_against','had_voter_abstention'])row[field]=[];
+    if(position)row[{for:'had_voter_favor',against:'had_voter_against',abstaining:'had_voter_abstention'}[position]]=['person/'+MEMBER];
+    else row.decision_method='def/ep-decision-methods/VOTE_HAND';
+    return row;
+  });
+  const {service,calls}=setup({decisions});
+  const all=await service.query(MEMBER,query(`sitting=${SITTING}&limit=100`)),reads=calls.length;
+  assert.equal(all.alignment,'all');assert.deepEqual(all.alignmentCounts,{with:2,against:2,abstained:1,unclassified:2});
+  const ids=all.items.filter(item=>item.alignment==='against').map(item=>item.id);
+  const suffix=`sitting=${SITTING}&alignment=against&snapshot=${all.snapshotId}&decision=${decisions[6].activity_id}`;
+  const first=await service.query(MEMBER,query(suffix+'&positions=all&limit=1'));
+  const next=await service.query(MEMBER,query(suffix+'&positions=recorded&limit=1&offset=1'));
+  assert.deepEqual([...first.items,...next.items].map(item=>item.id),ids);
+  assert.equal(first.pagination.filteredTotal,2);assert.equal(first.pagination.nextOffset,1);assert.equal(next.pagination.nextOffset,null);
+  assert.equal(first.selected.item.id,decisions[6].activity_id);assert.equal(first.selected.item.alignment,'unclassified');
+  for(const positions of ['all','recorded'])for(const alignment of ['all','with','against','abstained']){
+    const result=await service.query(MEMBER,query(`sitting=${SITTING}&snapshot=${all.snapshotId}&positions=${positions}&alignment=${alignment}&limit=100`));
+    assert.deepEqual(result.alignmentCounts,all.alignmentCounts);assert.equal(result.snapshotId,all.snapshotId);
+    if(alignment!=='all')assert(result.items.every(item=>item.alignment===alignment&&item.actualPosition.status==='recorded'));
+    assert.deepEqual(result.subjects[0].counts,{observed:7,filtered:result.items.length,page:result.items.length});
+  }
+  assert.deepEqual(first.alignmentCounts,all.alignmentCounts);assert.equal(calls.length,reads);
+});
+
+test('alignment validation defaults compatibly and unavailable coverage has no count claim',async()=>{
+  assert.equal(query('').alignment,'all');
+  for(const value of ['all','with','against','abstained'])assert.equal(query('alignment='+value).alignment,value);
+  for(const value of ['','WITH','unclassified','against&alignment=with'])assert.throws(()=>query('alignment='+value),error=>error.status===400);
+  const {service}=setup({override:({kind})=>{if(kind==='meeting')throw new Error('Unavailable synthetic source');}});
+  const unavailable=await service.query(MEMBER,query(`sitting=${SITTING}&alignment=against`));
+  assert.equal(unavailable.coverage.status,'unavailable');assert.equal(unavailable.alignmentCounts,null);
+  const complete=await setup({decisions:[],results:[],agenda:[],meetings:[{...meeting,consists_of:[]}]}).service.query(MEMBER,query(`sitting=${SITTING}&alignment=with`));
+  assert.equal(complete.coverage.status,'complete');assert.deepEqual(complete.alignmentCounts,{with:0,against:0,abstained:0,unclassified:0});
 });

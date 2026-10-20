@@ -16,7 +16,7 @@ function vote(number,patch={}) {
   return {
     id:decision(number),uri:'https://data.europarl.europa.eu/eli/dl/event/'+decision(number),sittingId:SITTING,date:'2026-03-25',
     titles:{en:'Synthetic decision '+number},referenceTexts:{en:'Decision '+number},title:'Synthetic decision '+number,titleLanguage:'en',
-    method:'VOTE_ELECTRONIC_ROLLCALL',outcome:'ADOPTED',ballotStatus:'conducted',scope:{kind:'amendment',basis:'exact-component-reference'},
+    alignment:'with',method:'VOTE_ELECTRONIC_ROLLCALL',outcome:'ADOPTED',ballotStatus:'conducted',scope:{kind:'amendment',basis:'exact-component-reference'},
     actualPosition:{status:'recorded',position:'for'},intention:{status:'not-reported',positions:[]},sourceConflicts:null,
     totals:{for:400,against:200,abstaining:0},namedVoters:{available:true,counts:{for:400,against:200,abstaining:0},totalsMatch:true,conflictingPersonIds:[],malformedReferences:0},
     subjectId:SUBJECT,resultRelationship:{inverseResultIds:[SUBJECT],forwardResultIds:[SUBJECT],binding:'consistent'},parts:[],rollCallRequesters:[],
@@ -39,23 +39,23 @@ function part(number,patch={}) {
 }
 function stateFrom(url) {
   const params=new URL(String(url),'http://localhost').searchParams;
-  return {week:params.get('week')||WEEK,sittingId:params.get('sitting'),positions:params.get('positions')||'recorded',offset:Number(params.get('offset')||0),
+  return {week:params.get('week')||WEEK,sittingId:params.get('sitting'),positions:params.get('positions')||'recorded',alignment:params.get('alignment')||'all',offset:Number(params.get('offset')||0),
     decisionId:params.get('decision'),snapshotId:params.get('snapshot')};
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:2,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:3,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
-    snapshotId,positions:state.positions,subjects:subjects??[subject(items)],
+    snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
     selected:selected??(state.decisionId?{status:'found',item:items.find(item=>item.id===state.decisionId)||null}:{status:'not-requested',item:null}),
     coverage:{status:'complete',collectionComplete:true,termWide:false,expectedSittingIds:[SITTING],scannedSittingIds:[SITTING],failedSittingIds:[],incompleteSittingIds:[],catalogue:emptyPage,sittings:[],basis:'Synthetic exact API fixture',...coverage},
     attribution:'European Parliament public data',...patch};
 }
-const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>item.textContent.trim()===text);
+const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>(item.getAttribute('aria-label')||item.textContent.trim())===text);
 const visiblePane=container=>[...container.querySelectorAll('.member-votes-pane')].find(item=>!item.hidden);
 
-async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),weeksHandler=()=>Response.json({version:1,weeks:[],coverage:{status:'partial',termWide:false}}),statusCompatibility=false,renderContext}={}) {
+async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}},handler=url=>Response.json(responseFor(url)),statusCompatibility=false,renderContext}={}) {
   const window=new Window({url:'http://localhost/'});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -68,7 +68,7 @@ async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),we
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  t.mock.method(globalThis,'fetch',async(url,options)=>{if(new URL(String(url),'http://localhost').pathname==='/api/member-votes/weeks')return weeksHandler(url,options);calls.push(String(url));return handler(url,options,calls.length);});
+  t.mock.method(globalThis,'fetch',async(url,options)=>{if(String(url).includes('/api/vote-periods'))return Response.json(calendar);calls.push(String(url));return handler(url,options,calls.length);});
   // The parent owns the hook's optional HTTP status field. Exercise that integration in memory
   // until it lands here; all other cases use the worktree's unmodified shared hook.
   const plugins=statusCompatibility?[{name:'member-votes-shared-status-contract',enforce:'pre',transform(source,id){
@@ -89,7 +89,7 @@ async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),we
   return {container,calls,changes,contexts,module,get state(){return current;},async update(patch){await act(async()=>{current={...current,...patch};draw();});},
     async remount(){await act(async()=>{renderKey++;draw();});},
     async click(text){const target=button(container,text);assert(target,'Missing button: '+text);await act(async()=>target.click());},
-    async select(selector,value){const target=container.querySelector(selector);assert(target,'Missing control: '+selector);await act(async()=>{target.value=value;target.dispatchEvent(new window.Event('change',{bubbles:true}));});}};
+    async select(selector,value){const target=container.querySelector(selector);assert(target,'Missing control: '+selector);await act(async()=>{if(target.tagName==='INPUT'){Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(target,value);target.dispatchEvent(new window.Event('input',{bubbles:true}));}else target.value=value;target.dispatchEvent(new window.Event('change',{bubbles:true}));});}};
 }
 
 function wordingVariant(patch={}) {
@@ -97,33 +97,8 @@ function wordingVariant(patch={}) {
     originalText:'Texte original exact',proposedText:'Texte proposé exact',authors:[],...patch};
 }
 
-test('stored weeks are newest first, keep an unlisted selection, and clear exact-sitting state on navigation',async t=>{
-  const initial={week:WEEK,sittingId:SITTING,positions:'recorded',offset:50,decisionId:decision(1),snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT],context:null};
-  const h=await mount(t,{state:initial,weeksHandler:()=>Response.json({version:1,weeks:[{week:'2026-03-09'},{week:'2026-03-16'},{week:'2026-03-16'},{week:'2026-03-17'}],coverage:{status:'partial',termWide:false}})});
-  const selector='.member-votes-week-browser select';
-  assert.deepEqual([...h.container.querySelector(selector).options].map(option=>option.value),['latest','sitting','2026-03-16','2026-03-09']);
-  assert.equal(h.container.querySelector(selector).value,'sitting');
-  const date=h.container.querySelector('input[type="date"]'),suggestions=h.container.querySelector('datalist');
-  assert.equal(date.getAttribute('list'),suggestions.id);
-  assert.deepEqual([...suggestions.options].map(option=>option.value),['2026-03-16','2026-03-09']);
-  assert.match(h.container.querySelector('.member-votes-week-hint').textContent,/Coverage and individual positions may be incomplete/);
-  await h.select(selector,'2026-03-09');
-  const change=h.changes.find(change=>change.state.week==='2026-03-09'&&!change.options.replace);
-  assert.deepEqual(change.state,{...initial,week:'2026-03-09',sittingId:null,offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[]});
-  await h.update({week:'2026-03-02',snapshotId:null});
-  assert.equal(h.container.querySelector(selector).value,'2026-03-02');
-  await h.select(selector,'latest');
-  assert(h.calls.some(url=>new URL(url,'http://localhost').searchParams.get('week')==='latest'));
-});
 
-test('failed stored-week hints keep date selection available and can be retried',async t=>{
-  let attempts=0;
-  const h=await mount(t,{weeksHandler:()=>++attempts===1?Response.json({error:{message:'Unavailable'}},{status:503}):Response.json({version:1,weeks:[{week:WEEK}],coverage:{status:'partial',termWide:false}})});
-  assert.match(h.container.querySelector('.member-votes-week-hint').textContent,/could not be loaded/);
-  assert(h.container.querySelector('input[type="date"]'));
-  await h.click('Retry sitting weeks');
-  assert.equal(attempts,2);assert(h.container.querySelector('optgroup option'));
-});
+
 async function mountWording(t,{variants,amendmentStatus='available',state={}}) {
   const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}});
   return mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id,...state},handler:url=>String(url).includes('document-context/')?
@@ -145,7 +120,7 @@ test('decoded source reference text renders literally in vote cards and detail h
 
 test('default request explicitly filters recorded positions and canonical period/snapshot replace navigation',async t=>{
   const h=await mount(t);
-  assert.deepEqual(h.module.defaultMemberVotesState,{week:'latest',sittingId:null,positions:'recorded',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
+  assert.deepEqual(h.module.defaultMemberVotesState,{week:'latest',sittingId:null,positions:'recorded',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
   const initial=new URL(h.calls[0],'http://localhost');
   assert.equal(initial.pathname,'/api/member-votes/'+MEMBER);
   assert.equal(initial.searchParams.get('week'),'latest');assert.equal(initial.searchParams.get('positions'),'recorded');
@@ -290,7 +265,7 @@ test('amendment wording loads only after decision selection and requires an expl
   const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}});
   const variants=[{listId:'exact-published-list-fr',wordingStatus:'available',language:'fr',targetLabel:'Paragraphe 4',targetLabelLanguage:'fr',originalText:'Texte original exact',proposedText:'Texte proposé exact',authors:[{name:'Exact amendment proposer'}]},
     {listId:'exact-published-list-hu',wordingStatus:'available',language:'hu',targetLabel:'4. bekezdés',targetLabelLanguage:'hu',originalText:'Eredeti pontos szöveg',proposedText:'Javasolt pontos szöveg',authors:[{name:'Második pontos javaslattevő'}]}];
-  const initial={week:WEEK,sittingId:null,positions:'recorded',offset:50,decisionId:item.id,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT,'another-exact-subject'],context:null};
+  const initial={week:WEEK,sittingId:null,positions:'recorded',alignment:'all',offset:50,decisionId:item.id,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT,'another-exact-subject'],context:null};
   const h=await mount(t,{state:{...initial,decisionId:null},handler:url=>String(url).includes('document-context/')?Response.json({version:1,documentId:DOCUMENT,requestedLanguage:'en',document:null,related:{status:'not-requested',items:[],gaps:[]},amendment:{id:AMENDMENT,status:'available',basis:'published-list',variants,gaps:[]},target:{status:'not-requested',paragraphs:[],basis:null,relation:null,quoteMatches:null,reason:null},sources:[]}):Response.json(responseFor(url,{items:[vote(2)],selected:stateFrom(url).decisionId?{status:'found',item}:{status:'not-requested',item:null},subjects:[subject([item],{counts:{observed:51,filtered:51,page:1}})],pagination:{observedTotal:51,filteredTotal:51}}))});
   assert.equal(h.calls.filter(url=>url.includes('document-context/')).length,0);
   assert.equal(h.container.querySelector('.member-votes-wording'),null);
@@ -346,7 +321,7 @@ test('an adopted text lookup keeps the exact report and does not inherit its sel
 test('known unavailable wording remains a competing published version and opens only its exact selected list',async t=>{
   const variants=[wordingVariant({listId:'readable-published-list'}),wordingVariant({listId:'known-unavailable-list',wordingStatus:'unavailable',language:null,
     targetLabel:null,targetLabelLanguage:null,originalText:null,proposedText:null})];
-  const initial={week:WEEK,sittingId:SITTING,positions:'all',offset:50,decisionId:decision(1),snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT],context:null};
+  const initial={week:WEEK,sittingId:SITTING,positions:'all',alignment:'all',offset:50,decisionId:decision(1),snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT],context:null};
   const h=await mountWording(t,{variants,amendmentStatus:'unavailable',state:initial});
   const selector='select[aria-label="Amendment published version"]';
   assert.deepEqual([...h.container.querySelector(selector).options].map(option=>option.value),['',...variants.map(variant=>variant.listId)]);
@@ -508,7 +483,7 @@ test('document actions use only exact top-level A/B/RC contexts and cannot open 
 
 test('snapshot expiry requires explicit refresh and preserves the requested period, decision, filter, page and context',async t=>{
   const item=vote(99,{context:{...vote(99).context,documentIds:[DOCUMENT]}}),nextSnapshot='b'.repeat(64);
-  const initial={week:WEEK,sittingId:SITTING,positions:'all',offset:50,decisionId:item.id,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT],context:{documentId:DOCUMENT,view:'document'}};
+  const initial={week:WEEK,sittingId:SITTING,positions:'all',alignment:'all',offset:50,decisionId:item.id,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT],context:{documentId:DOCUMENT,view:'document'}};
   const h=await mount(t,{state:initial,statusCompatibility:true,handler:url=>stateFrom(url).snapshotId===SNAPSHOT?Response.json({error:{code:'snapshot_expired',message:'Snapshot expired'}},{status:409}):Response.json(responseFor(url,{items:[vote(1)],selected:{status:'found',item},subjects:[subject([item],{counts:{observed:51,filtered:51,page:1}})],snapshotId:nextSnapshot,pagination:{observedTotal:51,filteredTotal:51}}))});
   assert.match(h.container.textContent,/This saved view of the period has expired/);assert.equal(h.calls.length,1);assert.equal(h.changes.length,0);assert.equal(h.contexts.length,0);
   await h.click('Refresh votes');
@@ -521,7 +496,7 @@ test('snapshot expiry requires explicit refresh and preserves the requested peri
 
 test('explicit snapshot refresh bypasses a cached unpinned response instead of repinning the expired snapshot',async t=>{
   const item=vote(99),nextSnapshot='b'.repeat(64);
-  const initial={week:WEEK,sittingId:null,positions:'all',offset:50,decisionId:item.id,snapshotId:null,expandedSubjectIds:[SUBJECT],context:null};
+  const initial={week:WEEK,sittingId:null,positions:'all',alignment:'all',offset:50,decisionId:item.id,snapshotId:null,expandedSubjectIds:[SUBJECT],context:null};
   let unpinnedReads=0;
   const h=await mount(t,{state:initial,statusCompatibility:true,handler:url=>{
     const snapshot=stateFrom(url).snapshotId;
@@ -648,4 +623,125 @@ test('a filtered-out final vote opens its exact decision and keeps missing-posit
   const final=h.container.querySelector('button.member-votes-whole');assert.match(final.textContent,/Conflicting records/);
   await act(async()=>final.click());assert.match(visiblePane(h.container).textContent,/Conflicting records/);assert.equal(h.state.positions,'recorded');
   await h.click('← Back to votes');assert.equal(document.activeElement,h.container.querySelector('[data-vote-group]'));
+});
+
+
+test('period navigation steps through held weeks and week/day changes clear period-scoped selections',async t=>{
+  const calendar={version:1,weeks:[{week:'2026-03-30',sittings:[{sittingId:'MTG-PL-2026-03-31',date:'2026-03-31'}]},{week:WEEK,sittings:[{sittingId:SITTING,date:'2026-03-25'}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}};
+  const h=await mount(t,{calendar,state:{week:WEEK,snapshotId:SNAPSHOT,offset:50,decisionId:decision(1),expandedSubjectIds:[SUBJECT]},handler:url=>{const state=stateFrom(url);return Response.json(responseFor(url,{items:state.week===WEEK?[vote(1)]:[],subjects:state.week===WEEK?[subject([vote(1)])]:[]}));}});
+  assert.equal(button(h.container,'Previous plenary week').disabled,true);assert.equal(button(h.container,'Next plenary week').disabled,false);
+  const day=[...h.container.querySelectorAll('.member-votes-days button')].find(item=>item.textContent.includes('25'));assert(day);await act(async()=>day.click());
+  const transition=h.changes.find(change=>change.state.sittingId===SITTING);
+  assert(transition);for(const key of ['snapshotId','decisionId','context'])assert.equal(transition.state[key],null);assert.equal(transition.state.offset,0);assert.deepEqual(transition.state.expandedSubjectIds,[]);
+  assert.equal(h.state.sittingId,SITTING);assert.equal(h.state.week,WEEK);
+  await h.click('Whole week');assert.equal(h.state.week,WEEK);assert.equal(h.state.sittingId,null);
+  await h.click('Next plenary week');assert.equal(h.state.week,'2026-03-30');assert.equal(button(h.container,'Next plenary week').disabled,true);
+});
+
+test('sitting-only links show their own week and Whole week never jumps to latest',async t=>{
+  const h=await mount(t,{state:{week:'latest',sittingId:SITTING,snapshotId:SNAPSHOT}});
+  assert.equal(h.container.querySelector('.member-votes-period-navigation select').value,WEEK);
+  await h.click('Whole week');assert.equal(h.state.week,WEEK);assert.equal(h.state.sittingId,null);
+});
+
+test('partial calendars disclose gaps separately and retain missing selected week and sitting options',async t=>{
+  const calendar={version:1,weeks:[],coverage:{status:'partial',years:[{year:2026,state:'partial',sources:[]}]}};
+  const h=await mount(t,{calendar,state:{week:'latest',sittingId:SITTING,snapshotId:SNAPSHOT}});
+  assert.match(h.container.textContent,/Some plenary dates could not be loaded; the list shows known sittings/);
+  const select=h.container.querySelector('.member-votes-period-navigation select');assert.equal(select.value,WEEK);assert.match(select.textContent,/Week of/);
+  const selectedDay=h.container.querySelector('.member-votes-days button[aria-pressed=true]');assert(selectedDay);assert.match(selectedDay.textContent,/25/);
+  assert(!h.container.textContent.includes('Some voting records for this period are unavailable'));
+  assert.equal(h.container.querySelector('.member-votes-period-navigation input'),null,'partial coverage retains the calendar without another date field');
+});
+
+test('unavailable calendars keep an any-date fallback that snaps to Monday',async t=>{
+  const h=await mount(t,{calendar:{version:1,weeks:[],coverage:{status:'unavailable',years:[]}},state:{week:WEEK,snapshotId:SNAPSHOT}});
+  assert.match(h.container.textContent,/The plenary calendar could not be loaded/);
+  await h.select('.member-votes-period-navigation input','2026-03-26');assert.equal(h.state.week,WEEK);assert.equal(h.state.sittingId,null);assert(!h.container.textContent.includes('Choose a Monday'));
+});
+
+
+test('calendar jump controls keep the direct select, accessible icons and year groups at both boundaries',async t=>{
+ const calendar={version:1,weeks:[{week:WEEK,sittings:[23,24,25,26].map(day=>({sittingId:'MTG-PL-2026-03-'+day,date:'2026-03-'+day}))},{week:'2025-12-15',sittings:[{sittingId:'MTG-PL-2025-12-16',date:'2025-12-16'}]}],coverage:{status:'complete',years:[{year:2025,state:'complete',sources:[]},{year:2026,state:'complete',sources:[]}]}};
+ const h=await mount(t,{calendar,state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items:[]}))});
+ const row=h.container.querySelector('.member-votes-week-navigation');assert.deepEqual([...row.children].map(node=>node.tagName),['BUTTON','BUTTON','SELECT','BUTTON','BUTTON']);
+ assert.deepEqual([...row.querySelectorAll('optgroup')].map(node=>node.label),['2026','2025']);
+ assert.match(row.querySelector('option').textContent,/4 sitting days/);
+ for(const name of ['First plenary week','Previous plenary week','Next plenary week','Latest plenary week'])assert.equal(button(h.container,name).querySelector('span').getAttribute('aria-hidden'),'true');
+ assert.equal(button(h.container,'Latest plenary week').disabled,true);assert.equal(button(h.container,'First plenary week').disabled,false);
+ await h.click('First plenary week');assert.equal(h.state.week,'2025-12-15');assert.equal(button(h.container,'First plenary week').disabled,true);assert.equal(button(h.container,'Previous plenary week').disabled,true);
+ await h.click('Latest plenary week');assert.equal(h.state.week,WEEK);assert.equal(button(h.container,'Latest plenary week').disabled,true);
+ assert.equal(h.container.querySelectorAll('.member-votes-days button').length,5);assert.equal(h.container.querySelector('input[type=date]'),null);
+ assert.equal(button(h.container,'Latest'),undefined);assert.doesNotMatch(h.container.textContent,/Browse sitting weeks|choose a Monday/);
+});
+
+test('an observed empty calendar is distinct from unavailable and does not add a date input',async t=>{
+ const h=await mount(t,{calendar:{version:1,weeks:[],coverage:{status:'complete',years:[]}}});
+ assert.match(h.container.textContent,/No held plenary weeks are listed/);assert.equal(h.container.querySelector('input[type=date]'),null);assert.equal(button(h.container,'First plenary week').disabled,true);
+});
+
+test('only complete zero-decision days are muted as no-votes, remain clickable and open a sitting empty state',async t=>{
+ const calendar={version:1,weeks:[{week:WEEK,sittings:[23,24,25,26].map(day=>({sittingId:'MTG-PL-2026-03-'+day,date:'2026-03-'+day}))}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}};
+ const sittings=calendar.weeks[0].sittings.map((day,index)=>({...day,state:['complete','partial','unavailable','complete'][index],observedDecisionCount:index===3?1:0}));
+ const h=await mount(t,{calendar,state:{week:WEEK},handler:url=>{
+  const state=stateFrom(url),empty=Boolean(state.sittingId),items=empty?[]:[vote(1,{id:'MTG-PL-2026-03-26-DEC-1',sittingId:'MTG-PL-2026-03-26',date:'2026-03-26'})];
+  return Response.json(responseFor(url,{items,coverage:{status:empty?'complete':'partial',sittings:empty?[sittings[0]]:sittings}}));
+ }});
+ const marked=h.container.querySelectorAll('.vote-period-no-votes');assert.equal(marked.length,1);assert.equal(marked[0].disabled,false);assert.match(marked[0].getAttribute('aria-label'),/^Monday.*2026, no votes recorded$/);
+ assert.equal(h.container.querySelectorAll('.member-votes-days button').length,5);assert.match(h.container.querySelector('select').textContent,/4 sitting days/);
+ await act(async()=>marked[0].click());assert.equal(h.state.sittingId,'MTG-PL-2026-03-23');assert.match(visiblePane(h.container).textContent,/No votes were recorded at this sitting\./);
+});
+
+for(const alignment of ['all','against'])test('a complete zero-decision week keeps no-votes copy with alignment '+alignment,async t=>{
+ const h=await mount(t,{state:{week:WEEK,alignment},handler:url=>Response.json(responseFor(url,{items:[],coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:0}]}}))});
+ assert.match(visiblePane(h.container).textContent,/No votes were recorded in this week\./);assert(h.container.querySelector('.vote-period-no-votes'));
+});
+
+for(const status of ['partial','unavailable'])test(status+' zero observations never claim no votes at a sitting',async t=>{
+ const h=await mount(t,{state:{sittingId:SITTING,week:WEEK},handler:url=>Response.json(responseFor(url,{items:[],coverage:{status,sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:status,observedDecisionCount:0}]}}))});
+ assert.equal(h.container.querySelector('.vote-period-no-votes'),null);assert.doesNotMatch(visiblePane(h.container).textContent,/No votes were recorded/);
+});
+
+test('a member without recorded positions is not labelled as a sitting with no votes',async t=>{
+ const h=await mount(t,{state:{sittingId:SITTING,week:WEEK},handler:url=>Response.json(responseFor(url,{items:[],pagination:{observedTotal:1,filteredTotal:0},coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:1}]}}))});
+ assert.equal(h.container.querySelector('.vote-period-no-votes'),null);assert.match(visiblePane(h.container).textContent,/No recorded positions are available/);assert.doesNotMatch(visiblePane(h.container).textContent,/No votes were recorded/);
+});
+
+test('outcome alignment retains the snapshot, resets pagination, marks rows and returns focus from detail',async t=>{
+  const against=vote(2,{alignment:'against',actualPosition:{status:'recorded',position:'against'}});
+  const counts={with:1,against:1,abstained:0,unclassified:0};
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,offset:50},handler:url=>{
+    const state=stateFrom(url),filtered=[vote(1),against].filter(item=>state.alignment==='all'||item.alignment===state.alignment),items=state.offset?[]:filtered;
+    return Response.json(responseFor(url,{items,alignmentCounts:counts,pagination:{offset:state.offset,observedTotal:2,filteredTotal:filtered.length}}));
+  }});
+  // Start from a valid first page after proving the changed control resets a remembered offset.
+  await h.update({offset:0});
+  const control=button(h.container,'Against the outcome (1)');assert(control);control.focus();
+  await act(async()=>control.click());
+  assert.equal(h.state.alignment,'against');assert.equal(document.activeElement.dataset.voteAlignment,'against');assert.equal(h.state.offset,0);assert.equal(h.state.snapshotId,SNAPSHOT);
+  assert.equal(button(h.container,'Against the outcome (1)').getAttribute('aria-pressed'),'true');
+  assert.match(h.container.querySelector('.member-votes-alignment').textContent,/in this week, before filters and pagination/);
+  await act(async()=>h.container.querySelector('[data-vote-group]').click());
+  const row=h.container.querySelector('[data-vote-id]');assert.match(row.textContent,/Against outcome/);
+  await act(async()=>row.click());assert.equal(h.state.decisionId,against.id);
+  await h.click('← Back to votes');assert.equal(h.state.alignment,'against');assert.equal(document.activeElement.dataset.voteId,against.id);
+  assert(h.calls.some(url=>new URL(url,'http://localhost').searchParams.get('alignment')==='against'));
+  await h.update({offset:50});await h.click('With the outcome (1)');assert.equal(h.state.offset,0);assert.equal(h.state.snapshotId,SNAPSHOT);
+});
+
+for(const coverage of ['complete','partial','unavailable'])test('alignment empty state preserves '+coverage+' coverage semantics',async t=>{
+  const h=await mount(t,{state:{week:WEEK,alignment:'against'},handler:url=>Response.json(responseFor(url,{items:[],coverage:{status:coverage},alignmentCounts:coverage==='unavailable'?null:{with:0,against:0,abstained:0,unclassified:0}}))});
+  const text=h.container.textContent;
+  if(coverage==='complete')assert.match(text,/No recorded votes against Parliament’s outcome in this week/);
+  if(coverage==='partial'){assert.match(text,/No matching recorded votes among the available records for this week/);assert.match(text,/Counts among available records/);}
+  if(coverage==='unavailable'){
+    assert.match(text,/Some voting records for this period are unavailable/);assert.match(text,/Against the outcome \(unavailable\)/);
+    assert.equal(h.container.querySelector('.member-votes-empty'),null);assert.doesNotMatch(text,/0 decisions|No recorded votes|No matching recorded/);
+  }
+});
+
+test('a complete empty sitting keeps the no-votes message under an outcome filter',async t=>{
+ const h=await mount(t,{state:{week:WEEK,sittingId:SITTING,alignment:'against'},handler:url=>Response.json(responseFor(url,{items:[],coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:0}]}}))});
+ assert.match(visiblePane(h.container).textContent,/No votes were recorded at this sitting\./);
+ assert.doesNotMatch(visiblePane(h.container).textContent,/No recorded votes against/);
 });

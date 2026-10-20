@@ -1,6 +1,8 @@
+export type MemberVoteAlignment='with'|'against'|'abstained'|'unclassified';
 export type MemberVotePosition = 'for' | 'against' | 'abstaining';
 
 export type MemberVoteSource = {
+  httpStatus?:404;
   url:string;
   fetchedAt:string;
   contentHash:string;
@@ -13,12 +15,13 @@ export type MemberVoteSourcePageCoverage = {
   state:'complete'|'partial'|'unavailable';
   pages:number;
   rows:number;
-  stopReason:'end'|'no-content'|'repeated-page'|'page-budget'|'row-budget'|'error'|'not-scanned';
+  stopReason:'end'|'no-content'|'not-found'|'repeated-page'|'page-budget'|'row-budget'|'error'|'not-scanned';
   error:{code:string;message:string}|null;
   sources:MemberVoteSource[];
 };
 
 export type MemberVote = {
+  alignment:MemberVoteAlignment;
   id:string;
   uri:string;
   sittingId:string;
@@ -93,11 +96,13 @@ export type MemberVoteSittingCoverage = {
 };
 
 export type MemberVotesResponse = {
-  version:2;
+  version:3;
   member:{id:string;uri:string;mandateStatus:'not-assessed';historicalGroupStatus:'not-collected'};
   period:{kind:'week'|'sitting';week:string|null;sittingId:string|null;from:string|null;to:string|null};
   snapshotId:string;
   positions:'all'|'recorded';
+  alignment:'all'|'with'|'against'|'abstained';
+  alignmentCounts:Record<MemberVoteAlignment,number>|null;
   subjects:MemberVoteSubject[];
   pagination:{offset:number;limit:number;returned:number;observedTotal:number;filteredTotal:number;nextOffset:number|null};
   items:MemberVote[];

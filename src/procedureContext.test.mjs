@@ -18,7 +18,9 @@ test('dossier summary loading and failure do not expose the unfinished amendment
   });
   const pending=new Promise(resolve=>{respond=resolve;});
   t.mock.method(globalThis,'fetch',async input=>{
-    assert(new URL(input,window.location.href).pathname.endsWith('/insights/procedure-context'));
+    const url=new URL(input,window.location.href);
+    if(url.pathname.endsWith('/insights/procedure-progress'))return Response.json({reference:'2025/0407(COD)',state:'unmapped',events:[],coverage:{limited:false,invalidRows:0,incompleteEvents:0},source:{fetchedAt:'2026-10-20T10:00:00Z',stale:false,refreshInProgress:false,refreshError:null}});
+    assert(url.pathname.endsWith('/insights/procedure-context'));
     return pending;
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});

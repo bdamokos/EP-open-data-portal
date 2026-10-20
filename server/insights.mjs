@@ -3,6 +3,7 @@ import {SpeechCloudInsights,speechCloudQuery} from './speech-cloud.mjs';
 import {OfficialContextSources} from './official-context.mjs';
 import {EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext,procedureContextQuery} from './procedure-context.mjs';
+import {ProcedureProgress,procedureProgressQuery} from './procedure-progress.mjs';
 import {TopicTrends,topicTrendsQuery} from './topic-trends.mjs';
 import { QuestionInsights,insightQuery,savedMetadata,brusselsDay } from './insights-store.mjs';
 import { LegislationInsights,LEGISLATION_VIEW_VERSION } from './insights-legislation.mjs';
@@ -30,11 +31,13 @@ export function createInsights(store,options={}) {
   const officialSources=options.officialSources||new OfficialContextSources({clock,...options.officialContext});
   const catalog=options.eurovocCatalog||new EurovocCatalog(officialSources,{clock,...options.eurovoc});
   const procedureContext=new ProcedureContext(officialSources,catalog),topicTrends=new TopicTrends(store,catalog,{clock});
+  const procedureProgress=new ProcedureProgress(officialSources);
   const views=new InsightViewCache({clock,...options.viewCache});
   return {async query(view,searchParams) {
     if(view==='speech-words')return speechWords.query(speechWordsQuery(searchParams,{now:clock()}));
     if(view==='speech-cloud')return speechCloud.query(speechCloudQuery(searchParams,{now:clock()}));
     if(view==='procedure-context')return procedureContext.query(procedureContextQuery(searchParams));
+    if(view==='procedure-progress')return procedureProgress.query(procedureProgressQuery(searchParams));
     if(view==='topic-trends')return topicTrends.query(topicTrendsQuery(searchParams,{now:clock()}));
     if(view==='saved')return savedStates(store,savedQuery(searchParams));
     if(view==='participation'){const query=participationQuery(searchParams);return views.get([INSIGHTS_VERSION,view,store.status().servingGeneration,brusselsDay(clock()),query],()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}));}

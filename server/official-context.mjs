@@ -38,7 +38,7 @@ export class OfficialContextSources {
     }
     try{signal?.throwIfAborted();return await waitForRequest(operation(),signal);}finally{release();}
   }
-  async get(input) {
+  async get(input,{freshMs=this.cache.freshMs,validate}={}) {
     requestSignal()?.throwIfAborted();
     const source=officialSourceUrl(input),url=source.href;
     const record=await waitForRequest(this.cache.get(['official-context-v1',url],()=>runWithRequestSignal(undefined,()=>{
@@ -65,8 +65,10 @@ export class OfficialContextSources {
         const text=await limitedText(response,json?3*1024*1024:1024*1024);
         return {url,fetchedAt:new Date(this.clock()).toISOString(),...(json?{data:JSON.parse(text)}:{html:text})};
       },{priority:'interactive',origin:source.origin,signal});
-    })));
-    if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw new HttpError(502,'official_source_identity','The saved official source could not be verified.');
+    }),{freshMs,validate:record=>{
+      if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw new HttpError(502,'official_source_identity','The saved official source could not be verified.');
+      validate?.(record);
+    }}));
     return record;
   }
 }
