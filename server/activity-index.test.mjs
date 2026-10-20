@@ -210,10 +210,12 @@ test('selected source outside the first page remains accessible; incomplete and 
 });
 
 
-test('daily catalog reconciliation removes withdrawn documents only from the unpublished generation',()=> {
+test('delta publication retains documents absent from the update feed without rewriting their item rows',()=> {
   const dir=temp(),s=new ActivityStore(dir,{clock:instant});
   try {s.acquire();let cycle=s.beginCycle();s.setMembers([{id:'257043'}]);s.putSource(cycle.generation,'/q','document',question,fetchedAt,documentRows(question,'/q',fetchedAt).rows);s.publish(cycle.generation);
-    cycle=s.beginCycle();s.pruneUnseenDocuments(cycle.generation);assert.equal(s.page('257043').indexedTotal,1);s.publish(cycle.generation);assert.equal(s.page('257043').indexedTotal,0);
+    cycle=s.beginCycle();const worker=new ActivityWorker(s,{clock:instant});
+    s.replaceRows=()=>{throw new Error('Unchanged rows must not be rewritten at publication.');};
+    worker.finalize(cycle.generation);assert.equal(s.page('257043').indexedTotal,1);
   } finally{s.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('search hit IDs control speech indexing; unmatched graph nodes do not become MEP activities',async()=> {

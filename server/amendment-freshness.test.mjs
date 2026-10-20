@@ -541,7 +541,8 @@ test('generation adoption preserves current absence, a pending page cursor and r
   const pending=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,'test:retained-roster-page');
   store.publish(generation);
   store.db.prepare('INSERT INTO sources SELECT 2,key,kind,body,fetched_at,seen FROM sources WHERE generation=?').run(generation);
-  store.set('active',2);store.set('sequence',2);store.set('previous',generation);
+  // This fixture predates accepted refresh snapshots; accepted mismatches fail closed.
+  store.set('refreshPolicyGeneration',null);store.set('active',2);store.set('sequence',2);store.set('previous',generation);
   const adopted=store.beginCycle();assert.equal(adopted.generation,3);
   rebuildAmendmentTarget(worker,adopted.generation,targetId);
   assert.deepEqual(store.source(adopted.generation,listKey),source);

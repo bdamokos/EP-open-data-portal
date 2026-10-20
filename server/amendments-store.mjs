@@ -343,6 +343,8 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   if(readCoverage.freshness)gaps.push(sourceFreshnessGap);
   const working=store.get('working'),active=store.get('active');
   const generations=[...new Set([generation,working?.generation,active].filter(Boolean))];
+  const refreshGaps=generations.some(id=>store.db.prepare("SELECT 1 FROM refresh_gaps WHERE generation=? AND kind IN ('document','motion-outcomes') LIMIT 1").get(id));
+  if(refreshGaps)gaps.push('Some document or sitting sources remain unavailable after bounded retries.');
   const pending=Boolean(generations.some(id=>store.db.prepare('SELECT 1 FROM amendment_jobs WHERE generation=? AND done<>1 LIMIT 1').get(id)||store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND key='amendment:continuations' AND (json_array_length(json_extract(body,'$.tasks'))>0 OR json_array_length(json_extract(body,'$.discovery'))>0) LIMIT 1").get(id))||[...new Set([working?.generation,active].filter(Boolean))].some(id=>store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND kind IN ('document','motion-outcomes') AND (done IS NULL OR done<>1) LIMIT 1").get(id)));
   const capacityGaps=generations.flatMap(id=>{
     const row=store.db.prepare("SELECT json_extract(body,'$.capacityGap') AS gap FROM sources WHERE generation=? AND key='amendment:continuations'").get(id);
@@ -357,7 +359,7 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   const indexedObservationComplete=Boolean(document&&readCoverage.rows>0&&records.length&&records.every(record=>record.complete)&&!listProjectionUnverified&&!readCoverage.wording&&!readCoverage.proposer&&!readCoverage.splits&&!readCoverage.freshness);
   const emptyObservation=document&&records.length===1?checkedEmptyObservation(records[0],document,readCoverage.rows):null;
   const observationComplete=indexedObservationComplete||Boolean(emptyObservation);
-  return {items,total,offset,limit,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length),observationComplete,emptyObservation,
+  return {items,total,offset,limit,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length&&!refreshGaps),observationComplete,emptyObservation,
     observationScope:emptyObservation?'published-amendment-list-relationships':'indexed-plenary-amendment-sources',indexed:Boolean(records.length),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope:'plenary',servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation)},failures:amendmentFailureSummary(store)};
 }
 
@@ -366,6 +368,7 @@ export function amendmentCompletionMarker(task,today) {
 }
 export function enqueueAmendment(store,generation,key,kind,body,priority=105,refreshCompleted=false) {
   store.assertWriter();
+  if(!kind.startsWith('amendment-') && store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key))return false;
   const enqueue=()=>{
     const existing=store.db.prepare('SELECT 1 FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
     if(!existing) {
