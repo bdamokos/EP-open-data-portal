@@ -119,3 +119,31 @@ test('explorers reuse saved demographic metadata across date windows and refresh
     time+=300_001;const result=await service.query('questions',new URLSearchParams('days=1&end=2026-07-16'));assert(result.viewCache.stale);await new Promise(resolve=>setImmediate(resolve));assert.equal(loads,2);assert.deepEqual(result.stats.dimensions.gender,[{label:'Female',count:1}]);
   }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
+
+test('subject filters validate exact place IDs and reject labels, unknown and repeated IDs',()=>{
+  assert.equal(insightQuery(new URLSearchParams('subject=USA'),{now:now()}).subject,'USA');
+  for(const value of ['subject=','subject=US','subject=usa','subject=United+States','subject=ZZZ','subject=USA&subject=FRA'])assert.throws(()=>insightQuery(new URLSearchParams(value),{now:now()}),error=>error.status===400);
+});
+
+test('subject selection matches aliases by place ID, intersects filters and retains empty/incomplete states without writes',async()=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'subject-query-test-')),store=new ActivityStore(directory);
+  try {
+    store.acquire();const {generation}=store.beginCycle();store.setMembers([{id:'1',name:'One',countryCode:'IT'},{id:'2',name:'Two',countryCode:'ES'}]);
+    const titles=['US pharmaceutical policies','United States energy security','France pharmaceutical policies','Medicines without a place','U.S. medicines in France'];
+    for(const [i,title] of titles.entries()) {
+      const work={...question.work,id:'eli/dl/doc/E-10-2026-00000'+(i+1),identifier:'E-10-2026-00000'+(i+1),title_dcterms:{en:title},is_realized_by:[],workHadParticipation:[],document_date:'2026-10-0'+(i+1),creator:['person/'+(i===1?'2':'1')],inverse_answers_to:[]},key='/parliamentary-questions/'+work.identifier;
+      store.putSource(generation,key,'document',projectDocument(work),fixture.verifiedAt,documentRows(work,key,fixture.verifiedAt).rows);
+    }
+    store.db.exec('PRAGMA query_only=ON');
+    const service=new QuestionInsights(store,{clock:now,loadMetadata:async()=>new Map(),loadQuestionBodies:async()=>new Map()}),query=s=>service.query(insightQuery(new URLSearchParams('days=30&'+s),{now:now()}));
+    const selected=await query('subject=USA');assert.equal(selected.counts.selectedQuestions,3);assert.equal(selected.selection.subjectLabel,'United States');
+    assert(selected.questions.every(q=>q.places.some(p=>p.id==='USA')));assert.equal(selected.coverage.indexComplete,false);assert.equal(selected.counts.totalQuestions,null);
+    assert.equal(selected.trend.bins.reduce((n,b)=>n+b.total,0),3);
+    assert.equal(selected.facets.countries.find(c=>c.code==='IT').count,2);assert.equal(selected.facets.countries.find(c=>c.code==='ES').count,1);
+    const intersect=await query('subject=USA&country=IT&from=2026-10-01&to=2026-10-03');assert.equal(intersect.counts.selectedQuestions,1);assert.equal(intersect.selectedStats.uniqueCurrentMeps,1);
+    assert.equal((await query('subject=USA&word=pharmaceutical')).counts.selectedQuestions,1);
+    const page=await query('subject=USA&limit=1&offset=1');assert.equal(page.questions.length,1);assert.equal(page.nextOffset,2);
+    const empty=await query('subject=DEU');assert.equal(empty.counts.selectedQuestions,0);assert.equal(empty.selection.subjectLabel,'Germany');assert.equal(empty.coverage.indexComplete,false);
+    assert.equal((await query('')).counts.selectedQuestions,5);
+  } finally {store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});}
+});

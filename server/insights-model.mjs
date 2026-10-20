@@ -3,7 +3,7 @@ import {titlePlaces,countryLabelSource} from './insights-places.mjs';
 import {phraseModelSteps} from './insights-phrases.mjs';
 import {finishWork,cooperativeWork} from './cooperative-work.mjs';
 
-export const INSIGHTS_VERSION = 'titles-phrases-facets-v7-source-freshness';
+export const INSIGHTS_VERSION = 'titles-phrases-facets-v8-subject-filter';
 export const officialApi = path => 'https://data.europarl.europa.eu/api/v2' + path;
 export function personId(value) {
   let reference=typeof value==='string' ? value : value?.id;

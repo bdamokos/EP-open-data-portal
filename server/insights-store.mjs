@@ -1,3 +1,4 @@
+import {subjectPlace} from './insights-places.mjs';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -15,7 +16,7 @@ function strictDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value;
 }
 export function insightQuery(search, {now=Date.now(),kind='questions'}={}) {
-  const allowed=new Set(kind==='questions'?['lang','days','end','from','to','cluster','word','country','limit','offset']:['lang','sitting','week','topic','vote']);
+  const allowed=new Set(kind==='questions'?['lang','days','end','from','to','cluster','word','country','subject','limit','offset']:['lang','sitting','week','topic','vote']);
   for(const key of search.keys()) if(!allowed.has(key)||search.getAll(key).length!==1) throw new HttpError(400,'invalid_query','Unsupported or repeated insight parameter.');
   const language=odpLanguage(search.get('lang')||'en');
   if(kind!=='questions') {
@@ -35,11 +36,12 @@ export function insightQuery(search, {now=Date.now(),kind='questions'}={}) {
   const start=new Date(Date.parse(end+'T12:00:00Z')-(days-1)*86400_000).toISOString().slice(0,10);
   const from=search.get('from'),to=search.get('to');
   if(Boolean(from)!==Boolean(to)||from&&(!strictDate(from)||!strictDate(to)||from<start||to>end||from>to))throw new HttpError(400,'invalid_range','Choose a date range inside the analysis period.');
-  const cluster=search.get('cluster'),word=search.get('word'),country=search.get('country');
+  const cluster=search.get('cluster'),word=search.get('word'),country=search.get('country'),subject=search.get('subject');
+  if(search.has('subject')&&!subjectPlace(subject))throw new HttpError(400,'invalid_subject','Choose a subject from a question title.');
   if(country&&!countryCode(country))throw new HttpError(400,'invalid_country','Choose a country of representation.');
   if(cluster && !/^(?:unassigned|topic-[A-Z0-9-]{1,100})$/.test(cluster))throw new HttpError(400,'invalid_cluster','Invalid cluster identifier.');
   if(word && (!/^(?:ai|\p{L}[\p{L}\p{M}'’-]{2,39})$/u.test(word)))throw new HttpError(400,'invalid_word','Choose a word from the title cloud.');
-  return {language,days,start,end,from,to,cluster,word,country:country?countryCode(country):null,limit:integer('limit',25,1,50),offset:integer('offset',0,0,5000)};
+  return {language,days,start,end,from,to,cluster,word,subject,country:country?countryCode(country):null,limit:integer('limit',25,1,50),offset:integer('offset',0,0,5000)};
 }
 
 // Read exact known cache keys. Never scan/copy the cache or trigger upstream fetches.
@@ -109,8 +111,9 @@ export class QuestionInsights {
     const a=await this.analysis(query);
     if(query.cluster && query.cluster!=='unassigned' && !a.clusters.some(c=>c.id===query.cluster))throw new HttpError(404,'cluster_not_found','That topic is not in this window.');
     const inTime=q=>!query.from||q.date>=query.from&&q.date<=query.to,hasTopic=q=>(!query.cluster || (query.cluster==='unassigned'?q.clusterId==null:q.clusterId===query.cluster))&&(!query.word||q.tokens.includes(query.word)),hasCountry=q=>!query.country||q.countries.includes(query.country);
-    const timeBase=a.questions.filter(inTime),countryBase=timeBase.filter(hasCountry),selected=countryBase.filter(hasTopic);
-    const geography=query.from?countryQuestions({...a,questions:timeBase},a.members,a.metadata):a;
+    const subjectBase=a.questions.filter(q=>!query.subject||q.places.some(p=>p.id===query.subject));
+    const timeBase=subjectBase.filter(inTime),countryBase=timeBase.filter(hasCountry),selected=countryBase.filter(hasTopic);
+    const geography=query.from||query.subject?countryQuestions({...a,questions:timeBase},a.members,a.metadata):a;
     const countryAnalysis=query.country?geography.countries.find(c=>c.code===query.country):null,countryFeatures=new Map((countryAnalysis?.features||[]).map(f=>[f.id,f]));
     const wordCounts=new Map(),clusterCounts=new Map();for(const q of countryBase){for(const token of q.tokens)wordCounts.set(token,(wordCounts.get(token)||0)+1);if(q.clusterId)clusterCounts.set(q.clusterId,(clusterCounts.get(q.clusterId)||0)+1);}
     const shownWords=a.wordCandidates.filter(w=>wordCounts.has(w.word)).map(w=>({...w,contextQuestionCount:wordCounts.get(w.word)})).sort((a,b)=>b.contextQuestionCount-a.contextQuestionCount||a.word.localeCompare(b.word)).slice(0,60);
@@ -120,9 +123,9 @@ export class QuestionInsights {
     const present=q=>({id:q.id,date:q.date,kind:q.kind,title:q.titles[query.language] || q.titles.en || Object.values(q.titles)[0] || q.id,titleLanguage:q.titles[query.language]?query.language:q.titles.en?'en':Object.keys(q.titles)[0]||null,analysisTitle:q.titles.en||null,places:q.places||[],clusterId:q.clusterId,authors:q.authors.map(p=>({...p,...memberPeople([p.id],a.members,a.metadata)[0]})),answers:q.answers,apiUrl:q.apiUrl,fetchedAt:q.fetchedAt});
     return {version:1,view:'questions',window:{start:query.start,end:query.end,days:query.days,dateBasis:'document_date; both boundaries inclusive'},requestedLanguage:query.language,
       counts:{indexedMatchingQuestions:a.indexedMatchingQuestions,analyzedQuestions:a.questions.length,totalQuestions:a.status.complete&&!a.truncated?a.indexedMatchingQuestions:null,selectedQuestions:selected.length,contextUnassignedQuestions:countryBase.filter(q=>q.clusterId===null).length,countryUnassignedQuestions:query.country?countryBase.filter(q=>q.clusterId===null).length:null,clusters:a.clusters.length},
-      selection:{cluster:query.cluster,word:query.word,wordLabel:query.word?(a.termLabels?.[query.word]||query.word):null,country:query.country,from:query.from||null,to:query.to||null},facets:{countries:countryFacets,availableQuestions:countryBase.length},stats:stats(a.questions),selectedStats:stats(selected,true),clusters:a.clusters.map(c=>({...c,contextQuestionCount:clusterCounts.get(c.id)||0,countryQuestionCount:query.country?clusterCounts.get(c.id)||0:null})),words:shownWords.map(w=>({...w,countryQuestionCount:query.country?w.contextQuestionCount:null})),analysis:a.analysis,
+      selection:{subject:query.subject||null,subjectLabel:subjectPlace(query.subject)?.label||null,cluster:query.cluster,word:query.word,wordLabel:query.word?(a.termLabels?.[query.word]||query.word):null,country:query.country,from:query.from||null,to:query.to||null},facets:{countries:countryFacets,availableQuestions:countryBase.length},stats:stats(a.questions),selectedStats:stats(selected,true),clusters:a.clusters.map(c=>({...c,contextQuestionCount:clusterCounts.get(c.id)||0,countryQuestionCount:query.country?clusterCounts.get(c.id)||0:null})),words:shownWords.map(w=>({...w,countryQuestionCount:query.country?w.contextQuestionCount:null})),analysis:a.analysis,
       geography:{countries:geography.countries.map(c=>({...c,features:[...new Map([...c.features.filter(f=>f.highlighted).slice(0,8),...c.features.filter(f=>f.id===(query.word?'word:'+query.word:'cluster:'+query.cluster))].map(f=>[f.id,f])).values()]})),selected:countryAnalysis,unknownCountryQuestions:geography.unknownCountryQuestions,method:geography.method},
-      trend:questionTrend(query.country?a.questions.filter(hasCountry):a.questions,a.questions.filter(q=>hasCountry(q)&&hasTopic(q)),query),questions:selected.slice(query.offset,query.offset+query.limit).map(present),offset:query.offset,limit:query.limit,nextOffset:query.offset+query.limit<selected.length?query.offset+query.limit:null,
+      trend:questionTrend(query.country?subjectBase.filter(hasCountry):subjectBase,subjectBase.filter(q=>hasCountry(q)&&hasTopic(q)),query),questions:selected.slice(query.offset,query.offset+query.limit).map(present),offset:query.offset,limit:query.limit,nextOffset:query.offset+query.limit<selected.length?query.offset+query.limit:null,
       coverage:{indexComplete:a.status.complete,truncated:a.truncated,scope:'Saved term-10 question sources, with all explicitly supplied authors. Demographics cover only people on the current saved MEP roster.',servingGeneration:a.status.servingGeneration,sourceCounts:a.status.sourceCounts,rosterFetchedAt:a.status.rosterFetchedAt,lastSuccessfulRefresh:a.status.lastSuccessfulRefresh,pendingSpeechRecoveries:a.status.pendingSpeechRecoveries?.count||0,sourceFetchedFrom:a.questions.map(q=>q.fetchedAt).filter(Boolean).sort()[0]||null,sourceFetchedTo:a.questions.map(q=>q.fetchedAt).filter(Boolean).sort().at(-1)||null},
       cache:{computedAt:a.computedAt,ttlSeconds:60,readOnly:true},attribution:'European Parliament Open Data API v2, CC BY 4.0',limits:INSIGHTS_LIMITS};
   }
