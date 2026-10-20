@@ -407,7 +407,8 @@ test('legacy aggregate outcomes and split descriptions do not become whole-amend
   assert(detail.querySelector('ins'));assert(detail.querySelector('del'));
   await h.click('Side by side');assert.equal(detail.querySelectorAll('.wording-diff__columns section').length,2);
   await h.click('Changes');assert.equal(h.button('Changes').getAttribute('aria-pressed'),'true');
-  assert.match(decisions.textContent,/Whole amendmentVoted in parts.*Part 1Rejected.*Part 2Lapsed/s);
+  assert.match(decisions.textContent,/Whole amendmentVoted in parts/);
+  assert.deepEqual([...decisions.querySelectorAll('.motion-amendments__decision')].map(row=>[row.querySelector('strong').textContent,row.querySelector('.motion-amendments__outcome').textContent]),[['Part 1','Rejected'],['Part 2','Lapsed']]);
   assert.doesNotMatch(decisions.textContent,/Adopted|Vote records disagree/);
   assert.deepEqual(['original','proposed'].map(side=>wordingText(detail,side)),[item.originalText,item.proposedText]);
   assert.match(decisions.textContent,/Published split description\./);

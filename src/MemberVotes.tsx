@@ -1,3 +1,4 @@
+import {Result,Position} from './MemberVoteSummary';
 import {OutcomeAlignmentFilter} from './OutcomeAlignmentFilter';
 import {VotePeriodNavigation} from './VotePeriodNavigation';
 import {votePeriodTransition} from './plenaryPeriods.mjs';
@@ -6,7 +7,7 @@ import {useData} from './data';
 import {selectLanguageText} from './language.mjs';
 import {selectVoteTitle} from './voteTitles.mjs';
 import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from './MemberVotesTypes';
-import {MEMBER_VOTES_PAGE_SIZE,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteOutcome,memberVotePosition,memberVotePositionSummary,memberVoteTotals,memberVotesRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
+import {MEMBER_VOTES_PAGE_SIZE,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteOutcome,memberVotePositionSummary,memberVotesRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
 import {WordingDiff} from './components/WordingDiff';
 
@@ -23,8 +24,6 @@ export type MemberVotesProps={
 };
 export const defaultMemberVotesState:MemberVotesState={week:'latest',sittingId:null,positions:'recorded',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null};
 
-type ResultVote=Pick<MemberVote,'outcome'|'totals'|'ballotStatus'>;
-type PositionVote=Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>;
 type WordingVariant={
   listId:string;language:string|null;targetLabel:string|null;targetLabelLanguage?:string|null;
   targetLabelSource?:Record<string,unknown>|null;fieldSources?:Record<string,unknown>|null;
@@ -47,23 +46,6 @@ const chosenTitle=(record:{titles:Record<string,string>;title:string|null;titleL
 };
 const periodLabel=(data:MemberVotesResponse|null,state:MemberVotesState)=>state.sittingId?'Sitting · '+dateLabel(state.sittingId.slice(7)):data?.period.from?'Week of '+dateLabel(data.period.from):state.week==='latest'?'Latest sitting week':'Week of '+dateLabel(state.week);
 const methodLabel=(vote:MemberVote)=>vote.ballotStatus==='not-conducted'?'Not put to a vote':({VOTE_ELECTRONIC_ROLLCALL:'Roll-call vote',VOTE_HAND:'Show of hands',VOTE_ELECTRONIC:'Electronic vote',VOTE_SECRET:'Secret ballot'}[vote.method||'']||'Voting method unavailable');
-
-function Result({vote}:{vote:ResultVote}) {
-  const totals=memberVoteTotals(vote),outcome=memberVoteOutcome(vote);
-  return <span className="member-votes-result">
-    <span className="member-votes-result-heading"><span>Parliament</span><strong>{outcome}</strong></span>
-    {totals?<>
-      {totals.total>0&&<span className="member-votes-bar" role="img" aria-label={`For ${totals.for}, Against ${totals.against}, Abstaining ${totals.abstaining}`}>
-        {(['for','against','abstaining'] as const).map(position=><span key={position} className={'member-votes-'+position} style={{width:(100*totals[position]/totals.total)+'%'}}/>)}</span>}
-      <span className="member-votes-counts"><span>For <b>{totals.for}</b></span><span>Against <b>{totals.against}</b></span><span>Abstaining <b>{totals.abstaining}</b></span></span>
-    </>:<span className="member-votes-muted">{vote.ballotStatus==='not-conducted'?'Not put to a vote':'Tallies unavailable'}</span>}
-  </span>;
-}
-
-function Position({vote,memberName,compact=false}:{vote:PositionVote;memberName:string;compact?:boolean}) {
-  const label=memberVotePosition(vote),position=label==='For'?'for':label==='Against'?'against':label==='Abstained'?'abstaining':'unknown';
-  return <span className={'member-votes-position member-votes-position-'+position+(compact?' member-votes-position-compact':'')}><span className="member-votes-position-label">{memberName}{compact&&['For','Against','Abstained'].includes(label)?' voted':''}{compact?' ':''}</span><strong>{label}</strong></span>;
-}
 
 function WholeText({vote,memberName,onDecision}:{vote:MemberVoteWholeTextDecision;memberName:string;onDecision:(id:string)=>void}) {
   return <button type="button" className="member-votes-whole" onClick={()=>onDecision(vote.id)}>Final vote · <strong>{memberVoteOutcome(vote)}</strong> · <Position vote={vote} memberName={memberName} compact/></button>;
