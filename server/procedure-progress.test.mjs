@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {OfficialContextSources} from './official-context.mjs';
 import {ProcedureProgress,PROGRESS_LIMITS,procedureProgressQuery,progressSparql,parseProgress,parseProgressDocuments,readableDocumentUrl} from './procedure-progress.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
+import {createInsights} from './insights.mjs';
 
 const dossier='http://publications.europa.eu/resource/cellar/9d07a799-630b-11f0-bf4e-01aa75ed71a1';
 const work='http://publications.europa.eu/resource/cellar/e0649735-a372-11eb-9585-01aa75ed71a1';
@@ -33,6 +34,14 @@ test('progress grammar validates the complete procedure and finite optional deta
   assert.match(sparql,/OPTIONAL \{ \?event cdm:event_legal_date/);
   assert.match(sparql,/ORDER BY \?event LIMIT 301/);
   assert.match(sparql,/ORDER BY \?kind/);
+});
+test('the actual insight dispatcher admits the independent finite route without reading an index',async()=>{
+  let calls=0;
+  const service=createInsights(new Proxy({},{get(){throw new Error('Progress must not read the index');}}),{officialSources:{get:async(url,options)=>{calls++;assert.equal(new URL(url).hostname,'publications.europa.eu');assert.equal(options.freshMs,3600_000);return {url,fetchedAt:'2026-10-20T10:00:00Z',data:data([mapping,row()])};}}});
+  const response=await service.query('procedure-progress',new URLSearchParams({reference:query.reference,lang:'en'}));
+  assert.equal(response.version,1);assert.equal(response.events.length,1);assert.equal(calls,1);
+  for(const suffix of ['&reference=2025%2F0223(COD)','&detail=','&detail=all','&unknown=x'])await assert.rejects(service.query('procedure-progress',new URLSearchParams('reference=2025%2F0223(COD)'+suffix)),{status:400});
+  assert.equal(calls,1,'invalid semantic queries never reach the source');
 });
 test('duplicate institution and label rows remain one exact event; scheduled is never completed',()=>{
   const projected=row('0002',{date:l('2020-01-01'),status:u('http://publications.europa.eu/resource/authority/event-status/PROJECTED')});
