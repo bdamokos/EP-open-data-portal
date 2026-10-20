@@ -3,4 +3,5 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './base.css';
 import {RootBoundary} from './ErrorBoundary';
-createRoot(document.getElementById('root')!).render(<StrictMode><RootBoundary><App /></RootBoundary></StrictMode>);
+import {PlenaryLiveProvider} from './PlenaryLive';
+createRoot(document.getElementById('root')!).render(<StrictMode><RootBoundary><PlenaryLiveProvider><App /></PlenaryLiveProvider></RootBoundary></StrictMode>);

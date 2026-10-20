@@ -11,6 +11,7 @@ import {assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} 
 import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
 import {API_VERSION} from './api-version.mjs';
+import {plenaryLive} from './plenary-live.mjs';
 import {odpDirectory,odpProfileWithMemberships,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,upstreamStatus} from './odp.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
@@ -105,7 +106,7 @@ async function corpusSearchBody(request) {
 }
 
 // Browser transport for this app. The gateway admits the same finite route set.
-const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','source-record','corpus','speech-statistics','speech-media','speech-context']);
+const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -125,6 +126,7 @@ async function handleApi(request,response,url,apiPrefix){
  if(request.method==='OPTIONS'){setCommonSecurityHeaders(response);response.statusCode=204;response.setHeader('Allow',isCorpusSearch?'GET, HEAD, POST, OPTIONS':'GET, HEAD, OPTIONS');response.setHeader('Cache-Control','no-store');response.setHeader('CDN-Cache-Control','no-store');response.setHeader('Vary','Origin');response.end();return;}
  requireMethod(request,isCorpusSearch?['GET','HEAD','POST']:['GET','HEAD']);
  if(!endpoint||endpoint==='healthz'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:API_VERSION,...(!endpoint?{endpoints:[...apiEndpoints]}:{}),time:new Date().toISOString()});return;}
+ if(endpoint==='plenary-live'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,await plenaryLive.snapshot());return;}
     const queryKeys={directory:['lang','retry'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang'],'speech-transcript':['lang'],'source-record':['lang','url'],'motion-comparison':['lang','joint','stage']};
     if(Object.hasOwn(queryKeys,segments[0]))requireQuery(url.searchParams,queryKeys[segments[0]]);
     const language = odpLanguage(url.searchParams.get("lang") || "en");

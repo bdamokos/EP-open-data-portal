@@ -1,0 +1,73 @@
+{
+  "sources": [
+    {
+      "url": "https://www.europarl.europa.eu/plenary/en/getSpeakerListAndPlenaryMessages.html?dateSys=20261020",
+      "fetchedAt": "2026-10-20T07:53:24Z"
+    },
+    {
+      "url": "https://8hwk2cyeyb.execute-api.eu-west-1.amazonaws.com/parrotfish-prod/ebs/live/EBSPLUS",
+      "fetchedAt": "2026-10-20T07:48:43Z"
+    }
+  ],
+  "feed": {
+    "currentDate": "20-10-2026",
+    "lastUpdate": "20-10-2026 - 09:53",
+    "type": "DEB",
+    "debateId": "D27530",
+    "currentTitle": "Statement by the Vice-President of the Commission/High Representative of the Union for Foreign Affairs and Security Policy - Escalation of Russian strikes in the EU, particularly on Black Sea shipping, threatening human life, regional stability and food security",
+    "plenaryMessages": null
+  },
+  "programme": {
+    "id": "6acf44004cda7d4921da4b32",
+    "channelId": "6082c9bb97ad8b2acf7fcc98",
+    "status": "PUBLISHED",
+    "broadcastStatus": "LIVE",
+    "startDatetime": "2026-10-20T07:00:22.480Z",
+    "titles": [
+      {
+        "language": "EN",
+        "content": "<p>EP Plenary Session </p><p>Escalation of Russian strikes in the EU, particularly on Black Sea shipping, threatening human life, regional stability and food security</p>"
+      }
+    ],
+    "languages": [
+      "INT",
+      "EN",
+      "FR",
+      "DE",
+      "IT",
+      "ES",
+      "EL",
+      "PT",
+      "NL",
+      "DA",
+      "FI",
+      "SV",
+      "CS",
+      "ET",
+      "LV",
+      "LT",
+      "HU",
+      "PL",
+      "SK",
+      "SL",
+      "BG",
+      "RO",
+      "HR"
+    ],
+    "transmissions": [
+      {
+        "status": "PUBLISHED",
+        "media": {
+          "status": "PUBLISHED",
+          "locked": false,
+          "institutions": [
+            {
+              "id": "2618",
+              "type": "INSTITUTIONS"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
