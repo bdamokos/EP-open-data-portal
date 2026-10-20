@@ -104,7 +104,7 @@ export class ActivityWorker {
         return Boolean(task.attempts>0 || task.retry_at>0 || Number(body.offset)>0 || body.stage && body.stage!=='results' || ['results','decisions','splits','sources'].some(key=>body[key]?.length) || !['document','procedure','motion-outcomes'].includes(task.kind));
       };
       const pending=new Map([...(saved.tasks || []),...(saved.discovery || []).map(task=>({...task,body:JSON.stringify(task.kind==='motion-outcomes'?{sittingId:task.sittingId,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]}:{endpoint:task.endpoint}),attempts:0,retry_at:0,error:null}))].map(task=>[task.key,{...task,generation,done:0}]));
-      for(const {key} of this.store.db.prepare('SELECT key FROM refresh_gaps WHERE generation=?').all(generation))pending.delete(key);
+      for(const {key} of this.store.db.prepare('SELECT gap.key FROM refresh_gaps gap LEFT JOIN refresh_gap_admissions admitted ON admitted.generation=gap.generation AND admitted.key=gap.key WHERE gap.generation=? AND admitted.key IS NULL').all(generation))pending.delete(key);
       // Agenda verification stays in the durable canonical queue so its pending
       // coverage and recovery survive the bounded amendment continuation log.
       const incoming=includeCore?this.store.db.prepare(`SELECT * FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key NOT LIKE 'outside:agenda-membership:%'
@@ -188,9 +188,10 @@ export class ActivityWorker {
     // The public window gap remains unresolved even after ID discovery. Track
     // scheduled catalogue recovery separately so a later outage gets its own
     // durable cursors while repeated reads of one interval remain coalesced.
-    if(this.store.db.prepare('SELECT 1 FROM feed_catalog_recovery WHERE generation=? AND endpoint=? AND start=?').get(generation,endpoint,start))return;
-    for(const collection of collections(new Date(this.clock()).getUTCFullYear()).filter(collection=>collection.endpoint===endpoint))this.store.enqueue(generation,'gap-catalog:'+endpoint+':'+start+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true,feedRecovery:{start,end}},100);
-    this.store.db.prepare('INSERT INTO feed_catalog_recovery VALUES (?,?,?,?)').run(generation,endpoint,start,end);
+    const prior=this.store.db.prepare('SELECT end FROM feed_catalog_recovery WHERE generation=? AND endpoint=? AND start=?').get(generation,endpoint,start);
+    if(prior?.end>=end)return;
+    for(const collection of collections(new Date(this.clock()).getUTCFullYear()).filter(collection=>collection.endpoint===endpoint))this.store.enqueue(generation,'gap-catalog:'+endpoint+':'+start+':'+end+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true,feedRecovery:{start,end}},100);
+    this.store.db.prepare('INSERT INTO feed_catalog_recovery VALUES (?,?,?,?) ON CONFLICT(generation,endpoint,start) DO UPDATE SET end=excluded.end').run(generation,endpoint,start,end);
   }
   async task(task) {
     const {generation,body}=task;
@@ -565,7 +566,7 @@ export class ActivityWorker {
           }
           if(gap.retry_at<=this.clock()) {
             const pending=this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=? AND (done IS NULL OR done<>1) UNION ALL SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND done<>1 LIMIT 1').get(generation,gap.key,generation,gap.key);
-            if(!pending)this.store.enqueue(generation,gap.key,gap.kind,JSON.parse(gap.body),gap.priority,true,{retryGap:true});
+            if(!pending)this.store.enqueue(generation,gap.key,gap.kind,{},gap.priority,true,{retryGap:true});
             this.store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(this.clock()+delay,generation,gap.key);
           }
         } else scheduleSittingOutcomes(this,generation,row.sitting_id);

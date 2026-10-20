@@ -62,6 +62,7 @@ export function refreshPolicyTables(db) {
     CREATE INDEX IF NOT EXISTS refresh_gap_due ON refresh_gaps(generation,retry_at,key);
     CREATE INDEX IF NOT EXISTS refresh_gap_sitting ON refresh_gaps(generation,sitting_id,retry_at);
     CREATE INDEX IF NOT EXISTS refresh_gap_endpoint ON refresh_gaps(generation,kind,json_extract(body,'$.endpoint'));
+    CREATE TABLE IF NOT EXISTS refresh_gap_admissions(generation INTEGER,key TEXT,PRIMARY KEY(generation,key));
     CREATE INDEX IF NOT EXISTS task_feed_endpoint ON tasks(generation,kind,json_extract(body,'$.endpoint'),done);
     CREATE TABLE IF NOT EXISTS feed_catalog_recovery(generation INTEGER,endpoint TEXT,start TEXT,end TEXT,PRIMARY KEY(generation,endpoint,start));
     CREATE TABLE IF NOT EXISTS sitting_refresh(generation INTEGER,sitting_id TEXT,next_check INTEGER,PRIMARY KEY(generation,sitting_id));
@@ -96,7 +97,7 @@ export function scheduleMutable(worker,generation) {
     let count=prior?.day===today?prior.count:0;
     for(const gap of store.db.prepare("SELECT * FROM refresh_gaps WHERE generation=? AND kind<>'coverage' AND retry_at<=? ORDER BY retry_at,key LIMIT ?").all(generation,now,Math.max(0,GAP_LIMIT-count))) {
       if(gap.kind==='motion-outcomes' && today<sittingConfirmationDay(gap.sitting_id))continue;
-      store.enqueue(generation,gap.key,gap.kind,JSON.parse(gap.body),gap.priority,true,{retryGap:true});
+      store.enqueue(generation,gap.key,gap.kind,{},gap.priority,true,{retryGap:true});
       store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(now+7*DAY,generation,gap.key);
       if(gap.kind==='motion-outcomes')store.db.prepare('UPDATE sitting_refresh SET next_check=? WHERE generation=? AND sitting_id=?').run(now+7*DAY,generation,gap.sitting_id);
       count++;

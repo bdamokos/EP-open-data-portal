@@ -341,3 +341,56 @@ test('each later expired feed interval starts catalogue recovery independently o
   const gap=store.db.prepare("SELECT body FROM refresh_gaps WHERE generation=? AND kind='coverage'").get(cycle.generation);
   assert.equal(JSON.parse(gap.body).start,'2026-09-01','the oldest unavailable window remains explicit');
 });
+
+test('an admitted retry retains its progressed cursor through repeated full-queue checkpoints',t=>{
+  const {store,generation,worker,advance}=setup(t,'2026-10-08T08:00Z');
+  const key='motion-outcomes:'+sitting+':retry',original={sittingId:sitting,stage:'results',offset:0,results:[],decisions:[],sources:[]};
+  store.enqueue(generation,key,'motion-outcomes',original,100);
+  assert(recordTaskGap(worker,{...store.nextTask(generation),attempts:2},Object.assign(new Error('Unavailable'),{status:404})));
+  store.publish(generation);advance(6*60*60_000);
+  assert.equal(store.enqueue(generation,key,'motion-outcomes',{},0,true,{retryGap:true}),true);
+  const progressed={...original,stage:'decisions',offset:750,results:[{id:'retained-result'}]};
+  store.taskProgress(store.nextTask(generation),progressed);
+  const fill=store.db.prepare('INSERT INTO amendment_jobs VALUES (?,?,?,?,?,?,?,?,?)');
+  for(let n=0;n<200;n++)fill.run(generation,'full:'+n,'amendment-reparse','{}',200,0,0,0,null);
+  for(let n=0;n<3;n++) {
+    worker.checkpointContinuations(generation);
+    const snapshot=store.source(generation,'amendment:continuations').work.tasks.find(task=>task.key===key);
+    assert(snapshot,'an admitted progressed retry stays in its checkpoint');assert.deepEqual(JSON.parse(snapshot.body),progressed);
+    assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(generation,key),undefined);
+    assert(store.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(generation,key));
+  }
+  store.db.prepare("DELETE FROM amendment_jobs WHERE generation=? AND key='full:0'").run(generation);
+  worker.checkpointContinuations(generation);
+  const queued=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
+  assert.deepEqual(JSON.parse(queued.body),progressed);
+  store.finishTask({...queued,amendmentJob:true});
+  assert.equal(store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key),undefined);
+  assert.equal(store.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(generation,key),undefined);
+});
+
+test('retry queue admission and its durable marker roll back together on failure',t=>{
+  const {store,generation,worker,advance}=setup(t);
+  store.enqueue(generation,'atomic-retry','document',{endpoint:'/q',offset:750},90);
+  assert(recordTaskGap(worker,{...store.nextTask(generation),attempts:4},new Error('Unavailable')));advance(7*DAY);
+  const prepare=store.db.prepare.bind(store.db);
+  t.mock.method(store.db,'prepare',sql=>sql.startsWith('INSERT OR IGNORE INTO refresh_gap_admissions')?{run(){throw new Error('Simulated admission failure');}}:prepare(sql));
+  assert.throws(()=>store.enqueue(generation,'atomic-retry','document',{},0,true,{retryGap:true}),/Simulated admission failure/);
+  assert.equal(prepare("SELECT done FROM tasks WHERE key='atomic-retry'").get().done,1);
+  assert.equal(prepare('SELECT COUNT(*) n FROM refresh_gap_admissions').get().n,0);
+  assert.equal(JSON.parse(prepare("SELECT body FROM refresh_gaps WHERE key='atomic-retry'").get().body).offset,750);
+});
+
+test('further expiry of the same failed feed start advances catalogue recovery without duplicating identical bounds',t=>{
+  const {store,generation,worker,advance}=setup(t,'2026-11-15T10:00Z');
+  worker.recoverFeedWindow(generation,'/parliamentary-questions','2026-09-01');
+  const first=store.db.prepare('SELECT end FROM feed_catalog_recovery WHERE generation=?').get(generation).end;
+  for(const task of store.db.prepare('SELECT * FROM tasks').all())store.finishTask(task);
+  store.publish(generation);advance(40*DAY);const cycle=store.beginCycle();
+  worker.recoverFeedWindow(cycle.generation,'/parliamentary-questions','2026-09-01');
+  const queued=store.db.prepare("SELECT body FROM tasks WHERE generation=? AND kind='catalog'").all(cycle.generation);
+  assert(queued.length>0);assert(queued.every(row=>JSON.parse(row.body).feedRecovery.end>first));
+  const end=store.db.prepare('SELECT end FROM feed_catalog_recovery WHERE generation=?').get(cycle.generation).end;assert(end>first);
+  worker.recoverFeedWindow(cycle.generation,'/parliamentary-questions','2026-09-01');
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE generation=? AND kind='catalog'").get(cycle.generation).n,queued.length);
+});
