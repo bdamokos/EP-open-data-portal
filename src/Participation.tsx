@@ -1,3 +1,4 @@
+import {plenaryMonday as calendarMonday,groupPlenaryWeeks} from './plenaryPeriods.mjs';
 import {useExplorerParam} from './explorerUrl';
 import {useInsightData} from './InsightData';
 import {countryName} from './CountryMap';
@@ -8,12 +9,12 @@ type Metric='speakers'|'voters'|'amendmentVotes';
 type Row={id:string;title:string;titleLanguage?:string|null;date:string;sittingId:string;upcoming:boolean;speakers:number|null;voters:number|null;amendmentVotes:number|null;rollCalls:number};
 type Response={topics:Row[];series:({date:string}&Record<Metric,number|null>)[];window:{start:string;end:string};coverage:{topicsWithSpeechLinks:number;topics:number;gaps:{kind:string;sitting:string}[]}};
 type Sitting={id:string;date:string;phase?:string};
-export function plenaryMonday(date:string){const day=new Date(date+'T12:00:00Z');day.setUTCDate(day.getUTCDate()-(day.getUTCDay()+6)%7);return day.toISOString().slice(0,10);}
+export function plenaryMonday(date:string){return calendarMonday(date)||date;}
 // Plenary views default to the whole week of the most recent held sitting; single sittings remain selectable.
 export const latestHeldSitting=(sittings:Sitting[])=>[...sittings].filter(s=>s.phase!=='upcoming').sort((a,b)=>b.date.localeCompare(a.date))[0]||sittings[0];
 export const weekPeriod=(sitting:Sitting|undefined)=>sitting?'week:'+plenaryMonday(sitting.date):'';
 export function PlenaryPeriodSelect({value,sittings,language,onChange,includeLatest=false}:{value:string;sittings:Sitting[];language:string;onChange:(period:string)=>void;includeLatest?:boolean}) {
-  const weeks=[...new Set(sittings.map(s=>plenaryMonday(s.date)))].sort().reverse(),upcoming=(week:string)=>sittings.filter(s=>plenaryMonday(s.date)===week).every(s=>s.phase==='upcoming');
+  const weeks=groupPlenaryWeeks(sittings).map(item=>item.week),upcoming=(week:string)=>sittings.filter(s=>plenaryMonday(s.date)===week).every(s=>s.phase==='upcoming');
   const missing=value&&!weeks.some(week=>value==='week:'+week)&&!sittings.some(s=>value==='sitting:'+s.id)&&!(includeLatest&&value==='week:latest');
   const date=value.slice(5),missingLabel=value.startsWith('week:')&&/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date))?'Week of '+humanDate(date,language):value.startsWith('sitting:')?'Sitting '+value.slice(8):value;
   return <label lang="en">Period<select value={value} onChange={event=>onChange(event.target.value)}>{includeLatest&&<option value="week:latest">Latest plenary week</option>}{missing&&<option value={value} lang={language==='en'?'en':''}>{missingLabel}</option>}<optgroup lang="en" label="Plenary weeks">{weeks.map(week=><option lang={language==='en'?'en':''} key={week} value={'week:'+week}>Week of {humanDate(week,language)}{upcoming(week)?' · upcoming':''}</option>)}</optgroup><optgroup lang="en" label="Single sittings">{sittings.map(s=><option lang={s.phase==='upcoming'&&language!=='en'?'':language} key={s.id} value={'sitting:'+s.id}>{humanDate(s.date,language)}{s.phase==='upcoming'?' · upcoming':''}</option>)}</optgroup></select></label>;

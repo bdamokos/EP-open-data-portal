@@ -1,6 +1,7 @@
 export type MemberVotePosition = 'for' | 'against' | 'abstaining';
 
 export type MemberVoteSource = {
+  httpStatus?:404;
   url:string;
   fetchedAt:string;
   contentHash:string;

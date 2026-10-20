@@ -1,3 +1,4 @@
+import {calendarYears,identifiedPlenarySitting,currentTermSittings,isPlenarySitting} from './plenary-calendar.mjs';
 import {createHash} from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
 import {odp,odpLanguage} from './odp.mjs';
@@ -45,7 +46,7 @@ function sourceEvidence(record,payload){
 export class MemberVotes {
   constructor({request=odp,clock=Date.now,limits={}}={}){this.request=request;this.clock=clock;this.limits={...MEMBER_VOTES_LIMITS,...limits};this.periods=new Map();this.snapshots=new Map();this.pending=new Map();this.cacheBytes=0;}
 
-  async pages(endpoint,params,kind,budget) {
+  async pages(endpoint,params,kind,budget,{heldSitting=false}={}) {
     const coverage=pageCoverage(),nodes=new Map(),evidence=Object.create(null),nodeEvidence=Object.create(null),conflicts=[],size=kind==='decisions'?this.limits.decisionPageSize:this.limits.pageSize;
     const maxPages=this.limits[kind==='catalogue'?'cataloguePages':kind==='decisions'?'decisionPages':kind==='results'?'resultsPages':'agendaPages'];
     for(let page=0;page<maxPages;page++){
@@ -73,6 +74,15 @@ export class MemberVotes {
         coverage.state='partial';coverage.stopReason='page-budget';
       } catch(error){
         if(isLocalRequestFailure(error))throw error;
+        if(heldSitting&&page===0&&error.code==='odp_unavailable'&&error.upstreamStatus===404&&error.source?.httpStatus===404){
+          const source=error.source,bytes=error.responseBytes;
+          const expected=new URL(API+endpoint);for(const [key,value] of Object.entries({...params,limit:size,offset:0,format:'application/ld+json'}))expected.searchParams.set(key,String(value));
+          const fetchedAt=typeof source.fetchedAt==='number'&&Number.isFinite(source.fetchedAt)?new Date(source.fetchedAt).toISOString():source.fetchedAt;
+          if(source.url===expected.href&&Number.isFinite(Date.parse(fetchedAt))&&/^[a-f0-9]{64}$/.test(source.contentHash)&&Number.isSafeInteger(bytes)&&bytes>=0&&bytes<=this.limits.sourceBytes&&budget.bytes+bytes<=this.limits.periodBytes){
+            budget.bytes+=bytes;coverage.state='complete';coverage.stopReason='not-found';coverage.pages=1;
+            coverage.sources.push({...source,fetchedAt,stale:false,refreshInProgress:false,refreshError:null});break;
+          }
+        }
         if(error.code==='odp_no_content'&&coverage.pages){coverage.state='complete';coverage.stopReason='no-content';break;}
         coverage.state=coverage.pages?'partial':'unavailable';coverage.stopReason='error';coverage.error=errorInfo(error);break;
       }
@@ -94,7 +104,7 @@ export class MemberVotes {
       }catch(error){if(isLocalRequestFailure(error))throw error;coverage.error=errorInfo(error);coverage.stopReason='error';return {nodes:[],coverage};}
     }
     const today=brusselsDay(this.clock()),year=Number((query.week==='latest'?today:query.week).slice(0,4));
-    const years=query.week==='latest'?Array.from({length:year-2024+1},(_,i)=>year-i):[...new Set([year,Number(dayOffset(query.week,6).slice(0,4))])];
+    const years=query.week==='latest'?calendarYears(today).reverse():[...new Set([year,Number(dayOffset(query.week,6).slice(0,4))])];
     let nodes=[],coverage=pageCoverage();
     for(const selectedYear of years){
       const result=await this.pages('/meetings',{year:selectedYear},'catalogue',budget);
@@ -102,9 +112,8 @@ export class MemberVotes {
       if(coverage.state!=='complete')break;
       if(query.week==='latest'&&nodes.some(n=>tail(n.had_activity_type)==='PLENARY_SITTING'&&validDate(n.activity_date)&&n.activity_date>=CURRENT_TERM_START&&n.activity_date<=today))break;
     }
-    const identified=n=>/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(n.activity_id||'')&&relative(n.id)==='eli/dl/event/'+n.activity_id&&n.activity_date===n.activity_id.slice(7)&&validDate(n.activity_date);
-    if(nodes.some(n=>tail(n.had_activity_type)==='PLENARY_SITTING'&&!identified(n))){coverage.state='partial';coverage.error={code:'vote_sitting_identity',message:'Some listed plenary sittings have inconsistent identifiers or dates.'};}
-    const valid=nodes.filter(n=>identified(n)&&tail(n.had_activity_type)==='PLENARY_SITTING'&&n.activity_date>=CURRENT_TERM_START&&n.activity_date<=today);
+    if(nodes.some(n=>isPlenarySitting(n)&&!identifiedPlenarySitting(n))){coverage.state='partial';coverage.error={code:'vote_sitting_identity',message:'Some listed plenary sittings have inconsistent identifiers or dates.'};}
+    const valid=currentTermSittings(nodes,today);
     return {nodes:valid,coverage};
   }
 
@@ -114,10 +123,10 @@ export class MemberVotes {
     // A local failure ends this collection, so sibling reads must lose their
     // ownership too, before sharedRequest disposes the collection deadline.
     const [all,named,results,agenda]=await runWithRequestSignal(signal,()=>Promise.all([
-      this.pages('/meetings/'+sittingId+'/decisions',{'filter-output':'voters'},'decisions',budget),
-      this.pages('/meetings/'+sittingId+'/decisions',{'vote-method':'ROLL_CALL_EV'},'decisions',budget),
-      this.pages('/meetings/'+sittingId+'/vote-results',{},'results',budget),
-      this.pages('/meetings/'+sittingId+'/foreseen-activities',{},'agenda',budget)
+      this.pages('/meetings/'+sittingId+'/decisions',{'filter-output':'voters'},'decisions',budget,{heldSitting:true}),
+      this.pages('/meetings/'+sittingId+'/decisions',{'vote-method':'ROLL_CALL_EV'},'decisions',budget,{heldSitting:true}),
+      this.pages('/meetings/'+sittingId+'/vote-results',{},'results',budget,{heldSitting:true}),
+      this.pages('/meetings/'+sittingId+'/foreseen-activities',{},'agenda',budget,{heldSitting:true})
     ]).catch(error=>{failure.abort(error);throw error;}));
     const errors=[];
     const eligible=(collection,suffix)=>collection.nodes.filter(n=>{

@@ -1,3 +1,4 @@
+import {calendarYears,currentTermSittings} from './plenary-calendar.mjs';
 import { HttpError } from './http-utils.mjs';
 import { odp } from './odp.mjs';
 import { array,tail } from './activity-index-model.mjs';
@@ -66,7 +67,7 @@ export class LegislationInsights {
     this.pending.set(key,job);return waitForRequest(job);
   }
   async catalogue() {
-    const today=brusselsDay(this.clock()),year=Number(today.slice(0,4)),years=Array.from({length:year-Number(CURRENT_TERM_START.slice(0,4))+1},(_,i)=>Number(CURRENT_TERM_START.slice(0,4))+i),nodes=new Map(),sources=[];
+    const today=brusselsDay(this.clock()),year=Number(today.slice(0,4)),years=calendarYears(today),nodes=new Map(),sources=[];
     for(let offset=0;;offset+=50) {
       let r;
       try{r=await this.record('/meetings',{year:years.join(','),limit:50,offset});}
@@ -77,7 +78,7 @@ export class LegislationInsights {
       if(r.payload.data.length<50)break;
       if(nodes.size===before)throw new HttpError(502,'insights_catalogue_paging','Parliament repeated a meetings page; the full sitting history could not be read.');
     }
-    const all=[...nodes.values()].filter(n=>tail(n.had_activity_type)==='PLENARY_SITTING'&&n.activity_date>=CURRENT_TERM_START);
+    const all=currentTermSittings([...nodes.values()],today,{heldOnly:false,exactIdentity:false});
     const upcoming=all.filter(n=>n.activity_date>today).sort((a,b)=>a.activity_date.localeCompare(b.activity_date));
     const past=all.filter(n=>n.activity_date<=today).sort((a,b)=>b.activity_date.localeCompare(a.activity_date));
     const sittings=[...past,...upcoming];

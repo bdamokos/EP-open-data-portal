@@ -228,12 +228,20 @@ export async function odp(
           continue;
         }
         if (!response.ok) {
-          await response.body?.cancel();
-          throw new HttpError(
+          let source=null,responseBytes=0;
+          if(response.status===404){
+            // Preserve the actual HTTP observation. Only a domain reader can
+            // decide whether a missing child collection means an empty one.
+            const hash=createHash('sha256');
+            if(response.body)for await(const chunk of response.body){responseBytes+=chunk.byteLength;if(responseBytes>MAX_SOURCE_BYTES)throw new HttpError(502,'odp_size','Parliament response exceeded the allowed size.');hash.update(chunk);}
+            reschedule.signal.throwIfAborted();budget.signal?.throwIfAborted();
+            source={url:key,fetchedAt:Date.now(),contentHash:hash.digest('hex'),httpStatus:404};
+          }else await response.body?.cancel();
+          throw Object.assign(new HttpError(
             502,
             "odp_unavailable",
             `Parliament data is unavailable (${response.status}). Please try again.`,
-          );
+          ),{upstreamStatus:response.status,source,responseBytes});
         }
         if (response.status === 204)
           throw new HttpError(502, "odp_no_content", "Parliament supplied no content for this request.");
