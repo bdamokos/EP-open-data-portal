@@ -390,10 +390,13 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const [category,setCategory]=useExplorerParam<string>('mep-speech-category','',speechCategories.map(([key])=>key));
   const [categoryOffset,setCategoryOffset]=useState(0);
   const filtered=category?enrichedSpeeches.filter(speech=>matchesSpeechCategory(speech,category as SpeechCategory)):null;
+  const lastCategoryOffset=Math.max(0,Math.ceil((filtered?.length||0)/10)-1)*10;
+  const filteredOffset=Math.min(categoryOffset,lastCategoryOffset);
   const filterHeading=useRef<HTMLHeadingElement>(null),revealFilter=useRef(false);
   const filterHref=(value:SpeechCategory)=>{const url=new URL(location.href);url.searchParams.set('mep-speech-category',value);url.searchParams.delete('speech');url.hash='speech-filter-results-'+id;return url.href;};
   const selectCategory=(value:SpeechCategory)=>{revealFilter.current=true;filterHeading.current?.focus({preventScroll:true});if(filterHeading.current)revealSpeech(filterHeading.current);setCategoryOffset(0);setCategory(value);setSpeechLanguage(null);onOpen(null);};
   useEffect(()=>{setCategoryOffset(0);},[category]);
+  useEffect(()=>{setCategoryOffset(value=>Math.min(value,lastCategoryOffset));},[lastCategoryOffset]);
   useEffect(()=>{if(!category||!initialSpeech)return;const index=enrichedSpeeches.filter(speech=>matchesSpeechCategory(speech,category as SpeechCategory)).findIndex(speech=>speech.id===initialSpeech);if(index>=0)setCategoryOffset(Math.floor(index/10)*10);},[category,initialSpeech,enrichedSpeeches]);
   useEffect(()=>{if(revealFilter.current){revealFilter.current=false;filterHeading.current?.focus({preventScroll:true});if(filterHeading.current)revealSpeech(filterHeading.current);}},[category,categoryOffset]);
   const focusedSpeech=useRef<string|null>(null);
@@ -432,12 +435,12 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     {!filtered&&initialSpeech && pinned.loading && <p role="status" lang="en">Checking the saved linked speech…</p>}
     {!filtered&&initialSpeech && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
     {!filtered&&initialSpeech && state.data && !pinned.loading && !items.some(item=>item.sourceId===initialSpeech) && <LinkedActivityFallback key={initialSpeech} sourceId={initialSpeech} member={id} lang={lang} complete={state.data.cache.complete} />}
-    {(filtered?filtered.slice(categoryOffset,categoryOffset+10):items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId);return {...base,...enriched,titles:{...base.titles,...enriched?.titles}};})).map(speech=>{const open=initialSpeech===speech.id,speechTitle=title(speech,lang);return <article className="explorer-speech" key={speech.id} id={`speech-${speech.id}`}>
+    {(filtered?filtered.slice(filteredOffset,filteredOffset+10):items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId);return {...base,...enriched,titles:{...base.titles,...enriched?.titles}};})).map(speech=>{const open=initialSpeech===speech.id,speechTitle=title(speech,lang);return <article className="explorer-speech" key={speech.id} id={`speech-${speech.id}`}>
       <button className="explorer-speech-toggle" lang="en" onClick={()=>{setSpeechLanguage(null);onOpen(open ? null : speech.id);}} aria-expanded={open}><span><span lang={lang}>{date(speech.date,lang)}</span> · {speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT' ? 'Written statement' : 'Plenary speech'}{speech.start ? <> · <span lang={lang}>{time(speech.start,lang)}</span> Brussels</> : ''}</span><span className="explorer-speech-heading"><strong lang={speechTitle.language}>{speechTitle.text}</strong><b aria-hidden="true">{open ? '−' : '+'}</b></span></button>
       {!open&&<div className="explorer-speech-list-badges"><InterventionBadges value={speech.intervention} language={lang}/></div>}
       {open && <Detail speech={speech} lang={lang} transcriptLanguage={speechLanguage||lang} />}
     </article>})}
-    {filtered?<div className="explorer-category-top" lang="en">{categoryOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,categoryOffset-10));onOpen(null);}}>Newer</button>}{categoryOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(categoryOffset+10);onOpen(null);}}>Older</button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}>Clear filter</button></div>:state.data && <div className="explorer-category-top" lang="en">{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
+    {filtered?<div className="explorer-category-top" lang="en">{filteredOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,filteredOffset-10));onOpen(null);}}>Newer</button>}{filteredOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(filteredOffset+10);onOpen(null);}}>Older</button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}>Clear filter</button></div>:state.data && <div className="explorer-category-top" lang="en">{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
   </section>;
 }
 export default function App() {
