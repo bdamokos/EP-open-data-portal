@@ -1,3 +1,4 @@
+import {ActivityVote} from './ActivityVote';
 import {useCallback,useEffect,useId,useRef,useState,type ReactNode,type RefObject} from 'react';
 import {api} from './data';
 import {Status} from './Status';
@@ -174,7 +175,7 @@ function Totals({decision,language}:{decision:MotionAmendmentDecision;language:s
     <dl>{keys.map((key,index)=><div key={key}><dt>{labels[index]}</dt><dd lang={language}>{typeof totals[key]==='number'&&Number.isFinite(totals[key])&&totals[key]!>=0?formatNumber(totals[key]!,language):'—'}</dd></div>)}</dl>
   </div>;
 }
-function Decision({item,decision,language}:{item:MotionAmendment;decision:MotionAmendmentDecision;language:string}) {
+function Decision({item,decision,language,member,memberName}:{item:MotionAmendment;decision:MotionAmendmentDecision;language:string;member:string;memberName?:string}) {
   const part=amendmentDecisionPart(item.splitParts,decision),split=decision.scope!=='whole-amendment';
   const partNumber=part?.number??decision.partNumber;
   const heading=decision.scope==='unresolved-split'?'Collective or unresolved split decision':split?partNumber!=null?`Part ${partNumber}`:'Split decision':'Whole amendment';
@@ -185,10 +186,10 @@ function Decision({item,decision,language}:{item:MotionAmendment;decision:Motion
     {part?.description&&<p className="motion-amendments__muted">Published split description.</p>}
     {decision.scope==='unresolved-split'&&<p className="motion-amendments__muted">This decision cannot be assigned to an individual part.</p>}
     {(date||method)&&<p className="motion-amendments__muted">{date&&<span lang={language}>{date}</span>}{date&&method?' · ':''}{method}</p>}
-    <Totals decision={decision} language={language}/>
+    <ActivityVote decisionId={decision.id} memberId={member} memberName={memberName} language={language}><Totals decision={decision} language={language}/></ActivityVote>
   </li>;
 }
-function AmendmentDetail({item,member,language,listId,onVariant,onContext,contextButton}:{item:MotionAmendment;member:string;language:string;listId:string|null;onVariant:(id:string|null)=>void;onContext:()=>void;contextButton:RefObject<HTMLButtonElement|null>}) {
+function AmendmentDetail({item,member,memberName,language,listId,onVariant,onContext,contextButton}:{item:MotionAmendment;member:string;memberName?:string;language:string;listId:string|null;onVariant:(id:string|null)=>void;onContext:()=>void;contextButton:RefObject<HTMLButtonElement|null>}) {
   const records=wordingRecords(item),record=chosenRecord(item,listId),needsChoice=item.conflicted||records.length>1;
   const selectable=records.filter(candidate=>candidate.listId&&records.filter(record=>record.listId===candidate.listId).length===1);
   const url=record?wordingSource(record):null;
@@ -223,7 +224,7 @@ function AmendmentDetail({item,member,language,listId,onVariant,onContext,contex
     <div className="motion-amendments__detail-actions"><button type="button" ref={contextButton} onClick={onContext} disabled={!record?.listId}>Read in context</button></div>
     <section className="motion-amendments__decisions" aria-label="Amendment decisions">
       {!(item.decisions.length===1&&item.decisions[0].scope==='whole-amendment')&&<div className="motion-amendments__decision-head"><h5>Whole amendment</h5><Outcome value={item.wholeAmendmentOutcome} split={hasVerifiedSplits(item)}/></div>}
-      {item.decisions.length>0?<ul>{item.decisions.map((decision,index)=><Decision item={item} decision={decision} language={language} key={amendmentDecisionKey(decision)+':'+index}/>)}</ul>:
+      {item.decisions.length>0?<ul>{item.decisions.map((decision,index)=><Decision item={item} decision={decision} language={language} member={member} memberName={memberName} key={amendmentDecisionKey(decision)+':'+index}/>)}</ul>:
         <p className="motion-amendments__muted">No decision is available for this amendment.</p>}
     </section>
   </article>;
@@ -306,7 +307,7 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
     change({open:true,view:'context',contextView:'document',contextTarget:'amendment',variantListId:record.listId,
       wordingLanguage:typeof wordingLanguage==='string'&&/^[a-z]{2}$/.test(wordingLanguage)?wordingLanguage:null},'context');
   };
-  const detail=(item:MotionAmendment)=><AmendmentDetail item={item} member={member} language={language} listId={state.variantListId}
+  const detail=(item:MotionAmendment)=><AmendmentDetail item={item} member={member} memberName={memberName} language={language} listId={state.variantListId}
     onVariant={value=>change({variantListId:value},'variant')} onContext={()=>openAmendmentContext(item)} contextButton={amendmentButton}/>;
   const selectionUnavailable=Boolean(state.amendmentId&&selection?.status==='unavailable');
   const readingText=state.view==='context'&&state.contextTarget==='text';

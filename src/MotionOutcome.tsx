@@ -1,3 +1,4 @@
+import {ActivityVote} from './ActivityVote';
 import type { MotionOutcome, RelatedJointMotion } from './explorerTypes';
 import {useState} from 'react';
 import {MotionComparison} from './MotionComparison';
@@ -26,6 +27,7 @@ function VoteDetails({outcome,language}:{outcome:MotionOutcome;language:string})
     {voted && outcome.totals && <dl className="explorer-motion-totals">
       {([['for','For'],['against','Against'],['abstaining','Abstentions']] as const).map(([key,label])=><div key={key}><dt>{label}</dt><dd lang={language}>{outcome.totals![key]?.toLocaleString(language) ?? '—'}</dd></div>)}
     </dl>}
+    {voted&&outcome.method==='VOTE_HAND'&&<p className="explorer-motion-explanation">Individual positions are not recorded for this voting method.</p>}
     {outcome.status==='unavailable' && <p className="explorer-motion-explanation">No verified final outcome is available for this text.</p>}
   </>;
 }
@@ -40,13 +42,12 @@ function CompareWording({originalId,jointId,language}:{originalId:string;jointId
   const [open,setOpen]=useState(false);
   return <details className="explorer-motion-compare" onToggle={event=>setOpen(event.currentTarget.open)}><summary>Compare wording with original motion</summary>{open&&<MotionComparison key={`${originalId}:${jointId}:${language}`} originalId={originalId} jointId={jointId} language={language}/>}</details>;
 }
-export function MotionOutcome({outcome,related=[],reference,sourceId,language}:{outcome?:MotionOutcome;related?:RelatedJointMotion[];reference:string;sourceId:string;language:string}) {
+export function MotionOutcome({outcome,related=[],reference,sourceId,language,memberId,memberName}:{outcome?:MotionOutcome;related?:RelatedJointMotion[];reference:string;sourceId:string;language:string;memberId?:number;memberName?:string}) {
   if(!outcome && !related.length)return null;
   return <section className="explorer-motion-outcome" lang="en" aria-label={related.length ? 'Original and joint motion outcomes' : 'Motion outcome'}>
     {outcome && <div className="explorer-motion-text-outcome">
       <h3>{related.length ? 'Original motion' : sourceId.startsWith('RC-') ? 'Joint motion' : 'Motion'} <span className="explorer-motion-reference">{reference}</span></h3>
-      <MotionStatus outcome={outcome}/>
-      <VoteDetails outcome={outcome} language={language}/>
+      <ActivityVote decisionId={outcome.decisionId} memberId={memberId} memberName={memberName} language={language}><MotionStatus outcome={outcome}/><VoteDetails outcome={outcome} language={language}/></ActivityVote>
       {outcome.status==='lapsed' && <p className="explorer-motion-explanation">{related.length ? 'This motion was replaced by the joint text below. Parliament records the original motion as lapsed; it was not adopted separately.' : 'This text lapsed and was not adopted as a separate resolution.'}</p>}
     </div>}
     {related.map(motion=>{
@@ -54,8 +55,7 @@ export function MotionOutcome({outcome,related=[],reference,sourceId,language}:{
       return <section className="explorer-motion-joint-outcome" key={motion.sourceId} aria-label={`Joint motion ${motion.reference}`}>
         <h3>Joint motion <span className="explorer-motion-reference">{motion.reference}</span></h3>
         {outcome?.status!=='lapsed' && <p className="explorer-motion-explanation">Related joint text combining this motion with others.</p>}
-        <MotionStatus outcome={motion.outcome}/>
-        <VoteDetails outcome={motion.outcome} language={language}/>
+        <ActivityVote decisionId={motion.outcome.decisionId} memberId={memberId} memberName={memberName} language={language}><MotionStatus outcome={motion.outcome}/><VoteDetails outcome={motion.outcome} language={language}/></ActivityVote>
         {motion.memberAuthorship && <p className="explorer-motion-explanation">{motion.memberAuthorship==='recorded' ? 'This MEP is also listed as an author of this joint motion.' : 'No authorship is recorded for this MEP on this joint motion.'}</p>}
         {url && <a className="explorer-motion-document-link" href={url} target="_blank" rel="noreferrer" title={motion.title} lang=""><span lang="en">Read joint motion{motion.documentFormat ? ` (${motion.documentFormat}${motion.documentLanguage ? ' · '+motion.documentLanguage.toUpperCase() : ''})` : ''} ↗</span></a>}
         {sourceId.startsWith('B-')&&<CompareWording originalId={sourceId} jointId={motion.sourceId} language={language}/>}

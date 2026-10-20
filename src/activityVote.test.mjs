@@ -1,0 +1,56 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {act,createElement} from 'react';
+import {Window} from 'happy-dom';
+import {createServer} from 'vite';
+import {readMemberVotesJourney} from './memberVotesJourney.mjs';
+
+const sitting='MTG-PL-2026-10-08',decision=sitting+'-DEC-198251';
+function response({member='197494',id=decision,method='VOTE_ELECTRONIC_ROLLCALL',position={status:'recorded',position:'for'},outcome='ADOPTED',ballotStatus='conducted'}={}) {
+  const vote={id,sittingId:sitting,date:'2026-10-08',title:'Exact decision',titleLanguage:'en',titles:{en:'Exact decision'},referenceTexts:{en:'Motion for a resolution'},
+    method,outcome,ballotStatus,scope:{kind:'whole-text'},actualPosition:position,intention:{status:'reported',positions:['against']},
+    totals:{for:445,against:37,abstaining:97},alignment:'with',subjectId:null,context:{documentIds:['RC-10-2026-0443'],amendmentIds:[],componentIds:[]},
+    parts:[],rollCallRequesters:[],resultRelationship:{binding:'consistent'}};
+  return {version:3,member:{id:member},period:{kind:'sitting',week:null,sittingId:sitting,from:'2026-10-08',to:'2026-10-08'},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[],subjects:[],
+    pagination:{offset:0,limit:50,returned:0,observedTotal:1,filteredTotal:1,nextOffset:0},selected:{status:'found',item:vote},coverage:{status:'partial',termWide:false}};
+}
+function exactResponse(patch) {
+  const value=response(patch);value.items=[value.selected.item];value.pagination={offset:0,limit:50,returned:1,observedTotal:1,filteredTotal:1,nextOffset:null};return value;
+}
+async function mount(t,handler) {
+  const window=new Window({url:'http://localhost/?member=197494&module=activities&activity=motions%3AB-10-2026-0448&ma-amendment=RC-10-2026-0443-AM-31&mv-offset=50&mv-snapshot='+('b'.repeat(64))});
+  const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  const calls=[];t.mock.method(globalThis,'fetch',async(url,options)=>{calls.push(String(url));return handler(url,options);});
+  const vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {ActivityVote}=await vite.ssrLoadModule('/src/ActivityVote.tsx'),{createRoot}=await import('react-dom/client');
+  const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
+  t.after(async()=>{await act(async()=>root.unmount());await vite.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
+  const render=patch=>act(async()=>root.render(createElement(ActivityVote,{memberId:197494,memberName:'Selected member',language:'en',decisionId:decision,...patch},createElement('p',null,'Indexed result · Adopted · Show of hands'))));
+  return {window,container,calls,render};
+}
+test('activity reuses exact vote data and links without carrying filters, snapshots or context',async t=>{
+  const h=await mount(t,async()=>Response.json(exactResponse()));await h.render();
+  assert.match(h.container.textContent,/Selected memberFor/);assert.match(h.container.textContent,/Declared intention: Against/);assert.match(h.container.textContent,/445/);assert.doesNotMatch(h.container.textContent,/Indexed result/);
+  const request=new URL(h.calls[0],'http://localhost');assert.equal(request.searchParams.get('sitting'),sitting);assert.equal(request.searchParams.get('decision'),decision);assert.equal(request.searchParams.get('positions'),'all');
+  const link=new URL(h.container.querySelector('a').href),journey=readMemberVotesJourney(link.searchParams,197494);
+  assert.equal(journey.invalid,false);assert.equal(journey.state.decisionId,decision);assert.equal(journey.state.sittingId,sitting);assert.equal(journey.state.positions,'all');assert.equal(journey.state.snapshotId,null);assert.equal(journey.state.offset,0);assert.equal(journey.state.context,null);assert.equal(link.searchParams.get('activity'),'motions:B-10-2026-0448');
+});
+test('show of hands preserves the known result and explains why individual positions are not recorded',async t=>{
+  const h=await mount(t,async()=>Response.json(exactResponse({method:'VOTE_HAND',position:{status:'unavailable',position:null}})));await h.render();
+  assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Individual positions are not recorded for this voting method/);assert.doesNotMatch(h.container.textContent,/Position unavailable|details.*unavailable/);
+});
+test('wrong identities and failed reads retain indexed facts, expose retry and never invent a position',async t=>{
+  let wrong=true;const h=await mount(t,async()=>Response.json(exactResponse({member:wrong?'99':'197494'})));await h.render();
+  assert.match(h.container.textContent,/Indexed result · Adopted · Show of hands/);assert.doesNotMatch(h.container.textContent,/Selected memberFor/);
+  wrong=false;await act(async()=>h.container.querySelector('button').click());assert.match(h.container.textContent,/Selected memberFor/);
+  await h.render({memberId:99});assert.doesNotMatch(h.container.textContent,/Selected memberFor/);
+});
+test('invalid decision identities perform no source read and preserve known activity facts',async t=>{
+  const h=await mount(t,async()=>{throw Error('must not fetch');});await h.render({decisionId:'MTG-PL-2026-02-30-DEC-1'});assert.equal(h.calls.length,0);assert.match(h.container.textContent,/Indexed result/);
+});
+
+test('a transport failure keeps the indexed outcome and voting method readable',async t=>{
+  const h=await mount(t,async()=>new Response(JSON.stringify({message:'Source temporarily unavailable'}),{status:503,headers:{'content-type':'application/json'}}));await h.render();
+  assert.match(h.container.textContent,/Indexed result · Adopted · Show of hands/);assert.match(h.container.textContent,/Additional vote details could not be loaded/);assert.doesNotMatch(h.container.textContent,/Position unavailable|Selected memberFor/);assert(h.container.querySelector('a'));
+});
