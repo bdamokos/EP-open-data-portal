@@ -2,6 +2,7 @@ import { useEffect,useState,useCallback,useRef } from 'react';
 import { api } from './data';
 import { createDataClient, dataTimeoutFor } from './client.mjs';
 const client=createDataClient(api,{maxEntries:24,maxAge:5*60_000,timeoutFor:dataTimeoutFor});
+export function prefetchInsightData(routes:string[]) { return client.prefetch(routes); }
 export function useInsightData<T>(route:string|null) {
   const [attempt,setAttempt]=useState(0),[state,setState]=useState<{route:string|null;data:T|null;loading:boolean;error:string|null}>({route,data:null,loading:true,error:null});
   const lastRequest=useRef({route,attempt});
