@@ -34,15 +34,16 @@
   overflow-wrap:normal;
 }
 .parliament-header nav button:hover:not(:disabled) { color:var(--ink); background:var(--surface-2); }
-.parliament-header nav button[aria-current=page],.parliament-header nav button[aria-current=page]:hover { color:var(--ink); box-shadow:inset 0 -3px var(--accent); font-weight:600; }
+.parliament-header nav button[aria-current=page],.parliament-header nav button[aria-current=page]:hover { color:var(--ink); background:transparent; border-color:transparent; box-shadow:inset 0 -3px var(--accent); font-weight:600; }
 .parliament-header nav button:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
 .parliament-header nav button small { font-size:13px; }
 .parliament-header .explorer-saved-count { margin-left:0; }
 @media(max-width:767px) {
-  .parliament-header { gap:8px 12px; padding:10px 16px 0; font-size:13px; }
-  .parliament-brand { font-size:14px; }
-  .parliament-header nav { order:3; width:100%; margin-inline:-6px; }
-  .parliament-header nav button { flex:1 0 auto; padding:8px 6px; }
+  .parliament-header { gap:6px 8px; padding:10px 16px 0; font-size:13px; }
+  .parliament-brand { flex:1 1 160px; min-width:0; font-size:14px; line-height:1.25; }
+  /* Brand and icon buttons share the first row; destinations form an even grid below. */
+  .parliament-header nav { order:3; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; margin:0; }
+  .parliament-header nav button { min-width:0; padding:8px 4px; white-space:normal; }
 }
 .parliament-header .explorer-scheme-toggle { display:inline-flex; align-items:center; justify-content:center; flex:0 0 40px; width:40px; height:40px; min-height:40px; padding:9px; border:1px solid transparent; border-radius:var(--radius-sm); background:transparent; color:inherit; }
 .parliament-header .explorer-scheme-toggle:hover { background:var(--surface-2); border-color:var(--line); }

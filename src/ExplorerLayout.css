@@ -38,7 +38,9 @@
 .insight-agenda>div { display:flex; flex-direction:column; gap:10px; min-width:0; }
 .insight-agenda>div>button { flex:none; }
 .insight-agenda h3 { margin:14px 0 2px; font-size:16px; }
-.insight-agenda button[aria-pressed=true] { background:var(--accent-soft); }
+.explorer-insights .insight-agenda button { background:var(--surface); border-color:var(--line); }
+.explorer-insights .insight-agenda button:hover:not(:disabled) { border-color:var(--line-strong); }
+.explorer-insights .insight-agenda button[aria-pressed=true] { background:var(--accent-soft); border-color:var(--accent); }
 .insight-topic-detail>h2 { max-width:38ch; }
 .insight-vote-totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; margin:24px 0; }
 .insight-vote-totals>div { border-top:3px solid var(--vote-for); padding-top:12px; }
