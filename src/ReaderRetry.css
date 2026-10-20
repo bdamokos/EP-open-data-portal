@@ -1,0 +1,5 @@
+.reader-retry {margin:16px 0;}
+.reader-retry>p {margin:0 0 12px;}
+.reader-retry-actions {display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;}
+.reader-retry-actions>button {flex:none;}
+.reader-retry-hint {flex:1 1 220px;font-size:14px;line-height:1.5;}
