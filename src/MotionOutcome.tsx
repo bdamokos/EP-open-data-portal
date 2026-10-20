@@ -47,8 +47,10 @@ export function MotionOutcome({outcome,related=[],reference,sourceId,language,me
   return <section className="explorer-motion-outcome" lang="en" aria-label={related.length ? 'Original and joint motion outcomes' : 'Motion outcome'}>
     {outcome && <div className="explorer-motion-text-outcome">
       <h3>{related.length ? 'Original motion' : sourceId.startsWith('RC-') ? 'Joint motion' : 'Motion'} <span className="explorer-motion-reference">{reference}</span></h3>
-      <ActivityVote indexed={{outcome:outcome.status==='unavailable'?null:outcome.status.toUpperCase(),method:outcome.method,totals:outcome.totals}} decisionId={outcome.decisionId} memberId={memberId} memberName={memberName} language={language}><MotionStatus outcome={outcome}/><VoteDetails outcome={outcome} language={language}/></ActivityVote>
-      {outcome.status==='lapsed' && <p className="explorer-motion-explanation">{related.length ? 'This motion was replaced by the joint text below. Parliament records the original motion as lapsed; it was not adopted separately.' : 'This text lapsed and was not adopted as a separate resolution.'}</p>}
+      <ActivityVote indexed={{outcome:outcome.status==='unavailable'?null:outcome.status.toUpperCase(),method:outcome.method,totals:outcome.totals}} decisionId={outcome.decisionId} memberId={memberId} memberName={memberName} language={language}>
+        <MotionStatus outcome={outcome}/><VoteDetails outcome={outcome} language={language}/>
+        {outcome.status==='lapsed' && <p className="explorer-motion-explanation">{related.length ? 'This motion was replaced by the joint text below. Parliament records the original motion as lapsed; it was not adopted separately.' : 'This text lapsed and was not adopted as a separate resolution.'}</p>}
+      </ActivityVote>
     </div>}
     {related.map(motion=>{
       const url=readableDocumentUrl(motion.url);

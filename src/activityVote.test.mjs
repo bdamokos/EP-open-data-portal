@@ -27,7 +27,7 @@ async function mount(t,handler) {
   const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
   t.after(async()=>{await act(async()=>root.unmount());await vite.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
   const render=patch=>act(async()=>root.render(createElement(ActivityVote,{memberId:197494,memberName:'Selected member',language:'en',decisionId:decision,...patch},createElement('p',null,'Indexed result · Adopted · Show of hands'))));
-  return {window,container,calls,render};
+  return {window,container,calls,render,vite,root};
 }
 test('activity reuses exact vote data and links without carrying filters, snapshots or context',async t=>{
   const h=await mount(t,async()=>Response.json(exactResponse()));await h.render();
@@ -94,4 +94,11 @@ test('published counts remain visible when named-ballot collection is unknown',a
 test('retained lapsed outcomes retain their not-conducted semantics',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse({outcome:null,method:null,ballotStatus:'unknown',position:{status:'unavailable',position:null}});value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});await h.render({indexed:{outcome:'LAPSED',method:'VOTE_HAND'}});
   assert.match(h.container.textContent,/Lapsed/);assert.match(h.container.textContent,/Not put to a vote/);assert.doesNotMatch(h.container.textContent,/Position unavailable|Tallies unavailable|Individual positions are not recorded/);
+});
+
+test('a saved lapsed-motion explanation stays within its labelled saved result after a current adoption',async t=>{
+  const h=await mount(t,async()=>Response.json(exactResponse()));const {MotionOutcome}=await h.vite.ssrLoadModule('/src/MotionOutcome.tsx');
+  await act(async()=>h.root.render(createElement(MotionOutcome,{memberId:197494,memberName:'Selected member',language:'en',sourceId:'B-10-2026-0448',reference:'B10-0448/2026',outcome:{status:'lapsed',method:'VOTE_ELECTRONIC_ROLLCALL',decisionId:decision}})));
+  const saved=h.container.querySelector('[aria-label="Saved activity result"]');assert.match(saved.textContent,/This text lapsed and was not adopted/);assert.match(h.container.querySelector('.member-votes-result').textContent,/Adopted/);
+  assert.equal([...h.container.querySelectorAll('.explorer-motion-explanation')].filter(node=>!saved.contains(node)).length,0);
 });
