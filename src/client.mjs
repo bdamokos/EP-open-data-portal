@@ -6,6 +6,7 @@ import {reportApiVersionMismatch} from './apiVersionMismatch.mjs';
 // sources inside that budget; other local index/corpus reads keep the short default.
 export function dataTimeoutFor(route) {
   const path = route.split('?')[0];
+  if (path === 'plenary-live') return 15_000;
   if (path.startsWith('motion-comparison/')) return 90_000;
   if (path.startsWith('speech-context/')) return 60_000;
   if (path.startsWith('profile/')) return 40_000;
