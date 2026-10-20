@@ -3,7 +3,7 @@ const DAY = 24 * HOUR;
 const noStore = Object.freeze({cacheControl: 'no-store', cdnCacheControl: 'no-store'});
 const direct = new Set(['directory', 'references', 'reference-summary', 'source-record', 'amendments', 'vote-periods']);
 const byId = new Set(['profile', 'activities', 'speeches', 'latest-activities', 'speech', 'speech-context', 'speech-media', 'document', 'motion-comparison']);
-const insights = new Set(['questions', 'legislation', 'saved', 'participation', 'speech-words', 'procedure-context', 'group-voices']);
+const insights = new Set(['questions', 'legislation', 'saved', 'participation', 'speech-words', 'procedure-context', 'procedure-progress', 'group-voices']);
 
 function approvedPath(pathname) {
   const parts = pathname.split('/');
@@ -48,6 +48,10 @@ function publicPolicy(seconds, browserSeconds = 0) {
 
 export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   if (!['GET', 'HEAD'].includes(request.method) || request.headers?.authorization || !approvedPath(url.pathname) || transientState(payload)) return noStore;
+  if(url.pathname==='/api/insights/procedure-progress') {
+    if(!['mapped','unmapped'].includes(payload?.state)||!payload?.coverage||payload.coverage.limited||payload.coverage.invalidRows||payload.coverage.incompleteEvents)return noStore;
+    return publicPolicy(5*60);
+  }
   // Memberships are assembled after a process restart. Polls must reach the
   // origin until that work finishes instead of retaining its first snapshot.
   if (url.pathname === '/api/directory' && (payload?.index?.complete !== true || payload?.committeeDetails?.complete === false)) return noStore;

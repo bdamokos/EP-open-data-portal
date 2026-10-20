@@ -1,0 +1,57 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createElement,act} from 'react';
+import {Window} from 'happy-dom';
+import {createServer} from 'vite';
+
+test('progress is independent, preserves exact selection and lazy readable document links',async t=>{
+  const window=new Window({url:'http://localhost/?view=legislation'});
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  let vite,root,answerSummary,answerProgress,answerDocuments;
+  t.after(async()=>{
+    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
+  });
+  const ref='2025/0223(COD)',dossier='http://publications.europa.eu/resource/cellar/9d07a799-630b-11f0-bf4e-01aa75ed71a1',work=dossier+'a';
+  const source={fetchedAt:'2026-10-20T08:00:00Z',stale:false,refreshInProgress:false,refreshError:null},coverage={limited:false,invalidRows:0,incompleteEvents:0};
+  const event=(id,date,label,extra={})=>({id:dossier+'.'+id,date,dates:[date],label,labelLanguage:'en',types:[],statuses:[],status:'recorded',institutions:[{id:'EP',code:'EP',label:'European Parliament',language:'en'}],works:[],milestone:true,issues:[],...extra});
+  const progress={reference:ref,state:'mapped',dossier,coverage,source,events:[event('0001','2026-10-01','Committee report adopted',{works:[work]}),event('0002','2099-11-12','Plenary vote',{status:'projected'}),event('0003','2020-01-01','Past scheduled event',{status:'projected'}),event('0004','2099-11-13','Future unconfirmed event'),event('0005','2026-10-02','Working party',{milestone:false})]};
+  const calls=[];
+  const pendingSummary=new Promise(resolve=>{answerSummary=resolve;}),pendingProgress=new Promise(resolve=>{answerProgress=resolve;}),pendingDocuments=new Promise(resolve=>{answerDocuments=resolve;});
+  t.mock.method(globalThis,'fetch',async input=>{
+    const url=new URL(input,window.location.href);calls.push(url);
+    if(url.pathname.endsWith('/procedure-context'))return pendingSummary;
+    if(url.searchParams.get('detail')==='documents')return pendingDocuments;
+    if(url.pathname.endsWith('/procedure-progress'))return pendingProgress;
+    throw new Error('Unexpected request '+url);
+  });
+  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {ProcedureContext}=await vite.ssrLoadModule('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
+  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  await act(async()=>root.render(createElement(ProcedureContext,{reference:ref,language:'en'})));
+  assert.match(container.textContent,/Loading legislative progress/);assert.match(container.textContent,/Loading summary/);
+  await act(async()=>answerProgress(Response.json(progress)));
+  assert.match(container.textContent,/Committee report adopted/);assert.match(container.textContent,/Loading summary/,'a delayed summary does not block progress');
+  assert.doesNotMatch(container.querySelector('.procedure-progress-latest').textContent,/Future|Past scheduled/);
+  assert.match(container.querySelector('.procedure-progress-next').textContent,/Plenary vote/);
+  assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,0);
+  const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
+  await act(async()=>{button('Show timeline').focus();button('Show timeline').click();});
+  assert.equal(document.activeElement,button('Hide timeline'));
+  const filter=container.querySelector('.procedure-progress-filters select');filter.focus();
+  await act(async()=>{filter.value='EP';filter.dispatchEvent(new window.Event('change',{bubbles:true}));});
+  assert.equal(document.activeElement,filter);
+  await act(async()=>answerSummary(Response.json({reference:ref,title:'Civil protection',language:'en',summary:{id:'1',stage:'proposal',date:'2026-10-01',blocks:[{kind:'paragraph',text:'Existing official summary.'}],source:{url:'https://oeil.europarl.europa.eu/oeil/en/document-summary?id=1'}},summaries:[{id:'1',stage:'proposal',date:'2026-10-01'}],subjects:[],topics:[],source:{url:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference='+ref}})));
+  assert.match(container.textContent,/Existing official summary/);assert(button('Hide timeline'),'summary completion retains the expanded progress selection');
+  const details=container.querySelector('.procedure-progress-documents');
+  await act(async()=>{details.open=true;details.dispatchEvent(new window.Event('toggle'));});
+  assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,1);
+  await act(async()=>answerDocuments(Response.json({reference:ref,state:'mapped',dossier,source,coverage,documents:[{event:progress.events[0].id,work,title:'Commission proposal',titleLanguage:'en',celex:['52025PC0500'],url:'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52025PC0500'}]})));
+  const links=[...container.querySelectorAll('.procedure-progress a')];assert.equal(links.length,1);assert.match(links[0].href,/eur-lex\.europa\.eu\/legal-content\/EN\/TXT/);
+  assert.equal(container.querySelectorAll('.procedure-progress a[href*="sparql"],.procedure-progress a[href*="resource/cellar"]').length,0);
+  assert.match(container.textContent,/Past scheduled event/);
+  await act(async()=>button('Show all recorded events').click());assert.match(container.textContent,/Working party/);
+  assert.match(container.textContent,/Future date · status not supplied/);
+});

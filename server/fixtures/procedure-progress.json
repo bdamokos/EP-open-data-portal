@@ -1,0 +1,333 @@
+{
+  "source": {
+    "url": "https://publications.europa.eu/webapi/rdf/sparql?query=PREFIX+cdm%3A%3Chttp%3A%2F%2Fpublications.europa.eu%2Fontology%2Fcdm%23%3E%0APREFIX+xsd%3A%3Chttp%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema%23%3E%0APREFIX+skos%3A%3Chttp%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore%23%3E%0APREFIX+owl%3A%3Chttp%3A%2F%2Fwww.w3.org%2F2002%2F07%2Fowl%23%3E%0ASELECT+DISTINCT+%3Fkind+%3Freference+%3Fdossier+%3Fevent+%3Fdate+%3Ftype+%3Flabel+%3Fstatus+%3FstatusLabel+%3Finstitution+%3FinstitutionLabel+%3Fwork+%3Fcelex+%3Falias+%3Ftitle+WHERE+%7B%0A+%7B+%7B+SELECT+DISTINCT+%3Fdossier+WHERE+%7B+%3Fdossier+cdm%3Aprocedure_code_interinstitutional_reference_procedure+%222025%2F0407%2FCOD%22%5E%5Exsd%3Astring.+%7D+LIMIT+3+%7D+BIND%28%220%22+AS+%3Fkind%29+%7D%0A+UNION+%7B+%7B+SELECT+DISTINCT+%3Fdossier+%3Fevent+WHERE+%7B+%3Fdossier+cdm%3Aprocedure_code_interinstitutional_reference_procedure+%222025%2F0407%2FCOD%22%5E%5Exsd%3Astring.+%3Fevent+cdm%3Aevent_legal_part_of_dossier+%3Fdossier.+%7D+ORDER+BY+%3Fevent+LIMIT+301+%7D%0A+BIND%28%221%22+AS+%3Fkind%29+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_date+%3Fdate+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_has_type_concept_type_event_legal+%3Ftype.%0A++OPTIONAL+%7B+%3Ftype+skos%3AprefLabel+%3Flabel.+FILTER%28lang%28%3Flabel%29+IN+%28%22en%22%2C%22en%22%29%29+%7D+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_has-status_event-status+%3Fstatus.%0A++OPTIONAL+%7B+%3Fstatus+skos%3AprefLabel+%3FstatusLabel.+FILTER%28lang%28%3FstatusLabel%29+IN+%28%22en%22%2C%22en%22%29%29+%7D+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_initiated_by_institution+%3Finstitution.%0A++OPTIONAL+%7B+%3Finstitution+skos%3AprefLabel+%3FinstitutionLabel.+FILTER%28lang%28%3FinstitutionLabel%29+IN+%28%22en%22%2C%22en%22%29%29+%7D+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_contains_work+%3Fwork+%7D+%7D%0A+BIND%28%222025%2F0407%2FCOD%22+AS+%3Freference%29%0A%7D+ORDER+BY+%3Fkind+%3Fdossier+%3Fevent+%3Fwork+%3Fdate+%3Ftype+%3Finstitution+%3Flabel+%3Falias+%3Ftitle+LIMIT+1201&format=application%2Fsparql-results%2Bjson",
+    "fetchedAt": "2026-10-20T12:14:57.197Z"
+  },
+  "query": {
+    "reference": "2025/0407(COD)",
+    "language": "en",
+    "detail": "events"
+  },
+  "response": {
+    "results": {
+      "bindings": [
+        {
+          "kind": {
+            "type": "literal",
+            "value": "0"
+          },
+          "reference": {
+            "type": "literal",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          }
+        },
+        {
+          "kind": {
+            "type": "literal",
+            "value": "1"
+          },
+          "reference": {
+            "type": "literal",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "event": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1.0014"
+          },
+          "date": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#date",
+            "value": "2026-07-13"
+          },
+          "type": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/event/APR_R1_byCONSIL"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Approval of the EP's first reading position by the Council (adoption of the legislative act)"
+          },
+          "institution": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/corporate-body/CONSIL"
+          },
+          "institutionLabel": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Council of the European Union"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/1b905f9f-7c6a-11f1-bf5e-01aa75ed71a1"
+          }
+        },
+        {
+          "kind": {
+            "type": "literal",
+            "value": "1"
+          },
+          "reference": {
+            "type": "literal",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "event": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1.0014"
+          },
+          "date": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#date",
+            "value": "2026-07-13"
+          },
+          "type": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/event/APR_R1_byCONSIL"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Approval of the EP's first reading position by the Council (adoption of the legislative act)"
+          },
+          "institution": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/corporate-body/CONSIL"
+          },
+          "institutionLabel": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Council of the European Union"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/4c122a87-7c76-11f1-bf5e-01aa75ed71a1"
+          }
+        },
+        {
+          "kind": {
+            "type": "literal",
+            "value": "1"
+          },
+          "reference": {
+            "type": "literal",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "event": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1.0014"
+          },
+          "date": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#date",
+            "value": "2026-07-13"
+          },
+          "type": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/event/APR_R1_byCONSIL"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Approval of the EP's first reading position by the Council (adoption of the legislative act)"
+          },
+          "institution": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/corporate-body/CONSIL"
+          },
+          "institutionLabel": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Council of the European Union"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/72daf0a8-7f78-11f1-bf5e-01aa75ed71a1"
+          }
+        },
+        {
+          "kind": {
+            "type": "literal",
+            "value": "1"
+          },
+          "reference": {
+            "type": "literal",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "event": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1.0014"
+          },
+          "date": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#date",
+            "value": "2026-07-13"
+          },
+          "type": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/event/APR_R1_byCONSIL"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Approval of the EP's first reading position by the Council (adoption of the legislative act)"
+          },
+          "institution": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/corporate-body/CONSIL"
+          },
+          "institutionLabel": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Council of the European Union"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/9ae97132-7ab7-11f1-bf5e-01aa75ed71a1"
+          }
+        },
+        {
+          "kind": {
+            "type": "literal",
+            "value": "1"
+          },
+          "reference": {
+            "type": "literal",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "event": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1.0014"
+          },
+          "date": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#date",
+            "value": "2026-07-13"
+          },
+          "type": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/event/APR_R1_byCONSIL"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Approval of the EP's first reading position by the Council (adoption of the legislative act)"
+          },
+          "institution": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/corporate-body/CONSIL"
+          },
+          "institutionLabel": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Council of the European Union"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/b6324e33-7ab7-11f1-bf5e-01aa75ed71a1"
+          }
+        },
+        {
+          "kind": {
+            "type": "literal",
+            "value": "1"
+          },
+          "reference": {
+            "type": "literal",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "event": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1.0017"
+          },
+          "date": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#date",
+            "value": "2026-07-07"
+          },
+          "type": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/event/ADP_R1_POS_byEP"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "EP position at first reading"
+          },
+          "institution": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/corporate-body/EP"
+          },
+          "institutionLabel": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "European Parliament"
+          }
+        },
+        {
+          "kind": {
+            "type": "literal",
+            "value": "1"
+          },
+          "reference": {
+            "type": "literal",
+            "value": "2025/0407/COD"
+          },
+          "dossier": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1"
+          },
+          "event": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/e9734c9a-dc05-11f0-8da2-01aa75ed71a1.0019"
+          },
+          "date": {
+            "type": "literal",
+            "datatype": "http://www.w3.org/2001/XMLSchema#date",
+            "value": "2026-07-17"
+          },
+          "type": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/authority/event/PUB_OJ"
+          },
+          "label": {
+            "type": "literal",
+            "xml:lang": "en",
+            "value": "Publication in the Official Journal"
+          },
+          "work": {
+            "type": "uri",
+            "value": "http://publications.europa.eu/resource/cellar/19837f60-8179-11f1-bf5e-01aa75ed71a1"
+          }
+        }
+      ]
+    }
+  }
+}

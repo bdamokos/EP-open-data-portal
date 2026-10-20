@@ -49,14 +49,14 @@ export class InsightViewCache {
     const promise=sharedRequest(async()=>{await new Promise(resolve=>setImmediate(resolve));const value=await load();requestSignal()?.throwIfAborted();return this.save(key,value);}).then(record=>{this.failures.delete(key);return record;}).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error:error.message});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
     this.pending.set(key,promise);return promise;
   }
-  async get(value,load) {
+  async get(value,load,{freshMs=this.freshMs}={}) {
     const key=this.key(value);let old=await this.stored(key);
     requestSignal()?.throwIfAborted();
     // A concurrent disk miss may finish after another reader has saved the view.
     old ||= this.cache.get(key)||null;
     const failure=this.failures.get(key);
     if(old) {
-      const stale=this.clock()-old.at>this.freshMs;
+      const stale=this.clock()-old.at>freshMs;
       if(stale&&(!failure||this.clock()-failure.at>60_000))void this.refresh(key,load).catch(()=>{});
       return {...old.value,viewCache:{computedAt:new Date(old.at).toISOString(),stale,refreshInProgress:this.pending.has(key),refreshError:failure?.error||null}};
     }
