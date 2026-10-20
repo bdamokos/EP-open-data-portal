@@ -203,3 +203,11 @@ test('portrait cache expires with its retained source and never re-caches an exp
   assert.equal(almostExpired.cacheControl, 'public, max-age=120');
   for (const fetchedAt of [undefined, now - 7 * 86400_000, now - 8 * 86400_000]) assert.equal(portraitCachePolicy({fetchedAt}, {now}).cdnCacheControl, 'no-store');
 });
+
+test('vote-period calendar is admitted while stale, failed and unavailable source evidence remains no-store',()=>{
+ const payload={version:1,weeks:[],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[{stale:false,refreshInProgress:false,refreshError:null}]}]}};
+ assert.equal(policy('/api/vote-periods',payload).cdnCacheControl,'no-store');
+ assert.equal(policy('/api/vote-periods',payload).cacheControl,'no-store');
+ for(const state of [{stale:true},{refreshInProgress:true},{refreshError:{message:'Failed refresh'}}]){const value=structuredClone(payload);Object.assign(value.coverage.years[0].sources[0],state);assert.equal(policy('/api/vote-periods',value).cdnCacheControl,'no-store');}
+ assert.equal(policy('/api/vote-periods',{coverage:{status:'unavailable'}}).cdnCacheControl,'no-store');
+});

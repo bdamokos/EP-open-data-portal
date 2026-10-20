@@ -52,10 +52,10 @@ function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,
     coverage:{status:'complete',collectionComplete:true,termWide:false,expectedSittingIds:[SITTING],scannedSittingIds:[SITTING],failedSittingIds:[],incompleteSittingIds:[],catalogue:emptyPage,sittings:[],basis:'Synthetic exact API fixture',...coverage},
     attribution:'European Parliament public data',...patch};
 }
-const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>item.textContent.trim()===text);
+const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>(item.getAttribute('aria-label')||item.textContent.trim())===text);
 const visiblePane=container=>[...container.querySelectorAll('.member-votes-pane')].find(item=>!item.hidden);
 
-async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),weeksHandler=()=>Response.json({version:1,weeks:[],coverage:{status:'partial',termWide:false}}),statusCompatibility=false,renderContext}={}) {
+async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}},handler=url=>Response.json(responseFor(url)),statusCompatibility=false,renderContext}={}) {
   const window=new Window({url:'http://localhost/'});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -68,7 +68,7 @@ async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),we
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  t.mock.method(globalThis,'fetch',async(url,options)=>{if(new URL(String(url),'http://localhost').pathname==='/api/member-votes/weeks')return weeksHandler(url,options);calls.push(String(url));return handler(url,options,calls.length);});
+  t.mock.method(globalThis,'fetch',async(url,options)=>{if(String(url).includes('/api/vote-periods'))return Response.json(calendar);calls.push(String(url));return handler(url,options,calls.length);});
   // The parent owns the hook's optional HTTP status field. Exercise that integration in memory
   // until it lands here; all other cases use the worktree's unmodified shared hook.
   const plugins=statusCompatibility?[{name:'member-votes-shared-status-contract',enforce:'pre',transform(source,id){
@@ -89,7 +89,7 @@ async function mount(t,{state={},handler=url=>Response.json(responseFor(url)),we
   return {container,calls,changes,contexts,module,get state(){return current;},async update(patch){await act(async()=>{current={...current,...patch};draw();});},
     async remount(){await act(async()=>{renderKey++;draw();});},
     async click(text){const target=button(container,text);assert(target,'Missing button: '+text);await act(async()=>target.click());},
-    async select(selector,value){const target=container.querySelector(selector);assert(target,'Missing control: '+selector);await act(async()=>{target.value=value;target.dispatchEvent(new window.Event('change',{bubbles:true}));});}};
+    async select(selector,value){const target=container.querySelector(selector);assert(target,'Missing control: '+selector);await act(async()=>{if(target.tagName==='INPUT'){Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(target,value);target.dispatchEvent(new window.Event('input',{bubbles:true}));}else target.value=value;target.dispatchEvent(new window.Event('change',{bubbles:true}));});}};
 }
 
 function wordingVariant(patch={}) {
@@ -97,33 +97,8 @@ function wordingVariant(patch={}) {
     originalText:'Texte original exact',proposedText:'Texte proposé exact',authors:[],...patch};
 }
 
-test('stored weeks are newest first, keep an unlisted selection, and clear exact-sitting state on navigation',async t=>{
-  const initial={week:WEEK,sittingId:SITTING,positions:'recorded',offset:50,decisionId:decision(1),snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT],context:null};
-  const h=await mount(t,{state:initial,weeksHandler:()=>Response.json({version:1,weeks:[{week:'2026-03-09'},{week:'2026-03-16'},{week:'2026-03-16'},{week:'2026-03-17'}],coverage:{status:'partial',termWide:false}})});
-  const selector='.member-votes-week-browser select';
-  assert.deepEqual([...h.container.querySelector(selector).options].map(option=>option.value),['latest','sitting','2026-03-16','2026-03-09']);
-  assert.equal(h.container.querySelector(selector).value,'sitting');
-  const date=h.container.querySelector('input[type="date"]'),suggestions=h.container.querySelector('datalist');
-  assert.equal(date.getAttribute('list'),suggestions.id);
-  assert.deepEqual([...suggestions.options].map(option=>option.value),['2026-03-16','2026-03-09']);
-  assert.match(h.container.querySelector('.member-votes-week-hint').textContent,/Coverage and individual positions may be incomplete/);
-  await h.select(selector,'2026-03-09');
-  const change=h.changes.find(change=>change.state.week==='2026-03-09'&&!change.options.replace);
-  assert.deepEqual(change.state,{...initial,week:'2026-03-09',sittingId:null,offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[]});
-  await h.update({week:'2026-03-02',snapshotId:null});
-  assert.equal(h.container.querySelector(selector).value,'2026-03-02');
-  await h.select(selector,'latest');
-  assert(h.calls.some(url=>new URL(url,'http://localhost').searchParams.get('week')==='latest'));
-});
 
-test('failed stored-week hints keep date selection available and can be retried',async t=>{
-  let attempts=0;
-  const h=await mount(t,{weeksHandler:()=>++attempts===1?Response.json({error:{message:'Unavailable'}},{status:503}):Response.json({version:1,weeks:[{week:WEEK}],coverage:{status:'partial',termWide:false}})});
-  assert.match(h.container.querySelector('.member-votes-week-hint').textContent,/could not be loaded/);
-  assert(h.container.querySelector('input[type="date"]'));
-  await h.click('Retry sitting weeks');
-  assert.equal(attempts,2);assert(h.container.querySelector('optgroup option'));
-});
+
 async function mountWording(t,{variants,amendmentStatus='available',state={}}) {
   const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}});
   return mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id,...state},handler:url=>String(url).includes('document-context/')?
@@ -648,4 +623,86 @@ test('a filtered-out final vote opens its exact decision and keeps missing-posit
   const final=h.container.querySelector('button.member-votes-whole');assert.match(final.textContent,/Conflicting records/);
   await act(async()=>final.click());assert.match(visiblePane(h.container).textContent,/Conflicting records/);assert.equal(h.state.positions,'recorded');
   await h.click('← Back to votes');assert.equal(document.activeElement,h.container.querySelector('[data-vote-group]'));
+});
+
+
+test('period navigation steps through held weeks and week/day changes clear period-scoped selections',async t=>{
+  const calendar={version:1,weeks:[{week:'2026-03-30',sittings:[{sittingId:'MTG-PL-2026-03-31',date:'2026-03-31'}]},{week:WEEK,sittings:[{sittingId:SITTING,date:'2026-03-25'}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}};
+  const h=await mount(t,{calendar,state:{week:WEEK,snapshotId:SNAPSHOT,offset:50,decisionId:decision(1),expandedSubjectIds:[SUBJECT]},handler:url=>{const state=stateFrom(url);return Response.json(responseFor(url,{items:state.week===WEEK?[vote(1)]:[],subjects:state.week===WEEK?[subject([vote(1)])]:[]}));}});
+  assert.equal(button(h.container,'Previous plenary week').disabled,true);assert.equal(button(h.container,'Next plenary week').disabled,false);
+  const day=[...h.container.querySelectorAll('.member-votes-days button')].find(item=>item.textContent.includes('25'));assert(day);await act(async()=>day.click());
+  const transition=h.changes.find(change=>change.state.sittingId===SITTING);
+  assert(transition);for(const key of ['snapshotId','decisionId','context'])assert.equal(transition.state[key],null);assert.equal(transition.state.offset,0);assert.deepEqual(transition.state.expandedSubjectIds,[]);
+  assert.equal(h.state.sittingId,SITTING);assert.equal(h.state.week,WEEK);
+  await h.click('Whole week');assert.equal(h.state.week,WEEK);assert.equal(h.state.sittingId,null);
+  await h.click('Next plenary week');assert.equal(h.state.week,'2026-03-30');assert.equal(button(h.container,'Next plenary week').disabled,true);
+});
+
+test('sitting-only links show their own week and Whole week never jumps to latest',async t=>{
+  const h=await mount(t,{state:{week:'latest',sittingId:SITTING,snapshotId:SNAPSHOT}});
+  assert.equal(h.container.querySelector('.member-votes-period-navigation select').value,WEEK);
+  await h.click('Whole week');assert.equal(h.state.week,WEEK);assert.equal(h.state.sittingId,null);
+});
+
+test('partial calendars disclose gaps separately and retain missing selected week and sitting options',async t=>{
+  const calendar={version:1,weeks:[],coverage:{status:'partial',years:[{year:2026,state:'partial',sources:[]}]}};
+  const h=await mount(t,{calendar,state:{week:'latest',sittingId:SITTING,snapshotId:SNAPSHOT}});
+  assert.match(h.container.textContent,/Some plenary dates could not be loaded; the list shows known sittings/);
+  const select=h.container.querySelector('.member-votes-period-navigation select');assert.equal(select.value,WEEK);assert.match(select.textContent,/Week of/);
+  const selectedDay=h.container.querySelector('.member-votes-days button[aria-pressed=true]');assert(selectedDay);assert.match(selectedDay.textContent,/25/);
+  assert(!h.container.textContent.includes('Some voting records for this period are unavailable'));
+  assert.equal(h.container.querySelector('.member-votes-period-navigation input'),null,'partial coverage retains the calendar without another date field');
+});
+
+test('unavailable calendars keep an any-date fallback that snaps to Monday',async t=>{
+  const h=await mount(t,{calendar:{version:1,weeks:[],coverage:{status:'unavailable',years:[]}},state:{week:WEEK,snapshotId:SNAPSHOT}});
+  assert.match(h.container.textContent,/The plenary calendar could not be loaded/);
+  await h.select('.member-votes-period-navigation input','2026-03-26');assert.equal(h.state.week,WEEK);assert.equal(h.state.sittingId,null);assert(!h.container.textContent.includes('Choose a Monday'));
+});
+
+
+test('calendar jump controls keep the direct select, accessible icons and year groups at both boundaries',async t=>{
+ const calendar={version:1,weeks:[{week:WEEK,sittings:[23,24,25,26].map(day=>({sittingId:'MTG-PL-2026-03-'+day,date:'2026-03-'+day}))},{week:'2025-12-15',sittings:[{sittingId:'MTG-PL-2025-12-16',date:'2025-12-16'}]}],coverage:{status:'complete',years:[{year:2025,state:'complete',sources:[]},{year:2026,state:'complete',sources:[]}]}};
+ const h=await mount(t,{calendar,state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items:[]}))});
+ const row=h.container.querySelector('.member-votes-week-navigation');assert.deepEqual([...row.children].map(node=>node.tagName),['BUTTON','BUTTON','SELECT','BUTTON','BUTTON']);
+ assert.deepEqual([...row.querySelectorAll('optgroup')].map(node=>node.label),['2026','2025']);
+ assert.match(row.querySelector('option').textContent,/4 sitting days/);
+ for(const name of ['First plenary week','Previous plenary week','Next plenary week','Latest plenary week'])assert.equal(button(h.container,name).querySelector('span').getAttribute('aria-hidden'),'true');
+ assert.equal(button(h.container,'Latest plenary week').disabled,true);assert.equal(button(h.container,'First plenary week').disabled,false);
+ await h.click('First plenary week');assert.equal(h.state.week,'2025-12-15');assert.equal(button(h.container,'First plenary week').disabled,true);assert.equal(button(h.container,'Previous plenary week').disabled,true);
+ await h.click('Latest plenary week');assert.equal(h.state.week,WEEK);assert.equal(button(h.container,'Latest plenary week').disabled,true);
+ assert.equal(h.container.querySelectorAll('.member-votes-days button').length,5);assert.equal(h.container.querySelector('input[type=date]'),null);
+ assert.equal(button(h.container,'Latest'),undefined);assert.doesNotMatch(h.container.textContent,/Browse sitting weeks|choose a Monday/);
+});
+
+test('an observed empty calendar is distinct from unavailable and does not add a date input',async t=>{
+ const h=await mount(t,{calendar:{version:1,weeks:[],coverage:{status:'complete',years:[]}}});
+ assert.match(h.container.textContent,/No held plenary weeks are listed/);assert.equal(h.container.querySelector('input[type=date]'),null);assert.equal(button(h.container,'First plenary week').disabled,true);
+});
+
+test('only complete zero-decision days are muted as no-votes, remain clickable and open a sitting empty state',async t=>{
+ const calendar={version:1,weeks:[{week:WEEK,sittings:[23,24,25,26].map(day=>({sittingId:'MTG-PL-2026-03-'+day,date:'2026-03-'+day}))}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}};
+ const sittings=calendar.weeks[0].sittings.map((day,index)=>({...day,state:['complete','partial','unavailable','complete'][index],observedDecisionCount:index===3?1:0}));
+ const h=await mount(t,{calendar,state:{week:WEEK},handler:url=>{
+  const state=stateFrom(url),empty=Boolean(state.sittingId),items=empty?[]:[vote(1,{id:'MTG-PL-2026-03-26-DEC-1',sittingId:'MTG-PL-2026-03-26',date:'2026-03-26'})];
+  return Response.json(responseFor(url,{items,coverage:{status:empty?'complete':'partial',sittings:empty?[sittings[0]]:sittings}}));
+ }});
+ const marked=h.container.querySelectorAll('.vote-period-no-votes');assert.equal(marked.length,1);assert.equal(marked[0].disabled,false);assert.match(marked[0].getAttribute('aria-label'),/^Monday.*2026, no votes recorded$/);
+ assert.equal(h.container.querySelectorAll('.member-votes-days button').length,5);assert.match(h.container.querySelector('select').textContent,/4 sitting days/);
+ await act(async()=>marked[0].click());assert.equal(h.state.sittingId,'MTG-PL-2026-03-23');assert.match(visiblePane(h.container).textContent,/No votes were recorded at this sitting\./);
+});
+
+test('a complete zero-decision week explicitly reports no votes without losing its sitting day',async t=>{
+ const h=await mount(t,{state:{week:WEEK},handler:url=>Response.json(responseFor(url,{items:[],coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:0}]}}))});
+ assert.match(visiblePane(h.container).textContent,/No votes were recorded in this week\./);assert(h.container.querySelector('.vote-period-no-votes'));
+});
+
+for(const status of ['partial','unavailable'])test(status+' zero observations never claim no votes at a sitting',async t=>{
+ const h=await mount(t,{state:{sittingId:SITTING,week:WEEK},handler:url=>Response.json(responseFor(url,{items:[],coverage:{status,sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:status,observedDecisionCount:0}]}}))});
+ assert.equal(h.container.querySelector('.vote-period-no-votes'),null);assert.doesNotMatch(visiblePane(h.container).textContent,/No votes were recorded/);
+});
+
+test('a member without recorded positions is not labelled as a sitting with no votes',async t=>{
+ const h=await mount(t,{state:{sittingId:SITTING,week:WEEK},handler:url=>Response.json(responseFor(url,{items:[],pagination:{observedTotal:1,filteredTotal:0},coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:1}]}}))});
+ assert.equal(h.container.querySelector('.vote-period-no-votes'),null);assert.match(visiblePane(h.container).textContent,/No recorded positions are available/);assert.doesNotMatch(visiblePane(h.container).textContent,/No votes were recorded/);
 });

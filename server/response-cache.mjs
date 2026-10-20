@@ -1,7 +1,7 @@
 const HOUR = 3600;
 const DAY = 24 * HOUR;
 const noStore = Object.freeze({cacheControl: 'no-store', cdnCacheControl: 'no-store'});
-const direct = new Set(['directory', 'references', 'reference-summary', 'source-record', 'amendments']);
+const direct = new Set(['directory', 'references', 'reference-summary', 'source-record', 'amendments', 'vote-periods']);
 const byId = new Set(['profile', 'activities', 'speeches', 'latest-activities', 'speech', 'speech-context', 'speech-media', 'document', 'motion-comparison']);
 const insights = new Set(['questions', 'legislation', 'saved', 'participation', 'speech-words', 'procedure-context', 'group-voices']);
 
@@ -51,6 +51,8 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   // Memberships are assembled after a process restart. Polls must reach the
   // origin until that work finishes instead of retaining its first snapshot.
   if (url.pathname === '/api/directory' && (payload?.index?.complete !== true || payload?.committeeDetails?.complete === false)) return noStore;
+  // Held dates change at Brussels midnight; a CDN lifetime must not hide the new day.
+  if (url.pathname === '/api/vote-periods') return noStore;
   if (url.pathname.includes('/speech-media/') && payload?.available === false) return noStore;
   const resource = url.pathname.split('/')[2];
   if (resource === 'speech' && !payload?.xml) return noStore;

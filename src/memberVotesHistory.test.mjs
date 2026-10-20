@@ -64,7 +64,9 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
     assert.deepEqual(unexpected,[],'all requests stay inside local fixtures');
   });
   t.mock.method(globalThis,'fetch',async input=>{
-    const url=new URL(input,location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');requests.push(url);
+    const url=new URL(input,location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');
+    if(url.pathname==='/api/vote-periods')return Response.json({version:1,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}});
+    requests.push(url);
     if(url.pathname==='/api/directory')return Response.json(directory);
     if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
     if(url.pathname.startsWith('/api/profile/'))return Response.json({...members[Number(url.pathname.split('/').at(-1))-1],birthDate:null,memberships:[]});
