@@ -28,19 +28,20 @@ const question={id:'eli/dl/doc/E-10-2026-000001',identifier:'E-10-2026-000001',d
   inverse_answers_to:[{id:'eli/dl/doc/E-10-2026-000001-ASW',identifier:'E-10-2026-000001-ASW',document_date:'2026-06-01',originalLanguage:['http://publications.europa.eu/resource/authority/language/ENG'],is_realized_by:manifestations('E-10-2026-000001-ASW',['en','fr'])}]};
 
 function addQuestions(index,count=120) {
-  const insert=index.db.prepare("INSERT INTO sources VALUES (1,?,'document',?,?,1)");
+
   for(let n=2;n<count+2;n++) {
     const id='E-10-2026-'+String(n).padStart(6,'0');
-    insert.run('/parliamentary-questions/'+id,JSON.stringify({...question,id:'eli/dl/doc/'+id,identifier:id,is_realized_by:manifestations(id,['en','fr','de']),inverse_answers_to:[]}),fetchedAt);
+    index.putSource(1,'/parliamentary-questions/'+id,'document',{...question,id:'eli/dl/doc/'+id,identifier:id,is_realized_by:manifestations(id,['en','fr','de']),inverse_answers_to:[]},fetchedAt);
   }
 }
 
 function stores() {
   const dir=temp(),index=new ActivityStore(path.join(dir,'index'),{clock:instant});
+  index.acquire();
+  index.putSource(1,'/parliamentary-questions/E-10-2026-000001','document',question,fetchedAt);
   index.db.exec(`INSERT INTO meta VALUES ('active','1');
     INSERT INTO items VALUES (1,'/speeches/MTG-PL-2026-07-08-OTH-1','MTG-PL-2026-07-08-OTH-1','42','plenary-contributions','2026-07-08','{}');
     INSERT INTO items VALUES (1,'/parliamentary-questions/E-10-2026-000001','E-10-2026-000001-ASW','43','written-questions','2026-06-01','{}');`);
-  index.db.prepare("INSERT INTO sources VALUES (1,'/parliamentary-questions/E-10-2026-000001','document',?,?,1)").run(JSON.stringify(question),fetchedAt);
   const corpus=new CorpusStore(path.join(dir,'corpus'),{indexFile:index.filename,clock:instant});
   assert.equal(corpus.acquire(),true);
   return {dir,index,corpus,cleanup(){corpus.close();index.close();rmSync(dir,{recursive:true,force:true});}};

@@ -1,9 +1,10 @@
+import {discoverQuestionFiles} from './question-discovery.mjs';
 import path from 'node:path';
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { ODP_BASE, boundedUpstream } from './odp.mjs';
 import { apiFetch, speechWindows } from './activity-index-worker.mjs';
-import { array, tail, documentFiles } from './activity-index-model.mjs';
+import { array, tail } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
 import { allowedDownload, downloadDocx } from './document-text.mjs';
 import { CorpusStore, CORPUS_LIMITS, corpusQuery } from './corpus-store.mjs';
@@ -22,7 +23,7 @@ const SPEECH_ID=/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/;
 const SPEECH_TYPES='PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT';
 // Verbatim translations are added for weeks after a sitting; recheck recent months.
 const RECHECK_WINDOW=120*DAY, RECHECK_EVERY=7*DAY, DISCOVER_EVERY=6*60*60_000;
-const PRIORITY={speeches:60,speech:61,speechClassification:63,primaryDocument:50,otherDocument:10};
+const PRIORITY={speeches:60,speech:61,speechClassification:63};
 const FRAGMENT_LIMIT=2*1024*1024;
 
 // Retain only language attributes. Returning false from updateTag discards
@@ -76,21 +77,7 @@ export function speechTexts(activity,sourceUrl,fetchedAt) {
   const steps=speechTextSteps(activity,sourceUrl,fetchedAt);
   for(;;){const step=steps.next();if(step.done)return step.value;}
 }
-// Question and answer DOCX files listed by a saved index record.
-export function questionFiles(work,policy='all') {
-  const id=work.identifier||tail(work.id);
-  const entries=[{sourceId:id,kind:'question',parentId:null,work},...array(work.inverse_answers_to).filter(answer=>answer&&typeof answer==='object').map(answer=>({sourceId:answer.identifier||tail(answer.id),kind:'answer',parentId:id,work:answer}))];
-  return entries.flatMap(entry=>{
-    if(!/^[A-Z0-9-]{1,100}$/.test(entry.sourceId||''))return [];
-    const originals=array(entry.work.originalLanguage).map(languageCode).filter(Boolean);
-    const files=documentFiles(entry.work).filter(file=>file.format==='DOCX' && file.language && allowedDownload(file.url));
-    return files.flatMap(file=>{
-      const primary=originals.includes(file.language)||file.language==='en';
-      if(policy==='primary' && !primary)return [];
-      return [{sourceId:entry.sourceId,kind:entry.kind,parentId:entry.parentId,date:entry.work.document_date||null,originalLanguages:originals,language:file.language,translationType:file.translationType,url:file.url,primary}];
-    });
-  });
-}
+export {questionFiles} from './question-files.mjs';
 
 export class CorpusWorker {
   constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,download=downloadDocx,clock=Date.now,budget=300,maxDuration=60*60_000,diskLimit=2*1024**3,interval=0,languages='all',pageSize=25}={}) {
@@ -180,17 +167,7 @@ export class CorpusWorker {
     if(index.generation==null){this.store.set('discoveryCheckedAt',now);return;}
     const discovered=this.store.get('discoveredAt'), sameIndex=this.store.get('discoveredGeneration')===index.generation && this.store.get('discoveredPublished')===index.published;
     if(discovered && sameIndex && this.store.get('documentLanguages')===this.languages && now-Date.parse(discovered)<DISCOVER_EVERY){this.store.set('discoveryCheckedAt',now);return;}
-    // Explicit binary bounds let the existing (generation,key) index seek
-    // directly to question records instead of scanning unrelated source bodies.
-    const sources=this.store.db.prepare(`SELECT body FROM idx.sources WHERE generation=? AND kind='document' AND key>='/parliamentary-questions/' AND key<'/parliamentary-questions0' AND key LIKE '/parliamentary-questions/%'`);
-    for(const row of sources.iterate(index.generation)) {
-      let files=0;
-      for(const file of questionFiles(JSON.parse(row.body),this.languages)) {
-        if(!this.store.hasText(file.url))this.store.enqueue('docx:'+file.url,'docx',file,file.primary?PRIORITY.primaryDocument:PRIORITY.otherDocument);
-        if(++files%8===0)await this.checkpoint();
-      }
-      await this.checkpoint();
-    }
+    await discoverQuestionFiles(this,index.generation);
     this.store.set('discoveredAt',new Date(now).toISOString());this.store.set('documentLanguages',this.languages);
     this.store.set('discoveredGeneration',index.generation);this.store.set('discoveredPublished',index.published);
     this.store.set('discoveryCheckedAt',now);

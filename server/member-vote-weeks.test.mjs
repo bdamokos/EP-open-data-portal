@@ -1,3 +1,4 @@
+import {initializeActivityReads} from './activity-read-projections.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -7,6 +8,8 @@ test('stored week hints group exact retained decisions in the serving generation
   const db=new DatabaseSync(':memory:');
   try {
     db.exec('CREATE TABLE sources(generation INTEGER,key TEXT,kind TEXT,body TEXT,fetched_at TEXT)');
+    db.exec('CREATE TABLE items(generation INTEGER,mep TEXT,source_id TEXT,date TEXT,body TEXT)');
+    initializeActivityReads(db);
     const add=(date,{generation=2,decisions=[{id:'eli/dl/event/MTG-PL-'+date+'-DEC-1'}],fetchedAt='2026-10-19T10:00:00Z'}={})=>db.prepare('INSERT INTO sources VALUES (?,?,?,?,?)').run(generation,'motion-outcomes:MTG-PL-'+date,'motion-outcomes',JSON.stringify({decisions,decisionsUrl:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-'+date+'/decisions?format=application%2Fld%2Bjson',decisionsFetchedAt:fetchedAt}),fetchedAt);
     add('2026-10-06');add('2026-10-07');add('2026-09-16');
     add('2026-09-23',{generation:1});add('2026-09-30',{decisions:[]});
