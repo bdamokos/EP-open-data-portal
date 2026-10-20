@@ -765,6 +765,27 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
     const genuineEmpty=await post({query:'ocean',country:'MT'});assert.equal(genuineEmpty.status,200);assert.equal((await genuineEmpty.json()).total,0);
     s.index.db.prepare('UPDATE members SET body=? WHERE id=?').run(JSON.stringify({id:'43',name:'Saved author',countryCode:'IT'}),'43');
     const staleCountry=await post({query:'ocean',sourceIds:[answerId],country:'IT',group:'question'});assert.equal((await staleCountry.json()).total,0,'known cached roster metadata takes precedence over a conflicting saved index country');
+    s.index.db.prepare('UPDATE sources SET body=? WHERE generation=1 AND key=?').run(JSON.stringify({...question,workHadParticipation:[{participation_role:'def/ep-roles/ADDRESSEE',had_participant_organization:['org/COM']}]}),'/parliamentary-questions/'+id);
+    for(const recipient of ['org/COM','org/CS','unavailable']) {
+      const expected=recipient==='org/COM'?1:0;
+      for(const response of [await post({query:'ocean',kinds:['question','answer'],group:'question',addressee:recipient}),await fetch(base+'/search?q=ocean&kinds=question,answer&group=question&addressee='+encodeURIComponent(recipient))]) {
+        assert.equal(response.status,200);assert.equal((await response.json()).total,expected,'GET/POST recipient parity: '+recipient);
+      }
+    }
+    for(const value of ['', 'COM', 'org/COM/', 'org/'+('A'.repeat(101))]) {
+      assert.equal((await post({query:'ocean',addressee:value})).status,400);
+      assert.equal((await fetch(base+'/search?q=ocean&addressee='+encodeURIComponent(value))).status,400);
+    }
+    for(const [raw,status] of [
+      ['{"query":"ocean","group":"question","addressee":"org/CS","addressee":"org/COM"}',200],
+      ['{"query":"ocean","group":"question","addressee":"org/COM","addressee":"bad"}',400],
+      ['{"query":"ocean","group":"question","addressee":"org/CS","addre\\u0073see":"org/COM"}',200],
+      ['{"query":"ocean","group":"question","addressee":"org/COM","addre\\u0073see":[]}',400],
+    ]) {
+      const response=await fetch(base+'/search',{method:'POST',headers:{'Content-Type':'application/json'},body:raw});assert.equal(response.status,status,'decoded last-key semantics');if(status===200)assert.equal((await response.json()).total,1);
+    }
+    assert.equal((await fetch(base+'/search?q=ocean&addressee=org%2FCOM&addressee=org%2FCS')).status,400);
+    assert.equal((await fetch(base+'/search?addressee=org%2FCOM',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'ocean'})})).status,400,'POST recipient belongs in body only');
     const get=await fetch(base+'/search?q=ocean&kinds=question,answer&group=question&date-basis=question&sort=newest');
     assert.equal(get.status,200);assert.equal((await get.json()).total,1);
     const text=await fetch(base+'/text?source-id='+id+'&source-key=en&q=ocean');
