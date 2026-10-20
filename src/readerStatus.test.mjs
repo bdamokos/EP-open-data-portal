@@ -197,10 +197,14 @@ test('HTTP-200 extraction failures honor their retry hint and localized retry la
   data.selectedText.nextRetryAt=new Date(Date.now()+900).toISOString();
   await h.render(h.reader('question',{language:'hu',includeAnswers:true}));await h.finish(route,data);
   const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);assert.equal(retry.lang,'hu');assert.equal(retry.textContent,'Újrapróbálkozás');
+  assert.equal(retry.closest('p'),null,'retry is an action outside the error paragraph');
+  const hint=document.getElementById(retry.getAttribute('aria-describedby'));
+  assert(hint);assert.match(hint.textContent,/Try again in 1 second\./);assert.equal(hint.getAttribute('aria-live'),'off');
   retry.click();assert.equal(h.requests.length,1);assert(!h.container.textContent.includes('No answer published.'));
   assert(!h.container.textContent.includes('Text unavailable.'));
   await act(async()=>new Promise(resolve=>setTimeout(resolve,950)));
   assert.equal(retry.disabled,false,'the server hint expiring enables a manual retry');assert.equal(h.requests.length,1,'a hint does not start an automatic retry');
+  assert.equal(retry.getAttribute('aria-describedby'),null);assert.equal(h.container.querySelector('.reader-retry-hint'),null);
   await act(async()=>{retry.focus();retry.click();});await h.finish(route,question(questionId,'hu'));
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'hu');assert.equal(h.container.querySelector('.reader-retry'),null);
 });
@@ -213,6 +217,23 @@ test('HTTP error cooldowns disable the local speech and document retry until the
     const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);
     await act(async()=>retry.click());assert.equal(h.requests.length,1);
   });
+});
+
+test('retry countdown reconciles elapsed time on return to the reader and never retries automatically',async t=>{
+  let now=Date.now();t.mock.method(Date,'now',()=>now);
+  const h=await harness(t),route=`document/${questionId}?lang=en`,data=question(questionId,'en','error');
+  data.selectedText.nextRetryAt=new Date(now+125_000).toISOString();
+  await h.render(h.reader('question'));await h.finish(route,data);
+  const retry=h.container.querySelector('.reader-retry button'),hint=()=>h.container.querySelector('.reader-retry-hint');
+  assert.equal(retry.disabled,true);assert.match(hint().textContent,/3 minutes/);
+  now+=66_000;await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));
+  assert.match(hint().textContent,/59 seconds/);
+  now+=58_000;await act(async()=>document.dispatchEvent(new h.window.Event('visibilitychange')));
+  assert.match(hint().textContent,/1 second/);assert.equal(retry.disabled,true);
+  now+=1000;await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));
+  assert.equal(retry.disabled,false);assert.equal(hint(),null);assert.equal(h.requests.length,1);
+  await act(async()=>{retry.click();retry.click();});assert.equal(h.requests.length,2);
+  await h.finish(route,question());assert.equal(h.container.querySelector('.reader-retry'),null);
 });
 
 
