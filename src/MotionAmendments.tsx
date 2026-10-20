@@ -185,8 +185,11 @@ function Decision({item,decision,language,member,memberName}:{item:MotionAmendme
     {part?.description&&<p className="motion-amendments__split-description" lang={sourceLanguage(part.language)}>{part.description}</p>}
     {part?.description&&<p className="motion-amendments__muted">Published split description.</p>}
     {decision.scope==='unresolved-split'&&<p className="motion-amendments__muted">This decision cannot be assigned to an individual part.</p>}
-    {(date||method)&&<p className="motion-amendments__muted">{date&&<span lang={language}>{date}</span>}{date&&method?' · ':''}{method}</p>}
-    <ActivityVote decisionId={decision.id} memberId={member} memberName={memberName} language={language}><Totals decision={decision} language={language}/></ActivityVote>
+    <ActivityVote decisionId={decision.id} memberId={member} memberName={memberName} language={language}>
+      {(date||method)&&<p className="motion-amendments__muted">{date&&<span lang={language}>{date}</span>}{date&&method?' · ':''}{method}</p>}
+      <Totals decision={decision} language={language}/>
+      {decision.method==='VOTE_HAND'&&<p className="motion-amendments__muted">Individual positions are not recorded for this voting method.</p>}
+    </ActivityVote>
   </li>;
 }
 function AmendmentDetail({item,member,memberName,language,listId,onVariant,onContext,contextButton}:{item:MotionAmendment;member:string;memberName?:string;language:string;listId:string|null;onVariant:(id:string|null)=>void;onContext:()=>void;contextButton:RefObject<HTMLButtonElement|null>}) {

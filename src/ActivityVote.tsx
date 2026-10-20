@@ -35,7 +35,7 @@ export function ActivityVote({decisionId,memberId,memberName,language,children}:
   return <div className="activity-vote" lang="en">
     {vote?<>
       <p className="activity-vote__meta"><span lang={language}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(vote.date))}</span>{method?' · '+method:''}</p>
-      <div className="member-votes-strip" aria-label="Member position and Parliament result">{noIndividualPositions?<span className="member-votes-position"><span className="member-votes-position-label">{memberName||'Selected MEP'}</span><strong>No individual ballot</strong></span>:<Position vote={vote} memberName={memberName||'Selected MEP'}/>}<Result vote={vote} showMissingTotals={vote.method!=='VOTE_HAND'}/>
+      <div className="member-votes-strip" aria-label="Member position and Parliament result">{noIndividualPositions?<span className="member-votes-position"><span className="member-votes-position-label">{memberName||'Selected MEP'}</span><strong>Not individually recorded</strong></span>:<Position vote={vote} memberName={memberName||'Selected MEP'}/>}<Result vote={vote} showMissingTotals={vote.method!=='VOTE_HAND'} showPartialTotals/>
         {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention">Declared intention: <strong>{vote.intention.positions.map(position=>({for:'For',against:'Against',abstaining:'Abstain'}[position])).join(', ')}</strong>. Declared afterwards; the official result and totals are unchanged.</p>}
       </div>
       {noIndividualPositions&&<p className="activity-vote__meta">Individual positions are not recorded for this voting method.</p>}

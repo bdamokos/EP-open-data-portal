@@ -54,3 +54,8 @@ test('a transport failure keeps the indexed outcome and voting method readable',
   const h=await mount(t,async()=>new Response(JSON.stringify({message:'Source temporarily unavailable'}),{status:503,headers:{'content-type':'application/json'}}));await h.render();
   assert.match(h.container.textContent,/Indexed result · Adopted · Show of hands/);assert.match(h.container.textContent,/Additional vote details could not be loaded/);assert.doesNotMatch(h.container.textContent,/Position unavailable|Selected memberFor/);assert(h.container.querySelector('a'));
 });
+
+test('partial tallies preserve known counts and keep unknown values separate from zero',async t=>{
+  const h=await mount(t,async()=>{const value=exactResponse();value.selected.item.totals={for:445,against:0,abstaining:null};return Response.json(value);});await h.render();
+  assert.match(h.container.textContent,/For 445Against 0Abstaining —/);assert.doesNotMatch(h.container.textContent,/Tallies unavailable/);
+});
