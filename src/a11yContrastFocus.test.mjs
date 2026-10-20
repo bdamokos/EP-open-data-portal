@@ -100,12 +100,31 @@ test('programmatic focus uses the local surface token and keeps yellow on dark i
   }
 });
 
-test('the opened member name takes focus without a visible outline while other focused headings keep one', async t => {
-  const window = await page(t, '<main class="explorer"><section class="explorer-profile"><div class="explorer-profile-header"><h1 tabindex="-1">Name</h1></div><h2 tabindex="-1">Speeches</h2></section></main>');
-  const [name, heading] = window.document.querySelectorAll('h1,h2');
-  name.focus();
-  assert.equal(window.document.activeElement, name);
-  assert.equal(window.getComputedStyle(name).outlineStyle, 'none');
+test('page titles take focus without a visible outline while other focused headings keep one', async t => {
+  for (const markup of [
+    '<main class="explorer"><section class="explorer-profile"><div class="explorer-profile-header"><h1 tabindex="-1">Name</h1></div><h2 tabindex="-1">Speeches</h2></section></main>',
+    '<main class="explorer"><section class="explorer-saved-view"><h1 tabindex="-1">Following</h1><h2 tabindex="-1">Saved items</h2></section></main>',
+    '<main class="explorer-insights"><section><h1 tabindex="-1">Plenary agenda</h1><h2 tabindex="-1">Contributions</h2></section></main>',
+  ]) {
+    const window = await page(t, markup);
+    const [title, heading] = window.document.querySelectorAll('h1,h2');
+    title.focus();
+    assert.equal(window.document.activeElement, title);
+    assert.equal(window.getComputedStyle(title).outlineStyle, 'none');
+    heading.focus();
+    assert.equal(window.getComputedStyle(heading).outlineStyle, 'solid');
+  }
+});
+
+test('insight page titles stay unoutlined when the lazy insight layout loads after the focus styles', async t => {
+  const window = new Window();
+  t.after(() => window.happyDOM.close());
+  const [focus, layout] = await Promise.all(['focus.css', 'ExplorerLayout.css'].map(file => readFile(new URL(file, import.meta.url), 'utf8')));
+  window.document.head.innerHTML = `<style>${focus}</style><style>${layout}</style>`;
+  window.document.body.innerHTML = '<main class="explorer-insights"><h1 tabindex="-1">Questions</h1><h2 tabindex="-1">Results</h2></main>';
+  const [title, heading] = window.document.querySelectorAll('h1,h2');
+  title.focus();
+  assert.equal(window.getComputedStyle(title).outlineStyle, 'none');
   heading.focus();
   assert.equal(window.getComputedStyle(heading).outlineStyle, 'solid');
 });
