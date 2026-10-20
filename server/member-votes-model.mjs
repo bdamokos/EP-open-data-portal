@@ -124,10 +124,18 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
 
 export function projectMemberSitting(snapshot,memberId,language='en') {
   const derived=deriveVoteEvidence(snapshot);
-  const items=list(snapshot.decisions).map(raw=>projectMemberDecision(raw,snapshot,memberId,language,derived));
+  const items=list(snapshot.decisions).map(raw=>projectMemberDecision(raw,snapshot,memberId,language,derived)).map(item=>({...item,alignment:memberVoteAlignment(item)}));
   const subjects=derived.subjects.map(subject=>{
     const wholeTextDecisions=items.filter(item=>item.subjectId===subject.id&&item.scope.kind==='whole-text').map(item=>Object.fromEntries(['id','uri','date','scope','method','outcome','ballotStatus','actualPosition','intention','totals','evidencePaths','evidenceGaps'].map(key=>[key,item[key]])));
     return {...subject,...preferred(subject.titles,language),wholeTextDecisions,gaps:wholeTextDecisions.length?subject.gaps:[...subject.gaps,{code:'whole-text-outcome-not-established'}],sources:{results:snapshot.sources?.results||[],decisions:snapshot.sources?.decisions||[]}};
   });
   return {items,subjects};
+}
+
+export function memberVoteAlignment(vote) {
+  if(vote.ballotStatus!=='conducted'||vote.actualPosition?.status!=='recorded'||!['ADOPTED','REJECTED'].includes(vote.outcome))return 'unclassified';
+  const position=vote.actualPosition.position;
+  if(position==='abstaining')return 'abstained';
+  if(!['for','against'].includes(position))return 'unclassified';
+  return (position==='for')===(vote.outcome==='ADOPTED')?'with':'against';
 }

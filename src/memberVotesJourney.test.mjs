@@ -14,7 +14,7 @@ const MEMBER=42,WEEK='2026-03-23',SITTING='MTG-PL-2026-03-25';
 const DECISION=SITTING+'-DEC-99',SNAPSHOT='a'.repeat(64);
 const DOCUMENT='B-10-2026-0001',AMENDMENT=DOCUMENT+'-AM-7-2';
 const LIST='B-10-2026-0001-AM-001-050',ADOPTED='TA-10-2026-0007';
-const defaults=()=>({week:'latest',sittingId:null,positions:'recorded',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
+const defaults=()=>({week:'latest',sittingId:null,positions:'recorded',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
 const queryFor=fields=>new URLSearchParams({member:String(MEMBER),...fields});
 const read=fields=>readMemberVotesJourney(queryFor(fields),MEMBER);
 const saved=journey=>{
@@ -268,4 +268,19 @@ test('scroll restoration preserves independent desktop and mobile scrollers and 
   for(const invalid of [null,[],[1,2,3],[1,2,3,-1],[1,2,3,Infinity],[1,2,3,NaN],[1,2,3,10000001],[1,2,3,'4']]){
     restoreMemberJourneyScroll(root,invalid);assert.deepEqual(captureMemberJourneyScroll(root),positions);
   }
+});
+
+test('alignment round trips, separates history and scroll, and omits its compatible default',()=>{
+  const before=defaults();
+  assert.equal(memberVotesJourneyParams({state:before}).has('mv-alignment'),false);
+  for(const alignment of ['with','against','abstained']){
+    const journey={memberId:MEMBER,invalid:false,adoptedId:null,state:{...before,week:WEEK,alignment,snapshotId:SNAPSHOT}};
+    assert.deepEqual(readMemberVotesJourney(saved(journey),MEMBER),journey);
+    assert.equal(memberVotesJourneyParams(journey).get('mv-alignment'),alignment);
+    assert.equal(memberVotesHistoryMode(before,journey.state,true),'push');
+    assert.notEqual(memberVotesScrollKey(journey),memberVotesScrollKey({...journey,state:{...journey.state,alignment:'all'}}));
+    assert.equal(memberVotesHistoryMode(journey.state,{...journey.state,snapshotId:'b'.repeat(64)},true),'replace');
+  }
+  for(const alignment of ['','majority','unclassified'])assert.equal(read({'mv-alignment':alignment}).invalid,true);
+  assert.equal(read({'mv-alignment':'all'}).invalid,false);
 });

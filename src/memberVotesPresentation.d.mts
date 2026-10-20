@@ -1,6 +1,6 @@
 import type {MemberVote,MemberVoteSubject,MemberVotesResponse} from './MemberVotesTypes';
 export const MEMBER_VOTES_PAGE_SIZE:50;
-export type MemberVotesRequestState={week?:string;sittingId?:string|null;positions?:'recorded'|'all';offset?:number;decisionId?:string|null;snapshotId?:string|null};
+export type MemberVotesRequestState={week?:string;sittingId?:string|null;positions?:'recorded'|'all';alignment?:'all'|'with'|'against'|'abstained';offset?:number;decisionId?:string|null;snapshotId?:string|null};
 export type MemberVoteGroup={id:string;subject:MemberVoteSubject|null;items:MemberVote[]};
 export type MemberVoteCounts={for:number;against:number;abstaining:number;total:number};
 export function memberVotesRoute(memberId:number|string,state?:MemberVotesRequestState,language?:string):string;

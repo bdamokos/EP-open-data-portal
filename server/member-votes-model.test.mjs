@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {projectMemberDecision} from './member-votes-model.mjs';
+import {projectMemberDecision,memberVoteAlignment} from './member-votes-model.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/member-votes.json',import.meta.url),'utf8'));
 const full=JSON.parse(readFileSync(new URL('./fixtures/insights-live-20261014.json',import.meta.url),'utf8'));
@@ -219,4 +219,12 @@ test('external and malformed relation targets never join and projection never mu
   const vote=project(raw,'197591',{...snapshot,results:snapshot.results.map(node=>({...node,consists_of:[]}))});
   assert.deepEqual(vote.context.resultIds,[]);assert.deepEqual(vote.context.agendaItemIds,[]);
   assert.deepEqual(vote.context.procedureIds,[]);
+});
+
+test('alignment uses conducted recorded ballots and the official outcome, never intentions or tallies',()=>{
+  for(const outcome of ['ADOPTED','REJECTED','LAPSED','WITHDRAWN',null,'UNKNOWN'])for(const position of ['for','against','abstaining',null])for(const status of ['recorded','no-record','unavailable','conflicting','not-conducted'])for(const ballotStatus of ['conducted','not-conducted','unknown']){
+    const vote={outcome,actualPosition:{status,position},ballotStatus,intention:{status:'reported',positions:['for']},totals:{for:500,against:0,abstaining:0}};
+    const expected=ballotStatus!=='conducted'||status!=='recorded'||!['ADOPTED','REJECTED'].includes(outcome)||!position?'unclassified':position==='abstaining'?'abstained':(position==='for')===(outcome==='ADOPTED')?'with':'against';
+    assert.equal(memberVoteAlignment(vote),expected,JSON.stringify(vote));
+  }
 });

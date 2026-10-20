@@ -1,3 +1,4 @@
+export type MemberVoteAlignment='with'|'against'|'abstained'|'unclassified';
 export type MemberVotePosition = 'for' | 'against' | 'abstaining';
 
 export type MemberVoteSource = {
@@ -20,6 +21,7 @@ export type MemberVoteSourcePageCoverage = {
 };
 
 export type MemberVote = {
+  alignment:MemberVoteAlignment;
   id:string;
   uri:string;
   sittingId:string;
@@ -94,11 +96,13 @@ export type MemberVoteSittingCoverage = {
 };
 
 export type MemberVotesResponse = {
-  version:2;
+  version:3;
   member:{id:string;uri:string;mandateStatus:'not-assessed';historicalGroupStatus:'not-collected'};
   period:{kind:'week'|'sitting';week:string|null;sittingId:string|null;from:string|null;to:string|null};
   snapshotId:string;
   positions:'all'|'recorded';
+  alignment:'all'|'with'|'against'|'abstained';
+  alignmentCounts:Record<MemberVoteAlignment,number>|null;
   subjects:MemberVoteSubject[];
   pagination:{offset:number;limit:number;returned:number;observedTotal:number;filteredTotal:number;nextOffset:number|null};
   items:MemberVote[];

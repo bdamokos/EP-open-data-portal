@@ -5,3 +5,6 @@
 
 .member-votes button.member-votes-whole{display:block;margin:0 16px 12px 43px;padding:7px 10px;font-size:11px;max-width:calc(100% - 59px);color:var(--mv-ink)}.member-votes-position-compact,.member-votes-position-compact .member-votes-position-label{display:inline;font-size:inherit}.member-votes-position-compact .member-votes-position-label{margin-right:4px}.member-votes-detail>button.member-votes-whole{margin-left:0;max-width:100%}
 @media(max-width:600px){.member-votes button.member-votes-whole{margin-left:37px;max-width:calc(100% - 50px)}}
+
+.member-votes-alignment{margin:4px 0 16px;font-size:11px}.member-votes-alignment-controls{flex-wrap:wrap}.member-votes-alignment p{margin:5px 0}.member-votes-alignment summary{color:var(--mv-blue);cursor:pointer;min-height:32px;padding:5px 0}.member-votes-alignment details{max-width:90ch}.member-votes-against-outcome{display:inline-block!important;font-size:10px;color:var(--mv-against);border:1px solid currentColor;border-radius:3px;padding:1px 5px;margin:4px 0}.member-votes-alignment-controls button{text-align:center}
+@media(max-width:600px){.member-votes-alignment-controls button{flex:1 1 42%}}

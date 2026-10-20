@@ -1,3 +1,4 @@
+import {OutcomeAlignmentFilter} from './OutcomeAlignmentFilter';
 import {VotePeriodNavigation} from './VotePeriodNavigation';
 import {votePeriodTransition} from './plenaryPeriods.mjs';
 import {useEffect,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
@@ -11,7 +12,7 @@ import {WordingDiff} from './components/WordingDiff';
 
 export type MemberVotesContext={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted'};
 export type MemberVotesState={
-  week:string;sittingId:string|null;positions:'recorded'|'all';offset:number;
+  week:string;sittingId:string|null;positions:'recorded'|'all';alignment:'all'|'with'|'against'|'abstained';offset:number;
   decisionId:string|null;snapshotId:string|null;expandedSubjectIds:string[];context:MemberVotesContext|null;
 };
 export type MemberVotesContextRequest=MemberVotesContext&{onBack:()=>void};
@@ -20,7 +21,7 @@ export type MemberVotesProps={
   onStateChange:(next:MemberVotesState,options?:{replace?:boolean})=>void;
   renderContext:(request:MemberVotesContextRequest)=>ReactNode;
 };
-export const defaultMemberVotesState:MemberVotesState={week:'latest',sittingId:null,positions:'recorded',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null};
+export const defaultMemberVotesState:MemberVotesState={week:'latest',sittingId:null,positions:'recorded',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null};
 
 type ResultVote=Pick<MemberVote,'outcome'|'totals'|'ballotStatus'>;
 type PositionVote=Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>;
@@ -139,12 +140,13 @@ function Detail({vote,data,memberName,language,onDecision,openContext}:{vote:Mem
 
 export function MemberVotes({memberId,memberName,language,state,onStateChange,renderContext}:MemberVotesProps) {
   const listRef=useRef<HTMLDivElement>(null),detailRef=useRef<HTMLDivElement>(null);
+  const alignmentFocus=useRef<MemberVotesState['alignment']|null>(null);
   const listScroll=useRef(0),detailScroll=useRef(0),headingRef=useRef<HTMLDivElement>(null);
   const restoredPane=useRef<HTMLDivElement|null>(null);
   const listHeadingRef=useRef<HTMLHeadingElement>(null);
   const lastSelection=useRef<{decisionId:string;groupId:string|null}|null>(null),returnFocus=useRef(false);
   const snapshotRefresh=useRef<{route:string;started:boolean;baseline:MemberVotesResponse|null}|null>(null);
-  const route=useMemo(()=>{try{return memberVotesRoute(memberId,state,language);}catch{return null;}},[memberId,state.week,state.sittingId,state.positions,state.offset,state.decisionId,state.snapshotId,language]);
+  const route=useMemo(()=>{try{return memberVotesRoute(memberId,state,language);}catch{return null;}},[memberId,state.week,state.sittingId,state.positions,state.alignment,state.offset,state.decisionId,state.snapshotId,language]);
   const request=useData<MemberVotesResponse>(route) as ReturnType<typeof useData<MemberVotesResponse>>&{status?:number};
   const valid=Boolean(request.data&&validateMemberVotesResponse(request.data,{memberId,state}));
   const data=valid?request.data:null,groups=useMemo(()=>data?groupMemberVotes(data):[],[data]);
@@ -186,6 +188,13 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     returnFocus.current=false;
   },[data,groups,selected,state.decisionId,state.context,request.loading,request.error]);
   useEffect(()=>{if(state.decisionId&&!state.context)headingRef.current?.querySelector<HTMLElement>('h2')?.focus({preventScroll:true});},[data,state.decisionId,state.context]);
+  useLayoutEffect(()=>{
+    if(alignmentFocus.current===null||request.loading||!data)return;
+    // A filter request briefly removes the list; restore its initiating control.
+    const target=listRef.current?.querySelector<HTMLButtonElement>(`[data-vote-alignment="${alignmentFocus.current}"]`);
+    if(document.activeElement===document.body)target?.focus({preventScroll:true});
+    alignmentFocus.current=null;
+  },[data,request.loading]);
   const change=(patch:Partial<MemberVotesState>,replace=false)=>onStateChange({...state,...patch},{replace});
   const selectDecision=(decisionId:string)=>{detailScroll.current=0;change({decisionId,context:null});};
   const periodChange=(week:string,sittingId:string|null=null)=>{listScroll.current=0;onStateChange(votePeriodTransition(state,week,sittingId));};
@@ -199,15 +208,16 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     {data&&!expired&&!request.error&&<>
       {data.coverage.status!=='complete'&&<p className="member-votes-notice">Some voting records for this period are unavailable. More decisions or recorded positions may exist.</p>}
       <div ref={listRef} className="member-votes-pane" hidden={Boolean(state.decisionId||state.context)} onScroll={event=>{listScroll.current=event.currentTarget.scrollTop;}}>
-        <div className="member-votes-tools"><p>{data.pagination.returned?`${data.pagination.offset+1}–${data.pagination.offset+data.pagination.returned} of ${data.pagination.filteredTotal}`:'0'} {countLabel(data.pagination.filteredTotal,state.positions==='recorded'?'recorded position':'decision')} · {data.pagination.observedTotal} {countLabel(data.pagination.observedTotal,'decision')} available in this period</p><div className="member-votes-filter" role="group" aria-label="Votes shown"><button type="button" aria-pressed={state.positions==='recorded'} onClick={()=>{listScroll.current=0;change({positions:'recorded',offset:0});}}>Recorded positions</button><button type="button" aria-pressed={state.positions==='all'} onClick={()=>{listScroll.current=0;change({positions:'all',offset:0});}}>All decisions</button></div></div>
+        <div className="member-votes-tools">{data.coverage.status!=='unavailable'&&<p>{data.pagination.returned?`${data.pagination.offset+1}–${data.pagination.offset+data.pagination.returned} of ${data.pagination.filteredTotal}`:'0'} {countLabel(data.pagination.filteredTotal,state.positions==='recorded'?'recorded position':'decision')} · {data.pagination.observedTotal} {countLabel(data.pagination.observedTotal,'decision')} available in this period</p>}<div className="member-votes-filter" role="group" aria-label="Votes shown"><button type="button" aria-pressed={state.positions==='recorded'} onClick={()=>{listScroll.current=0;change({positions:'recorded',offset:0});}}>Recorded positions</button><button type="button" aria-pressed={state.positions==='all'} onClick={()=>{listScroll.current=0;change({positions:'all',offset:0});}}>All decisions</button></div></div>
+        <OutcomeAlignmentFilter value={state.alignment} counts={data.alignmentCounts} coverage={data.coverage.status} sitting={Boolean(state.sittingId)} onChange={alignment=>{alignmentFocus.current=alignment;listScroll.current=0;change({alignment,offset:0});}}/>
         {groups.map(group=>{
           const title=group.subject?chosenTitle(group.subject,language):null;
           return <section className="member-votes-subject" key={group.id}><h3><button type="button" data-vote-group={group.id} aria-expanded={state.expandedSubjectIds.includes(group.id)} onClick={()=>change({expandedSubjectIds:state.expandedSubjectIds.includes(group.id)?state.expandedSubjectIds.filter(item=>item!==group.id):[...state.expandedSubjectIds,group.id]},true)}><span className="member-votes-disclosure" aria-hidden="true">{state.expandedSubjectIds.includes(group.id)?'−':'+'}</span><span><span lang={title?.language} title={title?.raw}>{title?.text||'Vote without a linked subject'}</span><span className="member-votes-subject-count">{group.subject?`${group.subject.counts.filtered} ${countLabel(group.subject.counts.filtered,state.positions==='recorded'?'recorded position':'decision')} in this subject · ${group.subject.counts.page} on this page`:dateLabel(group.items[0]?.date||null)}</span><span className="member-votes-subject-count">{memberVotePositionSummary(group.items)}</span></span></button></h3>
             {group.subject?.wholeTextDecisions.map(whole=><WholeText key={whole.id} vote={whole} memberName={memberName} onDecision={selectDecision}/>)}
-            <div hidden={!state.expandedSubjectIds.includes(group.id)}>{group.items.map(vote=><button type="button" className="member-votes-row" key={vote.id} data-vote-id={vote.id} onClick={()=>selectDecision(vote.id)}><span className="member-votes-row-copy"><span>{memberVoteLabel(vote,language)}</span>{vote.intention.status==='reported'&&<span className="member-votes-muted">Intention declared</span>}</span><Position vote={vote} memberName={memberName}/><Result vote={vote}/><span aria-hidden="true">›</span></button>)}</div>
+            <div hidden={!state.expandedSubjectIds.includes(group.id)}>{group.items.map(vote=><button type="button" className="member-votes-row" key={vote.id} data-vote-id={vote.id} onClick={()=>selectDecision(vote.id)}><span className="member-votes-row-copy"><span>{memberVoteLabel(vote,language)}</span>{vote.alignment==='against'&&<span className="member-votes-against-outcome">Against outcome</span>}{vote.intention.status==='reported'&&<span className="member-votes-muted">Intention declared</span>}</span><Position vote={vote} memberName={memberName}/><Result vote={vote}/><span aria-hidden="true">›</span></button>)}</div>
           </section>;
         })}
-        {!groups.length&&<p className="member-votes-empty">{data.coverage.status==='complete'&&data.pagination.observedTotal===0&&Array.isArray(data.coverage.sittings)&&data.coverage.sittings.some(day=>day?.state==='complete'&&day.observedDecisionCount===0&&(!state.sittingId||day.sittingId===state.sittingId))?(state.sittingId?'No votes were recorded at this sitting.':'No votes were recorded in this week.'):state.positions==='recorded'?'No recorded positions are available for this period. Choose All decisions to see available outcomes.':'No decisions are available for this period.'}</p>}
+        {!groups.length&&data.coverage.status!=='unavailable'&&<p className="member-votes-empty">{data.coverage.status==='complete'&&data.pagination.observedTotal===0&&Array.isArray(data.coverage.sittings)&&data.coverage.sittings.some(day=>day?.state==='complete'&&day.observedDecisionCount===0&&(!state.sittingId||day.sittingId===state.sittingId))?(state.sittingId?'No votes were recorded at this sitting.':'No votes were recorded in this week.'):data.pagination.filteredTotal>0?'No matching voting records on this page.':state.alignment!=='all'?data.coverage.status==='partial'?`No matching recorded votes among the available records for this ${state.sittingId?'sitting day':'week'}.`:`No recorded ${state.alignment==='abstained'?'abstentions':`votes ${state.alignment} Parliament’s outcome`} ${state.sittingId?'on this sitting day':'in this week'}.`:state.positions==='recorded'?'No recorded positions are available for this period. Choose All decisions to see available outcomes.':'No decisions are available for this period.'}</p>}
         {(state.offset>0||data.pagination.nextOffset!==null)&&<nav className="member-votes-pages" aria-label="Voting records pages"><button type="button" disabled={state.offset===0} onClick={()=>{listScroll.current=0;change({offset:Math.max(0,state.offset-MEMBER_VOTES_PAGE_SIZE)});}}>Previous page</button><button type="button" disabled={data.pagination.nextOffset===null} onClick={()=>{listScroll.current=0;change({offset:data.pagination.nextOffset??state.offset});}}>Next page</button></nav>}
       </div>
       <div ref={detailRef} className="member-votes-pane" hidden={!state.decisionId||Boolean(state.context)} onScroll={event=>{detailScroll.current=event.currentTarget.scrollTop;}}>

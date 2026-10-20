@@ -10,7 +10,7 @@ const projection=projectMemberSitting(fixture.snapshots[0],String(memberId),'en'
 const clone=value=>structuredClone(value);
 function response(overrides={}) {
   const items=projection.items.filter(item=>item.actualPosition.status==='recorded');
-  return {version:2,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
+  return {version:3,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
 }
 const state={week:'latest',sittingId,positions:'recorded',offset:0,decisionId:null,snapshotId:null};
 const accepts=(data,requestState=state)=>validateMemberVotesResponse(data,{memberId,state:requestState});
@@ -43,7 +43,7 @@ test('response guard checks member, requested period, filter, pagination and sna
   assert.equal(accepts(data,{...state,snapshotId:'b'.repeat(64)}),false);
   const week=response({period:{kind:'week',week:'2026-10-05',sittingId:null,from:'2026-10-05',to:'2026-10-11'}});
   assert.equal(accepts(week,{...state,sittingId:null}),true);assert.equal(accepts(week,{...state,sittingId:null,week:'2026-09-28'}),false);
-  const unknown=response({period:{kind:'week',week:null,sittingId:null,from:null,to:null},items:[],subjects:[],pagination:{offset:0,limit:50,returned:0,observedTotal:0,filteredTotal:0,nextOffset:null},coverage:{status:'unavailable',termWide:false}});
+  const unknown=response({period:{kind:'week',week:null,sittingId:null,from:null,to:null},items:[],subjects:[],pagination:{offset:0,limit:50,returned:0,observedTotal:0,filteredTotal:0,nextOffset:null},coverage:{status:'unavailable',termWide:false},alignmentCounts:null});
   assert.equal(accepts(unknown,{...state,sittingId:null}),true);
   unknown.coverage.status='complete';assert.equal(accepts(unknown,{...state,sittingId:null}),false);
 });
@@ -118,4 +118,21 @@ test('voting record and context links require exact validated identifiers',()=>{
 test('position labels distinguish unavailable, conflicting and absent records',()=>{
   for(const [status,label] of Object.entries({'no-record':'No recorded position',unavailable:'Position unavailable',conflicting:'Conflicting records','not-conducted':'Not put to a vote'}))assert.equal(memberVotePosition({ballotStatus:'conducted',actualPosition:{status,position:null}}),label);
   for(const [position,label] of Object.entries({for:'For',against:'Against',abstaining:'Abstained'}))assert.equal(memberVotePosition({ballotStatus:'conducted',method:'VOTE_ELECTRONIC_ROLLCALL',actualPosition:{status:'recorded',position}}),label);
+});
+
+test('alignment request omission is byte compatible and response validates counts, echo and item membership',()=>{
+  assert.equal(memberVotesRoute(memberId,state),memberVotesRoute(memberId,{...state,alignment:'all'}));
+  assert.equal(new URL(memberVotesRoute(memberId,state),'https://example.test').searchParams.has('alignment'),false);
+  for(const alignment of ['with','against','abstained'])assert.equal(new URL(memberVotesRoute(memberId,{...state,alignment}),'https://example.test').searchParams.get('alignment'),alignment);
+  assert.throws(()=>memberVotesRoute(memberId,{...state,alignment:'majority'}),RangeError);
+  const data=response();
+  for(const mutate of [value=>delete value.alignment,value=>{value.alignment='against';},value=>delete value.items[0].alignment,value=>{value.items[0].alignment='majority';},value=>{value.alignmentCounts=null;},value=>{value.alignmentCounts.with++;},value=>{value.alignmentCounts.against=-1;},value=>{value.alignmentCounts.extra=0;}]){
+    const malformed=clone(data);mutate(malformed);assert.equal(accepts(malformed),false);
+  }
+  const unavailable=response({items:[],subjects:[],coverage:{status:'unavailable',termWide:false},alignmentCounts:null,pagination:{offset:0,limit:50,returned:0,observedTotal:0,filteredTotal:0,nextOffset:null}});
+  assert.equal(accepts(unavailable),true);
+  unavailable.alignmentCounts={with:0,against:0,abstained:0,unclassified:0};assert.equal(accepts(unavailable),false);
+  const filtered=response({alignment:'with'});filtered.items=filtered.items.filter(item=>item.alignment==='with');filtered.pagination.returned=filtered.pagination.filteredTotal=filtered.items.length;filtered.subjects=[];
+  assert.equal(accepts(filtered,{...state,alignment:'with'}),true);
+  filtered.items[0].alignment='against';assert.equal(accepts(filtered,{...state,alignment:'with'}),false);
 });
