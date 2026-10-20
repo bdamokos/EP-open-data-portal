@@ -74,6 +74,8 @@ Actual `had_voter_favor`, `had_voter_against` and `had_voter_abstention` positio
 
 Source coverage is bounded and independent of the activity index. Complete collection requires successful paging and all declared result/decision children; source errors, repeated pages and caps retain uncertainty. Retrieval times, content hashes and stale/refresh flags identify the source snapshot; no API publication SLA or publication version is inferred. Parliament's [roll-call annex](https://www.europarl.europa.eu/doceo/document/PV-10-2026-10-07-RCV_EN.xml) states that corrections/intention declarations do not change announced results and may update over the two weeks following a part-session. The endpoint is a selected-period observation, not a complete term history or participation statistic.
 
+Question Subject chips identify place names in English titles using the retained country-label catalogue and explicit aliases (for example, US and United States). Clicking a chip filters by that place identifier within the selected analysis period, combined with addressee, election-country and date filters. Choosing a subject clears the generated topic/word selection and pagination. These are derived title annotations, not official subject indexing; titles without a recognised place are excluded from a subject selection. Text search has its own scope across all topics and subjects.
+
 ### Open Data API
 
 - `/meetings` accepts comma-separated years and offset pagination. Some historical agenda endpoints return HTTP 204. The UI shows those as unavailable agendas and keeps the sitting selectable.
