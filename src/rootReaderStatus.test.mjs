@@ -50,7 +50,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
     if(route==='directory')return Response.json({day:'2026-10-16',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}});
     if(route===`portrait/${member.id}`)return new Response(null,{status:404});
     if(route?.startsWith('latest-activities/'))return Response.json(page(items));
-    if(route?.startsWith('speech-statistics/'))return Response.json(summary||{memberId:String(member.id),items:[],counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:true,available:0,total:0},nextPage:null,sources:[]});
+    if(route?.startsWith('speech-statistics/'))return Response.json((typeof summary==='function'?await summary(url):summary)||{memberId:String(member.id),items:[],counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:true,available:0,total:0},nextPage:null,sources:[]});
     if(route==='insights/speech-cloud')return Response.json({scope:{kind:'member',phase:'past'},language:url.searchParams.get('lang'),words:[{word:'fixture',label:'Fixture',speechCount:1,occurrences:1,speechIds:[speechId]}],speeches:[{id:speechId,date:'2026-03-25',title:'Plenary speech fixture',titleLanguage:'en',machineTranslation:false,people:[]}],coverage:{transcripts:1,matchedSpeechRecords:1,missingLanguage:0,unreadableText:0,complete:true,truncated:false,associationUnavailable:false},window:{start:'2026-03-25',end:'2026-03-25'},nextPage:null});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
     if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
@@ -67,6 +67,21 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   return {window,container,pending,click,finish,expireActivityReads,wait:()=>act(async()=>new Promise(resolve=>setTimeout(resolve,400)))};
 }
 const status=reader=>reader.querySelector('[role="status"][aria-live="polite"]');
+test('a statistics restart clamps a filtered page when fewer matching records remain',async t=>{
+  const records=Array.from({length:25},(_,index)=>({id:`MTG-PL-2026-03-25-OTH-${100+index}`,date:'2026-03-25',start:null,end:null,titles:{en:'Written contribution '+index},kind:'PLENARY_DEBATE_WRITTEN_STATEMENT',intervention:{type:'written',onBehalfOf:[]}}));
+  const result=items=>({memberId:String(member.id),items,counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:false,available:items.length,total:25,unclassified:0,issues:[]},nextPage:null,sources:[]});
+  let finish;
+  const h=await harness(t,{module:'speeches',items:[speechItem],summary:url=>url.searchParams.get('page')==='0'?{...result(records),nextPage:1}:new Promise(resolve=>finish=resolve)});
+  await h.click(h.container.querySelector('a[aria-label^="Written statements:"]'));
+  const older=()=>[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Older');
+  await h.click(older());await h.click(older());
+  assert.equal(h.container.querySelector('article.explorer-speech').id,'speech-'+records[20].id);
+  await act(async()=>finish({...result(records.slice(0,5)),restarted:true}));
+  assert.match(h.container.querySelector('#speech-filter-results-'+member.id).textContent,/5 loaded/);
+  assert.equal(h.container.querySelectorAll('article.explorer-speech').length,5);
+  assert.equal(h.container.querySelector('article.explorer-speech').id,'speech-'+records[0].id);
+  assert.equal(older(),undefined);
+});
 test('summary links filter all loaded records, paginate, preserve the reader category and clear back to the indexed list',async t=>{
   const types=['speech','blue-card-question','blue-card-intervention','blue-card-answer','blue-card-reaction','blue-card','unclassified'];
   const records=Array.from({length:22},(_,index)=>({id:`MTG-PL-2026-03-25-OTH-${100+index}`,date:'2026-03-25',start:null,end:null,titles:{en:'Contribution '+index},kind:index>=7?'PLENARY_DEBATE_WRITTEN_STATEMENT':'PLENARY_DEBATE_SPEECH',intervention:{type:index>=7?'written':types[index],onBehalfOf:index===0?[{id:'EPP',uri:'org/EPP',label:'EPP',politicalGroup:true}]:[]}}));
