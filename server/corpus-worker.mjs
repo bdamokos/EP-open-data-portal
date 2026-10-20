@@ -11,6 +11,7 @@ import { CorpusStore, CORPUS_LIMITS, corpusQuery } from './corpus-store.mjs';
 import { HttpError } from './http-utils.mjs';
 import { CorpusReader } from './corpus-reader.mjs';
 import { countryCode } from './insights-countries.mjs';
+import {validAddresseeFilter} from './question-addressees.mjs';
 import { savedMetadata } from './insights-store.mjs';
 import { config, booleanFromEnvironment, integerFromEnvironment, absolutePathFromEnvironment } from './config.mjs';
 import { corpusSearchResponse } from './corpus-search-response.mjs';
@@ -327,7 +328,7 @@ export async function corpusText(params) {
 // Shared validation for URL queries and the read-only POST search. Validate
 // before opening a corpus, so malformed scopes cannot silently become global.
 export function corpusSearchOptions(input) {
-  const allowed=['query','kind','kinds','language','uiLanguage','member','country','from','to','limit','offset','group','dateBasis','sort','sourceIds'];
+  const allowed=['query','kind','kinds','language','uiLanguage','member','country','addressee','from','to','limit','offset','group','dateBasis','sort','sourceIds'];
   if(!input || Array.isArray(input) || typeof input!=='object' || Object.keys(input).some(key=>!allowed.includes(key)))throw new HttpError(400,'invalid_query','Unsupported search options.');
   if(typeof input.query!=='string' || !corpusQuery(input.query))throw new HttpError(400,'invalid_query',`Enter 1–${CORPUS_LIMITS.queryTerms} words or quoted phrases (at most ${CORPUS_LIMITS.queryLength} characters).`);
   const value=name=>input[name]??null;
@@ -360,7 +361,9 @@ export function corpusSearchOptions(input) {
   const selectedCountry=value('country');
   if(selectedCountry!==null && (typeof selectedCountry!=='string'||!countryCode(selectedCountry)))throw new HttpError(400,'invalid_country','Choose a country of representation.');
   const group=enumValue('group',['document','question'],'document');
-  return {query:input.query,kind,kinds,language,uiLanguage,member,country:selectedCountry===null?null:countryCode(selectedCountry),from,to,
+  const addressee=value('addressee');
+  if(addressee!==null&&!validAddresseeFilter(addressee))throw new HttpError(400,'invalid_addressee','Choose an addressee from the question filters.');
+  return {query:input.query,kind,kinds,language,uiLanguage,member,country:selectedCountry===null?null:countryCode(selectedCountry),addressee,from,to,
     limit:integer('limit',20,1,CORPUS_LIMITS.searchLimit),offset:integer('offset',0,0,CORPUS_LIMITS.searchOffset),group,
     dateBasis:enumValue('dateBasis',['document','question'],group==='question'?'question':'document'),sort:enumValue('sort',['relevance','newest'],'relevance'),
     sourceIds:sourceIds===null?null:[...new Set(sourceIds)]};

@@ -286,3 +286,7 @@
 .insight-wordcloud button{max-width:100%;overflow-wrap:anywhere;white-space:normal}
 
 @media(max-width:680px){.insight-topic-picker .insight-chart-switch{margin-right:10px;}.insight-topic-picker{--question-cloud-scale:.65rem;}.insight-topic-picker .insight-wordcloud{gap:4px 10px;padding:14px 0 8px;}}
+
+.insight-question-reference {white-space:nowrap;}
+.insight-question-addressee {color:var(--selected-yellow,#fff200);font-weight:700;margin:12px 0 4px;}
+.insight-question-addressee+.insight-question-heading h3 {margin-top:4px;}

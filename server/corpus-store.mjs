@@ -10,6 +10,7 @@ import {speechSummary,chooseTranscript} from './odp.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {speechPeople,interventionMetadata,INTERVENTION_CLASSIFICATION_VERSION} from './speech-interventions.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
+import {questionAddressees} from './question-addressees.mjs';
 
 // Full-text corpus of speeches, questions and answers. It lives beside the
 // activity index but outside its refresh generations, so a refresh never copies
@@ -73,6 +74,7 @@ export class CorpusStore {
     this.filename=path.join(directory,'corpus-v1.sqlite');
     this.initializeIndexes=!readOnly&&(initializeIndexes||!existsSync(this.filename));
     this.db=observeSqlite(new DatabaseSync(this.filename,{readOnly}),'corpus');
+    this.db.function('question_addressee_ids',{deterministic:true},body=>JSON.stringify(questionAddressees(parse(body)).map(item=>item.id)));
     if(!this.initializeIndexes) {
       try {if(this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1)throw new Error('Unprepared corpus indexes.');}
       catch {this.db.close();throw new Error('Corpus indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
@@ -556,7 +558,7 @@ export class CorpusStore {
 
   // Full-text search with optional joins to the attached activity index.
   search(params){return this.snapshot(()=>this.searchSnapshot(params));}
-  searchSnapshot({query,kind=null,kinds=null,language=null,uiLanguage='en',member=null,country=null,countryMemberIds=null,countryMetadataIds=null,from=null,to=null,limit=20,offset=0,group='document',dateBasis=group==='question'?'question':'document',sort='relevance',sourceIds=null}) {
+  searchSnapshot({query,kind=null,kinds=null,language=null,uiLanguage='en',member=null,country=null,addressee=null,countryMemberIds=null,countryMetadataIds=null,from=null,to=null,limit=20,offset=0,group='document',dateBasis=group==='question'?'question':'document',sort='relevance',sourceIds=null}) {
     const match=corpusQuery(query);
     if(!match)return null;
     const where=['texts_fts MATCH ?'],params=[match];
@@ -568,6 +570,14 @@ export class CorpusStore {
     if(language){where.push('+t.language=?');params.push(language);}
     const generation=this.indexGeneration();
     const questionId="CASE WHEN d.kind='answer' THEN d.parent_id WHEN d.kind='question' THEN d.source_id END";
+    if(addressee!==null) {
+      if(generation==null)return {unavailableCode:'corpus_addressee_metadata_unavailable',unavailable:'The activity index is not loaded, so addressee filters are unavailable.'};
+      const savedQuestion=`(SELECT s.body FROM idx.sources s WHERE s.generation=${Number(generation)} AND s.key='/parliamentary-questions/' || ${questionId} AND s.kind='document')`;
+      const recipients=`question_addressee_ids(${savedQuestion})`;
+      where.push("d.kind IN ('question','answer')");
+      if(addressee==='unavailable')where.push(`json_array_length(${recipients})=0`);
+      else {where.push(`EXISTS (SELECT 1 FROM json_each(${recipients}) recipient WHERE recipient.value=?)`);params.push(addressee);}
+    }
     const groupId=group==='question'?"CASE WHEN d.kind='answer' THEN COALESCE(d.parent_id,d.source_id) ELSE d.source_id END":'d.source_id';
     const savedQuestionDate=generation==null?'NULL':`(SELECT json_extract(s.body,'$.document_date') FROM idx.sources s WHERE s.generation=${Number(generation)} AND s.key='/parliamentary-questions/' || ${questionId} AND s.kind='document')`;
     const questionDate=`CASE WHEN d.kind='question' THEN d.date WHEN d.kind='answer' THEN COALESCE(q.date,${savedQuestionDate}) END`;

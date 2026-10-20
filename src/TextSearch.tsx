@@ -12,7 +12,7 @@ type Result={sourceId:string;kind:Kind;parentId:string|null;date:string|null;que
 type Response={total:number;offset:number;limit:number;nextOffset:number|null;truncated:boolean;responseLimited?:boolean;results:Result[];coverage:{complete?:boolean;backfillComplete?:boolean;note?:string;phase?:string}};
 type StoredText=Hit&{body:string;highlightedBody?:string;highlightRanges?:{start:number;end:number}[];highlightsTruncated?:boolean;fetchedAt:string;checkedAt:string};
 export interface TextSearchProps {
-  prefix:string;label:string;language:string;kinds?:Kind[];member?:number|string;country?:string;from?:string;to?:string;
+  prefix:string;label:string;language:string;kinds?:Kind[];member?:number|string;country?:string;addressee?:string;from?:string;to?:string;
   sourceIds?:string[];scopeIdentity?:string;group?:'document'|'question';dateBasis?:'document'|'question';scopeNote?:ReactNode;disabledReason?:string;
   className?:string;onActiveChange?:(active:boolean)=>void;
 }
@@ -42,7 +42,7 @@ function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity
   </section>;
 }
 
-export function TextSearch({prefix,label,language,kinds,member,country,from,to,sourceIds,scopeIdentity,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange}:TextSearchProps) {
+export function TextSearch({prefix,label,language,kinds,member,country,addressee,from,to,sourceIds,scopeIdentity,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange}:TextSearchProps) {
   const [query,setQuery]=useExplorerParam<string>(prefix+'-search','');
   const [textLanguage,setTextLanguage]=useExplorerParam<string>(prefix+'-text-lang','');
   const [page,setPage]=useExplorerParam<number>(prefix+'-page',0);
@@ -60,7 +60,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,from,to,s
   const allowedKinds=kinds?.length?kinds:['speech','question','answer'];
   const actualKinds=allowedKinds.includes(field as Kind)?[field]:allowedKinds;
   const searchedLanguage=textLanguage||(languages.includes(language)?language:'en');
-  const scope=JSON.stringify({member,country,kinds:allowedKinds,group,dateBasis,...(scopeIdentity===undefined?{from,to,sourceIds:sourceIds===undefined?undefined:[...new Set(sourceIds)].sort()}:{identity:scopeIdentity})});
+  const scope=JSON.stringify({member,country,addressee,kinds:allowedKinds,group,dateBasis,...(scopeIdentity===undefined?{from,to,sourceIds:sourceIds===undefined?undefined:[...new Set(sourceIds)].sort()}:{identity:scopeIdentity})});
   const navigationKey=()=>{const url=new URL(location.href);url.searchParams.sort();return url.pathname+url.search+url.hash;};
   const restoredHistory=useRef<string|null>(null),previousScope=useRef({key:scope,ready:!disabledReason});
   useEffect(()=>{const restored=()=>{restoredHistory.current=navigationKey();};window.addEventListener('popstate',restored);return()=>window.removeEventListener('popstate',restored);},[]);
@@ -71,7 +71,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,from,to,s
   useEffect(()=>{const previous=previousNavigation.current;previousNavigation.current={query,read,closed};if(closed==='1')setOpen(false);else if(query&&query!==previous.query||read&&read!==previous.read||previous.closed==='1'&&(query||read))setOpen(true);},[query,read,closed]);
   useEffect(()=>{callback.current?.(open);return()=>callback.current?.(false);},[open]);
   useEffect(()=>{if(open){const frame=window.requestAnimationFrame(()=>input.current?.focus({preventScroll:true}));return()=>window.cancelAnimationFrame(frame);}},[open]);
-  const request=JSON.stringify({query,kinds:actualKinds,language:searchedLanguage==='all'?undefined:searchedLanguage,uiLanguage:language,member,country,from,to,sourceIds,group,dateBasis,sort,limit:20,offset});
+  const request=JSON.stringify({query,kinds:actualKinds,language:searchedLanguage==='all'?undefined:searchedLanguage,uiLanguage:language,member,country,addressee,from,to,sourceIds,group,dateBasis,sort,limit:20,offset});
   const searchIdentity=JSON.stringify({...JSON.parse(request),offset:0});
   const predecessors=useRef<{key:string;offsets:Map<number,number>}>({key:searchIdentity,offsets:new Map()});
   if(predecessors.current.key!==searchIdentity)predecessors.current={key:searchIdentity,offsets:new Map()};
