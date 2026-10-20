@@ -19,6 +19,7 @@ import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade} fr
 import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
 import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
+import {PressFollower,PressStore} from './press-releases.mjs';
 import {scheduleMutable,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart} from './refresh-policy.mjs';
 
 const DAY = 24*60*60_000;
@@ -76,8 +77,8 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
   },{priority:'background',signal});
 }
 export class ActivityWorker {
-  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml}={}) {
-    this.store=store;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,press=null}={}) {
+    this.store=store;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;
   }
@@ -547,12 +548,20 @@ export class ActivityWorker {
     const iteration=loopTimer('activity');
     try {await this.runIteration();}finally {iteration({requests:this.requests||0});}
   }
+  // Press following shares the writer lease but none of the index work.
+  async followPress() {
+    try {this.requests+=await this.press.run({signal:this.controller.signal});}
+    catch(error) {if(!this.stopped)console.error('[press-releases]',error.message);}
+  }
   async runIteration() {
-    if(!this.due() || !this.store.acquire())return;
+    const pressDue=Boolean(this.press?.due()),due=this.due();
+    if(!due&&!pressDue || !this.store.acquire())return;
     this.running=true;this.requests=0;const started=this.clock();
     this.runDeadline=this.monotonic()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
     try {
+      if(pressDue)await this.followPress();
+      if(!due || this.stopped)return;
       const active=this.store.get('active') || 0,existing=this.store.get('working');
       if(!existing && active) {
         // A rollback may have advanced the core generation while leaving the
@@ -654,8 +663,9 @@ export function activityIndex() {
     maxDuration:integerFromEnvironment('ACTIVITY_INDEX_JOB_MAX_MINUTES',90,1,120)*60_000,
     diskLimit:integerFromEnvironment('ACTIVITY_INDEX_MAX_DISK_MIB',8192,64,131072)*1024*1024,
   };
-  const store=new ActivityStore(directory),worker=new ActivityWorker(store,options);
-  service={store,worker};return service;
+  const store=new ActivityStore(directory),press=new PressStore(directory);
+  const worker=new ActivityWorker(store,{...options,press:new PressFollower(press,{assertWriter:()=>store.assertWriter()})});
+  service={store,worker,press};return service;
 }
 export function activityIndexStatus(){return activityIndex().store.status();}
 export function latestActivities(id,params) {
