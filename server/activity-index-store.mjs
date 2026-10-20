@@ -191,7 +191,7 @@ export class ActivityStore {
       this.assertWriter();
       const gap=this.db.prepare('SELECT kind,body,priority,retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
       if(gap) {
-        if(!retryGap || gap.retry_at>this.clock())return false;
+        if(!retryGap || gap.retry_at>this.clock() || this.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(generation,key))return false;
         // Admission and its marker commit together. Checkpoints retain any
         // subsequently progressed cursor until completion or another failure.
         kind=gap.kind;body=parse(gap.body);priority=gap.priority;

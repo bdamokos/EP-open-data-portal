@@ -95,9 +95,9 @@ export function scheduleMutable(worker,generation) {
   store.transaction(()=>{
     const today=localDay(now),prior=store.get('slowGapAdmissions');
     let count=prior?.day===today?prior.count:0;
-    for(const gap of store.db.prepare("SELECT * FROM refresh_gaps WHERE generation=? AND kind<>'coverage' AND retry_at<=? ORDER BY retry_at,key LIMIT ?").all(generation,now,Math.max(0,GAP_LIMIT-count))) {
+    for(const gap of store.db.prepare("SELECT * FROM refresh_gaps gap WHERE generation=? AND kind<>'coverage' AND retry_at<=? AND NOT EXISTS (SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=gap.generation AND admitted.key=gap.key) ORDER BY retry_at,key LIMIT ?").all(generation,now,Math.max(0,GAP_LIMIT-count))) {
       if(gap.kind==='motion-outcomes' && today<sittingConfirmationDay(gap.sitting_id))continue;
-      store.enqueue(generation,gap.key,gap.kind,{},gap.priority,true,{retryGap:true});
+      if(!store.enqueue(generation,gap.key,gap.kind,{},gap.priority,true,{retryGap:true}))continue;
       store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(now+7*DAY,generation,gap.key);
       if(gap.kind==='motion-outcomes')store.db.prepare('UPDATE sitting_refresh SET next_check=? WHERE generation=? AND sitting_id=?').run(now+7*DAY,generation,gap.sitting_id);
       count++;
