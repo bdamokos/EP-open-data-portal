@@ -368,6 +368,7 @@ export function amendmentCompletionMarker(task,today) {
 }
 export function enqueueAmendment(store,generation,key,kind,body,priority=105,refreshCompleted=false) {
   store.assertWriter();
+  if(!kind.startsWith('amendment-') && store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key))return false;
   const enqueue=()=>{
     const existing=store.db.prepare('SELECT 1 FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
     if(!existing) {
