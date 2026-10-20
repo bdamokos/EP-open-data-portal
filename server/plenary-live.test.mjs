@@ -33,6 +33,11 @@ test('scheduled markers require one timed container and one exact agenda child; 
   assert.equal(scheduledAgenda([block(),item(1)],day,now).state,'presumed');
   assert.equal(scheduledAgenda([block(),item(1)],day,Date.parse(day+'T08:30:00Z')).state,'none');
   assert.equal(scheduledAgenda([block([1,2]),item(1),item(2)],day,now).state,'ambiguous');
+  assert.equal(scheduledAgenda([block([1,2]),item(1)],day,now).state,'ambiguous','An unresolved declared child is not a unique item');
+  assert.equal(scheduledAgenda([block(),item(1),item(1)],day,now).state,'ambiguous','Duplicate child records are not unique');
+  for(const timing of [{activity_start_date:[day+'T09:00:00+02:00',day+'T09:20:00+02:00']},{activity_start_date:[]},{activity_end_date:[]},{activity_end_date:'invalid'}]){
+    assert.equal(scheduledAgenda([block(),{...block([2]),activity_id:sitting+'-TF-0905',...timing},item(1),item(2)],day,now).state,'ambiguous','Uncertain competing block must remain visible');
+  }
   assert.equal(scheduledAgenda([{...block(),activity_end_date:[day+'T10:30:00+02:00',day+'T11:50:00+02:00']},item(1)],day,now).state,'ambiguous');
   assert.equal(scheduledAgenda([block(),{...block([2]),activity_id:sitting+'-TF-0905'},item(1),item(2)],day,now).state,'ambiguous');
   assert.equal(scheduledAgenda(null,day,now).state,'unavailable');
