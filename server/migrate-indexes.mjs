@@ -9,7 +9,7 @@ import {CorpusStore} from './corpus-store.mjs';
 import {absolutePathFromEnvironment,integerFromEnvironment} from './config.mjs';
 
 const bytes=filename=>['','-wal','-shm'].reduce((sum,suffix)=>sum+(existsSync(filename+suffix)?statSync(filename+suffix).size:0),0);
-const prepared=(store,kind)=>store.get('resourceIndexes')===1&&(kind==='activity'?store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion:store.get('questionDiscoveryVersion')===1);
+const prepared=(store,kind)=>store.get('resourceIndexes')===1&&(kind==='activity'?store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion&&store.get('refreshPolicyVersion')===1:store.get('questionDiscoveryVersion')===1);
 
 // No HTTP server, upstream calls, background jobs or generation changes. The
 // normal leases still fence another writer; never override an unexpired lease.

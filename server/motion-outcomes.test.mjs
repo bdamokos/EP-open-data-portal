@@ -204,7 +204,7 @@ test('incomplete refreshes retain the complete sitting through publication and r
     assert.equal(store.source(next.generation,key).fetchedAt,fetchedAt);
   });
 });
-test('joint-motion links use indexed lookups and follow replacement, generation copies and pruning',t=>{
+test('joint-motion links use indexed lookups and follow replacement, generation copies and explicit deletion',t=>{
   const store=storeTest(t),cycle=seed(store),id='B-10-2026-0441',joint=work('RC-10-2026-0441'),key='/plenary-documents/'+joint.identifier;
   const prepare=store.db.prepare.bind(store.db);let lookup;
   store.db.prepare=sql=>{lookup=sql;return prepare(sql);};
@@ -219,7 +219,7 @@ test('joint-motion links use indexed lookups and follow replacement, generation 
   assert.equal(store.relatedJointMotions(cycle.generation,'B-10-2026-0423').length,0);
   store.publish(cycle.generation);const next=store.beginCycle();
   assert.equal(store.relatedJointMotions(next.generation,id).length,1);
-  store.pruneUnseenDocuments(next.generation);
+  store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(next.generation,key);
   assert.equal(store.relatedJointMotions(next.generation,id).length,0);assert.equal(store.relatedJointMotions(cycle.generation,id).length,1);
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM motion_links AS link LEFT JOIN sources AS source ON source.generation=link.generation AND source.key=link.joint_key WHERE source.key IS NULL').get().n,0);
 });

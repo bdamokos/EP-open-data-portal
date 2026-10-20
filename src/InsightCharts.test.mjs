@@ -28,9 +28,9 @@ test('question trends expose measures and retain keyboard and select filtering',
     {start: '2026-10-15', end: '2026-10-16', count: 0, total: 0, share: null},
   ];
   const changes = [];
-  function Trend({interactive = true, selected = true, language = 'en'}) {
+  function Trend({interactive = true, selected = true, comparison = true, countryFiltered = false, language = 'en'}) {
     const [range, setRange] = useState(null);
-    return createElement(QuestionTrend, {data: {interval: 'week', bins}, language, selected, comparison: true, scope: 'Water', range,
+    return createElement(QuestionTrend, {data: {interval: 'week', bins}, language, selected, comparison, countryFiltered, scope: 'Water', range,
       onRange: interactive ? value => {changes.push(value); setRange(value);} : undefined});
   }
   const render = props => act(async () => root.render(createElement(Trend, props)));
@@ -65,9 +65,24 @@ test('question trends expose measures and retain keyboard and select filtering',
 
   await render({language: 'de'});
   assert.match(points()[0].getAttribute('aria-label'), /37,5%/);
-  await render({selected: false});
+  await press(points()[0], 'Enter');
+  await render({comparison: false});
+  const shareButton=[...container.querySelectorAll('button')].find(button=>button.textContent==='Share of questions');
+  assert.equal(shareButton.disabled,true);
+  assert.match(document.getElementById(shareButton.getAttribute('aria-describedby')).textContent,/Choose a topic or word above to see its share/);
+  assert.equal(select().value,bins[0].start,'clearing the topic preserves the selected week');
+  await clickMeasure('Share of questions');
   assert.match(container.querySelector('svg').getAttribute('aria-label'), /Question counts/);
-  assert.equal(points().length, 3, 'clearing the topic restores count mode');
+  assert.equal(points().length, 3, 'clearing the topic restores counts even when a country or week remains selected');
+
+  await render({countryFiltered: true});
+  assert.equal(shareButton.disabled,false);
+  assert.match(container.querySelector('svg').getAttribute('aria-label'),/Question counts/,'reselecting a topic starts in count mode');
+  await clickMeasure('Share of questions');
+  assert.match(container.querySelector('.insight-chart-caption').textContent,/within the selected MEP election country/);
+  assert.doesNotMatch(container.textContent,/Choose a topic or word above/);
+  await render({comparison:false,selected:false});
+  assert.match(container.querySelector('svg').getAttribute('aria-label'),/Question counts/);
 
   await render({interactive: false});
   assert.equal(points().length, 0, 'read-only trends do not advertise inert filter buttons');
