@@ -1,3 +1,4 @@
+import {activityReadVersion,initializeActivityReads,prepareQuestionFiles,projectQuestionFiles,copyQuestionFiles,motionDocuments} from './activity-read-projections.mjs';
 import {groupVoicesSchema,groupVoicesCopy,groupVoicesPrune,recordGroupVoice} from './group-voices-store.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
@@ -24,15 +25,15 @@ const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
   WHERE link.generation=? AND link.original_ref=?
   ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
 export class ActivityStore {
-  constructor(directory, { clock = Date.now, initializeIndexes=false } = {}) {
+  constructor(directory, { clock = Date.now, initializeIndexes=false, prepareLog=()=>{} } = {}) {
     mkdirSync(directory, { recursive: true });
-    this.clock = clock; this.owner = randomUUID();
+    this.prepareLog=prepareLog;this.clock = clock; this.owner = randomUUID();
     this.filename = path.join(directory, 'activities-v1.sqlite');
     this.initializeIndexes=initializeIndexes||!existsSync(this.filename);
     this.db = observeSqlite(new DatabaseSync(this.filename),'activity');
     if(!this.initializeIndexes) {
       try {
-        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('motionLinksIndexVersion')!==1)throw new Error('Unprepared activity indexes.');
+        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion)throw new Error('Unprepared activity indexes.');
       } catch {this.db.close();throw new Error('Activity indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(this.initializeIndexes)this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
@@ -75,7 +76,7 @@ export class ActivityStore {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
       const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion;
-      if((initialize||initializeProofs)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+      if((initialize||initializeProofs||this.get('activityReadVersion')!==activityReadVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
       // Refresh against the current clock before commit; elapsed build time must
@@ -88,6 +89,10 @@ export class ActivityStore {
         this.db.exec('INSERT OR IGNORE INTO motion_links '+motionLinkSelect('source','sources AS source, '));
         refresh();this.assertWriter();
         this.set('motionLinksIndexVersion',1);
+      }
+      if(this.get('activityReadVersion')!==activityReadVersion) {
+        initializeActivityReads(this.db);prepareQuestionFiles(this.db,this.prepareLog);
+        this.set('activityReadVersion',activityReadVersion);initialized=true;refresh();
       }
       refresh();
       return true;
@@ -156,6 +161,7 @@ export class ActivityStore {
         this.set('previous',null);
         this.db.prepare('INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
+        copyQuestionFiles(this.db,generation,active);
         outsideCopy(this.db,generation,active);
         groupVoicesCopy(this.db,generation,active);
         amendmentsCopy(this.db,generation,active);
@@ -193,6 +199,10 @@ export class ActivityStore {
     for(const source of this.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind=?').iterate(generation,kind))
       yield {key:source.key,work:parse(source.body),fetchedAt:source.fetched_at};
   }
+  *motionDocuments(generation) {
+    for(const source of this.db.prepare('SELECT key,body,fetched_at FROM sources INDEXED BY motion_documents WHERE generation=? AND '+motionDocuments).iterate(generation))
+      yield {key:source.key,work:parse(source.body),fetchedAt:source.fetched_at};
+  }
   *reportsForProcedure(generation,id) {
     const relative='eli/dl/proc/'+id;
     const sql=`SELECT source.key,source.body,source.fetched_at FROM report_procedures link
@@ -210,6 +220,7 @@ export class ActivityStore {
     this.transaction(()=> {
       this.assertWriter();
       this.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,key,kind,JSON.stringify(work),fetchedAt);
+      projectQuestionFiles(this.db,generation,key,kind,work);
       this.replaceRows(generation,key,rows);
       if(Object.hasOwn(work,'groupVoices'))recordGroupVoice(this,generation,work.groupVoices,work.outside,work.id);
     });
