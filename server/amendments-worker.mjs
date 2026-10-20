@@ -1,3 +1,4 @@
+import {sittingConfirmationDay,sittingOutcomesComplete,sittingSnapshotConfirmed} from './refresh-policy.mjs';
 import https from 'node:https';
 import { createHash } from 'node:crypto';
 import { array, tail, documentFiles, projectDocument, AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
@@ -177,23 +178,25 @@ export function scheduleSittingOutcomes(worker,generation,sittingId,{priority=11
   const today=localDay(worker.clock()),sittingDate=sittingId.slice(7);
   if(!Number.isFinite(Date.parse(sittingDate))||sittingDate>today)return false;
   const key=motionSourceKey(sittingId),saved=worker.store.source(generation,key),work=saved?.work,evidence=amendmentSitting(work);
-  const ttl=worker.clock()-Date.parse(sittingDate)<14*DAY?6*60*60_000:7*DAY;
-  const complete=work && !work.truncated && !evidence.retainedEvidence && !evidence.truncated && !evidence.splitProjectionTruncated && !work.lastRefreshFailure &&
-    Array.isArray(work.results)&&work.results.length>0 && Array.isArray(work.decisions)&&work.decisions.length>0 &&
-    Array.isArray(work.coverage?.missingResultIds) && Array.isArray(work.coverage?.missingDecisionIds) &&
-    !array(work.coverage?.missingResultIds).length && !array(work.coverage?.missingDecisionIds).length &&
-    evidence.amendmentVersion===AMENDMENTS_VERSION && evidence.amendmentProjectionVersion===AMENDMENT_SITTING_PROJECTION_VERSION && Array.isArray(evidence.splitRequests);
-  if(complete && worker.clock()-Date.parse(saved.fetchedAt)<ttl)return false;
+  const confirmationDay=sittingConfirmationDay(sittingId);
+  const ttl=today<confirmationDay?6*60*60_000:7*DAY;
+  const complete=sittingOutcomesComplete(work);
+  // A complete snapshot fetched after the correction deadline is the confirmation.
+  // Stored source times survive restart and generation copying. Failures,
+  // truncation and projection upgrades always invalidate finality.
+  if(sittingSnapshotConfirmed(work,sittingId,saved?.fetchedAt))return false;
+  if(complete && today<confirmationDay && worker.clock()-Date.parse(saved.fetchedAt)<ttl)return false;
+  if(worker.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND sitting_id=? LIMIT 1').get(generation,sittingId))return false;
   // Reuse any pending sitting task, including older key formats, without
   // resetting its page cursor, retry time or accumulated response graph.
-  const pending=worker.store.db.prepare("SELECT key FROM (SELECT key,body,kind,done FROM tasks WHERE generation=? UNION ALL SELECT key,body,kind,done FROM amendment_jobs WHERE generation=?) WHERE kind='motion-outcomes' AND json_extract(body,'$.sittingId')=? AND (done IS NULL OR done<>1) LIMIT 1").get(generation,generation,sittingId);
+  const pending=worker.store.db.prepare("SELECT key FROM tasks WHERE generation=? AND kind='motion-outcomes' AND json_extract(body,'$.sittingId')=? AND (done IS NULL OR done<>1) UNION ALL SELECT key FROM amendment_jobs WHERE generation=? AND kind='motion-outcomes' AND json_extract(body,'$.sittingId')=? AND done<>1 LIMIT 1").get(generation,sittingId,generation,sittingId);
   if(pending)return false;
-  if(worker.store.db.prepare("SELECT 1 FROM sources AS source,json_each(source.body,'$.tasks') AS task WHERE source.generation=? AND source.key='amendment:continuations' AND json_extract(task.value,'$.kind')='motion-outcomes' AND json_extract(json_extract(task.value,'$.body'),'$.sittingId')=? AND COALESCE(json_extract(task.value,'$.done'),0)<>1 LIMIT 1").get(generation,sittingId))return false;
-  if(worker.store.db.prepare("SELECT 1 FROM sources AS source,json_each(source.body,'$.discovery') AS task WHERE source.generation=? AND source.key='amendment:continuations' AND json_extract(task.value,'$.kind')='motion-outcomes' AND json_extract(task.value,'$.sittingId')=? LIMIT 1").get(generation,sittingId))return false;
+  if(worker.store.db.prepare("SELECT 1 FROM continuation_sittings WHERE generation=? AND sitting_id=? AND bucket IN ('tasks','discovery') LIMIT 1").get(generation,sittingId))return false;
   const upgrade=work&&evidence.amendmentProjectionVersion!==AMENDMENT_SITTING_PROJECTION_VERSION;
-  const taskKey=key+':'+today+(upgrade?':amendments-v'+AMENDMENT_SITTING_PROJECTION_VERSION:'');
-  if(worker.store.db.prepare("SELECT 1 FROM (SELECT key,body,kind,done FROM tasks WHERE generation=? UNION ALL SELECT key,body,kind,done FROM amendment_jobs WHERE generation=?) WHERE kind='motion-outcomes' AND json_extract(body,'$.sittingId')=? AND done=1 AND (key=? OR (?=0 AND key LIKE ?)) LIMIT 1").get(generation,generation,sittingId,taskKey,upgrade?1:0,'%:'+today+'%'))return false;
-  if(worker.store.db.prepare("SELECT 1 FROM sources AS source,json_each(source.body,'$.completed') AS completed WHERE source.generation=? AND source.key='amendment:continuations' AND json_extract(completed.value,'$.kind')='motion-outcomes' AND json_extract(completed.value,'$.sittingId')=? AND (json_extract(completed.value,'$.key')=? OR (?=0 AND json_extract(completed.value,'$.key') LIKE ?)) LIMIT 1").get(generation,sittingId,taskKey,upgrade?1:0,'%:'+today+'%'))return false;
+  const taskKey=key+':'+today+(upgrade?':amendments-v'+AMENDMENT_SITTING_PROJECTION_VERSION:complete&&today<confirmationDay?':refresh:'+Math.floor(worker.clock()/(6*60*60_000)):'');
+  const exactAttempt=upgrade||complete?1:0;
+  if(worker.store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND kind='motion-outcomes' AND json_extract(body,'$.sittingId')=? AND done=1 AND (key=? OR (?=0 AND key LIKE ?)) UNION ALL SELECT 1 FROM amendment_jobs WHERE generation=? AND kind='motion-outcomes' AND json_extract(body,'$.sittingId')=? AND done=1 AND (key=? OR (?=0 AND key LIKE ?)) LIMIT 1").get(generation,sittingId,taskKey,exactAttempt,'%:'+today+'%',generation,sittingId,taskKey,exactAttempt,'%:'+today+'%'))return false;
+  if(worker.store.db.prepare("SELECT 1 FROM continuation_sittings WHERE generation=? AND sitting_id=? AND bucket='completed' AND (key=? OR (?=0 AND key LIKE ?)) LIMIT 1").get(generation,sittingId,taskKey,exactAttempt,'%:'+today+'%'))return false;
   worker.store.enqueue(generation,taskKey,'motion-outcomes',{sittingId,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]},priority);
   return true;
 }
