@@ -2,6 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {explorerParams,readExplorerParam} from './explorerQuery.mjs';
 
+test('speech summary categories belong to the selected member only',()=>{
+  const query=new URLSearchParams('member=42&mep-speech-category=written');
+  assert.equal(explorerParams(query,null,42).get('mep-speech-category'),'written');
+  assert.equal(explorerParams(query,null,43).has('mep-speech-category'),false);
+  assert.equal(explorerParams(query,'questions',42).has('mep-speech-category'),false);
+});
+
 test('legacy and scoped Greek links migrate only into their owning explorer',()=>{
   for(const code of ['GR','EL']){
     const question=new URLSearchParams({view:'questions',country:code,'hot-country':'IT'});

@@ -9,6 +9,21 @@ import {speakerTerm} from './speakerPresentation.mjs';
 import {humanDate} from './InsightCharts';
 
 const labels:Record<Intervention['type'],string>={speech:'Speech',written:'Written statement',chair:'Chair',procedure:'Procedure','oral-explanation-of-vote':'Oral explanation of vote','catch-the-eye':'Catch the eye','blue-card-question':'Blue-card question','blue-card-intervention':'Blue-card intervention','blue-card-answer':'Blue-card answer','blue-card-reaction':'Blue-card reaction','blue-card':'Blue card',unclassified:'Unclassified'};
+export const speechCategories=[
+  ['total','Total contributions','speech'],['groupOrations','On behalf of a group','speech'],['written','Written statements','written'],['blueQuestions','Blue cards raised','blue-card-question'],['blueAnswers','Blue cards answered','blue-card-answer'],['blueReactions','Blue-card reactions','blue-card-reaction']
+] as const;
+export type SpeechCategory=typeof speechCategories[number][0];
+export function matchesSpeechCategory(speech:Speech,category:SpeechCategory) {
+  const intervention=speech.intervention;
+  switch(category){
+    case 'total':return true;
+    case 'written':return speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT';
+    case 'groupOrations':return Boolean(intervention?.onBehalfOf.some(group=>group.politicalGroup));
+    case 'blueQuestions':return intervention?.type==='blue-card-question'||intervention?.type==='blue-card-intervention';
+    case 'blueAnswers':return intervention?.type==='blue-card-answer';
+    case 'blueReactions':return intervention?.type==='blue-card-reaction';
+  }
+}
 export function InterventionIcon({type}:{type:Intervention['type']}) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="intervention-icon">
     {type==='procedure'?<path d="M8 5h12M8 12h12M8 19h12M4 5h.01M4 12h.01M4 19h.01"/>:type==='catch-the-eye'?<><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></>:type.startsWith('blue-card')?<><rect x="3" y="3" width="13" height="18" rx="2" fill="currentColor" fillOpacity=".12"/>{type==='blue-card-question'?<><path d="M7 8a2.5 2.5 0 0 1 5 0c0 2-2.5 1.5-2.5 4"/><path d="M9.5 16h.01"/></>:type==='blue-card-answer'?<path d="m21 8-5 4 5 4m-5-4h6"/>:<path d="m18 7 4 4-4 4m4-4h-5"/>}</>:type==='written'?<><path d="M6 3h9l4 4v14H6Z"/><path d="M14 3v5h5M9 12h7m-7 4h5"/></>:<><path d="M4 4h16v12H10l-5 4v-4H4Z"/><path d="M8 8h8m-8 4h5"/></>}
@@ -21,7 +36,7 @@ export function InterventionBadges({value,language='en',toggle}:{value?:Interven
   return <span className="intervention-badges" lang="en">{toggle?<button type="button" {...badgeProps} onClick={toggle.onClick} aria-expanded={toggle.expanded} aria-controls={toggle.controls}>{badgeContent}</button>:<span {...badgeProps}>{badgeContent}</span>}{value.onBehalfOf.map(group=><span className="intervention-group" key={group.uri}>On behalf of {group.politicalGroup&&Object.hasOwn(GROUP_VOICE_GROUPS,group.id)?<a lang="" href={`?view=groups&gv-group=${group.id}&lang=${language}`} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();history.pushState(null,'',event.currentTarget.href);window.dispatchEvent(new PopStateEvent('popstate'));}}>{group.label}</a>:<span lang="">{group.label}</span>}</span>)}</span>;
 }
 
-export function InterventionStatistics({member,onItems}:{member:number;onItems?:(items:Speech[])=>void}) {
+export function InterventionStatistics({member,onItems,filter}:{member:number;onItems?:(items:Speech[])=>void;filter?:{selected:string;href:(category:SpeechCategory)=>string;select:(category:SpeechCategory)=>void}}) {
   const [state,setState]=useState<{member:number;data:InterventionStatistics|null;loading:boolean;error:string|null}>({member,data:null,loading:true,error:null});
   const [attempt,setAttempt]=useState(0);
   const {data:result,loading,error}=state.member===member?state:{data:null,loading:true,error:null};
@@ -47,9 +62,11 @@ export function InterventionStatistics({member,onItems}:{member:number;onItems?:
   },[member,attempt,onItems]);
   return <section className="intervention-statistics" lang="en" aria-label="Speaking statistics">
     <div className="intervention-stats-heading"><h3>At the microphone</h3><div className="intervention-stats-meta"><span>Term 10</span>{loading&&<span className="intervention-counting" role="status"><span className="intervention-spinner" aria-hidden="true"/><span className="intervention-counting-label">Counting contributions…</span></span>}</div></div>
-    {result&&<><div className="intervention-stats-grid" aria-busy={loading}>{[
-      ['total','Total contributions','speech'],['groupOrations','On behalf of a group','speech'],['blueQuestions','Blue cards raised','blue-card-question'],['blueAnswers','Blue cards answered','blue-card-answer'],['blueReactions','Blue-card reactions','blue-card-reaction']
-    ].map(([key,label,type])=><div key={key}><InterventionIcon type={type as Intervention['type']}/><strong>{key==='total'?result.coverage.available:result.counts[key as keyof typeof result.counts]??'—'}</strong><span>{label}</span></div>)}</div>
+    {result&&<><div className="intervention-stats-grid" aria-busy={loading}>{speechCategories.map(([key,label,type])=>{
+      const written=result.items.filter(item=>matchesSpeechCategory(item,'written')).length;
+      const count=key==='total'?result.coverage.available:key==='written'?(written||result.coverage.complete?written:null):result.counts[key];
+      return <div key={key}><InterventionIcon type={type}/><strong>{filter&&count!==null?<a href={filter.href(key)} aria-label={`${label}: ${count}. Filter contributions`} aria-current={filter.selected===key?'true':undefined} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();filter.select(key);}}>{count}</a>:count??'—'}</strong><span>{label}</span></div>;
+    })}</div>
       {!loading&&<>
         {latestDataDate?<p className="intervention-caption" title="Latest contribution date in the speech collection.">Latest data: <time dateTime={latestDataDate}>{humanDate(latestDataDate)}</time></p>:refreshedAt&&<p className="intervention-caption">Source refreshed: <time dateTime={refreshedAt}>{humanDate(refreshedAt)}</time></p>}
         {missingContributions&&<p className="intervention-caption">Some contributions are unavailable.</p>}
