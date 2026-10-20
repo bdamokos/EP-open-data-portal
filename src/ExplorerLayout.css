@@ -74,7 +74,7 @@
 @media(max-width:1000px) {
   .insight-agenda { display:none; }
   .insight-agenda-select { display:grid; gap:7px; font-size:15px; margin-bottom:18px; }
-  .insight-agenda-select select { width:100%; min-width:0; padding:12px; border:0; border-radius:4px; }
+  .insight-agenda-select select { width:100%; min-width:0; padding:12px; border:1px solid var(--line-strong); border-radius:var(--radius-sm); }
   .insight-legislation-grid { gap:0; }
 }
 @media(max-width:680px) {

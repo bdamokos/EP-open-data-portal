@@ -11,11 +11,12 @@
       import {createElement} from 'react';
       import {createRoot} from 'react-dom/client';
       import './App.tsx';
+      import './theme.css';
       import './base.css';
       import {ParliamentHeader} from './ParliamentHeader.tsx';
 
-      // Run with either ?shell=explorer or ?shell=explorer-insights. Hover Questions,
-      // then Members with a real pointer; synthetic events cannot set :hover.
+      // Run with either ?shell=explorer or ?shell=explorer-insights, in light and dark system
+      // appearance. Hover Questions, then Members with a real pointer; synthetic events cannot set :hover.
       const shell = new URLSearchParams(location.search).get('shell') || 'explorer';
       if (!['explorer', 'explorer-insights'].includes(shell)) throw new Error('Unknown shell');
       const noop = () => {};
@@ -37,11 +38,18 @@
           try {
             if (!button.matches(':hover')) throw new Error('A real pointer hover is required');
             const current = document.querySelector('button[aria-current="page"]');
+            const token = name => {
+              const probe = document.body.appendChild(document.createElement('span'));
+              probe.style.color = `var(--${name})`;
+              const value = getComputedStyle(probe).color;
+              probe.remove();
+              return value;
+            };
             const currentStyle = getComputedStyle(current);
-            if (currentStyle.borderColor !== 'rgb(255, 242, 0)') throw new Error('Current-section border lost its yellow cue');
-            if (currentStyle.color !== 'rgb(255, 255, 255)') throw new Error('Current-section text is no longer white');
-            if (button !== current && getComputedStyle(button).borderColor !== 'rgb(255, 255, 255)') {
-              throw new Error('Ordinary hovered navigation border is no longer white');
+            if (!currentStyle.boxShadow.includes(token('accent'))) throw new Error('Current-section underline lost its accent cue');
+            if (currentStyle.color !== token('ink')) throw new Error('Current-section text is no longer ink');
+            if (button !== current && getComputedStyle(button).color !== token('ink')) {
+              throw new Error('Ordinary hovered navigation text does not darken to ink');
             }
             completed.add(button.textContent);
             result.dataset.status = completed.size === 2 ? 'passed' : 'pending';

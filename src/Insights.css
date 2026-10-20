@@ -2,8 +2,8 @@
 .explorer-insights { -webkit-user-select:text; user-select:text; }
 .explorer-insights * {box-sizing:border-box;}
 .explorer-insights button,.explorer-insights input,.explorer-insights select {font:inherit; min-height:44px; color:inherit;}
-.explorer-insights button {cursor:pointer; border:1px solid var(--line-strong); border-radius:var(--radius-sm); padding:9px 15px; background:var(--surface); text-align:left;}
-.explorer-insights button:hover:not(:disabled) {background:var(--surface-2);}
+.explorer-insights button {cursor:pointer; border:1px solid var(--line-strong); border-radius:var(--radius-sm); padding:9px 15px; background:transparent; text-align:left;}
+.explorer-insights button:hover:not(:disabled) {background:color-mix(in srgb,var(--ink) 6%,transparent);}
 .explorer-insights button:disabled {opacity:.45;cursor:default;}
 .explorer-insights button[aria-pressed=true],.explorer-insights button[aria-current=page] {color:var(--accent-strong);background:var(--accent-soft);border-color:var(--accent);}
 .explorer-insights button:focus-visible,.explorer-insights a:focus-visible,.explorer-insights input:focus-visible,.explorer-insights select:focus-visible,.explorer-insights summary:focus-visible {outline:3px solid var(--focus-outline-color,var(--focus));outline-offset:4px;}

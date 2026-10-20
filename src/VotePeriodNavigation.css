@@ -3,14 +3,14 @@
 .member-votes-week-navigation{display:grid;grid-template-columns:36px 36px minmax(0,1fr) 36px 36px;align-items:center;gap:4px}
 .member-votes-week-navigation button{min-width:0;padding:0;font-size:22px;line-height:1;min-height:42px;text-align:center}
 .member-votes-week-navigation select{min-width:0;font-size:11px;padding:7px 5px}
-.member-votes-period-navigation input{min-height:42px;background:white;border:1px solid #bacbe0;padding:7px 10px;color:var(--mv-ink);min-width:0;width:100%}
+.member-votes-period-navigation input{min-height:42px;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:7px 10px;color:var(--mv-ink);min-width:0;width:100%}
 .member-votes-period-navigation>button{margin-top:8px}
 .member-votes-days{display:flex;flex-wrap:nowrap;gap:4px;margin-top:10px}
 .member-votes-days button{min-width:0;font-size:11px;white-space:nowrap;padding:8px}
-.member-votes-days button[aria-pressed=true]{background:var(--mv-blue);color:white;border-color:var(--mv-blue)}
+.member-votes-days button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent-strong);border-color:var(--accent)}
 .member-votes-calendar-notice{color:var(--mv-muted);font-size:12px}
 .vote-period-compact{display:none}
 @media(max-width:600px){.member-votes-period-navigation{width:100%;margin-top:14px}.member-votes-days button{flex:1;padding:8px 3px;font-size:11px}.vote-period-full{display:none}.vote-period-compact{display:inline}}
 
-.member-votes-days button.vote-period-no-votes:not([aria-pressed=true]){color:var(--mv-muted);background:#f0f3f6;border-color:#d0d9e2}
-.member-votes-days button.vote-period-no-votes[aria-pressed=true]{color:var(--mv-muted);background:#e3e9f1;border-color:var(--mv-blue);box-shadow:inset 0 0 0 1px var(--mv-blue)}
+.member-votes-days button.vote-period-no-votes:not([aria-pressed=true]){color:var(--mv-muted);background:var(--surface-2);border-color:var(--line)}
+.member-votes-days button.vote-period-no-votes[aria-pressed=true]{color:var(--mv-muted);background:var(--surface-3);border-color:var(--mv-blue);box-shadow:inset 0 0 0 1px var(--mv-blue)}

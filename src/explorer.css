@@ -6,8 +6,8 @@
   --explorer-gutter: clamp(16px, 2.5vw, 40px);
 }
 .explorer button, .explorer a, .explorer select, .explorer input { font: inherit; }
-.explorer button { padding: 10px 16px; min-height: 44px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); }
-.explorer button:hover:not(:disabled) { background: var(--surface-2); }
+.explorer button { padding: 10px 16px; min-height: 44px; color: var(--ink); background: transparent; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); }
+.explorer button:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 6%, transparent); }
 .explorer button:disabled { opacity: .45; cursor: default; }
 .explorer button:focus-visible, .explorer select:focus-visible, .explorer input:focus-visible, .explorer a:focus-visible, .explorer summary:focus-visible { outline: 3px solid var(--focus-outline-color,var(--focus)); outline-offset: 3px; }
 /* Focus follows the surrounding panel, including nested readers and controls. */
