@@ -30,6 +30,7 @@
 .insight-question-list .insight-people article { width:min-content; min-width:min(145px,100%); max-width:100%; overflow-wrap:break-word; }
 .insight-question-list .insight-people a { width:100%; max-width:100%; }
 .insight-question-list .insight-people strong { max-width:100%; }
+.insight-question-list .insight-guest { max-width:100%; }
 .insight-eyebrow { text-transform:none; letter-spacing:0; }
 .insight-agenda-select { display:none; }
 .insight-legislation-grid { padding-top:8px; }
