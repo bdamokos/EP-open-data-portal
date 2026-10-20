@@ -69,7 +69,7 @@ test('question trends expose measures and retain keyboard and select filtering',
   await render({comparison: false});
   const shareButton=[...container.querySelectorAll('button')].find(button=>button.textContent==='Share of questions');
   assert.equal(shareButton.disabled,true);
-  assert.match(document.getElementById(shareButton.getAttribute('aria-describedby')).textContent,/Select a topic or word in Topics to see its share/);
+  assert.match(document.getElementById(shareButton.getAttribute('aria-describedby')).textContent,/Choose a topic or word above to see its share/);
   assert.equal(select().value,bins[0].start,'clearing the topic preserves the selected week');
   await clickMeasure('Share of questions');
   assert.match(container.querySelector('svg').getAttribute('aria-label'), /Question counts/);
@@ -80,7 +80,7 @@ test('question trends expose measures and retain keyboard and select filtering',
   assert.match(container.querySelector('svg').getAttribute('aria-label'),/Question counts/,'reselecting a topic starts in count mode');
   await clickMeasure('Share of questions');
   assert.match(container.querySelector('.insight-chart-caption').textContent,/within the selected MEP election country/);
-  assert.doesNotMatch(container.textContent,/Select a topic or word in Topics/);
+  assert.doesNotMatch(container.textContent,/Choose a topic or word above/);
   await render({comparison:false,selected:false});
   assert.match(container.querySelector('svg').getAttribute('aria-label'),/Question counts/);
 
