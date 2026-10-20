@@ -398,8 +398,7 @@ export class ActivityWorker {
     for(const sittingId of motionSittings(work))scheduleSittingOutcomes(this,generation,sittingId,{priority:102});
   }
   prepareMotionOutcomes(generation) {
-    for(const source of this.store.iterateSources(generation,'document')) {
-      if(!isMotion(source.work))continue;
+    for(const source of this.store.motionDocuments(generation)) {
       // Older projections omitted the exact vote and joint-motion relationships.
       // Upgrade retained motions through the same writer and durable request queue.
       const recentUnlinked=!motionSittings(source.work).length && this.clock()-Date.parse(source.work.document_date)<45*DAY && this.clock()-Date.parse(source.fetchedAt)>=DAY;

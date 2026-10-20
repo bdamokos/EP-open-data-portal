@@ -1,9 +1,16 @@
+import {activityOnly,answersOnly} from './activity-read-projections.mjs';
 import {createHash} from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
 import {documentFiles} from './activity-index-model.mjs';
 import {questionFromSource} from './insights-model.mjs';
 import {odpLanguage} from './odp.mjs';
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+export const savedActivityPreviewSql=`SELECT preview.source_id,preview.date,
+  (SELECT body FROM items INDEXED BY saved_activity_sources WHERE generation=? AND mep=?
+    AND source_id=preview.source_id AND date IS preview.date AND ${activityOnly} LIMIT 1) AS body
+  FROM (SELECT source_id,MAX(date) AS date FROM items INDEXED BY saved_activity_sources
+    WHERE generation=? AND mep=? AND ${activityOnly}
+    GROUP BY source_id ORDER BY date DESC,source_id DESC LIMIT 10) preview`;
 function selectedTitle(titles,language,fallback) {
   if(titles?.[language])return {title:titles[language],titleLanguage:language};
   if(titles?.en)return {title:titles.en,titleLanguage:'en'};
@@ -31,17 +38,17 @@ export function savedStates(store,query) {
   });
   const members=query.members.map(id=>{
     const record=store.db.prepare('SELECT body FROM members WHERE id=?').get(id);if(!record)return {id,status:'outside-roster'};
-    const person=JSON.parse(record.body),activityOnly=" AND COALESCE(json_extract(body,'$.recordKind'),'document')<>'answer'";
-    const total=store.db.prepare('SELECT COUNT(DISTINCT source_id) AS n FROM items WHERE generation=? AND mep=?'+activityOnly).get(generation,id).n;
+    const person=JSON.parse(record.body),activityFilter=' AND '+activityOnly;
+    const total=store.db.prepare('SELECT COUNT(DISTINCT source_id) AS n FROM items INDEXED BY saved_activity_sources WHERE generation=? AND mep=?'+activityFilter).get(generation,id).n;
     const present=row=>{
       const body=JSON.parse(row.body);
       const question=body.recordKind==='answer'&&body.relatedQuestionId?store.source(generation,'/parliamentary-questions/'+body.relatedQuestionId)?.work:null;
       const titles=question?.title_dcterms||body.relatedQuestionTitles||body.titles;
       return {id:row.source_id,date:row.date,...selectedTitle(titles,query.language,body.reference||row.source_id),recordKind:body.recordKind,...(body.relatedQuestionId?{relatedQuestionId:body.relatedQuestionId}:{})};
     };
-    const activities=store.db.prepare('SELECT source_id,MAX(date) AS date,body FROM items WHERE generation=? AND mep=?'+activityOnly+' GROUP BY source_id ORDER BY date DESC,source_id DESC LIMIT 10').all(generation,id).map(present);
+    const activities=store.db.prepare(savedActivityPreviewSql).all(generation,id,generation,id).map(present);
     // Membership and revision cover every saved answer; only rich preview titles are bounded.
-    const answers=store.db.prepare("SELECT source_id,MAX(date) AS date,body FROM items WHERE generation=? AND mep=? AND json_extract(body,'$.recordKind')='answer' GROUP BY source_id ORDER BY date DESC,source_id DESC").all(generation,id).map((row,index)=>{
+    const answers=store.db.prepare('SELECT source_id,MAX(date) AS date,body FROM items INDEXED BY saved_answer_sources WHERE generation=? AND mep=? AND '+answersOnly+' GROUP BY source_id ORDER BY date DESC,source_id DESC').all(generation,id).map((row,index)=>{
       if(index<100)return present(row);
       const body=JSON.parse(row.body);
       return {id:row.source_id,date:row.date,relatedQuestionId:body.relatedQuestionId,recordKind:'answer'};

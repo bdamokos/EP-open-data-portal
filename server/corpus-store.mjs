@@ -74,7 +74,7 @@ export class CorpusStore {
     this.initializeIndexes=!readOnly&&(initializeIndexes||!existsSync(this.filename));
     this.db=observeSqlite(new DatabaseSync(this.filename,{readOnly}),'corpus');
     if(!this.initializeIndexes) {
-      try {if(this.get('resourceIndexes')!==1)throw new Error('Unprepared corpus indexes.');}
+      try {if(this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1)throw new Error('Unprepared corpus indexes.');}
       catch {this.db.close();throw new Error('Corpus indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(readOnly)this.db.exec('PRAGMA busy_timeout=250; PRAGMA query_only=ON;');
@@ -144,7 +144,7 @@ export class CorpusStore {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if(old && old.owner!==this.owner && old.expires>this.clock())return false;
       const initialize=this.get('resourceIndexes')!==1;
-      if(initialize&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+      if((initialize||this.get('questionDiscoveryVersion')!==1)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       if(initialize) {
         this.db.exec('CREATE TABLE IF NOT EXISTS speech_catalog_dirty (source_id TEXT PRIMARY KEY)');
@@ -171,6 +171,10 @@ export class CorpusStore {
         this.db.exec(`INSERT OR IGNORE INTO speech_catalog_dirty SELECT m.source_id FROM speech_metadata m
           LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL OR c.fetched_at IS NOT m.fetched_at`);
         this.set('resourceIndexes',1);initialized=true;
+      }
+      if(this.get('questionDiscoveryVersion')!==1) {
+        this.db.exec('CREATE TABLE IF NOT EXISTS question_discovery (source_key TEXT PRIMARY KEY,signature TEXT NOT NULL,policy TEXT NOT NULL)');
+        this.set('questionDiscoveryVersion',1);initialized=true;
       }
       // The writer reservation prevents takeover even if initialization exceeds
       // its original TTL. Renew ownership before publishing the transaction.

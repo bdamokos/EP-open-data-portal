@@ -8,13 +8,9 @@ const monday=value=>{const date=new Date(value+'T12:00:00Z');date.setUTCDate(dat
 // never evidence of complete coverage or of a particular member's position.
 export function memberVoteWeeks(store,{now=Date.now()}={}) {
   const generation=store.get('active')||store.get('working')?.generation||0,today=brusselsDay(now);
-  const rows=store.db.prepare(`SELECT source.key,source.fetched_at,
-    json_extract(source.body,'$.decisionsUrl') AS source_url,
-    json_extract(source.body,'$.decisionsFetchedAt') AS retrieved_at FROM sources source
-    WHERE source.generation=? AND source.kind='motion-outcomes'
-    AND EXISTS (SELECT 1 FROM json_each(source.body,'$.decisions') decision
-      WHERE json_extract(decision.value,'$.id') LIKE 'eli/dl/event/' || substr(source.key,17) || '-DEC-%')
-    ORDER BY source.key DESC LIMIT 1001`).all(generation);
+  const rows=generation?store.db.prepare(`SELECT source_key AS key,sitting_id,fetched_at,source_url,retrieved_at
+    FROM motion_sitting_summary WHERE generation=? AND decisions_present=1
+    ORDER BY source_key DESC LIMIT 1001`).all(generation):[];
   const weeks=new Map();
   for(const row of rows.slice(0,1000)) {
     const match=/^motion-outcomes:(MTG-PL-(\d{4}-\d{2}-\d{2}))$/.exec(row.key);
