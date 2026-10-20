@@ -64,3 +64,38 @@ test('unread answers remain visible ahead of newer speeches and are acknowledged
   const item=restarted.snapshot().items[0];assert.deepEqual(item.unreadAnswers.map(a=>a.id),['answer-two']);assert.equal(savedLinks(item)[0].title,'Second question');assert(item.newAnswer);assert(!item.newActivity);
   restarted.markAnswerRead('mep:257043','answer-two');restarted.observe({questions:[],members:[{...state,revision:'answered',answers}]});assert(!restarted.snapshot().items[0].updated);assert.equal(restarted.snapshot().items[0].unreadAnswers.length,0);
 });
+
+test('Following links contain only new exact activities and answers, including backdated IDs without previews',()=>{
+  const disk=storage(),store=createSavedStore(disk);store.toggle({kind:'mep',id:'257043',title:'Member'});
+  const old={id:'257043',status:'available',revision:'old',total:120,activityIdsComplete:true,activityIds:Array.from({length:120},(_,i)=>'speech-'+i),latest:[{id:'speech-119',title:'Existing speech'}],answers:[]};
+  store.observe({questions:[],members:[old]});assert.deepEqual(savedLinks(store.snapshot().items[0]),[]);
+  const next={...old,revision:'new',total:122,activityIds:[...old.activityIds,'late-question','new-speech'],activities:[{id:'new-speech',title:'New speech',titleLanguage:'fr',date:'2026-10-20'}]};
+  store.observe({questions:[],members:[next]});
+  let item=createSavedStore(disk).snapshot().items[0];assert.equal(item.baseline.latestIds.length,120);assert(item.updated&&item.newActivity);
+  assert.deepEqual(savedLinks(item).map(a=>a.id),['late-question','new-speech']);assert.equal(savedLinks(item)[0].date,'');assert.equal(savedLinks(item)[1].titleLanguage,'fr');
+  store.markActivityRead('mep:257043','new-speech');store.observe({questions:[],members:[next]});
+  assert.deepEqual(savedLinks(store.snapshot().items[0]).map(a=>a.id),['late-question']);
+  const displayed=store.snapshot().items;store.markVisitRead(displayed);store.observe({questions:[],members:[next]});
+  item=store.snapshot().items[0];assert(!item.updated);assert.deepEqual(savedLinks(item),[]);
+});
+
+test('visit acknowledgement preserves updates observed after the displayed snapshot and refollowed items',()=>{
+  const store=createSavedStore(storage());store.toggle(question);
+  const observe=(revision,answers)=>store.observe({members:[],questions:[{id:question.id,status:'available',revision,answers:answers.map(id=>({id}))}]});
+  observe('one',['answer-one']);const displayed=store.snapshot().items;
+  observe('two',['answer-one','answer-two']);store.markVisitRead(displayed);
+  let item=store.snapshot().items[0];assert.deepEqual(savedLinks(item).map(a=>a.id),['answer-two']);assert(item.updated);
+  observe('two',['answer-one','answer-two']);assert.deepEqual(savedLinks(store.snapshot().items[0]).map(a=>a.id),['answer-two']);
+  store.toggle(question);store.toggle({...question,savedAt:0});
+  observe('three',['answer-three']);store.markVisitRead(displayed);
+  item=store.snapshot().items[0];assert(item.newAnswer);assert.deepEqual(savedLinks(item).map(a=>a.id),['answer-three']);
+});
+
+test('legacy preview memberships prime the archive once without false new activity',()=>{
+  const disk=storage(),ids=Array.from({length:30},(_,i)=>'speech-'+i);
+  disk.setItem('ep.bookmarks.v1',JSON.stringify({version:1,items:[{kind:'mep',id:'257043',baseline:{activityVersion:3,revision:'legacy',total:30,latestIds:ids.slice(20),answerIds:[]}}]}));
+  const store=createSavedStore(disk),state={id:'257043',status:'available',revision:'new-contract',activityIdsComplete:true,total:30,activityIds:ids,activities:ids.slice(20).map(id=>({id})),answers:[]};
+  for(let i=0;i<2;i++){store.observe({members:[state],questions:[]});assert(!store.snapshot().items[0].updated);assert.deepEqual(savedLinks(store.snapshot().items[0]),[]);}
+  store.observe({members:[{...state,revision:'backfilled',total:31,activityIds:[...ids,'old-backfill']}],questions:[]});
+  assert.deepEqual(savedLinks(store.snapshot().items[0]).map(a=>a.id),['old-backfill']);
+});

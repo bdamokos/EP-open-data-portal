@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createElement,act} from 'react';
+import {createElement,act,StrictMode,Fragment} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
 
@@ -24,7 +24,7 @@ async function harness(t,items=[member()]) {
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Saved}=await vite.ssrLoadModule('/src/Saved.tsx'),{checkSaved}=await vite.ssrLoadModule('/src/SavedControls.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  const render=(language='en')=>act(async()=>root.render(createElement(Saved,{language,onBack(){},onMember(){}})));
+  const render=(language='en',strict=false)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,createElement(Saved,{language,onBack(){},onMember(){}}))));
   const button=()=>[...container.querySelectorAll('button')].find(node=>/^(Check for updates|Checking…)$/.test(node.textContent));
   const check=()=>act(async()=>{button().focus();button().click();});
   const respond=(index,data=response(),status=200)=>act(async()=>{const request=requests[index];assert(request&&!request.done);request.done=true;request.resolve(Response.json(data,{status}));});
@@ -110,4 +110,31 @@ test('background checks and superseded language, membership, acknowledgement and
   await h.check();await h.respond(5,response([state({id:'12345'})]));
   await act(async()=>{background=h.background();});await h.respond(6,response([state({id:'12345',revision:'latest'})]));await background;await settle();assert.equal(h.status().textContent,'');assert.equal(messages.length,0,'background observation cancels a queued obsolete unread count');
   await h.check();await h.clear();await h.respond(7,response([state({id:'12345'})]));await settle();assert.equal(h.container.textContent,'');assert.equal(messages.length,0);
+});
+
+test('Following keeps updates throughout a StrictMode visit and acknowledges displayed changes on departure',async t=>{
+  const h=await harness(t);await h.render('en',true);await h.check();
+  const latest=[{id:'A-10-2026-000002',title:'New speech',date:'2026-10-20'},{id:'A-10-2026-000001',title:'Existing speech',date:'2026-10-19'}];
+  const changed=response([state({revision:'new',total:2,activityIds:latest.map(a=>a.id),latest})]);
+  await h.respond(0,changed);assert(h.saved()[0].updated);assert.equal(h.container.querySelectorAll('article a').length,1);assert.match(h.container.querySelector('article a').textContent,/New speech/);assert.doesNotMatch(h.container.textContent,/Existing speech/);
+  await h.render('en',true);assert(h.saved()[0].updated,'a render is still the same visit');
+  await h.check();await h.respond(1,changed);assert(h.saved()[0].updated,'refresh does not acknowledge the current visit');
+  await h.clear();assert.equal(h.saved()[0].updated,false);await h.render('en',true);assert.equal(h.container.querySelectorAll('article a').length,0);assert.match(h.container.textContent,/No new updates since your last visit/);
+});
+
+test('unanswered and unchecked questions never advertise an answer; new answers remain explicit for this visit',async t=>{
+  const id='E-10-2026-003031',question={kind:'question',id,title:'Question',memberId:'257043',baseline:{revision:'pending',answerIds:[]}};
+  const h=await harness(t,[question]);await h.render();
+  assert.match(h.container.textContent,/Answer availability has not been checked/);assert.equal([...h.container.querySelectorAll('button')].filter(b=>b.textContent==='Read question').length,1);
+  await h.check();await h.respond(0,{...response([]),questions:[{id,status:'available',revision:'pending',answers:[]}]});
+  assert.match(h.container.textContent,/No answer available in the indexed data yet/);assert.doesNotMatch(h.container.textContent,/Read question and answers/);
+  await h.check();await h.respond(1,{...response([]),questions:[{id,status:'available',revision:'answered',answers:[{id:id+'-ASW',date:'2026-10-20'}]}]});
+  assert.match(h.container.textContent,/Answer available/);assert.match(h.container.textContent,/Read question and answers/);assert.equal(h.container.querySelector('article a').textContent.startsWith('New answer: '),true);assert(h.saved()[0].newAnswer);
+  await act(async()=>window.dispatchEvent(new window.Event('pagehide')));assert.equal(h.saved()[0].newAnswer,false);assert.equal(h.saved()[0].baseline.revision,'answered');
+});
+
+test('a response settling after Following was left remains new for the next visit',async t=>{
+  const h=await harness(t);await h.render();await h.check();await h.clear();
+  await h.respond(0,response([state({revision:'later',total:2,activityIds:['A-10-2026-000001','late']})]));
+  assert(h.saved()[0].updated);await h.render();assert.match(h.container.querySelector('article a').textContent,/late/);
 });

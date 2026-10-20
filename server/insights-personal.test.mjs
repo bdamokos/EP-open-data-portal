@@ -41,3 +41,18 @@ test('late answers beyond the rich preview limit change the member revision and 
     browser.markAnswerRead('mep:257043','E-10-2026-000101-ASW');const restarted=createSavedStore(storage);restarted.observe(after);item=restarted.snapshot().items[0];assert.equal(item.baseline.answerIds.length,101);assert(!item.updated);assert(!item.newAnswer);
   } finally {store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});}
 });
+
+test('Following compares complete exact activity membership beyond ten previews without upstream reads',()=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'saved-activities-')),store=new ActivityStore(directory);
+  try {
+    store.acquire();const {generation}=store.beginCycle();store.setMembers([{id:'42',name:'Member'}]);
+    const put=(id,date)=>store.putSource(generation,id,'document',{},'2026-10-20T00:00:00Z',[{mepId:'42',sourceId:id,category:'written-questions',date,titles:{fr:'Titre '+id}}]);
+    for(let i=1;i<=15;i++)put('activity-'+i,'2026-10-19');
+    const query={questions:[],members:['42'],language:'fr'},before=savedStates(store,query),browser=createSavedStore(null);
+    browser.toggle({kind:'mep',id:'42',title:'Member'});browser.observe(before);
+    put('backdated','2026-01-01');store.db.exec('PRAGMA query_only=ON');const after=savedStates(store,query);
+    assert.equal(after.members[0].activityIds.length,16);assert.equal(after.members[0].activities.length,10);assert(after.members[0].activityIdsComplete);
+    assert.deepEqual(after.members[0].latest,before.members[0].latest);assert.notEqual(after.members[0].revision,before.members[0].revision);
+    browser.observe(after);assert.deepEqual(savedLinks(browser.snapshot().items[0]).map(a=>a.id),['backdated']);
+  } finally {store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});}
+});
