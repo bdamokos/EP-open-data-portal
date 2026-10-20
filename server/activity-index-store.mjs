@@ -171,11 +171,12 @@ export class ActivityStore {
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
         copyQuestionFiles(this.db,generation,active);
         this.db.prepare('INSERT INTO refresh_gaps SELECT ?,key,kind,body,priority,error,attempts,failed_at,retry_at,sitting_id FROM refresh_gaps WHERE generation=?').run(generation,active);
+        this.db.prepare('INSERT INTO refresh_gap_admissions SELECT ?,key FROM refresh_gap_admissions WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO sitting_refresh SELECT ?,sitting_id,next_check FROM sitting_refresh WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO feed_catalog_recovery SELECT ?,endpoint,start,end FROM feed_catalog_recovery WHERE generation=?').run(generation,active);
         // Preserve bounded selection progress across generations.
         this.db.prepare('INSERT INTO mutable_documents SELECT ?,key,next_check FROM mutable_documents WHERE generation=?').run(generation,active);
-        for(const table of ['refresh_gaps','mutable_documents','continuation_sittings','sitting_refresh','feed_catalog_recovery'])this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(active,generation);
+        for(const table of ['refresh_gaps','refresh_gap_admissions','mutable_documents','continuation_sittings','sitting_refresh','feed_catalog_recovery'])this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(active,generation);
         outsideCopy(this.db,generation,active);
         groupVoicesCopy(this.db,generation,active);
         amendmentsCopy(this.db,generation,active);
@@ -186,25 +187,37 @@ export class ActivityStore {
   }
   updateCycle(values) { this.assertWriter();this.set('working',{...this.get('working'),...values}); }
   enqueue(generation,key,kind,body,priority=50,refreshCompleted=false,{retryGap=false}={}) {
-    this.assertWriter();
-    const gap=this.db.prepare('SELECT kind,body,priority,retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
-    if(gap) {
-      if(!retryGap || gap.retry_at>this.clock())return false;
-      // Only the bounded retry admission paths can reopen a failed task, and
-      // they always resume its saved cursor rather than discovery's new body.
-      kind=gap.kind;body=parse(gap.body);priority=gap.priority;
-    }
-    // Older workers select done=0 or NULL. A separate pending sentinel fences
-    // outside-speaker work during rollback and keeps the accepted generation.
-    const outside=kind.startsWith('outside-') || body.outsideOnly || key.startsWith('outside:upgrade:');
-    const pending=outside?-1:kind==='motion-outcomes'?null:0;
-    this.db.prepare('INSERT OR IGNORE INTO tasks(generation,key,kind,body,priority,done) VALUES (?,?,?,?,?,?)').run(generation,key,kind,JSON.stringify(body),priority,pending);
-    if(refreshCompleted)this.db.prepare('UPDATE tasks SET done=?,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE generation=? AND key=? AND done=1').run(pending,JSON.stringify(body),priority,generation,key);
+    const enqueue=()=>{
+      this.assertWriter();
+      const gap=this.db.prepare('SELECT kind,body,priority,retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
+      if(gap) {
+        if(!retryGap || gap.retry_at>this.clock())return false;
+        // Admission and its marker commit together. Checkpoints retain any
+        // subsequently progressed cursor until completion or another failure.
+        kind=gap.kind;body=parse(gap.body);priority=gap.priority;
+      }
+      const outside=kind.startsWith('outside-') || body.outsideOnly || key.startsWith('outside:upgrade:');
+      const pending=outside?-1:kind==='motion-outcomes'?null:0;
+      this.db.prepare('INSERT OR IGNORE INTO tasks(generation,key,kind,body,priority,done) VALUES (?,?,?,?,?,?)').run(generation,key,kind,JSON.stringify(body),priority,pending);
+      if(refreshCompleted)this.db.prepare('UPDATE tasks SET done=?,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE generation=? AND key=? AND done=1').run(pending,JSON.stringify(body),priority,generation,key);
+      if(gap)this.db.prepare('INSERT OR IGNORE INTO refresh_gap_admissions VALUES (?,?)').run(generation,key);
+      return true;
+    };
+    return retryGap&&!this.db.isTransaction?this.transaction(enqueue):enqueue();
   }
   hasDueTask(generation) {return Boolean(this.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND retry_at<=? LIMIT 1').get(generation,this.clock()));}
   nextTask(generation) { if(!this.hasDueTask(generation))return;const r=this.db.prepare('SELECT * FROM tasks INDEXED BY task_pending_order WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,this.clock()); return r && {...r,body:parse(r.body)}; }
   taskProgress(task,body) { this.assertWriter();this.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET body=?,attempts=0,error=NULL,retry_at=0 WHERE generation=? AND key=?`).run(JSON.stringify(body),task.generation,task.key); }
-  finishTask(task) { this.assertWriter();this.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET done=1,error=NULL WHERE generation=? AND key=?`).run(task.generation,task.key);if(!task.groupVoiceJob)this.db.prepare('DELETE FROM refresh_gaps WHERE generation=? AND key=?').run(task.generation,task.key); }
+  finishTask(task) {
+    const finish=()=>{
+      this.assertWriter();this.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET done=1,error=NULL WHERE generation=? AND key=?`).run(task.generation,task.key);
+      if(!task.groupVoiceJob) {
+        this.db.prepare('DELETE FROM refresh_gaps WHERE generation=? AND key=?').run(task.generation,task.key);
+        this.db.prepare('DELETE FROM refresh_gap_admissions WHERE generation=? AND key=?').run(task.generation,task.key);
+      }
+    };
+    return this.db.isTransaction?finish():this.transaction(finish);
+  }
   failTask(task,error) {
     this.assertWriter();const delay=Math.min(30*60_000,30_000*2**Math.min(task.attempts,6));
     this.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET attempts=attempts+1,retry_at=?,error=? WHERE generation=? AND key=?`).run(this.clock()+delay,String(error.message).slice(0,350),task.generation,task.key);
