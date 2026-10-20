@@ -174,6 +174,10 @@ export class ActivityWorker {
   enqueueFeeds(generation,prefix,since) {
     const start=day(Date.parse(since)-2*DAY);
     for(const endpoint of ['/plenary-documents','/committee-documents','/parliamentary-questions','/procedures']) {
+      // A partially published cycle advances lastSuccess, not a failed feed's
+      // coverage cursor. Its saved task owns that interval until recovery.
+      if(this.store.db.prepare("SELECT 1 FROM refresh_gaps WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? LIMIT 1").get(generation,endpoint))continue;
+      if(this.store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1").get(generation,endpoint))continue;
       this.store.enqueue(generation,prefix+endpoint,'feed',{endpoint,start},105);
       if(endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY)coverageGap(this.store,generation,'feed-window:'+endpoint,{endpoint,start,end:day(this.clock()-28*DAY)},'The fixed monthly feed cannot establish updates across this earlier interval; retained records are checked by the bounded mutable-record queue.',this.clock());
     }
@@ -259,6 +263,13 @@ export class ActivityWorker {
       const start=body.start || day(Date.parse(this.store.get('lastSuccess') || this.store.get('working')?.startedAt)-2*DAY);
       const r=await this.request(body.endpoint+'/feed',body.endpoint==='/procedures'?{timeframe:'custom','start-date':start}:{},{xml:true});
       const entries=feedDocuments(r.xml,body.endpoint);
+      // A saved retry can outlive a fixed feed's retention even when its
+      // original scheduling date was covered. Keep that lost interval explicit.
+      if(body.endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY) {
+        const known=this.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,'feed-window:'+body.endpoint);
+        coverageGap(this.store,generation,'feed-window:'+body.endpoint,{endpoint:body.endpoint,start,end:day(this.clock()-28*DAY)},'The fixed monthly feed cannot establish updates across this earlier interval; retained records are checked by the bounded mutable-record queue.',this.clock());
+        if(!known)for(const collection of collections(new Date(this.clock()).getUTCFullYear()).filter(collection=>collection.endpoint===body.endpoint))this.store.enqueue(generation,'gap-catalog:'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
+      }
       for(const e of entries){
         if(e.updated && Date.parse(e.updated)<Date.parse(start))continue;
         const endpoint=body.endpoint+'/'+e.id;
@@ -538,11 +549,19 @@ export class ActivityWorker {
       const cycle=this.coreDue()?this.store.beginCycle():null,generation=cycle?.generation || active;
       for(const row of this.store.db.prepare('SELECT sitting_id FROM sitting_refresh WHERE generation=? AND next_check<=? ORDER BY next_check,sitting_id LIMIT 100').all(generation,this.clock())) {
         const delay=this.clock()<Date.parse(sittingConfirmationDay(row.sitting_id))?6*60*60_000:7*DAY;
-        const gap=this.store.db.prepare("SELECT * FROM refresh_gaps WHERE generation=? AND sitting_id=? AND kind='motion-outcomes' AND retry_at<=? ORDER BY retry_at LIMIT 1").get(generation,row.sitting_id,this.clock());
+        const gap=this.store.db.prepare("SELECT * FROM refresh_gaps WHERE generation=? AND sitting_id=? AND kind='motion-outcomes' ORDER BY retry_at LIMIT 1").get(generation,row.sitting_id);
         if(gap) {
-          const pending=this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=? AND (done IS NULL OR done<>1) UNION ALL SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND done<>1 LIMIT 1').get(generation,gap.key,generation,gap.key);
-          if(!pending)this.store.enqueue(generation,gap.key,gap.kind,JSON.parse(gap.body),gap.priority,true);
-          this.store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(this.clock()+delay,generation,gap.key);
+          if(day(this.clock())>=sittingConfirmationDay(row.sitting_id)) {
+            // Historical failures share scheduleMutable's daily admission cap.
+            // An unadmitted gap must not cause idle lease churn every 30 seconds.
+            this.store.db.prepare('UPDATE sitting_refresh SET next_check=? WHERE generation=? AND sitting_id=?').run(Math.max(gap.retry_at,this.clock()+DAY),generation,row.sitting_id);
+            continue;
+          }
+          if(gap.retry_at<=this.clock()) {
+            const pending=this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=? AND (done IS NULL OR done<>1) UNION ALL SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND done<>1 LIMIT 1').get(generation,gap.key,generation,gap.key);
+            if(!pending)this.store.enqueue(generation,gap.key,gap.kind,JSON.parse(gap.body),gap.priority,true);
+            this.store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(this.clock()+delay,generation,gap.key);
+          }
         } else scheduleSittingOutcomes(this,generation,row.sitting_id);
         this.store.db.prepare('UPDATE sitting_refresh SET next_check=? WHERE generation=? AND sitting_id=?').run(this.clock()+delay,generation,row.sitting_id);
       }
