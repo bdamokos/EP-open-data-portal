@@ -19,7 +19,7 @@ export function publicationBody(paragraphs, documentId, language) {
     while(end<Math.min(6,paragraphs.length-1)&&(/^(?:on behalf of (?:the )?(?:European Commission|Commission|Council))\s*$/.test(paragraphs[end].trim())||/^\(\d{1,2}\.\d{1,2}\.\d{4}\)$/.test(paragraphs[end].trim())))end++;
     return {paragraphs:paragraphs.slice(end),header:paragraphs.slice(0,end),start:end,exact:true};
   }
-  if(!/^\s*Question for (?:written|oral) answer\b/.test(paragraphs[0])||!paragraphs[0].includes(reference))return original;
+  if(!/^\s*(?:Priority question|Question) for (?:written|oral) answer\b/.test(paragraphs[0])||!paragraphs[0].includes(reference))return original;
   const subject=paragraphs.findIndex((p,index)=>index>0&&index<8&&/^\s*Subject\s*:/.test(p));
   return subject>0&&subject<paragraphs.length-1?{paragraphs:paragraphs.slice(subject+1),header:paragraphs.slice(0,subject+1),start:subject+1,exact:true}:original;
 }
