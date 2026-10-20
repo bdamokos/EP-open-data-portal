@@ -93,6 +93,28 @@ test('recorded failures retry on a capped slow queue, preserve cursors, and clea
   store.finishTask(pending[0]);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps').get().n,GAP_LIMIT+1);
 });
 
+test('initial publication with core gaps unlocks exact Outside context recovery in the next generation',async t=>{
+  const {store,generation,worker,clock,advance}=setup(t);
+  store.putSource(generation,'outside:state','outside-state',{version:1},new Date(clock()).toISOString());
+  const contextKey='outside:procedure:2025-9999',contextBody={id:'2025-9999'};
+  store.enqueue(generation,contextKey,'outside-procedure',contextBody,101);
+  assert(worker.failOutside({...store.nextTask(generation),attempts:2},new Error('Context unavailable')));
+  store.enqueue(generation,'stuck-core','document',{endpoint:'/unavailable'},103);
+  store.db.prepare("UPDATE tasks SET attempts=309,error='Unavailable',retry_at=? WHERE generation=? AND key='stuck-core'").run(clock()+DAY,generation);
+  worker.fetchRecord=async(endpoint,params)=>({fetchedAt:new Date(clock()).toISOString(),payload:{data:endpoint==='/meps/show-current'&&params.offset===0?[{identifier:'42',label:'Member'}]:/^\/plenary-documents\/[^/]+$/.test(endpoint)?[document({identifier:endpoint.split('/').at(-1),work_type:'REPORT_PLENARY'})]:[]},xml:'<feed/>'});
+  store.release();await worker.run();
+  assert.equal(store.get('active'),generation);assert.equal(store.get('working'),null);
+  assert(store.source(generation,'outside:gap:'+contextKey));assert.equal(store.status().complete,false);
+  advance(DAY);const cycle=store.beginCycle();worker.initializeOutside(cycle);
+  const retry=store.nextTask(cycle.generation);assert.equal(retry.key,contextKey);assert.deepEqual(retry.body,contextBody);
+  assert.equal(store.taskCounts(cycle.generation).total,1,'only the exact saved optional gap is reopened');
+  worker.fetchRecord=async(endpoint)=>{assert.equal(endpoint,'/procedures/2025-9999');return {fetchedAt:new Date(clock()).toISOString(),payload:{data:[{id:'https://data.europarl.europa.eu/eli/dl/proc/2025-9999',process_type:'def/ep-procedure-types/COD'}]}};};
+  await worker.task(retry);worker.finishOutsideGap(retry);store.publish(cycle.generation);
+  assert.equal(store.source(cycle.generation,'outside:gap:'+contextKey),undefined);
+  assert(store.source(cycle.generation,contextKey));
+  assert.equal(store.status().complete,false,'the unrelated unavailable core observation remains an explicit gap');
+});
+
 test('feeds use supported parameters and missed days never trigger detail refreshes of final records',async t=>{
   const {store,generation,worker,clock}=setup(t);
   store.putSource(generation,'/plenary-documents/A-10-2026-000001','document',projectDocument(document({work_type:'REPORT_PLENARY'})),new Date(clock()-40*DAY).toISOString());
@@ -225,6 +247,38 @@ test('daily publication preserves a failed feed interval until its saved retry s
   await worker.task(task);
   assert(store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND key='/parliamentary-questions/E-10-2026-000007'").get(cycle.generation));
   assert.equal(store.db.prepare("SELECT COUNT(*) n FROM refresh_gaps WHERE generation=? AND kind='feed'").get(cycle.generation).n,0);
+});
+
+test('pre-policy feed tasks pin the original interval before partial publication advances lastSuccess',async t=>{
+  const {store,generation,worker,clock,advance}=setup(t,'2026-08-31T10:00Z');
+  store.setMembers([{id:'42'}]);store.putSource(generation,'outside:state','outside-state',{version:1},new Date(clock()).toISOString());
+  store.publish(generation);advance(DAY);const cycle=store.beginCycle();
+  store.enqueue(cycle.generation,'feed:/procedures','feed',{endpoint:'/procedures'},105);
+  store.db.prepare('UPDATE tasks SET attempts=309,error=?,retry_at=? WHERE generation=?').run('Feed unavailable',clock()+DAY,cycle.generation);
+  store.updateCycle({initialized:true,reportJoinsReady:true,procedureTitlesQueued:true,motionOutcomesDay:'2026-09-01'});
+  advance(9*DAY);
+  worker.fetchRecord=async(endpoint,params)=>({fetchedAt:new Date(clock()).toISOString(),payload:{data:endpoint==='/meps/show-current'&&params.offset===0?[{identifier:'42',label:'Member'}]:/^\/plenary-documents\/[^/]+$/.test(endpoint)?[document({identifier:endpoint.split('/').at(-1),work_type:'REPORT_PLENARY'})]:[]},xml:'<feed/>'});
+  store.release();await worker.run();
+  assert.equal(store.get('active'),cycle.generation);assert.equal(store.get('working'),null);
+  assert.equal(store.get('lastSuccess'),'2026-09-10T10:00:00.000Z');
+  assert.equal(JSON.parse(store.db.prepare("SELECT body FROM refresh_gaps WHERE generation=? AND kind='feed'").get(cycle.generation).body).start,'2026-08-29');
+  advance(7*DAY);const next=store.beginCycle();scheduleMutable(worker,next.generation);
+  const task=store.nextTask(next.generation);assert.equal(task.kind,'feed');
+  const calls=[];worker.fetchRecord=async(endpoint,params)=>{calls.push({endpoint,params});return {fetchedAt:new Date(clock()).toISOString(),xml:'<feed><entry><id>https://data.europarl.europa.eu/eli/dl/proc/2026-9999</id><updated>2026-09-03</updated></entry></feed>'};};
+  store.putSource(next.generation,'/procedures/2026-9999','procedure',{identifier:'2026-9999'},'2026-08-31T10:00Z');
+  await worker.task(task);
+  assert.deepEqual(calls[0].params,{timeframe:'custom','start-date':'2026-08-29'});
+  assert(store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND kind='procedure'").get(next.generation),'the September 3 update remains eligible after publication');
+});
+
+test('an unretired pre-policy feed persists its interval before making a failing request',async t=>{
+  const {store,generation,worker}=setup(t,'2026-09-01T10:00Z');
+  store.set('lastSuccess','2026-08-31T10:00:00.000Z');
+  store.enqueue(generation,'feed:/procedures','feed',{endpoint:'/procedures'},105);
+  const task=store.nextTask(generation);
+  await assert.rejects(worker.task(task),/Unexpected upstream request/);
+  assert.equal(JSON.parse(store.db.prepare('SELECT body FROM tasks WHERE generation=? AND key=?').get(generation,task.key).body).start,'2026-08-29');
+  assert.equal(task.body.start,'2026-08-29');
 });
 
 test('an expired monthly interval stays a coverage gap after a delayed feed retry succeeds',async t=>{
