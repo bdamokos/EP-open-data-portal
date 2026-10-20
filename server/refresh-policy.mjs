@@ -2,6 +2,7 @@ import {array, tail, documentFiles} from './activity-index-model.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
 
 export const DAY=86_400_000, MUTABLE_LIMIT=100, GAP_LIMIT=25;
+export const feedStart=(store,now)=>new Date(Date.parse(store.get('lastSuccess') || store.get('working')?.startedAt || new Date(now).toISOString())-2*DAY).toISOString().slice(0,10);
 const official=new Set('bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' '));
 const localDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
 export function refreshSnapshotMatches(store) {
@@ -112,6 +113,9 @@ export function recordTaskGap(worker,task,error) {
   if(task.kind==='roster' && !worker.store.db.prepare('SELECT 1 FROM members LIMIT 1').get())return false;
   if(task.attempts<((error.status===404||error.status===410)?2:4))return false;
   const now=worker.clock();
+  // Pre-policy pending feeds carry only their endpoint. Pin their interval
+  // before an incomplete publication advances the global successful-run date.
+  if(task.kind==='feed' && !task.body.start)task={...task,body:{...task.body,start:feedStart(worker.store,now)}};
   const retryAt=now+(task.kind==='motion-outcomes' && localDay(now)<sittingConfirmationDay(task.body.sittingId)?6*60*60_000:7*DAY);
   worker.store.transaction(()=>{
     worker.store.finishTask(task);

@@ -19,7 +19,7 @@ import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade} fr
 import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
 import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
-import {scheduleMutable,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState} from './refresh-policy.mjs';
+import {scheduleMutable,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart} from './refresh-policy.mjs';
 
 const DAY = 24*60*60_000;
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
@@ -178,7 +178,7 @@ export class ActivityWorker {
       // coverage cursor. Its saved task owns that interval until recovery.
       const saved=this.store.db.prepare("SELECT body FROM refresh_gaps WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? LIMIT 1").get(generation,endpoint) ||
         this.store.db.prepare("SELECT body FROM tasks WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1").get(generation,endpoint);
-      const earliest=saved?JSON.parse(saved.body).start || start:start;
+      const earliest=saved?JSON.parse(saved.body).start || feedStart(this.store,this.clock()):start;
       // Catalogue discovery is independent of feed availability and retry due
       // dates. A failed feed must not hide IDs after its window has expired.
       if(endpoint!=='/procedures' && Date.parse(earliest)<this.clock()-28*DAY)this.recoverFeedWindow(generation,endpoint,earliest);
@@ -275,7 +275,11 @@ export class ActivityWorker {
         this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob);}
       this.store.taskProgress(task,{...body,offset:body.offset+hitCount,lastPage:signatures});
     } else if(task.kind==='feed') {
-      const start=body.start || day(Date.parse(this.store.get('lastSuccess') || this.store.get('working')?.startedAt)-2*DAY);
+      if(!body.start) {
+        body.start=feedStart(this.store,this.clock());
+        this.store.taskProgress(task,body);
+      }
+      const start=body.start;
       // Recovery must survive HTTP failures and malformed feed responses too.
       if(body.endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY)this.recoverFeedWindow(generation,body.endpoint,start);
       const r=await this.request(body.endpoint+'/feed',body.endpoint==='/procedures'?{timeframe:'custom','start-date':start}:{},{xml:true});
