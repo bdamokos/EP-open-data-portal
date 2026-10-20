@@ -26,7 +26,11 @@
 .insight-question-list { border-top:0; padding-top:0; }
 .insight-question-list>article:first-child { padding-top:20px; }
 .insight-question-list .insight-people { gap:8px; }
-.insight-question-list .insight-people article { width:132px; }
+/* Size author cards for whole words; wrap cards before splitting a surname. */
+.insight-question-list .insight-people article { width:min-content; min-width:min(145px,100%); max-width:100%; overflow-wrap:break-word; }
+.insight-question-list .insight-people a { width:100%; max-width:100%; }
+.insight-question-list .insight-people strong { max-width:100%; }
+.insight-question-list .insight-guest { max-width:100%; }
 .insight-eyebrow { text-transform:none; letter-spacing:0; }
 .insight-agenda-select { display:none; }
 .insight-legislation-grid { padding-top:8px; }
@@ -109,7 +113,6 @@
   .insight-vote-matrix-head,.insight-vote-group-row { grid-template-columns:minmax(90px,1.2fr) repeat(3,minmax(46px,1fr)); gap:6px; }
   .insight-vote-matrix-head { font-size:12px; }
   .insight-vote-group-row>span { font-size:13px; gap:5px; }
-  .insight-question-list .insight-people article { width:calc((100% - 16px)/3); }
   .explorer-insights .explorer-video-actions button { flex:1 1 140px; min-width:0; }
   .insight-reader-text { font-size:16px; }
 }
