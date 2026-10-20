@@ -4,6 +4,13 @@ import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendme
 export const DAY=86_400_000, MUTABLE_LIMIT=100, GAP_LIMIT=25;
 const official=new Set('bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' '));
 const localDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+export function refreshSnapshotMatches(store) {
+  const accepted=store.get('refreshPolicyGeneration');
+  return accepted==null || accepted===store.get('active');
+}
+export function assertRefreshSnapshot(store) {
+  if(!refreshSnapshotMatches(store))throw new Error('Refresh policy snapshot does not match the active generation. Restore or reconcile the matching snapshot offline before continuing.');
+}
 export function sittingConfirmationDay(sittingId) {
   const date=Date.parse(sittingId.slice(7)),weekday=(new Date(date).getUTCDay()+6)%7;
   // Current plenary guidance: Friday noon of the second week following
@@ -54,6 +61,8 @@ export function refreshPolicyTables(db) {
     CREATE TABLE IF NOT EXISTS refresh_gaps(generation INTEGER,key TEXT,kind TEXT,body TEXT,priority INTEGER,error TEXT,attempts INTEGER,failed_at TEXT,retry_at INTEGER,sitting_id TEXT,PRIMARY KEY(generation,key));
     CREATE INDEX IF NOT EXISTS refresh_gap_due ON refresh_gaps(generation,retry_at,key);
     CREATE INDEX IF NOT EXISTS refresh_gap_sitting ON refresh_gaps(generation,sitting_id,retry_at);
+    CREATE INDEX IF NOT EXISTS refresh_gap_endpoint ON refresh_gaps(generation,kind,json_extract(body,'$.endpoint'));
+    CREATE INDEX IF NOT EXISTS task_feed_endpoint ON tasks(generation,kind,json_extract(body,'$.endpoint'),done);
     CREATE TABLE IF NOT EXISTS sitting_refresh(generation INTEGER,sitting_id TEXT,next_check INTEGER,PRIMARY KEY(generation,sitting_id));
     CREATE INDEX IF NOT EXISTS sitting_refresh_due ON sitting_refresh(generation,next_check,sitting_id);
     CREATE TABLE IF NOT EXISTS continuation_sittings(generation INTEGER,sitting_id TEXT,bucket TEXT,key TEXT,PRIMARY KEY(generation,sitting_id,bucket,key));`);
@@ -81,10 +90,18 @@ export function scheduleMutable(worker,generation) {
     store.enqueue(generation,key,'document',{endpoint:key},84,true);
     store.db.prepare('UPDATE mutable_documents SET next_check=? WHERE generation=? AND key=?').run(now+7*DAY,generation,key);
   }
-  for(const gap of store.db.prepare("SELECT * FROM refresh_gaps WHERE generation=? AND kind<>'coverage' AND retry_at<=? ORDER BY retry_at,key LIMIT ?").all(generation,now,GAP_LIMIT)) {
-    store.enqueue(generation,gap.key,gap.kind,JSON.parse(gap.body),gap.priority,true);
-    store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(now+7*DAY,generation,gap.key);
-  }
+  store.transaction(()=>{
+    const today=localDay(now),prior=store.get('slowGapAdmissions');
+    let count=prior?.day===today?prior.count:0;
+    for(const gap of store.db.prepare("SELECT * FROM refresh_gaps WHERE generation=? AND kind<>'coverage' AND retry_at<=? ORDER BY retry_at,key LIMIT ?").all(generation,now,Math.max(0,GAP_LIMIT-count))) {
+      if(gap.kind==='motion-outcomes' && today<sittingConfirmationDay(gap.sitting_id))continue;
+      store.enqueue(generation,gap.key,gap.kind,JSON.parse(gap.body),gap.priority,true);
+      store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(now+7*DAY,generation,gap.key);
+      if(gap.kind==='motion-outcomes')store.db.prepare('UPDATE sitting_refresh SET next_check=? WHERE generation=? AND sitting_id=?').run(now+7*DAY,generation,gap.sitting_id);
+      count++;
+    }
+    store.set('slowGapAdmissions',{day:today,count});
+  });
 }
 
 export function recordTaskGap(worker,task,error) {
@@ -103,5 +120,11 @@ export function recordTaskGap(worker,task,error) {
 }
 
 export function coverageGap(store,generation,key,body,message,now) {
+  store.assertWriter();
+  const prior=store.db.prepare('SELECT body FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
+  if(prior) {
+    const saved=JSON.parse(prior.body);
+    if(saved.start && saved.start<body.start)body={...body,start:saved.start};
+  }
   store.db.prepare('INSERT OR REPLACE INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(generation,key,'coverage',JSON.stringify(body),0,message,0,new Date(now).toISOString(),Number.MAX_SAFE_INTEGER,null);
 }

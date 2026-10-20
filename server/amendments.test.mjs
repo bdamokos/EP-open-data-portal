@@ -1164,6 +1164,8 @@ test('candidate workers recover retained amendment rows and cursors after a lega
     store.db.prepare('UPDATE amendment_jobs SET attempts=2,error=? WHERE generation=? AND key=?').run('Retained retry',generation,'roster-cursor');
     recordSplitResults(store,parseSplitRequest(request([part(1,'Unpublished instructions')]),{sourceUrl,fetchedAt}));
     store.publish(generation);
+    // This legacy fixture has not accepted the refresh policy introduced later.
+    store.set('refreshPolicyGeneration',null);
     // The released worker knows only core tables. Its cycle advances metadata
     // and copies sources without touching the additive amendment tables.
     store.db.prepare('INSERT INTO sources SELECT 2,key,kind,body,fetched_at,1 FROM sources WHERE generation=?').run(generation);
@@ -2074,7 +2076,8 @@ test('linked-list rescheduling and legacy generation adoption preserve accepted 
   assert.deepEqual(listDetailJobs(store,generation)[0],before);
   store.publish(generation);
   store.db.prepare('INSERT INTO sources SELECT 2,key,kind,body,fetched_at,seen FROM sources WHERE generation=?').run(generation);
-  store.set('active',2);store.set('sequence',2);store.set('previous',generation);
+  // This legacy fixture has not accepted the refresh policy introduced later.
+  store.set('refreshPolicyGeneration',null);store.set('active',2);store.set('sequence',2);store.set('previous',generation);
   const adopted=store.beginCycle();assert.equal(adopted.generation,3);
   rebuildAmendmentTarget(worker,adopted.generation,targetId);
   const after=listDetailJobs(store,adopted.generation)[0];

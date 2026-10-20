@@ -125,7 +125,8 @@ test('checkpoint-only CPU work coalesces revisions, wakes due and survives legac
   store.transaction(()=>{
     store.db.prepare('INSERT INTO sources SELECT 4,key,kind,body,fetched_at,seen FROM sources WHERE generation=?').run(generation);
     store.db.prepare('INSERT INTO items SELECT 4,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation);
-    store.db.prepare('DELETE FROM sources WHERE generation<>4').run();store.db.prepare('DELETE FROM items WHERE generation<>4').run();store.db.prepare('DELETE FROM tasks').run();store.set('active',4);store.set('sequence',4);
+    // This fixture predates accepted refresh snapshots; accepted mismatches fail closed.
+    store.db.prepare('DELETE FROM sources WHERE generation<>4').run();store.db.prepare('DELETE FROM items WHERE generation<>4').run();store.db.prepare('DELETE FROM tasks').run();store.set('refreshPolicyGeneration',null);store.set('active',4);store.set('sequence',4);
   });store.release();
   assert.equal(worker.coreDue(),false);assert.equal(worker.due(),true);assert.equal(amendmentsPage(store,{}).coverage.pending,true);
   await worker.run();const admitted=row(store,4,sittingKey);

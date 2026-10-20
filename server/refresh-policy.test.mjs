@@ -207,3 +207,83 @@ test('an unavailable current sitting keeps its correction-period cadence without
   assert.equal(store.db.prepare('SELECT next_check FROM sitting_refresh').get().next_check,clock()+6*60*60_000);
   store.publish(generation);assert.equal(store.get('active'),generation);assert.equal(store.status().complete,false);
 });
+
+test('daily publication preserves a failed feed interval until its saved retry succeeds',async t=>{
+  const {store,generation,worker,clock,advance}=setup(t,'2026-10-02T10:00Z');
+  store.enqueue(generation,'feed:/parliamentary-questions','feed',{endpoint:'/parliamentary-questions',start:'2026-09-30'},105);
+  assert(recordTaskGap(worker,{...store.nextTask(generation),attempts:4},new Error('Feed unavailable')));
+  store.publish(generation);
+  for(let n=0;n<3;n++) {
+    advance(DAY);const cycle=store.beginCycle();worker.enqueueFeeds(cycle.generation,'feed:',store.get('lastSuccess'));
+    assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')='/parliamentary-questions'").get(cycle.generation).n,0);
+    for(const task of store.db.prepare('SELECT * FROM tasks WHERE generation=?').all(cycle.generation))store.finishTask(task);
+    store.publish(cycle.generation);
+  }
+  advance(4*DAY);const cycle=store.beginCycle();scheduleMutable(worker,cycle.generation);
+  const task=store.nextTask(cycle.generation);assert.equal(task.body.start,'2026-09-30');
+  worker.fetchRecord=async()=>({fetchedAt:new Date(clock()).toISOString(),xml:'<feed><entry><id>https://data.europarl.europa.eu/eli/dl/doc/E-10-2026-000007</id><updated>2026-10-02</updated></entry></feed>'});
+  await worker.task(task);
+  assert(store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND key='/parliamentary-questions/E-10-2026-000007'").get(cycle.generation));
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM refresh_gaps WHERE generation=? AND kind='feed'").get(cycle.generation).n,0);
+});
+
+test('an expired monthly interval stays a coverage gap after a delayed feed retry succeeds',async t=>{
+  const {store,generation,worker,clock,advance}=setup(t,'2026-10-02T10:00Z');
+  store.enqueue(generation,'feed:/parliamentary-questions','feed',{endpoint:'/parliamentary-questions',start:'2026-09-30'},105);
+  assert(recordTaskGap(worker,{...store.nextTask(generation),attempts:4},new Error('Feed unavailable')));
+  store.publish(generation);advance(40*DAY);const cycle=store.beginCycle();scheduleMutable(worker,cycle.generation);
+  worker.fetchRecord=async()=>({fetchedAt:new Date(clock()).toISOString(),xml:'<feed/>'});
+  await worker.task(store.nextTask(cycle.generation));
+  assert(store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND kind='catalog' AND json_extract(body,'$.deltaOnly')=1").get(cycle.generation));
+  for(const task of store.db.prepare('SELECT * FROM tasks WHERE generation=?').all(cycle.generation))store.finishTask(task);
+  store.publish(cycle.generation);
+  assert.equal(store.status().complete,false);
+  const gaps=store.db.prepare('SELECT kind,body FROM refresh_gaps WHERE generation=?').all(cycle.generation);
+  assert.equal(gaps.length,1);assert.equal(gaps[0].kind,'coverage');assert.equal(JSON.parse(gaps[0].body).start,'2026-09-30');
+});
+
+test('a generation advanced without its refresh snapshot fails closed before pruning saved gaps',async t=>{
+  const {prepareIndexes}=await import('./migrate-indexes.mjs');
+  const {store,generation,worker,clock}=setup(t);
+  store.putSource(generation,'/q','document',projectDocument(document()),'2026-10-01');
+  store.enqueue(generation,'saved-gap','document',{endpoint:'/q',offset:750},90);
+  assert(recordTaskGap(worker,{...store.nextTask(generation),attempts:4},new Error('Unavailable')));store.publish(generation);
+  // An older writer copies ordinary sources/items and advances metadata while
+  // leaving the additive refresh tables at the previous accepted generation.
+  store.db.prepare('INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources WHERE generation=?').run(generation+1,generation);
+  store.set('active',generation+1);store.set('sequence',generation+1);store.release();
+  assert.equal(store.status().complete,false);assert.equal(store.status().refreshSnapshotReady,false);
+  assert.throws(()=>new ActivityStore(path.dirname(store.filename),{clock}),/snapshot does not match/);
+  assert.throws(()=>store.acquire(),/snapshot does not match/);
+  assert.throws(()=>prepareIndexes({activityDirectory:path.dirname(store.filename),clock,log:()=>{}}),/snapshot does not match/);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps WHERE generation=?').get(generation).n,1);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM mutable_documents WHERE generation=?').get(generation).n,1);
+  // Restoring the matching published pointer makes its original cursor usable.
+  store.set('active',generation);assert(store.acquire());const next=store.beginCycle();
+  assert.equal(JSON.parse(store.db.prepare('SELECT body FROM refresh_gaps WHERE generation=?').get(next.generation).body).offset,750);
+});
+
+test('historical sitting gaps share a global daily admission cap across new cycles and worker runs',async t=>{
+  const {store,generation,worker,clock,advance}=setup(t,'2026-10-02T10:00Z');
+  for(let i=1;i<=30;i++) {
+    const sittingId=`MTG-PL-2026-01-${String(i).padStart(2,'0')}`;
+    store.enqueue(generation,'old-sitting:'+i,'motion-outcomes',{sittingId,stage:'decisions',offset:0},100);
+    assert(recordTaskGap(worker,{...store.nextTask(generation),attempts:4},new Error('Missing decisions')));
+  }
+  store.setMembers([{id:'42'}]);store.publish(generation);store.release();advance(7*DAY);
+  worker.fetchRecord=async(endpoint,params)=>({fetchedAt:new Date(clock()).toISOString(),payload:{data:endpoint==='/meps/show-current'&&params.offset===0?[{identifier:'42',label:'Member'}]:[]},xml:'<feed/>'});
+  worker.task=async task=>{if(task.kind==='motion-outcomes')store.taskProgress(task,{...task.body,offset:task.body.offset+1});else store.finishTask(task);};
+  worker.budget=0;store.release();await worker.run();
+  const working=store.get('working');
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE generation=? AND kind='motion-outcomes' AND (done IS NULL OR done<>1)").get(working.generation).n,25);
+  assert.equal(store.get('slowGapAdmissions').count,25);
+  assert(store.acquire());scheduleMutable(worker,working.generation);
+  assert.equal(store.get('slowGapAdmissions').count,25);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps WHERE generation=? AND retry_at<=?').get(working.generation,clock()).n,5);
+  for(const task of store.db.prepare('SELECT * FROM tasks WHERE generation=?').all(working.generation))store.finishTask(task);
+  store.publish(working.generation);const next=store.beginCycle();scheduleMutable(worker,next.generation);
+  assert.equal(store.get('slowGapAdmissions').count,25);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE generation=? AND kind='motion-outcomes'").get(next.generation).n,0);
+  advance(DAY);scheduleMutable(worker,next.generation);
+  assert.equal(store.get('slowGapAdmissions').count,5);
+});
