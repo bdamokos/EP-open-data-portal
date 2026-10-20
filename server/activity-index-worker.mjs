@@ -19,6 +19,7 @@ import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade} fr
 import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
 import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
+import {scheduleMutable,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart} from './refresh-policy.mjs';
 
 const DAY = 24*60*60_000;
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
@@ -46,7 +47,8 @@ const collections = year => [
 export function feedDocuments(xml,endpoint) {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml)!==true) throw new Error('Invalid document update feed XML.');
   const root=new XMLParser({ignoreAttributes:false,removeNSPrefix:true,parseTagValue:false,processEntities:false}).parse(xml);
-  if (!root.feed) throw new Error('Expected an Atom update feed.');
+  if (!Object.hasOwn(root,'feed')) throw new Error('Expected an Atom update feed.');
+  if(array(root.feed.link).some(link=>link['@_rel']==='next'))throw new Error('Update feed advertises another page; complete feed coverage is unavailable.');
   const entries=array(root.feed.entry);
   const result=entries.flatMap(e=> {
     const url=String(e.id || '');
@@ -89,7 +91,7 @@ export class ActivityWorker {
       cycle.motionOutcomesDay!==day(this.clock())||day(Date.parse(cycle.startedAt))!==day(this.clock())&&cycle.catchupDay!==day(this.clock())||
       !this.store.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(generation)))return true;
     const checkpoint=this.store.source(generation,CONTINUATIONS_KEY)?.work;
-    return outsideAgendaUpgradeDue(this.store,generation) || this.store.hasDueTask(generation) || Boolean(nextAmendmentTask(this.store,amendmentGeneration(this.store)) || groupVoiceWorkDue(this.store,generation) || checkpoint?.discovery?.length || checkpoint?.tasks?.some(task=>task.retry_at<=this.clock()));
+    return Boolean(this.store.db.prepare('SELECT 1 FROM sitting_refresh WHERE generation=? AND next_check<=? LIMIT 1').get(generation,this.clock())) || outsideAgendaUpgradeDue(this.store,generation) || this.store.hasDueTask(generation) || Boolean(nextAmendmentTask(this.store,amendmentGeneration(this.store)) || groupVoiceWorkDue(this.store,generation) || checkpoint?.discovery?.length || checkpoint?.tasks?.some(task=>task.retry_at<=this.clock()));
   }
   checkpointContinuations(generation,{includeCore=true}={}) {
     this.store.transaction(()=>{
@@ -102,6 +104,7 @@ export class ActivityWorker {
         return Boolean(task.attempts>0 || task.retry_at>0 || Number(body.offset)>0 || body.stage && body.stage!=='results' || ['results','decisions','splits','sources'].some(key=>body[key]?.length) || !['document','procedure','motion-outcomes'].includes(task.kind));
       };
       const pending=new Map([...(saved.tasks || []),...(saved.discovery || []).map(task=>({...task,body:JSON.stringify(task.kind==='motion-outcomes'?{sittingId:task.sittingId,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]}:{endpoint:task.endpoint}),attempts:0,retry_at:0,error:null}))].map(task=>[task.key,{...task,generation,done:0}]));
+      for(const {key} of this.store.db.prepare('SELECT gap.key FROM refresh_gaps gap LEFT JOIN refresh_gap_admissions admitted ON admitted.generation=gap.generation AND admitted.key=gap.key WHERE gap.generation=? AND admitted.key IS NULL').all(generation))pending.delete(key);
       // Agenda verification stays in the durable canonical queue so its pending
       // coverage and recovery survive the bounded amendment continuation log.
       const incoming=includeCore?this.store.db.prepare(`SELECT * FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key NOT LIKE 'outside:agenda-membership:%'
@@ -157,16 +160,42 @@ export class ActivityWorker {
   }
   async initialize(cycle) {
     const {generation}=cycle;
-    // A catalog task carries its own durable page cursor. No MEP-specific document loop.
-    for (const collection of collections(new Date(this.clock()).getUTCFullYear())) this.store.enqueue(generation,'catalog:'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0},100);
-    const last=this.store.get('lastSuccess'), age=last?this.clock()-Date.parse(last):Infinity;
-    const allSpeeches=cycle.initial || age>6*DAY || new Date(this.clock()).getUTCDay()===0;
+    const last=this.store.get('lastSuccess');
+    // Initial discovery and a missed fixed monthly feed window need catalogue
+    // IDs only. Existing detail records are never blanket-refreshed.
+    if(cycle.initial)for (const collection of collections(new Date(this.clock()).getUTCFullYear())) this.store.enqueue(generation,'catalog:'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
     const base={'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','sort-by':'sitting-date:desc,numbering:desc'};
-    const windows=allSpeeches?speechWindows(day(this.clock())):[{start:day(this.clock()-7*DAY),end:day(this.clock())}];
+    const windows=cycle.initial?speechWindows(day(this.clock())):[{start:day(Date.parse(last)-2*DAY),end:day(this.clock())}];
     for(const range of windows)this.store.enqueue(generation,'catalog:/speeches:'+range.start+':'+range.end,'speeches',{endpoint:'/speeches',params:{...base,'sitting-date':range.start,'sitting-date-end':range.end},offset:0},100);
     this.store.enqueue(generation,'roster','roster',{offset:0,nodes:[]},110);
-    if(!cycle.initial && age<=6*DAY) for(const endpoint of ['/plenary-documents','/committee-documents','/parliamentary-questions','/procedures']) this.store.enqueue(generation,'feed:'+endpoint,'feed',{endpoint},105);
-    this.store.updateCycle({initialized:true,fullRefresh:cycle.initial || age>6*DAY});
+    if(!cycle.initial)this.enqueueFeeds(generation,'feed:',last);
+    this.store.updateCycle({initialized:true,fullRefresh:false});
+  }
+  enqueueFeeds(generation,prefix,since) {
+    const start=day(Date.parse(since)-2*DAY);
+    for(const endpoint of ['/plenary-documents','/committee-documents','/parliamentary-questions','/procedures']) {
+      // A partially published cycle advances lastSuccess, not a failed feed's
+      // coverage cursor. Its saved task owns that interval until recovery.
+      const saved=this.store.db.prepare("SELECT body FROM refresh_gaps WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? LIMIT 1").get(generation,endpoint) ||
+        this.store.db.prepare("SELECT body FROM tasks WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1").get(generation,endpoint);
+      const earliest=saved?JSON.parse(saved.body).start || feedStart(this.store,this.clock()):start;
+      // Catalogue discovery is independent of feed availability and retry due
+      // dates. A failed feed must not hide IDs after its window has expired.
+      if(endpoint!=='/procedures' && Date.parse(earliest)<this.clock()-28*DAY)this.recoverFeedWindow(generation,endpoint,earliest);
+      if(saved)continue;
+      this.store.enqueue(generation,prefix+endpoint,'feed',{endpoint,start},105);
+    }
+  }
+  recoverFeedWindow(generation,endpoint,start) {
+    const end=day(this.clock()-28*DAY);
+    coverageGap(this.store,generation,'feed-window:'+endpoint,{endpoint,start,end},'The fixed monthly feed cannot establish updates across this earlier interval; retained records are checked by the bounded mutable-record queue.',this.clock());
+    // The public window gap remains unresolved even after ID discovery. Track
+    // scheduled catalogue recovery separately so a later outage gets its own
+    // durable cursors while repeated reads of one interval remain coalesced.
+    const prior=this.store.db.prepare('SELECT end FROM feed_catalog_recovery WHERE generation=? AND endpoint=? AND start=?').get(generation,endpoint,start);
+    if(prior?.end>=end)return;
+    for(const collection of collections(new Date(this.clock()).getUTCFullYear()).filter(collection=>collection.endpoint===endpoint))this.store.enqueue(generation,'gap-catalog:'+endpoint+':'+start+':'+end+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true,feedRecovery:{start,end}},100);
+    this.store.db.prepare('INSERT INTO feed_catalog_recovery VALUES (?,?,?,?) ON CONFLICT(generation,endpoint,start) DO UPDATE SET end=excluded.end').run(generation,endpoint,start,end);
   }
   async task(task) {
     const {generation,body}=task;
@@ -191,7 +220,7 @@ export class ActivityWorker {
         if(body.endpoint!='/committee-documents' && !/^[A-Z]+-10-/.test(id))continue;
         const endpoint=body.endpoint+'/'+id, old=this.store.source(generation,endpoint);
         this.store.markSeen(generation,endpoint);
-        if(!old || this.store.get('working').fullRefresh && !body.deltaOnly)this.store.enqueue(generation,endpoint,'document',{endpoint},101);
+        if(!old)this.store.enqueue(generation,endpoint,'document',{endpoint},101);
       }
       this.store.taskProgress(task,{...body,offset:body.offset+nodes.length,lastPage:signatures});
     } else if(task.kind==='speeches' && body.recoveryId) {
@@ -246,24 +275,34 @@ export class ActivityWorker {
         this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob);}
       this.store.taskProgress(task,{...body,offset:body.offset+hitCount,lastPage:signatures});
     } else if(task.kind==='feed') {
-      const r=await this.request(body.endpoint+'/feed',body.endpoint==='/procedures'?{timeframe:'one-week'}:{},{xml:true});
+      if(!body.start) {
+        body.start=feedStart(this.store,this.clock());
+        this.store.taskProgress(task,body);
+      }
+      const start=body.start;
+      // Recovery must survive HTTP failures and malformed feed responses too.
+      if(body.endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY)this.recoverFeedWindow(generation,body.endpoint,start);
+      const r=await this.request(body.endpoint+'/feed',body.endpoint==='/procedures'?{timeframe:'custom','start-date':start}:{},{xml:true});
       const entries=feedDocuments(r.xml,body.endpoint);
       for(const e of entries){
+        if(e.updated && Date.parse(e.updated)<Date.parse(start))continue;
         const endpoint=body.endpoint+'/'+e.id;
         if(body.endpoint==='/procedures') {
-          if(this.store.source(generation,endpoint))this.store.enqueue(generation,endpoint,'procedure',{endpoint},103,true);
+          const prior=this.store.source(generation,endpoint);
+          if(prior && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated)))this.store.enqueue(generation,endpoint,'procedure',{endpoint},103,true);
         } else if (body.endpoint==='/committee-documents' || /^[A-Z]+-10-/.test(e.id)) {
           // Answer feed IDs resolve through their parent question, never a guessed standalone answer endpoint.
           const resolved=endpoint.replace(/-ASW$/,'');
-          // New records will be discovered by the selected-type catalogs. Feeds
-          // refresh known records without importing unrelated amendments/drafts.
-          if(this.store.source(generation,resolved))this.store.enqueue(generation,resolved,'document',{endpoint:resolved},85,true);
+          const prior=this.store.source(generation,resolved);
+          const gap=this.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,resolved);
+          if(!gap && (!prior || documentRefreshState(prior.work).mutable && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated))))this.store.enqueue(generation,resolved,'document',{endpoint:resolved,feedDiscovery:!prior},85,true);
         }
       }
       this.store.finishTask(task);
     } else if(task.kind==='document') {
       const r=await this.request(body.endpoint);const work=r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
       if(!work)throw new Error('EP document detail was empty.');
+      if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE'].includes(tail(work.work_type))){this.store.finishTask(task);return;}
       const projected=projectDocument(work), proc=new Map();
       for(const id of procedureIds(work)) {
         const endpoint='/procedures/'+id, existing=this.store.source(generation,endpoint);
@@ -465,6 +504,8 @@ export class ActivityWorker {
       resultsUrl:body.resultsUrl,resultsFetchedAt:body.resultsFetchedAt,decisionsUrl:firstDecisionSource.url,decisionsFetchedAt:record.fetchedAt,
       coverage,truncated,lastRefreshFailure,
     },{priorWork:saved?.work || null});
+    const confirmationDay=sittingConfirmationDay(body.sittingId);
+    if(sittingSnapshotConfirmed(fresh,body.sittingId,record.fetchedAt))fresh.finality={confirmationDay,confirmedAt:record.fetchedAt};
     const replacement=truncated && saved && !saved.work.truncated ? {...saved.work,lastRefreshFailure,amendmentEvidence:fresh.amendmentEvidence || fresh} : fresh;
     this.store.putSource(generation,key,'motion-outcomes',replacement,truncated && saved && !saved.work.truncated?saved.fetchedAt:record.fetchedAt);
     if(!await refreshSittingTargets(this,generation,body.sittingId,replacement)) {
@@ -482,20 +523,22 @@ export class ActivityWorker {
   catchUp(cycle) {
     const today=day(this.clock());
     if(day(Date.parse(cycle.startedAt))===today || cycle.catchupDay===today)return false;
-    for(const collection of collections(new Date(this.clock()).getUTCFullYear())) this.store.enqueue(cycle.generation,'catchup:'+today+':'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
-    for(const endpoint of ['/plenary-documents','/committee-documents','/parliamentary-questions','/procedures'])this.store.enqueue(cycle.generation,'catchup:'+today+':feed:'+endpoint,'feed',{endpoint},105);
+    if(cycle.initial)for(const collection of collections(new Date(this.clock()).getUTCFullYear())) this.store.enqueue(cycle.generation,'catchup:'+today+':'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
+    this.enqueueFeeds(cycle.generation,'catchup:'+today+':feed:',cycle.startedAt);
     this.store.enqueue(cycle.generation,'catchup:'+today+':roster','roster',{offset:0,nodes:[]},110);
-    const start=day(Math.max(Date.parse(cycle.startedAt)-DAY,this.clock()-30*DAY));
+    const start=day(Date.parse(cycle.startedAt)-2*DAY);
     this.store.enqueue(cycle.generation,'catchup:'+today+':speeches','speeches',{endpoint:'/speeches',params:{'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','sort-by':'sitting-date:desc,numbering:desc','sitting-date':start,'sitting-date-end':today},offset:0},100);
     this.store.updateCycle({catchupDay:today});return true;
   }
   finalize(generation) {
-    this.store.pruneUnseenDocuments(generation);
+    // A delta feed cannot establish withdrawal. Retain all saved records.
     const procedures=new Map(this.store.sources(generation,'procedure').map(s=>[tail(s.key),s]));
     const unresolved=[];
     for(const source of this.store.iterateSources(generation,'document')) {
       const result=documentRows(source.work,source.key,source.fetchedAt,procedures);
-      this.store.transaction(()=>{this.store.assertWriter();this.store.replaceRows(generation,source.key,result.rows);});unresolved.push(...result.unresolved);
+      // Detail writes and exact procedure joins already update their own rows.
+      // Publication only gathers gap metadata; unchanged items need no rewrite.
+      unresolved.push(...result.unresolved);
     }
     this.store.publish(generation,unresolved);
   }
@@ -518,11 +561,35 @@ export class ActivityWorker {
         this.checkpointContinuations(active);
       }
       const cycle=this.coreDue()?this.store.beginCycle():null,generation=cycle?.generation || active;
+      for(const row of this.store.db.prepare('SELECT sitting_id FROM sitting_refresh WHERE generation=? AND next_check<=? ORDER BY next_check,sitting_id LIMIT 100').all(generation,this.clock())) {
+        const delay=this.clock()<Date.parse(sittingConfirmationDay(row.sitting_id))?6*60*60_000:7*DAY;
+        const gap=this.store.db.prepare("SELECT * FROM refresh_gaps WHERE generation=? AND sitting_id=? AND kind='motion-outcomes' ORDER BY retry_at LIMIT 1").get(generation,row.sitting_id);
+        if(gap) {
+          if(day(this.clock())>=sittingConfirmationDay(row.sitting_id)) {
+            // Historical failures share scheduleMutable's daily admission cap.
+            // An unadmitted gap must not cause idle lease churn every 30 seconds.
+            this.store.db.prepare('UPDATE sitting_refresh SET next_check=? WHERE generation=? AND sitting_id=?').run(Math.max(gap.retry_at,this.clock()+DAY),generation,row.sitting_id);
+            continue;
+          }
+          if(gap.retry_at<=this.clock()) {
+            const pending=this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=? AND (done IS NULL OR done<>1) UNION ALL SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND done<>1 LIMIT 1').get(generation,gap.key,generation,gap.key);
+            if(!pending)this.store.enqueue(generation,gap.key,gap.kind,{},gap.priority,true,{retryGap:true});
+            this.store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(this.clock()+delay,generation,gap.key);
+          }
+        } else scheduleSittingOutcomes(this,generation,row.sitting_id);
+        this.store.db.prepare('UPDATE sitting_refresh SET next_check=? WHERE generation=? AND sitting_id=?').run(this.clock()+delay,generation,row.sitting_id);
+      }
       // Only a newly initialized empty load projects every historical page.
       // An older partial initial generation still needs the metadata upgrade.
       const freshSpeechLoad=Boolean(cycle?.initial&&!cycle.initialized);
       if(cycle) {
         if(!cycle.initialized)await this.initialize(cycle);
+        if(!this.store.get('working').mutableScheduled) {
+          scheduleMutable(this,cycle.generation);this.store.updateCycle({mutableScheduled:true});
+        }
+        // Upgrade a saved, endlessly retrying generation without issuing one
+        // more request for every exhausted cursor.
+        for(const row of this.store.db.prepare('SELECT * FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND attempts>=5 AND error IS NOT NULL').all(generation))recordTaskGap(this,{...row,body:JSON.parse(row.body)},new Error(row.error));
         this.initializeOutside(cycle);
         await prepareAmendments(this,cycle);
         // An unavailable historical detail must not stop next-day catalogue/feed
@@ -568,7 +635,7 @@ export class ActivityWorker {
           }
           const task=coreTask||nextGroupVoiceTask(this.store,generation);
           if(!task)break;
-          try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
+          try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)||recordTaskGap(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
           finally {if(!task.groupVoiceJob&&(!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
         } finally {taskIteration();}
       }

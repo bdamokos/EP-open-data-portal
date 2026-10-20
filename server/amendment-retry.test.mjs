@@ -126,7 +126,8 @@ test('a retained extension retry adopts the current legacy core generation befor
     store.db.prepare('INSERT INTO sources SELECT 4,key,kind,body,fetched_at,seen FROM sources WHERE generation=?').run(generation);
     store.db.prepare('INSERT INTO items SELECT 4,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation);
     store.db.prepare('DELETE FROM sources WHERE generation<>4').run();store.db.prepare('DELETE FROM items WHERE generation<>4').run();store.db.prepare('DELETE FROM tasks').run();
-    store.set('active',4);store.set('sequence',4);
+    // This fixture predates accepted refresh snapshots; accepted mismatches fail closed.
+    store.set('refreshPolicyGeneration',null);store.set('active',4);store.set('sequence',4);
   });
   assert.equal(amendmentsPage(store,{document:target}).coverage.servingGeneration,generation);assert.equal(pending(store),true);assert.equal(worker.due(),false);
   const queued=job(store,'retained:source',generation),execute=worker.task.bind(worker);let adopted;
@@ -160,7 +161,7 @@ test('ordinary dependencies queued after publication are checkpointed before a b
   assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(generation,dependency),undefined);assert.equal(pending(store),true);
   write(()=>{
     store.db.prepare('INSERT INTO sources SELECT 4,key,kind,body,fetched_at,seen FROM sources WHERE generation=?').run(generation);
-    store.db.prepare('DELETE FROM sources WHERE generation<>4').run();store.db.prepare('DELETE FROM tasks').run();store.set('active',4);store.set('sequence',4);
+    store.db.prepare('DELETE FROM sources WHERE generation<>4').run();store.db.prepare('DELETE FROM tasks').run();store.set('refreshPolicyGeneration',null);store.set('active',4);store.set('sequence',4);
   });
   advance(30_000);let requests=0;
   worker.fetchRecord=async endpoint=>{assert.equal(endpoint,'/plenary-documents/'+target);requests++;return {payload:{data:[report]},fetchedAt:stamp};};
@@ -245,7 +246,7 @@ test('a checkpoint above 200 dependencies keeps progressed cursors and compact d
   write(()=>assert.equal(scheduleSittingOutcomes(worker,generation,sitting),false));
   write(()=>{
     store.db.prepare('INSERT INTO sources SELECT 4,key,kind,body,fetched_at,seen FROM sources WHERE generation=?').run(generation);
-    store.db.prepare('DELETE FROM sources WHERE generation<>4').run();store.db.prepare('DELETE FROM tasks').run();store.set('active',4);store.set('sequence',4);
+    store.db.prepare('DELETE FROM sources WHERE generation<>4').run();store.db.prepare('DELETE FROM tasks').run();store.set('refreshPolicyGeneration',null);store.set('active',4);store.set('sequence',4);
   });
   advance(30_000);await worker.run();
   checkpoint=store.source(4,'amendment:continuations').work;
@@ -363,7 +364,7 @@ test('a fully pending queue durably defers newly scheduled work through legacy g
   assert.deepEqual(store.source(generation,'amendment:continuations').work,checkpoint);
   write(()=>{
     store.db.prepare('INSERT INTO sources SELECT 4,key,kind,body,fetched_at,seen FROM sources WHERE generation=?').run(generation);
-    store.db.prepare('DELETE FROM sources WHERE generation<>4').run();store.db.prepare('DELETE FROM tasks').run();store.set('active',4);store.set('sequence',4);
+    store.db.prepare('DELETE FROM sources WHERE generation<>4').run();store.db.prepare('DELETE FROM tasks').run();store.set('refreshPolicyGeneration',null);store.set('active',4);store.set('sequence',4);
   });
   const calls=[];worker.fetchRecord=discoveryFetch(calls);worker.downloadAmendmentDocx=async actual=>{assert.equal(actual,url);return {buffer:discoveryDocx()};};
   await worker.run();
