@@ -37,8 +37,8 @@ test('activity reuses exact vote data and links without carrying filters, snapsh
   assert.equal(journey.invalid,false);assert.equal(journey.state.decisionId,decision);assert.equal(journey.state.sittingId,sitting);assert.equal(journey.state.positions,'all');assert.equal(journey.state.snapshotId,null);assert.equal(journey.state.offset,0);assert.equal(journey.state.context,null);assert.equal(link.searchParams.get('activity'),'motions:B-10-2026-0448');
 });
 test('show of hands preserves the known result and explains why individual positions are not recorded',async t=>{
-  const h=await mount(t,async()=>Response.json(exactResponse({method:'VOTE_HAND',position:{status:'unavailable',position:null}})));await h.render();
-  assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Individual positions are not recorded for this voting method/);assert.doesNotMatch(h.container.textContent,/Position unavailable|details.*unavailable/);
+  const h=await mount(t,async()=>{const value=exactResponse({method:'VOTE_HAND',position:{status:'unavailable',position:null}});value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});await h.render();
+  assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Individual positions are not recorded for this voting method/);assert.doesNotMatch(h.container.textContent,/Position unavailable|Tallies unavailable|details.*unavailable/);
 });
 test('wrong identities and failed reads retain indexed facts, expose retry and never invent a position',async t=>{
   let wrong=true;const h=await mount(t,async()=>Response.json(exactResponse({member:wrong?'99':'197494'})));await h.render();
