@@ -47,7 +47,7 @@ export function MotionOutcome({outcome,related=[],reference,sourceId,language,me
   return <section className="explorer-motion-outcome" lang="en" aria-label={related.length ? 'Original and joint motion outcomes' : 'Motion outcome'}>
     {outcome && <div className="explorer-motion-text-outcome">
       <h3>{related.length ? 'Original motion' : sourceId.startsWith('RC-') ? 'Joint motion' : 'Motion'} <span className="explorer-motion-reference">{reference}</span></h3>
-      <ActivityVote decisionId={outcome.decisionId} memberId={memberId} memberName={memberName} language={language}><MotionStatus outcome={outcome}/><VoteDetails outcome={outcome} language={language}/></ActivityVote>
+      <ActivityVote indexed={{outcome:outcome.status==='unavailable'?null:outcome.status.toUpperCase(),method:outcome.method,totals:outcome.totals}} decisionId={outcome.decisionId} memberId={memberId} memberName={memberName} language={language}><MotionStatus outcome={outcome}/><VoteDetails outcome={outcome} language={language}/></ActivityVote>
       {outcome.status==='lapsed' && <p className="explorer-motion-explanation">{related.length ? 'This motion was replaced by the joint text below. Parliament records the original motion as lapsed; it was not adopted separately.' : 'This text lapsed and was not adopted as a separate resolution.'}</p>}
     </div>}
     {related.map(motion=>{
@@ -55,7 +55,7 @@ export function MotionOutcome({outcome,related=[],reference,sourceId,language,me
       return <section className="explorer-motion-joint-outcome" key={motion.sourceId} aria-label={`Joint motion ${motion.reference}`}>
         <h3>Joint motion <span className="explorer-motion-reference">{motion.reference}</span></h3>
         {outcome?.status!=='lapsed' && <p className="explorer-motion-explanation">Related joint text combining this motion with others.</p>}
-        <ActivityVote decisionId={motion.outcome.decisionId} memberId={memberId} memberName={memberName} language={language}><MotionStatus outcome={motion.outcome}/><VoteDetails outcome={motion.outcome} language={language}/></ActivityVote>
+        <ActivityVote indexed={{outcome:motion.outcome.status==='unavailable'?null:motion.outcome.status.toUpperCase(),method:motion.outcome.method,totals:motion.outcome.totals}} decisionId={motion.outcome.decisionId} memberId={memberId} memberName={memberName} language={language}><MotionStatus outcome={motion.outcome}/><VoteDetails outcome={motion.outcome} language={language}/></ActivityVote>
         {motion.memberAuthorship && <p className="explorer-motion-explanation">{motion.memberAuthorship==='recorded' ? 'This MEP is also listed as an author of this joint motion.' : 'No authorship is recorded for this MEP on this joint motion.'}</p>}
         {url && <a className="explorer-motion-document-link" href={url} target="_blank" rel="noreferrer" title={motion.title} lang=""><span lang="en">Read joint motion{motion.documentFormat ? ` (${motion.documentFormat}${motion.documentLanguage ? ' · '+motion.documentLanguage.toUpperCase() : ''})` : ''} ↗</span></a>}
         {sourceId.startsWith('B-')&&<CompareWording originalId={sourceId} jointId={motion.sourceId} language={language}/>}

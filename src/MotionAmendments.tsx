@@ -181,11 +181,12 @@ function Decision({item,decision,language,member,memberName}:{item:MotionAmendme
   const heading=decision.scope==='unresolved-split'?'Collective or unresolved split decision':split?partNumber!=null?`Part ${partNumber}`:'Split decision':'Whole amendment';
   const date=dateLabel(decision.date,language),method=methods[decision.method||''];
   return <li className="motion-amendments__decision">
-    <div className="motion-amendments__decision-head"><strong>{heading}</strong><Outcome value={decision.outcome}/></div>
+    <div className="motion-amendments__decision-head"><strong>{heading}</strong></div>
     {part?.description&&<p className="motion-amendments__split-description" lang={sourceLanguage(part.language)}>{part.description}</p>}
     {part?.description&&<p className="motion-amendments__muted">Published split description.</p>}
     {decision.scope==='unresolved-split'&&<p className="motion-amendments__muted">This decision cannot be assigned to an individual part.</p>}
-    <ActivityVote decisionId={decision.id} memberId={member} memberName={memberName} language={language}>
+    <ActivityVote indexed={decision} decisionId={decision.id} memberId={member} memberName={memberName} language={language}>
+      <Outcome value={decision.outcome}/>
       {(date||method)&&<p className="motion-amendments__muted">{date&&<span lang={language}>{date}</span>}{date&&method?' · ':''}{method}</p>}
       <Totals decision={decision} language={language}/>
       {decision.method==='VOTE_HAND'&&<p className="motion-amendments__muted">Individual positions are not recorded for this voting method.</p>}
