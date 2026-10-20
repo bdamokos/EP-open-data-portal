@@ -13,7 +13,7 @@ function legislation(params) {
     ...topic,phase:'past',procedures:[{id:'2025-2117',reference:'2025/2117(INI)'}],committeeWork:[],roles:people.map(person=>({...person,role:'RAPPORTEUR'})),people,stats,
     speeches:people.slice(0,3).map((person,index)=>({start:`2026-10-07T07:0${index}:00Z`,sourceId:'test-speech-'+person.id,people:[person],kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'})),
     votes:votes.map(vote=>({...vote,title:vote.titles.en,subject:vote.subjects.en})),selectedVote:votes.find(vote=>vote.id===params.get('vote'))||votes[0],
-    voteCoverage:{truncated:false},coverage:{roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}
+    voteCoverage:{truncated:false},coverage:{missingDocumentIds:['A-10-2026-0237'],roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}
   }:null};
 }
 const summary={reference:'2025/2117(INI)',language:'en',summaries:[{id:'test-summary',stage:'parliament-decision',date:'2026-10-07'}],summary:{id:'test-summary',stage:'parliament-decision',date:'2026-10-07',blocks:[1,2,3].map(n=>({kind:'paragraph',text:'Summary paragraph '+n})),source:{url:'https://example.test/summary'}},topics:[],subjects:[]};
@@ -53,6 +53,9 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const shown=()=>find('.insight-vote-detail h3').textContent;
   const voteSection=()=>find('.insight-vote-select').closest('section');
   assert.equal(shown(),'final-text');
+  assert.match(find('.insight-topic-detail').textContent,/Some source records are unavailable/,'missing documents alone retain the coverage warning');
+  assert.equal(container.querySelector('.insight-data-credit'),null);
+  assert.equal(container.querySelectorAll('footer .data-notice').length,1);
   await click('Continue reading');await click('All 8 people');await click('Read '+topic.documentIds[0]);
   const pager=find('nav[aria-label="Speeches"]'),bottom=find('nav[aria-label="Speeches, bottom"]');
   const previous=pager.querySelector('[aria-label="Previous speech"]'),next=pager.querySelector('[aria-label="Next speech"]');
