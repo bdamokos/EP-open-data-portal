@@ -38,12 +38,13 @@ import {OfficialContextSources} from './official-context.mjs';
 import {EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext,procedureContextQuery,REFERENCE_SUMMARY_ORDER} from './procedure-context.mjs';
 import {LegalReferences,referencesQuery} from './legal-references.mjs';
+import {ProcedureProgress,procedureProgressQuery} from './procedure-progress.mjs';
 const interventions=new SpeechInterventions();
 let stopIndex=()=>{};let stopCorpus=()=>{};let insightService;
 // One owner per official-source cache directory, shared by insights and reading-time references.
 let officialContext;
 function official() {
-  if(!officialContext){const sources=new OfficialContextSources(),catalog=new EurovocCatalog(sources);officialContext={sources,catalog,procedures:new ProcedureContext(sources,catalog),references:new LegalReferences(sources)};}
+  if(!officialContext){const sources=new OfficialContextSources(),catalog=new EurovocCatalog(sources);officialContext={sources,catalog,procedures:new ProcedureContext(sources,catalog),progress:new ProcedureProgress(sources),references:new LegalReferences(sources)};}
   return officialContext;
 }
 function positiveId(value) {
@@ -176,6 +177,9 @@ async function handleApi(request,response,url,apiPrefix){
     else if (segments[0] === 'outside' && segments.length === 2) {
       const query=outsideQuery(url.searchParams), store=activityIndex().store;
       result=segments[1]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[1],query);
+    }
+    else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'procedure-progress') {
+      result=await official().progress.query(procedureProgressQuery(url.searchParams));
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'group-voices') {
       result=groupVoicesPage(activityIndex().store,groupVoicesQuery(url.searchParams));

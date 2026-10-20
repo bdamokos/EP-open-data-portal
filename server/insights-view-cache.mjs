@@ -49,17 +49,21 @@ export class InsightViewCache {
     const promise=sharedRequest(async()=>{await new Promise(resolve=>setImmediate(resolve));const value=await load();requestSignal()?.throwIfAborted();return this.save(key,value);}).then(record=>{this.failures.delete(key);return record;}).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error:error.message});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
     this.pending.set(key,promise);return promise;
   }
-  async get(value,load) {
+  async get(value,load,{freshMs=this.freshMs,validate}={}) {
     const key=this.key(value);let old=await this.stored(key);
     requestSignal()?.throwIfAborted();
     // A concurrent disk miss may finish after another reader has saved the view.
     old ||= this.cache.get(key)||null;
+    // Validate both retained records and replacements. A rejected old record
+    // is a cache miss; a rejected refresh leaves the last good record intact.
+    if(old&&validate)try{validate(old.value);}catch{old=null;}
+    const checkedLoad=async()=>{const result=await load();validate?.(result);return result;};
     const failure=this.failures.get(key);
     if(old) {
-      const stale=this.clock()-old.at>this.freshMs;
-      if(stale&&(!failure||this.clock()-failure.at>60_000))void this.refresh(key,load).catch(()=>{});
+      const stale=this.clock()-old.at>freshMs;
+      if(stale&&(!failure||this.clock()-failure.at>60_000))void this.refresh(key,checkedLoad).catch(()=>{});
       return {...old.value,viewCache:{computedAt:new Date(old.at).toISOString(),stale,refreshInProgress:this.pending.has(key),refreshError:failure?.error||null}};
     }
-    const record=await waitForRequest(this.refresh(key,load));return {...record.value,viewCache:{computedAt:new Date(record.at).toISOString(),stale:false,refreshInProgress:false,refreshError:null}};
+    const record=await waitForRequest(this.refresh(key,checkedLoad));return {...record.value,viewCache:{computedAt:new Date(record.at).toISOString(),stale:false,refreshInProgress:false,refreshError:null}};
   }
 }
