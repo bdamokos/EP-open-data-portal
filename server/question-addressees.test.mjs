@@ -81,6 +81,11 @@ test('corpus addressee scopes match parent questions before grouping and paging,
     assert.equal(search({addressee:'unavailable'}).total,1,'speeches cannot enter the unavailable-recipient bucket');
     assert.equal(search({addressee:'org/CS',offset:1,limit:1}).total,1);assert.equal(search({addressee:'org/CS',offset:1,limit:1}).results.length,0);
     assert.equal(search({addressee:'org/CS',sourceIds:['O-10-2026-000044-ASW']}).total,0);
+    corpus.putDocument({sourceId:'O-10-2026-000099-ASW',kind:'answer',parentId:'O-10-2026-000099',date:'2026-10-15',term:10,originalLanguages:['en']},[{sourceKey:'en',language:'en',translationType:'original',sourceFormat:'docx',sourceUrl:'https://example.test/orphan',fetchedAt,body:'Medicines policy',raw:null}]);
+    for(const recipient of ['org/CS','org/COM','unavailable']) {
+      for(const options of [{},{from:'2026-10-01',to:'2026-10-20'},{language:'en',limit:1,offset:1}])assert.equal(search({addressee:recipient,...options}).unavailableCode,'corpus_addressee_metadata_unavailable','missing parent is a gap under every recipient selection');
+    }
+    assert.equal(search({addressee:'unavailable',sourceIds:['O-10-2026-000045']}).total,1,'saved question without a supplied recipient remains a distinct selectable bucket');
     index.db.exec("DELETE FROM meta WHERE key='active'");assert.equal(search({addressee:'org/CS'}).unavailableCode,'corpus_addressee_metadata_unavailable');
   }finally{corpus?.close();index.close();rmSync(directory,{recursive:true,force:true});}
 });

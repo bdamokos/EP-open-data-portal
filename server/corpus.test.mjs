@@ -776,6 +776,14 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
       assert.equal((await post({query:'ocean',addressee:value})).status,400);
       assert.equal((await fetch(base+'/search?q=ocean&addressee='+encodeURIComponent(value))).status,400);
     }
+    for(const [raw,status] of [
+      ['{"query":"ocean","group":"question","addressee":"org/CS","addressee":"org/COM"}',200],
+      ['{"query":"ocean","group":"question","addressee":"org/COM","addressee":"bad"}',400],
+      ['{"query":"ocean","group":"question","addressee":"org/CS","addre\\u0073see":"org/COM"}',200],
+      ['{"query":"ocean","group":"question","addressee":"org/COM","addre\\u0073see":[]}',400],
+    ]) {
+      const response=await fetch(base+'/search',{method:'POST',headers:{'Content-Type':'application/json'},body:raw});assert.equal(response.status,status,'decoded last-key semantics');if(status===200)assert.equal((await response.json()).total,1);
+    }
     assert.equal((await fetch(base+'/search?q=ocean&addressee=org%2FCOM&addressee=org%2FCS')).status,400);
     assert.equal((await fetch(base+'/search?addressee=org%2FCOM',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'ocean'})})).status,400,'POST recipient belongs in body only');
     const get=await fetch(base+'/search?q=ocean&kinds=question,answer&group=question&date-basis=question&sort=newest');
