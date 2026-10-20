@@ -371,7 +371,7 @@ test('exact amendment decisions discover and persist a sitting absent from the t
   store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',{...completeSitting(),...fresh,results:completeSitting().results},earlier);
   scheduleAmendments(worker,generation,unlinked,fetchedAt,'/plenary-documents/'+targetId);
   const [queued]=outcomeJobs(store,generation);
-  assert.equal(queued.key,motionSourceKey(sitting)+':2026-10-16');
+  assert(queued.key.startsWith(motionSourceKey(sitting)+':2026-10-16:refresh:'));
   store.taskProgress(queued,{...JSON.parse(queued.body),offset:1000});
   scheduleAmendments(worker,generation,unlinked,fetchedAt,'/plenary-documents/'+targetId);
   assert.equal(outcomeJobs(store,generation).length,1);
@@ -1017,12 +1017,12 @@ test('amendment work has durable retries without changing legacy task progress o
   store.finishTask(resumed);assert.equal(nextAmendmentTask(store,next.generation),null);
 });
 
-test('report-only sittings refresh stale outcomes using recent and older sitting cache lifetimes',t=>{
+test('report-only sittings refresh during corrections and retain confirmed older outcomes',t=>{
   const cases=[
     [sitting,5*60*60_000,false],
     [sitting,7*60*60_000,true],
     ['MTG-PL-2026-09-01',6*24*60*60_000,false],
-    ['MTG-PL-2026-09-01',8*24*60*60_000,true],
+    ['MTG-PL-2026-09-01',8*24*60*60_000,false],
   ];
   for(const [sittingId,age,refresh] of cases) {
     const {store,worker,generation}=setup(t);
@@ -1032,7 +1032,7 @@ test('report-only sittings refresh stale outcomes using recent and older sitting
     const jobs=outcomeJobs(store,generation);
     assert.equal(jobs.length,refresh?1:0,sittingId+' age '+age);
     if(refresh) {
-      assert.equal(jobs[0].key,motionSourceKey(sittingId)+':2026-10-16');
+      assert(jobs[0].key.startsWith(motionSourceKey(sittingId)+':2026-10-16:refresh:'));
       assert.equal(JSON.parse(jobs[0].body).sittingId,sittingId);
       assert.equal(JSON.parse(jobs[0].body).stage,'results');
     }
