@@ -196,5 +196,6 @@ test('subject chip clears topic and paging in one history step, focuses results,
   assert.equal(document.activeElement,h.resultHeading());assert(h.container.textContent.includes('not official subject indexing'));
   const remove=h.container.querySelector('[aria-label="Remove subject filter: United States"]');assert(remove);
   await act(async()=>remove.click());assert.equal(new URL(location.href).searchParams.get('q-subject'),null);assert.equal(h.calls.at(-1).searchParams.get('subject'),null);
-  await h.navigate('?view=questions&q-subject=USA&q-offset=25');assert.equal(h.calls.at(-1).searchParams.get('subject'),'USA');assert.equal(h.calls.at(-1).searchParams.get('offset'),'25');
+  await h.navigate('?view=questions&q-subject=USA&q-word=water&q-offset=25');assert.equal(h.calls.at(-1).searchParams.get('subject'),'USA');assert.equal(h.calls.at(-1).searchParams.get('offset'),'25');
+  await act(async()=>h.container.querySelector('[aria-label="Remove subject filter: United States"]').click());assert.equal(h.calls.at(-1).searchParams.get('word'),'water');assert.equal(h.calls.at(-1).searchParams.get('subject'),null);
 });

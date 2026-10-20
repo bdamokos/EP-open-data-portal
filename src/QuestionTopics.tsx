@@ -71,7 +71,7 @@ export function QuestionTopics(props:InsightProps) {
   // Clear explicit scope gestures in the same URL step; hydration and Back keep their saved position.
   function resetTextPosition(){setTextScopeReady(false);setTextPage(0);setTextOffset(-1);setTextRead('');}
   function chooseCountry(code:string|null){if(code!==country)resetTextPosition();preservePosition(document.activeElement?.matches('[data-question-country]')||!code?'[data-question-country]':'[data-country="'+CSS.escape(code)+'"]');setAllWords(false);setCountry(code);setOffset(0);setReading(null);}
-  function chooseSubject(id:string|null){if(id===subject)return;setSubject(id);setCluster(null);setWord(null);setSelectionLabel(null);setReading(null);focusPage(0,id,true);setOffset(0);}
+  function chooseSubject(id:string|null){if(id===subject)return;setSubject(id);if(id){setCluster(null);setWord(null);setSelectionLabel(null);}setReading(null);focusPage(0,id,Boolean(id));setOffset(0);}
   function reset(){setCluster(null);setWord(null);setSelectionLabel(null);setOffset(0);setReading(null);}
   function select(id:string|null,token=false){preservePosition(dimension==='time'?'[data-question-trend-topic]':id?'[data-'+(token?'word':'topic')+'="'+CSS.escape(id)+'"]':'.insight-topic-picker button',dimension==='time');setSelectionLabel(id?(token?data?.words.find(w=>w.word===id)?.label||id:data?.clusters.find(c=>c.id===id)?.label||id):null);setCluster(token?null:id);setWord(token?id:null);setOffset(0);setReading(null);}
   function chooseTime(value:{start:string;end:string}|null){if((value?value.start+'_'+value.end:'')!==rangeKey)resetTextPosition();preservePosition('.insight-week-select select');setRange(value);setOffset(0);setReading(null);}
