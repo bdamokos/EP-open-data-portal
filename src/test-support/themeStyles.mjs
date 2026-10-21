@@ -34,7 +34,9 @@ function channels(color) {
   if(!rgb)throw new Error(`Unsupported colour syntax: ${color}`);
   if(rgb[4]!==undefined&&(rgb[4].endsWith('%')?parseFloat(rgb[4])/100:Number(rgb[4]))!==1)
     throw new Error(`Translucent colour cannot be measured alone: ${color}`);
-  return rgb.slice(1,4).map(value=>value.endsWith('%')?parseFloat(value)*255/100:Number(value));
+  const values=rgb.slice(1,4).map(value=>value.endsWith('%')?parseFloat(value)*255/100:Number(value));
+  if(values.some(value=>value<0||value>255))throw new Error(`Out-of-range colour channel: ${color}`);
+  return values;
 }
 
 function luminance(color) {

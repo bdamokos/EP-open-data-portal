@@ -59,8 +59,9 @@ test('stylesheets and components use tokens instead of raw colours',async()=>{
 
 test('contrast helpers reject unsupported or translucent colours instead of measuring arbitrary numbers',()=>{
   for(const color of ['oklch(0.5 0.2 240)','color-mix(in srgb, #000 12%, #fff)','light-dark(rgb(0 0 0), #fff)',
-    '#xyz','#12345','#0000','#ffffff80','rgba(0,0,0,.5)','rgb(0 0 0 / 20%)','rgba(0,0,0,2)'])
-    assert.throws(()=>contrast(color,'#fff'),/Unsupported colour syntax|Translucent colour/,color);
+    '#xyz','#12345','#0000','#ffffff80','rgba(0,0,0,.5)','rgb(0 0 0 / 20%)','rgba(0,0,0,2)',
+    'rgb(300 300 300)','rgb(120% 120% 120%)'])
+    assert.throws(()=>contrast(color,'#fff'),/Unsupported colour syntax|Translucent colour|Out-of-range colour channel/,color);
   for(const white of [' #fff ','#ffff','#ffffffff','rgb(255,255,255)','rgba(255,255,255,1)','rgb(100% 100% 100% / 100%)'])
     assert.equal(contrast('#000',white),21,white);
 });
