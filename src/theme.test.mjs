@@ -103,7 +103,8 @@ test('the colour scheme follows the system until a light or dark choice is saved
   applyColourScheme('system');
   assert.equal(root.dataset.theme,undefined);
   assert.deepEqual(bars(),['#f6f5f1','#141618']);
-  assert.deepEqual(['system','light','dark'].map(nextColourScheme),['light','dark','system']);
+  assert.deepEqual(['system','dark','light'].map(scheme=>nextColourScheme(scheme,'light')),['dark','light','system'],'a light system switches to dark first');
+  assert.deepEqual(['system','light','dark'].map(scheme=>nextColourScheme(scheme,'dark')),['light','dark','system'],'a dark system switches to light first');
   saveColourScheme('dark');
   assert.equal(window.localStorage.getItem(COLOUR_SCHEME_KEY),'dark');
   assert.equal(root.dataset.theme,'dark');

@@ -15,8 +15,15 @@ export function readActiveColourScheme(doc=document){
   return appliedSchemes.get(doc)??readColourScheme();
 }
 
-export function nextColourScheme(current){
-  return colourSchemes[(colourSchemes.indexOf(current)+1)%colourSchemes.length];
+export function systemColourScheme(win=globalThis.window){
+  try{return win?.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light';}catch{return 'light';}
+}
+
+// From the system setting, the first override is its opposite, the second matches it, then back to system.
+export function nextColourScheme(current,system=systemColourScheme()){
+  const opposite=system==='dark'?'light':'dark';
+  if(current==='system')return opposite;
+  return current===opposite?system:'system';
 }
 
 // System preference keeps both media-specific theme-color tags; an override pins them.
