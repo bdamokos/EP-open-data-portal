@@ -55,10 +55,13 @@ export function PlenaryLiveProvider({children}:{children:ReactNode}) {
   const playable=playerBroadcast?.embedUrl===EBS_PLUS_EMBED;
   function popOut(event:MouseEvent<HTMLAnchorElement>){
     if(event.button!==0||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
-    const popup=window.open(EBS_PLUS_EMBED,'ep-plenary-live','popup,width=960,height=540');
+    // Two players would play twice: a blocked popup keeps the inline one.
+    event.preventDefault();
+    // Open blank first so the broadcaster's page gets no handle on this tab.
+    const popup=window.open('about:blank','ep-plenary-live','popup,width=960,height=540');
     if(!popup)return;
-    // The popup carries playback on; two players would play twice.
-    event.preventDefault();popup.focus();close();
+    try{popup.opener=null;}catch{popup.close();return;}
+    popup.location.replace(EBS_PLUS_EMBED);popup.focus();close();
   }
   function open(){opener.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setOpened(true);setMinimised(false);requestAnimationFrame(()=>panel.current?.focus());}
   function close(){restoreFocus.current=true;setOpened(false);setMinimised(false);}
