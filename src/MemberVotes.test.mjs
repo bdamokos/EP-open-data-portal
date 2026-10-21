@@ -1,3 +1,4 @@
+import {proposalContextResponse} from './test-support/proposalContext.mjs';
 import {contextOverlayResponse,assertContextOverlay} from './test-support/contextOverlay.mjs';
 import {wordingText,wordingViewText} from './test-support/wordingText.mjs';
 import {test} from 'node:test';
@@ -757,5 +758,18 @@ test('vote Read in context reaches the same in-place amendment diff as motion re
   }});
   await h.click('Read in context');await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
   assertContextOverlay(h.container);
+  assert(h.calls.some(url=>url.includes('wording-lang=en')&&!url.includes('body=0')));
+});
+
+
+test('member-vote A-report Read in context reaches the Commission proposal',async t=>{
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}}),listId=DOCUMENT+'-AM-001-020';
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},renderContext:'reader',handler:url=>{
+    if(String(url).includes('/api/references'))return Response.json({references:[]});
+    return Response.json(String(url).includes('document-context/')?proposalContextResponse(DOCUMENT,AMENDMENT,listId,7):responseFor(url,{items:[item]}));
+  }});
+  await h.click('Read in context');await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
+  assert(h.container.textContent.includes('Showing the Commission proposal COM(2025)0087'));
+  assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,'true');
   assert(h.calls.some(url=>url.includes('wording-lang=en')&&!url.includes('body=0')));
 });

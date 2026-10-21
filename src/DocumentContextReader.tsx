@@ -9,6 +9,7 @@ import {InsightQuestionReader} from './InsightReaders';
 import {mapContextAnnotations} from './contextAnnotations.mjs';
 import {WordingDiff} from './components/WordingDiff';
 import {FindInText} from './TextSearch';
+import {ProposalContextText,proposalPlacementReasons} from './ProposalContextText';
 import './DocumentContextReader.css';
 
 export type DocumentContextReaderProps={
@@ -39,6 +40,7 @@ const documentRoute=(id:string,language:string,request?:DocumentContextRequest)=
 const responseFor=(data:DocumentContextResponse|null,id:string,language:string,request?:DocumentContextRequest)=>data?.documentId===id&&data.requestedLanguage===language&&(request?.wordingLanguage===undefined||data.requestedWordingLanguage===request.wordingLanguage)?data:null;
 
 const placementReasons:Record<string,string>={
+  ...proposalPlacementReasons,
   resolution_end_unavailable:'The end of the resolution could not be established safely.',
   baseline_unavailable:'The text this amendment changes is not included in this document.',
   different_text_languages:'The document and amendment wording are in different languages.',
@@ -122,6 +124,10 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const actual=text?.textLanguage||null;
   const availableLanguages=[...new Set([...(text?.availableTextLanguages||[]),...(actual?[actual]:[])])];
   const showPassage=()=>{const paragraph=reader.current?.querySelector<HTMLElement>('[data-context-target="true"]');paragraph?.scrollIntoView({block:'center'});paragraph?.focus({preventScroll:true});};
+  if(data?.baseline?.kind==='commission-proposal'&&data.proposal?.items.length)return <div className="document-context-document">
+    {document&&<header className="document-context-heading"><div><p className="document-context-kind">Report amendment</p><h3 lang={title?.language}>{title?.text}</h3></div></header>}
+    <ProposalContextText data={data} wording={wording} amendmentId={amendmentRequest?.amendmentId} language={interfaceLanguage}/>
+  </div>;
   return <div className="document-context-document" data-context-pending={state.loading&&!hasText?'true':undefined}>
     {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools">{availableLanguages.length>1&&<label>Text language<select aria-label="Document text language" value={actual&&availableLanguages.includes(actual)?actual:language} onChange={event=>onLanguageChange(event.target.value)}>{availableLanguages.map(code=><option key={code} value={code}>{languageName(code)}</option>)}</select></label>}{hasText&&<FindInText key={id+':'+language} target={reader} label="Find in document"/>}</div></header>}
     {state.loading&&!data&&<p role="status">Loading document…</p>}

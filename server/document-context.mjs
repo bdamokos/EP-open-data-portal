@@ -10,8 +10,13 @@ import * as amendmentStore from './amendments-store.mjs';
 import {sharedRequest,waitForRequest,isLocalRequestFailure,requestSignal} from './request-budget.mjs';
 import {resolveAmendmentPlacement,resolveDocumentTarget} from './document-context-model.mjs';
 import {languageCode} from './ep-links.mjs';
+import {proposalBaseline} from './proposal-baseline.mjs';
+import {parseProposal} from './proposal-structure.mjs';
+import {resolveProposalPlacement} from './proposal-placement.mjs';
+import {amendmentOperation} from './document-context-model.mjs';
+import {commissionReferences} from './commission-proposal-identity.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=2;
+export const DOCUMENT_CONTEXT_VERSION=3;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id);
 const ref=value=>canonicalEPReference(value);
@@ -50,8 +55,8 @@ export function documentContextQuery(id,params) {
 // This reader discovers only exact linked records for the document being opened.
 // It never enqueues indexing or turns missing indexed wording into an empty list.
 export class DocumentContext {
-  constructor({request=odp,readText=documentText,download=url=>boundedUpstream(()=>downloadDocxBuffer(url),{source:'documents'}),findAmendment=(store,query)=>amendmentStore.amendmentById?.(store,query)||null,clock=Date.now,limits={}}={}) {
-    Object.assign(this,{request,readText,download,findAmendment,clock});this.limits={...DOCUMENT_CONTEXT_LIMITS,...limits};this.pending=new Map();this.cache=new Map();this.bytes=0;this.extractions=new Map();this.extractionPending=new Map();this.extractionBytes=0;
+  constructor({request=odp,readText=documentText,readProposal=proposalBaseline,download=url=>boundedUpstream(()=>downloadDocxBuffer(url),{source:'documents'}),findAmendment=(store,query)=>amendmentStore.amendmentById?.(store,query)||null,clock=Date.now,limits={}}={}) {
+    Object.assign(this,{request,readText,readProposal,download,findAmendment,clock});this.limits={...DOCUMENT_CONTEXT_LIMITS,...limits};this.pending=new Map();this.cache=new Map();this.bytes=0;this.extractions=new Map();this.extractionPending=new Map();this.extractionBytes=0;
   }
   async query(query,{store=null}={}) {
     requestSignal()?.throwIfAborted();
@@ -68,8 +73,9 @@ export class DocumentContext {
         const value=await this.collect(query,indexed);signal.throwIfAborted();
         const bytes=Buffer.byteLength(JSON.stringify(value));
         // Retained stale/error sources are readable, but never acquire a new TTL.
+        const proposalUnverified=value.baseline&&value.baseline.status!=='available';
         const indexedUnverified=value.amendment?.basis==='index'&&value.amendment.variants.some(variant=>variant.sourceFreshness?.status!=='fresh'||variant.gaps.length||variant.wordingRetained||variant.proposerRetained||variant.recordRetained);
-        if(bytes<=this.limits.entryBytes&&!indexedUnverified&&!value.sources.some(source=>source.stale||source.refreshInProgress||source.refreshError)&&!value.document?.selectedText?.stale&&!value.document?.selectedText?.refreshInProgress&&!value.document?.selectedText?.refreshError&&value.document?.selectedText?.status!=='error'&&!value.amendment?.gaps.length&&!value.related.gaps.length) {
+        if(bytes<=this.limits.entryBytes&&!proposalUnverified&&!indexedUnverified&&!value.sources.some(source=>source.stale||source.refreshInProgress||source.refreshError)&&!value.document?.selectedText?.stale&&!value.document?.selectedText?.refreshInProgress&&!value.document?.selectedText?.refreshError&&value.document?.selectedText?.status!=='error'&&!value.amendment?.gaps.length&&!value.related.gaps.length) {
           while(this.cache.size&&(this.cache.size>=this.limits.entries||this.bytes+bytes>this.limits.bytes)){const oldest=this.cache.keys().next().value;this.bytes-=this.cache.get(oldest).bytes;this.cache.delete(oldest);}
           signal.throwIfAborted();this.cache.set(key,{value,bytes,until:this.clock()+this.limits.ttl});this.bytes+=bytes;
         }
@@ -144,9 +150,38 @@ export class DocumentContext {
     const referenceDecisions=array(indexed?.decisions).filter(decision=>array(decision.amendmentIds).some(id=>id===query.amendmentId||id===indexed.id)&&typeof decision.reference==='string'&&decision.source?.url&&decision.source?.fetchedAt);
     const references=[...new Set(referenceDecisions.map(decision=>decision.reference))];
     const target=!query.amendmentId||query.includeBody===false?{...unavailableTarget(null),status:'not-requested'}:!chosen?unavailableTarget(amendment?.variants.length?'choose-source-version':'amendment-wording-unavailable'):references.length>1?{...unavailableTarget('conflicting-reference-decisions'),status:'ambiguous'}:differentLanguage?unavailableTarget('different-text-languages'):resolveDocumentTarget(document?.selectedText,{originalText:chosen.originalText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references[0],language:chosen.language});
-    const placement=chosen&&query.includeBody!==false?resolveAmendmentPlacement(document?.selectedText,{originalText:chosen.originalText,proposedText:chosen.proposedText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references[0],language:chosen.language,baseline:['commission-proposal','present-text','council-position','unknown'].includes(chosen.baseline)?'other':chosen.baseline}):query.amendmentId&&query.includeBody!==false?{operation:null,status:'unresolved',reason:'amendment_wording_unavailable',evidence:[]}:null;
-    if(placement&&references.length>1){placement.status='unresolved';placement.reason='conflicting_target_evidence';delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
-    return {version:DOCUMENT_CONTEXT_VERSION,documentId:query.id,requestedLanguage:query.language,...(wordingSelected?{requestedWordingLanguage:query.wordingLanguage}:{}),document,related,amendment,placement,target:{...target,evidence:chosen?{amendmentId:query.amendmentId,listId:chosen.listId,wordingLanguage:chosen.language,wordingSource:chosen.source,targetLabelLanguage:chosen.targetLabelLanguage,targetLabelSource:chosen.targetLabelSource,fieldSources:chosen.fieldSources,referenceDecisions:referenceDecisions.map(decision=>({id:decision.id,reference:decision.reference,language:'en',source:decision.source}))}:null},sources};
+    let placement=chosen&&query.includeBody!==false?resolveAmendmentPlacement(document?.selectedText,{originalText:chosen.originalText,proposedText:chosen.proposedText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references[0],language:chosen.language,baseline:['commission-proposal','present-text','council-position','unknown'].includes(chosen.baseline)?'other':chosen.baseline}):query.amendmentId&&query.includeBody!==false?{operation:null,status:'unresolved',reason:'amendment_wording_unavailable',evidence:[]}:null;
+    let baseline=null,proposal=null;
+    const proposalKind=chosen?.baseline==='commission-proposal';
+    if(chosen&&query.includeBody!==false&&proposalKind) {
+      const documentReferences=chosen.documentReferences||[];
+      const explicit=[...new Set(documentReferences.filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).flatMap(r=>commissionReferences(r.raw).map(r=>r.celex)))];
+      const eligible=typeof chosen.language==='string'&&(query.id.startsWith('A-')||explicit.length===1);
+      const source=eligible?await this.readProposal({...(query.id.startsWith('A-')?{reportId:query.id}:{celex:explicit[0]}),language:chosen.language,documentReferences}):null;
+      baseline={kind:'commission-proposal',celex:source?.celex??null,workId:source?.workId??null,language:chosen.language,status:source?.status??'unresolved',items:[],gaps:source?.gaps??['proposal-identity-unavailable'],evidence:source?.evidence??[],attribution:'Legal text © European Union. Changes highlighted by this explorer are not an official consolidated text.'};
+      const items=[];
+      try {
+        for(const item of source?.items||[]) {
+          requestSignal()?.throwIfAborted();
+          const parsed=parseProposal(item.buffer,{language:chosen.language,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId}});
+          items.push({kind:item.kind,index:item.index,proposal:parsed});
+          baseline.items.push({kind:item.kind,index:item.index,source:item.source});
+        }
+        // Bound the public projection as well as the binary and parser caches.
+        if(Buffer.byteLength(JSON.stringify(items))>3*1024*1024)throw new RangeError('proposal-response-budget');
+        if(items.length)proposal={items};
+        placement=proposal&&chosen.language&&(chosen.targetPath?.language??chosen.targetLabelLanguage)===chosen.language?resolveProposalPlacement(items,chosen):{operation:amendmentOperation(chosen),status:'unresolved',reason:proposal?'different_text_languages':'proposal_baseline_unavailable',evidence:[]};
+      }catch(error) {
+        requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;
+        proposal=null;baseline.status='unavailable';baseline.items=[];baseline.gaps.push('proposal-projection-unavailable');
+        placement={operation:amendmentOperation(chosen),status:'unresolved',reason:'proposal_baseline_unavailable',evidence:[]};
+      }
+    } else if(placement&&['present-text','council-position','unknown'].includes(chosen?.baseline)) {
+      placement={operation:amendmentOperation(chosen),status:'unresolved',reason:chosen.baseline==='present-text'?'amends_existing_law':chosen.baseline==='council-position'?'council_position_unavailable':'baseline_unknown',evidence:[]};
+    }
+    if(placement&&!proposalKind&&references.length>1){placement.status='unresolved';placement.reason='conflicting_target_evidence';delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
+    if(proposal&&document)document={...document,selectedText:undefined};
+    return {version:DOCUMENT_CONTEXT_VERSION,baseline,proposal,documentId:query.id,requestedLanguage:query.language,...(wordingSelected?{requestedWordingLanguage:query.wordingLanguage}:{}),document,related,amendment,placement,target:{...target,evidence:chosen?{amendmentId:query.amendmentId,listId:chosen.listId,wordingLanguage:chosen.language,wordingSource:chosen.source,targetLabelLanguage:chosen.targetLabelLanguage,targetLabelSource:chosen.targetLabelSource,fieldSources:chosen.fieldSources,referenceDecisions:referenceDecisions.map(decision=>({id:decision.id,reference:decision.reference,language:'en',source:decision.source}))}:null},sources};
   }
   async amendment(query,indexed,work,sources,read) {
     const base={id:query.amendmentId,status:'unavailable',basis:null,variants:[],gaps:[]};

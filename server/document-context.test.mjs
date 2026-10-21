@@ -298,7 +298,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,2);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,3);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -308,4 +308,28 @@ test('context explicitly withholds a proposal baseline and conflicting decision 
   const result=await reader.query(query({amendmentId,listId}),{store:{}});
   assert.equal(result.placement.operation,'delete');assert.equal(result.placement.reason,'baseline_unavailable');
   assert.equal(result.placement.status,'unresolved');
+});
+
+test('proposal selection uses the wording language, preserves source identity and avoids proposal reads for other baselines',async()=>{
+  let calls=[];
+  const selected={...indexed,baseline:'commission-proposal',language:'hu',targetLabelLanguage:'hu',targetPath:{language:'hu',proposal:[{raw:'1. cikk – (1) bekezdés'}],underlying:[]},originalText:'Eredeti szöveg.',proposedText:'Javasolt szöveg.'};
+  const reader=service({findAmendment:()=>selected,readProposal:async request=>{calls.push(request);return {status:'language-unavailable',celex:'52025PC0087',workId:'exact-work',language:'hu',items:[],gaps:['language-unavailable'],evidence:[]};}});
+  const result=await reader.query(query({amendmentId,listId,wordingLanguage:'hu'}),{store:{}});
+  assert.equal(calls.length,1);assert.equal(calls[0].language,'hu');assert.equal(calls[0].reportId,id);
+  assert.equal(result.baseline.kind,'commission-proposal');assert.equal(result.baseline.workId,'exact-work');assert.equal(result.placement.reason,'proposal_baseline_unavailable');assert.equal(reader.cache.size,0);
+  for(const [baseline,reason] of [['present-text','amends_existing_law'],['council-position','council_position_unavailable'],['unknown','baseline_unknown']]){
+    const other=service({findAmendment:()=>({...indexed,baseline}),readProposal:async()=>assert.fail('No proposal fetch for '+baseline)});
+    const value=await other.query(query({amendmentId,listId}),{store:{}});assert.equal(value.placement.reason,reason);assert.equal(value.baseline,null);
+  }
+  const wordingOnly=await reader.query(query({amendmentId,listId,wordingLanguage:'hu',includeBody:false}),{store:{}});assert.equal(calls.length,1);assert.equal(wordingOnly.baseline,null);
+});
+
+test('available Commission DOCX projection retains provenance and places only the source paragraph',async()=>{
+  const original='1. Original proposal sentence.',variant={...indexed,baseline:'commission-proposal',language:'en',targetLabelLanguage:'en',targetLabel:'Article 1 – paragraph 1',originalText:original,proposedText:'1. Changed proposal sentence.'};
+  const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>Article 1</w:t></w:r></w:p><w:p><w:r><w:t>'+original+'</w:t></w:r></w:p><w:p><w:r><w:t>Article 2</w:t></w:r></w:p><w:p><w:r><w:t>Keep this source.</w:t></w:r></w:p></w:body></w:document>';
+  const buffer=archive(xml,'<w:styles xmlns:w="urn:word"/>');
+  const reader=service({findAmendment:()=>variant,readProposal:async()=>({status:'available',celex:'52025PC0087',workId:'exact-work',language:'en',gaps:[],evidence:[],items:[{kind:'act',index:1,itemId:'exact-item',expressionId:'exact-expression',buffer,source:{url:'https://publications.europa.eu/resource/celex/52025PC0087',sha256:'a'.repeat(64),fetchedAt:new Date(at).toISOString(),stale:false,refreshError:null}}]})});
+  const value=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+  assert.equal(value.baseline.celex,'52025PC0087');assert.equal(value.baseline.items[0].source.sha256,'a'.repeat(64));assert.equal(value.proposal.items[0].proposal.paragraphs.length,4);
+  assert.equal(value.placement.status,'placed');assert.equal(value.placement.originalText,original);assert.deepEqual(value.placement.span,{start:1,end:1});assert.equal(value.document.selectedText,undefined);
 });

@@ -1,3 +1,6 @@
+import {parseProposal} from '../server/proposal-structure.mjs';
+import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
+import {proposalContextResponse} from './test-support/proposalContext.mjs';
 import test from 'node:test';
 import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
@@ -494,4 +497,56 @@ test('non-equivalent amendment original shows annotation fallback while retainin
   data.amendment.variants[0].originalText='Main provision with changed wording.';
   const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
   const block=h.container.querySelector('[data-amendment-block]');assert(block.textContent.includes("Footnotes and links are shown in the full document's original"));assert.equal(block.querySelector('sup,a'),null);assert(h.container.querySelector('.legal-notes').textContent.includes('Source note.'));
+});
+
+
+test('Commission proposal replaces the report body for recorded CBAM amendments 4, 7 and 8',async t=>{
+  let number=4;
+  const h=await harness(t,(_route,params)=>proposalContextResponse(report,params.get('amendment'),list,number));
+  const props={request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'};
+  for(const selected of [4,7,8]){
+    number=selected;await h.render({...props,request:{...props.request,amendmentId:report+'-AM-'+selected}});
+    assert.equal(h.container.querySelector('[data-amendment-block]')?.dataset.contextTarget,'true');
+    assert(h.container.textContent.includes('Showing the Commission proposal COM(2025)0087'));
+    assert(!h.container.textContent.includes('Report body must not replace the proposal.'));
+    assert(h.container.querySelector('[data-proposal-item="act-1"]'));
+    assert(h.container.querySelector('[data-proposal-item="annex-1"]'));
+    assert(h.container.querySelector('math'));
+    assert(h.container.querySelector('.proposal-table'));
+    assert(h.container.textContent.includes('Legal text © European Union'));
+    const link=h.container.querySelector('.proposal-context-summary a');assert(link.href.includes('CELEX:52025PC0087'));
+  }
+});
+
+test('proposal deletion includes instruction 21(a) and its quotation while keeping 21(b) readable',async t=>{
+  const h=await harness(t,()=>proposalContextResponse(report,amendment,list,7));
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert(block);assert.equal(block.dataset.contextTarget,'true');
+  assert(block.querySelector('del').textContent.includes('the following paragraph 1a is inserted'));
+  assert(block.textContent.includes('the past compliance of the authorised CBAM declarant'));
+  assert(block.nextElementSibling.textContent.startsWith('(b)'));assert(!block.textContent.includes('the following paragraph 3a'));
+  await h.click([...h.container.querySelectorAll('button')].find(b=>b.textContent==='Go to amendment'));
+  assert.equal(h.scrolls.at(-1).element,block);assert.equal(h.window.document.activeElement,block);
+});
+
+test('proposal unresolved math retains the diff at the top and renders unchanged equations safely',async t=>{
+  const value=proposalContextResponse(report,amendment,list,8);value.placement={...value.placement,status:'unresolved',reason:'math_comparison_unavailable'};
+  const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert(h.container.textContent.includes('The equations could not be compared safely.'));
+  assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,undefined);
+  assert(h.container.querySelector('math'));assert.equal(h.container.querySelector('.proposal-context-text').firstElementChild.dataset.amendmentBlock,'true');
+});
+
+
+test('partial proposal splice keeps links and note anchors in unchanged and changed source text',async t=>{
+  const text='1. Keep before. A changed sentence. Keep after.',start=text.indexOf('changed'),end=start+'changed'.length;
+  const paragraphs=['Article 1',text];
+  const p=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),
+    notes:[{id:'1',label:'1',text:'Source note.',links:[]}],anchors:[{paragraph:1,offset:end,note:'1',label:'1'}],links:[{paragraph:1,start,end,url:'https://example.test/source'}]});
+  const value=proposalContextResponse(report,amendment,list,4),variant={...value.amendment.variants[0],targetPath:null,targetLabel:'Article 1 – paragraph 1',originalText:'A changed sentence.',proposedText:'A revised sentence.'};
+  value.amendment.variants=[variant];value.proposal.items=[{kind:'act',index:1,proposal:p}];value.placement=resolveProposalPlacement(value.proposal.items,variant);
+  const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.dataset.contextTarget,'true');
+  assert(block.previousElementSibling.textContent.includes('Keep before.'));assert.equal(block.nextElementSibling.textContent,' Keep after.');
+  assert(block.querySelector('a[href="https://example.test/source"]'));assert(block.querySelector('sup'));assert(h.container.textContent.includes('Source note.'));
 });

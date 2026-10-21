@@ -1,3 +1,4 @@
+import {proposalContextResponse} from './test-support/proposalContext.mjs';
 import {contextOverlayResponse,assertContextOverlay} from './test-support/contextOverlay.mjs';
 import {wordingText,wordingViewText} from './test-support/wordingText.mjs';
 import test from 'node:test';
@@ -952,4 +953,15 @@ test('motion Read in context reaches the shared in-place amendment diff',async t
   assert.equal(request.url.searchParams.get('wording-lang'),'en');
   await h.respond(contextOverlayResponse(documentId,item.id,item.listId),{request});
   assertContextOverlay(h.container);
+});
+
+
+test('motion Read in context can render an explicitly identified Commission proposal',async t=>{
+  const h=await readerHarness(t,{state:{open:true},realContext:true});
+  const item=amendment(13,{baseline:'commission-proposal'});
+  await h.respond(page({items:[item]}));await h.click(/^Amendment 13/);await h.click('Read in context');
+  const request=h.requests.find(request=>request.url.pathname.includes('document-context/'));assert(request);
+  await h.respond(proposalContextResponse(documentId,item.id,item.listId,7),{request});
+  assert(h.container.textContent.includes('Showing the Commission proposal COM(2025)0087'));
+  assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,'true');
 });
