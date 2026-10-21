@@ -5,6 +5,7 @@ import {HttpError} from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
+import {doceoDocument} from './press-releases-model.mjs';
 
 export function officialSourceUrl(value) {
   const url=new URL(value);
@@ -119,7 +120,9 @@ export function parseProcedurePage(html,reference,language='en') {
   const subjectIndex=all.findIndex(node=>node.tag==='p'&&/^(?:Subject|Sujet|Subject matter)$/i.test(text(node)));
   const subjectParagraph=subjectIndex>=0?all.slice(subjectIndex+1).find(node=>node.tag==='p'):null;
   const subjects=subjectParagraph?rawText(subjectParagraph).split(/\n/).map(value=>value.trim()).map(value=>value.match(/^(\d(?:\.\d{2}){2,3})\s+(.+)$/)).filter(Boolean).map(match=>({code:match[1],label:match[2]})):[];
-  return {reference,title,language,subjects,summaries:[...summaries.values()]};
+  // Single-subject Doceo documents the procedure file itself links.
+  const documents=[...new Set(all.filter(node=>node.tag==='a').map(node=>doceoDocument(String(node.attrs?.['@_href']||''))).filter(Boolean))];
+  return {reference,title,language,subjects,summaries:[...summaries.values()],documents};
 }
 export function parseSummaryPage(html,reference) {
   const root=mainTree(html),all=nodes(root),subtitle=all.find(node=>classHas(node,'es_product-subtitle')),body=all.find(node=>classHas(node,'es_product-content'));

@@ -39,8 +39,9 @@ import {EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext,procedureContextQuery,REFERENCE_SUMMARY_ORDER} from './procedure-context.mjs';
 import {LegalReferences,referencesQuery} from './legal-references.mjs';
 import {ProcedureProgress,procedureProgressQuery} from './procedure-progress.mjs';
+import {PressMentions,pressMentionsQuery} from './press-releases.mjs';
 const interventions=new SpeechInterventions();
-let stopIndex=()=>{};let stopCorpus=()=>{};let insightService;
+let stopIndex=()=>{};let stopCorpus=()=>{};let insightService,pressMentions;
 // One owner per official-source cache directory, shared by insights and reading-time references.
 let officialContext;
 function official() {
@@ -180,6 +181,11 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'procedure-progress') {
       result=await official().progress.query(procedureProgressQuery(url.searchParams));
+    }
+    else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'press-releases') {
+      const query=pressMentionsQuery(url.searchParams);
+      pressMentions??=new PressMentions(activityIndex().press,official().sources);
+      result=await pressMentions.query(query);
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'group-voices') {
       result=groupVoicesPage(activityIndex().store,groupVoicesQuery(url.searchParams));
