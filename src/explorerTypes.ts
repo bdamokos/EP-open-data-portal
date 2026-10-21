@@ -1,3 +1,4 @@
+import type {DocumentTable,ParagraphFormat} from './DocumentFormatting';
 import type { MemberSummary } from "./types";
 export interface Membership {
   membershipId?:string|null;
@@ -194,6 +195,9 @@ export interface PublicationDocument {
     structureStatus?: 'extracted' | 'not-extracted';
     paragraphSources?: DocumentParagraphSource[];
     documentObjects?: DocumentObject[];
+    formatStatus?: 'extracted' | 'not-extracted';
+    paragraphFormats?: ParagraphFormat[];
+    tables?: DocumentTable[];
     extractionVersion?: number | null;
     sourceVersion?: { byteSize: number | null; issued: string | null } | null;
   };
