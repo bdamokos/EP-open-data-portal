@@ -36,7 +36,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7)\tЧлен 9 се заменя със следното:"
+      "numberedInstruction": "7)\tЧлен 9 се заменя със следното:",
+      "annexHeadings": [
+        "ПРИЛОЖЕНИЕ I",
+        "ПРИЛОЖЕНИЕ II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0024.01/DOC_2"
     },
     {
       "language": "cs",
@@ -71,7 +76,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7)\tČlánek 9 se nahrazuje tímto:"
+      "numberedInstruction": "7)\tČlánek 9 se nahrazuje tímto:",
+      "annexHeadings": [
+        "PŘÍLOHA I",
+        "PŘÍLOHA II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0009.01/DOC_2"
     },
     {
       "language": "da",
@@ -106,7 +116,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "(7)\tArtikel 9 affattes således:"
+      "numberedInstruction": "(7)\tArtikel 9 affattes således:",
+      "annexHeadings": [
+        "BILAG I",
+        "BILAG II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0002.01/DOC_2"
     },
     {
       "language": "de",
@@ -141,7 +156,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7.\tArtikel 9 erhält folgende Fassung:"
+      "numberedInstruction": "7.\tArtikel 9 erhält folgende Fassung:",
+      "annexHeadings": [
+        "ANHANG I",
+        "ANHANG II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0003.01/DOC_2"
     },
     {
       "language": "el",
@@ -176,7 +196,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "(7)\tΤο άρθρο 9 αντικαθίσταται από το ακόλουθο κείμενο:"
+      "numberedInstruction": "(7)\tΤο άρθρο 9 αντικαθίσταται από το ακόλουθο κείμενο:",
+      "annexHeadings": [
+        "ΠΑΡΑΡΤΗΜΑ I",
+        "ΠΑΡΑΡΤΗΜΑ II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0008.01/DOC_2"
     },
     {
       "language": "en",
@@ -211,7 +236,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "(7)\tArticle 9 is replaced by the following:"
+      "numberedInstruction": "(7)\tArticle 9 is replaced by the following:",
+      "annexHeadings": [
+        "ANNEX I",
+        "ANNEX II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0001.01/DOC_2"
     },
     {
       "language": "es",
@@ -246,7 +276,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7)\tEl artículo 9 se sustituye por el texto siguiente:"
+      "numberedInstruction": "7)\tEl artículo 9 se sustituye por el texto siguiente:",
+      "annexHeadings": [
+        "ANEXO I",
+        "ANEXO II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0007.01/DOC_2"
     },
     {
       "language": "et",
@@ -281,7 +316,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7)\tartikkel 9 asendatakse järgmisega:"
+      "numberedInstruction": "7)\tartikkel 9 asendatakse järgmisega:",
+      "annexHeadings": [
+        "I LISA",
+        "II LISA"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0016.01/DOC_2"
     },
     {
       "language": "fi",
@@ -316,7 +356,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7)\tKorvataan 9 artikla seuraavasti:"
+      "numberedInstruction": "7)\tKorvataan 9 artikla seuraavasti:",
+      "annexHeadings": [
+        "LIITE I",
+        "LIITE II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0006.01/DOC_2"
     },
     {
       "language": "fr",
@@ -351,7 +396,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7)\tL'article 9 est remplacé par le texte suivant:"
+      "numberedInstruction": "7)\tL'article 9 est remplacé par le texte suivant:",
+      "annexHeadings": [
+        "ANNEXE I",
+        "ANNEXE II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0021.01/DOC_2"
     },
     {
       "language": "ga",
@@ -386,7 +436,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "(7)\tcuirtear an méid seo a leanas in ionad Airteagal 9:"
+      "numberedInstruction": "(7)\tcuirtear an méid seo a leanas in ionad Airteagal 9:",
+      "annexHeadings": [
+        "IARSCRÍBHINN I",
+        "IARSCRÍBHINN II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0004.01/DOC_2"
     },
     {
       "language": "hr",
@@ -421,7 +476,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7.\tčlanak 9. zamjenjuje se sljedećim:"
+      "numberedInstruction": "7.\tčlanak 9. zamjenjuje se sljedećim:",
+      "annexHeadings": [
+        "PRILOG I.",
+        "PRILOG II."
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0022.01/DOC_2"
     },
     {
       "language": "hu",
@@ -456,7 +516,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7.\tA 9. cikk helyébe a következő szöveg lép:"
+      "numberedInstruction": "7.\tA 9. cikk helyébe a következő szöveg lép:",
+      "annexHeadings": [
+        "I. MELLÉKLET",
+        "II. MELLÉKLET"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0015.01/DOC_2"
     },
     {
       "language": "it",
@@ -491,7 +556,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "(7)\tl'articolo 9 è sostituito dal seguente:"
+      "numberedInstruction": "(7)\tl'articolo 9 è sostituito dal seguente:",
+      "annexHeadings": [
+        "ALLEGATO I",
+        "ALLEGATO II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0005.01/DOC_2"
     },
     {
       "language": "lt",
@@ -526,7 +596,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7)\t9 straipsnis pakeičiamas taip:"
+      "numberedInstruction": "7)\t9 straipsnis pakeičiamas taip:",
+      "annexHeadings": [
+        "I PRIEDAS",
+        "II PRIEDAS"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0014.01/DOC_2"
     },
     {
       "language": "lv",
@@ -561,7 +636,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "(7)\tregulas 9. pantu aizstāj ar šādu:"
+      "numberedInstruction": "(7)\tregulas 9. pantu aizstāj ar šādu:",
+      "annexHeadings": [
+        "I PIELIKUMS",
+        "II PIELIKUMS"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0013.01/DOC_2"
     },
     {
       "language": "mt",
@@ -596,7 +676,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "(7)\tL-Artikolu 9 huwa sostitwit b’dan li ġej:"
+      "numberedInstruction": "(7)\tL-Artikolu 9 huwa sostitwit b’dan li ġej:",
+      "annexHeadings": [
+        "ANNESS I",
+        "ANNESS II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0020.01/DOC_2"
     },
     {
       "language": "nl",
@@ -631,7 +716,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "(7)\tArtikel 9 wordt vervangen door:"
+      "numberedInstruction": "(7)\tArtikel 9 wordt vervangen door:",
+      "annexHeadings": [
+        "BIJLAGE I",
+        "BĲLAGE II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0012.01/DOC_2"
     },
     {
       "language": "pl",
@@ -666,7 +756,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7.\tart. 9 otrzymuje brzmienie:"
+      "numberedInstruction": "7.\tart. 9 otrzymuje brzmienie:",
+      "annexHeadings": [
+        "ZAŁĄCZNIK I",
+        "ZAŁĄCZNIK II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0019.01/DOC_2"
     },
     {
       "language": "pt",
@@ -701,7 +796,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7)\tO artigo 9.º passa a ter a seguinte redação:"
+      "numberedInstruction": "7)\tO artigo 9.º passa a ter a seguinte redação:",
+      "annexHeadings": [
+        "ANEXO I",
+        "ANEXO II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0011.01/DOC_2"
     },
     {
       "language": "ro",
@@ -736,7 +836,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "(7)\tArticolul 9 se înlocuiește cu următorul text:"
+      "numberedInstruction": "(7)\tArticolul 9 se înlocuiește cu următorul text:",
+      "annexHeadings": [
+        "ANEXA I",
+        "ANEXA II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0023.01/DOC_2"
     },
     {
       "language": "sk",
@@ -771,7 +876,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "7.\tČlánok 9 sa nahrádza takto:"
+      "numberedInstruction": "7.\tČlánok 9 sa nahrádza takto:",
+      "annexHeadings": [
+        "PRÍLOHA I",
+        "PRÍLOHA II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0017.01/DOC_2"
     },
     {
       "language": "sl",
@@ -806,7 +916,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "(7)\tčlen 9 se nadomesti z naslednjim:"
+      "numberedInstruction": "(7)\tčlen 9 se nadomesti z naslednjim:",
+      "annexHeadings": [
+        "PRILOGA I",
+        "PRILOGA II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0018.01/DOC_2"
     },
     {
       "language": "sv",
@@ -841,7 +956,12 @@
           "operation": "insert"
         }
       ],
-      "numberedInstruction": "(7)\tArtikel 9 ska ersättas med följande:"
+      "numberedInstruction": "(7)\tArtikel 9 ska ersättas med följande:",
+      "annexHeadings": [
+        "BILAGA I",
+        "BILAGA II"
+      ],
+      "annexSourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0010.01/DOC_2"
     }
   ]
 }

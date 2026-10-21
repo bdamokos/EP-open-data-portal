@@ -39,7 +39,7 @@ Proposal extraction injects `proposalNumberingLabels` into `docxContent`. Concre
 
 Literal duplicate labels under the same parent remain separate units with `pathConflict: true` and distinct occurrence IDs. `proposalCandidates` returns **all** exact candidates, ignoring the internal occurrence suffix; it never chooses by wording or invents a number alias. A caller may compare the amendment's original wording against exactly those candidates and record a unique normalised match. Otherwise the target stays unresolved. Labels repeated under different parents are independent.
 
-`parseTargetLabel(label, language)` returns `{raw, language, segments, complete, unparsed, underlyingLabel}`. Its second line is retained separately as the underlying-act label. Unsupported fragments keep `complete: false`. The 24 language grammars preserve observed EP discrepancies: omitted paragraph levels, Portuguese `Article I`, Dutch annex `1`, and the Slovak annex point `1` are not silently rewritten to another path. `unitLabel(unit, language)` formats one segment for display; it does not translate source wording.
+`parseTargetLabel(label, language)` returns `{raw, language, segments, complete, unparsed, underlyingLabel}`. Its second line is retained separately as the underlying-act label. Unsupported fragments keep `complete: false`. Greek uppercase heading vocabulary and Greek Ι/Χ glyphs used for Roman heading ordinals have explicit grammar rules; `sourceValue` retains the original glyph spelling. A source article heading without a number remains unlabelled with a gap. The 24 language grammars preserve observed EP discrepancies: omitted paragraph levels, Portuguese `Article I`, Dutch annex `1`, and the Slovak annex point `1` are not silently rewritten to another path. `unitLabel(unit, language)` formats one segment for display; it does not translate source wording.
 
 ## Mathematics and other objects
 
@@ -61,6 +61,6 @@ The normaliser does not fold case, remove accents, transliterate suffixes, chang
 
 ## Sources and bounded validation
 
-The offline fixtures contain selected public Commission DOCX paragraphs and EP amendment labels with exact source URLs, languages, hashes and retrieval dates. Full documents remain outside Git. The CBAM act/annex, AI Act annex, all 24 label grammars, instruction nesting, shared-list restarts, MathML safety and punctuation pairs have offline tests. The large-text regression parses exactly 8 MiB within 15 seconds under a 256 MiB V8 heap cap; cache hits reuse the immutable result.
+The offline fixtures contain selected public Commission DOCX paragraphs and EP amendment labels with exact source URLs, languages, hashes and retrieval dates. Full documents remain outside Git. The CBAM act/annex, AI Act annex, all 24 label grammars, instruction nesting, shared-list restarts, MathML safety and punctuation pairs have offline tests. The large-text regression parses exactly 8 MiB within a 15-second CPU budget and 60-second wall guard under a 256 MiB V8 heap cap; cache hits reuse the immutable result.
 
 The renderer is available for the proposal reader but is not connected to an existing page by this module. Acquisition, original-wording verification, insertion anchors and the one-amendment diff remain separate responsibilities.

@@ -6,7 +6,7 @@ const rows = {
   cs:['Článek|Čl.','bod odůvodnění','odstavec|odst.','bod|písmeno|písm.','příloha','nový|nová|nové'],
   da:['Artikel','betragtning','stk.|stykke','nr.|litra|punkt','bilag','ny|nyt'],
   de:['Artikel','Erwägung|Erwägungsgrund','Absatz','Nummer|Buchstabe|Ziffer','Anhang','neu'],
-  el:['Άρθρο','αιτιολογική σκέψη','παράγραφος','σημείο|στοιχείο','παράρτημα','νέο|νέα|νέος'],
+  el:['Άρθρο|ΑΡΘΡΟ','αιτιολογική σκέψη','παράγραφος','σημείο|στοιχείο','παράρτημα|ΠΑΡΑΡΤΗΜΑ','νέο|νέα|νέος'],
   en:['Article','recital','paragraph','point','Annex','new'],
   es:['Artículo','considerando','apartado|párrafo','punto|letra','anexo','nuevo|nueva'],
   et:['Artikkel','põhjendus','lõige|lõik','punkt|alapunkt','lisa','uus'],
@@ -43,7 +43,7 @@ const extra={
   de:{chapter:'Kapitel',section:'Abschnitt',title:'Titel',subparagraph:'Unterabsatz',indent:'Spiegelstrich',sentence:'Satz'},
   hu:{chapter:'fejezet',section:'szakasz',title:'cím',subparagraph:'albekezdés',indent:'franciabekezdés',sentence:'mondat'},
   fi:{chapter:'luku',section:'jakso',title:'osasto',subparagraph:'alakohta',indent:'luetelmakohta',sentence:'virke'},
-  el:{chapter:'κεφάλαιο',section:'τμήμα',title:'τίτλος',subparagraph:'εδάφιο',indent:'περίπτωση',sentence:'περίοδος'},
+  el:{chapter:'κεφάλαιο|ΚΕΦΑΛΑΙΟ',section:'τμήμα|ΤΜΗΜΑ',title:'τίτλος|ΤΙΤΛΟΣ',subparagraph:'εδάφιο',indent:'περίπτωση',sentence:'περίοδος'},
   ga:{chapter:'Caibidil',section:'Roinn',title:'Teideal',subparagraph:'fomhír',indent:'fleasc',sentence:'abairt'},
 };
 const chapterWords={bg:'глава',cs:'kapitola',da:'kapitel',es:'capítulo',et:'peatükk',hr:'poglavlje',it:'capo',lt:'skyrius',lv:'nodaļa',mt:'kapitolu',nl:'hoofdstuk',pl:'rozdział',pt:'capítulo',ro:'capitolul',sk:'kapitola',sl:'poglavje',sv:'kapitel'};
@@ -85,10 +85,17 @@ export function parseLabelSegment(label,language='en') {
     const forward=text.match(forwardPattern);
     const backward=text.match(backwardPattern);
     if(!forward&&!backward)continue;
-    const value=proposalNumber(forward?.[1]??backward?.[1]??'',language);
-    if(value){if(['article','annex','chapter','section','title'].includes(kind)&&!/^\d|^[IVXLCDM]+$|^[\p{L}]$/u.test(value.value))continue;return {kind,...value,isNew,raw:label};}
+    let rawValue=forward?.[1]??backward?.[1]??'',sourceValue=null;
+    // Greek annex/title headings use Greek Ι/Χ glyphs in Roman numerals.
+    // This is an ordinal grammar rule, never transliteration of a suffix.
+    if(language==='el'&&['annex','title','chapter','section'].includes(kind)&&/^[IVXLCDMΙΧ]+\.?$/u.test(rawValue.trim())){const roman=rawValue.replaceAll('Ι','I').replaceAll('Χ','X');if(roman!==rawValue){sourceValue=rawValue;rawValue=roman;}}
+    const value=proposalNumber(rawValue,language);
+    if(value){if(['article','annex','chapter','section','title'].includes(kind)&&!/^\d|^[IVXLCDM]+$|^[\p{L}]$/u.test(value.value))continue;return {kind,...value,isNew,raw:label,...(sourceValue?{sourceValue}:{})};}
   }
   return null;
+}
+export function isBareLabel(text,kind,language='en') {
+  language=proposalLanguage(language);return grammar(language).find(entry=>entry.kind===kind)?.terms.some(term=>fold(text).toLowerCase()===term.toLowerCase())??false;
 }
 
 export function parseTargetLabel(label,language='en') {

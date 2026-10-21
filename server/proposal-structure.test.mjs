@@ -9,6 +9,7 @@ import {PROPOSAL_LANGUAGES,parseLabelSegment} from './proposal-labels.mjs';
 import {ommlToMathML,isSafeMathML} from './proposal-math.mjs';
 import {docxContent} from './document-text.mjs';
 import {instructionOperation} from './proposal-instructions.mjs';
+import {REGION_HEADINGS} from './proposal-regions.mjs';
 
 function archive(documentXml,extra=[]) {
   const entries=[['word/document.xml',documentXml],...extra],locals=[],directory=[];let offset=0;
@@ -48,6 +49,7 @@ test('24 language grammars parse real Commission article headings and all five r
     assert(inserted.segments.at(-1).isNew,`${row.language} (new) qualifier`);
     assert(inserted.segments.at(-1).suffix,`${row.language} suffix is kept`);
     for(const sample of row.instructionSamples)assert.equal(instructionOperation(sample.text,row.language),sample.operation,`${row.language}: ${sample.text}`);
+    for(const [index,text] of row.annexHeadings.entries()){const label=parseLabelSegment(text,row.language);assert(label,`${row.language}: ${text}`);assert.equal(label.kind,'annex');assert.equal(label.value,index===0?'I':'II');}
   }
   // Preserve published translation discrepancies, rather than silently making
   // Portuguese "Article I" into an annex or Dutch "1" into Roman "I".
@@ -67,6 +69,16 @@ test('target grammar preserves outer vs underlying labels, new suffixes, unsuppo
   assert.throws(()=>parseTargetLabel('Article 1','xx'),/Unsupported proposal language/);
   assert.equal(parseTargetLabel('Άρθρο 1 α','el').segments[0].suffix,'α');
   assert.equal(parseTargetLabel('Член 1 а','bg').segments[0].suffix,'а');
+  const greekRoman=parseTargetLabel('ΠΑΡΑΡΤΗΜΑ ΙΙ','el').segments[0];assert.equal(greekRoman.value,'II');assert.equal(greekRoman.sourceValue,'ΙΙ');
+});
+
+test('an unnumbered source article keeps its own extent and an explicit unavailable label',()=>{
+  const result=parseProposal(archive(body(p('Άρθρο 19','Titrearticle')+p('1. Before.')+p('Άρθρο\nΑυτόματη δημιουργία αρχείων καταγραφής','Titrearticle')+p('1. Unnumbered source article.')+p('Άρθρο 21','Titrearticle')+p('1. After.'))),{language:'el'});
+  const articles=flat(result.units).filter(unit=>unit.kind==='article');assert.deepEqual(articles.map(unit=>unit.label.value),['19','?','21']);assert(articles[1].label.unavailable);assert(result.gaps.some(gap=>gap.code==='unlabelled-article'));assert.equal(proposalCandidates(result,'Άρθρο 20',{language:'el'}).length,0);
+});
+
+test('DOCX-derived plain text retains localized memorandum and financial regions in all 24 languages',()=>{
+  for(const row of fixture('proposal-language-excerpts.json').languages){const headings=REGION_HEADINGS[row.language];const text=[headings.memorandum[0],'1. Memorandum context.','2025/0039 (COD)',headings['enacting-formula'][0],row.articleHeadings[0],'1. Legal provision.',headings['financial-statement'][0],'Article 99 financial example.'].join('\n');const result=parseProposal(text,{language:row.language}),units=flat(result.units);assert.equal(units.filter(unit=>unit.kind==='article').length,1,row.language);assert(units.some(unit=>unit.kind==='memorandum'&&!unit.normative),row.language);assert(units.some(unit=>unit.kind==='financial-statement'&&!unit.normative),row.language);assert(result.gaps.some(gap=>gap.code==='source-structure-unavailable'));}
 });
 
 test('proposal numbering continues shared abstract lists, honors explicit restarts and keeps independent lists separate',()=>{
@@ -138,6 +150,13 @@ test('proposal tree nests replacements under instructions and preserves complete
   assert(units.filter(unit=>['memorandum','signature','financial-statement'].includes(unit.kind)).every(unit=>!unit.normative));
   assert.equal(result.complete,true);assert.equal(result.paragraphs.length,docxContent(archive(xml)).paragraphs.length);
   const owned=units.flatMap(unit=>unit.content);assert.equal(new Set(owned).size,result.paragraphs.length,'all paragraphs retained');
+});
+
+test('definition lists and manually dotted amending instructions remain points beneath their introductory paragraph',()=>{
+  const definitions=parseProposal(archive(body(p('Artikel 3','Titrearticle')+p('Für die Zwecke dieser Verordnung bezeichnet der Ausdruck')+p('1. First definition.','ManualNumPar1')+p('2. Second definition.','ManualNumPar1'))),{language:'de'});
+  assert.equal(proposalCandidates(definitions,'Artikel 3 – Absatz 1 – Nummer 1',{language:'de'}).length,1);assert(!definitions.gaps.some(gap=>gap.code==='duplicate-label'));
+  const amended=parseProposal(archive(body(p('Artikel 81','Titrearticle')+p('Die Verordnung wird wie folgt geändert:')+p('1. In Artikel 17 wird folgender Absatz angefügt:')+p('„(3) A replacement paragraph.“;')+p('2. In Artikel 19 wird folgender Absatz angefügt:')+p('„(4) Another replacement paragraph.“;'))),{language:'de'});
+  const units=flat(amended.units);assert.deepEqual(units.filter(unit=>unit.scope==='proposal'&&unit.kind==='point').map(unit=>unit.label.value),['1','2']);assert.equal(units.filter(unit=>unit.kind==='quotation').length,2);assert(!amended.gaps.length);
 });
 
 test('inline quotation slices, article suffixes, indents and stable paths retain original punctuation',()=>{

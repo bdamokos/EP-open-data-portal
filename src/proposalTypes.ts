@@ -8,6 +8,8 @@ export interface ProposalPathSegment {
   /** Repeated source labels are distinct, but cannot be uniquely addressed. */
   occurrence?: number
   raw?: string
+  sourceValue?: string
+  unavailable?: boolean
 }
 export type MathMLTag = 'math' | 'mrow' | 'mi' | 'mn' | 'mo' | 'mtext' | 'mfrac' | 'msub' | 'msup' | 'msubsup' | 'msqrt' | 'mroot' | 'munder' | 'mover' | 'munderover' | 'mtable' | 'mtr' | 'mtd'
 export interface MathMLNode { tag: MathMLTag; children: Array<MathMLNode | string>; attributes?: { accent?: 'true'; accentunder?: 'true' } }
@@ -55,9 +57,10 @@ export interface ProposalUnit {
   children: ProposalUnit[]
   complete: boolean
   implicit?: boolean
-  pathConflict?: boolean
+  pathConflict: boolean
   instructionPath?: ProposalPathSegment[]
   boundaryBasis?: 'quotation-mark' | 'replacement-instruction'
+  closingBoundaryBasis?: 'instruction-style' | 'source-heading'
   underlyingPath?: ProposalPathSegment[]
   instruction?: { operation: 'amend' | 'replace' | 'insert' | 'delete' | 'unknown'; raw: string; underlyingTargets: ProposalPathSegment[] }
   table?: ProposalTable

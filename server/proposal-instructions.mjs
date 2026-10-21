@@ -11,7 +11,7 @@ const words={
   et:['muudetakse','asendatakse','lisatakse','jäetakse välja|kustutatakse'],
   fi:['muutetaan','korvataan','lisätään','poistetaan'],
   fr:['modifi','remplac','insér|ajout','supprim'],
-  ga:['leasaítear','ionad','cuirtear isteach|cuirtear.*leis','scriostar'],
+  ga:['leasaítear','ionad','cuirtear.*isteach|cuirtear.*leis','scriostar'],
   hr:['mijenja','zamjenjuje','umeće|dodaje','briše'],
   hu:['módosul|módosít','helyébe','beilleszt|egészül ki','elhagy|töröl'],
   it:['modificat','sostituit','inserit|aggiunt','soppress|eliminat'],

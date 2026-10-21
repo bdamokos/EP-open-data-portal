@@ -1,9 +1,10 @@
 import {createHash} from 'node:crypto';
 import {proposalDocx} from './proposal-docx.mjs';
-import {parseLabelSegment,parseTargetLabel,unitLabel,proposalNumber,proposalLanguage} from './proposal-labels.mjs';
+import {parseLabelSegment,parseTargetLabel,unitLabel,proposalNumber,proposalLanguage,isBareLabel} from './proposal-labels.mjs';
 import {normaliseForMatching} from './proposal-matching.mjs';
 import {officialDocumentUrl} from './proposal-math.mjs';
 import {instructionOperation} from './proposal-instructions.mjs';
+import {proposalRegion} from './proposal-regions.mjs';
 export {parseTargetLabel,unitLabel,normaliseForMatching};
 export const PROPOSAL_PARSER_VERSION='1';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
@@ -19,6 +20,7 @@ const key=segments=>segments.map(segment=>`${segment.kind}:${segment.value}${seg
 
 function heading(text,language,style) {
   const line=firstLine(cleanLead(text));
+  if(/Titrearticle/i.test(style)&&isBareLabel(line,'article',language))return {kind:'article',value:'?',number:null,suffix:'',isNew:false,raw:line,unavailable:true};
   if(line.length>120&&!/Annexetitre|Titrearticle|Titrefamille|Titrechapitre|SectionTitle/i.test(style))return null;
   let parsed=parseLabelSegment(line,language);
   if(parsed&&['article','annex','chapter','section','title'].includes(parsed.kind))return parsed;
@@ -100,11 +102,11 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       const seen=duplicates.get(parent)??new Map(),signature=`${segment.kind}:${segment.value}`,matches=seen.get(signature)??[];
       if(matches.length){segment={...segment,occurrence:matches.length+1};for(const previous of matches)previous.pathConflict=true;details.pathConflict=true;gaps.push({code:'duplicate-label',paragraph:at,path:[...parent.path,segment],message:'Repeated source label; no unique target address is asserted.'});}
       path=[...parent.path,segment];
-      const unit={id:`${root.id}/${key(path)}`,kind,label:segment,path,scope,normative,extent:{start:at,end:at},content:[],spans:[],children:[],...details};
+      const unit={id:`${root.id}/${key(path)}`,kind,label:segment,path,scope,normative,extent:{start:at,end:at},content:[],spans:[],children:[],pathConflict:false,...details};
       matches.push(unit);seen.set(signature,matches);duplicates.set(parent,seen);parent.children.push(unit);parents.set(unit,parent);return unit;
     }
     const ids=anonymousIds.get(parent)??new Map(),signature=`${kind}@${at}`,count=(ids.get(signature)??0)+1;ids.set(signature,count);anonymousIds.set(parent,ids);
-    const unit={id:`${root.id}/${key(path)}/${signature}${count>1?`~${count}`:''}`,kind,path,scope,normative,extent:{start:at,end:at},content:[],spans:[],children:[],...details};
+    const unit={id:`${root.id}/${key(path)}/${signature}${count>1?`~${count}`:''}`,kind,path,scope,normative,extent:{start:at,end:at},content:[],spans:[],children:[],pathConflict:false,...details};
     parent.children.push(unit);parents.set(unit,parent);return unit;
   }
   function retain(unit,index) {
@@ -150,7 +152,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   let tableUnit=null;
   for(let i=0;i<paragraphs.length;i++) {
     for(const table of emptyTables.get(i)??[])make(quote?.last??points.at(-1)?.unit??paragraph??container??area,'table',i,{table});
-    const p=paragraphs[i],text=p.text,style=p.properties?.styleId??'',trim=text.trim(),lead=cleanLead(trim),headed=heading(trim,language,style);
+    const p=paragraphs[i],text=p.text,style=p.properties?.styleId??'',trim=text.trim(),lead=cleanLead(trim),headed=heading(trim,language,style),sourceRegion=proposalRegion(trim,language);
     if(tableParagraphs.has(i)) {
       if(tableStart.has(i)) {
         const table=tableStart.get(i),parent=quote?.last??points.at(-1)?.unit??paragraph??container??area;
@@ -158,14 +160,15 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       }
       retain(tableUnit,i);continue;
     }
-    if(!quote&&/Exposdesmotifstitre/i.test(style)||!quote&&/^EXPLANATORY MEMORANDUM$/iu.test(trim)){region('memorandum',i,false);retain(area,i);continue;}
-    if(!quote&&(/Fichefinanciretitre/i.test(style)||/^LEGISLATIVE FINANCIAL (?:AND DIGITAL )?STATEMENT$/iu.test(trim))){region('financial-statement',i,false);retain(area,i);continue;}
-    if(!quote&&!nonnormative.has(area.kind)&&/^(?:Fait|Institutionquisigne|Personnequisigne)$/i.test(style)||!quote&&/^Done at\b/iu.test(trim)){region('signature',i,false);retain(area,i);continue;}
-    if(['frontmatter','memorandum'].includes(area.kind)&&/Rfrenceinterinstitutionnelle|Typedudocument|Statut/i.test(style)){region('preamble',i,false);retain(make(area,'title',i),i);continue;}
+    if(!quote&&(/Exposdesmotifstitre/i.test(style)||sourceRegion==='memorandum')){region('memorandum',i,false);retain(area,i);continue;}
+    if(!quote&&(/Fichefinanciretitre/i.test(style)||sourceRegion==='financial-statement'||/^LEGISLATIVE FINANCIAL (?:AND DIGITAL )?STATEMENT$/iu.test(trim))){region('financial-statement',i,false);retain(area,i);continue;}
+    if(!quote&&!nonnormative.has(area.kind)&&(/^(?:Fait|Institutionquisigne|Personnequisigne)$/i.test(style)||sourceRegion==='signature'||/^Done at\b/iu.test(trim))){region('signature',i,false);retain(area,i);continue;}
+    if(['frontmatter','memorandum'].includes(area.kind)&&(/Rfrenceinterinstitutionnelle|Typedudocument|Statut/i.test(style)||/^\d{4}\/\d{4}\s*\((?:COD|CNS|APP)\)$/u.test(trim))){region('preamble',i,false);retain(make(area,'title',i),i);continue;}
     if(nonnormative.has(area.kind)&&area.kind!=='frontmatter') {retain(area,i);continue;}
     const pointLevel=style.match(stylePoint)?.[1];
-    if(quote&&pointLevel!==undefined&&Number(pointLevel)<=quote.ownerLevel&&!opening.test(trim))closeQuote();
-    if(/Formuledadoption/i.test(style)||!quote&&/^(?:HAVE ADOPTED|HAS ADOPTED|HÄRIGENOM FÖRESKRIVS)/u.test(trim)) {
+    if(quote&&pointLevel!==undefined&&Number(pointLevel)<=quote.ownerLevel&&!opening.test(trim)){quote.root.closingBoundaryBasis='instruction-style';closeQuote();}
+    if(quote&&headed?.kind==='annex'&&/Annexetitre/i.test(style)&&!opening.test(trim)){quote.root.closingBoundaryBasis='source-heading';closeQuote();}
+    if(!quote&&(/Formuledadoption/i.test(style)||sourceRegion==='enacting-formula'||/^(?:HAVE ADOPTED|HAS ADOPTED|HÄRIGENOM FÖRESKRIVS)/u.test(trim))) {
       region('body',i,true);retain(make(area,'enacting-formula',i),i);continue;
     }
     // A quoted replacement heading can only open inside its source instruction.
@@ -202,6 +205,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       continue;
     }
     if(headed) {
+      if(headed.unavailable)gaps.push({code:'unlabelled-article',paragraph:i,message:'The source article heading has no number; its extent is retained without inventing a target label.'});
       if(headed.kind==='article'||headed.kind==='annex') {
         if(area.kind!=='body')region('body',i,true);
         const parent=headed.kind==='article'?(sectionStack.at(-1)?.unit??area):area;
@@ -240,6 +244,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     }
     if(/Titrearticle/i.test(style)&&container?.kind==='article'&&!paragraph){last=make(container,'title',i);retain(last,i);continue;}
     const operation=instruction(lead,language);
+    if(number?.kind==='paragraph'&&paragraph?.implicit&&(paragraph.instruction?.operation==='amend'||/^(?:Manual)?NumPar1$/i.test(style))){number.kind='point';number.level=0;}
     if(number?.kind==='point'&&number.level===0&&container?.kind==='article'&&(!paragraph||!paragraph.implicit)&&!operation)number.kind='paragraph';
     if(number?.kind==='paragraph') {
       // In annexes Commission NumPar lists are addressed as numbered points.
