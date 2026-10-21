@@ -37,6 +37,23 @@ const documentRoute=(id:string,language:string,request?:DocumentContextRequest)=
 };
 const responseFor=(data:DocumentContextResponse|null,id:string,language:string,request?:DocumentContextRequest)=>data?.documentId===id&&data.requestedLanguage===language&&(request?.wordingLanguage===undefined||data.requestedWordingLanguage===request.wordingLanguage)?data:null;
 
+const placementReasons:Record<string,string>={
+  baseline_unavailable:'The text this amendment changes is not included in this document.',
+  different_text_languages:'The document and amendment wording are in different languages.',
+  duplicate_target_label:'A provision with the proposed label already exists.',
+  conflicting_target_evidence:'The published location and wording do not agree.',
+  insertion_reference_unavailable:'The insertion location is not specified clearly enough.',
+  relative_target_not_found:'The preceding provision could not be found.',
+  multiple_published_targets:'The published location matches more than one passage.',
+  multiple_quoted_targets:'The quoted wording appears more than once.',
+  target_not_found:'The passage this amendment changes could not be found.',
+  source_passage_incomplete:'The source passage is incomplete.',
+  source_structure_unavailable:'The document structure is unavailable.',
+  matching_budget:'The automatic location search reached its limit.',
+  amendment_wording_unavailable:'The amendment wording is unavailable.',
+};
+const amendmentNumber=(id:string|undefined)=>id?.match(/-AM-(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'')||null;
+
 // Keep source offsets when replacing an unresolved inline object with a source link.
 // The surrounding text, references and note anchors remain in their original positions.
 function Paragraph({text,paragraph,objects,sourceUrl,anchors,links,notePrefix}:{text:string;paragraph:number;objects:InlineObject[];sourceUrl:string|null;anchors:NoteAnchor[];links:DocumentLink[];notePrefix:string}) {
@@ -76,14 +93,16 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const placed=Boolean(placement?.status==='placed'&&amendmentMatches&&wording&&(
     placement.operation==='insert'?validIndex(placement.insertAfter)&&placement.insertBefore===placement.insertAfter+1:
       placement.span&&validIndex(placement.span.start)&&validIndex(placement.span.end)&&placement.span.end>=placement.span.start));
-  const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment '+amendmentRequest?.amendmentId?.split('-AM-')[1]+' proposed change'} lang="en">
-    <h4>Amendment {amendmentRequest?.amendmentId?.split('-AM-')[1]} · proposed change</h4>
+  const number=amendmentNumber(amendmentRequest?.amendmentId),amendmentHeading='amendment-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
+  const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-labelledby={amendmentHeading}>
+    <h4 id={amendmentHeading} lang="en">Amendment{number?' '+number:''} · proposed change</h4>
     {wording&&<WordingDiff original={placement?.operation==='insert'?'':wording.originalText} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion"/>}
   </section>;
-  const placementReason=placement?.reason==='baseline_unavailable'?'The text this amendment changes is not included in this document.':placement?.reason==='different_text_languages'?'The document and amendment wording are in different languages.':placement?.reason==='duplicate_target_label'?'A provision with the proposed label already exists.':placement?.reason==='conflicting_target_evidence'?'The published location and wording do not agree.':'The published evidence does not identify one complete passage.';
+  const placementReason=placementReasons[placement?.reason||'']||'The published evidence does not identify one complete passage.';
   const extracted=publicationBody(allParagraphs,id,text?.textLanguage);
   const exactBody=extracted.exact&&Number.isInteger(extracted.start)&&extracted.start>=0&&extracted.paragraphs.length===allParagraphs.length-extracted.start&&extracted.paragraphs.every((paragraph,index)=>paragraph===allParagraphs[extracted.start+index]);
-  const body=exactBody&&(!found||indices.every(index=>index>=extracted.start))?extracted:{paragraphs:allParagraphs,start:0};
+  const placementStart=placed?(placement?.operation==='insert'?placement.insertAfter:placement?.span?.start):undefined;
+  const body=exactBody&&(!found||indices.every(index=>index>=extracted.start))&&(!placed||placementStart!==undefined&&placementStart>=extracted.start)?extracted:{paragraphs:allParagraphs,start:0};
   const notes=text?.notes||[],anchors=text?.noteAnchors||[],links=text?.documentLinks||[],objects=text?.documentObjects||[];
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
   const title=document?titleOf(document,language):null,hasText=text?.status==='available'&&allParagraphs.length>0;

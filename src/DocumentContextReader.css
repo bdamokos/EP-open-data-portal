@@ -33,5 +33,5 @@
 .document-context-amendment{border:1px solid var(--context-border);border-left:3px solid var(--context-blue);border-radius:3px;background:var(--surface-2);padding:1rem;margin:1.25rem 0;scroll-margin:4rem;min-width:0}
 .document-context-amendment h4{font-size:.9rem;line-height:1.5;margin:0 0 .75rem;color:var(--ink)}
 .document-context-amendment:focus{outline:2px solid var(--context-blue);outline-offset:3px}
-.document-context-amendment .wording-diff__passage{white-space:pre-wrap}
+.document-context-amendment .wording-diff__passage{font-family:inherit;font-size:inherit;line-height:inherit;white-space:pre-wrap}
 @media(max-width:600px){.document-context-amendment{padding:.7rem}}

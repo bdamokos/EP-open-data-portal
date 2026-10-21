@@ -391,3 +391,66 @@ test('unresolved placement shows wording above the full unchanged baseline witho
   assert.equal(reader.querySelectorAll('[data-source-paragraph]').length,4);assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
   assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
 });
+
+for(const [suffix,label] of [['-AM-040','Amendment 40'],['-AM-040a','Amendment 40a'],['-AM-000','Amendment 0'],['-other','Amendment']])
+  test(`amendment label handles ${suffix} without leaking the identifier`,async t=>{
+    const amendmentId=report+suffix,data=overlayResponse();data.amendment.id=amendmentId;data.target.evidence.amendmentId=amendmentId;
+    const h=await harness(t,()=>data);await h.render({request:{...overlayRequest,amendmentId},language:'en'});
+    const block=h.container.querySelector('[data-amendment-block]'),heading=block.querySelector('h4');
+    assert.equal(heading.textContent,label+' · proposed change');assert.equal(heading.lang,'en');
+    assert.equal(block.getAttribute('aria-labelledby'),heading.id);assert.equal(block.hasAttribute('lang'),false);
+  });
+
+test('amendment passage keeps its wording language in both diff views',async t=>{
+  const data=overlayResponse();data.requestedWordingLanguage='hu';data.document.selectedText.textLanguage='hu';
+  data.amendment.variants[0].language='hu';data.target.evidence.wordingLanguage='hu';
+  const h=await harness(t,()=>({...data,requestedLanguage:'hu'}));
+  await h.render({request:{...overlayRequest,wordingLanguage:'hu'},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.querySelector('h4').lang,'en');
+  for(const view of ['Changes','Side by side']) {
+    await h.click([...block.querySelectorAll('button')].find(button=>button.textContent===view));
+    const passages=[...block.querySelectorAll('.wording-diff__passage')];assert(passages.length);assert(passages.every(p=>p.lang==='hu'));
+  }
+});
+
+for(const operation of ['insert','replace','delete'])test(`${operation} before an extracted body retains the full source and a reachable amendment`,async t=>{
+  // Question headers exercise an exact nonzero start; committee extraction is also checked below.
+  const id='E-10-2026-0001',amendmentId=id+'-AM-40',data=overlayResponse({operation,span:operation==='insert'?undefined:{start:0,end:1},insertAfter:0,insertBefore:1});
+  data.documentId=id;data.document=sourceDocument(id,['Question for written answer E-0001/2026','Subject: Source subject','Body paragraph.']);
+  data.amendment.id=amendmentId;data.target.evidence.amendmentId=amendmentId;
+  const h=await harness(t,()=>data);await h.render({request:{...overlayRequest,documentId:id,amendmentId},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert(block);
+  assert.equal(block.nextElementSibling.dataset.sourceParagraph,operation==='insert'?'1':'2');
+  if(operation==='insert')assert.equal(block.previousElementSibling.dataset.sourceParagraph,'0');
+  await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Go to amendment'));
+  assert.equal(h.scrolls.at(-1).element,block);assert.equal(document.activeElement,block);
+});
+
+test('committee body extraction retains an amendment placed before its body start',async t=>{
+  const id='LIBE-PR-123456',amendmentId=id+'-AM-40',data=overlayResponse({insertAfter:0,insertBefore:1});
+  data.documentId=id;data.document=sourceDocument(id,['Cover','CONTENTS','Page 1','DRAFT REPORT','Body paragraph.']);
+  data.amendment.id=amendmentId;data.target.evidence.amendmentId=amendmentId;
+  const h=await harness(t,()=>data);await h.render({request:{...overlayRequest,documentId:id,amendmentId},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert(block);
+  assert.equal(block.previousElementSibling.dataset.sourceParagraph,'0');assert.equal(block.nextElementSibling.dataset.sourceParagraph,'1');
+});
+
+for(const [reason,copy] of Object.entries({
+  insertion_reference_unavailable:'The insertion location is not specified clearly enough.',
+  relative_target_not_found:'The preceding provision could not be found.',
+  multiple_published_targets:'The published location matches more than one passage.',
+  multiple_quoted_targets:'The quoted wording appears more than once.',
+  target_not_found:'The passage this amendment changes could not be found.',
+  source_passage_incomplete:'The source passage is incomplete.',
+  source_structure_unavailable:'The document structure is unavailable.',
+  matching_budget:'The automatic location search reached its limit.',
+  amendment_wording_unavailable:'The amendment wording is unavailable.',
+  unknown_reason:'The published evidence does not identify one complete passage.',
+}))test(`unresolved ${reason} explains the gap without implying a location`,async t=>{
+  const data=overlayResponse({status:'unresolved',reason});
+  if(reason==='amendment_wording_unavailable')data.amendment.variants[0].wordingStatus='unavailable';
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  assert(h.container.querySelector('[role="status"]').textContent.includes(copy));
+  assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
+  assert.equal(h.container.querySelectorAll('[data-source-paragraph]').length,4);
+});
