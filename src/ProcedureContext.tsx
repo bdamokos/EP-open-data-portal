@@ -19,7 +19,7 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
   const {data,loading,error}=useInsightData<Context>('insights/procedure-context?'+params);
   const press=<PressMentions key={'press:'+reference+':'+language} reference={reference} language={language} limit={showTitle?5:3}/>;
   const amendmentLink=<AmendmentTrailLink procedure={reference} language={language}>Amendments for this dossier</AmendmentTrailLink>;
-  if(!data)return <section lang="en" className="insight-procedure-context insight-procedure-fallback">{amendmentLink}<ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>{loading?<p role="status">Loading summary…</p>:error?<>{press}<p><a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer">Read on Legislative Observatory ↗</a></p></>:null}</section>;
+  if(!data)return <section lang="en" className="insight-procedure-context insight-procedure-fallback">{amendmentLink}<ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>{loading&&<p role="status">Loading summary…</p>}{press}{!loading&&error&&<p><a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer">Read on Legislative Observatory ↗</a></p>}</section>;
   const blocks=data.summary?.blocks||[],displayed=expanded?blocks:blocks.slice(0,2);
   return <section lang="en" className="insight-procedure-context">
     {amendmentLink}

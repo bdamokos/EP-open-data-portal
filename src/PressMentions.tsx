@@ -11,6 +11,8 @@ const brusselsDay=(instant:string)=>new Intl.DateTimeFormat('sv-SE',{timeZone:'E
 export function PressMentions({reference,language,limit}:{reference:string;language:string;limit:number}) {
   const headingId=useId(),state=useInsightData<Press>('insights/press-releases?'+new URLSearchParams({reference,lang:language}));
   const data=state.data?.reference===reference?state.data:null;
+  // A failed read is reported; an empty result shows nothing, which claims no absence.
+  if(!data&&state.error)return <p className="press-mentions-scope" role="status" lang="en">Parliament press releases are temporarily unavailable. <button type="button" className="insight-text-button" onClick={state.retry}>Try again</button></p>;
   if(!data?.items.length)return null;
   const shown=data.items.slice(0,limit),since=data.coverage.followingSince;
   return <section className="press-mentions" aria-labelledby={headingId} lang="en">
