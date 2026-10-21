@@ -51,7 +51,9 @@ export class CellarDocuments {
         if([301,302,303,307,308].includes(response.status)) {
           const location=response.headers.get('location');await response.body?.cancel();
           if(!location||n===CELLAR_LIMITS.redirects)throw failure('cellar_redirect','The CELLAR redirect chain is incomplete or too long.');
-          target=cellarTransportUrl(new URL(location,target),{redirect:true});continue;
+          const next=cellarTransportUrl(new URL(location,target),{redirect:true});
+          if(accept===CELLAR_DOCX_MIME&&new URL(next).pathname!==new URL(initial).pathname)throw failure('cellar_redirect_identity','The DOCX redirect changed the discovered item identity.');
+          target=next;continue;
         }
         if([429,503].includes(response.status)) {
           const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));this.sources.queues.get(new URL(initial).origin)?.backoff(retryAfter);await response.body?.cancel();
@@ -93,7 +95,7 @@ export class CellarDocuments {
     try {
       const file=path.join(this.directory,key+'.json');if((await stat(file)).size>8192)return null;
       const source=JSON.parse(await readFile(file,'utf8')),[celex,language,itemId]=JSON.parse(identity);
-      if(source.schemaVersion!==1||source.key!==key||source.identity!==identity||source.celex!==celex||source.language!==language||source.itemId!==itemId||source.url!==cellarTransportUrl(itemId,{redirect:true})||source.format!=='DOCX'||!/^[a-f0-9]{64}$/.test(source.sha256)||!Number.isFinite(Date.parse(source.checkedAt))||!Number.isFinite(Date.parse(source.fetchedAt)))return null;
+      if(source.schemaVersion!==1||source.key!==key||source.identity!==identity||source.celex!==celex||source.language!==language||source.itemId!==itemId||source.url!==cellarTransportUrl(itemId,{redirect:true})||cellarTransportUrl(source.resolvedSourceUrl)!==source.url||source.format!=='DOCX'||!/^[a-f0-9]{64}$/.test(source.sha256)||!Number.isFinite(Date.parse(source.checkedAt))||!Number.isFinite(Date.parse(source.fetchedAt)))return null;
       const blob=source.sha256+'.blob';if((await stat(path.join(this.directory,blob))).size>CELLAR_LIMITS.itemBytes)return null;
       const buffer=await readFile(path.join(this.directory,blob));if(hash(buffer)!==source.sha256)return null;
       this.disk.used(key+'.json');this.disk.used(blob);const record={source,buffer};this.remember(key,record);return record;

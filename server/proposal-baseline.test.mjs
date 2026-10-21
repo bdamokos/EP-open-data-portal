@@ -80,6 +80,7 @@ test('CELLAR transport upgrades only allowlisted HTTP redirects and bounds paths
   assert.equal((await docs.docx(i)).source.resolvedSourceUrl,url);assert.equal(calls,2);
   for(const bad of ['http://evil.example/resource/cellar/x','https://publications.europa.eu.evil.example/','https://user@publications.europa.eu/resource/celex/52025PC0087','https://publications.europa.eu:8443/resource/celex/52025PC0087','file:///tmp/a','https://publications.europa.eu/resource/celex/52025PC0087?x=1','https://publications.europa.eu/login'])assert.throws(()=>cellarTransportUrl(bad,{redirect:true}));
   const bad=new CellarDocuments(sourceOptions(async()=>new Response(null,{status:302,headers:{location:'https://evil.example/'}})));await assert.rejects(bad.docx(i),{code:'cellar_url'});
+  const otherItem=new CellarDocuments(sourceOptions(async()=>new Response(null,{status:302,headers:{location:url.replace('/DOC_1','/DOC_2')}})));await assert.rejects(otherItem.docx(i),{code:'cellar_redirect_identity'});
   const loop=new CellarDocuments(sourceOptions(async()=>new Response(null,{status:302,headers:{location:url}})));await assert.rejects(loop.docx(i),{code:'cellar_redirect'});
 });
 test('cache coalesces, persists content hashes, conditionally refreshes, and retains old data on errors',async()=>{
