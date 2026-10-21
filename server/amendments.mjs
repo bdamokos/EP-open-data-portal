@@ -64,7 +64,7 @@ export function checkedAggregateAttribution(record) {
   // of competing list variants. Retain it only with matching field evidence.
   const decisionLabel=record.targetLabelLanguage==='en'&&(record.decisions || []).some(decision=>decision.reference===record.targetLabel&&
     (!record.targetLabelSource||(decision.source&&decision.source.url===record.targetLabelSource.url&&decision.source.fetchedAt===record.targetLabelSource.fetchedAt)));
-  return {...record,listId:null,authors:[],committeeProposer:null,onBehalfOf:null,date:null,documentDate:null,listDocumentDate:null,dateBasis:null,proposerDate:null,proposerDateBasis:null,
+  return {...record,baseline:'unknown',baselineSource:null,documentReferences:[],targetPath:null,listId:null,authors:[],committeeProposer:null,onBehalfOf:null,date:null,documentDate:null,listDocumentDate:null,dateBasis:null,proposerDate:null,proposerDateBasis:null,
     originalText:null,proposedText:null,language:null,justification:null,textParserVersion:null,textIntegrity:'unavailable',wordingSource:null,metadataSource:null,proposerSource:null,sourceFreshness:null,
     targetLabel:decisionLabel?record.targetLabel:null,targetLabelLanguage:decisionLabel?'en':null,targetLabelSource:decisionLabel?record.targetLabelSource ?? null:null,
     wordingRetained:false,proposerRetained:false,recordRetained:false,fieldSources:{}};
