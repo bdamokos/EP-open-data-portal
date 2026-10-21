@@ -34,7 +34,7 @@ import {CORPUS_LIMITS,corpusQuery} from './corpus-store.mjs';
 import {createRequestBudget,runWithRequestSignal,waitForRequest,cancelledRequest,requestSignal} from './request-budget.mjs';
 
 import {SpeechInterventions,INTERVENTION_LIMITS} from './speech-intervention-service.mjs';
-import {OfficialContextSources} from './official-context.mjs';
+import {sharedOfficialContextSources} from './official-context.mjs';
 import {EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext,procedureContextQuery,REFERENCE_SUMMARY_ORDER} from './procedure-context.mjs';
 import {LegalReferences,referencesQuery} from './legal-references.mjs';
@@ -45,7 +45,7 @@ let stopIndex=()=>{};let stopCorpus=()=>{};let insightService,pressMentions;
 // One owner per official-source cache directory, shared by insights and reading-time references.
 let officialContext;
 function official() {
-  if(!officialContext){const sources=new OfficialContextSources(),catalog=new EurovocCatalog(sources);officialContext={sources,catalog,procedures:new ProcedureContext(sources,catalog),progress:new ProcedureProgress(sources),references:new LegalReferences(sources)};}
+  if(!officialContext){const sources=sharedOfficialContextSources,catalog=new EurovocCatalog(sources);officialContext={sources,catalog,procedures:new ProcedureContext(sources,catalog),progress:new ProcedureProgress(sources),references:new LegalReferences(sources)};}
   return officialContext;
 }
 function positiveId(value) {

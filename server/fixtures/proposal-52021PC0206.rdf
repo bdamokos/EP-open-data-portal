@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rdf:RDF xmlns:ns1="http://publications.europa.eu/ontology/cdm#" xmlns:ns2="http://www.w3.org/2002/07/owl#" xmlns:ns3="http://publications.europa.eu/ontology/cdm/cmr#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="http://publications.europa.eu/resource/comnat/COM_2021_0206_FIN.ENG.docx"><ns1:manifestation_manifests_expression rdf:resource="http://publications.europa.eu/resource/comnat/COM_2021_0206_FIN.ENG" />
+    <ns1:manifestation_type rdf:datatype="http://www.w3.org/2001/XMLSchema#string">docx</ns1:manifestation_type>
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/celex/52021PC0206" /><rdf:Description rdf:about="http://publications.europa.eu/resource/comnat/COM_2021_0206_FIN.ENG"><ns1:expression_uses_language rdf:resource="http://publications.europa.eu/resource/authority/language/ENG" />
+    <ns1:expression_belongs_to_work rdf:resource="http://publications.europa.eu/resource/comnat/COM_2021_0206_FIN" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/celex/52021PC0206.ENG" /><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/e0649735-a372-11eb-9585-01aa75ed71a1"><ns2:sameAs rdf:resource="http://publications.europa.eu/resource/celex/52021PC0206" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2021_0206" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282021%29206%20final" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2021_0206_FIN" />
+  </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/e0649735-a372-11eb-9585-01aa75ed71a1.0001.01"><ns2:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2021_0206_FIN.ENG.docx" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282021%29206%20final.ENG.docx" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/e0649735-a372-11eb-9585-01aa75ed71a1.0001"><ns2:sameAs rdf:resource="http://publications.europa.eu/resource/celex/52021PC0206.ENG" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282021%29206%20final.ENG" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2021_0206_FIN.ENG" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/immc/COM%282021%29206%20final"><ns1:work_part_of_dossier rdf:resource="http://publications.europa.eu/resource/procedure/2021_106" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/e0649735-a372-11eb-9585-01aa75ed71a1.0001.01/DOC_2"><ns2:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282021%29206%20final.ENG.docx.1_EN_annexe_proposition_part1_v7.docx" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2021_0206_FIN.ENG.docx.1_EN_annexe_proposition_part1_v7.docx" />
+    <ns1:item_belongs_to_manifestation rdf:resource="http://publications.europa.eu/resource/cellar/e0649735-a372-11eb-9585-01aa75ed71a1.0001.01" />
+    <ns3:manifestationMimeType>application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml</ns3:manifestationMimeType>
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/comnat/COM_2021_0206_FIN"><ns1:version rdf:datatype="http://www.w3.org/2001/XMLSchema#string">final</ns1:version>
+    <ns1:work_created_by_agent rdf:resource="http://publications.europa.eu/resource/authority/corporate-body/COM" />
+    <ns1:work_version rdf:datatype="http://www.w3.org/2001/XMLSchema#string">final</ns1:work_version>
+    <ns1:work_created_by_agent rdf:resource="http://publications.europa.eu/resource/authority/corporate-body/CNECT" />
+    <ns1:act_preparatory_initiates_dossier rdf:resource="http://publications.europa.eu/resource/procedure/2021_106" />
+    <ns1:resource_legal_internal_number_year rdf:datatype="http://www.w3.org/2001/XMLSchema#year">2021</ns1:resource_legal_internal_number_year>
+    <ns1:work_has_resource-type rdf:resource="http://publications.europa.eu/resource/authority/resource-type/PROP_REG" />
+    <ns1:resource_legal_internal_number_prefix rdf:datatype="http://www.w3.org/2001/XMLSchema#string">COM</ns1:resource_legal_internal_number_prefix>
+    <ns1:work_part_of_dossier rdf:resource="http://publications.europa.eu/resource/internal_proc/7D2F6501D5BB1A972022DF88A8FCC96A4FFEACC626F190F7461017FE4955B5F8" />
+    <ns1:resource_legal_internal_number_sequential_number rdf:datatype="http://www.w3.org/2001/XMLSchema#positiveInteger">206</ns1:resource_legal_internal_number_sequential_number>
+    <ns1:resource_legal_id_celex rdf:datatype="http://www.w3.org/2001/XMLSchema#string">52021PC0206</ns1:resource_legal_id_celex>
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/e0649735-a372-11eb-9585-01aa75ed71a1.0001.01/DOC_1"><ns2:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2021_0206_FIN.ENG.docx.1_EN_ACT_part1_v7.docx" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282021%29206%20final.ENG.docx.1_EN_ACT_part1_v7.docx" />
+    <ns1:item_belongs_to_manifestation rdf:resource="http://publications.europa.eu/resource/cellar/e0649735-a372-11eb-9585-01aa75ed71a1.0001.01" />
+    <ns3:manifestationMimeType>application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml</ns3:manifestationMimeType>
+    </rdf:Description></rdf:RDF>

@@ -1,0 +1,32 @@
+{
+  "scope": "Trimmed public RDF tree notices and SPARQL COM-candidate responses: exact work identity, aliases, and English DOCX WEMI; unrelated languages, formats and predicates omitted.",
+  "documents": [
+    {
+      "celex": "52025PC0087",
+      "sourceUrl": "https://publications.europa.eu/resource/celex/52025PC0087",
+      "accept": "application/rdf+xml;notice=tree",
+      "fetchedAt": "2026-10-21T12:59:41.650386+00:00",
+      "candidateSourceUrl": "https://publications.europa.eu/webapi/rdf/sparql",
+      "candidateQuery": "proposalCandidatesSparql(52025PC0087)",
+      "candidatesFetchedAt": "2026-10-21T18:01:11.321462+00:00"
+    },
+    {
+      "celex": "52021PC0206",
+      "sourceUrl": "https://publications.europa.eu/resource/celex/52021PC0206",
+      "accept": "application/rdf+xml;notice=tree",
+      "fetchedAt": "2026-10-21T12:59:49.873394+00:00",
+      "candidateSourceUrl": "https://publications.europa.eu/webapi/rdf/sparql",
+      "candidateQuery": "proposalCandidatesSparql(52021PC0206)",
+      "candidatesFetchedAt": "2026-10-21T18:01:11.602314+00:00"
+    },
+    {
+      "celex": "52023PC0166",
+      "sourceUrl": "https://publications.europa.eu/resource/celex/52023PC0166",
+      "accept": "application/rdf+xml;notice=tree",
+      "fetchedAt": "2026-10-21T12:59:50.433282+00:00",
+      "candidateSourceUrl": "https://publications.europa.eu/webapi/rdf/sparql",
+      "candidateQuery": "proposalCandidatesSparql(52023PC0166)",
+      "candidatesFetchedAt": "2026-10-21T18:01:14.574433+00:00"
+    }
+  ]
+}
