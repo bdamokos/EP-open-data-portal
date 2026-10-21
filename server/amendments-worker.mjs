@@ -153,6 +153,7 @@ function mergeExtractionRefresh(old,extraction,source,fallbackDate) {
       row.originalText=accepted.originalText;row.proposedText=accepted.proposedText;
       row.wordingSource=accepted.wordingSource || oldSource;row.wordingRetained=true;
       row.baseline=accepted.baseline??'unknown';row.baselineSource=accepted.baselineSource??null;
+      row.documentReferences=accepted.documentReferences??[];row.targetPath=accepted.targetPath??null;
       row.language=row.wordingSource?.language || accepted.language || old.language;
       row.gaps.push({code:'wording-retained',number:row.number,message:'Previously accepted amendment wording is retained after text extraction failed.'});
     }

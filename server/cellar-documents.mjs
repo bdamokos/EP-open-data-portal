@@ -4,7 +4,7 @@ import path from 'node:path';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {docxParts} from './document-text.mjs';
 import {HttpError} from './http-utils.mjs';
-import {createRequestBudget,sharedRequest,waitForRequest,requestSignal,isLocalRequestFailure} from './request-budget.mjs';
+import {createRequestBudget,sharedRequest,waitForRequest,requestSignal} from './request-budget.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import {writeCacheFile} from './cache-publication.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
@@ -114,7 +114,7 @@ export class CellarDocuments {
     if(!/\/DOC_\d+$/.test(url)||!/^http:\/\/publications\.europa\.eu\/resource\/authority\/language\/[A-Z]{3}$/.test(language))throw failure('cellar_item','Invalid proposal item identity.');
     const identity=JSON.stringify([celex,language,itemId,'docx']),key=hash(identity);requestSignal()?.throwIfAborted();
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
-    const task=sharedRequest(async()=>{
+    const task=sharedRequest(async owner=>{
       const old=await this.stored(key,identity),age=old?this.clock()-Date.parse(old.source.checkedAt):Infinity;
       if(old&&age>=0&&age<=this.freshMs)return {...old,source:{...old.source,stale:false,refreshError:null}};
       const failureAt=this.failures.get(key);
@@ -127,7 +127,8 @@ export class CellarDocuments {
         const now=new Date(this.clock()).toISOString(),source={schemaVersion:1,key,identity,url,resolvedSourceUrl:result.url,celex,language,itemId,expressionId,manifestationId,format:'DOCX',sha256:hash(buffer),etag:result.etag??(result.status===304?old?.source.etag:null)??null,lastModified:result.lastModified??(result.status===304?old?.source.lastModified:null)??null,fetchedAt:result.status===304?old.source.fetchedAt:now,checkedAt:now,stale:false,refreshError:null};
         const record=await this.save(key,{source,buffer});this.failures.delete(key);return record;
       }catch(error) {
-        if(isLocalRequestFailure(error))throw error;
+        owner.throwIfAborted();
+        if(error?.code==='request_cancelled')throw error;
         this.failures.delete(key);this.failures.set(key,{at:this.clock(),code:error.code||'cellar_error'});while(this.failures.size>32)this.failures.delete(this.failures.keys().next().value);
         if(old)return {...old,source:{...old.source,stale:true,refreshError:error.code||'cellar_error'}};
         throw error;

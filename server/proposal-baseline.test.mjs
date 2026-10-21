@@ -8,7 +8,7 @@ import {resolveProposalTree,resolveProposalCandidates,commissionReferences,repor
 import {CellarDocuments,CELLAR_DOCX_MIME,CELLAR_LIMITS,cellarTransportUrl,limitedCellarBody} from './cellar-documents.mjs';
 import {createProposalBaseline} from './proposal-baseline.mjs';
 import {OfficialContextSources} from './official-context.mjs';
-import {runWithRequestSignal} from './request-budget.mjs';
+import {runWithRequestSignal,requestSignal,waitForRequest,requestTimeout,cancelledRequest} from './request-budget.mjs';
 import {comparisonHeading,isAmendmentHeading,COMPARISON_HEADINGS} from './amendment-baseline.mjs';
 import {extractAmendments} from './amendment-documents.mjs';
 
@@ -170,4 +170,69 @@ test('CELLAR admission and body deadline reports the app request_timeout error',
   const pending=docs.request(item().itemId.replace('http:','https:'),{accept:CELLAR_DOCX_MIME});
   const rejected=assert.rejects(pending,{code:'request_timeout'});
   await new Promise(resolve=>setImmediate(resolve));t.mock.timers.tick(20_001);await rejected;
+});
+
+
+test('selected expression rejects unsupported and conflicting versions while the work stays final',()=>{
+  const changed=fixture('52025PC0087-expression-final-2');
+  assert.equal(changed,xml.replace('>final<','>final/2<'));
+  for(const version of ['final/2','draft','final</ns2:version><ns2:version>final/2']) {
+    const r=resolveProposalTree(changed.replace('>final/2<','>'+version+'<'),{celex,language:'en'});
+    assert.equal(r.status,'unresolved');assert.deepEqual(r.items,[]);
+    assert(r.gaps.includes('proposal-expression-version-unresolved'));
+  }
+});
+
+test('source deadline retains validated stale DOCX content and exposes the refresh error',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  let now=1000,stalled=false;
+  const docs=new CellarDocuments({...sourceOptions(async()=>stalled?new Promise(()=>{}):content()),clock:()=>now,freshMs:10}),i=item();
+  const old=await docs.docx(i);now+=20;stalled=true;
+  const pending=docs.docx(i);await new Promise(resolve=>setImmediate(resolve));
+  t.mock.timers.tick(20_001);
+  const stale=await pending;
+  assert.equal(stale.source.stale,true);assert.equal(stale.source.refreshError,'request_timeout');
+  assert.deepEqual(stale.buffer,old.buffer);assert.equal(stale.source.checkedAt,old.source.checkedAt);
+});
+
+test('origin pause retains validated stale content and proposalBaseline reports its gaps',async()=>{
+  let now=1000,calls=0;
+  const docs=new CellarDocuments({...sourceOptions(async()=>{calls++;return content();}),clock:()=>now,freshMs:10});
+  const candidates=JSON.parse(readFileSync(new URL('./fixtures/proposal-52025PC0087-candidates.json',import.meta.url),'utf8'));
+  docs.candidates=async()=>({data:candidates});docs.metadata=async()=>({xml});
+  const load=createProposalBaseline({documents:docs}),old=await load({celex});
+  assert.equal(old.status,'available');now+=20;
+  docs.sources.queues.get('https://publications.europa.eu').backoff(120);
+  const stale=await load({celex});
+  assert.equal(stale.status,'partial');assert.equal(calls,2);
+  for(const [index,entry] of stale.items.entries()) {
+    assert.equal(entry.source.stale,true);assert.equal(entry.source.refreshError,'upstream_busy');
+    assert.deepEqual(entry.buffer,old.items[index].buffer);
+    assert(stale.gaps.some(gap=>gap.code==='stale-content'&&gap.itemId===entry.itemId&&gap.refreshError==='upstream_busy'));
+  }
+});
+
+test('reader cancellation and expiry propagate even when validated stale content exists',async()=>{
+  for(const reason of [cancelledRequest(),requestTimeout()]) {
+    let now=1000,finish,reached;
+    const started=new Promise(resolve=>reached=resolve),response=new Promise(resolve=>finish=resolve);
+    const docs=new CellarDocuments({...sourceOptions(async()=>content()),clock:()=>now,freshMs:10}),i=item();
+    const old=await docs.docx(i);now+=20;
+    docs.fetchSource=async()=>{reached();return response;};
+    const controller=new AbortController(),pending=runWithRequestSignal(controller.signal,()=>docs.docx(i));
+    await started;const coalesced=docs.docx(i);
+    controller.abort(reason);await assert.rejects(pending,error=>error===reason);
+    finish(content());assert.deepEqual((await coalesced).buffer,old.buffer);
+  }
+});
+
+test('shared request owner expiry propagates instead of returning stale content',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  let now=1000;
+  const docs=new CellarDocuments({...sourceOptions(async()=>content()),clock:()=>now,freshMs:10});
+  await docs.docx(item());now+=20;
+  docs.request=()=>waitForRequest(new Promise(()=>{}),requestSignal());
+  const pending=docs.docx(item()),rejected=assert.rejects(pending,{code:'request_timeout'});
+  await new Promise(resolve=>setImmediate(resolve));t.mock.timers.tick(45_001);await rejected;
+  assert.equal(docs.failures.size,0);
 });

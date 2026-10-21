@@ -50,6 +50,9 @@ export function resolveProposalTree(xml,{celex,language,procedure}={}) {
   if(matching.length!==1)return unresolved(matching.length?'unresolved':'language-unavailable',[matching.length?'ambiguous-language-expression':'language-unavailable'],evidence,{celex,workId,language});
   const expressionId=matching[0],languageUris=graph.values(expressionId,'expression_uses_language');
   if(languageUris.length!==1)return unresolved('unresolved',['ambiguous-language-expression'],evidence,{celex,workId,language});
+  const expressionVersions=graph.values(expressionId,'version');
+  evidence.push({kind:'cellar-expression',expressionId,language:languageUris[0],versions:expressionVersions});
+  if(expressionVersions.some(version=>version!=='final'))return unresolved('unresolved',['proposal-expression-version-unresolved'],evidence,{celex,workId,language});
   const manifestations=[...graph.graph.keys()].filter(id=>new RegExp('^'+expressionId.replaceAll('.','\\.')+'\\.\\d{2,8}$').test(id)&&graph.values(id,'manifestation_manifests_expression').some(v=>graph.aliases(expressionId).includes(v))&&graph.values(id,'manifestation_type').some(v=>v==='docx'||v==='http://publications.europa.eu/resource/authority/file-type/DOCX'));
   if(manifestations.length!==1)return unresolved(manifestations.length?'unresolved':'format-unavailable',[manifestations.length?'ambiguous-docx-manifestation':'docx-unavailable'],evidence,{celex,workId,language});
   const manifestationId=manifestations[0];
