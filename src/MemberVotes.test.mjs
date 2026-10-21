@@ -1,3 +1,4 @@
+import {contextOverlayResponse,assertContextOverlay} from './test-support/contextOverlay.mjs';
 import {wordingText,wordingViewText} from './test-support/wordingText.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -79,12 +80,13 @@ async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:
   }}]:[];
   vite=await createServer({configFile:false,plugins,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const module=await vite.ssrLoadModule('/src/MemberVotes.tsx');
+  const DocumentContextReader=renderContext==='reader'?(await vite.ssrLoadModule('/src/DocumentContextReader.tsx')).DocumentContextReader:null;
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   current={...structuredClone(module.defaultMemberVotesState),...state};
   const draw=()=>root.render(createElement(module.MemberVotes,{...props,state:current,key:renderKey}));
   props={memberId:MEMBER,memberName:'Test member',language:'en',onStateChange:(next,options)=>{current=next;changes.push({state:structuredClone(next),options});draw();},
-    renderContext:request=>{contexts.push(request);return renderContext?renderContext(request):createElement('div',{'data-testid':'context'},request.documentId,createElement('button',{onClick:request.onBack},'Back from context'));}};
+    renderContext:request=>{contexts.push(request);return DocumentContextReader?createElement(DocumentContextReader,{request,language:'en'}):renderContext?renderContext(request):createElement('div',{'data-testid':'context'},request.documentId,createElement('button',{onClick:request.onBack},'Back from context'));}};
   await act(async()=>draw());
   return {container,calls,changes,contexts,module,get state(){return current;},async update(patch){await act(async()=>{current={...current,...patch};draw();});},
     async remount(){await act(async()=>{renderKey++;draw();});},
@@ -744,4 +746,16 @@ test('a complete empty sitting keeps the no-votes message under an outcome filte
  const h=await mount(t,{state:{week:WEEK,sittingId:SITTING,alignment:'against'},handler:url=>Response.json(responseFor(url,{items:[],coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:0}]}}))});
  assert.match(visiblePane(h.container).textContent,/No votes were recorded at this sitting\./);
  assert.doesNotMatch(visiblePane(h.container).textContent,/No recorded votes against/);
+});
+
+
+test('vote Read in context reaches the same in-place amendment diff as motion reading',async t=>{
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}}),listId=DOCUMENT+'-AM-001-020';
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},renderContext:'reader',handler:url=>{
+    if(String(url).includes('/api/references'))return Response.json({references:[]});
+    return Response.json(String(url).includes('document-context/')?contextOverlayResponse(DOCUMENT,AMENDMENT,listId):responseFor(url,{items:[item]}));
+  }});
+  await h.click('Read in context');await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
+  assertContextOverlay(h.container);
+  assert(h.calls.some(url=>url.includes('wording-lang=en')&&!url.includes('body=0')));
 });

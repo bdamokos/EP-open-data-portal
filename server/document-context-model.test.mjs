@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resolveDocumentTarget} from './document-context-model.mjs';
+import {amendmentOperation,DELETION_MARKERS,resolveAmendmentPlacement,segmentMotionUnits,resolveDocumentTarget} from './document-context-model.mjs';
 
 function document(paragraphs, overrides = {}) {
   const {sources = {}, ...fields} = overrides;
@@ -306,4 +306,68 @@ test('English reference grammar is not silently applied to another or unknown so
   assert.equal(resolveDocumentTarget(text, {targetLabel: 'Recital D', language: 'fr'}).reason, 'reference_language_unsupported');
   assert.equal(resolveDocumentTarget(text, {targetLabel: 'Recital D'}).reason, 'reference_language_unsupported');
   assert.deepEqual(resolveDocumentTarget(text, {originalText: 'D. exact source text;', language: 'fr'}), found([0]));
+});
+
+
+const motion = paragraphs => document(['Cover', 'The European Parliament,', '– having regard to public sources,', ...paragraphs], {textLanguage:'en'});
+const placement = (text, options) => resolveAmendmentPlacement(text, {language:'en', ...options});
+test('units retain complete extents, parents, citations, headings and suffixed recital identities', () => {
+  const units=segmentMotionUnits(motion(['A. whereas first;', 'Ba. whereas inserted;', 'AO. whereas last;', 'OPERATIVE SECTION', '19. Main provision:', '(a) first point', 'continued point', '(b) second point', '20. Next provision;']), 'en');
+  assert.deepEqual(units.find(unit=>unit.label==='19'), {kind:'paragraph',label:'19',parent:6,start:7,end:10,level:1});
+  assert.equal(units.find(unit=>unit.label==='a').parent,7);
+  assert.equal(units.find(unit=>unit.label==='a').end,9);
+  assert.deepEqual(units.filter(unit=>unit.kind==='recital').map(unit=>unit.label),['A','Ba','AO']);
+  assert.equal(units[0].kind,'citation');
+});
+test('paragraph 19a inserts after paragraph 19 and all of its points, before 20', () => {
+  const text=motion(['19. Main provision:', '(a) first point', 'continuation', '(b) second point', '20. Next provision;']);
+  const result=placement(text,{originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',referenceText:'After § 19'});
+  assert.equal(result.operation,'insert');assert.equal(result.status,'placed');
+  assert.equal(result.insertAfter,6);assert.equal(result.insertBefore,7);assert.equal(text.paragraphs[result.insertBefore],'20. Next provision;');
+  assert.deepEqual(result.evidence.map(item=>item.basis),['published-reference','relative-reference']);
+});
+test('recital insertion and highest existing suffixed sibling keep source order', () => {
+  const text=motion(['A. whereas first;', 'B. whereas second;', 'Ba. whereas existing suffix;', 'C. whereas next;']);
+  const result=placement(text,{originalText:'',proposedText:'Bb. whereas new;',targetLabel:'Recital B b (new)',referenceText:'After recital B'});
+  assert.equal(result.status,'placed');assert.equal(result.insertAfter,5);assert.equal(result.insertBefore,6);
+});
+test('replace and delete cross-check the full multi-paragraph provision', () => {
+  const text=motion(['19. Opening provision', 'continues in a second source paragraph;', '20. Next;']);
+  for(const proposedText of ['19. New provision;', '', 'deleted']) {
+    const result=placement(text,{originalText:'19.  Opening provision\ncontinues in a second source paragraph;',proposedText,targetLabel:'Paragraph 19'});
+    assert.equal(result.status,'placed');assert.deepEqual(result.span,{start:3,end:4});
+    assert.equal(result.operation,proposedText==='19. New provision;'?'replace':'delete');
+  }
+});
+test('whole-cell localized deletion markers do not turn ordinary prose into a deletion', () => {
+  for(const marker of DELETION_MARKERS)assert.equal(amendmentOperation({originalText:'Source text',proposedText:' '+marker.toUpperCase()+' '}),'delete',marker);
+  assert.equal(amendmentOperation({originalText:'Source text',proposedText:'The word deleted occurs in this sentence.'}),'replace');
+  assert.equal(amendmentOperation({originalText:null,proposedText:'New'}),null);
+});
+test('CBAM amendment 7 is deletion despite a nested new provision; proposal baseline is unavailable', async () => {
+  const {readFile}=await import('node:fs/promises');
+  const fixtures=JSON.parse(await readFile(new URL('./fixtures/amendment-docx-excerpts-20261016.json',import.meta.url),'utf8'));
+  const am=fixtures.documents.find(doc=>doc.targetDocumentId==='A-10-2025-0085').expected.find(am=>am.number===7);
+  const result=placement(motion(['1. Unrelated report paragraph;']),am);
+  assert.equal(result.operation,'delete');assert.equal(result.status,'unresolved');assert.equal(result.reason,'baseline_unavailable');
+  assert.equal(placement(motion(['1. First;']),{originalText:'',proposedText:'Article 1a',targetLabel:'Article 1 a (new)'}).reason,'baseline_unavailable');
+});
+test('label/quote disagreement, repeated labels and insertion/relative conflicts stay unresolved', () => {
+  const text=motion(['19. Actual text;', '20. Other text;']);
+  assert.equal(placement(text,{originalText:'20. Other text;',proposedText:'New',targetLabel:'Paragraph 19'}).reason,'conflicting_target_evidence');
+  assert.equal(placement(text,{originalText:'',proposedText:'New',targetLabel:'Paragraph 19 a (new)',referenceText:'After § 20'}).reason,'conflicting_target_evidence');
+  const duplicate=motion(['19. Actual;', '19a. Existing;', '20. Next;']);
+  assert.equal(placement(duplicate,{originalText:'',proposedText:'New',targetLabel:'Paragraph 19 a (new)'}).reason,'duplicate_target_label');
+  const repeated=motion(['19. Actual;', '19. Actual;', '20. Next;']);
+  assert.equal(placement(repeated,{originalText:'19. Actual;',proposedText:'New',targetLabel:'Paragraph 19'}).reason,'multiple_published_targets');
+});
+test('placement quotation fallback stays bounded, unique, in the resolution and in the wording language', () => {
+  const text=motion(['19. Complete text;', '20. Next;']);
+  assert.equal(placement(text,{originalText:'19. Complete text;',proposedText:'New',targetLabel:'Unsupported location'}).status,'placed');
+  assert.equal(placement(text,{originalText:'Cover',proposedText:'New'}).reason,'target_not_found');
+  assert.equal(placement(text,{originalText:'19. Complete text;',proposedText:'New',language:'fr'}).reason,'different_text_languages');
+  assert.equal(placement(text,{originalText:'19. Complete text;',proposedText:'x'.repeat(65537)}).reason,'matching_budget');
+  assert.equal(placement(document(['19. Complete text;']),{originalText:'19. Complete text;',proposedText:'New'}).reason,'baseline_unavailable');
+  text.paragraphSources[3].complete=false;
+  assert.equal(placement(text,{originalText:'19. Complete text;',proposedText:'New',targetLabel:'Paragraph 19'}).reason,'source_passage_incomplete');
 });

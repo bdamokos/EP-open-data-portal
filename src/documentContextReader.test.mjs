@@ -356,3 +356,38 @@ test('references keep the interface language when the source text language chang
   const lookups=h.requests.filter(route=>route.startsWith('references?'));
   assert(lookups.length>0);assert(lookups.every(route=>new URLSearchParams(route.split('?')[1]).get('lang')==='en'));
 });
+
+
+function overlayResponse({operation='insert',status='placed',reason,span,insertAfter=2,insertBefore=3}={}) {
+  return response(report,sourceDocument(report,['The European Parliament,','19. Main provision:', '(a) final point;', '20. Following provision;']),{
+    requestedWordingLanguage:'en',amendment:{...amendmentSource,variants:[wordingVariant('en',{originalText:operation==='insert'?'':'19. Main provision: (a) final point;',proposedText:operation==='delete'?'deleted':'19a. New proposed provision;'})]},
+    target:{...target,evidence:pinnedEvidence('en')},placement:{operation,status,reason,span,insertAfter,insertBefore,evidence:[]},
+  });
+}
+const overlayRequest={documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}};
+test('placed insertion renders a framed WordingDiff between complete paragraph 19 and paragraph 20, with focus',async t=>{
+  const h=await harness(t,()=>overlayResponse());await h.render({request:overlayRequest,language:'en'});
+  const reader=h.container.querySelector('.document-context-text'),children=[...reader.children],block=reader.querySelector('[data-amendment-block]');
+  assert.equal(children[children.indexOf(block)-1].dataset.sourceParagraph,'2');
+  assert.equal(children[children.indexOf(block)+1].dataset.sourceParagraph,'3');
+  assert.match(block.textContent,/Amendment 40 · proposed change/);assert(block.querySelector('.wording-diff ins'));
+  assert.equal(block.querySelector('del'),null);assert.equal(h.container.querySelectorAll('[data-context-target]').length,1);
+  await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Go to amendment'));
+  assert.equal(h.scrolls.at(-1).element,block);assert.equal(document.activeElement,block);
+});
+test('replacement and deletion substitute the entire span with WordingDiff in source order',async t=>{
+  for(const operation of ['replace','delete'])await t.test(operation,async t=>{
+    const h=await harness(t,()=>overlayResponse({operation,span:{start:1,end:2}}));await h.render({request:overlayRequest,language:'en'});
+    const block=h.container.querySelector('[data-amendment-block]');assert(block.querySelector('.wording-diff del'));
+    assert.equal(h.container.querySelector('[data-source-paragraph="1"]'),null);assert.equal(h.container.querySelector('[data-source-paragraph="2"]'),null);
+    assert.equal(block.nextElementSibling.dataset.sourceParagraph,'3');
+    if(operation==='delete'){assert.equal(block.querySelector('ins'),null);assert(![...block.querySelectorAll('.wording-diff__passage')].some(p=>p.textContent==='deleted'));}
+  });
+});
+test('unresolved placement shows wording above the full unchanged baseline without a false location',async t=>{
+  const h=await harness(t,()=>overlayResponse({operation:'replace',status:'unresolved',reason:'baseline_unavailable'}));await h.render({request:overlayRequest,language:'en'});
+  assert.match(h.container.textContent,/This amendment could not be placed in the text.*not included in this document/s);
+  const reader=h.container.querySelector('.document-context-text');assert(reader.firstElementChild.querySelector('.wording-diff'));
+  assert.equal(reader.querySelectorAll('[data-source-paragraph]').length,4);assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
+  assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
+});

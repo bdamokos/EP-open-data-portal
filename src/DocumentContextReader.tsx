@@ -6,6 +6,7 @@ import {publicationBody} from './publication-body.mjs';
 import {displayVoteTitle} from './memberVotesPresentation.mjs';
 import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from './References';
 import {InsightQuestionReader} from './InsightReaders';
+import {WordingDiff} from './components/WordingDiff';
 import {FindInText} from './TextSearch';
 import './DocumentContextReader.css';
 
@@ -67,7 +68,19 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const pinnedTargetMatches=Boolean(amendmentRequest?.listId&&typeof amendmentRequest.wordingLanguage==='string'&&pinnedVariants.length===1&&pinnedVariants[0].wordingStatus==='available'&&
     evidence?.amendmentId===amendmentRequest.amendmentId&&evidence?.listId===amendmentRequest.listId&&evidence?.wordingLanguage===amendmentRequest.wordingLanguage&&text?.textLanguage===amendmentRequest.wordingLanguage);
   const amendmentMatches=amendmentRequest?.amendmentId&&data?.amendment?.id===amendmentRequest.amendmentId&&(wordingPinned?pinnedTargetMatches:data.amendment.status==='available'&&(!amendmentRequest.listId||data.amendment.variants.length===1&&data.amendment.variants[0].listId===amendmentRequest.listId));
-  const found=Boolean(amendmentMatches&&target?.status==='found'&&indices.length>0&&indices.every(index=>Number.isInteger(index)&&index>=0&&index<allParagraphs.length));
+  const found=Boolean(!data?.placement&&amendmentMatches&&target?.status==='found'&&indices.length>0&&indices.every(index=>Number.isInteger(index)&&index>=0&&index<allParagraphs.length));
+  const placement=data?.placement;
+  const variants=data?.amendment?.id===amendmentRequest?.amendmentId?data?.amendment?.variants.filter(variant=>(!amendmentRequest?.listId||variant.listId===amendmentRequest.listId)&&(!wordingPinned||variant.language===amendmentRequest?.wordingLanguage))||[]:[];
+  const wording=variants.length===1&&variants[0].wordingStatus==='available'?variants[0]:null;
+  const validIndex=(index:unknown):index is number=>Number.isInteger(index)&&Number(index)>=0&&Number(index)<allParagraphs.length;
+  const placed=Boolean(placement?.status==='placed'&&amendmentMatches&&wording&&(
+    placement.operation==='insert'?validIndex(placement.insertAfter)&&placement.insertBefore===placement.insertAfter+1:
+      placement.span&&validIndex(placement.span.start)&&validIndex(placement.span.end)&&placement.span.end>=placement.span.start));
+  const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment '+amendmentRequest?.amendmentId?.split('-AM-')[1]+' proposed change'} lang="en">
+    <h4>Amendment {amendmentRequest?.amendmentId?.split('-AM-')[1]} · proposed change</h4>
+    {wording&&<WordingDiff original={placement?.operation==='insert'?'':wording.originalText} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion"/>}
+  </section>;
+  const placementReason=placement?.reason==='baseline_unavailable'?'The text this amendment changes is not included in this document.':placement?.reason==='different_text_languages'?'The document and amendment wording are in different languages.':placement?.reason==='duplicate_target_label'?'A provision with the proposed label already exists.':placement?.reason==='conflicting_target_evidence'?'The published location and wording do not agree.':'The published evidence does not identify one complete passage.';
   const extracted=publicationBody(allParagraphs,id,text?.textLanguage);
   const exactBody=extracted.exact&&Number.isInteger(extracted.start)&&extracted.start>=0&&extracted.paragraphs.length===allParagraphs.length-extracted.start&&extracted.paragraphs.every((paragraph,index)=>paragraph===allParagraphs[extracted.start+index]);
   const body=exactBody&&(!found||indices.every(index=>index>=extracted.start))?extracted:{paragraphs:allParagraphs,start:0};
@@ -88,12 +101,14 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
       {actual&&<p className="document-context-language">{actual!==language?<>{languageName(language)} unavailable · showing {languageName(actual)}.</>:<>Text language: {languageName(actual)}</>}</p>}
       {hasText&&!loadError&&(text?.stale||text?.refreshError)&&<p className="document-context-notice">{text?.refreshError?'Couldn’t update the document. Showing saved text.':'Showing saved text.'}</p>}
       {hasText?<>
-        {amendmentRequest?.amendmentId&&(found?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to passage</button>{target?.quoteMatches===false&&<p>The published text differs from the amendment’s quotation.</p>}</div>:<p className="document-context-notice">Passage not found. The full document is below.</p>)}
+        {amendmentRequest?.amendmentId&&(placement?(placed?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to amendment</button></div>:<p className="document-context-notice" role="status">This amendment could not be placed in the text. {placementReason} The full document is below.</p>):found?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to passage</button>{target?.quoteMatches===false&&<p>The published text differs from the amendment’s quotation.</p>}</div>:<p className="document-context-notice">Passage not found. The full document is below.</p>)}
         {incomplete&&<p className="document-context-notice">Some content is only available in the original document.</p>}
         <ReferenceScope key={id+':'+language} texts={readerTexts(body.paragraphs,notes,links)} notes={notes} notePrefix={notePrefix} language={interfaceLanguage} textLanguage={actual} renderQuestion={question=><InsightQuestionReader id={question} language={interfaceLanguage} heading="Referenced question" includeAnswers/>}>
-          <div className="document-context-text" ref={reader} lang={actual||''}>{body.paragraphs.map((paragraph,index)=>{
+          <div className="document-context-text" ref={reader} lang={actual||''}>{placement&&!placed&&wording&&amendmentBlock(false)}{body.paragraphs.flatMap((paragraph,index)=>{
             const sourceIndex=body.start+index,selected=Boolean(found&&indices.includes(sourceIndex));
-            return <p key={sourceIndex} data-source-paragraph={sourceIndex} data-context-target={selected?'true':undefined} className={selected?'document-context-target':undefined} tabIndex={selected?-1:undefined}><Paragraph text={paragraph} paragraph={sourceIndex} objects={objects} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} notePrefix={notePrefix}/></p>;
+            if(placed&&placement?.span&&sourceIndex>=placement.span.start&&sourceIndex<=placement.span.end)return sourceIndex===placement.span.start?[amendmentBlock(true)]:[];
+            const paragraphNode=<p key={sourceIndex} data-source-paragraph={sourceIndex} data-context-target={selected?'true':undefined} className={selected?'document-context-target':undefined} tabIndex={selected?-1:undefined}><Paragraph text={paragraph} paragraph={sourceIndex} objects={objects} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} notePrefix={notePrefix}/></p>;
+            return placed&&placement?.operation==='insert'&&sourceIndex===placement.insertAfter?[paragraphNode,amendmentBlock(true)]:[paragraphNode];
           })}<DocumentNotes notes={notes} prefix={notePrefix}/></div>
         </ReferenceScope>
       </>:!state.loading&&!loadError&&<p>Document text unavailable here.</p>}

@@ -1,3 +1,4 @@
+import {wordingText} from './test-support/wordingText.mjs';
 import test from 'node:test';
 import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
@@ -44,7 +45,7 @@ function multilingualContext() {
     request:async endpoint=>{assert.equal(endpoint,'/plenary-documents/'+DOCUMENT);return {payload:{data:[work]},fetchedAt,url:'https://example.test/public-fixture'+endpoint};},
     readText:async(node,language)=>{
       assert.equal(node.identifier,DOCUMENT);reads.push(language);
-      const paragraphs=language==='hu'?['Magyar forrás bevezetése.',variants[1].originalText,'2. A következő magyar bekezdés.']:['English source introduction.',variants[0].originalText,'2. The next English paragraph.'];
+      const paragraphs=language==='hu'?['Az Európai Parlament,','– tekintettel a nyilvános forrásokra,',variants[1].originalText,'2. A következő magyar bekezdés.']:['The European Parliament,','– having regard to public sources,',variants[0].originalText,'2. The next English paragraph.'];
       return {status:'available',textLanguage:language,availableTextLanguages:['en','hu'],paragraphs,notes:[],noteAnchors:[],documentLinks:[],structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'w:body/w:p['+ordinal+']',ordinal,container:'body',containerPath:'w:body',segment:0,complete:true})),sourceUrl:'https://example.test/synthetic-motion_'+language+'.docx',fetchedAt:new Date(fetchedAt).toISOString()};
     },download:async()=>{assert.fail('Indexed test wording never downloads a document.');},
   });
@@ -254,7 +255,8 @@ test('choosing Hungarian wording in one multilingual list opens and restores its
     assert.equal(location.href,context);assert.equal(params().get('lang'),'en','the interface language stays independent');
     assert.equal(params().get('mv-wording-lang'),'hu');assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
     const highlighted=h.container.querySelector('.document-context-reader [data-context-target="true"]');
-    assert.equal(highlighted?.textContent,source.indexed.variants[1].originalText);
+    assert(highlighted?.querySelector('.wording-diff'),'the exact Hungarian source is shown as an in-place diff');
+    assert.equal(wordingText(highlighted,'original'),source.indexed.variants[1].originalText);
     assert.equal(h.container.querySelector('.document-context-text')?.lang,'hu');
     assert.equal(h.container.querySelector('.member-votes').scrollTop,4237);assert.equal(h.container.querySelector('.explorer-profile-body').scrollTop,413);
   };
@@ -287,7 +289,7 @@ test('unknown wording language and conflicting same-language versions do not acq
     assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
     assert.equal(Boolean(h.container.querySelector('.document-context-reader [data-context-target="true"]')),false);
     assert.equal(Boolean(h.container.querySelector('.document-context-text [data-source-paragraph]')),true,'the exact source body stays readable without an assigned passage');
-    assert.equal(h.container.querySelector('.document-context-reader').textContent.includes('Passage not found.'),true);
+    assert.equal(h.container.querySelector('.document-context-reader').textContent.includes('This amendment could not be placed in the text.'),true);
     const resolved=source.results.find(result=>result.document);
     assert.notEqual(resolved.target.status,'found');assert.equal(Object.hasOwn(resolved,'requestedWordingLanguage'),true);
     assert.equal(resolved.requestedWordingLanguage,kind==='unknown'?null:'hu');

@@ -290,3 +290,22 @@ test('stale metadata and text are not given a fresh computed cache lifetime',asy
     const result=await reader.query(query());await reader.query(query());assert.equal(reads,2);assert.equal(stale==='metadata'?result.sources[0].stale:result.document.selectedText.stale,true);
   }
 });
+
+
+test('context returns column operation and complete placement independently of compatibility target',async()=>{
+  const paragraphs=['The European Parliament,','– having regard to sources,','19. Parent provision:','(a) last point;','20. Next provision;'];
+  const text={...summary,paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
+  const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
+  const reader=service({readText:async()=>text,findAmendment:()=>amendment});
+  const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+  assert.equal(result.version,2);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
+  assert.equal(result.target.evidence.wordingLanguage,'en');
+});
+test('context explicitly withholds a proposal baseline and conflicting decision placements',async()=>{
+  const amendment={...indexed,originalText:'Existing text',proposedText:'deleted',targetLabel:'Recital A',targetLabelLanguage:'en',baseline:'other'};
+  const reader=service({findAmendment:()=>amendment});
+  const result=await reader.query(query({amendmentId,listId}),{store:{}});
+  assert.equal(result.placement.operation,'delete');assert.equal(result.placement.reason,'baseline_unavailable');
+  assert.equal(result.placement.status,'unresolved');
+});

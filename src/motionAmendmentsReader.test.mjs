@@ -1,3 +1,4 @@
+import {contextOverlayResponse,assertContextOverlay} from './test-support/contextOverlay.mjs';
 import {wordingText,wordingViewText} from './test-support/wordingText.mjs';
 import test from 'node:test';
 import {API_VERSION} from '../server/api-version.mjs';
@@ -36,7 +37,7 @@ function page({items=[amendment()],document=documentId,scope='member',language='
     snapshots:{amendments:1,text:1},...extra};
 }
 
-async function readerHarness(t,{state={},props={},focusContextChild=false}={}) {
+async function readerHarness(t,{state={},props={},focusContextChild=false,realContext=false}={}) {
   const window=new Window({url:'http://localhost/'}),requests=[];
   const globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -52,11 +53,13 @@ async function readerHarness(t,{state={},props={},focusContextChild=false}={}) {
   t.mock.method(globalThis,'fetch',input=>new Promise(resolve=>requests.push({url:new URL(input,window.location.href),resolve,done:false})));
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {MotionAmendments}=await vite.ssrLoadModule('/src/MotionAmendments.tsx'),{createRoot}=await import('react-dom/client');
+  const DocumentContextReader=realContext?(await vite.ssrLoadModule('/src/DocumentContextReader.tsx')).DocumentContextReader:null;
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   function Host() {
     [currentState,setState]=useState({...initialState,...state});
     return createElement(MotionAmendments,{...currentProps,state:currentState,onStateChange:setState,renderContext:context=>{
       lastContext=context;
+      if(realContext)return createElement(DocumentContextReader,{request:context,language:currentProps.language});
       return createElement('div',{'data-test-context':true},`Context ${context.documentId} ${context.amendmentId??''} ${context.listId??''} ${context.view}`,
         createElement('button',{onClick:context.onBack,autoFocus:focusContextChild},'Back from test context'));
     }});
@@ -938,4 +941,15 @@ test('failed and malformed reader responses settle readiness and retries become 
     await h.updateState({amendmentId:`${documentId}-AM-${number}`});assert.equal(pending(),'true');
     await h.respond(response,{status});assert.equal(pending(),null,'an exact failure is settled while the accepted list remains readable');
   }
+});
+
+
+test('motion Read in context reaches the shared in-place amendment diff',async t=>{
+  const h=await readerHarness(t,{state:{open:true},realContext:true});
+  const item=amendment(13,{originalText:'',proposedText:'19a. New proposed provision;',targetLabel:'Paragraph 19 a (new)'});
+  await h.respond(page({items:[item]}));await h.click(/^Amendment 13/);await h.click('Read in context');
+  const request=h.requests.find(request=>request.url.pathname.includes('document-context/'));assert(request);
+  assert.equal(request.url.searchParams.get('wording-lang'),'en');
+  await h.respond(contextOverlayResponse(documentId,item.id,item.listId),{request});
+  assertContextOverlay(h.container);
 });
