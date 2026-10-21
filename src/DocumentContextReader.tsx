@@ -39,6 +39,7 @@ const documentRoute=(id:string,language:string,request?:DocumentContextRequest)=
 const responseFor=(data:DocumentContextResponse|null,id:string,language:string,request?:DocumentContextRequest)=>data?.documentId===id&&data.requestedLanguage===language&&(request?.wordingLanguage===undefined||data.requestedWordingLanguage===request.wordingLanguage)?data:null;
 
 const placementReasons:Record<string,string>={
+  resolution_extent_uncertain:'The boundaries of this passage could not be established safely.',
   resolution_end_unavailable:'The end of the resolution could not be established safely.',
   baseline_unavailable:'The text this amendment changes is not included in this document.',
   different_text_languages:'The document and amendment wording are in different languages.',
