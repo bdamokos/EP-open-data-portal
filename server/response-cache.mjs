@@ -52,7 +52,7 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
     if(!['mapped','unmapped'].includes(payload?.state)||!payload?.coverage||payload.coverage.limited||payload.coverage.invalidRows||payload.coverage.incompleteEvents)return noStore;
     return publicPolicy(5*60);
   }
-  // Feeds are read every two hours. Nothing is cached before following starts.
+  // Feeds are read daily. Nothing is cached before following starts.
   if(url.pathname==='/api/insights/press-releases')return payload?.coverage?.followingSince?publicPolicy(15*60):noStore;
   // Memberships are assembled after a process restart. Polls must reach the
   // origin until that work finishes instead of retaining its first snapshot.
