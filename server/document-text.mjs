@@ -203,7 +203,7 @@ function paragraphsOf(nodes,context) {
       if(tables&&key==='w:tbl'&&!layout){tables.layout={rows:[],bordered:context.formatting.tableBordered(children(value,'w:tblPr'))};}
       else if(tables&&key==='w:tr'&&layout&&tables.depth===1){const trPr=children(value,'w:trPr');layout.rows.push({gridBefore:Number(property(trPr,'w:gridBefore'))||0,cells:[]});}
       else if(tables&&key==='w:tc'&&layout&&tables.depth===1&&layout.rows.length){const tcPr=children(value,'w:tcPr'),merge=child(tcPr,'w:vMerge');
-        tables.cell={start:result.length,colSpan:Number(property(tcPr,'w:gridSpan'))||1,vMerge:merge?attribute(merge,'val')==='restart'?'restart':'continue':undefined,borderless:context.formatting.cellBorderless(tcPr)};}
+        tables.cell={start:result.length,colSpan:Number(property(tcPr,'w:gridSpan'))||1,vMerge:merge?attribute(merge,'val')==='restart'?'restart':'continue':undefined,borders:context.formatting.cellBorders(tcPr)};}
       const cell=tables&&key==='w:tc'&&tables.depth===1?tables.cell:null;
       if(tables&&key==='w:tbl')tables.depth++;
       visit(value,key==='w:body'?{container:'body',containerPath:context.sourceIndex.get(node).path}:key==='w:tc'?{container:'table-cell',containerPath:context.sourceIndex.get(node).path}:boundary);

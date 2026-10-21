@@ -11,13 +11,13 @@ const number=value=>{const parsed=Number(value);return Number.isFinite(parsed)?p
 const on=node=>node?!['0','false','off'].includes(String(attribute(node,'val')??'true').toLowerCase()):undefined;
 
 export const MARK_KINDS=Object.freeze(['bold','italic','underline','strike','superscript','subscript']);
-const TOGGLES={bold:'w:b',italic:'w:i',strike:'w:strike'};
+// Single and double strike are separate toggles; either displays as strike-through.
+const TOGGLES={bold:'w:b',italic:'w:i',strike:'w:strike',doubleStrike:'w:dstrike'};
 
 // Character properties. Toggles are kept as explicit true/false; absent means inherited.
 function characterProperties(rPr) {
   const result={};
   for(const [name,key] of Object.entries(TOGGLES)){const value=on(child(rPr,key));if(value!==undefined)result[name]=value;}
-  const dstrike=on(child(rPr,'w:dstrike'));if(dstrike)result.strike=true;
   const underline=property(rPr,'w:u');if(underline!==undefined||child(rPr,'w:u'))result.underline=!['none','0','false'].includes(String(underline??'single'));
   const vertical=property(rPr,'w:vertAlign');if(vertical!==undefined)result.vertical=['superscript','subscript'].includes(vertical)?vertical:'baseline';
   const size=number(property(rPr,'w:sz'));if(size>0)result.size=size;
@@ -47,22 +47,31 @@ export function styleFormatting(styleNodes) {
   // Within one basedOn chain the nearest style wins, except toggles: a style that turns one on
   // inverts the state inherited so far and an explicit off leaves it unchanged (ECMA-376 17.7.3).
   // Cycles resolve to no style formatting.
+  // Resolved iteratively from the root, so deep chains cannot exhaust the stack.
   function style(id) {
-    if(!id||!byId.has(id))return {run:{},paragraph:{}};
-    if(resolved.has(id))return resolved.get(id);
-    resolved.set(id,{run:{},paragraph:{}});
-    const own=byId.get(id),parent=style(own.parent);
-    const run={...parent.run,...own.run};
-    for(const name of Object.keys(TOGGLES))run[name]=Boolean(parent.run[name])!==(own.run[name]===true);
-    const value={run,paragraph:{...parent.paragraph,...own.paragraph},borders:own.borders??parent.borders};
-    resolved.set(id,value);return value;
+    const empty={run:{},paragraph:{}};
+    if(!id||!byId.has(id))return empty;
+    const chain=[],seen=new Set();
+    while(id&&byId.has(id)&&!resolved.has(id)) {
+      if(seen.has(id)){for(const member of chain)resolved.set(member,empty);return empty;}
+      seen.add(id);chain.push(id);id=byId.get(id).parent;
+    }
+    let parent=resolved.get(id)||empty;
+    for(const styleId of chain.reverse()) {
+      const own=byId.get(styleId),run={...parent.run,...own.run};
+      for(const name of Object.keys(TOGGLES))run[name]=Boolean(parent.run[name])!==(own.run[name]===true);
+      parent={run,paragraph:{...parent.paragraph,...own.paragraph},borders:own.borders??parent.borders};
+      resolved.set(styleId,parent);
+    }
+    return parent;
   }
   const defaultParagraph=attribute(styles.find(node=>node['w:style']&&attribute(node,'type')==='paragraph'&&['1','true','on'].includes(String(attribute(node,'default')))),'styleId');
   const baseSize=style(defaultParagraph).run.size??defaultRun.size??20;
   // Toggles combine across the paragraph and character style hierarchies; direct run formatting is absolute.
   function run(paragraphStyle,rPr) {
     const paragraph=style(paragraphStyle||defaultParagraph).run,character=style(property(rPr,'w:rStyle')).run,direct=characterProperties(rPr),result={};
-    for(const name of [...Object.keys(TOGGLES)])result[name]=direct[name]??(Boolean(defaultRun[name])!==Boolean(paragraph[name])!==Boolean(character[name]));
+    for(const name of Object.keys(TOGGLES))result[name]=direct[name]??(Boolean(defaultRun[name])!==Boolean(paragraph[name])!==Boolean(character[name]));
+    result.strike||=result.doubleStrike;delete result.doubleStrike;
     result.underline=direct.underline??character.underline??paragraph.underline??defaultRun.underline??false;
     const vertical=direct.vertical??character.vertical??paragraph.vertical??defaultRun.vertical;
     result.superscript=vertical==='superscript';result.subscript=vertical==='subscript';
@@ -77,12 +86,14 @@ export function styleFormatting(styleNodes) {
   function tableBordered(tblPr) {
     return visibleBorders(children(tblPr,'w:tblBorders'))??style(property(tblPr,'w:tblStyle')).borders??false;
   }
-  return {run,paragraph,tableBordered,cellBorderless,baseSize};
+  return {run,paragraph,tableBordered,cellBorders,baseSize};
 }
-// A cell clears its table's rules when all four of its sides are set to none.
-function cellBorderless(tcPr) {
+// A cell draws its own rules when any side is visible, and clears its table's rules when all four sides are none.
+function cellBorders(tcPr) {
   const borders=children(tcPr,'w:tcBorders');
-  return Boolean(borders)&&['top','left','bottom','right'].every(side=>{const node=child(borders,'w:'+side)??child(borders,'w:'+({left:'start',right:'end'}[side]||side));return node&&['none','nil'].includes(String(attribute(node,'val')));});
+  if(!borders)return undefined;
+  if(visibleBorders(borders))return 'visible';
+  return ['top','left','bottom','right'].every(side=>{const node=child(borders,'w:'+side)??child(borders,'w:'+({left:'start',right:'end'}[side]||side));return node&&['none','nil'].includes(String(attribute(node,'val')));})?'none':undefined;
 }
 function visibleBorders(borders) {
   if(!borders)return undefined;
@@ -133,7 +144,8 @@ export function tableLayout(table) {
     }
     rows.push(cells);
   }
-  const bordered=table.bordered&&table.rows.some(row=>row.cells.some(cell=>!cell.borderless));
+  const cells=table.rows.flatMap(row=>row.cells);
+  const bordered=cells.some(cell=>cell.borders==='visible')||table.bordered&&cells.some(cell=>cell.borders!=='none');
   return {rows,...(bordered?{bordered:true}:{})};
 }
 

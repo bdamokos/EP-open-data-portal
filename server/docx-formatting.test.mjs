@@ -79,3 +79,16 @@ test('omitted grid columns before a row become an empty gap cell',()=>{
   assert.deepEqual(result.tables,[{rows:[[{start:0,end:1},{start:1,end:2}],[{start:2,end:2,gap:true},{start:2,end:3}]]}]);
   assert.equal(documentFormatting(result).formatStatus,'extracted');
 });
+
+test('double strike resolves as its own toggle, so a direct off clears an inherited one',()=>{
+  const struck=`<w:styles xmlns:w="urn:word"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"/><w:style w:type="paragraph" w:styleId="Struck"><w:rPr><w:dstrike/></w:rPr></w:style></w:styles>`;
+  const xml=doc(`<w:p><w:pPr><w:pStyle w:val="Struck"/></w:pPr>${run('gone ')}${run('kept','<w:dstrike w:val="0"/>')}</w:p><w:p>${run('single','<w:strike/>')}</w:p>`);
+  assert.deepEqual(docxContent(zip(xml,{'word/styles.xml':struck})).paragraphFormats,[{marks:[{start:0,end:5,kind:'strike'}]},{marks:[{start:0,end:6,kind:'strike'}]}]);
+});
+
+test('cell borders draw rules without table borders, and cleared cells keep a layout table unruled',()=>{
+  const sides=value=>['top','left','bottom','right'].map(side=>`<w:${side} w:val="${value}"/>`).join('');
+  const cell=(text,borders)=>`<w:tc><w:tcPr><w:tcBorders>${borders}</w:tcBorders></w:tcPr><w:p>${run(text)}</w:p></w:tc>`;
+  const xml=doc(`<w:tbl><w:tr>${cell('Ruled',sides('single'))}</w:tr></w:tbl><w:tbl><w:tr>${cell('Plain',sides('nil'))}</w:tr></w:tbl>`);
+  assert.deepEqual(docxContent(zip(xml,{'word/styles.xml':styles})).tables,[{rows:[[{start:0,end:1}]],bordered:true},{rows:[[{start:1,end:2}]]}]);
+});
