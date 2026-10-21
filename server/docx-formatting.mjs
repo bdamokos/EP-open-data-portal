@@ -65,11 +65,13 @@ export function styleFormatting(styleNodes) {
     }
     return parent;
   }
-  const defaultParagraph=attribute(styles.find(node=>node['w:style']&&attribute(node,'type')==='paragraph'&&['1','true','on'].includes(String(attribute(node,'default')))),'styleId');
+  const defaultStyle=type=>attribute(styles.find(node=>node['w:style']&&attribute(node,'type')===type&&['1','true','on'].includes(String(attribute(node,'default')))),'styleId');
+  // A run or paragraph that names no style uses the document's default style of its type.
+  const defaultParagraph=defaultStyle('paragraph'),defaultCharacter=defaultStyle('character');
   const baseSize=style(defaultParagraph).run.size??defaultRun.size??20;
   // Toggles combine across the paragraph and character style hierarchies; direct run formatting is absolute.
   function run(paragraphStyle,rPr) {
-    const paragraph=style(paragraphStyle||defaultParagraph).run,character=style(property(rPr,'w:rStyle')).run,direct=characterProperties(rPr),result={};
+    const paragraph=style(paragraphStyle||defaultParagraph).run,character=style(property(rPr,'w:rStyle')||defaultCharacter).run,direct=characterProperties(rPr),result={};
     for(const name of Object.keys(TOGGLES))result[name]=direct[name]??(Boolean(defaultRun[name])!==Boolean(paragraph[name])!==Boolean(character[name]));
     result.strike||=result.doubleStrike;delete result.doubleStrike;
     result.underline=direct.underline??character.underline??paragraph.underline??defaultRun.underline??false;

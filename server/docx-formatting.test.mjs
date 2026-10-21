@@ -92,3 +92,13 @@ test('cell borders draw rules without table borders, and cleared cells keep a la
   const xml=doc(`<w:tbl><w:tr>${cell('Ruled',sides('single'))}</w:tr></w:tbl><w:tbl><w:tr>${cell('Plain',sides('nil'))}</w:tr></w:tbl>`);
   assert.deepEqual(docxContent(zip(xml,{'word/styles.xml':styles})).tables,[{rows:[[{start:0,end:1}]],bordered:true},{rows:[[{start:1,end:2}]]}]);
 });
+
+test('an unstyled run uses the default character style, and direct off clears only its own toggle',()=>{
+  const defaults=`<w:styles xmlns:w="urn:word"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"/><w:style w:type="character" w:default="1" w:styleId="Emphasis"><w:rPr><w:b/><w:i/><w:u w:val="single"/></w:rPr></w:style><w:style w:type="character" w:styleId="Plain"/></w:styles>`;
+  const xml=doc(`<w:p>${run('Body')}</w:p><w:p>${run('Less','<w:b w:val="0"/>')}</w:p><w:p>${run('None','<w:rStyle w:val="Plain"/>')}</w:p>`);
+  assert.deepEqual(docxContent(zip(xml,{'word/styles.xml':defaults})).paragraphFormats,[
+    {marks:[{start:0,end:4,kind:'bold'},{start:0,end:4,kind:'italic'},{start:0,end:4,kind:'underline'}]},
+    {marks:[{start:0,end:4,kind:'italic'},{start:0,end:4,kind:'underline'}]},
+    {},
+  ]);
+});
