@@ -21,7 +21,7 @@ export {documentFormatting} from './docx-formatting.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
 const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500});
-const memory=new Map(),pending=new Map(),failures=new Map();
+const memory=new Map(),pending=new Map(),failures=new Map(),reformatted=new Set();
 // Published DOCX files carry no HTTP validators. Recent texts are re-read weekly;
 // a text retrieved 60 or more days after publication is treated as settled, and a
 // changed size or issue time in the API's file listing marks a re-publication.
@@ -340,8 +340,8 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const failure=failures.get(key);
   const present=record=>({...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),...documentStructure(record),...documentFormatting(record),
     extractionVersion:record.extractionVersion,sourceVersion:record.source||null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
-  // Texts saved before formatting was recorded stay readable while a background read adds it.
-  if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),reformat=saved.formattingVersion!==FORMATTING_VERSION;if((stale||reformat) && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
+  // Texts saved before formatting was recorded stay readable while one background read per process adds it.
+  if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),reformat=saved.formattingVersion!==FORMATTING_VERSION&&!reformatted.has(key);if(reformat){if(reformatted.size>=5000)reformatted.clear();reformatted.add(key);}if((stale||reformat) && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
   try {const record=await waitForRequest(refresh('interactive'));return present(record);}
   catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString()};}
