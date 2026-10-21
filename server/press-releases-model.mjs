@@ -20,7 +20,13 @@ export function decodeHtml(value) {
   });
 }
 const plain=html=>decodeHtml(String(html).replace(/<[^>]*>/g,' ')).replace(/\s+/g,' ').trim();
-const attribute=(tag,name)=>{const match=tag.match(new RegExp(`\\s${name}\\s*=\\s*"([^"]*)"`,'i'));return match?decodeHtml(match[1]).trim():null;};
+// Attribute values may be double-quoted, single-quoted or unquoted.
+function attribute(tag,name) {
+  for(const match of String(tag).replace(/^<[^\s>]*/,'').matchAll(/([^\s=/>"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g))
+    if(match[1].toLowerCase()===name)return decodeHtml(match[2]??match[3]??match[4]??'').trim();
+  return null;
+}
+const tags=(html,name)=>[...String(html).matchAll(new RegExp(`<${name}\\b[^>]*>`,'gi'))].map(match=>match[0]);
 function websiteUrl(value) {
   let url;
   try{url=new URL(value,WEBSITE);}catch{return null;}
@@ -54,11 +60,12 @@ export function parsePressFeed(xml) {
   });
 }
 
-function robots(html) {
-  const tag=[...html.matchAll(/<meta\s[^>]*>/gi)].map(match=>match[0]).find(tag=>/\sname\s*=\s*"robots"/i.test(tag));
-  const directives=tag?String(attribute(tag,'content')||'').toLowerCase().split(',').map(value=>value.trim()).filter(Boolean):[];
-  // A page Parliament keeps out of indexes, or whose links it asks robots not to
-  // follow, is not presented or used as a link.
+// Every robots meta tag and an X-Robots-Tag header apply; directives are
+// comma- or space-separated. A page Parliament keeps out of indexes, or whose
+// links it asks robots not to follow, is not presented or used as a link.
+export function robots(html,header=null) {
+  const values=[...tags(html,'meta').filter(tag=>attribute(tag,'name')?.toLowerCase()==='robots').map(tag=>attribute(tag,'content')||''),...(header?[header]:[])];
+  const directives=[...new Set(values.flatMap(value=>value.toLowerCase().split(/[\s,]+/)).filter(Boolean))];
   return {directives,listed:!directives.some(value=>['noindex','nofollow','none'].includes(value))};
 }
 // OEIL and single-subject Doceo links in the “Further information” list.
@@ -88,14 +95,14 @@ export function furtherInformation(html) {
   }
   return links;
 }
-export function parsePressRelease(html,id) {
+export function parsePressRelease(html,id,{robotsHeader=null}={}) {
   if(typeof html!=='string'||Buffer.byteLength(html)>MAX_PAGE_BYTES||/<!ENTITY/i.test(html))throw new Error('Unreadable Parliament page.');
-  const canonical=[...html.matchAll(/<link\s[^>]*>/gi)].map(match=>match[0]).find(tag=>/\srel\s*=\s*"canonical"/i.test(tag));
+  const canonical=tags(html,'link').find(tag=>attribute(tag,'rel')?.toLowerCase()==='canonical');
   if(pressReleaseIdentity(canonical?attribute(canonical,'href')||'':'')?.id!==id)throw new Error('The page does not match the announced press release.');
   const heading=html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1],name=heading?.match(/<span class="ep_name">([\s\S]*?)<\/span>/i)?.[1];
-  const ogTitle=[...html.matchAll(/<meta\s[^>]*>/gi)].map(match=>match[0]).find(tag=>/\sproperty\s*=\s*"og:title"/i.test(tag));
+  const ogTitle=tags(html,'meta').find(tag=>attribute(tag,'property')==='og:title');
   const title=plain(name??heading??'')||String(attribute(ogTitle||'','content')||'').split(' | ')[0].trim()||null;
-  const time=html.match(/<time\s[^>]*itemprop\s*=\s*"datePublished"[^>]*>/i)?.[0],local=time&&attribute(time,'datetime');
+  const time=tags(html,'time').find(tag=>attribute(tag,'itemprop')==='datePublished'),local=time&&attribute(time,'datetime');
   const links=furtherInformation(html);
-  return {id,title,publishedLocal:/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(local||'')?local:null,robots:robots(html),furtherInformation:links!==null,links:links||[]};
+  return {id,title,publishedLocal:/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(local||'')?local:null,robots:robots(html,robotsHeader),furtherInformation:links!==null,links:links||[]};
 }

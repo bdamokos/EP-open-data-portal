@@ -1,10 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
+import {existsSync,mkdtempSync,readFileSync,rmSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {PRESS_FEEDS,doceoDocument,furtherInformation,parsePressFeed,parsePressRelease,pressReleaseUrl} from './press-releases-model.mjs';
-import {PressFollower,PressMentions,PressStore,brusselsInstant,pressMentionsQuery} from './press-releases.mjs';
+import {PRESS_FEEDS,doceoDocument,furtherInformation,parsePressFeed,parsePressRelease,pressReleaseUrl,robots} from './press-releases-model.mjs';
+import {PressFollower,PressMentions,PressStore,brusselsInstant,leaseFencedWrite,pressMentionsQuery} from './press-releases.mjs';
 import {parseProcedurePage} from './official-context.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
 import {ActivityStore} from './activity-index-store.mjs';
@@ -49,6 +49,10 @@ test('only the Further information list links a release to procedures, summaries
     'https://example.test/oeil/en/procedure-file?reference=2025/0001(COD)','https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=not-a-reference',
   ])).map(link=>link.kind+':'+link.value),['procedure:2025/0407(COD)','procedure:2023/0123(COD)','summary:42','document:A-10-2026-0276','document:TA-10-2026-0241']);
   assert.equal(furtherInformation('<p>No list</p>'),null);
+  for(const [html,header] of [["<meta name='robots' content='noindex'>",null],['<meta name=robots content="index nofollow">',null],['<meta name="robots" content="index, follow"><meta content="noindex" name="ROBOTS">',null],['<meta name="robots" content="index, follow">','noindex']])
+    assert.equal(robots(html,header).listed,false,html+' '+header);
+  assert.equal(robots('<meta name="robotsx" content="noindex"><meta name="robots" content="index, follow">').listed,true);
+  assert.equal(parsePressRelease(fixture.pages['20261016IPR48226'],'20261016IPR48226',{robotsHeader:'none'}).robots.listed,false,'an X-Robots-Tag header applies');
   assert.equal(doceoDocument('https://www.europarl.europa.eu/doceo/document/ENVI-AM-792188_EN.pdf'),'ENVI-AM-792188');
   assert.equal(doceoDocument('https://www.europarl.europa.eu/doceo/document/OJQ-10-2026-10-22_EN.html'),null,'agendas cover many files');
 });
@@ -80,7 +84,7 @@ function follower({pages={},now}) {
   return {dir,store,calls,responses,follower:new PressFollower(store,{clock:()=>now.value,fetchText}),close(){store.close();rmSync(dir,{recursive:true,force:true});}};
 }
 // The example release left the feeds before following began; it stands for one announced earlier.
-const announceEts=(store,now)=>store.discover({id:'20261016IPR48237',url:pressReleaseUrl('20261016IPR48237'),title:null,publishedAt:null,committees:['ENVI']},{feed:'press-releases-committees',now});
+const announceEts=(store,now)=>{store.initialize();store.transaction(()=>store.discover({id:'20261016IPR48237',url:pressReleaseUrl('20261016IPR48237'),title:null,publishedAt:null,committees:['ENVI']},{feed:'press-releases-committees',now}));};
 
 test('following reads each announced release once, withholds unlisted pages and reports partial coverage',async()=>{
   const now={value:Date.parse('2026-10-20T12:00:00Z')},setup=follower({now});
@@ -136,21 +140,79 @@ test('summary and document links match only through the dossier’s own procedur
 
 test('a lost writer lease stops press writes',async()=>{
   const dir=temp(),store=new PressStore(dir);
-  const press=new PressFollower(store,{clock:()=>Date.parse('2026-10-20T12:00:00Z'),fetchText:async()=>rss(fixture.feeds['press-releases']),assertWriter:()=>{throw new Error('Activity-index writer lease was lost.');}});
+  const press=new PressFollower(store,{clock:()=>Date.parse('2026-10-20T12:00:00Z'),fetchText:async()=>rss(fixture.feeds['press-releases']),write:()=>{throw new Error('Activity-index writer lease was lost.');}});
   try {
     await assert.rejects(press.run(),/lease was lost/);
-    assert.equal(store.get('follow'),null);assert.equal(store.release('20261016IPR48238'),undefined);
+    assert.equal(store.get('follow'),null);assert.equal(store.release('20261016IPR48238'),null);
+    assert.equal(existsSync(store.filename),false,'nothing is created without the writer');
   } finally {store.close();rmSync(dir,{recursive:true,force:true});}
 });
 
 test('press following runs only for the activity-index lease holder',async()=>{
   const dir=temp(),instant=()=>Date.parse('2026-10-13T14:00:00Z'),store=new ActivityStore(dir,{clock:instant});let runs=0,other;
   const fetchRecord=async(endpoint,params)=>({payload:{data:params.offset===0?[{id:'person/257043',label:'MEP'}]:[]},fetchedAt:new Date(instant()).toISOString()});
-  const press={due:()=>true,run:async()=>{store.assertWriter();runs++;return 0;}};
+  let admitted=0;
+  const press={due:()=>true,run:async({admit})=>{store.assertWriter();runs++;while(admit())admitted++;}};
   try {
-    const worker=new ActivityWorker(store,{clock:instant,fetchRecord,budget:1,press});
+    const worker=new ActivityWorker(store,{clock:instant,fetchRecord,budget:3,press});
     await worker.run();assert.equal(runs,1);
+    assert.equal(admitted,3,'press requests draw on the worker request budget');
     other=new ActivityStore(dir,{clock:instant});assert(other.acquire());
     await worker.run();assert.equal(runs,1,'another writer holds the lease');
   } finally {other?.close();store.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('press writes are fenced by the activity-index lease and readers never create the store',async()=>{
+  const dir=temp();let now=Date.parse('2026-10-20T12:00:00Z');
+  const activity=new ActivityStore(dir,{clock:()=>now}),press=new PressStore(dir);let other;
+  try {
+    assert.equal(press.get('follow'),null);assert.deepEqual(press.mentions('2026/0196(BUD)'),{items:[],total:0});assert.equal(press.due(now,6).length,0);
+    assert.equal(existsSync(press.filename),false,'reads create nothing');
+    assert(activity.acquire());
+    other=new ActivityStore(dir,{clock:()=>now});other.db.exec('PRAGMA busy_timeout=0');
+    const write=leaseFencedWrite(activity,press);
+    write(()=>{
+      assert.throws(()=>other.acquire(),/locked|busy/i,'no takeover between the lease check and the press commit');
+      press.set('follow',{since:'2026-10-20T12:00:00.000Z',feeds:{}});
+    });
+    assert.equal(press.get('follow').since,'2026-10-20T12:00:00.000Z');
+    now+=91_000;assert(other.acquire(),'an expired lease can be taken over');
+    assert.throws(()=>write(()=>press.set('follow',{since:'late',feeds:{}})),/lease was lost/);
+    assert.equal(press.get('follow').since,'2026-10-20T12:00:00.000Z','the former owner cannot write');
+  } finally {other?.close();press.close();activity.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('an exhausted request budget stops following and leaves the poll due',async()=>{
+  const now={value:Date.parse('2026-10-20T12:00:00Z')},setup=follower({now});
+  try {
+    let left=2;
+    await setup.follower.run({admit:()=>left-->0});
+    assert.deepEqual(setup.calls,PRESS_FEEDS.slice(0,2).map(feed=>feed.url));
+    assert.equal(setup.store.get('follow').nextPollAt,undefined,'an incomplete poll stays due');
+    assert.equal(setup.follower.due(),true);
+    await setup.follower.run();
+    assert.equal(setup.store.get('follow').nextPollAt,now.value+2*60*60_000);
+  } finally {setup.close();}
+});
+
+test('stale procedure files stay visible and uncached, and totals are exact',async()=>{
+  const dir=temp(),store=new PressStore(dir),now=Date.parse('2026-10-20T12:00:00Z');
+  try {
+    store.initialize();
+    store.transaction(()=>{
+      for(let index=0;index<201;index++) {
+        const id='20261016IPR'+String(index).padStart(5,'0');
+        store.discover({id,url:pressReleaseUrl(id),title:'Release '+index,publishedAt:null,committees:[]},{feed:'press-releases',now});
+        store.record(id,{id,url:pressReleaseUrl(id),title:'Release '+index,publishedAt:new Date(now+index*60_000).toISOString(),feeds:['press-releases'],listed:true},{now,links:[{kind:'procedure',value:'2026/0196(BUD)',label:'Procedure file'}]});
+      }
+      store.set('follow',{since:'2026-10-20T12:00:00.000Z',feeds:{}});
+    });
+    const stale={get:async url=>({url,fetchedAt:'2026-10-19T11:00:00.000Z',html:'<main><h2 class="es_title-h1">2026/0196(BUD)</h2><h2>Budget</h2></main>',viewCache:{stale:true,refreshInProgress:false,refreshError:'The official source is temporarily unavailable.'}})};
+    const result=await new PressMentions(store,stale).query(pressMentionsQuery(new URLSearchParams({reference:'2026/0196(BUD)'})));
+    assert.equal(result.total,201,'the total counts every matching release');
+    assert.deepEqual(result.items.map(item=>item.title),['Release 200','Release 199','Release 198','Release 197','Release 196']);
+    assert.deepEqual(result.coverage.procedureLinks.source,{url:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2026%2F0196%28BUD%29',fetchedAt:'2026-10-19T11:00:00.000Z',stale:true,refreshInProgress:false,refreshError:'The official source is temporarily unavailable.'});
+    const request={method:'GET',headers:{}},route=new URL('https://example.test/api/insights/press-releases?reference=2026%2F0196(BUD)&lang=en');
+    assert.equal(apiCachePolicy(request,route,result).cdnCacheControl,'no-store','a stale procedure file is not cached as a healthy answer');
+  } finally {store.close();rmSync(dir,{recursive:true,force:true});}
 });

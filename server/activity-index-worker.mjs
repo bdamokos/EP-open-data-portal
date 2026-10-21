@@ -19,7 +19,7 @@ import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade} fr
 import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
 import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
-import {PressFollower,PressStore} from './press-releases.mjs';
+import {PressFollower,PressStore,leaseFencedWrite} from './press-releases.mjs';
 import {scheduleMutable,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart} from './refresh-policy.mjs';
 
 const DAY = 24*60*60_000;
@@ -548,9 +548,10 @@ export class ActivityWorker {
     const iteration=loopTimer('activity');
     try {await this.runIteration();}finally {iteration({requests:this.requests||0});}
   }
-  // Press following shares the writer lease but none of the index work.
+  // Press following shares the writer lease, request budget and deadline but none of the index work.
   async followPress() {
-    try {this.requests+=await this.press.run({signal:this.controller.signal});}
+    const admit=()=>{if(this.stopped||this.requests>=this.budget||this.monotonic()>=this.runDeadline)return false;this.requests++;return true;};
+    try {await this.press.run({signal:this.controller.signal,admit});}
     catch(error) {if(!this.stopped)console.error('[press-releases]',error.message);}
   }
   async runIteration() {
@@ -664,7 +665,7 @@ export function activityIndex() {
     diskLimit:integerFromEnvironment('ACTIVITY_INDEX_MAX_DISK_MIB',8192,64,131072)*1024*1024,
   };
   const store=new ActivityStore(directory),press=new PressStore(directory);
-  const worker=new ActivityWorker(store,{...options,press:new PressFollower(press,{assertWriter:()=>store.assertWriter()})});
+  const worker=new ActivityWorker(store,{...options,press:new PressFollower(press,{write:leaseFencedWrite(store,press)})});
   service={store,worker,press};return service;
 }
 export function activityIndexStatus(){return activityIndex().store.status();}
