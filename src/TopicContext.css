@@ -48,9 +48,9 @@
 .insight-topic-trends {padding:20px 0;}
 .insight-topic-trends>.insight-section-heading {margin-bottom:20px;}
 .insight-topic-trends label {display:grid;gap:8px;font-size:15px;}
-.insight-topic-trends input {min-height:44px;max-width:100%;min-width:0;padding:8px 12px;font:inherit;background:var(--surface);color:var(--ink);border:0;border-radius:4px;}
+.insight-topic-trends input {min-height:44px;max-width:100%;min-width:0;padding:8px 12px;font:inherit;background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--radius-sm);}
 .insight-trends-layout {display:grid;grid-template-columns:minmax(220px,30%) minmax(0,1fr);gap:40px;margin-top:28px;align-items:start;}
-.insight-trend-picker input {min-width:0;width:100%;padding:12px;background:var(--surface);color:var(--ink);border:0;border-radius:4px;min-height:44px;}
+.insight-trend-picker input {min-width:0;width:100%;padding:12px;background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--radius-sm);min-height:44px;}
 .insight-trend-list {display:grid;gap:5px;margin-top:16px;}
 .insight-trend-list button {display:grid;grid-template-columns:minmax(0,1fr) 64px 32px;align-items:center;gap:10px;padding:12px 10px;min-width:0;border:0;border-bottom:1px solid var(--line);}
 .insight-trend-list button span {font-size:16px;}

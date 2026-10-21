@@ -144,7 +144,12 @@
 }
 
 .explorer-insights [tabindex="-1"]:focus { outline:3px solid var(--focus-outline-color,var(--focus)); outline-offset:4px; }
-.explorer-insights .insight-country-map path:focus-visible { outline:none; stroke:var(--focus); stroke-width:3px; }
+.explorer-insights .insight-country-map path:focus-visible { outline:none; }
+/* Countries keep a neutral edge; the hovered or focused one gets a two-tone ring that reads on every fill. */
+.insight-country-map path[data-country] { stroke:var(--line-strong); }
+.insight-map-highlight path { fill:none; pointer-events:none; vector-effect:non-scaling-stroke; stroke-linejoin:round; }
+.insight-map-highlight path:first-child { stroke:var(--surface); stroke-width:6px; }
+.insight-map-highlight path:last-child { stroke:var(--ink); stroke-width:2.5px; }
 
 @media(max-width:680px) { .explorer-insights .insight-topic-trends>.insight-section-heading>button { order:2; flex-basis:100%; } }
 

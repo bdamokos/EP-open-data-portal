@@ -120,3 +120,20 @@ test('an unknown stored colour scheme falls back to the system setting',async t=
   schemeWindow(t,'sepia');
   assert.equal(readColourScheme(),'system');
 });
+
+test('the first-paint script applies a saved override exactly like the app, before the app module loads',async t=>{
+  const {COLOUR_SCHEME_KEY,applyColourScheme}=await import('./colourScheme.mjs');
+  const [script,html]=await Promise.all([readFile(new URL('../public/assets/colour-scheme.js',import.meta.url),'utf8'),readFile(new URL('../index.html',import.meta.url),'utf8')]);
+  assert(html.indexOf('assets/colour-scheme.js')>-1&&html.indexOf('assets/colour-scheme.js')<html.indexOf('type="module"'),'the override script runs before the app module');
+  assert(!/<script[^>]*colour-scheme[^>]*(?:async|defer|type="module")/.test(html),'the override script blocks rendering');
+  for(const stored of ['light','dark','sepia',null]) {
+    const bootstrap=new Window({url:'http://localhost/'}),app=new Window({url:'http://localhost/'});
+    t.after(()=>{bootstrap.happyDOM.close();app.happyDOM.close();});
+    for(const window of [bootstrap,app])window.document.head.innerHTML='<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f5f1"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141618">';
+    if(stored)bootstrap.localStorage.setItem(COLOUR_SCHEME_KEY,stored);
+    new bootstrap.Function(script)();
+    applyColourScheme(stored==='light'||stored==='dark'?stored:'system',app.document);
+    const state=window=>[window.document.documentElement.dataset.theme,[...window.document.querySelectorAll('meta[name="theme-color"]')].map(meta=>meta.getAttribute('content'))];
+    assert.deepEqual(state(bootstrap),state(app),`stored ${stored}`);
+  }
+});

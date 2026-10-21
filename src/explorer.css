@@ -61,8 +61,8 @@
 .explorer-section-title { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .explorer-section-title h2 { margin: 0; }
 .explorer-section-title > span { font-size: 14px; }
-.explorer-speech { background: var(--surface); margin-bottom: 14px; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); overflow: hidden; }
-.explorer .explorer-speech-toggle { display: flex; flex-direction: column; align-items: stretch; gap: 7px; width: 100%; padding: 18px; background: var(--surface); color: var(--ink); border: 0; border-radius: 0; text-align: left; }
+.explorer-speech { background: var(--surface); margin-bottom: 14px; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); }
+.explorer .explorer-speech-toggle { display: flex; flex-direction: column; align-items: stretch; gap: 7px; width: 100%; padding: 18px; background: var(--surface); color: var(--ink); border: 0; border-radius: calc(var(--radius-sm) - 1px); text-align: left; }
 .explorer-speech-toggle > span { font-size: 15px; line-height: 1.4; }
 .explorer-speech-toggle strong { font-size: 20px; line-height: 1.3; font-weight: 600; }
 .explorer-speech-toggle small { display: flex; justify-content: space-between; gap: 10px; }

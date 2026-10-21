@@ -38,7 +38,7 @@
 .motion-amendments__detail>.motion-amendments__target{font-size:16px;margin-bottom:12px}
 .motion-amendments__proposers{font-size:14px}
 .motion-amendments__version{display:flex;flex-direction:column;gap:6px;max-width:100%;font-size:13px;margin-bottom:14px}
-.motion-amendments__version select{width:100%;max-width:100%;padding:9px 10px;border:1px solid var(--motion-line);border-radius:3px;background:var(--surface);color:var(--ink);font-size:14px}
+.motion-amendments__version select{width:100%;max-width:100%;padding:9px 10px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-size:14px}
 .motion-amendments__wording-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
 .motion-amendments__wording{padding:16px;background:var(--surface);border:1px solid var(--motion-line);min-width:0}
 .motion-amendments__wording--proposed{border-top:3px solid var(--line-strong);padding-top:14px}
