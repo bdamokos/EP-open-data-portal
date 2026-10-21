@@ -436,6 +436,7 @@ test('committee body extraction retains an amendment placed before its body star
 });
 
 for(const [reason,copy] of Object.entries({
+  resolution_end_unavailable:'The end of the resolution could not be established safely.',
   insertion_reference_unavailable:'The insertion location is not specified clearly enough.',
   relative_target_not_found:'The preceding provision could not be found.',
   multiple_published_targets:'The published location matches more than one passage.',
@@ -453,4 +454,44 @@ for(const [reason,copy] of Object.entries({
   assert(h.container.querySelector('[role="status"]').textContent.includes(copy));
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   assert.equal(h.container.querySelectorAll('[data-source-paragraph]').length,4);
+});
+
+
+for(const operation of ['replace','delete'])test(`${operation} preserves unchanged and deleted source links and note anchors in both diff modes`,async t=>{
+  const data=overlayResponse({operation,span:{start:1,end:2}}),text=data.document.selectedText;
+  text.paragraphs=['The European Parliament,','19. Keep linked words and remove cited words;', 'continued text;', '20. Following provision;'];
+  text.notes=[{id:'1',label:'1',text:'Source footnote remains available.',links:[]},{id:'2',label:'2',text:'Deleted footnote remains available.',links:[]}];
+  text.documentLinks=[{paragraph:1,start:9,end:21,url:'https://example.org/unchanged'},{paragraph:1,start:33,end:44,url:'https://example.org/deleted'}];
+  text.noteAnchors=[{paragraph:1,offset:21,note:'1',label:'1'},{paragraph:1,offset:44,note:'2',label:'2'},{paragraph:2,offset:15,note:'1',label:'1'}];
+  const variant=data.amendment.variants[0];variant.originalText=text.paragraphs.slice(1,3).join(' ');variant.proposedText=operation==='delete'?'deleted':'19. Keep linked words and add different text; continued text;';
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');
+  const verify=()=>{
+    assert.equal(block.querySelectorAll('a[href="https://example.org/unchanged"]').length,1);
+    assert.equal(block.querySelectorAll('a[href="https://example.org/deleted"]').length,1);
+    assert.equal(block.querySelectorAll('sup').length,3);
+    assert(block.querySelector('del a[href="https://example.org/deleted"]'));
+    assert(block.querySelector('del sup'));
+    assert.equal(block.querySelector('ins a, ins sup'),null);
+    for(const mark of block.querySelectorAll('sup a'))assert(h.container.querySelector(mark.getAttribute('href')),'note destination retained');
+    assert(h.container.querySelector('.legal-notes').textContent.includes('Source footnote remains available.'));
+    assert(!block.textContent.includes("Footnotes and links are shown in the full document's original"));
+  };
+  await h.click([...block.querySelectorAll('button')].find(button=>button.textContent==='Changes'));verify();
+  await h.click([...block.querySelectorAll('button')].find(button=>button.textContent==='Side by side'));verify();
+  const proposed=block.querySelectorAll('.wording-diff__columns section')[1];assert.equal(proposed.querySelector('sup,a'),null);
+});
+test('whitespace-normalized original offsets preserve source annotations',async t=>{
+  const data=overlayResponse({operation:'replace',span:{start:1,end:2}}),text=data.document.selectedText;
+  text.documentLinks=[{paragraph:1,start:4,end:8,url:'https://example.org/main'}];text.noteAnchors=[{paragraph:2,offset:16,note:'1',label:'1'}];text.notes=[{id:'1',label:'1',text:'Source note.',links:[]}];
+  data.amendment.variants[0].originalText='  19.  Main provision:\n (a) final point;  ';
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.querySelector('a[href="https://example.org/main"]').textContent,'Main');assert.equal(block.querySelectorAll('sup').length,1);
+});
+test('non-equivalent amendment original shows annotation fallback while retaining the notes list',async t=>{
+  const data=overlayResponse({operation:'replace',span:{start:1,end:2}}),text=data.document.selectedText;
+  text.documentLinks=[{paragraph:1,start:4,end:8,url:'https://example.org/main'}];text.noteAnchors=[{paragraph:2,offset:16,note:'1',label:'1'}];text.notes=[{id:'1',label:'1',text:'Source note.',links:[]}];
+  data.amendment.variants[0].originalText='Main provision with changed wording.';
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert(block.textContent.includes("Footnotes and links are shown in the full document's original"));assert.equal(block.querySelector('sup,a'),null);assert(h.container.querySelector('.legal-notes').textContent.includes('Source note.'));
 });

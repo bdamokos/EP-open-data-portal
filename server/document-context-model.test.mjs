@@ -381,3 +381,79 @@ for(const [kind,base,labels,next] of [
   assert.equal(text.paragraphs[result.insertBefore],next);
   assert.equal(result.evidence[0].anchor,base+'aa');
 });
+
+
+test('dash items, colon continuations and uppercase list text stay under paragraph 19', () => {
+  const text=motion(['19. Calls for:', '– first item;', 'CONTINUING LIST', '– second item;', 'a continuation:', 'further details;', '20. Next;']);
+  const units=segmentMotionUnits(text,'en'), unit=units.find(unit=>unit.label==='19');
+  assert.equal(unit.end,8);assert.equal(units.filter(unit=>unit.kind==='citation').length,1);
+  assert(!units.some(unit=>unit.kind==='heading'));
+  const result=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
+  assert.equal(result.status,'placed');assert.equal(result.insertBefore,9);
+});
+test('a colon-ended uppercase continuation never becomes a heading',()=>{
+  const text=motion(['19. First;', 'FURTHER ACTION:', '– item;', '20. Next;']);
+  assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,5);
+});
+test('table labels cannot create a body identity or retain the preceding scope',()=>{
+  const text=motion(['19. Main:', '99. Quoted table text;', '(a) body point;', '20. Next;']);
+  Object.assign(text.paragraphSources[4],{container:'table-cell',containerPath:'table/cell',segment:1});
+  const units=segmentMotionUnits(text,'en');
+  assert(!units.some(unit=>unit.label==='99'||unit.kind==='point'));
+  for(const number of [19,99])assert.equal(placement(text,{originalText:'(a) body point;',proposedText:'Changed;',targetLabel:`Paragraph ${number} point a`}).status,'unresolved');
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'source_passage_incomplete');
+});
+for(const change of ['ordinal','segment','containerPath','complete'])test(`source ${change} break resets parent scope and prevents orphan point placement`,()=>{
+  const text=motion(['19. Main:', 'continuation;', '(a) body point;', '20. Next;']);
+  if(change==='ordinal')for(let i=4;i<text.paragraphSources.length;i++)text.paragraphSources[i].ordinal++;
+  else text.paragraphSources[4][change]=change==='complete'?false:'different';
+  assert(!segmentMotionUnits(text,'en').some(unit=>unit.kind==='point'));
+  assert.equal(placement(text,{originalText:'(a) body point;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).status,'unresolved');
+});
+test('a locally complete child cannot be addressed when its ancestor subtree breaks later',()=>{
+  const text=motion(['19. Main:', '(a) first;', '(b) second;', 'broken continuation;', '20. Next;']);
+  text.paragraphSources[6].complete=false;
+  assert.equal(placement(text,{originalText:'(a) first;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).reason,'source_passage_incomplete');
+});
+for(const heading of ['Annex','ANNEX','ANNEX II','EXPLANATORY STATEMENT','Signature','Notes'])test(`explicit ${heading} boundary caps the last provision before subsequent material`,()=>{
+  const text=motion(['19. Final provision;',heading,'1. Annex text;']);
+  const units=segmentMotionUnits(text,'en');assert.equal(units.find(unit=>unit.label==='19').end,3);assert(!units.some(unit=>unit.kind==='paragraph'&&unit.label==='1'));
+  const result=placement(text,{originalText:'',proposedText:'19a. New;',targetLabel:'Paragraph 19 a (new)'});
+  assert.equal(result.status,'placed');assert.equal(result.insertAfter,3);assert.equal(result.insertBefore,4);
+  assert.equal(placement(text,{originalText:'19. Final provision;',proposedText:'Changed;',targetLabel:'Paragraph 19'}).status,'placed');
+  assert.equal(placement(text,{originalText:'1. Annex text;',proposedText:'Changed;'}).status,'unresolved');
+});
+test('a final insertion requires an explicit resolution end, while an interior insertion does not',()=>{
+  const options={originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'};
+  assert.equal(placement(motion(['19. Final;']),options).reason,'resolution_end_unavailable');
+  assert.equal(placement(motion(['19. Final;', 'Ordinary continuation mentioning an annex.']),options).reason,'resolution_end_unavailable');
+  assert.equal(placement(motion(['19. First;', '20. Next;']),options).status,'placed');
+});
+
+
+test('standalone annex headings cap resolution bodies in all 24 supported languages',()=>{
+  const labels=[
+    ['bg','Европейският парламент','ПРИЛОЖЕНИЕ'],['es','El Parlamento Europeo','ANEXO'],['cs','Evropský parlament','PŘÍLOHA'],['da','Europa-Parlamentet','BILAG'],
+    ['de','Das Europäische Parlament','ANLAGE'],['et','Euroopa Parlament','LISA'],['el','Το Ευρωπαϊκό Κοινοβούλιο','ΠΑΡΑΡΤΗΜΑ'],['en','The European Parliament','ANNEX'],
+    ['fr','Le Parlement européen','ANNEXE'],['ga','Parlaimint na hEorpa','IARSCRÍBHINN'],['hr','Europski parlament','PRILOG'],['it','Il Parlamento europeo','ALLEGATO'],
+    ['lv','Eiropas Parlaments','PIELIKUMS'],['lt','Europos Parlamentas','PRIEDAS'],['hu','Az Európai Parlament','MELLÉKLET'],['mt','Il-Parlament Ewropew','ANNESS'],
+    ['nl','Het Europees Parlement','BIJLAGE'],['pl','Parlament Europejski','ZAŁĄCZNIK'],['pt','O Parlamento Europeu','ANEXO'],['ro','Parlamentul European','ANEXĂ'],
+    ['sk','Európsky parlament','PRÍLOHA'],['sl','Evropski parlament','PRILOGA'],['fi','Euroopan parlamentti','LIITE'],['sv','Europaparlamentet','BILAGA'],
+  ];
+  for(const [language,opening,annex] of labels) {
+    const text=document([opening+',','1. Source body;',annex+' I','2. Outside the resolution;'],{textLanguage:language});
+    assert.equal(segmentMotionUnits(text,language).at(-1).end,1,language);
+    assert.equal(placement(text,{originalText:'2. Outside the resolution;',proposedText:'Changed;',language}).status,'unresolved',language);
+  }
+});
+
+
+test('uppercase dash items without a colon introduction are still paragraph continuations',()=>{
+  const text=motion(['19. Main provision;', '– FIRST ITEM', '– SECOND ITEM', '20. Next;']);
+  assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,5);
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).insertBefore,6);
+});
+test('a missing ordinal resets scope without disabling an independent complete paragraph',()=>{
+  const text=motion(['19. Main;', '20. Independent;']);text.paragraphSources[4].ordinal++;
+  assert.equal(placement(text,{originalText:'20. Independent;',proposedText:'Changed;',targetLabel:'Paragraph 20'}).status,'placed');
+});

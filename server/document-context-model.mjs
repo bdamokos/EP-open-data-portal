@@ -253,30 +253,66 @@ export function amendmentOperation({originalText, proposedText} = {}) {
   return whitespace(proposedText) && !isDeletionMarker(proposedText) ? 'insert' : null;
 }
 
-/** Complete source extents, inclusive. Source indices never refer to rewritten text.
- * A resolution opening is mandatory: cover material and legislative proposals
- * must never become a substitute baseline. Unlabelled continuations stay in a unit.
- */
-export function segmentMotionUnits(text, language) {
-  const paragraphs = text?.paragraphs || [], start = motionBodyStart(paragraphs, language);
-  if (start < 0) return [];
-  const units = [], stack = [];
-  let citation = 0;
+// Only standalone section labels establish an explicit end. Ordinary prose
+// mentioning an annex, a signature or notes must remain in its provision.
+const annexLabels = {
+  bg:'приложение',es:'anexo',cs:'příloha',da:'bilag',de:'anlage|anhang',et:'lisa',el:'παράρτημα',en:'annex',fr:'annexe',ga:'iarscríbhinn',hr:'prilog',it:'allegato',
+  lv:'pielikums',lt:'priedas',hu:'melléklet',mt:'anness',nl:'bijlage',pl:'załącznik',pt:'anexo',ro:'anexă',sk:'príloha',sl:'priloga',fi:'liite',sv:'bilaga',
+};
+const resolutionEndLabels = Object.fromEntries(Object.entries(annexLabels).map(([language, label]) => [language,
+  new RegExp(`^(?:(?:${label.normalize('NFD').replace(/\p{M}/gu, '')})(?:\\s+(?:[IVXLCDM]+|\\d+))?${language === 'en' ? '|explanatory statement|signature(?:s)?|notes|footnotes' : ''})$`, 'iu'),
+]));
+function motionStructure(text, language) {
+  const paragraphs = text?.paragraphs || [], start = motionBodyStart(paragraphs, language), rows = sourceStructure(text);
+  const units = [], stack = [], invalid = new Set(), incompleteLabels = new Set();
+  if (start < 0 || !rows || rows[start].source.container !== 'body' || !rows[start].complete) return {units, invalid, incompleteLabels, end: -1, endAvailable: false};
+  let citation = 0, provisionsStarted = false, openList = false, end = paragraphs.length - 1, endAvailable = false;
+  const close = (at, broken = false) => {
+    while (stack.length) {const unit = stack.pop(); unit.end = at; if (broken) invalid.add(unit.start);}
+    openList = false;
+  };
   for (let index = start + 1; index < paragraphs.length; index++) {
-    const value = whitespace(paragraphs[index]);
+    const row = rows[index], value = row.normal;
+    if (!consecutive(rows[index - 1], row)) close(index - 1, true);
+    if (row.source.container !== 'body' || !row.complete) {
+      close(index - 1, true);
+      // Incomplete labels still prevent a complete duplicate from claiming identity.
+      if (row.source.container === 'body') {
+        const match = /^([1-9]\d{0,5}\s*[a-z]{0,3}|[A-Z]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value);
+        if (match) incompleteLabels.add(match[1].replace(/\s/g, ''));
+      }
+      continue;
+    }
+    if (resolutionEndLabels[language]?.test(value.normalize('NFD').replace(/\p{M}/gu, ''))) {
+      end = index - 1; endAvailable = true; close(end); break;
+    }
     let kind, label, level = 1;
     let match = /^([1-9]\d{0,5}\s*[a-z]{0,3})[.)]\s+/u.exec(value);
-    if (match) {kind = 'paragraph'; label = match[1].replace(/\s/g, '');}
-    else if ((match = /^([A-Z]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value))) {kind = 'recital'; label = match[1];}
+    if (match) {kind = 'paragraph'; label = match[1].replace(/\s/g, ''); provisionsStarted = true; openList = false;}
+    else if ((match = /^([A-Z]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value))) {kind = 'recital'; label = match[1]; provisionsStarted = true; openList = false;}
     else if ((match = /^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\))\s+/u.exec(value)) && stack.some(unit => unit.kind === 'paragraph')) {kind = 'point'; label = match[1] || match[2]; level = 2;}
-    else if (/^[–—−\-•]\s*\S/u.test(value)) {kind = 'citation'; label = String(++citation);}
-    else if (value && value.length < 180 && (value === value.toLocaleUpperCase(language) && /\p{L}/u.test(value) && !/[;,.]$/.test(value) || /:\s*$/.test(value))) {kind = 'heading'; label = value; level = 0;}
-    else continue;
+    else if (!provisionsStarted && /^[–—−\-•]\s*\S/u.test(value)) {kind = 'citation'; label = String(++citation);}
+    else if (!openList && !/^[–—−\-•]\s*\S/u.test(value) && value && value.length < 180 && value === value.toLocaleUpperCase(language) && /\p{L}/u.test(value) && !/[\p{P}]$/u.test(value)) {kind = 'heading'; label = value; level = 0;}
+    else {if (/:$/.test(value)) openList = true; continue;}
     while (stack.length && stack.at(-1).level >= level) stack.pop().end = index - 1;
-    const unit = {kind, label, parent: stack.at(-1)?.start ?? null, start: index, end: paragraphs.length - 1, level};
+    const unit = {kind, label, parent: stack.at(-1)?.start ?? null, start: index, end, level};
     units.push(unit); stack.push(unit);
+    if (/:$/.test(value)) openList = true;
   }
-  return units;
+  close(end);
+  // A child may be locally complete while its parent's source subtree is broken.
+  const byStart = new Map(units.map(unit => [unit.start, unit]));
+  for (const unit of units) for (let parent = byStart.get(unit.parent); parent; parent = byStart.get(parent.parent)) {
+    if (invalid.has(parent.start)) {invalid.add(unit.start); break;}
+  }
+  return {units, invalid, incompleteLabels, end, endAvailable};
+}
+
+/** Inclusive extents from complete, contiguous body rows; source breaks end scope.
+ * Only conservative headings interrupt a provision; its lists stay in its subtree.
+ */
+export function segmentMotionUnits(text, language) {
+  return motionStructure(text, language).units;
 }
 
 // Only the first (proposal-level) target line selects a provision. Underlying-act
@@ -308,7 +344,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
   if (!options.language || text?.textLanguage && text.textLanguage !== options.language) return unresolved('different_text_languages');
   const rows = sourceStructure(text);
   if (!rows) return unresolved('source_structure_unavailable');
-  const units = segmentMotionUnits(text, options.language);
+  const structure = motionStructure(text, options.language), {units} = structure;
   if (!units.length) return unresolved('baseline_unavailable');
   const ref = english(options.language) ? placementReference(options.targetLabel) : null;
   const matching = reference => units.filter(unit => unit.kind === reference.kind && unit.label === reference.label &&
@@ -329,15 +365,16 @@ export function resolveAmendmentPlacement(text, options = {}) {
       if (!relative || relative.relation !== 'after' || relative.kind !== ref.kind || (relative.number ?? relative.letter) !== ref.base) return unresolved('conflicting_target_evidence');
       evidence.push({basis: 'relative-reference', reference: options.referenceText});
     }
-    if (!complete(anchor.start, anchor.end)) return unresolved('source_passage_incomplete');
+    if (structure.invalid.has(anchor.start) || structure.incompleteLabels.has(anchor.label) || !complete(anchor.start, anchor.end)) return unresolved('source_passage_incomplete');
+    if (anchor.end === structure.end && !structure.endAvailable) return unresolved('resolution_end_unavailable');
     return placed({insertAfter: anchor.end, insertBefore: anchor.end + 1});
   }
   if (ref) {
     const matches = matching(ref);
     if (matches.length > 1) return unresolved('multiple_published_targets');
-    if (!matches.length) return unresolved('target_not_found');
+    if (!matches.length) return unresolved(structure.incompleteLabels.has(ref.label) ? 'source_passage_incomplete' : 'target_not_found');
     const unit = matches[0];
-    if (!complete(unit.start, unit.end)) return unresolved('source_passage_incomplete');
+    if (structure.invalid.has(unit.start) || structure.incompleteLabels.has(unit.label) || !complete(unit.start, unit.end)) return unresolved('source_passage_incomplete');
     const source = text.paragraphs.slice(unit.start, unit.end + 1).join(' ');
     if (wordingNormal(source) !== wordingNormal(options.originalText)) return unresolved('conflicting_target_evidence');
     if (options.referenceText) {
@@ -353,7 +390,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const indices = quotes[0], start = indices[0], end = indices.at(-1);
   if (!complete(start, end)) return unresolved('source_passage_incomplete');
   // Quotation fallback is restricted to the resolution body, never the cover.
-  if (!units.some(unit => start >= unit.start && end <= unit.end)) return unresolved('target_not_found');
+  if (!units.some(unit => !structure.invalid.has(unit.start) && start >= unit.start && end <= unit.end)) return unresolved('target_not_found');
   if (options.referenceText) {
     const decision = placementReference(options.referenceText), matches = decision ? matching(decision) : [];
     if (matches.length !== 1 || start < matches[0].start || end > matches[0].end) return unresolved('conflicting_target_evidence');

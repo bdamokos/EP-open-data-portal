@@ -6,6 +6,7 @@ import {publicationBody} from './publication-body.mjs';
 import {displayVoteTitle} from './memberVotesPresentation.mjs';
 import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from './References';
 import {InsightQuestionReader} from './InsightReaders';
+import {mapContextAnnotations} from './contextAnnotations.mjs';
 import {WordingDiff} from './components/WordingDiff';
 import {FindInText} from './TextSearch';
 import './DocumentContextReader.css';
@@ -38,6 +39,7 @@ const documentRoute=(id:string,language:string,request?:DocumentContextRequest)=
 const responseFor=(data:DocumentContextResponse|null,id:string,language:string,request?:DocumentContextRequest)=>data?.documentId===id&&data.requestedLanguage===language&&(request?.wordingLanguage===undefined||data.requestedWordingLanguage===request.wordingLanguage)?data:null;
 
 const placementReasons:Record<string,string>={
+  resolution_end_unavailable:'The end of the resolution could not be established safely.',
   baseline_unavailable:'The text this amendment changes is not included in this document.',
   different_text_languages:'The document and amendment wording are in different languages.',
   duplicate_target_label:'A provision with the proposed label already exists.',
@@ -94,16 +96,25 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     placement.operation==='insert'?validIndex(placement.insertAfter)&&placement.insertBefore===placement.insertAfter+1:
       placement.span&&validIndex(placement.span.start)&&validIndex(placement.span.end)&&placement.span.end>=placement.span.start));
   const number=amendmentNumber(amendmentRequest?.amendmentId),amendmentHeading='amendment-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
-  const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-labelledby={amendmentHeading}>
-    <h4 id={amendmentHeading} lang="en">Amendment{number?' '+number:''} · proposed change</h4>
-    {wording&&<WordingDiff original={placement?.operation==='insert'?'':wording.originalText} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion"/>}
-  </section>;
   const placementReason=placementReasons[placement?.reason||'']||'The published evidence does not identify one complete passage.';
   const extracted=publicationBody(allParagraphs,id,text?.textLanguage);
   const exactBody=extracted.exact&&Number.isInteger(extracted.start)&&extracted.start>=0&&extracted.paragraphs.length===allParagraphs.length-extracted.start&&extracted.paragraphs.every((paragraph,index)=>paragraph===allParagraphs[extracted.start+index]);
   const placementStart=placed?(placement?.operation==='insert'?placement.insertAfter:placement?.span?.start):undefined;
   const body=exactBody&&(!found||indices.every(index=>index>=extracted.start))&&(!placed||placementStart!==undefined&&placementStart>=extracted.start)?extracted:{paragraphs:allParagraphs,start:0};
   const notes=text?.notes||[],anchors=text?.noteAnchors||[],links=text?.documentLinks||[],objects=text?.documentObjects||[];
+  const annotatedSpan=placed&&placement?.span&&typeof wording?.originalText==='string'?mapContextAnnotations(allParagraphs,placement.span,wording.originalText,anchors,links):null;
+  const spanHasAnnotations=Boolean(placement?.span&&[...anchors,...links].some(item=>item.paragraph>=placement.span!.start&&item.paragraph<=placement.span!.end));
+  const annotationFallback=placed&&spanHasAnnotations&&!annotatedSpan;
+  const renderOriginal=annotatedSpan&&typeof wording?.originalText==='string'?(value:string,start:number)=>{
+    const end=start+value.length;
+    const clipped=annotatedSpan.links.map(link=>({...link,start:Math.max(link.start,start),end:Math.min(link.end,end)})).filter(link=>link.end>link.start);
+    return <ReferenceText text={value} start={start} anchors={annotatedSpan.anchors.filter(anchor=>anchor.offset>start&&anchor.offset<=end||start===0&&anchor.offset===0)} links={clipped} final notePrefix={notePrefix}/>;
+  }:undefined;
+  const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-labelledby={amendmentHeading}>
+    <h4 id={amendmentHeading} lang="en">Amendment{number?' '+number:''} · proposed change</h4>
+    {wording&&<WordingDiff original={placement?.operation==='insert'?'':wording.originalText} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" renderOriginal={inPlace?renderOriginal:undefined}/>}
+    {inPlace&&annotationFallback&&<p className="wording-diff__note" lang="en">Footnotes and links are shown in the full document's original</p>}
+  </section>;
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
   const title=document?titleOf(document,language):null,hasText=text?.status==='available'&&allParagraphs.length>0;
   const extractionError=text?.status==='error',loadError=Boolean(state.error)||extractionError;

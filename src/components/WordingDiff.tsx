@@ -1,20 +1,26 @@
-import {useMemo,useState} from 'react';
+import {Fragment,useMemo,useState,type ReactNode} from 'react';
 import {textDiff,type TextDiffSegment} from '../textDiff.mjs';
 import './WordingDiff.css';
 
 type Props={
   original:string|null;proposed:string|null;language:string|null;
   emptySemantics:'insertion-deletion'|'not-supplied';
+  // UTF-16 offsets count only original-side equal/deleted text, never insertions.
+  renderOriginal?:(text:string,start:number)=>ReactNode;
   labels?:{original?:string;proposed?:string;emptyOriginal?:string;emptyProposed?:string};
 };
-function Passage({segments,language}:{segments:TextDiffSegment[];language:string|null}) {
+function Passage({segments,language,renderOriginal}:{segments:TextDiffSegment[];language:string|null;renderOriginal?:Props['renderOriginal']}) {
+  let offset=0;
   return <p className="wording-diff__passage" lang={language||''}>{segments.map((segment,index)=>{
-    if(segment.type==='equal')return segment.text;
+    const start=offset;
+    if(segment.type!=='insert')offset+=segment.text.length;
+    const content=segment.type!=='insert'&&renderOriginal?renderOriginal(segment.text,start):segment.text;
+    if(segment.type==='equal')return <Fragment key={index}>{content}</Fragment>;
     const Tag=segment.type==='delete'?'del':'ins';
-    return <Tag key={index}><span className="wording-diff__sr" lang="en">{segment.type==='delete'?'Deleted text: ':'Inserted text: '}</span>{segment.text}<span className="wording-diff__sr" lang="en"> end</span></Tag>;
+    return <Tag key={index}><span className="wording-diff__sr" lang="en">{segment.type==='delete'?'Deleted text: ':'Inserted text: '}</span>{content}<span className="wording-diff__sr" lang="en"> end</span></Tag>;
   })}</p>;
 }
-function Comparison({original,proposed,language,emptySemantics,labels={}}:Props) {
+function Comparison({original,proposed,language,emptySemantics,labels={},renderOriginal}:Props) {
   const comparable=original!==null&&proposed!==null&&(original!==''||proposed!=='')&&
     (emptySemantics==='insertion-deletion'||original!==''&&proposed!=='');
   const diff=useMemo(()=>comparable?textDiff(original!,proposed!,language):null,[comparable,original,proposed,language]);
@@ -36,12 +42,12 @@ function Comparison({original,proposed,language,emptySemantics,labels={}}:Props)
     {diff?.status==='too-large'&&<p className="wording-diff__note">Wording is too long or too extensively changed to highlight. Showing side by side.</p>}
     {diff?.status==='ok'&&mode==='changes'?<>
       {columns.filter(column=>column.text==='').map(column=><p key={column.side}>{column.empty}</p>)}
-      <Passage segments={diff.segments} language={language}/>
+      <Passage segments={diff.segments} language={language} renderOriginal={renderOriginal}/>
     </>:<div className="wording-diff__columns">{columns.map(column=><section key={column.side}>
       <h5>{column.label}</h5>
       {column.text===null?<p>{column.side==='original'?'Original wording is unavailable.':'Proposed wording is unavailable.'}</p>:
         column.text===''?<p>{column.empty}</p>:
-        <Passage language={language} segments={diff?.status==='ok'?diff.segments.filter(segment=>segment.type!==(column.side==='original'?'insert':'delete')):[{type:'equal',text:column.text}]}/>}
+        <Passage language={language} renderOriginal={column.side==='original'?renderOriginal:undefined} segments={diff?.status==='ok'?diff.segments.filter(segment=>segment.type!==(column.side==='original'?'insert':'delete')):[{type:'equal',text:column.text}]}/>}
     </section>)}</div>}
     {diff?.status==='ok'&&<p className="wording-diff__note">Changes highlighted by this explorer by comparing the published original and proposed wording. The official document is authoritative.</p>}
   </div>;
