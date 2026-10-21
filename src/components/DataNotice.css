@@ -4,23 +4,23 @@
 .data-notice summary::marker { content: ''; }
 .data-notice summary::-webkit-details-marker { display: none; }
 .data-notice summary::after { content: 'ⓘ'; margin-left: 6px; }
-.data-notice summary:focus-visible { outline: 3px solid var(--selected-yellow, #ffd617); outline-offset: 3px; }
+.data-notice summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .data-notice p { margin: 0 0 8px; max-width: 80ch; }
 .data-notice a { color: inherit; text-underline-offset: 3px; }
 .data-notice__body { padding-bottom: 4px; }
 .data-notice .data-notice__dismiss { flex-shrink: 0; min-width: 44px; min-height: 44px; padding: 0; border: 1px solid transparent; border-radius: 0; background: transparent; color: inherit; font-size: 20px; line-height: 1; }
 .data-notice .data-notice__dismiss:hover { border-color: currentColor; }
-.data-notice .data-notice__dismiss:focus-visible { outline: 3px solid var(--selected-yellow, #ffd617); outline-offset: 3px; }
+.data-notice .data-notice__dismiss:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 
 /* Explorer footer: a bar, so the details open above it. */
 .explorer-footer { position: relative; }
 .explorer-footer .data-notice { flex: 1; text-align: center; }
 .explorer-footer .data-notice--dismissed { flex: 0 1 auto; margin-left: auto; }
 .explorer-footer .data-notice summary { justify-content: center; }
-.explorer-footer .data-notice__body { position: absolute; z-index: 20; right: var(--explorer-gutter); bottom: 100%; width: min(640px, calc(100% - 2 * var(--explorer-gutter))); max-height: 60dvh; overflow-y: auto; padding: 14px 16px 8px; text-align: left; background: var(--midnight-ink, #011a38); border: 1px solid rgba(174, 201, 240, .35); }
+.explorer-footer .data-notice__body { position: absolute; z-index: 20; right: var(--explorer-gutter); bottom: 100%; width: min(640px, calc(100% - 2 * var(--explorer-gutter))); max-height: 60dvh; overflow-y: auto; padding: 14px 16px 8px; text-align: left; background: var(--surface); border: 1px solid var(--line); }
 
 /* Insight pages scroll, so the notice sits at the end of the page. */
-.insight-data-notice { margin-top: 40px; padding-top: 8px; border-top: 1px solid var(--insight-line); color: var(--insight-muted); }
+.insight-data-notice { margin-top: 40px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--ink-muted); }
 
 @media (max-width: 680px) {
   .explorer-footer .data-notice { font-size: 12px; text-align: left; }

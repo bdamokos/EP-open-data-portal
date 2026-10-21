@@ -1,7 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import './theme.css';
 import './base.css';
+import {applyColourScheme,readColourScheme} from './colourScheme.mjs';
 import {RootBoundary} from './ErrorBoundary';
 import {PlenaryLiveProvider} from './PlenaryLive';
+applyColourScheme(readColourScheme());
 createRoot(document.getElementById('root')!).render(<StrictMode><RootBoundary><PlenaryLiveProvider><App /></PlenaryLiveProvider></RootBoundary></StrictMode>);

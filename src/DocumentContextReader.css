@@ -1,4 +1,4 @@
-.document-context-reader{--context-blue:#07549a;--context-muted:#536274;--context-border:#d8e0e8;min-width:0;margin-top:1rem;color:#182939;font-family:Arial,sans-serif}
+.document-context-reader{--context-blue:var(--accent);--context-muted:var(--ink-muted);--context-border:var(--line);min-width:0;margin-top:1rem;color:var(--ink)}
 .document-context-reader button,.document-context-reader select{font:inherit}
 .document-context-reader button{cursor:pointer}
 .document-context-reader a{color:var(--context-blue)}
@@ -9,23 +9,23 @@
 .document-context-kind{font-size:.8rem;font-weight:700;color:var(--context-muted);margin:0;text-transform:uppercase;letter-spacing:.045em}
 .document-context-tools{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:flex-end;flex-shrink:0;max-width:22rem}
 .document-context-tools label{display:grid;gap:.25rem;color:var(--context-muted);font-size:.8rem}
-.document-context-tools select{max-width:100%;border:1px solid #94a6b7;border-radius:3px;padding:.35rem;background:#fff;color:#182939}
+.document-context-tools select{max-width:100%;border:1px solid var(--line-strong);border-radius:3px;padding:.35rem;background:var(--surface);color:var(--ink)}
 .document-context-language{font-size:.85rem;color:var(--context-muted);margin:.3rem 0 1rem}
 .document-context-notice{font-size:.9rem;line-height:1.5;color:var(--context-muted);margin:.7rem 0}
-.document-context-notice button,.document-context-passage button{background:#fff;border:1px solid #9eb1c3;border-radius:3px;padding:.35rem .65rem;color:var(--context-blue)}
+.document-context-notice button,.document-context-passage button{background:var(--surface);border:1px solid var(--line-strong);border-radius:3px;padding:.35rem .65rem;color:var(--context-blue)}
 .document-context-passage{margin:1rem 0}
 .document-context-passage p{font-size:.9rem;line-height:1.5;color:var(--context-muted);margin:.6rem 0}
 .document-context-text{max-width:76ch;font-size:1rem;line-height:1.75;overflow-wrap:anywhere}
 .document-context-text>p{margin:.95rem 0;white-space:pre-wrap}
-.document-context-text>p.document-context-target{border-left:3px solid var(--context-blue);padding:.6rem .85rem;background:#eef5fc;scroll-margin:4rem}
+.document-context-text>p.document-context-target{border-left:3px solid var(--context-blue);padding:.6rem .85rem;background:var(--surface-2);scroll-margin:4rem}
 .document-context-text>p.document-context-target:focus{outline:2px solid var(--context-blue);outline-offset:3px}
 .document-context-object{display:inline;font-size:.8em;white-space:normal;margin:0 .2em}
 .document-context-source{border-top:1px solid var(--context-border);padding-top:.85rem;margin-top:1.5rem;font-size:.85rem}
 .document-context-choices{padding:0;list-style:none;max-width:76ch;margin:1rem 0}
 .document-context-choices li{border-top:1px solid var(--context-border)}
 .document-context-choices li:last-child{border-bottom:1px solid var(--context-border)}
-.document-context-choices button{display:flex;justify-content:space-between;gap:1rem;text-align:left;align-items:flex-start;background:#fff;border:0;padding:1rem .3rem;width:100%;color:var(--context-blue);line-height:1.5}
-.document-context-choices button:hover{background:#f1f6fb}
+.document-context-choices button{display:flex;justify-content:space-between;gap:1rem;text-align:left;align-items:flex-start;background:var(--surface);border:0;padding:1rem .3rem;width:100%;color:var(--context-blue);line-height:1.5}
+.document-context-choices button:hover{background:var(--surface-2)}
 .document-context-choices time{font-size:.8rem;color:var(--context-muted);white-space:nowrap}
 .document-context-reader button:focus-visible,.document-context-reader select:focus-visible,.document-context-reader a:focus-visible{outline:2px solid var(--context-blue);outline-offset:3px}
 @media(max-width:600px){.document-context-heading{display:block}.document-context-heading h3{font-size:1.1rem}.document-context-tools{justify-content:flex-start;max-width:none;margin:.6rem 0}.document-context-text{font-size:.95rem;line-height:1.7}.document-context-text>p.document-context-target{padding:.5rem .65rem}.document-context-choices button{display:block}.document-context-choices time{display:block;margin-top:.35rem}}

@@ -5,6 +5,7 @@ import {readFile} from 'node:fs/promises';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
+import {contrast,paintedBackground,schemes,themeCss,tokenValue} from './test-support/themeStyles.mjs';
 
 const first='E-10-2026-003031',second='E-10-2026-003032';
 const citation='E-003031/2026',text='See question '+citation+'.';
@@ -134,36 +135,22 @@ test('closing a referenced question from collapsed Notes returns to a visible lo
   assert.equal(citation.textContent,'E-003031/2026','the exact cited identifier remains intact');
 });
 
-test('light reference scope, citations, reader destinations and cards use blue focus throughout the cascade',async t=>{
+test('reference scope, citations, reader destinations, cards and player controls use the focus token in both schemes',async t=>{
   const files=['References.css','ParliamentHeader.css','explorer.css','Insights.css','ExplorerLayout.css','TextSearch.css','base.css'];
   const styles=await Promise.all(files.map(file=>readFile(new URL(file,import.meta.url),'utf8')));
-  for(const shell of ['explorer','explorer-insights'])for(const nested of [false,true])for(const mode of ['focus','focus-visible'])await t.test(`${shell}${nested?' nested':''} ${mode}`,async t=>{
+  for(const scheme of schemes)for(const shell of ['explorer','explorer-insights'])for(const nested of [false,true])for(const mode of ['focus','focus-visible'])await t.test(`${scheme} ${shell}${nested?' nested':''} ${mode}`,async t=>{
     const window=new Window();t.after(()=>window.happyDOM.close());
     // Removing focus-visible selectors also exercises the independent :focus
     // cascade; Happy DOM does not model native keyboard/pointer modality.
-    window.document.head.innerHTML=styles.map(style=>`<style>${mode==='focus'?style.replaceAll(':focus-visible',':not(*)'):style}</style>`).join('');
-    window.document.body.innerHTML=`<main class="${shell}"><section style="background:#fff;color:#012b5d"><div class="insight-inline-reader"><div class="legal-reference-scope" tabindex="-1" role="group" aria-label="Document text and references"><button class="legal-ref">Original citation</button><div class="legal-reference-question" tabindex="-1" role="region" aria-label="Referenced question"><button class="legal-reference-text-button">Close referenced question</button>${nested?'<div class="insight-inline-reader"><div class="legal-reference-scope" tabindex="-1" role="group" aria-label="Nested document text and references"><button class="legal-ref">Nested citation</button>':''}<div class="legal-reference-card" tabindex="-1"><button class="legal-reference-close">Close</button><div class="legal-reference-actions"><button>Read question</button><button aria-expanded="true">Summary</button><a href="#source">Source</a></div><details><summary>Notes</summary></details><a href="#footnote">Footnote</a><input aria-label="Find"><select aria-label="Language"><option>EN</option></select><button class="legal-ref">Card citation</button></div>${nested?'</div></div>':''}</div><div class="explorer-video"><button id="player-control">Player action</button></div></div></div></section></main>`;
-    const playerControl=window.document.querySelector('#player-control');
+    window.document.head.innerHTML=[themeCss(scheme),...styles].map(style=>`<style>${mode==='focus'?style.replaceAll(':focus-visible',':not(*)'):style}</style>`).join('');
+    window.document.body.innerHTML=`<main class="${shell}"><section class="explorer-saved-view"><div class="insight-inline-reader"><div class="legal-reference-scope" tabindex="-1" role="group" aria-label="Document text and references"><button class="legal-ref">Original citation</button><div class="legal-reference-question" tabindex="-1" role="region" aria-label="Referenced question"><button class="legal-reference-text-button">Close referenced question</button>${nested?'<div class="insight-inline-reader"><div class="legal-reference-scope" tabindex="-1" role="group" aria-label="Nested document text and references"><button class="legal-ref">Nested citation</button>':''}<div class="legal-reference-card" tabindex="-1"><button class="legal-reference-close">Close</button><div class="legal-reference-actions"><button>Read question</button><button aria-expanded="true">Summary</button><a href="#source">Source</a></div><details><summary>Notes</summary></details><a href="#footnote">Footnote</a><input aria-label="Find"><select aria-label="Language"><option>EN</option></select><button class="legal-ref">Card citation</button></div>${nested?'</div></div>':''}</div><div class="explorer-video"><button id="player-control">Player action</button></div></div></div></section></main>`;
+    const focus=tokenValue(scheme,'focus'),playerControl=window.document.querySelector('#player-control');
     for(const control of window.document.querySelectorAll('.legal-reference-scope,.legal-reference-question,.legal-reference-card,button,a,input,select,summary')){
-      if(control===playerControl)continue;
+      if(control===playerControl&&mode==='focus')continue;
       control.focus();const style=window.getComputedStyle(control);
-      assert.equal(window.document.activeElement,control);assert.equal(style.outlineStyle,'solid');assert.equal(style.outlineColor,'#1e6cff',control.outerHTML);assert(parseFloat(style.outlineWidth)>=3);
-    }
-    if(mode==='focus-visible'){
-      playerControl.focus();assert.equal(window.getComputedStyle(playerControl).outlineColor,shell==='explorer-insights'?'#fff200':'#1e6cff','the local player surface token must override inherited reference blue');
-    }
-  });
-  await t.test('dark insight references remain contrasting and player controls retain their local yellow',async t=>{
-    const window=new Window();t.after(()=>window.happyDOM.close());
-    window.document.head.innerHTML=styles.map(style=>`<style>${style}</style>`).join('');
-    window.document.body.innerHTML='<main class="explorer-insights"><section class="insight-inline-reader"><div class="legal-reference-scope" tabindex="-1"><button class="legal-ref">Original citation</button><div class="legal-reference-question" tabindex="-1">Referenced question</div><div class="explorer-video"><button id="dark-player">Player action</button></div></div></section></main>';
-    const luminance=color=>(color.startsWith('#')?color.slice(1).match(/../g).map(value=>parseInt(value,16)):color.match(/[\d.]+/g).slice(0,3).map(Number)).map(value=>value/255).map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4).reduce((sum,value,index)=>sum+value*[.2126,.7152,.0722][index],0);
-    const contrast=(a,b)=>{const values=[luminance(a),luminance(b)].sort((a,b)=>b-a);return(values[0]+.05)/(values[1]+.05);};
-    const shell=window.document.querySelector('main'),player=window.document.querySelector('.explorer-video');
-    for(const target of window.document.querySelectorAll('.legal-reference-scope,.legal-ref,.legal-reference-question,#dark-player')){
-      target.focus();const color=window.getComputedStyle(target).outlineColor;
-      assert.equal(color,target.id==='dark-player'?'#fff200':'#1e6cff');
-      assert(contrast(color,window.getComputedStyle(target.id==='dark-player'?player:shell).backgroundColor)>=3);
+      assert.equal(window.document.activeElement,control);assert.equal(style.outlineStyle,'solid');assert.equal(style.outlineColor,focus,control.outerHTML);assert(parseFloat(style.outlineWidth)>=3);
+      const behind=paintedBackground(window,control.parentElement,scheme);
+      assert(contrast(style.outlineColor,behind)>=3,`${control.outerHTML}: ${style.outlineColor} on ${behind}`);
     }
   });
 });
