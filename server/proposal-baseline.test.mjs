@@ -158,3 +158,11 @@ test('all recorded localized column headings are accepted by amendment extractio
   }
   assert.equal(comparisonHeading('Tairiscint i gcomhair rúin','ga').category,'unknown');
 });
+
+test('CELLAR admission and body deadline reports the app request_timeout error',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  const docs=new CellarDocuments(sourceOptions(async()=>new Promise(()=>{})));
+  const pending=docs.request(item().itemId.replace('http:','https:'),{accept:CELLAR_DOCX_MIME});
+  const rejected=assert.rejects(pending,{code:'request_timeout'});
+  await new Promise(resolve=>setImmediate(resolve));t.mock.timers.tick(20_001);await rejected;
+});

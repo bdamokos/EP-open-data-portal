@@ -4,7 +4,7 @@ import path from 'node:path';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {docxParts} from './document-text.mjs';
 import {HttpError} from './http-utils.mjs';
-import {sharedRequest,waitForRequest,requestSignal,isLocalRequestFailure} from './request-budget.mjs';
+import {createRequestBudget,sharedRequest,waitForRequest,requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import {writeCacheFile} from './cache-publication.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
@@ -42,8 +42,8 @@ export class CellarDocuments {
   }
   async request(input,{accept,language,validators={},maximum=CELLAR_LIMITS.metadataBytes}={}) {
     const initial=cellarTransportUrl(input),owner=requestSignal();owner?.throwIfAborted();
-    const signal=owner?AbortSignal.any([owner,AbortSignal.timeout(20_000)]):AbortSignal.timeout(20_000);
-    return this.sources.schedule(async()=>{
+    const budget=createRequestBudget(20_000),signal=owner?AbortSignal.any([owner,budget.signal]):budget.signal;
+    try{return await this.sources.schedule(async()=>{
       let target=initial;
       for(let n=0;n<=CELLAR_LIMITS.redirects;n++) {
         signal.throwIfAborted();
@@ -64,7 +64,7 @@ export class CellarDocuments {
         const buffer=await limitedCellarBody(response,maximum);signal.throwIfAborted();
         return {status:200,url:target,buffer,etag:response.headers.get('etag'),lastModified:response.headers.get('last-modified')};
       }
-    },{origin:new URL(initial).origin,priority:'interactive',signal});
+    },{origin:new URL(initial).origin,priority:'interactive',signal});}finally{budget.dispose();}
   }
   async candidates(celex) {
     const query=proposalCandidatesSparql(celex),url=new URL('https://publications.europa.eu/webapi/rdf/sparql');
