@@ -59,6 +59,7 @@ test('report COM extraction preserves qualifiers and refuses ambiguous or confli
   }
   assert.equal(reportProposalReference({...report,inverse_created_a_realization_of:['eli/dl/proc/2025-0040']},{reportId:'A-10-2025-0085'}).status,'unresolved');
   assert.equal(reportProposalReference(report,{reportId:'A-10-2025-0085',documentReferences:[{field:'DocRef',raw:'COM(2025)88'}]}).status,'unresolved');
+  assert.equal(reportProposalReference(report,{reportId:'A-10-2025-0085',documentReferences:[{field:'DocRef',raw:'COM(2025)87 – 2025/0040(COD)'}]}).status,'unresolved');
 });
 test('exact recorded headings cover 24 languages; unfamiliar labels stay unknown',()=>{
   const rows=JSON.parse(readFileSync(new URL('./fixtures/proposal-comparison-headings.json',import.meta.url),'utf8'));assert.equal(rows.length,24);
@@ -116,6 +117,9 @@ test('proposalBaseline returns exact buffers and metadata gaps without substitut
   const r=await load({reportId:'A-10-2025-0085',language:'en'});assert.equal(r.status,'available',JSON.stringify(r.gaps));assert.equal(r.items.length,2);assert(Buffer.isBuffer(r.items[0].buffer));assert.equal(r.celex,celex);
   assert.equal((await load({celex,language:'fr'})).status,'language-unavailable');
   assert.equal((await load({reportId:'A-10-2025-0085',celex:'52021PC0206',language:'en'})).status,'unresolved');
+  assert.equal((await load({celex,documentReferences:[{field:'DocRef',raw:'COM(2025)87 final/2 – 2025/0039(COD)'}]})).status,'unresolved');
+  assert.equal((await load({celex,documentReferences:[{field:'DocRef',raw:'COM(2021)206'}]})).status,'unresolved');
+  assert.equal((await load({celex,documentReferences:[{field:'DocRef',raw:'COM(2025)87 – 2025/0040(COD)'}]})).status,'unresolved');
   assert.throws(()=>load({celex:'../../x'}));assert.throws(()=>load({celex,language:'xx'}));
 });
 

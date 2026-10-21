@@ -16,7 +16,8 @@ export function reportProposalReference(report,{reportId,documentReferences=[]}=
   const texts=list(report.is_realized_by).flatMap(e=>Object.values(e.title_alternative||{}).flatMap(list));
   const reportRefs=texts.flatMap(commissionReferences),docRefs=documentReferences.filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).flatMap(r=>commissionReferences(r.raw));
   const refs=[...reportRefs,...docRefs],celexes=unique(refs.map(r=>r.celex));
-  const procedures=unique(texts.flatMap(t=>typeof t==='string'?[...t.matchAll(/\b(\d{4})\/(\d{4})\s*\(COD\)/g)].map(m=>`${m[1]}/${m[2]}(COD)`):[]));
+  const referenceTexts=documentReferences.filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).map(r=>r.raw);
+  const procedures=unique([...texts,...referenceTexts].flatMap(t=>typeof t==='string'?[...t.matchAll(/\b(\d{4})\/(\d{4})\s*\(COD\)/g)].map(m=>`${m[1]}/${m[2]}(COD)`):[]));
   const linked=list(report.inverse_created_a_realization_of).map(v=>typeof v==='string'?v:v?.id).filter(Boolean);
   const evidence=[{kind:'report-reference',reportId,references:refs,procedures,procedureIds:linked}];
   if(celexes.length!==1||procedures.length!==1)return unresolved('unresolved',[celexes.length>1||procedures.length>1?'ambiguous-report-reference':'missing-report-reference'],evidence);

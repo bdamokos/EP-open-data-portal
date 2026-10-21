@@ -1,5 +1,5 @@
 import {CellarDocuments,proposalCelex,CELLAR_LIMITS} from './cellar-documents.mjs';
-import {reportProposalReference,resolveProposalTree,resolveProposalCandidates} from './commission-proposal-identity.mjs';
+import {commissionReferences,reportProposalReference,resolveProposalTree,resolveProposalCandidates} from './commission-proposal-identity.mjs';
 import {odp,odpLanguage} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {docxParts} from './document-text.mjs';
@@ -24,6 +24,11 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
           if(sourceCelex&&sourceCelex!==identity.celex)return unavailable('unresolved',['report-celex-conflict']);
           sourceCelex=identity.celex;procedure=identity.procedure;metadataStale=Boolean(source.stale);
         }
+        const references=documentReferences.filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)),hints=references.flatMap(r=>commissionReferences(r.raw));
+        if(hints.some(h=>h.celex!==sourceCelex||h.qualifier&&h.qualifier!=='final'))return unavailable('unresolved',['amendment-proposal-reference-conflict']);
+        const procedures=[...new Set(references.flatMap(r=>typeof r.raw==='string'?[...r.raw.matchAll(/\b(\d{4})\/(\d{4})\s*\(COD\)/g)].map(m=>`${m[1]}/${m[2]}(COD)`):[]))];
+        if(procedures.length>1||procedure&&procedures.some(p=>p!==procedure))return unavailable('unresolved',['amendment-procedure-reference-conflict']);
+        procedure??=procedures[0];
         const candidates=await documents.candidates(sourceCelex),candidate=resolveProposalCandidates(candidates.data,{celex:sourceCelex});
         evidence.push({kind:'candidate-source',url:candidates.url,fetchedAt:candidates.fetchedAt,stale:Boolean(candidates.viewCache?.stale),refreshError:candidates.viewCache?.refreshError||null},...candidate.evidence);
         if(candidate.status!=='resolved')return unavailable(candidate.status,candidate.gaps);
