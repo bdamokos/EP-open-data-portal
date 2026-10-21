@@ -439,6 +439,7 @@ test('committee body extraction retains an amendment placed before its body star
 });
 
 for(const [reason,copy] of Object.entries({
+  resolution_extent_uncertain:'The boundaries of this passage could not be established safely.',
   resolution_end_unavailable:'The end of the resolution could not be established safely.',
   insertion_reference_unavailable:'The insertion location is not specified clearly enough.',
   relative_target_not_found:'The preceding provision could not be found.',

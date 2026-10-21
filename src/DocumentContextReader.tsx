@@ -41,6 +41,7 @@ const responseFor=(data:DocumentContextResponse|null,id:string,language:string,r
 
 const placementReasons:Record<string,string>={
   ...proposalPlacementReasons,
+  resolution_extent_uncertain:'The boundaries of this passage could not be established safely.',
   resolution_end_unavailable:'The end of the resolution could not be established safely.',
   baseline_unavailable:'The text this amendment changes is not included in this document.',
   different_text_languages:'The document and amendment wording are in different languages.',
