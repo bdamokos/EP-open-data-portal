@@ -154,9 +154,10 @@ test('press following runs only for the activity-index lease holder',async()=>{
   let admitted=0;
   const press={due:()=>true,run:async({admit})=>{store.assertWriter();runs++;while(admit())admitted++;}};
   try {
-    const worker=new ActivityWorker(store,{clock:instant,fetchRecord,budget:3,press});
+    const worker=new ActivityWorker(store,{clock:instant,fetchRecord,budget:20,press});
     await worker.run();assert.equal(runs,1);
-    assert.equal(admitted,3,'press requests draw on the worker request budget');
+    assert.equal(admitted,2,'while index work is due, press takes a tenth of the request budget');
+    assert.equal(worker.requests>admitted,true,'index work still receives requests');
     other=new ActivityStore(dir,{clock:instant});assert(other.acquire());
     await worker.run();assert.equal(runs,1,'another writer holds the lease');
   } finally {other?.close();store.close();rmSync(dir,{recursive:true,force:true});}
@@ -179,6 +180,9 @@ test('press writes are fenced by the activity-index lease and readers never crea
     now+=91_000;assert(other.acquire(),'an expired lease can be taken over');
     assert.throws(()=>write(()=>press.set('follow',{since:'late',feeds:{}})),/lease was lost/);
     assert.equal(press.get('follow').since,'2026-10-20T12:00:00.000Z','the former owner cannot write');
+    const reopened=new PressStore(dir);
+    try{assert.equal(reopened.get('follow').since,'2026-10-20T12:00:00.000Z');assert.equal(reopened.db.prepare('PRAGMA synchronous').get().synchronous,1,'a reopened connection keeps NORMAL synchronisation');}
+    finally{reopened.close();}
   } finally {other?.close();press.close();activity.close();rmSync(dir,{recursive:true,force:true});}
 });
 
@@ -191,7 +195,39 @@ test('an exhausted request budget stops following and leaves the poll due',async
     assert.equal(setup.store.get('follow').nextPollAt,undefined,'an incomplete poll stays due');
     assert.equal(setup.follower.due(),true);
     await setup.follower.run();
+    assert.equal(setup.calls[2],PRESS_FEEDS[2].url,'the poll resumes with the remaining feed');
+    assert.equal(setup.calls.filter(url=>url===PRESS_FEEDS[0].url).length,1);
     assert.equal(setup.store.get('follow').nextPollAt,now.value+2*60*60_000);
+  } finally {setup.close();}
+});
+
+test('consecutive one-request runs complete the poll, then read releases',async()=>{
+  const now={value:Date.parse('2026-10-20T12:00:00Z')},setup=follower({now});
+  try {
+    const start=now.value,perRun=[];
+    for(let run=0;run<5;run++){const before=setup.calls.length;let left=1;await setup.follower.run({admit:()=>left-->0});perRun.push(setup.calls.slice(before));now.value+=60_000;}
+    assert.deepEqual(perRun.slice(0,3),PRESS_FEEDS.map(feed=>[feed.url]),'each run reads the next feed');
+    assert.equal(perRun[3].length,1);assert.match(perRun[3][0],/\/press-room\/\d{8}IPR\d{5}\/$/,'then pending releases are read');
+    const follow=setup.store.get('follow');
+    assert.equal(follow.since,new Date(start).toISOString());assert.equal(follow.poll,undefined);
+    assert.equal(follow.nextPollAt,start+2*60_000+2*60*60_000,'the next poll is timed from its last feed');
+  } finally {setup.close();}
+});
+
+test('a cancelled poll keeps each finished feed with its releases and following start',async()=>{
+  const now={value:Date.parse('2026-10-20T12:00:00Z')},setup=follower({now}),controller=new AbortController();
+  try {
+    const fetchText=setup.follower.fetchText;
+    setup.follower.fetchText=async(url,options)=>{if(url===PRESS_FEEDS[1].url&&!controller.signal.aborted){now.value+=60_000;controller.abort();throw controller.signal.reason;}return fetchText(url,options);};
+    await assert.rejects(setup.follower.run({signal:controller.signal}));
+    let follow=setup.store.get('follow');
+    assert.equal(follow.since,'2026-10-20T12:00:00.000Z');assert.deepEqual(follow.poll.done,['press-releases']);
+    assert.equal(follow.feeds['press-releases'].lastSuccessAt,'2026-10-20T12:00:00.000Z');
+    assert(setup.store.release('20261016IPR48226'),'the finished feed’s releases remain');
+    now.value+=60_000;await setup.follower.run();
+    follow=setup.store.get('follow');
+    assert.equal(follow.since,'2026-10-20T12:00:00.000Z','resuming does not move the following start');
+    assert.equal(setup.calls.filter(url=>url===PRESS_FEEDS[0].url).length,1);
   } finally {setup.close();}
 });
 

@@ -35,7 +35,8 @@ export function brusselsInstant(local) {
 // the activity-index lease holder initializes and writes it (leaseFencedWrite).
 export class PressStore {
   constructor(directory){Object.assign(this,{directory,filename:path.join(directory,'press-v1.sqlite'),db:null,ready:false});}
-  open(){this.db=observeSqlite(new DatabaseSync(this.filename),'press');this.db.exec('PRAGMA busy_timeout=5000;');return this.db;}
+  // Connection settings apply on every open; the journal mode is stored in the file.
+  open(){this.db=observeSqlite(new DatabaseSync(this.filename),'press');this.db.exec('PRAGMA busy_timeout=5000; PRAGMA synchronous=NORMAL;');return this.db;}
   tables() {
     if(this.ready)return true;
     if(!this.db&&!existsSync(this.filename))return false;
@@ -46,7 +47,7 @@ export class PressStore {
   initialize() {
     if(this.ready)return;
     mkdirSync(this.directory,{recursive:true});
-    (this.db||this.open()).exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;'+SCHEMA);
+    (this.db||this.open()).exec('PRAGMA journal_mode=WAL;'+SCHEMA);
     this.ready=true;
   }
   get(key){return this.tables()?parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value):null;}
@@ -134,26 +135,31 @@ export class PressFollower {
       await this.read(id,signal);
     }
   }
-  // An interrupted poll keeps feeds due; releases it already discovered stay recorded.
+  // Each feed's releases, status and the following start commit together, so an
+  // interrupted poll resumes with the remaining feeds. nextPollAt advances only
+  // once every feed of the poll has been read.
   async poll(signal,admit) {
-    const follow=this.store.get('follow')||{since:null,feeds:{}};
-    let complete=true;
     for(const feed of PRESS_FEEDS) {
-      if(!admit()){complete=false;break;}
+      const started=this.store.get('follow')?.poll;
+      if(started&&this.clock()-started.startedAt<PRESS_LIMITS.pollInterval&&started.done.includes(feed.id))continue;
+      if(!admit())return false;
       const attemptedAt=new Date(this.clock()).toISOString();
-      let items;
+      let items=null,failure=null;
       try{items=parsePressFeed(fetched(await this.fetchText(feed.url,{signal})).text);}
-      catch(error) {
-        signal?.throwIfAborted();
-        follow.feeds[feed.id]={...follow.feeds[feed.id],url:feed.url,lastAttemptAt:attemptedAt,error:message(error)};
-        continue;
-      }
-      const now=this.clock(),added=this.write(()=>items.filter(item=>this.store.discover(item,{feed:feed.id,now})).length);
-      follow.feeds[feed.id]={url:feed.url,lastSuccessAt:attemptedAt,items:items.length,added,error:null};
-      follow.since??=attemptedAt;
+      catch(error){signal?.throwIfAborted();failure=error;}
+      const now=this.clock();
+      this.write(()=>{
+        const follow=this.store.get('follow')||{since:null,feeds:{}},current=follow.poll&&now-follow.poll.startedAt<PRESS_LIMITS.pollInterval?follow.poll:{startedAt:now,done:[]};
+        const added=items?items.filter(item=>this.store.discover(item,{feed:feed.id,now})).length:0;
+        follow.feeds={...follow.feeds,[feed.id]:items?{url:feed.url,lastSuccessAt:attemptedAt,items:items.length,added,error:null}:{...follow.feeds?.[feed.id],url:feed.url,lastAttemptAt:attemptedAt,error:message(failure)}};
+        if(items)follow.since??=attemptedAt;
+        const done=[...new Set([...current.done,feed.id])];
+        if(PRESS_FEEDS.every(entry=>done.includes(entry.id))){delete follow.poll;follow.nextPollAt=now+PRESS_LIMITS.pollInterval;}
+        else follow.poll={startedAt:current.startedAt,done};
+        this.store.set('follow',follow);
+      });
     }
-    this.write(()=>this.store.set('follow',complete?{...follow,nextPollAt:this.clock()+PRESS_LIMITS.pollInterval}:follow));
-    return complete;
+    return true;
   }
   async read(id,signal) {
     const release=this.store.release(id);if(!release)return;

@@ -548,9 +548,12 @@ export class ActivityWorker {
     const iteration=loopTimer('activity');
     try {await this.runIteration();}finally {iteration({requests:this.requests||0});}
   }
-  // Press following shares the writer lease, request budget and deadline but none of the index work.
-  async followPress() {
-    const admit=()=>{if(this.stopped||this.requests>=this.budget||this.monotonic()>=this.runDeadline)return false;this.requests++;return true;};
+  // Press following shares the writer lease, request budget and deadline but none
+  // of the index work. When index work is also due, press takes at most a tenth
+  // of the budget (at least one request), so both make progress.
+  async followPress(indexDue) {
+    const cap=indexDue?Math.max(1,Math.floor(this.budget/10)):this.budget;let used=0;
+    const admit=()=>{if(this.stopped||used>=cap||this.requests>=this.budget||this.monotonic()>=this.runDeadline)return false;used++;this.requests++;return true;};
     try {await this.press.run({signal:this.controller.signal,admit});}
     catch(error) {if(!this.stopped)console.error('[press-releases]',error.message);}
   }
@@ -561,7 +564,7 @@ export class ActivityWorker {
     this.runDeadline=this.monotonic()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
     try {
-      if(pressDue)await this.followPress();
+      if(pressDue)await this.followPress(due);
       if(!due || this.stopped)return;
       const active=this.store.get('active') || 0,existing=this.store.get('working');
       if(!existing && active) {
