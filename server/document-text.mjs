@@ -184,6 +184,7 @@ function paragraphsOf(nodes,context) {
       if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const object of out.objects)object.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}}
       const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
       if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,
+        properties:{styleId:property(properties,'w:pStyle')||context.style.defaultParagraph||null,numberingLabel:label||'',numberingComplete:!unknownList&&!number?.incomplete,notesComplete:!out.marks.some(mark=>mark.numberingUnknown&&!mark.label)},
         source:{...context.sourceIndex.get(node),...boundary,segment,complete:!unknownList&&!number?.incomplete&&out.objects.every(object=>object.status==='mapped')&&!out.marks.some(mark=>mark.numberingUnknown&&!mark.label)},
         objects:out.objects.map(object=>({...object,offset:at(object.offset)})),
         marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start)});
@@ -205,10 +206,10 @@ function paragraphsOf(nodes,context) {
   return result;
 }
 // Paragraphs stay plain strings. Footnotes and links are returned separately with exact positions.
-export function docxContent(buffer) {
+export function docxContent(buffer,{includeParagraphProperties=false,numbering=numberingLabels}={}) {
   const parts=docxParts(buffer),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set();
   let incompleteNumber=false;
-  const label=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),{add(message){incompleteNumber=true;warnings.add(message);}});
+  const label=numbering(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),{add(message){incompleteNumber=true;warnings.add(message);}});
   const numberLabel=properties=>{incompleteNumber=false;const value=label(properties);return {label:value,incomplete:incompleteNumber};};
   const document=parser().parse(parts.get('word/document.xml')),paragraphSections=new WeakMap(),noteLabel=noteNumbering(document,parts.get('word/settings.xml'),warnings,paragraphSections);
   const body=paragraphsOf(document,{style,numberLabel,warnings,paragraphSections,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
@@ -249,6 +250,7 @@ export function docxContent(buffer) {
   }});
   const links=body.flatMap((paragraph,index)=>paragraph.spans.map(span=>({paragraph:index,...span}))).slice(0,NOTE_LIMITS.documentLinks);
   return {paragraphs:body.map(p=>p.text),notes,anchors,links,structureStatus:'extracted',paragraphSources:body.map(p=>p.source),
+    ...(includeParagraphProperties?{paragraphProperties:body.map(p=>p.properties)}:{}),
     documentObjects:body.flatMap((p,paragraph)=>p.objects.map(object=>({paragraph,...object}))),extractionWarnings:[...warnings]};
 }
 export const docxParagraphs=buffer=>docxContent(buffer).paragraphs;

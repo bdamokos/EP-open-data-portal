@@ -1,0 +1,847 @@
+{
+  "attribution": "European Commission / Publications Office; European Parliament",
+  "retrievedAt": "2026-10-21",
+  "coverage": "Selected headings and target labels; no full-document coverage implied.",
+  "languages": [
+    {
+      "language": "bg",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0024.01/DOC_1",
+      "sha256": "5b6df2b14198819027f6b8939c5c0b81ef47bf3c195ae5f475193522e24d1787",
+      "articleHeadings": [
+        "Член 1",
+        "Член 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_bg.docx",
+      "targetLabels": [
+        "Член 1 – параграф 1 – точка 4 – буква а",
+        "Член 1 – параграф 1 – точка 16 – буква а",
+        "Член 1 – параграф 1 – точка 16 – буква б",
+        "Член 1 – параграф 1 – точка 21 – буква а",
+        "Приложение I – параграф 1 – точка 2 – буква а"
+      ],
+      "underlyingLabels": [
+        "Член 6 – параграф 1",
+        "Член 22 – параграф 1",
+        "Член 22 – параграф 2",
+        "Член 26 – параграф 1 а (нов)",
+        "Приложение ІV – точка 4,1 – второ изречение"
+      ],
+      "instructionSamples": [
+        {
+          "text": "а)\tпараграф 3 се заменя със следното:",
+          "operation": "replace"
+        },
+        {
+          "text": "б)\tвмъква се следният параграф 3а:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7)\tЧлен 9 се заменя със следното:"
+    },
+    {
+      "language": "cs",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0009.01/DOC_1",
+      "sha256": "5e458f1ef95e56cc7a9ccd563005ab182b35ad1eb69de3b0b2056851cd96be99",
+      "articleHeadings": [
+        "Článek 1",
+        "Článek 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_cs.docx",
+      "targetLabels": [
+        "Čl. 1 – odst. 1 – bod 4 – písm. a",
+        "Čl. 1 – odst. 1 – bod 16 – písm. a",
+        "Čl. 1 – odst. 1 – bod 16 – písm. b",
+        "Čl. 1 – odst. 1 – bod 21 – písm. a",
+        "Příloha I – odst. 1 – bod 2 – písm. a"
+      ],
+      "underlyingLabels": [
+        "Čl. 6 – odst. 1",
+        "Čl. 22 – odst. 1",
+        "Čl. 22 – odst. 2",
+        "Čl. 26 – odst. 1 a (nový)",
+        "Příloha IV – bod 4.1 – čtvrtá věta"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\todstavec 3 se nahrazuje tímto:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tvkládá se nový odstavec 3a, který zní:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7)\tČlánek 9 se nahrazuje tímto:"
+    },
+    {
+      "language": "da",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0002.01/DOC_1",
+      "sha256": "92c9a459d4abecb1c166ca1790c7bcd5120374e93f9214004f0ab630f649108a",
+      "articleHeadings": [
+        "Artikel 1",
+        "Artikel 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_da.docx",
+      "targetLabels": [
+        "Artikel 1 – stk. 1 – nr. 4 – litra a",
+        "Artikel 1 – stk. 1 – nr. 16 – litra a",
+        "Artikel 1 – stk. 1 – nr. 16 – litra b",
+        "Artikel 1 – stk. 1 – nr. 21 – litra a",
+        "Bilag I – punkt 1 – nr. 2 – litra a"
+      ],
+      "underlyingLabels": [
+        "Artikel 6 – stk. 1",
+        "Artikel 22 – stk. 1",
+        "Artikel 22 – stk. 2",
+        "Artikel 26 – stk. 1 a (nyt)",
+        "Bilag IV - punkt 4.1 - 4. punktum"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tStk. 3 affattes således:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tFølgende indsættes som stk. 3a:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "(7)\tArtikel 9 affattes således:"
+    },
+    {
+      "language": "de",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0003.01/DOC_1",
+      "sha256": "2dd03be8dc82efcc9c096a4e417a83731bbeaa8eac1d1efa4d517f77d8fb07ab",
+      "articleHeadings": [
+        "Artikel 1",
+        "Artikel 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_de.docx",
+      "targetLabels": [
+        "Artikel 1 – Absatz 1 – Nummer 4 – Buchstabe a",
+        "Artikel 1 – Absatz 1 – Nummer 16 – Buchstabe a",
+        "Artikel 1 – Absatz 1 – Nummer 16 – Buchstabe b",
+        "Artikel 1 – Absatz 1 – Nummer 21 – Buchstabe a",
+        "Anhang I – Absatz 1 – Nummer 2 – Buchstabe a"
+      ],
+      "underlyingLabels": [
+        "Artikel 6 – Absatz 1",
+        "Artikel 22 – Absatz 1",
+        "Artikel 22 – Absatz 2",
+        "Artikel 26 – Absatz 1 a (neu)",
+        "Anhang IV – Nummer 4.1 – vierter Satz"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tAbsatz 3 erhält folgende Fassung:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tFolgender Absatz 3a wird eingefügt:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7.\tArtikel 9 erhält folgende Fassung:"
+    },
+    {
+      "language": "el",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0008.01/DOC_1",
+      "sha256": "47a05161925c6f9061ee28f13590e9d56de18c9979af49daf8b38afb4b4cbfa0",
+      "articleHeadings": [
+        "Άρθρο 1",
+        "Άρθρο 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_el.docx",
+      "targetLabels": [
+        "Άρθρο 1 – παράγραφος 1 – σημείο 4 – στοιχείο α",
+        "Άρθρο 1 – παράγραφος 1 – σημείο 16 – στοιχείο α",
+        "Άρθρο 1 – παράγραφος 1 – σημείο 16 – στοιχείο β",
+        "Άρθρο 1 – παράγραφος 1 – σημείο 21 – στοιχείο α",
+        "Παράρτημα I – παράγραφος 1 – σημείο 2 – στοιχείο α"
+      ],
+      "underlyingLabels": [
+        "Άρθρο 6 – παράγραφος 1",
+        "Άρθρο 22 – παράγραφος 1",
+        "Άρθρο 22 – παράγραφος 2",
+        "Άρθρο 26 – παράγραφος 1 α (νέα)",
+        "Παράρτημα IV – σημείο 4.1 – τέταρτη πρόταση"
+      ],
+      "instructionSamples": [
+        {
+          "text": "α)\tη παράγραφος 3 αντικαθίσταται από το ακόλουθο κείμενο:",
+          "operation": "replace"
+        },
+        {
+          "text": "β)\tπροστίθεται η ακόλουθη παράγραφος 3α:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "(7)\tΤο άρθρο 9 αντικαθίσταται από το ακόλουθο κείμενο:"
+    },
+    {
+      "language": "en",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0001.01/DOC_1",
+      "sha256": "2c395031f161c8708de8b231fdcb93b409147ca24e1cdc5ba0898c667e074fa6",
+      "articleHeadings": [
+        "Article 1",
+        "Article 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_en.docx",
+      "targetLabels": [
+        "Article 1 – paragraph 1 – point 4 – point a",
+        "Article 1 – paragraph 1 – point 16 – point a",
+        "Article 1 – paragraph 1 – point 16 – point b",
+        "Article 1 – paragraph 1 – point 21 – point a",
+        "Annex I – paragraph 1 – point 2 – point a"
+      ],
+      "underlyingLabels": [
+        "Article 6 – paragraph 1",
+        "Article 22 – paragraph 1",
+        "Article 22 – paragraph 2",
+        "Article 26 – paragraph 1 a (new)",
+        "Annex IV – point 4.1 – fourth sentence"
+      ],
+      "instructionSamples": [
+        {
+          "text": "(a)\tparagraph 3 is replaced by the following:",
+          "operation": "replace"
+        },
+        {
+          "text": "(b)\tthe following paragraph 3a is inserted:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "(7)\tArticle 9 is replaced by the following:"
+    },
+    {
+      "language": "es",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0007.01/DOC_1",
+      "sha256": "9a0fbc444464109b833e2cb780bdf4627cd50c4f69c3bb7b442164af09ea626c",
+      "articleHeadings": [
+        "Artículo 1",
+        "Artículo 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_es.docx",
+      "targetLabels": [
+        "Artículo 1 – párrafo 1 – punto 4 – letra a",
+        "Artículo 1 – párrafo 1 – punto 16 – letra a",
+        "Artículo 1 – párrafo 1 – punto 16 – letra b",
+        "Artículo 1 – párrafo 1 – punto 21 – letra a",
+        "Anexo I – párrafo 1 – punto 2 – letra a"
+      ],
+      "underlyingLabels": [
+        "Artículo 6 – apartado 1",
+        "Artículo 22 – apartado 1",
+        "Artículo 22 – apartado 2",
+        "Artículo 26 – apartado 1 bis (nuevo)",
+        "Anexo IV – punto 4.1 – cuarta frase"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tel apartado 3 se sustituye por el texto siguiente:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tse inserta el apartado 3 bis siguiente:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7)\tEl artículo 9 se sustituye por el texto siguiente:"
+    },
+    {
+      "language": "et",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0016.01/DOC_1",
+      "sha256": "52d288878e160874421829325303a451f907d526945c85ee3914059d9b96413e",
+      "articleHeadings": [
+        "Artikkel 1",
+        "Artikkel 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_et.docx",
+      "targetLabels": [
+        "Artikkel 1 – lõik 1 – punkt 4 – alapunkt a",
+        "Artikkel 1 – lõik 1 – punkt 16 – alapunkt a",
+        "Artikkel 1 – lõik 1 – punkt 16 – alapunkt b",
+        "Artikkel 1 – lõik 1 – punkt 21 – alapunkt a",
+        "I lisa – lõik 1 – punkt 2 – alapunkt a"
+      ],
+      "underlyingLabels": [
+        "Artikkel 6 – lõige 1",
+        "Artikkel 22 – lõige 1",
+        "Artikkel 22 – lõige 2",
+        "Artikkel 26 – lõige 1 a (uus)",
+        "IV lisa – punkt 4.1 – neljas lause"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tlõige 3 asendatakse järgmisega:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tlisatakse järgmine lõige 3a:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7)\tartikkel 9 asendatakse järgmisega:"
+    },
+    {
+      "language": "fi",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0006.01/DOC_1",
+      "sha256": "417740ae1fcf39bf8baa58e8bd3d17a274cdec4f19acdfffb5469295895f8461",
+      "articleHeadings": [
+        "1 artikla",
+        "2 artikla"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_fi.docx",
+      "targetLabels": [
+        "1 artikla – 1 kohta – 4 alakohta – a alakohta",
+        "1 artikla – 1 kohta – 16 alakohta – a alakohta",
+        "1 artikla – 1 kohta – 16 alakohta – b alakohta",
+        "1 artikla – 1 kohta – 21 alakohta – a alakohta",
+        "Liite I – 1 kohta – 2 alakohta – a alakohta"
+      ],
+      "underlyingLabels": [
+        "6 artikla – 1 kohta",
+        "22 artikla – 1 kohta",
+        "22 artikla – 2 kohta",
+        "26 artikla – 1 a alakohta (uusi)",
+        "Liite IV – 4.1 kohta – neljäs virke"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tkorvataan 3 kohta seuraavasti:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tlisätään 3 a kohta seuraavasti:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7)\tKorvataan 9 artikla seuraavasti:"
+    },
+    {
+      "language": "fr",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0021.01/DOC_1",
+      "sha256": "f1bb342128b38ee18cd39f86af77da675680e9b3c7f3400caae4fd1a84bcee76",
+      "articleHeadings": [
+        "Article premier",
+        "Article 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_fr.docx",
+      "targetLabels": [
+        "Article 1 – alinéa 1 – point 4 – sous-point a",
+        "Article 1 – alinéa 1 – point 16 – sous-point a",
+        "Article 1 – alinéa 1 – point 16 – sous-point b",
+        "Article 1 – alinéa 1 – point 21 – sous-point a",
+        "Annexe I – alinéa 1 – point 2 – sous-point a"
+      ],
+      "underlyingLabels": [
+        "Article 6 – paragraphe 1",
+        "Article 22 – paragraphe 1",
+        "Article 22 – paragraphe 2",
+        "Article 26 – paragraphe 1 bis (nouveau)",
+        "Annexe IV – point 4.1 – quatrième phrase"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tle paragraphe 3 est remplacé par le texte suivant:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tle paragraphe 3 bis suivant est inséré:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7)\tL'article 9 est remplacé par le texte suivant:"
+    },
+    {
+      "language": "ga",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0004.01/DOC_1",
+      "sha256": "4b5d0e2566928ae575257ce0bd6ad1d4512e7a70357e695d97ac64e2be05148b",
+      "articleHeadings": [
+        "Airteagal 1",
+        "Airteagal 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_ga.docx",
+      "targetLabels": [
+        "Airteagal 1 – mír 1 – pointe 4 – pointe a",
+        "Airteagal 1 – mír 1 – pointe 16 – pointe a",
+        "Airteagal 1 – mír 1 – pointe 16 – pointe b",
+        "Airteagal 1 – mír 1 – pointe 21 – pointe a",
+        "Iarscríbhinn I – mír 1 – pointe 2 – pointe a"
+      ],
+      "underlyingLabels": [
+        "Airteagal 6 – mír 1",
+        "Airteagal 22 – mír 1",
+        "Airteagal 22 – mír 2",
+        "Airteagal 26 – mír 1 a (nua)",
+        "Iarscríbhinn IV — pointe 4.1 — an ceathrú habairt"
+      ],
+      "instructionSamples": [
+        {
+          "text": "(a)\tcuirtear an méid seo a leanas in ionad mhír 3:",
+          "operation": "replace"
+        },
+        {
+          "text": "(b)\tcuirtear isteach an mhír 3a seo a leanas:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "(7)\tcuirtear an méid seo a leanas in ionad Airteagal 9:"
+    },
+    {
+      "language": "hr",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0022.01/DOC_1",
+      "sha256": "2f134211f8dc7900a6744ec38d54e3ec2ea6b64c9435a5b5a95b997f8fe5af81",
+      "articleHeadings": [
+        "Članak 1.",
+        "Članak 2."
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_hr.docx",
+      "targetLabels": [
+        "Članak 1. – stavak 1. – točka 4. – podtočka a",
+        "Članak 1. – stavak 1. – točka 16. – podtočka a",
+        "Članak 1. – stavak 1. – točka 16. – podtočka b",
+        "Članak 1. – stavak 1. – točka 21. – podtočka a",
+        "Prilog I. – stavak 1. – točka 2. – podtočka a"
+      ],
+      "underlyingLabels": [
+        "Članak 6. – stavak 1.",
+        "Članak 22. – stavak 1.",
+        "Članak 22. – stavak 2.",
+        "Članak 26. stavak 1.a (novi)",
+        "Prilog IV. – točka 4.1. – četvrta rečenica"
+      ],
+      "instructionSamples": [
+        {
+          "text": "(a)\tstavak 3. zamjenjuje se sljedećim:",
+          "operation": "replace"
+        },
+        {
+          "text": "(b)\tumeće se sljedeći stavak 3.a:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7.\tčlanak 9. zamjenjuje se sljedećim:"
+    },
+    {
+      "language": "hu",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0015.01/DOC_1",
+      "sha256": "e5bee98f1f58fd15ffaea84aa4a66ad74268f80bd73dcb3b9bdceed2f23a5ec9",
+      "articleHeadings": [
+        "1. cikk",
+        "2. cikk"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_hu.docx",
+      "targetLabels": [
+        "1 cikk – 1 bekezdés – 4 pont – a pont",
+        "1 cikk – 1 bekezdés – 16 pont – a pont",
+        "1 cikk – 1 bekezdés – 16 pont – b pont",
+        "1 cikk – 1 bekezdés – 21 pont – a pont",
+        "I melléklet – 1 bekezdés – 2 pont – a pont"
+      ],
+      "underlyingLabels": [
+        "6 cikk – 1 bekezdés",
+        "22 cikk – 1 bekezdés",
+        "22 cikk – 2 bekezdés",
+        "26 cikk – 1 a bekezdés (új)",
+        "IV melléklet – 4.1 pont – negyedik mondat"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\ta (3) bekezdés helyébe a következő szöveg lép:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\ta cikk a következő (3a) bekezdéssel egészül ki:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7.\tA 9. cikk helyébe a következő szöveg lép:"
+    },
+    {
+      "language": "it",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0005.01/DOC_1",
+      "sha256": "0dee6f015c4dd3f9f48b20f4d9cbd6ac3562f6aeecfb57b10662c37803a30fed",
+      "articleHeadings": [
+        "Articolo 1",
+        "Articolo 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_it.docx",
+      "targetLabels": [
+        "Articolo 1 – punto 4 – lettera a",
+        "Articolo 1 – punto 16 – lettera a",
+        "Articolo 1 – punto 16 – lettera b",
+        "Articolo 1 – punto 21 – lettera a",
+        "Allegato I – punto 2 – lettera a"
+      ],
+      "underlyingLabels": [
+        "Articolo 6 – paragrafo 1",
+        "Articolo 22 – paragrafo 1",
+        "Articolo 22 – paragrafo 2",
+        "Articolo 26 – paragrafo 1 bis (nuovo)",
+        "Allegato IV – punto 4.1 – quarta frase"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\til paragrafo 3 è sostituito dal seguente:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tè aggiunto il paragrafo 3 bis seguente:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "(7)\tl'articolo 9 è sostituito dal seguente:"
+    },
+    {
+      "language": "lt",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0014.01/DOC_1",
+      "sha256": "490b04a18b6610cb2777186b99dee4f8fb32fc94feab185da05f9d890b7c1c9c",
+      "articleHeadings": [
+        "1 straipsnis",
+        "2 straipsnis"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_lt.docx",
+      "targetLabels": [
+        "1 straipsnio 1 dalies 4 punkto a papunktis",
+        "1 straipsnio 1 dalies 16 punkto a papunktis",
+        "1 straipsnio 1 dalies 16 punkto b papunktis",
+        "1 straipsnio 1 dalies 21 punkto a papunktis",
+        "I priedo 1 dalies 2 punkto a papunktis"
+      ],
+      "underlyingLabels": [
+        "6 straipsnio 1 dalis",
+        "22 straipsnio 1 dalis",
+        "22 straipsnio 2 dalis",
+        "26 straipsnio 1 a dalis (nauja)",
+        "IV priedo 4.1 punkto 4 sakinys"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\t3 dalis pakeičiama taip:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tįterpiama ši 3a dalis:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7)\t9 straipsnis pakeičiamas taip:"
+    },
+    {
+      "language": "lv",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0013.01/DOC_1",
+      "sha256": "9557bf4f544523010d2baf2a1c0f26b0dacfb94b5049550689b21ee01b165ef3",
+      "articleHeadings": [
+        "1. pants",
+        "2. pants"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_lv.docx",
+      "targetLabels": [
+        "1. pants – 1. daļa – 4. punkts – a apakšpunkts",
+        "1. pants – 1. daļa – 16. punkts – a apakšpunkts",
+        "1. pants – 1. daļa – 16. punkts – b apakšpunkts",
+        "1. pants – 1. daļa – 21. punkts – a apakšpunkts",
+        "I pielikums – 1. daļa – 2. punkts – a apakšpunkts"
+      ],
+      "underlyingLabels": [
+        "6. pants – 1. punkts",
+        "22. pants – 1. daļa",
+        "22. pants – 2. punkts",
+        "26. pants – 1.a punkts (jauns)",
+        "IV pielikums – 4.1. punkts – 4. daļa"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tpanta 3. punktu aizstāj ar šādu:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tiekļauj šādu 3.a punktu:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "(7)\tregulas 9. pantu aizstāj ar šādu:"
+    },
+    {
+      "language": "mt",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0020.01/DOC_1",
+      "sha256": "7586d0d126964e20fe608ae27d0fdf3cf9e84a9a8a95973de2860054ac676193",
+      "articleHeadings": [
+        "Artikolu 1",
+        "Artikolu 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_mt.docx",
+      "targetLabels": [
+        "Artikolu 1 – paragrafu 1 – punt 4 – punt a",
+        "Artikolu 1 – paragrafu 1 – punt 16 – punt a",
+        "Artikolu 1 – paragrafu 1 – punt 16 – punt b",
+        "Artikolu 1 – paragrafu 1 – punt 21 – punt a",
+        "Anness I – paragrafu 1 – punt 2 – punt a"
+      ],
+      "underlyingLabels": [
+        "Artikolu 6 – paragrafu 1",
+        "Artikolu 22 – paragrafu 1",
+        "Artikolu 22 – paragrafu 2",
+        "Artikolu 26 - paragrafu 1a (ġdid)",
+        "Anness IV – punt 4.1 – ir-raba’ sentenza"
+      ],
+      "instructionSamples": [
+        {
+          "text": "(a)\til-paragrafu 3 huwa sostitwit b’dan li ġej:",
+          "operation": "replace"
+        },
+        {
+          "text": "(b)\tjiddaħħal il-paragrafu 3a li ġej:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "(7)\tL-Artikolu 9 huwa sostitwit b’dan li ġej:"
+    },
+    {
+      "language": "nl",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0012.01/DOC_1",
+      "sha256": "e2ef4ee14a855211e39bf9c7567a7712e9b74c3b89c0e3e9672795d98d4dcfa2",
+      "articleHeadings": [
+        "Artikel 1",
+        "Artikel 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_nl.docx",
+      "targetLabels": [
+        "Artikel 1 – alinea 1 – punt 4 – a",
+        "Artikel 1 – alinea 1 – punt 16 – a",
+        "Artikel 1 – alinea 1 – punt 16 – b",
+        "Artikel 1 – alinea 1 – punt 21 – a",
+        "Bijlage 1 – alinea 1 – punt 2 – a"
+      ],
+      "underlyingLabels": [
+        "Artikel 6 – lid 1",
+        "Artikel 22 – lid 1",
+        "Artikel 22 – lid 2",
+        "Artikel 26 – lid 1 bis (nieuw)",
+        "Bijlage IV – punt 4.1 – zin 4"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tlid 3 wordt vervangen door:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\thet volgende lid 3 bis wordt ingevoegd:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "(7)\tArtikel 9 wordt vervangen door:"
+    },
+    {
+      "language": "pl",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0019.01/DOC_1",
+      "sha256": "bc101d147b65918bcb8dd99575c3632242a0a00f750d2042425fe07f3baf8fee",
+      "articleHeadings": [
+        "Artykuł 1",
+        "Artykuł 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_pl.docx",
+      "targetLabels": [
+        "Artykuł 1 – akapit 1 – ustęp 4 – litera a",
+        "Artykuł 1 – akapit 1 – ustęp 16 – litera a",
+        "Artykuł 1 – akapit 1 – ustęp 16 – litera b",
+        "Artykuł 1 – akapit 1 – ustęp 21 – litera a",
+        "Załącznik I – akapit 1 – punkt 2 – litera a"
+      ],
+      "underlyingLabels": [
+        "Artykuł 6 – ustęp 1",
+        "Artykuł 22 – ustęp 1",
+        "Artykuł 22 – ustęp 2",
+        "Artykuł 26 – ustęp 1 a (nowy)",
+        "Załącznik IV – punkt 4.1 – zdanie czwarte"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tust. 3 otrzymuje brzmienie:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tdodaje się ust. 3 a w brzmieniu:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7.\tart. 9 otrzymuje brzmienie:"
+    },
+    {
+      "language": "pt",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0011.01/DOC_1",
+      "sha256": "3755e00d4ef4eecfefb246161c0fc86fe0c88e7a1499856a49f80d7658919446",
+      "articleHeadings": [
+        "Artigo 1.º",
+        "Artigo 2.º"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_pt.docx",
+      "targetLabels": [
+        "Artigo 1 – parágrafo 1 – ponto 4 – alínea a)",
+        "Artigo 1 – parágrafo 1 – ponto 16 – alínea a)",
+        "Artigo 1 – parágrafo 1 – ponto 16 – alínea b)",
+        "Artigo 1 – parágrafo 1 – ponto 21 – alínea a)",
+        "Artigo I – parágrafo 1 – ponto 2 – alínea a)"
+      ],
+      "underlyingLabels": [
+        "Artigo 6 – n.º 1",
+        "Artigo 22 – n.º 1",
+        "Artigo 22 – n.º 2",
+        "Artigo 26 – n.º 1A (novo)",
+        "Anexo IV – ponto 4.1 – quarta frase"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tO n.º 3 passa a ter a seguinte redação:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tÉ inserido o seguinte n.º 3-A:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7)\tO artigo 9.º passa a ter a seguinte redação:"
+    },
+    {
+      "language": "ro",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0023.01/DOC_1",
+      "sha256": "a620a98e12166a8357f8d1b4e271fc6dc8cf9779d3f990d0b62b8a1227fa721e",
+      "articleHeadings": [
+        "Articolul 1",
+        "Articolul 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_ro.docx",
+      "targetLabels": [
+        "Articolul 1 – paragraful 1 – punctul 4 – litera a",
+        "Articolul 1 – paragraful 1 – punctul 16 – litera a",
+        "Articolul 1 – paragraful 1 – punctul 16 – litera b",
+        "Articolul 1 – paragraful 1 – punctul 21 – litera a",
+        "Anexa I – paragraful 1 – punctul 2 – litera a"
+      ],
+      "underlyingLabels": [
+        "Articolul 6 – alineatul 1",
+        "Articolul 22 – alineatul 1",
+        "Articolul 22 – alineatul 2",
+        "Articolul 26 – alineatul 1 a (nou)",
+        "Anexa IV – punctul 4.1 – a patra teză"
+      ],
+      "instructionSamples": [
+        {
+          "text": "(a)\talineatul (3) se înlocuiește cu următorul text:",
+          "operation": "replace"
+        },
+        {
+          "text": "(b)\tse introduce alineatul (3a), cu următorul text:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "(7)\tArticolul 9 se înlocuiește cu următorul text:"
+    },
+    {
+      "language": "sk",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0017.01/DOC_1",
+      "sha256": "563a0a2ce1257ec1cbef52f321eeea8036825816e6bee072acb55cea5f344a63",
+      "articleHeadings": [
+        "Článok 1",
+        "Článok 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_sk.docx",
+      "targetLabels": [
+        "Článok 1 – odsek 1 – bod 4 – písmeno a",
+        "Článok 1 – odsek 1 – bod 16 – písmeno a",
+        "Článok 1 – odsek 1 – bod 16 – písmeno b",
+        "Článok 1 – odsek 1 – bod 21 – písmeno a",
+        "Príloha I – odsek 1 – bod 1 – písmeno a"
+      ],
+      "underlyingLabels": [
+        "Článok 6 – odsek 1",
+        "Článok 22 – odsek 1",
+        "Článok 22 – odsek 2",
+        "Článok 26 – odsek 1a (nový)",
+        "Príloha IV – bod 4.1 – štvrtá veta"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tOdsek 3 sa nahrádza takto:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tVkladá sa tento odsek 3a:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "7.\tČlánok 9 sa nahrádza takto:"
+    },
+    {
+      "language": "sl",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0018.01/DOC_1",
+      "sha256": "4c8af8dd41295b7650d538aa2e9c432894a8f5f9df5e246e9ef6f4e247e582c3",
+      "articleHeadings": [
+        "Člen 1",
+        "Člen 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_sl.docx",
+      "targetLabels": [
+        "Člen 1 – odstavek 1 – točka 4 – točka a",
+        "Člen 1 – odstavek 1 – točka 16 – točka a",
+        "Člen 1 – odstavek 1 – točka 16 – točka b",
+        "Člen 1 – odstavek 1 – točka 21 – točka a",
+        "Priloga I – odstavek 1 – točka 2 – točka a"
+      ],
+      "underlyingLabels": [
+        "Člen 6 – odstavek 1",
+        "Člen 22 – odstavek 1",
+        "Člen 22 – odstavek 2",
+        "Člen 26 – odstavek 1 a (novo)",
+        "Priloga IV – točka 4.1 – stavek 4"
+      ],
+      "instructionSamples": [
+        {
+          "text": "(a)\todstavek 3 se nadomesti z naslednjim:",
+          "operation": "replace"
+        },
+        {
+          "text": "(b)\tvstavi se naslednji odstavek 3a:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "(7)\tčlen 9 se nadomesti z naslednjim:"
+    },
+    {
+      "language": "sv",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0010.01/DOC_1",
+      "sha256": "7430bff5986a9d5e5d83152802d9a0a141ae35cef385fb7120b08ebe3f9f9961",
+      "articleHeadings": [
+        "Artikel 1",
+        "Artikel 2"
+      ],
+      "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_sv.docx",
+      "targetLabels": [
+        "Artikel 1 – punkt 1 – led 4 – led a",
+        "Artikel 1 – punkt 1 – led 16 – led a",
+        "Artikel 1 – punkt 1 – led 16 – led b",
+        "Artikel 1 – punkt 1 – led 21 – led a",
+        "Bilaga I – punkt 1 – led 2 – led a"
+      ],
+      "underlyingLabels": [
+        "Artikel 6 – punkt 1",
+        "Artikel 22 – punkt 1",
+        "Artikel 22 – punkt 2",
+        "Artikel 26 – punkt 1a (ny)",
+        "Bilaga IV – punkt 4.1 – fjärde meningen"
+      ],
+      "instructionSamples": [
+        {
+          "text": "a)\tPunkt 3 ska ersättas med följande:",
+          "operation": "replace"
+        },
+        {
+          "text": "b)\tFöljande punkt 3a ska läggas till:",
+          "operation": "insert"
+        }
+      ],
+      "numberedInstruction": "(7)\tArtikel 9 ska ersättas med följande:"
+    }
+  ]
+}
