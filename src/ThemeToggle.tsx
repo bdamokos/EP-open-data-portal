@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {nextColourScheme,readColourScheme,saveColourScheme,type ColourScheme} from './colourScheme.mjs';
+import {nextColourScheme,readActiveColourScheme,saveColourScheme,type ColourScheme} from './colourScheme.mjs';
 
 const names:Record<ColourScheme,string>={system:'System',light:'Light',dark:'Dark'};
 
@@ -11,7 +11,7 @@ function SchemeIcon({scheme}:{scheme:ColourScheme}) {
 
 // Cycles System → Light → Dark. The label names the current choice and the next one.
 export function ThemeToggle() {
-  const [scheme,setScheme]=useState<ColourScheme>(readColourScheme);
+  const [scheme,setScheme]=useState<ColourScheme>(readActiveColourScheme);
   const next=nextColourScheme(scheme);
   const label=`Colour scheme: ${names[scheme]}. Switch to ${names[next].toLowerCase()}`;
   return <button type="button" className="explorer-scheme-toggle" lang="en" aria-label={label} title={label} onClick={()=>{saveColourScheme(next);setScheme(next);}}><SchemeIcon scheme={scheme}/></button>;
