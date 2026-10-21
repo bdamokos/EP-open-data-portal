@@ -86,6 +86,23 @@ function follower({pages={},now}) {
 // The example release left the feeds before following began; it stands for one announced earlier.
 const announceEts=(store,now)=>{store.initialize();store.transaction(()=>store.discover({id:'20261016IPR48237',url:pressReleaseUrl('20261016IPR48237'),title:null,publishedAt:null,committees:['ENVI']},{feed:'press-releases-committees',now}));};
 
+test('completed RSS polls wait a full day, including after reopening the store',async()=>{
+  const directory=temp();let now=Date.parse('2026-10-21T07:00:00Z'),reads=0,store=new PressStore(directory);
+  const options={clock:()=>now,fetchText:async()=>{reads++;return rss([]);}};
+  try {
+    await new PressFollower(store,options).run();
+    assert.equal(reads,3);
+    store.close();store=new PressStore(directory);
+    const following=new PressFollower(store,options);
+    now+=DAY-1;
+    assert.equal(following.due(),false);
+    await following.run();assert.equal(reads,3,'no feed is read before the daily poll is due');
+    now++;
+    assert.equal(following.due(),true);
+    await following.run();assert.equal(reads,6);
+  } finally {store.close();rmSync(directory,{recursive:true,force:true});}
+});
+
 test('following reads each announced release once, withholds unlisted pages and reports partial coverage',async()=>{
   const now={value:Date.parse('2026-10-20T12:00:00Z')},setup=follower({now});
   const {store,calls}=setup;
@@ -97,7 +114,7 @@ test('following reads each announced release once, withholds unlisted pages and 
     assert.deepEqual(calls.slice(3).sort(),['20261016IPR48226','20261016IPR48237','20261016IPR48238','20261018IPR48249'].map(pressReleaseUrl),'only announced releases are read');
     const follow=store.get('follow');
     assert.equal(follow.since,'2026-10-20T12:00:00.000Z');assert.match(follow.feeds['press-releases-committees'].error,/503/);
-    assert.equal(follow.nextPollAt,now.value+2*60*60_000);
+    assert.equal(follow.nextPollAt,now.value+DAY);
     assert.equal(store.release('20261018IPR48249').attempts,1,'a failed read is retried later');
     const mentions=new PressMentions(store,official);
     const ets=await mentions.query(pressMentionsQuery(new URLSearchParams({reference:'2026/0211(COD)',lang:'en'})));
@@ -209,7 +226,7 @@ test('an exhausted request budget stops following and leaves the poll due',async
     await setup.follower.run();
     assert.equal(setup.calls[2],PRESS_FEEDS[2].url,'the poll resumes with the remaining feed');
     assert.equal(setup.calls.filter(url=>url===PRESS_FEEDS[0].url).length,1);
-    assert.equal(setup.store.get('follow').nextPollAt,now.value+2*60*60_000);
+    assert.equal(setup.store.get('follow').nextPollAt,now.value+DAY);
   } finally {setup.close();}
 });
 
@@ -222,7 +239,7 @@ test('consecutive one-request runs complete the poll, then read releases',async(
     assert.equal(perRun[3].length,1);assert.match(perRun[3][0],/\/press-room\/\d{8}IPR\d{5}\/$/,'then pending releases are read');
     const follow=setup.store.get('follow');
     assert.equal(follow.since,new Date(start).toISOString());assert.equal(follow.poll,undefined);
-    assert.equal(follow.nextPollAt,start+2*60_000+2*60*60_000,'the next poll is timed from its last feed');
+    assert.equal(follow.nextPollAt,start+2*60_000+DAY,'the next poll is timed from its last feed');
   } finally {setup.close();}
 });
 

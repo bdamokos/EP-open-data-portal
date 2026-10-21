@@ -10,7 +10,7 @@ import {requestSignal} from './request-budget.mjs';
 import {PRESS_FEEDS,parsePressFeed,parsePressRelease} from './press-releases-model.mjs';
 
 const HOUR=60*60_000,DAY=24*HOUR;
-export const PRESS_LIMITS=Object.freeze({pollInterval:2*HOUR,pagesPerRun:6,maxAttempts:6,listed:5});
+export const PRESS_LIMITS=Object.freeze({pollInterval:DAY,pagesPerRun:6,maxAttempts:6,listed:5});
 const parse=value=>value==null?null:JSON.parse(value);
 const message=error=>String(error?.message||error).slice(0,300);
 const SCHEMA=`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);

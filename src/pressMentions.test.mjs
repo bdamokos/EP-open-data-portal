@@ -4,7 +4,7 @@ import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
 
-test('dossier press releases keep exact links, English titles and a partial-coverage note',async t=>{
+test('dossier press releases keep exact links and English titles without a coverage disclaimer',async t=>{
   const window=new Window({url:'http://localhost/?view=legislation'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -54,9 +54,7 @@ test('dossier press releases keep exact links, English titles and a partial-cove
   const details=[...section.querySelectorAll('li small')];
   assert.deepEqual(details.map(detail=>detail.textContent),['19 oct. 2026','15 oct. 2026','12 oct. 2026']);
   assert.equal(details[0].querySelector('time').getAttribute('lang'),'fr');
-  const scope=section.querySelector('.press-mentions-scope').textContent;
-  assert.match(scope,/since 21 oct\. 2026/,'the following start uses the Brussels calendar day');
-  assert.match(scope,/Not a complete list; links through Legislative Observatory summaries and documents could not be checked\./);
+  assert.equal(section.querySelector('.press-mentions-scope'),null);
   await act(async()=>root.render(createElement(ProcedureContext,{reference,language:'fr',showTitle:true})));
   assert.equal(container.querySelectorAll('.press-mentions li').length,4,'the dossier view shows up to five');
   await act(async()=>root.render(createElement(ProcedureContext,{reference:empty,language:'fr'})));
