@@ -371,3 +371,13 @@ test('placement quotation fallback stays bounded, unique, in the resolution and 
   text.paragraphSources[3].complete=false;
   assert.equal(placement(text,{originalText:'19. Complete text;',proposedText:'New',targetLabel:'Paragraph 19'}).reason,'source_passage_incomplete');
 });
+
+for(const [kind,base,labels,next] of [
+  ['Paragraph','19',['19. First;', '19b. Earlier sibling;', '19aa. Later sibling;', '20. Next;'],'20. Next;'],
+  ['Recital','B',['B. whereas first;', 'Bb. whereas earlier sibling;', 'Baa. whereas later sibling;', 'C. whereas next;'],'C. whereas next;'],
+])test(`${kind} insertion anchors to the last source sibling when suffix lengths differ`,()=>{
+  const text=motion(labels),result=placement(text,{originalText:'',proposedText:'New provision;',targetLabel:kind+' '+base+' c (new)'});
+  assert.equal(result.status,'placed');assert.equal(result.insertAfter,5);assert.equal(result.insertBefore,6);
+  assert.equal(text.paragraphs[result.insertBefore],next);
+  assert.equal(result.evidence[0].anchor,base+'aa');
+});

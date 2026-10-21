@@ -320,7 +320,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     if (matching(ref).length) return unresolved('duplicate_target_label');
     const siblings = units.filter(unit => unit.kind === ref.kind && (unit.label === ref.base || unit.label.startsWith(ref.base) && /^[a-z]+$/.test(unit.label.slice(ref.base.length)) && unit.label.slice(ref.base.length) < ref.suffix));
     if (!siblings.some(unit => unit.label === ref.base)) return unresolved('relative_target_not_found');
-    const ordered = siblings.sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0), anchor = ordered.at(-1);
+    const ordered = siblings.sort((a, b) => a.start - b.start), anchor = ordered.at(-1);
     if (new Set(siblings.map(unit => unit.label)).size !== siblings.length || siblings.some(unit => unit.parent !== anchor.parent)) return unresolved('multiple_published_targets');
     evidence.push({basis: 'published-reference', label: ref.label, anchor: anchor.label});
     if (options.referenceText) {
