@@ -112,9 +112,12 @@ test('a text saved before formatting stays readable and is re-read once in the b
   assert.equal((await documentText(work(url), 'en', {directory, download, clock})).formatStatus, 'not-extracted');
   const upgrading = await documentText(work(url), 'en', {directory, download, clock});
   assert.deepEqual(upgrading.paragraphs, ['saved text']); assert.equal(upgrading.stale, false); assert.equal(upgrading.refreshInProgress, true);
-  while (calls < 2) await new Promise(resolve => setImmediate(resolve));
-  await new Promise(resolve => setTimeout(resolve, 20));
-  const upgraded = await documentText(work(url), 'en', {directory, download, clock});
+  let upgraded;
+  for (let attempt = 0; attempt < 200; attempt++) {
+    upgraded = await documentText(work(url), 'en', {directory, download, clock});
+    if (!upgraded.refreshInProgress) break;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
   assert.equal(upgraded.formatStatus, 'extracted'); assert.deepEqual(upgraded.paragraphFormats, [{align: 'center'}]);
   assert.equal(calls, 2);
 });

@@ -341,7 +341,11 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const present=record=>({...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),...documentStructure(record),...documentFormatting(record),
     extractionVersion:record.extractionVersion,sourceVersion:record.source||null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
   // Texts saved before formatting was recorded stay readable while one background read per process adds it.
-  if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),reformat=saved.formattingVersion!==FORMATTING_VERSION&&!reformatted.has(key);if(reformat){if(reformatted.size>=5000)reformatted.clear();reformatted.add(key);}if((stale||reformat) && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
+  if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),reformat=saved.formattingVersion!==FORMATTING_VERSION&&!reformatted.has(key);
+    if((stale||reformat) && (!failure || failure.retryAt<=clock())){
+      if(reformat){if(reformatted.size>=5000)reformatted.clear();reformatted.add(key);}
+      void refresh('background').catch(()=>{if(reformat)reformatted.delete(key);});
+    }return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
   try {const record=await waitForRequest(refresh('interactive'));return present(record);}
   catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString()};}
