@@ -4,8 +4,11 @@ import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
 
-async function setup(t,failure) {
+async function setup(t,failure,systemDark=false) {
   const window=new Window({url:'http://localhost/'}),key='ep.colour-scheme.v1';
+  const listeners=new Set();
+  window.matchMedia=query=>({matches:query==='(prefers-color-scheme: dark)'&&systemDark,addEventListener:(_,listener)=>listeners.add(listener),removeEventListener:(_,listener)=>listeners.delete(listener)});
+  const setSystem=dark=>act(async()=>{systemDark=dark;for(const listener of listeners)listener();});
   const storage=window.localStorage;
   if(failure==='remove')storage.setItem(key,'dark');
   const denied=()=>{throw new Error('Storage unavailable');};
@@ -34,21 +37,21 @@ async function setup(t,failure) {
   const click=()=>act(async()=>container.querySelector('button').click());
   const state=()=>({theme:document.documentElement.dataset.theme||'system',label:container.querySelector('button').getAttribute('aria-label')});
   await remount();
-  return {remount,click,state,storage,key};
+  return {remount,click,state,setSystem,storage,key};
 }
 
 for(const failure of ['access','read','write'])test(`scheme toggle retains its active choice after remount when storage ${failure} fails`,async t=>{
   const view=await setup(t,failure);
   await view.click();await view.click();
-  assert.deepEqual(view.state(),{theme:'dark',label:'Colour scheme: Dark. Switch to system'});
+  assert.deepEqual(view.state(),{theme:'light',label:'Colour scheme: Light. Switch to system'});
   await view.remount();
-  assert.deepEqual(view.state(),{theme:'dark',label:'Colour scheme: Dark. Switch to system'});
+  assert.deepEqual(view.state(),{theme:'light',label:'Colour scheme: Light. Switch to system'});
   await view.click();
-  assert.deepEqual(view.state(),{theme:'system',label:'Colour scheme: System. Switch to light'});
+  assert.deepEqual(view.state(),{theme:'system',label:'Colour scheme: System. Switch to dark'});
 });
 
 test('a failed storage removal cannot restore a stale override when the toggle remounts',async t=>{
-  const view=await setup(t,'remove');
+  const view=await setup(t,'remove',true);
   assert.equal(view.state().theme,'dark');
   await view.click();
   assert.equal(view.storage.getItem(view.key),'dark','the old persisted choice remains after removal fails');
@@ -56,4 +59,18 @@ test('a failed storage removal cannot restore a stale override when the toggle r
   assert.deepEqual(view.state(),{theme:'system',label:'Colour scheme: System. Switch to light'});
   await view.click();
   assert.deepEqual(view.state(),{theme:'light',label:'Colour scheme: Light. Switch to dark'});
+});
+
+test('the toggle first switches to the opposite of the system setting at the time of clicking',async t=>{
+  const view=await setup(t,null,true);
+  assert.deepEqual(view.state(),{theme:'system',label:'Colour scheme: System. Switch to light'});
+  await view.click();
+  assert.deepEqual(view.state(),{theme:'light',label:'Colour scheme: Light. Switch to dark'});
+  await view.click();
+  assert.deepEqual(view.state(),{theme:'dark',label:'Colour scheme: Dark. Switch to system'});
+  await view.click();
+  await view.setSystem(false);
+  assert.deepEqual(view.state(),{theme:'system',label:'Colour scheme: System. Switch to dark'},'the label follows a system change');
+  await view.click();
+  assert.equal(view.state().theme,'dark');
 });
