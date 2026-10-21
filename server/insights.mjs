@@ -1,6 +1,6 @@
 import {SpeechWordInsights,speechWordsQuery} from './insights-speech-words.mjs';
 import {SpeechCloudInsights,speechCloudQuery} from './speech-cloud.mjs';
-import {OfficialContextSources,sharedOfficialContextSources} from './official-context.mjs';
+import {OfficialContextSources,getSharedOfficialContextSources} from './official-context.mjs';
 import {EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext,procedureContextQuery} from './procedure-context.mjs';
 import {ProcedureProgress,procedureProgressQuery} from './procedure-progress.mjs';
@@ -28,7 +28,7 @@ export function createInsights(store,options={}) {
   const speechWords=new SpeechWordInsights(store,shared);
   const questions=new QuestionInsights(store,shared),legislation=new LegislationInsights(store,shared);
   const speechCloud=new SpeechCloudInsights(store,{...shared,legislation});
-  const officialSources=options.officialSources||(options.officialContext||options.clock?new OfficialContextSources({clock,...options.officialContext}):sharedOfficialContextSources);
+  const officialSources=options.officialSources||(options.officialContext||options.clock?new OfficialContextSources({clock,...options.officialContext}):getSharedOfficialContextSources());
   const catalog=options.eurovocCatalog||new EurovocCatalog(officialSources,{clock,...options.eurovoc});
   const procedureContext=new ProcedureContext(officialSources,catalog),topicTrends=new TopicTrends(store,catalog,{clock});
   const procedureProgress=new ProcedureProgress(officialSources);

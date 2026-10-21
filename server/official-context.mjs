@@ -74,7 +74,8 @@ export class OfficialContextSources {
   }
 }
 
-export const sharedOfficialContextSources=new OfficialContextSources();
+let sharedSources;
+export function getSharedOfficialContextSources(){return sharedSources??=new OfficialContextSources();}
 
 const htmlParser=new XMLParser({ignoreAttributes:false,preserveOrder:true,parseTagValue:false,trimValues:false,processEntities:true,htmlEntities:true,allowBooleanAttributes:true,unpairedTags:['br','hr','img','input','meta','link','source','wbr']});
 const classHas=(node,name)=>String(node.attrs?.['@_class']||'').split(/\s+/).includes(name);

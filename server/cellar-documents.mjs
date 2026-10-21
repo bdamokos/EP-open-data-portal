@@ -9,7 +9,7 @@ import {retryAfterSeconds} from './upstream-queue.mjs';
 import {writeCacheFile} from './cache-publication.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {userAgent} from './user-agent.mjs';
-import {sharedOfficialContextSources} from './official-context.mjs';
+import {getSharedOfficialContextSources} from './official-context.mjs';
 
 export const CELLAR_DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
 export const CELLAR_LIMITS=Object.freeze({metadataBytes:3*1024*1024,itemBytes:8*1024*1024,bundleBytes:24*1024*1024,items:32,redirects:3,diskBytes:256*1024*1024,memoryBytes:24*1024*1024,freshMs:7*86400_000,metadataFreshMs:6*3600_000});
@@ -36,7 +36,7 @@ export async function limitedCellarBody(response,maximum) {
   return Buffer.concat(chunks);
 }
 export class CellarDocuments {
-  constructor({sources=sharedOfficialContextSources,fetchSource=sources.fetchSource,clock=Date.now,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'commission-proposals-v1'),freshMs=CELLAR_LIMITS.freshMs}={}) {
+  constructor({sources=getSharedOfficialContextSources(),fetchSource=sources.fetchSource,clock=Date.now,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'commission-proposals-v1'),freshMs=CELLAR_LIMITS.freshMs}={}) {
     Object.assign(this,{sources,fetchSource,clock,directory,freshMs});this.memory=new Map();this.pending=new Map();this.failures=new Map();this.bytes=0;
     this.disk=directory?new CacheDiskBudget(directory,{clock,maxBytes:CELLAR_LIMITS.diskBytes,maxEntries:4096,pattern:/^[a-f0-9]{64}\.(?:json|blob)$/}):null;
   }

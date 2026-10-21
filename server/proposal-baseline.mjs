@@ -52,4 +52,5 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
   };
 }
 /** Internal, lazy source function. Buffers go directly to the existing DOCX pipeline. */
-export const proposalBaseline=createProposalBaseline();
+let defaultBaseline;
+export function proposalBaseline(options){defaultBaseline??=createProposalBaseline();return defaultBaseline(options);}
