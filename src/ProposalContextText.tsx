@@ -24,6 +24,7 @@ export const proposalPlacementReasons:Record<string,string>={
   target_not_found:'The passage this amendment changes could not be found.',
   target_reference_unavailable:'The proposal location is not specified clearly enough.',
   insertion_reference_unavailable:'The insertion location is not specified clearly enough.',
+  source_structure_unavailable:'The source does not establish the complete boundaries of this provision.',
   source_passage_incomplete:'The source passage is incomplete.',
   different_text_languages:'The proposal and amendment wording are in different languages.',
   matching_budget:'The automatic location search reached its limit.',

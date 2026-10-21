@@ -54,7 +54,14 @@ function toSourcePosition(paragraphs,offset) {
   for(const p of paragraphs){if(offset<=base+p.text.length)return {paragraph:p.index,offset:Math.max(0,offset-base)};base+=p.text.length+1;}
   return null;
 }
+// A heading styled as an article can be unreadable by the current label
+// grammar (for example a compact "Article2"). It cannot extend Article 1.
+function unparsedArticleHeading(proposal,unit) {
+  const articles=new Set(flat(proposal.units).filter(u=>u.kind==='article').map(u=>u.extent.start));
+  return proposal.paragraphs.slice(unit.extent.start,unit.extent.end).some(p=>/Titrearticle/i.test(p.properties?.styleId??'')&&/^[\p{L}]+\s*\d[\p{L}\d. -]*$/u.test(p.text.trim().split(/\r?\n/)[0])&&!articles.has(p.index));
+}
 function matchUnit(proposal,unit,original) {
+  if(unparsedArticleHeading(proposal,unit))return {reason:'source_structure_unavailable'};
   const {paragraphs,text}=unitText(proposal,unit);
   if(text.length>MAX_UNIT_CHARACTERS)return {reason:'matching_budget'};
   const labelled=flat([unit]).filter(u=>u.label?.prefix&&['paragraph','point','recital'].includes(u.kind));
@@ -115,6 +122,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     if(best.length!==1||best[0].unit.pathConflict)return unresolved('multiple_published_targets');
     const anchor=best[0],proposal=items[anchor.itemIndex].proposal;
     if(!anchor.unit.complete||proposal.paragraphs.slice(anchor.unit.extent.start,anchor.unit.extent.end).some(p=>!p.source||p.source.complete===false)||proposal.gaps.some(gap=>gap.code==='unclosed-quotation'&&gap.paragraph>=anchor.unit.extent.start&&gap.paragraph<anchor.unit.extent.end))return unresolved('source_passage_incomplete');
+    if(unparsedArticleHeading(proposal,anchor.unit))return unresolved('source_structure_unavailable');
     const insertBefore=anchor.unit.extent.end;
     if(insertBefore<=anchor.unit.extent.start)return unresolved('source_passage_incomplete');
     evidence.push({basis:'preceding-sibling-subtree',anchor:anchor.unit.id});
@@ -124,7 +132,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(candidates.length>1&&new Set(candidates.map(c=>c.itemIndex+'|'+parentKey(c.unit))).size!==1)return unresolved('multiple_published_targets');
   const matches=candidates.map(candidate=>({...candidate,match:matchUnit(candidate.proposal,candidate.unit,originalText)}));
   const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole));
-  if(matching.length!==1)return unresolved(matches.find(c=>c.match.reason==='math_comparison_unavailable')?'math_comparison_unavailable':'conflicting_target_evidence');
+  if(matching.length!==1)return unresolved(matches.find(c=>c.match.reason==='math_comparison_unavailable')?'math_comparison_unavailable':matches.find(c=>c.match.reason==='source_structure_unavailable')?'source_structure_unavailable':'conflicting_target_evidence');
   const selected=matching[0];
   if(candidates.length===1&&selected.unit.pathConflict)return unresolved('multiple_published_targets');
   evidence.push({basis:candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id});

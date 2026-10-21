@@ -76,3 +76,18 @@ test('wording comparison never strips an unlabelled parenthesized word',()=>{
   assert.equal(proposalMatchingOffsets('(not) The source sentence.').normal,'(not) The source sentence');
   assert.equal(resolve(projection,'Article 1 – paragraph 1','1. The source sentence.').status,'placed');
 });
+
+
+test('a real Article 1a insertion never absorbs an unparsed compact Article2 heading',()=>{
+  const recorded=fixture('proposal-placement-gas-storage.json'),proposal=parseProposal(recorded),items=[{kind:'act',index:1,proposal}];
+  const placement=resolveProposalPlacement(items,recorded.amendment),article2=proposalCandidates(proposal,'Article 2')[0];
+  if(article2){assert.equal(placement.status,'placed');assert.equal(placement.insertBefore,article2.extent.start);}
+  else {assert.equal(placement.status,'unresolved');assert.equal(placement.reason,'source_structure_unavailable');assert.equal(placement.insertBefore,undefined);}
+});
+
+
+test('recorded COD Recital 3a is inserted after recital 3 and before recital 4',()=>{
+  const recorded=fixture('proposal-placement-gas-storage.json'),proposal=parseProposal(recorded),items=[{kind:'act',index:1,proposal}];
+  const placed=resolveProposalPlacement(items,recorded.recitalAmendment),three=proposalCandidates(proposal,'Recital 3')[0],four=proposalCandidates(proposal,'Recital 4')[0];
+  assert.equal(placed.status,'placed');assert.equal(placed.operation,'insert');assert.equal(placed.insertAfter,three.extent.end-1);assert.equal(placed.insertBefore,four.extent.start);
+});
