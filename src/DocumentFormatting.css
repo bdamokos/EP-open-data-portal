@@ -14,6 +14,7 @@
 .doc-table td{vertical-align:top;padding:0 1em 0 0;overflow-wrap:break-word}
 .doc-table td>p{margin:.35em 0;overflow-wrap:break-word}
 .doc-table-bordered td{border:1px solid var(--line);padding:.2em .6em}
+.doc-table-bordered td.doc-table-gap{border:0}
 @media(max-width:600px){
   :where(.doc-indent,.doc-hanging,.doc-first-line){--doc-indent-scale:.5}
   .doc-align-justify{text-align:start}

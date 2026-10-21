@@ -385,3 +385,17 @@ test('formatting that does not match the paragraphs is ignored',async t=>{
   assert.equal(h.container.querySelectorAll('.doc-align-center').length,0);
   assert.equal(h.container.querySelector('[data-source-paragraph="0"]').textContent,'Plain one.');
 });
+
+test('a note anchored just before an unresolved object stays visible with formatting',async t=>{
+  const paragraph='Before￼ after.';
+  const h=await harness(t,()=>response(report,sourceDocument(report,[paragraph],{
+    documentObjects:[{paragraph:0,offset:6,path:'document/p/1/r/1/drawing',kind:'drawing',status:'unresolved'}],
+    notes:[{id:'1',label:'1',text:'Exact source note.',links:[]}],noteAnchors:[{paragraph:0,offset:6,note:'1',label:'1'}],
+    formatStatus:'extracted',paragraphFormats:[{marks:[{start:0,end:6,kind:'italic'}]}],tables:[],
+  })));
+  await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
+  const p=h.container.querySelector('[data-source-paragraph="0"]');
+  assert.equal(p.querySelector('i').textContent,'Before');
+  const mark=p.querySelector('sup.legal-note-mark'),object=p.querySelector('.document-context-object');
+  assert(mark,'the note marker is rendered');assert(mark.compareDocumentPosition(object)&h.window.Node.DOCUMENT_POSITION_FOLLOWING,'the marker precedes the object placeholder');
+});

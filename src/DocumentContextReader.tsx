@@ -42,18 +42,19 @@ const responseFor=(data:DocumentContextResponse|null,id:string,language:string,r
 function Paragraph({text,paragraph,from=0,to=text.length,final=true,objects,sourceUrl,anchors,links,marks,notePrefix}:{text:string;paragraph:number;from?:number;to?:number;final?:boolean;objects:InlineObject[];sourceUrl:string|null;anchors:NoteAnchor[];links:DocumentLink[];marks:FormatMark[];notePrefix:string}) {
   const unresolved=new Map(objects.filter(object=>object.paragraph===paragraph&&object.status==='unresolved'&&Number.isInteger(object.offset)&&object.offset>=from&&object.offset<to&&text[object.offset]==='\uFFFC').map(object=>[object.offset,object]));
   const nodes:ReactNode[]=[];let start=from;
-  const slice=(sliceFrom:number,sliceTo:number,last=false)=>{
+  // A slice ending at a replaced object owns the note anchored there; the label slice before a hanging tab does not.
+  const slice=(sliceFrom:number,sliceTo:number,ownsEnd:boolean)=>{
     const spans=links.map(link=>({...link,start:Math.max(link.start,sliceFrom),end:Math.min(link.end,sliceTo)})).filter(link=>link.end>link.start);
-    return <ReferenceText key={'text-'+sliceFrom} text={text.slice(sliceFrom,sliceTo)} start={sliceFrom} final={last&&final} anchors={anchors} links={spans} marks={marks} notePrefix={notePrefix}/>;
+    return <ReferenceText key={'text-'+sliceFrom} text={text.slice(sliceFrom,sliceTo)} start={sliceFrom} final={ownsEnd} anchors={anchors} links={spans} marks={marks} notePrefix={notePrefix}/>;
   };
-  if(!unresolved.size)return slice(from,to,true);
+  if(!unresolved.size)return slice(from,to,final);
   for(const [offset,object] of [...unresolved].sort(([a],[b])=>a-b)) {
-    nodes.push(slice(start,offset));
+    nodes.push(slice(start,offset,true));
     const label=object.kind==='drawing'?'Image in original':'See original';
     nodes.push(sourceUrl?<a key={'object-'+offset} className="document-context-object" lang="en" href={sourceUrl} target="_blank" rel="noreferrer">{label} ↗</a>:<span key={'object-'+offset} className="document-context-object" lang="en">{object.kind==='drawing'?'Image unavailable':'Content unavailable'}</span>);
     start=offset+1;
   }
-  nodes.push(slice(start,to,true));
+  nodes.push(slice(start,to,final));
   return <>{nodes}</>;
 }
 

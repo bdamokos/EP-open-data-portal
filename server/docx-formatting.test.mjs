@@ -61,3 +61,21 @@ test('invalid or outdated formatting records are not presented',()=>{
   assert.equal(documentFormatting({...record,paragraphFormats:[{}],tables:[{rows:[[{start:0,end:2}]]}]}).formatStatus,'not-extracted');
   assert.equal(documentFormatting({...record,paragraphFormats:[{align:'center'}]}).formatStatus,'extracted');
 });
+
+test('a toggle repeated down a basedOn chain cancels, and an explicit off leaves it unchanged',()=>{
+  const chain=`<w:styles xmlns:w="urn:word"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"/>
+    <w:style w:type="paragraph" w:styleId="Base"><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:i/></w:rPr></w:style>
+    <w:style w:type="paragraph" w:styleId="Again"><w:basedOn w:val="Base"/><w:rPr><w:b/><w:i/></w:rPr></w:style>
+    <w:style w:type="paragraph" w:styleId="Off"><w:basedOn w:val="Base"/><w:rPr><w:b w:val="0"/></w:rPr></w:style></w:styles>`;
+  const para=(style,text,properties='')=>`<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr>${run(text,properties)}</w:p>`;
+  const result=docxContent(zip(doc(para('Again','plain')+para('Off','still bold')+para('Again','direct','<w:b/>')),{'word/styles.xml':chain}));
+  assert.deepEqual(result.paragraphFormats,[{},{marks:[{start:0,end:10,kind:'bold'},{start:0,end:10,kind:'italic'}]},{marks:[{start:0,end:6,kind:'bold'}]}]);
+});
+
+test('omitted grid columns before a row become an empty gap cell',()=>{
+  const cell=text=>`<w:tc><w:p>${run(text)}</w:p></w:tc>`;
+  const xml=doc(`<w:tbl><w:tr>${cell('A')}${cell('B')}</w:tr><w:tr><w:trPr><w:gridBefore w:val="1"/></w:trPr>${cell('C')}</w:tr></w:tbl>`);
+  const result=docxContent(zip(xml,{'word/styles.xml':styles}));
+  assert.deepEqual(result.tables,[{rows:[[{start:0,end:1},{start:1,end:2}],[{start:2,end:2,gap:true},{start:2,end:3}]]}]);
+  assert.equal(documentFormatting(result).formatStatus,'extracted');
+});

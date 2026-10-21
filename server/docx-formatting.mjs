@@ -44,13 +44,17 @@ export function styleFormatting(styleNodes) {
   const defaultRun=characterProperties(children(children(children(styles,'w:docDefaults'),'w:rPrDefault'),'w:rPr'));
   const defaultParagraphProps=paragraphProperties(children(children(children(styles,'w:docDefaults'),'w:pPrDefault'),'w:pPr'));
   const resolved=new Map();
-  // Within one basedOn chain the nearest style wins; cycles resolve to no style formatting.
+  // Within one basedOn chain the nearest style wins, except toggles: a style that turns one on
+  // inverts the state inherited so far and an explicit off leaves it unchanged (ECMA-376 17.7.3).
+  // Cycles resolve to no style formatting.
   function style(id) {
     if(!id||!byId.has(id))return {run:{},paragraph:{}};
     if(resolved.has(id))return resolved.get(id);
     resolved.set(id,{run:{},paragraph:{}});
     const own=byId.get(id),parent=style(own.parent);
-    const value={run:{...parent.run,...own.run},paragraph:{...parent.paragraph,...own.paragraph},borders:own.borders??parent.borders};
+    const run={...parent.run,...own.run};
+    for(const name of Object.keys(TOGGLES))run[name]=Boolean(parent.run[name])!==(own.run[name]===true);
+    const value={run,paragraph:{...parent.paragraph,...own.paragraph},borders:own.borders??parent.borders};
     resolved.set(id,value);return value;
   }
   const defaultParagraph=attribute(styles.find(node=>node['w:style']&&attribute(node,'type')==='paragraph'&&['1','true','on'].includes(String(attribute(node,'default')))),'styleId');
@@ -117,6 +121,8 @@ export function tableLayout(table) {
   const rows=[],active=new Map();
   for(const row of table.rows) {
     const cells=[];let column=row.gridBefore||0;
+    // Grid columns omitted before the first cell keep later cells under their own columns.
+    if(column>0){const at=row.cells[0]?.start??rows.flat().at(-1)?.end??0;cells.push({start:at,end:at,...(column>1?{colSpan:column}:{}),gap:true});}
     for(const cell of row.cells) {
       const span=Math.max(1,cell.colSpan||1),above=active.get(column);
       if(cell.vMerge==='continue'&&above&&above.span===span&&cell.start===cell.end){above.cell.rowSpan=(above.cell.rowSpan||1)+1;column+=span;continue;}
@@ -150,7 +156,7 @@ export function documentFormatting(record) {
       if(!Array.isArray(row))return unknown;
       for(const cell of row) {
         if(!Number.isInteger(cell?.start)||!Number.isInteger(cell.end)||cell.start<previous||cell.end<cell.start||cell.end>paragraphs.length
-          ||cell.colSpan!==undefined&&!(Number.isInteger(cell.colSpan)&&cell.colSpan>1&&cell.colSpan<=64)||cell.rowSpan!==undefined&&!(Number.isInteger(cell.rowSpan)&&cell.rowSpan>1&&cell.rowSpan<=1000))return unknown;
+          ||cell.gap!==undefined&&(cell.gap!==true||cell.end!==cell.start)||cell.colSpan!==undefined&&!(Number.isInteger(cell.colSpan)&&cell.colSpan>1&&cell.colSpan<=64)||cell.rowSpan!==undefined&&!(Number.isInteger(cell.rowSpan)&&cell.rowSpan>1&&cell.rowSpan<=1000))return unknown;
         previous=cell.end;
       }
     }
