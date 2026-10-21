@@ -57,8 +57,9 @@ export function PlenaryLiveProvider({children}:{children:ReactNode}) {
     if(event.button!==0||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
     // Two players would play twice: a blocked popup keeps the inline one.
     event.preventDefault();
-    // Open blank first so the broadcaster's page gets no handle on this tab.
-    const popup=window.open('about:blank','ep-plenary-live','popup,width=960,height=540');
+    // Open a fresh blank window so the broadcaster's page gets no handle on
+    // this tab. A reused named window may still be cross-origin.
+    const popup=window.open('about:blank','_blank','popup,width=960,height=540');
     if(!popup)return;
     try{popup.opener=null;}catch{popup.close();return;}
     popup.location.replace(EBS_PLUS_EMBED);popup.focus();close();
