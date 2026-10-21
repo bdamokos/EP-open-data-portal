@@ -549,10 +549,12 @@ export class ActivityWorker {
     try {await this.runIteration();}finally {iteration({requests:this.requests||0});}
   }
   // Press following shares the writer lease, request budget and deadline but none
-  // of the index work. When index work is also due, press takes at most a tenth
-  // of the budget (at least one request), so both make progress.
+  // of the index work. While index work is also due, press takes a tenth of the
+  // budget; below ten requests it takes one every other iteration, so both progress.
   async followPress(indexDue) {
-    const cap=indexDue?Math.max(1,Math.floor(this.budget/10)):this.budget;let used=0;
+    let cap=indexDue?Math.floor(this.budget/10):this.budget,used=0;
+    if(!cap){this.pressTurn=!this.pressTurn;cap=this.pressTurn?1:0;}
+    if(!cap)return;
     const admit=()=>{if(this.stopped||used>=cap||this.requests>=this.budget||this.monotonic()>=this.runDeadline)return false;used++;this.requests++;return true;};
     try {await this.press.run({signal:this.controller.signal,admit});}
     catch(error) {if(!this.stopped)console.error('[press-releases]',error.message);}

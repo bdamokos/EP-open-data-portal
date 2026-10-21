@@ -163,6 +163,18 @@ test('press following runs only for the activity-index lease holder',async()=>{
   } finally {other?.close();store.close();rmSync(dir,{recursive:true,force:true});}
 });
 
+test('with a one-request budget, press and index work alternate',async()=>{
+  const dir=temp(),instant=()=>Date.parse('2026-10-13T14:00:00Z'),store=new ActivityStore(dir,{clock:instant});let core=0,admitted=0;
+  const fetchRecord=async(endpoint,params)=>{core++;return {payload:{data:params.offset===0?[{id:'person/257043',label:'MEP'}]:[]},fetchedAt:new Date(instant()).toISOString()};};
+  const press={due:()=>true,run:async({admit})=>{while(admit())admitted++;}};
+  try {
+    const worker=new ActivityWorker(store,{clock:instant,fetchRecord,budget:1,press});
+    for(let iteration=0;iteration<4;iteration++)await worker.run();
+    assert.equal(admitted,2,'press takes every other request while index work is due');
+    assert.equal(core,2,'index work receives the others');
+  } finally {store.close();rmSync(dir,{recursive:true,force:true});}
+});
+
 test('press writes are fenced by the activity-index lease and readers never create the store',async()=>{
   const dir=temp();let now=Date.parse('2026-10-20T12:00:00Z');
   const activity=new ActivityStore(dir,{clock:()=>now}),press=new PressStore(dir);let other;
