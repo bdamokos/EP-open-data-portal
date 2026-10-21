@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {documentNeedsRefresh, documentText} from './document-text.mjs';
+import {DOCX_FORMATTING_VERSION} from './docx-formatting.mjs';
 
 const DAY = 86400_000;
 async function fixture(t) {
@@ -36,7 +37,7 @@ test('settled texts are never re-read, recent ones weekly, and a changed file li
 
 test('a changed file listing refreshes a saved text in the background', async t => {
   const directory = await fixture(t), url = `https://data.europarl.europa.eu/distribution/doc/changed-${Date.now()}.docx`;
-  let calls = 0; const download = async () => ({paragraphs: [`version ${++calls}`]});
+  let calls = 0; const download = async () => ({paragraphs: [`version ${++calls}`], formattingVersion: DOCX_FORMATTING_VERSION, paragraphFormats: [{}], tables: []});
   const clock = () => Date.parse('2026-06-01T00:00:00Z');
   assert.deepEqual((await documentText(work(url), 'en', {directory, download, clock})).paragraphs, ['version 1']);
   const unchanged = await documentText(work(url), 'en', {directory, download, clock});
@@ -88,7 +89,7 @@ test('the disk budget evicts the least recently read records and leaves other fi
 
 test('a missing file size is not recorded as zero', async t => {
   const directory = await fixture(t), url = `https://data.europarl.europa.eu/distribution/doc/no-size-${Date.now()}.docx`;
-  let calls = 0; const download = async () => ({paragraphs: [`version ${++calls}`]});
+  let calls = 0; const download = async () => ({paragraphs: [`version ${++calls}`], formattingVersion: DOCX_FORMATTING_VERSION, paragraphFormats: [{}], tables: []});
   const clock = () => Date.parse('2026-06-01T00:00:00Z');
   await documentText(work(url, {byteSize: null}), 'en', {directory, download, clock});
   const later = await documentText(work(url, {byteSize: 1000}), 'en', {directory, download, clock});
@@ -102,4 +103,21 @@ test('a failed cache scan is retried on the next use', async t => {
   await assert.rejects(budget.initialize(), {code: 'ENOTDIR'});
   await rm(directory); await mkdir(directory); await writeFile(path.join(directory, 'a'.repeat(64) + '.json'), 'x'.repeat(10));
   await budget.initialize(); assert.equal(budget.bytes, 10);
+});
+
+test('a text saved before formatting stays readable and is re-read once in the background', async t => {
+  const directory = await fixture(t), url = `https://data.europarl.europa.eu/distribution/doc/unformatted-${Date.now()}.docx`;
+  const clock = () => Date.parse('2026-06-01T00:00:00Z');
+  let calls = 0; const download = async () => ++calls === 1 ? {paragraphs: ['saved text']} : {paragraphs: ['saved text'], formattingVersion: DOCX_FORMATTING_VERSION, paragraphFormats: [{align: 'center'}], tables: []};
+  assert.equal((await documentText(work(url), 'en', {directory, download, clock})).formatStatus, 'not-extracted');
+  const upgrading = await documentText(work(url), 'en', {directory, download, clock});
+  assert.deepEqual(upgrading.paragraphs, ['saved text']); assert.equal(upgrading.stale, false); assert.equal(upgrading.refreshInProgress, true);
+  let upgraded;
+  for (let attempt = 0; attempt < 200; attempt++) {
+    upgraded = await documentText(work(url), 'en', {directory, download, clock});
+    if (!upgraded.refreshInProgress) break;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.equal(upgraded.formatStatus, 'extracted'); assert.deepEqual(upgraded.paragraphFormats, [{align: 'center'}]);
+  assert.equal(calls, 2);
 });

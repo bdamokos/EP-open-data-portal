@@ -1,10 +1,11 @@
 import {SourceLink} from './SourceLink';
-import {Fragment,createContext,useCallback,useContext,useEffect,useId,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
+import {Fragment,createContext,createElement,useCallback,useContext,useEffect,useId,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {linkedSegments,noteReferences,referenceKeys,type LinkSpan} from '../server/legal-reference-text.mjs';
 import {useData} from './data';
 import {humanDate} from './InsightCharts';
 import {summaryStage} from './terms.mjs';
 import type {DocumentLink,DocumentNote,NoteAnchor} from './explorerTypes';
+import type {FormatMark} from './DocumentFormatting';
 import './References.css';
 
 type Source={name:string;url:string;fetchedAt:string};
@@ -174,9 +175,21 @@ function NoteMark({anchor,notePrefix}:{anchor:NoteAnchor;notePrefix:string}) {
   if(key)return <sup className="legal-note-mark"><ReferenceButton refKey={key} text={anchor.label} className="legal-ref legal-note-ref" label={'Note '+anchor.label+': '+shortLabel(scope!.references.get(key),key)} evidence={{status:'from-note',note:anchor.label,noteId:anchor.note}}/></sup>;
   return <sup className="legal-note-mark"><a lang="en" href={`#${notePrefix}-note-${anchor.note}`} aria-label={'Note '+anchor.label}>{anchor.label}</a></sup>;
 }
+const emphasisTags={bold:'b',italic:'i',underline:'u',strike:'s',superscript:'sup',subscript:'sub'} as const;
+// Source emphasis wraps the text it covers; a control takes the emphasis present at its start.
+function emphasis(node:ReactNode,kinds:FormatMark['kind'][],key:string) {
+  return kinds.reduceRight<ReactNode>((content,kind,index)=>createElement(emphasisTags[kind],{key:key+'-'+index},content),node);
+}
 // Renders text unchanged. Document hyperlinks and resolved references become controls; footnote markers keep their exact offsets.
-export function ReferenceText({text,start=0,anchors=[],links=[],final=true,notePrefix='',linkify=false}:{text:string;start?:number;anchors?:NoteAnchor[];links?:(LinkSpan|DocumentLink)[];final?:boolean;notePrefix?:string;linkify?:boolean}) {
+export function ReferenceText({text,start=0,anchors=[],links=[],marks:formatMarks=[],final=true,notePrefix='',linkify=false}:{text:string;start?:number;anchors?:NoteAnchor[];links?:(LinkSpan|DocumentLink)[];marks?:FormatMark[];final?:boolean;notePrefix?:string;linkify?:boolean}) {
   const scope=useContext(ReferenceScopeContext);
+  const styles=formatMarks.map(mark=>({kind:mark.kind,start:Math.max(0,mark.start-start),end:Math.min(text.length,mark.end-start)})).filter(mark=>mark.end>mark.start);
+  const kindsAt=(from:number,to:number)=>styles.filter(mark=>mark.start<=from&&mark.end>=to).map(mark=>mark.kind);
+  const styled=(from:number,to:number)=>{
+    if(!styles.length)return plain(text.slice(from,to),linkify,String(from),scope?.textLanguage??'');
+    const cuts=[...new Set([from,to,...styles.flatMap(mark=>[mark.start,mark.end]).filter(at=>at>from&&at<to)])].sort((a,b)=>a-b);
+    return cuts.slice(0,-1).map((at,index)=>{const kinds=kindsAt(at,cuts[index+1]),content=plain(text.slice(at,cuts[index+1]),linkify,String(at),scope?.textLanguage??'');return kinds.length?emphasis(content,kinds,'em-'+at):<Fragment key={'t-'+at}>{content}</Fragment>;});
+  };
   const spans=links.filter(link=>link.start>=start&&link.end<=start+text.length).map(link=>({start:link.start-start,end:link.end-start,url:link.url}));
   const parts=(scope?linkedSegments(text,spans):[{text,from:0,to:text.length}]).map(part=>({...part,linked:Boolean(part.ref&&linked(scope?.references.get(part.ref.key)))}));
   // A marker inside a linked span is shown after it.
@@ -195,12 +208,13 @@ export function ReferenceText({text,start=0,anchors=[],links=[],final=true,noteP
   for(const part of parts) {
     if(part.linked||part.href) {
       while(next<marks.length&&marks[next].at<=part.from)mark();
-      nodes.push(part.linked?<ReferenceButton key={'ref-'+part.from} refKey={part.ref!.key} text={part.text} evidence={evidenceFor(part)}/>:<SourceLink key={'link-'+part.from} url={part.href!} contentLanguage={scope?.textLanguage??''} compact>{part.text}</SourceLink>);
+      const control=part.linked?<ReferenceButton key={'ref-'+part.from} refKey={part.ref!.key} text={part.text} evidence={evidenceFor(part)}/>:<SourceLink key={'link-'+part.from} url={part.href!} contentLanguage={scope?.textLanguage??''} compact>{part.text}</SourceLink>;
+      nodes.push(emphasis(control,kindsAt(part.from,part.from+1),'em-'+part.from));
       continue;
     }
     let local=part.from;
-    while(next<marks.length&&marks[next].at<part.to){const at=Math.max(marks[next].at,local);if(at>local)nodes.push(plain(text.slice(local,at),linkify,String(local),scope?.textLanguage??''));local=at;mark();}
-    if(local<part.to)nodes.push(plain(text.slice(local,part.to),linkify,String(local),scope?.textLanguage??''));
+    while(next<marks.length&&marks[next].at<part.to){const at=Math.max(marks[next].at,local);if(at>local)nodes.push(styled(local,at));local=at;mark();}
+    if(local<part.to)nodes.push(styled(local,part.to));
   }
   while(next<marks.length)mark();
   return <>{nodes}</>;

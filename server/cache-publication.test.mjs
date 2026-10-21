@@ -7,6 +7,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {writeCacheFile} from './cache-publication.mjs';
 import {documentText} from './document-text.mjs';
+import {DOCX_FORMATTING_VERSION} from './docx-formatting.mjs';
 import {playerContent} from './player-content.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
 import {upstreamStatus} from './odp.mjs';
@@ -28,7 +29,7 @@ for(const [index,kind] of ['document','player','view'].entries())for(const [stag
   const url=`https://data.europarl.europa.eu/distribution/persistence-${stage}.docx`,id='20261007-PERSISTENCE-'+stage.toUpperCase();
   const work={identifier:'B-10-2026-9999',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
   const view=new InsightViewCache({directory}),key=view.key(['publication',stage]);
-  const read=()=>kind==='document'?documentText(work,'en',{directory,download:async()=>({paragraphs:[++calls===1?'expired old text':'replacement text']})}):kind==='player'?playerContent(id,directory,{fetchContent:async()=>({commonId:id,visibility:'PUBLISHED',startDate:'2026-10-07T07:00:00Z',endDate:'2026-10-07T08:00:00Z',languageMapping:[{lang:++calls===1?'EN':'FR',sort:1}]})}):view.refresh(key,async()=>({items:[++calls===1?'expired old view':'replacement view']}));
+  const read=()=>kind==='document'?documentText(work,'en',{directory,download:async()=>({paragraphs:[++calls===1?'expired old text':'replacement text'],formattingVersion:DOCX_FORMATTING_VERSION,paragraphFormats:[{}],tables:[]})}):kind==='player'?playerContent(id,directory,{fetchContent:async()=>({commonId:id,visibility:'PUBLISHED',startDate:'2026-10-07T07:00:00Z',endDate:'2026-10-07T08:00:00Z',languageMapping:[{lang:++calls===1?'EN':'FR',sort:1}]})}):view.refresh(key,async()=>({items:[++calls===1?'expired old view':'replacement view']}));
   const first=read().then(value=>({value}),error=>({error}));
   await started;t.mock.timers.tick(50_000);const expired=await first;
   assert.equal(expired.error.code,'request_timeout');
