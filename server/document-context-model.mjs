@@ -274,10 +274,10 @@ const headingNormal = value => value.normalize('NFD').replace(/\p{M}/gu, '');
 const resolutionEndPatterns = Object.fromEntries(Object.entries(resolutionEndLabels).map(([language, [annex, explanation]]) => [language,
   new RegExp(`^(?:(?:${headingNormal(annex)})(?:\\s+(?:[IVXLCDM]+|\\d+))?|(?:${headingNormal(explanation)}))(?:\\s*[:.–—-]\\s*.*)?$`, 'iu'),
 ]));
-// Text extraction has no reliable heading styles. Short capitalized lines without
-// closing punctuation cannot establish an unlabelled prose continuation safely.
+// Text extraction has no reliable heading styles. Short uppercase lines and
+// capitalized lines without closing punctuation cannot establish prose safely.
 const headingLike = value => value.length > 0 && value.length < 180 && /\p{L}/u.test(value)
-  && !/\p{P}$/u.test(value) && (value === value.toUpperCase() || /^\p{Lu}/u.test(value));
+  && (value === value.toUpperCase() || /^\p{Lu}/u.test(value) && !/\p{P}$/u.test(value));
 function motionStructure(text, language) {
   const paragraphs = text?.paragraphs || [], start = motionBodyStart(paragraphs, language), rows = sourceStructure(text);
   const units = [], stack = [], invalid = new Set(), uncertain = new Set(), incompleteLabels = new Set();

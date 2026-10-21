@@ -390,9 +390,15 @@ test('dash items and unlabelled prose retain a certain paragraph extent', () => 
   const result=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
   assert.equal(result.status,'placed');assert.equal(result.insertBefore,8);
 });
-test('a colon-ended uppercase continuation never becomes a heading',()=>{
+test('a short uppercase colon row is uncertain rather than an assumed continuation',()=>{
   const text=motion(['19. First;', 'FURTHER ACTION:', '– item;', '20. Next;']);
+  assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,3);
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'resolution_extent_uncertain');
+});
+test('a lowercase colon continuation retains its following dash items',()=>{
+  const text=motion(['19. First;', 'further action:', '– item;', '20. Next;']);
   assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,5);
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).status,'placed');
 });
 test('table labels cannot create a body identity or retain the preceding scope',()=>{
   const text=motion(['19. Main:', '99. Quoted table text;', '(a) body point;', '20. Next;']);
@@ -471,7 +477,7 @@ for (const heading of ['Annex I: Technical requirements', 'ANNEX – Technical r
   });
 }
 
-for (const heading of ['FOLLOW-UP','Follow-Up','Follow-up','Further Action']) {
+for (const heading of ['FOLLOW-UP','FOLLOW-UP:','FOLLOW-UP.','Follow-Up','Follow-up','Further Action']) {
   test(`${heading} closes a dash list and withholds paragraph 19 despite later 20`, () => {
     const text=motion(['19. Calls for:', '– first item;', '– second item;', heading, 'follow-up prose;', '20. Independent;']);
     const options={originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'};
