@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readdir,readFile} from 'node:fs/promises';
 import {Window} from 'happy-dom';
-import {contrast,schemes,tokenValue} from './test-support/themeStyles.mjs';
+import {contrast,schemes,tokenValue,themeCss} from './test-support/themeStyles.mjs';
 
 const text=['ink','ink-muted','accent','accent-strong','positive','warning','danger','vote-for','vote-against','vote-abstain'];
 const surfaces=['bg','surface','surface-2'];
@@ -47,12 +47,29 @@ test('stylesheets and components use tokens instead of raw colours',async()=>{
     for(const declaration of declarations)if(!/^(?:white-space|aspect-ratio)\b/.test(declaration)&&raw.test(declaration))
       assert.fail(`${file}: ${declaration.trim()} should use a theme token`);
   }
-  const components=(await readdir(new URL('./',import.meta.url))).filter(name=>name.endsWith('.tsx'));
+  const components=[];
+  for(const dir of ['.','components'])for(const name of await readdir(new URL(dir+'/',import.meta.url)))
+    if(name.endsWith('.tsx'))components.push(dir==='.'?name:dir+'/'+name);
   for(const file of components) {
     const source=await readFile(new URL(file,import.meta.url),'utf8');
     const literal=source.match(/['"`](?:#[0-9a-fA-F]{3,8}|(?:rgba?|hsla?)\([^'"`]*)['"`;}]/);
     assert.equal(literal,null,`${file} sets a raw colour: ${literal?.[0]}`);
   }
+});
+
+test('contrast helpers reject unsupported or translucent colours instead of measuring arbitrary numbers',()=>{
+  for(const color of ['oklch(0.5 0.2 240)','color-mix(in srgb, #000 12%, #fff)','light-dark(rgb(0 0 0), #fff)',
+    '#xyz','#12345','#0000','#ffffff80','rgba(0,0,0,.5)','rgb(0 0 0 / 20%)','rgba(0,0,0,2)'])
+    assert.throws(()=>contrast(color,'#fff'),/Unsupported colour syntax|Translucent colour/,color);
+  for(const white of [' #fff ','#ffff','#ffffffff','rgb(255,255,255)','rgba(255,255,255,1)','rgb(100% 100% 100% / 100%)'])
+    assert.equal(contrast('#000',white),21,white);
+});
+
+test('the theme resolver rejects nested unresolved pairs while ignoring comments',()=>{
+  const source='/* light-dark(...) is documented here. */ :root {--fixture:light-dark(#000, #fff);}';
+  assert.match(themeCss('light',source),/--fixture:#000;/);
+  assert.match(themeCss('dark',source),/--fixture:#fff;/);
+  for(const scheme of schemes)assert.throws(()=>themeCss(scheme,':root {--fixture:light-dark(rgb(0 0 0), #fff);}'),/Unresolved colour pair/);
 });
 
 test('the legacy Parliament palette variables are gone',async()=>{

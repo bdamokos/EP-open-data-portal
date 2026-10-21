@@ -5,8 +5,11 @@ import {readFileSync} from 'node:fs';
 const theme=readFileSync(new URL('../theme.css',import.meta.url),'utf8');
 export const schemes=['light','dark'];
 
-export function themeCss(scheme) {
-  return theme.replace(/light-dark\(\s*([^,()]+?)\s*,\s*([^,()]+?)\s*\)/g,(_,light,dark)=>scheme==='dark'?dark:light);
+export function themeCss(scheme,source=theme) {
+  const css=source.replace(/light-dark\(\s*([^,()]+?)\s*,\s*([^,()]+?)\s*\)/g,(_,light,dark)=>scheme==='dark'?dark:light);
+  const unresolved=css.replace(/\/\*[\s\S]*?\*\//g,'').match(/light-dark\([^;]*/);
+  if(unresolved)throw new Error(`Unresolved colour pair: ${unresolved[0]}`);
+  return css;
 }
 
 export function tokenValue(scheme,name) {
@@ -18,11 +21,20 @@ export function tokenValue(scheme,name) {
 }
 
 function channels(color) {
+  color=color.trim();
   if(color.startsWith('#')) {
-    const hex=color.slice(1),pairs=hex.length<=4?[...hex.slice(0,3)].map(value=>value+value):hex.slice(0,6).match(/../g);
+    const hex=color.slice(1);
+    if(!/^(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/i.test(hex))throw new Error(`Unsupported colour syntax: ${color}`);
+    const alpha=hex.length===4?hex[3]+hex[3]:hex.length===8?hex.slice(6):'ff';
+    if(alpha.toLowerCase()!=='ff')throw new Error(`Translucent colour cannot be measured alone: ${color}`);
+    const pairs=hex.length<=4?[...hex.slice(0,3)].map(value=>value+value):hex.slice(0,6).match(/../g);
     return pairs.map(value=>parseInt(value,16));
   }
-  return color.match(/[\d.]+/g).slice(0,3).map(Number);
+  const rgb=color.match(/^rgba?\(\s*((?:\d+(?:\.\d+)?|\.\d+)%?)[\s,]+((?:\d+(?:\.\d+)?|\.\d+)%?)[\s,]+((?:\d+(?:\.\d+)?|\.\d+)%?)(?:\s*[,/]\s*((?:\d+(?:\.\d+)?|\.\d+)%?))?\s*\)$/);
+  if(!rgb)throw new Error(`Unsupported colour syntax: ${color}`);
+  if(rgb[4]!==undefined&&(rgb[4].endsWith('%')?parseFloat(rgb[4])/100:Number(rgb[4]))!==1)
+    throw new Error(`Translucent colour cannot be measured alone: ${color}`);
+  return rgb.slice(1,4).map(value=>value.endsWith('%')?parseFloat(value)*255/100:Number(value));
 }
 
 function luminance(color) {
