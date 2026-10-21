@@ -356,3 +356,32 @@ test('references keep the interface language when the source text language chang
   const lookups=h.requests.filter(route=>route.startsWith('references?'));
   assert(lookups.length>0);assert(lookups.every(route=>new URLSearchParams(route.split('?')[1]).get('lang')==='en'));
 });
+
+test('recorded formatting styles paragraphs, emphasis and tables without moving text, notes or targets',async t=>{
+  const paragraphs=['MOTION FOR A RESOLUTION','A.\twhereas bold text has a note;','Cell one','Cell two','Exact target passage.'];
+  const h=await harness(t,()=>response(report,sourceDocument(report,paragraphs,{
+    noteAnchors:[{paragraph:1,offset:32,note:'1',label:'1'}],notes:[{id:'1',label:'1',text:'Source note.',links:[]}],
+    formatStatus:'extracted',tables:[{rows:[[{start:2,end:3},{start:3,end:4}],[{start:4,end:5,colSpan:2}]],bordered:true}],
+    paragraphFormats:[{align:'center',size:'xl',heading:1,marks:[{start:0,end:6,kind:'bold'}]},{indent:2.36,hanging:2.36,marks:[{start:11,end:15,kind:'bold'},{start:16,end:20,kind:'italic'}]},{},{},{}],
+  }),{target:{...target,paragraphs:[4]},amendment:amendmentSource}));
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'en'});
+  const title=h.container.querySelector('[data-source-paragraph="0"]');
+  assert.equal(title.getAttribute('role'),'heading');assert.equal(title.getAttribute('aria-level'),'4');
+  assert(title.classList.contains('doc-align-center')&&title.classList.contains('doc-size-xl'));
+  assert.equal(title.querySelector('b').textContent,'MOTION');assert.equal(title.textContent,paragraphs[0]);
+  const recital=h.container.querySelector('[data-source-paragraph="1"]');
+  assert.equal(recital.querySelector('.doc-label').textContent,'A.\t');
+  assert.equal(recital.querySelector('b').textContent,'bold');assert.equal(recital.querySelector('i').textContent,'text');
+  assert.equal(recital.textContent,paragraphs[1]+'1','text is unchanged and the note mark stays at its offset');
+  assert.equal(recital.lastChild.nodeName,'SUP');
+  const table=h.container.querySelector('table.doc-table-bordered');
+  assert.deepEqual([...table.querySelectorAll('tr')].map(row=>[...row.cells].map(cell=>cell.textContent)),[['Cell one','Cell two'],['Exact target passage.']]);
+  assert.equal(table.querySelector('td[colspan="2"] [data-context-target="true"]').dataset.sourceParagraph,'4');
+});
+
+test('formatting that does not match the paragraphs is ignored',async t=>{
+  const h=await harness(t,()=>response(report,sourceDocument(report,['Plain one.','Plain two.'],{formatStatus:'extracted',paragraphFormats:[{align:'center'}],tables:[]})));
+  await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(h.container.querySelectorAll('.doc-align-center').length,0);
+  assert.equal(h.container.querySelector('[data-source-paragraph="0"]').textContent,'Plain one.');
+});

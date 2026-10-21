@@ -1,0 +1,21 @@
+/* Paragraph styles recorded from the source document. Indents scale down on narrow screens. */
+.doc-align-center{text-align:center}
+.doc-align-right{text-align:end}
+.doc-align-justify{text-align:justify}
+.doc-indent{padding-inline-start:min(calc(var(--doc-indent) * var(--doc-indent-scale,1)),30%)}
+.doc-hanging{text-indent:calc(-1 * min(calc(var(--doc-hanging) * var(--doc-indent-scale,1)),30%))}
+.doc-hanging>.doc-label{display:inline-block;min-width:min(calc(var(--doc-hanging) * var(--doc-indent-scale,1)),30%);text-indent:0;white-space:nowrap;vertical-align:top}
+.doc-first-line{text-indent:calc(var(--doc-first) * var(--doc-indent-scale,1))}
+.doc-size-xl{font-size:1.4em;line-height:1.3}
+.doc-size-lg{font-size:1.15em;line-height:1.45}
+.doc-size-sm{font-size:.9em}
+.doc-heading{margin-top:1.4em}
+.doc-table{width:100%;border-collapse:collapse;margin:1em 0;table-layout:auto}
+.doc-table td{vertical-align:top;padding:0 1em 0 0;overflow-wrap:break-word}
+.doc-table td>p{margin:.35em 0;overflow-wrap:break-word}
+.doc-table-bordered td{border:1px solid var(--line);padding:.2em .6em}
+@media(max-width:600px){
+  :where(.doc-indent,.doc-hanging,.doc-first-line){--doc-indent-scale:.5}
+  .doc-align-justify{text-align:start}
+  .doc-table-bordered td{padding:.15em .35em}
+}

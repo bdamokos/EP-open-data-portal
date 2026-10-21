@@ -15,7 +15,9 @@ import {userAgent} from './user-agent.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {config} from './config.mjs';
 import {sourceIndex,OBJECT_REPLACEMENT,symbolText,skippedCounterRisk,documentStructure,DOCX_EXTRACTION_VERSION as EXTRACTION_VERSION} from './docx-source-structure.mjs';
+import {styleFormatting,paragraphFormat,tableLayout,documentFormatting,DOCX_FORMATTING_VERSION as FORMATTING_VERSION} from './docx-formatting.mjs';
 export {documentStructure} from './docx-source-structure.mjs';
+export {documentFormatting} from './docx-formatting.mjs';
 
 const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
 const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500});
@@ -149,7 +151,9 @@ function inline(nodes,hidden,out,context) {
       const styled=context.style.styledHidden(property(properties,'w:rStyle') || context.style.defaultCharacter,hidden);
       const visibility={vanish:hiddenValue(properties)??styled.vanish,webHidden:hiddenValue(properties,'webHidden')??styled.webHidden};
       if(visibility.vanish||visibility.webHidden)continue;
-      if(!value.some(item=>noteMarks.some(mark=>mark in item))){inline(value,visibility,out,context);continue;}
+      const runStart=out.text.length,format=out.runs&&context.formatting?.run(context.paragraphStyle,properties);
+      const recordRun=()=>{if(format&&out.text.length>runStart)out.runs.push({start:runStart,end:out.text.length,...format});};
+      if(!value.some(item=>noteMarks.some(mark=>mark in item))){inline(value,visibility,out,context);recordRun();continue;}
       // Children keep their order. Only the text that immediately follows a custom-marked reference is its label.
       let pending=null;
       for(const item of value) {
@@ -158,6 +162,7 @@ function inline(nodes,hidden,out,context) {
         if(pending&&'w:t' in item){const label={text:'',marks:[],spans:[],objects:[]};inline([item],visibility,label,context);pending.label=label.text.trim();pending=null;continue;}
         inline([item],visibility,out,context);
       }
+      recordRun();
     }
     else if(key==='w:t'&&!hidden.vanish&&!hidden.webHidden)out.text+=(value||[]).filter(item=>'#text' in item).map(item=>String(item['#text'])).join('');
     else if(key==='w:tab'||key==='w:ptab')out.text+='\t';
@@ -176,23 +181,35 @@ function paragraphsOf(nodes,context) {
   function visit(nodes,boundary={container:'other',containerPath:'/'}) {
   for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
     if(key==='w:p'){
-      const out={text:'',marks:[],spans:[],objects:[]},counterGaps={...context.counterGaps};
+      const out={text:'',marks:[],spans:[],objects:[],...(context.formatting?{runs:[]}:{})},counterGaps={...context.counterGaps};
+      context.paragraphStyle=property(children(value,'w:pPr'),'w:pStyle');
       inline(value,context.style.styledHidden(property(children(value,'w:pPr'),'w:pStyle') || context.style.defaultParagraph,context.style.defaults),out,context);
       const properties=children(value,'w:pPr'),number=context.numberLabel?.(properties),unknownList=!!number?.label&&counterGaps.lists,
         label=unknownList?'?':number?.label,section=context.paragraphSections?.get(node);
       if(unknownList)context.warnings.add('Some automatic list labels are unknown after skipped document content.');
-      if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const object of out.objects)object.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}}
+      if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const object of out.objects)object.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}for(const run of out.runs||[]){run.start+=prefix.length;run.end+=prefix.length;}}
       const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
       if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,
         source:{...context.sourceIndex.get(node),...boundary,segment,complete:!unknownList&&!number?.incomplete&&out.objects.every(object=>object.status==='mapped')&&!out.marks.some(mark=>mark.numberingUnknown&&!mark.label)},
         objects:out.objects.map(object=>({...object,offset:at(object.offset)})),
-        marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start)});
+        marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start),
+        ...(context.formatting?{format:paragraphFormat(context.formatting.paragraph(properties),out.runs.map(run=>({...run,start:at(run.start),end:at(run.end)})),context.formatting.baseSize,text.length)}:{})});
       else segment++;
     }
     else if(blockContainers.has(key)&&Array.isArray(value)) {
       const separated=['w:tbl','w:tc'].includes(key);if(separated)segment++;
+      const tables=context.tables,layout=tables?.layout;
+      // Only the outermost table is laid out; nested tables stay inside their cell.
+      if(tables&&key==='w:tbl'&&!layout){tables.layout={rows:[],bordered:context.formatting.tableBordered(children(value,'w:tblPr'))};}
+      else if(tables&&key==='w:tr'&&layout&&tables.depth===1){const trPr=children(value,'w:trPr');layout.rows.push({gridBefore:Number(property(trPr,'w:gridBefore'))||0,cells:[]});}
+      else if(tables&&key==='w:tc'&&layout&&tables.depth===1&&layout.rows.length){const tcPr=children(value,'w:tcPr'),merge=child(tcPr,'w:vMerge');
+        tables.cell={start:result.length,colSpan:Number(property(tcPr,'w:gridSpan'))||1,vMerge:merge?attribute(merge,'val')==='restart'?'restart':'continue':undefined,borderless:context.formatting.cellBorderless(tcPr)};}
+      const cell=tables&&key==='w:tc'&&tables.depth===1?tables.cell:null;
+      if(tables&&key==='w:tbl')tables.depth++;
       visit(value,key==='w:body'?{container:'body',containerPath:context.sourceIndex.get(node).path}:key==='w:tc'?{container:'table-cell',containerPath:context.sourceIndex.get(node).path}:boundary);
       if(separated)segment++;
+      if(cell){cell.end=result.length;tables.layout.rows.at(-1).cells.push(cell);tables.cell=null;}
+      if(tables&&key==='w:tbl'&&--tables.depth===0){const done=tables.layout;tables.layout=null;if(done.rows.some(row=>row.cells.some(cell=>cell.end>cell.start)))tables.found.push(tableLayout(done));}
     }
     else if(key!==':@'&&key!=='#text'&&!key.startsWith('?')&&!nonText.has(key)&&!blockProperties.has(key)) {
       counterGap(node,context);
@@ -211,7 +228,8 @@ export function docxContent(buffer) {
   const label=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),{add(message){incompleteNumber=true;warnings.add(message);}});
   const numberLabel=properties=>{incompleteNumber=false;const value=label(properties);return {label:value,incomplete:incompleteNumber};};
   const document=parser().parse(parts.get('word/document.xml')),paragraphSections=new WeakMap(),noteLabel=noteNumbering(document,parts.get('word/settings.xml'),warnings,paragraphSections);
-  const body=paragraphsOf(document,{style,numberLabel,warnings,paragraphSections,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
+  const formatting=styleFormatting(children(parts.has('word/styles.xml')?parser().parse(parts.get('word/styles.xml')):[],'w:styles')),tables={depth:0,layout:null,cell:null,found:[]};
+  const body=paragraphsOf(document,{style,numberLabel,warnings,paragraphSections,formatting,tables,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
   if(!body.length || body.length>20000 || body.map(p=>p.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
   const supplied=new Map();
   for(const kind of ['footnote','endnote'])if(parts.has('word/'+kind+'s.xml')) {
@@ -249,7 +267,8 @@ export function docxContent(buffer) {
   }});
   const links=body.flatMap((paragraph,index)=>paragraph.spans.map(span=>({paragraph:index,...span}))).slice(0,NOTE_LIMITS.documentLinks);
   return {paragraphs:body.map(p=>p.text),notes,anchors,links,structureStatus:'extracted',paragraphSources:body.map(p=>p.source),
-    documentObjects:body.flatMap((p,paragraph)=>p.objects.map(object=>({paragraph,...object}))),extractionWarnings:[...warnings]};
+    documentObjects:body.flatMap((p,paragraph)=>p.objects.map(object=>({paragraph,...object}))),extractionWarnings:[...warnings],
+    formattingVersion:FORMATTING_VERSION,paragraphFormats:body.map(p=>p.format),tables:tables.found};
 }
 export const docxParagraphs=buffer=>docxContent(buffer).paragraphs;
 
@@ -298,7 +317,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const originals=array(work.originalLanguage).map(languageCode);
   const chosen=files.find(f=>f.language===language) || files.find(f=>originals.includes(f.language)) || files.find(f=>f.language==='en') || files[0];
   const base={status:'unavailable',paragraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],
-    structureStatus:'not-extracted',paragraphSources:[],documentObjects:[],extractionVersion:null,sourceVersion:null,
+    structureStatus:'not-extracted',paragraphSources:[],documentObjects:[],formatStatus:'not-extracted',paragraphFormats:[],tables:[],extractionVersion:null,sourceVersion:null,
     textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
   const key=chosen.url,name=createHash('sha256').update(key).digest('hex')+'.json',file=directory && path.join(directory,'document-text-v1',name);
@@ -319,9 +338,10 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
     pending.set(key,job);return job;
   };
   const failure=failures.get(key);
-  const present=record=>({...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),...documentStructure(record),
+  const present=record=>({...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),...documentStructure(record),...documentFormatting(record),
     extractionVersion:record.extractionVersion,sourceVersion:record.source||null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
-  if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock());if(stale && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
+  // Texts saved before formatting was recorded stay readable while a background read adds it.
+  if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),reformat=saved.formattingVersion!==FORMATTING_VERSION;if((stale||reformat) && (!failure || failure.retryAt<=clock()))void refresh('background').catch(()=>{});return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
   try {const record=await waitForRequest(refresh('interactive'));return present(record);}
   catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString()};}
