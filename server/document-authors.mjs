@@ -1,5 +1,6 @@
 const array = value => value == null ? [] : Array.isArray(value) ? value : [value];
 const BASE = 'https://data.europarl.europa.eu/';
+export const DOCUMENT_AUTHOR_ORDER_VERSION = 1;
 const SUPPORTED = new Set(['QUESTION_WRITTEN', 'QUESTION_WRITTEN_PRIORITY', 'QUESTION_ORAL', 'RESOLUTION_MOTION', 'RESOLUTION_MOTION_JOINT', 'QUESTION_RESOLUTION_MOTION']);
 
 function reference(value) {
@@ -39,7 +40,33 @@ export function documentAuthorIdentities(work) {
   return [...authors.values()];
 }
 
-export function documentCoAuthors(work, { members = [], selectedDocumentId, documentApiUrl, documentFetchedAt, rosterFetchedAt = null } = {}) {
+// API creator/participation arrays are unordered. A complete published byline
+// may order these already-established identities, but cannot add an identity.
+// Accept only whole name-list paragraphs, never first mentions in body prose.
+export function publishedAuthorOrder(authors, paragraphs = []) {
+  const key = value => value.normalize('NFC').trim().replace(/\s+/gu, ' ').toLocaleLowerCase('und');
+  const names = new Map();
+  for (const author of authors) {
+    if (typeof author.name !== 'string' || !author.name.trim() || names.has(key(author.name))) return authors;
+    names.set(key(author.name), author);
+  }
+  if (authors.length < 2) return authors;
+  const ordered = [], seen = new Set();
+  for (const paragraph of paragraphs) {
+    // Parenthesised political groups annotate names in question bylines.
+    const parts = paragraph.replace(/\([^()]*\)/gu, '').split(/[,;\n]+/u).map(key).filter(Boolean);
+    if (!parts.length || parts.some(part => !names.has(part))) continue;
+    for (const part of parts) {
+      const author = names.get(part);
+      if (seen.has(author.id)) return authors;
+      seen.add(author.id); ordered.push(author);
+    }
+    if (ordered.length === authors.length) return ordered;
+  }
+  return authors;
+}
+
+export function documentCoAuthors(work, { members = [], selectedDocumentId, documentApiUrl, documentFetchedAt, rosterFetchedAt = null, authorText = null } = {}) {
   const sourceDocumentId = work.identifier || reference(work.id)?.split('/').at(-1);
   const role = selectedDocumentId?.endsWith('-ASW') ? 'QUESTION_AUTHOR' : 'AUTHOR';
   const roster = new Map(members.flatMap(member => {
@@ -51,5 +78,9 @@ export function documentCoAuthors(work, { members = [], selectedDocumentId, docu
     const name = typeof member?.name === 'string' && member.name.trim() ? member.name.trim() : null;
     return { ...author, name, personUri: BASE + 'person/' + author.id, profileAvailable: Boolean(member && name), role, sourceDocumentId };
   });
-  return { coAuthors, coAuthorSource: { documentApiUrl, documentFetchedAt, rosterApiUrl: BASE + 'api/v2/meps/show-current', rosterFetchedAt } };
+  const ordered = publishedAuthorOrder(coAuthors, authorText?.status === 'available' ? authorText.paragraphs : []);
+  return { coAuthors: ordered, coAuthorSource: { documentApiUrl, documentFetchedAt, rosterApiUrl: BASE + 'api/v2/meps/show-current', rosterFetchedAt,
+    order: ordered === coAuthors ? 'api-unordered' : 'published-byline',
+    orderSourceUrl: ordered === coAuthors ? null : authorText.sourceUrl,
+    orderFetchedAt: ordered === coAuthors ? null : authorText.fetchedAt } };
 }

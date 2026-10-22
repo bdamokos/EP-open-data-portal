@@ -4,10 +4,45 @@ import { readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { documentAuthorIdentities, documentCoAuthors } from './document-authors.mjs';
+import { documentAuthorIdentities, documentCoAuthors, publishedAuthorOrder } from './document-authors.mjs';
 import { activityDocument } from './activities.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/document-authors-live-20261014.json',import.meta.url),'utf8'));
+const orderFixture=JSON.parse(readFileSync(new URL('./fixtures/question-author-order.json',import.meta.url),'utf8'));
+test('E-10-2026-004128 follows its published byline instead of either unordered API array',()=>{
+  const f=orderFixture,authorText={status:'available',paragraphs:['Question for written answer E-004128/2026',f.byline,'Subject: Public question'],sourceUrl:f.sourceUrl,fetchedAt:f.fetchedAt};
+  const result=documentCoAuthors(f.work,{members:f.members,authorText});
+  assert.deepEqual(result.coAuthors.map(a=>a.id),f.expectedIds);
+  assert.notDeepEqual(documentAuthorIdentities(f.work).map(a=>a.id),f.expectedIds);
+  assert.equal(result.coAuthorSource.order,'published-byline');
+  assert.equal(result.coAuthorSource.orderSourceUrl,f.sourceUrl);
+  assert.equal(result.coAuthorSource.orderFetchedAt,f.fetchedAt);
+  assert(result.coAuthors.every(a=>a.relationships.includes('creator')));
+});
+test('original and joint motion bylines preserve sequence across group blocks',()=>{
+  const authors=[{id:1,name:'Alex COMMON'},{id:2,name:'Zoë COMPOUND-SURNAME'},{id:3,name:'Third MEMBER'}];
+  for(const type of ['RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT']) {
+    const work={identifier:'B-10-2026-0001',work_type:'def/ep-document-types/'+type,creator:authors.map(a=>'person/'+a.id)};
+    const result=documentCoAuthors(work,{members:authors,authorText:{status:'available',paragraphs:['MOTION FOR A RESOLUTION','Zoë\u00a0Compound-Surname, Alex Common','on behalf of the Group','Third Member']}});
+    assert.deepEqual(result.coAuthors.map(a=>a.id),[2,1,3]);
+  }
+});
+test('missing, ambiguous, partial and prose mentions cannot drop authors or invent order',()=>{
+  const authors=[{id:1,name:'Alex Common'},{id:2,name:'Zoë Member'}];
+  for(const paragraphs of [[],['Zoë Member'],['Zoë Member and Alex Common request action.'],['Zoë Member, Unknown Member, Alex Common'],['Zoë Member, Zoë Member, Alex Common'],['Zoë Memberman, Alex Common']])assert.equal(publishedAuthorOrder(authors,paragraphs),authors);
+  const ambiguous=[...authors,{id:3,name:'ALEX COMMON'}];
+  assert.equal(publishedAuthorOrder(ambiguous,['Zoë Member, Alex Common']),ambiguous);
+  const unnamed=[...authors,{id:3,name:null}];
+  assert.equal(publishedAuthorOrder(unnamed,['Zoë Member, Alex Common']),unnamed);
+});
+test('answer author order reads the linked question instead of using answer names',async()=>{
+  const f=orderFixture,calls=[],answerId=f.work.identifier+'-ASW';
+  const work={...f.work,inverse_answers_to:[{identifier:answerId}]};
+  const result=await activityDocument(answerId,202073,'en',{request:async()=>({payload:{data:[work]},fetchedAt:Date.parse(f.fetchedAt)}),readText:async selected=>{calls.push(selected.identifier);return {status:'available',paragraphs:[selected.identifier===answerId?'Answer given by Someone Else':f.byline]};}});
+  assert.deepEqual(calls,[answerId,f.work.identifier]);
+  assert(result.coAuthors.every(a=>a.role==='QUESTION_AUTHOR'));
+  assert.equal(result.coAuthorSource.order,'api-unordered','without a saved roster the order stays unverified');
+});
 test('real question and resolution author IDs join the documented current roster without name inference',()=>{
   const [question,motion]=fixture.documents;
   const resolve=(doc,id)=>documentCoAuthors(doc.work,{members:fixture.roster.members,selectedDocumentId:id,documentApiUrl:doc.sourceUrl,documentFetchedAt:doc.fetchedAt,rosterFetchedAt:fixture.roster.fetchedAt});

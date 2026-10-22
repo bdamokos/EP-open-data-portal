@@ -61,6 +61,16 @@ function seedTarget(store,generation,amendments) {
   store.putSource(generation,'/plenary-documents/'+targetId,'document',target,fetchedAt);
   putList(store,generation,'amendment:list:'+listId,list(amendments),earlier);
 }
+test('amendment proposer order survives roster resolution, indexing and list variants',async t=>{
+  const {store,generation}=setup(t);
+  const members=[{id:'101',givenName:'Alex',familyName:'Common'},{id:'303',givenName:'Zoë',familyName:'Member'},{id:'202',givenName:'Third',familyName:'Author'}].map(member=>({...member,mandates:[{start:'2024-07-16',end:null}]}));
+  store.putSource(generation,'/meps/show-current?mandate-date='+tabled,'dated-roster',{members},earlier);
+  seedTarget(store,generation,[amendment(1,{authors:['Zoë Member','Alex Common','Third Author']})]);
+  await rebuildAmendmentTarget(store,generation,targetId);
+  const [item]=amendmentsPage(store,{document:targetId}).items;
+  assert.deepEqual(item.authors.map(author=>author.name),['Zoë Member','Alex Common','Third Author']);
+  assert.deepEqual(item.authors.map(author=>author.personId),['303','101','202']);
+});
 function linkedListFixture(t,representation='uri') {
   const context=setup(t),{store,generation}=context,knownId=targetId+'-AM-001-001',detailId=targetId+'-AM-002-002';
   const fileUrl='https://data.europarl.europa.eu/distribution/example/discovered_amendment_en.docx';

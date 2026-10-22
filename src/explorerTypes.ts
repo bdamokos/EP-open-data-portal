@@ -162,7 +162,7 @@ export interface DocumentObject {
 }
 export interface PublicationDocument {
   coAuthors?: CoAuthor[];
-  coAuthorSource?: { documentApiUrl:string; documentFetchedAt:string; rosterApiUrl:string; rosterFetchedAt:string|null };
+  coAuthorSource?: { documentApiUrl:string; documentFetchedAt:string; rosterApiUrl:string; rosterFetchedAt:string|null; order?:'published-byline'|'api-unordered'; orderSourceUrl?:string|null; orderFetchedAt?:string|null };
   id: string;
   titles: Record<string, string>;
   date: string | null;
