@@ -60,7 +60,7 @@ test('speech titles retain requested/English/fixed fallback selection with their
     const row=activity(i+1,{titles,fragments:{[language]:xml(language)}});
     const before=structuredClone(row),{service,calls,source}=serviceFor(t,{data:[row]});
     const result=await service.query(query(`member=${member}&days=term&lang=${language}`));
-    assert.deepEqual(result.speeches,[{id:row.activity_id,date,title,titleLanguage,machineTranslation:false,people:[{id:member,name:'Saved speaker',currentMep:true,role:null}]}]);
+    assert.deepEqual(result.speeches,[{id:row.activity_id,date,title,titleLanguage,machineTranslation:false,people:[{id:member,name:'Saved speaker',currentMep:true,role:null,roleLabels:{},roleLanguage:null,roleSource:{speechId:row.activity_id,date,url:source.url,fetchedAt:new Date(now()).toISOString()}}]}]);
     assert.deepEqual(result.scope,{kind:'member',member,sitting:null,week:null,topic:null,title:null,titleLanguage:null,phase:'past'});
     assert.equal(result.language,language);
     assert.equal(result.coverage.complete,true);
@@ -152,4 +152,25 @@ test('title language stays independent of requested XML translation and mixed or
   assert.equal(result.coverage.transcripts,4);
   assert.equal(result.coverage.xmlBytes,Buffer.byteLength(rows.map(row=>row.recorded_in_a_realization_of[0]['api:xmlFragment'].hu).join('')));
   assert.equal(result.coverage.missingLanguage,0);
+});
+
+test('cloud keeps all supplied role labels and provenance rather than treating the first Bulgarian header as English',async t=>{
+  const roleXml=(lang,role)=>xml(lang).replace('<from>','<from xml:lang="'+lang+'">').replace('</person>','</person><role>'+role+'</role>');
+  const row=activity(1,{fragments:{bg:roleXml('bg','Член на Комисията'),en:roleXml('en','Member of the Commission'),fr:roleXml('fr','Membre de la Commission')}});
+  const {service,source}=serviceFor(t,{data:[row]});
+  const result=await service.query(query(`member=${member}&days=term&lang=en`));
+  const person=result.speeches[0].people[0];
+  assert.equal(person.roleLanguage,'en');
+  assert.deepEqual(person.roleLabels,{bg:{text:'Член на Комисията',language:'bg'},en:{text:'Member of the Commission',language:'en'},fr:{text:'Membre de la Commission',language:'fr'}});
+  assert.deepEqual(person.roleSource,{speechId:row.activity_id,date,url:source.url,fetchedAt:new Date(now()).toISOString()});
+});
+
+test('retained cloud carries raw role language and known English independently of text language',async t=>{
+  const row=activity(1),labels={bg:{text:'Член на Комисията',language:'bg'},en:{text:'Member of the Commission',language:'en'}};
+  const source=record([]),store=storeFor(t);
+  const service=new SpeechCloudInsights(store,{clock:now,request:async()=>assert.fail('Retained cloud cannot fetch upstream'),legislation:{catalogue:async()=>({sittings:[{activity_id:sitting,activity_date:date}]})},
+    readCorpusPage:async()=>({revision:'1',total:1,nextOffset:null,records:[{id:row.activity_id,metadata:{activity:row,summary:{date,titles:row.activity_label},speakers:[{id:member,name:'Public speaker',role:labels.bg.text,roleLanguage:'bg',roleLabels:labels}],sourceUrl:source.url,fetchedAt:new Date(now()).toISOString()},text:{body:'Climate energy transport.',translationType:'original',sourceUrl:source.url,fetchedAt:new Date(now()).toISOString()}}]})});
+  const result=await service.query(query(`sitting=${sitting}&lang=en`)),person=result.speeches[0].people[0];
+  assert.equal(person.role,labels.bg.text);assert.equal(person.roleLanguage,'bg');assert.deepEqual(person.roleLabels,labels);
+  assert.equal(person.roleSource.speechId,row.activity_id);
 });

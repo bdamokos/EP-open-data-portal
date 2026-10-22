@@ -868,7 +868,7 @@ export default function App() {
                   >
                     <option lang="en" value="">All</option>
                     {Array.from(
-                      new Set(directory?.members.map((m) => m.groupCode)),
+                      new Set(directory?.members.map((m) => m.groupCode).filter((code): code is string => typeof code === 'string' && Boolean(code))),
                     )
                       .sort((a,b) => a.localeCompare(b,lang))
                       .map((v) => (
