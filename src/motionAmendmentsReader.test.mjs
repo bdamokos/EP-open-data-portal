@@ -36,7 +36,7 @@ function page({items=[amendment()],document=documentId,scope='member',language='
     snapshots:{amendments:1,text:1},...extra};
 }
 
-async function readerHarness(t,{state={},props={},focusContextChild=false}={}) {
+async function readerHarness(t,{state={},props={},focusContextChild=false,members}={}) {
   const window=new Window({url:'http://localhost/'}),requests=[];
   const globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -52,6 +52,7 @@ async function readerHarness(t,{state={},props={},focusContextChild=false}={}) {
   t.mock.method(globalThis,'fetch',input=>new Promise(resolve=>requests.push({url:new URL(input,window.location.href),resolve,done:false})));
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {MotionAmendments}=await vite.ssrLoadModule('/src/MotionAmendments.tsx'),{createRoot}=await import('react-dom/client');
+  const {PersonNamesProvider}=await vite.ssrLoadModule('/src/PersonName.tsx');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   function Host() {
     [currentState,setState]=useState({...initialState,...state});
@@ -61,7 +62,7 @@ async function readerHarness(t,{state={},props={},focusContextChild=false}={}) {
         createElement('button',{onClick:context.onBack,autoFocus:focusContextChild},'Back from test context'));
     }});
   }
-  await act(async()=>root.render(createElement(Host)));
+  await act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(Host))));
   const respond=(data,{request=requests.at(-1),status=200}={})=>act(async()=>{
     assert(request,'The reader must make a request before receiving a response.');request.done=true;request.resolve(Response.json(data,{status}));
   });
@@ -938,4 +939,13 @@ test('failed and malformed reader responses settle readiness and retries become 
     await h.updateState({amendmentId:`${documentId}-AM-${number}`});assert.equal(pending(),'true');
     await h.respond(response,{status});assert.equal(pending(),null,'an exact failure is settled while the accepted list remains readable');
   }
+});
+
+test('motion proposers use exact directory IDs and preserve unknown labels',async t=>{
+  const h=await readerHarness(t,{members:[{id:42,firstName:'Mika',lastName:'Aaltola'}]});
+  await h.respond(page({items:[amendment(13,{authors:[{personId:'42',name:'Mika AALTOLA'},{personId:'99',name:'Guest McDONALD'}]})]}));
+  await h.click(/^Amendment 13/);
+  const proposers=h.container.querySelector('.motion-amendments__proposers');
+  assert.match(proposers.textContent,/Proposed by Mika Aaltola, Guest McDONALD/);
+  assert.equal(proposers.querySelector('[title="Source label: Mika AALTOLA"]').textContent,'Mika Aaltola');
 });

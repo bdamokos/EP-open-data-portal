@@ -79,9 +79,10 @@ export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage
       <div>{selected.speechIds.map(id=>{
         const speech=data?.speeches.find(s=>s.id===id);if(!speech)return null;
         const people=speech.people.map(person=>displayName(person.id,person.name)).filter(Boolean).join(', '),name=people||speech.title,open=!onSpeech&&reading===id;
+        const sourceLabel=speech.people.map(person=>person.name).filter(Boolean).join(', ');
         return <article key={id}>
           <button className="explorer-cloud-source" ref={button=>{if(button)sourceButtons.current.set(id,button);else sourceButtons.current.delete(id);}} aria-label={(open?'Close':'Read')+' speech by '+name} aria-expanded={onSpeech?undefined:open} aria-controls={open?readerId:undefined} onClick={()=>readSpeech(id)}>
-            <strong title={speech.people.map(person=>person.name).filter(Boolean).join(', ')} lang={people?'':speech.titleLanguage??''}>{name}</strong><span lang={speech.titleLanguage??''}>{speech.title}</span><small lang={interfaceLanguage}>{humanDate(speech.date,interfaceLanguage)}</small><span className="explorer-cloud-read-action">{open?'Close speech':'Read speech'}</span>
+            <strong title={sourceLabel&&sourceLabel!==name?`Source label: ${sourceLabel}`:undefined} lang={people?'':speech.titleLanguage??''}>{name}</strong><span lang={speech.titleLanguage??''}>{speech.title}</span><small lang={interfaceLanguage}>{humanDate(speech.date,interfaceLanguage)}</small><span className="explorer-cloud-read-action">{open?'Close speech':'Read speech'}</span>
           </button>
           {open&&<div className="explorer-cloud-reader" ref={reader} id={readerId} tabIndex={-1} role="region" aria-label={'Speech by '+name}>
             <InsightSpeechReader key={id} id={id} language={interfaceLanguage} transcriptLanguage={language} highlight={selected.label||selected.word} onSpeakers={onSpeakers}/>
