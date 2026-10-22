@@ -236,7 +236,7 @@ test('Members filters sort displayed labels in every interface language and pres
     const h=await harness(t,'?lang='+language,url=>url.pathname.endsWith('/directory')?{...directory,members}:fixture(url));
     const {default:App}=await h.load('/src/App.tsx');
     await h.render(createElement(App));
-    const [country,group]=h.container.querySelectorAll('.explorer-filter-line select');
+    const [country,group]=[...h.container.querySelectorAll('.explorer-filter-line select')].slice(-2);
     const options=select=>[...select.options].slice(1);
     for(const select of [country,group]) {
       assert.equal(select.options[0].value,'','All remains first');
