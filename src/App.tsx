@@ -948,9 +948,7 @@ export default function App() {
                         <Portrait
                           member={{
                             ...m,
-                            imageUrl: m.memberships
-                              ? `${API_ROOT}/portrait/${m.id}`
-                              : publicUrl("assets/portrait-placeholder.svg"),
+                            imageUrl: `${API_ROOT}/portrait/${m.id}`,
                           }}
                           labelled
                           onClick={() => {

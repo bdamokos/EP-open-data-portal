@@ -11,8 +11,9 @@ const speechId='MTG-PL-2026-10-07-OTH-2017097993206';
 const item={id:'speech:'+speechId,sourceId:speechId,date:'2026-10-07',title:'Public speech fixture',titles:{en:'Public speech fixture'},recordKind:'speech',category:'plenary-contributions',categoryLabel:'Plenary contributions',speechKind:'PLENARY_DEBATE_WRITTEN_STATEMENT',reference:speechId,files:[],provenance:{role:'SPEAKER'}};
 const page=(offset=0)=>({categories:{},categoryGroups:[],categoryCoverage:{},items:offset?[]:[item],selectedItems:[],indexedTotal:11,nextOffset:offset?null:10,cache:{complete:false}});
 
-async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=false) {
-  const window=new Window({url:'http://localhost/'+query}),pending=[],unexpected=[];
+async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=false, unavailableMemberships=false) {
+  const window=new Window({url:'http://localhost/'+query}),pending=[],unexpected=[],portraitRequests=[];
+  if(unavailableMemberships)delete window.IntersectionObserver;
   let releaseModule;const moduleGate=new Promise(resolve=>{releaseModule=resolve;});
   const globals={__navigationViewGate:moduleGate,window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1280,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -29,8 +30,8 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,location.href),route=url.pathname.split('/api/')[1];
     if(route?.startsWith('speech-transcript/'))return Response.json({id:route.split('/')[1],available:false});
-    if(route==='directory')return Response.json(directory);
-    if(route?.startsWith('portrait/'))return new Response(null,{status:404});
+    if(route==='directory')return Response.json(unavailableMemberships?{...directory,members:[{...member,memberships:null}],index:{complete:false,loaded:0,total:1,failed:0,error:null}}:directory);
+    if(route?.startsWith('portrait/')){portraitRequests.push(route);return new Response(null,{status:404});}
     if(route?.startsWith('profile/'))return Response.json(member);
     if(route?.startsWith('latest-activities/')){
       if(delay)return new Promise(resolve=>pending.push({url,resolve}));
@@ -54,8 +55,14 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
   const click=async node=>{assert(node,'Missing control');node.focus();await act(async()=>node.click());if(!delayedModule)await viewReady(container);};
   const finish=(data,status=200)=>act(async()=>{assert(pending.length,'Missing pending page');pending.shift().resolve(Response.json(data,{status}));});
-  return {window,container,pending,button,click,finish,releaseView:async()=>{await act(async()=>{releaseModule();await vite.ssrLoadModule('/src/GroupVoices.tsx');});await viewReady(container);}};
+  return {window,container,pending,portraitRequests,button,click,finish,releaseView:async()=>{await act(async()=>{releaseModule();await vite.ssrLoadModule('/src/GroupVoices.tsx');});await viewReady(container);}};
 }
+
+test('roster portraits are requested while committee memberships are unavailable',async t=>{
+  const h=await harness(t,'',false,false,false,true);
+  assert.deepEqual(h.portraitRequests,['portrait/257043']);
+  assert.match(h.container.querySelector('.explorer-index[role="status"]').textContent,/Loading committee memberships: 0 \/ 1\./);
+});
 
 test('member destination and Back restore the remounted exact portrait while retaining filters',async t=>{
   const h=await harness(t),input=h.container.querySelector('.explorer-filters input');
