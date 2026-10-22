@@ -383,17 +383,22 @@ for(const [kind,base,labels,next] of [
 });
 
 
-test('dash items, colon continuations and uppercase list text stay under paragraph 19', () => {
-  const text=motion(['19. Calls for:', '– first item;', 'CONTINUING LIST', '– second item;', 'a continuation:', 'further details;', '20. Next;']);
-  const units=segmentMotionUnits(text,'en'), unit=units.find(unit=>unit.label==='19');
-  assert.equal(unit.end,8);assert.equal(units.filter(unit=>unit.kind==='citation').length,1);
-  assert(!units.some(unit=>unit.kind==='heading'));
+test('dash items and unlabelled prose retain a certain paragraph extent', () => {
+  const text=motion(['19. Calls for:', '– first item;', '– SECOND ITEM', 'a continuation:', 'further details;', '20. Next;']);
+  const unit=segmentMotionUnits(text,'en').find(unit=>unit.label==='19');
+  assert.equal(unit.end,7);
   const result=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
-  assert.equal(result.status,'placed');assert.equal(result.insertBefore,9);
+  assert.equal(result.status,'placed');assert.equal(result.insertBefore,8);
 });
-test('a colon-ended uppercase continuation never becomes a heading',()=>{
+test('a short uppercase colon row is uncertain rather than an assumed continuation',()=>{
   const text=motion(['19. First;', 'FURTHER ACTION:', '– item;', '20. Next;']);
+  assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,3);
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'resolution_extent_uncertain');
+});
+test('a lowercase colon continuation retains its following dash items',()=>{
+  const text=motion(['19. First;', 'further action:', '– item;', '20. Next;']);
   assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,5);
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).status,'placed');
 });
 test('table labels cannot create a body identity or retain the preceding scope',()=>{
   const text=motion(['19. Main:', '99. Quoted table text;', '(a) body point;', '20. Next;']);
@@ -456,4 +461,121 @@ test('uppercase dash items without a colon introduction are still paragraph cont
 test('a missing ordinal resets scope without disabling an independent complete paragraph',()=>{
   const text=motion(['19. Main;', '20. Independent;']);text.paragraphSources[4].ordinal++;
   assert.equal(placement(text,{originalText:'20. Independent;',proposedText:'Changed;',targetLabel:'Paragraph 20'}).status,'placed');
+});
+
+
+for (const heading of ['Annex I: Technical requirements', 'ANNEX – Technical requirements', 'Annex: Technical requirements', 'Annex 2 — Technical requirements']) {
+  test(`titled ${heading} ends paragraph 19 before annex numbering or quoted prose`, () => {
+    const text=motion(['19. Final provision;',heading,'1. Annex provision;','Quoted annex prose.']);
+    const units=segmentMotionUnits(text,'en');
+    assert.equal(units.find(unit=>unit.label==='19').end,3);
+    assert(!units.some(unit=>unit.start>=4));
+    const inserted=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
+    assert.equal(inserted.status,'placed');assert.equal(inserted.insertBefore,4);
+    assert.equal(placement(text,{originalText:'Quoted annex prose.',proposedText:'Changed;'}).reason,'target_not_found');
+    assert.equal(placement(text,{originalText:'1. Annex provision;',proposedText:'Changed;',targetLabel:'Paragraph 1'}).reason,'target_not_found');
+  });
+}
+
+for (const heading of ['FOLLOW-UP','FOLLOW-UP:','FOLLOW-UP.','Follow-Up','Follow-up','Further Action']) {
+  test(`${heading} closes a dash list and withholds paragraph 19 despite later 20`, () => {
+    const text=motion(['19. Calls for:', '– first item;', '– second item;', heading, 'follow-up prose;', '20. Independent;']);
+    const options={originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'};
+    assert.equal(placement(text,options).reason,'resolution_extent_uncertain');
+    const source='19. Calls for: – first item; – second item;';
+    for (const proposedText of ['Changed;', '', 'deleted']) {
+      assert.equal(placement(text,{originalText:source,proposedText,targetLabel:'Paragraph 19'}).reason,'resolution_extent_uncertain');
+      assert.equal(placement(text,{originalText:'– first item;',proposedText}).reason,'resolution_extent_uncertain');
+    }
+    assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,5);
+    assert(!segmentMotionUnits(text,'en').some(unit=>unit.kind==='point'));
+    assert.equal(placement(text,{originalText:heading,proposedText:'Changed;'}).reason,'target_not_found');
+    assert.equal(placement(text,{originalText:'follow-up prose;',proposedText:'Changed;'}).reason,'target_not_found');
+    assert.equal(placement(text,{originalText:'20. Independent;',proposedText:'Changed;',targetLabel:'Paragraph 20'}).status,'placed');
+    assert.equal(placement(motion(['19. Main;',heading]),options).reason,'resolution_extent_uncertain');
+  });
+}
+
+test('an ambiguous heading withholds an earlier point through its paragraph extent', () => {
+  const text=motion(['19. Calls for:', '(a) first point;', '(b) last point;', 'FOLLOW-UP', '(c) orphan point;', '20. Next;']);
+  assert.equal(placement(text,{originalText:'(a) first point;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).reason,'resolution_extent_uncertain');
+  assert(!segmentMotionUnits(text,'en').some(unit=>unit.kind==='point'&&unit.label==='c'));
+});
+
+test('ordinary punctuated prose mentioning annexes remains within its provision', () => {
+  const text=motion(['19. Main;', 'Annex I sets out technical requirements.', 'The explanatory statement explains the purpose;', '20. Next;']);
+  const result=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
+  assert.equal(result.status,'placed');assert.equal(result.insertBefore,6);
+});
+
+test('an incomplete explicit end still prevents units or quotes after it', () => {
+  const text=motion(['19. Main;', 'Annex I: Technical requirements', '20. Outside;']);
+  text.paragraphSources[4].complete=false;
+  assert(!segmentMotionUnits(text,'en').some(unit=>unit.label==='20'));
+  assert.equal(placement(text,{originalText:'20. Outside;',proposedText:'Changed;'}).reason,'target_not_found');
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'source_passage_incomplete');
+});
+
+test('public RC-0441 AM 2 and B-0424 AM 31 retain their published placements', async () => {
+  const {readFile}=await import('node:fs/promises');
+  const fixtures=JSON.parse(await readFile(new URL('./fixtures/amendment-placement-excerpts.json',import.meta.url),'utf8'));
+  for (const sample of fixtures) {
+    const text=document(sample.paragraphs,{textLanguage:'en'}), result=placement(text,sample.amendment);
+    assert.equal(result.status,'placed',sample.documentId);
+    if (sample.documentId.startsWith('RC-')) {
+      assert.equal(text.paragraphs[result.insertAfter],sample.paragraphs[1]);
+      assert.equal(text.paragraphs[result.insertBefore],sample.paragraphs[2]);
+      assert.equal(result.insertAfter,1);assert.equal(result.insertBefore,2);
+    } else assert.deepEqual(result.span,{start:1,end:1});
+  }
+});
+
+
+// Exact headings from the public DOCX language versions of A-10-2025-0076.
+// Source URLs and spelling (including Latvian/Lithuanian title delimiters) are
+// retained in the fixture; the short bodies below isolate boundary behavior.
+test('all 24 localized explanatory and titled annex headings end the resolution', async () => {
+  const {readFile}=await import('node:fs/promises');
+  const samples=JSON.parse(await readFile(new URL('./fixtures/resolution-end-headings.json',import.meta.url),'utf8'));
+  assert.equal(new Set(samples.map(sample=>sample.language)).size,24);
+  for (const sample of samples) {
+    const {language,opening,annex,explanatoryStatement,titledAnnex}=sample;
+    for (const heading of [explanatoryStatement,titledAnnex,annex+' I: Technical requirements',annex+' – Technical requirements']) {
+      const paragraphs=[opening+',','19. Final provision;',heading,'Quoted outside prose.','1. Outside provision;'];
+      const text=document(paragraphs,{textLanguage:language});
+      const units=segmentMotionUnits(text,language);
+      assert.equal(units.find(unit=>unit.label==='19').end,1,language+' / '+heading);
+      assert(!units.some(unit=>unit.start>=2),language+' / '+heading);
+      for (const proposedText of ['Changed;', '', 'deleted']) {
+        assert.equal(placement(text,{originalText:'Quoted outside prose.',proposedText,language}).reason,'target_not_found',language+' / '+heading);
+        assert.equal(placement(text,{originalText:'1. Outside provision;',proposedText,language}).reason,'target_not_found',language+' / '+heading);
+      }
+      // Repeated prose after the end must not compete with a resolution quote.
+      const inside=document([opening+',','19. Same wording;',heading,'19. Same wording;'],{textLanguage:language});
+      const replaced=placement(inside,{originalText:'19. Same wording;',proposedText:'Changed;',language});
+      assert.equal(replaced.status,'placed',language+' / '+heading);assert.deepEqual(replaced.span,{start:1,end:1});
+    }
+  }
+});
+
+for (const [language,opening,heading] of [
+  ['fr','Le Parlement européen','EXPOSÉ DES MOTIFS'],
+  ['de','Das Europäische Parlament','BEGRÜNDUNG'],
+  ['hu','Az Európai Parlament','INDOKOLÁS'],
+]) test(`${heading} prose cannot quote-match back into the resolution`, () => {
+  const text=document([opening+',','19. Last provision;',heading,'This prose is outside the resolution.'],{textLanguage:language});
+  assert.equal(placement(text,{originalText:'This prose is outside the resolution.',proposedText:'Changed;',language}).reason,'target_not_found');
+});
+
+
+// Published amendment justification headings:
+// https://www.europarl.europa.eu/doceo/document/A-7-2013-0414_BG.pdf
+// https://www.europarl.europa.eu/doceo/document/A-10-2026-0040-AM-004-006_GA.pdf
+for (const [language,opening,heading] of [
+  ['bg','Европейският парламент','Обосновка'],
+  ['ga','Parlaimint na hEorpa','Réasúnú'],
+]) test(`localized ${heading} justification ends the resolution`, () => {
+  const text=document([opening+',','19. Last provision;',heading,'Quoted justification prose.'],{textLanguage:language});
+  assert.equal(segmentMotionUnits(text,language).at(-1).end,1);
+  assert.equal(placement(text,{originalText:'Quoted justification prose.',proposedText:'Changed;',language}).reason,'target_not_found');
 });

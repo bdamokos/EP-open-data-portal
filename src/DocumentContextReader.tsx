@@ -1,4 +1,4 @@
-import {useId,useRef,useState,type ReactNode} from 'react';
+import {Fragment,useId,useRef,useState,type ReactNode} from 'react';
 import {useData} from './data';
 import type {DocumentContextRequest,DocumentContextResponse} from './DocumentContextTypes';
 import type {PublicationDocument,NoteAnchor,DocumentLink} from './explorerTypes';
@@ -9,6 +9,7 @@ import {InsightQuestionReader} from './InsightReaders';
 import {mapContextAnnotations} from './contextAnnotations.mjs';
 import {WordingDiff} from './components/WordingDiff';
 import {FindInText} from './TextSearch';
+import {DocumentParagraphs,usableFormatting,type FormatMark} from './DocumentFormatting';
 import './DocumentContextReader.css';
 
 export type DocumentContextReaderProps={
@@ -39,6 +40,7 @@ const documentRoute=(id:string,language:string,request?:DocumentContextRequest)=
 const responseFor=(data:DocumentContextResponse|null,id:string,language:string,request?:DocumentContextRequest)=>data?.documentId===id&&data.requestedLanguage===language&&(request?.wordingLanguage===undefined||data.requestedWordingLanguage===request.wordingLanguage)?data:null;
 
 const placementReasons:Record<string,string>={
+  resolution_extent_uncertain:'The boundaries of this passage could not be established safely.',
   resolution_end_unavailable:'The end of the resolution could not be established safely.',
   baseline_unavailable:'The text this amendment changes is not included in this document.',
   different_text_languages:'The document and amendment wording are in different languages.',
@@ -58,21 +60,22 @@ const amendmentNumber=(id:string|undefined)=>id?.match(/-AM-(\d+[a-z]*)$/i)?.[1]
 
 // Keep source offsets when replacing an unresolved inline object with a source link.
 // The surrounding text, references and note anchors remain in their original positions.
-function Paragraph({text,paragraph,objects,sourceUrl,anchors,links,notePrefix}:{text:string;paragraph:number;objects:InlineObject[];sourceUrl:string|null;anchors:NoteAnchor[];links:DocumentLink[];notePrefix:string}) {
-  const unresolved=new Map(objects.filter(object=>object.paragraph===paragraph&&object.status==='unresolved'&&Number.isInteger(object.offset)&&object.offset>=0&&text[object.offset]==='\uFFFC').map(object=>[object.offset,object]));
-  if(!unresolved.size)return <ReferenceText text={text} anchors={anchors} links={links} notePrefix={notePrefix}/>;
-  const nodes:ReactNode[]=[];let start=0;
-  const slice=(from:number,to:number)=>{
-    const spans=links.map(link=>({...link,start:Math.max(link.start,from),end:Math.min(link.end,to)})).filter(link=>link.end>link.start);
-    return <ReferenceText key={'text-'+from} text={text.slice(from,to)} start={from} anchors={anchors} links={spans} notePrefix={notePrefix}/>;
+function Paragraph({text,paragraph,from=0,to=text.length,final=true,objects,sourceUrl,anchors,links,marks,notePrefix}:{text:string;paragraph:number;from?:number;to?:number;final?:boolean;objects:InlineObject[];sourceUrl:string|null;anchors:NoteAnchor[];links:DocumentLink[];marks:FormatMark[];notePrefix:string}) {
+  const unresolved=new Map(objects.filter(object=>object.paragraph===paragraph&&object.status==='unresolved'&&Number.isInteger(object.offset)&&object.offset>=from&&object.offset<to&&text[object.offset]==='\uFFFC').map(object=>[object.offset,object]));
+  const nodes:ReactNode[]=[];let start=from;
+  // A slice ending at a replaced object owns the note anchored there; the label slice before a hanging tab does not.
+  const slice=(sliceFrom:number,sliceTo:number,ownsEnd:boolean)=>{
+    const spans=links.map(link=>({...link,start:Math.max(link.start,sliceFrom),end:Math.min(link.end,sliceTo)})).filter(link=>link.end>link.start);
+    return <ReferenceText key={'text-'+sliceFrom} text={text.slice(sliceFrom,sliceTo)} start={sliceFrom} final={ownsEnd} anchors={anchors} links={spans} marks={marks} notePrefix={notePrefix}/>;
   };
+  if(!unresolved.size)return slice(from,to,final);
   for(const [offset,object] of [...unresolved].sort(([a],[b])=>a-b)) {
-    nodes.push(slice(start,offset));
+    nodes.push(slice(start,offset,true));
     const label=object.kind==='drawing'?'Image in original':'See original';
     nodes.push(sourceUrl?<a key={'object-'+offset} className="document-context-object" lang="en" href={sourceUrl} target="_blank" rel="noreferrer">{label} ↗</a>:<span key={'object-'+offset} className="document-context-object" lang="en">{object.kind==='drawing'?'Image unavailable':'Content unavailable'}</span>);
     start=offset+1;
   }
-  nodes.push(slice(start,text.length));
+  nodes.push(slice(start,to,final));
   return <>{nodes}</>;
 }
 
@@ -134,12 +137,13 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
         {amendmentRequest?.amendmentId&&(placement?(placed?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to amendment</button></div>:<p className="document-context-notice" role="status">This amendment could not be placed in the text. {placementReason} The full document is below.</p>):found?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to passage</button>{target?.quoteMatches===false&&<p>The published text differs from the amendment’s quotation.</p>}</div>:<p className="document-context-notice">Passage not found. The full document is below.</p>)}
         {incomplete&&<p className="document-context-notice">Some content is only available in the original document.</p>}
         <ReferenceScope key={id+':'+language} texts={readerTexts(body.paragraphs,notes,links)} notes={notes} notePrefix={notePrefix} language={interfaceLanguage} textLanguage={actual} renderQuestion={question=><InsightQuestionReader id={question} language={interfaceLanguage} heading="Referenced question" includeAnswers/>}>
-          <div className="document-context-text" ref={reader} lang={actual||''}>{placement&&!placed&&wording&&amendmentBlock(false)}{body.paragraphs.flatMap((paragraph,index)=>{
-            const sourceIndex=body.start+index,selected=Boolean(found&&indices.includes(sourceIndex));
-            if(placed&&placement?.span&&sourceIndex>=placement.span.start&&sourceIndex<=placement.span.end)return sourceIndex===placement.span.start?[amendmentBlock(true)]:[];
-            const paragraphNode=<p key={sourceIndex} data-source-paragraph={sourceIndex} data-context-target={selected?'true':undefined} className={selected?'document-context-target':undefined} tabIndex={selected?-1:undefined}><Paragraph text={paragraph} paragraph={sourceIndex} objects={objects} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} notePrefix={notePrefix}/></p>;
-            return placed&&placement?.operation==='insert'&&sourceIndex===placement.insertAfter?[paragraphNode,amendmentBlock(true)]:[paragraphNode];
-          })}<DocumentNotes notes={notes} prefix={notePrefix}/></div>
+          <div className="document-context-text" ref={reader} lang={actual||''}>{placement&&!placed&&wording&&amendmentBlock(false)}<DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,allParagraphs.length)} exactOffsets
+            paragraphProps={sourceIndex=>{const selected=Boolean(found&&indices.includes(sourceIndex));return {'data-source-paragraph':String(sourceIndex),'data-context-target':selected?'true':undefined,className:selected?'document-context-target':undefined,tabIndex:selected?-1:undefined};}}
+            renderParagraph={(sourceIndex,paragraph)=>{
+              if(placed&&placement?.span&&sourceIndex>=placement.span.start&&sourceIndex<=placement.span.end)return sourceIndex===placement.span.start?amendmentBlock(true):null;
+              return placed&&placement?.operation==='insert'&&sourceIndex===placement.insertAfter?<Fragment key={sourceIndex}>{paragraph}{amendmentBlock(true)}</Fragment>:paragraph;
+            }}
+            renderText={(sourceIndex,paragraph,from,to,final,marks)=><Paragraph text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes notes={notes} prefix={notePrefix}/></div>
         </ReferenceScope>
       </>:!state.loading&&!loadError&&<p>Document text unavailable here.</p>}
       {sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer">Open original document ↗</a></p>}
