@@ -10,7 +10,7 @@ Keep QA screenshots, browser captures, evidence bundles and agent work logs outs
 
 Use one source writer and one index writer. Keep site-specific routing, service configuration, host addresses, credentials and deployment records outside this repository. A push or health check is not user-visible acceptance. Verify the exact live revision and user path; preserve the accepted runtime and data while testing a candidate.
 
-Run npm test, npm run check and npm run build for structural changes. Verify changed UI flows in the browser at mobile and desktop widths. Avoid cold corpus downloads during tests and preserve incomplete-coverage labels.
+Run npm test, npm run check and npm run build for structural changes. On resource-constrained hosts, run only the targeted tests you need while iterating, then push the branch, open a draft pull request and use the Checks workflow as the full test, type-check and build gate. A green run counts only for the exact head commit. Run `gh workflow run checks.yml --ref BRANCH` to check a branch without a pull request. Keep CI on GitHub-hosted standard runners: do not add larger, paid or self-hosted runners. Workflow artifacts and logs are public, so do not upload screenshots or evidence there. Verify changed UI flows in the browser at mobile and desktop widths. Avoid cold corpus downloads during tests and preserve incomplete-coverage labels.
 
 ## Pull requests and deployment
 
