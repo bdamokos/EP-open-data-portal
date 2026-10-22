@@ -12,6 +12,8 @@ Use one source writer and one index writer. Keep site-specific routing, service 
 
 Run npm test, npm run check and npm run build for structural changes. Verify changed UI flows in the browser at mobile and desktop widths. Avoid cold corpus downloads during tests and preserve incomplete-coverage labels.
 
+For API contract changes, update the affected endpoint version and run `npm run api:bump`; use `-- --force` once for semantic-only changes with an unchanged digest. The command fetches main and reconciles branch entries, including Git conflict markers, without replacing main's recorded digests. Rerun after integrating main or another stacked branch, review and stage the result, and keep the read-only contract checks passing. See CONTRIBUTING.md for conflict resolution and CI baselines. Never replace or discard a recorded digest to resolve a version collision.
+
 ## Pull requests and deployment
 
 - PR descriptions for visible changes must include labelled before-and-after screenshots of the affected UI at both mobile and desktop widths. Capture the base and proposed revisions with the same viewport, route and representative state; identify those revisions and any data or state differences in the captions. Inspect each screenshot before uploading. For changes with no visible effect, state that in the PR's validation section.
