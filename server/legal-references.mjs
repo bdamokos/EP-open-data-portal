@@ -7,6 +7,7 @@ import {documentEndpoint} from './activities.mjs';
 import {referenceKey,documentCelexCandidates,questionCandidates,cellarProcedureReference,eurLexUrl} from './legal-reference-text.mjs';
 import {createRequestBudget,requestSignal,runWithRequestSignal,waitForRequest} from './request-budget.mjs';
 
+export const QUESTION_REFERENCE_VERSION=2;
 export const REFERENCE_LIMITS=Object.freeze({keys:40,titleLength:1200,freshMs:7*86400_000,missingFreshMs:86400_000});
 const authority='http://publications.europa.eu/resource/authority/language/';
 const languages={bg:'BUL',es:'SPA',cs:'CES',da:'DAN',de:'DEU',et:'EST',el:'ELL',en:'ENG',fr:'FRA',ga:'GLE',hr:'HRV',it:'ITA',lv:'LAV',lt:'LIT',hu:'HUN',mt:'MLT',nl:'NLD',pl:'POL',pt:'POR',ro:'RON',sk:'SLK',sl:'SLV',fi:'FIN',sv:'SWE'};
@@ -107,7 +108,7 @@ export class LegalReferences {
     Object.assign(this,{sources,clock,request,requestBudgetMs});
     this.cache=new BatchCache({directory,clock,maxEntries:3000,maxBytes:8*1024*1024,freshMs:REFERENCE_LIMITS.freshMs});
   }
-  cacheKey(key,language){return this.cache.key(['legal-reference-v1',key,language]);}
+  cacheKey(key,language){return this.cache.key([key.startsWith('question:')?'question-reference-v'+QUESTION_REFERENCE_VERSION:'legal-reference-v1',key,language]);}
   fresh(record){return record&&this.clock()-record.at<(record.value.status==='found'?REFERENCE_LIMITS.freshMs:REFERENCE_LIMITS.missingFreshMs);}
   async query(query) {
     const budget=createRequestBudget(this.requestBudgetMs),parent=requestSignal();

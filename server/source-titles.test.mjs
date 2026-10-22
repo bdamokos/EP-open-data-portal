@@ -5,6 +5,7 @@ import {questionFromSource} from './insights-model.mjs';
 import {documentSummary} from './activities.mjs';
 import {localize} from './activity-index-model.mjs';
 import {QuestionInsights,insightQuery} from './insights-store.mjs';
+import {LegalReferences} from './legal-references.mjs';
 
 const id='E-10-2026-004205',key='/parliamentary-questions/'+id,fetchedAt='2026-10-22T16:00:00Z';
 const title='Reservations regarding the Greek Public Employment Service (DYPA) staffing process';
@@ -12,7 +13,7 @@ const source=()=>({identifier:id,id:'eli/dl/doc/'+id,work_type:'def/ep-document-
 
 test('source titles decode named and numeric entities once, preserving literal and malformed text',()=>{
   assert.equal(sourceTitle(title+'&nbsp;'),title+'\u00a0');
-  assert.equal(sourceTitle('&eacute; &Eacute; &amp; &#160; &#x1F642;'), 'é É & \u00a0 🙂');
+  assert.equal(sourceTitle('&eacute; &Eacute; &amp; &#160; &#x1F642; &#X26;'), 'é É & \u00a0 🙂 &');
   assert.equal(sourceTitle('&lt;img src=x onerror=alert(1)&gt; <b>literal</b>'),'<img src=x onerror=alert(1)> <b>literal</b>');
   assert.equal(sourceTitle('&amp;nbsp; &amp;lt;'),'&nbsp; &lt;','no recursive decoding');
   for(const text of ['&unknown;','&constructor;','&nbsp','&#xZZ;','&#12oops;','&#0;','&#xD800;','&#1114112;','& copy;','R&D'])assert.equal(sourceTitle(text),text);
@@ -50,4 +51,18 @@ test('saved raw question sources produce clean titles while retaining incomplete
   assert.equal(page.questions[0].title,title+'\u00a0');assert.equal(page.questions[0].titleLanguage,'en');assert.equal(page.questions[0].id,id);
   assert.equal(page.questions[0].fetchedAt,fetchedAt);assert.equal(page.coverage.indexComplete,false);assert.equal(page.counts.totalQuestions,null);
   assert.equal(work.title_dcterms.en,title+'&nbsp;');
+});
+
+test('reference cards invalidate old assembled titles and do not decode a saved card twice',async()=>{
+  let calls=0;const referenceKey='question:E-2026-004205',work=source();work.title_dcterms.en='Title &amp;nbsp; &nbsp;';
+  const references=new LegalReferences({}, {directory:null,clock:()=>Date.parse(fetchedAt),request:async endpoint=>{
+    calls++;assert.equal(endpoint,key);return {url:'https://data.europarl.europa.eu/api/v2'+key,fetchedAt:Date.parse(fetchedAt),payload:{data:[work]}};
+  }});
+  const old=references.cache.key(['legal-reference-v1',referenceKey,'en']);
+  await references.cache.save(old,{key:referenceKey,kind:'question',status:'found',id,title:'Old &nbsp;'});
+  const query={keys:[referenceKey],language:'en'},first=(await references.query(query)).references[0];
+  assert.equal(first.title,'Title &nbsp; \u00a0');assert.equal(first.titleLanguage,'en');assert.equal(first.id,id);assert.equal(first.source.fetchedAt,new Date(fetchedAt).toISOString());
+  assert.equal((await references.query(query)).references[0].title,first.title);assert.equal(calls,1);
+  assert.notEqual(references.cacheKey(referenceKey,'en'),old);
+  assert.equal(references.cacheKey('celex:32016R0679','en'),references.cache.key(['legal-reference-v1','celex:32016R0679','en']),'unrelated reference caches remain usable');
 });
