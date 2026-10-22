@@ -1,3 +1,4 @@
+import {usePersonName} from './PersonName';
 import {AnalysisPeriodControl} from './AnalysisPeriod';
 import type {AnalysisPeriod} from '../server/analysis-period.mjs';
 import {useEffect,useId,useRef,useState,type ReactNode} from 'react';
@@ -44,6 +45,7 @@ function useCloud(route:string) {
 }
 
 export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage='en',title,controls,onSpeech,onSpeakers,onSpeechSpeakers}:{member?:number;sitting?:string;week?:string;topic?:string;country?:string|null;interfaceLanguage?:string;title?:string|false;controls?:ReactNode;onSpeech?:(id:string,language:string)=>void;onSpeakers?:(people:{id:string;name:string;role:string|null}[],speechId?:string)=>void;onSpeechSpeakers?:(speeches:{id:string;people:CloudPerson[]}[])=>void}) {
+  const displayName=usePersonName();
   const [language,setLanguage]=useState('en'),[days,setDays]=useState<AnalysisPeriod>('term'),[word,setWord]=useState<string|null>(null),[more,setMore]=useState(false),[reading,setReading]=useState<string|null>(null),examples=useRef<HTMLHeadingElement>(null);
   const reader=useRef<HTMLDivElement>(null),sourceButtons=useRef(new Map<string,HTMLButtonElement>()),readerId=useId();
   const params=new URLSearchParams({lang:language});if(member){params.set('member',String(member));params.set('days',String(days));}else if(week)params.set('week',week);else if(sitting)params.set('sitting',sitting);if(topic)params.set('topic',topic);if(country)params.set('country',country);
@@ -76,10 +78,11 @@ export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage
       {selected.speechIds.length<selected.speechCount&&<p className="explorer-cloud-caption">Showing {selected.speechIds.length} examples</p>}
       <div>{selected.speechIds.map(id=>{
         const speech=data?.speeches.find(s=>s.id===id);if(!speech)return null;
-        const people=speech.people.map(person=>person.name).filter(Boolean).join(', '),name=people||speech.title,open=!onSpeech&&reading===id;
+        const people=speech.people.map(person=>displayName(person.id,person.name)).filter(Boolean).join(', '),name=people||speech.title,open=!onSpeech&&reading===id;
+        const sourceLabel=speech.people.map(person=>person.name).filter(Boolean).join(', ');
         return <article key={id}>
           <button className="explorer-cloud-source" ref={button=>{if(button)sourceButtons.current.set(id,button);else sourceButtons.current.delete(id);}} aria-label={(open?'Close':'Read')+' speech by '+name} aria-expanded={onSpeech?undefined:open} aria-controls={open?readerId:undefined} onClick={()=>readSpeech(id)}>
-            <strong lang={people?'':speech.titleLanguage??''}>{name}</strong><span lang={speech.titleLanguage??''}>{speech.title}</span><small lang={interfaceLanguage}>{humanDate(speech.date,interfaceLanguage)}</small><span className="explorer-cloud-read-action">{open?'Close speech':'Read speech'}</span>
+            <strong title={sourceLabel&&sourceLabel!==name?`Source label: ${sourceLabel}`:undefined} lang={people?'':speech.titleLanguage??''}>{name}</strong><span lang={speech.titleLanguage??''}>{speech.title}</span><small lang={interfaceLanguage}>{humanDate(speech.date,interfaceLanguage)}</small><span className="explorer-cloud-read-action">{open?'Close speech':'Read speech'}</span>
           </button>
           {open&&<div className="explorer-cloud-reader" ref={reader} id={readerId} tabIndex={-1} role="region" aria-label={'Speech by '+name}>
             <InsightSpeechReader key={id} id={id} language={interfaceLanguage} transcriptLanguage={language} highlight={selected.label||selected.word} onSpeakers={onSpeakers}/>

@@ -19,7 +19,8 @@ async function harness(t,language,query='') {
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,
     HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,DOMParser:window.DOMParser,CSS:window.CSS,
     innerWidth:1440,requestAnimationFrame:window.requestAnimationFrame.bind(window),
-    ResizeObserver:class {observe(){} disconnect(){}},IS_REACT_ACT_ENVIRONMENT:true};
+    ResizeObserver:class {observe(){} disconnect(){}},
+    IntersectionObserver:class {observe(){} unobserve(){} disconnect(){}},IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let vite,root,respond=()=>{throw new Error('Unexpected fixture fetch');};
@@ -173,4 +174,23 @@ test('named vote titles preserve subject-first fallback and never add a first-di
     assert.equal(scope.textContent,'Végleges szöveg');assert.equal(effectiveLanguage(scope),'hu');
     assert.equal(h.container.querySelector('.insight-topic-detail h2').textContent,'Source français');
   }
+});
+
+test('insight cards use exact directory names, retain source labels and keep missing-name fallbacks',async t=>{
+  const h=await harness(t,'en');
+  const Provider=await h.load('PersonName','PersonNamesProvider');
+  const People=await h.load('InsightShared','InsightPeople');
+  const people=[
+    {id:'42',name:'Mika AALTOLA',currentMep:true},
+    {id:'99',name:'Guest McDONALD',currentMep:false},
+    {id:'100',name:null,currentMep:true},
+    {id:'101',name:null,currentMep:false},
+  ].map(person=>({...person,country:null,group:null}));
+  const render=members=>h.render(createElement(Provider,{members},createElement(People,{people})));
+  await render([{id:42,firstName:'Mika',lastName:'Aaltola'}]);
+  assert.deepEqual([...h.container.querySelectorAll('strong')].map(node=>node.textContent),['Mika Aaltola','Guest McDONALD','MEP','Name unavailable']);
+  assert.equal(h.container.querySelector('[title="Source label: Mika AALTOLA"]').textContent,'Mika Aaltola');
+  await render([]);
+  assert.deepEqual([...h.container.querySelectorAll('strong')].map(node=>node.textContent),['Mika AALTOLA','Guest McDONALD','MEP','Name unavailable']);
+  assert.equal(h.calls.some(url=>url.pathname.endsWith('/directory')),false,'display components do not fetch a roster themselves');
 });
