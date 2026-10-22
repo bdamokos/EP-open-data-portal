@@ -426,13 +426,23 @@ export class CorpusStore {
       if(person.sittingRole==='chair'||person.role==='Chairing the sitting'||!Object.keys(person.roleLabels||{}).length)return person;
       const missing=[...new Set([language,'en'])].filter(lang=>!speakerRoleLabel(person,lang));
       if(!missing.length||budget.remaining--<=0)return person;
-      // Nearest earlier observation only. Unknown same-day chronology blocks reuse.
-      const prior=this.db.prepare(`SELECT source_id,date,start FROM speech_catalog WHERE date<=? AND source_id<>?
-        AND (date<? OR start IS NULL OR julianday(start) IS NULL OR julianday(start)<julianday(?))
-        AND EXISTS (SELECT 1 FROM json_each(participants) WHERE value=?)
-        ORDER BY date DESC,(start IS NULL OR julianday(start) IS NULL) DESC,julianday(start) DESC,numbering DESC,source_id DESC LIMIT 1`)
-        .get(metadata.summary.date,metadata.summary.id,metadata.summary.date,metadata.summary.start,person.id);
+      // Bound index traversal as well as returned matches. A cut through a day
+      // cannot establish that day's nearest role, so withhold reuse at the edge.
+      budget.history??=new Map();
+      const day=metadata.summary.date;
+      if(!budget.history.has(day))budget.history.set(day,this.db.prepare(`SELECT source_id,date,start,participants
+        FROM speech_catalog INDEXED BY speech_catalog_latest
+        WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT') AND date<=?
+        ORDER BY date DESC LIMIT 513`).all(day));
+      const rows=budget.history.get(day),currentStart=Date.parse(metadata.summary.start);
+      const candidates=rows.slice(0,512).filter(row=>row.source_id!==metadata.summary.id&&JSON.parse(row.participants).includes(person.id)&&
+        (row.date<day||!Number.isFinite(currentStart)||!Number.isFinite(Date.parse(row.start))||Date.parse(row.start)<=currentStart))
+        .toSorted((a,b)=>b.date.localeCompare(a.date)||Number(!Number.isFinite(Date.parse(b.start)))-Number(!Number.isFinite(Date.parse(a.start)))||
+          (Date.parse(b.start)||0)-(Date.parse(a.start)||0)||a.source_id.localeCompare(b.source_id));
+      const [prior,other]=candidates;
       if(!prior)return person;
+      if(rows.length>512&&prior.date<=rows[511].date)return person;
+      if(other?.date===prior.date&&(!Number.isFinite(Date.parse(prior.start))||!Number.isFinite(Date.parse(other.start))||Date.parse(prior.start)===Date.parse(other.start)))return person;
       let previous;try{previous=this.speechMetadata(prior.source_id);}catch{return person;}
       if(!previous)return person;
       let result=person;

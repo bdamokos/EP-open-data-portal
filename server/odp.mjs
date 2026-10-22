@@ -787,6 +787,7 @@ export async function odpSpeech(id, language) {
         "A recording lookup and interpretation-track API is not available in the documented speech service.",
     },
     fetchedAt: new Date(record.fetchedAt).toISOString(),
+    metadataSource:{url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString()},
   };
 }
 

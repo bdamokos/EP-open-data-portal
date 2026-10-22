@@ -86,3 +86,30 @@ test('nearest same-day earlier evidence works despite a later speech; unknown ch
   // An undated row sorts after timed rows in SQLite; it must still block reuse.
   assert.equal(read(),undefined);
 });
+
+test('an undated current speech cannot skip a changed same-day observation',t=>{
+  const store=corpus(t);
+  const current=put(store,{day:'2026-10-19',number:3,start:null,labels:{bg}});
+  put(store,{day:'2026-10-19',number:2,start:'10:00:00',labels:{bg:'Председател на Комисията',en:'President of the Commission'}});
+  put(store,{day:'2026-10-07',number:1,labels:{bg,en}});
+  assert.equal(store.speechData({sourceIds:[current],language:'en',metadataOnly:true}).records[0].metadata.speakers[0].roleLabels.en,undefined);
+});
+
+test('tied nearest prior records do not choose a title by identifier',t=>{
+  const store=corpus(t);
+  const current=put(store,{day:'2026-10-19',number:3,labels:{bg}});
+  put(store,{day:'2026-10-07',number:1,labels:{bg,en}});
+  put(store,{day:'2026-10-07',number:2,labels:{bg:'Председател на Комисията',en:'President of the Commission'}});
+  assert.equal(store.speechData({sourceIds:[current],language:'en',metadataOnly:true}).records[0].metadata.speakers[0].roleLabels.en,undefined);
+});
+
+test('history traversal uses the date index and withholds reuse across the 512-row boundary',t=>{
+  const store=corpus(t);
+  const current=put(store,{day:'2026-10-19',number:1,labels:{bg}});
+  put(store,{day:'2026-10-07',number:2,labels:{bg,en}});
+  const insert=store.db.prepare('INSERT INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?)');
+  for(let i=0;i<513;i++)insert.run('MTG-PL-2026-10-14-OTH-'+(i+100),'2026-10-14','PLENARY_DEBATE_SPEECH','2026-10-14T10:00:00Z',i,'["999"]','[]',1,null);
+  assert.equal(store.speechData({sourceIds:[current],language:'en',metadataOnly:true}).records[0].metadata.speakers[0].roleLabels.en,undefined);
+  const plan=store.db.prepare("EXPLAIN QUERY PLAN SELECT source_id,date,start,participants FROM speech_catalog INDEXED BY speech_catalog_latest WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT') AND date<=? ORDER BY date DESC LIMIT 513").all('2026-10-19');
+  assert(plan.some(row=>row.detail.includes('USING INDEX speech_catalog_latest')));
+});

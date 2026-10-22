@@ -37,4 +37,6 @@ test('a newer header snapshot clears superseded labels and a late old response c
   const updated=mergeSpeechSpeakers(mergeSpeechSpeakers({},[old]),[latest]);
   assert.equal(legislationOffice(detail,updated,'220921','en').text,'Role translation unavailable');
   assert.strictEqual(mergeSpeechSpeakers(updated,[old]),updated);
+  const unversioned={id:'s1',people:[{...person}]};
+  assert.strictEqual(mergeSpeechSpeakers(updated,[unversioned]),updated,'an unprovenanced callback cannot inherit a newer source and restore old labels');
 });

@@ -4,7 +4,7 @@ import {speechPeople} from './speech-interventions.mjs';
 const normalized=text=>text.normalize('NFC').trim().replace(/\s+/gu,' ');
 const capacity=metadata=>JSON.stringify({type:metadata.summary.intervention?.type,
   groups:(metadata.summary.intervention?.onBehalfOf||[]).map(group=>group.uri).sort()});
-const term=metadata=>metadata.activity.recorded_in_a_realization_of?.map(doc=>String(doc.identifier||doc.id||'').match(/CRE-(\d+)-/)?.[1]).find(Boolean);
+const term=metadata=>{const terms=new Set(metadata.activity.recorded_in_a_realization_of?.map(doc=>String(doc.identifier||doc.id||'').match(/CRE-(\d+)-/)?.[1]).filter(Boolean));return terms.size===1?[...terms][0]:null;};
 
 // A bilingual pair is evidence only for this ID, capacity and earlier speech.
 // Never chain reused labels or search past a changed/unknown nearest role.

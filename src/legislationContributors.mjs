@@ -7,7 +7,7 @@ export function mergeSpeechSpeakers(previous, speeches) {
     for(const person of speech.people) {
       const old=people[person.id];
       const oldTime=Date.parse(old?.roleSource?.fetchedAt),newTime=Date.parse(person.roleSource?.fetchedAt);
-      if(Number.isFinite(oldTime)&&Number.isFinite(newTime)&&newTime<oldTime)continue;
+      if(Number.isFinite(oldTime)&&(!Number.isFinite(newTime)||newTime<oldTime))continue;
       const sameRole=person.role===old?.role&&person.roleLanguage===old?.roleLanguage;
       const value={name:person.name||old?.name||null,role:old?.role==='Chairing the sitting'?old.role:person.role===undefined?old?.role??null:person.role,
         roleLanguage:person.roleLanguage??(sameRole?old?.roleLanguage:null)??null,
@@ -64,6 +64,6 @@ export function legislationOffice(detail,headers,personId,language='en') {
   const label=contributorOffice(person,language);
   // Unknown ordering among same-day observations cannot pick between roles.
   const ambiguous=speeches.filter(speech=>speech.date===latest.date&&(!speech.start||!latest.start||Date.parse(speech.start)===Date.parse(latest.start)));
-  if(ambiguous.some(speech=>JSON.stringify(contributorOffice(headers[speech.sourceId]?.[personId],language).text)!==JSON.stringify(label.text)))return contributorOffice(null,language);
+  if(ambiguous.some(speech=>contributorOffice(headers[speech.sourceId]?.[personId],language).text!==label.text))return contributorOffice(null,language);
   return label;
 }
