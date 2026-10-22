@@ -16,6 +16,7 @@ import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {config} from './config.mjs';
 import {sourceIndex,OBJECT_REPLACEMENT,symbolText,skippedCounterRisk,documentStructure,DOCX_EXTRACTION_VERSION as EXTRACTION_VERSION} from './docx-source-structure.mjs';
 import {styleFormatting,paragraphFormat,tableLayout,documentFormatting,DOCX_FORMATTING_VERSION as FORMATTING_VERSION} from './docx-formatting.mjs';
+import {documentAuthorIdentities} from './document-authors.mjs';
 export {documentStructure} from './docx-source-structure.mjs';
 export {documentFormatting} from './docx-formatting.mjs';
 
@@ -176,6 +177,12 @@ function inline(nodes,hidden,out,context) {
 }
 const blockContainers=new Set(['w:document','w:body','w:tbl','w:tr','w:tc',...inlineContainers]);
 const blockProperties=new Set(['w:tblPr','w:tblPrEx','w:tblGrid','w:trPr','w:tcPr','w:sectPr']);
+// EP template tags are hidden text. Use them only to locate a byline; the
+// names themselves must still come from the ordinary visible extraction.
+function templateText(nodes) {
+  return (nodes || []).flatMap(node=>Object.entries(node).flatMap(([key,value])=>
+    key==='w:t' ? value.map(item=>item['#text'] || '').join('') : Array.isArray(value)&&!['w:del','w:moveFrom'].includes(key) ? templateText(value) : [])).join('');
+}
 function paragraphsOf(nodes,context) {
   context.sourceIndex=sourceIndex(nodes);context.counterGaps??={lists:false,notes:false};const result=[];let segment=0;
   function visit(nodes,boundary={container:'other',containerPath:'/'}) {
@@ -189,7 +196,7 @@ function paragraphsOf(nodes,context) {
       if(unknownList)context.warnings.add('Some automatic list labels are unknown after skipped document content.');
       if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const object of out.objects)object.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}for(const run of out.runs||[]){run.start+=prefix.length;run.end+=prefix.length;}}
       const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
-      if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,
+      if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,paragraphStyle:context.paragraphStyle,authorMarker:/<Depute>/.test(templateText(value)),
         source:{...context.sourceIndex.get(node),...boundary,segment,complete:!unknownList&&!number?.incomplete&&out.objects.every(object=>object.status==='mapped')&&!out.marks.some(mark=>mark.numberingUnknown&&!mark.label)},
         objects:out.objects.map(object=>({...object,offset:at(object.offset)})),
         marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start),
@@ -266,7 +273,10 @@ export function docxContent(buffer) {
     anchors.push({paragraph:index,offset:mark.offset,note:note.id,label:note.label});
   }});
   const links=body.flatMap((paragraph,index)=>paragraph.spans.map(span=>({paragraph:index,...span}))).slice(0,NOTE_LIMITS.documentLinks);
+  const subject=body.findIndex(paragraph=>paragraph.paragraphStyle==='QuestionSubject');
+  const authorBylineParagraphs=subject>0 ? body.slice(0,subject).map(paragraph=>paragraph.text) : body.filter(paragraph=>paragraph.authorMarker).map(paragraph=>paragraph.text);
   return {paragraphs:body.map(p=>p.text),notes,anchors,links,structureStatus:'extracted',paragraphSources:body.map(p=>p.source),
+    authorBylineParagraphs,
     documentObjects:body.flatMap((p,paragraph)=>p.objects.map(object=>({paragraph,...object}))),extractionWarnings:[...warnings],
     formattingVersion:FORMATTING_VERSION,paragraphFormats:body.map(p=>p.format),tables:tables.found};
 }
@@ -310,13 +320,13 @@ export function documentNotes(record) {
     &&record.links.every(link=>Number.isInteger(link?.paragraph)&&link.paragraph>=0&&link.paragraph<paragraphs.length&&validSpan(link,paragraphs[link.paragraph]));
   return valid?{notesStatus:'extracted',notes:record.notes,noteAnchors:record.anchors,documentLinks:record.links}:{notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[]};
 }
-export async function documentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now}={}) {
+export async function documentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now,cacheOnly=false}={}) {
   requestSignal()?.throwIfAborted();
   const files=documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
   const languages=[...new Set(files.map(f=>f.language).filter(Boolean))];
   const originals=array(work.originalLanguage).map(languageCode);
   const chosen=files.find(f=>f.language===language) || files.find(f=>originals.includes(f.language)) || files.find(f=>f.language==='en') || files[0];
-  const base={status:'unavailable',paragraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],
+  const base={status:'unavailable',paragraphs:[],authorBylineParagraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],
     structureStatus:'not-extracted',paragraphSources:[],documentObjects:[],formatStatus:'not-extracted',paragraphFormats:[],tables:[],extractionVersion:null,sourceVersion:null,
     textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
@@ -338,10 +348,11 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
     pending.set(key,job);return job;
   };
   const failure=failures.get(key);
-  const present=record=>({...base,status:'available',paragraphs:record.paragraphs,...documentNotes(record),...documentStructure(record),...documentFormatting(record),
+  const present=record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),
     extractionVersion:record.extractionVersion,sourceVersion:record.source||null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
-  // Texts saved before formatting was recorded stay readable while one background read per process adds it.
-  if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),reformat=saved.formattingVersion!==FORMATTING_VERSION&&!reformatted.has(key);
+  if(cacheOnly)return saved?present(saved):{...base,reason:'No saved document text is available.'};
+  // Keep saved text readable while a background read adds formatting/byline metadata.
+  if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),bylineUpgrade=documentAuthorIdentities(work).length>1&&!Array.isArray(saved.authorBylineParagraphs),reformat=(saved.formattingVersion!==FORMATTING_VERSION||bylineUpgrade)&&!reformatted.has(key);
     if((stale||reformat) && (!failure || failure.retryAt<=clock())){
       if(reformat){if(reformatted.size>=5000)reformatted.clear();reformatted.add(key);}
       void refresh('background').catch(()=>{if(reformat)reformatted.delete(key);});

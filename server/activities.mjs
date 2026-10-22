@@ -147,9 +147,16 @@ export async function activityDocument(id, person, language, {request=odp,readTe
     const row=memberQuery?.get(String(author.id));
     return row?[JSON.parse(row.body)]:[];
   });
-  const coAuthorData=documentCoAuthors(work,{members,selectedDocumentId:id,documentApiUrl:'https://data.europarl.europa.eu/api/v2'+endpoint,documentFetchedAt:new Date(record.fetchedAt).toISOString(),rosterFetchedAt:store?.get('rosterFetchedAt') || null});
   const selected=id.endsWith('-ASW')?array(work.inverse_answers_to).find(a=>(a.identifier || tail(a.id))===id):work;
   const selectedText=selected?await readText(selected,language):{status:'unavailable',paragraphs:[],textLanguage:null,requestedLanguage:language,availableTextLanguages:[],translationType:null,sourceFormat:null,sourceUrl:null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:'The requested answer is not supplied by this question record.',extraction:null};
+  let authorText=id.endsWith('-ASW')?null:selectedText;
+  // Ordering is optional enrichment. Never start a second download or hide a
+  // readable answer because its question text is unavailable.
+  if(id.endsWith('-ASW')&&authorIds.length>1&&members.length===authorIds.length&&members.every(member=>typeof member.name==='string'&&member.name.trim())) {
+    try { authorText=await readText(work,language,{cacheOnly:true}); }
+    catch { requestSignal()?.throwIfAborted(); }
+  }
+  const coAuthorData=documentCoAuthors(work,{members,selectedDocumentId:id,documentApiUrl:'https://data.europarl.europa.eu/api/v2'+endpoint,documentFetchedAt:new Date(record.fetchedAt).toISOString(),rosterFetchedAt:store?.get('rosterFetchedAt') || null,authorText});
   const summary=documentSummary(work,person);
   return { ...summary, ...coAuthorData,relatedQuestion:id.endsWith('-ASW')?{id:summary.id,titles:summary.titles,date:summary.date}:null, selectedDocumentId:id,selectedDocumentDate:selected?.document_date||null,selectedText,requestedLanguage: language, fetchedAt: new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null} };
 }
