@@ -208,7 +208,8 @@ test('oral-question deep links show the body first and retain header, note and l
   const paragraphs=['Question for oral answer O-000042/2026','to the Commission','Rule 142','Mika Aaltola (PPE)','Subject:\tFixture oral question','Exact oral question body with a source link.','1.\tWhat will the Commission do?'];
   const url='https://example.org/public-source',note={id:'oral-note',label:'1',text:'Exact oral source note.',links:[]};
   const linkStart=paragraphs[5].indexOf('source link');
-  const linkedDocument={...documentResult(questionId),id,selectedDocumentId:id,selectedText:{...documentResult(questionId).selectedText,paragraphs,notes:[note],noteAnchors:[{paragraph:5,offset:10,note:note.id,label:note.label}],documentLinks:[{paragraph:5,start:linkStart,end:linkStart+'source link'.length,url}]}};
+  const sourceUrl='https://www.europarl.europa.eu/doceo/document/'+id+'_EN.docx';
+  const linkedDocument={...documentResult(questionId),id,selectedDocumentId:id,files:[{format:'DOCX',language:'en',url:sourceUrl}],selectedText:{...documentResult(questionId).selectedText,sourceUrl,paragraphs,notes:[note],noteAnchors:[{paragraph:5,offset:10,note:note.id,label:note.label}],documentLinks:[{paragraph:5,start:linkStart,end:linkStart+'source link'.length,url}]}};
   const h=await harness(t,'en',{items:[item],query:{member:String(member.id),module:'activities',activity:item.id},linkedDocument});await h.wait();
   const reader=h.container.querySelector('#document-'+id),body=reader.querySelector('.explorer-transcript'),details=reader.querySelector('.explorer-reader-download');
   assert(body.textContent.startsWith('Exact oral'));
@@ -218,6 +219,7 @@ test('oral-question deep links show the body first and retain header, note and l
   assert(anchor,'the note anchor keeps its original paragraph index');
   assert.equal(link?.textContent,'source link');
   assert(body.textContent.includes(note.text));
+  assert.equal(details.querySelector('.explorer-publication-files a')?.href,sourceUrl);
 });
 
 const readableXml='<speech><p>Exact transcript text.</p><p>Second source paragraph.</p></speech>';
