@@ -5,7 +5,7 @@ import {mkdtemp, mkdir, readFile, rm, writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {assertRecordedHistory, contractDigest, parseRegistry, reconcileRegistry, registrySides, renderRegistry} from './api-contract.mjs';
+import {assertBranchHistory, assertRecordedHistory, contractDigest, parseRegistry, reconcileRegistry, registrySides, renderRegistry} from './api-contract.mjs';
 
 const a = 'a'.repeat(64), b = 'b'.repeat(64), c = 'c'.repeat(64), d = 'd'.repeat(64);
 const registry = (...digests) => ({version: digests.length, entries: digests.map((digest, i) => [i + 1, digest])});
@@ -41,6 +41,17 @@ test('advancing main renumbers branch entries and restores removed or changed hi
   assert.deepEqual(reconcileRegistry(registry(a, b), [registry(c)], c), registry(a, b, c));
   assert.throws(() => assertRecordedHistory(registry(a, b), registry(a, c)), /removed or replaced/);
   assert.throws(() => assertRecordedHistory(registry(a, b), registry(a)), /removed or replaced/);
+});
+
+test('stack checks allow parent renumbering while preserving main and every parent digest occurrence', () => {
+  const main = registry(a, c), parent = registry(a, b), child = registry(a, b, d);
+  const bumped = reconcileRegistry(main, [child], d);
+  assert.deepEqual(bumped, registry(a, c, b, d));
+  assert.doesNotThrow(() => assertBranchHistory(main, parent, bumped));
+  assert.throws(() => assertBranchHistory(main, parent, registry(a, c, d)), /discarded/);
+  assert.throws(() => assertBranchHistory(main, parent, registry(a, b, d)), /removed or replaced/);
+  assert.throws(() => assertBranchHistory(main, registry(a, b, b), bumped), /discarded/);
+  assert.doesNotThrow(() => assertBranchHistory(main, registry(a, b, b), registry(a, c, b, b, d)));
 });
 
 test('strict registry parser rejects duplicate, missing, unsafe and malformed versions', () => {
@@ -95,7 +106,7 @@ async function fixture(t) {
   git(root, 'remote', 'add', 'origin', root);
   git(root, 'fetch', 'origin', 'main:refs/remotes/origin/main');
   git(root, 'switch', '-c', 'feature');
-  const run = (...args) => spawnSync(process.execPath, [cli, ...args], {cwd: root, encoding: 'utf8', env: {...process.env, API_VERSION_BASE: ''}});
+  const run = (...args) => spawnSync(process.execPath, [cli, ...args], {cwd: root, encoding: 'utf8', env: {...process.env, API_VERSION_BASE: '', API_VERSION_MAIN_BASE: ''}});
   const read = () => readFile(path.join(root, 'server/api-version.mjs'), 'utf8');
   const write = text => writeFile(path.join(root, 'server/api-version.mjs'), text);
   return {root, digest, run, read, write};
@@ -182,4 +193,30 @@ test('CLI --force records semantic-only changes and normal reruns leave them int
   assert.deepEqual(parseRegistry(await f.read()), registry(f.digest, f.digest));
   assert.equal(f.run().status, 0);
   assert.deepEqual(parseRegistry(await f.read()), registry(f.digest, f.digest));
+});
+
+test('stacked PR check accepts the bump after main advances, and rejects losing parent history', async t => {
+  const f = await fixture(t);
+  await f.write(source(f.digest, b));
+  git(f.root, 'add', 'server/api-version.mjs');
+  git(f.root, 'commit', '-m', 'Parent contract');
+  git(f.root, 'branch', 'parent');
+  await f.write(source(f.digest, b, d));
+  git(f.root, 'add', 'server/api-version.mjs');
+  git(f.root, 'commit', '-m', 'Child contract');
+  git(f.root, 'switch', 'main');
+  await f.write(source(f.digest, c));
+  git(f.root, 'add', 'server/api-version.mjs');
+  git(f.root, 'commit', '-m', 'Main advances');
+  git(f.root, 'switch', 'feature');
+  const result = f.run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(parseRegistry(await f.read()), registry(f.digest, c, b, d, f.digest));
+  assert.equal(f.run('--check', '--base', 'parent').status, 0);
+  await f.write(source(f.digest, c, d, f.digest));
+  const missing = f.run('--check', '--base', 'parent');
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /discarded/);
+  await f.write(source(f.digest, b, f.digest));
+  assert.match(f.run('--check', '--base', 'parent').stderr, /removed or replaced/);
 });

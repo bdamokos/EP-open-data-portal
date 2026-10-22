@@ -103,3 +103,17 @@ export function assertRecordedHistory(baseline, current) {
     if (current.entries[version - 1]?.[1] !== digest) throw new Error(`Recorded API contract ${version} was removed or replaced; run npm run api:bump to reconcile with main`);
   }
 }
+
+export function assertBranchHistory(main, branch, current) {
+  assertRecordedHistory(main, current);
+  // Unpublished stack entries may be renumbered, but their digest occurrences
+  // must survive after main, including repeated semantic-only records.
+  const available = new Map();
+  for (const [, digest] of current.entries.slice(main.version)) available.set(digest, (available.get(digest) ?? 0) + 1);
+  for (const [version, digest] of branch.entries) {
+    if (main.entries[version - 1]?.[1] === digest) continue;
+    const count = available.get(digest) ?? 0;
+    if (!count) throw new Error(`Branch baseline contract ${version} was discarded; preserve its digest after main with npm run api:bump`);
+    available.set(digest, count - 1);
+  }
+}

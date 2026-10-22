@@ -29,6 +29,7 @@ jobs:
       - run: npm run api:check
         env:
           API_VERSION_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          API_VERSION_MAIN_BASE: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.ref == 'main' && github.event.pull_request.base.sha || 'origin/main' }}
       - run: npm test
         env:
           ACTIVITY_INDEX_ENABLED: 'false'
