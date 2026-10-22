@@ -16,6 +16,7 @@ import {parliamentaryService} from './parliamentary-service.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
+import {compareMembers} from '../src/memberOrder.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
@@ -429,7 +430,7 @@ async function directoryData() {
       fetchedAt: Math.min(...sources.map(source => source.fetchedAt)),
       members: roster.nodes
         .map(memberSummary)
-        .sort((a, b) => a.sortName.localeCompare(b.sortName)),
+        .sort(compareMembers),
       committees: selected.map(body => committeeSummary(body, details.get(body.identifier)?.payload.data[0], day)).filter(Boolean).sort((a, b) => a.code.localeCompare(b.code)),
     };
     directorySources = sources;

@@ -2,6 +2,7 @@ import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
 import {lazyView} from './lazyView';
 import {filterCountry,matchesCountry} from './countries.mjs';
 import {explorerParams,useExplorerParam} from './explorerUrl';
+import {compareMembers} from './memberOrder.mjs';
 import {SpeechCloud} from './SpeechCloud';
 import {FindInText,TextSearch} from './TextSearch';
 import {InterventionBadges,SpeechContextPanel,InterventionStatistics,speechCategories,matchesSpeechCategory} from './SpeechInterventions';
@@ -593,7 +594,7 @@ export default function App() {
                     ? v.role === "MEMBER_SUBSTITUTE"
                     : v.role !== "MEMBER_SUBSTITUTE")),
             )),
-      ) || [],
+      ).sort(compareMembers) || [],
     [directory, country, group, search, committee, role],
   );
   const partialCommittee = Boolean(committee && !directory?.index.complete);

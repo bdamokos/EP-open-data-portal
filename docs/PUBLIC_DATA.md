@@ -47,6 +47,8 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 
 ### Current member directory
 
+Member lists sort by the displayed full surname (including particles such as “del”), then given name, using fixed English collation with accents significant and case ignored. Numeric member ID breaks ties. The EP `sortLabel` is retained as source metadata but is not an ordering key: it can concatenate surname and first initial without a separator. The Members wall, its country/group/committee filters and the amendment author picker share this ordering; Following keeps its saved-item order.
+
 The directory exposes the current roster and exact committee catalogue identifiers before optional detail reads finish. Retained multilingual names and source freshness remain available; missing names fall back to exact committee codes. Committee filters show known members with explicit incomplete coverage until all current profiles are available. Membership retries read missing profile IDs only.
 
 Profile `countryCode` and `groupCode` come from `/meps/show-current`, joined only by exact `identifier`. The per-MEP record supplies country authority URIs on mandate memberships and political-group organization IDs, rather than these roster codes; citizenship is not country of representation. `currentAffiliation` records the Brussels observation day, person ID, match status, roster source URLs, retrieval dates and stale markers. It describes the current roster, never historical membership. Missing codes, non-current members and unavailable or ambiguous roster matches return `null`, with match status and errors distinguishing these cases. Roster failure preserves the rest of the profile and is uncacheable at the response layer.
