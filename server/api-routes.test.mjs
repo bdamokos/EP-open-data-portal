@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test} from 'node:test';
 import {versionedApiUrl} from './api-version.mjs';
 import assert from 'node:assert/strict';
@@ -5,7 +6,7 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-test('flat browser API preserves bounded reads, search POSTs and conditional responses',async t=>{
+test('flat browser API preserves bounded reads, search POSTs and conditional responses',loopback,async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'flat-api-'));
   process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=directory;
   process.env.CORPUS_ENABLED='false';delete process.env.ODP_CACHE_DIR;

@@ -8,11 +8,13 @@
     "dev:api": "node --watch server/index.mjs",
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
-    "test": "node --test src/*.test.mjs server/*.test.mjs",
-    "test:server": "node --test server/*.test.mjs",
-    "test:frontend": "node --test src/*.test.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "test:server": "node scripts/run-tests.mjs --server",
+    "test:frontend": "node scripts/run-tests.mjs --frontend",
     "preview": "vite preview --host 127.0.0.1",
-    "start": "node server/index.mjs"
+    "start": "node server/index.mjs",
+    "test:fast": "node scripts/run-tests.mjs --fast",
+    "test:slow": "node scripts/run-tests.mjs --slow"
   },
   "dependencies": {
     "fast-xml-parser": "^5.11.2",

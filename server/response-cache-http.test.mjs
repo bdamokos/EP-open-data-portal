@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import test from 'node:test';
 import {API_VERSION, versionedApiUrl} from './api-version.mjs';
 import assert from 'node:assert/strict';
@@ -5,7 +6,7 @@ import {mkdtemp, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 
-test('HTTP reads, conditional responses and failures preserve the intended browser/CDN policy', async t => {
+test('HTTP reads, conditional responses and failures preserve the intended browser/CDN policy',loopback, async t => {
   const directory = await mkdtemp(path.join(tmpdir(), 'response-cache-http-'));
   const originalFetch = globalThis.fetch;
   const previousDirectory = process.env.ODP_CACHE_DIR;

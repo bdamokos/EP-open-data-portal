@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
@@ -295,7 +296,7 @@ test('one named participant cannot hide another outside participant with no head
   assert.equal(outsideSpeaker(store,'227855',{language:'en'}).person.name,'Sviatlana Tsikhanouskaya');
   assert.equal(outsideSpeaker(store,'999999',{language:'en'}).person.name,'Speaker 999999');
 }));
-test('HTTP outside-speaker routes read the index and enforce query, method and origin rules',async()=>{
+test('HTTP outside-speaker routes read the index and enforce query, method and origin rules',loopback,async()=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'outside-http-'));
   process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=directory;
   const {activityIndex}=await import('./activity-index-worker.mjs');const {store}=activityIndex();store.acquire();const {generation}=store.beginCycle();seed(store,generation);

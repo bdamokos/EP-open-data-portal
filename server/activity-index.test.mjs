@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -122,7 +123,7 @@ test('real EP records verify report-to-procedure shadow and question-to-answer j
   assert.equal(rows.find(row=>row.recordKind==='answer').date,'2026-09-18');
 });
 
-test('HTTP joined endpoints read the persistent cache and validate categories, paging, methods and origin',async t=> {
+test('HTTP joined endpoints read the persistent cache and validate categories, paging, methods and origin',loopback,async t=> {
   const dir=temp();process.env.ACTIVITY_INDEX_ENABLED='1';process.env.ACTIVITY_INDEX_DIR=dir;
   const {activityIndex}=await import('./activity-index-worker.mjs');const {store}=activityIndex();
   assert(store.acquire());const cycle=store.beginCycle();store.setMembers([{id:'257043',name:'MEP'}]);store.putSource(cycle.generation,'/q','document',projectDocument(question),fetchedAt,documentRows(question,'/q',fetchedAt).rows);

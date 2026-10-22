@@ -2,7 +2,7 @@
 
 Create a branch and open a pull request with the problem, resulting behaviour and validation. Keep unrelated changes separate. Include mobile and desktop screenshots for visible changes.
 
-Before review, run:
+Run `npm ci` first; test runs without it are not validation evidence. Iterate with `npm run test:fast` or a focused file (`npm test -- server/example.test.mjs`). Before opening a PR, run the full suite when the environment allows:
 
 ```sh
 npm ci
@@ -10,6 +10,10 @@ npm test
 npm run check
 npm run build
 ```
+
+`test:slow` runs the explicit subprocess manifest; `test:server` and `test:frontend` restrict directories. Combine them with profiles, e.g. `npm run test:fast -- --server`. Explicit file arguments override the profile. Runner flags such as `--test-reporter=tap` pass through to Node. `TEST_CONCURRENCY` overrides concurrency (local default: half the available CPUs, minimum two; CI: Node default); `TEST_TIMEOUT_MS` sets the default per-test timeout (120000 ms). Tests with explicit timeouts retain them. Outbound network is blocked; use fixtures or mocked fetch.
+
+Loopback tests report a reason when sandbox permissions deny listening; CI fails instead of skipping. `TEST_SIMULATE_NO_LOOPBACK=1` is a test-only way to verify that behaviour, including the CI failure. Report sandbox loopback/subprocess skips in PR validation and rely on CI for full coverage.
 
 The Checks workflow runs these steps for pull requests and pushes to main. It uses read-only permissions and no deployment secrets. Maintainers should require its `test-and-build` check and review before merging. Repository visibility, branch protection and release permissions are managed separately.
 

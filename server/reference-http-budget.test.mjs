@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -5,7 +6,7 @@ import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-test('cold HTTP reference readers share a bounded source while cancellation leaves health and surviving readers intact',async t=>{
+test('cold HTTP reference readers share a bounded source while cancellation leaves health and surviving readers intact',loopback,async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'reference-http-'));
   await writeFile(path.join(directory,'index.html'),'<h1>Explorer</h1>');process.env.EXPLORER_DIST_DIR=directory;
   const {server}=await import('./index.mjs');await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));

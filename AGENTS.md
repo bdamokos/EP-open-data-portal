@@ -10,7 +10,7 @@ Keep QA screenshots, browser captures, evidence bundles and agent work logs outs
 
 Use one source writer and one index writer. Keep site-specific routing, service configuration, host addresses, credentials and deployment records outside this repository. A push or health check is not user-visible acceptance. Verify the exact live revision and user path; preserve the accepted runtime and data while testing a candidate.
 
-Run npm test, npm run check and npm run build for structural changes. Verify changed UI flows in the browser at mobile and desktop widths. Avoid cold corpus downloads during tests and preserve incomplete-coverage labels.
+Run `npm ci` before testing; runs without installed dependencies are not evidence. Iterate with `npm run test:fast` or focused files (`npm test -- path/to/file.test.mjs`). Before opening a PR, run full `npm test` when the environment allows, plus `npm run check` and `npm run build` for structural changes. Report sandbox loopback/subprocess skips in PR validation and rely on CI for full coverage. Verify changed UI flows in the browser at mobile and desktop widths. Avoid cold corpus downloads during tests and preserve incomplete-coverage labels.
 
 ## Pull requests and deployment
 
