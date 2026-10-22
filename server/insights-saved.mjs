@@ -1,3 +1,4 @@
+import {sourceTitles} from './source-titles.mjs';
 import {activityOnly,answersOnly} from './activity-read-projections.mjs';
 import {createHash} from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
@@ -47,7 +48,7 @@ export function savedStates(store,query) {
     const present=row=>{
       const body=JSON.parse(row.body);
       const question=body.recordKind==='answer'&&body.relatedQuestionId?store.source(generation,'/parliamentary-questions/'+body.relatedQuestionId)?.work:null;
-      const titles=question?.title_dcterms||body.relatedQuestionTitles||body.titles;
+      const titles=sourceTitles(question?.title_dcterms||body.relatedQuestionTitles||body.titles);
       return {id:row.source_id,date:row.date,...selectedTitle(titles,query.language,body.reference||row.source_id),recordKind:body.recordKind,...(body.relatedQuestionId?{relatedQuestionId:body.relatedQuestionId}:{})};
     };
     const activities=store.db.prepare(savedActivityPreviewSql).all(generation,id,generation,id).map(present);
