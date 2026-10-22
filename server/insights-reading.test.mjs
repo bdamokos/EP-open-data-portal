@@ -135,3 +135,18 @@ test('existing answer rows receive the parent subject without reindexing or chan
     store.db.exec('PRAGMA query_only=ON');const answer=store.page(person,{language:'en',sourceId:original.work.identifier+'-ASW'}).selectedItems.find(row=>row.recordKind==='answer');assert.equal(answer.title,original.work.title_dcterms.en);assert.equal(answer.relatedQuestionId,original.work.identifier);
   }finally{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(dir,{recursive:true,force:true});}
 });
+
+test('question trend distinguishes trailing unknown days, earlier zeroes and partial weeks',()=>{
+  const all=[{date:'2026-10-09'},{date:'2026-10-16'}],window={start:'2026-10-09',end:'2026-10-22',days:14};
+  const daily=questionTrend(all,[],window);
+  assert.equal(daily.latestObservedDate,'2026-10-16');
+  assert.deepEqual(daily.bins.find(b=>b.start==='2026-10-11'),{start:'2026-10-11',end:'2026-10-11',availability:'observed',count:0,total:0,share:null});
+  assert.equal(daily.bins.find(b=>b.start==='2026-10-16').share,0);
+  for(const bin of daily.bins.filter(b=>b.start>'2026-10-16'))assert.deepEqual([bin.availability,bin.count,bin.total,bin.share],['unavailable',null,null,null]);
+  const filtered=questionTrend([all[0]],[],window,daily.latestObservedDate);
+  assert.equal(filtered.bins.find(b=>b.start==='2026-10-16').availability,'observed','country/topic absence does not move the source frontier');
+  const weekly=questionTrend(all,all,{...window,days:31});
+  const partial=weekly.bins.find(b=>b.start==='2026-10-12');assert.equal(partial.availability,'partial');assert.equal(partial.count,1);assert.equal(partial.total,1);
+  assert.equal(weekly.bins.at(-1).count,null);
+  assert(questionTrend([],[],window).bins.every(b=>b.availability==='unavailable'&&b.count===null));
+});
