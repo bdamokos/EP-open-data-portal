@@ -65,7 +65,7 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
   return boundedUpstream(async()=> {
     const response=await fetch(url,{headers:{Accept:xml?'application/atom+xml':'application/ld+json','User-Agent':userAgent('activity index')},redirect:'error',signal:AbortSignal.any([AbortSignal.timeout(45_000),...(signal?[signal]:[])])});
     if (response.status===204) return xml ? {xml:'<feed/>',fetchedAt:new Date().toISOString()} : {payload:{data:[]},fetchedAt:new Date().toISOString()};
-    if (!response.ok) { await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;e.retryAfter=Math.min(1800,Math.max(0,Number(response.headers.get('retry-after'))||0));if(response.status===429||response.status===503){e.retryAfter=retryAfterSeconds(response.headers.get('retry-after'));backoffUpstream(e.retryAfter);}throw e; }
+    if (!response.ok) { await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;const hint=response.headers.get('retry-after');e.retryAfter=hint?retryAfterSeconds(hint):0;if(response.status===429||response.status===503){e.retryAfter=retryAfterSeconds(hint);backoffUpstream(e.retryAfter);}throw e; }
     const contentType=response.headers.get('content-type') || '';
     if (!(xml?/xml/.test(contentType):/json/.test(contentType))) {await response.body?.cancel();throw new Error(`EP API returned unexpected ${contentType || 'missing content type'} at ${endpoint}.`);}
     const chunks=[];let bytes=0;
