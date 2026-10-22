@@ -61,7 +61,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
 test('roster portraits are requested while committee memberships are unavailable',async t=>{
   const h=await harness(t,'',false,false,false,true);
   assert.deepEqual(h.portraitRequests,['portrait/257043']);
-  assert.match(h.container.textContent,/Committee memberships are incomplete/);
+  assert.match(h.container.querySelector('.explorer-index[role="status"]').textContent,/Loading committee memberships: 0 \/ 1\./);
 });
 
 test('member destination and Back restore the remounted exact portrait while retaining filters',async t=>{
