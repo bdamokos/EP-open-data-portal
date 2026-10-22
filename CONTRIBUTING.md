@@ -11,7 +11,7 @@ npm run check
 npm run build
 ```
 
-The Checks workflow runs these steps for pull requests and pushes to main. It uses read-only permissions and no deployment secrets. Maintainers should require its `test-and-build` check and review before merging. Repository visibility, branch protection and release permissions are managed separately.
+The Checks workflow runs these steps for pull requests, including drafts, and for pushes to main; it can also be started manually for any branch. It runs on GitHub-hosted standard runners at no cost to the public repository, so opening a draft pull request early is the cheapest way to run the full checks from a constrained machine. It uses read-only permissions and no deployment secrets. Maintainers should require its `test-and-build` check and review before merging. Repository visibility, branch protection and release permissions are managed separately.
 
 Style components with the design tokens in `src/theme.css`, never raw colour values. Each token has a light and a dark value, and every view uses the same surfaces in both schemes; the political-group, vote and status colours are reserved for data. Keep the interface independent of European Parliament branding. `src/theme.test.mjs` checks token contrast and rejects raw colours, and the focus tests run in both schemes. Check visible changes in light and dark appearance.
 

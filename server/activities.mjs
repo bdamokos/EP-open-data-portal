@@ -1,3 +1,4 @@
+import {sourceTitles} from './source-titles.mjs';
 import {booleanFromEnvironment} from './config.mjs';
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { createHash } from "node:crypto";
@@ -120,12 +121,12 @@ function files(work) {
 export function documentSummary(work, person) {
   return {
     id: work.identifier || tail(work.id),
-    titles: work.title_dcterms || Object.assign({}, ...array(work.is_realized_by).map(e => e.title || {})),
+    titles: sourceTitles(work.title_dcterms || Object.assign({}, ...array(work.is_realized_by).map(e => e.title || {}))),
     date: work.document_date || null,
     kind: tail(work.work_type),
     roles: array(work.workHadParticipation).filter(p => array(p.had_participant_person).includes(`person/${person}`)).map(p => tail(p.participation_role)),
     files: files(work),
-    answers: array(work.inverse_answers_to).filter(a => typeof a === "object").map(a => ({ id: a.identifier || tail(a.id), date: a.document_date || null, titles: a.title_dcterms || {}, files: files(a) })),
+    answers: array(work.inverse_answers_to).filter(a => typeof a === "object").map(a => ({ id: a.identifier || tail(a.id), date: a.document_date || null, titles: sourceTitles(a.title_dcterms), files: files(a) })),
   };
 }
 export async function activityDocument(id, person, language, {request=odp,readText=documentText}={}) {

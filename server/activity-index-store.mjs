@@ -1,4 +1,5 @@
 import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
+import {sourceTitle} from './source-titles.mjs';
 import {activityReadVersion,initializeActivityReads,prepareQuestionFiles,projectQuestionFiles,copyQuestionFiles,motionDocuments} from './activity-read-projections.mjs';
 import {groupVoicesSchema,groupVoicesCopy,groupVoicesPrune,recordGroupVoice} from './group-voices-store.mjs';
 import { DatabaseSync } from 'node:sqlite';
@@ -350,7 +351,7 @@ export class ActivityStore {
       if(row.recordKind==='answer'&&row.relatedQuestionId) {
         const question=this.source(generation,'/parliamentary-questions/'+row.relatedQuestionId)?.work;
         const titles=Object.assign({},...(question?.is_realized_by||[]).map(expression=>expression.title||{}),question?.title_dcterms||{});
-        if(Object.keys(titles).length)return {...localize({...row,titles},language),relatedQuestionTitles:titles,relatedQuestionTitle:titles[language]||titles.en||Object.values(titles)[0]};
+        if(Object.keys(titles).length)return {...localize({...row,titles},language),relatedQuestionTitles:titles,relatedQuestionTitle:sourceTitle(titles[language]||titles.en||Object.values(titles)[0])};
       }
       return localize(row,language);
     };

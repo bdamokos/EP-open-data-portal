@@ -129,9 +129,13 @@ test('existing answer rows receive the parent subject without reindexing or chan
   const dir=mkdtempSync(path.join(os.tmpdir(),'insights-answer-title-')),store=new ActivityStore(dir);
   try {
     store.acquire();const {generation}=store.beginCycle();const original=JSON.parse(readFileSync(new URL('./fixtures/activity-index-live-20261013.json',import.meta.url))).documents.find(d=>d.endpoint.startsWith('/parliamentary-questions'));
+    original.work.title_dcterms.en+=' &amp;nbsp; &nbsp;';
     const person=original.work.workHadParticipation.find(p=>p.participation_role.endsWith('/AUTHOR')).had_participant_person[0].split('/').at(-1);store.setMembers([{id:person,name:'Actual author'}]);
     const rows=documentRows(original.work,original.endpoint,'2026-10-13T00:00:00Z').rows;for(const row of rows)if(row.recordKind==='answer')row.titles={en:'Answer for question E-000000/26'};
     store.putSource(generation,original.endpoint,'document',projectDocument(original.work),'2026-10-13T00:00:00Z',rows);
-    store.db.exec('PRAGMA query_only=ON');const answer=store.page(person,{language:'en',sourceId:original.work.identifier+'-ASW'}).selectedItems.find(row=>row.recordKind==='answer');assert.equal(answer.title,original.work.title_dcterms.en);assert.equal(answer.relatedQuestionId,original.work.identifier);
+    store.db.exec('PRAGMA query_only=ON');const answer=store.page(person,{language:'en',sourceId:original.work.identifier+'-ASW'}).selectedItems.find(row=>row.recordKind==='answer');
+    const expected=original.work.title_dcterms.en.replace(' &amp;nbsp; &nbsp;',' &nbsp; \u00a0');
+    assert.equal(answer.title,expected);assert.equal(answer.relatedQuestionTitle,expected);assert.equal(answer.relatedQuestionId,original.work.identifier);
+    assert.equal(store.source(generation,original.endpoint).work.title_dcterms.en,original.work.title_dcterms.en);
   }finally{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(dir,{recursive:true,force:true});}
 });
