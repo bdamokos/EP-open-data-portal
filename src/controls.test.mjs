@@ -227,3 +227,28 @@ test('document disclosures stay related and accurate when documents repeat acros
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
   await h.click(buttons[0]);check(null);await h.click(buttons[0]);check(0);
 });
+
+test('Members filters sort displayed labels in every interface language and preserve filter values',async t=>{
+  const countries=['CZ','DE','DK','ES','FI','FR','HR','LT','LU','LV','GR','EL','SE','HU'];
+  const groups=['S&D','EPP','Renew','The Left','NI','ECR'];
+  const members=countries.map((countryCode,i)=>({...member,id:100+i,countryCode,groupCode:groups[i%groups.length]}));
+  for(const language of 'bg cs da de el en es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' '))await t.test(language,async t=>{
+    const h=await harness(t,'?lang='+language,url=>url.pathname.endsWith('/directory')?{...directory,members}:fixture(url));
+    const {default:App}=await h.load('/src/App.tsx');
+    await h.render(createElement(App));
+    const [country,group]=[...h.container.querySelectorAll('.explorer-filter-line select')].slice(-2);
+    const options=select=>[...select.options].slice(1);
+    for(const select of [country,group]) {
+      assert.equal(select.options[0].value,'','All remains first');
+      const labels=options(select).map(option=>option.textContent);
+      assert.deepEqual(labels,[...labels].sort((a,b)=>a.localeCompare(b,language)));
+    }
+    assert.deepEqual(options(country).map(option=>option.value).sort(),countries.filter(code=>code!=='GR').sort(),'Greek aliases deduplicate without changing EU identifiers');
+    assert.deepEqual(options(group).map(option=>option.value).sort(),[...groups].sort());
+    if(language==='en')assert.deepEqual(options(country).slice(0,3).map(option=>option.textContent),['Croatia','Czechia','Denmark']);
+    await act(async()=>{country.value='EL';country.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+    await viewReady(h.container);
+    assert.equal(new URL(location.href).searchParams.get('country'),'EL');
+    assert.equal(h.container.querySelectorAll('.explorer-portrait-item').length,2,'both Greek aliases match the selected filter');
+  });
+});
