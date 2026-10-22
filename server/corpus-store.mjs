@@ -402,11 +402,15 @@ export class CorpusStore {
     this.assertWriter();const revision=(this.get('speechReadRevision')||0)+1;this.set('speechReadRevision',revision);return revision;
   }
   projectSpeechCatalog(activity,availableLanguages=[]) {
-    this.assertWriter();
-    this.db.prepare('INSERT OR REPLACE INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?)').run(activity.activity_id,activity.activity_date||null,
-      String(activity.had_activity_type||'').split('/').at(-1),activity.activity_start_date||null,
-      (activity.recorded_in_a_realization_of||[]).find(doc=>Number.isSafeInteger(doc?.numbering))?.numbering??null,JSON.stringify(speechPeople(activity)),JSON.stringify(availableLanguages),
-      this.nextSpeechRevision(),this.db.prepare('SELECT fetched_at FROM speech_metadata WHERE source_id=?').get(activity.activity_id)?.fetched_at||null);
+    const project=()=>{
+      this.assertWriter();
+      this.db.prepare('INSERT OR REPLACE INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?)').run(activity.activity_id,activity.activity_date||null,
+        String(activity.had_activity_type||'').split('/').at(-1),activity.activity_start_date||null,
+        (activity.recorded_in_a_realization_of||[]).find(doc=>Number.isSafeInteger(doc?.numbering))?.numbering??null,JSON.stringify(speechPeople(activity)),JSON.stringify(availableLanguages),
+        this.nextSpeechRevision(),this.db.prepare('SELECT fetched_at FROM speech_metadata WHERE source_id=?').get(activity.activity_id)?.fetched_at||null);
+    };
+    // Background repair and ordinary metadata writes publish one coherent revision.
+    return this.db.isTransaction?project():this.transaction(project);
   }
   speechMetadata(sourceId) {
     if(!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_metadata'").get())return null;
@@ -422,7 +426,8 @@ export class CorpusStore {
   speechRoleTranslations(metadata,language='en',budget={remaining:8}) {
     language ||= 'en';
     if(!metadata||!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_catalog'").get())return metadata;
-    const historyComplete=this.get('resourceIndexes')===1&&!this.db.prepare('SELECT 1 FROM speech_catalog_dirty LIMIT 1').get();
+    const historyComplete=this.get('resourceIndexes')===1&&!this.db.prepare('SELECT 1 FROM speech_catalog_dirty LIMIT 1').get()&&
+      !this.db.prepare('SELECT 1 FROM speech_catalog WHERE kind IS NULL LIMIT 1').get();
     const speakers=metadata.speakers.map(person=>{
       if(!historyComplete||person.sittingRole==='chair'||person.role==='Chairing the sitting'||!Object.keys(person.roleLabels||{}).length)return person;
       const missing=[...new Set([language,'en'])].filter(lang=>!speakerRoleLabel(person,lang));

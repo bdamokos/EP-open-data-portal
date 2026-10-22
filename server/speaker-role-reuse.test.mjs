@@ -135,3 +135,39 @@ test('incomplete catalogue projection withholds reuse without hiding current sup
   assert.equal(read(current).roleSource.historyComplete,true);
   assert.equal(read(current).roleLabels.en,undefined,'the nearer changed role remains a contradiction after projection completes');
 });
+
+test('background projection publishes its row and read revision atomically',t=>{
+  const store=corpus(t);
+  const current=put(store,{day:'2026-10-19',number:3,labels:{bg}});
+  put(store,{day:'2026-10-07',number:1,labels:{bg,en}});
+  const pending=put(store,{day:'2026-10-14',number:2,id:'999',labels:{bg,en}});
+  store.db.prepare('DELETE FROM speech_catalog WHERE source_id=?').run(pending);
+  const revision=store.get('speechReadRevision'),saved=store.speechMetadata(pending);
+  const reader=new CorpusStore(path.dirname(store.filename),{readOnly:true});
+  const read=()=>reader.speechData({sourceIds:[current],language:'en',metadataOnly:true}).records[0].metadata.speakers[0];
+  const next=store.nextSpeechRevision.bind(store);
+  let snapshots=0;
+  t.mock.method(store,'nextSpeechRevision',()=>{
+    const updated=next(),during=read();snapshots++;
+    assert.equal(during.roleSource.evidenceRevision,revision,'uncommitted projection revision is invisible to readers');
+    assert.equal(during.roleSource.historyComplete,false);
+    return updated;
+  });
+  try {
+    store.projectSpeechCatalog(saved.activity,saved.availableTextLanguages);
+    const after=read();
+    assert.equal(snapshots,1);assert(after.roleSource.evidenceRevision>revision);
+    assert.equal(after.roleSource.historyComplete,true);assert.equal(after.roleLabels.en.text,en);
+  }finally {reader.close();}
+});
+
+test('an unreadable projection sentinel cannot establish complete role history',t=>{
+  const store=corpus(t);
+  const current=put(store,{day:'2026-10-19',number:3,labels:{bg}});
+  put(store,{day:'2026-10-07',number:1,labels:{bg,en}});
+  const failed=put(store,{day:'2026-10-14',number:2,id:'999',labels:{bg,en}}),saved=store.speechMetadata(failed);
+  store.transaction(()=>store.db.prepare('INSERT OR REPLACE INTO speech_catalog(source_id,revision,fetched_at) VALUES (?,?,?)').run(failed,store.nextSpeechRevision(),saved.fetchedAt));
+  assert.equal(store.db.prepare('SELECT 1 FROM speech_catalog_dirty LIMIT 1').get(),undefined);
+  const person=store.speechData({sourceIds:[current],language:'en',metadataOnly:true}).records[0].metadata.speakers[0];
+  assert.equal(person.roleSource.historyComplete,false);assert.equal(person.roleLabels.en,undefined);
+});
