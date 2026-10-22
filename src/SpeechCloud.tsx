@@ -1,4 +1,5 @@
 import {usePersonName} from './PersonName';
+import type {SpeechSpeaker} from './legislationContributors.mjs';
 import {AnalysisPeriodControl} from './AnalysisPeriod';
 import type {AnalysisPeriod} from '../server/analysis-period.mjs';
 import {useEffect,useId,useRef,useState,type ReactNode} from 'react';
@@ -9,7 +10,7 @@ import {InsightSpeechReader} from './InsightReaders';
 import {TextSearch} from './TextSearch';
 import './SpeechCloud.css';
 
-type CloudPerson={id:string;name:string|null;currentMep:boolean;role:string|null};
+type CloudPerson=SpeechSpeaker&{currentMep:boolean};
 type CloudSpeech={id:string;date:string;title:string;titleLanguage?:string|null;machineTranslation:boolean;people:CloudPerson[]};
 export type SpeechCloudResult={restarted?:boolean;scope:{kind:'member'|'sitting'|'week'|'topic';phase:'upcoming'|'past'};language:string;words:{word:string;label:string|null;speechCount:number;occurrences:number;speechIds:string[]}[];speeches:CloudSpeech[];coverage:{basis?:string;transcripts:number;matchedSpeechRecords:number;missingLanguage:number;unreadableText:number;complete:boolean;truncated:boolean;associationUnavailable:boolean;sourceRecords?:{unique:number;declared:number|null;duplicates:number;issues:string[]}};window:{start:string|null;end:string|null};nextPage:number|null};
 const client=createDataClient(api,{maxEntries:48,maxAge:30*60_000,timeoutFor:()=>35_000});
@@ -44,7 +45,7 @@ function useCloud(route:string) {
   return {...(state.route===route?state:{route,data:null,loading:true,error:null}),retry:()=>setAttempt(value=>value+1)};
 }
 
-export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage='en',title,controls,onSpeech,onSpeakers,onSpeechSpeakers}:{member?:number;sitting?:string;week?:string;topic?:string;country?:string|null;interfaceLanguage?:string;title?:string|false;controls?:ReactNode;onSpeech?:(id:string,language:string)=>void;onSpeakers?:(people:{id:string;name:string;role:string|null}[],speechId?:string)=>void;onSpeechSpeakers?:(speeches:{id:string;people:CloudPerson[]}[])=>void}) {
+export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage='en',title,controls,onSpeech,onSpeakers,onSpeechSpeakers}:{member?:number;sitting?:string;week?:string;topic?:string;country?:string|null;interfaceLanguage?:string;title?:string|false;controls?:ReactNode;onSpeech?:(id:string,language:string)=>void;onSpeakers?:(people:(SpeechSpeaker&{name:string})[],speechId?:string)=>void;onSpeechSpeakers?:(speeches:{id:string;people:CloudPerson[]}[])=>void}) {
   const displayName=usePersonName();
   const [language,setLanguage]=useState('en'),[days,setDays]=useState<AnalysisPeriod>('term'),[word,setWord]=useState<string|null>(null),[more,setMore]=useState(false),[reading,setReading]=useState<string|null>(null),examples=useRef<HTMLHeadingElement>(null);
   const reader=useRef<HTMLDivElement>(null),sourceButtons=useRef(new Map<string,HTMLButtonElement>()),readerId=useId();

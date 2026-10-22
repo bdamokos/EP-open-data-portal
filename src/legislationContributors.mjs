@@ -1,3 +1,4 @@
+import {contributorOffice} from './speakerRoles.mjs';
 // Evidence belongs to a speech, never permanently to a person who chaired it.
 export function mergeSpeechSpeakers(previous, speeches) {
   const next={...previous};let changed=false;
@@ -5,8 +6,13 @@ export function mergeSpeechSpeakers(previous, speeches) {
     const people={...next[speech.id]};
     for(const person of speech.people) {
       const old=people[person.id];
-      const value={name:person.name||old?.name||null,role:old?.role==='Chairing the sitting'?old.role:person.role};
-      if(!old||old.name!==value.name||old.role!==value.role){people[person.id]=value;changed=true;}
+      const oldTime=Date.parse(old?.roleSource?.fetchedAt),newTime=Date.parse(person.roleSource?.fetchedAt);
+      if(Number.isFinite(oldTime)&&Number.isFinite(newTime)&&newTime<oldTime)continue;
+      const sameRole=person.role===old?.role&&person.roleLanguage===old?.roleLanguage;
+      const value={name:person.name||old?.name||null,role:old?.role==='Chairing the sitting'?old.role:person.role===undefined?old?.role??null:person.role,
+        roleLanguage:person.roleLanguage??(sameRole?old?.roleLanguage:null)??null,
+        roleLabels:person.roleLabels||(sameRole?old?.roleLabels:null)||{},roleSource:person.roleSource||old?.roleSource};
+      if(!old||JSON.stringify(old)!==JSON.stringify(value)){people[person.id]=value;changed=true;}
     }
     next[speech.id]=people;
   }
@@ -45,4 +51,19 @@ export function legislationContributors(detail, headers) {
     return [dimension,[...counts].filter(([,count])=>count>0).map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label))];
   }));
   return {people,roles,stats,excludedCount:excluded.length};
+}
+
+// Only the latest contribution in this item can supply its office. Other items,
+// late callbacks and a person's generic profile never supply an office here.
+export function legislationOffice(detail,headers,personId,language='en') {
+  const speeches=detail.speeches.filter(speech=>speech.people.some(person=>person.id===personId)&&headers[speech.sourceId]?.[personId]?.role!=='Chairing the sitting')
+    .toSorted((a,b)=>b.date.localeCompare(a.date)||(Date.parse(b.start)||0)-(Date.parse(a.start)||0)||a.sourceId.localeCompare(b.sourceId));
+  if(!speeches.length)return null;
+  const latest=speeches[0],person=headers[latest.sourceId]?.[personId];
+  if(!person)return contributorOffice(null,language);
+  const label=contributorOffice(person,language);
+  // Unknown ordering among same-day observations cannot pick between roles.
+  const ambiguous=speeches.filter(speech=>speech.date===latest.date&&(!speech.start||!latest.start||Date.parse(speech.start)===Date.parse(latest.start)));
+  if(ambiguous.some(speech=>JSON.stringify(contributorOffice(headers[speech.sourceId]?.[personId],language).text)!==JSON.stringify(label.text)))return contributorOffice(null,language);
+  return label;
 }

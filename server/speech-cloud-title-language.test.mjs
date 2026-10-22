@@ -60,7 +60,7 @@ test('speech titles retain requested/English/fixed fallback selection with their
     const row=activity(i+1,{titles,fragments:{[language]:xml(language)}});
     const before=structuredClone(row),{service,calls,source}=serviceFor(t,{data:[row]});
     const result=await service.query(query(`member=${member}&days=term&lang=${language}`));
-    assert.deepEqual(result.speeches,[{id:row.activity_id,date,title,titleLanguage,machineTranslation:false,people:[{id:member,name:'Saved speaker',currentMep:true,role:null}]}]);
+    assert.deepEqual(result.speeches,[{id:row.activity_id,date,title,titleLanguage,machineTranslation:false,people:[{id:member,name:'Saved speaker',currentMep:true,role:null,roleLabels:{},roleLanguage:null,roleSource:{speechId:row.activity_id,date,url:source.url,fetchedAt:new Date(now()).toISOString()}}]}]);
     assert.deepEqual(result.scope,{kind:'member',member,sitting:null,week:null,topic:null,title:null,titleLanguage:null,phase:'past'});
     assert.equal(result.language,language);
     assert.equal(result.coverage.complete,true);

@@ -74,6 +74,7 @@ export interface MemberProfile extends DirectoryMember {
         observations:{membershipId:string|null;bodyId:string;role:string;classification:string;start:string|null;end:string|null}[]}[]}[];
   };
 }
+export type SpeakerRoleLabel={text:string;language:string;reuse?:{personId:string;currentSpeechId:string;currentDate:string;currentSource:{url:string;fetchedAt:string};speechId:string;date:string;source:{url:string;fetchedAt:string};compared:{language:string;current:string;previous:string}[]}};
 export interface SpeechSpeaker {
   id:string;
   name:string;
@@ -82,7 +83,8 @@ export interface SpeechSpeaker {
   nameSource?:string;
   sittingRole?:'chair';
   nameVariants?:{value:string;script:string|null;language:string|null;source:string}[];
-  roleLabels?:Record<string,{text:string;language:string}>;
+  roleLabels?:Record<string,SpeakerRoleLabel>;
+  roleSource?:{speechId:string;date:string;url:string;fetchedAt:string};
   office?:{code:'president-parliament'|'vice-president-parliament';membershipId:string;start:string;end:string|null}|null;
   identitySources?:{url:string;fetchedAt:string;stale:boolean}[];
   identityIssues?:string[];

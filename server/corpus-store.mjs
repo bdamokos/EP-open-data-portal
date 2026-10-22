@@ -9,6 +9,8 @@ import {XMLParser,XMLBuilder,XMLValidator} from 'fast-xml-parser';
 import {countryCode} from './insights-countries.mjs';
 import {speechSummary,chooseTranscript} from './odp.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
+import {reuseSpeechRole} from './speaker-role-reuse.mjs';
+import {speakerRoleLabel} from '../src/speakerRoles.mjs';
 import {speechPeople,interventionMetadata,INTERVENTION_CLASSIFICATION_VERSION} from './speech-interventions.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {questionAddressees} from './question-addressees.mjs';
@@ -416,13 +418,40 @@ export class CorpusStore {
       !Array.isArray(saved.summary.intervention.parentIds)||!Array.isArray(saved.summary.intervention.onBehalfOf))throw new Error('Retained speech metadata identity mismatch.');
     return {...saved,sourceUrl:row.source_url,fetchedAt:row.fetched_at};
   }
+  // Optional read-time enrichment; never fetch or write history from a page read.
+  speechRoleTranslations(metadata,language='en',budget={remaining:8}) {
+    language ||= 'en';
+    if(!metadata||!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_catalog'").get())return metadata;
+    const speakers=metadata.speakers.map(person=>{
+      if(person.sittingRole==='chair'||person.role==='Chairing the sitting'||!Object.keys(person.roleLabels||{}).length)return person;
+      const missing=[...new Set([language,'en'])].filter(lang=>!speakerRoleLabel(person,lang));
+      if(!missing.length||budget.remaining--<=0)return person;
+      // Nearest earlier observation only. Unknown same-day chronology blocks reuse.
+      const prior=this.db.prepare(`SELECT source_id,date,start FROM speech_catalog WHERE date<=? AND source_id<>?
+        AND (date<? OR start IS NULL OR julianday(start) IS NULL OR julianday(start)<julianday(?))
+        AND EXISTS (SELECT 1 FROM json_each(participants) WHERE value=?)
+        ORDER BY date DESC,(start IS NULL OR julianday(start) IS NULL) DESC,julianday(start) DESC,numbering DESC,source_id DESC LIMIT 1`)
+        .get(metadata.summary.date,metadata.summary.id,metadata.summary.date,metadata.summary.start,person.id);
+      if(!prior)return person;
+      let previous;try{previous=this.speechMetadata(prior.source_id);}catch{return person;}
+      if(!previous)return person;
+      let result=person;
+      for(const lang of missing) {
+        const label=reuseSpeechRole(metadata,person,previous,lang);
+        if(label)result={...result,roleLabels:{...result.roleLabels,[lang]:label}};
+      }
+      return result;
+    });
+    return {...metadata,speakers};
+  }
   speechData(params){return this.snapshot(()=>this.speechDataSnapshot(params));}
   speechDataSnapshot({sourceIds,language=null,metadataOnly=false}) {
     if(!Array.isArray(sourceIds)||sourceIds.length>100||sourceIds.some(id=>!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id)))throw new Error('Invalid retained speech selection.');
-    let bytes=0;const records=[];
+    let bytes=0;const records=[],roleBudget={remaining:8};
     for(const id of new Set(sourceIds)) {
       let metadata=null,metadataUnavailable=false;
       try {metadata=this.speechMetadata(id);}catch {metadataUnavailable=true;}
+      if(metadata)try{metadata=this.speechRoleTranslations(metadata,language,roleBudget);}catch { /* Optional translation evidence must not hide retained metadata. */ }
       const variants=metadataOnly?[]:this.db.prepare(`SELECT t.id,t.language,t.source_key,t.translation_type,t.source_url,t.fetched_at,t.checked_at,t.chars
         FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=? AND d.kind='speech' AND t.source_format='xml-fragment'
         ORDER BY (t.translation_type='original') DESC,(t.source_key=?) DESC,t.source_key`).all(id,language);
@@ -489,6 +518,7 @@ export class CorpusStore {
             const saved=JSON.parse(zstdDecompressSync(metadata.body,{maxOutputLength:2*1024*1024}).toString('utf8'));
             if(saved.version!==1||saved.activity?.activity_id!==sourceId||saved.summary?.id!==sourceId||!Array.isArray(saved.speakers))throw new Error('Retained speech metadata identity mismatch.');
             metadataRecord={...saved,sourceUrl:metadata.source_url,fetchedAt:metadata.fetched_at};
+            try{metadataRecord=this.speechRoleTranslations(metadataRecord,language);}catch { /* Keep the current header when optional history is unavailable. */ }
           }catch {metadataUnavailable=true;}
         }
       }
