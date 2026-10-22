@@ -10,7 +10,11 @@ export interface Membership {
   current: boolean;
 }
 export interface DirectoryMember extends MemberSummary {
-  groupCode: string;
+  groupCode: string|null;
+  hasEmail?:boolean|null;
+  hasCv?:boolean|null;
+  hasNews?:boolean|null;
+  hasVideo?:boolean|null;
   memberships: Membership[] | null;
 }
 export interface Committee {
@@ -49,6 +53,10 @@ export interface Directory {
 export interface MemberProfile extends DirectoryMember {
   birthDate?: string;
   birthPlace?: string;
+  currentAffiliation?:{
+    day:string;personId:string;status:'matched'|'not-current'|'unavailable';error:string|null;
+    sources:{url:string;fetchedAt:string;stale:boolean}[];
+  };
   email?: string;
   accounts: string[];
   fetchedAt: string;
