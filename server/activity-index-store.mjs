@@ -1,3 +1,4 @@
+import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
 import {activityReadVersion,initializeActivityReads,prepareQuestionFiles,projectQuestionFiles,copyQuestionFiles,motionDocuments} from './activity-read-projections.mjs';
 import {groupVoicesSchema,groupVoicesCopy,groupVoicesPrune,recordGroupVoice} from './group-voices-store.mjs';
 import { DatabaseSync } from 'node:sqlite';
@@ -189,7 +190,7 @@ export class ActivityStore {
   enqueue(generation,key,kind,body,priority=50,refreshCompleted=false,{retryGap=false}={}) {
     const enqueue=()=>{
       this.assertWriter();
-      const gap=this.db.prepare('SELECT kind,body,priority,retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
+      const gap=this.db.prepare('SELECT kind,body,priority,retry_at,attempts FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
       if(gap) {
         if(!retryGap || gap.retry_at>this.clock() || this.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(generation,key))return false;
         // Admission and its marker commit together. Checkpoints retain any
@@ -200,7 +201,10 @@ export class ActivityStore {
       const pending=outside?-1:kind==='motion-outcomes'?null:0;
       this.db.prepare('INSERT OR IGNORE INTO tasks(generation,key,kind,body,priority,done) VALUES (?,?,?,?,?,?)').run(generation,key,kind,JSON.stringify(body),priority,pending);
       if(refreshCompleted)this.db.prepare('UPDATE tasks SET done=?,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE generation=? AND key=? AND done=1').run(pending,JSON.stringify(body),priority,generation,key);
-      if(gap)this.db.prepare('INSERT OR IGNORE INTO refresh_gap_admissions VALUES (?,?)').run(generation,key);
+      if(gap) {
+        this.db.prepare('UPDATE tasks SET attempts=? WHERE generation=? AND key=?').run(gap.attempts,generation,key);
+        this.db.prepare('INSERT OR IGNORE INTO refresh_gap_admissions VALUES (?,?)').run(generation,key);
+      }
       return true;
     };
     return retryGap&&!this.db.isTransaction?this.transaction(enqueue):enqueue();
@@ -219,7 +223,7 @@ export class ActivityStore {
     return this.db.isTransaction?finish():this.transaction(finish);
   }
   failTask(task,error) {
-    this.assertWriter();const delay=Math.min(30*60_000,30_000*2**Math.min(task.attempts,6));
+    this.assertWriter();const delay=Math.max(Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):Math.min(30*60_000,30_000*2**Math.min(task.attempts,6)));
     this.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET attempts=attempts+1,retry_at=?,error=? WHERE generation=? AND key=?`).run(this.clock()+delay,String(error.message).slice(0,350),task.generation,task.key);
     if(!task.groupVoiceJob&&this.get('working')?.generation===task.generation)this.updateCycle({phase:'retrying',error:String(error.message).slice(0,350)});
   }
@@ -293,7 +297,7 @@ export class ActivityStore {
     const recoveryCount=this.db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE '+recoveryWhere).get(recoveryGeneration).n;
     const recoveryExamples=this.db.prepare('SELECT body,attempts,retry_at,error FROM tasks WHERE '+recoveryWhere+' ORDER BY key LIMIT 20').all(recoveryGeneration).map(task=>{const body=parse(task.body);return {sourceId:body.recoveryId,detectedAt:body.detectedAt,searchWindow:body.searchWindow,attempts:task.attempts,nextRetryAt:new Date(task.retry_at || this.clock()).toISOString(),lastError:task.error};});
     const gapCount=this.db.prepare('SELECT COUNT(*) AS n FROM refresh_gaps WHERE generation=?').get(generation).n;
-    const gapExamples=this.db.prepare("SELECT key,kind,error,attempts,failed_at AS failedAt,CASE WHEN kind='coverage' THEN NULL ELSE retry_at END AS retryAt,sitting_id AS sittingId,json_extract(body,'$.endpoint') AS endpoint,json_extract(body,'$.recoveryId') AS sourceId,json_extract(body,'$.start') AS start,json_extract(body,'$.end') AS end FROM refresh_gaps WHERE generation=? ORDER BY key LIMIT 20").all(generation);
+    const gapExamples=this.db.prepare("SELECT key,kind,error,attempts,failed_at AS failedAt,CASE WHEN kind='coverage' THEN NULL ELSE retry_at END AS retryAt,sitting_id AS sittingId,json_extract(body,'$.endpoint') AS endpoint,json_extract(body,'$.recoveryId') AS sourceId,json_extract(body,'$.start') AS start,json_extract(body,'$.end') AS end FROM refresh_gaps WHERE generation=? ORDER BY key LIMIT 20").all(generation).map(gap=>({...gap,retryAt:gap.retryAt===null?null:new Date(gap.retryAt).toISOString()}));
     const refreshSnapshotReady=refreshSnapshotMatches(this);
     return { schemaVersion:1, enabled:true, term:10, complete:Boolean(active)&&gapCount===0&&refreshSnapshotReady, servingGeneration:generation,
       refreshSnapshotReady,

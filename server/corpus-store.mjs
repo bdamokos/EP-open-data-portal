@@ -1,3 +1,4 @@
+import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID, createHash } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
@@ -221,7 +222,7 @@ export class CorpusStore {
   finishTask(task){this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=?').run(this.clock(),task.key);}
   failTask(task,error,retryAfter=0) {
     this.assertWriter();
-    const delay=Math.max(retryAfter*1000,Math.min(6*60*60_000,60_000*2**Math.min(task.attempts,8)));
+    const delay=Math.max(retryAfter*1000,Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):Math.min(6*60*60_000,60_000*2**Math.min(task.attempts,8)));
     this.db.prepare('UPDATE tasks SET attempts=attempts+1,retry_at=?,error=? WHERE key=?').run(this.clock()+delay,String(error.message).slice(0,350),task.key);
   }
   hasText(sourceUrl){return Boolean(this.db.prepare('SELECT 1 FROM texts WHERE source_url=? LIMIT 1').get(sourceUrl));}
