@@ -300,7 +300,7 @@ export async function odp(
 }
 export const speakerIdentities=new SpeakerIdentities({request:odp});
 export const cachedSpeakerIdentities=new SpeakerIdentities({request:(endpoint,params,options)=>odp(endpoint,params,{...options,cachedOnly:true})});
-async function list(endpoint, params = {}) {
+async function list(endpoint, params = {}, {priority='interactive'}={}) {
   const nodes = [];
   const sources = [];
   let fetchedAt = Date.now();
@@ -308,7 +308,7 @@ async function list(endpoint, params = {}) {
     const record = await odp(
       endpoint,
       { ...params, limit: 1000, offset },
-      { daily: endpoint.endsWith("/show-current"), staleWhileRevalidate: true },
+      { daily: endpoint.endsWith("/show-current"), staleWhileRevalidate: true, priority },
     );
     sources.push(record);
     nodes.push(...record.payload.data);
@@ -360,16 +360,16 @@ export function memberSummary(p) {
     firstName: p.givenName || "",
     lastName: p.familyName || p.label,
     sortName: p.sortLabel || p.familyName,
-    countryCode: p["api:country-of-representation"] || "",
-    groupCode: p["api:political-group"] || "",
+    countryCode: firstString(p["api:country-of-representation"]).trim() || null,
+    groupCode: firstString(p["api:political-group"]).trim() || null,
     imageUrl:
       p.img ||
       `https://www.europarl.europa.eu/mepphoto/${Number(p.identifier)}.jpg`,
     gender: firstString(p.hasGender).endsWith("/FEMALE") ? "f" : "m",
-    hasCv: false,
-    hasEmail: Boolean(p.hasEmail),
-    hasNews: false,
-    hasVideo: false,
+    hasCv: null,
+    hasEmail: p.hasEmail == null ? null : Boolean(firstString(p.hasEmail).replace(/^mailto:/, "").trim()),
+    hasNews: null,
+    hasVideo: null,
   };
 }
 let directory;
@@ -380,7 +380,8 @@ let directorySources = [];
 let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
-export const DIRECTORY_VERSION = 1;
+export const DIRECTORY_VERSION = 2;
+export const PROFILE_VERSION = 2;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -532,14 +533,35 @@ export async function odpProfile(id, force = false, {priority='interactive'}={})
     { force, ttl: 7 * 24 * 60 * 60 * 1000, priority },
   );
   const person = record.payload.data[0];
-  if (!person)
+  if (!person || String(person.identifier) !== String(id))
     throw new HttpError(
       404,
       "mep_not_found",
       "This MEP profile is unavailable.",
     );
+  // The per-person record carries country URIs and dated organization IDs,
+  // not the current roster's codes. Use only an exact roster identifier join.
+  const day = today();
+  let roster, affiliationError = null;
+  try { roster = await list("/meps/show-current", {}, {priority}); }
+  catch (error) {
+    requestSignal()?.throwIfAborted();
+    affiliationError = 'Current roster affiliation is unavailable.';
+  }
+  const matches = roster?.nodes.filter(member => String(member.identifier) === String(person.identifier)) || [];
+  if (matches.length > 1) affiliationError = 'Current roster affiliation is ambiguous.';
+  const current = matches.length === 1 ? memberSummary(matches[0]) : null;
+  const sourceSummary = source => ({url:source.url,fetchedAt:new Date(source.fetchedAt).toISOString(),stale:Boolean(source.stale)});
+  const affiliationSources = (roster?.sources || []).map(sourceSummary);
   const result = {
     ...memberSummary(person),
+    countryCode: current?.countryCode ?? null,
+    groupCode: current?.groupCode ?? null,
+    currentAffiliation: {
+      day, personId:String(person.identifier),
+      status:affiliationError ? 'unavailable' : current ? 'matched' : 'not-current',
+      sources:affiliationSources, error:affiliationError,
+    },
     birthDate: person.bday,
     birthPlace: person.placeOfBirth,
     parliamentaryService: parliamentaryService(person,today()),
@@ -547,7 +569,7 @@ export async function odpProfile(id, force = false, {priority='interactive'}={})
     memberships: memberships(person),
     accounts: (person.account || []).map((a) => a.id),
     fetchedAt: new Date(record.fetchedAt).toISOString(),
-    sources: [{url:record.url, fetchedAt:new Date(record.fetchedAt).toISOString(), stale:Boolean(record.stale)}],
+    sources: [sourceSummary(record), ...affiliationSources],
   };
   profileIndex.set(Number(id), result);
   return result;
@@ -619,6 +641,7 @@ export async function odpDirectory({retryCommitteeDetails=false}={}) {
     },
     members: d.members.map((m) => ({
       ...m,
+      hasEmail: profileIndex.get(m.id)?.hasEmail ?? m.hasEmail,
       birthDate: profileIndex.get(m.id)?.birthDate,
       gender: profileIndex.get(m.id)?.gender || m.gender,
       memberships: profileIndex.get(m.id)?.memberships.map(membership => ({
