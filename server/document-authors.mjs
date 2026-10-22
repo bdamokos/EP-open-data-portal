@@ -55,7 +55,10 @@ export function publishedAuthorOrder(authors, paragraphs = []) {
   for (const paragraph of paragraphs) {
     // Parenthesised political groups annotate names in question bylines.
     const parts = paragraph.replace(/\([^()]*\)/gu, '').split(/[,;\n]+/u).map(key).filter(Boolean);
-    if (!parts.length || parts.some(part => !names.has(part))) continue;
+    if (!parts.length || parts.some(part => !names.has(part))) {
+      if (ordered.length) return authors;
+      continue;
+    }
     for (const part of parts) {
       const author = names.get(part);
       if (seen.has(author.id)) return authors;
@@ -78,7 +81,7 @@ export function documentCoAuthors(work, { members = [], selectedDocumentId, docu
     const name = typeof member?.name === 'string' && member.name.trim() ? member.name.trim() : null;
     return { ...author, name, personUri: BASE + 'person/' + author.id, profileAvailable: Boolean(member && name), role, sourceDocumentId };
   });
-  const ordered = publishedAuthorOrder(coAuthors, authorText?.status === 'available' ? authorText.paragraphs : []);
+  const ordered = publishedAuthorOrder(coAuthors, authorText?.status === 'available' ? authorText.authorBylineParagraphs : []);
   return { coAuthors: ordered, coAuthorSource: { documentApiUrl, documentFetchedAt, rosterApiUrl: BASE + 'api/v2/meps/show-current', rosterFetchedAt,
     order: ordered === coAuthors ? 'api-unordered' : 'published-byline',
     orderSourceUrl: ordered === coAuthors ? null : authorText.sourceUrl,
