@@ -564,3 +564,19 @@ for(const [family,url] of [
   assert.match(attribution.textContent,/Dan-Ştefan Motreanu, Guest McDONALD/);
   assert.equal(attribution.querySelector('[title]').title,'Source label: Dan-Ştefan MOTREANU');
 });
+
+test('search attribution skips unnamed people and preserves the answer fallback',async t=>{
+  for(const [kind,people,expected] of [
+    ['question',[{id:99,name:null,role:'AUTHOR'},{id:42,name:'Dan-Ştefan MOTREANU',role:'AUTHOR'}],'Question by Dan-Ştefan Motreanu'],
+    ['speech',[{id:42,name:null,role:'SPEAKER'}],'Speaker: Dan-Ştefan Motreanu'],
+    ['question',[{id:99,name:null,role:'AUTHOR'}],''],
+    ['answer',[{id:99,name:null,role:'QUESTION_AUTHOR'}],'Answering institution’s text · linked question authorship'],
+  ])await t.test(kind+JSON.stringify(people),async t=>{
+    const view=await setup(t,{query:'fixture-fts-search=hydrogen',members:[{id:42,firstName:'Dan-Ştefan',lastName:'Motreanu'}],respond:({url,body})=>{
+      if(!url.pathname.endsWith('/corpus/search'))return;
+      return Response.json(results(body,[{...english,kind,people}]));
+    }});
+    await view.render();
+    assert.equal(view.find('.explorer-search-attribution').textContent,expected);
+  });
+});

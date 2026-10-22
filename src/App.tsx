@@ -445,10 +445,6 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   </section>;
 }
 export default function App() {
-  const names=useData<Directory>('directory');
-  return <PersonNamesProvider members={names.data?.members}><AppContent directoryState={names}/></PersonNamesProvider>;
-}
-function AppContent({directoryState}:{directoryState:ReturnType<typeof useData<Directory>>}) {
   const [initial] = useState(() => new URLSearchParams(location.search));
   const [restoration,setRestoration]=useState(0);
   const [lang, setLang] = useState(() => queryLanguage(initial));
@@ -479,6 +475,7 @@ function AppContent({directoryState}:{directoryState:ReturnType<typeof useData<D
   // Member and Votes tab navigation add one entry through the URL effect.
   const memberStep=useRef(false);
   const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
+  const directoryState=useData<Directory>(view==='outside'||view==='groups'?null:"directory");
   const directory = directoryState.data;
   const error = directoryState.error;
   const profile = useData<MemberProfile>(!view && member && tab === "profile" ? `profile/${member}` : null);
@@ -699,7 +696,7 @@ function AppContent({directoryState}:{directoryState:ReturnType<typeof useData<D
     navigateView(null);
     pendingDestination.current={view:null,member,opener};
   };
-  return <ErrorBoundary resetKey={`${view}:${member}:${tab}:${restoration}`} language={lang}
+  return <PersonNamesProvider members={directory?.members}><ErrorBoundary resetKey={`${view}:${member}:${tab}:${restoration}`} language={lang}
     navigation={<ParliamentHeader view={view||'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>}
     onRetry={()=>{pendingDestination.current={view,member};}}
   ><Suspense fallback={<ViewLoading language={lang}/>}><ViewContent onReady={focusDestination} render={()=>{
@@ -1001,5 +998,5 @@ function AppContent({directoryState}:{directoryState:ReturnType<typeof useData<D
         </footer>
     </main>
   );
-  }}/></Suspense></ErrorBoundary>;
+  }}/></Suspense></ErrorBoundary></PersonNamesProvider>;
 }

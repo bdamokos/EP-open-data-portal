@@ -174,3 +174,22 @@ test('named vote titles preserve subject-first fallback and never add a first-di
     assert.equal(h.container.querySelector('.insight-topic-detail h2').textContent,'Source français');
   }
 });
+
+test('insight cards use exact directory names, retain source labels and keep missing-name fallbacks',async t=>{
+  const h=await harness(t,'en');
+  const Provider=await h.load('PersonName','PersonNamesProvider');
+  const People=await h.load('InsightShared','InsightPeople');
+  const people=[
+    {id:'42',name:'Mika AALTOLA',currentMep:true},
+    {id:'99',name:'Guest McDONALD',currentMep:false},
+    {id:'100',name:null,currentMep:true},
+    {id:'101',name:null,currentMep:false},
+  ].map(person=>({...person,country:null,group:null}));
+  const render=members=>h.render(createElement(Provider,{members},createElement(People,{people})));
+  await render([{id:42,firstName:'Mika',lastName:'Aaltola'}]);
+  assert.deepEqual([...h.container.querySelectorAll('strong')].map(node=>node.textContent),['Mika Aaltola','Guest McDONALD','MEP','Name unavailable']);
+  assert.equal(h.container.querySelector('[title="Source label: Mika AALTOLA"]').textContent,'Mika Aaltola');
+  await render([]);
+  assert.deepEqual([...h.container.querySelectorAll('strong')].map(node=>node.textContent),['Mika AALTOLA','Guest McDONALD','MEP','Name unavailable']);
+  assert.equal(h.calls.some(url=>url.pathname.endsWith('/directory')),false,'display components do not fetch a roster themselves');
+});
