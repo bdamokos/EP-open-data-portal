@@ -942,7 +942,7 @@ test('failed and malformed reader responses settle readiness and retries become 
 });
 
 test('motion proposers use exact directory IDs and preserve unknown labels',async t=>{
-  const h=await readerHarness(t,{members:[{id:42,firstName:'Mika',lastName:'Aaltola'}]});
+  const h=await readerHarness(t,{state:{open:true},members:[{id:42,firstName:'Mika',lastName:'Aaltola'}]});
   await h.respond(page({items:[amendment(13,{authors:[{personId:'42',name:'Mika AALTOLA'},{personId:'99',name:'Guest McDONALD'}]})]}));
   await h.click(/^Amendment 13/);
   const proposers=h.container.querySelector('.motion-amendments__proposers');
