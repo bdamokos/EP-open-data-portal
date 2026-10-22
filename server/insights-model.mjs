@@ -76,15 +76,16 @@ export function memberPeople(ids, members, metadata = new Map()) {
   const roster = members instanceof Map ? members : new Map(members.map(m => [String(m.id),m]));
   return [...new Set(ids.map(String))].map(id => ({id,name:roster.get(id)?.name || metadata.get(id)?.label || null,currentMep:roster.has(id),group:metadata.get(id)?.['api:political-group'] || roster.get(id)?.groupCode || null,country:metadata.get(id)?.['api:country-of-representation'] || roster.get(id)?.countryCode || null,personUri:'https://data.europarl.europa.eu/person/'+id}));
 }
-export function questionTrend(all,selected,{start,end,days}) {
+export function questionTrend(all,selected,{start,end,days},latestObservedDate=all.map(q=>q.date).filter(Boolean).sort().at(-1)||null) {
   const step=days<=30?1:7,bins=[];
   const first=Date.parse(start+'T12:00:00Z'),last=Date.parse(end+'T12:00:00Z'),begin=step===7?first-((new Date(first).getUTCDay()+6)%7)*86400_000:first;
   for(let time=begin;time<=last;time+=step*86400_000) {
     const from=new Date(Math.max(first,time)).toISOString().slice(0,10),to=new Date(Math.min(time+(step-1)*86400_000,last)).toISOString().slice(0,10);
     const total=all.filter(q=>q.date>=from&&q.date<=to).length,count=selected.filter(q=>q.date>=from&&q.date<=to).length;
-    bins.push({start:from,end:to,count,total,share:total?Math.round(count/total*10000)/100:null});
+    const availability=!latestObservedDate||from>latestObservedDate?'unavailable':to>latestObservedDate?'partial':'observed';
+    bins.push({start:from,end:to,availability,count:availability==='unavailable'?null:count,total:availability==='unavailable'?null:total,share:total?Math.round(count/total*10000)/100:null});
   }
-  return {interval:step===1?'day':'week',bins};
+  return {interval:step===1?'day':'week',latestObservedDate,availabilityBasis:'Latest saved question document_date in the analysis window before country, topic and time-range filters; not a completeness guarantee.',bins};
 }
 export function analyzeQuestions(questions,options) {return finishWork(questionAnalysisSteps(questions,options));}
 export function analyzeQuestionsAsync(questions,{signal,...options}={}) {return cooperativeWork(questionAnalysisSteps(questions,options),{signal});}
