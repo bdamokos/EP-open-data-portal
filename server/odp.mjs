@@ -526,7 +526,7 @@ function startDirectoryDetails(work, {retry=false}={}) {
     }
   })().finally(() => {directoryDetailsPromise = null;});
 }
-export async function odpProfile(id, force = false, {priority='interactive'}={}) {
+async function mepRecord(id, force = false, {priority='interactive'}={}) {
   const record = await odp(
     `/meps/${id}`,
     {},
@@ -539,6 +539,11 @@ export async function odpProfile(id, force = false, {priority='interactive'}={})
       "mep_not_found",
       "This MEP profile is unavailable.",
     );
+  return record;
+}
+export async function odpProfile(id, force = false, {priority='interactive'}={}) {
+  const record = await mepRecord(id,force,{priority});
+  const person = record.payload.data[0];
   // The per-person record carries country URIs and dated organization IDs,
   // not the current roster's codes. Use only an exact roster identifier join.
   const day = today();
@@ -961,5 +966,6 @@ export async function preloadOdp() {
 
 const portraits = new PortraitCache();
 export async function odpPortrait(id) {
-  return portraits.get(id, async (memberId, {priority}) => (await odpProfile(memberId, false, {priority})).imageUrl);
+  // Portraits need only the person record, not current roster enrichment.
+  return portraits.get(id, async (memberId, {priority}) => memberSummary((await mepRecord(memberId,false,{priority})).payload.data[0]).imageUrl);
 }
