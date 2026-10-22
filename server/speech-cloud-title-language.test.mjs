@@ -155,7 +155,7 @@ test('title language stays independent of requested XML translation and mixed or
 });
 
 test('cloud keeps all supplied role labels and provenance rather than treating the first Bulgarian header as English',async t=>{
-  const roleXml=(lang,role)=>xml(lang).replace('</person>','</person><role>'+role+'</role>');
+  const roleXml=(lang,role)=>xml(lang).replace('<from>','<from xml:lang="'+lang+'">').replace('</person>','</person><role>'+role+'</role>');
   const row=activity(1,{fragments:{bg:roleXml('bg','Член на Комисията'),en:roleXml('en','Member of the Commission'),fr:roleXml('fr','Membre de la Commission')}});
   const {service,source}=serviceFor(t,{data:[row]});
   const result=await service.query(query(`member=${member}&days=term&lang=en`));
