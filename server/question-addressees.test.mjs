@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {questionAddressees,organizationId,validAddresseeFilter,questionNumber} from './question-addressees.mjs';
+import {addresseeLabel,questionAddressees,organizationId,validAddresseeFilter,questionNumber} from './question-addressees.mjs';
 import {questionFromSource} from './insights-model.mjs';
 import {ActivityStore} from './activity-index-store.mjs';
 import {projectDocument,documentRows} from './activity-index-model.mjs';
@@ -33,8 +33,17 @@ test('question addressees preserve exact source roles and organisations without 
   assert.equal(questionNumber('O-10-2026-000043'),'O-000043/2026');assert.equal(questionNumber('P-10-2026-004146'),'P-004146/2026');
 });
 
+test('HRVP has a verified display label while exact source evidence is preserved',()=>{
+  const source=work(46,['org/HRVP']);
+  const expected={id:'org/HRVP',uri:'https://data.europarl.europa.eu/org/HRVP',label:'Vice-President / High Representative',participationIds:[source.workHadParticipation[0].id]};
+  assert.deepEqual(questionAddressees(source),[expected]);
+  assert.deepEqual(questionFromSource({work:source,key:'/parliamentary-questions/'+source.identifier,fetchedAt}).addressees,[expected]);
+  assert.equal(addresseeLabel('org/Unfamiliar_1'),'org/Unfamiliar_1');
+  assert.equal(addresseeLabel('unavailable'),'Addressee unavailable');
+});
+
 test('insights and corpus accept the same bounded exact addressee grammar',()=>{
-  for(const value of ['org/COM','org/CS','org/Unknown_123-4','org/'+('A'.repeat(100)),'unavailable']) {
+  for(const value of ['org/COM','org/CS','org/HRVP','org/Unknown_123-4','org/'+('A'.repeat(100)),'unavailable']) {
     assert(validAddresseeFilter(value));assert.equal(insightQuery(new URLSearchParams({addressee:value}),{now:now()}).addressee,value);assert.equal(corpusSearchOptions({query:'medicines',addressee:value}).addressee,value);
   }
   assert.equal(insightQuery(new URLSearchParams(),{now:now()}).addressee,null);assert.equal(corpusSearchOptions({query:'medicines',addressee:null}).addressee,null);
