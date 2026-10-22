@@ -1,3 +1,4 @@
+import {sourceTitle} from './source-titles.mjs';
 import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
@@ -93,7 +94,7 @@ const kindOf=celex=>/^5/.test(celex||'')?'document':'act';
 function questionTitle(work,language) {
   const titles=work?.title_dcterms||{};
   const value=text(titles[language])||text(titles.en)||text(Object.values(titles)[0]);
-  return {title:value||null,titleLanguage:titles[language]?language:titles.en?'en':Object.keys(titles)[0]||null};
+  return {title:sourceTitle(value)||null,titleLanguage:titles[language]?language:titles.en?'en':Object.keys(titles)[0]||null};
 }
 const noRecord=error=>/\((?:404|410)\)/.test(String(error?.message||''));
 
