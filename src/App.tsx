@@ -22,7 +22,7 @@ import { Portrait } from "./components/Portrait";
 import './focus.css';
 import { DataNotice } from "./components/DataNotice";
 import { API_ROOT } from "./api";
-import { interfaceLabel, countryName, languageName } from "./interfaceLabels.mjs";
+import { interfaceLabel, countryName, compareCountries, languageName } from "./interfaceLabels.mjs";
 import { publicUrl } from "./publicUrl";
 import { interfaceCopy, interfaceLanguages } from "./interfaceCopy";
 import type {
@@ -851,7 +851,7 @@ export default function App() {
                       new Set(directory?.members.map((m) => filterCountry(m.countryCode))),
                     )
                       .filter(Boolean)
-                      .sort()
+                      .sort((a,b) => compareCountries(lang,a,b))
                       .map((v) => {
                         const name=countryName(lang,v);
                         return <option lang={name===v?'':lang} key={v} value={v}>{name}</option>;
@@ -868,7 +868,7 @@ export default function App() {
                     {Array.from(
                       new Set(directory?.members.map((m) => m.groupCode)),
                     )
-                      .sort()
+                      .sort((a,b) => a.localeCompare(b,lang))
                       .map((v) => (
                         <option lang="" key={v}>{v}</option>
                       ))}
