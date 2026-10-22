@@ -14,7 +14,7 @@ export class CorpusReader {
     if(this.busy)throw new HttpError(503,'corpus_busy','A corpus query is already running. Please retry shortly.');
     this.busy=true;
     // Cold count scans get a little more time, within the client's 8 s bound.
-    const timeoutMs=operation==='status'?Math.max(this.timeoutMs,this.statusTimeoutMs):this.timeoutMs;
+    const timeoutMs=operation==='status'?this.statusTimeoutMs:this.timeoutMs;
     let worker,timer,timedOut=false;
     try {
       worker=new Worker(new URL(import.meta.url),{workerData:{directory:this.directory,indexFile:this.indexFile,operation,params,deadlineMs:Date.now()+timeoutMs}});

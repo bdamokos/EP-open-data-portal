@@ -305,7 +305,7 @@ test('read-only queries leave the API event loop free and enforce concurrency an
   const s=stores();
   try {
     s.corpus.putDocument(...Object.values(speechTexts(speech('MTG-PL-2026-07-08-OTH-1',{en:fragment('en','Ocean protection.')}),'https://example.test/list',fetchedAt)));
-    const reader=new CorpusReader(path.dirname(s.corpus.filename),{indexFile:s.index.filename,timeoutMs:readerTimeoutMs});
+    const reader=new CorpusReader(path.dirname(s.corpus.filename),{indexFile:s.index.filename,timeoutMs:readerTimeoutMs,statusTimeoutMs:readerTimeoutMs});
     const pending=reader.query('search',{query:'ocean',member:42});
     await assert.rejects(reader.query('search',{query:'ocean'}),error=>error.code==='corpus_busy');
     let ticked=false;setImmediate(()=>{ticked=true;});
@@ -327,7 +327,8 @@ test('status has its own bounded warm-up timeout and remains retryable',async t=
   const s=stores();
   t.mock.timers.enable({apis:['setTimeout']});
   try {
-    const reader=new CorpusReader(path.dirname(s.corpus.filename));
+    // A longer search budget must not extend the default status budget.
+    const reader=new CorpusReader(path.dirname(s.corpus.filename),{timeoutMs:readerTimeoutMs});
     let settled=false;
     const pending=assert.rejects(reader.query('status',{}),error=>{
       assert.equal(error.status,503);
@@ -344,7 +345,7 @@ test('status has its own bounded warm-up timeout and remains retryable',async t=
     assert.equal(reader.busy,true,'termination holds the concurrency slot until exit');
     t.mock.timers.reset();
     while(reader.busy)await new Promise(resolve=>setImmediate(resolve));
-    reader.timeoutMs=readerTimeoutMs;
+    reader.statusTimeoutMs=readerTimeoutMs;
     const status=await reader.query('status',{});
     assert.equal(status.documents.speech.withText,0,'a successful empty observation is still zero');
     assert.equal(status.authoritativeComplete,false);
