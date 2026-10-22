@@ -8,10 +8,14 @@ export function mergeSpeechSpeakers(previous, speeches) {
       const old=people[person.id];
       const oldTime=Date.parse(old?.roleSource?.fetchedAt),newTime=Date.parse(person.roleSource?.fetchedAt);
       if(Number.isFinite(oldTime)&&(!Number.isFinite(newTime)||newTime<oldTime))continue;
+      const oldRevision=old?.roleSource?.evidenceRevision,newRevision=person.roleSource?.evidenceRevision;
+      if(Number.isSafeInteger(oldRevision)&&Number.isSafeInteger(newRevision)&&newRevision<oldRevision)continue;
+      if(Number.isSafeInteger(oldRevision)&&!Number.isSafeInteger(newRevision)&&!(newTime>oldTime))continue;
       const sameRole=person.role===old?.role&&person.roleLanguage===old?.roleLanguage;
+      const sameEvidence=sameRole&&Number.isSafeInteger(newRevision)&&newRevision===oldRevision;
       const value={name:person.name||old?.name||null,role:old?.role==='Chairing the sitting'?old.role:person.role===undefined?old?.role??null:person.role,
         roleLanguage:person.roleLanguage??(sameRole?old?.roleLanguage:null)??null,
-        roleLabels:person.roleLabels||(sameRole?old?.roleLabels:null)||{},roleSource:person.roleSource||old?.roleSource};
+        roleLabels:sameEvidence?{...old?.roleLabels,...person.roleLabels}:person.roleLabels||(sameRole?old?.roleLabels:null)||{},roleSource:person.roleSource||old?.roleSource};
       if(!old||JSON.stringify(old)!==JSON.stringify(value)){people[person.id]=value;changed=true;}
     }
     next[speech.id]=people;

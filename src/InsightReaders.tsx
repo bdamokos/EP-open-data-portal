@@ -34,7 +34,7 @@ export function InsightQuestionReader({id,member,language,heading='Question',inc
 export function InsightSpeechReader({id,language,transcriptLanguage,onSpeakers,highlight}:{id:string;language:string;transcriptLanguage?:string;highlight?:string|null;onSpeakers?:(people:(SpeechSpeaker&{name:string})[],speechId?:string)=>void}) {
   const [selected,setSelected]=useState(transcriptLanguage||language),readerText=useRef<HTMLDivElement>(null);useEffect(()=>setSelected(transcriptLanguage||language),[language,transcriptLanguage,id]);
   const state=useSpeechData(id,selected),speech=state.data?.id===id?state.data:null,body=state.transcript,text=useMemo(()=>transcriptParagraphs(body?.xml||null).paragraphs,[body?.xml]);
-  useEffect(()=>{if(speech?.id===id&&speech.speakers?.length)onSpeakers?.(speech.speakers.map(person=>({...person,role:person.role??null,...(speech.metadataSource?{roleSource:{speechId:id,date:speech.date,url:speech.metadataSource.url,fetchedAt:speech.metadataSource.fetchedAt}}:{})})),id);},[id,speech,onSpeakers]);
+  useEffect(()=>{if(speech?.id===id&&speech.speakers?.length)onSpeakers?.(speech.speakers.map(person=>({...person,role:person.role??null,...(!person.roleSource&&speech.metadataSource?{roleSource:{speechId:id,date:speech.date,url:speech.metadataSource.url,fetchedAt:speech.metadataSource.fetchedAt}}:{})})),id);},[id,speech,onSpeakers]);
   const mediaSource=useRef<Speech|null>(null);
   if(speech)mediaSource.current=speech;
   // A transcript-language request must not close or retune the current video.

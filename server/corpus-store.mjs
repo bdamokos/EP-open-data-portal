@@ -452,7 +452,9 @@ export class CorpusStore {
       }
       return result;
     });
-    return {...metadata,speakers};
+    const evidenceRevision=this.get('speechReadRevision');
+    return {...metadata,speakers:speakers.map(person=>({...person,roleSource:{speechId:metadata.summary.id,date:metadata.summary.date,
+      url:metadata.sourceUrl,fetchedAt:metadata.fetchedAt,...(Number.isSafeInteger(evidenceRevision)?{evidenceRevision}:{})}}))};
   }
   speechData(params){return this.snapshot(()=>this.speechDataSnapshot(params));}
   speechDataSnapshot({sourceIds,language=null,metadataOnly=false}) {

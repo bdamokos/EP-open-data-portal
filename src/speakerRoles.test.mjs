@@ -40,3 +40,13 @@ test('a newer header snapshot clears superseded labels and a late old response c
   const unversioned={id:'s1',people:[{...person}]};
   assert.strictEqual(mergeSpeechSpeakers(updated,[unversioned]),updated,'an unprovenanced callback cannot inherit a newer source and restore old labels');
 });
+
+test('a history revision clears obsolete reuse despite equal current-speech fetch timestamps',()=>{
+  const source={speechId:'s1',date:'2026-10-19',url:'https://data.europarl.europa.eu/api/v2/speeches/s1',fetchedAt:'2026-10-22T10:00:00Z'};
+  const old={id:'s1',people:[{...person,roleSource:{...source,evidenceRevision:10}}]};
+  const latest={id:'s1',people:[{...person,roleLabels:{bg},roleSource:{...source,evidenceRevision:11}}]};
+  const updated=mergeSpeechSpeakers(mergeSpeechSpeakers({},[old]),[latest]);
+  assert.equal(legislationOffice(detail,updated,'220921','en').text,'Role translation unavailable');
+  assert.strictEqual(mergeSpeechSpeakers(updated,[old]),updated);
+  assert.strictEqual(mergeSpeechSpeakers(updated,[{id:'s1',people:[{...person,roleSource:source}]}]),updated);
+});

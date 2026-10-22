@@ -54,7 +54,7 @@ test('current-language labels win and same-day chronology requires an earlier ti
 });
 function put(store,{day,number,start='10:00:00',id='220921',labels,term=10}) {
   const m=metadata({day,number,start,id,term}),activity={...m.activity,had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',activity_start_date:m.summary.start,
-    recorded_in_a_realization_of:[{identifier:`CRE-${term}-${day}-OTH-${number}`,'api:xmlFragment':Object.fromEntries(Object.entries(labels).map(([lang,text])=>[lang,`<oralStatements><speech xml:lang="${lang}"><from xml:lang="${lang}"><person refersTo="person/${id}">Same public name</person><role>${text}</role></from><p>Public text.</p></speech></oralStatements>`]))}]};
+    recorded_in_a_realization_of:[{identifier:`CRE-${term}-${day}-OTH-${number}`,'api:xmlFragment':Object.fromEntries(Object.entries({...labels,...(!Object.hasOwn(labels,'en')?{en:null}:{})}).map(([lang,text])=>[lang,`<oralStatements><speech xml:lang="${lang}"><from xml:lang="${lang}"><person refersTo="person/${id}">Same public name</person>${text===null?'':`<role>${text}</role>`}</from><p>Public text.</p></speech></oralStatements>`]))}]};
   store.putSpeechMetadata(activity,m.sourceUrl,m.fetchedAt);return activity.activity_id;
 }
 function corpus(t) {
@@ -70,10 +70,14 @@ test('retained reads use chronology rather than ingestion order and never persis
   const prior=put(store,{day:'2026-10-07',number:1,labels:{bg,en}});
   const read=()=>store.speechData({sourceIds:[current],language:'en',metadataOnly:true}).records[0].metadata;
   const selected=read().speakers[0].roleLabels.en;
+  const beforeSource=read().speakers[0].roleSource;
   assert.equal(selected.text,en);assert.equal(selected.reuse.speechId,prior);
   assert.equal(store.speechMetadata(current).speakers[0].roleLabels.en,undefined);
   put(store,{day:'2026-10-14',number:4,labels:{bg:'Председател на Комисията',en:'President of the Commission'}});
   assert.equal(read().speakers[0].roleLabels.en,undefined,'do not skip a changed nearest role to resurrect an older title');
+  const afterSource=read().speakers[0].roleSource;
+  assert.equal(afterSource.fetchedAt,beforeSource.fetchedAt);
+  assert(afterSource.evidenceRevision>beforeSource.evidenceRevision,'history invalidation advances evidence even when the current source is unchanged');
 });
 test('nearest same-day earlier evidence works despite a later speech; unknown chronology blocks it',t=>{
   const store=corpus(t);
