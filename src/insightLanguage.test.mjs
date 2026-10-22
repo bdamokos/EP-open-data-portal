@@ -19,7 +19,8 @@ async function harness(t,language,query='') {
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,
     HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,DOMParser:window.DOMParser,CSS:window.CSS,
     innerWidth:1440,requestAnimationFrame:window.requestAnimationFrame.bind(window),
-    ResizeObserver:class {observe(){} disconnect(){}},IS_REACT_ACT_ENVIRONMENT:true};
+    ResizeObserver:class {observe(){} disconnect(){}},
+    IntersectionObserver:class {observe(){} unobserve(){} disconnect(){}},IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let vite,root,respond=()=>{throw new Error('Unexpected fixture fetch');};

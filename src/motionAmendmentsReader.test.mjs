@@ -62,7 +62,8 @@ async function readerHarness(t,{state={},props={},focusContextChild=false,member
         createElement('button',{onClick:context.onBack,autoFocus:focusContextChild},'Back from test context'));
     }});
   }
-  await act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(Host))));
+  const draw=()=>root.render(createElement(PersonNamesProvider,{members},createElement(Host)));
+  await act(async()=>draw());
   const respond=(data,{request=requests.at(-1),status=200}={})=>act(async()=>{
     assert(request,'The reader must make a request before receiving a response.');request.done=true;request.resolve(Response.json(data,{status}));
   });
@@ -71,7 +72,7 @@ async function readerHarness(t,{state={},props={},focusContextChild=false,member
   const click=label=>act(async()=>{const node=button(label);assert(node,`Missing button ${label}; visible text: ${container.textContent}`);node.focus();node.click();});
   const change=(selector,value)=>act(async()=>{const node=container.querySelector(selector);assert(node,`Missing ${selector}`);node.value=value;node.dispatchEvent(new window.Event('change',{bubbles:true}));});
   const updateState=patch=>act(async()=>setState(previous=>({...previous,...patch})));
-  const updateProps=patch=>act(async()=>{currentProps={...currentProps,...patch};root.render(createElement(Host));});
+  const updateProps=patch=>act(async()=>{currentProps={...currentProps,...patch};draw();});
   return {container,requests,respond,button,buttons,click,change,updateState,updateProps,state:()=>currentState,context:()=>lastContext};
 }
 
