@@ -117,3 +117,21 @@ test('history traversal uses the date index and withholds reuse across the 512-r
   const plan=store.db.prepare("EXPLAIN QUERY PLAN SELECT source_id,date,start,participants FROM speech_catalog INDEXED BY speech_catalog_latest WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT') AND date<=? ORDER BY date DESC LIMIT 513").all('2026-10-19');
   assert(plan.some(row=>row.detail.includes('USING INDEX speech_catalog_latest')));
 });
+
+test('incomplete catalogue projection withholds reuse without hiding current supplied labels',t=>{
+  const store=corpus(t);
+  const current=put(store,{day:'2026-10-19',number:3,labels:{bg}});
+  put(store,{day:'2026-10-07',number:1,labels:{bg,en}});
+  const read=id=>store.speechData({sourceIds:[id],language:'en',metadataOnly:true}).records[0].metadata.speakers[0];
+  assert.equal(read(current).roleLabels.en.text,en);
+  const nearer=put(store,{day:'2026-10-14',number:2,labels:{bg:'Председател на Комисията',en:'President of the Commission'}});
+  store.db.prepare('DELETE FROM speech_catalog WHERE source_id=?').run(nearer);
+  assert(store.db.prepare('SELECT 1 FROM speech_catalog_dirty WHERE source_id=?').get(nearer));
+  assert.equal(read(current).roleLabels.en,undefined);
+  assert.equal(read(current).roleSource.historyComplete,false);
+  assert.equal(read(nearer).roleLabels.en.text,'President of the Commission');
+  assert.equal(store.speechMetadata(current).speakers[0].roleLabels.en,undefined);
+  store.projectSpeechCatalog(store.speechMetadata(nearer).activity);
+  assert.equal(read(current).roleSource.historyComplete,true);
+  assert.equal(read(current).roleLabels.en,undefined,'the nearer changed role remains a contradiction after projection completes');
+});

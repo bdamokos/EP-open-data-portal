@@ -50,3 +50,14 @@ test('a history revision clears obsolete reuse despite equal current-speech fetc
   assert.strictEqual(mergeSpeechSpeakers(updated,[old]),updated);
   assert.strictEqual(mergeSpeechSpeakers(updated,[{id:'s1',people:[{...person,roleSource:source}]}]),updated);
 });
+
+test('incomplete history clears prior reuse and rejects its same-revision delayed callback',()=>{
+  const source={speechId:'s1',date:'2026-10-19',url:'https://data.europarl.europa.eu/api/v2/speeches/s1',fetchedAt:'2026-10-22T10:00:00Z',evidenceRevision:10};
+  const old={id:'s1',people:[{...person,roleSource:{...source,historyComplete:true}}]};
+  const pending={id:'s1',people:[{...person,roleLabels:{bg},roleSource:{...source,historyComplete:false}}]};
+  const updated=mergeSpeechSpeakers(mergeSpeechSpeakers({},[old]),[pending]);
+  assert.equal(legislationOffice(detail,updated,'220921','en').text,'Role translation unavailable');
+  assert.strictEqual(mergeSpeechSpeakers(updated,[old]),updated);
+  const finished={id:'s1',people:[{...person,roleSource:{...source,evidenceRevision:11,historyComplete:true}}]};
+  assert.equal(legislationOffice(detail,mergeSpeechSpeakers(updated,[finished]),'220921','en').text,en.text);
+});

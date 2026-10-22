@@ -11,8 +11,9 @@ export function mergeSpeechSpeakers(previous, speeches) {
       const oldRevision=old?.roleSource?.evidenceRevision,newRevision=person.roleSource?.evidenceRevision;
       if(Number.isSafeInteger(oldRevision)&&Number.isSafeInteger(newRevision)&&newRevision<oldRevision)continue;
       if(Number.isSafeInteger(oldRevision)&&!Number.isSafeInteger(newRevision)&&!(newTime>oldTime))continue;
+      if(Number.isSafeInteger(oldRevision)&&newRevision===oldRevision&&old?.roleSource?.historyComplete===false&&person.roleSource?.historyComplete!==false)continue;
       const sameRole=person.role===old?.role&&person.roleLanguage===old?.roleLanguage;
-      const sameEvidence=sameRole&&Number.isSafeInteger(newRevision)&&newRevision===oldRevision;
+      const sameEvidence=sameRole&&Number.isSafeInteger(newRevision)&&newRevision===oldRevision&&person.roleSource?.historyComplete===true&&old?.roleSource?.historyComplete===true;
       const value={name:person.name||old?.name||null,role:old?.role==='Chairing the sitting'?old.role:person.role===undefined?old?.role??null:person.role,
         roleLanguage:person.roleLanguage??(sameRole?old?.roleLanguage:null)??null,
         roleLabels:sameEvidence?{...old?.roleLabels,...person.roleLabels}:person.roleLabels||(sameRole?old?.roleLabels:null)||{},roleSource:person.roleSource||old?.roleSource};

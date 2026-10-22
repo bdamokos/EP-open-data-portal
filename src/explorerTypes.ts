@@ -84,7 +84,7 @@ export interface SpeechSpeaker {
   sittingRole?:'chair';
   nameVariants?:{value:string;script:string|null;language:string|null;source:string}[];
   roleLabels?:Record<string,SpeakerRoleLabel>;
-  roleSource?:{speechId:string;date:string;url:string;fetchedAt:string;evidenceRevision?:number};
+  roleSource?:{speechId:string;date:string;url:string;fetchedAt:string;evidenceRevision?:number;historyComplete?:boolean};
   office?:{code:'president-parliament'|'vice-president-parliament';membershipId:string;start:string;end:string|null}|null;
   identitySources?:{url:string;fetchedAt:string;stale:boolean}[];
   identityIssues?:string[];

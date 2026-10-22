@@ -422,8 +422,9 @@ export class CorpusStore {
   speechRoleTranslations(metadata,language='en',budget={remaining:8}) {
     language ||= 'en';
     if(!metadata||!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_catalog'").get())return metadata;
+    const historyComplete=this.get('resourceIndexes')===1&&!this.db.prepare('SELECT 1 FROM speech_catalog_dirty LIMIT 1').get();
     const speakers=metadata.speakers.map(person=>{
-      if(person.sittingRole==='chair'||person.role==='Chairing the sitting'||!Object.keys(person.roleLabels||{}).length)return person;
+      if(!historyComplete||person.sittingRole==='chair'||person.role==='Chairing the sitting'||!Object.keys(person.roleLabels||{}).length)return person;
       const missing=[...new Set([language,'en'])].filter(lang=>!speakerRoleLabel(person,lang));
       if(!missing.length||budget.remaining--<=0)return person;
       // Bound index traversal as well as returned matches. A cut through a day
@@ -454,7 +455,7 @@ export class CorpusStore {
     });
     const evidenceRevision=this.get('speechReadRevision');
     return {...metadata,speakers:speakers.map(person=>({...person,roleSource:{speechId:metadata.summary.id,date:metadata.summary.date,
-      url:metadata.sourceUrl,fetchedAt:metadata.fetchedAt,...(Number.isSafeInteger(evidenceRevision)?{evidenceRevision}:{})}}))};
+      url:metadata.sourceUrl,fetchedAt:metadata.fetchedAt,historyComplete,...(Number.isSafeInteger(evidenceRevision)?{evidenceRevision}:{})}}))};
   }
   speechData(params){return this.snapshot(()=>this.speechDataSnapshot(params));}
   speechDataSnapshot({sourceIds,language=null,metadataOnly=false}) {
