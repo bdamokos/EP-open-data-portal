@@ -1,3 +1,4 @@
+import {PersonName,PersonNamesProvider} from './PersonName';
 import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
 import {lazyView} from './lazyView';
 import {filterCountry,matchesCountry} from './countries.mjs';
@@ -194,7 +195,7 @@ function AuthorMention({text,authors,lang,anchors,links,marks,notePrefix,offset=
 function CoAuthors({authors,lang,member}:{authors?:CoAuthor[];lang:string;member:number}) {
   const people=linkedCoAuthors(authors);
   if(!people.length)return null;
-  return <details className="explorer-coauthors" lang="en"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id} lang="">{person.id===member ? <strong>{person.name}</strong> : <a href={coAuthorProfileUrl(location.pathname,lang,person.id)}>{person.name}</a>}</li>)}</ul></details>;
+  return <details className="explorer-coauthors" lang="en"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id} lang="">{person.id===member ? <strong><PersonName id={person.id} label={person.name}/></strong> : <a href={coAuthorProfileUrl(location.pathname,lang,person.id)}><PersonName id={person.id} label={person.name}/></a>}</li>)}</ul></details>;
 }
 function PublicationText({ sourceId, member, lang, heading, headingDate, includeAnswers = false,question }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string} }) {
   const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang,sourceId]);
@@ -444,6 +445,10 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   </section>;
 }
 export default function App() {
+  const names=useData<Directory>('directory');
+  return <PersonNamesProvider members={names.data?.members}><AppContent directoryState={names}/></PersonNamesProvider>;
+}
+function AppContent({directoryState}:{directoryState:ReturnType<typeof useData<Directory>>}) {
   const [initial] = useState(() => new URLSearchParams(location.search));
   const [restoration,setRestoration]=useState(0);
   const [lang, setLang] = useState(() => queryLanguage(initial));
@@ -474,7 +479,6 @@ export default function App() {
   // Member and Votes tab navigation add one entry through the URL effect.
   const memberStep=useRef(false);
   const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
-  const directoryState = useData<Directory>(view==='outside'||view==='groups'?null:"directory");
   const directory = directoryState.data;
   const error = directoryState.error;
   const profile = useData<MemberProfile>(!view && member && tab === "profile" ? `profile/${member}` : null);

@@ -1,5 +1,6 @@
 import {useEffect,useId,useRef,useState,type RefObject,type ReactNode} from 'react';
 import {API_ROOT} from './api';
+import {PersonName} from './PersonName';
 import {useData} from './data';
 import {useExplorerParam} from './explorerUrl';
 import {findTextOffsets,parseTextReadKey,searchSnippetParts,searchRangeParts,textReadKey} from './textSearchModel.mjs';
@@ -24,8 +25,8 @@ function Magnifier(){return <svg viewBox="0 0 24 24" fill="none" stroke="current
 function CloseIcon(){return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>;}
 function Excerpt({text}:{text:string}){return <>{searchSnippetParts(text).map((part,i)=>part.match?<mark key={i}>{part.text}</mark>:<span key={i}>{part.text}</span>)}</>;}
 function Attribution({hit}:{hit:Hit}) {
-  const names=hit.people?.map(p=>p.name).filter(Boolean).join(', ');
-  return names?<span>{hit.kind==='answer'?'Answer to a question by ':hit.kind==='question'?'Question by ':'Speaker: '}<span lang="">{names}</span></span>:hit.kind==='answer'?<span>Answering institution’s text · linked question authorship</span>:null;
+  const people=hit.people||[];
+  return people.length?<span>{hit.kind==='answer'?'Answer to a question by ':hit.kind==='question'?'Question by ':'Speaker: '}<span lang="">{people.map((person,index)=><span key={person.id+':'+index}>{index?', ':''}<PersonName id={person.id} label={person.name}/></span>)}</span></span>:hit.kind==='answer'?<span>Answering institution’s text · linked question authorship</span>:null;
 }
 function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity:{sourceId:string;sourceKey:string};query:string;expectedHash?:string;sourceUrl?:string;language:string}) {
   const params=new URLSearchParams({'source-id':identity.sourceId,'source-key':identity.sourceKey});if(query.trim())params.set('q',query);
