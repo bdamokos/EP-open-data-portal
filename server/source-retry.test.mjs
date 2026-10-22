@@ -5,6 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {CorpusStore} from './corpus-store.mjs';
+import {apiFetch} from './activity-index-worker.mjs';
+import {downloadDocxBuffer} from './document-text.mjs';
+import {UpstreamQueue} from './upstream-queue.mjs';
+import https from 'node:https';
+import {EventEmitter} from 'node:events';
 
 for(const Store of [ActivityStore,CorpusStore])test(Store.name+' defers missing sources until due and keeps recovery possible',t=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'source-retry-'));let now=Date.parse('2026-10-22T10:00:00Z');
@@ -27,4 +32,41 @@ for(const Store of [ActivityStore,CorpusStore])test(Store.name+' defers missing 
   if(activity)store.enqueue(generation,'transient','document',{},90);else store.enqueue('transient','speech',{},90);
   store.failTask(next(),Object.assign(new Error('Busy'),{status:503,retryAfter:7200}));
   assert.equal(store.db.prepare('SELECT retry_at FROM tasks WHERE key=?').get('transient').retry_at,now+7200000);
+});
+
+test('API and DOCX response errors retain missing status and long numeric/date retry hints',async t=>{
+  const now=Date.parse('2026-10-22T10:00:00Z'),day=86400000;
+  t.mock.timers.enable({apis:['Date'],now});
+  // Exercise the real response boundaries with stub transports and no queue waits.
+  t.mock.method(UpstreamQueue.prototype,'run',async operation=>operation());
+  let status=404,hint;
+  t.mock.method(globalThis,'fetch',async()=>new Response(null,{status,headers:hint?{'retry-after':hint}:{}}));
+  let drained=0;
+  t.mock.method(https,'get',(_url,_options,callback)=>{
+    queueMicrotask(()=>callback({statusCode:status,headers:hint?{'retry-after':hint}:{},resume(){drained++;}}));
+    return new EventEmitter();
+  });
+  const directory=mkdtempSync(path.join(os.tmpdir(),'source-response-retry-'));
+  const index=new ActivityStore(path.join(directory,'index'),{clock:()=>now});
+  const corpus=new CorpusStore(path.join(directory,'corpus'),{clock:()=>now});
+  t.after(()=>{index.close();corpus.close();rmSync(directory,{recursive:true,force:true});});
+  assert(index.acquire());assert(corpus.acquire());const {generation}=index.beginCycle();
+  let attempts=0;
+  for(status of [404,410])for(hint of [undefined,String(8*day/1000),new Date(now+8*day).toUTCString()]) {
+    const key='missing-'+attempts++;
+    index.enqueue(generation,key,'document',{},90);corpus.enqueue(key,'question',{},90);
+    const delay=hint?8*day:3600000;
+    for(const [download,store,task] of [
+      [()=>apiFetch('/parliamentary-questions/E-10-2026-004060'),index,index.nextTask(generation)],
+      [()=>downloadDocxBuffer('https://data.europarl.europa.eu/distribution/test/missing.docx'),corpus,corpus.nextTask()],
+    ]) {
+      await assert.rejects(download(),error=>{
+        assert.equal(error.status,status);assert.equal(error.retryAfter,hint?8*day/1000:0);
+        store.failTask(task,error);
+        assert.equal(store.db.prepare('SELECT retry_at FROM tasks WHERE key=?').get(key).retry_at,now+delay);
+        return true;
+      });
+    }
+  }
+  assert.equal(drained,6,'every failed HTTPS response is drained without reading a document');
 });

@@ -117,7 +117,8 @@ export function recordTaskGap(worker,task,error) {
   // Pre-policy pending feeds carry only their endpoint. Pin their interval
   // before an incomplete publication advances the global successful-run date.
   if(task.kind==='feed' && !task.body.start)task={...task,body:{...task.body,start:feedStart(worker.store,now)}};
-  const retryAt=now+Math.max(Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):(task.kind==='motion-outcomes' && localDay(now)<sittingConfirmationDay(task.body.sittingId)?6*60*60_000:7*DAY));
+  const correcting=task.kind==='motion-outcomes' && localDay(now)<sittingConfirmationDay(task.body.sittingId);
+  const retryAt=now+Math.max(Number(error.retryAfter || 0)*1000,sourceMissing(error)?Math.max(missingSourceDelay(task.attempts),correcting?6*60*60_000:0):(correcting?6*60*60_000:7*DAY));
   worker.store.transaction(()=>{
     worker.store.finishTask(task);
     worker.store.db.prepare('INSERT OR REPLACE INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(task.generation,task.key,task.kind,JSON.stringify(task.body),task.priority,String(error.message).slice(0,350),task.attempts+1,new Date(now).toISOString(),retryAt,task.body.sittingId || null);
