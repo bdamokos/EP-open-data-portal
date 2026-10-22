@@ -1,0 +1,104 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {deflateRawSync} from 'node:zlib';
+import {docxContent,documentFormatting} from './document-text.mjs';
+
+function zip(document,extra={}) {
+  const locals=[],centrals=[],entries=Object.entries({'word/document.xml':document,...extra});let offset=0;
+  for(const [file,xml] of entries) {
+    const name=Buffer.from(file),body=Buffer.from(xml),compressed=deflateRawSync(body),local=Buffer.alloc(30),central=Buffer.alloc(46);
+    local.writeUInt32LE(0x04034b50);local.writeUInt16LE(8,8);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(name.length,26);
+    central.writeUInt32LE(0x02014b50);central.writeUInt16LE(8,10);central.writeUInt32LE(compressed.length,20);central.writeUInt32LE(body.length,24);central.writeUInt16LE(name.length,28);central.writeUInt32LE(offset,42);
+    locals.push(local,name,compressed);centrals.push(central,name);offset+=30+name.length+compressed.length;
+  }
+  const directory=Buffer.concat(centrals),end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(entries.length,8);end.writeUInt16LE(entries.length,10);end.writeUInt32LE(directory.length,12);end.writeUInt32LE(offset,16);
+  return Buffer.concat([...locals,directory,end]);
+}
+const doc=body=>`<w:document xmlns:w="urn:word" xmlns:r="urn:rel"><w:body>${body}</w:body></w:document>`;
+const run=(text,properties='')=>`<w:r>${properties?`<w:rPr>${properties}</w:rPr>`:''}<w:t xml:space="preserve">${text}</w:t></w:r>`;
+const styles=`<w:styles xmlns:w="urn:word">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:rPr><w:sz w:val="24"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="NormalBold"><w:basedOn w:val="Normal"/><w:rPr><w:b/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="DocType"><w:basedOn w:val="NormalBold"/><w:pPr><w:jc w:val="center"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:sz w:val="48"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Hanging"><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="567" w:hanging="567"/></w:pPr></w:style>
+  <w:style w:type="character" w:styleId="Strong"><w:rPr><w:b/></w:rPr></w:style>
+  <w:style w:type="table" w:styleId="Grid"><w:tblPr><w:tblBorders><w:top w:val="single"/></w:tblBorders></w:tblPr></w:style>
+</w:styles>`;
+
+test('paragraph styles, character toggles and direct emphasis are recorded beside unchanged text',()=>{
+  const xml=doc(`<w:p><w:pPr><w:pStyle w:val="DocType"/></w:pPr>${run('MOTION')}</w:p>`
+    +`<w:p><w:pPr><w:pStyle w:val="Hanging"/></w:pPr>${run('A.')}<w:r><w:tab/></w:r>${run('plain ')}${run('italic','<w:i/>')}${run(' strong','<w:rStyle w:val="Strong"/>')}${run('2','<w:vertAlign w:val="superscript"/>')}</w:p>`
+    +`<w:p><w:pPr><w:pStyle w:val="NormalBold"/></w:pPr>${run('bold ')}${run('toggled off','<w:rStyle w:val="Strong"/>')}${run(' direct off','<w:b w:val="0"/>')}</w:p>`
+    +`<w:p><w:pPr><w:jc w:val="both"/><w:ind w:firstLine="480"/></w:pPr>${run('small','<w:sz w:val="18"/><w:u w:val="single"/>')}</w:p>`);
+  const result=docxContent(zip(xml,{'word/styles.xml':styles}));
+  assert.deepEqual(result.paragraphs,['MOTION','A.\tplain italic strong2','bold toggled off direct off','small']);
+  assert.deepEqual(result.paragraphFormats,[
+    {align:'center',heading:1,size:'xl',marks:[{start:0,end:6,kind:'bold'}]},
+    {indent:2.36,hanging:2.36,marks:[{start:15,end:22,kind:'bold'},{start:9,end:15,kind:'italic'},{start:22,end:23,kind:'superscript'}].sort((a,b)=>a.start-b.start)},
+    {marks:[{start:0,end:5,kind:'bold'}]},
+    {align:'justify',firstLine:2,size:'sm',marks:[{start:0,end:5,kind:'underline'}]},
+  ]);
+  assert.equal(documentFormatting(result).formatStatus,'extracted');
+});
+
+test('outer tables keep exact paragraph ranges, merged cells and border state; nested tables stay in their cell',()=>{
+  const cell=(content,properties='')=>`<w:tc>${properties?`<w:tcPr>${properties}</w:tcPr>`:''}${content}</w:tc>`,p=text=>`<w:p>${run(text)}</w:p>`;
+  const nested=`<w:tbl><w:tr>${cell(p('Inner'))}</w:tr></w:tbl>`;
+  const bordered=`<w:tbl><w:tblPr><w:tblStyle w:val="Grid"/></w:tblPr><w:tr>${cell(p('Head'),'<w:gridSpan w:val="2"/>')}</w:tr><w:tr>${cell(p('Left'),'<w:vMerge w:val="restart"/>')}${cell(p('Right')+nested)}</w:tr><w:tr>${cell('<w:p/>','<w:vMerge/>')}${cell('<w:p/>')}</w:tr></w:tbl>`;
+  const layout=`<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single"/></w:tblBorders></w:tblPr><w:tr>${cell(p('Logo'),'<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/></w:tcBorders>')}</w:tr></w:tbl>`;
+  const result=docxContent(zip(doc(p('Before')+bordered+p('Between')+layout+`<w:tbl><w:tr>${cell('<w:p/>')}</w:tr></w:tbl>`),{'word/styles.xml':styles}));
+  assert.deepEqual(result.paragraphs,['Before','Head','Left','Right','Inner','Between','Logo']);
+  assert.deepEqual(result.tables,[
+    {rows:[[{start:1,end:2,colSpan:2}],[{start:2,end:3,rowSpan:2},{start:3,end:5}],[{start:5,end:5}]],bordered:true},
+    {rows:[[{start:6,end:7}]]},
+  ],'an empty table is not laid out; borders cleared on every cell leave a layout table');
+});
+
+test('invalid or outdated formatting records are not presented',()=>{
+  const record={formattingVersion:1,paragraphs:['Short'],paragraphFormats:[{marks:[{start:0,end:9,kind:'bold'}]}],tables:[]};
+  assert.equal(documentFormatting(record).formatStatus,'not-extracted');
+  assert.equal(documentFormatting({...record,paragraphFormats:[{}],formattingVersion:0}).formatStatus,'not-extracted');
+  assert.equal(documentFormatting({...record,paragraphFormats:[{}],tables:[{rows:[[{start:0,end:2}]]}]}).formatStatus,'not-extracted');
+  assert.equal(documentFormatting({...record,paragraphFormats:[{align:'center'}]}).formatStatus,'extracted');
+});
+
+test('a toggle repeated down a basedOn chain cancels, and an explicit off leaves it unchanged',()=>{
+  const chain=`<w:styles xmlns:w="urn:word"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"/>
+    <w:style w:type="paragraph" w:styleId="Base"><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:i/></w:rPr></w:style>
+    <w:style w:type="paragraph" w:styleId="Again"><w:basedOn w:val="Base"/><w:rPr><w:b/><w:i/></w:rPr></w:style>
+    <w:style w:type="paragraph" w:styleId="Off"><w:basedOn w:val="Base"/><w:rPr><w:b w:val="0"/></w:rPr></w:style></w:styles>`;
+  const para=(style,text,properties='')=>`<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr>${run(text,properties)}</w:p>`;
+  const result=docxContent(zip(doc(para('Again','plain')+para('Off','still bold')+para('Again','direct','<w:b/>')),{'word/styles.xml':chain}));
+  assert.deepEqual(result.paragraphFormats,[{},{marks:[{start:0,end:10,kind:'bold'},{start:0,end:10,kind:'italic'}]},{marks:[{start:0,end:6,kind:'bold'}]}]);
+});
+
+test('omitted grid columns before a row become an empty gap cell',()=>{
+  const cell=text=>`<w:tc><w:p>${run(text)}</w:p></w:tc>`;
+  const xml=doc(`<w:tbl><w:tr>${cell('A')}${cell('B')}</w:tr><w:tr><w:trPr><w:gridBefore w:val="1"/></w:trPr>${cell('C')}</w:tr></w:tbl>`);
+  const result=docxContent(zip(xml,{'word/styles.xml':styles}));
+  assert.deepEqual(result.tables,[{rows:[[{start:0,end:1},{start:1,end:2}],[{start:2,end:2,gap:true},{start:2,end:3}]]}]);
+  assert.equal(documentFormatting(result).formatStatus,'extracted');
+});
+
+test('double strike resolves as its own toggle, so a direct off clears an inherited one',()=>{
+  const struck=`<w:styles xmlns:w="urn:word"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"/><w:style w:type="paragraph" w:styleId="Struck"><w:rPr><w:dstrike/></w:rPr></w:style></w:styles>`;
+  const xml=doc(`<w:p><w:pPr><w:pStyle w:val="Struck"/></w:pPr>${run('gone ')}${run('kept','<w:dstrike w:val="0"/>')}</w:p><w:p>${run('single','<w:strike/>')}</w:p>`);
+  assert.deepEqual(docxContent(zip(xml,{'word/styles.xml':struck})).paragraphFormats,[{marks:[{start:0,end:5,kind:'strike'}]},{marks:[{start:0,end:6,kind:'strike'}]}]);
+});
+
+test('cell borders draw rules without table borders, and cleared cells keep a layout table unruled',()=>{
+  const sides=value=>['top','left','bottom','right'].map(side=>`<w:${side} w:val="${value}"/>`).join('');
+  const cell=(text,borders)=>`<w:tc><w:tcPr><w:tcBorders>${borders}</w:tcBorders></w:tcPr><w:p>${run(text)}</w:p></w:tc>`;
+  const xml=doc(`<w:tbl><w:tr>${cell('Ruled',sides('single'))}</w:tr></w:tbl><w:tbl><w:tr>${cell('Plain',sides('nil'))}</w:tr></w:tbl>`);
+  assert.deepEqual(docxContent(zip(xml,{'word/styles.xml':styles})).tables,[{rows:[[{start:0,end:1}]],bordered:true},{rows:[[{start:1,end:2}]]}]);
+});
+
+test('an unstyled run uses the default character style, and direct off clears only its own toggle',()=>{
+  const defaults=`<w:styles xmlns:w="urn:word"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"/><w:style w:type="character" w:default="1" w:styleId="Emphasis"><w:rPr><w:b/><w:i/><w:u w:val="single"/></w:rPr></w:style><w:style w:type="character" w:styleId="Plain"/></w:styles>`;
+  const xml=doc(`<w:p>${run('Body')}</w:p><w:p>${run('Less','<w:b w:val="0"/>')}</w:p><w:p>${run('None','<w:rStyle w:val="Plain"/>')}</w:p>`);
+  assert.deepEqual(docxContent(zip(xml,{'word/styles.xml':defaults})).paragraphFormats,[
+    {marks:[{start:0,end:4,kind:'bold'},{start:0,end:4,kind:'italic'},{start:0,end:4,kind:'underline'}]},
+    {marks:[{start:0,end:4,kind:'italic'},{start:0,end:4,kind:'underline'}]},
+    {},
+  ]);
+});

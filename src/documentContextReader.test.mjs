@@ -551,3 +551,65 @@ test('partial proposal splice keeps links and note anchors in unchanged and chan
   assert(block.previousElementSibling.textContent.includes('Keep before.'));assert.equal(block.nextElementSibling.textContent,' Keep after.');
   assert(block.querySelector('a[href="https://example.test/source"]'));assert(block.querySelector('sup'));assert(h.container.textContent.includes('Source note.'));
 });
+
+test('recorded formatting styles paragraphs, emphasis and tables without moving text, notes or targets',async t=>{
+  const paragraphs=['MOTION FOR A RESOLUTION','A.\twhereas bold text has a note;','Cell one','Cell two','Exact target passage.'];
+  const h=await harness(t,()=>response(report,sourceDocument(report,paragraphs,{
+    noteAnchors:[{paragraph:1,offset:32,note:'1',label:'1'}],notes:[{id:'1',label:'1',text:'Source note.',links:[]}],
+    formatStatus:'extracted',tables:[{rows:[[{start:2,end:3},{start:3,end:4}],[{start:4,end:5,colSpan:2}]],bordered:true}],
+    paragraphFormats:[{align:'center',size:'xl',heading:1,marks:[{start:0,end:6,kind:'bold'}]},{indent:2.36,hanging:2.36,marks:[{start:11,end:15,kind:'bold'},{start:16,end:20,kind:'italic'}]},{},{},{}],
+  }),{target:{...target,paragraphs:[4]},amendment:amendmentSource}));
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'en'});
+  const title=h.container.querySelector('[data-source-paragraph="0"]');
+  assert.equal(title.getAttribute('role'),'heading');assert.equal(title.getAttribute('aria-level'),'4');
+  assert(title.classList.contains('doc-align-center')&&title.classList.contains('doc-size-xl'));
+  assert.equal(title.querySelector('b').textContent,'MOTION');assert.equal(title.textContent,paragraphs[0]);
+  const recital=h.container.querySelector('[data-source-paragraph="1"]');
+  assert.equal(recital.querySelector('.doc-label').textContent,'A.\t');
+  assert.equal(recital.querySelector('b').textContent,'bold');assert.equal(recital.querySelector('i').textContent,'text');
+  assert.equal(recital.textContent,paragraphs[1]+'1','text is unchanged and the note mark stays at its offset');
+  assert.equal(recital.lastChild.nodeName,'SUP');
+  const table=h.container.querySelector('table.doc-table-bordered');
+  assert.deepEqual([...table.querySelectorAll('tr')].map(row=>[...row.cells].map(cell=>cell.textContent)),[['Cell one','Cell two'],['Exact target passage.']]);
+  assert.equal(table.querySelector('td[colspan="2"] [data-context-target="true"]').dataset.sourceParagraph,'4');
+});
+
+test('formatting that does not match the paragraphs is ignored',async t=>{
+  const h=await harness(t,()=>response(report,sourceDocument(report,['Plain one.','Plain two.'],{formatStatus:'extracted',paragraphFormats:[{align:'center'}],tables:[]})));
+  await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(h.container.querySelectorAll('.doc-align-center').length,0);
+  assert.equal(h.container.querySelector('[data-source-paragraph="0"]').textContent,'Plain one.');
+});
+
+test('a note anchored just before an unresolved object stays visible with formatting',async t=>{
+  const paragraph='Before￼ after.';
+  const h=await harness(t,()=>response(report,sourceDocument(report,[paragraph],{
+    documentObjects:[{paragraph:0,offset:6,path:'document/p/1/r/1/drawing',kind:'drawing',status:'unresolved'}],
+    notes:[{id:'1',label:'1',text:'Exact source note.',links:[]}],noteAnchors:[{paragraph:0,offset:6,note:'1',label:'1'}],
+    formatStatus:'extracted',paragraphFormats:[{marks:[{start:0,end:6,kind:'italic'}]}],tables:[],
+  })));
+  await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
+  const p=h.container.querySelector('[data-source-paragraph="0"]');
+  assert.equal(p.querySelector('i').textContent,'Before');
+  const mark=p.querySelector('sup.legal-note-mark'),object=p.querySelector('.document-context-object');
+  assert(mark,'the note marker is rendered');assert(mark.compareDocumentPosition(object)&h.window.Node.DOCUMENT_POSITION_FOLLOWING,'the marker precedes the object placeholder');
+});
+
+
+test('overlays preserve surrounding paragraph formatting and complete source tables',async t=>{
+  for(const operation of ['insert','replace','delete','unresolved'])await t.test(operation,async t=>{
+    const data=overlayResponse({operation:operation==='unresolved'?'insert':operation,status:operation==='unresolved'?'unresolved':'placed',reason:operation==='unresolved'?'resolution_extent_uncertain':undefined,span:operation==='replace'||operation==='delete'?{start:1,end:2}:undefined});
+    const text=data.document.selectedText;
+    text.paragraphs.push('Cell one','Cell two');
+    Object.assign(text,{formatStatus:'extracted',paragraphFormats:[{heading:1,marks:[{start:0,end:3,kind:'bold'}]},{indent:2,hanging:2},{},{marks:[{start:4,end:13,kind:'italic'}]},{},{}],tables:[{rows:[[{start:4,end:5},{start:5,end:6}]],bordered:true}]});
+    const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+    const reader=h.container.querySelector('.document-context-text'),block=reader.querySelector('[data-amendment-block]');assert(block);
+    assert.equal(reader.querySelector('[data-source-paragraph="0"]').getAttribute('role'),'heading');
+    assert.equal(reader.querySelector('[data-source-paragraph="0"] b').textContent,'The');
+    assert.equal(reader.querySelector('[data-source-paragraph="3"] i').textContent,'Following');
+    assert.deepEqual([...reader.querySelectorAll('table.doc-table-bordered td')].map(cell=>cell.textContent),['Cell one','Cell two']);
+    if(operation==='insert')assert.equal(block.previousElementSibling.dataset.sourceParagraph,'2');
+    if(operation==='replace'||operation==='delete')assert.equal(reader.querySelector('[data-source-paragraph="1"],[data-source-paragraph="2"]'),null);
+    if(operation==='unresolved')assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
+  });
+});
