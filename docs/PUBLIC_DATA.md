@@ -46,6 +46,8 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 
 ### Current member directory
 
+Member lists sort by the displayed full surname (including particles such as “del”), then given name, using fixed English collation with accents significant and case ignored. Numeric member ID breaks ties. The EP `sortLabel` is retained as source metadata but is not an ordering key: it can concatenate surname and first initial without a separator. The Members wall, its country/group/committee filters and the amendment author picker share this ordering; Following keeps its saved-item order.
+
 The directory exposes the current roster and exact committee catalogue identifiers before optional detail reads finish. Retained multilingual names and source freshness remain available; missing names fall back to exact committee codes. Committee filters show known members with explicit incomplete coverage until all current profiles are available. Membership retries read missing profile IDs only.
 
 Profiles show role periods only for committees the member currently belongs to. The MEP API supplies each role and its dates; corporate-body `isVersionOf` relationships connect temporal versions of the same committee, including midterm reconstitutions. Matching names or abbreviations never establish continuity. Consecutive, non-overlapping periods of the same role and classification are combined for display; role changes, gaps, unknown dates and conflicting roles remain separate. Original membership IDs, body IDs, periods and source retrieval dates remain in the profile response. Older periods can span legislative terms; their dates describe service in that committee, not a new appointment inferred from a midterm boundary.

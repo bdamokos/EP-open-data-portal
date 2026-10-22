@@ -1,5 +1,6 @@
 import {Fragment,useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
 import {selectLanguageText} from './language.mjs';
+import {compareMembers} from './memberOrder.mjs';
 import {useData} from './data';
 import {useExplorerParam} from './explorerUrl';
 import {InsightShell,insightMemberHref} from './InsightShared';
@@ -219,7 +220,7 @@ export function AmendmentsPage(props:InsightProps) {
   const [offset,setOffset]=useExplorerParam<number>('am-offset',0);
   const [draft,setDraft]=useState({document,procedure,member});
   const directory=useData<Directory>('directory');
-  const authors=useMemo(()=>[...(directory.data?.members||[])].sort((a,b)=>a.lastName.localeCompare(b.lastName,language)||a.firstName.localeCompare(b.firstName,language)),[directory.data,language]);
+  const authors=useMemo(()=>[...(directory.data?.members||[])].sort(compareMembers),[directory.data]);
   const selectedAuthor=authors.find(person=>String(person.id)===member);
   useEffect(()=>setDraft({document,procedure,member}),[document,procedure,member]);
   return <InsightShell {...props} view="amendments" title="Amendments" description="Follow proposed changes, their authors and Parliament’s decisions.">
