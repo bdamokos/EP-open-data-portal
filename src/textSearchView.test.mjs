@@ -53,6 +53,16 @@ async function setup(t,{query='',respond,highlights=false}={}) {
   return {...module,window,root,container,calls,registry,render,find,button,click,flushFrames,input,select,submit,searches,texts,loadModule:path=>vite.ssrLoadModule(path)};
 }
 
+test('search coverage stays partial independently of unavailable corpus status',async t=>{
+  const view=await setup(t,{query:'fixture-fts-search=energy',respond:({url})=>{
+    if(url.pathname.endsWith('/corpus/status'))return Response.json({error:{code:'corpus_status_timeout',message:'Corpus status is temporarily unavailable.'}},{status:503});
+  }});
+  await view.render();
+  assert.match(view.find('.explorer-search-count').textContent,/1 matching document · Partial text coverage/);
+  assert.equal(view.calls.some(call=>call.url.pathname.endsWith('/corpus/status')),false,'search does not turn unavailable global counts into zero coverage');
+  assert.equal(view.container.querySelector('[role="alert"]'),null);
+});
+
 test('text search stays collapsed without requests, opens with focus, and posts exact context including an empty scope',async t=>{
   const view=await setup(t),scope={member:42,country:'IT',from:'2026-10-01',to:'2026-10-11',sourceIds:[speech,otherSpeech],kinds:['speech'],group:'document',dateBasis:'document'};
   await view.render(scope);

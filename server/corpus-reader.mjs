@@ -7,17 +7,21 @@ import {cachedSpeakerIdentities} from './odp.mjs';
 // connection off the API thread; allow one query at a time and terminate slow
 // readers so broad searches cannot queue unbounded work or delay writer leases.
 export class CorpusReader {
-  constructor(directory,{indexFile=null,timeoutMs=5000}={}) {
-    Object.assign(this,{directory,indexFile,timeoutMs});this.busy=false;
+  constructor(directory,{indexFile=null,timeoutMs=5000,statusTimeoutMs=6500}={}) {
+    Object.assign(this,{directory,indexFile,timeoutMs,statusTimeoutMs});this.busy=false;
   }
   async query(operation,params) {
     if(this.busy)throw new HttpError(503,'corpus_busy','A corpus query is already running. Please retry shortly.');
     this.busy=true;
+    // Cold count scans get a little more time, within the client's 8 s bound.
+    const timeoutMs=operation==='status'?Math.max(this.timeoutMs,this.statusTimeoutMs):this.timeoutMs;
     let worker,timer,timedOut=false;
     try {
-      worker=new Worker(new URL(import.meta.url),{workerData:{directory:this.directory,indexFile:this.indexFile,operation,params,deadlineMs:Date.now()+this.timeoutMs}});
+      worker=new Worker(new URL(import.meta.url),{workerData:{directory:this.directory,indexFile:this.indexFile,operation,params,deadlineMs:Date.now()+timeoutMs}});
       return await new Promise((resolve,reject)=>{
-        timer=setTimeout(()=>{timedOut=true;reject(new HttpError(503,'corpus_query_timeout','The corpus query took too long. Try fewer words or narrower filters.'));},this.timeoutMs);
+        timer=setTimeout(()=>{timedOut=true;reject(operation==='status'
+          ?new HttpError(503,'corpus_status_timeout','Corpus status is temporarily unavailable. It may still be warming up. Coverage is unknown; please retry shortly.')
+          :new HttpError(503,'corpus_query_timeout','The corpus query took too long. Try fewer words or narrower filters.'));},timeoutMs);
         worker.once('message',message=>message.error?reject(new Error(message.error)):resolve(message.result));
         worker.once('error',reject);
         worker.once('exit',code=>reject(new Error(`Corpus reader exited before returning a result (${code}).`)));
