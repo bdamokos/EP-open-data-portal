@@ -14,7 +14,10 @@ for(const [index,mode] of ['admission','cooldown'].entries())test(`ODP local ${m
   const id=987650+index,endpoint='/meps/'+id;let calls=0,phase='seed',finish,reached;
   const started=new Promise(resolve=>reached=resolve);
   const response=label=>Response.json({data:[{identifier:String(id),givenName:label,familyName:'Member'}]});
-  t.mock.method(globalThis,'fetch',async()=>{
+  t.mock.method(globalThis,'fetch',async url=>{
+    // Roster enrichment is independent of the person admission/recovery counts.
+    if(new URL(url).pathname==='/api/v2/meps/show-current')return Response.json({data:[]});
+    assert.equal(new URL(url).pathname,'/api/v2'+endpoint);
     calls++;
     if(phase==='recovery')return new Promise(resolve=>{finish=()=>resolve(response('refreshed'));reached();});
     return phase==='failure'?new Response(null,{status:500}):response('saved');
