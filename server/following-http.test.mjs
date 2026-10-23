@@ -49,8 +49,8 @@ test('following and saved POST transports validate, version, cache and revalidat
     const r=await read(route);assert.equal(r.status,400,route);noStore(r);
   }
   const post=(body,route='saved?lang=fr&v='+API_VERSION,headers={})=>read(route,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:typeof body==='string'?body:JSON.stringify(body)});
-  const posted=await post({questions:[id]});assert.equal(posted.status,200);noStore(posted);assert.equal(posted.body.questions[0].title,'Français');assert.deepEqual(posted.body.members,[]);
-  const legacy=await read('saved?questions='+id+'&members=42&lang=fr&v='+API_VERSION);assert.equal(legacy.status,200);assert.deepEqual(posted.body.questions,legacy.body.questions);assert.equal(legacy.body.members.length,1);
+  const posted=await post({questions:[id]});assert.equal(posted.status,200);noStore(posted);assert.equal(posted.body.questions[0].title,'Français');assert.equal(posted.body.members,undefined);
+  const legacy=await read('saved?questions='+id+'&lang=fr&v='+API_VERSION);assert.equal(legacy.status,200);assert.deepEqual(posted.body.questions,legacy.body.questions);assert.equal((await read('saved?members=42&v='+API_VERSION)).status,400);
   assert.equal((await post({questions:[]})).status,200);
   assert.equal((await post({questions:Array.from({length:100},(_,i)=>'E-10-2026-'+String(i).padStart(6,'0'))})).status,200);
   for(const body of [null,[],{}, {questions:null},{questions:[id,id]},{questions:['../../x']},{questions:[1]},{questions:[id],members:['42']},{questions:Array.from({length:101},(_,i)=>'E-10-2026-'+String(i).padStart(6,'0'))}]) {

@@ -70,6 +70,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
     if(route?.startsWith('latest-activities/'))return Response.json(page(items));
     if(route?.startsWith('speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(route==='insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
+    if(route==='insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
     if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
     if(route?.startsWith('speech/')) {
@@ -185,7 +186,7 @@ for(const language of ['en','hu','fr']) {
         // OPEN: this existing flat name mixes English with a localized date.
         const answerSelect=answer.querySelector('select');assert.equal(answerSelect.getAttribute('aria-label'),answerHeading+' language');assert.equal(effectiveLanguage(answerSelect),'en');
         await h.click(save);
-        const saved=JSON.parse(h.window.localStorage.getItem('ep.bookmarks.v1')).items[0];
+        const saved=JSON.parse(h.window.localStorage.getItem('ep.following.v2')).items[0];
         assert.equal(saved.id,questionId);assert.equal(saved.title,questions[0].title);assert.equal(saved.titleLanguage,'fr');assert.deepEqual(saved.baseline.answerIds,[]);
       }
     }

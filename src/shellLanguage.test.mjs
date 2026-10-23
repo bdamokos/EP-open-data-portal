@@ -76,8 +76,8 @@ for(const locale of ['en','hu','fr'])test(`English shell and Following preserve 
   assert.equal(save.hasAttribute('aria-labelledby'),false,'the native button keeps its existing naming mechanism');
   const before=JSON.parse(window.localStorage.getItem('ep.bookmarks.v1'));
   await h.click(links[0]);
-  const after=JSON.parse(window.localStorage.getItem('ep.bookmarks.v1'));
-  assert.equal(after.version,1);assert.deepEqual(after.items.map(x=>x.id),before.items.map(x=>x.id));
+  const after=JSON.parse(window.localStorage.getItem('ep.following.v2'));
+  assert.equal(after.version,2);assert.deepEqual(after.items.map(x=>x.id),before.items.map(x=>x.id));
   assert(after.items[1].newAnswer);assert.equal(after.items[0].unreadAnswers.length,0);
 });
 

@@ -18,6 +18,7 @@ function fixture(url) {
   if(route?.startsWith('latest-activities/'))return activities;
   if(route?.startsWith('speech-statistics/'))return {items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null};
   if(route==='insights/speech-cloud')return {scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null};
+  if(route==='insights/following-status')return {epoch:'test',generation:1,marksReady:false,indexComplete:false};
   if(route==='insights/saved')return {members:[],questions:[]};
   if(route==='insights/legislation')return legislation;
   if(route?.startsWith('document/'))return {selectedDocumentId:decodeURIComponent(route.slice(9)),files:[],answers:[],selectedText:{status:'available',paragraphs:['Document fixture text'],textLanguage:url.searchParams.get('lang'),availableTextLanguages:['en','fr']}};
