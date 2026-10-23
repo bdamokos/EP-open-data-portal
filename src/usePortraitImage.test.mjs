@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement, act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('priority changes preserve requests and decoded portraits, and can start a waiting portrait', async t => {
   const window = new Window({url: 'http://localhost/'});
@@ -19,22 +19,21 @@ test('priority changes preserve requests and decoded portraits, and can start a 
   const globals = {window, document: window.document, HTMLElement: window.HTMLElement, IntersectionObserver: Observer, IS_REACT_ACT_ENVIRONMENT: true};
   const originals = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, {value, configurable: true, writable: true});
-  let vite, root, nextBlob = 0;
+  let loadModule, root, nextBlob = 0;
   t.after(async () => {
     if (root) await act(async () => root.unmount());
-    if (vite) await vite.close();
     await window.happyDOM.close();
     for (const [key, descriptor] of originals) descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key];
   });
   t.mock.method(URL, 'createObjectURL', () => `blob:portrait-${++nextBlob}`);
   t.mock.method(URL, 'revokeObjectURL', url => revoked.push(url));
-  vite = await createServer({configFile: false, server: {middlewareMode: true, hmr: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
-  const {portraitLoader} = await vite.ssrLoadModule('/src/portraitLoader.mjs');
+  loadModule = await freshLoader(t,{configFile: false, server: {middlewareMode: true, hmr: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
+  const {portraitLoader} = await loadModule('/src/portraitLoader.mjs');
   t.mock.method(portraitLoader, 'load', (url, {signal, priority}) => {
     const priorities = [priority];
     return Object.assign(new Promise(resolve => requests.push({url, signal, resolve, priorities})), {setPriority: value => priorities.push(value)});
   });
-  const {usePortraitImage} = await vite.ssrLoadModule('/src/usePortraitImage.ts');
+  const {usePortraitImage} = await loadModule('/src/usePortraitImage.ts');
   function Portrait({url, lazy}) {
     const image = usePortraitImage(url, '/placeholder.svg', lazy);
     return createElement('img', {ref: image.imageRef, src: image.src, onLoad: image.onLoad, 'data-status': image.status});

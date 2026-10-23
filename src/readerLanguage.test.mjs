@@ -3,7 +3,7 @@ import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createElement as el,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const languages=['en','hu','fr'];
 const effectiveLanguage=element=>element.closest('[lang]')?.getAttribute('lang');
@@ -81,8 +81,8 @@ async function harness(t,respond) {
   const globals={window,document:window.document,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,matchMedia:()=>({matches:true}),requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){scrolls.push({element:this,options});});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1];
@@ -90,8 +90,8 @@ async function harness(t,respond) {
     const data=respond(route,url.searchParams);assert.notEqual(data,undefined,'Unexpected fixture request: '+route+url.search);
     return Response.json(data);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const [readers,references,cloud,procedure]=await Promise.all(['/src/InsightReaders.tsx','/src/References.tsx','/src/SpeechCloud.tsx','/src/ProcedureContext.tsx'].map(path=>vite.ssrLoadModule(path)));
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const [readers,references,cloud,procedure]=await Promise.all(['/src/InsightReaders.tsx','/src/References.tsx','/src/SpeechCloud.tsx','/src/ProcedureContext.tsx'].map(path=>loadModule(path)));
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const settle=(delay=10)=>act(async()=>new Promise(resolve=>setTimeout(resolve,delay)));

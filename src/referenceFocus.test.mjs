@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {contrast,paintedBackground,schemes,themeCss,tokenValue} from './test-support/themeStyles.mjs';
 
 const first='E-10-2026-003031',second='E-10-2026-003032';
@@ -17,8 +17,8 @@ async function reader(t,{heading=true,citationInNotes=false}={}) {
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,matchMedia:()=>({matches:true}),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of requests)if(!request.finished)request.resolve(Response.json({}));if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of requests)if(!request.finished)request.resolve(Response.json({}));await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){scrolls.push({element:this,options});});
   t.mock.method(globalThis,'fetch',input=>{
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1]+url.search;
@@ -26,9 +26,9 @@ async function reader(t,{heading=true,citationInNotes=false}={}) {
     assert.match(route,/^document\//,'focus fixtures must never contact unrelated services');
     return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {ReferenceScope,ReferenceText,DocumentNotes}=await vite.ssrLoadModule('/src/References.tsx');
-  const {InsightQuestionReader}=await vite.ssrLoadModule('/src/InsightReaders.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {ReferenceScope,ReferenceText,DocumentNotes}=await loadModule('/src/References.tsx');
+  const {InsightQuestionReader}=await loadModule('/src/InsightReaders.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const notes=citationInNotes?[{id:'1',label:'1',text,links:[]}]:[];

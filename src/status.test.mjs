@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const wait=(ms=30)=>act(async()=>{await new Promise(resolve=>setTimeout(resolve,ms));});
 async function harness(t,query='',respond=()=>{throw Error('Unexpected request');}) {
@@ -12,16 +12,16 @@ async function harness(t,query='',respond=()=>{throw Error('Unexpected request')
     IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1280,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let root,vite;
-  t.after(async()=>{t.mock.timers.reset();if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let root,loadModule;
+  t.after(async()=>{t.mock.timers.reset();if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async input=>Response.json(await respond(new URL(input,location.href))));
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   // Status debounces with the global setTimeout. Fake it only after Vite has
   // loaded the module; happy-dom keeps its own real timers and microtask delivery.
   const tick=ms=>act(async()=>{t.mock.timers.tick(ms);});
-  const load=async path=>{const module=await vite.ssrLoadModule(path);if(path==='/src/Status.tsx')t.mock.timers.enable({apis:['setTimeout']});return module;};
+  const load=async path=>{const module=await loadModule(path);if(path==='/src/Status.tsx')t.mock.timers.enable({apis:['setTimeout']});return module;};
   return {window,container,load,tick,render:node=>act(async()=>root.render(node)),unmount:()=>act(async()=>root.unmount())};
 }
 

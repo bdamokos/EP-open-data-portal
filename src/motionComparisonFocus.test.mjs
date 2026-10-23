@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const pair={originalId:'B-10-2026-0441',jointId:'RC-10-2026-0441'};
 const body='Distinctive source passage that must never become a live announcement.';
@@ -19,11 +19,11 @@ async function harness(t,initial={}) {
   const globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const request of requests)if(!request.finished){request.finished=true;request.resolve(Response.json({}));}
-    await Promise.resolve();if(vite)await vite.close();await window.happyDOM.close();
+    await Promise.resolve();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   t.mock.method(globalThis,'fetch',input=>{
@@ -31,8 +31,8 @@ async function harness(t,initial={}) {
     assert.match(url.pathname,/\/api\/motion-comparison\/B-10-/,'comparison focus tests only use stubbed comparison requests');
     return new Promise(resolve=>requests.push({url,resolve,finished:false}));
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {MotionComparison}=await vite.ssrLoadModule('/src/MotionComparison.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {MotionComparison}=await loadModule('/src/MotionComparison.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=props=>act(async()=>root.render(createElement(MotionComparison,{...pair,language:'en',...initial,...props})));
   await render();

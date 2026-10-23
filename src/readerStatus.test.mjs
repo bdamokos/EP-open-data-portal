@@ -3,7 +3,7 @@ import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const body='Distinctive reader content that must stay outside every live announcement.';
 const questionId='E-10-2026-003031',speechId='MTG-PL-2026-03-25-OTH-2017069380111';
@@ -30,12 +30,11 @@ async function harness(t,{stored=false}={}) {
   const globals={window,document:window.document,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let root,vite;
+  let root,loadModule;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const request of requests)if(!request.finished)request.resolve(Response.json({}));
     await Promise.resolve();
-    if(vite)await vite.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -45,9 +44,9 @@ async function harness(t,{stored=false}={}) {
     assert.match(route,/^(document|speech|speech-transcript)\//,'reader tests must not contact unrelated services');
     return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const readers=await vite.ssrLoadModule('/src/InsightReaders.tsx');
-  const {expireActivityReads}=await vite.ssrLoadModule('/src/data.ts');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const readers=await loadModule('/src/InsightReaders.tsx');
+  const {expireActivityReads}=await loadModule('/src/data.ts');
   const {createRoot}=await import('react-dom/client');
   const trigger=document.createElement('button');trigger.textContent='Read selected item';document.body.append(trigger);trigger.focus();
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);

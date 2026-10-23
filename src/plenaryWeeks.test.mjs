@@ -2,15 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('all plenary defaults use weeks while exact item links, single days and history keep their scope',async t=>{
   const window=new Window({url:'http://localhost/?view=legislation&pl-mode=cloud&pl-sitting=MTG-PL-2026-10-07'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:390,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const days=['2026-10-07','2026-10-08','2026-10-19'],sittings=days.map(date=>({id:'MTG-PL-'+date,date,phase:date==='2026-10-19'?'upcoming':'past'}));
   const topicFor=day=>({id:day.id+'-OJ-ITM-D-1',sittingId:day.id,date:day.date,title:'Debate on '+day.date,kind:'PLENARY_DEBATE',documentIds:[],procedureIds:[]});
   const calls=[];
@@ -26,8 +26,8 @@ test('all plenary defaults use weeks while exact item links, single days and his
     if(url.pathname.endsWith('/insights/participation'))return Response.json({topics:[],series:[],window:{start:'2026-10-05',end:'2026-10-11'},coverage:{gaps:[]}});
     throw new Error('Unexpected request: '+url);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {Legislation}=await vite.ssrLoadModule('/src/Legislation.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(Legislation,{language:'en',onBack(){}})));

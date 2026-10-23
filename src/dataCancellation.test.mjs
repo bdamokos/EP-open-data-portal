@@ -2,19 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act,StrictMode} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 async function harness(t) {
   const window=new Window({url:'http://localhost/'}),originals=new Map(),requests=[];
   for(const [key,value] of Object.entries({window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true})) {
     originals.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});
   }
-  let root,vite;
+  let root,loadModule;
   t.mock.method(globalThis,'fetch',(input,options)=>new Promise(resolve=>requests.push({url:new URL(input,location.href),signal:options.signal,resolve})));
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  return {requests,container,load:path=>vite.ssrLoadModule(path),render:element=>act(async()=>root.render(element)),finish:(request,data,status=200)=>act(async()=>request.resolve(Response.json(data,{status}))),unmount:()=>act(async()=>root.unmount())};
+  return {requests,container,load:path=>loadModule(path),render:element=>act(async()=>root.render(element)),finish:(request,data,status=200)=>act(async()=>request.resolve(Response.json(data,{status}))),unmount:()=>act(async()=>root.unmount())};
 }
 
 for(const [module,name,route] of [['data.ts','useData','profile/43'],['InsightData.ts','useInsightData','insights/participation?country=BE']]) {

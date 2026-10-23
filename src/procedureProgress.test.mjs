@@ -2,16 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('progress is independent, preserves exact selection and lazy readable document links',async t=>{
   const window=new Window({url:'http://localhost/?view=legislation'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root,answerSummary,answerProgress,answerDocuments;
+  let loadModule,root,answerSummary,answerProgress,answerDocuments;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const ref='2025/0223(COD)',dossier='http://publications.europa.eu/resource/cellar/9d07a799-630b-11f0-bf4e-01aa75ed71a1',work=dossier+'a';
@@ -27,8 +27,8 @@ test('progress is independent, preserves exact selection and lazy readable docum
     if(url.pathname.endsWith('/procedure-progress'))return new Promise(resolve=>{answerProgress=resolve;});
     throw new Error('Unexpected request '+url);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {ProcedureContext}=await vite.ssrLoadModule('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(ProcedureContext,{reference:ref,language:'en'})));
   assert.match(container.textContent,/Loading legislative progress/);assert.match(container.textContent,/Loading summary/);

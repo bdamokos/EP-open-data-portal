@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('agenda availability distinguishes scheduled items, waits, gaps, source errors and filters',async t=>{
   t.mock.method(Date,'now',()=>Date.parse('2026-10-20T00:30:00Z'));
@@ -10,8 +10,8 @@ test('agenda availability distinguishes scheduled items, waits, gaps, source err
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,requestAnimationFrame:callback=>{callback();return 0;},innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const calls=[];
   let recover=false;
   const dates={future:'2026-10-21',today:'2026-10-20',recent:'2026-10-19',old:'2026-10-07',error:'2026-10-20',filter:'2026-10-20'};
@@ -28,8 +28,8 @@ test('agenda availability distinguishes scheduled items, waits, gaps, source err
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected request: '+url);
     return Response.json(response(url.searchParams));
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {Legislation}=await vite.ssrLoadModule('/src/Legislation.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);
   async function show(id,extra='') {

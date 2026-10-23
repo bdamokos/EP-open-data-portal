@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const source={url:'https://example.test/outside-language-fixture',fetchedAt:'2026-10-16T12:00:00Z'};
 const coverage={complete:false,pending:0,unresolved:0,gaps:1,truncated:false,initialized:true,generation:1,updatedAt:source.fetchedAt,tasks:[],source:'Public local fixture'};
@@ -58,12 +58,11 @@ async function harness(t,language,query='?view=outside',deferDetail=false) {
   window.HTMLElement.prototype.scrollTo=function(){};
   window.HTMLElement.prototype.scrollIntoView=function(){};
   window.scrollTo=()=>{};
-  let vite,root,finishDetail;
+  let loadModule,root,finishDetail;
   const detail=fixture(),calls=[];
   const people=[detail.person,...[null,'mul','und','en-t-hu-mtec'].map((roleLanguageTag,index)=>({...detail.person,id:String(50+index),name:'Another source '+index,roleLanguageTag}))];
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    if(vite)await vite.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -75,8 +74,8 @@ async function harness(t,language,query='?view=outside',deferDetail=false) {
     assert.equal(url.pathname,'/api/outside/42','no source, index or corpus requests are allowed');
     return deferDetail?new Promise(resolve=>{finishDetail=()=>resolve(Response.json(detail));}):Promise.resolve(Response.json(detail));
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {OutsideVoices}=await vite.ssrLoadModule('/src/OutsideVoices.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {OutsideVoices}=await loadModule('/src/OutsideVoices.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');container.lang=language;document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(OutsideVoices,{language,onBack(){}})));
   const click=async target=>{const node=typeof target==='string'?[...container.querySelectorAll('button')].find(b=>b.textContent===target):target;assert(node,'Missing fixture control '+target);await act(async()=>{node.focus();node.click();});return node;};

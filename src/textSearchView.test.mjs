@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act,useRef} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const speech='MTG-PL-2026-10-07-OTH-123';
 const otherSpeech='MTG-PL-2026-10-07-OTH-456';
@@ -25,8 +25,8 @@ async function setup(t,{query='',respond,highlights=false,members}={}) {
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,CSS:highlights?{highlights:registry}:window.CSS,Highlight:highlights?Highlight:undefined,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();frames.clear();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());frames.clear();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const calls=[];
   t.mock.method(globalThis,'fetch',async(input,options={})=>{
     const url=new URL(input,window.location.href),body=options.body?JSON.parse(options.body):null,call={url,options,body};calls.push(call);
@@ -35,9 +35,9 @@ async function setup(t,{query='',respond,highlights=false,members}={}) {
     if(url.pathname.endsWith('/corpus/text'))return Response.json(stored(url.searchParams.get('source-key')===french.sourceKey?french:english));
     throw new Error('Unexpected request: '+url);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const module=await vite.ssrLoadModule('/src/TextSearch.tsx');
-  const {PersonNamesProvider}=await vite.ssrLoadModule('/src/PersonName.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const module=await loadModule('/src/TextSearch.tsx');
+  const {PersonNamesProvider}=await loadModule('/src/PersonName.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const defaults={prefix:'fixture-fts',label:'Search fixture speeches',language:'en'};
@@ -51,7 +51,7 @@ async function setup(t,{query='',respond,highlights=false,members}={}) {
   const submit=()=>act(async()=>find('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
   const searches=()=>calls.filter(call=>call.url.pathname.endsWith('/corpus/search'));
   const texts=()=>calls.filter(call=>call.url.pathname.endsWith('/corpus/text'));
-  return {...module,window,root,container,calls,registry,render,find,button,click,flushFrames,input,select,submit,searches,texts,loadModule:path=>vite.ssrLoadModule(path)};
+  return {...module,window,root,container,calls,registry,render,find,button,click,flushFrames,input,select,submit,searches,texts,loadModule:path=>loadModule(path)};
 }
 
 test('search coverage stays partial independently of unavailable corpus status',async t=>{

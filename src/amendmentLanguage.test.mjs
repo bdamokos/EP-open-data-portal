@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const effectiveLanguage=node=>node?.closest('[lang]')?.getAttribute('lang');
 const source=(language,name)=>({url:'https://data.europarl.europa.eu/'+name,language,fetchedAt:'2026-10-16T12:00:00Z'});
@@ -13,9 +13,9 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const base={targetDocumentId:'A-10-2026-0254',procedureIds:['2025-0407'],outcome:'unavailable'};
@@ -54,8 +54,8 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
     const selected=items.map(item=>item.titles?{...item,title:item.titles[locale]||item.titles.en||Object.values(item.titles)[0]}:item);
     return Response.json({items:selected,total:items.length,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:['Some sources unavailable.'],lastUpdated:'2026-10-16T12:00:00Z'},failures:{total:2,unresolved:2}});
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {AmendmentsPage,Amendments}=await vite.ssrLoadModule('/src/Amendments.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {AmendmentsPage,Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(AmendmentsPage,{language:locale,onBack(){}})));
   await act(async()=>{for(const button of container.querySelectorAll('.wording-diff button'))if(button.textContent==='Side by side')button.click();});

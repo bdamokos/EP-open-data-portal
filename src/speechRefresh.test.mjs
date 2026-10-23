@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const xml='<speech><p>Retained readable body.</p></speech>';
 async function harness(t) {
@@ -10,11 +10,11 @@ async function harness(t) {
   for(const [key,value] of Object.entries({window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true})){
     originals.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});
   }
-  let vite,root;
+  let loadModule,root;
   t.mock.method(globalThis,'fetch',(input,options)=>new Promise(resolve=>requests.push({url:new URL(input,window.location.href),signal:options.signal,resolve,finished:false})));
-  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const r of requests)if(!r.finished)r.resolve(Response.json({}));if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true}});
-  const {useSpeechData}=await vite.ssrLoadModule('/src/data.ts'),{createRoot}=await import('react-dom/client');
+  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const r of requests)if(!r.finished)r.resolve(Response.json({}));await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true}});
+  const {useSpeechData}=await loadModule('/src/data.ts'),{createRoot}=await import('react-dom/client');
   function Reader({id='X',language='en'}){const state=useSpeechData(id,language);return createElement('section',null,createElement('output',null,JSON.stringify(state)),createElement('button',{onClick:state.retry},'Retry'));}
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=props=>act(async()=>root.render(createElement(Reader,props)));

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {dataTimeoutFor} from './client.mjs';
 
 const sittings=['2026-10-05','2026-10-07','2026-10-19'].map(date=>({id:'MTG-PL-'+date,date,phase:date==='2026-10-19'?'upcoming':'past'}));
@@ -16,16 +16,16 @@ async function harness(t,query='') {
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   const requests=[];
   t.mock.method(globalThis,'fetch',(input,options)=>{
     const url=new URL(input,location.href);
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected fetch: '+url);
     return new Promise(resolve=>requests.push({url,signal:options.signal,resolve}));
   });
-  t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const r of requests)r.resolve(Response.json({}));});if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {Legislation}=await vite.ssrLoadModule('/src/Legislation.tsx');
+  t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const r of requests)r.resolve(Response.json({}));});await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(Legislation,{language:'en',onBack(){}})));

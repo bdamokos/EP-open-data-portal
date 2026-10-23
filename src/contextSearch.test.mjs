@@ -2,15 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('question text search keeps country and dates while visual topic filters remain a separate browsing state',async t=>{
   const window=new Window({url:'http://localhost/?view=questions&q-days=365&q-until=2026-10-11&q-country=IT&q-addressee=org%2FCOM&q-subject=USA&q-word=water&q-range=2026-10-05_2026-10-11'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const stats={uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:'2026-10-11',dimensions:{country:[],group:[],gender:[],age:[]}},searches=[];
   t.mock.method(globalThis,'fetch',async(input,options)=>{
     const url=new URL(input,window.location.href);
@@ -22,8 +22,8 @@ test('question text search keeps country and dates while visual topic filters re
     if(url.pathname.endsWith('/corpus/status'))return Response.json({phase:'waiting',coverage:{complete:false,note:'Saved texts only.'}});
     throw new Error('Unexpected request: '+url);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {QuestionTopics}=await vite.ssrLoadModule('/src/QuestionTopics.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {QuestionTopics}=await loadModule('/src/QuestionTopics.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(QuestionTopics,{language:'en',onBack(){}})));
@@ -59,8 +59,8 @@ test('question country and date gestures reset restored text results without cha
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,CSS:window.CSS,requestAnimationFrame:window.requestAnimationFrame.bind(window),cancelAnimationFrame:window.cancelAnimationFrame.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;const searches=[],readerRequests=[];
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;const searches=[],readerRequests=[];
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const stats={uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:'2026-10-11',dimensions:{country:[],group:[],gender:[],age:[]}};
   const record=id=>({sourceId:id,sourceKey:'fr',kind:'question',parentId:null,date:'2026-09-15',language:'fr',translationType:'original',sourceUrl:'https://www.europarl.europa.eu/doceo/document/'+id+'_EN.html',sha256:'fixture-hash',snippet:'\u0002Water\u0003 policy',body:id===ids.IT?'Italian saved reader':'Another saved reader',fetchedAt:'2026-10-15T12:00:00Z',checkedAt:'2026-10-15T12:00:00Z'});
   t.mock.method(globalThis,'fetch',async(input,options={})=>{
@@ -76,8 +76,8 @@ test('question country and date gestures reset restored text results without cha
     if(url.pathname.endsWith('/corpus/text')){readerRequests.push({id:params.get('source-id'),key:params.get('source-key')});return Response.json(record(params.get('source-id')));}
     throw new Error('Unexpected request: '+url);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {QuestionTopics}=await vite.ssrLoadModule('/src/QuestionTopics.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {QuestionTopics}=await loadModule('/src/QuestionTopics.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const query=()=>new URL(location.href).searchParams;
@@ -107,8 +107,8 @@ test('a large plenary cloud searches by exact period and country while delayed h
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root,resolveCloud;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root,resolveCloud;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const searches=[],cloudCalls=[];
   const speeches=Array.from({length:1001},(_,i)=>({id:'MTG-PL-2026-10-07-OTH-'+i,date:'2026-10-07',title:'Speech '+i,machineTranslation:false,people:[]}));
   const cloud={scope:{kind:'week',phase:'past'},language:'en',words:[{word:'energy',label:'Energy',speechCount:1001,occurrences:1001,speechIds:[speech]}],speeches,window:{start:'2026-10-05',end:'2026-10-09'},nextPage:null,coverage:{transcripts:1001,matchedSpeechRecords:1001,missingLanguage:0,unreadableText:0,complete:true,truncated:false,associationUnavailable:false}};
@@ -128,8 +128,8 @@ test('a large plenary cloud searches by exact period and country while delayed h
     if(url.pathname.endsWith('/corpus/text'))return Response.json({...hit,body:'Energy policy',highlightedBody:'\u0002Energy\u0003 policy',fetchedAt:'2026-10-08T12:00:00Z',checkedAt:'2026-10-08T12:00:00Z'});
     throw new Error('Unexpected request: '+url);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {SpeechCloud}=await vite.ssrLoadModule('/src/SpeechCloud.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {SpeechCloud}=await loadModule('/src/SpeechCloud.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechCloud,{week:'2026-10-05',country:'IT',interfaceLanguage:'en'})));
@@ -160,9 +160,9 @@ test('explicit plenary navigation clears contextual result positions before remo
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root,resolvePeriod,resolveCloud,deferPeriod=false;
+  let loadModule,root,resolvePeriod,resolveCloud,deferPeriod=false;
   const pending=new Map(),searches=[],textRequests=[];
-  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of pending.values())request.resolve(Response.json(request.data));if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of pending.values())request.resolve(Response.json(request.data));await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const stats={denominator:0,uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,referenceDate:days[0],dimensions:{country:[],group:[],gender:[],age:[]}};
   function legislation(sittingId,topicId){const sitting=sittings.find(day=>day.id===sittingId)||sittings[0],topic=topics.find(item=>item.id===topicId);return {view:'legislation',sitting,sittings,topics:topics.filter(item=>item.sittingId===sitting.id),coverage:{agendaError:null,agendaComplete:true,indexComplete:true},detail:topic?{...topic,phase:'past',procedures:[],committeeWork:[],roles:[],people:[],stats,speeches:[{sourceId:topic.speech,date:topic.date,title:topic.title,kind:'PLENARY_DEBATE_WRITTEN_STATEMENT',start:null,end:null,people:[]}],voteCoverage:{truncated:false},coverage:{gaps:[],roleRowsTruncated:false,speechAssociations:{sources:[],truncated:false}}}:null};}
   const stored=id=>({sourceId:id,sourceKey:'fr',kind:'speech',parentId:null,date:days[0],language:'fr',translationType:'original',sourceUrl:'https://www.europarl.europa.eu/example/'+id,sha256:'fixture-hash',snippet:'\u0002Energy\u0003 policy',body:'Energy policy',highlightedBody:'\u0002Energy\u0003 policy',fetchedAt:'2026-10-15T12:00:00Z',checkedAt:'2026-10-15T12:00:00Z'});
@@ -184,8 +184,8 @@ test('explicit plenary navigation clears contextual result positions before remo
     if(url.pathname.includes('/speech/'))return Response.json({id:url.pathname.split('/').at(-1),xml:null,speakers:[],availableTextLanguages:[],textLanguage:null});
     throw new Error('Unexpected request: '+url);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {Legislation}=await vite.ssrLoadModule('/src/Legislation.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const query=()=>new URL(location.href).searchParams;

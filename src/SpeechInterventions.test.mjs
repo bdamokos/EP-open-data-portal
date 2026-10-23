@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {readFileSync} from 'node:fs';
 import {speechSummary} from '../server/odp.mjs';
 import {SpeechInterventions} from '../server/speech-intervention-service.mjs';
@@ -12,9 +12,9 @@ test('procedural notes explain later contributions without speech controls, whil
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/speech-interventions-live-20261015.json',import.meta.url)));
@@ -31,8 +31,8 @@ test('procedural notes explain later contributions without speech controls, whil
     const records=String(url).includes(first.id)?[first,...notes,last]:String(url).includes(last.id)?[first,last,...notes]:[first,unmatchedRow,unconfirmed];
     return Response.json({speechId:first.id,unavailable:false,debates:[{id:fixture.parent.activity_id,titles:{en:'Debate'},records,exchanges:[],coverage:{complete:true,available:4,expected:4,missingIds:[]}}]});
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {SpeechContextPanel}=await vite.ssrLoadModule('/src/SpeechInterventions.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{key:first.id,id:first.id,language:'en'})));
   await act(async()=>container.querySelector('button').click());
@@ -63,9 +63,9 @@ test('failed debate sections offer a real retry that bypasses the partial-result
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root,calls=0,finish;
+  let loadModule,root,calls=0,finish;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const id='MTG-PL-2026-03-25-OTH-2017069380111',parent='MTG-PL-2026-03-25-PVCRE-ITM-13';
@@ -75,8 +75,8 @@ test('failed debate sections offer a real retry that bypasses the partial-result
     if(calls===1)return Response.json(result);
     return new Promise(resolve=>finish=()=>resolve(Response.json({...result,debates:[{...result.debates[0],error:undefined,coverage:{complete:true,available:0,expected:0}}]})));
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {SpeechContextPanel}=await vite.ssrLoadModule('/src/SpeechInterventions.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id,language:'en'})));
   assert.equal(calls,0,'automatic preload is deferred');
@@ -93,14 +93,14 @@ test('top-level rate errors show a countdown and enable retry after the cooldown
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   t.mock.method(globalThis,'fetch',async()=>Response.json({error:{message:'Parliament is temporarily limiting requests.',retryAt:Date.now()+500}},{status:503}));
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {SpeechContextPanel}=await vite.ssrLoadModule('/src/SpeechInterventions.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id:'MTG-PL-2026-03-25-OTH-2017069380108',language:'en'})));
   await act(async()=>container.querySelector('button').click());
@@ -115,16 +115,16 @@ test('missing debate records remain visible without the sequence sources disclos
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/speech-interventions-live-20261015.json',import.meta.url)));
   const row={...speechSummary(fixture.activities.find(a=>a.recorded_in_a_realization_of?.[0]?.numbering===172)),replyTo:null,exchangeId:null};
   t.mock.method(globalThis,'fetch',async()=>Response.json({speechId:row.id,unavailable:false,debates:[{id:fixture.parent.activity_id,titles:{en:'Debate'},records:[row],exchanges:[],coverage:{complete:false,available:1,expected:2,missingIds:['missing']},sources:[{url:'https://example.org/sequence-source',fetchedAt:'2026-10-16T12:00:00Z',stale:false}]}]}));
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {SpeechContextPanel}=await vite.ssrLoadModule('/src/SpeechInterventions.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id:row.id,language:'en'})));
   await act(async()=>container.querySelector('button').click());
@@ -138,9 +138,9 @@ test('resolved adjacent-chapter records do not show as missing, while unfetched 
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/outside-agenda-conflict.json',import.meta.url)));
@@ -152,8 +152,8 @@ test('resolved adjacent-chapter records do not show as missing, while unfetched 
   }).context(rows[0].activity_id);
   const contexts=[await context(false),await context(true)];let calls=0;
   t.mock.method(globalThis,'fetch',async()=>Response.json(contexts[calls++]));
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {SpeechContextPanel}=await vite.ssrLoadModule('/src/SpeechInterventions.tsx');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');root=createRoot(container);
   for(const [index,id] of [rows[0].activity_id,rows[1].activity_id].entries()) {
     await act(async()=>root.render(createElement(SpeechContextPanel,{key:id,id,language:'en'})));

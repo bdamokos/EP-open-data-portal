@@ -3,7 +3,7 @@ import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const questionA='E-10-2026-003031',questionB='E-10-2026-003032',answerA=questionA+'-ASW';
 const source=id=>'https://www.europarl.europa.eu/doceo/document/'+id+'_EN.docx';
@@ -21,8 +21,8 @@ async function harness(t,{mismatch=false}={}) {
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,CSS:{highlights:registry},Highlight,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();frames.clear();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());frames.clear();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',()=>{});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');assert.equal(url.origin,'http://localhost','only isolated local request stubs are permitted');calls.push(url);
@@ -34,8 +34,8 @@ async function harness(t,{mismatch=false}={}) {
     const id=decodeURIComponent(url.pathname.slice('/api/document/'.length));assert([questionA,questionB,answerA].includes(id),'document requests retain exact public source IDs');assert.equal(url.search,'?lang=en');
     return Response.json(publication(mismatch&&id===questionA?questionB:id));
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {InsightQuestionReader}=await vite.ssrLoadModule('/src/InsightReaders.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {InsightQuestionReader}=await loadModule('/src/InsightReaders.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=heading=>act(async()=>root.render(createElement(InsightQuestionReader,{id:questionA,language:'en',includeAnswers:true,heading:heading||'Question A'})));
   const click=node=>act(async()=>{assert(node,'missing fixture action');node.focus();node.click();});
