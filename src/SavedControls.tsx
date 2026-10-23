@@ -20,7 +20,8 @@ function verify(data:{epoch:string;generation:number},expected:FollowingStatus) 
 async function memberDetail(item:SavedItem,language:string,expected:FollowingStatus) {
   const params=new URLSearchParams({member:item.id,epoch:expected.epoch,generation:String(expected.generation),lang:language});
   const data=await api<FollowingMember>('insights/following-member?'+params);verify(data,expected);
-  savedStore.materialize(data,item);return data;
+  if(!savedStore.materialize(data,item))throw Object.assign(Error('The index generation has changed. Try again.'),{code:'generation_changed'});
+  return data;
 }
 function checkedStatus():FollowingStatus|null {return status;}
 const opening=new Map<string,Promise<unknown>>();
@@ -29,10 +30,14 @@ export function openSavedMember(item:SavedItem,language:string):Promise<unknown>
   const run=(async()=>{
     try{await checkSaved(language);}catch(error){if(!status?.marksReady||!savedStore.snapshot().manifest)throw error;}
     if(!status?.marksReady)throw Error('Update checks are not available yet.');
-    try{return await memberDetail(item,language,status);}catch(error){
+    const expected=status;
+    try{return await memberDetail(item,language,expected);}catch(error){
       if((error as {code?:string}).code==='generation_changed') {
-        status=null;lastStatus=0;await checkSaved(language,true);
-        const refreshed=checkedStatus();if(refreshed?.marksReady)return memberDetail(item,language,refreshed);
+        let refreshed=checkedStatus();const manifest=savedStore.snapshot().manifest;
+        if(!refreshed?.marksReady||refreshed.epoch===expected.epoch&&refreshed.generation===expected.generation||manifest?.epoch!==refreshed.epoch||manifest?.generation!==refreshed.generation) {
+          status=null;lastStatus=0;await checkSaved(language,true);refreshed=checkedStatus();
+        }
+        if(refreshed?.marksReady)return memberDetail(item,language,refreshed);
       }
       throw error;
     }
@@ -47,37 +52,56 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
   const requestedKey=selectionKey();
   if(!requestedKey)return Promise.resolve(undefined);
   const run=async()=>{
-    // A new selection can use a fresh status already held by this tab.
-    if(force||!status||Date.now()-lastStatus>=60_000) {
-      lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status');
-    }
-    const expected=status!;
-    if(!expected.marksReady){savedStore.setCheckState('unavailable');return {data:{questions:[],checkedAt:'',coverage:{indexComplete:false}},requestedKey};}
-    const items=savedStore.snapshot().items,key=JSON.stringify([expected.epoch,expected.generation,expected.marksReady,language]);
-    if(manifestDone!==key||savedStore.snapshot().epoch!==expected.epoch||items.some(item=>item.kind==='mep'&&!item.seen&&!item.legacy)) {
-      const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
-      const manifest=await api<FollowingManifest>('insights/following-manifest?'+params);verify(manifest,expected);
-      savedStore.applyManifest(manifest);manifestDone=key;
-    }
+    const items=savedStore.snapshot().items,hasMembers=items.some(item=>item.kind==='mep');
     const failures:unknown[]=[];
-    // Migration is deliberately serial on constrained clients, and retries only
-    // pending members; a successful member is never requested again for migration.
-    for(const item of savedStore.snapshot().items.filter(item=>item.kind==='mep'&&item.legacy))try{await memberDetail(item,language,expected);}catch(error){failures.push(error);}
-    let data:SavedStates={questions:[],checkedAt:'',coverage:{indexComplete:expected.indexComplete}};
+    let expected:FollowingStatus|null=null;
+    // A new selection can use a fresh status already held by this tab.
+    try {
+      if(force||!status||Date.now()-lastStatus>=60_000) {
+        lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status');
+      }
+      expected=status;
+    }catch(error){savedStore.setCheckState('error');if(hasMembers)failures.push(error);}
+    let data:SavedStates={questions:[],checkedAt:'',coverage:{indexComplete:expected?.indexComplete===true}};
     const questions=items.filter(item=>item.kind==='question'),questionKey=taskKey(language,questions);
-    if(questions.length&&questionsDone!==questionKey)try{
-      data=await postSavedQuestions(language,questions.map(item=>item.id));savedStore.observe(data,questions);questionsDone=questionKey;
-    }catch(error){failures.push(error);}
+    // Question sources do not depend on marker readiness or manifest processing.
+    // Start both tasks independently so even a pending/failed MEP request cannot
+    // prevent question answers from becoming available in the store.
+    const checkQuestions=async()=>{
+      if(questions.length&&questionsDone!==questionKey)try{
+        data=await postSavedQuestions(language,questions.map(item=>item.id));savedStore.observe(data,questions);questionsDone=questionKey;
+        savedStore.setCheckState('available','question');
+      }catch(error){savedStore.setCheckState('error','question');failures.push(error);}
+    };
+    const checkMembers=async()=>{
+      if(!hasMembers||!expected)return;
+      if(!expected.marksReady){savedStore.setCheckState('unavailable');return;}
+      try {
+        const key=JSON.stringify([expected.epoch,expected.generation,expected.marksReady,language]);
+        if(manifestDone!==key||savedStore.snapshot().epoch!==expected.epoch||items.some(item=>item.kind==='mep'&&!item.seen&&!item.legacy)) {
+          const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
+          const manifest=await api<FollowingManifest>('insights/following-manifest?'+params);verify(manifest,expected);
+          savedStore.applyManifest(manifest);manifestDone=key;
+        }
+        // Migration stays serial on constrained clients; successful members are
+        // never requested again for migration.
+        const migrationFailures:unknown[]=[];
+        for(const item of savedStore.snapshot().items.filter(item=>item.kind==='mep'&&item.legacy))try{await memberDetail(item,language,expected);}catch(error){migrationFailures.push(error);}
+        if(migrationFailures.length)throw migrationFailures[0];
+        savedStore.setCheckState('available');
+      }catch(error){savedStore.setCheckState((error as {code?:string}).code==='marks_unavailable'?'unavailable':'error');failures.push(error);}
+    };
+    await Promise.all([checkQuestions(),checkMembers()]);
     if(failures.length)throw failures[0];
-    expireActivityReads();savedStore.setCheckState('available');return {data,requestedKey};
+    expireActivityReads();return {data,requestedKey};
   };
   pending=(async()=>{
     try{return await run();}catch(error){
       if((error as {code?:string}).code==='generation_changed') {
         status=null;lastStatus=0;manifestDone='';
-        try{return await run();}catch(next){savedStore.setCheckState('error');throw next;}
+        return run();
       }
-      savedStore.setCheckState((error as {code?:string}).code==='marks_unavailable'?'unavailable':'error');throw error;
+      throw error;
     }
   })().finally(()=>{pending=null;if(selectionKey()!==requestedKey)void checkSaved(language).catch(()=>{});});
   requestedKeys.set(pending,requestedKey);return pending;

@@ -38,6 +38,12 @@ const maxMark=(a,b)=>a==null?b:b==null?a:Math.max(a,b);
 const identity=entry=>(entry.kind==='answer'?'answer':'activity')+':'+entry.id;
 const minimal=({kind,id,title,titleLanguage,memberId,savedAt})=>({kind,id,title,titleLanguage,memberId,savedAt});
 const keys=items=>items.map(savedKey).sort();
+// Old tabs can retain only 100 of each kind. Only those keys participate in
+// legacy removals; the rest of the v2 follows belong exclusively to v2.
+const legacyMirror=items=>{
+  const counts={mep:0,question:0};
+  return [...items].sort((a,b)=>(a.savedAt??0)-(b.savedAt??0)||(savedKey(a)<savedKey(b)?-1:savedKey(a)>savedKey(b)?1:0)).filter(item=>counts[item.kind]++<100).map(minimal);
+};
 const unreadEntries=entries=>Array.isArray(entries)?entries.filter(x=>x&&validSource(x.id)).map(entry=>({...cleanEntries([entry])[0],kind:entry.kind==='answer'||entry.recordKind==='answer'?'answer':'activity',mark:mark(entry.mark)})):[];
 function migrate(item) {
   if(item.kind==='question')return item;
@@ -48,9 +54,9 @@ function migrate(item) {
 }
 export function savedLinks(item) {return item.kind==='mep'?item.unread||[]:[...(item.unreadAnswers||[]),...(item.unreadActivities||[])];}
 export function createSavedStore(storage,notify=()=>void 0) {
-  let items=[],epoch=null,legacyKeys=[],manifest=null,storageError=null,unsavedSince=null,restarted=false,checkState='pending';
+  let items=[],epoch=null,legacyKeys=[],manifest=null,storageError=null,unsavedSince=null,restarted=false,checkState='pending',questionCheckState='pending';
   let tabOnly=!storage,snapshot;
-  const refresh=()=>{snapshot={items,persistent:!tabOnly,storageError,unsavedSince,restarted,checkState,epoch,manifest};notify();};
+  const refresh=()=>{snapshot={items,persistent:!tabOnly,storageError,unsavedSince,restarted,checkState,questionCheckState,epoch,manifest};notify();};
   const failure=error=>{storageError=error?.name==='QuotaExceededError'?'quota':'unavailable';unsavedSince??=Date.now();};
   function load() {
     try {
@@ -60,6 +66,9 @@ export function createSavedStore(storage,notify=()=>void 0) {
         const originals=new Map(raw.items.filter(valid).map(item=>[savedKey(item),item]));
         items=cleaned.map(item=>{if(item.kind==='question')return item;const old=originals.get(savedKey(item));return {...minimal(item),seen:old.seen?{activity:mark(old.seen.activity),answer:mark(old.seen.answer)}:null,unread:unreadEntries(old.unread||[]).slice(0,200),unreadOmitted:Math.max(0,Number.isSafeInteger(old.unreadOmitted)?old.unreadOmitted:0)+Math.max(0,(old.unread?.length||0)-200),legacyUpdated:old.legacyUpdated===true,legacy:cleanState(old.legacy)};});
         epoch=typeof raw.epoch==='string'?raw.epoch:null;legacyKeys=Array.isArray(raw.legacyKeys)?raw.legacyKeys.filter(x=>typeof x==='string'):[];
+        // Also protect stores written before the mirror was capped, even if an
+        // old tab has already truncated v1 before this tab reloads.
+        legacyKeys=keys(legacyMirror(items.filter(item=>legacyKeys.includes(savedKey(item)))));
         if(reconcile())publish(true);
       } else {const legacy=readSaved(storage?.getItem(LEGACY_KEY));items=legacy.map(migrate);legacyKeys=keys(legacy);}
     } catch {tabOnly=true;}
@@ -73,9 +82,9 @@ export function createSavedStore(storage,notify=()=>void 0) {
   function publish(mirror=false) {
     derive();let success=true;
     if(!tabOnly)try {
-      const nextKeys=mirror?keys(items):legacyKeys;
+      const mirrored=mirror?legacyMirror(items):null,nextKeys=mirrored?keys(mirrored):legacyKeys;
       storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys:nextKeys}));
-      if(mirror)storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:items.map(minimal)}));
+      if(mirrored)storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:mirrored}));
       legacyKeys=nextKeys;storageError=null;unsavedSince=null;
     }catch(error){failure(error);success=false;}
     refresh();return success;
@@ -93,7 +102,7 @@ export function createSavedStore(storage,notify=()=>void 0) {
     snapshot:()=>snapshot,publish,
     reload(key){if(storageError){if(key===LEGACY_KEY){try{reconcile();publish();}catch(error){failure(error);refresh();}}return;}load();},
     retryStorage:()=>publish(true),
-    setCheckState(state){checkState=state;refresh();},
+    setCheckState(state,kind='mep'){if(kind==='question')questionCheckState=state;else checkState=state;refresh();},
     toggle(item) {
       if(!valid(item))throw Error('This item cannot be saved.');
       const before=items,previousKeys=legacyKeys,key=savedKey(item);
@@ -104,7 +113,7 @@ export function createSavedStore(storage,notify=()=>void 0) {
         const added={...item,id:String(item.id),savedAt:lastSavedAt=Math.max(Date.now(),lastSavedAt+1),updated:false};
         items=[...items,item.kind==='mep'?{...minimal(added),seen:manifest?.members[item.id]?marks(manifest.members[item.id]):null,unread:[],unreadOmitted:0,legacyUpdated:false}:added];
       }
-      if(!publish(true)){items=before;legacyKeys=previousKeys;try{storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys}));storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:items.map(minimal)}));}catch{}derive();refresh();throw Error("Couldn't save in this browser: storage is full or blocked. This follow change was not kept.");}
+      if(!publish(true)){items=before;legacyKeys=previousKeys;try{storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys}));storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:legacyMirror(items)}));}catch{}derive();refresh();throw Error("Couldn't save in this browser: storage is full or blocked. This follow change was not kept.");}
     },
     applyManifest(data) {
       const reset=epoch!==null&&epoch!==data.epoch;manifest=data;
@@ -117,10 +126,13 @@ export function createSavedStore(storage,notify=()=>void 0) {
     },
     materialize(data,expected) {
       if(data.epoch!==epoch||data.generation!==manifest?.generation) return false;
-      return update('mep:'+data.member,item=>{
+      update('mep:'+data.member,item=>{
         if(!same(item,expected)||data.status!=='available')return item;
         const unread=new Map((item.unread||[]).map(entry=>[identity(entry),entry]));
         const rich=new Map((data.entries||[]).map(entry=>[identity(entry),entry]));
+        // Refresh metadata only for identities that are still unread. Seen
+        // entries stay read, including when details are requested in a new language.
+        for(const [key,entry] of unread)if(rich.has(key))unread.set(key,{...entry,...cleanEntries([rich.get(key)])[0]});
         const seen={activity:null,answer:null,...item.seen},legacy=item.legacy,known={activity:new Set(legacy?.latestIds),answer:new Set(legacy?.answerIds)};
         for(const [id,code,value] of data.ids) {
           const kind=code===1?'answer':'activity',entry={id,kind,mark:value,recordKind:kind==='answer'?'answer':undefined};
@@ -133,6 +145,9 @@ export function createSavedStore(storage,notify=()=>void 0) {
         const entries=[...unread.values()];
         return {...item,seen,legacy:undefined,unread:entries.slice(0,200),unreadOmitted:(item.unreadOmitted||0)+Math.max(0,entries.length-200)};
       });
+      // Acceptance is independent of persistence: failed writes keep the
+      // materialized entries in memory and expose the existing storage banner.
+      return true;
     },
     markRead(key){return update(key,item=>item.kind==='mep'?{...item,seen:manifest?{activity:maxMark(item.seen?.activity,manifest.members[item.id]?.[0]??null),answer:maxMark(item.seen?.answer,manifest.members[item.id]?.[1]??null)}:item.seen,unread:[],unreadOmitted:0,legacyUpdated:false}:{...item,baseline:item.current||item.baseline,updated:false,newAnswer:false,newActivity:false,unreadAnswers:[],unreadActivities:[]});},
     markVisitRead(displayed) {

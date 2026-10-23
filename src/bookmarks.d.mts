@@ -11,8 +11,8 @@ export function readSaved(raw:string|null):SavedItem[];
 export function savedObservation(item:SavedItem,state:any):SavedItem;
 export function savedLinks(item:SavedItem):SavedActivity[];
 export function createSavedStore(storage:Storage|null,notify?:()=>void):{
- snapshot:()=>{items:SavedItem[];persistent:boolean;storageError:null|'quota'|'unavailable';unsavedSince:number|null;restarted:boolean;checkState:string;epoch:string|null;manifest:FollowingManifest|null};
- publish:(mirror?:boolean)=>boolean;reload:(key?:string|null)=>void;retryStorage:()=>boolean;setCheckState:(state:string)=>void;
+ snapshot:()=>{items:SavedItem[];persistent:boolean;storageError:null|'quota'|'unavailable';unsavedSince:number|null;restarted:boolean;checkState:string;questionCheckState:string;epoch:string|null;manifest:FollowingManifest|null};
+ publish:(mirror?:boolean)=>boolean;reload:(key?:string|null)=>void;retryStorage:()=>boolean;setCheckState:(state:string,kind?:'mep'|'question')=>void;
  toggle:(item:SavedItem)=>void;applyManifest:(manifest:FollowingManifest)=>boolean;materialize:(data:FollowingMember,expected?:SavedItem)=>boolean;
  observe:(states:SavedStates,expected?:SavedItem[])=>boolean;markRead:(key:string)=>boolean;markVisitRead:(items:SavedItem[])=>boolean;markActivityRead:(key:string,id?:string)=>boolean;markAnswerRead:(key:string,id:string)=>boolean;
 };

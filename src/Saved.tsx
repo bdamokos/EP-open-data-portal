@@ -7,7 +7,8 @@ import {SaveButton,useSaved,checkSaved,savedStore as store,requestedKeys,openSav
 function savedCheckMessage(items:SavedItem[],data:SavedStates) {
   const unread=items.filter(item=>item.updated).length;
   const unavailable=items.filter(item=>item.availability!=='available'||item.legacy).length;
-  if(store.snapshot().checkState==='unavailable')return 'Update checks are not available yet. Saved items are still shown.';
+  const state=store.snapshot();
+  if(items.some(item=>item.kind==='mep')&&state.checkState!=='available')return [state.checkState==='unavailable'?'Update checks are not available yet for MEPs.':'MEP updates could not be checked.',items.some(item=>item.kind==='question')&&state.questionCheckState==='available'?'Question answers were checked.':'','Saved items are still shown.'].filter(Boolean).join(' ');
   return ['Check finished.',unread?`${unread} followed ${unread===1?'item has':'items have'} unread updates.`:'No unread updates are currently recorded.',unavailable?`Update information is unavailable for ${unavailable} followed ${unavailable===1?'item':'items'}.`:'',data.coverage?.indexComplete===true?'':'The saved index is incomplete.'].filter(Boolean).join(' ');
 }
 export function Saved({language,onBack,onMember}:{language:string;onBack:()=>void;onMember:(id:number,sourceId?:string)=>void}) {
@@ -42,7 +43,7 @@ export function Saved({language,onBack,onMember}:{language:string;onBack:()=>voi
           // Keep this deliberate attempt attached to that result, including errors.
           if(!matches)continue;
           if(result){const settled=store.snapshot().items;setCompletion({items:settled,message:savedCheckMessage(settled,result.data)});}return;
-        }catch(e){if(!current())return;if(!matches)continue;setError((e as Error).message);setCompletion({items:store.snapshot().items,message:'Could not check for updates. Saved items are still shown.'});return;}
+        }catch(e){if(!current())return;if(!matches)continue;setError((e as Error).message);setCompletion({items:store.snapshot().items,message:store.snapshot().questionCheckState==='available'?'Question answers were checked. Other updates could not be checked. Saved items are still shown.':'Could not check for updates. Saved items are still shown.'});return;}
       }
     })().finally(()=>{if(current())setChecking(false);});
   };
@@ -54,8 +55,9 @@ export function Saved({language,onBack,onMember}:{language:string;onBack:()=>voi
     {!saved.persistent&&<p>Browser storage is unavailable. Follows last only for this tab.</p>}
     {saved.storageError&&<p role="alert" className="explorer-storage-error">Changes since {new Date(saved.unsavedSince||Date.now()).toLocaleTimeString()} could not be saved in this browser and will be lost on reload. <button onClick={()=>store.retryStorage()}>Retry saving</button></p>}
     {saved.restarted&&<p>Update tracking restarted. Previously unread items are kept.</p>}
-    {saved.checkState==='unavailable'&&<p>Update checks are not available yet. <button onClick={check}>Retry</button></p>}
-    {saved.checkState==='error'&&<p>Couldn't check for updates. <button onClick={check}>Retry</button></p>}
+    {items.some(item=>item.kind==='mep')&&saved.checkState==='unavailable'&&<p>Update checks are not available yet for MEPs. <button onClick={check}>Retry</button></p>}
+    {items.some(item=>item.kind==='mep')&&saved.checkState==='error'&&<p>Couldn't check for MEP updates. <button onClick={check}>Retry</button></p>}
+    {items.some(item=>item.kind==='question')&&saved.questionCheckState==='error'&&<p>Couldn't check for question answers. <button onClick={check}>Retry</button></p>}
     {error&&<p>{error}</p>}
     {!items.length&&<p>Follow a MEP or save a question to see new activity and answers here.</p>}
     <div className="explorer-saved-items">{items.map(item=><article key={savedKey(item)}>
@@ -64,7 +66,7 @@ export function Saved({language,onBack,onMember}:{language:string;onBack:()=>voi
       {item.availability==='outside-roster'&&<p>No longer on the current roster.</p>}
       {item.kind==='question'&&<p>{item.current?.answerIds?.length?'Answer available.':item.availability==='available'?'No answer available in the indexed data yet.':'Answer availability has not been checked.'}</p>}
       {item.legacy&&<p>Update check pending. <button onClick={check}>Retry</button></p>}
-      {!item.updated&&saved.checkState==='available'&&!item.legacy&&<p>{item.availability==='available'?'No new updates since your last visit.':item.checkedAt?'Update information is unavailable.':'Checking will establish a starting point for future updates.'}</p>}
+      {!item.updated&&(item.kind==='question'?saved.questionCheckState:saved.checkState)==='available'&&!item.legacy&&<p>{item.availability==='available'?'No new updates since your last visit.':item.checkedAt?'Update information is unavailable.':'Checking will establish a starting point for future updates.'}</p>}
       {item.kind==='question'&&item.updated&&!item.newAnswer&&!item.newActivity&&<p>Question details changed.</p>}
       {!item.indexComplete&&<small>The index is incomplete; more updates may be available.</small>}
       {(item.kind==='mep'||item.memberId)&&<button onClick={()=>{if(item.kind==='mep')void openSavedMember(item,language).catch(()=>{});onMember(Number(item.kind==='mep'?item.id:item.memberId),item.kind==='question'?item.id:undefined);}}>{item.kind==='mep'?'Profile':item.current?.answerIds?.length?'Read question and answers':'Read question'}</button>}

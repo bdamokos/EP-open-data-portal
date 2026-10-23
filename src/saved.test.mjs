@@ -58,6 +58,60 @@ test('late v1 tabs reconcile additions/removals without discarding v2 unread or 
  store.applyManifest({...manifest(6),members:{42:[6,3,1,1],43:[6,null,1,0]}});assert(!store.snapshot().items[1].updated);
  legacy(disk,[mep]);store.reload(LEGACY_KEY);assert.equal(store.snapshot().items.length,1);assert.equal(item(store).unread[0].id,'new');
 });
+test('old-client truncated writes preserve follows beyond the 100-MEP mirror and their unread',()=>{
+ const disk=storage(),store=createSavedStore(disk);
+ for(let id=1;id<=105;id++)store.toggle({...mep,id:String(id)});
+ store.applyManifest({...manifest(),members:{105:[5,null,1,0]}});
+ store.applyManifest({...manifest(6),members:{105:[6,null,2,0]}});
+ store.materialize(detail([['extra-unread',0,6]],[],{member:'105'}));
+ const mirrored=JSON.parse(disk.getItem(LEGACY_KEY)).items,raw=JSON.parse(disk.getItem(SAVED_KEY));
+ assert.equal(mirrored.length,100);assert.deepEqual(mirrored.map(x=>x.id),Array.from({length:100},(_,i)=>String(i+1)));
+ assert.deepEqual(raw.legacyKeys,mirrored.map(savedKey).sort());
+ // Simulate the old reader's per-kind cap followed by an acknowledgement write.
+ const oldClientItems=mirrored.filter(x=>x.kind==='mep').slice(0,100);
+ legacy(disk,oldClientItems);store.reload(LEGACY_KEY);
+ assert.equal(store.snapshot().items.length,105);assert.equal(store.snapshot().items.find(x=>x.id==='105').unread[0].id,'extra-unread');
+ // An intentional removal of a representable follow still works.
+ legacy(disk,oldClientItems.filter(x=>x.id!=='1'));store.reload(LEGACY_KEY);
+ assert.equal(store.snapshot().items.length,104);assert(!store.snapshot().items.some(x=>x.id==='1'));
+ assert.equal(store.snapshot().items.find(x=>x.id==='105').unread[0].id,'extra-unread');
+ const restarted=createSavedStore(disk);assert.equal(restarted.snapshot().items.length,104);
+ assert.equal(restarted.snapshot().items.find(x=>x.id==='105').unread[0].id,'extra-unread');
+});
+test('stores with the former oversized mirror survive an old tab truncating before reload',()=>{
+ const disk=storage(),items=Array.from({length:105},(_,i)=>({...mep,id:String(i+1),savedAt:i+1,seen:{activity:5,answer:null},unread:i===104?[{id:'kept',kind:'activity',mark:5,title:'Kept'}]:[]}));
+ disk.setItem(SAVED_KEY,JSON.stringify({version:2,epoch:'one',items,legacyKeys:items.map(savedKey).sort()}));
+ legacy(disk,items.slice(0,100));const store=createSavedStore(disk);
+ assert.equal(store.snapshot().items.length,105);assert.equal(store.snapshot().items.at(-1).unread[0].id,'kept');
+ store.publish(true);assert.equal(JSON.parse(disk.getItem(LEGACY_KEY)).items.length,100);
+ assert.equal(JSON.parse(disk.getItem(SAVED_KEY)).legacyKeys.length,100);
+});
+test('legacy mirror uses earliest savedAt deterministically and caps each kind separately',()=>{
+ const disk=storage(),items=Array.from({length:105},(_,i)=>({...mep,id:String(i+1),savedAt:105-i}));
+ legacy(disk,[...items,...Array.from({length:100},(_,i)=>({...question,id:'E-10-2026-'+String(i).padStart(6,'0'),savedAt:i}))]);
+ const store=createSavedStore(disk);store.publish(true);
+ const mirrored=JSON.parse(disk.getItem(LEGACY_KEY)).items;
+ assert.deepEqual(mirrored.filter(x=>x.kind==='mep').map(x=>x.id),Array.from({length:100},(_,i)=>String(105-i)));
+ assert.equal(mirrored.filter(x=>x.kind==='question').length,100);
+ assert.deepEqual(JSON.parse(disk.getItem(SAVED_KEY)).legacyKeys,mirrored.map(savedKey).sort());
+});
+test('fresh rich metadata updates existing unread without reviving read entries or losing missing identities',()=>{
+ const disk=storage(),store=createSavedStore(disk);store.toggle(mep);store.applyManifest(manifest());store.applyManifest(manifest(6,6));
+ const ids=[['same',0,6],['same',1,6],['read',0,6],['vanished',0,6]];
+ store.materialize(detail(ids,[{id:'same',kind:'activity',title:'Old title',titleLanguage:'en',date:'2026-01-01'},{id:'same',kind:'answer',title:'Old answer',titleLanguage:'en'}]));
+ store.markActivityRead('mep:42','read');const seen=item(store).seen;
+ store.materialize(detail(ids.slice(0,3),[{id:'same',kind:'activity',title:'Nouveau titre',titleLanguage:'fr',date:'2026-02-02'},{id:'same',kind:'answer',title:'Réponse',titleLanguage:'fr',date:'2026-03-03',relatedQuestionId:question.id},{id:'read',kind:'activity',title:'Already read'}]));
+ assert.deepEqual(item(store).seen,seen);assert.deepEqual(item(store).unread.map(x=>[x.kind,x.id]),[['activity','same'],['answer','same'],['activity','vanished']]);
+ assert.deepEqual(item(store).unread.slice(0,2).map(x=>[x.title,x.titleLanguage,x.date,x.relatedQuestionId]),[['Nouveau titre','fr','2026-02-02',undefined],['Réponse','fr','2026-03-03',question.id]]);
+ assert.equal(item(createSavedStore(disk)).unread[0].title,'Nouveau titre');
+});
+test('materialize reports stale rejection separately from accepted in-memory changes when storage fails',()=>{
+ const disk=storage(),store=createSavedStore(disk);store.toggle(mep);store.applyManifest(manifest());store.applyManifest(manifest(7));
+ assert.equal(store.materialize(detail([['stale',0,6]])),false);assert.equal(item(store).unread.length,0);
+ disk.setItem=()=>{throw Error('blocked');};
+ assert.equal(store.materialize(detail([['fresh',0,7]],[],{generation:7})),true);
+ assert.equal(item(store).unread[0].id,'fresh');assert.equal(store.snapshot().storageError,'unavailable');
+});
 test('failed toggles revert, background writes retain unread with a persistent retry error; tab-only works',()=>{
  const disk=storage(),store=createSavedStore(disk),set=disk.setItem;let fail=true;
  disk.setItem=(...args)=>{if(fail)throw Object.assign(Error('full'),{name:'QuotaExceededError'});set(...args);};
