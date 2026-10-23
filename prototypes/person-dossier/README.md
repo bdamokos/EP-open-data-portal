@@ -2,7 +2,9 @@
 
 An isolated, static proposal. It does not add application routes, APIs or following storage. The same person scope is reachable from a dossier participant list and a member’s Dossiers section. Press remains dossier context. Following belongs to the full dossier and is reserved for the following feature.
 
-The builder reads public API observation envelopes (`url`, `fetchedAt`, `payload` or `error`) and API-linked DOCX files from an external directory. Exact procedure, document, agenda, participation and decision identifiers establish relationships. Amendment proposers reuse the existing full-name and dated-mandate resolver. Role activity dates remain recorded-role dates; document dates never establish appointments. Votes preserve unavailable positions and separate declared intentions from recorded choices. Joint-debate speeches retain that scope.
+The builder reads public API observation envelopes (`url`, `fetchedAt`, `payload` or `error`) and API-linked DOCX files from an external directory. Exact procedure, document, agenda, participation and decision identifiers establish relationships. Amendment proposers reuse the existing full-name and dated-mandate resolver. Exact procedure tabling events date amendment entries; DOCX and API document dates remain separate, with discrepancies visible. A missing or conflicting tabling date never becomes a tabling claim. Role activity dates remain recorded-role dates; document dates never establish appointments. Votes preserve unavailable positions and separate declared intentions from recorded choices. Joint-debate speeches retain that scope.
+
+Integration should reuse `FollowDossierButton`, the canonical-reference identity and `dossierHref` from the dossier-following feature. Following and update acknowledgements remain dossier-wide when a person is selected; the preview creates no competing persistent store.
 
 ```sh
 npm ci

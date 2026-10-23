@@ -47,3 +47,31 @@ test('equal titles cannot attach a speech from another agenda',()=>{
   const input=observations();input.catalogues=[record({id:'eli/dl/event/speech',activity_label:{en:'Title'},had_participation:{had_participant_person:['person/42']},inverse_consists_of:['eli/dl/event/unrelated']})];
   const result=buildExamples(input);assert.equal(result.examples[0].events.filter(e=>e.kind==='speech').length,0);
 });
+test('tabling chronology preserves a different DOCX date and resolves mandates on the event date',()=>{
+  const input=observations(),list=input.reports[0].payload.data[0].inverse_foresees_change_of[0];
+  list.document_date='2026-01-01';
+  input.procedures[0].payload.data[0].consists_of.push({id:'eli/dl/event/exact-depot',had_activity_type:'activities/TABLING_PLENARY',activity_date:'2026-01-01',based_on_a_realization_of:[list.id],occured_at_stage:'phase/RDG1'});
+  input.profiles[0].payload.data[0].hasMembership[0].memberDuring.endDate='2026-01-01';
+  const event=buildExamples(input).examples[0].events.find(e=>e.kind==='amendment');
+  assert.equal(event.date,'2026-01-01');assert.equal(event.dateBasis,'tabling');
+  assert.equal(event.title,'Tabled amendment 1');assert.equal(event.amendment.documentDate,'2026-01-02');
+  assert.equal(event.amendment.metadataDate,'2026-01-01');assert.equal(event.amendment.dateDiscrepancy,true);
+  assert.equal(event.amendment.tablingObservations[0].id,'eli/dl/event/exact-depot');
+  assert.equal(event.amendment.tablingObservations[0].source.url,input.procedures[0].url);
+  assert.equal(event.amendment.authors[0].evidence[0].date,'2026-01-01');
+});
+test('a document date without an exact tabling event is labelled as a document date',()=>{
+  const input=observations();
+  input.procedures[0].payload.data[0].consists_of.push({id:'eli/dl/event/other-depot',had_activity_type:'activities/TABLING_PLENARY',activity_date:'2026-01-01',based_on_a_realization_of:['eli/dl/doc/unrelated-list']});
+  const event=buildExamples(input).examples[0].events.find(e=>e.kind==='amendment');
+  assert.equal(event.date,'2026-01-02');assert.equal(event.dateBasis,'document');assert.equal(event.title,'Amendment 1');
+  assert.equal(event.amendment.tablingDate,null);assert.equal(event.amendment.tablingStatus,'unavailable');
+});
+test('conflicting tabling observations retain both events and withhold a tabling date',()=>{
+  const input=observations(),list=input.reports[0].payload.data[0].inverse_foresees_change_of[0];
+  for(const day of ['01','03'])input.procedures[0].payload.data[0].consists_of.push({id:'eli/dl/event/depot-'+day,had_activity_type:'activities/TABLING_PLENARY',activity_date:'2026-01-'+day,based_on_a_realization_of:[list.id]});
+  const event=buildExamples(input).examples[0].events.find(e=>e.kind==='amendment');
+  assert.equal(event.title,'Amendment 1');assert.equal(event.dateBasis,'document');
+  assert.equal(event.amendment.tablingDate,null);assert.equal(event.amendment.tablingStatus,'conflicting');
+  assert.deepEqual(event.amendment.tablingObservations.map(o=>o.date),['2026-01-01','2026-01-03']);
+});

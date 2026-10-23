@@ -45,10 +45,15 @@ export function buildExamples({procedures,reports,results,decisions,catalogues,s
     const amendments=linkedReports.flatMap(report=>{
       const w=node(report),lists=array(w.inverse_foresees_change_of).filter(l=>array(l.foresees_change_of).map(identity).includes(w.id));
       return lists.flatMap(list=>extractions.filter(x=>x.meta.listId===tail(list)&&x.meta.targetDocumentId===tail(w)).flatMap(x=>x.extraction.amendments.map(a=>{
-        const resolved=resolveAmendmentAuthors(a.authors,{members,date:a.date});
+        const tablingObservations=array(p.consists_of).filter(event=>tail(event.had_activity_type)==='TABLING_PLENARY'&&array(event.based_on_a_realization_of).map(identity).includes(identity(list))).map(event=>({id:event.id,date:event.activity_date||null,stage:tail(event.occured_at_stage)||null,source:evidence(record)}));
+        const dates=[...new Set(tablingObservations.map(event=>event.date))];
+        const tablingDate=dates.length===1&&dates[0]?dates[0]:null;
+        const documentDate=a.documentDate||a.date||null;
+        const tablingStatus=tablingDate?'recorded':dates.filter(Boolean).length>1?'conflicting':'unavailable';
+        const resolved=resolveAmendmentAuthors(a.authors,{members,date:tablingDate||documentDate});
         const targets=['eli/dl/doc/'+tail(w)+'-AM-'+a.number,'eli/dl/doc/'+tail(w)+'-AM-'+String(a.number).padStart(3,'0')];
         const outcomes=ballots.filter(b=>array(b.activity.decided_on_a_realization_of).map(identity).some(id=>targets.includes(id)));
-        return {...a,id:tail(w)+'-AM-'+a.number,authors:resolved,source:{...evidence(x.meta),language:a.language},outcomes:outcomes.map(b=>({id:b.activity.id,outcome:tail(b.activity.decision_outcome),source:b.source})),gaps:x.extraction.gaps.filter(g=>g.number==null||g.number===a.number)};
+        return {...a,id:tail(w)+'-AM-'+a.number,documentDate,tablingDate,tablingStatus,tablingObservations,metadataDate:list.document_date||null,metadataSource:evidence(report),dateDiscrepancy:Boolean(tablingDate&&documentDate&&tablingDate!==documentDate),authors:resolved,source:{...evidence(x.meta),language:a.language},outcomes:outcomes.map(b=>({id:b.activity.id,outcome:tail(b.activity.decision_outcome),source:b.source})),gaps:x.extraction.gaps.filter(g=>g.number==null||g.number===a.number)};
       })));
     });
     const listCount=linkedReports.reduce((n,r)=>n+array(node(r).inverse_foresees_change_of).length,0);
@@ -66,7 +71,10 @@ export function buildExamples({procedures,reports,results,decisions,catalogues,s
       const xml=array(node(detail)?.recorded_in_a_realization_of).map(d=>d['api:xmlFragment']?.en).filter(x=>typeof x==='string').join('\n')||null;
       events.push({id:activity.id,kind:'speech',date:activity.activity_date,start:activity.activity_start_date,stage:tail(array(node(procedures.find(r=>tail(node(r)?.id)===pid)).consists_of).find(e=>dossier.debateIds.includes(e.id))?.occured_at_stage)||null,title:tail(activity.had_activity_type)==='PLENARY_DEBATE_WRITTEN_STATEMENT'?'Written statement':'Speech in joint debate',detail:'Joint debate on the defence readiness package',source:{...evidence(detail||record),language:xml?'en':null},catalogueSource:evidence(record),xml,translation:xml?.includes('-mtec')?'Machine translation':null,parents:array(activity.inverse_consists_of).map(identity)});
     }
-    for(const amendment of dossier.amendments.filter(a=>a.authors.some(author=>String(author.personId)===personId&&author.status==='resolved')))events.push({id:amendment.id+'@'+amendment.listId,kind:'amendment',date:amendment.date,stage:tail(array(node(procedures.find(r=>tail(node(r)?.id)===pid)).consists_of).find(e=>array(e.based_on_a_realization_of).map(tail).includes(amendment.listId))?.occured_at_stage)||null,title:'Tabled amendment '+amendment.number,detail:amendment.targetLabel==='–'?'':amendment.targetLabel,amendment,source:amendment.source});
+    for(const amendment of dossier.amendments.filter(a=>a.authors.some(author=>String(author.personId)===personId&&author.status==='resolved'))){
+      const stages=[...new Set(amendment.tablingObservations.map(event=>event.stage))];
+      events.push({id:amendment.id+'@'+amendment.listId,kind:'amendment',date:amendment.tablingDate||amendment.documentDate,dateBasis:amendment.tablingDate?'tabling':'document',stage:stages.length===1?stages[0]:null,title:(amendment.tablingDate?'Tabled amendment ':'Amendment ')+amendment.number,detail:amendment.targetLabel==='–'?'':amendment.targetLabel,amendment,source:amendment.source});
+    }
     for(const ballot of dossier.ballots){
       const d=ballot.activity,position=recordedPosition(d,personId);
       events.push({id:d.id,kind:'vote',date:d.activity_date,start:d.activity_start_date,stage:tail(array(node(procedures.find(r=>tail(node(r)?.id)===pid)).consists_of).find(e=>e.id===ballot.resultId)?.occured_at_stage)||null,title:d.referenceText?.en||'Vote',position,outcome:tail(d.decision_outcome)||null,amendmentNumber:d.decisionAboutId||null,intentions:['favor','against','abstention'].filter(k=>array(d['had_voter_intended_'+k]).map(identity).includes('person/'+personId)),source:{...ballot.source,language:'en'},resultId:ballot.resultId,resultSource:ballot.resultSource});
