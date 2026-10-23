@@ -303,7 +303,7 @@ async function handleApi(request,response,url,apiPrefix){
     } else if (segments.length === 2 && segments[0] === "speech-transcript" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[1])) result = await speechTranscript(segments[1], language);
     else if (segments.length === 2 && segments[0] === "speech" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[1])) result = await odpSpeech(segments[1], language);
     else throw new HttpError(404, "not_found", "Unknown explorer endpoint.");
-    if(groupOn)result={...attributeSpeechResponse(result,groupOn),affiliationGeneration:attributionGeneration||null};
+    if(groupOn&&result.available!==false)result={...attributeSpeechResponse(result,groupOn),affiliationGeneration:attributionGeneration||null};
     const policy=apiCachePolicy(request, url, result);
     sendJson(request, response, 200, result, {...policy,...(!currentVersion?{cdnCacheControl:'no-store'}:{})});
     return;

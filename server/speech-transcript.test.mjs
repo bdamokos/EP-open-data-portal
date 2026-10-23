@@ -47,6 +47,7 @@ test('corpus transcript reads retain XML, exact keys, languages and provenance w
     const get=(language,suffix='')=>fetch(`${base}/api/speech-transcript/${id}?lang=${language}${suffix}`);
     const response=await get('de'),result=await response.json();
     assert.equal(response.status,200);assert.equal(result.xml,xml);
+    assert.equal(result.affiliationGeneration,null,'successful transcript reads expose the optional attribution generation');
     assert.equal(result.sourceFragmentKey,'mul');assert.equal(result.textLanguage,'de');assert.equal(result.translationType,'original');
     assert.equal(result.sourceUrl,sourceUrl);assert.equal(result.fetchedAt,date);assert.equal(result.checkedAt,date);
     assert.deepEqual(result.availableTextLanguages,['en','de']);
