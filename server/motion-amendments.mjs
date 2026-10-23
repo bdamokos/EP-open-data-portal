@@ -1,3 +1,4 @@
+import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {odpLanguage} from './odp.mjs';
 import {array,documentFiles} from './activity-index-model.mjs';
@@ -108,11 +109,11 @@ function indexedOutcome(store,source,id) {
 function textMetadata(store,id,source,language,member,{adopted=false}={}) {
   const work=source?.work,sources=source?[metadataSource(id,source.fetchedAt)]:[];
   const titles=work?.title_dcterms || Object.assign({},...array(work?.is_realized_by).map(expression=>expression.title || {}));
-  const titleLanguage=[language,'en',...Object.keys(titles)].find(code=>typeof titles[code]==='string'&&titles[code]);
+  const titleLanguage=languagePreference(Object.keys(titles),language).find(code=>typeof titles[code]==='string'&&titles[code]);
   const files=work?documentFiles(work).filter(file=>['PDF','DOCX'].includes(file.format)):[];
-  const availableLanguages=[...new Set(files.map(file=>file.language).filter(Boolean))].sort();
+  const availableLanguages=languagePreference(files.map(file=>file.language).filter(Boolean),language);
   const preferred=code=>files.find(file=>file.language===code&&file.format==='PDF') || files.find(file=>file.language===code);
-  const preferredFile=preferred(language)||preferred('en')||files[0]||null;
+  const preferredFile=preferred(availableLanguages[0])||files[0]||null;
   const authors=work&&!adopted?documentAuthorIdentities(work):[];
   const selected=authors.find(author=>String(author.id)===member);
   const observedAuthors=Boolean(work&&!adopted&&(work.creator!=null||work.workHadParticipation!=null));

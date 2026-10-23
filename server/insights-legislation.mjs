@@ -1,4 +1,5 @@
 import {generationGroupOn,datedPerson} from './group-attribution.mjs';
+import {languagePreference} from './language-order.mjs';
 import {calendarYears,currentTermSittings} from './plenary-calendar.mjs';
 import { HttpError } from './http-utils.mjs';
 import { odp } from './odp.mjs';
@@ -116,7 +117,7 @@ export class LegislationInsights {
     }
     const foreseen={url:agendaSources[0]?.apiUrl||'https://data.europarl.europa.eu/api/v2/meetings/'+sitting.activity_id+'/foreseen-activities',fetchedAt:agendaSources[0]?.fetchedAt||null,payload:{data:agendaNodes}};
     const topics=agendaTopics(meeting,foreseen).slice(0,LEGISLATION_LIMITS.agendaTopics);
-    const localize=n=>({...n,title:n.titles[query.language]||n.titles.en||Object.values(n.titles)[0]||n.id,titleLanguage:n.titles[query.language]?query.language:n.titles.en?'en':Object.keys(n.titles)[0]||null});
+    const localize=n=>{const code=languagePreference(Object.keys(n.titles).filter(code=>n.titles[code]?.trim()),query.language)[0];return {...n,title:n.titles[code]||n.id,titleLanguage:code||null};};
     let detail=null;
     if(query.topic) {
       const topic=topics.find(t=>t.id===query.topic);if(!topic)throw new HttpError(404,'topic_not_found','That agenda topic is not in the selected sitting.');

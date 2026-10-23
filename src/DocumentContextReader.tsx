@@ -1,3 +1,5 @@
+import {selectLanguageText} from './language.mjs';
+import {TextLanguagePicker,TextLanguageFallback} from './TextLanguagePicker';
 import {useId,useRef,useState,type ReactNode} from 'react';
 import {useData} from './data';
 import type {DocumentContextRequest,DocumentContextResponse} from './DocumentContextTypes';
@@ -23,9 +25,8 @@ type Title={text:string;language:string};
 const safeHref=(value:string|null|undefined)=>{try{const url=new URL(value||'');return ['https:','http:'].includes(url.protocol)&&!url.username&&!url.password?url.href:null;}catch{return null;}};
 const languageName=(code:string)=>{try{return new Intl.DisplayNames(['en'],{type:'language'}).of(code)||code.toUpperCase();}catch{return code.toUpperCase();}};
 const titleOf=(document:Pick<PublicationDocument,'titles'>,language:string):Title=>{
-  const entries=Object.entries(document.titles||{}).filter(([,value])=>typeof value==='string'&&value.trim());
-  const title=entries.find(([key])=>key===language)||entries.find(([key])=>key==='en')||entries[0];
-  return title?{text:displayVoteTitle(title[1]),language:title[0]}:{text:'Document text',language:'en'};
+  const title=selectLanguageText(document.titles,language,'Document text');
+  return {...title,text:displayVoteTitle(title.text)};
 };
 const documentKind=(id:string)=>id.startsWith('TA-')?'Adopted text':id.startsWith('RC-')?'Joint motion':id.startsWith('B-')?'Motion':'Report';
 const documentRoute=(id:string,language:string,request?:DocumentContextRequest)=>{
@@ -82,12 +83,12 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const availableLanguages=[...new Set([...(text?.availableTextLanguages||[]),...(actual?[actual]:[])])];
   const showPassage=()=>{const paragraph=reader.current?.querySelector<HTMLElement>('[data-context-target="true"]');paragraph?.scrollIntoView({block:'center'});paragraph?.focus({preventScroll:true});};
   return <div className="document-context-document" data-context-pending={state.loading&&!hasText?'true':undefined}>
-    {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools">{availableLanguages.length>1&&<label>Text language<select aria-label="Document text language" value={actual&&availableLanguages.includes(actual)?actual:language} onChange={event=>onLanguageChange(event.target.value)}>{availableLanguages.map(code=><option key={code} value={code}>{languageName(code)}</option>)}</select></label>}{hasText&&<FindInText key={id+':'+language} target={reader} label="Find in document"/>}</div></header>}
+    {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools"><TextLanguagePicker available={availableLanguages} requested={interfaceLanguage} value={actual} onChange={onLanguageChange}/>{hasText&&<FindInText key={id+':'+language} target={reader} label="Find in document"/>}</div></header>}
     {state.loading&&!data&&<p role="status">Loading document…</p>}
     {loadError&&<p className="document-context-notice" role="alert">{hasText?'Couldn’t update the document. Showing saved text.':extractionError?'Document text could not be loaded.':'Document could not be loaded.'} <button type="button" onClick={state.retry}>Try again</button></p>}
     {!state.loading&&!loadError&&!document&&<p>Document unavailable here.</p>}
     {document&&<>
-      {actual&&<p className="document-context-language">{actual!==language?<>{languageName(language)} unavailable · showing {languageName(actual)}.</>:<>Text language: {languageName(actual)}</>}</p>}
+      {actual&&<p className="document-context-language">{actual!==language?<TextLanguageFallback requested={language} actual={actual} interfaceLanguage={interfaceLanguage}/>:<>Text language: {languageName(actual)}</>}</p>}
       {hasText&&!loadError&&(text?.stale||text?.refreshError)&&<p className="document-context-notice">{text?.refreshError?'Couldn’t update the document. Showing saved text.':'Showing saved text.'}</p>}
       {hasText?<>
         {amendmentRequest?.amendmentId&&(found?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to passage</button>{target?.quoteMatches===false&&<p>The published text differs from the amendment’s quotation.</p>}</div>:<p className="document-context-notice">Passage not found. The full document is below.</p>)}

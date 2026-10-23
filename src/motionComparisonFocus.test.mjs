@@ -86,7 +86,7 @@ test('requested comparison language and actual fallback remain distinct while na
   assert.equal(h.requests[0].url.searchParams.get('lang'),'hu');
   await h.finish(h.requests[0],comparison('original-joint','hu',{textLanguage:'en'}));
   const select=h.language();assert(select);select.focus();assert.equal(select.value,'en');
-  assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');assert.match(h.container.querySelector('.explorer-diff-notice').textContent,/is unavailable in one or both texts\. Showing/);
+  assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');assert.match(h.container.querySelector('.text-language-note').textContent,/unavailable in one or both texts · showing/);
   await h.change(select,'fr');assert.equal(select.value,'fr');assert(h.language()===select);
   assert.equal(h.requests.at(-1).url.searchParams.get('lang'),'fr');assert.equal(h.container.querySelector('.explorer-diff-rows'),null);
   await h.finish(h.requests.at(-1),comparison('original-joint','fr',{textLanguage:'en',availableLanguages:['en']}));
@@ -98,17 +98,17 @@ test('requested comparison language and actual fallback remain distinct while na
 
 test('unadmitted actual language metadata keeps the valid requested choice without inventing language options',async t=>{
   for(const actual of ['mul','und'])await t.test(actual,async t=>{
-    const h=await harness(t,{language:'hu'}),admitted=['en','hu','fr'];
+    const h=await harness(t,{language:'hu'}),admitted=['hu','en','fr'];
     await h.finish(h.requests[0],comparison('original-joint','hu',{availableLanguages:admitted}));
     const select=h.language();await h.change(select,'fr');
     assert.equal(h.requests.at(-1).url.searchParams.get('lang'),'fr');
     await h.finish(h.requests.at(-1),comparison('original-joint','fr',{textLanguage:actual,availableLanguages:admitted}));
     assert(h.language()===select);assert(document.activeElement===select);assert.equal(select.value,'fr','the admitted requested choice remains usable when actual metadata is not a selectable language');
     assert.deepEqual([...select.options].map(option=>option.value),admitted,'neither an unavailable placeholder nor the unadmitted actual code becomes an option');
-    assert.deepEqual([...select.options].map(option=>option.textContent),admitted.map(code=>new Intl.DisplayNames(['hu'],{type:'language'}).of(code)));
+    assert.deepEqual([...select.options].map(option=>option.textContent),admitted.map(code=>new Intl.DisplayNames([code],{type:'language'}).of(code)));
     assert.equal(h.container.querySelector('.explorer-diff-rows').lang,actual,'selector validity does not rewrite actual source-language metadata');
     assert.equal(h.container.querySelector('.explorer-diff-documents a').textContent,'Source DOCX · '+actual.toUpperCase()+' ↗');
-    assert.match(h.container.querySelector('.explorer-diff-notice').textContent,/is unavailable in one or both texts\. Showing/);
+    assert.match(h.container.querySelector('.text-language-note').textContent,/unavailable in one or both texts · showing/);
     await h.wait();assert.match(h.status().textContent,new RegExp('Text language: '+actual.toUpperCase()+'\\.'));
     assert(!h.status().textContent.includes(body));
   });
@@ -149,7 +149,8 @@ test('stage and exact motion-pair changes cannot inherit an unrelated language c
   const result=comparison('original-adopted','en',{textLanguage:'it',availableLanguages:['it']});
   result.documents=result.documents.map((document,index)=>{const id=index?'TA-10-2026-0340':nextPair.originalId;return {...document,id,reference:id,title:id,sourceUrl:`https://data.europarl.europa.eu/distribution/example/${id}_it.docx`};});
   await h.finish(current,result);
-  assert.deepEqual([...h.language().options].map(option=>option.value),['it']);assert.equal(h.language().value,'it');
+  assert.equal(h.language(),null,'one available language has no picker when it was not focused');
+  assert.match(h.container.querySelector('.text-language-note').textContent,/showing Italian/);
   assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'it');assert.match(h.container.querySelector('.explorer-diff-documents').textContent,/B-10-2026-0449/);
   assert.doesNotMatch(h.container.querySelector('.explorer-diff-documents').textContent,/B-10-2026-0441|RC-10-2026-0441/);
 });

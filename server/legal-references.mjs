@@ -1,4 +1,5 @@
 import {sourceTitle} from './source-titles.mjs';
+import {languagePreference} from './language-order.mjs';
 import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
@@ -94,8 +95,8 @@ export function parseCellar(data,uuids,language) {
 const kindOf=celex=>/^5/.test(celex||'')?'document':'act';
 function questionTitle(work,language) {
   const titles=work?.title_dcterms||{};
-  const value=text(titles[language])||text(titles.en)||text(Object.values(titles)[0]);
-  return {title:sourceTitle(value)||null,titleLanguage:titles[language]?language:titles.en?'en':Object.keys(titles)[0]||null};
+  const code=languagePreference(Object.keys(titles).filter(code=>text(titles[code])),language)[0];
+  return {title:sourceTitle(text(titles[code]))||null,titleLanguage:code||null};
 }
 const noRecord=error=>/\((?:404|410)\)/.test(String(error?.message||''));
 

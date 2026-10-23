@@ -1,4 +1,5 @@
 import {sourceTitles} from './source-titles.mjs';
+import {languagePreference} from './language-order.mjs';
 import {createHash} from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
 import {documentFiles} from './activity-index-model.mjs';
@@ -7,10 +8,8 @@ import {odpLanguage} from './odp.mjs';
 export const SAVED_INSIGHTS_VERSION=3;
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 function selectedTitle(titles,language,fallback) {
-  if(titles?.[language])return {title:titles[language],titleLanguage:language};
-  if(titles?.en)return {title:titles.en,titleLanguage:'en'};
-  const first=Object.entries(titles||{})[0];
-  return first?.[1]?{title:first[1],titleLanguage:first[0]||null}:{title:fallback,titleLanguage:null};
+  const code=languagePreference(Object.keys(titles||{}).filter(code=>titles[code]?.trim()),language)[0];
+  return code?{title:titles[code],titleLanguage:code}:{title:fallback,titleLanguage:null};
 }
 export function savedItemPreview(store,generation,row,language) {
   const body=JSON.parse(row.body);

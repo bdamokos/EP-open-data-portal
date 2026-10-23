@@ -3,6 +3,7 @@ import {membershipSchema,freezeMembership} from './following-membership.mjs';
 import {followMarksVersion,prepareFollowMarks,publishFollowMarks,followIndexComplete} from './follow-marks.mjs';
 import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
 import {sourceTitle} from './source-titles.mjs';
+import {languagePreference} from './language-order.mjs';
 import {activityReadVersion,initializeActivityReads,prepareQuestionFiles,projectQuestionFiles,copyQuestionFiles,motionDocuments} from './activity-read-projections.mjs';
 import {groupVoicesSchema,groupVoicesCopy,groupVoicesPrune,recordGroupVoice} from './group-voices-store.mjs';
 import { DatabaseSync } from 'node:sqlite';
@@ -372,7 +373,7 @@ export class ActivityStore {
             const file=preferred(language) || preferred('en') || files[0];
             const titles=joint.work.title_dcterms || {};
             const authors=documentRows(joint.work,joint.key,joint.fetchedAt).rows;
-            return {sourceId:id,reference:motionReference(id),title:titles[language]||titles.en||id,outcome:outcome(joint),
+            return {sourceId:id,reference:motionReference(id),title:titles[languagePreference(Object.keys(titles).filter(code=>titles[code]?.trim()),language)[0]]||id,outcome:outcome(joint),
               memberAuthorship:authors.some(author=>author.mepId===String(mep))?'recorded':'not-recorded',
               url:file?.url || null,documentFormat:file?.format || null,documentLanguage:file?.language || null};
           });
@@ -382,7 +383,7 @@ export class ActivityStore {
       if(row.recordKind==='answer'&&row.relatedQuestionId) {
         const question=this.source(generation,'/parliamentary-questions/'+row.relatedQuestionId)?.work;
         const titles=Object.assign({},...(question?.is_realized_by||[]).map(expression=>expression.title||{}),question?.title_dcterms||{});
-        if(Object.keys(titles).length)return {...localize({...row,titles},language),relatedQuestionTitles:titles,relatedQuestionTitle:sourceTitle(titles[language]||titles.en||Object.values(titles)[0])};
+        if(Object.keys(titles).length)return {...localize({...row,titles},language),relatedQuestionTitles:titles,relatedQuestionTitle:sourceTitle(titles[languagePreference(Object.keys(titles).filter(code=>titles[code]?.trim()),language)[0]])};
       }
       return localize(row,language);
     };
