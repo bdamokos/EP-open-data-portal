@@ -149,6 +149,23 @@ test('document context HTTP contract is bounded, query-separated and never start
     }
   });
 
+  await t.test('selected comparison conflict is withheld over HTTP without dropping source evidence',async tt=>{
+    const documentId='RC-10-2026-0450',amendmentId=documentId+'-AM-1';
+    const paragraphs=['The European Parliament,','19. Original wording;','20. Next;'];
+    tt.mock.method(documentContext,'request',async()=>({payload:{data:[{id:'eli/dl/doc/'+documentId,identifier:documentId,work_type:'def/ep-document-types/RESOLUTION_MOTION_JOINT',is_realized_by:[]}]},fetchedAt:Date.parse(fetchedAt)}));
+    tt.mock.method(documentContext,'readText',async()=>({...text('en'),paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))}));
+    for(const [index,conflicted] of [true,false,undefined].entries()) {
+      const listId=documentId+'-AM-00'+(index+1)+'-00'+(index+1);
+      const baselineSource={category:'unknown',headings:[{left:{raw:'Motion for a resolution',category:'motion-resolution'},right:{raw:'Amendment',category:'other'}},{left:{raw:'Text proposed by the Commission',category:'commission-proposal'},right:{raw:'Amendment',category:'other'}}],language:'en',sourceUrl:variants[0].wordingSource.url,fetchedAt,...(conflicted===undefined?{}:{conflicted})};
+      tt.mock.method(documentContext,'findAmendment',()=>({...variants[0],id:amendmentId,targetDocumentId:documentId,listId,baseline:'unknown',baselineSource,originalText:paragraphs[1],targetLabel:'Paragraph 19'}));
+      const result=await read('/api/document-context/'+documentId+'?'+new URLSearchParams({amendment:amendmentId,list:listId,'wording-lang':'en'}));
+      assert.equal(result.status,200);noStore(result);assert.equal(result.body.amendment.variants[0].baseline,'unknown');assert.deepEqual(result.body.amendment.variants[0].baselineSource,baselineSource);
+      assert.equal(result.body.placement.status,conflicted===true?'unresolved':'placed');
+      if(conflicted===true){assert.equal(result.body.placement.reason,'conflicting_baselines');assert.equal(result.body.placement.span,undefined);}
+      else assert.deepEqual(result.body.placement.span,{start:1,end:1});
+    }
+  });
+
   assert.equal(worker.running,false);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs').get().n,0);assert.equal(calls.length,2);
   process.env.ACTIVITY_INDEX_ENABLED='false';assert.equal((await read(endpoint)).status,200);
 });

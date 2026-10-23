@@ -374,6 +374,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const placed = fields => ({operation, status: 'placed', ...fields, evidence});
   if (!operation) return unresolved('amendment_wording_unavailable');
+  if (options.baselineSource?.conflicted === true) return unresolved('conflicting_baselines');
   if (exceedsInputBudget(text, options) || options.proposedText.length > MATCH_LIMITS.quoteCharacters) return unresolved('matching_budget');
   const firstLine = (options.targetLabel || '').split(/[\r\n]/)[0];
   // Articles and nested legislative references are outside the resolution baseline.

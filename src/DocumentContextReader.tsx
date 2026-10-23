@@ -44,6 +44,7 @@ const placementReasons:Record<string,string>={
   resolution_extent_uncertain:'The boundaries of this passage could not be established safely.',
   resolution_end_unavailable:'The end of the resolution could not be established safely.',
   baseline_unavailable:'The text this amendment changes is not included in this document.',
+  conflicting_baselines:'Conflicting comparison texts.',
   different_text_languages:'The document and amendment wording are in different languages.',
   duplicate_target_label:'A provision with the proposed label already exists.',
   conflicting_target_evidence:'The published location and wording do not agree.',

@@ -631,3 +631,20 @@ test('unknown baselines require verified resolution document identity; other bas
   assert.equal(placement(text,{...options,baseline:'unknown',resolutionDocument:true,targetLabel:'Article 19'}).reason,'baseline_unavailable');
   assert.equal(placement(document(['19. Original wording;']),{...options,baseline:'unknown',resolutionDocument:true}).reason,'baseline_unavailable');
 });
+
+
+test('conflicting comparison sources never enter motion placement or legacy unknown recovery', () => {
+  const text=motion(['19. Original wording;','20. Next;']);
+  const options={originalText:'19. Original wording;',proposedText:'Changed;',targetLabel:'Paragraph 19',resolutionDocument:true};
+  for(const baseline of ['unknown',null,undefined,'motion-resolution','commission-proposal','council-position','present-text','other']) {
+    const baselineSource={category:baseline,headings:[],conflicted:true};
+    const result=placement(text,{...options,baseline,baselineSource});
+    assert.equal(result.status,'unresolved',String(baseline));assert.equal(result.reason,'conflicting_baselines');assert.equal(result.span,undefined);
+    assert.equal(baselineSource.conflicted,true);
+  }
+  for(const baselineSource of [undefined,null,{category:'unknown',headings:[]},{category:'unknown',headings:[],conflicted:false}]) {
+    for(const baseline of ['unknown',null,undefined,'motion-resolution'])assert.equal(placement(text,{...options,baseline,baselineSource}).status,'placed');
+    assert.equal(placement(text,{...options,baseline:'unknown',baselineSource,resolutionDocument:false}).reason,'baseline_unavailable');
+    for(const baseline of ['commission-proposal','council-position','present-text','other'])assert.equal(placement(text,{...options,baseline,baselineSource}).reason,'baseline_unavailable');
+  }
+});
