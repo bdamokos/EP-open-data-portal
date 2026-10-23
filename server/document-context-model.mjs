@@ -274,12 +274,17 @@ const headingNormal = value => value.normalize('NFD').replace(/\p{M}/gu, '');
 const resolutionEndPatterns = Object.fromEntries(Object.entries(resolutionEndLabels).map(([language, [annex, explanation]]) => [language,
   new RegExp(`^(?:(?:${headingNormal(annex)})(?:\\s+(?:[IVXLCDM]+|\\d+))?|(?:${headingNormal(explanation)}))(?:\\s*[:.–—-]\\s*.*)?$`, 'iu'),
 ]));
-// Text extraction has no reliable heading styles. Short uppercase lines and
-// capitalized lines without closing punctuation cannot establish prose safely.
+const annexPrefixes = Object.fromEntries(Object.entries(resolutionEndLabels).map(([language, [annex]]) => [language,
+  new RegExp(`^(?:${headingNormal(annex)})(?:\\s|$)`, 'iu'),
+]));
+// Numbered provisions and dash items supply continuation evidence before this
+// check. Punctuation alone cannot turn a short title into a prose continuation.
 const headingLike = value => value.length > 0 && value.length < 180 && /\p{L}/u.test(value)
-  && (value === value.toUpperCase() || /^\p{Lu}/u.test(value) && !/\p{P}$/u.test(value));
+  && (value === value.toUpperCase() || /^\p{Lu}/u.test(value)
+    && (!/\p{P}$/u.test(value) || /:$/u.test(value) || value.split(/\s+/u).length <= 3));
 function motionStructure(text, language) {
   const paragraphs = text?.paragraphs || [], start = motionBodyStart(paragraphs, language), rows = sourceStructure(text);
+  const formats = Array.isArray(text?.paragraphFormats) && text.paragraphFormats.length === paragraphs.length ? text.paragraphFormats : [];
   const units = [], stack = [], invalid = new Set(), uncertain = new Set(), incompleteLabels = new Set();
   if (start < 0 || !rows || rows[start].source.container !== 'body' || !rows[start].complete) return {units, invalid, uncertain, incompleteLabels, start, end: -1, endAvailable: false};
   let citation = 0, provisionsStarted = false, end = paragraphs.length - 1, endAvailable = false;
@@ -289,8 +294,17 @@ function motionStructure(text, language) {
   for (let index = start + 1; index < paragraphs.length; index++) {
     const row = rows[index], value = row.normal;
     if (!consecutive(rows[index - 1], row)) close(index - 1, true);
-    if (row.source.container === 'body' && resolutionEndPatterns[language]?.test(headingNormal(value))) {
+    // Word soft breaks separate a section label from its title inside one
+    // paragraph. Inspect that physical line before whitespace normalization.
+    const firstLine = headingNormal(whitespace(row.value.split(/[\r\n]/u)[0]));
+    if (row.source.container === 'body' && resolutionEndPatterns[language]?.test(firstLine)) {
       end = index - 1; endAvailable = row.complete; close(end, !row.complete); break;
+    }
+    if (row.source.container === 'body' && annexPrefixes[language]?.test(firstLine) && !/[.;!?]$/u.test(firstLine)) {
+      // An undelimited annex title has no safe extent. Exclude everything after
+      // it and withhold the preceding extent rather than resuming annex numbers.
+      for (const unit of stack) if (unit.kind !== 'heading') uncertain.add(unit.start);
+      end = index - 1; close(end); break;
     }
     if (row.source.container !== 'body' || !row.complete) {
       close(index - 1, true);
@@ -301,13 +315,16 @@ function motionStructure(text, language) {
       }
       continue;
     }
+    const heading = formats[index]?.heading;
+    const recordedHeading = Number.isInteger(heading) && heading >= 1 && heading <= 6;
     let kind, label, level = 1;
     let match = /^([1-9]\d{0,5}\s*[a-z]{0,3})[.)]\s+/u.exec(value);
     if (match) {kind = 'paragraph'; label = match[1].replace(/\s/g, ''); provisionsStarted = true;}
     else if ((match = /^([A-Z]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value))) {kind = 'recital'; label = match[1]; provisionsStarted = true;}
     else if ((match = /^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\))\s+/u.exec(value)) && stack.some(unit => unit.kind === 'paragraph')) {kind = 'point'; label = match[1] || match[2]; level = 2;}
     else if (!provisionsStarted && /^[–—−\-•]\s*\S/u.test(value)) {kind = 'citation'; label = String(++citation);}
-    else if (!/^[–—−\-•]\s*\S/u.test(value) && headingLike(value)) {
+    else if (recordedHeading || !/^[–—−\-•]\s*\S/u.test(value) && headingLike(value)) {
+      // Recorded outline headings also close scope when their text resembles prose.
       // A heading ends any list immediately. Later numbering cannot prove that
       // the preceding provision stopped before this unclassified material.
       for (const unit of stack) if (unit.kind !== 'heading') uncertain.add(unit.start);
@@ -361,7 +378,9 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const firstLine = (options.targetLabel || '').split(/[\r\n]/)[0];
   // Articles and nested legislative references are outside the resolution baseline.
   // Never quote-match them against a similarly numbered paragraph in a report.
-  if (/\barticle\b|\bregulation\b|\bdirective\b/i.test(firstLine) || options.baseline === 'other') return unresolved('baseline_unavailable');
+  if (/\barticle\b|\bregulation\b|\bdirective\b/i.test(firstLine)
+    || options.baseline != null && options.baseline !== 'motion-resolution'
+      && (options.baseline !== 'unknown' || options.resolutionDocument !== true)) return unresolved('baseline_unavailable');
   if (!options.language || text?.textLanguage && text.textLanguage !== options.language) return unresolved('different_text_languages');
   const rows = sourceStructure(text);
   if (!rows) return unresolved('source_structure_unavailable');

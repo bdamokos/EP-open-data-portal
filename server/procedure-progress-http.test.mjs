@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -6,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {API_VERSION} from './api-version.mjs';
 
-test('HTTP progress works without an activity index and preserves transport/query/cache boundaries',async t=>{
+test('HTTP progress works without an activity index and preserves transport/query/cache boundaries',loopback,async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'cellar-http-'));
   const previous={ODP_CACHE_DIR:process.env.ODP_CACHE_DIR,ACTIVITY_INDEX_ENABLED:process.env.ACTIVITY_INDEX_ENABLED};
   process.env.ODP_CACHE_DIR=directory;process.env.ACTIVITY_INDEX_ENABLED='false';

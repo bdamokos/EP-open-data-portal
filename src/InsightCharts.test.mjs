@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act, createElement, useState} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('question trends expose measures and retain keyboard and select filtering', async t => {
   const window = new Window({url: 'http://localhost/'});
@@ -10,15 +10,15 @@ test('question trends expose measures and retain keyboard and select filtering',
   const globals = {window, document: window.document, HTMLElement: window.HTMLElement, ResizeObserver, IS_REACT_ACT_ENVIRONMENT: true};
   const originals = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, {value, configurable: true, writable: true});
-  let vite, root;
+  let loadModule, root;
   t.after(async () => {
     if (root) await act(async () => root.unmount());
-    if (vite) await vite.close();
+    if (loadModule) await loadModule.close();
     await window.happyDOM.close();
     for (const [key, descriptor] of originals) descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key];
   });
-  vite = await createServer({configFile: false, server: {middlewareMode: true, hmr: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
-  const {QuestionTrend} = await vite.ssrLoadModule('/src/InsightCharts.tsx');
+  loadModule = await freshLoader({configFile: false, server: {middlewareMode: true, hmr: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
+  const {QuestionTrend} = await loadModule('/src/InsightCharts.tsx');
   const {createRoot} = await import('react-dom/client');
   const container = document.createElement('div'); document.body.append(container);
   root = createRoot(container);
@@ -89,4 +89,13 @@ test('question trends expose measures and retain keyboard and select filtering',
   assert.equal(container.querySelectorAll('svg [tabindex]').length, 0);
   assert.match(container.querySelector('svg [role="img"]').getAttribute('aria-label'), /3 questions, 8 total/);
   assert.equal(select(), null);
+  bins[1].availability = 'partial';
+  bins[2] = {...bins[2], availability: 'unavailable', count: null, total: null};
+  await render({interactive: true, selected: false});
+  assert.equal(points().length, 2, 'unavailable counts are not plotted at zero');
+  assert.match(select().options[2].textContent, /Partial period/);
+  assert.match(select().options[3].textContent, /Unavailable/);
+  assert.doesNotMatch(select().options[3].textContent, /0 questions/);
+  assert.equal(container.querySelector('svg path').getAttribute('d').split('L').length, 2, 'baseline stops at the frontier');
+  assert.match(container.textContent, /timeline is unavailable/);
 });

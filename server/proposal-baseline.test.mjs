@@ -160,8 +160,12 @@ test('all recorded localized column headings are accepted by amendment extractio
     const document=`<w:document xmlns:w="urn:word"><w:body>${p('<Amend><NumAm>1</NumAm>')}<w:tbl><w:tr><w:tc>${p(example.left)}</w:tc><w:tc>${p(example.right)}</w:tc></w:tr><w:tr><w:tc>${p('Before')}</w:tc><w:tc>${p('After')}</w:tc></w:tr></w:tbl>${p('</Amend>')}</w:body></w:document>`;
     const result=extractAmendments(archive(Buffer.from('word/document.xml'),Buffer.from(document)),{language:row.language});
     assert.equal(result.amendments[0].baseline,example.category);assert.equal(result.amendments[0].originalText,'Before');assert.equal(result.amendments[0].proposedText,'After');
+    assert.equal(result.amendments[0].baselineSource.category,example.category);
+    assert.deepEqual(result.amendments[0].baselineSource.headings[0].left,{raw:example.left,category:example.category});
+    assert.equal(result.amendments[0].baselineSource.headings[0].right.raw,example.right);
   }
-  assert.equal(comparisonHeading('Tairiscint i gcomhair rúin','ga').category,'unknown');
+  assert.equal(comparisonHeading('Tairiscint i gcomhair rúin','en').category,'unknown');
+  assert.equal(comparisonHeading('Tairiscint i gcomhair rún','ga').category,'unknown');
 });
 
 test('CELLAR admission and body deadline reports the app request_timeout error',async t=>{
@@ -224,6 +228,15 @@ test('reader cancellation and expiry propagate even when validated stale content
     controller.abort(reason);await assert.rejects(pending,error=>error===reason);
     finish(content());assert.deepEqual((await coalesced).buffer,old.buffer);
   }
+});
+
+test('source cancellation propagates without serving stale content or recording a failed refresh',async()=>{
+  let now=1000;
+  const docs=new CellarDocuments({...sourceOptions(async()=>content()),clock:()=>now,freshMs:10}),i=item();
+  await docs.docx(i);now+=20;
+  const reason=cancelledRequest();docs.request=async()=>{throw reason;};
+  await assert.rejects(docs.docx(i),error=>error===reason);
+  assert.equal(docs.failures.size,0);
 });
 
 test('shared request owner expiry propagates instead of returning stale content',async t=>{

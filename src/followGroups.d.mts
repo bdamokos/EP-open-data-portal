@@ -1,0 +1,12 @@
+export type Group={org:string;groupId:string;code:string};
+export type GroupEvent={id:string;mep:string;type:'group-changed';date:string;mark:number;from:Group;to:Group};
+export type GroupEntry=GroupEvent&{epoch:string;discoveredAt:number;readAt:number|null};
+export type GroupsSnapshot={epoch:string;generation:number;members:Record<string,{coverage:'complete'|'partial'|'unavailable';stale:boolean}>;events:GroupEvent[]};
+export type GroupsState={epoch:string|null;generation:number|null;baselines:Record<string,{savedAt:number;generation:number|null;available:boolean}>;entries:GroupEntry[];persistent:boolean;storageError:boolean};
+export const GROUPS_KEY:string;
+export const GROUPS_WINDOW:number;
+export function validGroupEvent(value:unknown):value is GroupEvent;
+export function validGroupsSnapshot(value:unknown):value is GroupsSnapshot;
+export function groupIsNew(entry:GroupEntry,now:number):boolean;
+export function groupEntries(state:GroupsState,mep:string|number,now:number):{fresh:GroupEntry[];history:GroupEntry[]};
+export function createGroupsStore(storage:Storage|null,notify?:()=>void,clock?:()=>number):{snapshot:()=>GroupsState;syncFollows:(items:import('./bookmarks.mjs').SavedItem[])=>void;retryStorage:()=>boolean;reload:()=>void;unavailable:()=>void;observe:(snapshot:GroupsSnapshot,items:import('./bookmarks.mjs').SavedItem[])=>boolean;markRead:(mep:string|number,id?:string)=>boolean};

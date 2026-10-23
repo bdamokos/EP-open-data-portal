@@ -1,3 +1,4 @@
+import {TextLanguagePicker,TextLanguageFallback} from './TextLanguagePicker';
 import {SourceLink} from './SourceLink';
 import {useEffect,useRef,useState} from 'react';
 import {useData} from './data';
@@ -18,7 +19,7 @@ interface Comparison {
 const names:Record<Stage,[string,string]>={'original-joint':['Original','Joint'],'original-adopted':['Original','Adopted'],'joint-adopted':['Joint','Adopted']};
 const documentNames:Record<Stage,[string,string]>={'original-joint':['Original motion','Joint motion'],'original-adopted':['Original motion','Adopted text'],'joint-adopted':['Joint motion','Adopted text']};
 const reference=(block:Block)=>block.kind==='paragraph'?`§ ${block.label}`:block.kind==='recital'?`Recital ${block.label}`:block.kind==='footnote'?`Note ${block.label}`:block.kind==='citation'?`Citation ${block.label}`:`Passage ${block.label}`;
-const languageName=(code:string,locale:string)=>{try{const text=new Intl.DisplayNames([locale],{type:'language'}).of(code);return {text:text||code.toUpperCase(),language:text&&text!==code?locale:''};}catch{return {text:code.toUpperCase(),language:''};}};
+
 function Wording({segments,side}:{segments:Segment[];side?:'before'|'after'}) {
   return <>{segments.filter(part=>!side || part.type!==(side==='before'?'added':'removed')).map((part,i)=>part.type==='removed'?<del key={i}><span className="explorer-diff-sr" lang="en">Start removed wording: </span>{part.text}<span className="explorer-diff-sr" lang="en"> End removed wording. </span></del>:part.type==='added'?<ins key={i}><span className="explorer-diff-sr" lang="en">Start added wording: </span>{part.text}<span className="explorer-diff-sr" lang="en"> End added wording. </span></ins>:<span key={i}>{part.text}</span>)}</>;
 }
@@ -38,7 +39,10 @@ function Passage({row,side,name}:{row:Row;side:'before'|'after';name:string}) {
   </div>;
 }
 export function MotionComparison({originalId,jointId,language}:{originalId:string;jointId:string;language:string}) {
-  const [stage,setStage]=useState<Stage>('original-joint'),[selectedLanguage,setLanguage]=useState(language),[showUnchanged,setShowUnchanged]=useState(true);
+  const [stage,setStage]=useState<Stage>('original-joint'),[selection,setSelection]=useState<{scope:string;value:string}|null>(null),[showUnchanged,setShowUnchanged]=useState(true);
+  const selectionScope=JSON.stringify([originalId,jointId,language]);
+  const selectedLanguage=selection?.scope===selectionScope?selection.value:language;
+  const setLanguage=(value:string)=>setSelection({scope:selectionScope,value});
   const [view,setView]=useState<View>('inline'),[readSide,setReadSide]=useState<'before'|'after'>('after');
   const [attempt,setAttempt]=useState(0);
   const state=useData<Comparison>(`motion-comparison/${encodeURIComponent(originalId)}?joint=${encodeURIComponent(jointId)}&stage=${stage}&lang=${selectedLanguage}`);
@@ -57,7 +61,7 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
   const fullNames=documentNames[stage],readIndex=readSide==='before'?0:1;
   const noDifferences=summary&&summary.changed===0&&summary.added===0&&summary.removed===0&&summary.referenceChanged===0;
   const stale=data?.sources.some(source=>source.stale || source.refreshError) || data?.documents.some(doc=>doc.stale || doc.refreshError);
-  const requestedName=languageName(selectedLanguage,language),actualName=languageName(data?.textLanguage||selectedLanguage,language);
+
   const comparisonName=`${labels[0]} to ${labels[1].toLowerCase()} comparison`;
   const status=state.error?`${comparisonName} ${data?'refresh failed. Showing saved comparison.':'could not be loaded.'}`:data?
     `${comparisonName} ${data.status==='unavailable'?'unavailable.':`available.${data.textLanguage?` Text language: ${data.textLanguage.toUpperCase()}.`:''}${summary?` ${summary.changed} changed, ${summary.removed} only in ${labels[0].toLowerCase()}, ${summary.added} only in ${labels[1].toLowerCase()}.`:' Comparison counts unavailable.'}`}${stale?' Showing saved sources.':''}`:null;
@@ -69,13 +73,13 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
       <label>Stages<select value={stage} onChange={e=>{setStage(e.target.value as Stage);setShowUnchanged(true);}}>
         <option value="original-joint">Original → joint motion</option><option value="original-adopted">Original → adopted text</option><option value="joint-adopted">Joint motion → adopted text</option>
       </select></label>
-      {showLanguage&&<label>Text language<select value={languageValue} onChange={e=>setLanguage(e.target.value)}>{!languageValue&&<option value="" disabled>Unavailable</option>}{availableLanguages.map(code=>{const name=languageName(code,language);return <option lang={name.language} key={code} value={code}>{name.text}</option>;})}</select></label>}
+      {showLanguage&&<TextLanguagePicker available={availableLanguages} requested={language} value={languageValue} onChange={setLanguage} preserveFocus/>}
     </div>
     <div>
       {state.loading&&!data&&<p role="status">Loading the linked texts…</p>}
       {state.error&&<p className="explorer-diff-error">{state.error} <button type="button" onClick={retry}>Try again</button></p>}
       {data&&<>
-        {data.textLanguage && data.textLanguage!==selectedLanguage&&<p className="explorer-diff-notice"><span lang={requestedName.language}>{requestedName.text}</span> is unavailable in one or both texts. Showing <span lang={actualName.language}>{actualName.text}</span>.</p>}
+        <TextLanguageFallback requested={selectedLanguage} actual={data.textLanguage} interfaceLanguage={language} comparison/>
         {data.documents.length===2&&<div className="explorer-diff-documents">{data.documents.map((doc,i)=><div key={doc.id}><strong>{labels[i]} · {doc.reference}</strong>{doc.date&&<span lang={language}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(doc.date))}</span>}{doc.sourceUrl&&<a href={doc.sourceUrl} target="_blank" rel="noreferrer">Source DOCX · {doc.language?.toUpperCase()} ↗</a>}</div>)}</div>}
         {stale&&<p className="explorer-diff-notice">Showing saved sources while Parliament’s data refreshes. Retrieval dates are below.</p>}
         {data.status==='unavailable'?<p className="explorer-diff-notice">{data.reason} <button type="button" onClick={retry}>Try again</button></p>:<>

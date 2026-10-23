@@ -57,7 +57,7 @@ function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,
 const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>(item.getAttribute('aria-label')||item.textContent.trim())===text);
 const visiblePane=container=>[...container.querySelectorAll('.member-votes-pane')].find(item=>!item.hidden);
 
-async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}},handler=url=>Response.json(responseFor(url)),statusCompatibility=false,renderContext}={}) {
+async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}},handler=url=>Response.json(responseFor(url)),statusCompatibility=false,renderContext,members}={}) {
   const window=new Window({url:'http://localhost/'});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -82,10 +82,11 @@ async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:
   vite=await createServer({configFile:false,plugins,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const module=await vite.ssrLoadModule('/src/MemberVotes.tsx');
   const DocumentContextReader=renderContext==='reader'?(await vite.ssrLoadModule('/src/DocumentContextReader.tsx')).DocumentContextReader:null;
+  const {PersonNamesProvider}=await vite.ssrLoadModule('/src/PersonName.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   current={...structuredClone(module.defaultMemberVotesState),...state};
-  const draw=()=>root.render(createElement(module.MemberVotes,{...props,state:current,key:renderKey}));
+  const draw=()=>root.render(createElement(PersonNamesProvider,{members},createElement(module.MemberVotes,{...props,state:current,key:renderKey})));
   props={memberId:MEMBER,memberName:'Test member',language:'en',onStateChange:(next,options)=>{current=next;changes.push({state:structuredClone(next),options});draw();},
     renderContext:request=>{contexts.push(request);return DocumentContextReader?createElement(DocumentContextReader,{request,language:'en'}):renderContext?renderContext(request):createElement('div',{'data-testid':'context'},request.documentId,createElement('button',{onClick:request.onBack},'Back from context'));}};
   await act(async()=>draw());
@@ -102,9 +103,9 @@ function wordingVariant(patch={}) {
 
 
 
-async function mountWording(t,{variants,amendmentStatus='available',state={}}) {
+async function mountWording(t,{variants,amendmentStatus='available',state={},members}) {
   const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}});
-  return mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id,...state},handler:url=>String(url).includes('document-context/')?
+  return mount(t,{members,state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id,...state},handler:url=>String(url).includes('document-context/')?
     Response.json({documentId:DOCUMENT,requestedLanguage:'en',document:null,amendment:{id:AMENDMENT,status:amendmentStatus,variants}}):Response.json(responseFor(url,{items:[item]}))});
 }
 
@@ -772,4 +773,11 @@ test('member-vote A-report Read in context reaches the Commission proposal',asyn
   assert(h.container.textContent.includes('Commission proposal · COM(2025)0087'));
   assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,'true');
   assert(h.calls.some(url=>url.includes('wording-lang=en')&&!url.includes('body=0')));
+});
+
+test('amendment vote proposers use exact directory IDs and preserve unknown labels',async t=>{
+  const h=await mountWording(t,{members:[{id:42,firstName:'Mika',lastName:'Aaltola'}],variants:[wordingVariant({authors:[{personId:'42',name:'Mika AALTOLA'},{personId:'99',name:'Guest McDONALD'}]})]});
+  const wording=h.container.querySelector('.member-votes-wording');
+  assert.match(wordingViewText(wording),/Proposed by Mika Aaltola, Guest McDONALD/);
+  assert.equal(wording.querySelector('[title="Source label: Mika AALTOLA"]').textContent,'Mika Aaltola');
 });

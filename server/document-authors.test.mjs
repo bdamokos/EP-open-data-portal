@@ -4,10 +4,51 @@ import { readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { documentAuthorIdentities, documentCoAuthors } from './document-authors.mjs';
+import { documentAuthorIdentities, documentCoAuthors, publishedAuthorOrder } from './document-authors.mjs';
 import { activityDocument } from './activities.mjs';
+import {runWithRequestSignal,createRequestBudget} from './request-budget.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/document-authors-live-20261014.json',import.meta.url),'utf8'));
+const orderFixture=JSON.parse(readFileSync(new URL('./fixtures/question-author-order.json',import.meta.url),'utf8'));
+test('E-10-2026-004128 follows its published byline instead of either unordered API array',()=>{
+  const f=orderFixture,authorText={status:'available',authorBylineParagraphs:['Question for written answer E-004128/2026',f.byline],sourceUrl:f.sourceUrl,fetchedAt:f.fetchedAt};
+  const result=documentCoAuthors(f.work,{members:f.members,authorText});
+  assert.deepEqual(result.coAuthors.map(a=>a.id),f.expectedIds);
+  assert.notDeepEqual(documentAuthorIdentities(f.work).map(a=>a.id),f.expectedIds);
+  assert.equal(result.coAuthorSource.order,'published-byline');
+  assert.equal(result.coAuthorSource.orderSourceUrl,f.sourceUrl);
+  assert.equal(result.coAuthorSource.orderFetchedAt,f.fetchedAt);
+  assert(result.coAuthors.every(a=>a.relationships.includes('creator')));
+});
+test('original and joint motion bylines preserve sequence across group blocks',()=>{
+  const authors=[{id:1,name:'Alex COMMON'},{id:2,name:'Zoë COMPOUND-SURNAME'},{id:3,name:'Third MEMBER'}];
+  for(const type of ['RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT']) {
+    const work={identifier:'B-10-2026-0001',work_type:'def/ep-document-types/'+type,creator:authors.map(a=>'person/'+a.id)};
+    const result=documentCoAuthors(work,{members:authors,authorText:{status:'available',authorBylineParagraphs:['Zoë\u00a0Compound-Surname, Alex Common','Third Member']}});
+    assert.deepEqual(result.coAuthors.map(a=>a.id),[2,1,3]);
+  }
+});
+test('missing, ambiguous, partial and prose mentions cannot drop authors or invent order',()=>{
+  const authors=[{id:1,name:'Alex Common'},{id:2,name:'Zoë Member'}];
+  for(const paragraphs of [[],['Zoë Member'],['Zoë Member and Alex Common request action.'],['Zoë Member, Unknown Member, Alex Common'],['Zoë Member, Zoë Member, Alex Common'],['Zoë Memberman, Alex Common']])assert.equal(publishedAuthorOrder(authors,paragraphs),authors);
+  const ambiguous=[...authors,{id:3,name:'ALEX COMMON'}];
+  assert.equal(publishedAuthorOrder(ambiguous,['Zoë Member, Alex Common']),ambiguous);
+  const unnamed=[...authors,{id:3,name:null}];
+  assert.equal(publishedAuthorOrder(unnamed,['Zoë Member, Alex Common']),unnamed);
+  const three=[...authors,{id:3,name:'Third Author'}];
+  assert.equal(publishedAuthorOrder(three,['Zoë Member, Alex Common','Subject: Body begins','Third Author']),three);
+  const work={identifier:'E-10-2026-000001',work_type:'def/ep-document-types/QUESTION_WRITTEN',creator:['person/1','person/2']};
+  assert.deepEqual(documentCoAuthors(work,{members:authors,authorText:{status:'available',paragraphs:['Zoë Member, Alex Common']}}).coAuthors.map(a=>a.id),[1,2],'unclassified body text cannot establish order');
+});
+test('answer author order reads the linked question instead of using answer names',async()=>{
+  const f=orderFixture,calls=[],answerId=f.work.identifier+'-ASW';
+  const work={...f.work,inverse_answers_to:[{identifier:answerId}]};
+  const result=await activityDocument(answerId,202073,'en',{request:async()=>({payload:{data:[work]},fetchedAt:Date.parse(f.fetchedAt)}),readText:async selected=>{calls.push(selected.identifier);return {status:'available',paragraphs:[selected.identifier===answerId?'Answer given by Someone Else':f.byline]};}});
+  assert.deepEqual(calls,[answerId],'do not look up ordering when no roster can support it');
+  assert.deepEqual(result.coAuthors.map(a=>a.id).sort((a,b)=>a-b),[...f.expectedIds].sort((a,b)=>a-b));
+  assert(result.coAuthors.every(a=>a.role==='QUESTION_AUTHOR' && a.sourceDocumentId===f.work.identifier));
+  assert.equal(result.coAuthorSource.order,'api-unordered','without a saved roster the order stays unverified');
+});
 test('real question and resolution author IDs join the documented current roster without name inference',()=>{
   const [question,motion]=fixture.documents;
   const resolve=(doc,id)=>documentCoAuthors(doc.work,{members:fixture.roster.members,selectedDocumentId:id,documentApiUrl:doc.sourceUrl,documentFetchedAt:doc.fetchedAt,rosterFetchedAt:fixture.roster.fetchedAt});
@@ -22,6 +63,8 @@ test('real question and resolution author IDs join the documented current roster
   const authors=resolve(motion,motion.work.identifier).coAuthors;
   assert.deepEqual(authors.map(a=>[a.id,a.name]),[[256959,'Alexander SELL']]);
   const answer=resolve(question,'E-10-2026-003031-ASW');
+  assert.equal(answer.coAuthors.length,30);
+  assert.deepEqual(answer.coAuthors.map(a=>a.id).sort((a,b)=>a-b),question.work.creator.map(uri=>Number(uri.slice('person/'.length))).sort((a,b)=>a-b));
   assert(answer.coAuthors.every(a=>a.role==='QUESTION_AUTHOR' && a.sourceDocumentId==='E-10-2026-003031'));
 });
 test('authors use exact canonical person/role references; organizations, rapporteurs and malformed references stay unlinked',()=>{
@@ -48,19 +91,42 @@ test('document handler resolves saved authors read-only while an incomplete inde
   const {store,worker}=activityIndex();
   try {
     assert(store.acquire());const cycle=store.beginCycle();
-    store.setMembers(fixture.roster.members);
+    store.setMembers([...new Map([...fixture.roster.members,...orderFixture.members].map(member=>[Number(member.id),member])).values()]);
     const doc=fixture.documents[0],endpoint='/parliamentary-questions/'+doc.work.identifier;
     const work={...doc.work,is_realized_by:[],inverse_answers_to:[{identifier:doc.work.identifier+'-ASW',is_realized_by:[]}]};
-    store.putSource(cycle.generation,endpoint,'document',work,doc.fetchedAt);store.release();
+    store.putSource(cycle.generation,endpoint,'document',work,doc.fetchedAt);
+    const f=orderFixture,orderedWork={...f.work,is_realized_by:[],inverse_answers_to:[{identifier:f.work.identifier+'-ASW',is_realized_by:[]}]};
+    store.putSource(cycle.generation,'/parliamentary-questions/'+f.work.identifier,'document',orderedWork,f.fetchedAt);store.release();
     const before=store.source(cycle.generation,endpoint),requests=[];
     globalThis.fetch=async url=>{requests.push(url);throw new Error('No author fan-out is allowed');};
     store.db.exec('PRAGMA query_only=ON');
     const question=await activityDocument(doc.work.identifier,257043,'en');
     const answer=await activityDocument(doc.work.identifier+'-ASW',257043,'en');
     assert.equal(question.coAuthors.length,30);assert(question.coAuthors.every(a=>a.profileAvailable));
+    assert.equal(answer.coAuthors.length,30);
+    assert.deepEqual(answer.coAuthors.map(a=>a.id).sort((a,b)=>a-b),doc.work.creator.map(uri=>Number(uri.slice('person/'.length))).sort((a,b)=>a-b));
     assert(answer.coAuthors.every(a=>a.role==='QUESTION_AUTHOR' && a.sourceDocumentId===doc.work.identifier));
     assert.equal(question.coAuthorSource.documentFetchedAt,new Date(doc.fetchedAt).toISOString());
     assert.equal(question.coAuthorSource.rosterFetchedAt,store.get('rosterFetchedAt'));
+    const answerId=f.work.identifier+'-ASW',calls=[];
+    const orderedAnswer=await activityDocument(answerId,202073,'en',{readText:async(selected,_language,options)=>{
+      calls.push([selected.identifier,options]);
+      return {status:'available',paragraphs:['Readable answer'],authorBylineParagraphs:selected.identifier===answerId?[]:[f.byline],sourceUrl:f.sourceUrl,fetchedAt:f.fetchedAt};
+    }});
+    assert.deepEqual(calls,[[answerId,undefined],[f.work.identifier,{cacheOnly:true}]]);
+    assert.deepEqual(orderedAnswer.coAuthors.map(a=>a.id),f.expectedIds);
+    assert(orderedAnswer.coAuthors.every(a=>a.role==='QUESTION_AUTHOR'));
+    const failedEnrichment=async selected=>{if(selected.identifier===answerId)return {status:'available',paragraphs:['Readable answer']};throw Object.assign(new Error('Busy'),{code:'upstream_busy'});};
+    const retained=await activityDocument(answerId,202073,'en',{readText:failedEnrichment});
+    assert.deepEqual(retained.selectedText.paragraphs,['Readable answer']);
+    assert.equal(retained.coAuthorSource.order,'api-unordered');
+    const budget=createRequestBudget(1000),reason=new Error('Reader left');
+    try {
+      await assert.rejects(runWithRequestSignal(budget.signal,()=>activityDocument(answerId,202073,'en',{readText:async selected=>{
+        if(selected.identifier===answerId)return {status:'available',paragraphs:['Readable answer']};
+        budget.abort(reason);throw reason;
+      }})),error=>error===reason);
+    } finally {budget.dispose();}
     assert.deepEqual(store.source(cycle.generation,endpoint),before);
     assert.equal(store.status().complete,false);assert.equal(worker.running,false);assert.deepEqual(requests,[]);
   } finally {

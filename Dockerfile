@@ -1,4 +1,4 @@
-ARG NODE_IMAGE=node:26.12.0-bookworm-slim
+ARG NODE_IMAGE=node:26.12.1-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -27,7 +27,7 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=8790 APP_REVISION=${APP_REVISION} \
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/package.json /app/package-lock.json ./
 COPY --from=build /runtime-server ./server
-COPY --from=build /app/src/speakerNames.mjs /app/src/groupVoiceTerms.mjs ./src/
+COPY --from=build /app/src/speakerNames.mjs /app/src/speakerRoles.mjs /app/src/groupVoiceTerms.mjs /app/src/memberOrder.mjs ./src/
 COPY --from=build /app/dist ./dist
 COPY THIRD_PARTY_NOTICES.md ./
 RUN mkdir -p /data/cache /data/index && chown -R node:node /data

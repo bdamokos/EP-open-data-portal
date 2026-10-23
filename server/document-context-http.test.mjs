@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -7,7 +8,7 @@ import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
 import {requestSignal,requestTimeout} from './request-budget.mjs';
 
-test('document context HTTP contract is bounded, query-separated and never starts a writer',async t=>{
+test('document context HTTP contract is bounded, query-separated and never starts a writer',loopback,async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'document-context-http-'));
   process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=directory;
   const {server}=await import('./index.mjs');const {activityIndex}=await import('./activity-index-worker.mjs');
@@ -37,10 +38,15 @@ test('document context HTTP contract is bounded, query-separated and never start
   const wording={en:'1. Published English wording.',hu:'1. Közzétett magyar szöveg.'};
   const variants=['en','hu',null].map(language=>{
     const source={url:'https://data.europarl.europa.eu/distribution/doc/list_'+(language||'unknown')+'.docx',language,fetchedAt,contentHash:(language==='en'?'a':language==='hu'?'b':'c').repeat(64),sourceVersion:{byteSize:1024,issued:'2026-10-08'}};
-    return {id:amendmentId,targetDocumentId:id,listId,language,textIntegrity:'complete',originalText:wording[language]||'Unknown-language source wording.',proposedText:'Published replacement.',targetLabel:null,targetLabelLanguage:language,authors:[],wordingSource:source,fieldSources:{wording:source},sourceFreshness:{status:'fresh'},gaps:[]};
+    const baseline=language==='en'?'commission-proposal':language==='hu'?'present-text':'unknown';
+    const baselineSource={category:baseline,headings:[{left:{raw:language==='en'?'Text proposed by the Commission':language==='hu'?'Hatályos szöveg':'Unrecognised source label',category:baseline},right:{raw:language==='hu'?'Módosítás':'Amendment',category:'other'}}],conflicted:false,language,sourceUrl:source.url,fetchedAt};
+    const documentReferences=language?[{field:'DocRef',raw:'COM(2025)87 final',scope:'amendment'}]:null;
+    const targetPath=language?{proposal:[{raw:'Article 1 – paragraph 1',labels:[{raw:'Article 1'},{raw:'paragraph 1'}]}],underlying:[{document:'Regulation (EU) 2023/956',raw:'Article 26 – paragraph 1 a (new)',labels:[{raw:'Article 26'},{raw:'paragraph 1 a (new)'}]}],language,sourceUrl:source.url,fetchedAt}:null;
+    return {id:amendmentId,targetDocumentId:id,listId,language,baseline,baselineSource,documentReferences,targetPath,textIntegrity:'complete',originalText:wording[language]||'Unknown-language source wording.',proposedText:'Published replacement.',targetLabel:null,targetLabelLanguage:language,authors:[],wordingSource:source,fieldSources:{wording:source},sourceFreshness:{status:'fresh'},gaps:[]};
   });
   t.mock.method(documentContext,'findAmendment',()=>({id:amendmentId,targetDocumentId:id,variants}));
-  let bodyReads=0;
+  let bodyReads=0,proposalReads=0;
+  t.mock.method(documentContext,'readProposal',async request=>{proposalReads++;assert.equal(request.celex,'52025PC0087');assert.equal(request.language,'en');return {status:'unresolved',celex:request.celex,workId:null,language:request.language,items:[],gaps:['proposal-identity-unavailable'],evidence:[]};});
   const text=language=>({status:'available',paragraphs:[wording[language]||wording.en],textLanguage:language,structureStatus:'extracted',paragraphSources:[{path:'w:p[0]',ordinal:0,container:'body',containerPath:'body',segment:0,complete:true}],sourceUrl:'https://data.europarl.europa.eu/distribution/doc/body_'+language+'.docx',fetchedAt});
   let readBody=async(_work,language)=>text(language);
   t.mock.method(documentContext,'readText',async(...args)=>{bodyReads++;return readBody(...args);});
@@ -55,6 +61,7 @@ test('document context HTTP contract is bounded, query-separated and never start
       if(selector!==undefined)assert.equal(result.body.requestedWordingLanguage,selector==='unknown'?null:selector);
       assert.deepEqual(result.body.amendment.variants.map(variant=>variant.language),['en','hu',null]);
       assert.deepEqual(result.body.amendment.variants.map(variant=>variant.source),variants.map(variant=>variant.wordingSource));
+      for(const field of ['baseline','baselineSource','documentReferences','targetPath'])assert.deepEqual(result.body.amendment.variants.map(variant=>variant[field]),variants.map(variant=>variant[field]),field);
       const conditional=await read(route,{headers:{'If-None-Match':result.headers.etag}});assert.equal(conditional.status,304);assert.equal(conditional.text,'');noStore(conditional);
       const head=await read(route,{method:'HEAD'});assert.equal(head.status,200);assert.equal(head.text,'');assert.equal(head.headers.etag,result.headers.etag);noStore(head);
       const conditionalHead=await read(route,{method:'HEAD',headers:{'If-None-Match':result.headers.etag}});assert.equal(conditionalHead.status,304);assert.equal(conditionalHead.text,'');noStore(conditionalHead);
@@ -67,7 +74,8 @@ test('document context HTTP contract is bounded, query-separated and never start
     const unknown=responses.get('unknown');assert.equal(unknown.body.target.reason,'different-text-languages');assert.equal(unknown.body.target.evidence.wordingLanguage,null);
     const absent=responses.get(undefined);assert.equal(absent.body.target.reason,'choose-source-version');assert.equal(absent.body.target.evidence,null);
     for(const [selector,result] of responses)for(const [otherSelector,other] of responses)if(selector!==otherSelector)assert.equal((await read(selected(selector),{headers:{'If-None-Match':other.headers.etag}})).status,200);
-    assert.equal(bodyReads,4,'conditional and reordered reads share only their exact selector cache entry');
+    assert.equal(bodyReads,11,'unavailable proposal content is revalidated; other exact selectors share their cache entry');
+    assert.equal(proposalReads,8,'only the explicitly selected Commission variant reads a proposal');
     const sameLanguage=await read(selected('hu',{language:'hu'}));assert.equal(sameLanguage.body.target.status,'found');assert.equal(sameLanguage.body.target.quoteMatches,true);assert.equal(sameLanguage.body.document.selectedText.paragraphs[0],wording.hu);assert.equal(sameLanguage.body.target.evidence.wordingLanguage,'hu');
     const missing=await read(selected('fr'));assert.equal(missing.status,200);assert.equal(missing.body.requestedWordingLanguage,'fr');assert.equal(missing.body.target.status,'unavailable');assert.equal(missing.body.target.evidence,null);assert.equal(missing.body.amendment.variants.length,3);
     const before=bodyReads;const wordingOnly=await read(selected('hu',{body:false}));assert.equal(wordingOnly.status,200);assert.equal(wordingOnly.body.document,null);assert.equal(wordingOnly.body.target.status,'not-requested');assert.equal(wordingOnly.body.requestedWordingLanguage,'hu');assert.equal(wordingOnly.body.amendment.variants.length,3);assert.equal(bodyReads,before);

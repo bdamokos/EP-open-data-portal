@@ -80,9 +80,14 @@ test('wording comparison never strips an unlabelled parenthesized word',()=>{
 
 test('a real Article 1a insertion never absorbs an unparsed compact Article2 heading',()=>{
   const recorded=fixture('proposal-placement-gas-storage.json'),proposal=parseProposal(recorded),items=[{kind:'act',index:1,proposal}];
-  const placement=resolveProposalPlacement(items,recorded.amendment),article2=proposalCandidates(proposal,'Article 2')[0];
-  if(article2){assert.equal(placement.status,'placed');assert.equal(placement.insertBefore,article2.extent.start);}
-  else {assert.equal(placement.status,'unresolved');assert.equal(placement.reason,'source_structure_unavailable');assert.equal(placement.insertBefore,undefined);}
+  const placement=resolveProposalPlacement(items,recorded.amendment),article1=proposalCandidates(proposal,'Article 1')[0],article2=proposalCandidates(proposal,'Article 2')[0];
+  assert(article1,'Article 1 must be parsed');assert(article2,'Compact Article2 must be parsed');
+  assert.equal(placement.status,'placed');assert.equal(placement.operation,'insert');
+  assert.equal(placement.insertBefore,article2.extent.start);
+  assert.equal(placement.insertAfter,article2.extent.start-1);
+  assert.equal(placement.insertAfter,article1.extent.end-1,'the insertion follows the complete Article 1 subtree');
+  const descendants=unit=>unit.children.flatMap(child=>[child,...descendants(child)]);
+  for(const child of descendants(article1))assert(child.extent.end-1<=placement.insertAfter,'all Article 1 children precede the insertion');
 });
 
 

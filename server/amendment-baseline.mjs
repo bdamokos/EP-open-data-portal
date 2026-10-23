@@ -68,6 +68,7 @@ export const COMPARISON_HEADINGS=Object.freeze({
     "amendment": "Leasú",
     "commission-proposal": "Téacs arna mholadh ag an gCoimisiún",
     "present-text": "An téacs atá ann",
+    "motion-resolution": "Tairiscint i gcomhair rúin",
     "council-position": "Seasamh ón gComhairle"
   },
   "hr": {

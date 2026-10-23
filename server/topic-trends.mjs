@@ -1,4 +1,5 @@
 import {HttpError} from './http-utils.mjs';
+import {languagePreference} from './language-order.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 import {insightQuery} from './insights-store.mjs';
 import {array,tail} from './activity-index-model.mjs';
@@ -19,8 +20,8 @@ export function procedureStatus(work,asOf) {
   return {state:'none',date:null};
 }
 export function procedureTitle(work,language) {
-  const titles=work.process_title&&typeof work.process_title==='object'?work.process_title:{},titleLanguage=typeof titles[language]==='string'&&titles[language].trim()?language:typeof titles.en==='string'&&titles.en.trim()?'en':null;
-  return {title:titleLanguage?titles[titleLanguage].trim():null,titleLanguage};
+  const titles=work.process_title&&typeof work.process_title==='object'?work.process_title:{},code=languagePreference(Object.keys(titles).filter(code=>typeof titles[code]==='string'&&titles[code].trim()),language)[0];
+  return {title:code!==undefined?titles[code].trim():null,titleLanguage:code||null};
 }
 export function savedProcedureEvents(store,{start,end,language='en'}) {
   const generation=store.status().servingGeneration;

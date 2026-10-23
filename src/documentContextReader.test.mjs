@@ -88,7 +88,7 @@ test('fallback language is visible and choosing a language changes only the exac
     return response(report,doc,{requestedLanguage:language});
   });
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'hu'});
-  assert(h.container.textContent.includes('Hungarian unavailable · showing English.'));
+  assert(h.container.textContent.includes('magyar unavailable · showing angol'));
   assert.equal(h.container.querySelector('.document-context-text').lang,'en');
   await h.change(h.container.querySelector('select'),'fr');
   assert.equal(h.container.querySelector('.document-context-text').lang,'fr');
@@ -200,8 +200,11 @@ test('an uncached document body stays pending until a terminal unavailable respo
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
 });
 
-test('a mismatched returned document or language is never displayed',async t=>{
-  const h=await harness(t,()=>response(report,sourceDocument(original,['Wrong document.']),{requestedLanguage:'fr'}));
+for(const [name,data] of [
+  ['returned document',response(report,sourceDocument(original,['Wrong document.']))],
+  ['requested language',response(report,sourceDocument(report,['Wrong document.']),{requestedLanguage:'fr'})],
+])test(`a mismatched ${name} is never displayed when the other identity matches`,async t=>{
+  const h=await harness(t,()=>data);
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
   assert(!h.container.textContent.includes('Wrong document.'));assert(h.container.textContent.includes('Document unavailable here.'));
 });
@@ -334,8 +337,11 @@ test('source hyperlinks spanning an unresolved object keep both visible linked f
   assert.equal(h.container.querySelector('.document-context-object').href,source);
 });
 
-test('an amendment or pinned list mismatch withholds target highlighting while keeping the body',async t=>{
-  const h=await harness(t,()=>response(report,sourceDocument(report),{target,amendment:{...amendmentSource,id:report+'-AM-41'}}));
+for(const [name,selected] of [
+  ['amendment',{...amendmentSource,id:report+'-AM-41'}],
+  ['pinned list',{...amendmentSource,variants:[{listId:report+'-AM-047-056'}]}],
+])test(`a ${name} mismatch withholds target highlighting while keeping the body`,async t=>{
+  const h=await harness(t,()=>response(report,sourceDocument(report),{target,amendment:selected}));
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'en'});
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   assert(h.container.textContent.includes('Exact target passage.'));

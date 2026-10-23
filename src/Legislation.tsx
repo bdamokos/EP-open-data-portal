@@ -1,4 +1,6 @@
-import {legislationContributors,mergeSpeechSpeakers,orderLegislationPeople,type SpeechHeaders,type SpeechSpeaker} from './legislationContributors.mjs';
+import {legislationContributors,legislationOffice,mergeSpeechSpeakers,orderLegislationPeople,type SpeechHeaders,type SpeechSpeaker} from './legislationContributors.mjs';
+import {PersonName,usePersonName} from './PersonName';
+import {selectLanguageText} from './language.mjs';
 import {matchesCountry} from './countries.mjs';
 import {useExplorerParam} from './explorerUrl';
 import {PlenaryLiveBanner,ScheduledNow} from './PlenaryLive';
@@ -37,7 +39,8 @@ function VoteView({vote,language,onMember,country}:{country:string|null;vote:Nam
   const people=countryPeople(position),filtered=group?people.filter(p=>(p.group||'Unknown')===group):people;
   const groups=[...new Set(choices.flatMap(p=>countryPeople(p).map(person=>person.group||'Unknown')))].sort((a,b)=>choices.reduce((n,p)=>n+countryPeople(p).filter(person=>(person.group||'Unknown')===b).length-countryPeople(p).filter(person=>(person.group||'Unknown')===a).length,0)||a.localeCompare(b));
   function choose(p:keyof typeof positions,g:string|null){const active=document.activeElement;if(active instanceof HTMLButtonElement&&!active.closest('.insight-voter-list'))opener.current=active;setPosition(p);setGroup(g);setShowPeople(true);requestAnimationFrame(()=>{heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'start'});});}
-  const title=vote.subjects[language]?{text:vote.subjects[language],language}:vote.subjects.en?{text:vote.subjects.en,language:'en'}:vote.titles[language]?{text:vote.titles[language],language}:vote.titles.en?{text:vote.titles.en,language:'en'}:interfaceTerm('vote',language);
+  const titles={...vote.titles,...Object.fromEntries(Object.entries(vote.subjects).filter(([,text])=>text.trim()))};
+  const label=interfaceTerm('vote',language),title=selectLanguageText(titles,language,label.text,label.language);
   return <section className="insight-vote-detail" lang="en">
     <h3 lang={title.language}>{title.text}</h3>
     <p className="insight-record-meta"><span lang={voteScope(vote.scope,language).language}>{voteScope(vote.scope,language).text}</span><span lang={language}>{humanDate(vote.date,language)}</span><span>{vote.outcome.toLowerCase()}</span></p>
@@ -68,6 +71,7 @@ function TopicVotes({detail,route,country,language,onMember,today,retry}:{detail
 }
 export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const today=usePlenaryDate();
+  const displayName=usePersonName();
   const readerId=useId(),speechTop=useRef<HTMLElement>(null),speechJump=useRef<HTMLDetailsElement>(null),speechJumpSummary=useRef<HTMLElement>(null);
   const [country,setCountry]=useExplorerParam<string|null>('agenda-country',null);
   const [mode,setMode]=useExplorerParam<'agenda'|'participation'|'cloud'|'trends'|'dossier'>('pl-mode','agenda',['agenda','participation','cloud','trends','dossier']),[officialTopic,setOfficialTopic]=useExplorerParam<string|null>('trend-source',null),[referenceDraft,setReferenceDraft]=useState(''),[reference,setReference]=useExplorerParam<string>('dossier-ref',''),[referenceError,setReferenceError]=useState('');
@@ -116,7 +120,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const [speakerNames,setSpeakerNames]=useState<Record<string,string>>({}),[speechHeaders,setSpeechHeaders]=useState<SpeechHeaders>({});
   useEffect(()=>{setSpeakerNames({});setSpeechHeaders({});},[detail?.id]);
   const rememberSpeechSpeakers=useCallback((speeches:{id:string;people:SpeechSpeaker[]}[])=>{setSpeechHeaders(previous=>mergeSpeechSpeakers(previous,speeches));},[]);
-  const rememberSpeakers=useCallback((people:{id:string;name:string;role:string|null}[],speechId?:string)=>{setSpeakerNames(previous=>{const changed=people.filter(p=>previous[p.id]!==p.name);return changed.length?{...previous,...Object.fromEntries(changed.map(p=>[p.id,p.name]))}:previous;});if(speechId)rememberSpeechSpeakers([{id:speechId,people}]);},[rememberSpeechSpeakers]);
+  const rememberSpeakers=useCallback((people:(SpeechSpeaker&{name:string})[],speechId?:string)=>{setSpeakerNames(previous=>{const changed=people.filter(p=>previous[p.id]!==p.name);return changed.length?{...previous,...Object.fromEntries(changed.map(p=>[p.id,p.name]))}:previous;});if(speechId)rememberSpeechSpeakers([{id:speechId,people}]);},[rememberSpeechSpeakers]);
   const contributors=detail?legislationContributors(detail,speechHeaders):null;
   const sourceRecordsUnavailable=Boolean(detail&&(detail.voteCoverage.truncated||detail.coverage.roleRowsTruncated||detail.coverage.gaps.length>0||detail.coverage.missingDocumentIds?.length));
   const speechAvailability=detail?.kind==='PLENARY_DEBATE'?plenaryAvailability(detail,'speech',today):null;
@@ -124,7 +128,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const shownPeople=contributors?orderLegislationPeople(contributors.people,contributors.roles,props.members).filter(p=>matchesCountry(country,p.country)):[],shownSpeeches=detail?.speeches.filter(s=>!country||s.people.some(p=>matchesCountry(country,p.country)))||[];
   useEffect(()=>{setSpeech(shownSpeeches[0]?.sourceId||null);},[country,detail?.id]);
   const speechIndex=shownSpeeches.findIndex(s=>s.sourceId===speech),currentSpeech=shownSpeeches[speechIndex];
-  const speechLabel=(s:typeof shownSpeeches[number])=>(s.people.map(p=>(p.currentMep?p.name:speakerNames[p.id]||p.name)||'Speaker').join(', ')||'Speech')+(contributionTime(s.start,language)?` · ${contributionTime(s.start,language)} Brussels`:'')+(s.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT'?' · Written statement':'');
+  const speechLabel=(s:typeof shownSpeeches[number])=>(s.people.map(p=>displayName(p.id,p.currentMep?p.name:speakerNames[p.id]||p.name)||'Speaker').join(', ')||'Speech')+(contributionTime(s.start,language)?` · ${contributionTime(s.start,language)} Brussels`:'')+(s.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT'?' · Written statement':'');
   function pageSpeech(offset:number,scroll=false){
     const next=shownSpeeches[speechIndex+offset];
     if(speechIndex<0||!next)return;
@@ -171,7 +175,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
             <button aria-label="Next speech" aria-disabled={speechIndex===shownSpeeches.length-1} onClick={()=>pageSpeech(1,true)}>Next <span aria-hidden="true">›</span></button>
           </nav></>}
       </section>}
-      <section className="insight-participants"><div className="insight-section-heading"><h3>Who is involved</h3><span>{shownPeople.length?<>{shownPeople.length} {shownPeople.length===1?'person':'people'}</>:country?'No matches':'No records yet'}</span></div><InsightPeople previewCount={6} people={shownPeople.map(p=>({...p,name:!p.currentMep&&speakerNames[p.id]?speakerNames[p.id]:p.name,office:!p.currentMep?Object.values(speechHeaders).map(people=>people[p.id]?.role).find(role=>role&&role!=='Chairing the sitting'):null}))} language={language} onMember={props.onMember} roles={contributors!.roles}/>{!shownPeople.length&&<p>{country?'No listed contributors match this country filter.':'No named contributor records are linked here yet.'}</p>}<p className="insight-secondary">Chairing remarks are excluded when identified in the transcript.</p></section>
+      <section className="insight-participants"><div className="insight-section-heading"><h3>Who is involved</h3><span>{shownPeople.length?<>{shownPeople.length} {shownPeople.length===1?'person':'people'}</>:country?'No matches':'No records yet'}</span></div><InsightPeople previewCount={6} people={shownPeople.map(p=>({...p,name:!p.currentMep&&speakerNames[p.id]?speakerNames[p.id]:p.name,office:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.text:null,officeLanguage:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.language:null}))} language={language} onMember={props.onMember} roles={contributors!.roles}/>{!shownPeople.length&&<p>{country?'No listed contributors match this country filter.':'No named contributor records are linked here yet.'}</p>}<p className="insight-secondary">Chairing remarks are excluded when identified in the transcript.</p></section>
       {!shownSpeeches.length&&detail.speeches.length>0&&country&&<p className="insight-secondary">No listed speeches match this country filter.</p>}
       {detail.committeeWork.length>0&&<section className="insight-committee-work"><h3>Committee work</h3><ol>{detail.committeeWork.map(event=><li key={event.id}><time lang={language}>{humanDate(event.date,language)}</time><div><strong>{committeeAction(event.kind)}</strong>{event.committees?.map(c=><p key={c.code}>{c.websiteUrl?<a lang="" href={c.websiteUrl} target="_blank" rel="noreferrer">{c.code} · {c.name.replace(/^Committee on /,'')} ↗</a>:c.code}</p>)}<div className="insight-document-links">{event.documentIds.map(id=><button key={id} aria-expanded={document===id&&documentEvent===event.id} aria-controls={readerId+'-committee-'+encodeURIComponent(event.id)} onClick={()=>{setDocument(document===id&&documentEvent===event.id?null:id);setDocumentEvent(event.id);}}>Read {id}</button>)}{!event.documentIds.length&&detail.procedures.find(p=>p.id===event.procedureId)?.websiteUrl&&<a href={detail.procedures.find(p=>p.id===event.procedureId)!.websiteUrl!} target="_blank" rel="noreferrer">Dossier ↗</a>}</div><div id={readerId+'-committee-'+encodeURIComponent(event.id)} hidden={documentEvent!==event.id||!document}>{documentEvent===event.id&&document&&<InsightQuestionReader key={document} id={document} member={documentMember} language={language} heading="Document"/>}</div></div></li>)}</ol></section>}
       {!country&&detail.kind!=='PLENARY_VOTE'&&contributors!.stats.denominator>0&&<details className="insight-author-analysis" open><summary>About the contributors</summary><InsightDemographics stats={contributors!.stats} language={language}/></details>}

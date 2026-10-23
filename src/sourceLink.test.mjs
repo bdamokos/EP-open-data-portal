@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('source links prefer official pages, read data on demand, preserve raw access on failure, and close to their trigger',async t=>{
   const window=new Window({url:'http://localhost/'}),globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
@@ -11,13 +11,13 @@ test('source links prefer official pages, read data on demand, preserve raw acce
   window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};window.HTMLDialogElement.prototype.close=function(){this.open=false;};
   const nativeFocus=window.HTMLElement.prototype.focus;
   window.HTMLElement.prototype.focus=function(...args){const modal=document.querySelector('dialog[open]');if(modal&&!modal.contains(this))return;return nativeFocus.apply(this,args);};
-  let vite,root;const calls=[],revoked=[],oldCreate=URL.createObjectURL,oldRevoke=URL.revokeObjectURL;
+  let loadModule,root;const calls=[],revoked=[],oldCreate=URL.createObjectURL,oldRevoke=URL.revokeObjectURL;
   URL.createObjectURL=()=> 'blob:source-test';URL.revokeObjectURL=href=>revoked.push(href);
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();URL.createObjectURL=oldCreate;URL.revokeObjectURL=oldRevoke;for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();URL.createObjectURL=oldCreate;URL.revokeObjectURL=oldRevoke;for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const source='https://data.europarl.europa.eu/api/v2/procedures/2025-0407';let fail=false;
   t.mock.method(globalThis,'fetch',async input=>{calls.push(String(input));return fail?Response.json({error:{message:'Source unavailable'}},{status:502}):Response.json({sourceUrl:source,requestUrl:source+'?format=application%2Fld%2Bjson',fetchedAt:'2026-10-16T17:00Z',stale:true,collection:false,limited:false,records:[{title:'Exact procedure',websiteUrl:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2025/0407(COD)'}],payload:{data:[{id:'eli/dl/proc/2025-0407',process_title:{en:'Exact procedure',fr:'Procédure exacte'},number_of_votes_favor:0,absent:null,nested:{text:{hu:'Beágyazott magyar szöveg'}}}]}});});
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {SourceLink}=await vite.ssrLoadModule('/src/SourceLink.tsx'),{createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {SourceLink}=await loadModule('/src/SourceLink.tsx'),{createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(SourceLink,{url:source,reference:'2025/0407(COD)'},'EP source')));
   assert.equal(calls.length,0);assert.match(container.querySelector('a').href,/oeil/);assert.equal(container.querySelector('.source-raw').href,source);
   const trigger=container.querySelector('button');await act(async()=>trigger.click());

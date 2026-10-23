@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
+import {sourceTitle} from '../server/source-titles.mjs';
 
 const stats=()=>({uniquePeople:3,uniqueCurrentMeps:1,peopleOutsideCurrentRoster:2,denominator:1,referenceDate:'2026-10-17',basis:'current roster',metadataSourceDates:{from:null,to:null},
   dimensions:{country:[{label:'HU',count:1}],group:[{label:'PPE',count:1}],gender:[{label:'Female',count:1}],age:[]}});
@@ -24,8 +25,8 @@ async function harness(t,{response=questions(),language='en'}={}) {
     requestAnimationFrame:window.requestAnimationFrame.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const calls=[],memberCalls=[];
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);calls.push(url);
@@ -34,8 +35,8 @@ async function harness(t,{response=questions(),language='en'}={}) {
     assert(url.pathname.endsWith('/insights/questions'),'only the fixture Questions endpoint and portrait placeholders are allowed');
     return Response.json(response);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {QuestionTopics}=await vite.ssrLoadModule('/src/QuestionTopics.tsx'),shared=await vite.ssrLoadModule('/src/InsightShared.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {QuestionTopics}=await loadModule('/src/QuestionTopics.tsx'),shared=await loadModule('/src/InsightShared.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=element=>act(async()=>root.render(element));
   await render(createElement(QuestionTopics,{language,onBack(){},onMember:(...args)=>memberCalls.push(args)}));
@@ -91,4 +92,14 @@ test('shared plenary demographics and people keep their default captions and do 
   assert.equal(h.caption().textContent,'1 current MEPs · 2 other speakers · each person counted once');
   assert.equal(h.container.querySelectorAll('.insight-person-membership').length,0,'the question-specific label does not affect plenary or other callers');
   assert.equal(h.container.querySelectorAll('.insight-people article').length,3);
+});
+
+test('Questions renders decoded title entities and markup-shaped source text as escaped text',async t=>{
+  const response=questions(),literal='DYPA&nbsp; &amp; &lt;img src=x onerror=alert(1)&gt; <b>literal</b> &amp;nbsp;';
+  response.questions[0].title=sourceTitle(literal);
+  const h=await harness(t,{response}),heading=h.container.querySelector('.insight-question-heading h3');
+  assert.equal(heading.textContent,'DYPA\u00a0 & <img src=x onerror=alert(1)> <b>literal</b> &nbsp;');
+  assert.equal(heading.getAttribute('lang'),'en');
+  assert.equal(heading.children.length,0,'decoded markup never creates elements');
+  assert(heading.innerHTML.includes('&lt;img'));assert(heading.innerHTML.includes('&lt;b&gt;'));
 });

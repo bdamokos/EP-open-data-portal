@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 // Empty lang is an explicit unknown boundary, not permission to keep climbing.
 function effectiveLanguage(node) {
@@ -19,17 +19,18 @@ async function harness(t,language,query='') {
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,
     HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,DOMParser:window.DOMParser,CSS:window.CSS,
     innerWidth:1440,requestAnimationFrame:window.requestAnimationFrame.bind(window),
-    ResizeObserver:class {observe(){} disconnect(){}},IS_REACT_ACT_ENVIRONMENT:true};
+    ResizeObserver:class {observe(){} disconnect(){}},
+    IntersectionObserver:class {observe(){} unobserve(){} disconnect(){}},IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root,respond=()=>{throw new Error('Unexpected fixture fetch');};
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root,respond=()=>{throw new Error('Unexpected fixture fetch');};
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const calls=[];
   t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,window.location.href);calls.push(url);return Response.json(await respond(url));});
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  const load=async(path,name)=>(await vite.ssrLoadModule('/src/'+path+'.tsx'))[name];
+  const load=async(path,name)=>(await loadModule('/src/'+path+'.tsx'))[name];
   const render=element=>act(async()=>root.render(element));
   const click=async text=>act(async()=>{const button=[...container.querySelectorAll('button')].find(node=>node.textContent===text);assert(button,'Missing button '+text);button.click();});
   const navigate=query=>act(async()=>{history.replaceState(null,'','/'+query);window.dispatchEvent(new window.PopStateEvent('popstate'));});
@@ -140,14 +141,16 @@ test('participation preserves exact source language and restores UI language aft
   });
 });
 
-test('named vote titles preserve subject-first fallback and never add a first-dictionary-entry choice',async t=>{
+test('named vote headings prefer language first, then the subject within that language',async t=>{
   const language='hu',h=await harness(t,language,'?view=legislation&pl-sitting='+sitting.id+'&agenda-topic=exact-topic');
   const cases=[
     {subjects:{hu:'Magyar tárgy',en:'English subject'},titles:{hu:'Magyar cím'},text:'Magyar tárgy',lang:'hu'},
-    {subjects:{en:'English subject'},titles:{hu:'Magyar cím'},text:'English subject',lang:'en'},
+    {subjects:{en:'English subject'},titles:{hu:'Magyar cím'},text:'Magyar cím',lang:'hu'},
     {subjects:{fr:'Sujet non sélectionné'},titles:{hu:'Magyar cím',en:'English title'},text:'Magyar cím',lang:'hu'},
     {subjects:{},titles:{en:'English title'},text:'English title',lang:'en'},
-    {subjects:{fr:'Sujet non sélectionné'},titles:{fr:'Titre non sélectionné'},text:'Szavazás',lang:'hu'},
+    {subjects:{bg:'Bulgarian subject',fr:'Sujet français'},titles:{fr:'Titre français'},text:'Sujet français',lang:'fr'},
+    {subjects:{hu:'  '},titles:{hu:'Magyar cím'},text:'Magyar cím',lang:'hu'},
+    {subjects:{},titles:{},text:'Szavazás',lang:'hu'},
   ];
   const votes=cases.map((fixture,index)=>({id:'exact-vote-'+index,date:sitting.date,scope:'final-text',outcome:'ADOPTED',subjects:fixture.subjects,titles:fixture.titles,aggregateTotals:{for:2,against:0,abstaining:0},namedVotersAvailable:false,intendedCorrections:{for:[],against:[],abstaining:[]}}));
   const topic={id:'exact-topic',title:'Source français',titleLanguage:'fr',date:sitting.date,kind:'PLENARY_VOTE',documentIds:[]};
@@ -173,4 +176,23 @@ test('named vote titles preserve subject-first fallback and never add a first-di
     assert.equal(scope.textContent,'Végleges szöveg');assert.equal(effectiveLanguage(scope),'hu');
     assert.equal(h.container.querySelector('.insight-topic-detail h2').textContent,'Source français');
   }
+});
+
+test('insight cards use exact directory names, retain source labels and keep missing-name fallbacks',async t=>{
+  const h=await harness(t,'en');
+  const Provider=await h.load('PersonName','PersonNamesProvider');
+  const People=await h.load('InsightShared','InsightPeople');
+  const people=[
+    {id:'42',name:'Mika AALTOLA',currentMep:true},
+    {id:'99',name:'Guest McDONALD',currentMep:false},
+    {id:'100',name:null,currentMep:true},
+    {id:'101',name:null,currentMep:false},
+  ].map(person=>({...person,country:null,group:null}));
+  const render=members=>h.render(createElement(Provider,{members},createElement(People,{people})));
+  await render([{id:42,firstName:'Mika',lastName:'Aaltola'}]);
+  assert.deepEqual([...h.container.querySelectorAll('strong')].map(node=>node.textContent),['Mika Aaltola','Guest McDONALD','MEP','Name unavailable']);
+  assert.equal(h.container.querySelector('[title="Source label: Mika AALTOLA"]').textContent,'Mika Aaltola');
+  await render([]);
+  assert.deepEqual([...h.container.querySelectorAll('strong')].map(node=>node.textContent),['Mika AALTOLA','Guest McDONALD','MEP','Name unavailable']);
+  assert.equal(h.calls.some(url=>url.pathname.endsWith('/directory')),false,'display components do not fetch a roster themselves');
 });

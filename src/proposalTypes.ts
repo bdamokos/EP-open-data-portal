@@ -10,6 +10,10 @@ export interface ProposalPathSegment {
   raw?: string
   sourceValue?: string
   unavailable?: boolean
+  prefix?: string
+  level?: number
+  numbering?: ProposalNumbering
+  hierarchyAmbiguous?: boolean
 }
 export type MathMLTag = 'math' | 'mrow' | 'mi' | 'mn' | 'mo' | 'mtext' | 'mfrac' | 'msub' | 'msup' | 'msubsup' | 'msqrt' | 'mroot' | 'munder' | 'mover' | 'munderover' | 'mtable' | 'mtr' | 'mtd'
 export interface MathMLNode { tag: MathMLTag; children: Array<MathMLNode | string>; attributes?: { accent?: 'true'; accentunder?: 'true' } }
@@ -25,12 +29,13 @@ export interface ProposalObject {
   math?: MathMLNode | null
   unsupported?: string[]
 }
+export interface ProposalNumbering { id: string; abstractId: string; level: number; format: string }
 export interface ProposalParagraph {
   index: number
   text: string
   complete: boolean
   source: { path: string; ordinal: number; container: string; containerPath: string; segment: number; complete: boolean } | null
-  properties: { styleId: string | null; numberingLabel: string; numberingComplete: boolean; notesComplete: boolean } | null
+  properties: { styleId: string | null; numberingLabel: string; numberingComplete: boolean; notesComplete: boolean; numbering?: ProposalNumbering } | null
   objects: ProposalObject[]
 }
 export interface ProposalTable {

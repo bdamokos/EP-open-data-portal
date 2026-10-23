@@ -1,3 +1,4 @@
+import {languagePreference} from './language-order.mjs';
 import {odp,ODP_BASE,odpLanguage} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {array,tail,documentFiles,procedureIds} from './activity-index-model.mjs';
@@ -55,11 +56,11 @@ export function createMotionComparison({request=odp,readText=documentText}={}) {
     }
     const works=stage==='original-joint'?[original,joint]:stage==='original-adopted'?[original,adopted]:[joint,adopted];
     const common=[...new Set(files(works[0]).map(f=>f.language))].filter(code=>files(works[1]).some(f=>f.language===code)).sort();
-    const textLanguage=common.includes(language)?language:common.includes('en')?'en':common[0];
+    const textLanguage=languagePreference(common,language)[0];
     if(!textLanguage)return {...base,reason:'These two texts have no common language with a supported document file.'};
     const texts=await Promise.all(works.map(work=>readText(work,textLanguage)));
     const documents=works.map((work,i)=>({id:work.identifier,reference:work.identifier.startsWith('TA-')?work.label || work.identifier:motionReference(work.identifier),
-      title:work.title_dcterms?.[textLanguage] || work.title_dcterms?.en || work.identifier,date:work.document_date || null,
+      title:work.title_dcterms?.[languagePreference(Object.keys(work.title_dcterms||{}).filter(code=>work.title_dcterms[code]?.trim()),textLanguage)[0]] || work.identifier,date:work.document_date || null,
       sourceUrl:texts[i].sourceUrl,fetchedAt:texts[i].fetchedAt,language:texts[i].textLanguage,translationType:texts[i].translationType,
       stale:Boolean(texts[i].stale),refreshError:texts[i].refreshError || null}));
     const selected={...base,textLanguage,availableLanguages:common,documents};

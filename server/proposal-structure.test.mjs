@@ -10,6 +10,7 @@ import {ommlToMathML,isSafeMathML} from './proposal-math.mjs';
 import {docxContent} from './document-text.mjs';
 import {instructionOperation} from './proposal-instructions.mjs';
 import {REGION_HEADINGS} from './proposal-regions.mjs';
+import {quotationClosed} from './proposal-quotation.mjs';
 
 function archive(documentXml,extra=[]) {
   const entries=[['word/document.xml',documentXml],...extra],locals=[],directory=[];let offset=0;
@@ -90,7 +91,16 @@ test('proposal numbering continues shared abstract lists, honors explicit restar
   const buffer=archive(body(p('ANNEX I','Annexetitre')+numbered('First',1)+numbered('Second')+numbered('Third')+numbered('Restart at seven',3)+numbered('Continue eight')+numbered('Independent list',4)+numbered('Continue nine')),[['word/styles.xml',styles],['word/numbering.xml',numbering]]);
   const result=parseProposal(buffer,{item:'annex'});
   assert.deepEqual(result.paragraphs.slice(1).map(p=>p.properties.numberingLabel),['(1)','(2)','(3)','(7)','(8)','(1)','(9)']);
-  assert.deepEqual(docxContent(buffer).paragraphs.slice(1,4),['(1)\tFirst','(1)\tSecond','(2)\tThird'],'global default is unchanged');
+  assert.deepEqual(result.paragraphs.map(p=>p.text),docxContent(buffer).paragraphs,'proposal labels use the shared Word numbering resolver');
+});
+
+test('published CBAM DOCX numbering labels remain 1, 2, 3 with proposal metadata',()=>{
+  const sample=fixture('docx-numbering-cbam.json');
+  const buffer=archive(sample.documentXml,[['word/styles.xml',sample.stylesXml],['word/numbering.xml',sample.numberingXml]]);
+  const parsed=parseProposal(buffer,{language:sample.language,item:'annex',sourceUrl:sample.sourceUrl});
+  assert.deepEqual(parsed.paragraphs.map(paragraph=>paragraph.text),sample.expectedParagraphs);
+  assert.deepEqual(parsed.paragraphs.map(paragraph=>paragraph.properties.numberingLabel),['(1)','(2)','(3)']);
+  assert.deepEqual(parsed.paragraphs.map(paragraph=>paragraph.properties.numbering),[{id:'2',abstractId:'8',level:0,format:'decimal'},{id:'19',abstractId:'8',level:0,format:'decimal'},{id:'19',abstractId:'8',level:0,format:'decimal'}]);
 });
 
 test('localized numbered instruction text cannot be consumed as a dotted number suffix',()=>{
@@ -131,7 +141,7 @@ test('proposal tree nests replacements under instructions and preserves complete
     p('REGULATION','Typedudocument')+p('Having regard to the Treaty,')+p('(1) A recital.','ManualConsidrant')+p('HAVE ADOPTED THIS REGULATION:','Formuledadoption')+
     p('Article 1','Titrearticle')+p('Amendments','Titrearticle')+p('Regulation (EU) 2023/956 is amended as follows:')+
     p('(1) Article 6 is amended as follows:','Point0')+p('(a) paragraph 1 is replaced by the following:','Point1')+
-    p('‘1. Replacement lead-in:')+p('(a) first factor;')+p('(i) inner factor;')+p('Continuation of the inner factor.’;')+
+    p('‘1. Replacement lead-in:')+p('(a) first factor;','Point2')+p('(i) inner factor;','Point3')+p('Continuation of the inner factor.’;')+
     p('(b) paragraph 2 is deleted;','Point1')+p('(2) Article 9 is replaced by the following:','Point0')+p('‘Article 9','Titrearticle')+
     p('Replacement title','Titrearticle')+p('1. First replacement paragraph.')+p('Second subparagraph.’;')+p('Article 2','Titrearticle')+p('Entry into force','Titrearticle')+
     p('This Regulation enters into force.')+p('Done at Brussels,','Fait')+p('LEGISLATIVE FINANCIAL AND DIGITAL STATEMENT','Fichefinanciretitre')+p('Article 99 in a financial example.'));
@@ -260,4 +270,145 @@ test('8 MiB DOCX-derived text parses within bounded time and a 256 MiB V8 heap',
   const script=`import{parseProposal}from ${JSON.stringify(module)};const line='Ordinary unnumbered provision with unchanged words. '.repeat(11).slice(0,500);let s='Article 1\\n'+Array.from({length:16000},()=>line).join('\\n')+'\\nArticle 2\\n';s+='x'.repeat(8*1024*1024-Buffer.byteLength(s));const before=performance.now();const result=parseProposal(s);if(result.paragraphs.length!==16003)throw Error('paragraph loss '+result.paragraphs.length);if(performance.now()-before>15000)throw Error('parse budget exceeded');console.log(JSON.stringify({bytes:Buffer.byteLength(s),ms:performance.now()-before,heap:process.memoryUsage().heapUsed}));`;
   const result=spawnSync(process.execPath,['--max-old-space-size=256','--input-type=module','-e',script],{encoding:'utf8',timeout:25000});
   assert.equal(result.status,0,result.stderr);const measured=JSON.parse(result.stdout);assert(measured.bytes>=8_000_000);assert(measured.heap<256*1024*1024);
+});
+
+test('inline replacement openings retain subsequent paragraphs and articles until their outer boundary',()=>{
+  const instruction='(1) Article 6 is replaced by the following: ‘Article 6';
+  const result=parseProposal(archive(body(p('Article 1')+p('The Regulation is amended as follows:')+p(instruction,'Point0')+
+    p('1. Replacement text.')+p('Article 7')+p('1. A second replacement article.’;')+p('Article2')+p('Final provision.'))));
+  assert.deepEqual(flat(result.units).filter(unit=>unit.kind==='article'&&unit.scope==='proposal').map(unit=>unit.label.value),['1','2']);
+  assert.equal(proposalCandidates(result,'Article 7').length,0);
+  const owner=proposalCandidates(result,'Article 1 – paragraph 1 – point 1')[0];
+  const quote=owner.children.find(unit=>unit.kind==='quotation');
+  assert.deepEqual(quote.children.filter(unit=>unit.kind==='article').map(unit=>unit.label.value),['6','7']);
+  assert.equal(owner.extent.end,6);assert.equal(proposalCandidates(result,'Article 1')[0].extent.end,6);
+  assert.equal(quote.children[0].spans[0].start,instruction.indexOf('‘'));
+  assert.equal(result.complete,true);
+  const unclosed=parseProposal(archive(body(p('Article 1')+p(instruction,'Point0')+p('1. No closing mark.')+p('Article 7'))));
+  assert.equal(proposalCandidates(unclosed,'Article 7').length,0);
+  assert(unclosed.gaps.some(gap=>gap.code==='unclosed-quotation'));assert.equal(unclosed.complete,false);
+});
+
+test('inner term quotes and apostrophes cannot close the outer replacement',()=>{
+  for(const [language,open,close,innerOpen,innerClose] of [
+    ['en','‘','’','“','”'],['en','“','”','‘','’'],['de','„','“','‚','‘'],
+    ['fr','«','»','“','”'],['sv','”','”','‘','’'],['pl','„','”','«','»'],
+    ['en','"','"',"'","'"],['en',"'","'",'“','”'],
+  ]){
+    const row=fixture('proposal-language-excerpts.json').languages.find(row=>row.language===language);
+    const article=value=>unitLabel({kind:'article',value},language);
+    const xml=body(p(article('1'))+p(row.numberedInstruction,'Point0')+p(open+article('6'))+
+      p('1. The operator’s term means '+innerOpen+'operator'+innerClose)+p(article('7'))+p('1. Still inside.'+close+';')+p(article('2')));
+    const result=parseProposal(archive(xml),{language});
+    assert.equal(proposalCandidates(result,article('7')).length,0,language);
+    assert.equal(proposalCandidates(result,article('2')).length,1,language);
+    assert.equal(result.complete,true,language);
+    const inline=parseProposal(archive(body(p(article('1'))+p(row.numberedInstruction+' '+open+article('6'),'Point0')+
+      p('1. The operator’s term means '+innerOpen+'operator'+innerClose)+p(article('7'))+p('1. Still inside.'+close+';')+p(article('2')))),{language});
+    assert.equal(proposalCandidates(inline,article('7')).length,0,'inline '+language);
+    assert.equal(proposalCandidates(inline,article('2')).length,1,'inline '+language);
+    assert.equal(inline.complete,true,'inline '+language);
+    const state={marks:[],implicit:false};
+    assert.equal(quotationClosed(open+'Article 6',state,language),false,language);
+    assert.equal(quotationClosed('The operator’s term means '+innerOpen+'operator'+innerClose,state,language),false,language);
+    assert.equal(quotationClosed('Article 7',state,language),false,language);
+    assert.equal(quotationClosed('Text.'+close+';',state,language),true,language);
+  }
+});
+
+const numbered=(text,id,level=0,style='')=>`<w:p><w:pPr>${style?`<w:pStyle w:val="${style}"/>`:''}<w:numPr><w:ilvl w:val="${level}"/><w:numId w:val="${id}"/></w:numPr></w:pPr><w:r><w:t>${escape(text)}</w:t></w:r></w:p>`;
+const listLevel=(level,format,pattern,start=1,restart='')=>`<w:lvl w:ilvl="${level}"><w:start w:val="${start}"/><w:numFmt w:val="${format}"/><w:lvlText w:val="${pattern}"/>${restart!==''?`<w:lvlRestart w:val="${restart}"/>`:''}</w:lvl>`;
+const listInstance=(id,override='')=>`<w:num w:numId="${id}"><w:abstractNumId w:val="1"/>${override}</w:num>`;
+
+test('DOCX alphabetic c and d remain siblings while numbering levels establish Roman descendants',()=>{
+  const numbering=`<w:numbering><w:abstractNum w:abstractNumId="1">${listLevel(0,'lowerLetter','(%1)')}${listLevel(1,'lowerRoman','(%2)')}</w:abstractNum>${listInstance(1)}</w:numbering>`;
+  const xml=body(p('Article 1')+p('1. Introductory paragraph.')+['a','b','c','d','e'].map(value=>numbered('Point '+value,1)).join('')+
+    numbered('Nested Roman one',1,1)+numbered('Nested Roman two',1,1)+numbered('Point f',1));
+  const result=parseProposal(archive(xml,[['word/numbering.xml',numbering]]));
+  for(const value of ['a','b','c','d','e','f'])assert.equal(proposalCandidates(result,'Article 1 – paragraph 1 – point '+value).length,1,value);
+  const b=proposalCandidates(result,'Article 1 – paragraph 1 – point b')[0],c=proposalCandidates(result,'Article 1 – paragraph 1 – point c')[0];
+  assert.equal(b.extent.end,c.extent.start);
+  assert.equal(proposalCandidates(result,'Article 1 – paragraph 1 – point e – point i').length,1);
+  assert.equal(proposalCandidates(result,'Article 1 – paragraph 1 – point e – point ii').length,1);
+  assert.deepEqual(result.paragraphs[4].properties.numbering,{id:'1',abstractId:'1',level:0,format:'lowerLetter'});
+  assert.equal(result.complete,true);
+  const manual=parseProposal(archive(body(p('Article 1')+p('1. Intro.')+['a','b','c','d','e'].map(value=>p('('+value+') Sibling.')).join(''))));
+  for(const value of ['a','b','c','d','e'])assert.equal(proposalCandidates(manual,'Article 1 – paragraph 1 – point '+value).length,1,value);
+  const ambiguous=parseProposal(archive(body(p('Article 1')+p('1. Intro.')+p('(a) First.')+p('(i) Ambiguous depth.'))));
+  assert(ambiguous.gaps.some(gap=>gap.code==='ambiguous-point-level'));assert.equal(ambiguous.complete,false);
+});
+
+test('DOCX numbering metadata follows exact source paths after omitted revision paragraphs',()=>{
+  const numbering=`<w:numbering><w:abstractNum w:abstractNumId="1">${listLevel(0,'lowerLetter','(%1)')}${listLevel(1,'lowerRoman','(%2)')}</w:abstractNum>${listInstance(1)}</w:numbering>`;
+  const result=parseProposal(archive(body(p('Article 1')+`<w:del>${p('Deleted paragraph.')}</w:del>`+p('1. Intro.')+numbered('Letter',1,0)+numbered('Roman',1,1)),[['word/numbering.xml',numbering]]));
+  assert.equal(result.paragraphs.find(p=>p.text.includes('Letter')).properties.numbering.level,0);
+  assert.equal(result.paragraphs.find(p=>p.text.includes('Roman')).properties.numbering.format,'lowerRoman');
+  assert(!result.paragraphs.some(p=>p.text.includes('Deleted')));
+});
+
+test('explicit level override starts restart once, while formatting-only overrides continue',()=>{
+  const levels=listLevel(0,'decimal','%1)');
+  const override=(start='')=>`<w:lvlOverride w:ilvl="0"><w:lvl w:ilvl="0">${start!==''?`<w:start w:val="${start}"/>`:''}<w:numFmt w:val="decimal"/><w:lvlText w:val="%1)"/></w:lvl></w:lvlOverride>`;
+  const numbering=`<w:numbering><w:abstractNum w:abstractNumId="1">${levels}</w:abstractNum>${listInstance(1)}${listInstance(2,override(7))}${listInstance(3,override())}</w:numbering>`;
+  const result=parseProposal(archive(body(p('Article 1')+[1,1,2,2,3,1].map(id=>numbered('Item',id)).join('')),[['word/numbering.xml',numbering]]));
+  assert.deepEqual(result.paragraphs.slice(1).map(p=>p.properties.numberingLabel),['1)','2)','7)','8)','9)','10)']);
+});
+
+test('lvlRestart uses its one-based trigger, with zero, defaults, invalid values and ignored override restart',()=>{
+  const sequence=[0,1,2,2,1,2,0,2];
+  for(const [restart,last,afterTop] of [['1','iii)','i)'],['2','i)','i)'],['0','iii)','iv)'],['','i)','i)'],['9','i)','i)']]){
+    const levels=listLevel(0,'decimal','%1)')+listLevel(1,'lowerLetter','%2)')+listLevel(2,'lowerRoman','%3)',1,restart);
+    const override=`<w:lvlOverride w:ilvl="2">${listLevel(2,'lowerRoman','%3)',1,'0')}</w:lvlOverride>`;
+    const numbering=`<w:numbering><w:abstractNum w:abstractNumId="1">${levels}</w:abstractNum>${listInstance(1,override)}</w:numbering>`;
+    const result=parseProposal(archive(body(p('Article 1')+sequence.map(level=>numbered('Item',1,level)).join('')),[['word/numbering.xml',numbering]]));
+    const labels=result.paragraphs.slice(1).map(p=>p.properties.numberingLabel);
+    assert.deepEqual(labels.slice(0,5),['1)','a)','i)','ii)','b)'],restart);
+    assert.equal(labels[5],last,restart);assert.equal(labels[7],afterTop,restart);
+  }
+});
+
+test('normalisation preserves parenthetical words and strips multiletter labels only with exact prefix evidence',()=>{
+  for(const word of ['net','not','all','mix','civil'])assert.notEqual(normaliseForMatching('('+word+') emissions.'),normaliseForMatching('emissions.'),word);
+  assert.equal(normaliseForMatching('(net) emissions.'),'(net) emissions');
+  assert.equal(normaliseForMatching('(iii) Third.',{numberingPrefixes:['(iii) ']}),'Third');
+  assert.equal(normaliseForMatching('(net) emissions.',{numberingPrefixes:['(iii) ']}),'(net) emissions');
+  assert.equal(normaliseForMatching('(iii) Third.',{stripNumbering:false,numberingPrefixes:['(iii) ']}),'(iii) Third');
+});
+
+test('cache identity uses the effective official source URL in either call order',()=>{
+  for(const rejectedFirst of [true,false]){
+    const projection={paragraphs:['Article 1',rejectedFirst?'First cache order.':'Reverse cache order.'],sourceUrl};
+    const options={sourceUrl:'https://example.org/unofficial'};
+    const calls=rejectedFirst?[options,{}]:[{},options];
+    const first=parseProposal(projection,calls[0]),second=parseProposal(projection,calls[1]);
+    const ordinary=rejectedFirst?second:first,rejected=rejectedFirst?first:second;
+    assert.equal(ordinary.sourceUrl,sourceUrl);assert.equal(rejected.sourceUrl,null);assert.notEqual(ordinary,rejected);
+    assert.equal(parseProposal(projection),ordinary);assert.equal(parseProposal(projection,options),rejected);
+    assert.notEqual(ordinary.units[0].id,rejected.units[0].id);
+  }
+  const projection={paragraphs:['Article 1','Resolved URL fallback.'],resolvedSourceUrl:sourceUrl};
+  assert.equal(parseProposal(projection).sourceUrl,sourceUrl);
+  assert.equal(parseProposal(projection),parseProposal(projection,{sourceUrl}));
+});
+
+test('compact Article2 is a separate source boundary without conflating article 1, 10 or suffixed labels',()=>{
+  const result=parseProposal(archive(body(p('Article1')+p('First source text.')+p('Article2')+p('Final source text.'))));
+  const first=proposalCandidates(result,'Article 1')[0],second=proposalCandidates(result,'Article 2')[0];
+  assert(first);assert(second);assert.equal(first.extent.end,second.extent.start);assert.equal(second.extent.start,2);
+  assert.equal(parseTargetLabel('Article1a (new)').segments[0].value,'1a');
+  assert.equal(parseLabelSegment('ArticleTwo'),null);assert.equal(parseLabelSegment('Article2 wording'),null);
+  for(const row of fixture('proposal-language-excerpts.json').languages){
+    for(const value of ['1','10','1a']){
+      const heading=unitLabel({kind:'article',value},row.language);
+      assert.equal(parseLabelSegment(heading,row.language).value,value,row.language+': '+heading);
+    }
+  }
+});
+
+test('replacement instructions with an omitted opener retain nested terms until an unmatched closing delimiter',()=>{
+  for(const [innerOpen,innerClose,close] of [['“','”','’'],['«','»','"']]){
+    const result=parseProposal(archive(body(p('Article 1')+p('Article 6 is replaced by the following:')+p('Article 6')+
+      p('1. The term means '+innerOpen+'operator'+innerClose)+p('Article 7')+p('1. Final text.'+close+';')+p('Article 2'))));
+    assert.equal(proposalCandidates(result,'Article 7').length,0);assert.equal(proposalCandidates(result,'Article 2').length,1);assert.equal(result.complete,true);
+  }
 });

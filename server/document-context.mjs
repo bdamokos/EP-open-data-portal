@@ -150,7 +150,7 @@ export class DocumentContext {
     const referenceDecisions=array(indexed?.decisions).filter(decision=>array(decision.amendmentIds).some(id=>id===query.amendmentId||id===indexed.id)&&typeof decision.reference==='string'&&decision.source?.url&&decision.source?.fetchedAt);
     const references=[...new Set(referenceDecisions.map(decision=>decision.reference))];
     const target=!query.amendmentId||query.includeBody===false?{...unavailableTarget(null),status:'not-requested'}:!chosen?unavailableTarget(amendment?.variants.length?'choose-source-version':'amendment-wording-unavailable'):references.length>1?{...unavailableTarget('conflicting-reference-decisions'),status:'ambiguous'}:differentLanguage?unavailableTarget('different-text-languages'):resolveDocumentTarget(document?.selectedText,{originalText:chosen.originalText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references[0],language:chosen.language});
-    let placement=chosen&&query.includeBody!==false?resolveAmendmentPlacement(document?.selectedText,{originalText:chosen.originalText,proposedText:chosen.proposedText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references[0],language:chosen.language,baseline:['commission-proposal','present-text','council-position','unknown'].includes(chosen.baseline)?'other':chosen.baseline}):query.amendmentId&&query.includeBody!==false?{operation:null,status:'unresolved',reason:'amendment_wording_unavailable',evidence:[]}:null;
+    let placement=chosen&&query.includeBody!==false?resolveAmendmentPlacement(document?.selectedText,{originalText:chosen.originalText,proposedText:chosen.proposedText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references[0],language:chosen.language,baseline:chosen.baseline,resolutionDocument:['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].some(type=>canonicalType(work.work_type)==='def/ep-document-types/'+type)}):query.amendmentId&&query.includeBody!==false?{operation:null,status:'unresolved',reason:'amendment_wording_unavailable',evidence:[]}:null;
     let baseline=null,proposal=null;
     const proposalKind=chosen?.baseline==='commission-proposal';
     if(chosen&&query.includeBody!==false&&proposalKind) {
@@ -176,8 +176,8 @@ export class DocumentContext {
         proposal=null;baseline.status='unavailable';baseline.items=[];baseline.gaps.push('proposal-projection-unavailable');
         placement={operation:amendmentOperation(chosen),status:'unresolved',reason:'proposal_baseline_unavailable',evidence:[]};
       }
-    } else if(placement&&['present-text','council-position','unknown'].includes(chosen?.baseline)) {
-      placement={operation:amendmentOperation(chosen),status:'unresolved',reason:chosen.baseline==='present-text'?'amends_existing_law':chosen.baseline==='council-position'?'council_position_unavailable':'baseline_unknown',evidence:[]};
+    } else if(placement&&['present-text','council-position'].includes(chosen?.baseline)) {
+      placement={operation:amendmentOperation(chosen),status:'unresolved',reason:chosen.baseline==='present-text'?'amends_existing_law':'council_position_unavailable',evidence:[]};
     }
     if(placement&&!proposalKind&&references.length>1){placement.status='unresolved';placement.reason='conflicting_target_evidence';delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
     if(proposal&&document)document={...document,selectedText:undefined};

@@ -38,7 +38,7 @@ function page({items=[amendment()],document=documentId,scope='member',language='
     snapshots:{amendments:1,text:1},...extra};
 }
 
-async function readerHarness(t,{state={},props={},focusContextChild=false,realContext=false}={}) {
+async function readerHarness(t,{state={},props={},focusContextChild=false,realContext=false,members}={}) {
   const window=new Window({url:'http://localhost/'}),requests=[];
   const globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -55,6 +55,7 @@ async function readerHarness(t,{state={},props={},focusContextChild=false,realCo
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {MotionAmendments}=await vite.ssrLoadModule('/src/MotionAmendments.tsx'),{createRoot}=await import('react-dom/client');
   const DocumentContextReader=realContext?(await vite.ssrLoadModule('/src/DocumentContextReader.tsx')).DocumentContextReader:null;
+  const {PersonNamesProvider}=await vite.ssrLoadModule('/src/PersonName.tsx');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   function Host() {
     [currentState,setState]=useState({...initialState,...state});
@@ -65,7 +66,8 @@ async function readerHarness(t,{state={},props={},focusContextChild=false,realCo
         createElement('button',{onClick:context.onBack,autoFocus:focusContextChild},'Back from test context'));
     }});
   }
-  await act(async()=>root.render(createElement(Host)));
+  const draw=()=>root.render(createElement(PersonNamesProvider,{members},createElement(Host)));
+  await act(async()=>draw());
   const respond=(data,{request=requests.at(-1),status=200}={})=>act(async()=>{
     assert(request,'The reader must make a request before receiving a response.');request.done=true;request.resolve(Response.json(data,{status}));
   });
@@ -74,7 +76,7 @@ async function readerHarness(t,{state={},props={},focusContextChild=false,realCo
   const click=label=>act(async()=>{const node=button(label);assert(node,`Missing button ${label}; visible text: ${container.textContent}`);node.focus();node.click();});
   const change=(selector,value)=>act(async()=>{const node=container.querySelector(selector);assert(node,`Missing ${selector}`);node.value=value;node.dispatchEvent(new window.Event('change',{bubbles:true}));});
   const updateState=patch=>act(async()=>setState(previous=>({...previous,...patch})));
-  const updateProps=patch=>act(async()=>{currentProps={...currentProps,...patch};root.render(createElement(Host));});
+  const updateProps=patch=>act(async()=>{currentProps={...currentProps,...patch};draw();});
   return {container,requests,respond,button,buttons,click,change,updateState,updateProps,state:()=>currentState,context:()=>lastContext};
 }
 
@@ -964,4 +966,13 @@ test('motion Read in context can render an explicitly identified Commission prop
   await h.respond(proposalContextResponse(documentId,item.id,item.listId,7),{request});
   assert(h.container.textContent.includes('Commission proposal · COM(2025)0087'));
   assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,'true');
+});
+
+test('motion proposers use exact directory IDs and preserve unknown labels',async t=>{
+  const h=await readerHarness(t,{state:{open:true},members:[{id:42,firstName:'Mika',lastName:'Aaltola'}]});
+  await h.respond(page({items:[amendment(13,{authors:[{personId:'42',name:'Mika AALTOLA'},{personId:'99',name:'Guest McDONALD'}]})]}));
+  await h.click(/^Amendment 13/);
+  const proposers=h.container.querySelector('.motion-amendments__proposers');
+  assert.match(proposers.textContent,/Proposed by Mika Aaltola, Guest McDONALD/);
+  assert.equal(proposers.querySelector('[title="Source label: Mika AALTOLA"]').textContent,'Mika Aaltola');
 });

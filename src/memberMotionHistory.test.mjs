@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,Fragment,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {viewReady} from './test-support/viewReady.mjs';
 import {API_VERSION} from '../server/api-version.mjs';
 
@@ -56,8 +56,8 @@ async function harness(t,selection=query({}),{context=contextResponse,motions=mo
  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  const rawPush=history.pushState.bind(history);t.mock.method(history,'pushState',(...args)=>{pushes.push(args[2]);return rawPush(...args);});
- let root,vite;
- t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];assert.deepEqual(unexpected,[],'all HTTP reads remain inside the explicit local fixtures');});
+ let root,loadModule;
+ t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];assert.deepEqual(unexpected,[],'all HTTP reads remain inside the explicit local fixtures');});
  t.mock.method(globalThis,'fetch',async input=>{
   const url=new URL(input,location.href);requests.push(url);
   if(url.pathname==='/api/directory')return Response.json(directory);
@@ -68,14 +68,15 @@ async function harness(t,selection=query({}),{context=contextResponse,motions=mo
   if(url.pathname.startsWith('/api/document-context/')){const result=await context(url);return result instanceof Response?result:Response.json(result);}
   if(url.pathname.startsWith('/api/document/'))return Response.json({...contextDocument(decodeURIComponent(url.pathname.split('/').at(-1))),roles:['AUTHOR'],coAuthors:[]});
   if(url.pathname.startsWith('/api/qa-motion-cache/'))return Response.json({id:url.pathname.split('/').at(-1)});
+  if(url.pathname==='/api/insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
   if(url.pathname==='/api/insights/saved')return Response.json({members:[],questions:[]});
   if(url.pathname==='/api/corpus/search')return Response.json({results:[],total:0,nextOffset:null,coverage:{status:'partial'}});
   if(url.pathname.startsWith('/api/speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
   if(url.pathname==='/api/insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
   unexpected.push(url.href);throw Error('Unexpected fixture request '+url.href);
  });
- vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
- const {default:App}=await vite.ssrLoadModule('/src/App.tsx'),{useData}=await vite.ssrLoadModule('/src/data.ts'),{createRoot}=await import('react-dom/client');
+ loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+ const {default:App}=await loadModule('/src/App.tsx'),{useData}=await loadModule('/src/data.ts'),{createRoot}=await import('react-dom/client');
  const WarmCache=({route})=>{const state=useData(route);return createElement('span',{hidden:true,'data-motion-cache-ready':Boolean(state.data&&!state.loading&&!state.error)});};
  const container=document.createElement('div');document.body.append(container);root=createRoot(container);let warmRoutes=[];
  const draw=()=>root.render(createElement(Fragment,null,createElement(App,{key:'app'}),...warmRoutes.map(route=>createElement(WarmCache,{key:route,route}))));

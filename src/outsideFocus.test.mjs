@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const day='2026-10-07',source={url:'https://data.europarl.europa.eu/fixture',fetchedAt:'2026-10-16T12:00:00Z'};
 const coverage={complete:true,pending:0,unresolved:0,gaps:0,truncated:false,initialized:true,generation:1,updatedAt:source.fetchedAt,tasks:[],source:'Public fixture'};
@@ -19,12 +19,12 @@ async function harness(t,query='?view=outside') {
   window.HTMLElement.prototype.focus=function(options){focusScrollEvents.push({kind:'focus',element:this,options});nativeFocus.call(this,options);};
   window.scrollTo=(...args)=>scrolls.push(args);window.HTMLElement.prototype.scrollTo=function(options){scrolls.push(options);focusScrollEvents.push({kind:'reset',element:this,options});};
   window.HTMLElement.prototype.scrollIntoView=function(options){focusScrollEvents.push({kind:'reveal',element:this,options});};
-  let vite,root;const extraRoots=[];
-  t.after(async()=>{for(const nested of extraRoots)await act(async()=>nested.unmount());if(root)await act(async()=>root.unmount());for(const request of requests)if(!request.finished)request.resolve(Response.json({}));if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;const extraRoots=[];
+  t.after(async()=>{for(const nested of extraRoots)await act(async()=>nested.unmount());if(root)await act(async()=>root.unmount());for(const request of requests)if(!request.finished)request.resolve(Response.json({}));if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const directory={term:'10',people:['42','43'].map(id=>detail(id).person),coverage};
   t.mock.method(globalThis,'fetch',input=>{const url=new URL(input,location.href);if(url.pathname.endsWith('/references'))return Promise.resolve(Response.json({references:[{key:'question:E-2026-003031',kind:'question',status:'found',id:'E-10-2026-003031',title:'Fixture referenced question'}]}));assert.match(url.pathname,/\/api\/(outside|speech)\//,'outside focus checks are limited to isolated outside and speech fixtures');if(url.pathname.endsWith('/directory'))return Promise.resolve(Response.json(directory));return new Promise((resolve,reject)=>requests.push({url,resolve,reject,finished:false}));});
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {OutsideVoices}=await vite.ssrLoadModule('/src/OutsideVoices.tsx'),{ReferenceScope,ReferenceText}=await vite.ssrLoadModule('/src/References.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {OutsideVoices}=await loadModule('/src/OutsideVoices.tsx'),{ReferenceScope,ReferenceText}=await loadModule('/src/References.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(createElement(OutsideVoices,{language:'en',onBack(){}})));
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
   const click=async target=>{const node=typeof target==='string'?button(target):target;assert(node,'Missing button '+target);await act(async()=>{node.focus();node.click();});return node;};

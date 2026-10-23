@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const member={id:257043,firstName:'Mika',lastName:'Aaltola',sortName:'AALTOLA Mika',gender:'m',countryCode:'FI',groupCode:'EPP',memberships:[],accounts:[]};
 const directory={day:'2026-10-16',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}};
@@ -18,6 +18,7 @@ function fixture(url) {
   if(route?.startsWith('latest-activities/'))return activities;
   if(route?.startsWith('speech-statistics/'))return {items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null};
   if(route==='insights/speech-cloud')return {scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null};
+  if(route==='insights/following-status')return {epoch:'test',generation:1,marksReady:false,indexComplete:false};
   if(route==='insights/saved')return {members:[],questions:[]};
   if(route==='insights/legislation')return legislation;
   if(route?.startsWith('document/'))return {selectedDocumentId:decodeURIComponent(route.slice(9)),files:[],answers:[],selectedText:{status:'available',paragraphs:['Document fixture text'],textLanguage:url.searchParams.get('lang'),availableTextLanguages:['en','fr']}};
@@ -28,13 +29,13 @@ async function harness(t,query,respond=fixture) {
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let root,vite;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let root,loadModule;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async(input,options)=>Response.json(await respond(new URL(input,location.href),options)));
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  return {window,container,load:path=>vite.ssrLoadModule(path),render:async element=>{await act(async()=>root.render(element));await viewReady(container);},click:async node=>{assert(node,'Missing button');await act(async()=>node.click());await viewReady(container);},button:text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text)};
+  return {window,container,load:path=>loadModule(path),render:async element=>{await act(async()=>root.render(element));await viewReady(container);},click:async node=>{assert(node,'Missing button');await act(async()=>node.click());await viewReady(container);},button:text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text)};
 }
 
 test('Follow and Save names include their visible state and identify compact controls',async t=>{
@@ -222,8 +223,49 @@ test('document disclosures stay related and accurate when documents repeat acros
   }
   check(null);
   for(const index of [0,1,2,3,0]) {await h.click(buttons[index]);check(index);}
-  const language=h.container.querySelector('select[aria-label="Document language"]');
+  const language=h.container.querySelector('select[aria-label="Text language"]');
   await act(async()=>{language.value='fr';language.dispatchEvent(new window.Event('change',{bubbles:true}));});
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
   await h.click(buttons[0]);check(null);await h.click(buttons[0]);check(0);
+});
+
+test('Members filters sort displayed labels in every interface language and preserve filter values',async t=>{
+  const countries=['CZ','DE','DK','ES','FI','FR','HR','LT','LU','LV','GR','EL','SE','HU'];
+  const groups=['S&D','EPP','Renew','The Left','NI','ECR'];
+  const members=countries.map((countryCode,i)=>({...member,id:100+i,countryCode,groupCode:groups[i%groups.length]}));
+  for(const language of 'bg cs da de el en es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' '))await t.test(language,async t=>{
+    const h=await harness(t,'?lang='+language,url=>url.pathname.endsWith('/directory')?{...directory,members}:fixture(url));
+    const {default:App}=await h.load('/src/App.tsx');
+    await h.render(createElement(App));
+    const [country,group]=[...h.container.querySelectorAll('.explorer-filter-line select')].slice(-2);
+    const options=select=>[...select.options].slice(1);
+    for(const select of [country,group]) {
+      assert.equal(select.options[0].value,'','All remains first');
+      const labels=options(select).map(option=>option.textContent);
+      assert.deepEqual(labels,[...labels].sort((a,b)=>a.localeCompare(b,language)));
+    }
+    assert.deepEqual(options(country).map(option=>option.value).sort(),countries.filter(code=>code!=='GR').sort(),'Greek aliases deduplicate without changing EU identifiers');
+    assert.deepEqual(options(group).map(option=>option.value).sort(),[...groups].sort());
+    if(language==='en')assert.deepEqual(options(country).slice(0,3).map(option=>option.textContent),['Croatia','Czechia','Denmark']);
+    await act(async()=>{country.value='EL';country.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+    await viewReady(h.container);
+    assert.equal(new URL(location.href).searchParams.get('country'),'EL');
+    assert.equal(h.container.querySelectorAll('.explorer-portrait-item').length,2,'both Greek aliases match the selected filter');
+  });
+});
+
+test('Members list portraits follow and unfollow MEPs without opening the profile',async t=>{
+  const h=await harness(t,'');
+  const {default:App}=await h.load('/src/App.tsx');
+  await h.render(createElement(App));
+  const star=()=>h.container.querySelector('[data-member-id="257043"] .explorer-portrait-follow button');
+  assert.equal(star().closest('.portrait--button'),null,'the star is not nested in the portrait button');
+  for(const [index,saved] of [false,true,false].entries()) {
+    assert.equal(star().getAttribute('aria-pressed'),String(saved));
+    assert.equal(star().getAttribute('aria-label'),`${saved?'Following':'Follow'} MEP · Mika Aaltola`);
+    assert.equal(JSON.parse(h.window.localStorage.getItem('ep.bookmarks.v1')||'{"items":[]}').items.some(item=>item.kind==='mep'&&item.id==='257043'),saved);
+    if(index<2)await h.click(star());
+  }
+  assert(h.container.querySelector('.explorer-portraits'),'the list stays open');
+  assert.equal(new URL(location.href).searchParams.get('member'),null);
 });
