@@ -115,3 +115,46 @@ test('explicit unfollow cancellation survives departure, reload and return until
  assert.equal(restored.suggestions()[0].reasons.length,1);
  assert.match(restored.suggestions()[0].reasons[0].context,/Malta/);
 });
+
+test('follow before directory load clears cancellation once matching values become known',()=>{
+ const {store,storage}=harness();
+ store.observe(directory([member(1),member(2)]),follows(1,2));
+ store.observe(directory([member(1)]),follows(1,2));
+ store.syncFollows(follows(1));
+ const reloaded=createCoverageStore(storage);
+ reloaded.syncFollows(follows(1,2));
+ assert.equal(reloaded.snapshot().cancelled.length,2);
+ // The unresolved action survives another reload and an observation without that MEP.
+ const restored=createCoverageStore(storage);
+ restored.observe(directory([member(1)]),follows(1,2));
+ assert.equal(restored.snapshot().cancelled.length,2);
+ restored.observe(directory([member(1),member(2)]),follows(1,2));
+ assert.deepEqual(restored.snapshot().cancelled,[]);
+ assert.equal(restored.snapshot().coverages.length,2);
+ restored.observe(directory([member(1),member(2),member(3)]),follows(1,2));
+ assert.deepEqual(restored.suggestions().map(s=>s.member.id),[3]);
+ assert.equal(restored.suggestions()[0].reasons.length,2);
+});
+test('unresolved follows resolve per dimension and are discarded on unfollow',()=>{
+ const {store,storage}=harness();
+ store.observe(directory([member(1),member(2)]),follows(1,2));
+ store.observe(directory([member(1)]),follows(1,2));
+ store.syncFollows(follows(1));
+ const restored=createCoverageStore(storage);
+ restored.syncFollows(follows(1,2));
+ restored.observe(directory([member(1),member(2,null)]),follows(1,2));
+ assert.deepEqual(restored.snapshot().cancelled,[{dimension:'group',value:'S&D'}]);
+ assert.deepEqual(restored.snapshot().unresolvedFollows,{group:['2']});
+ restored.observe(directory([member(1),member(2)]),follows(1,2));
+ assert.deepEqual(restored.snapshot().cancelled,[]);
+ assert.deepEqual(restored.snapshot().unresolvedFollows,{});
+ // An unresolved follow that is reversed must not reactivate coverage later.
+ restored.observe(directory([member(1)]),follows(1,2));
+ restored.syncFollows(follows(1));
+ restored.syncFollows(follows(1,2));
+ restored.syncFollows(follows(1));
+ assert.deepEqual(restored.snapshot().unresolvedFollows,{});
+ restored.observe(directory([member(1),member(2)]),follows(1));
+ assert.equal(restored.snapshot().cancelled.length,2);
+ assert.equal(restored.snapshot().coverages.length,0);
+});

@@ -6,7 +6,7 @@ export type Coverage={dimension:'country'|'group'|'committee';value:string;enrol
 export type CoverageReason={context:string;reason:string};
 export function coverageReason(coverage:Coverage,member:DirectoryMember,directory:Directory,events?:unknown[],language?:string):CoverageReason;
 export function createCoverageStore(storage:Storage|null,notify?:()=>void,clock?:()=>number):{
- snapshot:()=>{version:number;coverages:Coverage[];followed:string[];last:Partial<Record<Coverage['dimension'],Record<string,string|string[]|null>>>;cancelled:Pick<Coverage,'dimension'|'value'>[];storageError:boolean};syncFollows:(items:SavedItem[])=>void;retryStorage:()=>boolean;reload:()=>void;
+ snapshot:()=>{version:number;coverages:Coverage[];followed:string[];last:Partial<Record<Coverage['dimension'],Record<string,string|string[]|null>>>;unresolvedFollows:Partial<Record<Coverage['dimension'],string[]>>;cancelled:Pick<Coverage,'dimension'|'value'>[];storageError:boolean};syncFollows:(items:SavedItem[])=>void;retryStorage:()=>boolean;reload:()=>void;
  observe:(directory:Directory|null,items:SavedItem[],error?:boolean)=>void;observeMembership:(snapshot:MembershipSnapshot)=>void;
  suggestions:()=>{member:DirectoryMember;reasons:CoverageReason[]}[];dismiss:(id:string|number)=>boolean;
 };
