@@ -90,8 +90,8 @@ export class MemberVoteExplanations {
     const context=explanationVoteContext(day,memberId,query.decision,query.language);
     const base={version:MEMBER_VOTE_EXPLANATIONS_VERSION,memberId,decisionId:query.decision,sittingId:day.sittingId,snapshotId:snapshot.id,
       subjectId:context.subject?.id||null,matchScope:'subject',presentationAnchorDecisionId:context.anchor,
-      written:{status:'unsupported',count:null},items:[],sources:[],voteSources:day.sources};
-    if(!context.subject)return {...base,coverage:{status:'unavailable',searchComplete:false,gaps:[{code:'vote-subject-unavailable'}]}};
+      written:{status:'unsupported',count:null},items:[],sources:[],voteSources:day.sources,voteGraphGaps:day.coverage?.completeness?.unresolvedAgendaItemIds||null};
+    if(!context.subject||context.gaps.length)return {...base,coverage:{status:'unavailable',searchComplete:false,gaps:context.gaps.length?context.gaps:[{code:'vote-subject-unavailable'}]}};
     const key=JSON.stringify([memberId,day.sittingId]);let job=this.pending.get(key);
     if(!job){
       if(this.pending.size>=this.limits.pending)throw new HttpError(503,'explanation_busy','Explanation reads are busy. Try again.');
@@ -104,10 +104,10 @@ export class MemberVoteExplanations {
       if(parentUris.length!==1){gaps.push({code:'explanation-parent-unresolved',id:row.activity.activity_id});continue;}
       const parent=collected.parents.get(parentUris[0]);if(!parent){gaps.push({code:'explanation-parent-unavailable',id:row.activity.activity_id});continue;}
       const matched=matchVoteExplanation(row.activity,parent.activity,day,context,memberId);
-      if(matched.gap)gaps.push({code:matched.gap,id:row.activity.activity_id});
+      if(matched.gap)gaps.push({code:matched.gap,id:row.activity.activity_id,...(matched.details?{details:matched.details}:{})});
       if(matched.item)items.push({...matched.item,sources:[...row.sources,parent.source]});
     }
-    return {...base,items,sources:collected.sources,coverage:{status:gaps.length?'partial':'searched',searchComplete:gaps.length===0,gaps}};
+    return {...base,presentationAnchorDecisionId:items.length?context.anchor:null,items,sources:collected.sources,coverage:{status:gaps.length?'partial':'searched',searchComplete:gaps.length===0,gaps}};
   }
 }
 

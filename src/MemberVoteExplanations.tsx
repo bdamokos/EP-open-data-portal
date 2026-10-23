@@ -53,6 +53,7 @@ export function MemberVoteExplanations({vote,data,memberId,language,onDecision}:
     </div>)}
     {result&&!items.length&&<p>{result.coverage.searchComplete?'No matching oral explanation found.':'Oral explanations could not be fully checked.'}</p>}
     {items.length>0&&result?.coverage.status==='partial'&&<p className="member-votes-muted">Some explanation records are unavailable.</p>}
+    {result&&!result.coverage.searchComplete&&<button type="button" disabled={request.loading} onClick={request.retry}>Retry explanations</button>}
     {result&&<p className="member-votes-muted">Written explanations are not available here. <a href={`https://www.europarl.europa.eu/meps/en/${memberId}/NAME/other-activities/written-explanations`} target="_blank" rel="noreferrer">Member’s page ↗</a></p>}
   </section>;
 }

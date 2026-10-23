@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {MemberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
 import {explanationVoteContext,matchVoteExplanation} from './member-vote-explanations-model.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
+import {MemberVotes,memberVotesQuery} from './member-votes.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/vote-explanations.json',import.meta.url)));
 const rows=key=>structuredClone(fixture[key].rows.map(row=>row.record));
@@ -12,7 +13,7 @@ const source=key=>({url:fixture[key].url,fetchedAt:fixture[key].fetchedAt,conten
 function dayFixture() {
   const named=new Map(rows('named').map(row=>[row.id,row]));
   return {sittingId:SITTING,date:'2026-03-26',decisions:rows('decisions').map(row=>({...row,...named.get(row.id)})),results:rows('results'),agenda:rows('agenda'),
-    sources:{decisions:[source('decisions'),source('named')],results:[source('results')],agenda:[source('agenda')]},coverage:{decisions:{state:'complete'},agenda:{state:'complete'},results:{state:'complete'}}};
+    sources:{decisions:[source('decisions'),source('named')],results:[source('results')],agenda:[source('agenda')]},coverage:{decisions:{state:'complete'},agenda:{state:'complete'},results:{state:'complete'},completeness:{missingResultIds:[],unresolvedAgendaItemIds:[],invalidSourceIds:[]}}};
 }
 function setup({day=dayFixture(),speeches=rows('speeches').filter(row=>row.had_participation.had_participant_person.includes('person/'+MEMBER)),override,limits={}}={}) {
   const calls=[],snapshot={id:SNAPSHOT,days:[day]};let expired=false;
@@ -110,4 +111,60 @@ test('query validation requires an exact pinned vote and explanation responses a
   for(const patch of [{snapshot:''},{decision:''},{url:'https://example.invalid'},{limit:'1'}])assert.throws(()=>memberVoteExplanationsQuery(new URLSearchParams({...Object.fromEntries(search),...patch})),error=>error.status===400);
   const repeated=new URLSearchParams(search);repeated.append('decision',FINAL);assert.throws(()=>memberVoteExplanationsQuery(repeated));
   assert.deepEqual(apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/member-vote-explanations/'+MEMBER),{items:[]}),{cacheControl:'no-store',cdnCacheControl:'no-store'});
+});
+
+test('normal paging cannot erase missing-result or invalid-agenda graph uncertainty',async()=>{
+  for(const [field,id] of [['missingResultIds',SITTING+'-VOT-ITM-999999'],['invalidSourceIds',SITTING+'-OJ-ITM-V-999']]) {
+    const day=dayFixture();day.coverage.completeness[field]=[id];
+    const {service,calls}=setup({day}),response=await service.query(MEMBER,query());
+    assert.deepEqual(response.items,[]);assert.equal(response.presentationAnchorDecisionId,null);assert.equal(response.coverage.searchComplete,false);
+    assert(response.coverage.gaps.some(gap=>gap.field===field));assert.equal(calls.length,0,'an incomplete pinned graph cannot be repaired by unrelated speech reads');
+  }
+});
+
+test('a competing document result remains ambiguous when its referenced agenda record is missing',async()=>{
+  const day=dayFixture(),result=day.results.find(row=>row.consists_of.includes('eli/dl/event/'+FINAL));
+  day.results.push({...structuredClone(result),id:'eli/dl/event/'+SITTING+'-VOT-ITM-999',activity_id:SITTING+'-VOT-ITM-999',consists_of:[],executed:['eli/dl/event/'+SITTING+'-OJ-ITM-V-999']});
+  day.coverage.completeness.unresolvedAgendaItemIds=['eli/dl/event/'+SITTING+'-OJ-ITM-V-999'];
+  const response=await setup({day}).service.query(MEMBER,query());
+  assert.deepEqual(response.items,[]);assert.equal(response.coverage.searchComplete,false);assert.equal(response.coverage.status,'partial');
+  assert.equal(response.presentationAnchorDecisionId,null);
+  assert.deepEqual(response.voteGraphGaps,day.coverage.completeness.unresolvedAgendaItemIds);
+});
+
+test('transcript IDs, speech notation and chapter containment must agree before classification or source linking',()=>{
+  for(const mutate of [
+    doc=>doc.identifier='CRE-10-2026-03-26-OTH-2017069542700',
+    doc=>doc.id='https://example.invalid/eli/dl/doc/CRE-10-2026-03-26-OTH-2017069542706',
+    doc=>doc.notation_speechId='2017069542700',
+    doc=>doc.is_part_of='eli/dl/doc/CRE-10-2026-03-26-ITM-009-02',
+    doc=>{doc.id='eli/dl/doc/CRE-9-2026-03-26-OTH-2017069542706';doc.identifier='CRE-9-2026-03-26-OTH-2017069542706';},
+  ]) {
+    const day=dayFixture(),activity=rows('speeches').find(row=>row.activity_id.endsWith('2706')),parent=rows('parent9-3')[0];
+    mutate(activity.recorded_in_a_realization_of[0]);
+    const match=matchVoteExplanation(activity,parent,day,explanationVoteContext(day,MEMBER,FINAL),MEMBER);
+    assert.equal(match.item,null,String(mutate));assert.equal(match.gap,'explanation-transcript-conflict');
+  }
+});
+
+test('the real vote collector propagates missing declared results and inconsistent competing agenda identities',async()=>{
+  for(const fault of [null,'missing-result','invalid-agenda']) {
+    const day=dayFixture(),result=day.results.find(row=>row.consists_of.includes('eli/dl/event/'+FINAL));
+    const decisions=day.decisions.filter(row=>result.consists_of.includes(row.id));
+    const agenda=day.agenda.filter(row=>result.executed.includes(row.id));
+    const meeting={id:'eli/dl/event/'+SITTING,activity_id:SITTING,activity_date:day.date,had_activity_type:'def/ep-activities/PLENARY_SITTING',consists_of:[result.id]};
+    for(const parent of result.inverse_consists_of||[])if(typeof parent==='object'&&parent.id===meeting.id)parent.consists_of=[result.id];
+    if(fault==='missing-result')meeting.consists_of.push('eli/dl/event/'+SITTING+'-VOT-ITM-999999');
+    if(fault==='invalid-agenda')agenda.push({...structuredClone(agenda[0]),id:'eli/dl/event/'+SITTING+'-OJ-ITM-V-999',activity_id:SITTING+'-OJ-ITM-V-998'});
+    const request=async(endpoint,params={})=>({url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.now(),payload:{data:
+      (endpoint==='/meetings/'+SITTING?[meeting]:endpoint.endsWith('/decisions')?decisions:endpoint.endsWith('/vote-results')?[result]:agenda).slice(params.offset||0,(params.offset||0)+(params.limit||10000))}});
+    const votes=new MemberVotes({request}),q=memberVotesQuery(new URLSearchParams({sitting:SITTING,decision:FINAL})),snapshot=await votes.snapshot(q);
+    assert.equal(snapshot.days[0].coverage.state,fault?'partial':'complete');
+    let speechReads=0;
+    const explanations=new MemberVoteExplanations({votes,request:async endpoint=>{speechReads++;return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.now(),payload:{data:endpoint==='/speeches'?[rows('speeches').find(row=>row.activity_id.endsWith('2706'))]:rows('parent9-3'),...(endpoint==='/speeches'?{meta:{total:1}}:{})}};}});
+    const response=await explanations.query(MEMBER,{...q,snapshot:snapshot.id});
+    assert.equal(response.items.length,fault?0:1);
+    assert.equal(response.coverage.searchComplete,!fault);
+    if(fault){assert.equal(speechReads,0);assert.equal(response.presentationAnchorDecisionId,null);assert(response.coverage.gaps.some(gap=>gap.code==='vote-graph-incomplete'));}
+  }
 });

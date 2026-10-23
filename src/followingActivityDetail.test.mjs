@@ -126,7 +126,7 @@ test('lookup errors expose retry and a real profile link, then recover without l
 test('inline motion controls keep local state across text choices without writing to the page URL',async t=>{
   const joint={sourceId:jointId,reference:jointId,title:'Joint motion',titleLanguage:'en',outcome:{status:'unavailable'}};
   const h=await harness(t,{sourceId:motionId,selected:[activity(motionId,{category:'motions',relatedJointMotions:[joint]})]});
-  for(let attempt=0;attempt<20&&!h.container.querySelector('select[aria-label="Motion text"]');attempt++)await h.flush();
+  for(let attempt=0;attempt<200&&h.container.querySelector('p[data-motion-pending="true"]');attempt++)await h.flush();
   const select=h.container.querySelector('select[aria-label="Motion text"]');assert(select);assert.equal(select.value,motionId);
   await act(async()=>{select.value=jointId;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
   assert.equal(h.container.querySelector('select[aria-label="Motion text"]').value,jointId);

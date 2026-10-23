@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const sitting='MTG-PL-2026-03-26',decision=sitting+'-DEC-189210',speech=sitting+'-OTH-2017069542706',subject=sitting+'-VOT-ITM-987011',snapshot='a'.repeat(64);
 function result(patch={}) {
@@ -18,8 +18,8 @@ async function mount(t,{response=result(),handler}={}) {
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,DOMParser:ReaderDOMParser,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;const calls=[],selected=[];
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
+  let load,root;const calls=[],selected=[];
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async(url,options)=>{
     calls.push({url:String(url),signal:options?.signal});const custom=await handler?.(String(url),options);if(custom)return custom;
     if(String(url).includes('member-vote-explanations/'))return Response.json(response);
@@ -27,8 +27,8 @@ async function mount(t,{response=result(),handler}={}) {
     if(String(url).includes('speech-media/'))return Response.json({available:false,status:'unavailable',reason:'Recording unavailable.'});
     assert.fail('Unexpected read '+url);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {MemberVoteExplanations}=await vite.ssrLoadModule('/src/MemberVoteExplanations.tsx');
+  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {MemberVoteExplanations}=await load('/src/MemberVoteExplanations.tsx');
   const {createRoot}=await import('react-dom/client');const container=window.document.createElement('div');window.document.body.append(container);root=createRoot(container);
   let props={vote:{id:decision,sittingId:sitting,subjectId:subject},data:{snapshotId:snapshot,period:{kind:'sitting'}},memberId:'197655',language:'en',onDecision:id=>selected.push(id)};
   const render=()=>root.render(createElement(MemberVoteExplanations,{...props,key:props.vote.id+':'+props.memberId+':'+props.language}));
@@ -69,5 +69,6 @@ test('incomplete searches and written-source gaps are not presented as zero expl
   const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'source-unavailable'}]}})});
   assert.match(view.container.textContent,/could not be fully checked/);assert.match(view.container.textContent,/Written explanations are not available here/);
   assert.doesNotMatch(view.container.textContent,/No matching|0 explanations/);
+  assert([...view.container.querySelectorAll('button')].some(button=>button.textContent==='Retry explanations'));
   assert.match(view.container.querySelector('a').href,/\/197655\/NAME\/other-activities\/written-explanations$/);
 });

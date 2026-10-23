@@ -72,6 +72,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
     if(url.pathname.startsWith('/api/profile/'))return Response.json({...members[Number(url.pathname.split('/').at(-1))-1],birthDate:null,memberships:[]});
     if(url.pathname.startsWith('/api/document/'))return Response.json({...contextDocument(decodeURIComponent(url.pathname.split('/').at(-1))),roles:['AUTHOR'],coAuthors:[]});
     if(url.pathname.startsWith('/api/member-votes/'))return Response.json(response(url));
+    if(url.pathname.startsWith('/api/member-vote-explanations/'))return Response.json({version:1,memberId:url.pathname.split('/').at(-1),decisionId:url.searchParams.get('decision'),sittingId:SITTING,snapshotId:url.searchParams.get('snapshot'),subjectId:SUBJECT,matchScope:'subject',presentationAnchorDecisionId:null,items:[],written:{status:'unsupported',count:null},coverage:{status:'searched',searchComplete:true,gaps:[]}});
     if(url.pathname.startsWith('/api/document-context/')){
       const id=decodeURIComponent(url.pathname.split('/').at(-1));
       const choices=[ADOPTED,OTHER_ADOPTED].map(id=>({...contextDocument(id),relationship:{from:id,field:'adopts',to:DOCUMENT}}));
