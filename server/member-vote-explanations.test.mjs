@@ -1,0 +1,113 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {MemberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
+import {explanationVoteContext,matchVoteExplanation} from './member-vote-explanations-model.mjs';
+import {apiCachePolicy} from './response-cache.mjs';
+
+const fixture=JSON.parse(readFileSync(new URL('./fixtures/vote-explanations.json',import.meta.url)));
+const rows=key=>structuredClone(fixture[key].rows.map(row=>row.record));
+const SITTING='MTG-PL-2026-03-26',MEMBER='197655',FINAL=SITTING+'-DEC-189210',SNAPSHOT='a'.repeat(64);
+const source=key=>({url:fixture[key].url,fetchedAt:fixture[key].fetchedAt,contentHash:fixture[key].originalResponseHash});
+function dayFixture() {
+  const named=new Map(rows('named').map(row=>[row.id,row]));
+  return {sittingId:SITTING,date:'2026-03-26',decisions:rows('decisions').map(row=>({...row,...named.get(row.id)})),results:rows('results'),agenda:rows('agenda'),
+    sources:{decisions:[source('decisions'),source('named')],results:[source('results')],agenda:[source('agenda')]},coverage:{decisions:{state:'complete'},agenda:{state:'complete'},results:{state:'complete'}}};
+}
+function setup({day=dayFixture(),speeches=rows('speeches').filter(row=>row.had_participation.had_participant_person.includes('person/'+MEMBER)),override,limits={}}={}) {
+  const calls=[],snapshot={id:SNAPSHOT,days:[day]};let expired=false;
+  const votes={snapshot:async query=>{assert.equal(query.snapshot,SNAPSHOT);if(expired)throw Object.assign(new Error('Expired'),{status:409,code:'vote_snapshot_unavailable'});return snapshot;}};
+  const request=async(endpoint,params={})=>{
+    calls.push({endpoint,params});const change=await override?.(endpoint,params);if(change)return change;
+    let data,key;
+    if(endpoint==='/speeches'){data=speeches.slice(params.offset,params.offset+params.limit);key='speeches';}
+    else {key=['parent9-2','parent9-3','parent4'].find(key=>endpoint==='/events/'+rows(key)[0].activity_id);assert(key,endpoint);data=rows(key);}
+    return {url:fixture[key].url,fetchedAt:fixture[key].fetchedAt,payload:{data,...(key==='speeches'?{meta:{total:speeches.length}}:{})}};
+  };
+  return {service:new MemberVoteExplanations({request,votes,limits}),calls,day,expire:()=>{expired=true;}};
+}
+const query=(decision=FINAL)=>({sitting:SITTING,week:null,decision,snapshot:SNAPSHOT,language:'en'});
+
+test('real public report → agenda → result joins keep explanations subject-scoped and anchor the unique final',async()=>{
+  const {service,day}=setup();const result=await service.query(MEMBER,query());
+  assert.equal(result.items.length,1);assert.equal(result.items[0].id,SITTING+'-OTH-2017069542706');
+  assert.equal(result.items[0].matchScope,'subject');assert.equal(result.presentationAnchorDecisionId,FINAL);
+  assert.deepEqual(result.items[0].documentIds,['A-10-2026-0045']);
+  assert(result.items[0].relationships.every(edge=>edge.from.startsWith('https://data.europarl.europa.eu/')&&edge.to.startsWith('https://data.europarl.europa.eu/')));
+  assert(result.items[0].sources.every(source=>source.url&&source.fetchedAt&&/^[a-f0-9]{64}$/.test(source.contentHash)));
+  assert.equal(result.items[0].classification.basis,'speech-header-and-explanation-chapter');
+  assert.deepEqual(result.written,{status:'unsupported',count:null});
+  const sibling=day.decisions.find(row=>row.activity_id!==FINAL&&row.inverse_consists_of.includes('eli/dl/event/'+result.subjectId));
+  const other=await service.query(MEMBER,query(sibling.activity_id));
+  assert.equal(other.items[0].id,result.items[0].id);assert.equal(other.presentationAnchorDecisionId,FINAL);
+  const textAsWhole=day.decisions.find(row=>row.referenceText?.en==='Text as a whole');
+  const textResult=await service.query(MEMBER,query(textAsWhole.activity_id));
+  assert.equal(textResult.items[0].id,SITTING+'-OTH-2017069542700');assert.equal(textResult.presentationAnchorDecisionId,null,'the published whole-text ballot lapsed');
+  textAsWhole.decision_outcome='def/ep-statuses/ADOPTED';textAsWhole.type='Vote';
+  assert.equal(explanationVoteContext(day,MEMBER,textAsWhole.activity_id).anchor,textAsWhole.activity_id,'a conducted Text as a whole is supported');
+});
+
+test('explanation chapters do not turn chair remarks, headerless unknowns or written debate statements into explanations',()=>{
+  const day=dayFixture(),context=explanationVoteContext(day,MEMBER,FINAL),parent=rows('parent9-3')[0];
+  const own=rows('speeches').find(row=>row.activity_id.endsWith('2706'));
+  const chair=rows('speeches').find(row=>row.activity_id.endsWith('2699'));
+  assert.equal(matchVoteExplanation(chair,rows('parent9-2')[0],day,explanationVoteContext(day,'257113',SITTING+'-DEC-189234'),'257113').item,null);
+  const unknown=structuredClone(own);unknown.activity_id=SITTING+'-OTH-999';unknown.id='eli/dl/event/'+unknown.activity_id;unknown.recorded_in_a_realization_of=[];
+  const amendedParent={...parent,consists_of:[unknown.id]};
+  assert.equal(matchVoteExplanation(unknown,amendedParent,day,context,MEMBER).gap,'classification-unavailable');
+  const written=rows('speeches').find(row=>row.had_activity_type.endsWith('WRITTEN_STATEMENT'));
+  assert.equal(matchVoteExplanation(written,rows('parent4')[0],day,context,MEMBER).item,null);
+});
+
+test('titles and partial intersections cannot repair foreign, contradictory or multiple identities',()=>{
+  const mutations=[
+    (a,p,d)=>a.id='https://example.invalid/eli/dl/event/'+a.activity_id,
+    a=>a.had_participation.had_participant_person=['person/42'],
+    a=>a.inverse_consists_of.push('eli/dl/event/'+SITTING+'-PVCRE-ITM-9-2'),
+    (a,p)=>p.consists_of=[],
+    (a,p)=>p.based_on_a_realization_of.push('eli/dl/doc/A-10-2026-9999'),
+    (a,p,d)=>d.agenda.push({...d.agenda.find(row=>row.had_activity_type.endsWith('PLENARY_VOTE')&&row.based_on_a_realization_of.includes('eli/dl/doc/A-10-2026-0045')),id:'eli/dl/event/'+SITTING+'-OJ-ITM-V-999',activity_id:SITTING+'-OJ-ITM-V-999'}),
+    (a,p,d)=>d.results.find(row=>row.consists_of.includes('eli/dl/event/'+FINAL)).executed.push('eli/dl/event/'+SITTING+'-OJ-ITM-V-999'),
+    (a,p,d)=>d.results.find(row=>row.consists_of.includes('eli/dl/event/'+FINAL)).based_on_a_realization_of=['eli/dl/doc/A-10-2026-9999'],
+  ];
+  for(const mutate of mutations){const day=dayFixture(),a=rows('speeches').find(row=>row.activity_id.endsWith('2706')),parent=rows('parent9-3')[0];mutate(a,parent,day);
+    const result=matchVoteExplanation(a,parent,day,explanationVoteContext(day,MEMBER,FINAL),MEMBER);assert.equal(result.item,null,String(mutate));}
+});
+
+test('a final anchor needs all declared children and a unique conducted whole-text ballot',()=>{
+  for(const mutate of [
+    day=>day.coverage.decisions.state='partial',
+    day=>day.decisions=day.decisions.filter(row=>!row.activity_id.endsWith('DEC-189209')),
+    day=>{const final=day.decisions.find(row=>row.activity_id===FINAL);final.decision_outcome='def/ep-statuses/LAPSED';},
+    day=>{const final=day.decisions.find(row=>row.activity_id===FINAL);final.decided_on_a_realization_of=['eli/dl/doc/A-10-2026-0045-AM-1'];},
+    day=>{const final=day.decisions.find(row=>row.activity_id===FINAL);final.decided_on_a_realization_of=['https://example.invalid/eli/dl/doc/A-10-2026-0045-AM-1'];},
+    day=>{const final=day.decisions.find(row=>row.activity_id===FINAL),copy={...structuredClone(final),id:'eli/dl/event/'+SITTING+'-DEC-999',activity_id:SITTING+'-DEC-999'};day.decisions.push(copy);day.results.find(row=>row.consists_of.includes(final.id)).consists_of.push(copy.id);},
+  ]) {const day=dayFixture();mutate(day);assert.equal(explanationVoteContext(day,MEMBER,FINAL).anchor,null,String(mutate));}
+  const day=dayFixture(),final=day.decisions.find(row=>row.activity_id===FINAL);
+  final.decision_method='def/ep-vote-methods/VOTE_HAND';for(const key of Object.keys(final))if(key.startsWith('had_voter_'))delete final[key];
+  assert.equal(explanationVoteContext(day,MEMBER,FINAL).anchor,FINAL,'non-named final remains an anchor without inventing a position');
+});
+
+test('bounded reads preserve successful explanations and expose source and parent limits',async()=>{
+  for(const limits of [{pages:1,pageSize:1},{parents:1},{totalBytes:1}]){
+    const {service}=setup({limits});const result=await service.query(MEMBER,query());assert.equal(result.coverage.status,'partial');assert.equal(result.coverage.searchComplete,false);
+  }
+  const {service}=setup({override:(endpoint)=>{if(endpoint.endsWith('9-2'))throw new Error('Unavailable');}});
+  const result=await service.query(MEMBER,query());assert.equal(result.items.length,1);assert.equal(result.coverage.status,'partial');
+  const empty=setup({speeches:[]});assert.equal((await empty.service.query(MEMBER,query())).coverage.searchComplete,true);
+});
+
+test('snapshot validation precedes every response, rejects unknown decisions and never collects a replacement',async()=>{
+  const {service,calls,expire}=setup();await service.query(MEMBER,query());const count=calls.length;expire();
+  await assert.rejects(service.query(MEMBER,query()),error=>error.code==='vote_snapshot_unavailable');assert.equal(calls.length,count);
+  const missing=setup();await assert.rejects(missing.service.query(MEMBER,query(SITTING+'-DEC-999')),error=>error.status===404);assert.equal(missing.calls.length,0);
+  await assert.rejects(service.query(MEMBER,{...query(),snapshot:null}),error=>error.status===400);
+});
+
+test('query validation requires an exact pinned vote and explanation responses are never publicly cached',()=>{
+  const search=new URLSearchParams({sitting:SITTING,snapshot:SNAPSHOT,decision:FINAL});
+  assert.equal(memberVoteExplanationsQuery(search).decision,FINAL);
+  for(const patch of [{snapshot:''},{decision:''},{url:'https://example.invalid'},{limit:'1'}])assert.throws(()=>memberVoteExplanationsQuery(new URLSearchParams({...Object.fromEntries(search),...patch})),error=>error.status===400);
+  const repeated=new URLSearchParams(search);repeated.append('decision',FINAL);assert.throws(()=>memberVoteExplanationsQuery(repeated));
+  assert.deepEqual(apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/member-vote-explanations/'+MEMBER),{items:[]}),{cacheControl:'no-store',cdnCacheControl:'no-store'});
+});

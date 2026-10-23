@@ -68,7 +68,16 @@ async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  t.mock.method(globalThis,'fetch',async(url,options)=>{if(String(url).includes('/api/vote-periods'))return Response.json(calendar);calls.push(String(url));return handler(url,options,calls.length);});
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    if(String(url).includes('/api/vote-periods'))return Response.json(calendar);
+    // Attachment behavior has its own component tests. Keep these vote-reader
+    // fixtures and request assertions scoped to the member-votes contract.
+    if(String(url).includes('/api/member-vote-explanations/')){
+      const params=new URL(String(url),'http://localhost').searchParams,decisionId=params.get('decision');
+      return Response.json({version:1,memberId:String(MEMBER),decisionId,sittingId:decisionId.slice(0,17),snapshotId:params.get('snapshot'),subjectId:SUBJECT,matchScope:'subject',presentationAnchorDecisionId:null,items:[],written:{status:'unsupported',count:null},coverage:{status:'searched',searchComplete:true,gaps:[]}});
+    }
+    calls.push(String(url));return handler(url,options,calls.length);
+  });
   // The parent owns the hook's optional HTTP status field. Exercise that integration in memory
   // until it lands here; all other cases use the worktree's unmodified shared hook.
   const plugins=statusCompatibility?[{name:'member-votes-shared-status-contract',enforce:'pre',transform(source,id){
