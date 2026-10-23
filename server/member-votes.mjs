@@ -1,3 +1,5 @@
+import {VoteSourceReader,pageCoverage,sourceEvidence} from './vote-source-reader.mjs';
+import {meetingsReader,MeetingsReader} from './meetings-reader.mjs';
 import {calendarYears,identifiedPlenarySitting,currentTermSittings,isPlenarySitting} from './plenary-calendar.mjs';
 import {createHash} from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
@@ -5,9 +7,9 @@ import {odp,odpLanguage} from './odp.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
 import {requestSignal,runWithRequestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {projectMemberSitting,memberVoteAlignment} from './member-votes-model.mjs';
-import {comparable,mergeSourceNodes,sourceNodeKey,decisionSourceConflicts} from './vote-evidence.mjs';
+import {mergeSourceNodes,sourceNodeKey,decisionSourceConflicts} from './vote-evidence.mjs';
 
-export const MEMBER_VOTES_VERSION=3;
+export const MEMBER_VOTES_VERSION=5;
 export const MEMBER_VOTES_LIMITS=Object.freeze({pageSize:50,decisionPageSize:250,cataloguePages:10,decisionPages:4,resultsPages:4,agendaPages:4,maxRows:4000,maxSittings:5,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,cacheBytes:32*1024*1024,cacheEntries:8,cacheMs:60_000,snapshotMs:10*60_000,sourceMs:15*60_000,timeoutMs:50_000});
 const API='https://data.europarl.europa.eu/api/v2';
 const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
@@ -36,62 +38,10 @@ export function memberVotesQuery(search,{now=Date.now()}={}) {
   return {language,positions,alignment,sitting:sitting||null,week:sitting?null:week||'latest',limit:integer('limit',25,1,100),offset:integer('offset',0,0,10000),decision:decision||null,snapshot:snapshot||null};
 }
 
-function pageCoverage(){return {state:'unavailable',pages:0,rows:0,stopReason:'not-scanned',error:null,sources:[]};}
-function sourceEvidence(record,payload){
-  const fetchedAt=typeof record.fetchedAt==='number'?new Date(record.fetchedAt).toISOString():record.fetchedAt;
-  if(!Number.isFinite(Date.parse(fetchedAt)))throw new HttpError(502,'vote_source_provenance','Parliament source has no valid retrieval date.');
-  return {url:record.url,fetchedAt,contentHash:digest(payload),stale:record.stale===true,refreshInProgress:record.refreshInProgress===true,refreshError:record.refreshError||null};
-}
-
 // Period snapshots are independent of the requested member, language, and page.
 // No activity store or writer is opened by this reader.
-export class MemberVotes {
-  constructor({request=odp,clock=Date.now,limits={}}={}){this.request=request;this.clock=clock;this.limits={...MEMBER_VOTES_LIMITS,...limits};this.periods=new Map();this.snapshots=new Map();this.pending=new Map();this.cacheBytes=0;}
-
-  async pages(endpoint,params,kind,budget,{heldSitting=false}={}) {
-    const coverage=pageCoverage(),nodes=new Map(),evidence=Object.create(null),nodeEvidence=Object.create(null),conflicts=[],size=kind==='decisions'?this.limits.decisionPageSize:this.limits.pageSize;
-    const maxPages=this.limits[kind==='catalogue'?'cataloguePages':kind==='decisions'?'decisionPages':kind==='results'?'resultsPages':'agendaPages'];
-    for(let page=0;page<maxPages;page++){
-      requestSignal()?.throwIfAborted();
-      try {
-        if(budget.bytes>=this.limits.periodBytes)throw new HttpError(502,'vote_period_budget','The selected period exceeds the bounded source budget.');
-        const record=await this.request(endpoint,{...params,limit:size,offset:page*size},{priority:'interactive',staleWhileRevalidate:true,ttl:this.limits.sourceMs});
-        requestSignal()?.throwIfAborted();
-        const data=record.payload?.data;
-        if(!Array.isArray(data)||data.some(node=>!node||typeof node!=='object'||Array.isArray(node)||typeof node.id!=='string'))throw new HttpError(502,'vote_source_shape','Parliament returned an unreadable vote source.');
-        const bytes=Buffer.byteLength(JSON.stringify(record.payload));
-        if(bytes>this.limits.sourceBytes||budget.bytes+bytes>this.limits.periodBytes)throw new HttpError(502,'vote_source_size','Parliament vote data exceeds the bounded source size.');
-        budget.bytes+=bytes;
-        const source=sourceEvidence(record,record.payload);coverage.sources.push(source);coverage.pages++;
-        for(const [index,node] of data.entries()){const hash=sourceNodeKey(node),key=kind==='results'?hash:relative(node.id),path={sourceUrl:source.url,contentHash:source.contentHash,jsonPointer:'/data/'+index};(evidence[key]??=[]).push(path);(nodeEvidence[hash]??=[]).push(path);}
-        let added=0;
-        const pageNodes=new Map();let changed=false;
-        for(const node of data){const key=relative(node.id),previous=pageNodes.get(key)||nodes.get(key);if(previous&&JSON.stringify(comparable(previous))!==JSON.stringify(comparable(node))){conflicts.push(previous,node);changed=true;}pageNodes.set(key,node);}
-        if(changed)throw new HttpError(502,'vote_source_changed','Parliament changed a repeated source identity during pagination.');
-        for(const [key,node] of pageNodes){if(!nodes.has(key)){if(nodes.size>=this.limits.maxRows){coverage.stopReason='row-budget';break;}nodes.set(key,node);added++;}}
-        coverage.rows=nodes.size;
-        if(coverage.stopReason==='row-budget'){coverage.state='partial';break;}
-        if(data.length&&!added){coverage.state='partial';coverage.stopReason='repeated-page';break;}
-        if(!data.length||data.length<size){coverage.state='complete';coverage.stopReason='end';break;}
-        coverage.state='partial';coverage.stopReason='page-budget';
-      } catch(error){
-        if(isLocalRequestFailure(error))throw error;
-        if(heldSitting&&page===0&&error.code==='odp_unavailable'&&error.upstreamStatus===404&&error.source?.httpStatus===404){
-          const source=error.source,bytes=error.responseBytes;
-          const expected=new URL(API+endpoint);for(const [key,value] of Object.entries({...params,limit:size,offset:0,format:'application/ld+json'}))expected.searchParams.set(key,String(value));
-          const fetchedAt=typeof source.fetchedAt==='number'&&Number.isFinite(source.fetchedAt)?new Date(source.fetchedAt).toISOString():source.fetchedAt;
-          if(source.url===expected.href&&Number.isFinite(Date.parse(fetchedAt))&&/^[a-f0-9]{64}$/.test(source.contentHash)&&Number.isSafeInteger(bytes)&&bytes>=0&&bytes<=this.limits.sourceBytes&&budget.bytes+bytes<=this.limits.periodBytes){
-            budget.bytes+=bytes;coverage.state=heldSitting<brusselsDay(this.clock())?'complete':'partial';coverage.stopReason='not-found';coverage.pages=1;
-            coverage.sources.push({...source,fetchedAt,stale:false,refreshInProgress:false,refreshError:null});break;
-          }
-        }
-        if(error.code==='odp_no_content'&&coverage.pages){coverage.state='complete';coverage.stopReason='no-content';break;}
-        coverage.state=coverage.pages?'partial':'unavailable';coverage.stopReason='error';coverage.error=errorInfo(error);break;
-      }
-    }
-    coverage.rows=nodes.size;
-    return {nodes:[...nodes.values()],coverage,evidence,nodeEvidence,conflicts};
-  }
+export class MemberVotes extends VoteSourceReader {
+  constructor({request=odp,clock=Date.now,limits={},meetings}={}){super();this.meetings=meetings||(request===odp&&clock===Date.now&&!Object.keys(limits).length?meetingsReader:new MeetingsReader({request,clock,limits}));this.request=request;this.clock=clock;this.limits={...MEMBER_VOTES_LIMITS,...limits};this.periods=new Map();this.snapshots=new Map();this.pending=new Map();this.cacheBytes=0;}
 
   async catalogue(query,budget) {
     if(query.sitting){
@@ -109,7 +59,9 @@ export class MemberVotes {
     const years=query.week==='latest'?calendarYears(today).reverse():[...new Set([year,Number(dayOffset(query.week,6).slice(0,4))])];
     let nodes=[],coverage=pageCoverage();
     for(const selectedYear of years){
-      const result=await this.pages('/meetings',{year:selectedYear},'catalogue',budget);
+      const result=await this.meetings.year(selectedYear);
+      if(budget.bytes+result.bytes>this.limits.periodBytes)throw new HttpError(502,'vote_period_budget','The selected period exceeds the bounded source budget.');
+      budget.bytes+=result.bytes;
       nodes.push(...result.nodes);coverage={...result.coverage,pages:coverage.pages+result.coverage.pages,rows:nodes.length,sources:[...coverage.sources,...result.coverage.sources]};
       if(coverage.state!=='complete')break;
       if(query.week==='latest'&&nodes.some(n=>tail(n.had_activity_type)==='PLENARY_SITTING'&&validDate(n.activity_date)&&n.activity_date>=CURRENT_TERM_START&&n.activity_date<=today))break;
