@@ -206,7 +206,7 @@ test('preparation upgrades integer marks without losing first appearance and cap
     INSERT INTO item_marks SELECT mep,CASE kind WHEN 0 THEN 'activity' ELSE 'answer' END,source_id,mark FROM integer_marks;
     DROP TABLE integer_marks; DROP TABLE follow_touched; ALTER TABLE follow_generations DROP COLUMN roster_basis;`);
   store.set('followMarksVersion',1);store.release();
-  prepareIndexes({activityDirectory:directory,log:()=>{}});
+  prepareIndexes({activityDirectory:directory,clock:store.clock,log:()=>{}});
   assert.equal(store.get('marksEpoch'),epoch);
   assert.match(store.db.prepare("SELECT sql FROM sqlite_master WHERE name='item_marks'").get().sql,/WITHOUT ROWID/);
   assert.equal(store.db.prepare("SELECT mark,typeof(kind) AS type FROM item_marks WHERE source_id='old'").get().mark,g1);

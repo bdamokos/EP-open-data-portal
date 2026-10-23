@@ -1,6 +1,7 @@
 import {GroupUpdates,GroupUpdateStatus} from './GroupUpdates';
 import {groupEntries} from './followGroups.mjs';
 import {groupsStore,useGroups} from './SavedControls';
+import {FollowSuggestions} from './FollowSuggestions';
 import {MembershipUpdates} from './MembershipUpdates';
 import {membershipEntries} from './followMembership.mjs';
 import {membershipStore,useMembership,useMembershipCheck} from './SavedControls';
@@ -90,6 +91,7 @@ export function Saved({language,onBack,onMember,renderActivity}:SavedProps) {
     <Status scope={`saved-check:${context}:${attempt}`} message={completion?.items===items?completion.message:null} pending={checking}/>
     <button onClick={onBack}>← Back</button>
     <div className="explorer-saved-heading"><h1>Following</h1><button onClick={check} disabled={!items.length} aria-disabled={checking||undefined} style={checking?{opacity:.45,cursor:'default'}:undefined}>{checking?'Checking…':'Check for updates'}</button></div>
+    <FollowSuggestions/>
     <p className="explorer-saved-caption">New updates stay marked until you open them, or for 24 hours after they are found. Recent updates stay listed under Earlier updates.</p>
     {!saved.persistent&&<p>Browser storage is unavailable. Follows last only for this tab.</p>}
     {saved.storageError&&<p role="alert" className="explorer-storage-error">Changes since {new Date(saved.unsavedSince||Date.now()).toLocaleTimeString()} could not be saved in this browser and will be lost on reload. <button onClick={()=>store.retryStorage()}>Retry saving</button></p>}

@@ -1,3 +1,5 @@
+import {matchesCommittee} from './memberFilters.mjs';
+import {coverageStore} from './SavedControls';
 import {FormerMemberNotice} from './MembershipUpdates';
 import {PersonName,PersonNamesProvider} from './PersonName';
 import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
@@ -502,6 +504,8 @@ export default function App() {
   const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
   const directoryState=useData<Directory>(view==='outside'||view==='groups'?null:"directory");
   const directory = directoryState.data;
+  const coverageFollows=useSaved().items;
+  useEffect(()=>{coverageStore.observe(directory,coverageFollows,Boolean(directoryState.error));},[directory,directoryState.error,coverageFollows]);
   const followed=useSaved().items.find(item=>item.kind==='mep'&&item.id===String(member));
   const outsideRoster=Boolean(member&&directory&&!directoryState.error&&!directory.members.some(item=>item.id===member));
   const error = directoryState.error;
@@ -623,16 +627,7 @@ export default function App() {
             normalize(m.firstName + " " + m.lastName).includes(
               normalize(search),
             )) &&
-          (!committee ||
-            m.memberships?.some(
-              (v: Membership) =>
-                v.current &&
-                v.id === committee &&
-                (role === "both" ||
-                  (role === "substitute"
-                    ? v.role === "MEMBER_SUBSTITUTE"
-                    : v.role !== "MEMBER_SUBSTITUTE")),
-            )),
+          matchesCommittee(m,committee,role),
       ).sort(compareMembers) || [],
     [directory, country, group, search, committee, role],
   );

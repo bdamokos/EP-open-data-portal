@@ -1,4 +1,5 @@
 import {createGroupsStore,GROUPS_KEY,groupIsNew,type GroupsSnapshot} from './followGroups.mjs';
+import {createCoverageStore,COVERAGE_KEY} from './followCoverage.mjs';
 import {createMembershipStore,MEMBERSHIP_KEY,membershipIsNew,type MembershipSnapshot} from './followMembership.mjs';
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import {api,expireActivityReads} from './data';
@@ -15,6 +16,9 @@ const groupsCheckListeners=new Set<()=>void>();
 function setGroupsCheck(value:typeof groupsCheck){groupsCheck=value;groupsCheckListeners.forEach(listener=>listener());}
 export function useGroupsCheck(){return useSyncExternalStore(callback=>{groupsCheckListeners.add(callback);return()=>groupsCheckListeners.delete(callback);},()=>groupsCheck);}
 export function useGroups(){return useSyncExternalStore(callback=>{groupsListeners.add(callback);return()=>groupsListeners.delete(callback);},groupsStore.snapshot);}
+const coverageListeners=new Set<()=>void>();
+export const coverageStore=createCoverageStore(storage,()=>coverageListeners.forEach(listener=>listener()));
+export function useCoverage(){return useSyncExternalStore(callback=>{coverageListeners.add(callback);return()=>coverageListeners.delete(callback);},coverageStore.snapshot);}
 const membershipListeners=new Set<()=>void>();
 export const membershipStore=createMembershipStore(storage,()=>{membershipListeners.forEach(listener=>listener());queueMicrotask(refreshSavedClock);});
 type MembershipCheck='unknown'|'available'|'unavailable'|'error';
@@ -23,9 +27,9 @@ const membershipCheckListeners=new Set<()=>void>();
 function setMembershipCheck(value:MembershipCheck){membershipCheck=value;membershipCheckListeners.forEach(listener=>listener());}
 export function useMembershipCheck(){return useSyncExternalStore(callback=>{membershipCheckListeners.add(callback);return()=>membershipCheckListeners.delete(callback);},()=>membershipCheck);}
 export function useMembership(){return useSyncExternalStore(callback=>{membershipListeners.add(callback);return()=>membershipListeners.delete(callback);},membershipStore.snapshot);}
-export const savedStore=createSavedStore(storage,()=>{listeners.forEach(listener=>listener());queueMicrotask(()=>{membershipStore.syncFollows(savedStore.snapshot().items);groupsStore.syncFollows(savedStore.snapshot().items);refreshSavedClock();});});
+export const savedStore=createSavedStore(storage,()=>{listeners.forEach(listener=>listener());queueMicrotask(()=>{membershipStore.syncFollows(savedStore.snapshot().items);groupsStore.syncFollows(savedStore.snapshot().items);coverageStore.syncFollows(savedStore.snapshot().items);refreshSavedClock();});});
 membershipStore.syncFollows(savedStore.snapshot().items);groupsStore.syncFollows(savedStore.snapshot().items);
-window.addEventListener('storage',event=>{if(event.key===GROUPS_KEY||event.key===null)groupsStore.reload();if(event.key===MEMBERSHIP_KEY||event.key===null)membershipStore.reload();if(event.key==='ep.bookmarks.v1'||event.key==='ep.following.v2'||event.key===null)savedStore.reload(event.key);});
+window.addEventListener('storage',event=>{if(event.key===COVERAGE_KEY||event.key===null)coverageStore.reload();if(event.key===GROUPS_KEY||event.key===null)groupsStore.reload();if(event.key===MEMBERSHIP_KEY||event.key===null)membershipStore.reload();if(event.key==='ep.bookmarks.v1'||event.key==='ep.following.v2'||event.key===null)savedStore.reload(event.key);});
 export function useSaved(){return useSyncExternalStore(callback=>{listeners.add(callback);return()=>listeners.delete(callback);},savedStore.snapshot);}
 let savedNow=Date.now(),expiryTimer:ReturnType<typeof setTimeout>|undefined;
 const clockListeners=new Set<()=>void>();
@@ -145,6 +149,7 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
         const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
         const snapshot=await api<MembershipSnapshot>('insights/following-membership?'+params);verify(snapshot,expected);
         if(!membershipStore.observe(snapshot,savedStore.snapshot().items))throw Error('Invalid membership snapshot.');
+        coverageStore.observeMembership(snapshot);
         setMembershipCheck(Object.values(snapshot.lists).some(list=>list.status==='unavailable')?'unavailable':'available');
       }catch(error){setMembershipCheck('error');failures.push(error);}
     };
