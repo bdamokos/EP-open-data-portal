@@ -9,10 +9,20 @@ export function registerSubprocesses(t) {
   if(children.has(t))return;
   const owned=new Set();children.set(t,owned);
   t.after(async()=>{
-    for(const {child} of owned)if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL');
-    await Promise.all([...owned].map(entry=>entry.closed));
+    for(const entry of owned){
+      if(entry.stop)entry.stop();
+      else if(entry.child.exitCode===null&&entry.child.signalCode===null)entry.child.kill('SIGKILL');
+    }
+    await Promise.all([...owned].map(entry=>entry.drain?entry.drain():entry.closed));
     children.delete(t);
   });
+}
+
+// Grouped regression runners share the same drain-before-fixture hook.
+export function trackSubprocess(t,entry) {
+  const owned=children.get(t);
+  if(!owned)throw new Error('Install beforeEach(registerSubprocesses) before starting test subprocesses.');
+  owned.add(entry);return ()=>owned.delete(entry);
 }
 
 // A hang budget, not a startup-speed assertion. NODE_OPTIONS and its network
