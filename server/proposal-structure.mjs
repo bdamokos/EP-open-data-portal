@@ -5,12 +5,13 @@ import {normaliseForMatching} from './proposal-matching.mjs';
 import {officialDocumentUrl} from './proposal-math.mjs';
 import {instructionOperation} from './proposal-instructions.mjs';
 import {proposalRegion} from './proposal-regions.mjs';
+import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel,normaliseForMatching};
-export const PROPOSAL_PARSER_VERSION='1';
+export const PROPOSAL_PARSER_VERSION='2';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
-const opening=/^[‘“„«"'”]/u,closing=/[’”»"'“]\s*[.;,:]?\s*$/u;
+const opening=/^[‘“„«"'”]/u;
 const nonnormative=new Set(['frontmatter','memorandum','signature','financial-statement']);
 const stylePoint=/^(?:Manual)?Point(\d)/i;
 const firstLine=text=>text.split(/\r?\n/,1)[0].trim();
@@ -33,19 +34,22 @@ function heading(text,language,style) {
   }
   return null;
 }
-function leadingNumber(text,language,style,activePoints) {
+function leadingNumber(text,language,style,numbering=null,activePoints=[]) {
   const line=cleanLead(text);
   if(!/^[\d(•–—-]/u.test(line)&&! /^[\p{L}]{1,8}[)\]]/u.test(line))return null;
   const point=line.match(/^\(?([\p{L}\d]+(?:\.\d+)*(?:\s+[\p{L}]{1,3})?)[)\]]\s*/u);
   if(point) {
     const value=proposalNumber(point[1],language);if(!value)return null;
     const numeric=/^\d/.test(point[1]),styleLevel=style.match(stylePoint)?.[1];
-    const roman=/^[ivxlcdm]+$/u.test(point[1]);
-    const level=styleLevel!==undefined?Number(styleLevel):numeric?0:roman&&activePoints.some(item=>item.level===1)?2:1;
-    return {kind:'point',...value,isNew:false,level,prefix:point[0]};
+    // A glyph such as c or i does not establish a deeper Roman list.
+    const level=Number.isInteger(numbering?.level)?numbering.level:styleLevel!==undefined?Number(styleLevel):numeric?0:1;
+    const previous=activePoints.at(-1)?.unit.label?.value;
+    const hierarchyAmbiguous=!numbering&&styleLevel===undefined&&/^[ivxlcdm]+$/u.test(point[1])&&!!previous&&
+      !(previous.length===1&&point[1].length===1&&point[1].charCodeAt(0)===previous.charCodeAt(0)+1);
+    return {kind:'point',...value,isNew:false,level,prefix:point[0],...(numbering?{numbering}:{}),...(hierarchyAmbiguous?{hierarchyAmbiguous:true}:{})};
   }
   const paragraph=line.match(/^(\d+(?:\.\d+)*)\.(?:\s+|(?=\p{Lu}))/u)??line.match(/^(\d+(?:\.\d+)*(?:[.‑–-]?\s*[\p{L}]{1,3})?)\.(?:\s+|(?=\p{Lu}))/u);
-  if(paragraph){const parsed=proposalNumber(paragraph[1],language);if(!parsed)return null;const level=style.match(stylePoint)?.[1];return {kind:level===undefined?'paragraph':'point',...parsed,isNew:false,prefix:paragraph[0],...(level===undefined?{}:{level:Number(level)})};}
+  if(paragraph){const parsed=proposalNumber(paragraph[1],language);if(!parsed)return null;const level=numbering?.level??style.match(stylePoint)?.[1];return {kind:level===undefined?'paragraph':'point',...parsed,isNew:false,prefix:paragraph[0],...(level===undefined?{}:{level:Number(level)}),...(numbering?{numbering}:{})};}
   if(/^[•–—-](?:\s|\t)/u.test(line))return {kind:'indent',value:'',number:null,suffix:'',isNew:false,prefix:line.slice(0,1)};
   return null;
 }
@@ -75,7 +79,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   let bytes=0;const hash=createHash('sha256');
   for(const text of content.paragraphs){bytes+=Buffer.byteLength(text);if(bytes>MAX_TEXT)throw new RangeError('Proposal text exceeds 8 MiB.');hash.update(text).update('\n');}
   const sourceHash=Buffer.isBuffer(input)||input instanceof Uint8Array?createHash('sha256').update(input).digest('hex'):hash.digest('hex');
-  sourceUrl=officialDocumentUrl(sourceUrl??content.sourceUrl??content.resolvedSourceUrl);
+  // parseProposal supplies the same effective URL used by its cache key.
   const namespace=createHash('sha256').update(JSON.stringify({identity,sourceUrl,sourceHash,language,item})).digest('hex').slice(0,24);
   const gaps=[],objectsByParagraph=new Map();
   if(content.coverage?.complete===false)gaps.push({code:'excerpted-source',message:'This input contains selected source excerpts; omitted content has not been parsed.'});
@@ -99,6 +103,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   function make(parent,kind,at,{segment=null,normative=parent.normative,scope=parent.scope,...details}={}) {
     let path=parent.path;
     if(segment) {
+      if(segment.hierarchyAmbiguous){details.pathConflict=true;gaps.push({code:'ambiguous-point-level',paragraph:at,path:[...parent.path,segment],message:'The source does not establish whether this point is a sibling or a nested list item.'});}
       const seen=duplicates.get(parent)??new Map(),signature=`${segment.kind}:${segment.value}`,matches=seen.get(signature)??[];
       if(matches.length){segment={...segment,occurrence:matches.length+1};for(const previous of matches)previous.pathConflict=true;details.pathConflict=true;gaps.push({code:'duplicate-label',paragraph:at,path:[...parent.path,segment],message:'Repeated source label; no unique target address is asserted.'});}
       path=[...parent.path,segment];
@@ -125,15 +130,20 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   };
   function inlineQuotation(owner,index) {
     if(!owner.instruction)return;
-    const text=paragraphs[index].text,match=/:\s*([‘“„«"'])/u.exec(text);
+    const text=paragraphs[index].text,match=/:\s*([‘“„«"'”])/u.exec(text);
     if(!match)return;
-    const offset=match.index+match[0].length-1,inner=text.slice(offset),header=heading(inner,language,''),number=leadingNumber(inner,language,'',[]);
+    const offset=match.index+match[0].length-1,inner=text.slice(offset),header=heading(inner,language,''),number=leadingNumber(inner,language,'');
     const context=underlyingContext(owner);
-    const scope=make(owner,'quotation',index,{segment:{kind:'quotation',value:'1'},scope:'quoted',instructionPath:owner.path,underlyingPath:context});
+    replacementConsumed.add(owner);
+    const scope=make(owner,'quotation',index,{segment:{kind:'quotation',value:String(owner.children.filter(child=>child.kind==='quotation').length+1)},scope:'quoted',instructionPath:owner.path,underlyingPath:context,boundaryBasis:'quotation-mark'});
     const segment=header??number;
     const target=make(scope,segment?.kind??'subparagraph',index,{...(segment?{segment}:{}),scope:'quoted',instructionPath:owner.path,underlyingPath:header?[header]:number?underlyingProvision(context,number):context});
     retain(target,index);target.spans=[{paragraph:index,start:offset,end:text.length}];
     owner.spans.at(-1).end=offset;
+    const state={owner,ownerLevel:points.at(-1)?.level??-1,root:scope,last:target,container:header?target:scope,
+      paragraph:number?.kind==='paragraph'?target:null,points:number?.kind==='point'?[{unit:target,level:number.level}]:[],
+      underlyingPath:header?[header]:context,marks:[],implicit:false};
+    if(!quotationClosed(inner,state,language))quote=state;
   }
   let area=make(root,'frontmatter',0,{normative:false}),container=null,paragraph=null,points=[],quote=null,sectionStack=[],last=null;
   const reset=()=>{container=null;paragraph=null;points=[];quote=null;sectionStack=[];last=null;};
@@ -182,11 +192,11 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       const context=underlyingContext(owner);
       const scope=make(owner,'quotation',i,{segment:{kind:'quotation',value:String(owner.children.filter(child=>child.kind==='quotation').length+1)},scope:'quoted',instructionPath:owner.path,
         underlyingPath:context,boundaryBasis:opening.test(trim)?'quotation-mark':'replacement-instruction'});
-      quote={owner,ownerLevel:level,root:scope,last:scope,container:scope,paragraph:null,points:[],underlyingPath:context};
+      quote={owner,ownerLevel:level,root:scope,last:scope,container:scope,paragraph:null,points:[],underlyingPath:context,marks:[],implicit:!opening.test(trim)};
     }
     if(quote) {
-      const q=quote,number=leadingNumber(trim,language,style,q.points);let target;
-      if(number?.kind==='point'&&number.level===0&&(q.container.kind==='article'||q.container.kind==='quotation'&&q.owner.instruction?.underlyingTargets.some(target=>target.kind==='paragraph'&&target.value===number.value)))number.kind='paragraph';
+      const q=quote,number=leadingNumber(trim,language,style,p.properties?.numbering,q.points);let target;
+      if(number?.kind==='point'&&number.level===0&&/^\d/.test(number.value)&&(q.container.kind==='article'||q.container.kind==='quotation'&&q.owner.instruction?.underlyingTargets.some(target=>target.kind==='paragraph'&&target.value===number.value)))number.kind='paragraph';
       if(headed&&['article','annex','chapter','section','title'].includes(headed.kind)) {
         target=make(q.root,headed.kind,i,{segment:headed,scope:'quoted',instructionPath:q.owner.path,underlyingPath:[headed]});q.container=target;q.paragraph=null;q.points=[];q.underlyingPath=[headed];
       } else if(number?.kind==='paragraph') {
@@ -201,7 +211,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       } else if(/Titrearticle/i.test(style)&&q.container.kind==='article')target=make(q.container,'title',i,{scope:'quoted',instructionPath:q.owner.path,underlyingPath:q.container.underlyingPath});
       else target=make(q.points.at(-1)?.unit??q.paragraph??q.container,'subparagraph',i,{scope:'quoted',instructionPath:q.owner.path,underlyingPath:(q.paragraph??q.container).underlyingPath??q.underlyingPath});
       retain(target,i);q.last=target;
-      if(closing.test(trim))closeQuote();
+      if(quotationClosed(text,q,language))closeQuote();
       continue;
     }
     if(headed) {
@@ -232,7 +242,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       }
       continue;
     }
-    const number=leadingNumber(trim,language,style,points);
+    const number=leadingNumber(trim,language,style,p.properties?.numbering,points);
     if((/Considrant/i.test(style)||area.kind!=='body'&&/^\(?\d+\)/u.test(trim))&&number?.kind==='point') {
       if(area.kind!=='preamble')region('preamble',i,false);
       last=make(area,'recital',i,{segment:{...number,kind:'recital'}});retain(last,i);continue;
@@ -245,7 +255,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     if(/Titrearticle/i.test(style)&&container?.kind==='article'&&!paragraph){last=make(container,'title',i);retain(last,i);continue;}
     const operation=instruction(lead,language);
     if(number?.kind==='paragraph'&&paragraph?.implicit&&(paragraph.instruction?.operation==='amend'||/^(?:Manual)?NumPar1$/i.test(style))){number.kind='point';number.level=0;}
-    if(number?.kind==='point'&&number.level===0&&container?.kind==='article'&&(!paragraph||!paragraph.implicit)&&!operation)number.kind='paragraph';
+    if(number?.kind==='point'&&number.level===0&&/^\d/.test(number.value)&&container?.kind==='article'&&(!paragraph||!paragraph.implicit)&&!operation)number.kind='paragraph';
     if(number?.kind==='paragraph') {
       // In annexes Commission NumPar lists are addressed as numbered points.
       if(item==='annex'&&/NumPar/i.test(style)){number.kind='point';number.level=0;}
@@ -296,12 +306,14 @@ export function parseProposal(input,options={}) {
   const serialized=binary?input:typeof input==='string'?input:JSON.stringify(input);
   if(serialized===undefined)throw new TypeError('Expected proposal input.');
   const digest=createHash('sha256').update(serialized).digest('hex');
-  const cacheKey=JSON.stringify([PROPOSAL_PARSER_VERSION,digest,language,item,officialDocumentUrl(options.sourceUrl),options.identity??null]);
+  const projection=binary||typeof input==='string'?null:input;
+  const sourceUrl=officialDocumentUrl(options.sourceUrl??projection?.sourceUrl??projection?.resolvedSourceUrl);
+  const cacheKey=JSON.stringify([PROPOSAL_PARSER_VERSION,digest,language,item,sourceUrl,options.identity??null]);
   const cached=parseCache.get(cacheKey);
   if(cached){parseCache.delete(cacheKey);parseCache.set(cacheKey,cached);return cached.result;}
   // Clone supplied projections before freezing, leaving the caller's data intact.
   const prepared=binary||typeof input==='string'?input:structuredClone(input);
-  const result=freezeTree(parseProposalUncached(prepared,{...options,language,item,identity:structuredClone(options.identity??null)}));
+  const result=freezeTree(parseProposalUncached(prepared,{...options,language,item,sourceUrl,identity:structuredClone(options.identity??null)}));
   const bytes=Buffer.byteLength(typeof serialized==='string'?serialized:Buffer.from(serialized))+result.paragraphs.length*1024+
     result.objects.reduce((sum,object)=>sum+(object.math?JSON.stringify(object.math).length*2:512),0);
   if(bytes<=MAX_CACHE_BYTES){parseCache.set(cacheKey,{result,bytes});cacheBytes+=bytes;while(cacheBytes>MAX_CACHE_BYTES||parseCache.size>MAX_CACHE_ENTRIES){const [oldest,entry]=parseCache.entries().next().value;parseCache.delete(oldest);cacheBytes-=entry.bytes;}}

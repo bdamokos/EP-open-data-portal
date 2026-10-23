@@ -58,7 +58,7 @@ function grammar(language) {
   Object.assign(words,extra[language]??{chapter:chapterWords[language],section:sectionWords[language],title:titleWords[language]});
   const out=Object.entries(words).map(([kind,terms])=>{
     const pattern=terms.split('|').map(escape).join('|');
-    return {kind,terms:terms.split('|'),pattern,forward:new RegExp(`^(?:${pattern})\\s+(.+)$`,'iu'),backward:new RegExp(`^(.+?)\\s+(?:${pattern})$`,'iu')};
+    return {kind,terms:terms.split('|'),pattern,forward:new RegExp(`^(?:${pattern})(?:\\s+${kind==='article'?'|(?=\\d)':''})(.+)$`,'iu'),backward:new RegExp(`^(.+?)\\s+(?:${pattern})$`,'iu')};
   });
   grammars.set(language,out);return out;
 }

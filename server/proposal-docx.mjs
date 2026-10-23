@@ -17,7 +17,8 @@ function wrappedChildren(nodes,key) {
 // shared extractor. Inspect the same bounded XML only for objects and tables;
 // never independently flatten hidden/deleted runs into the proposal text.
 export function proposalDocx(buffer,{sourceUrl=null}={}) {
-  const content=docxContent(buffer,{includeParagraphProperties:true,numbering:proposalNumberingLabels});
+  let numbering;
+  const content=docxContent(buffer,{includeParagraphProperties:true,numbering:(...args)=>(numbering=proposalNumberingLabels(...args))});
   const parts=docxParts(buffer),document=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(parts.get('word/document.xml'));
   const index=sourceIndex(document),byPath=new Map(),tables=[];
   const paragraphByPath=new Map(content.paragraphSources.map((source,i)=>[source.path,i]));
@@ -50,6 +51,11 @@ export function proposalDocx(buffer,{sourceUrl=null}={}) {
     }
   }
   visit(document);
+  for(let i=0;i<content.paragraphs.length;i++){
+    const node=byPath.get(content.paragraphSources[i].path);
+    const metadata=numbering.metadata(children(node?.['w:p'],'w:pPr'));
+    if(metadata)content.paragraphProperties[i].numbering=metadata;
+  }
   content.documentObjects=content.documentObjects.map(object=>object.kind==='math'?{...object,...ommlToMathML(byPath.get(object.path),{sourceUrl})}:{...object,complete:object.status==='mapped',sourceUrl:officialDocumentUrl(sourceUrl)});
   return {...content,tables,sourceKind:'docx',numberingMode:'proposal-abstract-continuation'};
 }
