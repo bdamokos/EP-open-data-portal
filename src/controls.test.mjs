@@ -18,6 +18,7 @@ function fixture(url) {
   if(route?.startsWith('latest-activities/'))return activities;
   if(route?.startsWith('speech-statistics/'))return {items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null};
   if(route==='insights/speech-cloud')return {scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null};
+  if(route==='insights/following-status')return {epoch:'test',generation:1,marksReady:false,indexComplete:false};
   if(route==='insights/saved')return {members:[],questions:[]};
   if(route==='insights/legislation')return legislation;
   if(route?.startsWith('document/'))return {selectedDocumentId:decodeURIComponent(route.slice(9)),files:[],answers:[],selectedText:{status:'available',paragraphs:['Document fixture text'],textLanguage:url.searchParams.get('lang'),availableTextLanguages:['en','fr']}};
@@ -226,4 +227,45 @@ test('document disclosures stay related and accurate when documents repeat acros
   await act(async()=>{language.value='fr';language.dispatchEvent(new window.Event('change',{bubbles:true}));});
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
   await h.click(buttons[0]);check(null);await h.click(buttons[0]);check(0);
+});
+
+test('Members filters sort displayed labels in every interface language and preserve filter values',async t=>{
+  const countries=['CZ','DE','DK','ES','FI','FR','HR','LT','LU','LV','GR','EL','SE','HU'];
+  const groups=['S&D','EPP','Renew','The Left','NI','ECR'];
+  const members=countries.map((countryCode,i)=>({...member,id:100+i,countryCode,groupCode:groups[i%groups.length]}));
+  for(const language of 'bg cs da de el en es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' '))await t.test(language,async t=>{
+    const h=await harness(t,'?lang='+language,url=>url.pathname.endsWith('/directory')?{...directory,members}:fixture(url));
+    const {default:App}=await h.load('/src/App.tsx');
+    await h.render(createElement(App));
+    const [country,group]=[...h.container.querySelectorAll('.explorer-filter-line select')].slice(-2);
+    const options=select=>[...select.options].slice(1);
+    for(const select of [country,group]) {
+      assert.equal(select.options[0].value,'','All remains first');
+      const labels=options(select).map(option=>option.textContent);
+      assert.deepEqual(labels,[...labels].sort((a,b)=>a.localeCompare(b,language)));
+    }
+    assert.deepEqual(options(country).map(option=>option.value).sort(),countries.filter(code=>code!=='GR').sort(),'Greek aliases deduplicate without changing EU identifiers');
+    assert.deepEqual(options(group).map(option=>option.value).sort(),[...groups].sort());
+    if(language==='en')assert.deepEqual(options(country).slice(0,3).map(option=>option.textContent),['Croatia','Czechia','Denmark']);
+    await act(async()=>{country.value='EL';country.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+    await viewReady(h.container);
+    assert.equal(new URL(location.href).searchParams.get('country'),'EL');
+    assert.equal(h.container.querySelectorAll('.explorer-portrait-item').length,2,'both Greek aliases match the selected filter');
+  });
+});
+
+test('Members list portraits follow and unfollow MEPs without opening the profile',async t=>{
+  const h=await harness(t,'');
+  const {default:App}=await h.load('/src/App.tsx');
+  await h.render(createElement(App));
+  const star=()=>h.container.querySelector('[data-member-id="257043"] .explorer-portrait-follow button');
+  assert.equal(star().closest('.portrait--button'),null,'the star is not nested in the portrait button');
+  for(const [index,saved] of [false,true,false].entries()) {
+    assert.equal(star().getAttribute('aria-pressed'),String(saved));
+    assert.equal(star().getAttribute('aria-label'),`${saved?'Following':'Follow'} MEP · Mika Aaltola`);
+    assert.equal(JSON.parse(h.window.localStorage.getItem('ep.bookmarks.v1')||'{"items":[]}').items.some(item=>item.kind==='mep'&&item.id==='257043'),saved);
+    if(index<2)await h.click(star());
+  }
+  assert(h.container.querySelector('.explorer-portraits'),'the list stays open');
+  assert.equal(new URL(location.href).searchParams.get('member'),null);
 });

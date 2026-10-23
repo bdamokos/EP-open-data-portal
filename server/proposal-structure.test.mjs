@@ -91,7 +91,16 @@ test('proposal numbering continues shared abstract lists, honors explicit restar
   const buffer=archive(body(p('ANNEX I','Annexetitre')+numbered('First',1)+numbered('Second')+numbered('Third')+numbered('Restart at seven',3)+numbered('Continue eight')+numbered('Independent list',4)+numbered('Continue nine')),[['word/styles.xml',styles],['word/numbering.xml',numbering]]);
   const result=parseProposal(buffer,{item:'annex'});
   assert.deepEqual(result.paragraphs.slice(1).map(p=>p.properties.numberingLabel),['(1)','(2)','(3)','(7)','(8)','(1)','(9)']);
-  assert.deepEqual(docxContent(buffer).paragraphs.slice(1,4),['(1)\tFirst','(1)\tSecond','(2)\tThird'],'global default is unchanged');
+  assert.deepEqual(result.paragraphs.map(p=>p.text),docxContent(buffer).paragraphs,'proposal labels use the shared Word numbering resolver');
+});
+
+test('published CBAM DOCX numbering labels remain 1, 2, 3 with proposal metadata',()=>{
+  const sample=fixture('docx-numbering-cbam.json');
+  const buffer=archive(sample.documentXml,[['word/styles.xml',sample.stylesXml],['word/numbering.xml',sample.numberingXml]]);
+  const parsed=parseProposal(buffer,{language:sample.language,item:'annex',sourceUrl:sample.sourceUrl});
+  assert.deepEqual(parsed.paragraphs.map(paragraph=>paragraph.text),sample.expectedParagraphs);
+  assert.deepEqual(parsed.paragraphs.map(paragraph=>paragraph.properties.numberingLabel),['(1)','(2)','(3)']);
+  assert.deepEqual(parsed.paragraphs.map(paragraph=>paragraph.properties.numbering),[{id:'2',abstractId:'8',level:0,format:'decimal'},{id:'19',abstractId:'8',level:0,format:'decimal'},{id:'19',abstractId:'8',level:0,format:'decimal'}]);
 });
 
 test('localized numbered instruction text cannot be consumed as a dotted number suffix',()=>{

@@ -46,6 +46,11 @@ test('country query restricts demographic people and uses the appropriate trend 
   // Controlled country assignments test the filter, not real national preferences.
   store.setMembers(authors.map((id,i)=>({id,name:id,countryCode:i<3?'IT':'ES'})));store.putSource(generation,doc.endpoint,'document',projectDocument(doc.work),fixture.verifiedAt,documentRows(doc.work,doc.endpoint,fixture.verifiedAt).rows);store.db.exec('PRAGMA query_only=ON');const service=new QuestionInsights(store,{clock:now,loadMetadata:async()=>new Map()});
   const result=await service.query(insightQuery(new URLSearchParams('days=180&country=IT'),{now:now()}));assert.equal(result.selectedStats.uniqueCurrentMeps,3);assert.equal(result.geography.selected.authorCount,3);assert.equal(result.counts.selectedQuestions,1);assert.equal(result.counts.countryUnassignedQuestions,1);assert.equal(result.questions[0].authors.length,30);assert.equal(result.trend.bins.reduce((n,b)=>n+b.total,0),1);
+  const empty=await service.query(insightQuery(new URLSearchParams('days=180&country=HU'),{now:now()}));
+  assert.equal(empty.counts.selectedQuestions,0);
+  assert.equal(empty.trend.latestObservedDate,result.questions[0].date);
+  assert(empty.trend.bins.some(b=>b.availability==='observed'&&b.total===0));
+  assert.deepEqual(empty.trend.bins.at(-1),{start:result.trend.bins.at(-1).start,end:result.trend.bins.at(-1).end,availability:'unavailable',count:null,total:null,share:null});
  }finally{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('distinctive national vocabulary is considered even outside the global word cloud',()=>{

@@ -13,9 +13,11 @@ import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
 import {createCommitteeMembershipReader} from './committee-memberships.mjs';
 import {parliamentaryService} from './parliamentary-service.mjs';
+import {profileMemberships,createProfileMembershipReader} from './profile-memberships.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
+import {compareMembers} from '../src/memberOrder.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
@@ -147,7 +149,7 @@ function observeSource(entry,priority,signal) {
 export async function odp(
   endpoint,
   params = {},
-  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
+  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
   signal?.throwIfAborted();
   const url = new URL(ODP_BASE + endpoint);
@@ -171,6 +173,9 @@ export async function odp(
     } catch { /* Missing or invalid reproducible cache. */ }
   }
   signal?.throwIfAborted();
+  if(stored&&validate) {
+    try {validate(stored.payload);} catch {stored=undefined;}
+  }
   if(cachedOnly) {
     if(!stored)throw new HttpError(404,'odp_cache_miss','This source record is not retained.');
     return {...stored,stale:Date.now()-stored.fetchedAt>=ttl || daily&&dayOf(stored.fetchedAt)!==today()};
@@ -185,16 +190,16 @@ export async function odp(
   if (!force && stored && staleWhileRevalidate) {
     const failure=refreshFailures.get(key);
     if (!pending.has(key) && (!failure || failure.retryAt<=Date.now()))
-      void odp(endpoint,params,{force:true,ttl,daily,priority:'background'}).catch(()=>{});
+      void odp(endpoint,params,{force:true,ttl,daily,validate,priority:'background'}).catch(()=>{});
     return {...stored,stale:true,refreshInProgress:pending.has(key),refreshError:failure?.message || null};
   }
   signal?.throwIfAborted();
   const shared=pending.get(key);
-  if(shared)return observeSource(shared,priority,signal);
+  if(shared){if(validate)shared.validators.add(validate);return observeSource(shared,priority,signal);}
   // Cold interactive work includes admission and body in one bounded job.
   // Background retries retain their owner while waiting through upstream pauses.
   const budget=priority==='background'?{signal:undefined,abort:()=>{},dispose:()=>{}}:createRequestBudget(30_000);
-  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,foregroundWaiters:new Set(),settled:false,promise:null};
+  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,foregroundWaiters:new Set(),validators:new Set(validate?[validate]:[]),settled:false,promise:null};
   const job = runWithRequestSignal(undefined,async () => {
     let rateFailures=0;
     for(;;){
@@ -266,6 +271,7 @@ export async function odp(
             "odp_invalid",
             "Parliament returned an unexpected data structure.",
           );
+        for(const validate of entry.validators)validate(payload);
         const record = { url: key, fetchedAt: Date.now(), payload };
         const serialized = JSON.stringify(record);
         refreshFailures.delete(key);
@@ -300,7 +306,7 @@ export async function odp(
 }
 export const speakerIdentities=new SpeakerIdentities({request:odp});
 export const cachedSpeakerIdentities=new SpeakerIdentities({request:(endpoint,params,options)=>odp(endpoint,params,{...options,cachedOnly:true})});
-async function list(endpoint, params = {}) {
+async function list(endpoint, params = {}, {priority='interactive'}={}) {
   const nodes = [];
   const sources = [];
   let fetchedAt = Date.now();
@@ -308,7 +314,7 @@ async function list(endpoint, params = {}) {
     const record = await odp(
       endpoint,
       { ...params, limit: 1000, offset },
-      { daily: endpoint.endsWith("/show-current"), staleWhileRevalidate: true },
+      { daily: endpoint.endsWith("/show-current"), staleWhileRevalidate: true, priority },
     );
     sources.push(record);
     nodes.push(...record.payload.data);
@@ -338,9 +344,9 @@ const tail = (value) =>
     .split("/")
     .at(-1);
 export function memberships(person, day) {
-  return (person.hasMembership || [])
+  return (Array.isArray(person.hasMembership)?person.hasMembership:[])
     .filter((m) =>
-      String(m.membershipClassification || "").includes(
+      String(m?.membershipClassification || "").includes(
         "/COMMITTEE_PARLIAMENTARY_",
       ),
     )
@@ -360,16 +366,16 @@ export function memberSummary(p) {
     firstName: p.givenName || "",
     lastName: p.familyName || p.label,
     sortName: p.sortLabel || p.familyName,
-    countryCode: p["api:country-of-representation"] || "",
-    groupCode: p["api:political-group"] || "",
+    countryCode: firstString(p["api:country-of-representation"]).trim() || null,
+    groupCode: firstString(p["api:political-group"]).trim() || null,
     imageUrl:
       p.img ||
       `https://www.europarl.europa.eu/mepphoto/${Number(p.identifier)}.jpg`,
     gender: firstString(p.hasGender).endsWith("/FEMALE") ? "f" : "m",
-    hasCv: false,
-    hasEmail: Boolean(p.hasEmail),
-    hasNews: false,
-    hasVideo: false,
+    hasCv: null,
+    hasEmail: p.hasEmail == null ? null : Boolean(firstString(p.hasEmail).replace(/^mailto:/, "").trim()),
+    hasNews: null,
+    hasVideo: null,
   };
 }
 let directory;
@@ -380,7 +386,8 @@ let directorySources = [];
 let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
-export const DIRECTORY_VERSION = 1;
+export const DIRECTORY_VERSION = 2;
+export const PROFILE_VERSION = 6;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -428,7 +435,7 @@ async function directoryData() {
       fetchedAt: Math.min(...sources.map(source => source.fetchedAt)),
       members: roster.nodes
         .map(memberSummary)
-        .sort((a, b) => a.sortName.localeCompare(b.sortName)),
+        .sort(compareMembers),
       committees: selected.map(body => committeeSummary(body, details.get(body.identifier)?.payload.data[0], day)).filter(Boolean).sort((a, b) => a.code.localeCompare(b.code)),
     };
     directorySources = sources;
@@ -525,37 +532,108 @@ function startDirectoryDetails(work, {retry=false}={}) {
     }
   })().finally(() => {directoryDetailsPromise = null;});
 }
-export async function odpProfile(id, force = false, {priority='interactive'}={}) {
+// Exact raw profile-cache lookup only: no network request and no stale record.
+export async function readCachedMepRecord(id,{now=Date.now(),signal}={}) {
+  if(!/^[1-9]\d{0,8}$/.test(id))throw new Error('Invalid MEP identifier.');
+  try {
+    const record=await odp(`/meps/${id}`,{},{cachedOnly:true,ttl:7*24*60*60*1000,signal});
+    if(record.fetchedAt>now||now-record.fetchedAt>=7*24*60*60*1000)return null;
+    return record;
+  }catch(error){if(signal?.aborted)throw error;return null;}
+}
+async function mepRecord(id, force = false, {priority='interactive'}={}) {
+  const validate=payload=>{
+    if(payload?.data?.length!==1||String(payload.data[0]?.identifier)!==String(id))
+      throw new HttpError(404,'mep_not_found','This MEP profile is unavailable.');
+  };
   const record = await odp(
     `/meps/${id}`,
     {},
-    { force, ttl: 7 * 24 * 60 * 60 * 1000, priority },
+    { force, ttl: 7 * 24 * 60 * 60 * 1000, priority, validate },
   );
   const person = record.payload.data[0];
-  if (!person)
+  if (!person || String(person.identifier) !== String(id))
     throw new HttpError(
       404,
       "mep_not_found",
       "This MEP profile is unavailable.",
     );
+  return record;
+}
+async function loadProfile(id, force = false, {priority='interactive'}={}) {
+  const record = await mepRecord(id,force,{priority});
+  const person = record.payload.data[0];
+  // The per-person record carries country URIs and dated organization IDs,
+  // not the current roster's codes. Use only an exact roster identifier join.
+  const day = today();
+  let roster, affiliationError = null;
+  try { roster = await list("/meps/show-current", {}, {priority}); }
+  catch (error) {
+    requestSignal()?.throwIfAborted();
+    affiliationError = 'Current roster affiliation is unavailable.';
+  }
+  const matches = roster?.nodes.filter(member => String(member.identifier) === String(person.identifier)) || [];
+  if (matches.length > 1) affiliationError = 'Current roster affiliation is ambiguous.';
+  const current = matches.length === 1 ? memberSummary(matches[0]) : null;
+  const sourceSummary = source => ({url:source.url,fetchedAt:new Date(source.fetchedAt).toISOString(),stale:Boolean(source.stale)});
+  const affiliationSources = (roster?.sources || []).map(sourceSummary);
   const result = {
     ...memberSummary(person),
+    countryCode: current?.countryCode ?? null,
+    groupCode: current?.groupCode ?? null,
+    currentAffiliation: {
+      day, personId:String(person.identifier),
+      status:affiliationError ? 'unavailable' : current ? 'matched' : 'not-current',
+      sources:affiliationSources, error:affiliationError,
+    },
     birthDate: person.bday,
     birthPlace: person.placeOfBirth,
-    parliamentaryService: parliamentaryService(person,today()),
+    parliamentaryService: parliamentaryService(person,day,affiliationError?'unavailable':current?'matched':'not-current'),
     email: firstString(person.hasEmail).replace(/^mailto:/, ""),
     memberships: memberships(person),
     accounts: (person.account || []).map((a) => a.id),
     fetchedAt: new Date(record.fetchedAt).toISOString(),
-    sources: [{url:record.url, fetchedAt:new Date(record.fetchedAt).toISOString(), stale:Boolean(record.stale)}],
+    sources: [sourceSummary(record), ...affiliationSources],
   };
   profileIndex.set(Number(id), result);
-  return result;
+  return {profile:result,record};
+}
+export async function odpProfile(id, force = false, options={}) {
+  return (await loadProfile(id,force,options)).profile;
 }
 const readCommitteeMemberships = createCommitteeMembershipReader({request:odp});
+const readProfileMemberships = createProfileMembershipReader({request:odp});
+const rejectedProfileObservations = new Set();
 export async function odpProfileWithMemberships(id) {
-  const profile = await odpProfile(id);
-  return {...profile, committeeMemberships:await readCommitteeMemberships(profile,today(),{signal:requestSignal()})};
+  let {profile,record} = await loadProfile(id);
+  const parentSignal=requestSignal();
+  if(rejectedProfileObservations.has(String(id))) {
+    try {({profile,record}=await loadProfile(id,true));}
+    catch {
+      parentSignal?.throwIfAborted();
+      record={...record,stale:true,refreshError:true};
+    }
+  }
+  const observations=profileMemberships(record.payload.data[0],record);
+  if(observations.observationComplete)rejectedProfileObservations.delete(String(id));
+  else {
+    rejectedProfileObservations.delete(String(id));rejectedProfileObservations.add(String(id));
+    if(rejectedProfileObservations.size>256)rejectedProfileObservations.delete(rejectedProfileObservations.values().next().value);
+  }
+  const optionalSignal=AbortSignal.timeout(8000);
+  const signal=AbortSignal.any([optionalSignal,...(parentSignal?[parentSignal]:[])]);
+  const membershipHistory=await readProfileMemberships(observations,{signal,parentSignal});
+  const committeeMemberships=await readCommitteeMemberships(profile,today(),{signal:parentSignal,optionalSignal:signal});
+  if(!membershipHistory.observationComplete) {
+    committeeMemberships.complete=false;
+    committeeMemberships.error=membershipHistory.observationAvailable?'Some membership records are incomplete. Available committee history is shown.':'Committee membership information is unavailable.';
+  }
+  const currentRosterMatched=profile.currentAffiliation.status==='matched';
+  return {...profile,
+    memberships:currentRosterMatched?profile.memberships:profile.memberships.map(row=>({...row,current:false})),
+    membershipHistory,
+    committeeMemberships:currentRosterMatched?committeeMemberships:{...committeeMemberships,items:committeeMemberships.items.map(card=>({...card,roles:[],periods:card.periods.map(period=>({...period,current:false}))}))},
+  };
 }
 function startIndex() {
   if (indexPromise || indexState.complete) return;
@@ -619,6 +697,7 @@ export async function odpDirectory({retryCommitteeDetails=false}={}) {
     },
     members: d.members.map((m) => ({
       ...m,
+      hasEmail: profileIndex.get(m.id)?.hasEmail ?? m.hasEmail,
       birthDate: profileIndex.get(m.id)?.birthDate,
       gender: profileIndex.get(m.id)?.gender || m.gender,
       memberships: profileIndex.get(m.id)?.memberships.map(membership => ({
@@ -758,6 +837,7 @@ export async function odpSpeech(id, language) {
         "A recording lookup and interpretation-track API is not available in the documented speech service.",
     },
     fetchedAt: new Date(record.fetchedAt).toISOString(),
+    metadataSource:{url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString()},
   };
 }
 
@@ -938,5 +1018,6 @@ export async function preloadOdp() {
 
 const portraits = new PortraitCache();
 export async function odpPortrait(id) {
-  return portraits.get(id, async (memberId, {priority}) => (await odpProfile(memberId, false, {priority})).imageUrl);
+  // Portraits need only the person record, not current roster enrichment.
+  return portraits.get(id, async (memberId, {priority}) => memberSummary((await mepRecord(memberId,false,{priority})).payload.data[0]).imageUrl);
 }
