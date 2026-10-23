@@ -800,8 +800,9 @@ test('attendance starts only after valid votes settle and failures leave votes a
   const voteGate=new Promise(resolve=>{releaseVotes=resolve;}),attendanceGate=new Promise(resolve=>{releaseAttendance=resolve;});
   const attendanceCalls=[];
   const h=await mount(t,{handler:async url=>{await voteGate;return Response.json(responseFor(url,{pagination:{observedTotal:2,filteredTotal:2,nextOffset:stateFrom(url).offset?null:1}}));},attendanceHandler:async url=>{attendanceCalls.push(String(url));await attendanceGate;return new Response(JSON.stringify({error:{code:'attendance_unavailable',message:'unavailable'}}),{status:502,headers:{'content-type':'application/json'}});}});
-  assert.equal(attendanceCalls.length,0);
+  assert.equal(attendanceCalls.length,0);assert.equal(h.container.querySelector('.member-votes-attendance-line'),null);
   await act(async()=>releaseVotes());assert.equal(attendanceCalls.length,1);
+  assert.equal(h.container.querySelector('.member-votes-attendance-line').textContent,'Loading attendance register…');
   const route=new URL(attendanceCalls[0],'http://localhost');assert.equal(route.searchParams.get('sittings'),SITTING);assert.equal(route.searchParams.has('snapshot'),false);
   assert.match(visiblePane(h.container).textContent,/Synthetic subject/);assert.equal(button(h.container,'Next page').disabled,false);
   await act(async()=>releaseAttendance());
@@ -814,4 +815,19 @@ test('invalid vote envelopes cannot start attendance reads',async t=>{
   let starts=0;
   const h=await mount(t,{handler:url=>Response.json({...responseFor(url),version:3}),attendanceHandler:()=>{starts++;return Response.json(attendanceResponse());}});
   assert.equal(starts,0);assert.match(h.container.textContent,/requested voting records are unavailable/);
+});
+
+
+test('no scanned sittings leaves the unattempted attendance line hidden',async t=>{
+  let reads=0;
+  const h=await mount(t,{handler:url=>Response.json(responseFor(url,{items:[],subjects:[],coverage:{scannedSittingIds:[]}})),attendanceHandler:()=>{reads++;return Response.json(attendanceResponse());}});
+  assert.equal(reads,0);assert.equal(h.container.querySelector('.member-votes-attendance-line'),null);
+  assert.equal(h.container.querySelector('.member-votes-filter button').textContent,'All decisions');
+});
+
+test('not-listed detail discloses an unsupplied excused list beside the no-absence explanation',async t=>{
+  const h=await mount(t,{state:{week:WEEK,decisionId:decision(1)},handler:url=>Response.json(responseFor(url)),attendanceHandler:()=>{const value=attendanceResponse({memberStatus:'not-listed'});value.sittings[0].excusedSupplied=false;value.sittings[0].counts.excused=null;return Response.json(value);}});
+  const text=visiblePane(h.container).querySelector('.member-votes-attendance').textContent;
+  assert.match(text,/Not listed as present; this register supplies no excused list/);
+  assert.match(text,/This does not establish absence: members can vote without being listed, and mandate dates are not checked here/);
 });

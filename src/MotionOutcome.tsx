@@ -1,4 +1,4 @@
-import {voteMethodLabel} from './voteMethod.mjs';
+import {knownVoteMethodLabel} from './voteMethod.mjs';
 import {ActivityVote} from './ActivityVote';
 import type { MotionOutcome, RelatedJointMotion } from './explorerTypes';
 import {useState} from 'react';
@@ -23,7 +23,7 @@ export function MotionStatuses({outcome,related=[],sourceId}:{outcome:MotionOutc
 function VoteDetails({outcome,language}:{outcome:MotionOutcome;language:string}) {
   const voted=outcome.status==='adopted' || outcome.status==='rejected';
   return <>
-    {outcome.status!=='unavailable' && outcome.date && <p className="explorer-motion-vote-meta"><span lang={language}>{voteDate(outcome.date,language)}</span>{voted && voteMethodLabel(outcome.method) ? ` · ${voteMethodLabel(outcome.method)}` : ''}</p>}
+    {outcome.status!=='unavailable' && outcome.date && <p className="explorer-motion-vote-meta"><span lang={language}>{voteDate(outcome.date,language)}</span>{voted && knownVoteMethodLabel(outcome.method) ? ` · ${knownVoteMethodLabel(outcome.method)}` : ''}</p>}
     {voted && outcome.totals && <dl className="explorer-motion-totals">
       {([['for','For'],['against','Against'],['abstaining','Abstentions']] as const).map(([key,label])=><div key={key}><dt>{label}</dt><dd lang={language}>{outcome.totals![key]?.toLocaleString(language) ?? '—'}</dd></div>)}
     </dl>}

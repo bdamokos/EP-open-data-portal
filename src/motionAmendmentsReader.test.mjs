@@ -950,3 +950,11 @@ test('motion proposers use exact directory IDs and preserve unknown labels',asyn
   assert.match(proposers.textContent,/Proposed by Mika Aaltola, Guest McDONALD/);
   assert.equal(proposers.querySelector('[title="Source label: Mika AALTOLA"]').textContent,'Mika Aaltola');
 });
+
+test('indexed amendment decisions omit unknown methods while reusing recognised non-roll-call labels',async t=>{
+  const decisions=[null,'VOTE_UNKNOWN','VOTE_ELECTRONIC'].map((method,index)=>({id:'indexed-decision-'+index,scope:'whole-amendment',date:'2026-10-08',method,outcome:'ADOPTED',provenance:'exact',totals:{for:1,against:0,abstaining:0}}));
+  const h=await readerHarness(t,{state:{open:true}});await h.respond(page({items:[amendment(13,{decisions})]}));await h.click(/^Amendment 13/);
+  const rows=h.container.querySelectorAll('.motion-amendments__decision');assert.equal(rows.length,3);
+  for(const row of rows)assert.doesNotMatch(row.textContent,/Voting method unavailable/);
+  assert.match(rows[2].textContent,/Electronic vote \(names not recorded\)/);
+});

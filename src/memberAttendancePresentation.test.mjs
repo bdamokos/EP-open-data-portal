@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {memberAttendanceRoute,validateMemberAttendanceResponse,memberAttendanceDetail,memberAttendanceLine} from './memberAttendancePresentation.mjs';
-import {voteMethodLabel} from './voteMethod.mjs';
+import {voteMethodLabel,knownVoteMethodLabel} from './voteMethod.mjs';
 const id='MTG-PL-2026-10-22';
 const source={url:'https://data.europarl.europa.eu/api/v2/meetings/'+id,fetchedAt:'2026-10-23T12:00:00Z',contentHash:'a'.repeat(64),stale:false,refreshInProgress:false,refreshError:null};
 const day=()=>({sittingId:id,date:'2026-10-22',status:'observed',memberStatus:'listed-present',excusedSupplied:false,counts:{present:609,excused:null,duplicatePresent:0,duplicateExcused:0,malformedReferences:0},conflictingIds:[],source,register:{documentId:'PV-10-2026-10-22-ATT',pdf:{url:'https://data.europarl.europa.eu/distribution/doc/PV-10-2026-10-22-ATT_en.pdf',language:'en'},issued:'2026-10-23T11:45:00+02:00',status:'available',source}});
@@ -33,4 +33,15 @@ test('all attendance labels preserve sitting-level semantics and unknown states'
 
 test('shared method labels distinguish electronic non-roll-call and both secret aliases',()=>{
   for(const [method,label] of [['VOTE_HAND','Show of hands'],['VOTE_ELECTRONIC','Electronic vote (names not recorded)'],['VOTE_ELECTRONIC_ROLLCALL','Roll-call vote'],['VOTE_SECRET','Secret ballot'],['VOTE_SECRET_BALLOT','Secret ballot'],[null,'Voting method unavailable'],['VOTE_UNKNOWN','Voting method unavailable'],['toString','Voting method unavailable']])assert.equal(voteMethodLabel(method),label);
+});
+
+
+test('a not-listed member with no supplied excused list does not acquire a negative excused observation',()=>{
+  assert.equal(memberAttendanceDetail({...day(),memberStatus:'not-listed',excusedSupplied:false}), 'Not listed as present; this register supplies no excused list.');
+  assert.equal(memberAttendanceDetail({...day(),memberStatus:'not-listed',excusedSupplied:true}), "Not listed in this sitting's attendance register.");
+});
+
+test('indexed motion fallbacks can omit unknown methods using the same recognised label map',()=>{
+  for(const method of [null,undefined,'VOTE_UNKNOWN','toString'])assert.equal(knownVoteMethodLabel(method),null);
+  assert.equal(knownVoteMethodLabel('VOTE_ELECTRONIC'),'Electronic vote (names not recorded)');
 });

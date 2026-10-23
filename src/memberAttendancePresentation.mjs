@@ -28,6 +28,7 @@ export function validateMemberAttendanceResponse(data,{memberId,sittingIds}) {
 export function memberAttendanceDetail(day) {
   if(!day||['partial','unavailable'].includes(day.status))return 'Attendance register unavailable for this sitting.';
   if(day.status==='not-published')return "This sitting's attendance register is not yet published.";
+  if(day.memberStatus==='not-listed'&&!day.excusedSupplied)return 'Not listed as present; this register supplies no excused list.';
   return {
     'listed-present':"Listed as present in this sitting's attendance register. Presence at this individual vote is not recorded.",
     'listed-excused':"Listed as excused in this sitting's attendance register.",

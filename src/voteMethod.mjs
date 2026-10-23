@@ -5,4 +5,5 @@ const labels=Object.freeze({
   VOTE_SECRET:'Secret ballot',
   VOTE_SECRET_BALLOT:'Secret ballot',
 });
-export const voteMethodLabel=method=>Object.hasOwn(labels,method)?labels[method]:'Voting method unavailable';
+export const knownVoteMethodLabel=method=>Object.hasOwn(labels,method)?labels[method]:null;
+export const voteMethodLabel=method=>knownVoteMethodLabel(method)||'Voting method unavailable';

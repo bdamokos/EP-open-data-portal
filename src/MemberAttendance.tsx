@@ -1,7 +1,8 @@
 import type {MemberAttendanceResponse,MemberAttendanceSitting} from './MemberAttendanceTypes';
 import {memberAttendanceDetail,memberAttendanceLine} from './memberAttendancePresentation.mjs';
 
-export function AttendanceLine({data,loading}:{data:MemberAttendanceResponse|null;loading:boolean}) {
+export function AttendanceLine({data,loading,attempted}:{data:MemberAttendanceResponse|null;loading:boolean;attempted:boolean}) {
+  if(!attempted)return null;
   return <p className="member-votes-attendance-line">{data?memberAttendanceLine(data.sittings):loading?'Loading attendance register…':'Attendance register unavailable'}</p>;
 }
 function Provenance({label,source}:{label:string;source:MemberAttendanceSitting['source']}) {

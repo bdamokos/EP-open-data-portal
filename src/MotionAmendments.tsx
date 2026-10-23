@@ -1,4 +1,4 @@
-import {voteMethodLabel} from './voteMethod.mjs';
+import {knownVoteMethodLabel} from './voteMethod.mjs';
 import {PersonName} from './PersonName';
 import {ActivityVote} from './ActivityVote';
 import {useCallback,useEffect,useId,useRef,useState,type ReactNode,type RefObject} from 'react';
@@ -180,7 +180,7 @@ function Decision({item,decision,language,member,memberName}:{item:MotionAmendme
   const part=amendmentDecisionPart(item.splitParts,decision),split=decision.scope!=='whole-amendment';
   const partNumber=part?.number??decision.partNumber;
   const heading=decision.scope==='unresolved-split'?'Collective or unresolved split decision':split?partNumber!=null?`Part ${partNumber}`:'Split decision':'Whole amendment';
-  const date=dateLabel(decision.date,language),method=voteMethodLabel(decision.method);
+  const date=dateLabel(decision.date,language),method=knownVoteMethodLabel(decision.method);
   return <li className="motion-amendments__decision">
     <div className="motion-amendments__decision-head"><strong>{heading}</strong></div>
     {part?.description&&<p className="motion-amendments__split-description" lang={sourceLanguage(part.language)}>{part.description}</p>}
