@@ -12,10 +12,14 @@ export function isNewEntry(entry,now) {
 }
 
 // Stores may signal the two kinds separately; a scalar covers a single signal.
-function signalTimes(item) {
+function unresolvedTimes(item) {
   if(!item.unresolved)return [];
   if(typeof item.signalledAt==='number')return item.unresolved===true||kinds.some(kind=>item.unresolved[kind])?[item.signalledAt]:[];
   return kinds.flatMap(kind=>(item.unresolved===true||item.unresolved[kind])&&Number.isFinite(item.signalledAt?.[kind])?[item.signalledAt[kind]]:[]);
+}
+
+function signalTimes(item) {
+  return [...unresolvedTimes(item),...(item.legacyUpdated?[item.legacyAt]:[]),item.changedAt,...(item.unreadOmitted?[item.unreadOmittedAt]:[])].filter(Number.isFinite);
 }
 
 export function followEntries(item,now) {
@@ -23,7 +27,7 @@ export function followEntries(item,now) {
   for(const entry of item.entries||[])(isNewEntry(entry,now)?fresh:history).push(entry);
   fresh.sort(newest);history.sort(newest);
   return {fresh,history:history.slice(0,HISTORY_LIMIT),historyOmitted:omittedCount(item.historyOmitted)+Math.max(0,history.length-HISTORY_LIMIT),
-    unresolved:signalTimes(item).some(at=>withinWindow(at,now))};
+    unresolved:unresolvedTimes(item).some(at=>withinWindow(at,now))};
 }
 
 export function itemHasNew(item,now) {

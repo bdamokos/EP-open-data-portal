@@ -1,13 +1,29 @@
-import {useEffect,useState,useSyncExternalStore} from 'react';
+import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import {api,expireActivityReads} from './data';
 import {postSavedQuestions} from './followingTransport';
 import {createSavedStore,savedKey,type SavedItem,type SavedStates,type FollowingStatus,type FollowingManifest,type FollowingMember} from './bookmarks.mjs';
+import {itemHasNew,nextExpiry} from './followUpdates.mjs';
 import {interfaceTerm,compoundLanguage} from './terms.mjs';
 const listeners=new Set<()=>void>();let storage:Storage|null=null;
 try{storage=window.localStorage;}catch{}
-export const savedStore=createSavedStore(storage,()=>listeners.forEach(listener=>listener()));
+export const savedStore=createSavedStore(storage,()=>{listeners.forEach(listener=>listener());queueMicrotask(refreshSavedClock);});
 window.addEventListener('storage',event=>{if(event.key==='ep.bookmarks.v1'||event.key==='ep.following.v2'||event.key===null)savedStore.reload(event.key);});
 export function useSaved(){return useSyncExternalStore(callback=>{listeners.add(callback);return()=>listeners.delete(callback);},savedStore.snapshot);}
+let savedNow=Date.now(),expiryTimer:ReturnType<typeof setTimeout>|undefined;
+const clockListeners=new Set<()=>void>();
+function refreshSavedClock() {
+  savedNow=Date.now();clearTimeout(expiryTimer);
+  const expiry=nextExpiry(savedStore.snapshot().items,savedNow);
+  if(clockListeners.size&&expiry!==null)expiryTimer=setTimeout(refreshSavedClock,Math.max(1,expiry-savedNow));
+  clockListeners.forEach(listener=>listener());
+}
+window.addEventListener('focus',refreshSavedClock);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshSavedClock();});
+const subscribeClock=(callback:()=>void)=>{
+  clockListeners.add(callback);refreshSavedClock();
+  return()=>{clockListeners.delete(callback);if(!clockListeners.size)clearTimeout(expiryTimer);};
+};
+export function useSavedNow() {return useSyncExternalStore(subscribeClock,()=>savedNow);}
 type SavedCheck={data:SavedStates;requestedKey:string};
 export const requestedKeys=new WeakMap<Promise<unknown>,string>();
 let pending:Promise<SavedCheck|undefined>|null=null,lastStatus=0,status:FollowingStatus|null=null;
@@ -17,11 +33,21 @@ const selectionKey=()=>savedStore.snapshot().items.map(item=>savedKey(item)+':'+
 function verify(data:{epoch:string;generation:number},expected:FollowingStatus) {
   if(data.epoch!==expected.epoch||data.generation!==expected.generation)throw Object.assign(Error('The index generation has changed. Try again.'),{code:'generation_changed'});
 }
+let memberReads=0;
+const memberQueue:(()=>void)[]=[];
+async function memberSlot() {
+  if(memberReads>=4)await new Promise<void>(resolve=>memberQueue.push(resolve));
+  else memberReads++;
+  return ()=>{const next=memberQueue.shift();if(next)next();else memberReads--;};
+}
 async function memberDetail(item:SavedItem,language:string,expected:FollowingStatus) {
-  const params=new URLSearchParams({member:item.id,epoch:expected.epoch,generation:String(expected.generation),lang:language});
-  const data=await api<FollowingMember>('insights/following-member?'+params);verify(data,expected);
-  if(!savedStore.materialize(data,item))throw Object.assign(Error('The index generation has changed. Try again.'),{code:'generation_changed'});
-  return data;
+  const release=await memberSlot();
+  try {
+    const params=new URLSearchParams({member:item.id,epoch:expected.epoch,generation:String(expected.generation),lang:language});
+    const data=await api<FollowingMember>('insights/following-member?'+params);verify(data,expected);
+    if(!savedStore.materialize(data,item))throw Object.assign(Error('The index generation has changed. Try again.'),{code:'generation_changed'});
+    return data;
+  }finally{release();}
 }
 function checkedStatus():FollowingStatus|null {return status;}
 const opening=new Map<string,Promise<unknown>>();
@@ -115,6 +141,37 @@ export function useSavedChecks(language:string,following=false) {
     return()=>{window.removeEventListener('focus',check);document.removeEventListener('visibilitychange',check);};
   },[language]);
 }
+type Resolution={pending?:boolean;error?:string};
+const resolutionAttempts=new Map<string,{at:number;error?:string;done?:boolean}>();
+export function useResolveSavedMembers(language:string) {
+  const saved=useSaved(),[resolutions,setResolutions]=useState<Record<string,Resolution>>({}),[wake,setWake]=useState(0);
+  const active=useRef(false),forced=useRef(new Set<string>()),retryEventAt=useRef(0);
+  const resolveKey=(item:SavedItem)=>JSON.stringify([saved.epoch,saved.manifest?.generation,language,item.id,item.savedAt]);
+  useEffect(()=>{
+    active.current=true;
+    const retry=()=>{if(document.visibilityState==='visible'){retryEventAt.current=Date.now();setWake(value=>value+1);}};
+    window.addEventListener('focus',retry);document.addEventListener('visibilitychange',retry);
+    return()=>{active.current=false;window.removeEventListener('focus',retry);document.removeEventListener('visibilitychange',retry);};
+  },[]);
+  useEffect(()=>{
+    if(document.visibilityState==='hidden'||!saved.manifest)return;
+    for(const item of saved.items) {
+      if(item.kind!=='mep'||!(item.unresolved?.activity||item.unresolved?.answer))continue;
+      const key=resolveKey(item),attempt=resolutionAttempts.get(key),force=forced.current.delete(key);
+      if(opening.has(taskKey(language,[item]))||attempt?.done||attempt&&!attempt.error||!force&&attempt&&retryEventAt.current-attempt.at<60_000)continue;
+      if(opening.size>=4)break;
+      resolutionAttempts.set(key,{at:Date.now()});setResolutions(previous=>({...previous,[key]:{pending:true}}));
+      void openSavedMember(item,language).then(()=>{
+        resolutionAttempts.set(key,{at:Date.now(),done:true});
+        if(active.current)setResolutions(previous=>({...previous,[key]:{}}));
+      },error=>{
+        const message=(error as Error).message;resolutionAttempts.set(key,{at:Date.now(),error:message});
+        if(active.current)setResolutions(previous=>({...previous,[key]:{error:message}}));
+      }).finally(()=>{if(active.current)setWake(value=>value+1);});
+    }
+  },[saved.items,saved.epoch,saved.manifest,language,wake]);
+  return {resolution:(item:SavedItem)=>resolutions[resolveKey(item)]||resolutionAttempts.get(resolveKey(item))||{},retry:(item:SavedItem)=>{forced.current.add(resolveKey(item));setWake(value=>value+1);}};
+}
 export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;compact?:boolean;language?:string}) {
   const {items}=useSaved(),saved=items.some(x=>savedKey(x)===savedKey(item)),[error,setError]=useState('');
   const label=item.kind==='mep'?{text:saved?'Following':'Follow',language:'en'}:interfaceTerm(saved?'saved-question':'save-question',language);
@@ -123,6 +180,6 @@ export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;co
   return <><button className={'explorer-save-button'+(saved?' is-saved':'')} lang={item.title?compoundLanguage(label.language,item.titleLanguage):label.language} aria-label={`${name}${item.title?' · '+item.title:''}`} aria-pressed={saved} title={tooltip} onClick={()=>{try{savedStore.toggle(item);setError('');}catch(e){setError((e as Error).message);}}}><span aria-hidden="true">{saved?'★':'☆'}</span>{!compact&&<span lang={label.language}>{label.text}</span>}</button>{error&&<small role="alert" lang="en">{error}</small>}</>;
 }
 export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:boolean}) {
-  const saved=useSaved(),items=saved.items,updates=items.filter(item=>item.updated).length;
+  const saved=useSaved(),now=useSavedNow(),items=saved.items,updates=items.filter(item=>itemHasNew(item,now)).length;
   return <button onClick={onClick} lang="en" aria-current={current?'page':undefined}>Following{updates>0?<span className="explorer-saved-count">{updates} new</span>:items.length>0?<small> {items.length}</small>:null}</button>;
 }

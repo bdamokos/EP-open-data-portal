@@ -743,7 +743,7 @@ export default function App() {
   return (
     <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current.page=event.currentTarget.scrollTop;}}>
         <ParliamentHeader view={view==='saved'?'saved':'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>
-        {view === 'saved' ? <Saved language={lang} onBack={leaveSaved} onMember={openInsightMember}/> : member ? (
+        {view === 'saved' ? <Saved language={lang} onBack={leaveSaved} onMember={openInsightMember} renderActivity={props=><FollowingActivityDetail {...props} lang={lang}/>}/> : member ? (
           <section className="explorer-profile">
             <button
               lang={lang}

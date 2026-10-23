@@ -1,5 +1,5 @@
 export type FollowEntry={id:string;kind:'activity'|'answer';recordKind?:string;category?:string;title:string;titleLanguage?:string|null;date:string;relatedQuestionId?:string;mark?:number;discoveredAt:number;readAt:number|null};
-export type FollowItem={entries?:FollowEntry[];historyOmitted?:number;unresolved?:boolean|Partial<Record<FollowEntry['kind'],boolean>>;signalledAt?:number|Partial<Record<FollowEntry['kind'],number>>};
+export type FollowItem={entries?:FollowEntry[];legacyUpdated?:boolean;legacyAt?:number;changedAt?:number;unreadOmitted?:number;unreadOmittedAt?:number;historyOmitted?:number;unresolved?:boolean|Partial<Record<FollowEntry['kind'],boolean>>;signalledAt?:number|Partial<Record<FollowEntry['kind'],number>>};
 export const NEW_WINDOW_MS:number;
 export const LIST_LIMIT:number;
 export function isNewEntry(entry:FollowEntry,now:number):boolean;
