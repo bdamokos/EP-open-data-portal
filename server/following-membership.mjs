@@ -1,6 +1,6 @@
 import {ODP_BASE} from './odp.mjs';
 
-export const MEMBERSHIP_VIEW_VERSION=2;
+export const MEMBERSHIP_VIEW_VERSION=3;
 export const membershipLists=['outgoing','incoming'];
 export function membershipSchema(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS membership_marks(event_id TEXT PRIMARY KEY,mark INTEGER NOT NULL);
@@ -55,7 +55,7 @@ export function membershipSnapshot(store,generation) {
 }
 export function freezeMembership(store,generation,previous) {
   const db=store.db,prior=previous?membershipSnapshot(store,previous):null;
-  const lists={},mandates=new Map(),conflicts=new Set();
+  const lists={},mandates=new Map(),mandateLists=new Map(),conflicts=new Set();
   for(const list of membershipLists) {
     const observation=store.source(generation,'membership:'+list)?.work,attempt=store.source(generation,'membership:'+list+':attempt')?.work;
     lists[list]={status:observation?(observation.generation===generation?'fresh':'stale'):'unavailable',retrievedAt:observation?.retrievedAt||null,sources:observation?.sources||[],malformed:observation?.malformed||0,lastAttemptAt:attempt?.lastAttemptAt||observation?.retrievedAt||null,lastError:attempt?.lastError||null};
@@ -63,6 +63,7 @@ export function freezeMembership(store,generation,previous) {
       const old=mandates.get(mandate.id);
       if(old&&JSON.stringify(old)!==JSON.stringify(mandate))conflicts.add(mandate.mep);
       mandates.set(mandate.id,mandate);
+      mandateLists.set(mandate.id,[...(mandateLists.get(mandate.id)||[]),list]);
     }
   }
   const events=new Map((prior?.events||[]).map(event=>[event.id,event]));
@@ -71,7 +72,7 @@ export function freezeMembership(store,generation,previous) {
     const boundaries=[...(mandate.end?[['end','mandate-ended',null,mandate.end]]:[]),...(mandate.start>'2024-07-16'?[['start','mandate-started',[...mandates.values()].some(earlier=>earlier.mep===mandate.mep&&earlier.end&&earlier.end<mandate.start)?'returned':'joined',mandate.start]]:[])];
     for(const [boundary,type,subtype,date] of boundaries) {
       const id=mandate.id+':'+boundary;mark.run(id,generation);
-      events.set(id,{id,mep:mandate.mep,type,subtype,date,mark:read.get(id).mark});
+      events.set(id,{id,mep:mandate.mep,type,subtype,date,mark:read.get(id).mark,lists:[...new Set(mandateLists.get(mandate.id))]});
     }
   }
   const members={};

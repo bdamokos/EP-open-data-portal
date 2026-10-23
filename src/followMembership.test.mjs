@@ -47,3 +47,23 @@ test('storage failures surface and retry; membership validator is distinct from 
   assert.equal(validMembershipEvent(event()),true);assert.equal(validMembershipEvent({...event(),id:'E-10-2026-000001'}),false);
   assert.equal(validMembershipEvent({...event(),mep:'43'}),false);assert.equal(validMembershipEvent({...event(),date:'2026-02-31'}),false);
 });
+
+test('a recovering list baselines its own backlog without hiding healthy-list events',()=>{
+ const disk=storage(),store=createMembershipStore(disk),one={outgoing:{status:'fresh'},incoming:{status:'unavailable'}};
+ store.observe(snapshot(3,[],{lists:one}),follows);
+ const departure={...event(4),lists:['outgoing']},backlog={...event(4,'42','start'),lists:['incoming']};
+ store.observe(snapshot(4,[departure,backlog]),follows);
+ assert.deepEqual(store.snapshot().entries.map(entry=>entry.id),[departure.id]);
+ assert.deepEqual(store.snapshot().baselines['42'].lists,{outgoing:3,incoming:4});
+ const reloaded=createMembershipStore(disk);reloaded.observe(snapshot(5,[departure,backlog,{...event(5,'42','start'),id:'42-m-2:start',lists:['incoming']}]),follows);
+ assert.equal(reloaded.snapshot().entries.length,2);
+});
+test('a follow made with stale cached status baselines at its first successful snapshot',()=>{
+ const store=createMembershipStore(storage());store.observe(snapshot(3),follows);
+ const next=[...follows,{...follows[0],id:'43',savedAt:200}];store.syncFollows(next);
+ assert.equal(store.snapshot().baselines['43'].generation,null);
+ store.observe(snapshot(4,[{...event(4,'43'),lists:['outgoing']}]),next);
+ assert.equal(store.snapshot().entries.length,0);assert.equal(store.snapshot().baselines['43'].generation,4);
+ store.observe(snapshot(5,[{...event(5,'43','start'),lists:['incoming']}]),next);
+ assert.equal(store.snapshot().entries.length,1);
+});

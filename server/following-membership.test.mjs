@@ -26,6 +26,8 @@ test('only exact valid mandate identifiers and dates classify; multiple mandates
   const result=membershipSnapshot(store,g);
   assert.equal(result.events.filter(event=>event.id==='42-m-1:end').length,1);
   assert.equal(result.events.find(event=>event.id==='42-m-2:start').subtype,'returned');
+  assert.deepEqual(result.events.find(event=>event.id==='42-m-2:start').lists,['outgoing','incoming']);
+  assert.deepEqual(result.events.find(event=>event.id==='43-m-1:end').lists,['outgoing']);
   assert.equal(result.events.find(event=>event.id==='46-m-1:start').subtype,'joined');
   assert.deepEqual(result.members['43'],{roster:'absent',status:'former',endDate:'2026-04-13'});
   assert.equal(result.members['42'].status,'current');assert.equal(result.members['44'].status,'unverified');assert.equal(result.members['45'].status,'unverified');

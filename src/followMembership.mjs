@@ -6,7 +6,7 @@ const epoch=value=>typeof value==='string'&&/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-
 const date=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
 export function validMembershipEvent(event) {
   return event&&/^\d{1,9}-m-\d{1,12}:(start|end)$/.test(event.id)&&personId(event.mep)&&event.id.split('-m-')[0]===event.mep&&
-    generation(event.mark)&&date(event.date)&&((event.type==='mandate-ended'&&event.id.endsWith(':end')&&event.subtype===null)||
+    generation(event.mark)&&date(event.date)&&(event.lists===undefined||Array.isArray(event.lists)&&event.lists.length>0&&event.lists.every(list=>['incoming','outgoing'].includes(list)))&&((event.type==='mandate-ended'&&event.id.endsWith(':end')&&event.subtype===null)||
       (event.type==='mandate-started'&&event.id.endsWith(':start')&&['joined','returned'].includes(event.subtype)));
 }
 export function validMembershipSnapshot(value) {
@@ -25,7 +25,7 @@ function decode(raw) {
   try {
     const value=JSON.parse(raw);
     if(!epoch(value?.epoch)||!generation(value.generation)||!value.baselines||!Array.isArray(value.entries)||!value.members)return null;
-    if(!Object.entries(value.baselines).every(([id,b])=>personId(id)&&Number.isFinite(b.savedAt)&&(b.generation===null||generation(b.generation))))return null;
+    if(!Object.entries(value.baselines).every(([id,b])=>personId(id)&&Number.isFinite(b.savedAt)&&(b.generation===null||generation(b.generation))&&(b.lists===undefined||['incoming','outgoing'].every(list=>b.lists[list]===null||generation(b.lists[list])))))return null;
     if(!value.entries.every(entry=>validMembershipEvent(entry)&&entry.kind==='membership'&&Number.isFinite(entry.discoveredAt)&&(entry.readAt===null||Number.isFinite(entry.readAt))))return null;
     const availability={outgoing:!!value.availability?.outgoing,incoming:!!value.availability?.incoming};
     // Persistent status is refreshed from a validated public snapshot, never inferred from entries.
@@ -45,7 +45,7 @@ export function createMembershipStore(storage,notify=()=>{},clock=Date.now) {
     const baselines={};
     for(const item of items.filter(item=>item.kind==='mep')) {
       const previous=state.baselines[item.id],savedAt=item.savedAt||0;
-      baselines[item.id]=previous?.savedAt===savedAt?previous:{savedAt,generation:state.generation};
+      baselines[item.id]=previous?.savedAt===savedAt?previous:{savedAt,generation:null};
     }
     if(JSON.stringify(baselines)===JSON.stringify(state.baselines))return;
     state={...state,baselines,entries:state.entries.filter(entry=>baselines[entry.mep]&&baselines[entry.mep].savedAt===state.baselines[entry.mep]?.savedAt)};publish();
@@ -59,13 +59,21 @@ export function createMembershipStore(storage,notify=()=>{},clock=Date.now) {
       if(state.epoch===snapshot.epoch&&state.generation>snapshot.generation)return false;
       syncFollows(items);
       const availability=Object.fromEntries(['outgoing','incoming'].map(list=>[list,snapshot.lists[list].status!=='unavailable']));
-      const available=Object.values(availability).some(Boolean),reset=state.epoch!==snapshot.epoch||Object.keys(availability).some(list=>availability[list]&&!state.availability[list]);
-      const baselines=Object.fromEntries(Object.entries(state.baselines).map(([id,baseline])=>[id,{...baseline,generation:available&&(reset||baseline.generation===null)?snapshot.generation:baseline.generation}]));
+      const available=Object.values(availability).some(Boolean),reset=state.epoch!==snapshot.epoch;
+      const baselines=Object.fromEntries(Object.entries(state.baselines).map(([id,baseline])=>[id,{
+        ...baseline,generation:available&&(reset||baseline.generation===null)?snapshot.generation:baseline.generation,
+        lists:Object.fromEntries(Object.keys(availability).map(list=>[list,availability[list]?
+          reset||!state.availability[list]||baseline.generation===null?snapshot.generation:baseline.lists?.[list]??baseline.generation:
+          baseline.lists?.[list]??null])),
+      }]));
       const observed=new Map(snapshot.events.map(event=>[event.mep+':'+event.id,event]));
       const entries=state.entries.map(entry=>({...entry,...observed.get(entry.mep+':'+entry.id)})),known=new Set(entries.map(entry=>entry.mep+':'+entry.id));
       if(available&&!reset)for(const event of snapshot.events) {
         const baseline=baselines[event.mep];
-        if(baseline&&event.mark>baseline.generation&&!known.has(event.mep+':'+event.id)) {
+        // Older snapshots have no list provenance: use the most conservative baseline.
+        const eligible=baseline&&(event.lists?event.lists.some(list=>availability[list]&&event.mark>baseline.lists[list]):
+          event.mark>Math.max(...Object.keys(availability).filter(list=>availability[list]).map(list=>baseline.lists[list])));
+        if(eligible&&!known.has(event.mep+':'+event.id)) {
           entries.push({...event,kind:'membership',discoveredAt:clock(),readAt:null});known.add(event.mep+':'+event.id);
         }
       }
