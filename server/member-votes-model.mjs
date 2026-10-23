@@ -56,7 +56,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
   const arraysAvailable=Object.values(actual.supplied).every(Boolean);
   const notConducted=['LAPSED','WITHDRAWN','CANCELLED','CANCELED','NOT_HELD'].includes(outcome);
   const type=tail(typeof raw.type==='string'?raw.type:raw['@type']);
-  const nonNamedMethod=method&&method.startsWith('VOTE_')&&method!=='VOTE_ELECTRONIC_ROLLCALL';
+  const nonNamedMethod=['VOTE_HAND','VOTE_ELECTRONIC','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(method);
   const ballotStatus=notConducted?'not-conducted':type==='Vote'&&(arraysAvailable||nonNamedMethod)?'conducted':'unknown';
   const available=ballotStatus==='conducted'&&method==='VOTE_ELECTRONIC_ROLLCALL'&&arraysAvailable;
   const conflictingPersonIds=[...actual.byPerson].filter(([,values])=>values.length>1).map(([id])=>id).sort((a,b)=>Number(a)-Number(b));
@@ -70,6 +70,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
   else if(memberPositions.length>1)actualPosition={status:'conflicting',position:null};
   else if(available&&memberPositions.length===1)actualPosition={status:'recorded',position:memberPositions[0]};
   else if(available&&actual.malformedReferences===0&&totalsMatch!==false)actualPosition={status:'no-record',position:null};
+  else if(ballotStatus==='conducted'&&nonNamedMethod&&!Object.values(positions).some(suffix=>Object.hasOwn(raw,'had_voter_'+suffix))&&actual.malformedReferences===0)actualPosition={status:'not-individually-recorded',position:null};
   const intendedPositions=intended.byPerson.get(String(memberId))||[];
   const intention={status:intended.malformedReferences>0?'unavailable':intendedPositions.length?'reported':'not-reported',positions:intendedPositions};
 

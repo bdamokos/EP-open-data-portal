@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {projectMemberDecision,memberVoteAlignment} from './member-votes-model.mjs';
+import {projectMemberDecision,projectMemberSitting,memberVoteAlignment} from './member-votes-model.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/member-votes.json',import.meta.url),'utf8'));
 const full=JSON.parse(readFileSync(new URL('./fixtures/insights-live-20261014.json',import.meta.url),'utf8'));
@@ -227,4 +227,28 @@ test('alignment uses conducted recorded ballots and the official outcome, never 
     const expected=ballotStatus!=='conducted'||status!=='recorded'||!['ADOPTED','REJECTED'].includes(outcome)||!position?'unclassified':position==='abstaining'?'abstained':(position==='for')===(outcome==='ADOPTED')?'with':'against';
     assert.equal(memberVoteAlignment(vote),expected,JSON.stringify(vote));
   }
+});
+
+test('recognised non-named conducted ballots require no supplied actual voter fields',()=>{
+  const base={...fullDecision};for(const key of ['had_voter_favor','had_voter_against','had_voter_abstention'])delete base[key];
+  for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_SECRET','VOTE_SECRET_BALLOT']){
+    const raw={...base,decision_method:'def/ep-decision-methods/'+method},vote=project(raw);
+    assert.deepEqual(vote.actualPosition,{status:'not-individually-recorded',position:null},method);assert.equal(memberVoteAlignment(vote),'unclassified');
+    assert.equal(project({...raw,decision_outcome:'def/ep-statuses/LAPSED'}).actualPosition.status,'not-conducted');
+    for(const value of [[],['person/197591'],null,'bad',['malformed']])assert.equal(project({...raw,had_voter_favor:value}).actualPosition.status,'unavailable',method+':'+JSON.stringify(value));
+    assert.equal(project({...raw,had_voter_favor:['person/197591'],had_voter_against:['person/197591']}).actualPosition.status,'conflicting');
+    assert.equal(project({...raw,_conflictingSourceObservations:{fields:['decision_method']}}).actualPosition.status,'conflicting');
+    assert.equal(project({...raw,type:'Decision'}).actualPosition.status,'unavailable');
+  }
+  for(const method of [undefined,'def/ep-decision-methods/VOTE_UNKNOWN','def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL'])assert.equal(project({...base,decision_method:method}).actualPosition.status,'unavailable');
+});
+
+
+test('whole-text summaries retain authoritative non-named status without classifying alignment',()=>{
+  const raw={...fullDecision,decision_method:'def/ep-decision-methods/VOTE_HAND'};
+  for(const key of ['had_voter_favor','had_voter_against','had_voter_abstention'])delete raw[key];
+  const projected=projectMemberSitting({...snapshot,decisions:[raw]},'197591');
+  assert.equal(projected.items[0].alignment,'unclassified');
+  const summaries=projected.subjects.flatMap(subject=>subject.wholeTextDecisions);
+  assert.equal(summaries.length,1);assert.deepEqual(summaries[0].actualPosition,{status:'not-individually-recorded',position:null});
 });

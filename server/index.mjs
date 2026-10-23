@@ -21,6 +21,7 @@ import {motionComparison} from './motion-comparison.mjs';
 import {motionAmendmentsQuery,motionAmendmentsPage} from './motion-amendments.mjs';
 import {votePeriods} from './vote-periods.mjs';
 import {memberVotes,memberVotesQuery} from './member-votes.mjs';
+import {memberAttendance,memberAttendanceQuery} from './member-attendance.mjs';
 import {documentContext,documentContextQuery} from './document-context.mjs';
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
@@ -110,7 +111,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 }
 
 // Browser transport for this app. The gateway admits the same finite route set.
-const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','member-attendance','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -167,6 +168,9 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments[0] === 'vote-periods' && segments.length===1) {
       result=await votePeriods.query(url.searchParams);
+    }
+    else if(segments[0]==='member-attendance'&&segments.length===2) {
+      result=await memberAttendance.query(positiveId(segments[1]),memberAttendanceQuery(url.searchParams));
     }
     else if (segments[0] === 'member-votes' && segments.length===2) {
       result=await memberVotes.query(positiveId(segments[1]),memberVotesQuery(url.searchParams));

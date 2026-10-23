@@ -1,3 +1,4 @@
+import {voteMethodLabel} from './voteMethod.mjs';
 import type {ReactNode} from 'react';
 import {useData} from './data';
 import type {MemberVotesResponse,MemberVote} from './MemberVotesTypes';
@@ -41,18 +42,16 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
   }
   if(!route)return <>{children}</>;
   const record=vote?votingRecordUrl(vote):null;
-  const method=vote?({VOTE_HAND:'Show of hands',VOTE_ELECTRONIC_ROLLCALL:'Roll-call vote',VOTE_ELECTRONIC:'Electronic vote',VOTE_SECRET:'Secret ballot',VOTE_SECRET_BALLOT:'Secret ballot'}[vote.method||'']):null;
-  const noIndividualPositions=Boolean(vote&&vote.ballotStatus!=='not-conducted'&&!['LAPSED','WITHDRAWN','CANCELLED'].includes(vote.outcome||''))&&['VOTE_HAND','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(vote?.method||'');
+  const method=vote?voteMethodLabel(vote.method):null;
   const requesters=vote?.rollCallRequesters.map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text)||[];
   return <div className="activity-vote" lang="en">
     {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p>{sourceConflict?'Current vote sources disagree. The saved activity result is shown separately.':'The saved activity result differs from the current voting record. The current record is shown below.'}</p><div aria-label="Saved activity result">{children}</div></div>}
     {vote?<>
       {retained&&<p className="activity-vote__meta">Some result details are retained from the saved activity record.</p>}
       <p className="activity-vote__meta"><span lang={language}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(vote.date))}</span>{method?' · '+method:''}</p>
-      <div className="member-votes-strip" aria-label="Member position and Parliament result">{noIndividualPositions?<span className="member-votes-position"><span className="member-votes-position-label">{memberName||'Selected MEP'}</span><strong>Not individually recorded</strong></span>:<Position vote={vote} memberName={memberName||'Selected MEP'}/>}<Result vote={vote} showMissingTotals={vote.method!=='VOTE_HAND'} showPartialTotals/>
+      <div className="member-votes-strip" aria-label="Member position and Parliament result"><Position vote={vote} memberName={memberName||'Selected MEP'}/><Result vote={vote} showPartialTotals/>
         {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention">Declared intention: <strong>{vote.intention.positions.map(position=>({for:'For',against:'Against',abstaining:'Abstain'}[position])).join(', ')}</strong>. Declared afterwards; the official result and totals are unchanged.</p>}
       </div>
-      {noIndividualPositions&&<p className="activity-vote__meta">Individual positions are not recorded for this voting method.</p>}
       {vote.parts.map(part=>{
         const text=selectLanguageText(Object.fromEntries(Object.entries(part.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
         return text.text?<p className="activity-vote__part" key={part.componentId} lang={text.language}>{text.text}</p>:null;

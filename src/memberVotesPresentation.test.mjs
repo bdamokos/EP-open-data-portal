@@ -10,15 +10,15 @@ const projection=projectMemberSitting(fixture.snapshots[0],String(memberId),'en'
 const clone=value=>structuredClone(value);
 function response(overrides={}) {
   const items=projection.items.filter(item=>item.actualPosition.status==='recorded');
-  return {version:3,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
+  return {version:4,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
 }
 const state={week:'latest',sittingId,positions:'recorded',offset:0,decisionId:null,snapshotId:null};
 const accepts=(data,requestState=state)=>validateMemberVotesResponse(data,{memberId,state:requestState});
 
-test('request route explicitly defaults to recorded positions and retains exact page, selection and snapshot',()=>{
+test('request route explicitly defaults to all decisions and retains exact page, selection and snapshot',()=>{
   assert.equal(MEMBER_VOTES_PAGE_SIZE,50);
   const basic=new URL(memberVotesRoute(memberId), 'https://example.invalid/');
-  assert.equal(basic.pathname,'/member-votes/197591');assert.equal(basic.searchParams.get('positions'),'recorded');assert.equal(basic.searchParams.get('week'),'latest');
+  assert.equal(basic.pathname,'/member-votes/197591');assert.equal(basic.searchParams.get('positions'),'all');assert.equal(basic.searchParams.get('week'),'latest');
   const decisionId='MTG-PL-2026-10-07-DEC-197457';
   const route=new URL(memberVotesRoute(memberId,{...state,positions:'all',offset:50,decisionId,snapshotId},'hu'),'https://example.invalid/');
   assert.equal(route.searchParams.get('week'),null);assert.equal(route.searchParams.get('sitting'),sittingId);
@@ -43,7 +43,7 @@ test('response guard checks member, requested period, filter, pagination and sna
   assert.equal(accepts(data,{...state,snapshotId:'b'.repeat(64)}),false);
   const week=response({period:{kind:'week',week:'2026-10-05',sittingId:null,from:'2026-10-05',to:'2026-10-11'}});
   assert.equal(accepts(week,{...state,sittingId:null}),true);assert.equal(accepts(week,{...state,sittingId:null,week:'2026-09-28'}),false);
-  const unknown=response({period:{kind:'week',week:null,sittingId:null,from:null,to:null},items:[],subjects:[],pagination:{offset:0,limit:50,returned:0,observedTotal:0,filteredTotal:0,nextOffset:null},coverage:{status:'unavailable',termWide:false},alignmentCounts:null});
+  const unknown=response({period:{kind:'week',week:null,sittingId:null,from:null,to:null},items:[],subjects:[],pagination:{offset:0,limit:50,returned:0,observedTotal:0,recordedTotal:null,filteredTotal:0,nextOffset:null},coverage:{status:'unavailable',termWide:false},alignmentCounts:null});
   assert.equal(accepts(unknown,{...state,sittingId:null}),true);
   unknown.coverage.status='complete';assert.equal(accepts(unknown,{...state,sittingId:null}),false);
 });
@@ -97,7 +97,7 @@ test('actual positions, independent intentions, outcomes and supplied totals rem
   vote.method='VOTE_ELECTRONIC_ROLLCALL';vote.ballotStatus='conducted';vote.actualPosition={status:'recorded',position:'for'};vote.intention={status:'reported',positions:['abstaining']};vote.totals={for:454,against:86,abstaining:0};
   assert.equal(memberVotePosition(vote),'For');assert.deepEqual(memberVoteTotals(vote),{for:454,against:86,abstaining:0,total:540});
   assert.deepEqual(vote.intention.positions,['abstaining']);vote.outcome='REJECTED';assert.equal(memberVoteOutcome(vote),'Rejected');
-  for(const method of ['VOTE_HAND','VOTE_SECRET','VOTE_SECRET_BALLOT'])assert.equal(memberVotePosition({...vote,method}),'No recorded position');
+  for(const method of ['VOTE_HAND','VOTE_SECRET','VOTE_SECRET_BALLOT'])assert.equal(memberVotePosition({...vote,method}),'For');
   assert.equal(memberVotePosition({...vote,actualPosition:{status:'no-record',position:null}}),'No recorded position');
   assert.equal(memberVoteTotals({...vote,totals:{for:0,against:0,abstaining:0}}).total,0);
   for(const value of [null,undefined,NaN,Infinity,-1,'0'])assert.equal(memberVoteTotals({...vote,totals:{for:0,against:value,abstaining:0}}),null);
@@ -129,10 +129,24 @@ test('alignment request omission is byte compatible and response validates count
   for(const mutate of [value=>delete value.alignment,value=>{value.alignment='against';},value=>delete value.items[0].alignment,value=>{value.items[0].alignment='majority';},value=>{value.alignmentCounts=null;},value=>{value.alignmentCounts.with++;},value=>{value.alignmentCounts.against=-1;},value=>{value.alignmentCounts.extra=0;}]){
     const malformed=clone(data);mutate(malformed);assert.equal(accepts(malformed),false);
   }
-  const unavailable=response({items:[],subjects:[],coverage:{status:'unavailable',termWide:false},alignmentCounts:null,pagination:{offset:0,limit:50,returned:0,observedTotal:0,filteredTotal:0,nextOffset:null}});
+  const unavailable=response({items:[],subjects:[],coverage:{status:'unavailable',termWide:false},alignmentCounts:null,pagination:{offset:0,limit:50,returned:0,observedTotal:0,recordedTotal:null,filteredTotal:0,nextOffset:null}});
   assert.equal(accepts(unavailable),true);
   unavailable.alignmentCounts={with:0,against:0,abstained:0,unclassified:0};assert.equal(accepts(unavailable),false);
   const filtered=response({alignment:'with'});filtered.items=filtered.items.filter(item=>item.alignment==='with');filtered.pagination.returned=filtered.pagination.filteredTotal=filtered.items.length;filtered.subjects=[];
   assert.equal(accepts(filtered,{...state,alignment:'with'}),true);
   filtered.items[0].alignment='against';assert.equal(accepts(filtered,{...state,alignment:'with'}),false);
+});
+
+test('v4 guards recorded totals and carries non-named status through selected and whole-text decisions',()=>{
+  const data=response();
+  for(const total of [null,-1,1.5,data.pagination.observedTotal+1]){const invalid=clone(data);invalid.pagination.recordedTotal=total;assert.equal(accepts(invalid),false);}
+  const missing=clone(data);delete missing.pagination.recordedTotal;assert.equal(accepts(missing),false);
+  const previous=clone(data);previous.version=3;assert.equal(accepts(previous),false);
+  const selected={...clone(projection.items[0]),method:'VOTE_HAND',ballotStatus:'conducted',actualPosition:{status:'not-individually-recorded',position:null}};
+  data.selected={status:'found',item:selected};
+  const whole={...clone(selected),scope:{kind:'whole-text',basis:'english-reference-label'}};
+  data.subjects[0].wholeTextDecisions=[whole];
+  assert.equal(accepts(data,{...state,decisionId:selected.id}),true);
+  assert.equal(memberVotePosition(selected),'Not individually recorded');
+  for(const patch of [{actualPosition:{status:'not-individually-recorded',position:'for'}},{ballotStatus:'unknown'},{method:'VOTE_UNKNOWN'}]){const invalid=clone(data);invalid.selected.item={...invalid.selected.item,...patch};assert.equal(accepts(invalid,{...state,decisionId:selected.id}),false);}
 });

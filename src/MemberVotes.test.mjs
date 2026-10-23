@@ -39,15 +39,15 @@ function part(number,patch={}) {
 }
 function stateFrom(url) {
   const params=new URL(String(url),'http://localhost').searchParams;
-  return {week:params.get('week')||WEEK,sittingId:params.get('sitting'),positions:params.get('positions')||'recorded',alignment:params.get('alignment')||'all',offset:Number(params.get('offset')||0),
+  return {week:params.get('week')||WEEK,sittingId:params.get('sitting'),positions:params.get('positions')||'all',alignment:params.get('alignment')||'all',offset:Number(params.get('offset')||0),
     decisionId:params.get('decision'),snapshotId:params.get('snapshot')};
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:3,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:4,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
-    pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
+    pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
     selected:selected??(state.decisionId?{status:'found',item:items.find(item=>item.id===state.decisionId)||null}:{status:'not-requested',item:null}),
     coverage:{status:'complete',collectionComplete:true,termWide:false,expectedSittingIds:[SITTING],scannedSittingIds:[SITTING],failedSittingIds:[],incompleteSittingIds:[],catalogue:emptyPage,sittings:[],basis:'Synthetic exact API fixture',...coverage},
     attribution:'European Parliament public data',...patch};
@@ -55,7 +55,7 @@ function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,
 const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>(item.getAttribute('aria-label')||item.textContent.trim())===text);
 const visiblePane=container=>[...container.querySelectorAll('.member-votes-pane')].find(item=>!item.hidden);
 
-async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}},handler=url=>Response.json(responseFor(url)),statusCompatibility=false,renderContext,members}={}) {
+async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}},handler=url=>Response.json(responseFor(url)),attendanceHandler=()=>Response.json({error:{code:'unavailable'}}),statusCompatibility=false,renderContext,members}={}) {
   const window=new Window({url:'http://localhost/'});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -68,7 +68,7 @@ async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  t.mock.method(globalThis,'fetch',async(url,options)=>{if(String(url).includes('/api/vote-periods'))return Response.json(calendar);calls.push(String(url));return handler(url,options,calls.length);});
+  t.mock.method(globalThis,'fetch',async(url,options)=>{if(String(url).includes('/api/vote-periods'))return Response.json(calendar);if(String(url).includes('/api/member-attendance/'))return attendanceHandler(url,options);calls.push(String(url));return handler(url,options,calls.length);});
   // The parent owns the hook's optional HTTP status field. Exercise that integration in memory
   // until it lands here; all other cases use the worktree's unmodified shared hook.
   const plugins=statusCompatibility?[{name:'member-votes-shared-status-contract',enforce:'pre',transform(source,id){
@@ -119,26 +119,26 @@ test('decoded source reference text renders literally in vote cards and detail h
   assert.equal(h.container.querySelector('img'),null);
 });
 
-test('default request explicitly filters recorded positions and canonical period/snapshot replace navigation',async t=>{
+test('default request includes all decisions and canonical period/snapshot replace navigation',async t=>{
   const h=await mount(t);
-  assert.deepEqual(h.module.defaultMemberVotesState,{week:'latest',sittingId:null,positions:'recorded',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
+  assert.deepEqual(h.module.defaultMemberVotesState,{week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
   const initial=new URL(h.calls[0],'http://localhost');
   assert.equal(initial.pathname,'/api/member-votes/'+MEMBER);
-  assert.equal(initial.searchParams.get('week'),'latest');assert.equal(initial.searchParams.get('positions'),'recorded');
+  assert.equal(initial.searchParams.get('week'),'latest');assert.equal(initial.searchParams.get('positions'),'all');
   assert.equal(initial.searchParams.get('limit'),'50');assert.equal(initial.searchParams.get('lang'),'en');
   assert.equal(h.state.week,WEEK);assert.equal(h.state.snapshotId,SNAPSHOT);
   assert(h.changes.every(change=>change.options?.replace===true));
-  assert.equal(button(h.container,'Recorded positions').getAttribute('aria-pressed'),'true');
-  await h.click('All decisions');
-  assert.equal(h.state.positions,'all');assert.equal(h.state.offset,0);assert.equal(h.changes.at(-1).options.replace,false);
-  assert.equal(new URL(h.calls.at(-1),'http://localhost').searchParams.get('positions'),'all');
+  assert.equal(button(h.container,'All decisions').getAttribute('aria-pressed'),'true');
+  await h.click('Recorded positions');
+  assert.equal(h.state.positions,'recorded');assert.equal(h.state.offset,0);assert.equal(h.changes.at(-1).options.replace,false);
+  assert.equal(new URL(h.calls.at(-1),'http://localhost').searchParams.get('positions'),'recorded');
 });
 
 test('API responses for the wrong member, period, filter, page or pinned snapshot never render their rows',async t=>{
   for(const [label,mutate] of [
     ['member',data=>({...data,member:{...data.member,id:'999999'}})],
     ['period',data=>({...data,period:{kind:'week',week:'2026-03-30',sittingId:null,from:'2026-03-30',to:'2026-04-05'}})],
-    ['filter',data=>({...data,positions:'all'})],
+    ['filter',data=>({...data,positions:'recorded'})],
     ['page',data=>({...data,pagination:{...data.pagination,offset:50}})],
     ['snapshot',data=>({...data,snapshotId:'b'.repeat(64)})],
     ['requester binding',data=>({...data,items:[{...data.items[0],rollCallRequesters:[{id:'unbound',organizationLabels:{en:'Unbound requester'},binding:'different-decision'}]}]})],
@@ -157,7 +157,7 @@ test('a selected off-page decision uses its pinned projection without selecting 
   assert.equal(detail.querySelector('h2').textContent,'Exact off-page decision');
   assert.match(detail.textContent,/No recorded position/);assert.match(detail.textContent,/Show of hands/);
   assert(!detail.textContent.includes('On-page decision'));
-  assert.equal(h.state.decisionId,selected.id);assert.equal(h.state.positions,'recorded');
+  assert.equal(h.state.decisionId,selected.id);assert.equal(h.state.positions,'all');
 });
 
 test('unknown or mismatched decision deep links never fall back to another page decision',async t=>{
@@ -218,7 +218,7 @@ test('multilingual source subjects show one English title in list and detail whi
 test('off-page whole-text outcomes do not add empty subjects or hide the recorded-position empty state',async t=>{
   const whole=vote(3,{scope:{kind:'whole-text',basis:'exact-component-reference'},actualPosition:{status:'no-record',position:null}});
   const absent=subject([],{id:'off-page-subject',counts:{observed:1,filtered:0,page:0},wholeTextDecisions:[whole]});
-  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items:[],subjects:[absent],pagination:{observedTotal:1,filteredTotal:0}}))});
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,positions:'recorded'},handler:url=>Response.json(responseFor(url,{items:[],subjects:[absent],pagination:{observedTotal:1,filteredTotal:0}}))});
   assert.equal(h.container.querySelectorAll('.member-votes-subject').length,0);
   assert.match(visiblePane(h.container).textContent,/No recorded positions are available for this period/);
   assert(button(h.container,'All decisions'),'the other decisions remain one action away');
@@ -227,13 +227,13 @@ test('off-page whole-text outcomes do not add empty subjects or hide the recorde
 test('null totals, real zero totals and lapsed decisions remain distinct without invented member choices',async t=>{
   const items=[vote(1,{totals:{for:0,against:0,abstaining:0}}),vote(2,{totals:{for:400,against:null,abstaining:0}}),
     vote(3,{outcome:'LAPSED',ballotStatus:'not-conducted',method:null,actualPosition:{status:'not-conducted',position:null},totals:{for:null,against:null,abstaining:null}}),
-    vote(4,{method:'VOTE_HAND',actualPosition:{status:'recorded',position:'for'},totals:{for:null,against:null,abstaining:null}})];
+    vote(4,{method:'VOTE_HAND',alignment:'unclassified',actualPosition:{status:'not-individually-recorded',position:null},totals:{for:null,against:null,abstaining:null}})];
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,positions:'all',expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items}))});
   const rows=h.container.querySelectorAll('.member-votes-row');
   assert.equal(rows[0].querySelector('.member-votes-bar'),null);assert.deepEqual([...rows[0].querySelectorAll('.member-votes-counts b')].map(item=>item.textContent),['0','0','0']);
-  assert.equal(rows[1].querySelector('.member-votes-bar,.member-votes-counts'),null);assert.match(rows[1].textContent,/Tallies unavailable/);
+  assert.equal(rows[1].querySelector('.member-votes-bar,.member-votes-counts'),null);assert.match(rows[1].textContent,/No tally published/);
   assert.match(rows[2].textContent,/Not put to a vote.*Lapsed/);assert.equal(rows[2].querySelector('.member-votes-bar,.member-votes-counts'),null);
-  assert.match(rows[3].textContent,/No recorded position/);assert.equal(rows[3].querySelector('.member-votes-position-for'),null);
+  assert.match(rows[3].textContent,/Not individually recorded/);assert.equal(rows[3].querySelector('.member-votes-position-for'),null);
 });
 
 test('actual FOR, later intention to abstain and official raw counts are displayed independently',async t=>{
@@ -244,7 +244,7 @@ test('actual FOR, later intention to abstain and official raw counts are display
   assert.match(detail.querySelector('.member-votes-intention').textContent,/Declared intention: Abstain.*official result and totals are unchanged/);
   assert.equal(detail.querySelector('.member-votes-bar').getAttribute('aria-label'),'For 412, Against 183, Abstaining 0');
   assert.deepEqual([...detail.querySelectorAll('.member-votes-counts b')].map(item=>item.textContent),['412','183','0']);
-  assert(!/majority|attendance|success|\d%/.test(detail.textContent));
+  assert(!/success|\d%/.test(detail.textContent));
 });
 
 test('detail renders exact split wording, sibling context and only exact requesters',async t=>{
@@ -531,9 +531,9 @@ test('partial period coverage is disclosed once alongside observed, filtered and
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{coverage:{status:'partial',collectionComplete:false},pagination:{observedTotal:70,filteredTotal:1},subjects:[subject([vote(1)],{counts:{observed:70,filtered:1,page:1}})]}))});
   const notice='Some voting records for this period are unavailable. More decisions or recorded positions may exist.';
   assert.equal(h.container.textContent.split(notice).length-1,1);
-  assert.match(h.container.querySelector('.member-votes-tools').textContent,/1–1 of 1 recorded position · 70 decisions available in this period/);
-  assert.match(h.container.querySelector('.member-votes-subject-count').textContent,/1 recorded position in this subject · 1 on this page/);
-  assert(!/all.term|attendance|denominator/i.test(h.container.textContent));
+  assert.match(h.container.querySelector('.member-votes-tools').textContent,/1–1 of 1 decision · 1 with a recorded position/);
+  assert.match(h.container.querySelector('.member-votes-subject-count').textContent,/1 decision in this subject · 1 on this page/);
+  assert(!/all.term|denominator/i.test(h.container.textContent));
 });
 
 test('page navigation replaces page rows and retains the pinned snapshot and expanded subjects',async t=>{
@@ -622,7 +622,7 @@ test('a filtered-out final vote opens its exact decision and keeps missing-posit
   const item=vote(1),whole=vote(99,{scope:{kind:'whole-text',basis:'exact-component-reference'},actualPosition:{status:'conflicting',position:null}});
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items:[item],subjects:[subject([item],{wholeTextDecisions:[whole]})],selected:stateFrom(url).decisionId?{status:'found',item:whole}:{status:'not-requested',item:null}}))});
   const final=h.container.querySelector('button.member-votes-whole');assert.match(final.textContent,/Conflicting records/);
-  await act(async()=>final.click());assert.match(visiblePane(h.container).textContent,/Conflicting records/);assert.equal(h.state.positions,'recorded');
+  await act(async()=>final.click());assert.match(visiblePane(h.container).textContent,/Conflicting records/);assert.equal(h.state.positions,'all');
   await h.click('← Back to votes');assert.equal(document.activeElement,h.container.querySelector('[data-vote-group]'));
 });
 
@@ -704,7 +704,7 @@ for(const status of ['partial','unavailable'])test(status+' zero observations ne
 });
 
 test('a member without recorded positions is not labelled as a sitting with no votes',async t=>{
- const h=await mount(t,{state:{sittingId:SITTING,week:WEEK},handler:url=>Response.json(responseFor(url,{items:[],pagination:{observedTotal:1,filteredTotal:0},coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:1}]}}))});
+ const h=await mount(t,{state:{sittingId:SITTING,week:WEEK,positions:'recorded'},handler:url=>Response.json(responseFor(url,{items:[],pagination:{observedTotal:1,filteredTotal:0},coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:1}]}}))});
  assert.equal(h.container.querySelector('.vote-period-no-votes'),null);assert.match(visiblePane(h.container).textContent,/No recorded positions are available/);assert.doesNotMatch(visiblePane(h.container).textContent,/No votes were recorded/);
 });
 
@@ -752,4 +752,66 @@ test('amendment vote proposers use exact directory IDs and preserve unknown labe
   const wording=h.container.querySelector('.member-votes-wording');
   assert.match(wordingViewText(wording),/Proposed by Mika Aaltola, Guest McDONALD/);
   assert.equal(wording.querySelector('[title="Source label: Mika AALTOLA"]').textContent,'Mika Aaltola');
+});
+
+function attendanceResponse({status='observed',memberStatus='listed-present'}={}) {
+  const source={url:'https://data.europarl.europa.eu/api/v2/meetings/'+SITTING,fetchedAt:'2026-03-26T12:00:00Z',contentHash:'c'.repeat(64),stale:false,refreshInProgress:false,refreshError:null};
+  return {version:1,member:{id:String(MEMBER),mandateStatus:'not-assessed'},sittings:[{sittingId:SITTING,date:SITTING.slice(7),status,memberStatus:status==='observed'?memberStatus:null,excusedSupplied:true,counts:{present:600,excused:2,duplicatePresent:0,duplicateExcused:0,malformedReferences:status==='partial'?1:0},conflictingIds:memberStatus==='conflicting'?[String(MEMBER)]:[],source,
+    register:{documentId:'PV-10-2026-03-25-ATT',pdf:{url:'https://data.europarl.europa.eu/distribution/doc/PV-10-2026-03-25-ATT_en.pdf',language:'en'},issued:'2026-03-26T10:00:00Z',status:'available',source}}]};
+}
+
+test('all decisions shows non-named ballots, shared methods, counts and page summaries without changing outcomes',async t=>{
+  const hand=vote(1,{method:'VOTE_HAND',actualPosition:{status:'not-individually-recorded',position:null},alignment:'unclassified',totals:{for:null,against:null,abstaining:null}});
+  const electronic=vote(2,{method:'VOTE_ELECTRONIC',actualPosition:{status:'not-individually-recorded',position:null},alignment:'unclassified'});
+  const h=await mount(t,{state:{week:WEEK,expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items:[hand,electronic,vote(3)]})),attendanceHandler:()=>Response.json(attendanceResponse())});
+  assert.equal(h.state.positions,'all');assert.equal(h.container.querySelector('.member-votes-filter button').textContent,'All decisions');
+  assert.match(h.container.querySelector('.member-votes-tools').textContent,/1–3 of 3 decisions · 1 with a recorded position/);
+  assert.match(h.container.querySelector('.member-votes-subject-count:last-child').textContent,/2 not individually recorded/);
+  const rows=h.container.querySelectorAll('.member-votes-row');
+  assert.match(rows[0].textContent,/Show of hands.*Not individually recorded.*No tally published/);
+  assert.match(rows[1].textContent,/Electronic vote \(names not recorded\).*Not individually recorded.*For 400/);
+  assert.equal(h.container.querySelectorAll('.member-votes-row .member-votes-attendance').length,0);
+  assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/listed present 25 Mar/);
+});
+
+for(const [status,memberStatus,expected] of [
+  ['observed','listed-present',/Listed as present.*Presence at this individual vote is not recorded/],
+  ['observed','listed-excused',/Listed as excused/],
+  ['observed','not-listed',/Not listed.*This does not establish absence: members can vote without being listed, and mandate dates are not checked here/],
+  ['observed','conflicting',/Listed as both present and excused/],
+  ['not-published',null,/not yet published/],
+  ['partial',null,/Attendance register unavailable for this sitting/],
+  ['unavailable',null,/Attendance register unavailable for this sitting/],
+])test('attendance detail renders '+status+'/'+memberStatus+' independently of the member position',async t=>{
+  const item=vote(1,{actualPosition:{status:'no-record',position:null},alignment:'unclassified'});
+  const h=await mount(t,{state:{week:WEEK,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item]})),attendanceHandler:()=>Response.json(attendanceResponse({status,memberStatus}))});
+  const detail=visiblePane(h.container),attendance=detail.querySelector('.member-votes-attendance');
+  assert.match(attendance.textContent,expected);assert.match(detail.querySelector('.member-votes-position').textContent,/No recorded position/);
+  assert.equal(attendance.parentElement.className,'member-votes-strip');
+  assert.equal(attendance.querySelectorAll('details').length,1);
+  assert.match(attendance.textContent,/Rule 162.*Corrections can appear in later minutes/);
+  assert.match(attendance.textContent,/retrieved 2026-03-26T12:00:00Z/);
+  const link=[...attendance.querySelectorAll('a')].find(node=>node.textContent.includes('PDF, English'));
+  assert.equal(link.href,'https://data.europarl.europa.eu/distribution/doc/PV-10-2026-03-25-ATT_en.pdf');
+});
+
+test('attendance starts only after valid votes settle and failures leave votes and pagination usable',async t=>{
+  let releaseVotes,releaseAttendance;
+  const voteGate=new Promise(resolve=>{releaseVotes=resolve;}),attendanceGate=new Promise(resolve=>{releaseAttendance=resolve;});
+  const attendanceCalls=[];
+  const h=await mount(t,{handler:async url=>{await voteGate;return Response.json(responseFor(url,{pagination:{observedTotal:2,filteredTotal:2,nextOffset:stateFrom(url).offset?null:1}}));},attendanceHandler:async url=>{attendanceCalls.push(String(url));await attendanceGate;return new Response(JSON.stringify({error:{code:'attendance_unavailable',message:'unavailable'}}),{status:502,headers:{'content-type':'application/json'}});}});
+  assert.equal(attendanceCalls.length,0);
+  await act(async()=>releaseVotes());assert.equal(attendanceCalls.length,1);
+  const route=new URL(attendanceCalls[0],'http://localhost');assert.equal(route.searchParams.get('sittings'),SITTING);assert.equal(route.searchParams.has('snapshot'),false);
+  assert.match(visiblePane(h.container).textContent,/Synthetic subject/);assert.equal(button(h.container,'Next page').disabled,false);
+  await act(async()=>releaseAttendance());
+  assert.equal(h.container.querySelector('.member-votes-attendance-line').textContent,'Attendance register unavailable');
+  assert.equal(h.container.querySelector('[role="alert"]'),null);assert.equal(button(h.container,'Next page').disabled,false);
+  await h.click('Next page');assert.equal(h.state.offset,1);assert.equal(h.state.snapshotId,SNAPSHOT);
+});
+
+test('invalid vote envelopes cannot start attendance reads',async t=>{
+  let starts=0;
+  const h=await mount(t,{handler:url=>Response.json({...responseFor(url),version:3}),attendanceHandler:()=>{starts++;return Response.json(attendanceResponse());}});
+  assert.equal(starts,0);assert.match(h.container.textContent,/requested voting records are unavailable/);
 });

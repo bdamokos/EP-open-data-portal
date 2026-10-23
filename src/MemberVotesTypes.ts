@@ -38,7 +38,7 @@ export type MemberVote = {
     basis:'exact-component-reference'|'english-reference-label'|'invalid-component-reference'|'unclassified';
   };
   actualPosition:{
-    status:'recorded'|'no-record'|'unavailable'|'conflicting'|'not-conducted';
+    status:'recorded'|'no-record'|'not-individually-recorded'|'unavailable'|'conflicting'|'not-conducted';
     position:MemberVotePosition|null;
   };
   intention:{status:'reported'|'not-reported'|'unavailable';positions:MemberVotePosition[]};
@@ -96,7 +96,7 @@ export type MemberVoteSittingCoverage = {
 };
 
 export type MemberVotesResponse = {
-  version:3;
+  version:4;
   member:{id:string;uri:string;mandateStatus:'not-assessed';historicalGroupStatus:'not-collected'};
   period:{kind:'week'|'sitting';week:string|null;sittingId:string|null;from:string|null;to:string|null};
   snapshotId:string;
@@ -104,7 +104,7 @@ export type MemberVotesResponse = {
   alignment:'all'|'with'|'against'|'abstained';
   alignmentCounts:Record<MemberVoteAlignment,number>|null;
   subjects:MemberVoteSubject[];
-  pagination:{offset:number;limit:number;returned:number;observedTotal:number;filteredTotal:number;nextOffset:number|null};
+  pagination:{offset:number;limit:number;returned:number;observedTotal:number;recordedTotal:number|null;filteredTotal:number;nextOffset:number|null};
   items:MemberVote[];
   selected:{status:'found'|'not-found-in-scanned-data'|'unavailable'|'not-requested';item:MemberVote|null};
   coverage:{

@@ -4,7 +4,7 @@ import {memberVotesRoute} from './memberVotesPresentation.mjs';
 const fields={week:'week',sitting:'sittingId',positions:'positions',alignment:'alignment',offset:'offset',decision:'decisionId',snapshot:'snapshotId',expanded:'expandedSubjectIds',document:'documentId',amendment:'amendmentId',list:'listId','wording-lang':'wordingLanguage',view:'view',adopted:'adoptedId',invalid:'invalid'};
 const identifier=value=>typeof value==='string'&&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/.test(value);
 const documentId=value=>/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(value);
-const defaults=()=>({week:'latest',sittingId:null,positions:'recorded',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
+const defaults=()=>({week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
 
 export function isMemberVotesParam(key) {
   return key.startsWith('mv-')&&Object.hasOwn(fields,key.slice(3));
@@ -20,6 +20,7 @@ export function readMemberVotesJourney(query,memberId) {
   }
   const get=key=>Object.hasOwn(values,'mv-'+key)?values['mv-'+key]:null;
   const state=result.state;
+  if([...query.keys()].some(key=>key.startsWith('mv-'))&&!Object.hasOwn(values,'mv-positions'))state.positions='recorded';
   for(const key of ['week','sitting','positions','alignment','decision','snapshot'])if(get(key)!==null)state[fields[key]]=get(key);
   if(get('offset')!==null){if(!/^(?:0|[1-9]\d{0,4})$/.test(get('offset')))result.invalid=true;else state.offset=Number(get('offset'));}
   if(get('expanded')!==null)try {
@@ -50,7 +51,7 @@ export function memberVotesJourneyParams(journey) {
   if(journey.invalid)put('invalid','1');
   if(state.week!=='latest')put('week',state.week);
   put('sitting',state.sittingId);
-  if(state.positions!=='recorded')put('positions',state.positions);
+  put('positions',state.positions);
   if(state.alignment&&state.alignment!=='all')put('alignment',state.alignment);
   if(state.offset)put('offset',state.offset);
   put('decision',state.decisionId);put('snapshot',state.snapshotId);

@@ -8,3 +8,10 @@
 
 .member-votes-alignment{margin:4px 0 16px;font-size:11px}.member-votes-alignment-controls{flex-wrap:wrap}.member-votes-alignment p{margin:5px 0}.member-votes-alignment summary{color:var(--mv-blue);cursor:pointer;min-height:32px;padding:5px 0}.member-votes-alignment details{max-width:90ch}.member-votes-against-outcome{display:inline-block!important;font-size:10px;color:var(--mv-against);border:1px solid currentColor;border-radius:3px;padding:1px 5px;margin:4px 0}.member-votes-alignment-controls button{text-align:center}
 @media(max-width:600px){.member-votes-alignment-controls button{flex:1 1 42%}}
+
+.member-votes-attendance-line { color:var(--mv-muted); margin:.25rem 0 .75rem; font-size:.82rem; overflow-wrap:anywhere; }
+.member-votes-attendance { flex-basis:100%; grid-column:1 / -1; min-width:0; border-top:1px solid var(--mv-line); padding-top:.7rem; font-size:.82rem; }
+.member-votes-attendance p { margin:.35rem 0; }
+.member-votes-attendance details { margin-top:.65rem; color:var(--mv-muted); }
+.member-votes-attendance summary { cursor:pointer; }
+.member-votes-attendance code { overflow-wrap:anywhere; }

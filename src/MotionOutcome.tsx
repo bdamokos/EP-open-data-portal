@@ -1,3 +1,4 @@
+import {voteMethodLabel} from './voteMethod.mjs';
 import {ActivityVote} from './ActivityVote';
 import type { MotionOutcome, RelatedJointMotion } from './explorerTypes';
 import {useState} from 'react';
@@ -6,7 +7,6 @@ import './MotionOutcome.css';
 
 const labels = { adopted:'Adopted', rejected:'Rejected', lapsed:'Lapsed', withdrawn:'Withdrawn', unavailable:'Outcome unavailable' };
 const icons = { adopted:'✓', rejected:'×', lapsed:'↷', withdrawn:'−', unavailable:'?' };
-const methods:Record<string,string> = { VOTE_HAND:'Show of hands', VOTE_ELECTRONIC_ROLLCALL:'Roll-call vote', VOTE_ELECTRONIC:'Electronic vote', VOTE_SECRET_BALLOT:'Secret ballot' };
 const voteDate = (value:string,language:string) => new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value));
 
 export function MotionStatus({outcome,subject,label}:{outcome:MotionOutcome;subject?:string;label?:string}) {
@@ -23,7 +23,7 @@ export function MotionStatuses({outcome,related=[],sourceId}:{outcome:MotionOutc
 function VoteDetails({outcome,language}:{outcome:MotionOutcome;language:string}) {
   const voted=outcome.status==='adopted' || outcome.status==='rejected';
   return <>
-    {outcome.status!=='unavailable' && outcome.date && <p className="explorer-motion-vote-meta"><span lang={language}>{voteDate(outcome.date,language)}</span>{voted && methods[outcome.method || ''] ? ` · ${methods[outcome.method!]}` : ''}</p>}
+    {outcome.status!=='unavailable' && outcome.date && <p className="explorer-motion-vote-meta"><span lang={language}>{voteDate(outcome.date,language)}</span>{voted && voteMethodLabel(outcome.method) ? ` · ${voteMethodLabel(outcome.method)}` : ''}</p>}
     {voted && outcome.totals && <dl className="explorer-motion-totals">
       {([['for','For'],['against','Against'],['abstaining','Abstentions']] as const).map(([key,label])=><div key={key}><dt>{label}</dt><dd lang={language}>{outcome.totals![key]?.toLocaleString(language) ?? '—'}</dd></div>)}
     </dl>}

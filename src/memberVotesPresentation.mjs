@@ -21,7 +21,7 @@ const unique=values=>[...new Set(values)];
 
 export function memberVotesRoute(memberId,state={},language='en') {
   if(!/^[1-9]\d*$/.test(String(memberId))||!Number.isSafeInteger(Number(memberId)))throw new RangeError('Invalid member identifier.');
-  const {week='latest',sittingId=null,positions:filter='recorded',alignment='all',offset=0,decisionId=null,snapshotId=null}=state;
+  const {week='latest',sittingId=null,positions:filter='all',alignment='all',offset=0,decisionId=null,snapshotId=null}=state;
   if(!positions.has(filter)||!alignments.has(alignment)||!integer(offset)||offset>10000||!languages.has(language))throw new RangeError('Invalid member-vote request.');
   if(sittingId!==null&&!validSitting(sittingId)||sittingId===null&&week!=='latest'&&!monday(week))throw new RangeError('Invalid vote period.');
   if(decisionId!==null&&!validDecision(decisionId)||snapshotId!==null&&!snapshot.test(snapshotId))throw new RangeError('Invalid member-vote selection.');
@@ -47,7 +47,10 @@ function withinPeriod(item,period,withSitting=true) {
   return true;
 }
 function outcomeShape(item) {
-  return isObject(item)&&nullableString(item.method)&&nullableString(item.outcome)&&['conducted','not-conducted','unknown'].includes(item.ballotStatus)&&isObject(item.scope)&&['whole-text','amendment','split-part','procedural','unclassified'].includes(item.scope.kind)&&isObject(item.actualPosition)&&['recorded','no-record','unavailable','conflicting','not-conducted'].includes(item.actualPosition.status)&&[null,'for','against','abstaining'].includes(item.actualPosition.position)&&isObject(item.intention)&&['reported','not-reported','unavailable'].includes(item.intention.status)&&Array.isArray(item.intention.positions)&&item.intention.positions.every(position=>['for','against','abstaining'].includes(position))&&isObject(item.totals)&&['for','against','abstaining'].every(key=>item.totals[key]===null||integer(item.totals[key]));
+  if(!isObject(item?.actualPosition))return false;
+  if(item.actualPosition.status==='recorded'?!['for','against','abstaining'].includes(item.actualPosition.position):item.actualPosition.position!==null)return false;
+  if(item.actualPosition.status==='not-individually-recorded'&&(item.ballotStatus!=='conducted'||!['VOTE_HAND','VOTE_ELECTRONIC','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(item.method)))return false;
+  return isObject(item)&&nullableString(item.method)&&nullableString(item.outcome)&&['conducted','not-conducted','unknown'].includes(item.ballotStatus)&&isObject(item.scope)&&['whole-text','amendment','split-part','procedural','unclassified'].includes(item.scope.kind)&&isObject(item.actualPosition)&&['recorded','no-record','not-individually-recorded','unavailable','conflicting','not-conducted'].includes(item.actualPosition.status)&&[null,'for','against','abstaining'].includes(item.actualPosition.position)&&isObject(item.intention)&&['reported','not-reported','unavailable'].includes(item.intention.status)&&Array.isArray(item.intention.positions)&&item.intention.positions.every(position=>['for','against','abstaining'].includes(position))&&isObject(item.totals)&&['for','against','abstaining'].every(key=>item.totals[key]===null||integer(item.totals[key]));
 }
 function componentShape(part) {
   return isObject(part)&&typeof part.componentId==='string'&&typeof part.uri==='string'&&nullableString(part.requestUri)&&(part.number===null||typeof part.number==='string'||typeof part.number==='number'&&Number.isFinite(part.number))&&isObject(part.contentByLanguage)&&Object.values(part.contentByLanguage).every(content=>isObject(content)&&typeof content.sourceLiteral==='string'&&nullableString(content.text));
@@ -59,11 +62,12 @@ function usableVote(item,period) {
   return withinPeriod(item,period)&&outcomeShape(item)&&['with','against','abstained','unclassified'].includes(item.alignment)&&nullableString(item.title)&&nullableString(item.titleLanguage)&&stringMap(item.titles)&&stringMap(item.referenceTexts)&&nullableString(item.subjectId)&&isObject(item.context)&&['documentIds','amendmentIds','componentIds'].every(key=>stringArray(item.context[key]))&&Array.isArray(item.parts)&&item.parts.every(part=>componentShape(part)&&typeof part.requestId==='string'&&typeof part.resultId==='string'&&stringMap(part.requestScopeByLanguage)&&Array.isArray(part.contextComponents)&&part.contextComponents.every(componentShape))&&Array.isArray(item.rollCallRequesters)&&item.rollCallRequesters.every(requesterShape)&&isObject(item.resultRelationship)&&['consistent','single-direction','ambiguous','unlinked'].includes(item.resultRelationship.binding);
 }
 export function validateMemberVotesResponse(data,{memberId,state={}}) {
-  if(!isObject(data)||data.version!==3||!isObject(data.member)||data.member.id!==String(memberId)||!/^\d+$/.test(data.member.id))return false;
-  if(!alignments.has(data.alignment)||data.alignment!==(state.alignment??'all')||data.positions!==(state.positions??'recorded')||!isObject(data.coverage)||!['complete','partial','unavailable'].includes(data.coverage.status)||data.coverage.termWide!==false)return false;
+  if(!isObject(data)||data.version!==4||!isObject(data.member)||data.member.id!==String(memberId)||!/^\d+$/.test(data.member.id))return false;
+  if(!alignments.has(data.alignment)||data.alignment!==(state.alignment??'all')||data.positions!==(state.positions??'all')||!isObject(data.coverage)||!['complete','partial','unavailable'].includes(data.coverage.status)||data.coverage.termWide!==false)return false;
   if(!matchesPeriod(data.period,state,data.coverage.status==='unavailable')||typeof data.snapshotId!=='string'||!snapshot.test(data.snapshotId)||state.snapshotId&&data.snapshotId!==state.snapshotId)return false;
   const page=data.pagination;
   if(!isObject(page)||page.offset!==(state.offset??0)||page.limit!==MEMBER_VOTES_PAGE_SIZE||!['offset','limit','returned','observedTotal','filteredTotal'].every(key=>integer(page[key])))return false;
+  if(data.coverage.status==='unavailable'?page.recordedTotal!==null:!integer(page.recordedTotal)||page.recordedTotal>page.observedTotal)return false;
   if(data.coverage.status==='unavailable'?data.alignmentCounts!==null:!isObject(data.alignmentCounts)||Object.keys(data.alignmentCounts).length!==4||!['with','against','abstained','unclassified'].every(key=>integer(data.alignmentCounts[key]))||Object.values(data.alignmentCounts).reduce((sum,value)=>sum+value,0)!==page.observedTotal)return false;
   if(!Array.isArray(data.items)||page.returned!==data.items.length||page.returned>page.limit||page.filteredTotal>page.observedTotal||page.returned>Math.max(0,page.filteredTotal-page.offset))return false;
   if(page.nextOffset!==(page.offset+page.returned<page.filteredTotal?page.offset+page.returned:null)||page.nextOffset!==null&&page.returned===0)return false;
@@ -113,7 +117,8 @@ export function memberVotePosition(vote) {
   if(vote.ballotStatus==='not-conducted'||vote.actualPosition?.status==='not-conducted')return 'Not put to a vote';
   if(vote.actualPosition?.status==='conflicting')return 'Conflicting records';
   if(vote.actualPosition?.status==='unavailable')return 'Position unavailable';
-  if(vote.actualPosition?.status==='recorded'&&!['VOTE_HAND','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(vote.method))return {for:'For',against:'Against',abstaining:'Abstained'}[vote.actualPosition.position]||'Position unavailable';
+  if(vote.actualPosition?.status==='not-individually-recorded')return 'Not individually recorded';
+  if(vote.actualPosition?.status==='recorded')return {for:'For',against:'Against',abstaining:'Abstained'}[vote.actualPosition.position]||'Position unavailable';
   return 'No recorded position';
 }
 
@@ -121,7 +126,7 @@ export function memberVotePositionSummary(items) {
   const counts={For:0,Against:0,Abstained:0};
   for(const item of items){const label=memberVotePosition(item);if(Object.hasOwn(counts,label))counts[label]++;}
   const recorded=Object.entries(counts).filter(([,count])=>count).map(([label,count])=>count+' '+label);
-  return 'Recorded positions on this page: '+(recorded.join(' · ')||'none');
+  return 'Recorded positions on this page: '+(recorded.join(' · ')||'none')+(items.some(item=>item.actualPosition?.status==='not-individually-recorded')?' · '+items.filter(item=>item.actualPosition?.status==='not-individually-recorded').length+' not individually recorded':'');
 }
 export function memberVoteOutcome(vote) {
   return {ADOPTED:'Adopted',REJECTED:'Rejected',LAPSED:'Lapsed',WITHDRAWN:'Withdrawn',CANCELLED:'Cancelled'}[vote.outcome]||'Outcome unavailable';

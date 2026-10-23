@@ -11,6 +11,8 @@ function approvedPath(pathname) {
   const [, , resource, item] = parts;
   if (parts.length === 3) return direct.has(resource);
   if (parts.length !== 4 || !item) return false;
+  // Attendance registers remain revisable, independent observations.
+  if(resource==='member-attendance')return false;
   if (byId.has(resource)) return true;
   if (resource === 'insights') return insights.has(item);
   if (resource === 'corpus') return item === 'search' || item === 'text';
