@@ -64,22 +64,40 @@ test('roster portraits are requested while committee memberships are unavailable
   assert.match(h.container.querySelector('.explorer-index[role="status"]').textContent,/Loading committee memberships: 0 \/ 1\./);
 });
 
-test('member destination and Back restore the remounted exact portrait while retaining filters',async t=>{
+test('member destination and Back keep the wall, its portraits and scroll position while retaining filters',async t=>{
   const h=await harness(t),input=h.container.querySelector('.explorer-filters input');
   input.focus();await act(async()=>{Object.getOwnPropertyDescriptor(h.window.HTMLInputElement.prototype,'value').set.call(input,'Mika');input.dispatchEvent(new h.window.Event('input',{bubbles:true}));});
   const original=h.container.querySelector('[data-member-id="257043"] button'),main=h.container.querySelector('main.explorer'),order=[];
   Object.defineProperties(main,{scrollHeight:{value:1000,configurable:true},clientHeight:{value:100,configurable:true}});
   main.scrollTo=()=>order.push('existing page reset');
   t.mock.method(h.window.HTMLElement.prototype,'scrollIntoView',function(){if(this.matches('.portrait--button'))order.push('returned portrait reveal');});
+  main.scrollTop=420;await act(async()=>main.dispatchEvent(new h.window.Event('scroll')));
   await h.click(original);
   assert.equal(document.activeElement,h.container.querySelector('.explorer-profile h1'));
   assert.equal(document.activeElement.getAttribute('aria-label'),'Mika Aaltola');
-  assert.equal(original.isConnected,false);
-  order.length=0;await h.click(h.container.querySelector('.explorer-back'));
-  assert.deepEqual(order,['existing page reset','returned portrait reveal'],'the established responsive scroll cannot hide the returned control afterwards');
-  const returned=h.container.querySelector('[data-member-id="257043"] button');
-  assert.equal(document.activeElement,returned);assert.notEqual(returned,original);
+  assert.equal(original.isConnected,true,'the wall stays mounted behind the member page');
+  assert.equal(h.container.querySelector('.explorer-wall').hidden,true);
+  main.scrollTop=0;order.length=0;await h.click(h.container.querySelector('.explorer-back'));
+  assert.deepEqual(order,['returned portrait reveal'],'returning restores the wall scroll instead of resetting the page');
+  assert.equal(main.scrollTop,420);
+  assert.equal(h.container.querySelector('.explorer-wall').hidden,false);
+  assert.equal(document.activeElement,original,'the same portrait node returns, so its loaded image is kept');
   assert.equal(h.container.querySelector('.explorer-filters input').value,'Mika');
+});
+
+test('browser Back restores the portrait grid offset without remounting the wall',async t=>{
+  const h=await harness(t),grid=h.container.querySelector('.explorer-portraits'),original=h.container.querySelector('[data-member-id="257043"] button');
+  grid.scrollTop=900;await act(async()=>grid.dispatchEvent(new h.window.Event('scroll')));
+  await h.click(original);
+  assert.equal(h.container.querySelector('.explorer-wall').hidden,true);
+  grid.scrollTop=0;
+  const popped=new Promise(resolve=>h.window.addEventListener('popstate',resolve,{once:true}));
+  await act(async()=>{history.go(-1);await popped;});await viewReady(h.container);
+  assert.equal(new URLSearchParams(location.search).get('member'),null);
+  assert.equal(h.container.querySelector('.explorer-wall').hidden,false);
+  assert.equal(h.container.querySelector('.explorer-portraits'),grid,'the same grid returns');
+  assert.equal(grid.scrollTop,900);
+  assert.equal(original.isConnected,true);
 });
 
 test('explicit main-view gestures orient to the current heading without adding history beyond existing navigation',async t=>{

@@ -491,6 +491,18 @@ export default function App() {
     const observer=new ResizeObserver(measure);observer.observe(tabs);
     return ()=>{observer.disconnect();page.style.removeProperty("--explorer-tabs-height");};
   }, [member, view, lang]);
+  // The member wall stays mounted (hidden) behind member pages and Following,
+  // so returning keeps its portraits; restore where the reader left it.
+  const wallVisible=!view&&!member;
+  const wallScroll=useRef({page:0,portraits:0});
+  const wallShown=useRef(wallVisible);
+  useLayoutEffect(()=>{
+    const returned=wallVisible&&!wallShown.current;wallShown.current=wallVisible;
+    if(!returned)return;
+    const page=document.querySelector<HTMLElement>(".explorer"),portraits=page?.querySelector<HTMLElement>(".explorer-portraits");
+    if(portraits)portraits.scrollTop=wallScroll.current.portraits;
+    if(page)page.scrollTop=wallScroll.current.page;
+  },[wallVisible]);
   const scrolledView = useRef({member,tab,view});
   useEffect(() => {
     // Small screens scroll the whole explorer; start new pages at the top and new tabs at their content.
@@ -499,13 +511,13 @@ export default function App() {
     if(!page||page.scrollHeight<=page.clientHeight)return;
     if(!view&&tab==='votes'&&votes.hasSavedScroll)return;
     if(!view&&tab==='activities'&&motions.hasSavedScroll)return;
-    if(previous.member!==member||previous.view!==view){if(!speechLink&&!activityLink)page.scrollTo({top:0});return;}
+    if(previous.member!==member||previous.view!==view){if(!wallVisible&&!speechLink&&!activityLink)page.scrollTo({top:0});return;}
     if(previous.tab===tab||(tab==="speeches"&&speechLink)||(tab==="activities"&&activityLink))return;
     const body=page.querySelector<HTMLElement>(".explorer-profile-body"),tabs=page.querySelector<HTMLElement>(".explorer-tabs");
     if(!body||!tabs||getComputedStyle(tabs).position!=="sticky")return;
     const contentTop=page.scrollTop+body.getBoundingClientRect().top-page.getBoundingClientRect().top-tabs.offsetHeight;
     if(page.scrollTop>contentTop)page.scrollTo({top:contentTop});
-  }, [member, tab, view, speechLink, activityLink,votes.hasSavedScroll,motions.hasSavedScroll]);
+  }, [member, tab, view, speechLink, activityLink,votes.hasSavedScroll,motions.hasSavedScroll,wallVisible]);
   // Apply the destination after the existing responsive scroll policy has settled.
   function focusDestination(){
     const intent=pendingDestination.current;
@@ -706,7 +718,7 @@ export default function App() {
     return view==='groups' ? <GroupVoices {...props}/> : view==='amendments' ? <AmendmentsPage {...props}/> : view==='legislation' ? <Legislation {...props} members={directory?.members}/> : view==='outside' ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>;
   }
   return (
-    <main className="explorer" lang={lang}>
+    <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current.page=event.currentTarget.scrollTop;}}>
         <ParliamentHeader view={view==='saved'?'saved':'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>
         {view === 'saved' ? <Saved language={lang} onBack={leaveSaved} onMember={openInsightMember}/> : member ? (
           <section className="explorer-profile">
@@ -807,8 +819,8 @@ export default function App() {
               )}
             </div>
           </section>
-        ) : (
-          <section className="explorer-wall">
+        ) : null}
+          <section className="explorer-wall" hidden={!wallVisible}>
             <h1 lang={lang}>{c.title}</h1>
             <div className="explorer-filters">
               <label lang={lang}>
@@ -870,6 +882,7 @@ export default function App() {
                     {Array.from(
                       new Set(directory?.members.map((m) => m.groupCode).filter((code): code is string => typeof code === 'string' && Boolean(code))),
                     )
+                      .filter((v): v is string => Boolean(v))
                       .sort((a,b) => a.localeCompare(b,lang))
                       .map((v) => (
                         <option lang="" key={v}>{v}</option>
@@ -943,7 +956,7 @@ export default function App() {
                     )}
                   </div>
                 )}
-                <div className="explorer-portraits" data-portrait-scroll-root>
+                <div className="explorer-portraits" data-portrait-scroll-root onScroll={event=>{if(wallVisible)wallScroll.current.portraits=event.currentTarget.scrollTop;}}>
                     {filtered.map(m => (
                       <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>
                         <Portrait
@@ -980,7 +993,6 @@ export default function App() {
               </>
             )}
           </section>
-        )}
         <footer className="explorer-footer" lang="en">
           <label>
             Language
