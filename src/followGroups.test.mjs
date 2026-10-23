@@ -54,6 +54,12 @@ test('epoch changes rebaseline while retaining unread entries, read history and 
  const rebuiltEpoch='00000000-0000-0000-0000-000000000002';
  store.observe({...snapshot(1),epoch:rebuiltEpoch},items);
  assert.deepEqual(store.snapshot().entries,entries);
+ // Repeated observations and reloads must not retract entries from an older epoch.
+ store.observe({...snapshot(1),epoch:rebuiltEpoch},items);
+ assert.deepEqual(store.snapshot().entries,entries);
+ const reloaded=createGroupsStore(storage);
+ reloaded.observe({...snapshot(1),epoch:rebuiltEpoch},items);
+ assert.deepEqual(reloaded.snapshot().entries,entries);
  assert.equal(groupEntries(store.snapshot(),'42',200).fresh.length,1);
  assert.equal(groupEntries(store.snapshot(),'43',200).history.length,1);
  assert.equal(store.snapshot().baselines['42'].generation,1);
@@ -64,4 +70,29 @@ test('epoch changes rebaseline while retaining unread entries, read history and 
  assert.equal(store.snapshot().entries[0].discoveredAt,100);
  assert.equal(store.snapshot().entries[1].readAt,200);
  assert.equal(store.snapshot().entries[2].discoveredAt,200);
+});
+
+test('an entry observed again in the current epoch can be retracted without removing carried entries',()=>{
+ const {store}=fixture();store.observe(snapshot(),items);
+ store.observe(snapshot(6,[event(),event('43')]),items);
+ const rebuiltEpoch='00000000-0000-0000-0000-000000000002';
+ store.observe({...snapshot(1),epoch:rebuiltEpoch},items);
+ store.observe({...snapshot(2,[event('42',1)]),epoch:rebuiltEpoch},items);
+ assert.equal(store.snapshot().entries.find(entry=>entry.mep==='42').epoch,rebuiltEpoch);
+ store.observe({...snapshot(3),epoch:rebuiltEpoch},items);
+ assert.deepEqual(store.snapshot().entries.map(entry=>entry.mep),['43']);
+ store.syncFollows([items[0]]);
+ assert.equal(store.snapshot().entries.length,0);
+});
+
+test('stored entries without an epoch migrate to the stored state epoch and remain retractable',()=>{
+ const {store,storage}=fixture();store.observe(snapshot(),items);
+ store.observe(snapshot(6,[event()]),items);
+ const legacy=JSON.parse(storage.getItem(GROUPS_KEY));
+ for(const entry of legacy.entries)delete entry.epoch;
+ storage.setItem(GROUPS_KEY,JSON.stringify(legacy));
+ const reloaded=createGroupsStore(storage);
+ assert.equal(reloaded.snapshot().entries[0].epoch,epoch);
+ reloaded.observe(snapshot(7),items);
+ assert.equal(reloaded.snapshot().entries.length,0);
 });

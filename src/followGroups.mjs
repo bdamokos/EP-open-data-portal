@@ -22,8 +22,8 @@ function decode(raw) {
     const value=JSON.parse(raw);
     if(!epoch(value?.epoch)||!generation(value.generation)||!value.baselines||!Array.isArray(value.entries))return null;
     if(!Object.entries(value.baselines).every(([id,b])=>person(id)&&Number.isFinite(b.savedAt)&&(b.generation===null||generation(b.generation))&&typeof b.available==='boolean'))return null;
-    if(!value.entries.every(entry=>validGroupEvent(entry)&&Number.isFinite(entry.discoveredAt)&&(entry.readAt===null||Number.isFinite(entry.readAt))))return null;
-    return {...empty(),epoch:value.epoch,generation:value.generation,baselines:value.baselines,entries:value.entries};
+    if(!value.entries.every(entry=>validGroupEvent(entry)&&(entry.epoch===undefined||epoch(entry.epoch))&&Number.isFinite(entry.discoveredAt)&&(entry.readAt===null||Number.isFinite(entry.readAt))))return null;
+    return {...empty(),epoch:value.epoch,generation:value.generation,baselines:value.baselines,entries:value.entries.map(entry=>({...entry,epoch:entry.epoch??value.epoch}))};
   }catch{return null;}
 }
 export function createGroupsStore(storage,notify=()=>{},clock=Date.now) {
@@ -59,11 +59,12 @@ export function createGroupsStore(storage,notify=()=>{},clock=Date.now) {
         if(coverage==='complete'&&baselines[id].generation===null)baselines[id].generation=snapshot.generation;
       }
       const observed=new Map(snapshot.events.map(event=>[event.id,event]));
-      const entries=state.entries.filter(entry=>reset||snapshot.members[entry.mep]?.coverage!=='complete'||snapshot.members[entry.mep]?.stale||observed.has(entry.id)).map(entry=>({...entry,...observed.get(entry.id)}));
+      // Only an epoch that observed an event can subsequently retract it.
+      const entries=state.entries.filter(entry=>entry.epoch!==snapshot.epoch||snapshot.members[entry.mep]?.coverage!=='complete'||snapshot.members[entry.mep]?.stale||observed.has(entry.id)).map(entry=>observed.has(entry.id)?{...entry,...observed.get(entry.id),epoch:snapshot.epoch}:entry);
       const known=new Set(entries.map(entry=>entry.id));
       for(const event of snapshot.events) {
         const baseline=baselines[event.mep];
-        if(!reset&&baseline?.generation!==null&&baseline?.available&&event.mark>baseline.generation&&!known.has(event.id)){entries.push({...event,discoveredAt:clock(),readAt:null});known.add(event.id);}
+        if(!reset&&baseline?.generation!==null&&baseline?.available&&event.mark>baseline.generation&&!known.has(event.id)){entries.push({...event,epoch:snapshot.epoch,discoveredAt:clock(),readAt:null});known.add(event.id);}
       }
       state={...state,epoch:snapshot.epoch,generation:snapshot.generation,baselines,entries};publish();return true;
     },

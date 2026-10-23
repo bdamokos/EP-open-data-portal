@@ -1,6 +1,6 @@
 export type Group={org:string;groupId:string;code:string};
 export type GroupEvent={id:string;mep:string;type:'group-changed';date:string;mark:number;from:Group;to:Group};
-export type GroupEntry=GroupEvent&{discoveredAt:number;readAt:number|null};
+export type GroupEntry=GroupEvent&{epoch:string;discoveredAt:number;readAt:number|null};
 export type GroupsSnapshot={epoch:string;generation:number;members:Record<string,{coverage:'complete'|'partial'|'unavailable';stale:boolean}>;events:GroupEvent[]};
 export type GroupsState={epoch:string|null;generation:number|null;baselines:Record<string,{savedAt:number;generation:number|null;available:boolean}>;entries:GroupEntry[];persistent:boolean;storageError:boolean};
 export const GROUPS_KEY:string;
