@@ -94,7 +94,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   assert.equal(jumpButtons[2].getAttribute('aria-current'),'true');assert.equal(jumpButtons[1].getAttribute('aria-current'),null);
   assert.equal(speechRequests().at(-1),'test-speech-3');
   jump.open=true;await act(async()=>jumpButtons[1].click());
-  await change('select[aria-label="Document language"]','fr');
+  await change('select[aria-label="Text language"]','fr');
   find('.insight-inline-reader[id] details').open=true;
   const nodes=['.insight-topic-detail h2','.insight-procedure-context','.insight-speech-panel','.insight-inline-reader[id]','.insight-participants'].map(selector=>[selector,find(selector)]);
   function preserved() {
@@ -103,7 +103,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
     assert.equal(find('.insight-participants').querySelectorAll('article').length,8);
     assert.equal(counter(),'Speech 2 of 3');
     assert.equal(find('.insight-speech-jump [aria-current="true"]').textContent,jumpButtons[1].textContent);
-    assert.equal(find('select[aria-label="Document language"]').value,'fr');
+    assert.equal(find('select[aria-label="Text language"]').value,'fr');
     assert(find('.insight-inline-reader[id] details').open);
   }
   async function respond(status=200) {

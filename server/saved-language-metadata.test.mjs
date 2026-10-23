@@ -19,7 +19,7 @@ test('saved responses pair chosen titles with exact dictionary keys without chan
     {titles:{fr:'Premier titre',de:'Zweiter Titel'},expected:{hu:['Premier titre','fr'],en:['Premier titre','fr'],fr:['Premier titre','fr']}},
     {titles:{en:'Identical',hu:'Identical',fr:'Identical'},expected:{hu:['Identical','hu'],en:['Identical','en'],fr:['Identical','fr']}},
     {titles:{},expected:{}},
-    {titles:{fr:'',de:'Do not select a later key'},expected:{}},
+    {titles:{fr:'',de:'Later German title'},expected:{hu:['Later German title','de'],en:['Later German title','de'],fr:['Later German title','de']}},
     {titles:{mul:'Mixed supplied title'},expected:{hu:['Mixed supplied title','mul'],en:['Mixed supplied title','mul'],fr:['Mixed supplied title','mul']}},
   ];
   try {

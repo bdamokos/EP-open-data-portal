@@ -39,10 +39,12 @@ function Passage({row,side,name}:{row:Row;side:'before'|'after';name:string}) {
   </div>;
 }
 export function MotionComparison({originalId,jointId,language}:{originalId:string;jointId:string;language:string}) {
-  const [stage,setStage]=useState<Stage>('original-joint'),[selectedLanguage,setLanguage]=useState(language),[showUnchanged,setShowUnchanged]=useState(true);
+  const [stage,setStage]=useState<Stage>('original-joint'),[selection,setSelection]=useState<{scope:string;value:string}|null>(null),[showUnchanged,setShowUnchanged]=useState(true);
+  const selectionScope=JSON.stringify([originalId,jointId,language]);
+  const selectedLanguage=selection?.scope===selectionScope?selection.value:language;
+  const setLanguage=(value:string)=>setSelection({scope:selectionScope,value});
   const [view,setView]=useState<View>('inline'),[readSide,setReadSide]=useState<'before'|'after'>('after');
   const [attempt,setAttempt]=useState(0);
-  useEffect(()=>setLanguage(language),[language,originalId,jointId]);
   const state=useData<Comparison>(`motion-comparison/${encodeURIComponent(originalId)}?joint=${encodeURIComponent(jointId)}&stage=${stage}&lang=${selectedLanguage}`);
   const data=state.data,labels=names[stage],summary=data?.summary;
   const languageScope=JSON.stringify([originalId,jointId,stage]);
