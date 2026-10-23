@@ -17,6 +17,7 @@
   /* Borders that identify controls; at least 3:1 against bg and surface. */
   --line-strong: light-dark(#7d828a, #7a8189);
   --shadow: 0 1px 2px rgb(0 0 0 / .06), 0 10px 28px rgb(0 0 0 / .14);
+  --shadow-control: 0 1px 3px rgb(0 0 0 / .25);
   /* Behind modal dialogs. */
   --scrim: rgb(12 14 16 / .55);
 

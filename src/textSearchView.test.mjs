@@ -16,7 +16,7 @@ function stored(version) {
   return {...version,body:'<script>window.injected=true</script> énergie & policy',highlightedBody:'<script>window.injected=true</script> \u0002énergie\u0003 & policy',fetchedAt:'2026-10-08T12:00:00Z',checkedAt:'2026-10-08T12:00:00Z'};
 }
 
-async function setup(t,{query='',respond,highlights=false}={}) {
+async function setup(t,{query='',respond,highlights=false,members}={}) {
   const window=new Window({url:'http://localhost/?'+query});
   const registry=new Map(),frames=new Map();let nextFrame=0;
   window.requestAnimationFrame=callback=>{const id=++nextFrame;frames.set(id,callback);return id;};
@@ -37,10 +37,11 @@ async function setup(t,{query='',respond,highlights=false}={}) {
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const module=await vite.ssrLoadModule('/src/TextSearch.tsx');
+  const {PersonNamesProvider}=await vite.ssrLoadModule('/src/PersonName.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const defaults={prefix:'fixture-fts',label:'Search fixture speeches',language:'en'};
-  const render=props=>act(async()=>root.render(createElement(module.TextSearch,{...defaults,...props})));
+  const render=props=>act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(module.TextSearch,{...defaults,...props}))));
   const find=selector=>{const node=container.querySelector(selector);assert(node,'Missing '+selector);return node;};
   const button=label=>{const node=[...container.querySelectorAll('button')].find(node=>node.getAttribute('aria-label')===label||node.textContent===label);assert(node,'Missing button '+label);return node;};
   const click=label=>act(async()=>button(label).click());
@@ -52,6 +53,16 @@ async function setup(t,{query='',respond,highlights=false}={}) {
   const texts=()=>calls.filter(call=>call.url.pathname.endsWith('/corpus/text'));
   return {...module,window,root,container,calls,registry,render,find,button,click,flushFrames,input,select,submit,searches,texts,loadModule:path=>vite.ssrLoadModule(path)};
 }
+
+test('search coverage stays partial independently of unavailable corpus status',async t=>{
+  const view=await setup(t,{query:'fixture-fts-search=energy',respond:({url})=>{
+    if(url.pathname.endsWith('/corpus/status'))return Response.json({error:{code:'corpus_status_timeout',message:'Corpus status is temporarily unavailable.'}},{status:503});
+  }});
+  await view.render();
+  assert.match(view.find('.explorer-search-count').textContent,/1 matching document · Partial text coverage/);
+  assert.equal(view.calls.some(call=>call.url.pathname.endsWith('/corpus/status')),false,'search does not turn unavailable global counts into zero coverage');
+  assert.equal(view.container.querySelector('[role="alert"]'),null);
+});
 
 test('text search stays collapsed without requests, opens with focus, and posts exact context including an empty scope',async t=>{
   const view=await setup(t),scope={member:42,country:'IT',from:'2026-10-01',to:'2026-10-11',sourceIds:[speech,otherSpeech],kinds:['speech'],group:'document',dateBasis:'document'};
@@ -550,4 +561,32 @@ for(const [family,url] of [
   assert.equal(view.window.document.querySelector('dialog.source-dialog'),null);assert.equal(view.window.document.activeElement,primary);
   assert.equal(view.find('button.source-primary'),primary);assert.equal(primary.getAttribute('aria-expanded'),'false');assert.equal(paragraph.innerHTML,markup);
   assert.equal(view.calls.length,1);assert.equal(view.searches().length,0);
+});
+
+ test('search attribution uses the directory ID and keeps raw labels available',async t=>{
+  const view=await setup(t,{query:'fixture-fts-search=hydrogen',members:[{id:42,firstName:'Dan-Ştefan',lastName:'Motreanu'}],respond:({url,body})=>{
+    if(!url.pathname.endsWith('/corpus/search'))return;
+    const version={...english,people:[{id:42,name:'Dan-Ştefan MOTREANU',role:'SPEAKER'},{id:99,name:'Guest McDONALD',role:'SPEAKER'}]};
+    return Response.json(results(body,[version]));
+  }});
+  await view.render();
+  const attribution=view.find('.explorer-search-attribution');
+  assert.match(attribution.textContent,/Dan-Ştefan Motreanu, Guest McDONALD/);
+  assert.equal(attribution.querySelector('[title]').title,'Source label: Dan-Ştefan MOTREANU');
+});
+
+test('search attribution skips unnamed people and preserves the answer fallback',async t=>{
+  for(const [kind,people,expected] of [
+    ['question',[{id:99,name:null,role:'AUTHOR'},{id:42,name:'Dan-Ştefan MOTREANU',role:'AUTHOR'}],'Question by Dan-Ştefan Motreanu'],
+    ['speech',[{id:42,name:null,role:'SPEAKER'}],'Speaker: Dan-Ştefan Motreanu'],
+    ['question',[{id:99,name:null,role:'AUTHOR'}],''],
+    ['answer',[{id:99,name:null,role:'QUESTION_AUTHOR'}],'Answering institution’s text · linked question authorship'],
+  ])await t.test(kind+JSON.stringify(people),async t=>{
+    const view=await setup(t,{query:'fixture-fts-search=hydrogen',members:[{id:42,firstName:'Dan-Ştefan',lastName:'Motreanu'}],respond:({url,body})=>{
+      if(!url.pathname.endsWith('/corpus/search'))return;
+      return Response.json(results(body,[{...english,kind,people}]));
+    }});
+    await view.render();
+    assert.equal(view.find('.explorer-search-attribution').textContent,expected);
+  });
 });

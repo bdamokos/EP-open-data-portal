@@ -5,6 +5,19 @@ test('a matching English question starts at its body and retains the source head
   const input=['Question for written answer E-002520/2026/rev.1','to the Commission','Rule 144','Actual author list','Subject: Actual subject','First body paragraph','Second body paragraph'];
   const result=publicationBody(input,'E-10-2026-002520','en');assert.deepEqual(result.paragraphs,input.slice(5));assert.deepEqual(result.header,input.slice(0,5));assert.equal(input.length,7);
 });
+test('an oral question keeps its header separately and preserves exact body positions',()=>{
+  const input=['Question for oral answer O-000042/2026','to the Commission','Rule 142','Author one (S&D), Author two (Renew)','Subject:\tThe need for urgent EU action to tackle financial scam advertisements on online platforms','Online financial scams are spreading across the EU at scale.','1.\tHow does the Commission assess the evidence?','Submitted: 9.10.2026','Lapses: 10.1.2027'];
+  const saved=[...input],result=publicationBody(input,'O-10-2026-000042','en');
+  assert.deepEqual(result,{paragraphs:input.slice(5),header:input.slice(0,5),start:5,exact:true});
+  assert.deepEqual(input,saved);
+  assert.equal(result.start+result.paragraphs.indexOf(input[6]),6);
+  for(const [id,language] of [['O-10-2026-000043','en'],['O-10-2026-000042','fr'],['O-10-2026-000042',null]]) {
+    assert.deepEqual(publicationBody(input,id,language),{paragraphs:input,header:[],start:0,exact:true});
+  }
+  for(const source of [input.filter(p=>!p.startsWith('Subject:')),input.slice(0,5),['This discusses question O-000042/2026.',...input.slice(1)]]) {
+    assert.deepEqual(publicationBody(source,'O-10-2026-000042','en'),{paragraphs:source,header:[],start:0,exact:true});
+  }
+});
 test('a priority written question keeps its metadata in the header and its original body offsets',()=>{
   const input=['Priority question for written answer P-004146/2026','to the Commission','Rule 144','Helmut Brandstätter (Renew), Anna Stürgkh (Renew)','Subject:\tHungarian retail tax and freedom of establishment in the single market','In infringement proceedings INFR(2024)4022, the Commission called on Hungary to bring its retail tax into line with the freedom of establishment.','1.\tWhat is the Commission’s assessment?','Submitted: 13.10.2026'];
   const saved=[...input],result=publicationBody(input,'P-10-2026-004146','en');

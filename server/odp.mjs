@@ -16,6 +16,7 @@ import {parliamentaryService} from './parliamentary-service.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
+import {compareMembers} from '../src/memberOrder.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
@@ -300,7 +301,7 @@ export async function odp(
 }
 export const speakerIdentities=new SpeakerIdentities({request:odp});
 export const cachedSpeakerIdentities=new SpeakerIdentities({request:(endpoint,params,options)=>odp(endpoint,params,{...options,cachedOnly:true})});
-async function list(endpoint, params = {}) {
+async function list(endpoint, params = {}, {priority='interactive'}={}) {
   const nodes = [];
   const sources = [];
   let fetchedAt = Date.now();
@@ -308,7 +309,7 @@ async function list(endpoint, params = {}) {
     const record = await odp(
       endpoint,
       { ...params, limit: 1000, offset },
-      { daily: endpoint.endsWith("/show-current"), staleWhileRevalidate: true },
+      { daily: endpoint.endsWith("/show-current"), staleWhileRevalidate: true, priority },
     );
     sources.push(record);
     nodes.push(...record.payload.data);
@@ -360,16 +361,16 @@ export function memberSummary(p) {
     firstName: p.givenName || "",
     lastName: p.familyName || p.label,
     sortName: p.sortLabel || p.familyName,
-    countryCode: p["api:country-of-representation"] || "",
-    groupCode: p["api:political-group"] || "",
+    countryCode: firstString(p["api:country-of-representation"]).trim() || null,
+    groupCode: firstString(p["api:political-group"]).trim() || null,
     imageUrl:
       p.img ||
       `https://www.europarl.europa.eu/mepphoto/${Number(p.identifier)}.jpg`,
     gender: firstString(p.hasGender).endsWith("/FEMALE") ? "f" : "m",
-    hasCv: false,
-    hasEmail: Boolean(p.hasEmail),
-    hasNews: false,
-    hasVideo: false,
+    hasCv: null,
+    hasEmail: p.hasEmail == null ? null : Boolean(firstString(p.hasEmail).replace(/^mailto:/, "").trim()),
+    hasNews: null,
+    hasVideo: null,
   };
 }
 let directory;
@@ -380,7 +381,8 @@ let directorySources = [];
 let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
-export const DIRECTORY_VERSION = 1;
+export const DIRECTORY_VERSION = 2;
+export const PROFILE_VERSION = 2;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -428,7 +430,7 @@ async function directoryData() {
       fetchedAt: Math.min(...sources.map(source => source.fetchedAt)),
       members: roster.nodes
         .map(memberSummary)
-        .sort((a, b) => a.sortName.localeCompare(b.sortName)),
+        .sort(compareMembers),
       committees: selected.map(body => committeeSummary(body, details.get(body.identifier)?.payload.data[0], day)).filter(Boolean).sort((a, b) => a.code.localeCompare(b.code)),
     };
     directorySources = sources;
@@ -525,21 +527,56 @@ function startDirectoryDetails(work, {retry=false}={}) {
     }
   })().finally(() => {directoryDetailsPromise = null;});
 }
-export async function odpProfile(id, force = false, {priority='interactive'}={}) {
+// Exact raw profile-cache lookup only: no network request and no stale record.
+export async function readCachedMepRecord(id,{now=Date.now(),signal}={}) {
+  if(!/^[1-9]\d{0,8}$/.test(id))throw new Error('Invalid MEP identifier.');
+  try {
+    const record=await odp(`/meps/${id}`,{},{cachedOnly:true,ttl:7*24*60*60*1000,signal});
+    if(record.fetchedAt>now||now-record.fetchedAt>=7*24*60*60*1000)return null;
+    return record;
+  }catch(error){if(signal?.aborted)throw error;return null;}
+}
+async function mepRecord(id, force = false, {priority='interactive'}={}) {
   const record = await odp(
     `/meps/${id}`,
     {},
     { force, ttl: 7 * 24 * 60 * 60 * 1000, priority },
   );
   const person = record.payload.data[0];
-  if (!person)
+  if (!person || String(person.identifier) !== String(id))
     throw new HttpError(
       404,
       "mep_not_found",
       "This MEP profile is unavailable.",
     );
+  return record;
+}
+export async function odpProfile(id, force = false, {priority='interactive'}={}) {
+  const record = await mepRecord(id,force,{priority});
+  const person = record.payload.data[0];
+  // The per-person record carries country URIs and dated organization IDs,
+  // not the current roster's codes. Use only an exact roster identifier join.
+  const day = today();
+  let roster, affiliationError = null;
+  try { roster = await list("/meps/show-current", {}, {priority}); }
+  catch (error) {
+    requestSignal()?.throwIfAborted();
+    affiliationError = 'Current roster affiliation is unavailable.';
+  }
+  const matches = roster?.nodes.filter(member => String(member.identifier) === String(person.identifier)) || [];
+  if (matches.length > 1) affiliationError = 'Current roster affiliation is ambiguous.';
+  const current = matches.length === 1 ? memberSummary(matches[0]) : null;
+  const sourceSummary = source => ({url:source.url,fetchedAt:new Date(source.fetchedAt).toISOString(),stale:Boolean(source.stale)});
+  const affiliationSources = (roster?.sources || []).map(sourceSummary);
   const result = {
     ...memberSummary(person),
+    countryCode: current?.countryCode ?? null,
+    groupCode: current?.groupCode ?? null,
+    currentAffiliation: {
+      day, personId:String(person.identifier),
+      status:affiliationError ? 'unavailable' : current ? 'matched' : 'not-current',
+      sources:affiliationSources, error:affiliationError,
+    },
     birthDate: person.bday,
     birthPlace: person.placeOfBirth,
     parliamentaryService: parliamentaryService(person,today()),
@@ -547,7 +584,7 @@ export async function odpProfile(id, force = false, {priority='interactive'}={})
     memberships: memberships(person),
     accounts: (person.account || []).map((a) => a.id),
     fetchedAt: new Date(record.fetchedAt).toISOString(),
-    sources: [{url:record.url, fetchedAt:new Date(record.fetchedAt).toISOString(), stale:Boolean(record.stale)}],
+    sources: [sourceSummary(record), ...affiliationSources],
   };
   profileIndex.set(Number(id), result);
   return result;
@@ -619,6 +656,7 @@ export async function odpDirectory({retryCommitteeDetails=false}={}) {
     },
     members: d.members.map((m) => ({
       ...m,
+      hasEmail: profileIndex.get(m.id)?.hasEmail ?? m.hasEmail,
       birthDate: profileIndex.get(m.id)?.birthDate,
       gender: profileIndex.get(m.id)?.gender || m.gender,
       memberships: profileIndex.get(m.id)?.memberships.map(membership => ({
@@ -758,6 +796,7 @@ export async function odpSpeech(id, language) {
         "A recording lookup and interpretation-track API is not available in the documented speech service.",
     },
     fetchedAt: new Date(record.fetchedAt).toISOString(),
+    metadataSource:{url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString()},
   };
 }
 
@@ -938,5 +977,6 @@ export async function preloadOdp() {
 
 const portraits = new PortraitCache();
 export async function odpPortrait(id) {
-  return portraits.get(id, async (memberId, {priority}) => (await odpProfile(memberId, false, {priority})).imageUrl);
+  // Portraits need only the person record, not current roster enrichment.
+  return portraits.get(id, async (memberId, {priority}) => memberSummary((await mepRecord(memberId,false,{priority})).payload.data[0]).imageUrl);
 }

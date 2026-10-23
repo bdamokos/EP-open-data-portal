@@ -4,7 +4,7 @@ export interface MemberSummary {
  lastName:string;
  sortName:string;
  gender:'m'|'f';
- countryCode:string;
+ countryCode:string|null;
  imageUrl:string;
  birthDate?:string;
 }

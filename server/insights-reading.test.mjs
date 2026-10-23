@@ -129,9 +129,28 @@ test('existing answer rows receive the parent subject without reindexing or chan
   const dir=mkdtempSync(path.join(os.tmpdir(),'insights-answer-title-')),store=new ActivityStore(dir);
   try {
     store.acquire();const {generation}=store.beginCycle();const original=JSON.parse(readFileSync(new URL('./fixtures/activity-index-live-20261013.json',import.meta.url))).documents.find(d=>d.endpoint.startsWith('/parliamentary-questions'));
+    original.work.title_dcterms.en+=' &amp;nbsp; &nbsp;';
     const person=original.work.workHadParticipation.find(p=>p.participation_role.endsWith('/AUTHOR')).had_participant_person[0].split('/').at(-1);store.setMembers([{id:person,name:'Actual author'}]);
     const rows=documentRows(original.work,original.endpoint,'2026-10-13T00:00:00Z').rows;for(const row of rows)if(row.recordKind==='answer')row.titles={en:'Answer for question E-000000/26'};
     store.putSource(generation,original.endpoint,'document',projectDocument(original.work),'2026-10-13T00:00:00Z',rows);
-    store.db.exec('PRAGMA query_only=ON');const answer=store.page(person,{language:'en',sourceId:original.work.identifier+'-ASW'}).selectedItems.find(row=>row.recordKind==='answer');assert.equal(answer.title,original.work.title_dcterms.en);assert.equal(answer.relatedQuestionId,original.work.identifier);
+    store.db.exec('PRAGMA query_only=ON');const answer=store.page(person,{language:'en',sourceId:original.work.identifier+'-ASW'}).selectedItems.find(row=>row.recordKind==='answer');
+    const expected=original.work.title_dcterms.en.replace(' &amp;nbsp; &nbsp;',' &nbsp; \u00a0');
+    assert.equal(answer.title,expected);assert.equal(answer.relatedQuestionTitle,expected);assert.equal(answer.relatedQuestionId,original.work.identifier);
+    assert.equal(store.source(generation,original.endpoint).work.title_dcterms.en,original.work.title_dcterms.en);
   }finally{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('question trend distinguishes trailing unknown days, earlier zeroes and partial weeks',()=>{
+  const all=[{date:'2026-10-09'},{date:'2026-10-16'}],window={start:'2026-10-09',end:'2026-10-22',days:14};
+  const daily=questionTrend(all,[],window);
+  assert.equal(daily.latestObservedDate,'2026-10-16');
+  assert.deepEqual(daily.bins.find(b=>b.start==='2026-10-11'),{start:'2026-10-11',end:'2026-10-11',availability:'observed',count:0,total:0,share:null});
+  assert.equal(daily.bins.find(b=>b.start==='2026-10-16').share,0);
+  for(const bin of daily.bins.filter(b=>b.start>'2026-10-16'))assert.deepEqual([bin.availability,bin.count,bin.total,bin.share],['unavailable',null,null,null]);
+  const filtered=questionTrend([all[0]],[],window,daily.latestObservedDate);
+  assert.equal(filtered.bins.find(b=>b.start==='2026-10-16').availability,'observed','country/topic absence does not move the source frontier');
+  const weekly=questionTrend(all,all,{...window,days:31});
+  const partial=weekly.bins.find(b=>b.start==='2026-10-12');assert.equal(partial.availability,'partial');assert.equal(partial.count,1);assert.equal(partial.total,1);
+  assert.equal(weekly.bins.at(-1).count,null);
+  assert(questionTrend([],[],window).bins.every(b=>b.availability==='unavailable'&&b.count===null));
 });

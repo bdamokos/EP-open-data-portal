@@ -1,5 +1,7 @@
+import {PersonName} from './PersonName';
 import {Fragment,useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
 import {selectLanguageText} from './language.mjs';
+import {compareMembers} from './memberOrder.mjs';
 import {useData} from './data';
 import {useExplorerParam} from './explorerUrl';
 import {InsightShell,insightMemberHref} from './InsightShared';
@@ -137,7 +139,7 @@ function AmendmentAuthors({item,language,onMember}:{item:Amendment;language:stri
     return <span key={String(author.personId||author.name)+':'+index}>{index>0?', ':''}{linked?<a href={insightMemberHref(String(author.personId),language)} title={author.method?'Matched using '+author.method.replaceAll('-',' ').replaceAll('_',' '):undefined} onClick={onMember?event=>{
       if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.button!==0)return;
       event.preventDefault();onMember(Number(author.personId));
-    }:undefined}><span lang="">{author.name}</span></a>:<><span lang="">{author.name}</span><small> ({note})</small></>}</span>;
+    }:undefined}><PersonName id={author.personId} label={author.name}/></a>:<><span lang="">{author.name}</span><small> ({note})</small></>}</span>;
   })}{item.committeeProposer&&<p>Committee proposer: <span lang={item.proposerSource?.language??''}>{item.committeeProposer}</span></p>}{onBehalfOf&&<p>On behalf of <span lang="">{onBehalfOf}</span></p>}</div>;
 }
 function SourceVariants({item,language}:{item:Amendment;language:string}) {
@@ -219,7 +221,7 @@ export function AmendmentsPage(props:InsightProps) {
   const [offset,setOffset]=useExplorerParam<number>('am-offset',0);
   const [draft,setDraft]=useState({document,procedure,member});
   const directory=useData<Directory>('directory');
-  const authors=useMemo(()=>[...(directory.data?.members||[])].sort((a,b)=>a.lastName.localeCompare(b.lastName,language)||a.firstName.localeCompare(b.firstName,language)),[directory.data,language]);
+  const authors=useMemo(()=>[...(directory.data?.members||[])].sort(compareMembers),[directory.data]);
   const selectedAuthor=authors.find(person=>String(person.id)===member);
   useEffect(()=>setDraft({document,procedure,member}),[document,procedure,member]);
   return <InsightShell {...props} view="amendments" title="Amendments" description="Follow proposed changes, their authors and Parliament’s decisions.">

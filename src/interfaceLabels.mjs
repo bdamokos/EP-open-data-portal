@@ -33,6 +33,10 @@ export function countryName(language,code) {
  if(!/^[A-Z]{2}$/.test(code||''))return code||'Unknown country';
  return new Intl.DisplayNames([language],{type:'region'}).of(code==='EL'?'GR':code)||code;
 }
+/** Compare country identifiers by the names displayed in the interface. */
+export function compareCountries(language,a,b) {
+ return countryName(language,a).localeCompare(countryName(language,b),language);
+}
 export function languageName(code) {
  return ({ga:'Gaeilge',mt:'Malti'})[code]||new Intl.DisplayNames([code],{type:'language'}).of(code)||code.toUpperCase();
 }

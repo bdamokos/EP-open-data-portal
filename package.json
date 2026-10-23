@@ -9,6 +9,8 @@
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
     "test": "node scripts/run-tests.mjs",
+    "api:bump": "node scripts/api-version.mjs",
+    "api:check": "node scripts/api-version.mjs --check",
     "test:server": "node scripts/run-tests.mjs --server",
     "test:frontend": "node scripts/run-tests.mjs --frontend",
     "preview": "vite preview --host 127.0.0.1",
@@ -17,6 +19,7 @@
     "test:slow": "node scripts/run-tests.mjs --slow"
   },
   "dependencies": {
+    "@nodable/entities": "^3.1.0",
     "fast-xml-parser": "^5.11.2",
     "react": "^19.1.1",
     "react-dom": "^19.3.0"

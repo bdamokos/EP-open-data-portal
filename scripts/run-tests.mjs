@@ -3,7 +3,7 @@ import {readdirSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {slow} from './test-manifest.mjs';
+import {slow, testDirectories} from './test-manifest.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 let profile = 'full';
@@ -19,6 +19,7 @@ for (let i = 0; i < args.length; i++) {
   if (['--full', '--fast', '--slow'].includes(arg)) profile = arg.slice(2);
   else if (arg === '--server') directories.add('server');
   else if (arg === '--frontend') directories.add('src');
+  else if (arg === '--scripts') directories.add('scripts');
   else if (arg.startsWith('-')) {
     forwarded.push(arg);
     if (valueFlags.has(arg)) {
@@ -27,7 +28,7 @@ for (let i = 0; i < args.length; i++) {
     }
   } else focused.push(path.relative(root, path.resolve(arg)).split(path.sep).join('/'));
 }
-const all = ['src', 'server'].flatMap(dir => readdirSync(path.join(root, dir))
+const all = testDirectories.flatMap(dir => readdirSync(path.join(root, dir))
   .filter(name => name.endsWith('.test.mjs')).map(name => `${dir}/${name}`)).sort();
 for (const file of focused) {
   if (!all.includes(file)) throw new Error(`Not a suite test file: ${file}`);

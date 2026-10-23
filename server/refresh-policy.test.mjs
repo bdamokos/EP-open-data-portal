@@ -500,3 +500,44 @@ test('further expiry of the same failed feed start advances catalogue recovery w
   worker.recoverFeedWindow(cycle.generation,'/parliamentary-questions','2026-09-01');
   assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE generation=? AND kind='catalog'").get(cycle.generation).n,queued.length);
 });
+
+test('missing records back off across publications, remain labelled gaps, and recover on success',t=>{
+  const {store,generation,worker,clock,advance}=setup(t);
+  const key='/parliamentary-questions/E-10-2026-004060';
+  const body={endpoint:key};
+  const missing=Object.assign(new Error('EP API returned 404 at '+key),{status:404});
+  store.setMembers([{id:'42',name:'Member'}]);
+  store.enqueue(generation,key,'document',body,90);
+  for(let attempt=0;attempt<12;attempt++) {
+    const current=store.get('working')?.generation || store.get('active');
+    const task=store.nextTask(current);
+    assert(task);assert.equal(task.attempts,attempt);
+    assert(recordTaskGap(worker,task,missing));
+    const delay=Math.min(7*DAY,3_600_000*2**attempt);
+    const gap=store.db.prepare('SELECT * FROM refresh_gaps WHERE generation=? AND key=?').get(current,key);
+    assert.equal(gap.retry_at,clock()+delay);assert.equal(gap.attempts,attempt+1);
+    store.publish(current);
+    const status=store.status();
+    assert.equal(status.complete,false);assert.equal(status.coverageGaps.count,1);
+    assert.equal(status.coverageGaps.examples[0].retryAt,new Date(clock()+delay).toISOString());
+    assert.equal(status.coverageGaps.examples[0].failedAt,new Date(clock()).toISOString());
+    assert.equal(store.page('42').total,null);
+    const next=store.beginCycle();
+    advance(delay-1);scheduleMutable(worker,next.generation);
+    assert.equal(store.nextTask(next.generation),undefined);
+    advance(1);scheduleMutable(worker,next.generation);scheduleMutable(worker,next.generation);
+    assert.equal(store.taskCounts(next.generation).total,1,'one admission, without immediate retry bursts');
+  }
+  const current=store.get('working').generation;
+  store.finishTask(store.nextTask(current));store.publish(current);
+  assert.equal(store.status().coverageGaps.count,0);
+});
+
+test('legacy high-attempt 404s immediately use the days cap and honour a longer upstream pause',t=>{
+  const {store,generation,worker,clock}=setup(t);
+  const key='/plenary-documents/A-10-2025-0128-AM-001-139';
+  store.enqueue(generation,key,'document',{endpoint:key},90);
+  const task={...store.nextTask(generation),attempts:149};
+  assert(recordTaskGap(worker,task,Object.assign(new Error('Missing'),{status:404,retryAfter:8*DAY/1000})));
+  assert.equal(store.db.prepare('SELECT retry_at FROM refresh_gaps').get().retry_at,clock()+8*DAY);
+});

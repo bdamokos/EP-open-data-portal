@@ -1,11 +1,11 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync, readdirSync} from 'node:fs';
-import {slow} from '../scripts/test-manifest.mjs';
+import {slow, testDirectories} from '../scripts/test-manifest.mjs';
 import {listenerIssues} from './test-support/test-manifest.mjs';
 
 const root = new URL('../', import.meta.url);
-const files = ['src', 'server'].flatMap(dir => readdirSync(new URL(`${dir}/`, root))
+const files = testDirectories.flatMap(dir => readdirSync(new URL(`${dir}/`, root))
   .filter(name => name.endsWith('.test.mjs')).map(name => `${dir}/${name}`));
 const sources = files.map(file => [file, readFileSync(new URL(file, root), 'utf8')]);
 
