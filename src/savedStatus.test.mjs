@@ -148,3 +148,11 @@ test('focus checks status at most once per minute; failed tasks retry without a 
  await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));assert.equal(count(),initial);
  now+=60_001;h.fail('');await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));assert.equal(count(),initial+1);assert(!h.item().legacy);
 });
+
+test('opening the first of simultaneous entries keeps its row and reader above the remaining unread entries',async t=>{
+ const now=Date.now(),entries=['first','second','third'].map(id=>({...speech,id,title:id,discoveredAt:now,readAt:null}));
+ const h=await harness(t,[member({seen:{activity:6,answer:3},entries})],true);await h.render();
+ const card=cards(h)[0],first=rows(card)[0];await dispatch(h,first);
+ assert.equal(rows(card)[0],first);assert.deepEqual(rows(card).map(row=>row.querySelector('[lang]').textContent),['first','second','third']);
+ assert.match(first.parentElement.textContent,/Inline 42 first/);assert.equal(card.querySelectorAll('.explorer-saved-new').length,2);
+});

@@ -20,8 +20,10 @@ function FollowCard({item,language,onMember,renderActivity,now,resolution,retry,
   const [open,setOpen]=useState(new Set<string>()),[retained,setRetained]=useState<FollowEntry[]>([]);
   const member=Number(item.kind==='mep'?item.id:item.memberId),profileHref='?'+new URLSearchParams({lang:language,member:String(member),module:'activities'});
   const onOpenProfile=()=>onMember(member);
+  const rowOrder=useRef(new Map<string,number>());
+  for(const entry of item.entries||[])if(!rowOrder.current.has(entryKey(entry)))rowOrder.current.set(entryKey(entry),rowOrder.current.size);
   const pinned=new Set(retained.map(entryKey)),visibleHistory=history.filter(entry=>!pinned.has(entryKey(entry)));
-  const listed=[...fresh,...retained.filter(entry=>!fresh.some(other=>entryKey(entry)===entryKey(other)))].sort((a,b)=>b.discoveredAt-a.discoveredAt||b.date.localeCompare(a.date));
+  const listed=[...fresh,...retained.filter(entry=>!fresh.some(other=>entryKey(entry)===entryKey(other)))].sort((a,b)=>b.discoveredAt-a.discoveredAt||b.date.localeCompare(a.date)||(rowOrder.current.get(entryKey(a))??0)-(rowOrder.current.get(entryKey(b))??0));
   const omitted=item.unreadOmittedAt!==undefined&&item.unreadOmittedAt+NEW_WINDOW_MS>now?item.unreadOmitted||0:0;
   const summary=fresh.length>LIST_LIMIT||omitted>0;
   const link=(label:string)=><a href={profileHref} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();onOpenProfile();}}>{label}</a>;
