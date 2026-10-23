@@ -13,6 +13,8 @@ npm run build
 
 The Checks workflow runs these steps for pull requests, including drafts, and for pushes to main; it can also be started manually for any branch. It runs on GitHub-hosted standard runners at no cost to the public repository, so opening a draft pull request early is the cheapest way to run the full checks from a constrained machine. It uses read-only permissions and no deployment secrets. Maintainers should require its `test-and-build` check and review before merging. Repository visibility, branch protection and release permissions are managed separately.
 
+Keep `.nvmrc` and the Dockerfile's Node version aligned. Pin `NODE_IMAGE` to the official multi-platform image index digest so build, dependency and runtime stages share an immutable base across supported architectures. The runtime-image check asserts the actual Node version, exercises valid and malformed Brotli decoding, and checks startup and built assets; run it for any image built with a `NODE_IMAGE` override as well.
+
 For an API response contract change, update the affected endpoint `*_VERSION` and run:
 
 ```sh
