@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,readdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import {readJson} from '../src/client.mjs';
 import {execFileAsync} from './test-support/subprocess.mjs';
 
 test('public serving does not swallow reserved paths, source files or missing assets',loopback,async t=>{
@@ -51,7 +52,26 @@ test('production runtime staging excludes examples, tests and declarations',asyn
   }finally{rmSync(directory,{recursive:true,force:true});}
 });
 
-test('public data reads omit credentials and have no private login dependency',()=>{
+test('public data reads omit credentials on initial, retry and terminal-error requests',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  const schedule=setTimeout;let backoff;
+  t.mock.method(globalThis,'setTimeout',(callback,ms,...args)=>{
+    const timer=schedule(callback,ms,...args);if(ms===250)backoff();return timer;
+  });
+  for(const statuses of [[200],[503,200],[503,503,503]]) {
+    const requests=[];let nextBackoff=new Promise(resolve=>backoff=resolve);
+    const request=readJson('/api/directory',{fetchImpl:async(url,options)=>{
+      requests.push({url,credentials:options.credentials});
+      const status=statuses[requests.length-1];assert(status,'unexpected additional retry');
+      return Response.json(status===200?{members:[]}:{error:{code:'upstream_busy',message:'Busy',retryAfter:0}},{status});
+    }});
+    const result=statuses.at(-1)===200?request.then(data=>assert.deepEqual(data,{members:[]})):assert.rejects(request,{status:503,code:'upstream_busy'});
+    for(let i=1;i<statuses.length;i++) {
+      await nextBackoff;nextBackoff=new Promise(resolve=>backoff=resolve);t.mock.timers.tick(250);
+    }
+    await result;assert.equal(requests.length,statuses.length);
+    for(const request of requests)assert.equal(request.credentials,'omit');
+  }
   const source=readFileSync(new URL('../src/client.mjs',import.meta.url),'utf8');
-  assert.match(source,/credentials: 'omit'/);assert.doesNotMatch(source,/Work Tools|session has expired|sign in/i);
+  assert.doesNotMatch(source,/Work Tools|session has expired|sign in/i);
 });

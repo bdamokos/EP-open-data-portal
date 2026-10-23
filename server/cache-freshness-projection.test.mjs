@@ -44,7 +44,7 @@ function fixture({flags={},fail}={}) {
     assert(Object.hasOwn(payloads,endpoint),'Unexpected source request: '+endpoint);
     return makeRecord(endpoint);
   };
-  const store={status:()=>({currentMeps:1,servingGeneration:1,complete:false}),db:{prepare:sql=>({all:()=>sql.includes('FROM members')?[{id:'1',body:JSON.stringify({id:'1',name:'Synthetic member',countryCode:'IT'})}]:sql.includes('FROM sources')?[{key:documentEndpoint,body:JSON.stringify(document),fetched_at:new Date(clock()).toISOString()}]:[]})}};
+  const store={status:()=>({currentMeps:1,servingGeneration:1,complete:false}),db:{prepare:sql=>({get:()=>undefined,all:()=>sql.includes('FROM members')?[{id:'1',body:JSON.stringify({id:'1',name:'Synthetic member',countryCode:'IT'})}]:sql.includes('FROM sources')?[{key:documentEndpoint,body:JSON.stringify(document),fetched_at:new Date(clock()).toISOString()}]:[]})}};
   const options={clock,request,loadMetadata:async()=>new Map()};
   const legislation=new LegislationInsights(store,options);
   const readEvent=async id=>{assert.equal(id,eventId);return makeRecord(eventEndpoint);};

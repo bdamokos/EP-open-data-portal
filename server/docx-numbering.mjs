@@ -21,7 +21,7 @@ export function numberingLabels(numberingXml,stylesXml,warnings) {
   const defaultParagraph=attribute(styles.find(n=>n['w:style'] && attribute(n,'type')==='paragraph' && ['1','true','on'].includes(String(attribute(n,'default')))),'styleId');
   const numbering=children(numberingXml?parser.parse(numberingXml):[],'w:numbering') || [];
   const abstracts=new Map(numbering.filter(n=>n['w:abstractNum']).map(n=>[attribute(n,'abstractNumId'),n['w:abstractNum']]));
-  const lists=new Map(numbering.filter(n=>n['w:num']).map(n=>[attribute(n,'numId'),n['w:num']])),counters=new Map();
+  const lists=new Map(numbering.filter(n=>n['w:num']).map(n=>[attribute(n,'numId'),n['w:num']])),counters=new Map(),started=new Map();
   function paragraphNumbering(properties) {
     const direct=children(properties,'w:numPr');let numberId=property(direct,'w:numId'),level=property(direct,'w:ilvl');
     let id=property(properties,'w:pStyle') || defaultParagraph;const seen=new Set();
@@ -33,17 +33,33 @@ export function numberingLabels(numberingXml,stylesXml,warnings) {
   }
   return properties=>{
     const number=paragraphNumbering(properties);if(!number || number.id==='0')return '';
-    const list=lists.get(number.id),abstract=abstracts.get(property(list,'w:abstractNumId')),level=Number(number.level);
+    const list=lists.get(number.id),abstractId=property(list,'w:abstractNumId'),abstract=abstracts.get(abstractId),level=Number(number.level);
     const definition=index=>{
       const override=list?.find(n=>n['w:lvlOverride'] && attribute(n,'ilvl')===String(index))?.['w:lvlOverride'];
-      const base=children(override,'w:lvl') || abstract?.find(n=>n['w:lvl'] && attribute(n,'ilvl')===String(index))?.['w:lvl'];
-      return base?{format:property(base,'w:numFmt'),pattern:property(base,'w:lvlText'),start:Number(property(override,'w:startOverride') ?? property(base,'w:start') ?? 1),restart:property(base,'w:lvlRestart')}:null;
+      const original=abstract?.find(n=>n['w:lvl'] && attribute(n,'ilvl')===String(index))?.['w:lvl'];
+      const replacement=children(override,'w:lvl'),base=replacement || original;
+      const startOverride=property(override,'w:startOverride') ?? property(replacement,'w:start');
+      // Word ignores lvlRestart in a level override; use the abstract level.
+      return base?{format:property(base,'w:numFmt'),pattern:property(base,'w:lvlText'),start:Number(startOverride ?? property(base,'w:start') ?? 1),startOverride,restart:property(original,'w:lvlRestart')}:null;
     };
     const def=definition(level);
     if(!Number.isInteger(level)||level<0||level>8||!def||!Number.isSafeInteger(def.start)||def.start<0){warnings.add('Some automatic paragraph numbering could not be read.');return '';}
-    const state=counters.get(number.id) || [];state[level]=(state[level] ?? def.start-1)+1;
-    for(let i=level+1;i<state.length;i++)if(definition(i)?.restart!=='0')state[i]=undefined;
-    counters.set(number.id,state);
+    // A concrete instance may restart a level on first use, but unoverridden
+    // instances (including style defaults) continue the same abstract list.
+    const state=counters.get(abstractId) || [],used=started.get(number.id) || new Set();
+    if(!used.has(level) && def.startOverride!==undefined)state[level]=def.start-1;
+    used.add(level);started.set(number.id,used);
+    state[level]=(state[level] ?? def.start-1)+1;
+    // lvlRestart is one-based. Zero never restarts; an absent or out-of-range
+    // value uses the preceding level. Word also restarts on any higher level.
+    // https://learn.microsoft.com/en-us/openspecs/office_standards/ms-oi29500/140a2cd9-2f26-456d-9760-ae6ecef4e8b5
+    for(let i=level+1;i<state.length;i++) {
+      const restart=Number(definition(i)?.restart ?? i);
+      if(restart===0)continue;
+      const trigger=Number.isInteger(restart)&&restart>0&&restart<=i ? restart-1 : i-1;
+      if(level<=trigger)state[i]=undefined;
+    }
+    counters.set(abstractId,state);
     if(def.format==='bullet')return '•';
     if(!['decimal','decimalZero','upperLetter','lowerLetter','upperRoman','lowerRoman'].includes(def.format))warnings.add('Some automatic paragraph numbering uses an unsupported format.');
     if(typeof def.pattern!=='string'){warnings.add('Some automatic paragraph numbering could not be read.');return '';}

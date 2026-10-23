@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {createServer} from 'vite';
+import {sourceTitle} from '../server/source-titles.mjs';
 
 const stats=()=>({uniquePeople:3,uniqueCurrentMeps:1,peopleOutsideCurrentRoster:2,denominator:1,referenceDate:'2026-10-17',basis:'current roster',metadataSourceDates:{from:null,to:null},
   dimensions:{country:[{label:'HU',count:1}],group:[{label:'PPE',count:1}],gender:[{label:'Female',count:1}],age:[]}});
@@ -91,4 +92,14 @@ test('shared plenary demographics and people keep their default captions and do 
   assert.equal(h.caption().textContent,'1 current MEPs · 2 other speakers · each person counted once');
   assert.equal(h.container.querySelectorAll('.insight-person-membership').length,0,'the question-specific label does not affect plenary or other callers');
   assert.equal(h.container.querySelectorAll('.insight-people article').length,3);
+});
+
+test('Questions renders decoded title entities and markup-shaped source text as escaped text',async t=>{
+  const response=questions(),literal='DYPA&nbsp; &amp; &lt;img src=x onerror=alert(1)&gt; <b>literal</b> &amp;nbsp;';
+  response.questions[0].title=sourceTitle(literal);
+  const h=await harness(t,{response}),heading=h.container.querySelector('.insight-question-heading h3');
+  assert.equal(heading.textContent,'DYPA\u00a0 & <img src=x onerror=alert(1)> <b>literal</b> &nbsp;');
+  assert.equal(heading.getAttribute('lang'),'en');
+  assert.equal(heading.children.length,0,'decoded markup never creates elements');
+  assert(heading.innerHTML.includes('&lt;img'));assert(heading.innerHTML.includes('&lt;b&gt;'));
 });

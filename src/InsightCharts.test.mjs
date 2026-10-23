@@ -89,4 +89,13 @@ test('question trends expose measures and retain keyboard and select filtering',
   assert.equal(container.querySelectorAll('svg [tabindex]').length, 0);
   assert.match(container.querySelector('svg [role="img"]').getAttribute('aria-label'), /3 questions, 8 total/);
   assert.equal(select(), null);
+  bins[1].availability = 'partial';
+  bins[2] = {...bins[2], availability: 'unavailable', count: null, total: null};
+  await render({interactive: true, selected: false});
+  assert.equal(points().length, 2, 'unavailable counts are not plotted at zero');
+  assert.match(select().options[2].textContent, /Partial period/);
+  assert.match(select().options[3].textContent, /Unavailable/);
+  assert.doesNotMatch(select().options[3].textContent, /0 questions/);
+  assert.equal(container.querySelector('svg path').getAttribute('d').split('L').length, 2, 'baseline stops at the frontier');
+  assert.match(container.textContent, /timeline is unavailable/);
 });

@@ -5,7 +5,7 @@ import {personId} from './insights-model.mjs';
 import {insightQuery,brusselsDay} from './insights-store.mjs';
 import {countryCode,memberCountry} from './insights-countries.mjs';
 import {speechParagraphText,speechWordTokens,speechWordStopwords,speechWordLanguages} from './insights-speech-words.mjs';
-import {speechSpeakers,speakerNameIsSpecific} from './speech-speakers.mjs';
+import {speechSpeakers,speechSpeakerDetails,speakerNameIsSpecific} from './speech-speakers.mjs';
 import {transcriptLanguage} from './transcript-language.mjs';
 import {phraseModel} from './insights-phrases.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
@@ -139,8 +139,8 @@ export class SpeechCloudInsights {
         if(!xml){state.missingLanguage++;continue;}
         if(state.xmlBytes+Buffer.byteLength(xml)>limits.xmlBytes){state.sourceIssues.add('xml-byte-limit');state.cursor=null;break;}
         const text=speechParagraphText(xml);if(!text){state.invalidText++;continue;}state.xmlBytes+=Buffer.byteLength(xml);
-        const headers=speechSpeakers(activity,xml),info=transcriptLanguage(xml);
-        state.records.set(id,{id,date:activity.activity_date,title:activity.activity_label?.[query.language]||activity.activity_label?.en||'Speech',titleLanguage:activity.activity_label?.[query.language]?query.language:'en',text,machineTranslation:info.machine,people:people.map(id=>{const known=members.get(id)||state.scope.people?.get(id),header=headers.find(p=>p.id===id);return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),role:header?.role||(header&&!meaningfulSpeakerName(header.name)?(/president|chair/i.test(header.name)?'Chairing the sitting':null):null)};})});
+        const headers=speechSpeakers(activity,xml),details=speechSpeakerDetails(activity),info=transcriptLanguage(xml);
+        state.records.set(id,{id,date:activity.activity_date,title:activity.activity_label?.[query.language]||activity.activity_label?.en||'Speech',titleLanguage:activity.activity_label?.[query.language]?query.language:'en',text,machineTranslation:info.machine,people:people.map(id=>{const known=members.get(id)||state.scope.people?.get(id),header=headers.find(p=>p.id===id);return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),roleLabels:details.find(p=>p.id===id)?.roleLabels||{},roleLanguage:header?.roleLanguage||null,roleSource:{speechId:activity.activity_id,date:activity.activity_date,url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString()},role:header?.role||(header&&!meaningfulSpeakerName(header.name)?(/president|chair/i.test(header.name)?'Chairing the sitting':null):null)};})});
       }
       state.page++;
       if(shortPage||noProgress)state.cursor=null;
@@ -190,7 +190,7 @@ export class SpeechCloudInsights {
         state.records.set(record.id,{id:record.id,date:saved.summary.date,title:titles[query.language]||titles.en||'Speech',titleLanguage:titles[query.language]?query.language:titles.en?'en':null,
           text:record.text.body,machineTranslation:record.text.translationType==='machine',people:people.map(id=>{
             const known=members.get(id)||state.scope.people?.get(id),header=saved.speakers.find(person=>person.id===id);
-            return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),role:header?.role||null};
+            return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),role:header?.role||null,roleLanguage:header?.roleLanguage||null,roleLabels:header?.roleLabels||{},roleSource:header?.roleSource||{speechId:record.id,date:saved.summary.date,url:saved.sourceUrl,fetchedAt:saved.fetchedAt}};
           })});
       }
       state.page++;

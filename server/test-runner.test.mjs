@@ -5,6 +5,7 @@ import {promisify} from 'node:util';
 import {mkdtemp, mkdir, copyFile, writeFile, rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import {testDirectories} from '../scripts/test-manifest.mjs';
 
 const exec = promisify(execFile);
 const root = new URL('../', import.meta.url);
@@ -18,8 +19,8 @@ async function fixture(t) {
   for (const name of ['run-tests.mjs', 'test-network-guard.mjs']) {
     await copyFile(new URL(`scripts/${name}`, root), path.join(directory, 'scripts', name));
   }
-  await writeFile(path.join(directory, 'scripts/test-manifest.mjs'), "export const slow = [{file: 'server/slow.test.mjs', reason: 'subprocess fixture'}];\n");
-  for (const name of ['src/frontend.test.mjs', 'server/fast.test.mjs', 'server/slow.test.mjs']) {
+  await writeFile(path.join(directory, 'scripts/test-manifest.mjs'), `export const testDirectories = ${JSON.stringify(testDirectories)};\nexport const slow = [{file: 'server/slow.test.mjs', reason: 'subprocess fixture'}];\n`);
+  for (const name of ['src/frontend.test.mjs', 'server/fast.test.mjs', 'server/slow.test.mjs', 'scripts/tool.test.mjs']) {
     await writeFile(path.join(directory, name), `import {test} from 'node:test'; test('${name}', () => {});\n`);
   }
   return {
@@ -33,9 +34,9 @@ async function fixture(t) {
 test('runner profiles, directory filters and explicit slow files select the intended tests', async t => {
   const {run} = await fixture(t);
   for (const [args, count] of [
-    [[], 3], [['--fast'], 2], [['--slow'], 1], [['--server'], 2],
+    [[], 4], [['--fast'], 3], [['--slow'], 1], [['--server'], 2],
     [['--frontend'], 1], [['--fast', '--server'], 1],
-    [['--fast', 'server/slow.test.mjs'], 1],
+    [['--scripts'], 1], [['scripts/tool.test.mjs'], 1], [['--fast', 'server/slow.test.mjs'], 1],
   ]) {
     const {stdout} = await run(args);
     assert.match(stdout, new RegExp(`files=${count} `));

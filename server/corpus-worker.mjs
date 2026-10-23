@@ -136,7 +136,7 @@ export class CorpusWorker {
       if(!rows.length)break;
       for(const row of rows) {
         try {const saved=this.store.speechMetadata(row.source_id);this.store.projectSpeechCatalog(saved.activity,saved.availableTextLanguages);}
-        catch {this.store.assertWriter();this.store.db.prepare('INSERT OR REPLACE INTO speech_catalog(source_id,revision,fetched_at) VALUES (?,?,?)').run(row.source_id,this.store.nextSpeechRevision(),row.fetched_at);}
+        catch {this.store.transaction(()=>{this.store.assertWriter();this.store.db.prepare('INSERT OR REPLACE INTO speech_catalog(source_id,revision,fetched_at) VALUES (?,?,?)').run(row.source_id,this.store.nextSpeechRevision(),row.fetched_at);});}
         await this.checkpoint();
         if(this.clock()-projectionStarted>=Math.min(10_000,this.maxDuration))break catalog;
       }

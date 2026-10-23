@@ -18,6 +18,16 @@ const work = (url, {date = '2026-01-10', byteSize = 1000, issued = '2026-01-10T1
   is_realized_by: [{language: 'language/ENG', is_embodied_by: [{format: 'file-type/DOCX', is_exemplified_by: url, byteSize, issued}]}],
 });
 
+test('cache-only author enrichment never starts a download and returns saved text when available',async t=>{
+  const directory=await fixture(t),url=`https://data.europarl.europa.eu/distribution/doc/cache-only-${Date.now()}.docx`,item=work(url);
+  let calls=0;const download=async()=>{calls++;return {paragraphs:['Saved text'],authorBylineParagraphs:['Zoë Member, Alex Common'],formattingVersion:DOCX_FORMATTING_VERSION};};
+  const empty=await documentText(item,'en',{directory,download,cacheOnly:true});
+  assert.equal(empty.status,'unavailable');assert.equal(calls,0);
+  await documentText(item,'en',{directory,download});
+  const saved=await documentText(item,'en',{directory,download,cacheOnly:true,clock:()=>Date.now()+365*DAY});
+  assert.deepEqual(saved.paragraphs,['Saved text']);assert.deepEqual(saved.authorBylineParagraphs,['Zoë Member, Alex Common']);assert.equal(calls,1);
+});
+
 test('settled texts are never re-read, recent ones weekly, and a changed file listing at once', () => {
   const source = {byteSize: 1000, issued: '2026-01-10T10:00:00+01:00'}, item = work('https://data.europarl.europa.eu/distribution/doc/a.docx');
   const at = days => new Date(Date.parse('2026-01-10') + days * DAY).toISOString();

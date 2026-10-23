@@ -30,7 +30,7 @@ test('DOCX extraction preserves paragraph/run breaks and omits deleted text and 
 });
 test('official motion hides translation tags and metadata while preserving visible headings, author, date and reference',async()=>{
   const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
-  const paragraphs=docxParagraphs(zip(fixture.documentXml,fixture.stylesXml));
+  const content=docxContent(zip(fixture.documentXml,fixture.stylesXml)),{paragraphs}=content;
   assert.deepEqual(paragraphs.slice(0,7),['European Parliament','2024-2029','Plenary sitting','B10\u20110431/2026','1.10.2026','MOTION FOR A RESOLUTION','pursuant to Rule 115(2) and (3) and (4)(c) of the Rules of Procedure']);
   assert(paragraphs.includes('Pietro Fiocchi'));assert(paragraphs.includes('on behalf of the ECR Group'));
   assert(paragraphs.includes('(D105447/07 – 2026/2824(RPS))'));
@@ -215,7 +215,7 @@ test('document text coalesces cold reads, persists actual language and serves la
     finish({paragraphs:['Actual answer text']});
     const [a,b]=await Promise.all([first,second]);
     assert.equal(calls,1);assert.equal(a.textLanguage,'ga');assert.equal(a.translationType,'unspecified');assert.equal(a.status,'available');assert.deepEqual(a.paragraphs,b.paragraphs);
-    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,7);
+    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,8);
     const clock=()=>Date.now()+8*86400000;
     let refreshCalls=0,fail;
     const failure=new Promise((_,reject)=>fail=()=>reject(new Error('upstream500')));
@@ -244,28 +244,28 @@ test('old extracted text is refreshed on demand and current extraction survives 
   try {
     await mkdir(path.join(dir,'document-text-v1'));
     const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
-    const paragraphs=docxParagraphs(zip(fixture.documentXml,fixture.stylesXml));
+    const content=docxContent(zip(fixture.documentXml,fixture.stylesXml)),{paragraphs}=content;
     const upgraded=[];
-    for(const version of [undefined,1,2,3,4,5,6]) {
+    for(const version of [undefined,1,2,3,4,5,6,7]) {
       const url=`https://data.europarl.europa.eu/distribution/upgrade-${Date.now()}-${version}/motion.docx`;
       const work={identifier:fixture.sourceId,is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
       const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');
       const old={schemaVersion:1,extractionVersion:version,sourceId:fixture.sourceId,sourceUrl:url,fetchedAt:new Date().toISOString(),paragraphs:['<Date>{01/10/2026}1.10.2026</Date>']};
       await writeFile(file,JSON.stringify(old));let calls=0;
-      const result=await documentText(work,'en',{directory:dir,download:async()=>{calls++;return {paragraphs};}});
+      const result=await documentText(work,'en',{directory:dir,download:async()=>{calls++;return content;}});
       assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);assert.equal(calls,1);
-      assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,7);
+      assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,8);
       const saved=JSON.parse(await readFile(file,'utf8'));
-      assert.equal(saved.extractionVersion,7);assert.equal(saved.sourceUrl,url);assert.deepEqual(saved.paragraphs,paragraphs);
+      assert.equal(saved.extractionVersion,8);assert.equal(saved.sourceUrl,url);assert.deepEqual(saved.paragraphs,paragraphs);
       upgraded.push(work);
     }
     // One cold process verifies every upgraded record without sharing parent memory.
-    const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});const results=[];for(const work of ${JSON.stringify(upgraded)})results.push(await documentText(work,'en',{directory:${JSON.stringify(dir)},download:async()=>{throw new Error('Unexpected redownload');}}));console.log(JSON.stringify(results));`;
+    const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});let downloads=0;const results=[];for(const work of ${JSON.stringify(upgraded)})results.push(await documentText(work,'en',{directory:${JSON.stringify(dir)},download:async()=>{downloads++;throw new Error('Unexpected redownload');}}));if(downloads)throw new Error('Restart attempted '+downloads+' downloads');console.log(JSON.stringify(results));`;
     const restarted=JSON.parse((await execFileAsync(t,process.execPath,['--input-type=module','-e',script],{encoding:'utf8'})).stdout);
-    assert.equal(restarted.length,7);
+    assert.equal(restarted.length,8);
     for(const [index,result] of restarted.entries()) {
       assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);
-      assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,7);
+      assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,8);assert.equal(result.refreshInProgress,false);
       assert.equal(result.sourceUrl,upgraded[index].is_realized_by[0].is_embodied_by[0].is_exemplified_by);
     }
   }finally{await rm(dir,{recursive:true,force:true});}
@@ -277,7 +277,7 @@ test('automatic recital and operative numbering includes style inheritance, over
   const num=id=>`<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${id}"/></w:numPr>`;
   const xml='<w:document xmlns:w="urn:word"><w:body>'+p('<w:pStyle w:val="Inherited"/>','First recital')+p(num(41),'Second recital')+p(num(42),'First paragraph')+p(num(43),'Restarted paragraph')+p(num(42),'Second paragraph')+'</w:body></w:document>';
   const {structureStatus,paragraphSources,documentObjects,formattingVersion,paragraphFormats,tables,...content}=docxContent(zip(xml,styles,{'word/numbering.xml':numbering}));
-  assert.deepEqual(content,{paragraphs:['A.\tFirst recital','B.\tSecond recital','1.\tFirst paragraph','7.\tRestarted paragraph','2.\tSecond paragraph'],notes:[],anchors:[],links:[],extractionWarnings:[]});
+  assert.deepEqual(content,{authorBylineParagraphs:[],paragraphs:['A.\tFirst recital','B.\tSecond recital','1.\tFirst paragraph','7.\tRestarted paragraph','8.\tSecond paragraph'],notes:[],anchors:[],links:[],extractionWarnings:[]});
   assert.equal(structureStatus,'extracted');assert.equal(paragraphSources.length,content.paragraphs.length);assert.deepEqual(documentObjects,[]);assert.equal(paragraphFormats.length,content.paragraphs.length);
   const unsupported=docxContent(zip(xml,styles,{'word/numbering.xml':numbering.replace('upperLetter','chicago')}));
   assert(unsupported.extractionWarnings.length);
@@ -288,7 +288,7 @@ test('footnotes retain visible text, multiple paragraphs and exact references wi
   const xml='<w:document xmlns:w="urn:word"><w:p><w:r><w:t>Body</w:t><w:footnoteReference w:id="2"/></w:r></w:p></w:document>';
   const notes='<w:footnotes xmlns:w="urn:word"><w:footnote w:type="separator" w:id="-1"/><w:footnote w:id="2"><w:p><w:r><w:footnoteRef/><w:t>Public citation.</w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t>hidden</w:t></w:r></w:p><w:p><w:r><w:t>Second paragraph.</w:t></w:r></w:p></w:footnote></w:footnotes>';
   const {structureStatus,paragraphSources,documentObjects,formattingVersion,paragraphFormats,tables,...content}=docxContent(zip(xml,undefined,{'word/footnotes.xml':notes}));
-  assert.deepEqual(content,{paragraphs:['Body'],notes:[{id:'2',label:'1',text:'Public citation.\nSecond paragraph.',links:[],linkSpans:[]}],anchors:[{paragraph:0,offset:4,note:'2',label:'1'}],links:[],extractionWarnings:[]});
+  assert.deepEqual(content,{authorBylineParagraphs:[],paragraphs:['Body'],notes:[{id:'2',label:'1',text:'Public citation.\nSecond paragraph.',links:[],linkSpans:[]}],anchors:[{paragraph:0,offset:4,note:'2',label:'1'}],links:[],extractionWarnings:[]});
   assert.equal(structureStatus,'extracted');assert.equal(paragraphSources.length,1);assert.deepEqual(documentObjects,[]);
   assert.match(docxContent(zip(xml)).extractionWarnings[0],/missing/);
   assert.throws(()=>docxContent(zip(xml,undefined,{'word/footnotes.xml':'<broken>'})));

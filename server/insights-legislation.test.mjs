@@ -86,7 +86,7 @@ test('unavailable historical agendas preserve the selected date and the sitting 
 });
 test('the first plenary week remains selectable and missing agendas produce null observations and explicit gaps',async()=>{
   const clock=()=>Date.parse('2026-10-15T12:00:00Z'),calls=[];
-  const store={status:()=>({currentMeps:1,servingGeneration:1}),db:{prepare:()=>({all:()=>[{id:'125065',body:'{"id":"125065","name":"Test member"}'}]})}};
+  const store={status:()=>({currentMeps:1,servingGeneration:1}),db:{prepare:()=>({get:()=>undefined,all:()=>[{id:'125065',body:'{"id":"125065","name":"Test member"}'}]})}};
   const service=new LegislationInsights(store,{clock,loadMetadata:async()=>new Map(),request:async(endpoint)=>{
     calls.push(endpoint);if(endpoint!=='/meetings')throw new Error('No agenda supplied for this date');
     return {url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:clock(),payload:{data:['2024-07-16','2024-07-17'].map(date=>({activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'}))}};
