@@ -35,6 +35,9 @@ test('legacy and wrapped declarations normalize together while invalid revisions
   const modern = source(a);
   const conflict = `<<<<<<< HEAD\n${template}=======\n${modern}>>>>>>> branch\n`;
   assert.deepEqual(registrySides(conflict).registries, [registry(a), registry(a)]);
+  const staleSelection = source(a, b).replace('REVISION = 2;', 'REVISION = 1;').replace('VERSION = 2;', 'VERSION = 1;');
+  assert.throws(() => parseRegistry(staleSelection));
+  assert.throws(() => registrySides(staleSelection), 'unconflicted files stay strict');
   for (const text of [modern.replace('REVISION = 1;', 'REVISION = 0;'),
     modern.replace('REVISION = 1;', 'REVISION = 9007199254740992;'),
     modern.replace('REVISION = 1;', 'REVISION = 2;'),
@@ -189,6 +192,35 @@ test('CLI refreshes a stale origin/main then resolves a real merge conflict', as
   assert.equal(f.run('--check').status, 0);
   // Resolution is left for the caller to inspect and stage.
   assert.match(git(f.root, 'ls-files', '--unmerged'), /server\/api-version.mjs/);
+});
+
+test('CLI migrates a legacy branch when Git merges its new entry outside the declaration conflict', async t => {
+  const f = await fixture(t);
+  const legacy = text => text.replace(/^export const API_CONTRACT_REVISION = .*\n/m, '');
+  // Both branches predate the new declaration; main adds it while the branch bumps.
+  await f.write(legacy(source(f.digest)));
+  git(f.root, 'add', 'server/api-version.mjs');
+  git(f.root, 'commit', '-m', 'Legacy registry');
+  git(f.root, 'switch', 'main');
+  git(f.root, 'merge', '--ff-only', 'feature');
+  await f.write(source(f.digest));
+  git(f.root, 'add', 'server/api-version.mjs');
+  git(f.root, 'commit', '-m', 'Introduce contract revision');
+  git(f.root, 'switch', 'feature');
+  await f.write(legacy(source(f.digest, b)));
+  git(f.root, 'add', 'server/api-version.mjs');
+  git(f.root, 'commit', '-m', 'Legacy branch contract');
+  assert.throws(() => git(f.root, '-c', 'merge.conflictStyle=diff3', 'merge', 'main'));
+  const conflict = await f.read();
+  assert.match(conflict, /<<<<<<< HEAD/);
+  assert(conflict.indexOf(`2: '${b}'`) > conflict.indexOf('>>>>>>>'), 'the new entry is shared context');
+  const result = f.run();
+  assert.equal(result.status, 0, result.stderr);
+  const updated = await f.read();
+  assert.deepEqual(parseRegistry(updated), registry(f.digest, b, f.digest));
+  assert.equal(f.run('--check').status, 0);
+  assert.equal(f.run().status, 0);
+  assert.equal(await f.read(), updated);
 });
 
 test('CLI resolves a real rebase collision, preserving main and branch histories', async t => {

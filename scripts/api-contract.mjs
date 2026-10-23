@@ -29,7 +29,7 @@ const versionDeclaration = /\bexport\s+(?:const|let|var)\s+API_VERSION\b/g;
 const registryPattern = /export const API_CONTRACT_DIGESTS = Object\.freeze\(\{([\s\S]*?)\}\);/g;
 
 // Parse data, never execute a registry read from a Git ref or conflict side.
-export function parseRegistry(source) {
+export function parseRegistry(source, {allowMergedEntries = false} = {}) {
   const versionMatches = [...source.matchAll(versionPattern)];
   const registryMatches = [...source.matchAll(registryPattern)];
   if (versionMatches.length !== 1 || [...source.matchAll(versionDeclaration)].length !== 1 || registryMatches.length !== 1) throw new Error('Expected one API_VERSION and one API_CONTRACT_DIGESTS declaration');
@@ -47,10 +47,14 @@ export function parseRegistry(source) {
     entries.push([Number(match[1]), match[2]]);
     remaining = remaining.slice(match[0].length);
   }
-  if (!Number.isSafeInteger(revision) || version !== (revision - 1) % 999 + 1 || !entries.length || entries.some(([key], i) => key !== i + 1) || entries.at(-1)[0] !== revision) {
+  // Git can merge appended entries outside the declaration conflict. Preserve
+  // that shared history while resolving; ordinary reads still require equality.
+  const latest = entries.length;
+  if (!Number.isSafeInteger(revision) || version !== (revision - 1) % 999 + 1 || !latest || entries.some(([key], i) => key !== i + 1)
+      || revision !== latest && !(allowMergedEntries && revision < latest)) {
     throw new Error('API_CONTRACT_REVISION must select the newest contiguous entry; API_VERSION must wrap from 999 to 1');
   }
-  return {version, revision, entries};
+  return {version: (latest - 1) % 999 + 1, revision: latest, entries};
 }
 
 export function renderRegistry(source, registry) {
@@ -89,7 +93,7 @@ export function registrySides(source) {
   }
   if (state !== 'outside') throw new Error('Unterminated API version conflict');
   const sources = conflicts ? sides : [source];
-  const registries = sources.map(parseRegistry);
+  const registries = sources.map(text => parseRegistry(text, {allowMergedEntries: conflicts > 0}));
   const skeletons = sources.map(text => renderRegistry(text, {version: 1, revision: 1, entries: [[1, '0'.repeat(64)]]}));
   if (skeletons.some(text => text !== skeletons[0])) throw new Error('Resolve conflicting code outside the API version declarations first');
   return {source: sources[0], registries};
