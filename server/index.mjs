@@ -1,3 +1,4 @@
+import {generationGroupOn,attributeSpeechResponse} from './group-attribution.mjs';
 import {followingResponse} from './insights-following.mjs';
 import {savedPostQuery,savedStates} from './insights-saved.mjs';
 import {groupVoicesQuery} from './group-voices-model.mjs';
@@ -8,7 +9,7 @@ import {performance} from 'node:perf_hooks';
 import {measureEventLoopDelay} from './event-loop-delay.mjs';
 let eventLoopDelay;
 import {pathToFileURL} from 'node:url';
-import {apiPrefixes,config} from './config.mjs';
+import {apiPrefixes,config,booleanFromEnvironment} from './config.mjs';
 import {assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} from './http-utils.mjs';
 import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
@@ -135,6 +136,10 @@ async function handleApi(request,response,url,apiPrefix){
     const queryKeys={directory:['lang','retry'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang'],'speech-transcript':['lang'],'source-record':['lang','url'],'motion-comparison':['lang','joint','stage']};
     if(Object.hasOwn(queryKeys,segments[0]))requireQuery(url.searchParams,queryKeys[segments[0]]);
     const language = odpLanguage(url.searchParams.get("lang") || "en");
+    const datedSpeech=['speech','speech-transcript','speech-context','speech-statistics'].includes(endpoint);
+    const attributionStore=datedSpeech&&booleanFromEnvironment('ACTIVITY_INDEX_ENABLED')?activityIndex().store:null;
+    const attributionGeneration=attributionStore?.status().servingGeneration;
+    const groupOn=datedSpeech?generationGroupOn(attributionStore,attributionGeneration):null;
     if (segments.length === 2 && segments[0] === "portrait") {
       const image = await odpPortrait(positiveId(segments[1]));
       setCommonSecurityHeaders(response);
@@ -298,6 +303,7 @@ async function handleApi(request,response,url,apiPrefix){
     } else if (segments.length === 2 && segments[0] === "speech-transcript" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[1])) result = await speechTranscript(segments[1], language);
     else if (segments.length === 2 && segments[0] === "speech" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[1])) result = await odpSpeech(segments[1], language);
     else throw new HttpError(404, "not_found", "Unknown explorer endpoint.");
+    if(groupOn)result={...attributeSpeechResponse(result,groupOn),affiliationGeneration:attributionGeneration||null};
     const policy=apiCachePolicy(request, url, result);
     sendJson(request, response, 200, result, {...policy,...(!currentVersion?{cdnCacheControl:'no-store'}:{})});
     return;
