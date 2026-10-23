@@ -56,6 +56,7 @@ import {selectLanguageText} from './language.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
 import {useMemberVotesJourney} from './useMemberVotesJourney';
 import {useMemberMotionJourney} from './useMemberMotionJourney';
+import {motionJourneyParams} from './motionJourney.mjs';
 import type {MemberMotionReaderProps} from './MemberMotionReader';
 
 const MemberVotes=lazyView(()=>import('./MemberVotes').then(module=>({default:module.MemberVotes})));
@@ -281,6 +282,28 @@ function LinkedActivityFallback({ sourceId, member, lang, complete }: { sourceId
     {document.data && !matched && <p>The API did not return the exact linked document or answer.</p>}
     {contribution.data && <><p>{speechAuthor ? "The speech API names this MEP as a participant." : "The speech source is available. A relationship to this MEP has not been established."}</p><Detail speech={contribution.data} lang={lang} /></>}
   </aside>;
+}
+export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpenProfile}:{member:number|string;sourceId:string;lang:string;profileHref:string;onOpenProfile:()=>void}) {
+  const state=useData<JoinedActivityPage>(`latest-activities/${member}?lang=${lang}&limit=1&source-id=${encodeURIComponent(sourceId)}`);
+  const selected=state.data?.selectedItems.find(item=>item.sourceId===sourceId);
+  const scope=JSON.stringify([member,sourceId,lang]);
+  const [motion,setMotion]=useState(()=>({scope,query:new URLSearchParams()}));
+  const motionQuery=motion.scope===scope?motion.query:new URLSearchParams();
+  const onMotionChange:MemberMotionReaderProps['onJourneyChange']=(binding,next)=>{
+    const query=motionJourneyParams(binding,next);query.set('member',String(member));
+    setMotion({scope,query});
+  };
+  return <section lang="en">
+    <Status scope={`following-detail:${scope}`} pending={state.loading} message={state.error?'Activity temporarily unavailable.':selected?'Activity loaded.':state.data?'Linked activity is not in the saved index.':null}/>
+    {state.loading&&!selected&&<p role="status">Checking the saved linked activity…</p>}
+    {state.error&&<ErrorView message={state.error} retry={state.retry}/>}
+    {selected?<JoinedDetails key={`${scope}:${selected.id}`} item={selected} member={Number(member)} lang={lang} motionQuery={motionQuery} onMotionChange={onMotionChange}/>:
+      !state.loading&&state.data&&<LinkedActivityFallback key={scope} sourceId={sourceId} member={Number(member)} lang={lang} complete={state.data.cache.complete}/>}
+    {!selected&&!state.loading&&<p><a href={profileHref} onClick={event=>{
+      if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+      event.preventDefault();onOpenProfile();
+    }}>Open in profile</a></p>}
+  </section>;
 }
 function Activities({ id, lang, memberName, initialActivity, onOpen, category, onCategory, offset, onOffset, motionQuery, onMotionChange, preserveScroll }: { id: number; lang: string; memberName?:string; initialActivity: string | null; onOpen: (id: string | null,options?:{replace?:boolean}) => void; category: string; onCategory: (category: string) => void; offset:number; onOffset:(offset:number)=>void; motionQuery:URLSearchParams; onMotionChange:MemberMotionReaderProps['onJourneyChange']; preserveScroll:boolean }) {
   const [categoriesOpen,setCategoriesOpen]=useState(false);
