@@ -16,8 +16,8 @@ test('vote matrix and group drill-down consume dated server buckets, including c
   const roster=new Map([['124846',{name:'Pina Picierno',groupCode:'Renew',countryCode:'IT'}],['42',{name:'Other author',groupCode:'PPE',countryCode:'FR'}],['43',{name:'Unknown history',groupCode:'Renew',countryCode:'IT'}]]);
   const resolve=id=>id==='124846'?{code:'S&D'}:id==='42'?{code:'PPE'}:'unavailable';
   const vote=namedVote({activity_id:'test',activity_date:'2026-06-16',had_voter_favor:['person/124846','person/42','person/43'],had_voter_against:[],had_voter_abstention:[],number_of_votes_favor:3,number_of_votes_against:0,number_of_votes_abstention:0},{url:'https://data.europarl.europa.eu/api/v2/test'},roster,new Map(),'2026-06-16',resolve);
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}},plugins:[{name:'test-vote-view',transform(code,id){if(id.endsWith('/Legislation.tsx'))return code+'\nexport {VoteView};';}}]});
-  const {VoteView}=await vite.ssrLoadModule('/src/Legislation.tsx'),{createRoot}=await import('react-dom/client');
+  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}},plugins:[{name:'test-vote-view',transform(code,id){if(id.endsWith('/Legislation.tsx'))return code+'\nexport {VoteView,ContributorAnalysis};';}}]});
+  const {VoteView,ContributorAnalysis}=await vite.ssrLoadModule('/src/Legislation.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(VoteView,{vote,language:'en',country:null})));
   const matrix=()=>container.querySelector('.insight-vote-matrix');
@@ -32,4 +32,11 @@ test('vote matrix and group drill-down consume dated server buckets, including c
   const missing={...vote,id:'all-unavailable',politicalGroups:[{code:'unavailable',positions:vote.groups}]};
   await act(async()=>root.render(createElement(VoteView,{vote:missing,language:'en',country:null})));
   assert.match(matrix().textContent,/Unavailable/);assert.match(container.textContent,/Browse voters/);assert.doesNotMatch(container.textContent,/No named voters in this election country/);
+  const stats={uniquePeople:1,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:1,denominator:0,referenceDate:'2026-06-16',dimensions:{group:[],country:[],gender:[],age:[]},groupContributions:{rows:[{label:'S&D',count:1}],total:1,unavailable:0}};
+  await act(async()=>root.render(createElement(ContributorAnalysis,{stats,language:'en'})));
+  assert(container.querySelector('.insight-author-analysis'));assert.equal(container.querySelector('.insight-donut-total').textContent,'1');assert.match(container.textContent,/S&D/);
+  await act(async()=>root.render(createElement(ContributorAnalysis,{stats:{...stats,groupContributions:{rows:[],total:1,unavailable:1}},language:'en'})));
+  assert.match(container.textContent,/1 unavailable/);
+  await act(async()=>root.render(createElement(ContributorAnalysis,{stats:{...stats,groupContributions:{rows:[],total:0,unavailable:0}},language:'en'})));
+  assert.equal(container.querySelector('.insight-author-analysis'),null);
 });

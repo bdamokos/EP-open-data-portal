@@ -9,7 +9,7 @@ import {InsightShell,InsightStatus,InsightPeople,InsightDemographics,humanDate} 
 import {groupColor,groupLabel} from './InsightCharts';
 import {CountryFilter} from './CountryFilter';
 import {InsightQuestionReader,InsightSpeechReader} from './InsightReaders';
-import type {InsightProps} from './InsightTypes';
+import type {InsightProps,InsightStats} from './InsightTypes';
 import {countryName} from './CountryMap';
 import {interfaceTerm,voteScope,compoundLanguage} from './terms.mjs';
 import {Participation,PlenaryPeriodSelect,latestHeldSitting,weekPeriod} from './Participation';
@@ -30,6 +30,10 @@ const contributionTime=(value:string|null,language:string)=>value&&Number.isFini
 const positions={for:'For',against:'Against',abstaining:'Abstaining'};
 const committeeAction=(kind:string)=>({COMMITTEE_TABLING_REPORT:'Draft report',COMMITTEE_TABLING_OPINION:'Draft opinion',COMMITTEE_TABLING_AMENDMENT:'Amendments',COMMITTEE_ADOPTING_REPORT:'Report adopted',COMMITTEE_ADOPTING_OPINION:'Opinion adopted',COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT:'Provisional agreement'} as Record<string,string>)[kind]||'Committee decision';
 const agendaItemRoute=(language:string,sitting:string,topic:string)=>'insights/legislation?'+new URLSearchParams({lang:language,sitting,topic});
+function ContributorAnalysis({stats,language}:{stats:InsightStats;language:string}) {
+  if(stats.denominator<=0&&!(stats.groupContributions?.total))return null;
+  return <details className="insight-author-analysis" open><summary>About the contributors</summary><InsightDemographics stats={stats} language={language}/></details>;
+}
 function VoteView({vote,language,onMember,country}:{country:string|null;vote:NamedVote;language:string;onMember:InsightProps['onMember']}) {
   const [position,setPosition]=useState<keyof typeof positions>('for'),[group,setGroup]=useState<string|null>(null),[showPeople,setShowPeople]=useState(false),heading=useRef<HTMLHeadingElement>(null),opener=useRef<HTMLButtonElement|null>(null),browse=useRef<HTMLButtonElement>(null);
   useEffect(()=>{setPosition('for');setGroup(null);setShowPeople(false);},[vote.id,country]);
@@ -177,7 +181,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
       <section className="insight-participants"><div className="insight-section-heading"><h3>Who is involved</h3><span>{shownPeople.length?<>{shownPeople.length} {shownPeople.length===1?'person':'people'}</>:country?'No matches':'No records yet'}</span></div><InsightPeople previewCount={6} people={shownPeople.map(p=>({...p,name:!p.currentMep&&speakerNames[p.id]?speakerNames[p.id]:p.name,office:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.text:null,officeLanguage:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.language:null}))} language={language} onMember={props.onMember} roles={contributors!.roles}/>{!shownPeople.length&&<p>{country?'No listed contributors match this country filter.':'No named contributor records are linked here yet.'}</p>}<p className="insight-secondary">Chairing remarks are excluded when identified in the transcript.</p></section>
       {!shownSpeeches.length&&detail.speeches.length>0&&country&&<p className="insight-secondary">No listed speeches match this country filter.</p>}
       {detail.committeeWork.length>0&&<section className="insight-committee-work"><h3>Committee work</h3><ol>{detail.committeeWork.map(event=><li key={event.id}><time lang={language}>{humanDate(event.date,language)}</time><div><strong>{committeeAction(event.kind)}</strong>{event.committees?.map(c=><p key={c.code}>{c.websiteUrl?<a lang="" href={c.websiteUrl} target="_blank" rel="noreferrer">{c.code} · {c.name.replace(/^Committee on /,'')} ↗</a>:c.code}</p>)}<div className="insight-document-links">{event.documentIds.map(id=><button key={id} aria-expanded={document===id&&documentEvent===event.id} aria-controls={readerId+'-committee-'+encodeURIComponent(event.id)} onClick={()=>{setDocument(document===id&&documentEvent===event.id?null:id);setDocumentEvent(event.id);}}>Read {id}</button>)}{!event.documentIds.length&&detail.procedures.find(p=>p.id===event.procedureId)?.websiteUrl&&<a href={detail.procedures.find(p=>p.id===event.procedureId)!.websiteUrl!} target="_blank" rel="noreferrer">Dossier ↗</a>}</div><div id={readerId+'-committee-'+encodeURIComponent(event.id)} hidden={documentEvent!==event.id||!document}>{documentEvent===event.id&&document&&<InsightQuestionReader key={document} id={document} member={documentMember} language={language} heading="Document"/>}</div></div></li>)}</ol></section>}
-      {!country&&detail.kind!=='PLENARY_VOTE'&&contributors!.stats.denominator>0&&<details className="insight-author-analysis" open><summary>About the contributors</summary><InsightDemographics stats={contributors!.stats} language={language}/></details>}
+      {!country&&detail.kind!=='PLENARY_VOTE'&&<ContributorAnalysis stats={contributors!.stats} language={language}/>}
       {(detail.coverage.speechAssociations.truncated||sourceRecordsUnavailable)&&<p className="insight-secondary" lang="en">{[
         detail.coverage.speechAssociations.truncated&&'Selected debates only',
         sourceRecordsUnavailable&&'Some source records are unavailable',
