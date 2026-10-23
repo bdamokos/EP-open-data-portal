@@ -9,7 +9,7 @@ export const SAVED_INSIGHTS_VERSION=3;
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 function selectedTitle(titles,language,fallback) {
   const code=languagePreference(Object.keys(titles||{}).filter(code=>titles[code]?.trim()),language)[0];
-  return code?{title:titles[code],titleLanguage:code}:{title:fallback,titleLanguage:null};
+  return code!==undefined?{title:titles[code],titleLanguage:code||null}:{title:fallback,titleLanguage:null};
 }
 export function savedItemPreview(store,generation,row,language) {
   const body=JSON.parse(row.body);

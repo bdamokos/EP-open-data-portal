@@ -132,7 +132,7 @@ export function speechRows(activity, fetchedAt) {
     provenance: evidence('/speeches/'+activity.activity_id, fetchedAt, 'speech.had_participation → person', 'SPEAKER') }));
 }
 export function localize(row, language) {
-  const titleLanguage = languagePreference(Object.keys(row.titles).filter(code=>row.titles[code]?.trim()),language)[0] || null;
-  return { ...row, id: `${row.category}:${row.sourceId}`, title: titleLanguage ? sourceTitle(row.titles[titleLanguage]) : row.reference, titleLanguage, requestedLanguage: language, availableFileLanguages: [...new Set(row.files.map(f => f.language).filter(Boolean))],
+  const code = languagePreference(Object.keys(row.titles).filter(code=>row.titles[code]?.trim()),language)[0], titleLanguage=code||null;
+  return { ...row, id: `${row.category}:${row.sourceId}`, title: code!==undefined ? sourceTitle(row.titles[code]) : row.reference, titleLanguage, requestedLanguage: language, availableFileLanguages: [...new Set(row.files.map(f => f.language).filter(Boolean))],
     transcriptPath: row.recordKind === 'speech' ? `../speech/${row.sourceId}?lang=${language}` : null };
 }

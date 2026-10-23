@@ -6,7 +6,7 @@ import {createServer} from 'vite';
 
 const people=Array.from({length:8},(_,i)=>({id:String(i+1),name:'Contributor '+(i+1),currentMep:false}));
 const stats={uniquePeople:8,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:8,denominator:0,referenceDate:'2026-10-07',dimensions:{country:[],group:[],gender:[],age:[]}};
-const votes=['final-text','amendment','procedural'].map((scope,i)=>({id:'test-'+scope,date:'2026-10-07',scope,titles:{en:scope},subjects:{en:scope},outcome:'ADOPTED',aggregateTotals:{for:12-i,against:3,abstaining:1},namedVotersAvailable:false,intendedCorrections:{for:[],against:[],abstaining:[]}}));
+const votes=['final-text','amendment','procedural'].map((scope,i)=>({id:'test-'+scope,date:'2026-10-07',scope,titles:i?{en:scope}:{bg:'Bulgarian title',fr:'French final text'},subjects:i?{en:scope}:{bg:'Bulgarian subject',fr:'French final subject'},outcome:'ADOPTED',aggregateTotals:{for:12-i,against:3,abstaining:1},namedVotersAvailable:false,intendedCorrections:{for:[],against:[],abstaining:[]}}));
 const topic={id:'test-topic',title:'Test agenda item',date:'2026-10-07',kind:'PLENARY_VOTE',documentIds:['A-10-2026-0237']};
 function legislation(params) {
   return {view:'legislation',sitting:{id:'MTG-PL-2026-10-07',phase:'past',date:'2026-10-07'},sittings:[{id:'MTG-PL-2026-10-07',phase:'past',date:'2026-10-07'}],topics:[topic],coverage:{agendaError:null},detail:params.has('topic')?{
@@ -52,7 +52,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const change=async(selector,value)=>act(async()=>{const node=find(selector);node.value=value;node.dispatchEvent(new window.Event('change',{bubbles:true}));});
   const shown=()=>find('.insight-vote-detail h3').textContent;
   const voteSection=()=>find('.insight-vote-select').closest('section');
-  assert.equal(shown(),'final-text');
+  assert.equal(shown(),'French final subject');assert.equal(find('.insight-vote-detail h3').lang,'fr');
   assert.match(find('.insight-topic-detail').textContent,/Some source records are unavailable/,'missing documents alone retain the coverage warning');
   assert.equal(container.querySelector('.insight-data-credit'),null);
   assert.equal(container.querySelectorAll('footer .data-notice').length,1);
@@ -126,6 +126,6 @@ test('vote changes preserve agenda readers and expansion through loading, failur
     preserved();assert.equal(pending.length,0,'history should reuse the saved vote');
   }
   await travel('back');assert.equal(shown(),'amendment');
-  await travel('back');assert.equal(shown(),'final-text');
+  await travel('back');assert.equal(shown(),'French final subject');assert.equal(find('.insight-vote-detail h3').lang,'fr');
   await travel('forward');assert.equal(shown(),'amendment');
 });

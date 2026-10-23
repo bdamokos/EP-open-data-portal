@@ -1,5 +1,6 @@
 import {legislationContributors,legislationOffice,mergeSpeechSpeakers,orderLegislationPeople,type SpeechHeaders,type SpeechSpeaker} from './legislationContributors.mjs';
 import {PersonName,usePersonName} from './PersonName';
+import {selectLanguageText} from './language.mjs';
 import {matchesCountry} from './countries.mjs';
 import {useExplorerParam} from './explorerUrl';
 import {PlenaryLiveBanner,ScheduledNow} from './PlenaryLive';
@@ -38,7 +39,7 @@ function VoteView({vote,language,onMember,country}:{country:string|null;vote:Nam
   const people=countryPeople(position),filtered=group?people.filter(p=>(p.group||'Unknown')===group):people;
   const groups=[...new Set(choices.flatMap(p=>countryPeople(p).map(person=>person.group||'Unknown')))].sort((a,b)=>choices.reduce((n,p)=>n+countryPeople(p).filter(person=>(person.group||'Unknown')===b).length-countryPeople(p).filter(person=>(person.group||'Unknown')===a).length,0)||a.localeCompare(b));
   function choose(p:keyof typeof positions,g:string|null){const active=document.activeElement;if(active instanceof HTMLButtonElement&&!active.closest('.insight-voter-list'))opener.current=active;setPosition(p);setGroup(g);setShowPeople(true);requestAnimationFrame(()=>{heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'start'});});}
-  const title=vote.subjects[language]?{text:vote.subjects[language],language}:vote.subjects.en?{text:vote.subjects.en,language:'en'}:vote.titles[language]?{text:vote.titles[language],language}:vote.titles.en?{text:vote.titles.en,language:'en'}:interfaceTerm('vote',language);
+  const label=interfaceTerm('vote',language),fallback=selectLanguageText(vote.titles,language,label.text,label.language),title=selectLanguageText(vote.subjects,language,fallback.text,fallback.language);
   return <section className="insight-vote-detail" lang="en">
     <h3 lang={title.language}>{title.text}</h3>
     <p className="insight-record-meta"><span lang={voteScope(vote.scope,language).language}>{voteScope(vote.scope,language).text}</span><span lang={language}>{humanDate(vote.date,language)}</span><span>{vote.outcome.toLowerCase()}</span></p>

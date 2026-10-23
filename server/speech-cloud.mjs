@@ -1,3 +1,4 @@
+import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {odp,odpLanguage} from './odp.mjs';
 import {array,tail} from './activity-index-model.mjs';
@@ -10,6 +11,11 @@ import {transcriptLanguage} from './transcript-language.mjs';
 import {phraseModel} from './insights-phrases.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 import {retainedSpeechPage} from './corpus-speeches.mjs';
+
+function displayTitle(titles,language,fallback=null) {
+  const code=languagePreference(Object.keys(titles||{}).filter(code=>typeof titles[code]==='string'&&titles[code].trim()),language)[0];
+  return {title:code!==undefined?titles[code]:fallback,titleLanguage:code!==undefined?code||null:fallback?'en':null};
+}
 
 // A week scales the total page and XML budgets by its number of held sittings (at most five).
 export const CLOUD_LIMITS=Object.freeze({pageSize:50,pages:20,xmlBytes:4*1024*1024,weekSittings:5,queries:6,cacheMs:30*60_000});
@@ -66,7 +72,7 @@ export class SpeechCloudInsights {
     const sitting=catalogue.sittings.find(s=>s.activity_id===query.sitting);
     if(!sitting)throw new HttpError(404,'sitting_not_found','Choose a listed sitting.');
     const upcoming=sitting.activity_date>today;
-    if(!query.topic)return {kind:'sitting',dates:upcoming?[]:[{start:sitting.activity_date,end:sitting.activity_date}],ids:null,phase:upcoming?'upcoming':'past',title:sitting.activity_label?.[query.language]||sitting.activity_label?.en||null,titleLanguage:sitting.activity_label?.[query.language]?query.language:sitting.activity_label?.en?'en':null};
+    if(!query.topic)return {kind:'sitting',dates:upcoming?[]:[{start:sitting.activity_date,end:sitting.activity_date}],ids:null,phase:upcoming?'upcoming':'past',...displayTitle(sitting.activity_label,query.language)};
     const response=await this.legislation.query({language:query.language,sitting:query.sitting,topic:query.topic,vote:null});
     const sources=response.detail.coverage.speechAssociations.sources;
     return {kind:'topic',dates:[...new Set(sources.map(s=>s.eventDate))].sort().map(date=>({start:date,end:date})),ids:new Set(sources.flatMap(s=>s.contributionIds)),people:new Map(response.detail.people.map(person=>[person.id,person])),phase:upcoming?'upcoming':'past',title:response.detail.title,titleLanguage:response.detail.titleLanguage??null};
@@ -140,7 +146,7 @@ export class SpeechCloudInsights {
         if(state.xmlBytes+Buffer.byteLength(xml)>limits.xmlBytes){state.sourceIssues.add('xml-byte-limit');state.cursor=null;break;}
         const text=speechParagraphText(xml);if(!text){state.invalidText++;continue;}state.xmlBytes+=Buffer.byteLength(xml);
         const headers=speechSpeakers(activity,xml),details=speechSpeakerDetails(activity),info=transcriptLanguage(xml);
-        state.records.set(id,{id,date:activity.activity_date,title:activity.activity_label?.[query.language]||activity.activity_label?.en||'Speech',titleLanguage:activity.activity_label?.[query.language]?query.language:'en',text,machineTranslation:info.machine,people:people.map(id=>{const known=members.get(id)||state.scope.people?.get(id),header=headers.find(p=>p.id===id);return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),roleLabels:details.find(p=>p.id===id)?.roleLabels||{},roleLanguage:header?.roleLanguage||null,roleSource:{speechId:activity.activity_id,date:activity.activity_date,url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString()},role:header?.role||(header&&!meaningfulSpeakerName(header.name)?(/president|chair/i.test(header.name)?'Chairing the sitting':null):null)};})});
+        state.records.set(id,{id,date:activity.activity_date,...displayTitle(activity.activity_label,query.language,'Speech'),text,machineTranslation:info.machine,people:people.map(id=>{const known=members.get(id)||state.scope.people?.get(id),header=headers.find(p=>p.id===id);return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),roleLabels:details.find(p=>p.id===id)?.roleLabels||{},roleLanguage:header?.roleLanguage||null,roleSource:{speechId:activity.activity_id,date:activity.activity_date,url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString()},role:header?.role||(header&&!meaningfulSpeakerName(header.name)?(/president|chair/i.test(header.name)?'Chairing the sitting':null):null)};})});
       }
       state.page++;
       if(shortPage||noProgress)state.cursor=null;
@@ -187,7 +193,7 @@ export class SpeechCloudInsights {
         state.xmlBytes+=size;
         if(!record.text.body.trim()){state.invalidText++;continue;}
         const titles=saved.summary.titles||{};
-        state.records.set(record.id,{id:record.id,date:saved.summary.date,title:titles[query.language]||titles.en||'Speech',titleLanguage:titles[query.language]?query.language:titles.en?'en':null,
+        state.records.set(record.id,{id:record.id,date:saved.summary.date,...displayTitle(titles,query.language,'Speech'),
           text:record.text.body,machineTranslation:record.text.translationType==='machine',people:people.map(id=>{
             const known=members.get(id)||state.scope.people?.get(id),header=saved.speakers.find(person=>person.id===id);
             return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),role:header?.role||null,roleLanguage:header?.roleLanguage||null,roleLabels:header?.roleLabels||{},roleSource:header?.roleSource||{speechId:record.id,date:saved.summary.date,url:saved.sourceUrl,fetchedAt:saved.fetchedAt}};

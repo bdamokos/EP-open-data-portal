@@ -52,8 +52,8 @@ test('speech titles retain requested/English/fixed fallback selection with their
     {language:'fr',titles:{hu:'Magyar',en:'English',fr:'Français'},title:'Français',titleLanguage:'fr'},
     {language:'hu',titles:{fr:'Français',en:'English'},title:'English',titleLanguage:'en'},
     {language:'fr',titles:{hu:'Magyar',fr:'',en:'English'},title:'English',titleLanguage:'en'},
-    {language:'en',titles:{hu:'Magyar'},title:'Speech',titleLanguage:'en'},
-    {language:'hu',titles:{fr:'Français',hu:'',en:''},title:'Speech',titleLanguage:'en'},
+    {language:'en',titles:{hu:'Magyar'},title:'Magyar',titleLanguage:'hu'},
+    {language:'hu',titles:{bg:'Български',fr:'Français',hu:'',en:''},title:'Français',titleLanguage:'fr'},
     {language:'fr',titles:{},title:'Speech',titleLanguage:'en'},
   ];
   for(const [i,{language,titles,title,titleLanguage}] of cases.entries()) {
@@ -74,14 +74,14 @@ test('speech titles retain requested/English/fixed fallback selection with their
   }
 });
 
-test('sitting scope titles retain requested/English/null selection without a first-key fallback',async t=>{
+test('sitting scope titles use the shared display preference and retain actual language',async t=>{
   const cases=[
     {language:'en',labels:{hu:'Ülés',en:'Sitting'},title:'Sitting',titleLanguage:'en'},
     {language:'hu',labels:{en:'Sitting',hu:'Ülés'},title:'Ülés',titleLanguage:'hu'},
     {language:'fr',labels:{en:'Sitting',fr:'Séance'},title:'Séance',titleLanguage:'fr'},
     {language:'hu',labels:{fr:'Séance',en:'Sitting'},title:'Sitting',titleLanguage:'en'},
     {language:'fr',labels:{fr:'',en:'Sitting'},title:'Sitting',titleLanguage:'en'},
-    {language:'hu',labels:{fr:'Séance'},title:null,titleLanguage:null},
+    {language:'hu',labels:{bg:'Заседание',fr:'Séance'},title:'Séance',titleLanguage:'fr'},
     {language:'en',labels:{},title:null,titleLanguage:null},
   ];
   for(const {language,labels,title,titleLanguage} of cases) {
