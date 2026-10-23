@@ -72,3 +72,22 @@ test('summary IDs are independent of labels and older observations, and source b
   h.store.observePress(id,response('2026-10-23T09:00:00Z',[summary('3')]),h.expected());assert.equal(h.item().entries.length,1);
   const again=createDossiersStore(h.storage,()=>{},h.now),expected=again.snapshot().items[0];again.observePress(id,response('2026-10-23T12:00:00Z',[summary('1'),summary('2')]),expected);assert.equal(again.snapshot().items[0].entries.length,1);
 });
+
+
+test('a press release first matched through a later OEIL association is new once despite an already observed global watermark',()=>{
+  const h=setup(),release={id:'later-association',linkedAt:20,title:'Newly linked release',publishedAt:'2026-10-23'};
+  h.store.observePress(id,press(10),h.expected());
+  h.store.observePress(id,press(20),h.expected());assert.equal(h.item().entries.length,0);
+  h.store.observePress(id,press(20,[release]),h.expected());assert.equal(h.item().entries.length,1);
+  h.store.markRead(id);h.store.observePress(id,press(21,[]),h.expected());h.store.observePress(id,press(22,[release]),h.expected());assert(!itemHasNew(h.item(),h.now()));
+  h.store.observePress(id,press(1,[{...release,id:'archive',linkedAt:1}],{coverage:{followingSince:'2026-10-24',feeds:[],procedureLinks:{status:'available'}}}),h.expected());
+  assert.equal(h.item().entries.length,1);assert.equal(h.item().observations.press.mark,1);assert(h.store.snapshot().restarted);
+});
+
+test('unread overflow expires with the shared window and Mark all read keeps the bounded history',()=>{
+  const h=setup();h.index(1,[]);h.index(2,Array.from({length:205},(_,i)=>entry('entry-'+i,2)));
+  assert.equal(h.item().entries.length,200);assert.equal(h.item().unreadOmitted,5);assert(itemHasNew(h.item(),h.now()));
+  h.store.markRead(id);assert.equal(h.item().entries.length,5);assert.equal(h.item().unreadOmitted,0);assert(!itemHasNew(h.item(),h.now()));
+  const next=setup();next.index(1,[]);next.index(2,Array.from({length:205},(_,i)=>entry('entry-'+i,2)));next.tick(24*3600_000);
+  assert(!itemHasNew(next.item(),next.now()));assert.equal(followEntries(next.item(),next.now()).fresh.length,0);
+});

@@ -64,16 +64,23 @@ export function dossierQuery(search) {
   if(references.length>50||new Set(references).size!==references.length)throw new HttpError(400,'invalid_selection','Choose up to 50 dossiers.');
   references.forEach(procedureReference);return {epoch,generation,references};
 }
-export function followingDossiers(store,search) {
+function readFollowingDossiers(store,search) {
   const {epoch,generation,references}=dossierQuery(search);
   if(epoch!==store.get('marksEpoch')||![store.get('active'),store.get('previous')].includes(generation))throw new HttpError(409,'generation_changed','The index generation has changed. Try again.');
   if(store.get('followMarksVersion')!==3)throw new HttpError(503,'marks_unavailable','Dossier updates are not available yet.');
   const entries=store.db.prepare(`SELECT event.body,mark.mark FROM dossier_events event JOIN procedure_marks mark USING(procedure,kind,source_id) WHERE generation=? AND procedure=? ORDER BY mark.mark DESC,event.kind,event.source_id LIMIT 1001`);
   const items=references.map(reference=>{
     const procedure=reference.replace(/\([A-Z]+\)$/,'').replace('/','-'),source=store.source(generation,'/procedures/'+procedure),type=tail(array(source?.work.process_type)[0]);
-    if(type&&type!==reference.match(/\(([A-Z]+)\)$/)[1])return {reference,status:'unavailable',entries:[]};
+    if(!type||type!==reference.match(/\(([A-Z]+)\)$/)[1])return {reference,status:'unavailable',entries:[]};
     const rows=entries.all(generation,procedure),titles=sourceTitles(source?.work.process_title);
     return {reference,status:source||rows.length?'available':'unavailable',title:titles.en||null,titleLanguage:titles.en?'en':null,limited:rows.length>1000,entries:rows.slice(0,1000).map(row=>({...JSON.parse(row.body),mark:row.mark}))};
   });
   return {version:FOLLOWING_DOSSIERS_VERSION,epoch,generation,indexComplete:Boolean(store.db.prepare('SELECT index_complete FROM follow_generations WHERE generation=?').get(generation)?.index_complete),items};
+}
+
+export function followingDossiers(store,search) {
+  if(store.db.isTransaction)return readFollowingDossiers(store,search);
+  store.db.exec('BEGIN');
+  try {const result=readFollowingDossiers(store,search);store.db.exec('COMMIT');return result;}
+  catch(error){try{if(store.db.isTransaction)store.db.exec('ROLLBACK');}catch{}throw error;}
 }

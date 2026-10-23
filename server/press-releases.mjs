@@ -93,14 +93,21 @@ export class PressStore {
   // Releases whose own Further information list links this exact procedure, or
   // one of the OEIL summaries or documents its procedure file links.
   mentions(reference,{summaries=[],documents=[]}={},limit=PRESS_LIMITS.listed) {
-    if(!this.tables())return {items:[],total:0};
+    if(!this.tables())return {items:[],total:0,watermark:null};
+    if(this.db.isTransaction)return this.readMentions(reference,{summaries,documents},limit);
+    this.db.exec('BEGIN');
+    try {const result=this.readMentions(reference,{summaries,documents},limit);this.db.exec('COMMIT');return result;}
+    catch(error){try{if(this.db.isTransaction)this.db.exec('ROLLBACK');}catch{}throw error;}
+  }
+  readMentions(reference,{summaries,documents},limit) {
+    const watermark=this.get('linkedMark');
     const args=[reference,JSON.stringify(summaries),JSON.stringify(documents)];
     const total=this.db.prepare(`SELECT COUNT(DISTINCT l.release) AS n FROM links l WHERE ${MATCH}`).get(...args).n;
     const linked=this.db.prepare("PRAGMA table_info('releases')").all().some(column=>column.name==='linked_at');
     const items=this.db.prepare(`SELECT r.id,r.body,${linked?'r.linked_at':'NULL'} AS linked_at,json_group_array(json_object('kind',l.kind,'value',l.value,'label',l.label)) AS basis
       FROM links l JOIN releases r ON r.id=l.release WHERE ${MATCH}
       GROUP BY r.id ORDER BY COALESCE(json_extract(r.body,'$.publishedAt'),'') DESC,r.id DESC LIMIT ?`).all(...args,limit).map(row=>({id:row.id,body:parse(row.body),linked_at:row.linked_at,basis:parse(row.basis)}));
-    return {items,total};
+    return {items,total,watermark};
   }
   counts() {
     if(!this.tables())return {releases:0,pending:0,unreadable:0,unlisted:0};
@@ -206,10 +213,10 @@ export class PressMentions {
       // A saved page whose refresh is due or failing stays visible as such.
       procedure={status:'available',title:parsed.title,language:sourceLanguage,summaryEntries:parsed.summaries,summaries:parsed.summaries.map(summary=>summary.id),documents:parsed.documents,source:{url:page.url,fetchedAt:page.fetchedAt,stale:Boolean(page.viewCache?.stale),refreshInProgress:Boolean(page.viewCache?.refreshInProgress),refreshError:page.viewCache?.refreshError||null}};
     } catch {requestSignal()?.throwIfAborted();}
-    const {items,total}=this.store.mentions(reference,procedure,following?1001:PRESS_LIMITS.listed),follow=this.store.get('follow'),counts=this.store.counts();
+    const {items,total,watermark}=this.store.mentions(reference,procedure,following?1001:PRESS_LIMITS.listed),follow=this.store.get('follow'),counts=this.store.counts();
     return {
       view:'press-releases',version:PRESS_RELEASES_VERSION,reference,items:items.slice(0,following?1000:PRESS_LIMITS.listed).map(row=>({...publicItem(row),...(following?{linkedAt:row.linked_at}:{} )})),total,
-      ...(following?{limited:items.length>1000,watermark:this.store.get('linkedMark')||0,dossier:procedure.status==='available'?{title:procedure.title,language:procedure.language,summaries:procedure.summaryEntries,documents:procedure.documents,source:procedure.source}:null}:{}),
+      ...(following?{limited:items.length>1000,watermark,dossier:procedure.status==='available'?{title:procedure.title,language:procedure.language,summaries:procedure.summaryEntries,documents:procedure.documents,source:procedure.source}:null}:{}),
       coverage:{
         // Following starts at the first feed read; the feeds hold only recent releases.
         complete:false,followingSince:follow?.since||null,

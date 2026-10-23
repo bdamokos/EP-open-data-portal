@@ -83,8 +83,12 @@ export function createDossiersStore(storage,notify=()=>{},clock=Date.now) {
       });
       return observation(id,expected,'press',(item,old)=>{
         if(data?.reference!==id||data.limited||!integer(data.watermark)||!data.coverage?.followingSince||!freshSource(data.dossier?.source)||data.coverage.procedureLinks?.status!=='available'||!Array.isArray(data.items)||data.items.some(entry=>!integer(entry.linkedAt)))return null;
-        if(old&&data.watermark<old.mark)return {ignore:true};
-        return {baseline:{mark:data.watermark},entries:old?data.items.filter(entry=>entry.linkedAt>old.mark).map(entry=>({id:'press:'+entry.id,eventKind:'press',title:entry.title||entry.id,titleLanguage:entry.titleLanguage||'en',date:entry.publishedAt?.slice(0,10)||'',url:entry.url,source:{url:entry.url,fetchedAt:entry.fetchedAt}})):[],partial:data.coverage.feeds?.some(feed=>!feed.lastSuccessAt||feed.lastError)||data.coverage.unreadableReleases>0};
+        const since=data.coverage.followingSince,baseline=old?.since===since&&Array.isArray(old.known)?old:null;
+        if(baseline&&data.watermark<baseline.mark)return {ignore:true};
+        if(old&&old.since&&old.since!==since)restarted=true;
+        const known=new Set(baseline?.known),added=baseline?data.items.filter(entry=>!known.has(entry.id)):[];
+        for(const entry of data.items)known.add(entry.id);
+        return {baseline:{mark:data.watermark,since,known:[...known]},entries:added.map(entry=>({id:'press:'+entry.id,eventKind:'press',title:entry.title||entry.id,titleLanguage:entry.titleLanguage||'en',date:entry.publishedAt?.slice(0,10)||'',url:entry.url,source:{url:entry.url,fetchedAt:entry.fetchedAt}})),partial:data.coverage.feeds?.some(feed=>!feed.lastSuccessAt||feed.lastError)||data.coverage.unreadableReleases>0};
       });
     },
     markRead(id){return update(id,null,item=>({...item,entries:markAllRead(item.entries,clock()),unreadOmitted:0}));},

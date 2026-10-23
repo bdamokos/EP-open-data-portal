@@ -93,3 +93,5 @@
 .insight-trend-dossier-source a {display:inline-flex;align-items:center;min-height:44px;font-size:13px;color:var(--ink-muted);}
 @media(max-width:1000px){.insight-trends-layout {gap:24px;grid-template-columns:minmax(200px,35%) minmax(0,1fr);}}
 @media(max-width:680px){.insight-trends-layout {grid-template-columns:1fr;}.insight-trend-list {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}.insight-trend-list button {grid-template-columns:minmax(0,1fr) auto;padding:10px 8px;}.insight-trend-list svg {display:none;}.insight-trend-chart text {font-size:24px;}.insight-trend-events li {grid-template-columns:1fr;gap:0;}.insight-trend-events time {padding:0 0 10px;}.insight-official-summary {font-size:16px;}.insight-summary-stage {max-width:100%;}.insight-procedure-context header>div {width:100%;}.insight-topic-trends>.insight-section-heading {align-items:start;}.insight-topic-trends h2 {font-size:26px;}}
+
+.insight-dossier-follow { display: flex; justify-content: flex-end; margin-bottom: 1rem; }

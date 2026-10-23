@@ -90,7 +90,7 @@ export class ActivityWorker {
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
     if(this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
     if(!cycle&&this.coreDue())return true;
-    if(cycle&&(!cycle.initialized||!cycle.reportJoinsReady||!cycle.procedureTitlesQueued||
+    if(cycle&&(!cycle.initialized||!cycle.reportJoinsReady||!cycle.procedureTitlesQueued||!cycle.procedureTypesQueued||
       cycle.motionOutcomesDay!==day(this.clock())||day(Date.parse(cycle.startedAt))!==day(this.clock())&&cycle.catchupDay!==day(this.clock())||
       !this.store.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(generation)))return true;
     const checkpoint=this.store.source(generation,CONTINUATIONS_KEY)?.work;
@@ -636,12 +636,12 @@ export class ActivityWorker {
           for(const procedure of this.store.iterateSources(cycle.generation,'procedure'))this.refreshReportJoins(cycle.generation,tail(procedure.key));
           this.store.updateCycle({reportJoinsReady:true});
         }
-        if(!this.store.get('working').procedureTitlesQueued) {
+        if(!this.store.get('working').procedureTitlesQueued||!this.store.get('working').procedureTypesQueued) {
           // Upgrade saved procedures within the existing worker/request budget, ahead of bulk catalogues.
-          // Explicit null records an unavailable upstream title, so later cycles do not refetch it just for this upgrade.
-          const untitled=this.store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='procedure' AND json_type(body,'$.process_title') IS NULL").all(cycle.generation);
+          // Explicit null records an unavailable title/type; only omitted projection fields need this one-time upgrade.
+          const untitled=this.store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='procedure' AND (json_type(body,'$.process_title') IS NULL OR json_type(body,'$.process_type') IS NULL)").all(cycle.generation);
           for(const {key} of untitled)this.store.enqueue(cycle.generation,key,'procedure',{endpoint:key},104,true);
-          this.store.updateCycle({procedureTitlesQueued:true});
+          this.store.updateCycle({procedureTitlesQueued:true,procedureTypesQueued:true});
         }
         this.store.updateCycle({phase:cycle.initial?'backfilling':'refreshing'});
         // Existing optional continuations may become admissible while a core

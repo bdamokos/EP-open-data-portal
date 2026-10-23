@@ -52,8 +52,8 @@ export function useDossierChecks() {
     const current=new AbortController();controller.current=current;
     void checkDossiers({signal:current.signal});
     const check=()=>{if(document.visibilityState==='visible')void checkDossiers({signal:current.signal});};
-    window.addEventListener('focus',check);
-    return()=>{current.abort();window.removeEventListener('focus',check);};
+    window.addEventListener('focus',check);document.addEventListener('visibilitychange',check);
+    return()=>{current.abort();window.removeEventListener('focus',check);document.removeEventListener('visibilitychange',check);};
   },[key]);
   return ()=>checkDossiers({force:true,signal:controller.current?.signal});
 }

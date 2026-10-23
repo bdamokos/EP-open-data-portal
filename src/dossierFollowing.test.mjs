@@ -35,11 +35,25 @@ test('following a dossier from its reader establishes a quiet baseline and expos
   assert.match(h.container.textContent,/1 new/);assert.match(h.container.textContent,/Parliament position adopted/);
   const row=h.container.querySelector('.dossier-update-disclosure');await act(async()=>row.click());await h.flush();
   assert(h.controls.dossierStore.snapshot().items[0].entries[0].readAt!==null);assert.equal(row.getAttribute('aria-expanded'),'true');assert.equal(location.search,'?view=saved');
-  await act(async()=>row.click());assert.match(h.container.textContent,/Earlier updates/);assert(h.container.textContent.includes('Parliament position adopted'),'read row remains in place during this visit');
+  await act(async()=>row.click());assert.equal(h.container.querySelector('.explorer-saved-history'),null);assert(h.container.textContent.includes('Parliament position adopted'),'read row remains in place during this visit');
   await h.click('Read here');assert.match(h.container.textContent,/Public dossier title/);
 });
 test('automatic source reads are bounded to five dossiers and all follow checks request English',async t=>{
   const h=await harness(t);
   await act(async()=>{for(let n=0;n<7;n++)h.controls.dossierStore.toggle({id:`2025/${String(n).padStart(4,'0')}(COD)`});await h.controls.checkDossiers();});
   const progress=h.requests.filter(url=>url.pathname.endsWith('/procedure-progress'));assert.equal(progress.length,5);assert(progress.every(url=>url.searchParams.get('lang')==='en'));
+});
+
+test('an opened row stays read when bounded history drops its stored entry',async t=>{
+  const h=await harness(t);h.controls.dossierStore.toggle({id:reference});await h.renderSaved();await h.flush();
+  h.generation(2);await act(async()=>h.controls.checkDossiers({force:true}));await h.flush();
+  await act(async()=>h.container.querySelector('.dossier-update-disclosure').click());await h.flush();
+  await act(async()=>{
+    const expected=h.controls.dossierStore.snapshot().items[0];
+    h.controls.dossierStore.observeIndex({epoch,generation:3,indexComplete:true,items:[{reference,status:'available',entries:Array.from({length:6},(_,i)=>({id:'later-'+i,mark:3,eventKind:'stage',title:'Later event '+i,date:'2026-10-23'}))}]},[expected]);
+    h.controls.dossierStore.markRead(reference);
+  });
+  assert(!h.controls.dossierStore.snapshot().items[0].entries.some(entry=>entry.id==='recorded-stage'));
+  const pinned=[...h.container.querySelectorAll('.dossier-update-disclosure')].find(row=>row.textContent.includes('Parliament position adopted'));
+  assert(pinned);assert.equal(pinned.querySelector('.explorer-saved-new'),null);
 });

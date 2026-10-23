@@ -11,7 +11,10 @@ function setup(t) {
   t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(dir,{recursive:true,force:true});});
   store.setMembers([{id:'42'}]);
   const read=(references=[reference],generation=store.get('active'))=>followingDossiers(store,new URLSearchParams({epoch:store.get('marksEpoch'),generation,procedures:references.join(',')}));
-  const document=(generation,id,extra={})=>store.putSource(generation,'/plenary-documents/'+id,'document',{id:'eli/dl/doc/'+id,identifier:id,work_type:'def/REPORT_PLENARY',parliamentary_term:['org/ep-10'],inverse_created_a_realization_of:['eli/dl/proc/'+procedure],title_dcterms:{en:id},document_date:'2026-10-01',...extra},'2026-10-23T10:00:00Z');
+  const document=(generation,id,extra={})=>{
+    if(!store.source(generation,'/procedures/'+procedure))store.putSource(generation,'/procedures/'+procedure,'procedure',{id:'eli/dl/proc/'+procedure,process_type:'def/COD',consists_of:[]},'2026-10-23T10:00:00Z');
+    store.putSource(generation,'/plenary-documents/'+id,'document',{id:'eli/dl/doc/'+id,identifier:id,work_type:'def/REPORT_PLENARY',parliamentary_term:['org/ep-10'],inverse_created_a_realization_of:['eli/dl/proc/'+procedure],title_dcterms:{en:id},document_date:'2026-10-01',...extra},'2026-10-23T10:00:00Z');
+  };
   return {store,read,document};
 }
 test('published dossier identities keep first marks across backdates, removal and reappearance; suffixes remain exact',t=>{
@@ -41,4 +44,13 @@ test('failed publication rolls dossier marks back and unretained generations con
 test('batch input rejects unknown, repeated, malformed and oversized selections',()=>{
   const base={epoch:'12345678-1234-1234-1234-123456789abc',generation:'1',procedures:reference};
   for(const patch of [{procedures:reference+','+reference},{procedures:'2025/0407(COD),https://example.com'},{generation:'1e2'},{unknown:'x'},{procedures:Array.from({length:51},(_,i)=>`2025/${String(i).padStart(4,'0')}(COD)`).join(',')}])assert.throws(()=>dossierQuery(new URLSearchParams({...base,...patch})),error=>error.status===400);
+});
+
+
+test('older projections and document-only observations cannot establish a full procedure type',t=>{
+  const {store,read,document}=setup(t),generation=store.beginCycle().generation;
+  document(generation,'A-10-2026-0001');
+  store.putSource(generation,'/procedures/'+procedure,'procedure',{id:'eli/dl/proc/'+procedure,process_title:{en:'Older COD title'},consists_of:[]},'2026-10-23T10:00:00Z');store.publish(generation);
+  for(const reference of ['2025/0407A(COD)','2025/0407A(RSP)'])assert.equal(read([reference]).items[0].status,'unavailable');
+  const next=store.beginCycle().generation;store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(next,'/procedures/'+procedure);store.publish(next);assert.equal(read().items[0].status,'unavailable');
 });
