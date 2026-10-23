@@ -284,6 +284,7 @@ const headingLike = value => value.length > 0 && value.length < 180 && /\p{L}/u.
     && (!/\p{P}$/u.test(value) || /:$/u.test(value) || value.split(/\s+/u).length <= 3));
 function motionStructure(text, language) {
   const paragraphs = text?.paragraphs || [], start = motionBodyStart(paragraphs, language), rows = sourceStructure(text);
+  const formats = Array.isArray(text?.paragraphFormats) && text.paragraphFormats.length === paragraphs.length ? text.paragraphFormats : [];
   const units = [], stack = [], invalid = new Set(), uncertain = new Set(), incompleteLabels = new Set();
   if (start < 0 || !rows || rows[start].source.container !== 'body' || !rows[start].complete) return {units, invalid, uncertain, incompleteLabels, start, end: -1, endAvailable: false};
   let citation = 0, provisionsStarted = false, end = paragraphs.length - 1, endAvailable = false;
@@ -314,13 +315,16 @@ function motionStructure(text, language) {
       }
       continue;
     }
+    const heading = formats[index]?.heading;
+    const recordedHeading = Number.isInteger(heading) && heading >= 1 && heading <= 6;
     let kind, label, level = 1;
     let match = /^([1-9]\d{0,5}\s*[a-z]{0,3})[.)]\s+/u.exec(value);
     if (match) {kind = 'paragraph'; label = match[1].replace(/\s/g, ''); provisionsStarted = true;}
     else if ((match = /^([A-Z]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value))) {kind = 'recital'; label = match[1]; provisionsStarted = true;}
     else if ((match = /^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\))\s+/u.exec(value)) && stack.some(unit => unit.kind === 'paragraph')) {kind = 'point'; label = match[1] || match[2]; level = 2;}
     else if (!provisionsStarted && /^[–—−\-•]\s*\S/u.test(value)) {kind = 'citation'; label = String(++citation);}
-    else if (!/^[–—−\-•]\s*\S/u.test(value) && headingLike(value)) {
+    else if (recordedHeading || !/^[–—−\-•]\s*\S/u.test(value) && headingLike(value)) {
+      // Recorded outline headings also close scope when their text resembles prose.
       // A heading ends any list immediately. Later numbering cannot prove that
       // the preceding provision stopped before this unclassified material.
       for (const unit of stack) if (unit.kind !== 'heading') uncertain.add(unit.start);
