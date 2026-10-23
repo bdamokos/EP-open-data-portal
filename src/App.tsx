@@ -15,6 +15,7 @@ import {SpeakerName,SpeakerRoleLine} from './SpeakerIdentity';
 import {publicationBody} from './publication-body.mjs';
 import {CommitteeMemberships} from './CommitteeMemberships';
 import {ParliamentaryService} from './ParliamentaryService';
+import {ProfileMemberships} from './ProfileMemberships';
 import {SaveButton,useSavedChecks,useSaved} from './SavedControls';
 import {interfaceTerm} from './terms.mjs';
 import {ParliamentHeader} from './ParliamentHeader';
@@ -792,7 +793,7 @@ export default function App() {
             </nav>
             <div className="explorer-profile-body">
               {outsideRoster&&<FormerMemberNotice member={member} language={lang}/>}
-              {outsideRoster&&(tab==='profile'||tab==='activities') ? null : tab === "speeches" ? (
+              {outsideRoster&&tab==='activities' ? null : tab === "speeches" ? (
                 <Speeches
                   key={member}
                   id={member}
@@ -833,8 +834,11 @@ export default function App() {
                           </a>
                         </p>
                       )}
-                      <h2 lang={lang}>{c.committee}</h2>
-                      <CommitteeMemberships profile={profile.data} committees={directory?.committees||[]} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
+                      {!(profile.data.committeeMemberships?.complete && !profile.data.committeeMemberships.items.length) && <>
+                        <h2 lang={profile.data.currentAffiliation?.status==='matched'?lang:'en'}>{profile.data.currentAffiliation?.status==='matched'?c.committee:'Committee records'}</h2>
+                        <CommitteeMemberships profile={profile.data} committees={directory?.committees||[]} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
+                      </>}
+                      <ProfileMemberships profile={profile.data} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
                     </>
                   )}
                 </>

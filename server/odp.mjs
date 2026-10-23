@@ -13,6 +13,7 @@ import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
 import {createCommitteeMembershipReader} from './committee-memberships.mjs';
 import {parliamentaryService} from './parliamentary-service.mjs';
+import {profileMemberships,createProfileMembershipReader} from './profile-memberships.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
@@ -148,7 +149,7 @@ function observeSource(entry,priority,signal) {
 export async function odp(
   endpoint,
   params = {},
-  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
+  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
   signal?.throwIfAborted();
   const url = new URL(ODP_BASE + endpoint);
@@ -172,6 +173,9 @@ export async function odp(
     } catch { /* Missing or invalid reproducible cache. */ }
   }
   signal?.throwIfAborted();
+  if(stored&&validate) {
+    try {validate(stored.payload);} catch {stored=undefined;}
+  }
   if(cachedOnly) {
     if(!stored)throw new HttpError(404,'odp_cache_miss','This source record is not retained.');
     return {...stored,stale:Date.now()-stored.fetchedAt>=ttl || daily&&dayOf(stored.fetchedAt)!==today()};
@@ -186,16 +190,16 @@ export async function odp(
   if (!force && stored && staleWhileRevalidate) {
     const failure=refreshFailures.get(key);
     if (!pending.has(key) && (!failure || failure.retryAt<=Date.now()))
-      void odp(endpoint,params,{force:true,ttl,daily,priority:'background'}).catch(()=>{});
+      void odp(endpoint,params,{force:true,ttl,daily,validate,priority:'background'}).catch(()=>{});
     return {...stored,stale:true,refreshInProgress:pending.has(key),refreshError:failure?.message || null};
   }
   signal?.throwIfAborted();
   const shared=pending.get(key);
-  if(shared)return observeSource(shared,priority,signal);
+  if(shared){if(validate)shared.validators.add(validate);return observeSource(shared,priority,signal);}
   // Cold interactive work includes admission and body in one bounded job.
   // Background retries retain their owner while waiting through upstream pauses.
   const budget=priority==='background'?{signal:undefined,abort:()=>{},dispose:()=>{}}:createRequestBudget(30_000);
-  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,foregroundWaiters:new Set(),settled:false,promise:null};
+  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,foregroundWaiters:new Set(),validators:new Set(validate?[validate]:[]),settled:false,promise:null};
   const job = runWithRequestSignal(undefined,async () => {
     let rateFailures=0;
     for(;;){
@@ -267,6 +271,7 @@ export async function odp(
             "odp_invalid",
             "Parliament returned an unexpected data structure.",
           );
+        for(const validate of entry.validators)validate(payload);
         const record = { url: key, fetchedAt: Date.now(), payload };
         const serialized = JSON.stringify(record);
         refreshFailures.delete(key);
@@ -339,9 +344,9 @@ const tail = (value) =>
     .split("/")
     .at(-1);
 export function memberships(person, day) {
-  return (person.hasMembership || [])
+  return (Array.isArray(person.hasMembership)?person.hasMembership:[])
     .filter((m) =>
-      String(m.membershipClassification || "").includes(
+      String(m?.membershipClassification || "").includes(
         "/COMMITTEE_PARLIAMENTARY_",
       ),
     )
@@ -382,7 +387,7 @@ let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
 export const DIRECTORY_VERSION = 2;
-export const PROFILE_VERSION = 2;
+export const PROFILE_VERSION = 6;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -537,10 +542,14 @@ export async function readCachedMepRecord(id,{now=Date.now(),signal}={}) {
   }catch(error){if(signal?.aborted)throw error;return null;}
 }
 async function mepRecord(id, force = false, {priority='interactive'}={}) {
+  const validate=payload=>{
+    if(payload?.data?.length!==1||String(payload.data[0]?.identifier)!==String(id))
+      throw new HttpError(404,'mep_not_found','This MEP profile is unavailable.');
+  };
   const record = await odp(
     `/meps/${id}`,
     {},
-    { force, ttl: 7 * 24 * 60 * 60 * 1000, priority },
+    { force, ttl: 7 * 24 * 60 * 60 * 1000, priority, validate },
   );
   const person = record.payload.data[0];
   if (!person || String(person.identifier) !== String(id))
@@ -551,7 +560,7 @@ async function mepRecord(id, force = false, {priority='interactive'}={}) {
     );
   return record;
 }
-export async function odpProfile(id, force = false, {priority='interactive'}={}) {
+async function loadProfile(id, force = false, {priority='interactive'}={}) {
   const record = await mepRecord(id,force,{priority});
   const person = record.payload.data[0];
   // The per-person record carries country URIs and dated organization IDs,
@@ -579,7 +588,7 @@ export async function odpProfile(id, force = false, {priority='interactive'}={})
     },
     birthDate: person.bday,
     birthPlace: person.placeOfBirth,
-    parliamentaryService: parliamentaryService(person,today()),
+    parliamentaryService: parliamentaryService(person,day,affiliationError?'unavailable':current?'matched':'not-current'),
     email: firstString(person.hasEmail).replace(/^mailto:/, ""),
     memberships: memberships(person),
     accounts: (person.account || []).map((a) => a.id),
@@ -587,12 +596,44 @@ export async function odpProfile(id, force = false, {priority='interactive'}={})
     sources: [sourceSummary(record), ...affiliationSources],
   };
   profileIndex.set(Number(id), result);
-  return result;
+  return {profile:result,record};
+}
+export async function odpProfile(id, force = false, options={}) {
+  return (await loadProfile(id,force,options)).profile;
 }
 const readCommitteeMemberships = createCommitteeMembershipReader({request:odp});
+const readProfileMemberships = createProfileMembershipReader({request:odp});
+const rejectedProfileObservations = new Set();
 export async function odpProfileWithMemberships(id) {
-  const profile = await odpProfile(id);
-  return {...profile, committeeMemberships:await readCommitteeMemberships(profile,today(),{signal:requestSignal()})};
+  let {profile,record} = await loadProfile(id);
+  const parentSignal=requestSignal();
+  if(rejectedProfileObservations.has(String(id))) {
+    try {({profile,record}=await loadProfile(id,true));}
+    catch {
+      parentSignal?.throwIfAborted();
+      record={...record,stale:true,refreshError:true};
+    }
+  }
+  const observations=profileMemberships(record.payload.data[0],record);
+  if(observations.observationComplete)rejectedProfileObservations.delete(String(id));
+  else {
+    rejectedProfileObservations.delete(String(id));rejectedProfileObservations.add(String(id));
+    if(rejectedProfileObservations.size>256)rejectedProfileObservations.delete(rejectedProfileObservations.values().next().value);
+  }
+  const optionalSignal=AbortSignal.timeout(8000);
+  const signal=AbortSignal.any([optionalSignal,...(parentSignal?[parentSignal]:[])]);
+  const membershipHistory=await readProfileMemberships(observations,{signal,parentSignal});
+  const committeeMemberships=await readCommitteeMemberships(profile,today(),{signal:parentSignal,optionalSignal:signal});
+  if(!membershipHistory.observationComplete) {
+    committeeMemberships.complete=false;
+    committeeMemberships.error=membershipHistory.observationAvailable?'Some membership records are incomplete. Available committee history is shown.':'Committee membership information is unavailable.';
+  }
+  const currentRosterMatched=profile.currentAffiliation.status==='matched';
+  return {...profile,
+    memberships:currentRosterMatched?profile.memberships:profile.memberships.map(row=>({...row,current:false})),
+    membershipHistory,
+    committeeMemberships:currentRosterMatched?committeeMemberships:{...committeeMemberships,items:committeeMemberships.items.map(card=>({...card,roles:[],periods:card.periods.map(period=>({...period,current:false}))}))},
+  };
 }
 function startIndex() {
   if (indexPromise || indexState.complete) return;
