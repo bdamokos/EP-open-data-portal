@@ -16,6 +16,7 @@ async function harness(t,items=[member()],v2=false) {
   if(fail===route)return Response.json({error:{code:'fixture_failure',message:'Fixture unavailable'}},{status:503});
   if(conflict&&route==='following-manifest'){conflict--;return Response.json({error:{code:'generation_changed',message:'Changed'}},{status:409});}
   if(route==='following-status')return Response.json(status);
+  if(route==='following-membership')return Response.json({epoch:status.epoch,generation:status.generation,lists:{incoming:{status:'fresh'},outgoing:{status:'fresh'}},members:{'42':{status:'former',roster:'absent',endDate:'2026-04-13'}},events:status.generation>=6?[{id:'42-m-1:end',mep:'42',type:'mandate-ended',subtype:null,date:'2026-04-13',mark:6}]:[]});
   if(route==='following-manifest')return Response.json({epoch:status.epoch,generation:status.generation,rosterBasis:'publication',indexComplete:true,members:Object.fromEntries([...items.filter(x=>x.kind==='mep'),member()].map(x=>[x.id,[status.generation,3,1,0]]))});
   if(route==='following-member'){
    const response=Response.json({epoch:status.epoch,generation:status.generation,member:url.searchParams.get('member'),status:'available',rosterBasis:'publication',ids,entries,truncated:0});
@@ -155,4 +156,21 @@ test('opening the first of simultaneous entries keeps its row and reader above t
  const card=cards(h)[0],first=rows(card)[0];await dispatch(h,first);
  assert.equal(rows(card)[0],first);assert.deepEqual(rows(card).map(row=>row.querySelector('[lang]').textContent),['first','second','third']);
  assert.match(first.parentElement.textContent,/Inline 42 first/);assert.equal(card.querySelectorAll('.explorer-saved-new').length,2);
+});
+
+const membershipEpoch='00000000-0000-0000-0000-000000000001';
+test('membership updates are independent of activity read actions and open the profile overview',async t=>{
+ const h=await harness(t);h.setStatus({epoch:membershipEpoch,membershipReady:true});await newSpeech(h);
+ const card=cards(h)[0];assert.match(card.textContent,/Former MEP · mandate ended 13 April 2026/);
+ const membership=()=>[...card.querySelectorAll('a')].find(node=>node.textContent.includes('Left Parliament'));
+ assert.match(membership().href,/member=42/);assert.doesNotMatch(membership().href,/module=activities|activity=/);
+ assert.equal(membership().querySelector('[lang="en"]').textContent,'13 April 2026');
+ await dispatch(h,rows(card)[0]);assert.equal(h.item().entries[0].readAt!==null,true);assert(membership().querySelector('.explorer-saved-new'));
+ await dispatch(h,membership());assert.deepEqual(h.opened,[[42]]);assert.equal(h.controls.membershipStore.snapshot().entries[0].readAt!==null,true);
+ assert.equal(h.controls.savedStore.snapshot().items.length,1);assert.match(card.textContent,/Earlier membership updates \(1\)/);
+ const requests=h.requests.filter(request=>request.route==='following-membership');assert(requests.length);assert(requests.every(request=>!request.url.searchParams.has('member')&&!request.options?.body));
+});
+test('Mark all read clears activity and membership together',async t=>{
+ const h=await harness(t);h.setStatus({epoch:membershipEpoch,membershipReady:true});await newSpeech(h);await h.click('Mark all read',cards(h)[0]);
+ assert.notEqual(h.item().entries[0].readAt,null);assert.notEqual(h.controls.membershipStore.snapshot().entries[0].readAt,null);
 });

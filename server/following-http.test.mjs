@@ -30,7 +30,7 @@ test('following and saved POST transports validate, version, cache and revalidat
   const {documentRows}=await import('./activity-index-model.mjs');
   store.putSource(g1,'/parliamentary-questions/'+id,'document',work,'2026-10-23T10:00:00Z',documentRows(work,'/parliamentary-questions/'+id,'2026-10-23T10:00:00Z').rows);store.publish(g1);
   const manifest=await read('following-manifest?'+params());assert.equal(manifest.status,200);assert.equal(manifest.body.epoch,epoch);assert.equal(manifest.body.generation,g1);assert.equal(manifest.body.rosterBasis,'publication');assert.deepEqual(manifest.body.members['42'],[g1,g1,1,1]);assert.deepEqual(manifest.body.members['43'],[null,null,0,0]);
-  for(const route of ['following-manifest?'+params(),'following-member?'+params(g1,{member:'42',lang:'fr'})]) {
+  for(const route of ['following-membership?'+params(),'following-manifest?'+params(),'following-member?'+params(g1,{member:'42',lang:'fr'})]) {
     const first=await read(route);assert.equal(first.headers.get('cache-control'),'public, max-age=3600');assert.equal(first.headers.get('cdn-cache-control'),'public, max-age=3600');assert(first.headers.get('etag'));
     const cached=await read(route,{headers:{'If-None-Match':first.headers.get('etag')}});assert.equal(cached.status,304);assert.equal(cached.text,'');
     const head=await read(route,{method:'HEAD'});assert.equal(head.status,200);assert.equal(head.text,'');assert.equal(head.headers.get('etag'),first.headers.get('etag'));

@@ -1,3 +1,4 @@
+import {FormerMemberNotice} from './MembershipUpdates';
 import {PersonName,PersonNamesProvider} from './PersonName';
 import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
 import {lazyView} from './lazyView';
@@ -12,7 +13,7 @@ import {SpeakerName,SpeakerRoleLine} from './SpeakerIdentity';
 import {publicationBody} from './publication-body.mjs';
 import {CommitteeMemberships} from './CommitteeMemberships';
 import {ParliamentaryService} from './ParliamentaryService';
-import {SaveButton,useSavedChecks} from './SavedControls';
+import {SaveButton,useSavedChecks,useSaved} from './SavedControls';
 import {interfaceTerm} from './terms.mjs';
 import {ParliamentHeader} from './ParliamentHeader';
 import {QuestionStatus} from './QuestionStatus';
@@ -501,6 +502,8 @@ export default function App() {
   const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
   const directoryState=useData<Directory>(view==='outside'||view==='groups'?null:"directory");
   const directory = directoryState.data;
+  const followed=useSaved().items.find(item=>item.kind==='mep'&&item.id===String(member));
+  const outsideRoster=Boolean(member&&directory&&!directoryState.error&&!directory.members.some(item=>item.id===member));
   const error = directoryState.error;
   const profile = useData<MemberProfile>(!view && member && tab === "profile" ? `profile/${member}` : null);
   const c = interfaceCopy(lang);
@@ -763,7 +766,7 @@ export default function App() {
               )}
               <div>
                 <h1 lang="" tabIndex={-1} aria-label={memberName}>
-                  {profile.data?.firstName || selected?.firstName}
+                  {profile.data?.firstName || selected?.firstName || followed?.title || (outsideRoster?`MEP ${member}`:null)}
                   <br />
                   {profile.data?.lastName || selected?.lastName}
                 </h1>
@@ -773,6 +776,7 @@ export default function App() {
                 <SaveButton item={{kind:'mep',id:String(member),title:[profile.data?.firstName||selected?.firstName,profile.data?.lastName||selected?.lastName].filter(Boolean).join(' ')}}/>
               </div>
             </div>
+            {outsideRoster&&<FormerMemberNotice member={member} language={lang}/>}
             <nav className="explorer-tabs" aria-label="MEP sections" lang={lang}>
               <button
                 className={tab === "profile" ? "selected" : ""}
@@ -793,7 +797,7 @@ export default function App() {
               {publicAmendmentsEnabled&&<button lang="en" className={tab === "amendments" ? "selected" : ""} aria-pressed={tab === "amendments"} onClick={() => changeMemberTab("amendments")}>Amendments</button>}
             </nav>
             <div className="explorer-profile-body">
-              {tab === "speeches" ? (
+              {outsideRoster&&(tab==='profile'||tab==='activities') ? null : tab === "speeches" ? (
                 <Speeches
                   key={member}
                   id={member}

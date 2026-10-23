@@ -1,0 +1,12 @@
+export type MembershipEvent={id:string;mep:string;type:'mandate-ended'|'mandate-started';subtype:null|'joined'|'returned';date:string;mark:number};
+export type MembershipEntry=MembershipEvent&{kind:'membership';discoveredAt:number;readAt:number|null};
+export type MembershipMember={roster:'current'|'absent';status:'former'|'current'|'unverified';endDate:string|null};
+export type MembershipSnapshot={epoch:string;generation:number;lists:Record<'outgoing'|'incoming',{status:'fresh'|'stale'|'unavailable';retrievedAt:string|null;sources:{url:string;retrievedAt:string}[];malformed:number}>;events:MembershipEvent[];members:Record<string,MembershipMember>};
+export type MembershipState={epoch:string|null;generation:number|null;availability:Record<'outgoing'|'incoming',boolean>;baselines:Record<string,{savedAt:number;generation:number|null}>;entries:MembershipEntry[];members:Record<string,MembershipMember>;persistent:boolean;storageError:boolean};
+export const MEMBERSHIP_KEY:string;
+export const MEMBERSHIP_WINDOW:number;
+export function validMembershipEvent(value:unknown):boolean;
+export function validMembershipSnapshot(value:unknown):value is MembershipSnapshot;
+export function membershipIsNew(entry:MembershipEntry,now:number):boolean;
+export function membershipEntries(state:MembershipState,mep:string|number,now:number):{fresh:MembershipEntry[];history:MembershipEntry[]};
+export function createMembershipStore(storage:Storage|null,notify?:()=>void,clock?:()=>number):{snapshot:()=>MembershipState;syncFollows:(items:import('./bookmarks.mjs').SavedItem[])=>void;retryStorage:()=>boolean;reload:()=>void;unavailable:()=>void;observe:(snapshot:MembershipSnapshot,items:import('./bookmarks.mjs').SavedItem[])=>boolean;markRead:(mep:string|number,id?:string)=>boolean};

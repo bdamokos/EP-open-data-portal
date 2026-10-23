@@ -1,3 +1,4 @@
+import {membershipTask,scheduleMembership} from './following-membership.mjs';
 import { booleanFromEnvironment, integerFromEnvironment, absolutePathFromEnvironment } from './config.mjs';
 import {groupVoiceProjection,groupVoiceJobKey,recordGroupVoice,groupVoiceWorkDue,groupVoicesCopy,initializeGroupVoices,nextGroupVoiceTask,enqueueGroupVoice} from './group-voices-store.mjs';
 import {personNameVariants} from './speaker-identity.mjs';
@@ -168,6 +169,7 @@ export class ActivityWorker {
     const base={'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','sort-by':'sitting-date:desc,numbering:desc'};
     const windows=cycle.initial?speechWindows(day(this.clock())):[{start:day(Date.parse(last)-2*DAY),end:day(this.clock())}];
     for(const range of windows)this.store.enqueue(generation,'catalog:/speeches:'+range.start+':'+range.end,'speeches',{endpoint:'/speeches',params:{...base,'sitting-date':range.start,'sitting-date-end':range.end},offset:0},100);
+    scheduleMembership(this.store,generation);
     this.store.enqueue(generation,'roster','roster',{offset:0,nodes:[]},110);
     if(!cycle.initial)this.enqueueFeeds(generation,'feed:',last);
     this.store.updateCycle({initialized:true,fullRefresh:false});
@@ -200,7 +202,9 @@ export class ActivityWorker {
   }
   async task(task) {
     const {generation,body}=task;
-    if(task.kind.startsWith('amendment-')) {
+    if(task.kind==='membership') {
+      await membershipTask(this,task);
+    } else if(task.kind.startsWith('amendment-')) {
       await amendmentTask(this,task);
     } else if(task.kind.startsWith('outside-')) {
       await this.outsideTask(task);
@@ -526,6 +530,7 @@ export class ActivityWorker {
     if(day(Date.parse(cycle.startedAt))===today || cycle.catchupDay===today)return false;
     if(cycle.initial)for(const collection of collections(new Date(this.clock()).getUTCFullYear())) this.store.enqueue(cycle.generation,'catchup:'+today+':'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
     this.enqueueFeeds(cycle.generation,'catchup:'+today+':feed:',cycle.startedAt);
+    scheduleMembership(this.store,cycle.generation,'catchup:'+today+':');
     this.store.enqueue(cycle.generation,'catchup:'+today+':roster','roster',{offset:0,nodes:[]},110);
     const start=day(Date.parse(cycle.startedAt)-2*DAY);
     this.store.enqueue(cycle.generation,'catchup:'+today+':speeches','speeches',{endpoint:'/speeches',params:{'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','sort-by':'sitting-date:desc,numbering:desc','sitting-date':start,'sitting-date-end':today},offset:0},100);
@@ -599,6 +604,9 @@ export class ActivityWorker {
       const freshSpeechLoad=Boolean(cycle?.initial&&!cycle.initialized);
       if(cycle) {
         if(!cycle.initialized)await this.initialize(cycle);
+        if(!this.store.get('working').membershipScheduled) {
+          scheduleMembership(this.store,cycle.generation);this.store.updateCycle({membershipScheduled:true});
+        }
         if(!this.store.get('working').mutableScheduled) {
           scheduleMutable(this,cycle.generation);this.store.updateCycle({mutableScheduled:true});
         }
