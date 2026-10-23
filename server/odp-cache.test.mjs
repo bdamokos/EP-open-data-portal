@@ -95,7 +95,7 @@ test('oversized hashed and legacy disk records are not parsed or promoted, while
       assert(info.size>maxDiskRecordBytes);
       console.log(JSON.stringify({legacy,logicalBytes:info.size,physicalBytes:info.blocks*512,maxDiskRecordBytes}));
       const parse=JSON.parse;let oversizedParses=0;
-      JSON.parse=function(text,...args){if(typeof text==='string'&&Buffer.byteLength(text)>maxDiskRecordBytes)oversizedParses++;return parse(text,...args);};
+      JSON.parse=function(text,...args){if(typeof text==='string'&&text.includes(record.url))oversizedParses++;return parse(text,...args);};
       try {assert.equal((await odp(endpoint)).payload.data[0].identifier,'network');}
       finally {JSON.parse=parse;}
       assert.equal(oversizedParses,0,'reject the overflowing stream before attempting JSON.parse');
