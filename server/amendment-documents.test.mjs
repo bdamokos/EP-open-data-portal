@@ -468,6 +468,7 @@ test('an unscoped numbering failure withholds wording and exposes the document-s
   const unsupportedNumbering='<w:p><w:pPr><w:numPr><w:numId w:val="77"/></w:numPr></w:pPr>'+run('A paragraph whose legal number cannot be read.')+'</w:p>';
   const xml=body(metadata()+table(row(cell(unsupportedNumbering),cell(p('Proposed wording'))))+p('</Amend>')+metadata(2)+table(row(cell(p('Other original')),cell(p('Other proposal'))))+p('</Amend>'));
   const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+  assert.deepEqual(result.amendments.map(amendment=>amendment.number),[1,2]);
   assert(result.gaps.some(gap=>gap.code==='numbering-warning'&&gap.number==null));
   for(const amendment of result.amendments) {
     assert.equal(amendment.originalText,null);assert.equal(amendment.proposedText,null);

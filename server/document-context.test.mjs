@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {deflateRawSync} from 'node:zlib';
 import {DocumentContext,documentContextQuery} from './document-context.mjs';
-import {documentText} from './document-text.mjs';
+import {resolveAmendmentPlacement,segmentMotionUnits} from './document-context-model.mjs';
+import {documentText,docxContent} from './document-text.mjs';
 import {HttpError} from './http-utils.mjs';
 import {createRequestBudget,runWithRequestSignal,requestTimeout} from './request-budget.mjs';
 
@@ -298,7 +299,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,2);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,3);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -308,4 +309,60 @@ test('context explicitly withholds a proposal baseline and conflicting decision 
   const result=await reader.query(query({amendmentId,listId}),{store:{}});
   assert.equal(result.placement.operation,'delete');assert.equal(result.placement.reason,'baseline_unavailable');
   assert.equal(result.placement.status,'unresolved');
+});
+
+
+test('DOCX soft-break section labels exclude annex and explanatory prose in all 24 languages', () => {
+  const samples=JSON.parse(readFileSync(new URL('./fixtures/resolution-end-headings.json',import.meta.url),'utf8'));
+  const paragraph=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>';
+  assert.equal(samples.length,24);
+  for(const {language,opening,annex,explanatoryStatement} of samples)for(const label of [annex+' I',explanatoryStatement])for(const lineBreak of ['br','cr']) {
+    const heading='<w:p><w:r><w:t>'+label+'</w:t><w:'+lineBreak+'/><w:t>Technical requirements</w:t></w:r></w:p>';
+    const xml='<w:document xmlns:w="urn:word"><w:body>'+paragraph(opening+',')+paragraph('1. Resolution provision;')+paragraph('19. Final provision;')+heading+paragraph('1. Annex provision;')+paragraph('Quoted outside prose.')+'</w:body></w:document>';
+    const text={...docxContent(archive(xml,'<w:styles xmlns:w="urn:word"/>')),textLanguage:language};
+    assert.equal(text.paragraphs[3],label+'\nTechnical requirements');
+    const units=segmentMotionUnits(text,language);
+    assert.equal(units.find(unit=>unit.label==='19').end,2,language+' / '+label);
+    assert(!units.some(unit=>unit.start>=3),language+' / '+label);
+    for(const originalText of ['1. Annex provision;','Quoted outside prose.']) {
+      const result=resolveAmendmentPlacement(text,{language,originalText,proposedText:'Changed;'});
+      assert.equal(result.reason,'target_not_found',language+' / '+label);
+    }
+    const inside=resolveAmendmentPlacement(text,{language,originalText:'1. Resolution provision;',proposedText:'Changed;'});
+    assert.equal(inside.status,'placed',language+' / '+label);assert.deepEqual(inside.span,{start:1,end:1});
+    if(language==='en') {
+      const inserted=resolveAmendmentPlacement(text,{language,originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
+      assert.equal(inserted.status,'placed');assert.equal(inserted.insertBefore,3);
+    }
+  }
+});
+
+test('unknown Irish baselines place only within the exact motion or report resolution body',async()=>{
+  for(const documentId of [id,'B-10-2026-0424','RC-10-2026-0441']) {
+    const motionWork={...work,id:'eli/dl/doc/'+documentId,identifier:documentId,work_type:'def/ep-document-types/'+(documentId===id?'REPORT_PLENARY':documentId.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':'RESOLUTION_MOTION')};
+    const amendment={...indexed,id:documentId+'-AM-40',targetDocumentId:documentId,listId:documentId+'-AM-037-046',language:'ga',baseline:'unknown',originalText:'19. An téacs bunaidh;',proposedText:'19. Téacs leasaithe;',targetLabel:'Mír 19',targetLabelLanguage:'ga'};
+    const paragraphs=['Parlaimint na hEorpa,',amendment.originalText,'20. An chéad mhír eile;'];
+    const text={...summary,textLanguage:'ga',paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
+    const reader=service({request:async()=>record(motionWork),readText:async()=>text,findAmendment:()=>amendment});
+    const request={...query(),id:documentId,language:'ga',amendmentId:amendment.id,listId:amendment.listId,wordingLanguage:'ga'};
+    const result=await reader.query(request,{store:{}});
+    assert.equal(result.placement.status,'placed',documentId);assert.deepEqual(result.placement.span,{start:1,end:1});
+    for(const baseline of ['commission-proposal','present-text','council-position','other']) {
+      const blocked=service({request:async()=>record(motionWork),readText:async()=>text,findAmendment:()=>({...amendment,baseline})});
+      assert.equal((await blocked.query(request,{store:{}})).placement.reason,'baseline_unavailable',baseline);
+    }
+    const noResolution=service({request:async()=>record(motionWork),readText:async()=>({...text,paragraphs:[...paragraphs.slice(1)],paragraphSources:text.paragraphSources.slice(1)}),findAmendment:()=>amendment});
+    assert.equal((await noResolution.query(request,{store:{}})).placement.reason,'baseline_unavailable');
+  }
+});
+
+
+for(const heading of ['Follow-up:','Further action:','Follow-up.','Further action;'])test(`DOCX ${heading} does not extend paragraph 19 across a heading`,()=>{
+  const paragraphs=['The European Parliament,','19. Calls for:','– first item;',heading,'follow-up prose;','20. Next;'];
+  const xml='<w:document xmlns:w="urn:word"><w:body>'+paragraphs.map(value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>').join('')+'</w:body></w:document>';
+  const text={...docxContent(archive(xml,'<w:styles xmlns:w="urn:word"/>')),textLanguage:'en'};
+  const inserted=resolveAmendmentPlacement(text,{language:'en',originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
+  assert.equal(inserted.reason,'resolution_extent_uncertain');
+  assert.equal(resolveAmendmentPlacement(text,{language:'en',originalText:'follow-up prose;',proposedText:'Changed;'}).reason,'target_not_found');
+  assert.equal(resolveAmendmentPlacement(text,{language:'en',originalText:'20. Next;',proposedText:'Changed;',targetLabel:'Paragraph 20'}).status,'placed');
 });
