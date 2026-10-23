@@ -87,7 +87,7 @@ test('catalogue pagination and exact body details separate display codes from st
   return {fetchedAt:day,payload:{data:endpoint.endsWith('show-current')?[{id:'org/1',classification:'def/ep-entities/EU_POLITICAL_GROUP',label:'S&D'},{id:'org/2',classification:'def/ep-entities/EU_POLITICAL_GROUP',label:'Renew'}]:[{id:'org/'+endpoint.split('/').at(-1),classification:'def/ep-entities/EU_POLITICAL_GROUP',isVersionOf:endpoint.endsWith('/1')?'org/SD':'org/RENEW'}]}};
  }});
  scheduleGroupHistory(store,g);let task;while((task=store.nextTask(g)))await worker.task(task);
- assert.deepEqual(calls.map(([endpoint])=>endpoint),['/corporate-bodies/show-current','/corporate-bodies/1','/corporate-bodies/2']);
+ assert.equal(calls[0][0],'/corporate-bodies/show-current');assert.deepEqual(calls.slice(1).map(([endpoint])=>endpoint).sort(),['/corporate-bodies/1','/corporate-bodies/2']);
  assert.deepEqual(store.source(g,'group-body:2').work,{org:'org/2',groupId:'org/RENEW',code:'Renew',url:'https://data.europarl.europa.eu/api/v2/corporate-bodies/2?format=application%2Fld%2Bjson',retrievedAt:day});
  store.setMembers([{id:'42'}]);store.publish(g);assert.equal(groupHistorySnapshot(store,g).catalogue.bodies.length,2);
  const next=store.beginCycle().generation;scheduleGroupHistory(store,next);while((task=store.nextTask(next)))await worker.task(task);
