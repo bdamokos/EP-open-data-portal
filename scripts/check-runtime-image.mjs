@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
+import {readFileSync} from 'node:fs';
 import {setTimeout} from 'node:timers/promises';
 
 const [image,revision]=process.argv.slice(2);
 if(!image||!revision||!/^[a-f0-9]{40}$/.test(revision))throw new Error('Pass a built image and its full APP_REVISION.');
+const nodeVersion=readFileSync(new URL('../.nvmrc',import.meta.url),'utf8').trim();
+assert(/^\d+\.\d+\.\d+$/.test(nodeVersion),'Pin an exact Node version in .nvmrc.');
 const docker=(...args)=>execFileSync('docker',args,{encoding:'utf8',timeout:30_000,maxBuffer:1024*1024}).trim();
 let container;
 try{
@@ -26,6 +29,20 @@ try{
   }
   const probe=`
     import assert from 'node:assert/strict';
+    import {brotliCompressSync,brotliDecompressSync,createBrotliDecompress} from 'node:zlib';
+    assert.equal(process.versions.node,${JSON.stringify(nodeVersion)},'Runtime Node must match .nvmrc.');
+    const plain=Buffer.from('Parliament source response');
+    assert.deepEqual(brotliDecompressSync(brotliCompressSync(plain)),plain);
+    // Upstream CVE-2026-111497 regression: nodejs/node commit 03923858417da6a87670cf4c099993dbcc6d8361.
+    const invalidBlockSwitch=Buffer.from('200010414141fcffff07002228f00b60f7f41f000000','hex');
+    const expectedError={code:'ERR__ERROR_FORMAT_BLOCK_SWITCH',errno:-17};
+    assert.throws(()=>brotliDecompressSync(invalidBlockSwitch),expectedError);
+    await assert.rejects(async()=>{
+      const decoder=createBrotliDecompress();
+      for(let i=0;i<invalidBlockSwitch.length;i++)decoder.write(invalidBlockSwitch.subarray(i,i+1));
+      decoder.end();
+      for await(const chunk of decoder){} // Consume any decoded prefix until the format error.
+    },expectedError);
     const base='http://127.0.0.1:8790';
     const get=async path=>{
       const response=await fetch(base+path,{signal:AbortSignal.timeout(3000)});

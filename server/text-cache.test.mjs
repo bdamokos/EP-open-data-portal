@@ -193,7 +193,7 @@ test('document text coalesces cold reads, persists actual language and serves la
     let calls=0;const download=async()=>{calls++;await new Promise(r=>setTimeout(r,10));return {paragraphs:['Actual answer text']};};
     const [a,b]=await Promise.all([documentText(work,'en',{directory:dir,download}),documentText(work,'ga',{directory:dir,download})]);
     assert.equal(calls,1);assert.equal(a.textLanguage,'ga');assert.equal(a.translationType,'unspecified');assert.equal(a.status,'available');assert.deepEqual(a.paragraphs,b.paragraphs);
-    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,7);
+    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,8);
     const clock=()=>Date.now()+8*86400000;
     const stale=await documentText(work,'en',{directory:dir,clock,download:async()=>{throw new Error('upstream500');}});
     assert(stale.stale);assert.deepEqual(stale.paragraphs,a.paragraphs);
@@ -208,7 +208,7 @@ test('old extracted text is refreshed on demand and current extraction survives 
     await mkdir(path.join(dir,'document-text-v1'));
     const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
     const paragraphs=docxParagraphs(zip(fixture.documentXml,fixture.stylesXml));
-    for(const version of [undefined,1,2,3,4,5,6]) {
+    for(const version of [undefined,1,2,3,4,5,6,7]) {
       const url=`https://data.europarl.europa.eu/distribution/upgrade-${Date.now()}-${version}/motion.docx`;
       const work={identifier:fixture.sourceId,is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
       const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');
@@ -216,7 +216,7 @@ test('old extracted text is refreshed on demand and current extraction survives 
       await writeFile(file,JSON.stringify(old));let calls=0;
       const result=await documentText(work,'en',{directory:dir,download:async()=>{calls++;return {paragraphs};}});
       assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);assert.equal(calls,1);
-      assert.equal(JSON.parse(await readFile(file,'utf8')).extractionVersion,7);
+      assert.equal(JSON.parse(await readFile(file,'utf8')).extractionVersion,8);
       const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});const result=await documentText(${JSON.stringify(work)},'en',{directory:${JSON.stringify(dir)},download:async()=>{throw new Error('Unexpected redownload');}});console.log(JSON.stringify(result));`;
       const restarted=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{encoding:'utf8',timeout:5000}));
       assert.equal(restarted.status,'available');assert.deepEqual(restarted.paragraphs,paragraphs);
@@ -230,7 +230,7 @@ test('automatic recital and operative numbering includes style inheritance, over
   const num=id=>`<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${id}"/></w:numPr>`;
   const xml='<w:document xmlns:w="urn:word"><w:body>'+p('<w:pStyle w:val="Inherited"/>','First recital')+p(num(41),'Second recital')+p(num(42),'First paragraph')+p(num(43),'Restarted paragraph')+p(num(42),'Second paragraph')+'</w:body></w:document>';
   const {structureStatus,paragraphSources,documentObjects,formattingVersion,paragraphFormats,tables,...content}=docxContent(zip(xml,styles,{'word/numbering.xml':numbering}));
-  assert.deepEqual(content,{authorBylineParagraphs:[],paragraphs:['A.\tFirst recital','B.\tSecond recital','1.\tFirst paragraph','7.\tRestarted paragraph','2.\tSecond paragraph'],notes:[],anchors:[],links:[],extractionWarnings:[]});
+  assert.deepEqual(content,{authorBylineParagraphs:[],paragraphs:['A.\tFirst recital','B.\tSecond recital','1.\tFirst paragraph','7.\tRestarted paragraph','8.\tSecond paragraph'],notes:[],anchors:[],links:[],extractionWarnings:[]});
   assert.equal(structureStatus,'extracted');assert.equal(paragraphSources.length,content.paragraphs.length);assert.deepEqual(documentObjects,[]);assert.equal(paragraphFormats.length,content.paragraphs.length);
   const unsupported=docxContent(zip(xml,styles,{'word/numbering.xml':numbering.replace('upperLetter','chicago')}));
   assert(unsupported.extractionWarnings.length);

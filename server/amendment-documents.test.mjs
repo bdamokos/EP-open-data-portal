@@ -9,8 +9,8 @@ import { docxParts, downloadDocxBuffer, downloadDocx } from './document-text.mjs
 import { amendmentDownloads } from './amendments-worker.mjs';
 
 // In-memory ZIPs keep tests offline while exercising the shared bounded reader.
-function archive(documentXml,stylesXml='') {
-  const entries=[['word/document.xml',documentXml],...(stylesXml?[['word/styles.xml',stylesXml]]:[])];
+function archive(documentXml,stylesXml='',extra={}) {
+  const entries=[['word/document.xml',documentXml],...(stylesXml?[['word/styles.xml',stylesXml]]:[]),...Object.entries(extra)];
   const locals=[],directory=[];let offset=0;
   for(const [filename,xml] of entries) {
     const name=Buffer.from(filename),body=Buffer.from(xml),compressed=deflateRawSync(body);
@@ -31,6 +31,17 @@ const body=text=>`<w:document xmlns:w="urn:word"><w:body>${text}</w:body></w:doc
 const metadata=(number=1,{author='Bruno Gonçalves',date='2.10.2026',target='Paragraph 1'}={})=>p(`<Amend><Date>${date}</Date><NumAm>${number}</NumAm>`)+p(`<Members>${author}</Members>`)+p(`<Article>${target}</Article>`);
 const options={listId:'B-10-2026-0424-AM-001-001',targetDocumentId:'B-10-2026-0424',language:'en',sourceUrl:'https://data.europarl.europa.eu/distribution/example/amendment_en.docx',fetchedAt:'2026-10-16T17:15:00Z'};
 
+test('automatic list continuation also reaches wording extraction in a comparison cell',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/docx-numbering-cbam.json',import.meta.url),'utf8'));
+  const paragraphs=fixture.documentXml.match(/<w:body>([\s\S]*)<\/w:body>/)[1];
+  // Synthetic amendment wrapper; the list paragraphs and numbering are public
+  // Commission source excerpts, not evidence of an affected EP amendment.
+  const xml=body(metadata()+table(row(cell(p('')),cell(paragraphs)))+p('</Amend>'));
+  const result=extractAmendments(archive(xml,fixture.stylesXml,{'word/numbering.xml':fixture.numberingXml}),options);
+  assert.equal(result.amendments[0].proposedText,fixture.expectedParagraphs.join('\n'));
+  assert.deepEqual(result.gaps,[]);
+});
+
 test('public DOCX excerpts preserve exact author names, target hierarchy, dates and both columns',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-excerpts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
@@ -50,7 +61,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'10');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'11');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -323,7 +334,7 @@ test('ordinary table properties and positional annotation markers do not invalid
 });
 
 test('unsupported comparison geometry withholds both columns with a numbered gap while another amendment remains intact',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'10');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'11');
   const grid=widths=>'<w:tblGrid>'+widths.map(width=>`<w:gridCol${width==null?'':` w:w="${width}"`}/>`).join('')+'</w:tblGrid>';
   const propsCell=(text,properties='')=>'<w:tc><w:tcPr>'+properties+'</w:tcPr>'+p(text)+'</w:tc>';
   const header=row(propsCell('Motion for a resolution'),propsCell('Amendment'));
@@ -429,7 +440,7 @@ test('historical property snapshots and ordinary hidden or deleted inline text d
 });
 
 test('current paragraph-mark revisions cannot turn ambiguous decimal boundaries into accepted wording',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'10');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'11');
   for(const marker of ['del','ins','moveFrom','moveTo']) {
     const first='<w:p><w:pPr><w:rPr><w:'+marker+' w:id="9" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:rPr></w:pPr>'+run('Rate: 1')+'</w:p>';
     const xml=body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));
