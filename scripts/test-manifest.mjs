@@ -10,4 +10,5 @@ export const slow = [
   {file: 'server/portrait-cache.test.mjs', reason: 'Spawns Node to check portrait cache restarts.'},
   {file: 'server/speech-transcript.test.mjs', reason: 'Spawns Node to check transcript metadata isolation.'},
   {file: 'server/docx-fidelity.test.mjs', reason: 'Spawns Node to check retained DOCX fidelity.'},
+  {file: 'server/test-runner.test.mjs', reason: 'Spawns Node to verify runner profiles, preload inheritance and capability failures.'},
 ];

@@ -58,10 +58,14 @@ const concurrency = process.env.TEST_CONCURRENCY !== undefined
 const timeout = positiveInteger(process.env.TEST_TIMEOUT_MS ?? 120000, 'TEST_TIMEOUT_MS');
 console.log(`[tests] profile=${profile}${focused.length ? ' (focused)' : ''} files=${files.length} concurrency=${concurrency ?? 'Node default (CI)'} timeout=${timeout}ms excluded=${excluded.length ? excluded.join('; ') : 'none'}`);
 if (!files.length) throw new Error('No test files selected');
-const flags = ['--test', `--test-timeout=${timeout}`, '--import', new URL('./test-network-guard.mjs', import.meta.url).href, ...forwarded];
+const guard = new URL('./test-network-guard.mjs', import.meta.url).href;
+const flags = ['--test', `--test-timeout=${timeout}`, '--import', guard, ...forwarded];
 // Environment selection wins over a forwarded concurrency flag, too.
 if (concurrency !== undefined) flags.push(`--test-concurrency=${concurrency}`);
-const child = spawn(process.execPath, [...flags, ...files], {cwd: root, stdio: 'inherit'});
+// execFile/spawn of fresh Node processes does not inherit execArgv. Keep the
+// preload in NODE_OPTIONS as well so isolated cache/restart scripts are guarded.
+const env = {...process.env, NODE_OPTIONS: [process.env.NODE_OPTIONS, `--import=${guard}`].filter(Boolean).join(' ')};
+const child = spawn(process.execPath, [...flags, ...files], {cwd: root, stdio: 'inherit', env});
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));
 child.on('error', error => {console.error(error); process.exitCode = 1;});
 child.on('exit', (code, signal) => {
