@@ -174,3 +174,21 @@ test('retained cloud carries raw role language and known English independently o
   assert.equal(person.role,labels.bg.text);assert.equal(person.roleLanguage,'bg');assert.deepEqual(person.roleLabels,labels);
   assert.equal(person.roleSource.speechId,row.activity_id);
 });
+
+test('fallback display titles do not train English phrases in live or retained clouds',async t=>{
+  const content='We discussed nord stream and energy.';
+  for(const retained of [false,true])for(const english of [false,true]) {
+    const titles=english?{en:'Nord Stream',fr:'Nord Stream'}:{fr:'Nord Stream'},row=activity(1,{titles,fragments:{en:xml('en',content)}});
+    let service;
+    if(!retained)({service}=serviceFor(t,{data:[row]}));
+    else {
+      const source=record([]);
+      service=new SpeechCloudInsights(storeFor(t),{clock:now,request:async()=>assert.fail('Retained clouds must not fetch upstream'),legislation:{catalogue:async()=>({sittings:[{activity_id:sitting,activity_date:date}]})},
+        readCorpusPage:async()=>({revision:'1',total:1,nextOffset:null,records:[{id:row.activity_id,metadata:{activity:row,summary:{date,titles},speakers:[],sourceUrl:source.url,fetchedAt:new Date(now()).toISOString()},text:{body:content,translationType:'original',sourceUrl:source.url,fetchedAt:new Date(now()).toISOString()}}]})});
+    }
+    const result=await service.query(query(retained?`sitting=${sitting}&lang=en`:`member=${member}&days=term&lang=en`));
+    assert.equal(result.speeches[0].title,'Nord Stream');assert.equal(result.speeches[0].titleLanguage,english?'en':'fr');
+    assert.equal(Object.hasOwn(result.speeches[0],'analysisTitle'),false);
+    assert.deepEqual(result.words.map(word=>word.word).sort(),english?['discussed','energy','nord-stream']:['discussed','energy','nord','stream']);
+  }
+});
