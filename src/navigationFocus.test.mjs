@@ -85,6 +85,21 @@ test('member destination and Back keep the wall, its portraits and scroll positi
   assert.equal(h.container.querySelector('.explorer-filters input').value,'Mika');
 });
 
+test('browser Back restores the portrait grid offset without remounting the wall',async t=>{
+  const h=await harness(t),grid=h.container.querySelector('.explorer-portraits'),original=h.container.querySelector('[data-member-id="257043"] button');
+  grid.scrollTop=900;await act(async()=>grid.dispatchEvent(new h.window.Event('scroll')));
+  await h.click(original);
+  assert.equal(h.container.querySelector('.explorer-wall').hidden,true);
+  grid.scrollTop=0;
+  const popped=new Promise(resolve=>h.window.addEventListener('popstate',resolve,{once:true}));
+  await act(async()=>{history.go(-1);await popped;});await viewReady(h.container);
+  assert.equal(new URLSearchParams(location.search).get('member'),null);
+  assert.equal(h.container.querySelector('.explorer-wall').hidden,false);
+  assert.equal(h.container.querySelector('.explorer-portraits'),grid,'the same grid returns');
+  assert.equal(grid.scrollTop,900);
+  assert.equal(original.isConnected,true);
+});
+
 test('explicit main-view gestures orient to the current heading without adding history beyond existing navigation',async t=>{
   const h=await harness(t);
   assert.equal(document.activeElement,document.body,'ordinary initial load does not force focus');
