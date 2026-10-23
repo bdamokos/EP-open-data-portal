@@ -83,10 +83,10 @@ export function finalVotePatterns(votes,members,metadata,groupOn=()=>'unavailabl
   const finals=votes.filter(v=>v.scope==='final-text'&&v.namedVotersAvailable),observations=new Map();
   for(const vote of finals)for(const [position,people] of Object.entries(vote.groups))for(const person of people){
     const group=contributionGroup(person.id,vote.date,groupOn),key=JSON.stringify([person.id,group]);
-    const row=observations.get(key)||{id:person.id,contributionGroup:group,for:0,against:0,abstaining:0};row[position]++;observations.set(key,row);
+    const row=observations.get(key)||{id:person.id,contributionGroup:group,affiliationGroup:person.affiliationGroup,for:0,against:0,abstaining:0};row[position]++;observations.set(key,row);
   }
   const groups={for:[],against:[],abstaining:[],mixed:[]};
-  for(const row of observations.values()){const positions=['for','against','abstaining'].filter(p=>row[p]);const pattern=positions.length===1?positions[0]:'mixed';groups[pattern].push({...memberPeople([row.id],members,metadata)[0],contributionGroup:row.contributionGroup,affiliationGroup:row.contributionGroup??memberPeople([row.id],members,metadata)[0].group,observations:{for:row.for,against:row.against,abstaining:row.abstaining,named:row.for+row.against+row.abstaining,selectedFinalTextVotes:finals.length}});}
+  for(const row of observations.values()){const positions=['for','against','abstaining'].filter(p=>row[p]);const pattern=positions.length===1?positions[0]:'mixed';groups[pattern].push({...memberPeople([row.id],members,metadata)[0],contributionGroup:row.contributionGroup,affiliationGroup:row.affiliationGroup,observations:{for:row.for,against:row.against,abstaining:row.abstaining,named:row.for+row.against+row.abstaining,selectedFinalTextVotes:finals.length}});}
 
   return {groupContributions:groupContributions(finals.flatMap(v=>Object.values(v.groups).flat().map(p=>({id:p.id,date:v.date}))),groupOn),finalTextVoteIds:finals.map(v=>v.id),voteCount:finals.length,groups,uniqueNamedPeople:new Set([...observations.values()].map(row=>row.id)).size,basis:'Descriptive patterns per person and dated political group over observed final-text roll-calls for this agenda topic only. A final resolution is not necessarily legislation. Missing records and intended corrections do not count as positions; this is not an inference of general political support.'};
 }

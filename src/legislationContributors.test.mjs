@@ -83,3 +83,9 @@ test('group ranking uses the whole roster, with non-attached and missing groups 
   assert.deepEqual(orderLegislationPeople(people,[]),orderLegislationPeople([...people].reverse(),[]));
   assert.deepEqual(orderLegislationPeople([],[],members),[]);
 });
+test('chairing removes only that dated speech contribution and retains a separate role under another group',()=>{
+  const chair={...person('1'),contributionGroup:'S&D'},input=detail([chair],[speech('intro',[chair])],[{id:'1',role:'RAPPORTEUR'}]);
+  input.stats.groupContributions={rows:[{label:'S&D',count:1},{label:'Renew',count:1}],total:2,unavailable:0};
+  const before=structuredClone(input),result=legislationContributors(input,mergeSpeechSpeakers({},[header('intro','1')]));
+  assert.equal(result.people.length,1);assert.equal(result.stats.groupContributions.total,1);assert.deepEqual(result.stats.groupContributions.rows,[{label:'Renew',count:1}]);assert.deepEqual(input,before);
+});

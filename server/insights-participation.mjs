@@ -34,7 +34,7 @@ async function participationEvent(legislation,id,readEvent,now) {
   return disk&&(!memory||Number.isFinite(disk.fetchedAt)&&Number.isFinite(memory.fetchedAt)&&disk.fetchedAt>memory.fetchedAt)?disk:memory||disk;
 }
 export function participationRows(topics,results,decisions,speechRows,members,groupOn=()=>'unavailable',includePerson=()=>true) {
-  const rows=topics.map(topic=>({...topic,speakerIds:speechRows.has(topic.id)?new Set(speechRows.get(topic.id).filter(row=>row.speechKind==='PLENARY_DEBATE_SPEECH'&&members.has(String(row.mepId))).map(row=>String(row.mepId))):null,voterIds:null,amendmentVotes:null,amendmentIds:new Set(),rollCalls:0,speakerContributions:(speechRows.get(topic.id)||[]).filter(r=>r.speechKind==='PLENARY_DEBATE_SPEECH').map(r=>({id:String(r.mepId),date:r.date})),voterContributions:[]}));
+  const rows=topics.map(topic=>({...topic,speakerIds:speechRows.has(topic.id)?new Set(speechRows.get(topic.id).filter(row=>row.speechKind==='PLENARY_DEBATE_SPEECH'&&members.has(String(row.mepId))).map(row=>String(row.mepId))):null,voterIds:null,amendmentVotes:null,amendmentIds:new Set(),rollCalls:0,speakerContributions:[...new Map((speechRows.get(topic.id)||[]).filter(r=>r.speechKind==='PLENARY_DEBATE_SPEECH').map(r=>[[r.sourceId,r.mepId,r.date].join('|'),r])).values()].map(r=>({id:String(r.mepId),date:r.date})),voterContributions:[]}));
   const byId=new Map(rows.map(row=>[row.uri,row])),parents=new Map();
   for(const result of results?.payload.data||[])if(tail(result.had_activity_type)==='PLENARY_VOTE_RESULTS')for(const executed of refs(result.executed)){const row=byId.get(executed);if(row)parents.set(canonical(result.id),row);}
   const seen=new Set();
@@ -49,7 +49,7 @@ export function participationRows(topics,results,decisions,speechRows,members,gr
       for(const field of ['had_voter_favor','had_voter_against','had_voter_abstention'])for(const ref of array(vote[field])){const person=personId(ref);if(person&&members.has(person))row.voterIds.add(person);}
     }
   }
-  return rows.map(({speakerContributions,voterContributions,...row})=>({...row,groupContributions:{speakers:groupContributions(speakerContributions.filter(p=>includePerson(p.id)),groupOn),voters:groupContributions(voterContributions.filter(p=>includePerson(p.id)),groupOn)}}));
+  return rows.map(({speakerContributions,voterContributions,...row})=>({...row,groupContributions:{speakers:row.speakerIds===null?null:groupContributions(speakerContributions.filter(p=>includePerson(p.id)),groupOn),voters:row.voterIds===null?null:groupContributions(voterContributions.filter(p=>includePerson(p.id)),groupOn)}}));
 }
 export async function participation(legislation,store,query,{clock=Date.now,readEvent=cachedEvent}={}) {
   const status=store.status(),groupOn=generationGroupOn(store,status.servingGeneration),catalogue=await legislation.catalogue(),today=brusselsDay(clock());
