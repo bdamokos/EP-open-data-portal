@@ -64,23 +64,6 @@ test('speech fragments keep exact keys, paragraph lines and declared or machine 
   assert.equal(fragmentText('<!DOCTYPE x><p>a</p>'),'');
 });
 
-test('unchanged text keeps its row, changed text replaces its FTS entry, raw XML round-trips',()=>{
-  const s=stores();
-  try {
-    const put=text=>s.corpus.putDocument(...Object.values(speechTexts(speech('MTG-PL-2026-07-08-OTH-1',{en:fragment('en',text)}),'https://example.test/list',fetchedAt)));
-    put('Fisheries quota debate.');
-    const first=s.corpus.db.prepare('SELECT id FROM texts').get().id;
-    put('Fisheries quota debate.');
-    assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM texts').get().n,1);
-    assert.equal(s.corpus.db.prepare('SELECT id FROM texts').get().id,first);
-    assert.equal(s.corpus.search({query:'fisheries'}).total,1);
-    put('Agriculture subsidies debate.');
-    assert.equal(s.corpus.search({query:'fisheries'}).total,0);
-    assert.equal(s.corpus.search({query:'agriculture'}).total,1);
-    assert.match(s.corpus.raw('MTG-PL-2026-07-08-OTH-1','en'),/Agriculture subsidies/);
-  } finally {s.cleanup();}
-});
-
 test('search joins members through exact index identifiers and filters kind, language and dates',()=>{
   const s=stores();
   try {

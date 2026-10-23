@@ -1,4 +1,5 @@
 import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
+import {languagePreference} from './language-order.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID, createHash } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
@@ -687,7 +688,7 @@ export class CorpusStore {
     for(const row of rows)byGroup.get(row.group_id).push(row);
     const metadata=generation==null?null:this.db.prepare('SELECT body FROM idx.items WHERE generation=? AND source_id=? ORDER BY mep,category LIMIT 1');
     const savedQuestion=generation==null?null:this.db.prepare("SELECT body FROM idx.sources WHERE generation=? AND key=? AND kind='document'");
-    const localTitle=titles=>typeof titles==='string'?titles:titles?.[uiLanguage]||titles?.en||Object.values(titles||{}).find(value=>typeof value==='string')||null;
+    const localTitle=titles=>typeof titles==='string'?titles:titles?.[languagePreference(Object.keys(titles||{}).filter(code=>typeof titles[code]==='string'&&titles[code].trim()),uiLanguage)[0]]||null;
     const results=selected.map(selectedRow=>{
       const matched=byGroup.get(selectedRow.group_id),first=matched[0],sourceId=selectedRow.group_id;
       const questionGroup=group==='question' && (first.kind==='question'||first.kind==='answer'&&first.parent_id);

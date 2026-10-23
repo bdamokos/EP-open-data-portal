@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {deriveVoteEvidence,exactReference} from './vote-evidence.mjs';
+import {deriveVoteEvidence,exactReference,preferred} from './vote-evidence.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/member-votes-evidence.json',import.meta.url),'utf8'));
 const clone=structuredClone;
@@ -132,4 +132,11 @@ test('malformed XML and missing split wording remain gaps rather than invented r
   const out=deriveVoteEvidence({results:[null,{},'invalid'],decisions:[null,{}]});
   assert(out.gaps.some(gap=>gap.code==='invalid-source-node'));
   assert(out.gaps.some(gap=>gap.code==='invalid-decision-identity'));
+});
+
+test('display titles prefer French to Bulgarian and preserve unknown-language text',()=>{
+  const titles={bg:'Bulgarian title',fr:'French title'};
+  assert.deepEqual(preferred(titles,'ga'),{title:'French title',titleLanguage:'fr'});
+  assert.deepEqual(preferred(titles,'bg'),{title:'Bulgarian title',titleLanguage:'bg'});
+  assert.deepEqual(preferred({'':'Unknown-language title'},'ga'),{title:'Unknown-language title',titleLanguage:null});
 });

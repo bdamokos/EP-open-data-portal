@@ -1,3 +1,4 @@
+import {languagePreference} from './language-order.mjs';
 import { createHash } from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
 import { AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, amendmentProposerDate, checkedAggregateAttribution, amendmentReference, amendmentTarget, canonicalEPReference } from './amendments.mjs';
@@ -298,7 +299,7 @@ function readAmendmentById(store,{document,id,language}) {
   const record=parse(rows[0].body);
   if(record.id!==rows[0].id||record.targetDocumentId!==document||amendmentReference('eli/dl/doc/'+record.id)?.targetDocumentId!==document)return null;
   const row=checkedAmendmentRead(record);
-  return {...row,title:row.titles?.[language] || row.titles?.en || Object.values(row.titles || {})[0] || document,requestedLanguage:language};
+  return {...row,title:row.titles?.[languagePreference(Object.keys(row.titles||{}).filter(code=>row.titles[code]?.trim()),language)[0]] || document,requestedLanguage:language};
 }
 function checkedEmptyObservation(record,document,rowCount) {
   const proof=record?.emptyObservation,source=proof?.source;
@@ -325,7 +326,7 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
       const {memberId,basis,variantListIds}=amendmentAuthorMatch(row,member);
       row.authorMatch={memberId,basis,variantListIds};
     }
-    return {...row,title:row.titles?.[language] || row.titles?.en || Object.values(row.titles || {})[0] || row.targetDocumentId,requestedLanguage:language};
+    return {...row,title:row.titles?.[languagePreference(Object.keys(row.titles||{}).filter(code=>row.titles[code]?.trim()),language)[0]] || row.targetDocumentId,requestedLanguage:language};
   });
   const records=store.db.prepare('SELECT body FROM amendment_targets WHERE generation=?'+(document?' AND id=?':'')+' LIMIT 10001').all(generation,...(document?[document]:[])).map(record=>parse(record.body));
   const gaps=[...new Set(records.flatMap(record=>record.gaps || []))];

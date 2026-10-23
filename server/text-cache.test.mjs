@@ -363,3 +363,18 @@ test('failed extraction upgrade reports the gap and retains the previous disk re
     assert.deepEqual(JSON.parse(await readFile(file,'utf8')),old);
   }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+test('document display fallback prefers translations over original language and preserves original labelling',async()=>{
+  const codes={bg:'BUL',de:'DEU',es:'SPA',fr:'FRA',en:'ENG',ga:'GLE'};
+  for(const [available,requested,expected,original] of [
+    [['es','en'],'ga','en','es'],[['es','en'],'es','es','es'],[['bg','de','es','fr'],'ga','fr','bg'],[['bg','de','es'],'ga','es','bg'],[['bg','de'],'ga','de','bg'],[['bg'],'ga','bg','bg'],[['ga','en'],'ga','ga','en'],
+  ]){
+    const key=`display-${available.join('-')}-${requested}`;
+    const work={identifier:key,originalLanguage:['language/'+codes[original]],is_realized_by:available.map(code=>({language:'language/'+codes[code],is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:`https://data.europarl.europa.eu/distribution/example/${key}-${code}.docx`}]}))};
+    const calls=[];
+    const text=await documentText(work,requested,{directory:null,download:async url=>{calls.push(url);return {paragraphs:['Published source text.']};}});
+    assert.equal(text.textLanguage,expected);assert.equal(text.requestedLanguage,requested);
+    assert.equal(text.translationType,expected===original?'original':'unspecified');
+    assert.equal(calls.length,1);assert(calls[0].endsWith(`-${expected}.docx`));
+  }
+});

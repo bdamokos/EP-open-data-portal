@@ -229,3 +229,16 @@ test('stale wording parser evidence is withheld on every page without hiding a v
   assert(result.coverage.gaps.some(gap=>gap.includes('current document parser')));
   assert.deepEqual(result.coverage,later.coverage);
 });
+
+test('motion display titles skip blanks and retain unknown language keys',t=>{
+  const {store,generation}=setup(t);
+  for(const [titles,expected,titleLanguage] of [
+    [{bg:'Bulgarian title',fr:'   '},'Bulgarian title','bg'],
+    [{it:'Italian title','':'Unknown-language title'},'Unknown-language title',null],
+    [{bg:'Bulgarian title',fr:'French title'},'French title','fr'],
+  ]) {
+    store.putSource(generation,'/plenary-documents/'+target,'document',{id:'eli/dl/doc/'+target,identifier:target,work_type:'def/ep-document-types/RESOLUTION_MOTION',title_dcterms:titles},at);
+    const result=page(store,'lang=ga');
+    assert.equal(result.text.title,expected);assert.equal(result.text.titleLanguage,titleLanguage);
+  }
+});
