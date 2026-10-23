@@ -176,7 +176,7 @@ test('outer 3s timeout descendants stay contained until process-group teardown',
     import {writeFileSync,existsSync,renameSync} from 'node:fs';
     import {execFileAsync,registerSubprocesses} from ${helper};
     beforeEach(registerSubprocesses);
-    test('hanging descendant',{timeout:110_000},async t=>{
+    test('hanging descendant',{timeout:Infinity},async t=>{
       const pidFile=${JSON.stringify(path.join(directory,'hang.pid'))};
       const running=execFileAsync(t,process.execPath,['-e',"require('node:fs').writeFileSync(process.argv[1],String(process.pid));setInterval(()=>{},1000);",pidFile]);
       running.catch(()=>{});
@@ -186,7 +186,8 @@ test('outer 3s timeout descendants stay contained until process-group teardown',
     });
   `);
   // Negative control: this timed worker deliberately owns only the direct inner
-  // runner. The enclosing group owner must reap the orphaned worker and child.
+  // runner. Its inner test never finishes on its own; the enclosing group owner
+  // must reap the orphaned worker and child (the helper still has a hang guard).
   writeFileSync(outer,`
     import {test,beforeEach} from 'node:test';
     import {writeFileSync,readFileSync,existsSync,renameSync} from 'node:fs';
