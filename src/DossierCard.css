@@ -1,0 +1,8 @@
+.insight-dossier-follow { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+.dossier-follow-reference { color: var(--ink-muted); font-size: .875rem; overflow-wrap: anywhere; }
+.dossier-follow-card h3 { overflow-wrap: anywhere; }
+.dossier-follow-card .explorer-saved-actions { align-items: center; flex-wrap: wrap; }
+.dossier-follow-card .explorer-saved-actions a { color: var(--accent); }
+.dossier-update-disclosure { width: 100%; text-align: left; background: transparent; border: 0; color: inherit; font: inherit; }
+.dossier-update-disclosure small { display: block; }
+.dossier-follow-gap { color: var(--ink-muted); }

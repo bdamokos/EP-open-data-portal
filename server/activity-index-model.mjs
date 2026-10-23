@@ -72,7 +72,7 @@ export function projectDocument(w) {
   return result;
 }
 export function projectProcedure(p) {
-  return { id: p.id, process_title: p.process_title ?? null, had_participation: array(p.had_participation), consists_of: array(p.consists_of).map(a => Object.fromEntries(['id','had_activity_type','occured_at_stage','based_on_a_realization_of','created_a_realization_of','involved_work','decided_on_a_realization_of','activity_date'].filter(k => a[k] !== undefined).map(k => [k,a[k]]))) };
+  return { id: p.id, process_type:p.process_type||p.procedure_type||p.had_procedure_type||null, process_title: p.process_title ?? null, had_participation: array(p.had_participation), consists_of: array(p.consists_of).map(a => Object.fromEntries(['id','had_activity_type','occured_at_stage','based_on_a_realization_of','created_a_realization_of','involved_work','decided_on_a_realization_of','activity_date'].filter(k => a[k] !== undefined).map(k => [k,a[k]]))) };
 }
 export function procedureIds(w) {
   return [...new Set(array(w.inverse_created_a_realization_of).map(tail).filter(v => /^\d{4}-\d{4}[A-Z]?$/.test(v)))];

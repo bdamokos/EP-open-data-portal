@@ -1,3 +1,5 @@
+import {DossierCard} from './DossierCard';
+import {useDossiers,useDossierChecks,useDossierChecking,dossierStore} from './DossierControls';
 import {GroupUpdates,GroupUpdateStatus} from './GroupUpdates';
 import {groupEntries} from './followGroups.mjs';
 import {groupsStore,useGroups} from './SavedControls';
@@ -66,6 +68,8 @@ function FollowCard({item,language,onMember,renderActivity,now,resolution,retry,
   </article>;
 }
 export function Saved({language,onBack,onMember,renderActivity}:SavedProps) {
+  const checkDossierUpdates=useDossierChecks();
+  const dossiers=useDossiers(),dossierChecking=useDossierChecking();
   const membershipCheck=useMembershipCheck(),membership=useMembership(),saved=useSaved(),now=useSavedNow(),resolver=useResolveSavedMembers(language),items=saved.items,[checking,setChecking]=useState(false),[error,setError]=useState('');
   const key=items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(','),context=language+':'+key,request=useRef(0),active=useRef(false);
   const [attempt,setAttempt]=useState(0),[completion,setCompletion]=useState<{items:SavedItem[];message:string}|null>(null);
@@ -88,9 +92,9 @@ export function Saved({language,onBack,onMember,renderActivity}:SavedProps) {
     })().finally(()=>{if(current())setChecking(false);});
   };
   return <section className="explorer-saved-view" lang="en">
-    <Status scope={`saved-check:${context}:${attempt}`} message={completion?.items===items?completion.message:null} pending={checking}/>
+    <Status scope={`saved-check:${context}:${attempt}`} message={!dossiers.items.length&&completion?.items===items?completion.message:null} pending={checking||dossierChecking}/>
     <button onClick={onBack}>← Back</button>
-    <div className="explorer-saved-heading"><h1>Following</h1><button onClick={check} disabled={!items.length} aria-disabled={checking||undefined} style={checking?{opacity:.45,cursor:'default'}:undefined}>{checking?'Checking…':'Check for updates'}</button></div>
+    <div className="explorer-saved-heading"><h1>Following</h1><button onClick={()=>{if(items.length)check();void checkDossierUpdates();}} disabled={!items.length&&!dossiers.items.length} aria-disabled={checking||dossierChecking||undefined} style={checking||dossierChecking?{opacity:.45,cursor:'default'}:undefined}>{checking||dossierChecking?'Checking…':'Check for updates'}</button></div>
     <FollowSuggestions/>
     <p className="explorer-saved-caption">New updates stay marked until you open them, or for 24 hours after they are found. Recent updates stay listed under Earlier updates.</p>
     {!saved.persistent&&<p>Browser storage is unavailable. Follows last only for this tab.</p>}
@@ -104,7 +108,10 @@ export function Saved({language,onBack,onMember,renderActivity}:SavedProps) {
     {items.some(item=>item.kind==='mep')&&saved.checkState==='error'&&<p>Couldn't check for MEP updates. <button onClick={check}>Retry</button></p>}
     {items.some(item=>item.kind==='question')&&saved.questionCheckState==='error'&&<p>Couldn't check for question answers. <button onClick={check}>Retry</button></p>}
     {error&&membershipCheck!=='error'&&<p>{error}</p>}
-    {!items.length&&<p>Follow a MEP or save a question to see new activity and answers here.</p>}
-    <div className="explorer-saved-items">{items.map(item=><FollowCard key={savedKey(item)+':'+item.savedAt} item={item} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={item.kind==='question'?saved.questionCheckState:saved.checkState} check={check}/>)}</div>
+    {!dossiers.persistent&&dossiers.items.length>0&&<p>Dossier follows last only for this tab.</p>}
+    {dossiers.storageError&&<p role="alert">Dossier changes couldn't be saved in this browser. <button onClick={()=>dossierStore.retryStorage()}>Retry saving</button></p>}
+    {dossiers.restarted&&<p>Dossier update tracking restarted. Earlier updates are kept.</p>}
+    {!items.length&&!dossiers.items.length&&<p>Follow a MEP or dossier, or save a question to see updates here.</p>}
+    <div className="explorer-saved-items">{items.map(item=><FollowCard key={savedKey(item)+':'+item.savedAt} item={item} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={item.kind==='question'?saved.questionCheckState:saved.checkState} check={check}/>)}{dossiers.items.map(item=><DossierCard key={item.id+':'+item.savedAt} item={item} language={language} now={now}/>)}</div>
   </section>;
 }

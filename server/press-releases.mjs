@@ -9,6 +9,7 @@ import {parseProcedurePage,procedureReference} from './official-context.mjs';
 import {requestSignal} from './request-budget.mjs';
 import {PRESS_FEEDS,parsePressFeed,parsePressRelease} from './press-releases-model.mjs';
 
+export const PRESS_RELEASES_VERSION=2;
 const HOUR=60*60_000,DAY=24*HOUR;
 export const PRESS_LIMITS=Object.freeze({pollInterval:DAY,pagesPerRun:6,maxAttempts:6,listed:5});
 const parse=value=>value==null?null:JSON.parse(value);
@@ -45,10 +46,16 @@ export class PressStore {
   }
   // Outside a press transaction: journal mode cannot change inside one.
   initialize() {
-    if(this.ready)return;
+    if(this.initialized)return;
     mkdirSync(this.directory,{recursive:true});
     (this.db||this.open()).exec('PRAGMA journal_mode=WAL;'+SCHEMA);
-    this.ready=true;
+    this.transaction(()=>{
+      if(!this.db.prepare("PRAGMA table_info('releases')").all().some(column=>column.name==='linked_at')) {
+        this.db.exec('ALTER TABLE releases ADD COLUMN linked_at INTEGER; UPDATE releases SET linked_at=checked_at WHERE checked_at IS NOT NULL;');
+        this.set('linkedMark',this.db.prepare('SELECT MAX(linked_at) AS mark FROM releases').get().mark||0);
+      }
+    });
+    this.ready=true;this.initialized=true;
   }
   get(key){return this.tables()?parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value):null;}
   set(key,value){this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value));}
@@ -72,10 +79,12 @@ export class PressStore {
   hasDue(now){return this.tables()&&Boolean(this.db.prepare('SELECT 1 FROM releases INDEXED BY release_due WHERE next_check IS NOT NULL AND next_check<=? LIMIT 1').get(now));}
   due(now,limit){return this.tables()?this.db.prepare('SELECT id FROM releases INDEXED BY release_due WHERE next_check IS NOT NULL AND next_check<=? ORDER BY next_check,id LIMIT ?').all(now,limit).map(row=>row.id):[];}
   record(id,body,{now,links}) {
-    this.db.prepare('UPDATE releases SET body=?,checked_at=?,next_check=NULL,attempts=0,error=NULL WHERE id=?').run(JSON.stringify(body),now,id);
+    const linkedAt=links.length?Math.max(now,(this.get('linkedMark')||0)+1):null;
+    this.db.prepare('UPDATE releases SET body=?,checked_at=?,linked_at=COALESCE(linked_at,?),next_check=NULL,attempts=0,error=NULL WHERE id=?').run(JSON.stringify(body),now,linkedAt,id);
+    if(linkedAt!==null)this.set('linkedMark',linkedAt);
     this.db.prepare('DELETE FROM links WHERE release=?').run(id);
     const insert=this.db.prepare('INSERT OR IGNORE INTO links VALUES (?,?,?,?)');
-    for(const link of links)insert.run(link.kind,link.value,id,link.label);
+    for(const link of links)insert.run(link.kind,link.value,id,link.label??null);
   }
   fail(id,error,{now,retryAt}) {
     const attempts=(this.release(id)?.attempts||0)+1,next=attempts>=PRESS_LIMITS.maxAttempts?null:Math.max(retryAt||0,now+Math.min(DAY,15*60_000*2**(attempts-1)));
@@ -87,16 +96,17 @@ export class PressStore {
     if(!this.tables())return {items:[],total:0};
     const args=[reference,JSON.stringify(summaries),JSON.stringify(documents)];
     const total=this.db.prepare(`SELECT COUNT(DISTINCT l.release) AS n FROM links l WHERE ${MATCH}`).get(...args).n;
-    const items=this.db.prepare(`SELECT r.id,r.body,json_group_array(json_object('kind',l.kind,'value',l.value,'label',l.label)) AS basis
+    const linked=this.db.prepare("PRAGMA table_info('releases')").all().some(column=>column.name==='linked_at');
+    const items=this.db.prepare(`SELECT r.id,r.body,${linked?'r.linked_at':'NULL'} AS linked_at,json_group_array(json_object('kind',l.kind,'value',l.value,'label',l.label)) AS basis
       FROM links l JOIN releases r ON r.id=l.release WHERE ${MATCH}
-      GROUP BY r.id ORDER BY COALESCE(json_extract(r.body,'$.publishedAt'),'') DESC,r.id DESC LIMIT ?`).all(...args,limit).map(row=>({id:row.id,body:parse(row.body),basis:parse(row.basis)}));
+      GROUP BY r.id ORDER BY COALESCE(json_extract(r.body,'$.publishedAt'),'') DESC,r.id DESC LIMIT ?`).all(...args,limit).map(row=>({id:row.id,body:parse(row.body),linked_at:row.linked_at,basis:parse(row.basis)}));
     return {items,total};
   }
   counts() {
     if(!this.tables())return {releases:0,pending:0,unreadable:0,unlisted:0};
     return this.db.prepare(`SELECT COUNT(*) AS releases,COALESCE(SUM(checked_at IS NULL AND next_check IS NOT NULL),0) AS pending,COALESCE(SUM(checked_at IS NULL AND next_check IS NULL),0) AS unreadable,COALESCE(SUM(json_extract(body,'$.listed')=0),0) AS unlisted FROM releases`).get();
   }
-  close(){this.db?.close();this.db=null;this.ready=false;}
+  close(){this.db?.close();this.db=null;this.ready=false;this.initialized=false;}
 }
 // The activity-index transaction keeps its lease row locked until the press
 // commit, so no takeover can fall between the lease check and the write.
@@ -176,8 +186,9 @@ export class PressFollower {
 }
 
 export function pressMentionsQuery(search) {
-  for(const key of search.keys())if(!['lang','reference'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated press query.');
-  return {reference:procedureReference(search.get('reference')),language:odpLanguage(search.get('lang')||'en')};
+  for(const key of search.keys())if(!['lang','reference','following'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated press query.');
+  const following=search.get('following');if(following!==null&&following!=='1')throw new HttpError(400,'invalid_query','Unsupported following mode.');
+  return {reference:procedureReference(search.get('reference')),language:odpLanguage(search.get('lang')||'en'),following:following==='1'};
 }
 const publicItem=row=>({
   id:row.id,url:row.body.url,title:row.body.title,titleLanguage:'en',publishedAt:row.body.publishedAt||null,committees:row.body.committees,
@@ -185,7 +196,7 @@ const publicItem=row=>({
 });
 export class PressMentions {
   constructor(store,officialSources){Object.assign(this,{store,officialSources});}
-  async query({reference,language}) {
+  async query({reference,language,following=false}) {
     // The procedure file lists its OEIL summaries and documents; a release
     // linking one of them refers to this procedure through that exact ID.
     const sourceLanguage=language==='fr'?'fr':'en',procedureUrl=`https://oeil.europarl.europa.eu/oeil/${sourceLanguage}/procedure-file?`+new URLSearchParams({reference});
@@ -193,11 +204,12 @@ export class PressMentions {
     try {
       const page=await this.officialSources.get(procedureUrl),parsed=parseProcedurePage(page.html,reference,sourceLanguage);
       // A saved page whose refresh is due or failing stays visible as such.
-      procedure={status:'available',summaries:parsed.summaries.map(summary=>summary.id),documents:parsed.documents,source:{url:page.url,fetchedAt:page.fetchedAt,stale:Boolean(page.viewCache?.stale),refreshInProgress:Boolean(page.viewCache?.refreshInProgress),refreshError:page.viewCache?.refreshError||null}};
+      procedure={status:'available',title:parsed.title,language:sourceLanguage,summaryEntries:parsed.summaries,summaries:parsed.summaries.map(summary=>summary.id),documents:parsed.documents,source:{url:page.url,fetchedAt:page.fetchedAt,stale:Boolean(page.viewCache?.stale),refreshInProgress:Boolean(page.viewCache?.refreshInProgress),refreshError:page.viewCache?.refreshError||null}};
     } catch {requestSignal()?.throwIfAborted();}
-    const {items,total}=this.store.mentions(reference,procedure),follow=this.store.get('follow'),counts=this.store.counts();
+    const {items,total}=this.store.mentions(reference,procedure,following?1001:PRESS_LIMITS.listed),follow=this.store.get('follow'),counts=this.store.counts();
     return {
-      view:'press-releases',reference,items:items.map(publicItem),total,
+      view:'press-releases',version:PRESS_RELEASES_VERSION,reference,items:items.slice(0,following?1000:PRESS_LIMITS.listed).map(row=>({...publicItem(row),...(following?{linkedAt:row.linked_at}:{} )})),total,
+      ...(following?{limited:items.length>1000,watermark:this.store.get('linkedMark')||0,dossier:procedure.status==='available'?{title:procedure.title,language:procedure.language,summaries:procedure.summaryEntries,documents:procedure.documents,source:procedure.source}:null}:{}),
       coverage:{
         // Following starts at the first feed read; the feeds hold only recent releases.
         complete:false,followingSince:follow?.since||null,

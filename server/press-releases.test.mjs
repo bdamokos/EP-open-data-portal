@@ -281,3 +281,21 @@ test('stale procedure files stay visible and uncached, and totals are exact',asy
     assert.equal(apiCachePolicy(request,route,result).cdnCacheControl,'no-store','a stale procedure file is not cached as a healthy answer');
   } finally {store.close();rmSync(dir,{recursive:true,force:true});}
 });
+
+test('follow mode returns more than five identities with durable first-link marks and preserves unavailable OEIL state',async()=>{
+  const dir=temp(),store=new PressStore(dir),now=Date.parse('2026-10-23T10:00:00Z');
+  try {
+    store.initialize();store.set('follow',{since:'2026-10-20T12:00:00Z',feeds:{}});
+    for(let i=0;i<8;i++) {
+      const id='20261023IPR'+String(i).padStart(5,'0'),body={id,url:pressReleaseUrl(id),title:'Release '+i,publishedAt:'2020-01-01T00:00:00Z',listed:true};
+      store.discover(body,{feed:'press-releases',now});store.record(id,body,{now,links:[{kind:'procedure',value:'2026/0211(COD)'}]});
+    }
+    const service=new PressMentions(store,official),query=pressMentionsQuery(new URLSearchParams({reference:'2026/0211(COD)',following:'1'})),result=await service.query(query);
+    assert.equal(result.items.length,8);assert.equal(new Set(result.items.map(item=>item.linkedAt)).size,8,'same-clock writes are ordered');
+    assert(result.items.every(item=>item.linkedAt<=result.watermark));assert.equal(result.dossier.summaries[0].id,'1910288');
+    const first=store.release(result.items[0].id);store.record(first.id,first.body,{now:now+1000,links:[{kind:'procedure',value:'2026/0211(COD)'}]});
+    assert.equal(store.release(first.id).linked_at,first.linked_at,'a refresh does not reannounce a release');
+    const failure=await new PressMentions(store,{get(){throw Error('OEIL unavailable');}}).query(query);assert.equal(failure.dossier,null);assert.equal(failure.coverage.procedureLinks.status,'unavailable');
+    assert.equal((await service.query({reference:query.reference,language:'en'})).items.length,5,'reader preview stays bounded');
+  }finally{store.close();rmSync(dir,{recursive:true,force:true});}
+});

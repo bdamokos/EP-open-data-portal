@@ -315,7 +315,7 @@ export class ActivityStore {
     const low=Math.min(first,second),high=Math.max(first,second);
     // NOT IN / <> scans all retained item bodies even when nothing is deleted.
     // Separate indexed ranges also handle a nonadjacent recovery generation.
-    for(const table of ['sources','items','tasks','follow_summary','follow_generations','follow_touched','membership_snapshots','group_history_snapshots']) {
+    for(const table of ['sources','items','tasks','follow_summary','dossier_events','follow_generations','follow_touched','membership_snapshots','group_history_snapshots']) {
       this.db.prepare(`DELETE FROM ${table} WHERE generation<?`).run(low);
       this.db.prepare(`DELETE FROM ${table} WHERE generation>?`).run(high);
       if(low!==high)this.db.prepare(`DELETE FROM ${table} WHERE generation>? AND generation<?`).run(low,high);

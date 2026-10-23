@@ -1,3 +1,4 @@
+import {dossierStore,subscribeDossiers,useDossiers} from './DossierControls';
 import {createGroupsStore,GROUPS_KEY,groupIsNew,type GroupsSnapshot} from './followGroups.mjs';
 import {createCoverageStore,COVERAGE_KEY} from './followCoverage.mjs';
 import {createMembershipStore,MEMBERSHIP_KEY,membershipIsNew,type MembershipSnapshot} from './followMembership.mjs';
@@ -36,11 +37,12 @@ const clockListeners=new Set<()=>void>();
 function refreshSavedClock() {
   savedNow=Date.now();clearTimeout(expiryTimer);
   const membershipExpiry=membershipStore.snapshot().entries.filter(entry=>membershipIsNew(entry,savedNow)).map(entry=>entry.discoveredAt+24*60*60*1000);
-  const deadlines=[nextExpiry(savedStore.snapshot().items,savedNow),...membershipExpiry,...groupsStore.snapshot().entries.filter(entry=>groupIsNew(entry,savedNow)).map(entry=>entry.discoveredAt+24*60*60*1000)].filter((value):value is number=>value!==null);
+  const deadlines=[nextExpiry([...savedStore.snapshot().items,...dossierStore.snapshot().items],savedNow),...membershipExpiry,...groupsStore.snapshot().entries.filter(entry=>groupIsNew(entry,savedNow)).map(entry=>entry.discoveredAt+24*60*60*1000)].filter((value):value is number=>value!==null);
   const expiry=deadlines.length?Math.min(...deadlines):null;
   if(clockListeners.size&&expiry!==null)expiryTimer=setTimeout(refreshSavedClock,Math.max(1,expiry-savedNow));
   clockListeners.forEach(listener=>listener());
 }
+subscribeDossiers(()=>queueMicrotask(refreshSavedClock));
 window.addEventListener('focus',refreshSavedClock);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshSavedClock();});
 const subscribeClock=(callback:()=>void)=>{
@@ -227,6 +229,6 @@ export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;co
   return <><button className={'explorer-save-button'+(saved?' is-saved':'')} lang={item.title?compoundLanguage(label.language,item.titleLanguage):label.language} aria-label={`${name}${item.title?' · '+item.title:''}`} aria-pressed={saved} title={tooltip} onClick={()=>{try{savedStore.toggle(item);setError('');}catch(e){setError((e as Error).message);}}}><span aria-hidden="true">{saved?'★':'☆'}</span>{!compact&&<span lang={label.language}>{label.text}</span>}</button>{error&&<small role="alert" lang="en">{error}</small>}</>;
 }
 export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:boolean}) {
-  const groups=useGroups(),membership=useMembership(),saved=useSaved(),now=useSavedNow(),items=saved.items,updates=items.filter(item=>itemHasNew(item,now)||item.kind==='mep'&&membership.entries.some(entry=>entry.mep===item.id&&membershipIsNew(entry,now))||item.kind==='mep'&&groups.entries.some(entry=>entry.mep===item.id&&groupIsNew(entry,now))).length;
+  const dossiers=useDossiers(),groups=useGroups(),membership=useMembership(),saved=useSaved(),now=useSavedNow(),items=[...saved.items,...dossiers.items],updates=items.filter(item=>itemHasNew(item,now)||item.kind==='mep'&&membership.entries.some(entry=>entry.mep===item.id&&membershipIsNew(entry,now))||item.kind==='mep'&&groups.entries.some(entry=>entry.mep===item.id&&groupIsNew(entry,now))).length;
   return <button onClick={onClick} lang="en" aria-current={current?'page':undefined}>Following{updates>0?<span className="explorer-saved-count">{updates} new</span>:items.length>0?<small> {items.length}</small>:null}</button>;
 }
