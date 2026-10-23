@@ -1,3 +1,5 @@
+import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
+import {languagePreference} from './language-order.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID, createHash } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
@@ -8,6 +10,8 @@ import {XMLParser,XMLBuilder,XMLValidator} from 'fast-xml-parser';
 import {countryCode} from './insights-countries.mjs';
 import {speechSummary,chooseTranscript} from './odp.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
+import {reuseSpeechRole} from './speaker-role-reuse.mjs';
+import {speakerRoleLabel} from '../src/speakerRoles.mjs';
 import {speechPeople,interventionMetadata,INTERVENTION_CLASSIFICATION_VERSION} from './speech-interventions.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {questionAddressees} from './question-addressees.mjs';
@@ -221,7 +225,7 @@ export class CorpusStore {
   finishTask(task){this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=?').run(this.clock(),task.key);}
   failTask(task,error,retryAfter=0) {
     this.assertWriter();
-    const delay=Math.max(retryAfter*1000,Math.min(6*60*60_000,60_000*2**Math.min(task.attempts,8)));
+    const delay=Math.max(retryAfter*1000,Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):Math.min(6*60*60_000,60_000*2**Math.min(task.attempts,8)));
     this.db.prepare('UPDATE tasks SET attempts=attempts+1,retry_at=?,error=? WHERE key=?').run(this.clock()+delay,String(error.message).slice(0,350),task.key);
   }
   hasText(sourceUrl){return Boolean(this.db.prepare('SELECT 1 FROM texts WHERE source_url=? LIMIT 1').get(sourceUrl));}
@@ -399,11 +403,15 @@ export class CorpusStore {
     this.assertWriter();const revision=(this.get('speechReadRevision')||0)+1;this.set('speechReadRevision',revision);return revision;
   }
   projectSpeechCatalog(activity,availableLanguages=[]) {
-    this.assertWriter();
-    this.db.prepare('INSERT OR REPLACE INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?)').run(activity.activity_id,activity.activity_date||null,
-      String(activity.had_activity_type||'').split('/').at(-1),activity.activity_start_date||null,
-      (activity.recorded_in_a_realization_of||[]).find(doc=>Number.isSafeInteger(doc?.numbering))?.numbering??null,JSON.stringify(speechPeople(activity)),JSON.stringify(availableLanguages),
-      this.nextSpeechRevision(),this.db.prepare('SELECT fetched_at FROM speech_metadata WHERE source_id=?').get(activity.activity_id)?.fetched_at||null);
+    const project=()=>{
+      this.assertWriter();
+      this.db.prepare('INSERT OR REPLACE INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?)').run(activity.activity_id,activity.activity_date||null,
+        String(activity.had_activity_type||'').split('/').at(-1),activity.activity_start_date||null,
+        (activity.recorded_in_a_realization_of||[]).find(doc=>Number.isSafeInteger(doc?.numbering))?.numbering??null,JSON.stringify(speechPeople(activity)),JSON.stringify(availableLanguages),
+        this.nextSpeechRevision(),this.db.prepare('SELECT fetched_at FROM speech_metadata WHERE source_id=?').get(activity.activity_id)?.fetched_at||null);
+    };
+    // Background repair and ordinary metadata writes publish one coherent revision.
+    return this.db.isTransaction?project():this.transaction(project);
   }
   speechMetadata(sourceId) {
     if(!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_metadata'").get())return null;
@@ -415,13 +423,54 @@ export class CorpusStore {
       !Array.isArray(saved.summary.intervention.parentIds)||!Array.isArray(saved.summary.intervention.onBehalfOf))throw new Error('Retained speech metadata identity mismatch.');
     return {...saved,sourceUrl:row.source_url,fetchedAt:row.fetched_at};
   }
+  // Optional read-time enrichment; never fetch or write history from a page read.
+  speechRoleTranslations(metadata,language='en',budget={remaining:8}) {
+    language ||= 'en';
+    if(!metadata||!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_catalog'").get())return metadata;
+    const historyComplete=this.get('resourceIndexes')===1&&!this.db.prepare('SELECT 1 FROM speech_catalog_dirty LIMIT 1').get()&&
+      !this.db.prepare('SELECT 1 FROM speech_catalog WHERE kind IS NULL LIMIT 1').get();
+    const speakers=metadata.speakers.map(person=>{
+      if(!historyComplete||person.sittingRole==='chair'||person.role==='Chairing the sitting'||!Object.keys(person.roleLabels||{}).length)return person;
+      const missing=[...new Set([language,'en'])].filter(lang=>!speakerRoleLabel(person,lang));
+      if(!missing.length||budget.remaining--<=0)return person;
+      // Bound index traversal as well as returned matches. A cut through a day
+      // cannot establish that day's nearest role, so withhold reuse at the edge.
+      budget.history??=new Map();
+      const day=metadata.summary.date;
+      if(!budget.history.has(day))budget.history.set(day,this.db.prepare(`SELECT source_id,date,start,participants
+        FROM speech_catalog INDEXED BY speech_catalog_latest
+        WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT') AND date<=?
+        ORDER BY date DESC LIMIT 513`).all(day));
+      const rows=budget.history.get(day),currentStart=Date.parse(metadata.summary.start);
+      const candidates=rows.slice(0,512).filter(row=>row.source_id!==metadata.summary.id&&JSON.parse(row.participants).includes(person.id)&&
+        (row.date<day||!Number.isFinite(currentStart)||!Number.isFinite(Date.parse(row.start))||Date.parse(row.start)<=currentStart))
+        .toSorted((a,b)=>b.date.localeCompare(a.date)||Number(!Number.isFinite(Date.parse(b.start)))-Number(!Number.isFinite(Date.parse(a.start)))||
+          (Date.parse(b.start)||0)-(Date.parse(a.start)||0)||a.source_id.localeCompare(b.source_id));
+      const [prior,other]=candidates;
+      if(!prior)return person;
+      if(rows.length>512&&prior.date<=rows[511].date)return person;
+      if(other?.date===prior.date&&(!Number.isFinite(Date.parse(prior.start))||!Number.isFinite(Date.parse(other.start))||Date.parse(prior.start)===Date.parse(other.start)))return person;
+      let previous;try{previous=this.speechMetadata(prior.source_id);}catch{return person;}
+      if(!previous)return person;
+      let result=person;
+      for(const lang of missing) {
+        const label=reuseSpeechRole(metadata,person,previous,lang);
+        if(label)result={...result,roleLabels:{...result.roleLabels,[lang]:label}};
+      }
+      return result;
+    });
+    const evidenceRevision=this.get('speechReadRevision');
+    return {...metadata,speakers:speakers.map(person=>({...person,roleSource:{speechId:metadata.summary.id,date:metadata.summary.date,
+      url:metadata.sourceUrl,fetchedAt:metadata.fetchedAt,historyComplete,...(Number.isSafeInteger(evidenceRevision)?{evidenceRevision}:{})}}))};
+  }
   speechData(params){return this.snapshot(()=>this.speechDataSnapshot(params));}
   speechDataSnapshot({sourceIds,language=null,metadataOnly=false}) {
     if(!Array.isArray(sourceIds)||sourceIds.length>100||sourceIds.some(id=>!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id)))throw new Error('Invalid retained speech selection.');
-    let bytes=0;const records=[];
+    let bytes=0;const records=[],roleBudget={remaining:8};
     for(const id of new Set(sourceIds)) {
       let metadata=null,metadataUnavailable=false;
       try {metadata=this.speechMetadata(id);}catch {metadataUnavailable=true;}
+      if(metadata)try{metadata=this.speechRoleTranslations(metadata,language,roleBudget);}catch { /* Optional translation evidence must not hide retained metadata. */ }
       const variants=metadataOnly?[]:this.db.prepare(`SELECT t.id,t.language,t.source_key,t.translation_type,t.source_url,t.fetched_at,t.checked_at,t.chars
         FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=? AND d.kind='speech' AND t.source_format='xml-fragment'
         ORDER BY (t.translation_type='original') DESC,(t.source_key=?) DESC,t.source_key`).all(id,language);
@@ -488,6 +537,7 @@ export class CorpusStore {
             const saved=JSON.parse(zstdDecompressSync(metadata.body,{maxOutputLength:2*1024*1024}).toString('utf8'));
             if(saved.version!==1||saved.activity?.activity_id!==sourceId||saved.summary?.id!==sourceId||!Array.isArray(saved.speakers))throw new Error('Retained speech metadata identity mismatch.');
             metadataRecord={...saved,sourceUrl:metadata.source_url,fetchedAt:metadata.fetched_at};
+            try{metadataRecord=this.speechRoleTranslations(metadataRecord,language);}catch { /* Keep the current header when optional history is unavailable. */ }
           }catch {metadataUnavailable=true;}
         }
       }
@@ -638,7 +688,7 @@ export class CorpusStore {
     for(const row of rows)byGroup.get(row.group_id).push(row);
     const metadata=generation==null?null:this.db.prepare('SELECT body FROM idx.items WHERE generation=? AND source_id=? ORDER BY mep,category LIMIT 1');
     const savedQuestion=generation==null?null:this.db.prepare("SELECT body FROM idx.sources WHERE generation=? AND key=? AND kind='document'");
-    const localTitle=titles=>typeof titles==='string'?titles:titles?.[uiLanguage]||titles?.en||Object.values(titles||{}).find(value=>typeof value==='string')||null;
+    const localTitle=titles=>typeof titles==='string'?titles:titles?.[languagePreference(Object.keys(titles||{}).filter(code=>typeof titles[code]==='string'&&titles[code].trim()),uiLanguage)[0]]||null;
     const results=selected.map(selectedRow=>{
       const matched=byGroup.get(selectedRow.group_id),first=matched[0],sourceId=selectedRow.group_id;
       const questionGroup=group==='question' && (first.kind==='question'||first.kind==='answer'&&first.parent_id);

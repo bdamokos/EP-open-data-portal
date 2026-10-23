@@ -1,3 +1,5 @@
+import {groupHistoryTask,scheduleGroupHistory} from './group-history.mjs';
+import {membershipTask,scheduleMembership} from './following-membership.mjs';
 import { booleanFromEnvironment, integerFromEnvironment, absolutePathFromEnvironment } from './config.mjs';
 import {groupVoiceProjection,groupVoiceJobKey,recordGroupVoice,groupVoiceWorkDue,groupVoicesCopy,initializeGroupVoices,nextGroupVoiceTask,enqueueGroupVoice} from './group-voices-store.mjs';
 import {personNameVariants} from './speaker-identity.mjs';
@@ -65,7 +67,7 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
   return boundedUpstream(async()=> {
     const response=await fetch(url,{headers:{Accept:xml?'application/atom+xml':'application/ld+json','User-Agent':userAgent('activity index')},redirect:'error',signal:AbortSignal.any([AbortSignal.timeout(45_000),...(signal?[signal]:[])])});
     if (response.status===204) return xml ? {xml:'<feed/>',fetchedAt:new Date().toISOString()} : {payload:{data:[]},fetchedAt:new Date().toISOString()};
-    if (!response.ok) { await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;e.retryAfter=Math.min(1800,Math.max(0,Number(response.headers.get('retry-after'))||0));if(response.status===429||response.status===503){e.retryAfter=retryAfterSeconds(response.headers.get('retry-after'));backoffUpstream(e.retryAfter);}throw e; }
+    if (!response.ok) { await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;const hint=response.headers.get('retry-after');e.retryAfter=hint?retryAfterSeconds(hint):0;if(response.status===429||response.status===503){e.retryAfter=retryAfterSeconds(hint);backoffUpstream(e.retryAfter);}throw e; }
     const contentType=response.headers.get('content-type') || '';
     if (!(xml?/xml/.test(contentType):/json/.test(contentType))) {await response.body?.cancel();throw new Error(`EP API returned unexpected ${contentType || 'missing content type'} at ${endpoint}.`);}
     const chunks=[];let bytes=0;
@@ -168,6 +170,7 @@ export class ActivityWorker {
     const base={'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','sort-by':'sitting-date:desc,numbering:desc'};
     const windows=cycle.initial?speechWindows(day(this.clock())):[{start:day(Date.parse(last)-2*DAY),end:day(this.clock())}];
     for(const range of windows)this.store.enqueue(generation,'catalog:/speeches:'+range.start+':'+range.end,'speeches',{endpoint:'/speeches',params:{...base,'sitting-date':range.start,'sitting-date-end':range.end},offset:0},100);
+    scheduleMembership(this.store,generation);
     this.store.enqueue(generation,'roster','roster',{offset:0,nodes:[]},110);
     if(!cycle.initial)this.enqueueFeeds(generation,'feed:',last);
     this.store.updateCycle({initialized:true,fullRefresh:false});
@@ -200,7 +203,11 @@ export class ActivityWorker {
   }
   async task(task) {
     const {generation,body}=task;
-    if(task.kind.startsWith('amendment-')) {
+    if(task.kind.startsWith('group-history-')) {
+      await groupHistoryTask(this,task);
+    } else if(task.kind==='membership') {
+      await membershipTask(this,task);
+    } else if(task.kind.startsWith('amendment-')) {
       await amendmentTask(this,task);
     } else if(task.kind.startsWith('outside-')) {
       await this.outsideTask(task);
@@ -526,6 +533,8 @@ export class ActivityWorker {
     if(day(Date.parse(cycle.startedAt))===today || cycle.catchupDay===today)return false;
     if(cycle.initial)for(const collection of collections(new Date(this.clock()).getUTCFullYear())) this.store.enqueue(cycle.generation,'catchup:'+today+':'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
     this.enqueueFeeds(cycle.generation,'catchup:'+today+':feed:',cycle.startedAt);
+    scheduleMembership(this.store,cycle.generation,'catchup:'+today+':');
+    scheduleGroupHistory(this.store,cycle.generation,'catchup:'+today+':');
     this.store.enqueue(cycle.generation,'catchup:'+today+':roster','roster',{offset:0,nodes:[]},110);
     const start=day(Date.parse(cycle.startedAt)-2*DAY);
     this.store.enqueue(cycle.generation,'catchup:'+today+':speeches','speeches',{endpoint:'/speeches',params:{'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','sort-by':'sitting-date:desc,numbering:desc','sitting-date':start,'sitting-date-end':today},offset:0},100);
@@ -599,6 +608,12 @@ export class ActivityWorker {
       const freshSpeechLoad=Boolean(cycle?.initial&&!cycle.initialized);
       if(cycle) {
         if(!cycle.initialized)await this.initialize(cycle);
+        if(!this.store.get('working').membershipScheduled) {
+          scheduleMembership(this.store,cycle.generation);this.store.updateCycle({membershipScheduled:true});
+        }
+        if(!this.store.get('working').groupHistoryScheduled) {
+          scheduleGroupHistory(this.store,cycle.generation);this.store.updateCycle({groupHistoryScheduled:true});
+        }
         if(!this.store.get('working').mutableScheduled) {
           scheduleMutable(this,cycle.generation);this.store.updateCycle({mutableScheduled:true});
         }

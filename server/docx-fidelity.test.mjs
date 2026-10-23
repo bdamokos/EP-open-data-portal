@@ -1,15 +1,17 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {deflateRawSync} from 'node:zlib';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import {docxContent,documentText,documentStructure} from './document-text.mjs';
 import {runWithRequestSignal,cancelledRequest} from './request-budget.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 import {HttpError} from './http-utils.mjs';
+
+beforeEach(registerSubprocesses);
 
 function zip(document,extra={}) {
   const locals=[],centrals=[],entries=Object.entries({'word/document.xml':document,...extra});let offset=0;
@@ -27,6 +29,22 @@ const run=(text,properties='')=>`<w:r>${properties?`<w:rPr>${properties}</w:rPr>
 const p=text=>`<w:p>${run(text)}</w:p>`;
 const symbol=(font='Symbol',code='F02D')=>`<w:sym w:font="${font}" w:char="${code}"/>`;
 const noWait=t=>{const queue=new UpstreamQueue({interval:0});t.mock.method(UpstreamQueue.prototype,'acquire',queue.acquire.bind(queue));};
+
+test('the public CBAM annex continues Point0number across explicit and style-derived numIds',async()=>{
+  const fixture=JSON.parse(await readFile(new URL('./fixtures/docx-numbering-cbam.json',import.meta.url),'utf8'));
+  const content=docxContent(zip(fixture.documentXml,{'word/styles.xml':fixture.stylesXml,'word/numbering.xml':fixture.numberingXml}));
+  assert.deepEqual(content.paragraphs,fixture.expectedParagraphs);
+  assert.deepEqual(content.extractionWarnings,[]);
+  assert(content.paragraphSources.every(source=>source.complete));
+});
+
+test('a public EP motion with literal labels is identical with unused automatic numbering definitions',async()=>{
+  const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
+  const numbering=JSON.parse(await readFile(new URL('./fixtures/docx-numbering-cbam.json',import.meta.url),'utf8'));
+  const plain=docxContent(zip(fixture.documentXml,{'word/styles.xml':fixture.stylesXml}));
+  const unused=docxContent(zip(fixture.documentXml,{'word/styles.xml':fixture.stylesXml,'word/numbering.xml':numbering.numberingXml}));
+  assert.deepEqual(unused,plain);
+});
 
 test('all 18 public report citations retain the exact Symbol minus, tab and complete readable wording',async()=>{
   const fixture=JSON.parse(await readFile(new URL('./fixtures/report-symbol-citations.json',import.meta.url),'utf8'));
@@ -133,14 +151,14 @@ test('symbol and object positions remain aligned with numbering, hyperlinks and 
 });
 
 test('legacy and malformed structure is unknown even when cached paragraphs are readable',()=>{
-  const content=docxContent(zip(doc(p('Readable')))),record={extractionVersion:7,...content};
+  const content=docxContent(zip(doc(p('Readable')))),record={extractionVersion:8,...content};
   assert.equal(documentStructure(record).structureStatus,'extracted');
   for(const bad of [{...record,extractionVersion:6},{...record,paragraphSources:[]},{...record,paragraphSources:[{...record.paragraphSources[0],ordinal:-1}]},{...record,structureStatus:undefined}]) {
     assert.deepEqual(documentStructure(bad),{structureStatus:'not-extracted',paragraphSources:[],documentObjects:[]});
   }
   const object=docxContent(zip(doc(`<w:p><w:r>${symbol('Unknown')}</w:r></w:p>`)));
-  assert.equal(documentStructure({extractionVersion:7,...object}).structureStatus,'extracted');
-  assert.equal(documentStructure({extractionVersion:7,...object,paragraphSources:[{...object.paragraphSources[0],complete:true}]}).structureStatus,'not-extracted');
+  assert.equal(documentStructure({extractionVersion:8,...object}).structureStatus,'extracted');
+  assert.equal(documentStructure({extractionVersion:8,...object,paragraphSources:[{...object.paragraphSources[0],complete:true}]}).structureStatus,'not-extracted');
 });
 
 test('structure and source provenance survive persistence and settled retention without a cold refresh',async t=>{
@@ -149,11 +167,11 @@ test('structure and source provenance survive persistence and settled retention 
   const work={identifier:'A-10-2026-0237',document_date:'2026-09-16',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url,...source}]}]};
   const content=docxContent(zip(doc(p('Retained'))));let calls=0;
   const result=await documentText(work,'en',{directory,clock:()=>Date.parse('2026-12-01'),download:async()=>{calls++;return content;}});
-  assert.equal(calls,1);assert.equal(result.extractionVersion,7);assert.deepEqual(result.sourceVersion,source);assert.equal(result.structureStatus,'extracted');
+  assert.equal(calls,1);assert.equal(result.extractionVersion,8);assert.deepEqual(result.sourceVersion,source);assert.equal(result.structureStatus,'extracted');
   const file=path.join(directory,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),saved=JSON.parse(await readFile(file,'utf8'));
   assert.deepEqual(saved.paragraphSources,content.paragraphSources);
   const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});console.log(JSON.stringify(await documentText(${JSON.stringify(work)},'en',{directory:${JSON.stringify(directory)},clock:()=>Date.parse('2027-12-01'),download:async()=>{throw new Error('Unexpected cold refresh');}})));`;
-  const restarted=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{encoding:'utf8',timeout:5000}));
+  const restarted=JSON.parse((await execFileAsync(t,process.execPath,['--input-type=module','-e',script],{encoding:'utf8'})).stdout);
   assert.equal(restarted.stale,false);assert.equal(restarted.refreshInProgress,false);assert.equal(restarted.structureStatus,'extracted');assert.deepEqual(restarted.paragraphSources,result.paragraphSources);assert.deepEqual(restarted.sourceVersion,source);
 });
 

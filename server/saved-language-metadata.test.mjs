@@ -4,8 +4,8 @@ import {readFileSync,mkdtempSync,rmSync} from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {ActivityStore} from './activity-index-store.mjs';
-import {documentRows,projectDocument} from './activity-index-model.mjs';
-import {savedQuery,savedStates} from './insights-saved.mjs';
+import {documentRows,projectDocument,localize} from './activity-index-model.mjs';
+import {savedQuery,savedStates,savedItemPreview} from './insights-saved.mjs';
 import {createSavedStore} from '../src/bookmarks.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/activity-index-live-20261013.json',import.meta.url)));
@@ -19,7 +19,8 @@ test('saved responses pair chosen titles with exact dictionary keys without chan
     {titles:{fr:'Premier titre',de:'Zweiter Titel'},expected:{hu:['Premier titre','fr'],en:['Premier titre','fr'],fr:['Premier titre','fr']}},
     {titles:{en:'Identical',hu:'Identical',fr:'Identical'},expected:{hu:['Identical','hu'],en:['Identical','en'],fr:['Identical','fr']}},
     {titles:{},expected:{}},
-    {titles:{fr:'',de:'Do not select a later key'},expected:{}},
+    {titles:{'':'Language unknown title'},expected:{hu:['Language unknown title',null],en:['Language unknown title',null],fr:['Language unknown title',null]}},
+    {titles:{fr:'',de:'Later German title'},expected:{hu:['Later German title','de'],en:['Later German title','de'],fr:['Later German title','de']}},
     {titles:{mul:'Mixed supplied title'},expected:{hu:['Mixed supplied title','mul'],en:['Mixed supplied title','mul'],fr:['Mixed supplied title','mul']}},
   ];
   try {
@@ -34,30 +35,28 @@ test('saved responses pair chosen titles with exact dictionary keys without chan
     });
     const sourceCount=store.db.prepare('SELECT count(*) n FROM sources').get().n;
     store.db.exec('PRAGMA query_only=ON');
-    const results=['en','hu','fr'].map(language=>savedStates(store,savedQuery(new URLSearchParams({questions:ids.join(','),members:'257043',lang:language}))));
+    const results=['en','hu','fr'].map(language=>savedStates(store,savedQuery(new URLSearchParams({questions:ids.join(','),lang:language}))));
     for(const [locale,result] of results.entries()) {
       const language=['en','hu','fr'][locale];
       for(const [index,item] of result.questions.entries()) {
         const expected=cases[index].expected[language]||[ids[index],null];
         assert.deepEqual([item.title,item.titleLanguage],expected);
+        const row=store.db.prepare('SELECT source_id,date,body FROM items WHERE source_id=? AND generation=? LIMIT 1').get(ids[index],result.coverage.servingGeneration);
+        const preview=savedItemPreview(store,result.coverage.servingGeneration,row,language);
+        assert.deepEqual([preview.title,preview.titleLanguage],expected);
+        const activity=localize(JSON.parse(row.body),language);assert.deepEqual([activity.title,activity.titleLanguage],expected);
         assert.equal(item.id,ids[index]);
         assert.deepEqual([item.latest[0].title,item.latest[0].titleLanguage],expected);
-        const memberEntry=result.members[0].answers.find(a=>a.id===item.latest[0].id);
-        assert.deepEqual([memberEntry.title,memberEntry.titleLanguage],cases[index].expected[language]||[ids[index]+'-ASW',null]);
-        assert.equal(memberEntry.relatedQuestionId,item.id);
         assert.equal(item.revision,results[0].questions[index].revision,'changing display language is not new activity');
       }
-      assert.equal(result.members[0].name,'A proper name');
-      assert.equal(result.members[0].titleLanguage,undefined,'proper names are not assigned a guessed title language');
-      assert.equal(result.members[0].revision,results[0].members[0].revision);
-      assert.deepEqual(result.members[0].activityIds,results[0].members[0].activityIds);
+
     }
     assert.equal(store.db.prepare('SELECT count(*) n FROM sources').get().n,sourceCount);
-    let raw=JSON.stringify({version:1,items:[{kind:'question',id:ids[0],title:'Legacy unknown',baseline:{revision:results[0].questions[0].revision,answerIds:[]}}]});
-    const disk={getItem:()=>raw,setItem(_key,value){raw=value;}};
+    const data=new Map();let raw=JSON.stringify({version:1,items:[{kind:'question',id:ids[0],title:'Legacy unknown',baseline:{revision:results[0].questions[0].revision,answerIds:[]}}]});
+    data.set('ep.bookmarks.v1',raw);const disk={getItem:key=>data.get(key)||null,setItem(key,value){data.set(key,value);}};
     const browser=createSavedStore(disk);browser.observe(results[1]);
     const loaded=createSavedStore(disk).snapshot().items[0];
-    assert.equal(loaded.titleLanguage,'hu');assert.equal(loaded.unreadAnswers[0].titleLanguage,'hu');
+    assert.equal(loaded.titleLanguage,'hu');assert.equal(loaded.entries.find(entry=>entry.kind==='answer').titleLanguage,'hu');
     assert(loaded.newAnswer);assert(!loaded.newActivity);
   } finally {store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});}
 });

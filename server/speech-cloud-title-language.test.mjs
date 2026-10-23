@@ -52,15 +52,15 @@ test('speech titles retain requested/English/fixed fallback selection with their
     {language:'fr',titles:{hu:'Magyar',en:'English',fr:'Français'},title:'Français',titleLanguage:'fr'},
     {language:'hu',titles:{fr:'Français',en:'English'},title:'English',titleLanguage:'en'},
     {language:'fr',titles:{hu:'Magyar',fr:'',en:'English'},title:'English',titleLanguage:'en'},
-    {language:'en',titles:{hu:'Magyar'},title:'Speech',titleLanguage:'en'},
-    {language:'hu',titles:{fr:'Français',hu:'',en:''},title:'Speech',titleLanguage:'en'},
+    {language:'en',titles:{hu:'Magyar'},title:'Magyar',titleLanguage:'hu'},
+    {language:'hu',titles:{bg:'Български',fr:'Français',hu:'',en:''},title:'Français',titleLanguage:'fr'},
     {language:'fr',titles:{},title:'Speech',titleLanguage:'en'},
   ];
   for(const [i,{language,titles,title,titleLanguage}] of cases.entries()) {
     const row=activity(i+1,{titles,fragments:{[language]:xml(language)}});
     const before=structuredClone(row),{service,calls,source}=serviceFor(t,{data:[row]});
     const result=await service.query(query(`member=${member}&days=term&lang=${language}`));
-    assert.deepEqual(result.speeches,[{id:row.activity_id,date,title,titleLanguage,machineTranslation:false,people:[{id:member,name:'Saved speaker',currentMep:true,role:null}]}]);
+    assert.deepEqual(result.speeches,[{id:row.activity_id,date,title,titleLanguage,machineTranslation:false,people:[{id:member,name:'Saved speaker',currentMep:true,role:null,roleLabels:{},roleLanguage:null,roleSource:{speechId:row.activity_id,date,url:source.url,fetchedAt:new Date(now()).toISOString()}}]}]);
     assert.deepEqual(result.scope,{kind:'member',member,sitting:null,week:null,topic:null,title:null,titleLanguage:null,phase:'past'});
     assert.equal(result.language,language);
     assert.equal(result.coverage.complete,true);
@@ -74,14 +74,14 @@ test('speech titles retain requested/English/fixed fallback selection with their
   }
 });
 
-test('sitting scope titles retain requested/English/null selection without a first-key fallback',async t=>{
+test('sitting scope titles use the shared display preference and retain actual language',async t=>{
   const cases=[
     {language:'en',labels:{hu:'Ülés',en:'Sitting'},title:'Sitting',titleLanguage:'en'},
     {language:'hu',labels:{en:'Sitting',hu:'Ülés'},title:'Ülés',titleLanguage:'hu'},
     {language:'fr',labels:{en:'Sitting',fr:'Séance'},title:'Séance',titleLanguage:'fr'},
     {language:'hu',labels:{fr:'Séance',en:'Sitting'},title:'Sitting',titleLanguage:'en'},
     {language:'fr',labels:{fr:'',en:'Sitting'},title:'Sitting',titleLanguage:'en'},
-    {language:'hu',labels:{fr:'Séance'},title:null,titleLanguage:null},
+    {language:'hu',labels:{bg:'Заседание',fr:'Séance'},title:'Séance',titleLanguage:'fr'},
     {language:'en',labels:{},title:null,titleLanguage:null},
   ];
   for(const {language,labels,title,titleLanguage} of cases) {
@@ -152,4 +152,43 @@ test('title language stays independent of requested XML translation and mixed or
   assert.equal(result.coverage.transcripts,4);
   assert.equal(result.coverage.xmlBytes,Buffer.byteLength(rows.map(row=>row.recorded_in_a_realization_of[0]['api:xmlFragment'].hu).join('')));
   assert.equal(result.coverage.missingLanguage,0);
+});
+
+test('cloud keeps all supplied role labels and provenance rather than treating the first Bulgarian header as English',async t=>{
+  const roleXml=(lang,role)=>xml(lang).replace('<from>','<from xml:lang="'+lang+'">').replace('</person>','</person><role>'+role+'</role>');
+  const row=activity(1,{fragments:{bg:roleXml('bg','Член на Комисията'),en:roleXml('en','Member of the Commission'),fr:roleXml('fr','Membre de la Commission')}});
+  const {service,source}=serviceFor(t,{data:[row]});
+  const result=await service.query(query(`member=${member}&days=term&lang=en`));
+  const person=result.speeches[0].people[0];
+  assert.equal(person.roleLanguage,'en');
+  assert.deepEqual(person.roleLabels,{bg:{text:'Член на Комисията',language:'bg'},en:{text:'Member of the Commission',language:'en'},fr:{text:'Membre de la Commission',language:'fr'}});
+  assert.deepEqual(person.roleSource,{speechId:row.activity_id,date,url:source.url,fetchedAt:new Date(now()).toISOString()});
+});
+
+test('retained cloud carries raw role language and known English independently of text language',async t=>{
+  const row=activity(1),labels={bg:{text:'Член на Комисията',language:'bg'},en:{text:'Member of the Commission',language:'en'}};
+  const source=record([]),store=storeFor(t);
+  const service=new SpeechCloudInsights(store,{clock:now,request:async()=>assert.fail('Retained cloud cannot fetch upstream'),legislation:{catalogue:async()=>({sittings:[{activity_id:sitting,activity_date:date}]})},
+    readCorpusPage:async()=>({revision:'1',total:1,nextOffset:null,records:[{id:row.activity_id,metadata:{activity:row,summary:{date,titles:row.activity_label},speakers:[{id:member,name:'Public speaker',role:labels.bg.text,roleLanguage:'bg',roleLabels:labels}],sourceUrl:source.url,fetchedAt:new Date(now()).toISOString()},text:{body:'Climate energy transport.',translationType:'original',sourceUrl:source.url,fetchedAt:new Date(now()).toISOString()}}]})});
+  const result=await service.query(query(`sitting=${sitting}&lang=en`)),person=result.speeches[0].people[0];
+  assert.equal(person.role,labels.bg.text);assert.equal(person.roleLanguage,'bg');assert.deepEqual(person.roleLabels,labels);
+  assert.equal(person.roleSource.speechId,row.activity_id);
+});
+
+test('fallback display titles do not train English phrases in live or retained clouds',async t=>{
+  const content='We discussed nord stream and energy.';
+  for(const retained of [false,true])for(const english of [false,true]) {
+    const titles=english?{en:'Nord Stream',fr:'Nord Stream'}:{fr:'Nord Stream'},row=activity(1,{titles,fragments:{en:xml('en',content)}});
+    let service;
+    if(!retained)({service}=serviceFor(t,{data:[row]}));
+    else {
+      const source=record([]);
+      service=new SpeechCloudInsights(storeFor(t),{clock:now,request:async()=>assert.fail('Retained clouds must not fetch upstream'),legislation:{catalogue:async()=>({sittings:[{activity_id:sitting,activity_date:date}]})},
+        readCorpusPage:async()=>({revision:'1',total:1,nextOffset:null,records:[{id:row.activity_id,metadata:{activity:row,summary:{date,titles},speakers:[],sourceUrl:source.url,fetchedAt:new Date(now()).toISOString()},text:{body:content,translationType:'original',sourceUrl:source.url,fetchedAt:new Date(now()).toISOString()}}]})});
+    }
+    const result=await service.query(query(retained?`sitting=${sitting}&lang=en`:`member=${member}&days=term&lang=en`));
+    assert.equal(result.speeches[0].title,'Nord Stream');assert.equal(result.speeches[0].titleLanguage,english?'en':'fr');
+    assert.equal(Object.hasOwn(result.speeches[0],'analysisTitle'),false);
+    assert.deepEqual(result.words.map(word=>word.word).sort(),english?['discussed','energy','nord-stream']:['discussed','energy','nord','stream']);
+  }
 });

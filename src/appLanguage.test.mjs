@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const member={id:257043,firstName:'Mika',lastName:'Aaltola',sortName:'AALTOLA Mika',gender:'m',countryCode:'FI',groupCode:'EPP',memberships:[{id:'AFET',role:'MEMBER',classification:'COMMITTEE',current:true,start:'2024-07-16',end:null}],accounts:[]};
 const directory={day:'2026-10-16',members:[member],committees:[{id:'AFET',code:'AFET',names:{en:'Foreign affairs',fr:'Affaires étrangères',hu:'Külügy'},classification:'COMMITTEE'},{id:'LIBE',code:'LIBE',names:{en:'Civil liberties'},classification:'COMMITTEE'}],index:{complete:true,loaded:1,total:1,failed:0,error:null}};
@@ -54,10 +54,10 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let root,vite;
+  let root,loadModule;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    if(vite)await vite.close();await window.happyDOM.close();
+    t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(unexpected,[],'every fetch stays within the isolated app fixtures');
   });
@@ -70,6 +70,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
     if(route?.startsWith('latest-activities/'))return Response.json(page(items));
     if(route?.startsWith('speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(route==='insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
+    if(route==='insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
     if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
     if(route?.startsWith('speech/')) {
@@ -84,12 +85,15 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
     }
     unexpected.push(url.href);throw new Error('Unexpected fixture request: '+url.href);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {default:App}=await vite.ssrLoadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {default:App}=await loadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');
+  // Module loading uses real timers; only mounted application deadlines are advanced.
+  t.mock.timers.enable({apis:['setTimeout']});
+  const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(App)));
   const click=node=>{assert(node,'Missing control');return act(async()=>node.click());};
-  return {window,container,click,requests,wait:()=>act(async()=>new Promise(resolve=>setTimeout(resolve,400)))};
+  return {window,container,click,requests,tick,wait:()=>tick(350)};
 }
 
 for(const language of ['en','hu','fr']) {
@@ -119,8 +123,8 @@ for(const language of ['en','hu','fr']) {
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-profile h1')),'');
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-back')),language);
     assert.equal(effectiveLanguage(exactText(h.container,'h2',c.speeches)),language);
-    const expected=[language==='hu'?'Magyar cím':language==='fr'?'Titre français':'English title','English fallback','Erster Titel','Plenary contribution','Plenary contribution','Language unknown title'];
-    const expectedLanguages=[language,'en','de','en','en',''];
+    const expected=[language==='hu'?'Magyar cím':language==='fr'?'Titre français':'English title','English fallback','Erster Titel','Do not scan to this title','Plenary contribution','Language unknown title'];
+    const expectedLanguages=[language,'en','de','it','en',''];
     const rows=[...h.container.querySelectorAll('.explorer-speech')];assert.equal(rows.length,speeches.length);
     rows.forEach((row,index)=>{
       const title=row.querySelector('strong');assert.equal(title.textContent,expected[index]);assert.equal(effectiveLanguage(title),expectedLanguages[index]);
@@ -168,7 +172,7 @@ for(const language of ['en','hu','fr']) {
       assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-download summary')),'en');
       assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-heading h3')),'en');
       assert.equal(effectiveLanguage(reader.querySelector('.explorer-publication-files select')),'en');
-      assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-heading option')),'');
+      for(const option of reader.querySelectorAll('.explorer-reader-heading option[value]:not([value=""])'))assert.equal(effectiveLanguage(option),option.value);
       assert(reader.querySelector('sup a[href*="-note-1"]'),'superscript source note marker remains available');
       assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
       const author=reader.querySelector('.explorer-coauthors strong');assert.equal(author.textContent,'Mika Aaltola');assert.equal(effectiveLanguage(author),'');assert.equal(author.querySelector('a'),null,'the current author remains strong, not a self-link');
@@ -182,10 +186,9 @@ for(const language of ['en','hu','fr']) {
         assert.equal(save.querySelector('span[lang]').textContent,label);assert.equal(effectiveLanguage(save.querySelector('span[lang]')),language);
         const answer=reader.querySelector('#document-'+answerId),answerHeading='Answer · '+date('2026-10-02',language);
         assert.equal(answer.querySelector('h3').textContent,answerHeading);assert.equal(effectiveLanguage(answer.querySelector('h3 span')),language);
-        // OPEN: this existing flat name mixes English with a localized date.
-        const answerSelect=answer.querySelector('select');assert.equal(answerSelect.getAttribute('aria-label'),answerHeading+' language');assert.equal(effectiveLanguage(answerSelect),'en');
+        const answerSelect=answer.querySelector('select');assert.equal(answerSelect.getAttribute('aria-label'),'Text language');assert.equal(effectiveLanguage(answerSelect),'en');
         await h.click(save);
-        const saved=JSON.parse(h.window.localStorage.getItem('ep.bookmarks.v1')).items[0];
+        const saved=JSON.parse(h.window.localStorage.getItem('ep.following.v2')).items[0];
         assert.equal(saved.id,questionId);assert.equal(saved.title,questions[0].title);assert.equal(saved.titleLanguage,'fr');assert.deepEqual(saved.baseline.answerIds,[]);
       }
     }
@@ -194,11 +197,11 @@ for(const language of ['en','hu','fr']) {
   });
 }
 
-test('linked-source fallback keeps the first dictionary entry and an unknown identifier fallback without changing exact links',async t=>{
+test('linked-source fallback skips empty titles while preserving source language and exact links',async t=>{
   const h=await harness(t,'hu',{items:[],query:{member:String(member.id),module:'activities',activity:questionId},linkedDocument:{titles:{de:'',fr:'Do not select a later entry'}}});
   const fallback=h.container.querySelector('aside.explorer-notice');assert(fallback);assert.equal(effectiveLanguage(fallback),'en');
   await h.click(exactText(fallback,'button','Check this source with Parliament'));
-  const title=fallback.querySelector('h3');assert.equal(title.textContent,questionId);assert.equal(effectiveLanguage(title),'');
+  const title=fallback.querySelector('h3');assert.equal(title.textContent,'Do not select a later entry');assert.equal(effectiveLanguage(title),'fr');
   assert(fallback.querySelector('#document-'+questionId));
   assert.equal(fallback.querySelector('.explorer-publication-files a').href,download);
 });

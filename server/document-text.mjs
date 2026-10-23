@@ -1,3 +1,4 @@
+import {languagePreference} from './language-order.mjs';
 import { inflateRawSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import {readFile} from 'node:fs/promises';
@@ -6,6 +7,7 @@ import path from 'node:path';
 import https from 'node:https';
 import { XMLParser,XMLValidator } from 'fast-xml-parser';
 import { boundedUpstream, upstreamResponseError } from './odp.mjs';
+import {retryAfterSeconds} from './upstream-queue.mjs';
 import { documentFiles,array,tail } from './activity-index-model.mjs';
 import { languageCode } from './ep-links.mjs';
 import {sharedRequest,waitForRequest,requestSignal,isLocalRequestFailure} from './request-budget.mjs';
@@ -298,7 +300,7 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal()}={}) 
     const limited=upstreamResponseError(response,{source:'documents'});
     if(limited){response.resume();throw limited;}
     if([301,302,303,307,308].includes(response.statusCode)){const target=response.headers.location;response.resume();if(!target)throw new Error('Invalid document redirect.');url=new URL(target,url).href;continue;}
-    if(response.statusCode!==200){response.resume();throw new Error(`Official document download unavailable (${response.statusCode}).`);}
+    if(response.statusCode!==200){response.resume();const hint=response.headers['retry-after'];throw Object.assign(new Error(`Official document download unavailable (${response.statusCode}).`),{status:response.statusCode,retryAfter:hint?retryAfterSeconds(hint):0});}
     if(!/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw new Error('Unexpected document download format.');}
     const chunks=[];let size=0;
     for await(const chunk of response){size+=chunk.length;if(size>MAX_FILE){response.destroy();throw new Error('Official document exceeds 8 MiB.');}chunks.push(chunk);}
@@ -323,9 +325,9 @@ export function documentNotes(record) {
 export async function documentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now,cacheOnly=false}={}) {
   requestSignal()?.throwIfAborted();
   const files=documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
-  const languages=[...new Set(files.map(f=>f.language).filter(Boolean))];
+  const languages=languagePreference(files.map(f=>f.language).filter(Boolean),language);
   const originals=array(work.originalLanguage).map(languageCode);
-  const chosen=files.find(f=>f.language===language) || files.find(f=>originals.includes(f.language)) || files.find(f=>f.language==='en') || files[0];
+  const chosen=files.find(f=>f.language===languages[0]) || files[0];
   const base={status:'unavailable',paragraphs:[],authorBylineParagraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],
     structureStatus:'not-extracted',paragraphSources:[],documentObjects:[],formatStatus:'not-extracted',paragraphFormats:[],tables:[],extractionVersion:null,sourceVersion:null,
     textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};

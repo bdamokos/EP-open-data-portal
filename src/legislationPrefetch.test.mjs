@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const days=['2026-10-06','2026-10-07','2026-09-17'].map(date=>({id:'MTG-PL-'+date,date,phase:'past',title:'Plenary'}));
 const topics=days.slice(0,2).flatMap((day,index)=>[0,1].map(n=>({id:day.id+'-ITM-'+n,sittingId:day.id,date:day.date,title:'Agenda '+index+' '+n,titleLanguage:'en',kind:'PLENARY_DEBATE',documentIds:[],procedureIds:[]})));
@@ -18,7 +18,7 @@ async function harness(t,width=1440) {
   for(const [key,value] of Object.entries({window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:width,requestAnimationFrame:callback=>{callback();return 0;},IS_REACT_ACT_ENVIRONMENT:true})) {
     originals.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});
   }
-  let root,vite;
+  let root,loadModule;
   t.mock.method(globalThis,'fetch',(input,options)=>{
     const url=new URL(input,location.href);
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected request '+url);
@@ -27,19 +27,24 @@ async function harness(t,width=1440) {
   });
   t.after(async()=>{
     if(root)await act(async()=>{root.unmount();for(const request of requests.filter(r=>!r.settled))request.resolve(Response.json(response(request.url.searchParams)));});
-    if(vite)await vite.close();await window.happyDOM.close();
+    t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {Legislation}=await vite.ssrLoadModule('/src/Legislation.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {Legislation}=await loadModule('/src/Legislation.tsx'),{createRoot}=await import('react-dom/client');
+  // Module loading uses real timers; only mounted application deadlines are advanced.
+  t.mock.timers.enable({apis:['setTimeout']});
+  t.mock.method(window,'setTimeout',(callback,ms,...args)=>setTimeout(callback,ms,...args));
+  t.mock.method(window,'clearTimeout',timer=>clearTimeout(timer));
+  const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=language=>act(async()=>root.render(createElement(Legislation,{language,onBack(){}})));
   await render('en');
-  return {requests,container,render,window,
+  return {requests,container,render,window,tick,
     item:index=>container.querySelectorAll('.insight-agenda button')[index],
     hover:node=>act(async()=>node.dispatchEvent(new window.PointerEvent('pointerover',{bubbles:true,pointerType:'mouse'}))),
     leave:node=>act(async()=>node.dispatchEvent(new window.PointerEvent('pointerout',{bubbles:true,pointerType:'mouse'}))),
-    wait:()=>act(async()=>new Promise(resolve=>setTimeout(resolve,220))),
+    wait:()=>tick(150),
     finish:(request,status=200)=>act(async()=>{request.settled=true;request.resolve(Response.json(status===200?response(request.url.searchParams):{error:{message:'Unavailable'}},{status}));}),
     unmount:()=>act(async()=>root.unmount())};
 }
@@ -50,7 +55,8 @@ test('hover shares exact per-day detail requests with selection, caches results 
   await h.hover(h.item(0));await h.leave(h.item(0));
   await act(async()=>h.item(0).dispatchEvent(new h.window.PointerEvent('pointerover',{bubbles:true,pointerType:'touch'})));
   await h.wait();assert.equal(requests.length,0,'brief hover and touch do not preload');
-  await h.hover(h.item(2));await h.wait();assert.equal(requests.length,1);
+  await h.hover(h.item(2));await h.tick(149);assert.equal(requests.length,0,'intent must settle before speculation');
+  await h.tick(1);assert.equal(requests.length,1);
   assert.equal(requests[0].priority,'low');assert.equal(requests[0].url.searchParams.get('sitting'),days[1].id);
   assert.equal(requests[0].url.searchParams.get('topic'),topics[2].id);assert.equal(requests[0].url.searchParams.get('lang'),'en');assert(requests[0].url.searchParams.has('v'));
   await h.leave(h.item(2));await act(async()=>h.item(2).click());

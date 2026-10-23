@@ -1,12 +1,11 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
-import {execFile} from 'node:child_process';
-import {promisify} from 'node:util';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import {mkdtemp,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-const execFileAsync=promisify(execFile);
+beforeEach(registerSubprocesses);
 const moduleUrl=new URL('./odp.mjs',import.meta.url).href;
 
 async function fixture(t,scenario) {
@@ -14,7 +13,7 @@ async function fixture(t,scenario) {
   t.after(()=>rm(directory,{recursive:true,force:true}));
   const script=`
     import assert from 'node:assert/strict';
-    import {writeFile,rm,stat} from 'node:fs/promises';
+    import {writeFile,rm,stat,truncate} from 'node:fs/promises';
     import {createHash} from 'node:crypto';
     import path from 'node:path';
     const directory=process.env.ODP_CACHE_DIR;
@@ -31,16 +30,19 @@ async function fixture(t,scenario) {
       url.searchParams.set('format','application/ld+json');
       const record={url:url.href,fetchedAt:Date.now(),payload};
       const name=legacy?Buffer.from(url.href).toString('base64url'):createHash('sha256').update(url.href).digest('hex');
-      await writeFile(path.join(directory,name+'.json'),JSON.stringify(record)+' '.repeat(padding));
+      const file=path.join(directory,name+'.json'),serialized=JSON.stringify(record);
+      await writeFile(file,serialized);
+      if(padding)await truncate(file,Buffer.byteLength(serialized)+padding);
       return record;
     }
     ${scenario}
     console.log('fixture passed');
   `;
-  const result=await execFileAsync(process.execPath,['--input-type=module','--eval',script],{
-    env:{...process.env,ODP_CACHE_DIR:directory},timeout:45_000,maxBuffer:1024*1024,
+  const result=await execFileAsync(t,process.execPath,['--input-type=module','--eval',script],{
+    env:{...process.env,ODP_CACHE_DIR:directory},maxBuffer:1024*1024,
   });
   assert.match(result.stdout,/fixture passed/);
+  for(const line of result.stdout.split('\n'))if(line.startsWith('{'))t.diagnostic(line);
 }
 
 test('disk and network ODP records share the memory entry limit without losing their source fields',async t=>{
@@ -86,8 +88,19 @@ test('oversized hashed and legacy disk records are not parsed or promoted, while
     allowed=true;
     for(const legacy of [false,true]){
       const endpoint='/memory-oversized-'+legacy;
-      await save(endpoint,{data:[{identifier:'disk'}]},{legacy,padding:80*1024*1024});
-      assert.equal((await odp(endpoint)).payload.data[0].identifier,'network');
+      const record=await save(endpoint,{data:[{identifier:'disk'}]},{legacy,padding:80*1024*1024});
+      const name=legacy?Buffer.from(record.url).toString('base64url'):createHash('sha256').update(record.url).digest('hex');
+      const info=await stat(path.join(directory,name+'.json'));
+      // Match the production serialized-record ceiling, including its overflow byte.
+      const maxDiskRecordBytes=6*12*1024*1024+64*1024;
+      assert.equal(info.size,Buffer.byteLength(JSON.stringify(record))+80*1024*1024);
+      assert(info.size>maxDiskRecordBytes);
+      console.log(JSON.stringify({legacy,logicalBytes:info.size,physicalBytes:info.blocks*512,maxDiskRecordBytes}));
+      const parse=JSON.parse;let oversizedParses=0;
+      JSON.parse=function(text,...args){if(typeof text==='string'&&text.includes(record.url))oversizedParses++;return parse(text,...args);};
+      try {assert.equal((await odp(endpoint)).payload.data[0].identifier,'network');}
+      finally {JSON.parse=parse;}
+      assert.equal(oversizedParses,0,'reject the overflowing stream before attempting JSON.parse');
     }
     allowed=false;
     const expected=await save('/memory-valid-legacy',undefined,{legacy:true});

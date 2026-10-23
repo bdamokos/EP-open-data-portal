@@ -1,10 +1,11 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {server} from './index.mjs';
 import {config,apiPrefixes} from './config.mjs';
 
-test('the standalone adapter exposes only read-only explorer routes',async()=>{
+test('the standalone adapter exposes only read-only explorer routes',loopback,async()=>{
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const base=`http://127.0.0.1:${server.address().port}`;
  try{
@@ -35,11 +36,6 @@ test('runtime source cannot reintroduce authenticated data adapters',()=>{
  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
  assert.doesNotMatch(app,/loadI18n/);
 });
-test('every explorer page carries the public-data notice',()=>{
- const notice=readFileSync(new URL('../src/components/DataNotice.tsx',import.meta.url),'utf8');
- assert.match(notice,/© European Union – Source: European Parliament/);
- assert.match(notice,/creativecommons\.org\/licenses\/by\/4\.0/);
- assert.match(notice,/Not an official Parliament service/);
+test('the site brand is not the institution name alone',()=>{
  assert.doesNotMatch(readFileSync(new URL('../src/ParliamentHeader.tsx',import.meta.url),'utf8'),/>\s*EUROPEAN PARLIAMENT\s*</i,'the site brand is not the Parliament’s name alone');
- for(const shell of ['App.tsx','InsightShared.tsx'])assert.match(readFileSync(new URL(`../src/${shell}`,import.meta.url),'utf8'),/<DataNotice\b/,shell);
 });

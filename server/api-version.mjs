@@ -1,5 +1,5 @@
 // Bump only for API response contract changes, never for commits or releases.
-export const API_VERSION = 21;
+export const API_VERSION = 45;
 
 // Append the new version's digest when bumping; keep recorded entries unchanged.
 export const API_CONTRACT_DIGESTS = Object.freeze({
@@ -24,9 +24,33 @@ export const API_CONTRACT_DIGESTS = Object.freeze({
   19: 'e103c9dec0b8ddfaffc51cebec69409eaec42f63d2875ab0254b82d261bf1d82',
   20: '18816de8524435e5db80552039bb2463c57f3a053565e17c7b0a4629ff680433',
   21: '30287ba957f4664d43a79ecbf90fbda2da95eb08b3cf2ccd1be56ad79e6f9879',
+  22: '0da104e45e2c74d843b9996fd31064860b858171432507b1d9e77aaf514db8e4',
+  23: '0da104e45e2c74d843b9996fd31064860b858171432507b1d9e77aaf514db8e4',
+  24: 'ed8cbc2c57dd19c92294a73c9296e59a03c04446d95d38b21e7778da4e77ace9',
+  25: 'ed8cbc2c57dd19c92294a73c9296e59a03c04446d95d38b21e7778da4e77ace9',
+  26: 'c0d4f379e51760fb75ad0a8f1ebbe0f9a50fda42faaedaf3309c58b35d4f892d',
+  27: 'ef3fac78303813ca36f9c81e8e8f8b51259336e74d151516d83f2806f031c9a8',
+  28: 'b619d349a286a7e7142b7a5422179cd1801b285f77be5055096cf83870b13dbf',
+  29: 'f2e0d0f86bc59297f513358e5c9cb669962d0be6dc0a0d2fc58b507db681ac69',
+  30: '3dbb0ec58a925c300075ea6d8ecd7dd99192912f7ed996186429d88dd9f800e9',
+  31: 'd8a2076c3ea57104d84ed1c356abcb7e79315f14c6e80a673746d6601cdb3751',
+  32: 'b1e16f80452a3cf436d21eb4672ed421d7bb567e488fbf4acf73b9d56a7295d4',
+  33: 'ad2be4b3887af0a7c969742a2c0162fb417ad39278b97f15618aceb507505b30',
+  34: 'b84ce9489b2552143d7532caf53c420ffb66de9f034456587f5db28b8662123a',
+  35: '55fac4e699ffa6c40c2feca89a82a94a537323cdc545e6d9abdb5adfb0665548',
+  36: '2a3285538515e1b84021b40d4963223617b6adf59d464f3df1f889bc3cc45a80',
+  37: 'd8a2076c3ea57104d84ed1c356abcb7e79315f14c6e80a673746d6601cdb3751',
+  38: '20b71d723e481640866c6a18ad7df74588e59d941868f70a71a38dcb822590e4',
+  39: 'e5e8ca48a6b3d75448126a915b74aee7bc0560937f998353c3dc91c24207a7ac',
+  40: 'd8a2076c3ea57104d84ed1c356abcb7e79315f14c6e80a673746d6601cdb3751',
+  41: '20b71d723e481640866c6a18ad7df74588e59d941868f70a71a38dcb822590e4',
+  42: 'd8a2076c3ea57104d84ed1c356abcb7e79315f14c6e80a673746d6601cdb3751',
+  43: '2a3285538515e1b84021b40d4963223617b6adf59d464f3df1f889bc3cc45a80',
+  44: 'eb3a8d2faccf70d23bc73dc3ffa08feabd0f82d376f82124e3342a10e5c347d1',
+  45: '1e8477770719f9d629807c0ab6aa343a419a0e5a3879a5dafc407ef85deea6f0',
 });
 
-// Called only at the GET transport boundary; route and page URL keys stay intact.
+// Called at the transport boundary; route and page URL keys stay intact.
 export function versionedApiUrl(url) {
   return `${url}${url.includes('?') ? '&' : '?'}v=${API_VERSION}`;
 }

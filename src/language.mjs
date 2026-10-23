@@ -1,7 +1,6 @@
+import {languagePreference} from '../server/language-order.mjs';
 // Keep the selected value and its supplied language key together, including fallbacks.
 export function selectLanguageText(values,requested,fallback='',fallbackLanguage='en') {
-  if(values?.[requested])return {text:values[requested],language:requested};
-  if(values?.en)return {text:values.en,language:'en'};
-  const first=Object.entries(values||{})[0];
-  return first?.[1]?{text:first[1],language:first[0]}:{text:fallback,language:fallbackLanguage};
+  const language=languagePreference(Object.keys(values||{}).filter(code=>typeof values[code]==='string'&&values[code].trim()),requested)[0];
+  return language!==undefined?{text:values[language],language}:{text:fallback,language:fallbackLanguage};
 }

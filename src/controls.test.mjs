@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const member={id:257043,firstName:'Mika',lastName:'Aaltola',sortName:'AALTOLA Mika',gender:'m',countryCode:'FI',groupCode:'EPP',memberships:[],accounts:[]};
 const directory={day:'2026-10-16',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}};
@@ -18,23 +18,29 @@ function fixture(url) {
   if(route?.startsWith('latest-activities/'))return activities;
   if(route?.startsWith('speech-statistics/'))return {items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null};
   if(route==='insights/speech-cloud')return {scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null};
+  if(route==='insights/following-status')return {epoch:'test',generation:1,marksReady:false,indexComplete:false};
   if(route==='insights/saved')return {members:[],questions:[]};
   if(route==='insights/legislation')return legislation;
   if(route?.startsWith('document/'))return {selectedDocumentId:decodeURIComponent(route.slice(9)),files:[],answers:[],selectedText:{status:'available',paragraphs:['Document fixture text'],textLanguage:url.searchParams.get('lang'),availableTextLanguages:['en','fr']}};
   throw Error('Unexpected fixture request: '+url);
 }
-async function harness(t,query,respond=fixture) {
+async function harness(t,query,respond=fixture,{clock=false}={}) {
   const window=new Window({url:'http://localhost/'+query});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let root,vite;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let root,loadModule;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async(input,options)=>Response.json(await respond(new URL(input,location.href),options)));
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  return {window,container,load:path=>vite.ssrLoadModule(path),render:async element=>{await act(async()=>root.render(element));await viewReady(container);},click:async node=>{assert(node,'Missing button');await act(async()=>node.click());await viewReady(container);},button:text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text)};
+  // Enable only after the requested Vite module has loaded. These prefetch cases
+  // use the eager member view; other cases retain real lazy-view readiness.
+  let clockStarted=false;
+  const load=async path=>{const module=await loadModule(path);if(clock&&!clockStarted){t.mock.timers.enable({apis:['setTimeout']});clockStarted=true;}return module;};
+  const tick=ms=>act(async()=>{t.mock.timers.tick(ms);});
+  return {window,container,load,tick,render:async(element,{ready=true}={})=>{await act(async()=>root.render(element));if(ready)await viewReady(container);},click:async node=>{assert(node,'Missing button');await act(async()=>node.click());await viewReady(container);},button:text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text)};
 }
 
 test('Follow and Save names include their visible state and identify compact controls',async t=>{
@@ -67,7 +73,7 @@ test('MEP speech loads before hidden debate preload, then opening the sequence w
     if(route.startsWith('speech-context/'))return new Promise(resolve=>finishContext=()=>resolve({speechId:id,debates:[{id:'debate',titles:{en:'Debate'},records:[row(id),row(other)],exchanges:[],coverage:{complete:true}}]}));
     if(route===`speech/${other}`)return {id:other,xml:'<speech><p>Preloaded contribution</p></speech>',textLanguage:'en'};
     return fixture(url);
-  });
+  },{clock:true});
   globalThis.DOMParser=class extends h.window.DOMParser {
     parseFromString(...args) {
       const parsed=super.parseFromString(...args),query=parsed.getElementsByTagNameNS.bind(parsed);
@@ -79,13 +85,14 @@ test('MEP speech loads before hidden debate preload, then opening the sequence w
   assert(finishSpeech);assert(!requests.some(route=>route.startsWith('speech-context/')));
   await act(async()=>finishSpeech());
   assert(h.container.textContent.includes('Main transcript'),'pending context does not block the transcript');
-  await act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
+  await h.tick(149);assert.equal(finishContext,undefined,'hidden context waits for the prefetch deadline');
+  await h.tick(1);
   assert(finishContext);assert.equal(h.container.querySelector('.intervention-context-toggle').getAttribute('aria-expanded'),'false');
   await act(async()=>finishContext());
   assert(!requests.includes(`speech/${other}`),'closed sequences do not preload contributions');
   await h.click(h.container.querySelector('.intervention-context-toggle'));
   assert(h.container.querySelector('.intervention-sequence'));assert(!h.container.textContent.includes('Loading debate sequence'));
-  await act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
+  await h.tick(150);
   assert.equal(requests.filter(route=>route===`speech/${other}`).length,1);
   await h.click(h.container.querySelectorAll('.intervention-read')[1]);
   assert(h.container.textContent.includes('Preloaded contribution'));assert.equal(requests.filter(route=>route===`speech/${other}`).length,1);
@@ -100,18 +107,24 @@ test('sequence preloads are bounded, skip procedural rows, stop on close and fol
     assert(url.pathname.includes('/speech/'));assert.equal(options.priority,'low');reads.push(url);
     if(url.searchParams.get('lang')==='en')return new Promise(resolve=>finish=()=>resolve({id:url.pathname.split('/').at(-1)}));
     return {id:url.pathname.split('/').at(-1)};
-  });
+  },{clock:true});
   const {SpeechContextPanel}=await h.load('/src/SpeechInterventions.tsx');
   const render=transcriptLanguage=>h.render(createElement(SpeechContextPanel,{id,language:'en',transcriptLanguage}));
   await render('en');assert.equal(reads.length,0);
   await h.click(h.container.querySelector('.intervention-context-toggle'));
-  await act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
+  await h.tick(150);
   assert.equal(reads.length,1);assert(reads[0].pathname.endsWith(prefix+'4'),'nearest contribution is warmed first');
   await h.click(h.container.querySelector('.intervention-context-toggle'));
-  await act(async()=>finish());await act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
+  await act(async()=>finish());await h.tick(150);
   assert.equal(reads.length,1,'closing stops the rest of the batch');
   await render('fr');await h.click(h.container.querySelector('.intervention-context-toggle'));
-  await act(async()=>new Promise(resolve=>setTimeout(resolve,2300)));
+  // One queue turn per completed request: a large tick would skip the async
+  // completion that schedules the next 150ms turn. Prove the 12-item cap too.
+  for(let count=2;count<=13;count++){
+    await h.tick(149);assert.equal(reads.length,count-1,'no prefetch before the next intent deadline');
+    await h.tick(1);assert.equal(reads.length,count);
+  }
+  await h.tick(150);assert.equal(reads.length,13,'the batch stops at its bound');
   assert.equal(reads.length,13);assert(reads.slice(1).every(url=>url.searchParams.get('lang')==='fr'));
   assert(reads.every(url=>!url.pathname.endsWith(prefix+'5')&&!url.pathname.endsWith(prefix+'6')));
   assert(h.container.textContent.includes('25 of 26 debate records available'),'preloading preserves incomplete coverage');
@@ -122,11 +135,11 @@ test('rapid speech navigation shares the speculative queue and cancels obsolete 
   const h=await harness(t,'',url=>{
     assert(url.pathname.includes('/speech-context/'));
     return new Promise(resolve=>pending.push({id:url.pathname.split('/').at(-1),finish:()=>resolve({debates:[],unavailable:true})}));
-  });
+  },{clock:true});
   t.after(()=>pending.forEach(request=>request.finish()));
   const {SpeechContextPanel}=await h.load('/src/SpeechInterventions.tsx');
   const render=n=>h.render(createElement(SpeechContextPanel,{key:n,id:prefix+n,language:'en'}));
-  const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,200)));
+  const settle=()=>h.tick(150);
   await render(1);await settle();assert.equal(pending.length,1);
   await render(2);await settle();assert.equal(pending.length,1,'a pending hidden debate owns the single background slot');
   await render(3);await act(async()=>pending[0].finish());await settle();
@@ -171,9 +184,15 @@ test('member deep links and restored routes keep meaningful titles with intentio
 test('initial feature and unavailable member links have titles before data returns',async t=>{
   for(const [query,title] of [['?view=saved','Following'],['?view=legislation','Plenary agenda'],['?view=legislation&pl-mode=dossier','Dossiers'],['?view=legislation&pl-mode=cloud','Plenary word cloud'],['?view=legislation&pl-mode=participation','What’s hot'],['?view=legislation&pl-mode=trends','Topic timeline'],['?view=legislation&pl-mode=invalid','Plenary agenda'],['?view=questions','Questions'],['?view=outside','Outside voices'],['?member=999&module=activities','MEP 999 · Political activities']]) {
     await t.test(query,async t=>{
-      const h=await harness(t,query,()=>{throw Error('Fixture unavailable');});
-      const {default:App}=await h.load('/src/App.tsx');await h.render(createElement(App));
-      assert.equal(document.title,`${title} — European Parliament data explorer`);
+      const pending=[];let unavailable=false;
+      const h=await harness(t,query,()=>{if(unavailable)throw Error('Fixture unavailable');return new Promise((resolve,reject)=>pending.push({resolve,reject}));});
+      t.after(()=>pending.splice(0).forEach(request=>request.reject(Error('Fixture unavailable'))));
+      const {default:App}=await h.load('/src/App.tsx');await h.render(createElement(App),{ready:false});
+      // Wait for lazy code only; its data requests remain explicitly unresolved.
+      await viewReady(h.container);assert(pending.length>0||query==='?view=saved','fixture exercises an actual pending read where the view requests data');
+      assert.equal(document.title,`${title} — European Parliament data explorer`,'title exists while data is pending');
+      await act(async()=>{unavailable=true;pending.splice(0).forEach(request=>request.reject(Error('Fixture unavailable')));});
+      assert.equal(document.title,`${title} — European Parliament data explorer`,'unavailable data retains the same title');
     });
   }
 });
@@ -222,8 +241,49 @@ test('document disclosures stay related and accurate when documents repeat acros
   }
   check(null);
   for(const index of [0,1,2,3,0]) {await h.click(buttons[index]);check(index);}
-  const language=h.container.querySelector('select[aria-label="Document language"]');
+  const language=h.container.querySelector('select[aria-label="Text language"]');
   await act(async()=>{language.value='fr';language.dispatchEvent(new window.Event('change',{bubbles:true}));});
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
   await h.click(buttons[0]);check(null);await h.click(buttons[0]);check(0);
+});
+
+test('Members filters sort displayed labels in every interface language and preserve filter values',async t=>{
+  const countries=['CZ','DE','DK','ES','FI','FR','HR','LT','LU','LV','GR','EL','SE','HU'];
+  const groups=['S&D','EPP','Renew','The Left','NI','ECR'];
+  const members=countries.map((countryCode,i)=>({...member,id:100+i,countryCode,groupCode:groups[i%groups.length]}));
+  for(const language of 'bg cs da de el en es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' '))await t.test(language,async t=>{
+    const h=await harness(t,'?lang='+language,url=>url.pathname.endsWith('/directory')?{...directory,members}:fixture(url));
+    const {default:App}=await h.load('/src/App.tsx');
+    await h.render(createElement(App));
+    const [country,group]=[...h.container.querySelectorAll('.explorer-filter-line select')].slice(-2);
+    const options=select=>[...select.options].slice(1);
+    for(const select of [country,group]) {
+      assert.equal(select.options[0].value,'','All remains first');
+      const labels=options(select).map(option=>option.textContent);
+      assert.deepEqual(labels,[...labels].sort((a,b)=>a.localeCompare(b,language)));
+    }
+    assert.deepEqual(options(country).map(option=>option.value).sort(),countries.filter(code=>code!=='GR').sort(),'Greek aliases deduplicate without changing EU identifiers');
+    assert.deepEqual(options(group).map(option=>option.value).sort(),[...groups].sort());
+    if(language==='en')assert.deepEqual(options(country).slice(0,3).map(option=>option.textContent),['Croatia','Czechia','Denmark']);
+    await act(async()=>{country.value='EL';country.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+    await viewReady(h.container);
+    assert.equal(new URL(location.href).searchParams.get('country'),'EL');
+    assert.equal(h.container.querySelectorAll('.explorer-portrait-item').length,2,'both Greek aliases match the selected filter');
+  });
+});
+
+test('Members list portraits follow and unfollow MEPs without opening the profile',async t=>{
+  const h=await harness(t,'');
+  const {default:App}=await h.load('/src/App.tsx');
+  await h.render(createElement(App));
+  const star=()=>h.container.querySelector('[data-member-id="257043"] .explorer-portrait-follow button');
+  assert.equal(star().closest('.portrait--button'),null,'the star is not nested in the portrait button');
+  for(const [index,saved] of [false,true,false].entries()) {
+    assert.equal(star().getAttribute('aria-pressed'),String(saved));
+    assert.equal(star().getAttribute('aria-label'),`${saved?'Following':'Follow'} MEP · Mika Aaltola`);
+    assert.equal(JSON.parse(h.window.localStorage.getItem('ep.bookmarks.v1')||'{"items":[]}').items.some(item=>item.kind==='mep'&&item.id==='257043'),saved);
+    if(index<2)await h.click(star());
+  }
+  assert(h.container.querySelector('.explorer-portraits'),'the list stays open');
+  assert.equal(new URL(location.href).searchParams.get('member'),null);
 });

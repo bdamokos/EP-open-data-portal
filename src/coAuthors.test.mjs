@@ -14,7 +14,10 @@ test('unknown profiles, organizations and rapporteurs cannot turn prose into aut
 });
 test('ambiguous names and partial-name occurrences stay plain',()=>{
  assert.equal(coAuthorSegments('A Name',[author(1,'A Name'),author(2,'A NAME')])[0].id,null);
- assert.equal(coAuthorSegments('Alexander Sellman, Alexander Sell',[author(256959,'Alexander SELL')]).filter(p=>p.id).length,1);
+ assert.deepEqual(coAuthorSegments('Alexander Sellman, Alexander Sell',[author(256959,'Alexander SELL')]),[
+  {text:'Alexander Sellman, ',id:null},
+  {text:'Alexander Sell',id:256959},
+ ]);
 });
 test('answer-linked question authors remain eligible with their explicit role',()=>{
  assert.equal(coAuthorSegments('Maravillas Abadía Jover',[author(257043,'Maravillas ABADÍA JOVER',{role:'QUESTION_AUTHOR'})])[0].id,257043);

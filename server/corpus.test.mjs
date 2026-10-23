@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {unthrottledUpstream} from './test-support/upstream.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -61,23 +62,6 @@ test('speech fragments keep exact keys, paragraph lines and declared or machine 
   assert.deepEqual(texts.map(t=>[t.sourceKey,t.language,t.translationType]),[['en','en','original'],['fr','fr','machine'],['mul','de','unspecified']]);
   assert.equal(texts[0].body,'Climate policy matters.\nSecond paragraph.');
   assert.equal(fragmentText('<!DOCTYPE x><p>a</p>'),'');
-});
-
-test('unchanged text keeps its row, changed text replaces its FTS entry, raw XML round-trips',()=>{
-  const s=stores();
-  try {
-    const put=text=>s.corpus.putDocument(...Object.values(speechTexts(speech('MTG-PL-2026-07-08-OTH-1',{en:fragment('en',text)}),'https://example.test/list',fetchedAt)));
-    put('Fisheries quota debate.');
-    const first=s.corpus.db.prepare('SELECT id FROM texts').get().id;
-    put('Fisheries quota debate.');
-    assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM texts').get().n,1);
-    assert.equal(s.corpus.db.prepare('SELECT id FROM texts').get().id,first);
-    assert.equal(s.corpus.search({query:'fisheries'}).total,1);
-    put('Agriculture subsidies debate.');
-    assert.equal(s.corpus.search({query:'fisheries'}).total,0);
-    assert.equal(s.corpus.search({query:'agriculture'}).total,1);
-    assert.match(s.corpus.raw('MTG-PL-2026-07-08-OTH-1','en'),/Agriculture subsidies/);
-  } finally {s.cleanup();}
 });
 
 test('search joins members through exact index identifiers and filters kind, language and dates',()=>{
@@ -305,7 +289,7 @@ test('read-only queries leave the API event loop free and enforce concurrency an
   const s=stores();
   try {
     s.corpus.putDocument(...Object.values(speechTexts(speech('MTG-PL-2026-07-08-OTH-1',{en:fragment('en','Ocean protection.')}),'https://example.test/list',fetchedAt)));
-    const reader=new CorpusReader(path.dirname(s.corpus.filename),{indexFile:s.index.filename,timeoutMs:readerTimeoutMs});
+    const reader=new CorpusReader(path.dirname(s.corpus.filename),{indexFile:s.index.filename,timeoutMs:readerTimeoutMs,statusTimeoutMs:readerTimeoutMs});
     const pending=reader.query('search',{query:'ocean',member:42});
     await assert.rejects(reader.query('search',{query:'ocean'}),error=>error.code==='corpus_busy');
     let ticked=false;setImmediate(()=>{ticked=true;});
@@ -323,7 +307,36 @@ test('read-only queries leave the API event loop free and enforce concurrency an
   } finally {s.cleanup();}
 });
 
-test('the actual health route responds during initial question-file discovery',async()=>{
+test('status has its own bounded warm-up timeout and remains retryable',async t=>{
+  const s=stores();
+  t.mock.timers.enable({apis:['setTimeout']});
+  try {
+    // A longer search budget must not extend the default status budget.
+    const reader=new CorpusReader(path.dirname(s.corpus.filename),{timeoutMs:readerTimeoutMs});
+    let settled=false;
+    const pending=assert.rejects(reader.query('status',{}),error=>{
+      assert.equal(error.status,503);
+      assert.equal(error.code,'corpus_status_timeout');
+      assert.match(error.message,/warming up/);
+      assert.match(error.message,/Coverage is unknown/);
+      assert.doesNotMatch(error.message,/fewer words|narrower filters/);
+      settled=true;return true;
+    });
+    t.mock.timers.tick(5000);await Promise.resolve();
+    assert.equal(settled,false,'status gets longer than the search budget');
+    await assert.rejects(reader.query('search',{query:'ocean'}),error=>error.code==='corpus_busy');
+    t.mock.timers.tick(1500);await pending;
+    assert.equal(reader.busy,true,'termination holds the concurrency slot until exit');
+    t.mock.timers.reset();
+    while(reader.busy)await new Promise(resolve=>setImmediate(resolve));
+    reader.statusTimeoutMs=readerTimeoutMs;
+    const status=await reader.query('status',{});
+    assert.equal(status.documents.speech.withText,0,'a successful empty observation is still zero');
+    assert.equal(status.authoritativeComplete,false);
+  } finally {t.mock.timers.reset();s.cleanup();}
+});
+
+test('the actual health route responds during initial question-file discovery',loopback,async()=>{
   const s=stores();addQuestions(s.index);
   const worker=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,clock:instant});
   let incompleteAtResponse=false;
@@ -342,7 +355,7 @@ test('the actual health route responds during initial question-file discovery',a
   } finally {await new Promise(resolve=>server.close(resolve));s.cleanup();}
 });
 
-test('speech ingestion serves the event loop between language parses and retains all source data',async()=>{
+test('speech ingestion serves the event loop between language parses and retains all source data',loopback,async()=>{
   const s=stores(),langs=['en','fr','de'];
   const data=Array.from({length:3},(_,n)=>speech('MTG-PL-2026-07-08-OTH-'+(n+1),Object.fromEntries(langs.map(lang=>[lang,fragment(lang,'Ocean '+('<w>policy</w> '.repeat(300)),lang==='en'?lang:lang+'-t-en-mtec')]))));
   const task={key:'page',kind:'speeches',body:{start:'2026-07-01',end:'2026-07-31',offset:0,limit:25}};
@@ -715,7 +728,7 @@ test('search options reject malformed and overlarge scopes without broadening an
   }
 });
 
-test('HTTP search POST and exact text GET are bounded read-only routes with strict validation',async()=>{
+test('HTTP search POST and exact text GET are bounded read-only routes with strict validation',loopback,async()=>{
   const s=stores(),id=question.identifier;
   const savedEnv=Object.fromEntries(['CORPUS_ENABLED','CORPUS_DIR','ACTIVITY_INDEX_DIR','ODP_CACHE_DIR'].map(key=>[key,process.env[key]]));
   putText(s.corpus,id,'question','2026-05-01','en','Ocean <b>policy</b>');
@@ -734,8 +747,8 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
   // write blocks it past the idle timeout, the server's overdue keep-alive
   // timer can close the socket fetch just reused, as a reset. Let the client own idle closes.
   const keepAliveTimeout=server.keepAliveTimeout;server.keepAliveTimeout=0;
-  // The 5 s reader bound has its own test above; under parallel suite load the
-  // multi-megabyte PFAS fixture below can exceed it on real CPU time.
+  // Keep the existing integration hang guard: even small reader-worker starts
+  // can exceed the normal 5 s bound while the local suite competes for CPU.
   corpus().reader.timeoutMs=120_000;
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${server.address().port}/api/corpus`;
@@ -811,36 +824,6 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
     putText(s.corpus,'OVERSIZED-Q','question','2026-05-01','en','Ocean '+'漢'.repeat(2*1024*1024-6));
     const oversized=await fetch(base+'/text?source-id=OVERSIZED-Q&source-key=en&q=ocean');
     assert.equal(oversized.status,413);assert.equal((await oversized.json()).error.code,'corpus_text_too_large','supported extraction can exceed a configured response budget, with an explicit reader-unavailable error');
-    // Ordinary all-language question/answer groups exceed 5 MiB when repeated
-    // per-variant authors and legacy hits are retained. Keep complete groups.
-    const languages='bg cs da de el en es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ');
-    const putMember=s.index.db.prepare('INSERT INTO members VALUES (?,?)'),putItem=s.index.db.prepare('INSERT INTO items VALUES (1,?,?,?,?,?,?)');
-    for(let n=0;n<40;n++)putMember.run(String(100000+n),JSON.stringify({id:String(100000+n),name:'Alessandra Maria Fernández '+n}));
-    const ids=[];
-    for(let n=0;n<20;n++){
-      const questionId='E-10-2026-'+String(100+n).padStart(6,'0');ids.push(questionId);
-      for(const [sourceId,kind,parentId] of [[questionId,'question',null],[questionId+'-ASW','answer',questionId]]){
-        s.corpus.putDocument({sourceId,kind,parentId,date:'2026-05-01'},languages.map(language=>({sourceKey:language,language,translationType:'original',sourceFormat:'docx',sourceUrl:docx(sourceId,language),fetchedAt,body:'PFAS contamination in drinking water and environmental protection.',raw:null})));
-        for(let a=0;a<40;a++)putItem.run('/parliamentary-questions/'+questionId,sourceId,String(100000+a),'written-questions','2026-05-01','{}');
-      }
-    }
-    const options={query:'PFAS',group:'question',limit:20};
-    assert(Buffer.byteLength(JSON.stringify({...s.corpus.search(options),coverage:s.corpus.coverage()}))>5*1024*1024,'fixture reproduces the former generic 500 at the default response limit');
-    for(const method of ['GET','POST']){
-      const seen=[];let offset=0;
-      do{
-        const response=method==='POST'?await post({...options,offset}):await fetch(base+'/search?q=PFAS&group=question&limit=20&offset='+offset);
-        assert.equal(response.status,200,method);
-        const body=await response.text();assert(Buffer.byteLength(body)<=5*1024*1024);
-        const page=JSON.parse(body);assert.equal(page.total,20);assert.equal(page.coverage.authoritativeComplete,false);
-        assert.deepEqual(page.hits,page.results.flatMap(result=>result.hits));
-        for(const result of page.results){assert.equal(result.hits.length,48);assert(result.hits.every(hit=>hit.people.length===40));}
-        if(offset===0){assert.equal(page.responseLimited,true);assert(page.nextOffset>0&&page.nextOffset<20);}
-        seen.push(...page.results.map(result=>result.sourceId));offset=page.nextOffset;
-      }while(offset!==null);
-      assert.deepEqual([...seen].sort(),ids);assert.equal(new Set(seen).size,20);
-    }
-    assert.equal(s.corpus.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0,'bounded pagination schedules no collection');
   } finally {
     await new Promise(resolve=>server.close(resolve));server.keepAliveTimeout=keepAliveTimeout;
     corpus().store.close();

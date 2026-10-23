@@ -10,7 +10,11 @@ export interface Membership {
   current: boolean;
 }
 export interface DirectoryMember extends MemberSummary {
-  groupCode: string;
+  groupCode: string|null;
+  hasEmail?:boolean|null;
+  hasCv?:boolean|null;
+  hasNews?:boolean|null;
+  hasVideo?:boolean|null;
   memberships: Membership[] | null;
 }
 export interface Committee {
@@ -46,9 +50,22 @@ export interface Directory {
     error: string | null;
   };
 }
+export interface ProfileMembershipHistory {
+  version:number;observationAvailable:boolean;observationComplete:boolean;observationIssues:{index:number;issues:string[]}[];observations:unknown[]|null;labelsComplete:boolean;dateIssues:boolean;complete:boolean;error:string|null;
+  sources:{url:string;fetchedAt:string;stale:boolean}[];
+  items:{index:number;section:'national-parties'|'political-groups'|'delegations'|'other-roles';membershipId:string|null;bodyId:string|null;
+    role:string|null;classification:string|null;start:unknown;end:unknown;dateIssues:string[];observation:unknown;
+    body:({id:string;identifier:string;prefLabel?:Record<string,string>;classification:string;temporal?:unknown;isVersionOf?:unknown;
+      source:{url:string;fetchedAt:string;stale:boolean}} & Record<string,unknown>)|null}[];
+}
 export interface MemberProfile extends DirectoryMember {
+  membershipHistory?:ProfileMembershipHistory;
   birthDate?: string;
   birthPlace?: string;
+  currentAffiliation?:{
+    day:string;personId:string;status:'matched'|'not-current'|'unavailable';error:string|null;
+    sources:{url:string;fetchedAt:string;stale:boolean}[];
+  };
   email?: string;
   accounts: string[];
   fetchedAt: string;
@@ -66,6 +83,7 @@ export interface MemberProfile extends DirectoryMember {
         observations:{membershipId:string|null;bodyId:string;role:string;classification:string;start:string|null;end:string|null}[]}[]}[];
   };
 }
+export type SpeakerRoleLabel={text:string;language:string;reuse?:{personId:string;currentSpeechId:string;currentDate:string;currentSource:{url:string;fetchedAt:string};speechId:string;date:string;source:{url:string;fetchedAt:string};compared:{language:string;current:string;previous:string}[]}};
 export interface SpeechSpeaker {
   id:string;
   name:string;
@@ -74,7 +92,8 @@ export interface SpeechSpeaker {
   nameSource?:string;
   sittingRole?:'chair';
   nameVariants?:{value:string;script:string|null;language:string|null;source:string}[];
-  roleLabels?:Record<string,{text:string;language:string}>;
+  roleLabels?:Record<string,SpeakerRoleLabel>;
+  roleSource?:{speechId:string;date:string;url:string;fetchedAt:string;evidenceRevision?:number;historyComplete?:boolean};
   office?:{code:'president-parliament'|'vice-president-parliament';membershipId:string;start:string;end:string|null}|null;
   identitySources?:{url:string;fetchedAt:string;stale:boolean}[];
   identityIssues?:string[];
