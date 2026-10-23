@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {voteFixture,decisionId,amendmentId} from '../server/test-support/decision-votes.mjs';
+import {voteFixture,contradictoryVoteFixture,decisionId,amendmentId} from '../server/test-support/decision-votes.mjs';
 import {amendmentVoteBinding,authorVotePosition,decisionVotesRoute,validateDecisionVotes} from './decisionVotesPresentation.mjs';
 const item={id:amendmentId};
 test('response binding validates exact identity, dates, duplicate voters and complete counts',async()=>{
@@ -19,4 +19,17 @@ test('only exact amendment and component sets corroborate the indexed decision',
 test('authors use exact person IDs and distinguish unavailable, unrecorded and conflicting',async()=>{
  const f=voteFixture(),data=await f.read();assert.equal(authorVotePosition('197591',data),'For');assert.equal(authorVotePosition('999',data),'No recorded vote');assert.equal(authorVotePosition(null,data),'MEP unresolved');assert.equal(authorVotePosition('0197591',data),'MEP unresolved');
  f.raw.had_voter_against.push('person/197591');const partial=await f.read();assert.equal(authorVotePosition('197591',partial),'Conflicting record');assert.equal(authorVotePosition('999',partial),'Unavailable');
+});
+
+test('relationship contradictions cannot be relabelled as complete or bypass the client binding check',async()=>{
+ for(const scenario of ['ambiguous-result-binding','conflicting-result-source','component-outside-result']) {
+  const f=contradictoryVoteFixture(scenario),data=await f.read();assert(validateDecisionVotes(data,decisionId));assert.equal(amendmentVoteBinding(item,f.indexed,data),false);
+  data.integrity='complete';assert.equal(validateDecisionVotes(data,decisionId),false);assert.equal(amendmentVoteBinding(item,f.indexed,data),false);
+ }
+});
+test('missing context and split wording remain separate from contradictory bindings',async()=>{
+ const data=await voteFixture().read();data.decision.resultRelationship={binding:'unlinked',inverseResultIds:[],forwardResultIds:[]};
+ data.decision.evidenceGaps=[{code:'unlinked-result'},{code:'missing-component'},{code:'roll-call-requester-not-established'},{code:'ambiguous-component',details:[{code:'missing-component-wording'}]}];
+ assert(validateDecisionVotes(data,decisionId));assert(amendmentVoteBinding(item,{id:decisionId},data));
+ data.decision.evidenceGaps=[{code:'ambiguous-component',details:[{code:'conflicting-component-definition'}]}];assert.equal(validateDecisionVotes(data,decisionId),false);
 });

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {decisionVotes,decisionVotesQuery} from './decision-votes.mjs';
-import {voteFixture,decisionId,amendmentId} from './test-support/decision-votes.mjs';
+import {voteFixture,contradictoryVoteFixture,decisionId,amendmentId} from './test-support/decision-votes.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
 
 const now={now:Date.parse('2026-10-24')};
@@ -44,4 +44,12 @@ test('dated groups preserve switches, explicit NI, missing and ambiguous history
 test('invalid exact references remain explicit even when another reference is valid',async()=>{
  const f=voteFixture();f.raw.decided_on_a_realization_of.push('https://other.test/eli/dl/doc/'+amendmentId);
  assert.equal((await f.read()).decision.referencesValid,false);
+});
+
+test('contradictory result and component ownership withhold every named join',async()=>{
+ for(const scenario of ['ambiguous-result-binding','conflicting-result-source','component-outside-result']) {
+  const f=contradictoryVoteFixture(scenario),data=await f.read();
+  assert(data.decision.evidenceGaps.some(gap=>gap.code===scenario),scenario);assert.equal(data.integrity,'conflicting',scenario);assert.deepEqual(data.voters,[],scenario);
+  assert(data.decision.resultRelationship);assert.equal(data.decision.outcome,'ADOPTED');
+ }
 });

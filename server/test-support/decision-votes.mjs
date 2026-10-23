@@ -20,3 +20,16 @@ export function voteFixture() {
   const store={status:()=>({servingGeneration:7}),get:()=> 'fixture-epoch',db:{prepare:()=>({get:()=>({body:JSON.stringify(history)})})}};
   return {day,raw,history,reader,store,query,reads:()=>reads,read:()=>decisionVotes(query,{reader,store})};
 }
+export function contradictoryVoteFixture(scenario) {
+  const f=voteFixture(),parent=f.day.results.find(node=>node.id===f.raw.inverse_consists_of[0]);
+  let indexed={id:decisionId,outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:2,against:1,abstaining:1}};
+  if(scenario==='ambiguous-result-binding')f.day.results.push({...structuredClone(parent),id:parent.id.replace(/\d+$/,'999999'),activity_id:parent.activity_id.replace(/\d+$/,'999999'),consists_of:[f.raw.id]});
+  else if(scenario==='conflicting-result-source')f.day.conflictingResults=[{...structuredClone(parent),activity_label:{en:'Contradictory source'}}];
+  else if(scenario==='component-outside-result') {
+    const part='MTG-PL-2026-10-07-VOT-ITM-999999-SPLIT-1-1',request='eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-999999-SPLIT-1';
+    f.raw.decided_on_a_realization_of.push('eli/dl/doc/'+part);
+    f.day.results.push({id:'eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-999999',had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',was_motivated_by:[{id:request,had_activity_type:'def/ep-activities/REQUEST_VOTE_SPLIT',created_a_realization_of:[{id:'eli/dl/doc/'+part,number:1,expressionContent:{en:'<p>Exact part</p>'}}]}]});
+    indexed={...indexed,partId:'eli/dl/doc/'+part,partNumber:1,componentBinding:'single-amendment'};
+  }else throw Error('Unknown scenario');
+  return {...f,indexed};
+}

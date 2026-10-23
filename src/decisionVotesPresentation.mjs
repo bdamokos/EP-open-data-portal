@@ -1,4 +1,5 @@
 import {memberVotesRoute} from './memberVotesPresentation.mjs';
+import {decisionVoteBindingConflict} from '../server/decision-vote-binding.mjs';
 
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
 const person=value=>typeof value==='string'&&/^[1-9]\d*$/.test(value)&&Number.isSafeInteger(Number(value));
@@ -15,11 +16,13 @@ export function decisionVotesRoute(id,language) {
   return 'decision-votes/'+id+'?'+new URLSearchParams({lang:language});
 }
 export function validateDecisionVotes(data,id) {
-  if(!object(data)||data.version!==1||data.decisionId!==id||data.sittingId!==id.slice(0,17)||! /^[a-f0-9]{64}$/.test(data.snapshotId)||!['complete','partial','unavailable'].includes(data.coverage)||!['found','unavailable'].includes(data.status)||!['complete','partial','conflicting','unavailable'].includes(data.integrity)||!Array.isArray(data.voters))return false;
+  if(!object(data)||data.version!==2||data.decisionId!==id||data.sittingId!==id.slice(0,17)||! /^[a-f0-9]{64}$/.test(data.snapshotId)||!['complete','partial','unavailable'].includes(data.coverage)||!['found','unavailable'].includes(data.status)||!['complete','partial','conflicting','unavailable'].includes(data.integrity)||!Array.isArray(data.voters))return false;
   if(data.status==='unavailable')return data.decision===null&&data.voters.length===0&&data.integrity==='unavailable';
   const vote=data.decision;
   if(!object(vote)||vote.id!==id||vote.date!==id.slice(7,17)||!['method','outcome'].every(key=>vote[key]===null||typeof vote[key]==='string')||!['conducted','not-conducted','unknown'].includes(vote.ballotStatus)||typeof vote.referencesValid!=='boolean'||!refs(vote.amendmentIds)||!refs(vote.componentIds)||!object(vote.totals)||!positions.every(p=>vote.totals[p]===null||Number.isSafeInteger(vote.totals[p])&&vote.totals[p]>=0))return false;
   if(!refs(vote.decidedIds)||!object(vote.sources)||!['decisions','results','agenda'].every(key=>Array.isArray(vote.sources[key])&&vote.sources[key].every(source)))return false;
+  if(!object(vote.resultRelationship)||!['consistent','single-direction','ambiguous','unlinked'].includes(vote.resultRelationship.binding)||!refs(vote.resultRelationship.inverseResultIds)||!refs(vote.resultRelationship.forwardResultIds)||!Array.isArray(vote.evidenceGaps)||!vote.evidenceGaps.every(gap=>object(gap)&&typeof gap.code==='string'&&(gap.details===undefined||Array.isArray(gap.details)&&gap.details.every(detail=>object(detail)&&typeof detail.code==='string'))))return false;
+  if(decisionVoteBindingConflict(vote)&&(data.integrity!=='conflicting'||data.voters.length))return false;
   if(data.groupHistory!==null&&(!object(data.groupHistory)||typeof data.groupHistory.epoch!=='string'||!Number.isSafeInteger(data.groupHistory.generation)||data.groupHistory.generation<1))return false;
   const ids=new Set();
   for(const voter of data.voters) {
@@ -36,7 +39,7 @@ export function validateDecisionVotes(data,id) {
 const docId=value=>typeof value==='string'?value.replace(/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?(?:eli\/dl\/doc\/)?/,''):null;
 export function amendmentVoteBinding(item,indexed,data) {
   const vote=data.decision;
-  if(!vote||!vote.referencesValid||vote.sourceConflicts||['unverified','unresolved-collective'].includes(indexed.componentBinding))return false;
+  if(!vote||!vote.referencesValid||vote.sourceConflicts||data.integrity==='conflicting'||decisionVoteBindingConflict(vote)||['unverified','unresolved-collective'].includes(indexed.componentBinding))return false;
   if(vote.decidedIds.some(id=>!vote.amendmentIds.includes(id)&&!vote.componentIds.includes(id)))return false;
   const ids=new Set([item.id,...(item.officialIds||[])].map(docId));
   const expected=(indexed.amendmentIds?.length?indexed.amendmentIds:[item.id]).map(docId);

@@ -1,5 +1,5 @@
 // Bump only for API response contract changes, never for commits or releases.
-export const API_VERSION = 46;
+export const API_VERSION = 47;
 
 // Append the new version's digest when bumping; keep recorded entries unchanged.
 export const API_CONTRACT_DIGESTS = Object.freeze({
@@ -49,6 +49,7 @@ export const API_CONTRACT_DIGESTS = Object.freeze({
   44: 'eb3a8d2faccf70d23bc73dc3ffa08feabd0f82d376f82124e3342a10e5c347d1',
   45: '1e8477770719f9d629807c0ab6aa343a419a0e5a3879a5dafc407ef85deea6f0',
   46: 'ac67ed523793f5e3204d1c5fa8d065665e85d4d0a0432c0eac1e39cb985abbb2',
+  47: '890986538716e2fb028f9bde9765205df0b9854f2d8ae6890a879841eb3f4f53',
 });
 
 // Called at the transport boundary; route and page URL keys stay intact.

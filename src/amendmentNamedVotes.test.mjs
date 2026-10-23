@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {voteFixture,decisionId,amendmentId} from '../server/test-support/decision-votes.mjs';
+import {voteFixture,contradictoryVoteFixture,decisionId,amendmentId} from '../server/test-support/decision-votes.mjs';
 
 const item={id:amendmentId,number:114,targetDocumentId:'B-10-2026-0424',outcome:'ADOPTED',authors:[{name:'Author One',personId:'197591'},{name:'Author Two',personId:'197481'},{name:'Unresolved Author',personId:null},{name:'Unlisted Author',personId:'999'}]};
 const decision={id:decisionId,outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:2,against:1,abstaining:1}};
-async function mount(t,handler,{integrated=false}={}) {
+async function mount(t,handler,{integrated=false,indexedDecision=decision}={}) {
  const window=new Window({url:'http://localhost/?member=197591&module=amendments'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
- const calls=[];t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,window.location.href);calls.push(url);if(url.pathname.endsWith('/amendments'))return Response.json({items:[{...item,decisions:[decision]}],total:1,offset:0,limit:20,coverage:{complete:false,pending:false}});return handler(url);});
+ const calls=[];t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,window.location.href);calls.push(url);if(url.pathname.endsWith('/amendments'))return Response.json({items:[{...item,decisions:[indexedDecision]}],total:1,offset:0,limit:20,coverage:{complete:false,pending:false}});return handler(url);});
  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {AmendmentNamedVotes}=await load('/src/AmendmentNamedVotes.tsx'),{Amendments}=await load('/src/Amendments.tsx'),{createRoot}=await import('react-dom/client');
  const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
@@ -56,4 +56,13 @@ test('a late response for a previous decision cannot populate the next panel',as
  await h.render({decision:{...decision,id:nextId}});await h.open();assert.match(h.container.textContent,/Author One · S&DFor/);
  const wrong=structuredClone(data);wrong.voters.find(v=>v.personId==='197591').position='against';await act(async()=>{resolveOld(Response.json(wrong));await new Promise(resolve=>setTimeout(resolve,10));});
  assert.match(h.container.textContent,/Author One · S&DFor/);assert.doesNotMatch(h.container.textContent,/Author One · S&DAgainst/);
+});
+
+for(const scenario of ['ambiguous-result-binding','conflicting-result-source','component-outside-result'])test(scenario+' preserves the indexed result and withholds named joins',async t=>{
+ const f=contradictoryVoteFixture(scenario),data=await f.read();
+ const h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:f.indexed});await h.render();await h.open();
+ assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Vote records differ/);
+ assert.equal(h.container.querySelector('table'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
+ assert.match(h.container.querySelector('.explorer-amendment-decision').textContent,/Adopted/);
+ assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For2/);
 });
