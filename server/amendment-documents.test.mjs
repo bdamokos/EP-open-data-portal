@@ -9,8 +9,8 @@ import { docxParts, downloadDocxBuffer, downloadDocx } from './document-text.mjs
 import { amendmentDownloads } from './amendments-worker.mjs';
 
 // In-memory ZIPs keep tests offline while exercising the shared bounded reader.
-function archive(documentXml,stylesXml='') {
-  const entries=[['word/document.xml',documentXml],...(stylesXml?[['word/styles.xml',stylesXml]]:[])];
+function archive(documentXml,stylesXml='',extra={}) {
+  const entries=[['word/document.xml',documentXml],...(stylesXml?[['word/styles.xml',stylesXml]]:[]),...Object.entries(extra)];
   const locals=[],directory=[];let offset=0;
   for(const [filename,xml] of entries) {
     const name=Buffer.from(filename),body=Buffer.from(xml),compressed=deflateRawSync(body);
@@ -30,6 +30,17 @@ const table=(...rows)=>`<w:tbl>${row(cell(p('Motion for a resolution')),cell(p('
 const body=text=>`<w:document xmlns:w="urn:word"><w:body>${text}</w:body></w:document>`;
 const metadata=(number=1,{author='Bruno Gonçalves',date='2.10.2026',target='Paragraph 1'}={})=>p(`<Amend><Date>${date}</Date><NumAm>${number}</NumAm>`)+p(`<Members>${author}</Members>`)+p(`<Article>${target}</Article>`);
 const options={listId:'B-10-2026-0424-AM-001-001',targetDocumentId:'B-10-2026-0424',language:'en',sourceUrl:'https://data.europarl.europa.eu/distribution/example/amendment_en.docx',fetchedAt:'2026-10-16T17:15:00Z'};
+
+test('automatic list continuation also reaches wording extraction in a comparison cell',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/docx-numbering-cbam.json',import.meta.url),'utf8'));
+  const paragraphs=fixture.documentXml.match(/<w:body>([\s\S]*)<\/w:body>/)[1];
+  // Synthetic amendment wrapper; the list paragraphs and numbering are public
+  // Commission source excerpts, not evidence of an affected EP amendment.
+  const xml=body(metadata()+table(row(cell(p('')),cell(paragraphs)))+p('</Amend>'));
+  const result=extractAmendments(archive(xml,fixture.stylesXml,{'word/numbering.xml':fixture.numberingXml}),options);
+  assert.equal(result.amendments[0].proposedText,fixture.expectedParagraphs.join('\n'));
+  assert.deepEqual(result.gaps,[]);
+});
 
 test('public DOCX excerpts preserve exact author names, target hierarchy, dates and both columns',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-excerpts-20261016.json',import.meta.url),'utf8'));

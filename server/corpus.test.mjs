@@ -305,7 +305,7 @@ test('read-only queries leave the API event loop free and enforce concurrency an
   const s=stores();
   try {
     s.corpus.putDocument(...Object.values(speechTexts(speech('MTG-PL-2026-07-08-OTH-1',{en:fragment('en','Ocean protection.')}),'https://example.test/list',fetchedAt)));
-    const reader=new CorpusReader(path.dirname(s.corpus.filename),{indexFile:s.index.filename,timeoutMs:readerTimeoutMs});
+    const reader=new CorpusReader(path.dirname(s.corpus.filename),{indexFile:s.index.filename,timeoutMs:readerTimeoutMs,statusTimeoutMs:readerTimeoutMs});
     const pending=reader.query('search',{query:'ocean',member:42});
     await assert.rejects(reader.query('search',{query:'ocean'}),error=>error.code==='corpus_busy');
     let ticked=false;setImmediate(()=>{ticked=true;});
@@ -321,6 +321,35 @@ test('read-only queries leave the API event loop free and enforce concurrency an
     const readOnly=new CorpusStore(path.dirname(s.corpus.filename),{readOnly:true});
     try {assert.throws(()=>readOnly.set('changed',true),/readonly/i);}finally{readOnly.close();}
   } finally {s.cleanup();}
+});
+
+test('status has its own bounded warm-up timeout and remains retryable',async t=>{
+  const s=stores();
+  t.mock.timers.enable({apis:['setTimeout']});
+  try {
+    // A longer search budget must not extend the default status budget.
+    const reader=new CorpusReader(path.dirname(s.corpus.filename),{timeoutMs:readerTimeoutMs});
+    let settled=false;
+    const pending=assert.rejects(reader.query('status',{}),error=>{
+      assert.equal(error.status,503);
+      assert.equal(error.code,'corpus_status_timeout');
+      assert.match(error.message,/warming up/);
+      assert.match(error.message,/Coverage is unknown/);
+      assert.doesNotMatch(error.message,/fewer words|narrower filters/);
+      settled=true;return true;
+    });
+    t.mock.timers.tick(5000);await Promise.resolve();
+    assert.equal(settled,false,'status gets longer than the search budget');
+    await assert.rejects(reader.query('search',{query:'ocean'}),error=>error.code==='corpus_busy');
+    t.mock.timers.tick(1500);await pending;
+    assert.equal(reader.busy,true,'termination holds the concurrency slot until exit');
+    t.mock.timers.reset();
+    while(reader.busy)await new Promise(resolve=>setImmediate(resolve));
+    reader.statusTimeoutMs=readerTimeoutMs;
+    const status=await reader.query('status',{});
+    assert.equal(status.documents.speech.withText,0,'a successful empty observation is still zero');
+    assert.equal(status.authoritativeComplete,false);
+  } finally {t.mock.timers.reset();s.cleanup();}
 });
 
 test('the actual health route responds during initial question-file discovery',async()=>{

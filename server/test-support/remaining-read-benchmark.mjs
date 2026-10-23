@@ -7,10 +7,13 @@ import path from 'node:path';
 import {ActivityStore} from '../activity-index-store.mjs';
 import {CorpusStore} from '../corpus-store.mjs';
 import {prepareIndexes} from '../migrate-indexes.mjs';
-import {savedActivityPreviewSql} from '../insights-saved.mjs';
 import {activityOnly,motionDocuments} from '../activity-read-projections.mjs';
 import {changedQuestionsSql,missingQuestionFilesSql} from '../question-discovery.mjs';
 
+// Historical preview query retained only for this before/after projection benchmark.
+const savedActivityPreviewSql=`SELECT preview.source_id,preview.date,
+ (SELECT body FROM items INDEXED BY saved_activity_sources WHERE generation=? AND mep=? AND source_id=preview.source_id AND date IS preview.date AND ${activityOnly} LIMIT 1) AS body
+ FROM (SELECT source_id,MAX(date) AS date FROM items INDEXED BY saved_activity_sources WHERE generation=? AND mep=? AND ${activityOnly} GROUP BY source_id ORDER BY date DESC,source_id DESC LIMIT 10) preview`;
 const directory=mkdtempSync(path.join(tmpdir(),'remaining-benchmark-'));
 const activityDirectory=path.join(directory,'activity'),corpusDirectory=path.join(directory,'corpus');
 const clock=()=>Date.parse('2026-10-20T09:00:00Z'),fetched=new Date(clock()).toISOString();

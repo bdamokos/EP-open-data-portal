@@ -55,7 +55,7 @@ for(const locale of ['en','hu','fr'])test(`English shell and Following preserve 
   const items=[{kind:'question',id:'E-10-2026-003031',title:'Titre français',titleLanguage:'fr',memberId:'257043',newAnswer:true,updated:true,unreadAnswers:[{id:'answer-fr',title:'Réponse',titleLanguage:'fr',recordKind:'answer',date:'2026-10-16'}]},
     {kind:'question',id:'E-10-2026-003032',title:'Legacy unknown',memberId:'257043',newAnswer:true,updated:true,unreadAnswers:[{id:'answer-old',title:'Legacy answer',recordKind:'answer',date:'2026-10-15'}]}];
   const h=await harness(t,{locale,items});const {ParliamentHeader}=await h.load('/src/ParliamentHeader.tsx'),{Saved}=await h.load('/src/Saved.tsx');
-  const props={language:locale,onBack(){},onMember(){}};
+  const props={language:locale,onBack(){},onMember(){},renderActivity:()=>createElement('p',null,'Inline activity')};
   await h.render(createElement(Fragment,null,createElement(ParliamentHeader,{view:'saved',language:locale,onMembers(){},onSaved(){}}),createElement(Saved,props)));
   assert.equal(document.documentElement.lang,locale);
   assert.equal(effectiveLanguage(h.container.querySelector('nav button')),'en');
@@ -64,9 +64,9 @@ for(const locale of ['en','hu','fr'])test(`English shell and Following preserve 
   const titles=h.container.querySelectorAll('.explorer-saved-items h3');
   assert.equal(effectiveLanguage(titles[0]),'fr');assert.equal(effectiveLanguage(titles[1]),'');
   const links=h.container.querySelectorAll('.explorer-saved-items article a');
-  assert.equal(effectiveLanguage(links[0]),'en');assert.equal(effectiveLanguage(links[0].querySelector('span')),'fr');
-  assert.equal(effectiveLanguage(links[0].querySelector('small')),locale);
-  assert.equal(effectiveLanguage(links[1].querySelector('span')),'');
+  assert.equal(effectiveLanguage(links[0]),'en');assert.equal(effectiveLanguage(links[0].querySelector('span[lang]')),'fr');
+  assert.equal(effectiveLanguage(links[0].querySelector('small span[lang]')),locale);
+  assert.equal(effectiveLanguage(links[1].querySelector('span[lang]')),'');
   const save=h.container.querySelector('.explorer-save-button');
   const savedLabel={en:'Saved question',hu:'Mentett kérdés',fr:'Question enregistrée'}[locale];
   assert.equal(save.getAttribute('aria-label'),savedLabel+' · Titre français','the selected UI locale governs the prefix, not the source title language');
@@ -76,9 +76,9 @@ for(const locale of ['en','hu','fr'])test(`English shell and Following preserve 
   assert.equal(save.hasAttribute('aria-labelledby'),false,'the native button keeps its existing naming mechanism');
   const before=JSON.parse(window.localStorage.getItem('ep.bookmarks.v1'));
   await h.click(links[0]);
-  const after=JSON.parse(window.localStorage.getItem('ep.bookmarks.v1'));
-  assert.equal(after.version,1);assert.deepEqual(after.items.map(x=>x.id),before.items.map(x=>x.id));
-  assert(after.items[1].newAnswer);assert.equal(after.items[0].unreadAnswers.length,0);
+  const after=JSON.parse(window.localStorage.getItem('ep.following.v2'));
+  assert.equal(after.version,2);assert.deepEqual(after.items.map(x=>x.id),before.items.map(x=>x.id));
+  assert(after.items[1].newAnswer);assert.equal(after.items[0].entries.length,1);assert(Number.isFinite(after.items[0].entries[0].readAt));
 });
 
 test('shared insights mark English labels while localized countries and dates keep their locale',async t=>{

@@ -52,6 +52,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
     if(route?.startsWith('latest-activities/'))return Response.json(page(items));
     if(route?.startsWith('speech-statistics/'))return Response.json((typeof summary==='function'?await summary(url):summary)||{memberId:String(member.id),items:[],counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:true,available:0,total:0},nextPage:null,sources:[]});
     if(route==='insights/speech-cloud')return Response.json({scope:{kind:'member',phase:'past'},language:url.searchParams.get('lang'),words:[{word:'fixture',label:'Fixture',speechCount:1,occurrences:1,speechIds:[speechId]}],speeches:[{id:speechId,date:'2026-03-25',title:'Plenary speech fixture',titleLanguage:'en',machineTranslation:false,people:[]}],coverage:{transcripts:1,matchedSpeechRecords:1,missingLanguage:0,unreadableText:0,complete:true,truncated:false,associationUnavailable:false},window:{start:'2026-03-25',end:'2026-03-25'},nextPage:null});
+    if(route==='insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
     if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
     unexpected.push(url.href);throw new Error('Unexpected fixture request: '+url.href);
