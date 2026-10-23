@@ -79,6 +79,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
       return contextResponse?.(url,payload)??Response.json(payload);
     }
     if(url.pathname.startsWith('/api/qa-cache/'))return Response.json({id:url.pathname.split('/').at(-1)});
+  if(url.pathname==='/api/insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
     if(url.pathname==='/api/insights/saved')return Response.json({members:[],questions:[]});
     if(url.pathname==='/api/corpus/search')return Response.json({results:[],total:0,nextOffset:null,coverage:{status:'partial'}});
     if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:activities,selectedItems:[],indexedTotal:activities.length,nextOffset:null,cache:{complete:true}});

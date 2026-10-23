@@ -1,0 +1,236 @@
+{
+  "documentApiUrl": "https://data.europarl.europa.eu/api/v2/parliamentary-questions/E-10-2026-004128",
+  "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iMaQp/E-10-2026-004128/E-10-2026-004128_en.docx",
+  "fetchedAt": "2026-10-22T15:06:47.765633+00:00",
+  "work": {
+    "identifier": "E-10-2026-004128",
+    "work_type": "def/ep-document-types/QUESTION_WRITTEN",
+    "creator": [
+      "person/130100",
+      "person/256971",
+      "person/256995",
+      "person/257140",
+      "person/257085",
+      "person/197461",
+      "person/197448",
+      "person/202073",
+      "person/256915",
+      "person/197870",
+      "person/257063",
+      "person/40599",
+      "person/197463",
+      "person/256807",
+      "person/256830"
+    ],
+    "workHadParticipation": [
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_256971",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/256971"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_257063",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/257063"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_256830",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/256830"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_256915",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/256915"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_130100",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/130100"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_257140",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/257140"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_197461",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/197461"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_257085",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/257085"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_COM",
+        "type": "Participation",
+        "had_participant_organization": [
+          "org/COM"
+        ],
+        "participation_role": "def/ep-roles/ADDRESSEE"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_197448",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/197448"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_197463",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/197463"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_202073",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/202073"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_256807",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/256807"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_256995",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/256995"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_197870",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/197870"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      },
+      {
+        "id": "eli/dl/participation/E-10-2026-004128_40599",
+        "type": "Participation",
+        "had_participant_person": [
+          "person/40599"
+        ],
+        "participation_role": "def/ep-roles/AUTHOR"
+      }
+    ]
+  },
+  "byline": "Marc Angel (S&D), Kim Van Sparrentak (Verts/ALE), Carolina Morace (The Left), Mélissa Camara (Verts/ALE), Krzysztof Śmiszek (S&D), Sirpa Pietikäinen (PPE), Olivier Chastel (Renew), Hilde Vautmans (Renew), Elisabeth Grossmann (S&D), Gordan Bosanac (Verts/ALE), Katrin Langensiepen (Verts/ALE), Catarina Martins (The Left), Rasmus Andresen (Verts/ALE), Lukas Sieper (Renew), Dainius Žalimas (Renew)",
+  "members": [
+    {
+      "id": 202073,
+      "name": "Marc Angel"
+    },
+    {
+      "id": 197870,
+      "name": "Kim Van Sparrentak"
+    },
+    {
+      "id": 257140,
+      "name": "Carolina Morace"
+    },
+    {
+      "id": 256915,
+      "name": "Mélissa Camara"
+    },
+    {
+      "id": 257085,
+      "name": "Krzysztof Śmiszek"
+    },
+    {
+      "id": 40599,
+      "name": "Sirpa Pietikäinen"
+    },
+    {
+      "id": 197463,
+      "name": "Olivier Chastel"
+    },
+    {
+      "id": 130100,
+      "name": "Hilde Vautmans"
+    },
+    {
+      "id": 256830,
+      "name": "Elisabeth Grossmann"
+    },
+    {
+      "id": 256995,
+      "name": "Gordan Bosanac"
+    },
+    {
+      "id": 197461,
+      "name": "Katrin Langensiepen"
+    },
+    {
+      "id": 257063,
+      "name": "Catarina Martins"
+    },
+    {
+      "id": 197448,
+      "name": "Rasmus Andresen"
+    },
+    {
+      "id": 256971,
+      "name": "Lukas Sieper"
+    },
+    {
+      "id": 256807,
+      "name": "Dainius Žalimas"
+    }
+  ],
+  "expectedIds": [
+    202073,
+    197870,
+    257140,
+    256915,
+    257085,
+    40599,
+    197463,
+    130100,
+    256830,
+    256995,
+    197461,
+    257063,
+    197448,
+    256971,
+    256807
+  ]
+}

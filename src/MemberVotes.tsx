@@ -1,3 +1,4 @@
+import {PersonName} from './PersonName';
 import {Result,Position} from './MemberVoteSummary';
 import {OutcomeAlignmentFilter} from './OutcomeAlignmentFilter';
 import {VotePeriodNavigation} from './VotePeriodNavigation';
@@ -27,7 +28,7 @@ export const defaultMemberVotesState:MemberVotesState={week:'latest',sittingId:n
 type WordingVariant={
   listId:string;language:string|null;targetLabel:string|null;targetLabelLanguage?:string|null;
   targetLabelSource?:Record<string,unknown>|null;fieldSources?:Record<string,unknown>|null;
-  wordingStatus:'available'|'unavailable';originalText:string|null;proposedText:string|null;authors:{name:string}[];
+  wordingStatus:'available'|'unavailable';originalText:string|null;proposedText:string|null;authors:{name:string;personId?:string|null}[];
   source?:Record<string,unknown>|null;sourceFreshness?:{status:string}|null;
   wordingRetained?:boolean|null;proposerRetained?:boolean|null;recordRetained?:boolean|null;
 };
@@ -78,7 +79,7 @@ function Wording({documentId,amendmentId,language,openContext}:{documentId:strin
       </select></label>}
       {selected&&<>
         {typeof selected.targetLabel==='string'&&selected.targetLabel&&<><p className="member-votes-target-label" lang={targetLanguage||''}>{selected.targetLabel}</p>{!targetLanguage&&<p className="member-votes-muted">Target language unknown.</p>}</>}
-        <p className="member-votes-muted">{textLanguage?'Text language: '+languageLabel(textLanguage):'Text language unknown.'}{authors.length>0&&<> · Proposed by {authors.map(author=>author.name).join(', ')}</>}</p>
+        <p className="member-votes-muted">{textLanguage?'Text language: '+languageLabel(textLanguage):'Text language unknown.'}{authors.length>0&&<> · Proposed by {authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/></span>)}</>}</p>
         {readable?<div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:'Original wording',proposed:'Proposed wording',emptyOriginal:'',emptyProposed:''}}/></div>:<p>Amendment wording unavailable here.</p>}
         {readable&&selected.wordingRetained&&<p className="member-votes-muted">Showing saved wording.</p>}
         {authors.length>0&&selected.proposerRetained&&<p className="member-votes-muted">Proposer details are from an earlier source version.</p>}

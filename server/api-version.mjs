@@ -1,5 +1,5 @@
 // Bump only for API response contract changes, never for commits or releases.
-export const API_VERSION = 18;
+export const API_VERSION = 30;
 
 // Append the new version's digest when bumping; keep recorded entries unchanged.
 export const API_CONTRACT_DIGESTS = Object.freeze({
@@ -21,9 +21,21 @@ export const API_CONTRACT_DIGESTS = Object.freeze({
   16: 'f905d1b2a4395fc4066a25ffba03d934b5357defee32b67dafe8c4e57ce393f9',
   17: 'f905d1b2a4395fc4066a25ffba03d934b5357defee32b67dafe8c4e57ce393f9',
   18: '595931fe06b02400784a806252b1865740e36f6d2659d60f1750a38f57d11b3e',
+  19: 'e103c9dec0b8ddfaffc51cebec69409eaec42f63d2875ab0254b82d261bf1d82',
+  20: '18816de8524435e5db80552039bb2463c57f3a053565e17c7b0a4629ff680433',
+  21: '30287ba957f4664d43a79ecbf90fbda2da95eb08b3cf2ccd1be56ad79e6f9879',
+  22: '0da104e45e2c74d843b9996fd31064860b858171432507b1d9e77aaf514db8e4',
+  23: '0da104e45e2c74d843b9996fd31064860b858171432507b1d9e77aaf514db8e4',
+  24: 'ed8cbc2c57dd19c92294a73c9296e59a03c04446d95d38b21e7778da4e77ace9',
+  25: 'ed8cbc2c57dd19c92294a73c9296e59a03c04446d95d38b21e7778da4e77ace9',
+  26: 'c0d4f379e51760fb75ad0a8f1ebbe0f9a50fda42faaedaf3309c58b35d4f892d',
+  27: 'ef3fac78303813ca36f9c81e8e8f8b51259336e74d151516d83f2806f031c9a8',
+  28: 'b619d349a286a7e7142b7a5422179cd1801b285f77be5055096cf83870b13dbf',
+  29: 'f2e0d0f86bc59297f513358e5c9cb669962d0be6dc0a0d2fc58b507db681ac69',
+  30: '3dbb0ec58a925c300075ea6d8ecd7dd99192912f7ed996186429d88dd9f800e9',
 });
 
-// Called only at the GET transport boundary; route and page URL keys stay intact.
+// Called at the transport boundary; route and page URL keys stay intact.
 export function versionedApiUrl(url) {
   return `${url}${url.includes('?') ? '&' : '?'}v=${API_VERSION}`;
 }

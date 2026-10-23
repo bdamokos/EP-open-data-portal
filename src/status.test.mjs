@@ -86,6 +86,7 @@ test('member count labels partial committee coverage, and polling never reannoun
   const pending=new Promise(done=>{resolve=done;});
   const h=await harness(t,'?committee=ENVI',url=>{
     if(url.pathname.endsWith('/directory'))return response===directory?pending:response;
+    if(url.pathname.endsWith('/insights/following-status'))return {epoch:'test',generation:1,marksReady:false,indexComplete:false};
     if(url.pathname.endsWith('/insights/saved'))return {members:[],questions:[]};
     throw Error('Unexpected fixture request: '+url);
   });
@@ -109,6 +110,7 @@ test('known committee matches stay usable after another profile fails, with hone
   const directoryReads=[];
   const h=await harness(t,'?committee=ENVI',url=>{
     if(url.pathname.endsWith('/directory')){directoryReads.push(url);return response;}
+    if(url.pathname.endsWith('/insights/following-status'))return {epoch:'test',generation:1,marksReady:false,indexComplete:false};
     if(url.pathname.endsWith('/insights/saved'))return {members:[],questions:[]};
     throw Error('Unexpected fixture request: '+url);
   });
@@ -132,6 +134,7 @@ test('completed memberships keep polling promptly until optional committee names
   let response={...directory,committees:[{id:'ENVI',code:'ENVI',names:{}}],committeeDetails:{complete:false,loaded:0,total:1,failed:0,error:null},index:{complete:true,loaded:2,total:2,failed:0,error:null}};
   const h=await harness(t,'',url=>{
     if(url.pathname.endsWith('/directory'))return response;
+    if(url.pathname.endsWith('/insights/following-status'))return {epoch:'test',generation:1,marksReady:false,indexComplete:false};
     if(url.pathname.endsWith('/insights/saved'))return {members:[],questions:[]};
     throw Error('Unexpected fixture request: '+url);
   });

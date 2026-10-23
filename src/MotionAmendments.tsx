@@ -1,3 +1,4 @@
+import {PersonName} from './PersonName';
 import {ActivityVote} from './ActivityVote';
 import {useCallback,useEffect,useId,useRef,useState,type ReactNode,type RefObject} from 'react';
 import {api} from './data';
@@ -159,7 +160,7 @@ function Wording({record,kind}:{record:MotionAmendment|MotionAmendmentVariant;ki
 function Proposers({record}:{record:MotionAmendment|MotionAmendmentVariant}) {
   const authors=record.authors||[],groups=Array.isArray(record.onBehalfOf)?record.onBehalfOf:record.onBehalfOf?[record.onBehalfOf]:[];
   return <div className="motion-amendments__proposers">
-    {authors.length?<p>Proposed by <span lang="">{authors.map(author=>author.name).join(', ')}</span></p>:
+    {authors.length?<p>Proposed by <span lang="">{authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/></span>)}</span></p>:
       !record.committeeProposer&&!groups.length&&<p>Proposers unavailable.</p>}
     {record.committeeProposer&&<p>Committee proposer: <span lang={sourceLanguage(record.proposerSource?.language)}>{record.committeeProposer}</span></p>}
     {groups.length>0&&<p>On behalf of <span lang="">{groups.map(group=>group.replace(/^on behalf of\s+/i,'')).join(', ')}</span></p>}

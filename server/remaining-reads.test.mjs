@@ -8,7 +8,7 @@ import {CorpusStore} from './corpus-store.mjs';
 import {CorpusWorker} from './corpus-worker.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {memberVoteWeeks} from './member-vote-weeks.mjs';
-import {savedStates,savedActivityPreviewSql} from './insights-saved.mjs';
+import {followingResponse,followingIdsSql} from './insights-following.mjs';
 import {activityOnly,motionDocuments} from './activity-read-projections.mjs';
 import {discoverQuestionFiles,changedQuestionsSql,missingQuestionFilesSql} from './question-discovery.mjs';
 import {prepareIndexes} from './migrate-indexes.mjs';
@@ -106,10 +106,10 @@ test('saved counts cover exact distinct activity sources, excluding answers, wit
   const opcodes=index.db.prepare('EXPLAIN '+sql).all(1,'42');
   const tableCursors=new Set(opcodes.filter(r=>r.opcode==='OpenRead'&&r.p4==='7').map(r=>r.p1));
   assert(!opcodes.some(r=>r.opcode==='Column'&&tableCursors.has(r.p1)&&r.p2===bodyColumn));
-  const previewPlan=plan(index.db,savedActivityPreviewSql,1,'42',1,'42');
-  assert.equal((previewPlan.match(/saved_activity_sources/g)||[]).length,2);
-  const result=savedStates(index,{questions:[],members:['42'],language:'en'}).members[0];
-  assert.equal(result.total,1);assert.equal(result.answers.length,1);
+  index.publish(1);
+  assert.match(plan(index.db,followingIdsSql,1,'42','42',1,'42','42'),/saved_activity_sources/);
+  const result=followingResponse(index,'following-member',new URLSearchParams({epoch:index.get('marksEpoch'),generation:'1',member:'42'})).body;
+  assert.equal(result.ids.filter(x=>x[1]===0).length,1);assert.equal(result.ids.filter(x=>x[1]===1).length,1);
   index.replaceRows(1,'q',[]);assert.equal(index.db.prepare(sql).get(1,'42').n,0);
 });
 

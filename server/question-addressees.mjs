@@ -1,4 +1,4 @@
-const labels = {'org/COM':'Commission','org/CS':'Council'};
+const labels = {'org/COM':'Commission','org/CS':'Council','org/HRVP':'Vice-President / High Representative'};
 const array=value=>value==null?[]:Array.isArray(value)?value:[value];
 
 function reference(value) {

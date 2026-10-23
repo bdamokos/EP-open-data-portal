@@ -68,6 +68,7 @@ async function harness(t,selection=query({}),{context=contextResponse,motions=mo
   if(url.pathname.startsWith('/api/document-context/')){const result=await context(url);return result instanceof Response?result:Response.json(result);}
   if(url.pathname.startsWith('/api/document/'))return Response.json({...contextDocument(decodeURIComponent(url.pathname.split('/').at(-1))),roles:['AUTHOR'],coAuthors:[]});
   if(url.pathname.startsWith('/api/qa-motion-cache/'))return Response.json({id:url.pathname.split('/').at(-1)});
+  if(url.pathname==='/api/insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
   if(url.pathname==='/api/insights/saved')return Response.json({members:[],questions:[]});
   if(url.pathname==='/api/corpus/search')return Response.json({results:[],total:0,nextOffset:null,coverage:{status:'partial'}});
   if(url.pathname.startsWith('/api/speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
