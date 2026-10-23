@@ -19,6 +19,12 @@ function selectedTitle(titles,language,fallback) {
   const first=Object.entries(titles||{})[0];
   return first?.[1]?{title:first[1],titleLanguage:first[0]||null}:{title:fallback,titleLanguage:null};
 }
+export function savedItemPreview(store,generation,row,language) {
+  const body=JSON.parse(row.body);
+  const question=body.recordKind==='answer'&&body.relatedQuestionId?store.source(generation,'/parliamentary-questions/'+body.relatedQuestionId)?.work:null;
+  const titles=sourceTitles(question?.title_dcterms||body.relatedQuestionTitles||body.titles);
+  return {id:row.source_id,date:row.date,...selectedTitle(titles,language,body.reference||row.source_id),recordKind:body.recordKind,...(body.relatedQuestionId?{relatedQuestionId:body.relatedQuestionId}:{})};
+}
 export function savedQuery(search) {
   for(const key of search.keys())if(!['lang','questions','members'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated saved-item query.');
   const list=(key,pattern)=>{const value=search.get(key);if(!value)return [];const ids=value.split(',');if(ids.length>100||ids.some(id=>!pattern.test(id))||new Set(ids).size!==ids.length)throw new HttpError(400,'invalid_selection','Choose up to 100 distinct saved items.');return ids;};
@@ -45,12 +51,7 @@ export function savedStates(store,query) {
     // the preview window. This covering read does not deserialize activity bodies.
     const activityIds=store.db.prepare('SELECT DISTINCT source_id FROM items INDEXED BY saved_activity_sources WHERE generation=? AND mep=?'+activityFilter+' ORDER BY source_id').all(generation,id).map(row=>row.source_id);
     const total=activityIds.length;
-    const present=row=>{
-      const body=JSON.parse(row.body);
-      const question=body.recordKind==='answer'&&body.relatedQuestionId?store.source(generation,'/parliamentary-questions/'+body.relatedQuestionId)?.work:null;
-      const titles=sourceTitles(question?.title_dcterms||body.relatedQuestionTitles||body.titles);
-      return {id:row.source_id,date:row.date,...selectedTitle(titles,query.language,body.reference||row.source_id),recordKind:body.recordKind,...(body.relatedQuestionId?{relatedQuestionId:body.relatedQuestionId}:{})};
-    };
+    const present=row=>savedItemPreview(store,generation,row,query.language);
     const activities=store.db.prepare(savedActivityPreviewSql).all(generation,id,generation,id).map(present);
     // Membership and revision cover every saved answer; only rich preview titles are bounded.
     const answers=store.db.prepare('SELECT source_id,MAX(date) AS date,body FROM items INDEXED BY saved_answer_sources WHERE generation=? AND mep=? AND '+answersOnly+' GROUP BY source_id ORDER BY date DESC,source_id DESC').all(generation,id).map((row,index)=>{
@@ -62,4 +63,12 @@ export function savedStates(store,query) {
     return {id,status:'available',name:person.name,total,latest,activities,answers,activityIds,activityIdsComplete:true,revision:digest([activityIds,activities.map(x=>[x.id,x.date]),answers.map(x=>[x.id,x.date])])};
   });
   return {view:'saved',questions,members,checkedAt:new Date().toISOString(),coverage:{indexComplete:status.complete,servingGeneration:generation,rosterFetchedAt:status.rosterFetchedAt,lastSuccessfulRefresh:status.lastSuccessfulRefresh},basis:'Saved activity and question metadata. No text download or upstream fan-out.'};
+}
+
+// The POST adds a transport without changing the legacy GET response contract.
+export function savedPostQuery(search,body) {
+  for(const key of search.keys())if(key!=='lang'||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated saved-item query.');
+  if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(key=>key!=='questions')||!Array.isArray(body.questions)||body.questions.length>100||body.questions.some(id=>typeof id!=='string'||!(/^[EPHO]-10-\d{4}-\d{6}$/).test(id))||new Set(body.questions).size!==body.questions.length)
+    throw new HttpError(400,'invalid_selection','Choose up to 100 distinct saved questions.');
+  return {language:odpLanguage(search.get('lang')||'en'),questions:body.questions,members:[]};
 }
