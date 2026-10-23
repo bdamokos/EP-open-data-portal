@@ -1,3 +1,4 @@
+import {groupHistoryTask,scheduleGroupHistory} from './group-history.mjs';
 import {membershipTask,scheduleMembership} from './following-membership.mjs';
 import { booleanFromEnvironment, integerFromEnvironment, absolutePathFromEnvironment } from './config.mjs';
 import {groupVoiceProjection,groupVoiceJobKey,recordGroupVoice,groupVoiceWorkDue,groupVoicesCopy,initializeGroupVoices,nextGroupVoiceTask,enqueueGroupVoice} from './group-voices-store.mjs';
@@ -202,7 +203,9 @@ export class ActivityWorker {
   }
   async task(task) {
     const {generation,body}=task;
-    if(task.kind==='membership') {
+    if(task.kind.startsWith('group-history-')) {
+      await groupHistoryTask(this,task);
+    } else if(task.kind==='membership') {
       await membershipTask(this,task);
     } else if(task.kind.startsWith('amendment-')) {
       await amendmentTask(this,task);
@@ -531,6 +534,7 @@ export class ActivityWorker {
     if(cycle.initial)for(const collection of collections(new Date(this.clock()).getUTCFullYear())) this.store.enqueue(cycle.generation,'catchup:'+today+':'+collection.endpoint+':'+JSON.stringify(collection.params),'catalog',{...collection,offset:0,deltaOnly:true},100);
     this.enqueueFeeds(cycle.generation,'catchup:'+today+':feed:',cycle.startedAt);
     scheduleMembership(this.store,cycle.generation,'catchup:'+today+':');
+    scheduleGroupHistory(this.store,cycle.generation,'catchup:'+today+':');
     this.store.enqueue(cycle.generation,'catchup:'+today+':roster','roster',{offset:0,nodes:[]},110);
     const start=day(Date.parse(cycle.startedAt)-2*DAY);
     this.store.enqueue(cycle.generation,'catchup:'+today+':speeches','speeches',{endpoint:'/speeches',params:{'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','sort-by':'sitting-date:desc,numbering:desc','sitting-date':start,'sitting-date-end':today},offset:0},100);
@@ -606,6 +610,9 @@ export class ActivityWorker {
         if(!cycle.initialized)await this.initialize(cycle);
         if(!this.store.get('working').membershipScheduled) {
           scheduleMembership(this.store,cycle.generation);this.store.updateCycle({membershipScheduled:true});
+        }
+        if(!this.store.get('working').groupHistoryScheduled) {
+          scheduleGroupHistory(this.store,cycle.generation);this.store.updateCycle({groupHistoryScheduled:true});
         }
         if(!this.store.get('working').mutableScheduled) {
           scheduleMutable(this,cycle.generation);this.store.updateCycle({mutableScheduled:true});
