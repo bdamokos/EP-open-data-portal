@@ -38,6 +38,7 @@ test('following and saved POST transports validate, version, cache and revalidat
     const authorized=await read(route,{headers:{Authorization:'test'}});noStore(authorized);
   }
   const detail=await read('following-member?'+params(g1,{member:'42',lang:'fr'}));assert.equal(detail.body.rosterBasis,'publication');assert.equal(detail.body.entries[0].title,'Français');assert.equal(detail.body.entries[0].titleLanguage,'fr');
+  assert.deepEqual(detail.body.entries.map(entry=>[entry.kind,entry.category]),[['answer','written-questions'],['activity','written-questions']]);
   const g2=store.beginCycle().generation;store.publish(g2);
   assert.equal((await read('following-manifest?'+params(g1))).status,200);
   assert.equal((await read('following-member?'+params(g1,{member:'42'}))).status,200);
