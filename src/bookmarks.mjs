@@ -132,7 +132,10 @@ export function createSavedStore(storage,notify=()=>void 0) {
         const rich=new Map((data.entries||[]).map(entry=>[identity(entry),entry]));
         // Refresh metadata only for identities that are still unread. Seen
         // entries stay read, including when details are requested in a new language.
-        for(const [key,entry] of unread)if(rich.has(key))unread.set(key,{...entry,...cleanEntries([rich.get(key)])[0]});
+        for(const [key,entry] of unread)if(rich.has(key)){
+          const {title,titleLanguage,date,relatedQuestionId}=cleanEntries([rich.get(key)])[0];
+          unread.set(key,{...entry,title,titleLanguage,date,relatedQuestionId});
+        }
         const seen={activity:null,answer:null,...item.seen},legacy=item.legacy,known={activity:new Set(legacy?.latestIds),answer:new Set(legacy?.answerIds)};
         for(const [id,code,value] of data.ids) {
           const kind=code===1?'answer':'activity',entry={id,kind,mark:value,recordKind:kind==='answer'?'answer':undefined};

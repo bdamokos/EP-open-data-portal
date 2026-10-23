@@ -103,6 +103,7 @@ test('fresh rich metadata updates existing unread without reviving read entries 
  store.materialize(detail(ids.slice(0,3),[{id:'same',kind:'activity',title:'Nouveau titre',titleLanguage:'fr',date:'2026-02-02'},{id:'same',kind:'answer',title:'Réponse',titleLanguage:'fr',date:'2026-03-03',relatedQuestionId:question.id},{id:'read',kind:'activity',title:'Already read'}]));
  assert.deepEqual(item(store).seen,seen);assert.deepEqual(item(store).unread.map(x=>[x.kind,x.id]),[['activity','same'],['answer','same'],['activity','vanished']]);
  assert.deepEqual(item(store).unread.slice(0,2).map(x=>[x.title,x.titleLanguage,x.date,x.relatedQuestionId]),[['Nouveau titre','fr','2026-02-02',undefined],['Réponse','fr','2026-03-03',question.id]]);
+ assert.equal(item(store).unread[1].recordKind,'answer','metadata refresh preserves the answer link and acknowledgement kind');
  assert.equal(item(createSavedStore(disk)).unread[0].title,'Nouveau titre');
 });
 test('materialize reports stale rejection separately from accepted in-memory changes when storage fails',()=>{
