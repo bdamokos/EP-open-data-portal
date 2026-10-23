@@ -387,7 +387,7 @@ let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
 export const DIRECTORY_VERSION = 2;
-export const PROFILE_VERSION = 5;
+export const PROFILE_VERSION = 6;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -628,7 +628,12 @@ export async function odpProfileWithMemberships(id) {
     committeeMemberships.complete=false;
     committeeMemberships.error=membershipHistory.observationAvailable?'Some membership records are incomplete. Available committee history is shown.':'Committee membership information is unavailable.';
   }
-  return {...profile,membershipHistory,committeeMemberships};
+  const currentRosterMatched=profile.currentAffiliation.status==='matched';
+  return {...profile,
+    memberships:currentRosterMatched?profile.memberships:profile.memberships.map(row=>({...row,current:false})),
+    membershipHistory,
+    committeeMemberships:currentRosterMatched?committeeMemberships:{...committeeMemberships,items:committeeMemberships.items.map(card=>({...card,roles:[],periods:card.periods.map(period=>({...period,current:false}))}))},
+  };
 }
 function startIndex() {
   if (indexPromise || indexState.complete) return;

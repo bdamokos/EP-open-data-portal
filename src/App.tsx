@@ -835,7 +835,7 @@ export default function App() {
                         </p>
                       )}
                       {!(profile.data.committeeMemberships?.complete && !profile.data.committeeMemberships.items.length) && <>
-                        <h2 lang={lang}>{c.committee}</h2>
+                        <h2 lang={profile.data.currentAffiliation?.status==='matched'?lang:'en'}>{profile.data.currentAffiliation?.status==='matched'?c.committee:'Committee records'}</h2>
                         <CommitteeMemberships profile={profile.data} committees={directory?.committees||[]} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
                       </>}
                       <ProfileMemberships profile={profile.data} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
