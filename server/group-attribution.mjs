@@ -32,7 +32,10 @@ export function generationGroupOn(store,generation) {
   let cache=resolvers.get(store);
   if(!cache){cache=new Map();resolvers.set(store,cache);}
   if(!cache.has(generation)) {
-    cache.set(generation,createGroupOn(groupHistorySnapshot(store,generation)));
+    const snapshot=groupHistorySnapshot(store,generation);
+    // The first serving cycle can be read before its first publication.
+    if(!snapshot)return unavailable;
+    cache.set(generation,createGroupOn(snapshot));
     // In-flight responses retain their closure even if a later publish prunes it.
     while(cache.size>2)cache.delete(cache.keys().next().value);
   }

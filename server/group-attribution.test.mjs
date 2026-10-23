@@ -82,3 +82,13 @@ test('question authors use the response generation even when publication changes
   const response=await service.query(insightQuery(new URLSearchParams('days=term&end=2026-06-16'),{now:clock()}));
   assert.equal(response.coverage.servingGeneration,1);assert.equal(response.questions[0].authors[0].affiliationGroup,'S&D');assert.equal(response.questions[0].authors[0].group,'Renew');assert.equal(reads,1);
 });
+
+test('a prepublication read does not pin missing history after the same generation is frozen',()=>{
+  let body=null,reads=0;
+  const store={db:{prepare:()=>({get:()=>{reads++;return body?{body}:undefined;}})}};
+  assert.equal(generationGroupOn(store,1)('124846','2026-06-16'),'unavailable');
+  body=JSON.stringify({members});
+  const published=generationGroupOn(store,1);
+  assert.equal(published('124846','2026-06-16').code,'S&D');
+  assert.equal(generationGroupOn(store,1),published);assert.equal(reads,2);
+});
