@@ -11,7 +11,6 @@ import {mergeSourceNodes,sourceNodeKey,decisionSourceConflicts} from './vote-evi
 
 export const MEMBER_VOTES_VERSION=5;
 export const MEMBER_VOTES_LIMITS=Object.freeze({pageSize:50,decisionPageSize:250,cataloguePages:10,decisionPages:4,resultsPages:4,agendaPages:4,maxRows:4000,maxSittings:5,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,cacheBytes:32*1024*1024,cacheEntries:8,cacheMs:60_000,snapshotMs:10*60_000,sourceMs:15*60_000,timeoutMs:50_000});
-const API='https://data.europarl.europa.eu/api/v2';
 const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
 const dayOffset=(value,days)=>new Date(Date.parse(value+'T12:00:00Z')+days*86400_000).toISOString().slice(0,10);
 const monday=value=>dayOffset(value,-((new Date(value+'T12:00:00Z').getUTCDay()+6)%7));
@@ -56,7 +55,7 @@ export class MemberVotes extends VoteSourceReader {
       }catch(error){if(isLocalRequestFailure(error))throw error;coverage.error=errorInfo(error);coverage.stopReason='error';return {nodes:[],coverage};}
     }
     const today=brusselsDay(this.clock()),year=Number((query.week==='latest'?today:query.week).slice(0,4));
-    const years=query.week==='latest'?calendarYears(today).reverse():[...new Set([year,Number(dayOffset(query.week,6).slice(0,4))])];
+    const years=(query.week==='latest'?calendarYears(today).reverse():[...new Set([year,Number(dayOffset(query.week,6).slice(0,4))])]).filter(value=>value<=Number(today.slice(0,4)));
     let nodes=[],coverage=pageCoverage();
     for(const selectedYear of years){
       const result=await this.meetings.year(selectedYear);

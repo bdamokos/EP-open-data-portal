@@ -97,7 +97,7 @@ Sitting calendars share `server/meetings-reader.mjs`: one bounded, coalesced `/m
 | Activity index and amendment outcomes | Exact sitting decisions and results discovered from document relationships; no catalogue scan. Legacy stored vote-week hints read the index only. |
 | Source-record inspector | A bounded view of the requested public meeting record or collection; no calendar assembly. |
 
-Incomplete calendars keep known sittings selectable and carry the same per-year coverage into agenda, participation and cloud responses. Missing selections remain unavailable while coverage is incomplete. These responses use `no-store`; assembled views retry after one minute, and cloud recovery restarts pagination. An HTTP 204 agenda stays unavailable and its sitting stays selectable. Full exact meeting records remain separate from catalogue observations, so attendance readers can retain participant fields and independent validation.
+Incomplete calendars keep known sittings selectable and carry the same per-year coverage into agenda, participation and cloud responses. Missing selections remain unavailable while coverage is incomplete. These responses use `no-store`; partial or refreshing browser observations recheck on reopening. Assembled views retry after one minute, and cloud recovery restarts pagination. An HTTP 204 agenda stays unavailable and its sitting stays selectable. Full exact meeting records remain separate from catalogue observations, so attendance readers can retain participant fields and independent validation.
 
 - `/meetings` accepts comma-separated years and offset pagination.
 - Speech and date-range filters have no span limit in the API. The current term starts 16 July 2024.

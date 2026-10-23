@@ -5,7 +5,7 @@ import {AnalysisPeriodControl} from './AnalysisPeriod';
 import type {AnalysisPeriod} from '../server/analysis-period.mjs';
 import {useEffect,useId,useRef,useState,type ReactNode} from 'react';
 import {api} from './data';
-import {createDataClient} from './client.mjs';
+import {createSpeechCloudClient} from './sittingCalendarCache.mjs';
 import {humanDate} from './InsightCharts';
 import {InsightSpeechReader} from './InsightReaders';
 import {TextSearch} from './TextSearch';
@@ -14,7 +14,7 @@ import './SpeechCloud.css';
 type CloudPerson=SpeechSpeaker&{currentMep:boolean};
 type CloudSpeech={id:string;date:string;title:string;titleLanguage?:string|null;machineTranslation:boolean;people:CloudPerson[]};
 export type SpeechCloudResult={restarted?:boolean;scope:{kind:'member'|'sitting'|'week'|'topic';phase:'upcoming'|'past'};language:string;words:{word:string;label:string|null;speechCount:number;occurrences:number;speechIds:string[]}[];speeches:CloudSpeech[];coverage:{catalogueComplete?:boolean;basis?:string;transcripts:number;matchedSpeechRecords:number;missingLanguage:number;unreadableText:number;complete:boolean;truncated:boolean;associationUnavailable:boolean;sourceRecords?:{unique:number;declared:number|null;duplicates:number;issues:string[]}};window:{start:string|null;end:string|null};nextPage:number|null};
-const client=createDataClient(api,{maxEntries:48,maxAge:30*60_000,timeoutFor:()=>35_000});
+const client=createSpeechCloudClient(api);
 const languages='bg cs da de el en es et fi fr ga hr hu it lt lv nl pl pt ro sk sl sv'.split(' ');
 const wordLabel=(word:string)=>['ai','gdp','nato'].includes(word)?word.toUpperCase():word;
 

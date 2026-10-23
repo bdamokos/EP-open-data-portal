@@ -652,3 +652,14 @@ test('alignment validation defaults compatibly and unavailable coverage has no c
   const complete=await setup({decisions:[],results:[],agenda:[],meetings:[{...meeting,consists_of:[]}]}).service.query(MEMBER,query(`sitting=${SITTING}&alignment=with`));
   assert.equal(complete.coverage.status,'complete');assert.deepEqual(complete.alignmentCounts,{with:0,against:0,abstained:0,unclassified:0});
 });
+
+test('held weeks crossing New Year read only years through Brussels today',async()=>{
+  for(const today of ['2025-12-30T12:00:00Z','2026-01-02T12:00:00Z']){
+    const now=Date.parse(today),{service,calls}=setup({clock:()=>now,meetings:[]});
+    const selected=memberVotesQuery(new URLSearchParams('week=2025-12-29'),{now});
+    const result=await service.query(MEMBER,selected);
+    assert.equal(result.period.from,'2025-12-29');assert.equal(result.period.to,'2026-01-04');
+    assert.equal(result.coverage.status,'complete');
+    assert.deepEqual(calls.filter(call=>call.endpoint==='/meetings').map(call=>call.params.year),today.startsWith('2025')?[2025]:[2025,2026]);
+  }
+});
