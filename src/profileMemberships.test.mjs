@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {Window} from 'happy-dom';
 import {profileMemberships} from '../server/profile-memberships.mjs';
 
 test('profile disclosures are collapsed, retain raw identifiers, language and safe uncertain dates',async t=>{
-  const vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>vite.close());
-  const {ProfileMemberships}=await vite.ssrLoadModule('/src/ProfileMemberships.tsx');
+  const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>loadModule.close());
+  const {ProfileMemberships}=await loadModule('/src/ProfileMemberships.tsx');
   const window=new Window();t.after(()=>window.happyDOM.close());
   const date=value=>{assert(!value.includes('02-30'));return value;};
   const render=membershipHistory=>{window.document.body.innerHTML=renderToStaticMarkup(createElement(ProfileMemberships,{profile:{membershipHistory},lang:'hu',roleName:role=>({MEMBER:'Tag',CHAIR_VICE:'Alelnök'})[role],date,retry:()=>{}}));return window.document.body;};

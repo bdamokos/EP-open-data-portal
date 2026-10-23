@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {Window} from 'happy-dom';
 
 test('current committee cards render already merged role history and localized current roles',async t=>{
-  const vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>vite.close());
-  const {CommitteeMemberships}=await vite.ssrLoadModule('/src/CommitteeMemberships.tsx');
+  const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>loadModule.close());
+  const {CommitteeMemberships}=await loadModule('/src/CommitteeMemberships.tsx');
   const committee={id:'6363',code:'FEMM',names:{en:'Women’s Rights and Gender Equality',hu:'Nőjogi és Esélyegyenlőségi Bizottság'}};
   const periods=[{role:'MEMBER',start:'2022-01-25',end:null,current:true,observations:[]},{role:'CHAIR',start:'2019-07-10',end:'2022-01-24',current:false,observations:[]}];
   const profile={currentAffiliation:{status:'matched'},memberships:[],committeeMemberships:{complete:true,error:null,items:[{...committee,identity:'org/FEMM',roles:['MEMBER'],periods}]}};

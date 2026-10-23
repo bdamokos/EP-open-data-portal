@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const people=Array.from({length:8},(_,i)=>({id:String(i+1),name:'Contributor '+(i+1),currentMep:false}));
 const stats={uniquePeople:8,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:8,denominator:0,referenceDate:'2026-10-07',dimensions:{country:[],group:[],gender:[],age:[]}};
@@ -24,8 +24,8 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   const pending=[],calls=[];
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const request of pending.splice(0))request.resolve(Response.json(legislation(request.params)));});if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const request of pending.splice(0))request.resolve(Response.json(legislation(request.params)));});if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href),params=url.searchParams;calls.push(url);
     if(url.pathname.endsWith('/insights/legislation')) {
@@ -40,8 +40,8 @@ test('vote changes preserve agenda readers and expansion through loading, failur
     throw new Error('Unexpected request: '+url);
   });
   // Use the existing TSX pipeline without a listening server or external data.
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {Legislation}=await vite.ssrLoadModule('/src/Legislation.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);
   root=createRoot(container);

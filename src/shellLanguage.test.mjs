@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,Fragment,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {selectLanguageText} from './language.mjs';
 
 const effectiveLanguage=node=>node?.closest('[lang]')?.getAttribute('lang');
@@ -14,12 +14,12 @@ async function harness(t,{locale='hu',query='',items=[],respond=()=>{throw Error
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let root,vite;const calls=[];
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let root,loadModule;const calls=[];
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async(input,options)=>{const url=new URL(input,location.href);calls.push(url);return Response.json(await respond(url,options));});
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  return {window,container,calls,load:path=>vite.ssrLoadModule(path),render:element=>act(async()=>root.render(element)),click:node=>act(async()=>node.click())};
+  return {window,container,calls,load:path=>loadModule(path),render:element=>act(async()=>root.render(element)),click:node=>act(async()=>node.click())};
 }
 
 test('question save controls update with the UI locale without changing source titles or saved records',async t=>{

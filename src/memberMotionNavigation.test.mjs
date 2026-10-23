@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const DOCUMENT='B-10-2026-0424',JOINT='RC-10-2026-0441',TA1='TA-10-2026-0342',TA2='TA-10-2026-0343';
 const binding={memberId:1,sourceId:DOCUMENT,ownerId:'motion-activity',choices:[{id:DOCUMENT,kind:'original',title:'Synthetic motion',titleLanguage:'en'},{id:JOINT,kind:'joint',title:'Synthetic joint motion',titleLanguage:'en'}]};
@@ -13,14 +13,14 @@ async function harness(t,{query,initialJourney,config:initialConfig={}}={}) {
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let root,vite,latest;
+  let root,loadModule,latest;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    if(vite)await vite.close();await window.happyDOM.close();
+    if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const module=await vite.ssrLoadModule('/src/useMemberMotionJourney.ts'),helper=await vite.ssrLoadModule('/src/motionJourney.mjs'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const module=await loadModule('/src/useMemberMotionJourney.ts'),helper=await loadModule('/src/motionJourney.mjs'),{createRoot}=await import('react-dom/client');
   const initial=query?new URLSearchParams(query):helper.motionJourneyUrl(location.href,binding,initialJourney?.(helper.createMotionJourney(binding))||helper.createMotionJourney(binding)).searchParams;
   history.replaceState(null,'','/?'+initial);
   let config={member:1,active:true,environment:{...environment},activities:true,activitiesPending:false,motionPending:false,contextPending:false,body:true,error:false,...initialConfig};

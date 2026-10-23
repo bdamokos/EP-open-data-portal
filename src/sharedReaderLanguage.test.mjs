@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const speech={id:'MTG-PL-2026-03-25-OTH-101',kind:'PLENARY_DEBATE_SPEECH',start:'2026-03-25T09:00:00Z',end:'2026-03-25T09:01:00Z'};
 const effective=node=>{assert(node,'Missing rendered language target');return node.closest('[lang]')?.getAttribute('lang');};
@@ -14,12 +14,12 @@ async function harness(t,locale,respond=()=>{throw Error('Unexpected fixture req
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   const endpoints=new WeakMap();
   Object.defineProperty(window.HTMLIFrameElement.prototype,'contentWindow',{get(){if(!endpoints.has(this))endpoints.set(this,{postMessage(){}});return endpoints.get(this);}});
-  let vite,root;const calls=[];
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;const calls=[];
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,window.location.href);assert.equal(url.origin,'http://localhost');calls.push(url);return Response.json(await respond(url));});
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  return {window,container,calls,load:path=>vite.ssrLoadModule('/src/'+path+'.tsx'),render:element=>act(async()=>root.render(element)),click:element=>act(async()=>{element.focus();element.click();})};
+  return {window,container,calls,load:path=>loadModule('/src/'+path+'.tsx'),render:element=>act(async()=>root.render(element)),click:element=>act(async()=>{element.focus();element.click();})};
 }
 
 test('player controls, unavailable states and parent-frame text stay English under EN/HU/FR source selections',async t=>{

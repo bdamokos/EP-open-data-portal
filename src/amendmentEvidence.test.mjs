@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 for(const language of ['en','hu','fr'])test(`${language}: source-variant author matches and incomplete split bindings retain their evidence scope`,async t=>{
   const window=new Window({url:'http://localhost/?view=amendments'});
@@ -10,9 +10,9 @@ for(const language of ['en','hu','fr'])test(`${language}: source-variant author 
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const name='Ágnes Source',proposerDate='2026-10-06';
@@ -35,8 +35,8 @@ for(const language of ['en','hu','fr'])test(`${language}: source-variant author 
     const url=new URL(input,window.location.href);assert(url.pathname.endsWith('/amendments'));assert.equal(url.searchParams.get('member'),'42');
     return Response.json({items,total:items.length,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:[]}});
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {Amendments}=await vite.ssrLoadModule('/src/Amendments.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(Amendments,{member:'42',language,showFailures:false})));
   const card=id=>container.querySelector('#amendment-'+id);
