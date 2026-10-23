@@ -329,7 +329,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,3);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,4);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -439,4 +439,48 @@ for (const [name,properties,styles,level] of [
     assert.equal(result.target.evidence.amendmentId,amendmentId);assert.equal(result.target.evidence.listId,listId);assert.equal(result.target.evidence.wordingLanguage,'en');
   }
   assert.deepEqual(text,before);
+});
+
+
+test('indexed comparison conflicts block only the selected variant and retain the complete source descriptor',async()=>{
+  const paragraphs=['The European Parliament,','19. Original wording;','20. Next;'];
+  const text={...summary,paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
+  const headings=[{left:{raw:'Motion for a resolution',category:'motion-resolution'},right:{raw:'Amendment',category:'other'}},{left:{raw:'Text proposed by the Commission',category:'commission-proposal'},right:{raw:'Amendment',category:'other'}}];
+  for(const conflicted of [true,false,undefined]) {
+    const baselineSource={category:'unknown',headings,language:'en',sourceUrl:source.url,fetchedAt:source.fetchedAt,...(conflicted===undefined?{}:{conflicted})};
+    const selected={...indexed,baseline:'unknown',baselineSource,originalText:paragraphs[1],proposedText:'19. Revised wording;',targetLabel:'Paragraph 19',targetLabelLanguage:'en'};
+    const alternate={...selected,language:'fr',baselineSource:{...baselineSource,conflicted:true}};
+    const reader=service({readText:async()=>text,findAmendment:()=>({...selected,variants:[selected,alternate]})});
+    const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+    assert.equal(result.amendment.basis,'index');assert.deepEqual(result.amendment.variants[0].baselineSource,baselineSource);assert.equal(result.amendment.variants[0].baseline,'unknown');
+    assert.equal(result.placement.status,conflicted===true?'unresolved':'placed');
+    if(conflicted===true){assert.equal(result.placement.reason,'conflicting_baselines');assert.equal(result.placement.span,undefined);}
+    else assert.deepEqual(result.placement.span,{start:1,end:1});
+  }
+});
+
+test('published comparison headings retain conflict provenance while withholding motion recovery',async()=>{
+  const p=text=>'<w:p><w:r><w:t>'+text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</w:t></w:r></w:p>';
+  const table=(heading,before,after)=>'<w:tbl><w:tr><w:tc>'+p(heading)+'</w:tc><w:tc>'+p('Amendment')+'</w:tc></w:tr><w:tr><w:tc>'+p(before)+'</w:tc><w:tc>'+p(after)+'</w:tc></w:tr></w:tbl>';
+  const paragraphs=['The European Parliament,','19. Original wording continued;','20. Next;'];
+  const text={...summary,paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
+  const cases=[
+    {headings:['Motion for a resolution','Text proposed by the Commission'],category:'unknown',conflicted:true},
+    {headings:['Text proposed by the Commission','Council position'],category:'unknown',conflicted:true},
+    ...[['Motion for a resolution','motion-resolution'],['Unrecognised source label','unknown'],['Text proposed by the Commission','commission-proposal'],['Council position','council-position'],['Present text','present-text']].map(([heading,category])=>({headings:[heading,heading],category,conflicted:false})),
+  ];
+  for(const scenario of cases) {
+    const xml='<w:document xmlns:w="urn:word"><w:body>'+p('<Amend><NumAm>40</NumAm><DocAmend>Proposal for a regulation</DocAmend><Article>Paragraph 19</Article>')+table(scenario.headings[0],'19. Original wording','19. Revised wording')+table(scenario.headings[1],'continued;','continued with changes;')+p('</Amend>')+'</w:body></w:document>';
+    const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+id],is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:source.url}]}]};
+    const reader=service({request:async()=>record({...work,inverse_foresees_change_of:[list]}),download:async()=>({buffer:archive(xml,'<w:styles xmlns:w="urn:word"/>'),resolvedSourceUrl:source.url}),readText:async()=>text});
+    const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}));
+    const [variant]=result.amendment.variants;
+    assert.equal(result.amendment.basis,'published-list');assert.equal(variant.wordingStatus,'available',JSON.stringify({scenario,variant}));assert.equal(variant.baseline,scenario.category);
+    assert.equal(variant.baselineSource.category,scenario.category);assert.equal(variant.baselineSource.conflicted,scenario.conflicted);assert.deepEqual(variant.baselineSource.headings.map(row=>row.left.raw),scenario.headings);
+    assert.equal(variant.baselineSource.language,'en');assert.equal(variant.baselineSource.sourceUrl,source.url);assert.equal(variant.baselineSource.fetchedAt,source.fetchedAt);
+    assert.equal(variant.gaps.some(gap=>gap.code==='baseline-conflict'),scenario.conflicted);
+    if(scenario.conflicted){assert.equal(result.placement.status,'unresolved');assert.equal(result.placement.reason,'conflicting_baselines');assert.equal(result.placement.span,undefined);}
+    else if(['motion-resolution','unknown'].includes(scenario.category)){assert.equal(result.placement.status,'placed');assert.deepEqual(result.placement.span,{start:1,end:1});}
+    else assert.equal(result.placement.reason,'baseline_unavailable');
+  }
 });

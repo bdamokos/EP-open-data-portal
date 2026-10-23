@@ -398,6 +398,14 @@ test('unresolved placement shows wording above the full unchanged baseline witho
   assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
 });
 
+test('conflicting baselines show a short reason and preserve the full source without a placed diff',async t=>{
+  const h=await harness(t,()=>overlayResponse({operation:'replace',status:'unresolved',reason:'conflicting_baselines'}));await h.render({request:overlayRequest,language:'en'});
+  assert.match(h.container.textContent,/Conflicting comparison texts\./);
+  const reader=h.container.querySelector('.document-context-text');assert(reader.firstElementChild.querySelector('.wording-diff'));
+  assert.equal(reader.querySelectorAll('[data-source-paragraph]').length,4);assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
+  assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
+});
+
 for(const [suffix,label] of [['-AM-040','Amendment 40'],['-AM-040a','Amendment 40a'],['-AM-000','Amendment 0'],['-other','Amendment']])
   test(`amendment label handles ${suffix} without leaking the identifier`,async t=>{
     const amendmentId=report+suffix,data=overlayResponse();data.amendment.id=amendmentId;data.target.evidence.amendmentId=amendmentId;
