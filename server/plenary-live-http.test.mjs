@@ -1,10 +1,11 @@
+import {loopback} from './test-support/loopback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {plenaryLive} from './plenary-live.mjs';
 import {server} from './index.mjs';
 import {API_VERSION} from './api-version.mjs';
 
-test('live HTTP reads are no-store and reject caller-selected source queries',async t=>{
+test('live HTTP reads are no-store and reject caller-selected source queries',loopback,async t=>{
   let calls=0;
   t.mock.method(plenaryLive,'snapshot',async()=>{calls++;return {status:'unavailable',current:null,broadcast:null,agenda:{state:'unavailable',items:[]},sources:[]};});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));

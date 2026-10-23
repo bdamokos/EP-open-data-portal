@@ -1,4 +1,5 @@
 import {sourceTitle} from './source-titles.mjs';
+import {languagePreference} from './language-order.mjs';
 import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
@@ -7,7 +8,7 @@ import {documentEndpoint} from './activities.mjs';
 import {referenceKey,documentCelexCandidates,questionCandidates,cellarProcedureReference,eurLexUrl} from './legal-reference-text.mjs';
 import {createRequestBudget,requestSignal,runWithRequestSignal,waitForRequest} from './request-budget.mjs';
 
-export const QUESTION_REFERENCE_VERSION=2;
+export const QUESTION_REFERENCE_VERSION=3;
 export const REFERENCE_LIMITS=Object.freeze({keys:40,titleLength:1200,freshMs:7*86400_000,missingFreshMs:86400_000});
 const authority='http://publications.europa.eu/resource/authority/language/';
 const languages={bg:'BUL',es:'SPA',cs:'CES',da:'DAN',de:'DEU',et:'EST',el:'ELL',en:'ENG',fr:'FRA',ga:'GLE',hr:'HRV',it:'ITA',lv:'LAV',lt:'LIT',hu:'HUN',mt:'MLT',nl:'NLD',pl:'POL',pt:'POR',ro:'RON',sk:'SLK',sl:'SLV',fi:'FIN',sv:'SWE'};
@@ -94,8 +95,8 @@ export function parseCellar(data,uuids,language) {
 const kindOf=celex=>/^5/.test(celex||'')?'document':'act';
 function questionTitle(work,language) {
   const titles=work?.title_dcterms||{};
-  const value=text(titles[language])||text(titles.en)||text(Object.values(titles)[0]);
-  return {title:sourceTitle(value)||null,titleLanguage:titles[language]?language:titles.en?'en':Object.keys(titles)[0]||null};
+  const code=languagePreference(Object.keys(titles).filter(code=>text(titles[code])),language)[0];
+  return {title:sourceTitle(text(titles[code]))||null,titleLanguage:code||null};
 }
 const noRecord=error=>/\((?:404|410)\)/.test(String(error?.message||''));
 

@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const member={id:257043,firstName:'Mika',lastName:'Aaltola',sortName:'AALTOLA Mika',gender:'m',countryCode:'FI',groupCode:'EPP',memberships:[],accounts:[]};
 const directory={day:'2026-10-16',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}};
@@ -29,16 +29,16 @@ async function harness(t,query,respond=fixture,{clock=false}={}) {
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let root,vite;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());t.mock.timers.reset();if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let root,loadModule;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async(input,options)=>Response.json(await respond(new URL(input,location.href),options)));
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   // Enable only after the requested Vite module has loaded. These prefetch cases
   // use the eager member view; other cases retain real lazy-view readiness.
   let clockStarted=false;
-  const load=async path=>{const module=await vite.ssrLoadModule(path);if(clock&&!clockStarted){t.mock.timers.enable({apis:['setTimeout']});clockStarted=true;}return module;};
+  const load=async path=>{const module=await loadModule(path);if(clock&&!clockStarted){t.mock.timers.enable({apis:['setTimeout']});clockStarted=true;}return module;};
   const tick=ms=>act(async()=>{t.mock.timers.tick(ms);});
   return {window,container,load,tick,render:async(element,{ready=true}={})=>{await act(async()=>root.render(element));if(ready)await viewReady(container);},click:async node=>{assert(node,'Missing button');await act(async()=>node.click());await viewReady(container);},button:text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text)};
 }
@@ -241,7 +241,7 @@ test('document disclosures stay related and accurate when documents repeat acros
   }
   check(null);
   for(const index of [0,1,2,3,0]) {await h.click(buttons[index]);check(index);}
-  const language=h.container.querySelector('select[aria-label="Document language"]');
+  const language=h.container.querySelector('select[aria-label="Text language"]');
   await act(async()=>{language.value='fr';language.dispatchEvent(new window.Event('change',{bubbles:true}));});
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
   await h.click(buttons[0]);check(null);await h.click(buttons[0]);check(0);

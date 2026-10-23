@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -9,7 +10,7 @@ import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {AMENDMENT_DISTRIBUTION_PROOF_VERSION} from './amendments.mjs';
 import {saveAmendmentRows} from './amendments-store.mjs';
 
-test('motion context HTTP reads are index-only, scoped and bounded',async t=>{
+test('motion context HTTP reads are index-only, scoped and bounded',loopback,async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'motion-amendments-http-'));
   process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=directory;
   const {activityIndex}=await import('./activity-index-worker.mjs');

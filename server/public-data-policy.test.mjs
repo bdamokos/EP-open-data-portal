@@ -1,10 +1,11 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {server} from './index.mjs';
 import {config,apiPrefixes} from './config.mjs';
 
-test('the standalone adapter exposes only read-only explorer routes',async()=>{
+test('the standalone adapter exposes only read-only explorer routes',loopback,async()=>{
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const base=`http://127.0.0.1:${server.address().port}`;
  try{

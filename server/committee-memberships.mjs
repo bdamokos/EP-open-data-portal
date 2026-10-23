@@ -1,4 +1,5 @@
-export const COMMITTEE_MEMBERSHIP_VERSION = 1;
+import {waitForRequest} from './request-budget.mjs';
+export const COMMITTEE_MEMBERSHIP_VERSION = 2;
 const committeeClass = /^COMMITTEE_PARLIAMENTARY_(STANDING|SUB|TEMPORARY|SPECIAL)$/;
 const canonical = /^(?:https:\/\/data\.europarl\.europa\.eu\/)?org\/[A-Z][A-Z0-9_-]*$/;
 const dayNumber = value => {
@@ -57,21 +58,22 @@ export function createCommitteeMembershipReader({request, budgetMs = 8000} = {})
     rejectedBodies.delete(id); rejectedBodies.add(id);
     if (rejectedBodies.size > 256) rejectedBodies.delete(rejectedBodies.values().next().value);
   };
-  return async function readCommitteeMemberships(profile, day, {signal:parentSignal} = {}) {
+  return async function readCommitteeMemberships(profile, day, {signal:parentSignal,optionalSignal} = {}) {
     parentSignal?.throwIfAborted();
     const memberships = (profile.memberships || []).filter(m => committeeClass.test(m.classification));
     const current = memberships.filter(m => committeeClass.test(m.classification) && dayNumber(m.start) !== null && m.start <= day && (!m.end || dayNumber(m.end) !== null && m.end >= day));
     const candidates = current.length ? [...new Set([...current, ...memberships].map(m => m.id))] : [];
     const ids = candidates.filter(id => /^[1-9]\d*$/.test(id));
     const selected = ids.slice(0, 64), bodies = [], sources = [];
-    let cursor = 0, failed = ids.length > selected.length || candidates.length !== ids.length;
-    const signal = AbortSignal.any([AbortSignal.timeout(budgetMs), ...(parentSignal ? [parentSignal] : [])]);
+    let cursor = 0, failed = ids.length > selected.length || candidates.length !== ids.length
+      || memberships.some(m => dayNumber(m.start) === null || m.end != null && (dayNumber(m.end) === null || m.end < m.start));
+    const signal = AbortSignal.any([optionalSignal || AbortSignal.timeout(budgetMs), ...(parentSignal ? [parentSignal] : [])]);
     await Promise.all(Array.from({length:Math.min(2, selected.length)}, async () => {
       while (cursor < selected.length) {
         const id = selected[cursor++];
         if (signal.aborted) { failed = true; break; }
         try {
-          const record = await request('/corporate-bodies/' + id, {}, {signal, staleWhileRevalidate:true, force:rejectedBodies.has(id)});
+          const record = await waitForRequest(request('/corporate-bodies/' + id, {}, {signal, staleWhileRevalidate:true, force:rejectedBodies.has(id)}),signal);
           const body = record.payload?.data?.[0];
           if (record.payload?.data?.length !== 1 || String(body?.identifier) !== id || !committeeClass.test(tail(body.classification))) {
             rejectBody(id); throw Error('Committee identity unavailable');

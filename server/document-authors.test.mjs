@@ -45,7 +45,8 @@ test('answer author order reads the linked question instead of using answer name
   const work={...f.work,inverse_answers_to:[{identifier:answerId}]};
   const result=await activityDocument(answerId,202073,'en',{request:async()=>({payload:{data:[work]},fetchedAt:Date.parse(f.fetchedAt)}),readText:async selected=>{calls.push(selected.identifier);return {status:'available',paragraphs:[selected.identifier===answerId?'Answer given by Someone Else':f.byline]};}});
   assert.deepEqual(calls,[answerId],'do not look up ordering when no roster can support it');
-  assert(result.coAuthors.every(a=>a.role==='QUESTION_AUTHOR'));
+  assert.deepEqual(result.coAuthors.map(a=>a.id).sort((a,b)=>a-b),[...f.expectedIds].sort((a,b)=>a-b));
+  assert(result.coAuthors.every(a=>a.role==='QUESTION_AUTHOR' && a.sourceDocumentId===f.work.identifier));
   assert.equal(result.coAuthorSource.order,'api-unordered','without a saved roster the order stays unverified');
 });
 test('real question and resolution author IDs join the documented current roster without name inference',()=>{
@@ -62,6 +63,8 @@ test('real question and resolution author IDs join the documented current roster
   const authors=resolve(motion,motion.work.identifier).coAuthors;
   assert.deepEqual(authors.map(a=>[a.id,a.name]),[[256959,'Alexander SELL']]);
   const answer=resolve(question,'E-10-2026-003031-ASW');
+  assert.equal(answer.coAuthors.length,30);
+  assert.deepEqual(answer.coAuthors.map(a=>a.id).sort((a,b)=>a-b),question.work.creator.map(uri=>Number(uri.slice('person/'.length))).sort((a,b)=>a-b));
   assert(answer.coAuthors.every(a=>a.role==='QUESTION_AUTHOR' && a.sourceDocumentId==='E-10-2026-003031'));
 });
 test('authors use exact canonical person/role references; organizations, rapporteurs and malformed references stay unlinked',()=>{
@@ -100,6 +103,8 @@ test('document handler resolves saved authors read-only while an incomplete inde
     const question=await activityDocument(doc.work.identifier,257043,'en');
     const answer=await activityDocument(doc.work.identifier+'-ASW',257043,'en');
     assert.equal(question.coAuthors.length,30);assert(question.coAuthors.every(a=>a.profileAvailable));
+    assert.equal(answer.coAuthors.length,30);
+    assert.deepEqual(answer.coAuthors.map(a=>a.id).sort((a,b)=>a-b),doc.work.creator.map(uri=>Number(uri.slice('person/'.length))).sort((a,b)=>a-b));
     assert(answer.coAuthors.every(a=>a.role==='QUESTION_AUTHOR' && a.sourceDocumentId===doc.work.identifier));
     assert.equal(question.coAuthorSource.documentFetchedAt,new Date(doc.fetchedAt).toISOString());
     assert.equal(question.coAuthorSource.rosterFetchedAt,store.get('rosterFetchedAt'));

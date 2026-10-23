@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {Window} from 'happy-dom';
 import {speakerPresentation} from './speakerPresentation.mjs';
 
@@ -22,9 +22,9 @@ test('person cards render dated affiliation, explicit null and legacy current-gr
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   t.after(async()=>{await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
-  const vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  t.after(()=>vite.close());
-  const {InsightPeople}=await vite.ssrLoadModule('/src/InsightShared.tsx');
+  const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  t.after(()=>loadModule.close());
+  const {InsightPeople}=await loadModule('/src/InsightShared.tsx');
   const person={id:'124846',name:'Pina Picierno',currentMep:false,group:'Renew'};
   const render=value=>renderToStaticMarkup(createElement(InsightPeople,{people:[value]}));
   assert.match(render({...person,affiliationGroup:'S&D'}),/S&amp;D/);

@@ -85,7 +85,7 @@ test('fallback language is visible and choosing a language changes only the exac
     return response(report,doc,{requestedLanguage:language});
   });
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'hu'});
-  assert(h.container.textContent.includes('Hungarian unavailable · showing English.'));
+  assert(h.container.textContent.includes('magyar unavailable · showing angol'));
   assert.equal(h.container.querySelector('.document-context-text').lang,'en');
   await h.change(h.container.querySelector('select'),'fr');
   assert.equal(h.container.querySelector('.document-context-text').lang,'fr');

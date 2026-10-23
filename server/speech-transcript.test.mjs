@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,rmSync,constants} from 'node:fs';
@@ -28,7 +29,7 @@ async function readerIdle(reader) {
   while(reader.busy&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,5));
   assert.equal(reader.busy,false,'reader releases its concurrency slot after worker exit');
 }
-test('corpus transcript reads retain XML, exact keys, languages and provenance without writes or upstream requests',async t=>{
+test('corpus transcript reads retain XML, exact keys, languages and provenance without writes or upstream requests',loopback,async t=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'retained-speech-'));
   const old={CORPUS_ENABLED:process.env.CORPUS_ENABLED,CORPUS_DIR:process.env.CORPUS_DIR};
   const store=new CorpusStore(directory);store.acquire();

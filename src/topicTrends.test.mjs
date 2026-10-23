@@ -2,15 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('timeline titles, milestones and missing metadata stay attached to exact dossier buttons through selection',async t=>{
   const window=new Window({url:'http://localhost/?trend-days=90'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,ResizeObserver:window.ResizeObserver,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const title='Complete official title '.repeat(30).trim(),calls=[];
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);calls.push(url);
@@ -21,8 +21,8 @@ test('timeline titles, milestones and missing metadata stay attached to exact do
       dossiers:Object.fromEntries(['published','signed','parliament-position','none'].map((state,i)=>['2025-000'+i,{title:i===0?title:'Official title '+i,titleLanguage:i===0?'fr':'en',reference:'2025/000'+i+'(COD)',status:{state,date:'2026-09-10'},fetchedAt:'2026-10-15T08:00:00Z'}])),
       topics:[{id:'http://eurovoc.europa.eu/1',label:'Transport',language:'en',dossiers:5,series:[{week:'2026-09-07',debates:1,votes:0,committee:0}],events:[{id:'exact-event',date:'2026-09-10',kind:'debates',procedures:[0,1,2,3,4].map(i=>({id:'2025-000'+i,reference:'2025/000'+i+'(COD)'}))}]}]});
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {TopicTrends}=await vite.ssrLoadModule('/src/TopicTrends.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {TopicTrends}=await loadModule('/src/TopicTrends.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(TopicTrends,{language:'en'})));

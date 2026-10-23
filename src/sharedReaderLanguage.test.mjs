@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const speech={id:'MTG-PL-2026-03-25-OTH-101',kind:'PLENARY_DEBATE_SPEECH',start:'2026-03-25T09:00:00Z',end:'2026-03-25T09:01:00Z'};
 const effective=node=>{assert(node,'Missing rendered language target');return node.closest('[lang]')?.getAttribute('lang');};
@@ -14,12 +14,12 @@ async function harness(t,locale,respond=()=>{throw Error('Unexpected fixture req
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   const endpoints=new WeakMap();
   Object.defineProperty(window.HTMLIFrameElement.prototype,'contentWindow',{get(){if(!endpoints.has(this))endpoints.set(this,{postMessage(){}});return endpoints.get(this);}});
-  let vite,root;const calls=[];
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;const calls=[];
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,window.location.href);assert.equal(url.origin,'http://localhost');calls.push(url);return Response.json(await respond(url));});
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  return {window,container,calls,load:path=>vite.ssrLoadModule('/src/'+path+'.tsx'),render:element=>act(async()=>root.render(element)),click:element=>act(async()=>{element.focus();element.click();})};
+  return {window,container,calls,load:path=>loadModule('/src/'+path+'.tsx'),render:element=>act(async()=>root.render(element)),click:element=>act(async()=>{element.focus();element.click();})};
 }
 
 test('player controls, unavailable states and parent-frame text stay English under EN/HU/FR source selections',async t=>{
@@ -73,9 +73,9 @@ test('comparison source wording keeps exact actual/unknown metadata while Englis
     assert.equal(sourceDate.textContent,new Intl.DateTimeFormat(locale,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date('2026-03-25')));
     const selects=h.container.querySelectorAll('select');
     assert.equal(effective(selects[0].querySelector('option')),'en');assert.equal(effective(selects[1]),'en');
-    for(const option of selects[1].options){assert.equal(effective(option),locale);assert.equal(option.textContent,new Intl.DisplayNames([locale],{type:'language'}).of(option.value));}
-    const fallback=h.container.querySelector('.explorer-diff-notice');
-    if(actual&&actual!==locale){assert.equal(effective(fallback),'en');assert([...fallback.querySelectorAll('span')].every(node=>effective(node)===locale));assert.equal(fallback.textContent,new Intl.DisplayNames([locale],{type:'language'}).of(locale)+' is unavailable in one or both texts. Showing '+new Intl.DisplayNames([locale],{type:'language'}).of(actual)+'.');}
+    for(const option of selects[1].options){assert.equal(effective(option),option.value);assert.equal(option.textContent,new Intl.DisplayNames([option.value],{type:'language'}).of(option.value));}
+    const fallback=h.container.querySelector('.text-language-note');
+    if(actual&&actual!==locale){assert.equal(effective(fallback),'en');assert([...fallback.querySelectorAll('span')].every(node=>effective(node)===locale));assert.equal(fallback.textContent,new Intl.DisplayNames([locale],{type:'language'}).of(locale)+' unavailable in one or both texts · showing '+new Intl.DisplayNames([locale],{type:'language'}).of(actual));}
     else assert.equal(fallback,null,'unknown metadata never invents a fallback-language notice');
     await h.click([...h.container.querySelectorAll('.explorer-diff-views button')].find(node=>node.textContent==='Full text'));
     assert.equal(effective(h.container.querySelector('.explorer-diff-reader h5')),'en');assert.equal(effective(h.container.querySelector('.explorer-diff-reader .explorer-diff-reference')),'en');
