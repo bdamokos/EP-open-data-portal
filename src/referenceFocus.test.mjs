@@ -18,7 +18,7 @@ async function reader(t,{heading=true,citationInNotes=false}={}) {
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of requests)if(!request.finished)request.resolve(Response.json({}));if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of requests)if(!request.finished)request.resolve(Response.json({}));t.mock.timers.reset();if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){scrolls.push({element:this,options});});
   t.mock.method(globalThis,'fetch',input=>{
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1]+url.search;
@@ -30,6 +30,11 @@ async function reader(t,{heading=true,citationInNotes=false}={}) {
   const {ReferenceScope,ReferenceText,DocumentNotes}=await vite.ssrLoadModule('/src/References.tsx');
   const {InsightQuestionReader}=await vite.ssrLoadModule('/src/InsightReaders.tsx');
   const {createRoot}=await import('react-dom/client');
+  // Module loading uses real timers; only mounted application deadlines are advanced.
+  t.mock.timers.enable({apis:['setTimeout']});
+  t.mock.method(window,'setTimeout',(callback,ms,...args)=>setTimeout(callback,ms,...args));
+  t.mock.method(window,'clearTimeout',timer=>clearTimeout(timer));
+  const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const notes=citationInNotes?[{id:'1',label:'1',text,links:[]}]:[];
   const render=(showCitation=true)=>act(async()=>root.render(createElement(heading?'section':'div',null,
@@ -45,7 +50,7 @@ async function reader(t,{heading=true,citationInNotes=false}={}) {
     if(error)request.reject(new Error('Fixture document unavailable'));else request.resolve(Response.json(documentResponse(id,paragraphs)));
   });
   await render();
-  return {window,container,scrolls,render,click,findButton,finish,citation:()=>container.querySelector('button.legal-ref'),open:async(trigger=container.querySelector('button.legal-ref'))=>{await click(trigger);const card=container.querySelector('.legal-reference-card');assert.equal(document.activeElement,card);return card;}};
+  return {window,container,scrolls,tick,render,click,findButton,finish,citation:()=>container.querySelector('button.legal-ref'),open:async(trigger=container.querySelector('button.legal-ref'))=>{await click(trigger);const card=container.querySelector('.legal-reference-card');assert.equal(document.activeElement,card);return card;}};
 }
 
 test('pinned reference Close and Escape return to the exact citation without resize refocusing its controls',async t=>{
@@ -62,7 +67,10 @@ test('pinned reference Close and Escape return to the exact citation without res
 
 test('a hover preview neither focuses nor scrolls until the citation is explicitly pinned',async t=>{
   const h=await reader(t),citation=h.citation(),retained=h.container.querySelector('#retained');retained.focus();
-  await act(async()=>{citation.dispatchEvent(new h.window.PointerEvent('pointerover',{pointerType:'mouse',bubbles:true}));await new Promise(resolve=>setTimeout(resolve,375));});
+  await act(async()=>citation.dispatchEvent(new h.window.PointerEvent('pointerover',{pointerType:'mouse',bubbles:true})));
+  await h.tick(349);assert.equal(h.container.querySelector('.legal-reference-card'),null,'hover must not open early');
+  assert.equal(document.activeElement,retained);assert.equal(h.scrolls.length,0);
+  await h.tick(1);
   assert(h.container.querySelector('.legal-reference-card'),'the existing fine-pointer hover preview remains available');
   assert.equal(document.activeElement,retained);assert.equal(h.scrolls.length,0);
   await h.open(citation);assert.equal(h.scrolls.length,1);

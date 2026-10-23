@@ -95,18 +95,27 @@ test('top-level rate errors show a countdown and enable retry after the cooldown
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let vite,root;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());t.mock.timers.reset();if(vite)await vite.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  t.mock.method(globalThis,'fetch',async()=>Response.json({error:{message:'Parliament is temporarily limiting requests.',retryAt:Date.now()+500}},{status:503}));
+  let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({error:{message:'Parliament is temporarily limiting requests.',retryAt:Date.now()+500}},{status:503});});
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {SpeechContextPanel}=await vite.ssrLoadModule('/src/SpeechInterventions.tsx');
+  t.mock.timers.enable({apis:['Date','setInterval','setTimeout'],now:Date.now()});
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id:'MTG-PL-2026-03-25-OTH-2017069380108',language:'en'})));
   await act(async()=>container.querySelector('button').click());
   const retry=()=>[...container.querySelectorAll('button')].find(button=>button.textContent.startsWith('Retry sequence'));
   assert.equal(retry().disabled,true);assert.match(retry().textContent,/in 1s/);
-  await act(async()=>new Promise(resolve=>setTimeout(resolve,1100)));
+  await act(async()=>{t.mock.timers.tick(499);});assert.equal(retry().disabled,true);
+  await act(async()=>retry().click());assert.equal(calls,1,'cooldown blocks early retry');
+  // This countdown samples once per second: the original 500ms hint is
+  // reflected at the first 1000ms update, without an automatic request.
+  await act(async()=>{t.mock.timers.tick(1);});assert.equal(calls,1);
+  await act(async()=>{t.mock.timers.tick(499);});assert.equal(retry().disabled,true);
+  await act(async()=>{t.mock.timers.tick(1);});
+  assert.equal(calls,1,'expiry enables retry without automatically requesting');
   assert.equal(retry().disabled,false);assert.equal(retry().textContent,'Retry sequence');
 });
 

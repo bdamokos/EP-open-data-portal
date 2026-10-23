@@ -57,7 +57,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
   let root,vite;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    if(vite)await vite.close();await window.happyDOM.close();
+    t.mock.timers.reset();if(vite)await vite.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(unexpected,[],'every fetch stays within the isolated app fixtures');
   });
@@ -87,10 +87,13 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {default:App}=await vite.ssrLoadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');
+  // Module loading uses real timers; only mounted application deadlines are advanced.
+  t.mock.timers.enable({apis:['setTimeout']});
+  const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(App)));
   const click=node=>{assert(node,'Missing control');return act(async()=>node.click());};
-  return {window,container,click,requests,wait:()=>act(async()=>new Promise(resolve=>setTimeout(resolve,400)))};
+  return {window,container,click,requests,tick,wait:()=>tick(350)};
 }
 
 for(const language of ['en','hu','fr']) {
