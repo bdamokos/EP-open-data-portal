@@ -1,3 +1,4 @@
+import {createMembershipStore,MEMBERSHIP_KEY,membershipIsNew,type MembershipSnapshot} from './followMembership.mjs';
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import {api,expireActivityReads} from './data';
 import {postSavedQuestions} from './followingTransport';
@@ -6,14 +7,25 @@ import {itemHasNew,nextExpiry} from './followUpdates.mjs';
 import {interfaceTerm,compoundLanguage} from './terms.mjs';
 const listeners=new Set<()=>void>();let storage:Storage|null=null;
 try{storage=window.localStorage;}catch{}
-export const savedStore=createSavedStore(storage,()=>{listeners.forEach(listener=>listener());queueMicrotask(refreshSavedClock);});
-window.addEventListener('storage',event=>{if(event.key==='ep.bookmarks.v1'||event.key==='ep.following.v2'||event.key===null)savedStore.reload(event.key);});
+const membershipListeners=new Set<()=>void>();
+export const membershipStore=createMembershipStore(storage,()=>{membershipListeners.forEach(listener=>listener());queueMicrotask(refreshSavedClock);});
+type MembershipCheck='unknown'|'available'|'unavailable'|'error';
+let membershipCheck:MembershipCheck='unknown';
+const membershipCheckListeners=new Set<()=>void>();
+function setMembershipCheck(value:MembershipCheck){membershipCheck=value;membershipCheckListeners.forEach(listener=>listener());}
+export function useMembershipCheck(){return useSyncExternalStore(callback=>{membershipCheckListeners.add(callback);return()=>membershipCheckListeners.delete(callback);},()=>membershipCheck);}
+export function useMembership(){return useSyncExternalStore(callback=>{membershipListeners.add(callback);return()=>membershipListeners.delete(callback);},membershipStore.snapshot);}
+export const savedStore=createSavedStore(storage,()=>{listeners.forEach(listener=>listener());queueMicrotask(()=>{membershipStore.syncFollows(savedStore.snapshot().items);refreshSavedClock();});});
+membershipStore.syncFollows(savedStore.snapshot().items);
+window.addEventListener('storage',event=>{if(event.key===MEMBERSHIP_KEY||event.key===null)membershipStore.reload();if(event.key==='ep.bookmarks.v1'||event.key==='ep.following.v2'||event.key===null)savedStore.reload(event.key);});
 export function useSaved(){return useSyncExternalStore(callback=>{listeners.add(callback);return()=>listeners.delete(callback);},savedStore.snapshot);}
 let savedNow=Date.now(),expiryTimer:ReturnType<typeof setTimeout>|undefined;
 const clockListeners=new Set<()=>void>();
 function refreshSavedClock() {
   savedNow=Date.now();clearTimeout(expiryTimer);
-  const expiry=nextExpiry(savedStore.snapshot().items,savedNow);
+  const membershipExpiry=membershipStore.snapshot().entries.filter(entry=>membershipIsNew(entry,savedNow)).map(entry=>entry.discoveredAt+24*60*60*1000);
+  const deadlines=[nextExpiry(savedStore.snapshot().items,savedNow),...membershipExpiry].filter((value):value is number=>value!==null);
+  const expiry=deadlines.length?Math.min(...deadlines):null;
   if(clockListeners.size&&expiry!==null)expiryTimer=setTimeout(refreshSavedClock,Math.max(1,expiry-savedNow));
   clockListeners.forEach(listener=>listener());
 }
@@ -87,7 +99,7 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
         lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status');
       }
       expected=status;
-    }catch(error){savedStore.setCheckState('error');if(hasMembers)failures.push(error);}
+    }catch(error){savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');failures.push(error);}}
     let data:SavedStates={questions:[],checkedAt:'',coverage:{indexComplete:expected?.indexComplete===true}};
     const questions=items.filter(item=>item.kind==='question'),questionKey=taskKey(language,questions);
     // Question sources do not depend on marker readiness or manifest processing.
@@ -117,7 +129,18 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
         savedStore.setCheckState('available');
       }catch(error){savedStore.setCheckState((error as {code?:string}).code==='marks_unavailable'?'unavailable':'error');failures.push(error);}
     };
-    await Promise.all([checkQuestions(),checkMembers()]);
+    const checkMembership=async()=>{
+      if(!hasMembers||!expected)return;
+      if(expected.membershipReady===false){membershipStore.unavailable();setMembershipCheck('unavailable');return;}
+      if(expected.membershipReady!==true)return;
+      try {
+        const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
+        const snapshot=await api<MembershipSnapshot>('insights/following-membership?'+params);verify(snapshot,expected);
+        if(!membershipStore.observe(snapshot,savedStore.snapshot().items))throw Error('Invalid membership snapshot.');
+        setMembershipCheck(Object.values(snapshot.lists).some(list=>list.status==='unavailable')?'unavailable':'available');
+      }catch(error){setMembershipCheck('error');failures.push(error);}
+    };
+    await Promise.all([checkQuestions(),checkMembers(),checkMembership()]);
     if(failures.length)throw failures[0];
     expireActivityReads();return {data,requestedKey};
   };
@@ -180,6 +203,6 @@ export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;co
   return <><button className={'explorer-save-button'+(saved?' is-saved':'')} lang={item.title?compoundLanguage(label.language,item.titleLanguage):label.language} aria-label={`${name}${item.title?' · '+item.title:''}`} aria-pressed={saved} title={tooltip} onClick={()=>{try{savedStore.toggle(item);setError('');}catch(e){setError((e as Error).message);}}}><span aria-hidden="true">{saved?'★':'☆'}</span>{!compact&&<span lang={label.language}>{label.text}</span>}</button>{error&&<small role="alert" lang="en">{error}</small>}</>;
 }
 export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:boolean}) {
-  const saved=useSaved(),now=useSavedNow(),items=saved.items,updates=items.filter(item=>itemHasNew(item,now)).length;
+  const membership=useMembership(),saved=useSaved(),now=useSavedNow(),items=saved.items,updates=items.filter(item=>itemHasNew(item,now)||item.kind==='mep'&&membership.entries.some(entry=>entry.mep===item.id&&membershipIsNew(entry,now))).length;
   return <button onClick={onClick} lang="en" aria-current={current?'page':undefined}>Following{updates>0?<span className="explorer-saved-count">{updates} new</span>:items.length>0?<small> {items.length}</small>:null}</button>;
 }

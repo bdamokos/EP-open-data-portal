@@ -270,8 +270,9 @@
 }
 
 .explorer-saved-entry {margin:14px 0;min-width:0;}
-.explorer-saved-disclosure {display:block;padding:10px;border:1px solid var(--line);border-radius:var(--radius-sm);overflow-wrap:anywhere;}
-.explorer-saved-disclosure>span {margin-right:6px;}
+.explorer-saved-disclosure,.explorer-membership-link {display:block;padding:10px;border:1px solid var(--line);border-radius:var(--radius-sm);overflow-wrap:anywhere;}
+.explorer-saved-disclosure>span,.explorer-membership-link .explorer-saved-new {margin-right:6px;}
+.explorer-membership-entry>button {margin-top:6px;}
 .explorer-saved-disclosure small {display:block;margin-top:5px;color:var(--ink-muted);}
 .explorer-saved-new {display:inline-block;padding:1px 6px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-size:12px;}
 .explorer-saved-history {margin-top:16px;}

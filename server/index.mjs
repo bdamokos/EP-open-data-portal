@@ -193,7 +193,7 @@ async function handleApi(request,response,url,apiPrefix){
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'group-voices') {
       result=groupVoicesPage(activityIndex().store,groupVoicesQuery(url.searchParams));
     }
-    else if (segments.length === 2 && segments[0] === 'insights' && ['following-status','following-manifest','following-member'].includes(segments[1])) {
+    else if (segments.length === 2 && segments[0] === 'insights' && ['following-status','following-manifest','following-member','following-membership'].includes(segments[1])) {
       const reply=followingResponse(activityIndex().store,segments[1],url.searchParams);
       const cacheControl=request.headers.authorization?'no-store':reply.cacheControl||'no-store';
       sendJson(request,response,reply.status,reply.body,{cacheControl,cdnCacheControl:currentVersion?cacheControl:'no-store'});
