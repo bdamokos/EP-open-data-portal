@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -7,7 +8,7 @@ import path from 'node:path';
 import {API_VERSION} from './api-version.mjs';
 
 // The ephemeral HTTP listener is an offline route test; no source workers start.
-test('following and saved POST transports validate, version, cache and revalidate retained snapshots',async t=>{
+test('following and saved POST transports validate, version, cache and revalidate retained snapshots',loopback,async t=>{
   const directory=await mkdtemp(path.join(tmpdir(),'following-http-'));
   for(const [key,value] of Object.entries({ACTIVITY_INDEX_ENABLED:'true',ACTIVITY_INDEX_DIR:directory,ODP_CACHE_DIR:'',CORPUS_DIR:'',CORPUS_ENABLED:'false',EXPLORER_DIST_DIR:directory})) {
     const old=process.env[key];process.env[key]=value;t.after(()=>{if(old===undefined)delete process.env[key];else process.env[key]=old;});
