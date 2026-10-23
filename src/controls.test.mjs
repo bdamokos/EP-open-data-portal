@@ -252,3 +252,19 @@ test('Members filters sort displayed labels in every interface language and pres
     assert.equal(h.container.querySelectorAll('.explorer-portrait-item').length,2,'both Greek aliases match the selected filter');
   });
 });
+
+test('Members list portraits follow and unfollow MEPs without opening the profile',async t=>{
+  const h=await harness(t,'');
+  const {default:App}=await h.load('/src/App.tsx');
+  await h.render(createElement(App));
+  const star=()=>h.container.querySelector('[data-member-id="257043"] .explorer-portrait-follow button');
+  assert.equal(star().closest('.portrait--button'),null,'the star is not nested in the portrait button');
+  for(const [index,saved] of [false,true,false].entries()) {
+    assert.equal(star().getAttribute('aria-pressed'),String(saved));
+    assert.equal(star().getAttribute('aria-label'),`${saved?'Following':'Follow'} MEP · Mika Aaltola`);
+    assert.equal(JSON.parse(h.window.localStorage.getItem('ep.bookmarks.v1')||'{"items":[]}').items.some(item=>item.kind==='mep'&&item.id==='257043'),saved);
+    if(index<2)await h.click(star());
+  }
+  assert(h.container.querySelector('.explorer-portraits'),'the list stays open');
+  assert.equal(new URL(location.href).searchParams.get('member'),null);
+});

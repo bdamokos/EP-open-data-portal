@@ -963,6 +963,9 @@ export default function App() {
                             setTab("speeches");
                           }}
                         />
+                        <div className="explorer-portrait-follow">
+                          <SaveButton compact item={{kind:'mep',id:String(m.id),title:[m.firstName,m.lastName].filter(Boolean).join(' ')}}/>
+                        </div>
                         {committee && (
                           <small>
                             {m.memberships
