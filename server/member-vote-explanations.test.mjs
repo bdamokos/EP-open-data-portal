@@ -122,14 +122,21 @@ test('normal paging cannot erase missing-result or invalid-agenda graph uncertai
   }
 });
 
-test('a competing document result remains ambiguous when its referenced agenda record is missing',async()=>{
+test('missing, malformed and matching document identities cannot exclude a result whose agenda is unresolved',async()=>{
+  for(const documents of [undefined,[],['eli/dl/doc/A-10-2026-0045'],[{id:'eli/dl/doc/A-10-2026-0045',identifier:'A-10-2026-9999'}]]) {
+    const day=dayFixture(),result=day.results.find(row=>row.consists_of.includes('eli/dl/event/'+FINAL));
+    const other={...structuredClone(result),id:'eli/dl/event/'+SITTING+'-VOT-ITM-999',activity_id:SITTING+'-VOT-ITM-999',consists_of:[],executed:['eli/dl/event/'+SITTING+'-OJ-ITM-V-999']};
+    if(documents===undefined)delete other.based_on_a_realization_of;else other.based_on_a_realization_of=documents;
+    day.results.push(other);day.coverage.completeness.unresolvedAgendaItemIds=other.executed;
+    const response=await setup({day}).service.query(MEMBER,query());
+    assert.deepEqual(response.items,[],JSON.stringify(documents));assert.equal(response.coverage.searchComplete,false);
+    assert.equal(response.presentationAnchorDecisionId,null);
+    assert.deepEqual(response.voteGraphGaps,day.coverage.completeness.unresolvedAgendaItemIds);
+  }
   const day=dayFixture(),result=day.results.find(row=>row.consists_of.includes('eli/dl/event/'+FINAL));
-  day.results.push({...structuredClone(result),id:'eli/dl/event/'+SITTING+'-VOT-ITM-999',activity_id:SITTING+'-VOT-ITM-999',consists_of:[],executed:['eli/dl/event/'+SITTING+'-OJ-ITM-V-999']});
+  day.results.push({...structuredClone(result),id:'eli/dl/event/'+SITTING+'-VOT-ITM-999',activity_id:SITTING+'-VOT-ITM-999',consists_of:[],executed:['eli/dl/event/'+SITTING+'-OJ-ITM-V-999'],based_on_a_realization_of:['eli/dl/doc/A-10-2026-9999']});
   day.coverage.completeness.unresolvedAgendaItemIds=['eli/dl/event/'+SITTING+'-OJ-ITM-V-999'];
-  const response=await setup({day}).service.query(MEMBER,query());
-  assert.deepEqual(response.items,[]);assert.equal(response.coverage.searchComplete,false);assert.equal(response.coverage.status,'partial');
-  assert.equal(response.presentationAnchorDecisionId,null);
-  assert.deepEqual(response.voteGraphGaps,day.coverage.completeness.unresolvedAgendaItemIds);
+  assert.equal((await setup({day}).service.query(MEMBER,query())).items.length,1,'a verified other document can exclude an unrelated missing agenda');
 });
 
 test('transcript IDs, speech notation and chapter containment must agree before classification or source linking',()=>{
@@ -148,7 +155,7 @@ test('transcript IDs, speech notation and chapter containment must agree before 
 });
 
 test('the real vote collector propagates missing declared results and inconsistent competing agenda identities',async()=>{
-  for(const fault of [null,'missing-result','invalid-agenda']) {
+  for(const fault of [null,'missing-result','invalid-agenda','identifier-conflict']) {
     const day=dayFixture(),result=day.results.find(row=>row.consists_of.includes('eli/dl/event/'+FINAL));
     const decisions=day.decisions.filter(row=>result.consists_of.includes(row.id));
     const agenda=day.agenda.filter(row=>result.executed.includes(row.id));
@@ -156,15 +163,16 @@ test('the real vote collector propagates missing declared results and inconsiste
     for(const parent of result.inverse_consists_of||[])if(typeof parent==='object'&&parent.id===meeting.id)parent.consists_of=[result.id];
     if(fault==='missing-result')meeting.consists_of.push('eli/dl/event/'+SITTING+'-VOT-ITM-999999');
     if(fault==='invalid-agenda')agenda.push({...structuredClone(agenda[0]),id:'eli/dl/event/'+SITTING+'-OJ-ITM-V-999',activity_id:SITTING+'-OJ-ITM-V-998'});
+    if(fault==='identifier-conflict')agenda.push({...structuredClone(agenda[0]),id:'eli/dl/event/'+SITTING+'-OJ-ITM-V-999',activity_id:SITTING+'-OJ-ITM-V-999',identifier:SITTING+'-OJ-ITM-V-998'});
     const request=async(endpoint,params={})=>({url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.now(),payload:{data:
       (endpoint==='/meetings/'+SITTING?[meeting]:endpoint.endsWith('/decisions')?decisions:endpoint.endsWith('/vote-results')?[result]:agenda).slice(params.offset||0,(params.offset||0)+(params.limit||10000))}});
     const votes=new MemberVotes({request}),q=memberVotesQuery(new URLSearchParams({sitting:SITTING,decision:FINAL})),snapshot=await votes.snapshot(q);
-    assert.equal(snapshot.days[0].coverage.state,fault?'partial':'complete');
+    assert.equal(snapshot.days[0].coverage.state,fault&&fault!=='identifier-conflict'?'partial':'complete');
     let speechReads=0;
     const explanations=new MemberVoteExplanations({votes,request:async endpoint=>{speechReads++;return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.now(),payload:{data:endpoint==='/speeches'?[rows('speeches').find(row=>row.activity_id.endsWith('2706'))]:rows('parent9-3'),...(endpoint==='/speeches'?{meta:{total:1}}:{})}};}});
     const response=await explanations.query(MEMBER,{...q,snapshot:snapshot.id});
     assert.equal(response.items.length,fault?0:1);
     assert.equal(response.coverage.searchComplete,!fault);
-    if(fault){assert.equal(speechReads,0);assert.equal(response.presentationAnchorDecisionId,null);assert(response.coverage.gaps.some(gap=>gap.code==='vote-graph-incomplete'));}
+    if(fault){assert.equal(speechReads,0);assert.equal(response.presentationAnchorDecisionId,null);assert(response.coverage.gaps.some(gap=>['vote-graph-incomplete','vote-identity-conflict'].includes(gap.code)));}
   }
 });

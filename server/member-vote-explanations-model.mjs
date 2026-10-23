@@ -18,6 +18,12 @@ function graphGaps(day) {
     if(!Array.isArray(complete?.[field]))gaps.push({code:'vote-graph-unavailable',field});
     else if(complete[field].length)gaps.push({code:'vote-graph-incomplete',field,ids:complete[field]});
   }
+  for(const kind of ['agenda','results'])for(const node of list(day[kind])) {
+    if(!sameDay(node,day))gaps.push({code:'vote-identity-conflict',kind,details:{id:node.id,activity_id:node.activity_id,identifier:node.identifier}});
+    for(const [field,type] of [['based_on_a_realization_of','doc'],...(kind==='results'?[['executed','event']]:[])]) {
+      if(!validRefs(node[field],type))gaps.push({code:'vote-reference-conflict',kind,id:node.activity_id,field,references:node[field]});
+    }
+  }
   return gaps;
 }
 
@@ -80,6 +86,13 @@ export function matchVoteExplanation(activity,parent,day,context,memberId) {
   // known agenda edge; unrelated missing agenda records do not hide this link.
   const documentResults=list(day.results).filter(node=>references(node.based_on_a_realization_of,'doc').some(id=>documents.includes(id)));
   if(documentResults.length!==1||eventUri(documentResults[0])!==subject.uri)return {item:null,gap:'explanation-result-unresolved'};
+  for(const other of list(day.results).filter(node=>eventUri(node)!==subject.uri&&!references(node.based_on_a_realization_of,'doc').length)) {
+    const agendas=references(other.executed);
+    if(!agendas.length||agendas.some(uri=>{
+      const node=list(day.agenda).find(node=>eventUri(node)===uri),docs=references(node?.based_on_a_realization_of,'doc');
+      return !node||!docs.length||docs.some(id=>documents.includes(id));
+    }))return {item:null,gap:'explanation-result-scope-unavailable'};
+  }
   const results=list(day.results).filter(node=>references(node.executed).includes(agendaUri));
   if(results.length!==1||eventUri(results[0])!==subject.uri)return {item:null,gap:results.length===1?null:'explanation-result-unresolved'};
   if(!validRefs(result.executed)||references(result.executed).length!==1||!validRefs(result.based_on_a_realization_of,'doc')||
