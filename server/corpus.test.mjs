@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {unthrottledUpstream} from './test-support/upstream.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -352,7 +353,7 @@ test('status has its own bounded warm-up timeout and remains retryable',async t=
   } finally {t.mock.timers.reset();s.cleanup();}
 });
 
-test('the actual health route responds during initial question-file discovery',async()=>{
+test('the actual health route responds during initial question-file discovery',loopback,async()=>{
   const s=stores();addQuestions(s.index);
   const worker=new CorpusWorker(s.corpus,{runUpstream:unthrottledUpstream,clock:instant});
   let incompleteAtResponse=false;
@@ -371,7 +372,7 @@ test('the actual health route responds during initial question-file discovery',a
   } finally {await new Promise(resolve=>server.close(resolve));s.cleanup();}
 });
 
-test('speech ingestion serves the event loop between language parses and retains all source data',async()=>{
+test('speech ingestion serves the event loop between language parses and retains all source data',loopback,async()=>{
   const s=stores(),langs=['en','fr','de'];
   const data=Array.from({length:3},(_,n)=>speech('MTG-PL-2026-07-08-OTH-'+(n+1),Object.fromEntries(langs.map(lang=>[lang,fragment(lang,'Ocean '+('<w>policy</w> '.repeat(300)),lang==='en'?lang:lang+'-t-en-mtec')]))));
   const task={key:'page',kind:'speeches',body:{start:'2026-07-01',end:'2026-07-31',offset:0,limit:25}};
@@ -744,7 +745,7 @@ test('search options reject malformed and overlarge scopes without broadening an
   }
 });
 
-test('HTTP search POST and exact text GET are bounded read-only routes with strict validation',async()=>{
+test('HTTP search POST and exact text GET are bounded read-only routes with strict validation',loopback,async()=>{
   const s=stores(),id=question.identifier;
   const savedEnv=Object.fromEntries(['CORPUS_ENABLED','CORPUS_DIR','ACTIVITY_INDEX_DIR','ODP_CACHE_DIR'].map(key=>[key,process.env[key]]));
   putText(s.corpus,id,'question','2026-05-01','en','Ocean <b>policy</b>');

@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { clipUrl, matchRecording, officialEmbed, recordingDetail, speechMedia, validateCatalogue } from './mmc.mjs';
@@ -93,7 +94,7 @@ test('catalogue snapshots reject changed source origins, duplicate IDs and incom
   assert.throws(()=>validateCatalogue({...catalogue,records:[catalogue.records[0],catalogue.records[0]],total:2}));
   assert.throws(()=>validateCatalogue({...catalogue,sourcePages:[{url:'https://evil.example/search',status:200}]}));
 });
-test('HTTP media endpoint rejects methods, origins, duplicate/unknown queries and invalid language before upstream work',async()=>{
+test('HTTP media endpoint rejects methods, origins, duplicate/unknown queries and invalid language before upstream work',loopback,async()=>{
   const {server}=await import('./index.mjs');
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base='http://127.0.0.1:'+server.address().port+'/api/speech-media/'+speech.id;
