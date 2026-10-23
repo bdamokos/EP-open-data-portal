@@ -5,7 +5,7 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {createServer} from 'vite';
 import {Window} from 'happy-dom';
 
-test('current committee cards show former role levels, merged chair service and localized current roles',async t=>{
+test('current committee cards render already merged role history and localized current roles',async t=>{
   const vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>vite.close());
   const {CommitteeMemberships}=await vite.ssrLoadModule('/src/CommitteeMemberships.tsx');
   const committee={id:'6363',code:'FEMM',names:{en:'Women’s Rights and Gender Equality',hu:'Nőjogi és Esélyegyenlőségi Bizottság'}};

@@ -24,6 +24,8 @@ test('dossier press releases keep exact links and English titles without a cover
     item('20261015IPR48200','Second release','2026-10-15T13:18:00.000Z'),
     item('20261012IPR48100','Third release','2026-10-12T08:00:00.000Z'),
     item('20261011IPR48090','Fourth release','2026-10-11T08:00:00.000Z'),
+    item('20261010IPR48080','Fifth release','2026-10-10T08:00:00.000Z'),
+    item('20261009IPR48070','Sixth release','2026-10-09T08:00:00.000Z'),
   ];
   const requested=[];let answerSummary,failures=0;
   const pendingSummary=new Promise(resolve=>{answerSummary=resolve;});
@@ -49,6 +51,7 @@ test('dossier press releases keep exact links and English titles without a cover
   assert.equal(section.querySelector('h4').textContent,'Parliament press releases · latest 3 of 6');
   const links=[...section.querySelectorAll('li a')];
   assert.deepEqual(links.map(link=>link.getAttribute('href')),items.slice(0,3).map(entry=>entry.url),'agenda items show at most three');
+  assert.deepEqual(links.map(link=>link.querySelector('span').textContent),items.slice(0,3).map(entry=>entry.title));
   assert(links.every(link=>link.target==='_blank'&&link.rel==='noreferrer'));
   assert.equal(links[0].querySelector('span').getAttribute('lang'),'en','titles stay English inside any interface language');
   const details=[...section.querySelectorAll('li small')];
@@ -56,7 +59,13 @@ test('dossier press releases keep exact links and English titles without a cover
   assert.equal(details[0].querySelector('time').getAttribute('lang'),'fr');
   assert.equal(section.querySelector('.press-mentions-scope'),null);
   await act(async()=>root.render(createElement(ProcedureContext,{reference,language:'fr',showTitle:true})));
-  assert.equal(container.querySelectorAll('.press-mentions li').length,4,'the dossier view shows up to five');
+  const dossier=container.querySelector('.press-mentions');
+  assert.equal(dossier.querySelector('h4').textContent,'Parliament press releases · latest 5 of 6');
+  const dossierLinks=[...dossier.querySelectorAll('li a')];
+  assert.deepEqual(dossierLinks.map(link=>link.getAttribute('href')),items.slice(0,5).map(entry=>entry.url),'dossiers show exactly the first five of six releases');
+  assert.deepEqual(dossierLinks.map(link=>link.querySelector('span').textContent),items.slice(0,5).map(entry=>entry.title));
+  assert(dossierLinks.every(link=>link.target==='_blank'&&link.rel==='noreferrer'));
+  assert(dossierLinks.every(link=>link.querySelector('span').getAttribute('lang')==='en'));
   await act(async()=>root.render(createElement(ProcedureContext,{reference:empty,language:'fr'})));
   assert.deepEqual(requested.at(-1),empty);
   assert.equal(container.querySelector('.press-mentions'),null,'no found items render nothing, not a zero');
