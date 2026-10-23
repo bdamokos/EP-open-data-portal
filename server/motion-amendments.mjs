@@ -109,7 +109,7 @@ function indexedOutcome(store,source,id) {
 function textMetadata(store,id,source,language,member,{adopted=false}={}) {
   const work=source?.work,sources=source?[metadataSource(id,source.fetchedAt)]:[];
   const titles=work?.title_dcterms || Object.assign({},...array(work?.is_realized_by).map(expression=>expression.title || {}));
-  const titleLanguage=languagePreference(Object.keys(titles),language).find(code=>typeof titles[code]==='string'&&titles[code]);
+  const titleLanguage=languagePreference(Object.keys(titles).filter(code=>typeof titles[code]==='string'&&titles[code].trim()),language)[0];
   const files=work?documentFiles(work).filter(file=>['PDF','DOCX'].includes(file.format)):[];
   const availableLanguages=languagePreference(files.map(file=>file.language).filter(Boolean),language);
   const preferred=code=>files.find(file=>file.language===code&&file.format==='PDF') || files.find(file=>file.language===code);
@@ -118,7 +118,7 @@ function textMetadata(store,id,source,language,member,{adopted=false}={}) {
   const selected=authors.find(author=>String(author.id)===member);
   const observedAuthors=Boolean(work&&!adopted&&(work.creator!=null||work.workHadParticipation!=null));
   return {id,reference:motionReference(id),status:source?'indexed':'unavailable',kind:source?adopted?'adopted':id.startsWith('RC-')?'joint':'original':null,
-    title:titleLanguage?titles[titleLanguage]:id,titleLanguage:titleLanguage || null,date:work?.document_date || null,
+    title:titleLanguage!==undefined?titles[titleLanguage]:id,titleLanguage:titleLanguage || null,date:work?.document_date || null,
     files,availableLanguages,preferredFile,languageFallback:preferredFile?.language?preferredFile.language!==language:null,
     authors,memberAuthorship:{memberId:member,status:!member?'not-requested':selected?'recorded':observedAuthors?'not-recorded':'unavailable',relationships:selected?.relationships || [],sources},
     outcome:adopted?{status:'unavailable',reason:'adopted-text-is-not-a-motion-decision',totalsStatus:'unavailable',evidenceGaps:[]}:indexedOutcome(store,source,id),

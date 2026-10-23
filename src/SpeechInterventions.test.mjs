@@ -35,8 +35,8 @@ test('procedural notes explain later contributions without speech controls, whil
   const {SpeechContextPanel}=await vite.ssrLoadModule('/src/SpeechInterventions.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{key:first.id,id:first.id,language:'en'})));
-  const caption=window.document.querySelector('.intervention-debate > .intervention-caption');assert.equal(caption.textContent,'Débat français');assert.equal(caption.lang,'fr');
   await act(async()=>container.querySelector('button').click());
+  const caption=window.document.querySelector('.intervention-debate > .intervention-caption');assert.equal(caption.textContent,'Débat français');assert.equal(caption.lang,'fr');
   const entries=[...container.querySelectorAll('.intervention-sequence>li')];
   assert.equal(entries.length,4);assert.match(entries[1].textContent,/The sitting was briefly suspended/);
   assert.match(entries[2].textContent,/ESTEBAN GONZÁLEZ PONSVice-President · Chairing the sitting/);
