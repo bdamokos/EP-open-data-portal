@@ -7,7 +7,7 @@ import {instructionOperation} from './proposal-instructions.mjs';
 import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel,normaliseForMatching};
-export const PROPOSAL_PARSER_VERSION='4';
+export const PROPOSAL_PARSER_VERSION='5';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -81,7 +81,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   const sourceHash=Buffer.isBuffer(input)||input instanceof Uint8Array?createHash('sha256').update(input).digest('hex'):hash.digest('hex');
   // parseProposal supplies the same effective URL used by its cache key.
   const namespace=createHash('sha256').update(JSON.stringify({identity,sourceUrl,sourceHash,language,item})).digest('hex').slice(0,24);
-  const gaps=[],objectsByParagraph=new Map();
+  const gaps=(content.extractionGaps??[]).map(gap=>({...gap})),objectsByParagraph=new Map();
   if(content.coverage?.complete===false)gaps.push({code:'excerpted-source',message:'This input contains selected source excerpts; omitted content has not been parsed.'});
   for(const object of content.documentObjects??[]) {
     if(!Number.isInteger(object.paragraph)||object.paragraph<0||object.paragraph>=content.paragraphs.length)throw new TypeError('Invalid proposal object position.');
@@ -100,7 +100,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   const paragraphs=content.paragraphs.map((text,index)=>{
     const source=content.paragraphSources?.[index]??null,properties=content.paragraphProperties?.[index]??null,objects=objectsByParagraph.get(index)??[];
     const unexplained=[...text.matchAll(/\uFFFC/g)].some(match=>!objects.some(object=>object.offset===match.index));
-    const complete=!unexplained&&objects.every(object=>object.complete)&&(notesByParagraph.get(index)??[]).every(id=>noteById.get(id)?.complete)&&properties?.numberingComplete!==false&&properties?.notesComplete!==false&&
+    const complete=!unexplained&&objects.every(object=>object.complete)&&(notesByParagraph.get(index)??[]).every(id=>noteById.get(id)?.complete)&&properties?.numberingComplete!==false&&properties?.notesComplete!==false&&properties?.annotationsComplete!==false&&
       (source?.complete!==false||objects.length>0&&!!properties&&properties.numberingComplete&&properties.notesComplete);
     return {index,text,source,properties,objects,complete};
   });
