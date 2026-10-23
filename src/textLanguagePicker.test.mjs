@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {selectLanguageText} from './language.mjs';
 
 test('title fallback skips empty values and follows display preference with exact language provenance',()=>{
@@ -16,10 +16,10 @@ async function harness(t){
   const globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  const vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {TextLanguagePicker,TextLanguageFallback}=await vite.ssrLoadModule('/src/TextLanguagePicker.tsx');
+  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {TextLanguagePicker,TextLanguageFallback}=await load('/src/TextLanguagePicker.tsx');
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);const root=createRoot(container);
-  t.after(async()=>{await act(async()=>root.unmount());await vite.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
+  t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
   const render=props=>act(async()=>root.render(createElement(TextLanguagePicker,{available:['bg','de','es','fr','en','ga'],requested:'ga',value:'en',onChange(){},...props})));
   return {window,container,render,TextLanguageFallback};
 }
