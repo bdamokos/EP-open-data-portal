@@ -7,55 +7,85 @@ const ids=value=>Array.isArray(value)&&value.every(id=>typeof id==='string'&&/^[
 const values=member=>({country:member.countryCode?filterCountry(member.countryCode):null,group:member.groupCode||null,
   committee:member.memberships===null?null:[...new Set(member.memberships.filter(v=>matchesCommittee({memberships:[v]},v.id)).map(v=>v.id))]});
 const matches=(value,target)=>Array.isArray(value)?value.includes(target):value===target;
+const filter=value=>dimensions.includes(value?.dimension)&&typeof value.value==='string'&&Boolean(value.value);
+const observation=value=>value&&typeof value==='object'&&!Array.isArray(value)&&Object.entries(value).every(([id,value])=>ids([id])&&(value===null||typeof value==='string'||Array.isArray(value)&&value.every(v=>typeof v==='string')));
+const initialState=()=>({version:2,coverages:[],followed:[],last:{},cancelled:[],storageError:false});
 function decode(raw) {
   try {
     const data=JSON.parse(raw);
-    if(data?.version!==1||!ids(data.followed)||!Array.isArray(data.coverages))return null;
-    if(!data.coverages.every(c=>dimensions.includes(c.dimension)&&typeof c.value==='string'&&c.value&&Number.isFinite(c.enrolledAt)&&ids(c.members)&&ids(c.dismissed)&&ids(c.pending)&&c.last&&Object.entries(c.last).every(([id,value])=>ids([id])&&(value===null||typeof value==='string'||Array.isArray(value)&&value.every(v=>typeof v==='string')))))return null;
-    return data;
+    if(![1,2].includes(data?.version)||!ids(data.followed)||!Array.isArray(data.coverages))return null;
+    if(!data.coverages.every(c=>filter(c)&&Number.isFinite(c.enrolledAt)&&ids(c.members)&&ids(c.dismissed)&&ids(c.pending)))return null;
+    if(data.version===1){
+      const last={};
+      for(const c of data.coverages){
+        if(!observation(c.last))return null;
+        const shared=last[c.dimension]??={};
+        // Old coverages may have different baselines. Preserve all seen IDs;
+        // conflicting values become unknown rather than inventing a switch.
+        for(const [id,value] of Object.entries(c.last))shared[id]=Object.hasOwn(shared,id)&&JSON.stringify(shared[id])!==JSON.stringify(value)?null:value;
+      }
+      return {...initialState(),followed:data.followed,last,coverages:data.coverages.map(({last,...c})=>c)};
+    }
+    if(!data.last||!Object.entries(data.last).every(([dimension,value])=>dimensions.includes(dimension)&&observation(value))||!Array.isArray(data.cancelled)||!data.cancelled.every(filter))return null;
+    return {...initialState(),...data};
   }catch{return null;}
 }
 export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
-  let state={version:1,coverages:[],followed:[],storageError:false},directory=null,events=[];
+  let state=initialState(),directory=null,events=[];
   try {state={...state,...decode(storage?.getItem(COVERAGE_KEY)),storageError:!storage};}catch{state.storageError=true;}
   const publish=()=>{
     try {if(!storage)throw Error('Storage unavailable');storage.setItem(COVERAGE_KEY,JSON.stringify(state));state={...state,storageError:false};}
     catch{state={...state,storageError:true};}notify();return !state.storageError;
   };
-  const syncFollows=items=>{
+  const syncFollows=(items,observedDirectory=directory)=>{
     const followed=items.filter(i=>i.kind==='mep').map(i=>String(i.id)),current=new Set(followed),removed=state.followed.filter(id=>!current.has(id));
     if(JSON.stringify(followed)===JSON.stringify(state.followed))return;
-    state={...state,followed,coverages:state.coverages.filter(c=>!removed.some(id=>c.members.includes(id))).map(c=>({...c,members:[...new Set([...c.members,...c.pending.filter(id=>current.has(id))])],pending:c.pending.filter(id=>!current.has(id))}))};publish();
+    const added=followed.filter(id=>!state.followed.includes(id));
+    const cancelled=[...state.cancelled];
+    const coverages=state.coverages.filter(c=>{
+      if(!removed.some(id=>c.members.includes(id)))return true;
+      if(!cancelled.some(v=>v.dimension===c.dimension&&v.value===c.value))cancelled.push({dimension:c.dimension,value:c.value});
+      return false;
+    }).map(c=>({...c,members:[...new Set([...c.members,...c.pending.filter(id=>current.has(id))])],pending:c.pending.filter(id=>!current.has(id))}));
+    state={...state,followed,coverages,cancelled:cancelled.filter(c=>!added.some(id=>{
+      const member=observedDirectory?.members.find(m=>String(m.id)===id);
+      return matches(member?values(member)[c.dimension]:state.last[c.dimension]?.[id],c.value);
+    }))};publish();
   };
   return {
     snapshot:()=>state,syncFollows,retryStorage:publish,
-    reload(){try{const next=decode(storage?.getItem(COVERAGE_KEY));state=next?{...next,storageError:false}:{...state,coverages:[]};notify();}catch{state={...state,storageError:true};notify();}},
+    reload(){try{const next=decode(storage?.getItem(COVERAGE_KEY));state=next?{...next,storageError:false}:{...initialState(),storageError:false};notify();}catch{state={...state,storageError:true};notify();}},
     observe(next,items,error=false){
-      syncFollows(items);if(!next||error||next.directoryCache?.refreshError)return;
+      const usable=next&&!error&&!next.directoryCache?.refreshError;
+      syncFollows(items,usable?next:directory);if(!usable)return;
+      const directoryChanged=directory!==next;
       directory=next;
-      const followed=new Set(state.followed),coverages=state.coverages.map(c=>({...c}));
+      const followed=new Set(state.followed),coverages=state.coverages.map(c=>({...c})),observations={...state.last};
       for(const dimension of dimensions){
         if(dimension==='committee'&&(!next.index.complete||next.index.error||next.members.some(m=>m.memberships===null)))continue;
         const last=Object.fromEntries(next.members.map(m=>[String(m.id),values(m)[dimension]]));
+        const previous=state.last[dimension]||{};
+        observations[dimension]=last;
         const targets=new Set(Object.values(last).flatMap(value=>value===null?[]:Array.isArray(value)?value:[value]));
         for(const value of targets){
           const current=Object.keys(last).filter(id=>matches(last[id],value));
           let coverage=coverages.find(c=>c.dimension===dimension&&c.value===value);
-          if(!coverage&&current.length&&current.every(id=>followed.has(id))){
-            coverage={dimension,value,enrolledAt:clock(),members:current,dismissed:[],pending:[],last};coverages.push(coverage);continue;
+          if(!coverage&&!state.cancelled.some(c=>c.dimension===dimension&&c.value===value)&&current.length&&current.every(id=>followed.has(id))){
+            coverage={dimension,value,enrolledAt:clock(),members:current,dismissed:[],pending:[]};coverages.push(coverage);continue;
           }
         }
         for(const c of coverages.filter(c=>c.dimension===dimension)){
           const members=new Set(c.members),pending=new Set(c.pending);
           for(const [id,value] of Object.entries(last))if(matches(value,c.value)&&!members.has(id)&&!c.dismissed.includes(id)){
-            if(followed.has(id)||c.last[id]===null){members.add(id);pending.delete(id);}
-            else if(!Object.hasOwn(c.last,id)||!matches(c.last[id],c.value))pending.add(id);
+            if(followed.has(id)||previous[id]===null){members.add(id);pending.delete(id);}
+            else if(!Object.hasOwn(previous,id)||!matches(previous[id],c.value))pending.add(id);
           }
-          c.members=[...members];c.pending=[...pending].filter(id=>Object.hasOwn(last,id)&&matches(last[id],c.value)&&!followed.has(id));c.last=last;
+          c.members=[...members];c.pending=[...pending].filter(id=>Object.hasOwn(last,id)&&matches(last[id],c.value)&&!followed.has(id));
         }
       }
-      const nextState={...state,coverages};
+      const nextState={...state,coverages,last:observations};
       if(JSON.stringify(nextState)!==JSON.stringify(state)){state=nextState;publish();}
+      else if(directoryChanged){state={...state};notify();}
     },
     observeMembership(snapshot){events=snapshot.events.filter(e=>(e.lists||Object.keys(snapshot.lists)).some(list=>snapshot.lists[list].status!=='unavailable'));state={...state};notify();},
     suggestions(){
