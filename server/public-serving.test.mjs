@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,readdirSync} from 'node:fs';
@@ -5,7 +6,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 
-test('public serving does not swallow reserved paths, source files or missing assets',async()=>{
+test('public serving does not swallow reserved paths, source files or missing assets',loopback,async()=>{
   const directory=mkdtempSync(path.join(tmpdir(),'public-serving-'));
   mkdirSync(path.join(directory,'assets'));
   writeFileSync(path.join(directory,'index.html'),'<h1>Public explorer</h1>');

@@ -141,14 +141,16 @@ test('participation preserves exact source language and restores UI language aft
   });
 });
 
-test('named vote titles preserve subject-first fallback and never add a first-dictionary-entry choice',async t=>{
+test('named vote headings prefer language first, then the subject within that language',async t=>{
   const language='hu',h=await harness(t,language,'?view=legislation&pl-sitting='+sitting.id+'&agenda-topic=exact-topic');
   const cases=[
     {subjects:{hu:'Magyar tárgy',en:'English subject'},titles:{hu:'Magyar cím'},text:'Magyar tárgy',lang:'hu'},
-    {subjects:{en:'English subject'},titles:{hu:'Magyar cím'},text:'English subject',lang:'en'},
+    {subjects:{en:'English subject'},titles:{hu:'Magyar cím'},text:'Magyar cím',lang:'hu'},
     {subjects:{fr:'Sujet non sélectionné'},titles:{hu:'Magyar cím',en:'English title'},text:'Magyar cím',lang:'hu'},
     {subjects:{},titles:{en:'English title'},text:'English title',lang:'en'},
-    {subjects:{fr:'Sujet non sélectionné'},titles:{fr:'Titre non sélectionné'},text:'Szavazás',lang:'hu'},
+    {subjects:{bg:'Bulgarian subject',fr:'Sujet français'},titles:{fr:'Titre français'},text:'Sujet français',lang:'fr'},
+    {subjects:{hu:'  '},titles:{hu:'Magyar cím'},text:'Magyar cím',lang:'hu'},
+    {subjects:{},titles:{},text:'Szavazás',lang:'hu'},
   ];
   const votes=cases.map((fixture,index)=>({id:'exact-vote-'+index,date:sitting.date,scope:'final-text',outcome:'ADOPTED',subjects:fixture.subjects,titles:fixture.titles,aggregateTotals:{for:2,against:0,abstaining:0},namedVotersAvailable:false,intendedCorrections:{for:[],against:[],abstaining:[]}}));
   const topic={id:'exact-topic',title:'Source français',titleLanguage:'fr',date:sitting.date,kind:'PLENARY_VOTE',documentIds:[]};

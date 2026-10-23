@@ -68,8 +68,8 @@ test('only the current stage, language and exact document pair can settle or ann
   await h.render({originalId:'B-10-2026-0999'});await h.render({originalId:'B-10-2026-0999',jointId:'RC-10-2026-0999'});
   await h.respond(3,{error:'Obsolete language failure'},503);await h.respond(4);await settle();
   assert.equal(h.status().textContent,'');assert.equal(h.container.querySelector('.explorer-diff-row'),null);assert.doesNotMatch(h.container.textContent,/Obsolete language failure/);
-  await h.respond(5);await settle();assert.match(h.status().textContent,/Joint to adopted comparison available.*Text language: FR/);
-  assert.equal(messages.length,2);assert.match(h.container.querySelector('.explorer-diff-documents').textContent,/B-10-2026-0999.*RC-10-2026-0999/);assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'fr');assert.equal(document.activeElement,stage);
+  await h.respond(5);await settle();assert.match(h.status().textContent,/Joint to adopted comparison available.*Text language: EN/);
+  assert.equal(messages.length,2);assert.match(h.container.querySelector('.explorer-diff-documents').textContent,/B-10-2026-0999.*RC-10-2026-0999/);assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');assert.equal(h.requests[5].url.searchParams.get('lang'),'en','a new document pair starts in the interface language');assert.equal(document.activeElement,stage);
   await h.change('Stages','original-joint');await h.clear();await h.respond(6);await settle();assert.equal(h.container.textContent,'');assert.equal(messages.length,2);
 });
 
@@ -86,7 +86,7 @@ test('errors and unavailable results stay concise, retry repeats deliberate outc
   await act(async()=>h.container.querySelector('.explorer-diff-notice button').click());assert.equal(h.status().textContent,'');await h.respond(3,unavailable);await settle();
   assert.equal(messages.length,4,'the same unavailable outcome after an explicit retry is announced again');
   await h.change('Text language','fr');await h.respond(4,{textLanguage:'en'});await settle();
-  assert.match(h.status().textContent,/available.*Text language: EN/);assert.match(h.container.querySelector('.explorer-diff-notice').textContent,/French is unavailable.*Showing English/);assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');
+  assert.match(h.status().textContent,/available.*Text language: EN/);assert.match(h.container.querySelector('.text-language-note').textContent,/French unavailable.*showing English/);assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');
 });
 
 test('missing summaries preserve unknown counts and known passages without claiming no differences',async t=>{

@@ -46,7 +46,7 @@ test('title fallback language follows the selected dictionary key, including equ
   assert.deepEqual(selectLanguageText({en:'Same',hu:'Same'},'hu','Fallback'),{text:'Same',language:'hu'});
   assert.deepEqual(selectLanguageText({en:'English'},'fr','Fallback'),{text:'English',language:'en'});
   assert.deepEqual(selectLanguageText({fr:'Français',de:'Deutsch'},'hu','Fallback'),{text:'Français',language:'fr'});
-  assert.deepEqual(selectLanguageText({fr:'',de:'Do not choose a later key'},'hu','Fallback'),{text:'Fallback',language:'en'});
+  assert.deepEqual(selectLanguageText({fr:'',de:'Choose a nonempty title'},'hu','Fallback'),{text:'Choose a nonempty title',language:'de'});
   assert.deepEqual(selectLanguageText({},'hu','public-ID',''),{text:'public-ID',language:''});
   assert.deepEqual(selectLanguageText({mul:'Mixed'},'hu','Fallback'),{text:'Mixed',language:'mul'});
 });

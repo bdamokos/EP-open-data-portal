@@ -223,7 +223,7 @@ test('document disclosures stay related and accurate when documents repeat acros
   }
   check(null);
   for(const index of [0,1,2,3,0]) {await h.click(buttons[index]);check(index);}
-  const language=h.container.querySelector('select[aria-label="Document language"]');
+  const language=h.container.querySelector('select[aria-label="Text language"]');
   await act(async()=>{language.value='fr';language.dispatchEvent(new window.Event('change',{bubbles:true}));});
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
   await h.click(buttons[0]);check(null);await h.click(buttons[0]);check(0);
