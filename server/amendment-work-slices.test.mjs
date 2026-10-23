@@ -4,7 +4,7 @@ import {mkdtempSync,rmSync} from 'node:fs';
 import {performance} from 'node:perf_hooks';
 import path from 'node:path';
 import os from 'node:os';
-import {setImmediate as yieldTurn,setTimeout as delay} from 'node:timers/promises';
+import {setImmediate as yieldTurn} from 'node:timers/promises';
 import {ActivityStore} from './activity-index-store.mjs';
 import {enqueueAmendment} from './amendments-store.mjs';
 import {runAmendmentWorkSlice} from './amendment-work-slices.mjs';
@@ -67,8 +67,8 @@ test('stop, controller abort and the original run deadline leave unstarted work 
 });
 
 test('a deadline reached during a committed action preserves its cursor and stops before another target',async t=>{
-  const {task,worker,saved}=fixture(t);worker.runDeadline=performance.now()+200;const visited=[];
-  assert.equal(await runAmendmentWorkSlice(worker,task,{select:lexical(['A','B']),action:async item=>{visited.push(item);await delay(220);},advance:afterTarget}),false);
+  const {task,worker,saved}=fixture(t);let now=100;worker.monotonic=()=>now;worker.runDeadline=200;const visited=[];
+  assert.equal(await runAmendmentWorkSlice(worker,task,{select:lexical(['A','B']),action:item=>{visited.push(item);now=worker.runDeadline;},advance:afterTarget}),false);
   assert.deepEqual(visited,['A']);assert.equal(saved().afterTarget,'A');
 });
 

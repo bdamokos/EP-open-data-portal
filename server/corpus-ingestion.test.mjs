@@ -21,6 +21,7 @@ test('unchanged corpus XML confirms provenance without allocating another compre
     assert.equal(corpus.acquire(),true);
     corpus.putDocument(document,texts);assert.equal(calls,2);
     const first=rows();
+    assert.equal(first.length,2,'one stored row per language variant');
     calls=0;
     corpus.putDocument(document,texts.map(value=>({...value,fetchedAt:checkedAt,sourceUrl:'https://example.test/rechecked'})));
     assert.equal(calls,0,'an unchanged raw hash must bypass compression');
