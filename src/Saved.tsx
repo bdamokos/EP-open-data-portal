@@ -1,3 +1,6 @@
+import {GroupUpdates,GroupUpdateStatus} from './GroupUpdates';
+import {groupEntries} from './followGroups.mjs';
+import {groupsStore,useGroups} from './SavedControls';
 import {MembershipUpdates} from './MembershipUpdates';
 import {membershipEntries} from './followMembership.mjs';
 import {membershipStore,useMembership,useMembershipCheck} from './SavedControls';
@@ -9,7 +12,7 @@ import {humanDate} from './InsightCharts';
 import {SaveButton,useSaved,checkSaved,savedStore as store,requestedKeys,useSavedNow,useResolveSavedMembers} from './SavedControls';
 
 function savedCheckMessage(items:SavedItem[],data:SavedStates) {
-  const unread=items.filter(item=>itemHasNew(item,Date.now())||item.kind==='mep'&&membershipEntries(membershipStore.snapshot(),item.id,Date.now()).fresh.length>0).length;
+  const unread=items.filter(item=>itemHasNew(item,Date.now())||item.kind==='mep'&&(membershipEntries(membershipStore.snapshot(),item.id,Date.now()).fresh.length>0||groupEntries(groupsStore.snapshot(),item.id,Date.now()).fresh.length>0)).length;
   const unavailable=items.filter(item=>item.availability!=='available'||item.legacy).length;
   const state=store.snapshot();
   if(items.some(item=>item.kind==='mep')&&state.checkState!=='available')return [state.checkState==='unavailable'?'Update checks are not available yet for MEPs.':'MEP updates could not be checked.',items.some(item=>item.kind==='question')&&state.questionCheckState==='available'?'Question answers were checked.':'','Saved items are still shown.'].filter(Boolean).join(' ');
@@ -19,8 +22,9 @@ export type FollowingActivityProps={member:number;sourceId:string;profileHref:st
 type SavedProps={language:string;onBack:()=>void;onMember:(id:number,sourceId?:string)=>void;renderActivity:(props:FollowingActivityProps)=>ReactNode};
 const entryKey=(entry:FollowEntry)=>entry.kind+':'+entry.id;
 function FollowCard({item,language,onMember,renderActivity,now,resolution,retry,checkState,check}:{item:SavedItem;now:number;resolution:{pending?:boolean;error?:string};retry:()=>void;checkState:string;check:()=>void}&Pick<SavedProps,'language'|'onMember'|'renderActivity'>) {
+  const groups=useGroups(),groupsNew=item.kind==='mep'?groupEntries(groups,item.id,now).fresh.length:0;
   const membership=useMembership(),membershipNew=item.kind==='mep'?membershipEntries(membership,item.id,now).fresh.length:0;
-  const key=savedKey(item),{fresh,history,historyOmitted}=followEntries(item,now),hasNew=itemHasNew(item,now)||membershipNew>0;
+  const key=savedKey(item),{fresh,history,historyOmitted}=followEntries(item,now),hasNew=itemHasNew(item,now)||membershipNew>0||groupsNew>0;
   const [open,setOpen]=useState(new Set<string>()),[retained,setRetained]=useState<FollowEntry[]>([]);
   const member=Number(item.kind==='mep'?item.id:item.memberId),profileHref='?'+new URLSearchParams({lang:language,member:String(member),module:'activities'});
   const onOpenProfile=()=>onMember(member);
@@ -44,7 +48,7 @@ function FollowCard({item,language,onMember,renderActivity,now,resolution,retry,
   };
   return <article>
     <div className="explorer-saved-heading"><h3 lang={item.titleLanguage||''}>{item.title}</h3><SaveButton item={item} language={language} compact/></div>
-    <div className="explorer-saved-state">{(item.unresolved?.activity||item.unresolved?.answer)?resolution.error?<p role="alert">Couldn't load new activity. {resolution.error} <button onClick={retry}>Retry</button></p>:<strong className="explorer-update-label">Checking for new activity…</strong>:hasNew&&<strong className="explorer-update-label">{fresh.length===1&&fresh[0].kind==='answer'?'New answer':fresh.length+membershipNew?`${fresh.length+membershipNew+omitted} new`:item.legacyUpdated?'Updated before the upgrade':'Question details changed'}</strong>}
+    <div className="explorer-saved-state">{(item.unresolved?.activity||item.unresolved?.answer)?resolution.error?<p role="alert">Couldn't load new activity. {resolution.error} <button onClick={retry}>Retry</button></p>:<strong className="explorer-update-label">Checking for new activity…</strong>:hasNew&&<strong className="explorer-update-label">{fresh.length===1&&membershipNew===0&&groupsNew===0&&fresh[0].kind==='answer'?'New answer':fresh.length+membershipNew+groupsNew?`${fresh.length+membershipNew+groupsNew+omitted} new`:item.legacyUpdated?'Updated before the upgrade':'Question details changed'}</strong>}
     {!hasNew&&checkState==='available'&&!item.legacy&&<p>{item.availability==='available'?'No new updates.':item.checkedAt?'Update information is unavailable.':'Checking will establish a starting point for future updates.'}</p>}
     </div>
     {item.availability==='outside-roster'&&membership.members[item.id]?.status!=='former'&&<p>No longer on the current roster.</p>}
@@ -53,7 +57,8 @@ function FollowCard({item,language,onMember,renderActivity,now,resolution,retry,
     {!item.indexComplete&&<small>The index is incomplete; more updates may be available.</small>}
     <div className="explorer-saved-actions">{(item.kind==='mep'||item.memberId)&&<button onClick={()=>{if(item.kind==='question')store.openQuestion(key);onMember(member,item.kind==='question'?item.id:undefined);}}>{item.kind==='mep'?'Profile':item.current?.answerIds?.length?'Read question and answers':'Read question'}</button>}
     {item.kind==='question'&&item.availability==='not-saved'&&<p>Question metadata is not available yet.</p>}
-    {hasNew&&<button onClick={()=>{store.markRead(key);if(item.kind==='mep')membershipStore.markRead(item.id);}}>Mark all read</button>}</div>
+    {hasNew&&<button onClick={()=>{store.markRead(key);if(item.kind==='mep'){membershipStore.markRead(item.id);groupsStore.markRead(item.id);}}}>Mark all read</button>}</div>
+    {item.kind==='mep'&&<GroupUpdates member={item.id} language={language} now={now} onMember={onMember}/>}
     {item.kind==='mep'&&<MembershipUpdates member={item.id} language={language} now={now} onMember={onMember}/>}
     {summary?<p>{summarizeByType(fresh,omitted)}. {link('Open the profile to read them')}</p>:(item.kind==='mep'||item.memberId)&&listed.map(row)}
     {(visibleHistory.length>0||historyOmitted>0)&&<details className="explorer-saved-history"><summary>Earlier updates ({visibleHistory.length+historyOmitted})</summary>{(item.kind==='mep'||item.memberId)&&visibleHistory.map(row)}{historyOmitted>0&&link('See all activity in the full profile')}</details>}
@@ -88,6 +93,7 @@ export function Saved({language,onBack,onMember,renderActivity}:SavedProps) {
     <p className="explorer-saved-caption">New updates stay marked until you open them, or for 24 hours after they are found. Recent updates stay listed under Earlier updates.</p>
     {!saved.persistent&&<p>Browser storage is unavailable. Follows last only for this tab.</p>}
     {saved.storageError&&<p role="alert" className="explorer-storage-error">Changes since {new Date(saved.unsavedSince||Date.now()).toLocaleTimeString()} could not be saved in this browser and will be lost on reload. <button onClick={()=>store.retryStorage()}>Retry saving</button></p>}
+    {items.some(item=>item.kind==='mep')&&<GroupUpdateStatus retry={check}/>}
     {membership.storageError&&<p role="alert">Membership updates could not be saved in this browser. <button onClick={()=>membershipStore.retryStorage()}>Retry saving membership updates</button></p>}
     {items.some(item=>item.kind==='mep')&&membershipCheck==='unavailable'&&<p className="explorer-membership-status">Some membership updates are unavailable.</p>}
     {items.some(item=>item.kind==='mep')&&membershipCheck==='error'&&<p className="explorer-membership-status" role="alert">Couldn't check membership updates. <button onClick={check}>Retry membership updates</button></p>}

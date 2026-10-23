@@ -1,3 +1,4 @@
+import {createGroupsStore,GROUPS_KEY,groupIsNew,type GroupsSnapshot} from './followGroups.mjs';
 import {createMembershipStore,MEMBERSHIP_KEY,membershipIsNew,type MembershipSnapshot} from './followMembership.mjs';
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import {api,expireActivityReads} from './data';
@@ -7,6 +8,13 @@ import {itemHasNew,nextExpiry} from './followUpdates.mjs';
 import {interfaceTerm,compoundLanguage} from './terms.mjs';
 const listeners=new Set<()=>void>();let storage:Storage|null=null;
 try{storage=window.localStorage;}catch{}
+const groupsListeners=new Set<()=>void>();
+export const groupsStore=createGroupsStore(storage,()=>{groupsListeners.forEach(listener=>listener());queueMicrotask(refreshSavedClock);});
+let groupsCheck:'unknown'|'available'|'unavailable'|'error'='unknown';
+const groupsCheckListeners=new Set<()=>void>();
+function setGroupsCheck(value:typeof groupsCheck){groupsCheck=value;groupsCheckListeners.forEach(listener=>listener());}
+export function useGroupsCheck(){return useSyncExternalStore(callback=>{groupsCheckListeners.add(callback);return()=>groupsCheckListeners.delete(callback);},()=>groupsCheck);}
+export function useGroups(){return useSyncExternalStore(callback=>{groupsListeners.add(callback);return()=>groupsListeners.delete(callback);},groupsStore.snapshot);}
 const membershipListeners=new Set<()=>void>();
 export const membershipStore=createMembershipStore(storage,()=>{membershipListeners.forEach(listener=>listener());queueMicrotask(refreshSavedClock);});
 type MembershipCheck='unknown'|'available'|'unavailable'|'error';
@@ -15,16 +23,16 @@ const membershipCheckListeners=new Set<()=>void>();
 function setMembershipCheck(value:MembershipCheck){membershipCheck=value;membershipCheckListeners.forEach(listener=>listener());}
 export function useMembershipCheck(){return useSyncExternalStore(callback=>{membershipCheckListeners.add(callback);return()=>membershipCheckListeners.delete(callback);},()=>membershipCheck);}
 export function useMembership(){return useSyncExternalStore(callback=>{membershipListeners.add(callback);return()=>membershipListeners.delete(callback);},membershipStore.snapshot);}
-export const savedStore=createSavedStore(storage,()=>{listeners.forEach(listener=>listener());queueMicrotask(()=>{membershipStore.syncFollows(savedStore.snapshot().items);refreshSavedClock();});});
-membershipStore.syncFollows(savedStore.snapshot().items);
-window.addEventListener('storage',event=>{if(event.key===MEMBERSHIP_KEY||event.key===null)membershipStore.reload();if(event.key==='ep.bookmarks.v1'||event.key==='ep.following.v2'||event.key===null)savedStore.reload(event.key);});
+export const savedStore=createSavedStore(storage,()=>{listeners.forEach(listener=>listener());queueMicrotask(()=>{membershipStore.syncFollows(savedStore.snapshot().items);groupsStore.syncFollows(savedStore.snapshot().items);refreshSavedClock();});});
+membershipStore.syncFollows(savedStore.snapshot().items);groupsStore.syncFollows(savedStore.snapshot().items);
+window.addEventListener('storage',event=>{if(event.key===GROUPS_KEY||event.key===null)groupsStore.reload();if(event.key===MEMBERSHIP_KEY||event.key===null)membershipStore.reload();if(event.key==='ep.bookmarks.v1'||event.key==='ep.following.v2'||event.key===null)savedStore.reload(event.key);});
 export function useSaved(){return useSyncExternalStore(callback=>{listeners.add(callback);return()=>listeners.delete(callback);},savedStore.snapshot);}
 let savedNow=Date.now(),expiryTimer:ReturnType<typeof setTimeout>|undefined;
 const clockListeners=new Set<()=>void>();
 function refreshSavedClock() {
   savedNow=Date.now();clearTimeout(expiryTimer);
   const membershipExpiry=membershipStore.snapshot().entries.filter(entry=>membershipIsNew(entry,savedNow)).map(entry=>entry.discoveredAt+24*60*60*1000);
-  const deadlines=[nextExpiry(savedStore.snapshot().items,savedNow),...membershipExpiry].filter((value):value is number=>value!==null);
+  const deadlines=[nextExpiry(savedStore.snapshot().items,savedNow),...membershipExpiry,...groupsStore.snapshot().entries.filter(entry=>groupIsNew(entry,savedNow)).map(entry=>entry.discoveredAt+24*60*60*1000)].filter((value):value is number=>value!==null);
   const expiry=deadlines.length?Math.min(...deadlines):null;
   if(clockListeners.size&&expiry!==null)expiryTimer=setTimeout(refreshSavedClock,Math.max(1,expiry-savedNow));
   clockListeners.forEach(listener=>listener());
@@ -99,7 +107,7 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
         lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status');
       }
       expected=status;
-    }catch(error){savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');failures.push(error);}}
+    }catch(error){savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');setGroupsCheck('error');failures.push(error);}}
     let data:SavedStates={questions:[],checkedAt:'',coverage:{indexComplete:expected?.indexComplete===true}};
     const questions=items.filter(item=>item.kind==='question'),questionKey=taskKey(language,questions);
     // Question sources do not depend on marker readiness or manifest processing.
@@ -140,7 +148,18 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
         setMembershipCheck(Object.values(snapshot.lists).some(list=>list.status==='unavailable')?'unavailable':'available');
       }catch(error){setMembershipCheck('error');failures.push(error);}
     };
-    await Promise.all([checkQuestions(),checkMembers(),checkMembership()]);
+    const checkGroups=async()=>{
+      if(!hasMembers||!expected)return;
+      if(expected.groupsReady===false){groupsStore.unavailable();setGroupsCheck('unavailable');return;}
+      if(expected.groupsReady!==true)return;
+      try {
+        const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
+        const snapshot=await api<GroupsSnapshot>('insights/following-groups?'+params);verify(snapshot,expected);
+        if(!groupsStore.observe(snapshot,savedStore.snapshot().items))throw Error('Invalid group snapshot.');
+        setGroupsCheck(items.some(item=>item.kind==='mep'&&snapshot.members[item.id]?.coverage!=='complete')?'unavailable':'available');
+      }catch(error){setGroupsCheck('error');failures.push(error);}
+    };
+    await Promise.all([checkQuestions(),checkMembers(),checkMembership(),checkGroups()]);
     if(failures.length)throw failures[0];
     expireActivityReads();return {data,requestedKey};
   };
@@ -203,6 +222,6 @@ export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;co
   return <><button className={'explorer-save-button'+(saved?' is-saved':'')} lang={item.title?compoundLanguage(label.language,item.titleLanguage):label.language} aria-label={`${name}${item.title?' · '+item.title:''}`} aria-pressed={saved} title={tooltip} onClick={()=>{try{savedStore.toggle(item);setError('');}catch(e){setError((e as Error).message);}}}><span aria-hidden="true">{saved?'★':'☆'}</span>{!compact&&<span lang={label.language}>{label.text}</span>}</button>{error&&<small role="alert" lang="en">{error}</small>}</>;
 }
 export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:boolean}) {
-  const membership=useMembership(),saved=useSaved(),now=useSavedNow(),items=saved.items,updates=items.filter(item=>itemHasNew(item,now)||item.kind==='mep'&&membership.entries.some(entry=>entry.mep===item.id&&membershipIsNew(entry,now))).length;
+  const groups=useGroups(),membership=useMembership(),saved=useSaved(),now=useSavedNow(),items=saved.items,updates=items.filter(item=>itemHasNew(item,now)||item.kind==='mep'&&membership.entries.some(entry=>entry.mep===item.id&&membershipIsNew(entry,now))||item.kind==='mep'&&groups.entries.some(entry=>entry.mep===item.id&&groupIsNew(entry,now))).length;
   return <button onClick={onClick} lang="en" aria-current={current?'page':undefined}>Following{updates>0?<span className="explorer-saved-count">{updates} new</span>:items.length>0?<small> {items.length}</small>:null}</button>;
 }

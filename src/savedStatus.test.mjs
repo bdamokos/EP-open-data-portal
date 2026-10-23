@@ -16,6 +16,7 @@ async function harness(t,items=[member()],v2=false) {
   if(fail===route)return Response.json({error:{code:'fixture_failure',message:'Fixture unavailable'}},{status:503});
   if(conflict&&route==='following-manifest'){conflict--;return Response.json({error:{code:'generation_changed',message:'Changed'}},{status:409});}
   if(route==='following-status')return Response.json(status);
+  if(route==='following-groups')return Response.json({epoch:status.epoch,generation:status.generation,members:{'42':{coverage:'complete',stale:false}},events:status.generation>=6?[{id:'42:group:2026-06-17:7035',mep:'42',type:'group-changed',date:'2026-06-17',mark:6,from:{org:'org/7038',groupId:'org/SD',code:'S&D'},to:{org:'org/7035',groupId:'org/RENEW',code:'Renew'}}]:[]});
   if(route==='following-membership')return Response.json({epoch:invalidMembership?'invalid':status.epoch,generation:status.generation,lists:membershipLists,members:{'42':{status:'former',roster:'absent',endDate:'2026-04-13'}},events:status.generation>=6?[{id:'42-m-1:end',mep:'42',type:'mandate-ended',subtype:null,date:'2026-04-13',mark:6}]:[]});
   if(route==='following-manifest')return Response.json({epoch:status.epoch,generation:status.generation,rosterBasis:'publication',indexComplete:true,members:Object.fromEntries([...items.filter(x=>x.kind==='mep'),member()].map(x=>[x.id,[status.generation,3,1,0]]))});
   if(route==='following-member'){
@@ -208,4 +209,22 @@ test('server membership unavailability appears once on Following and never in ca
  assert.deepEqual(h.controls.membershipStore.snapshot().availability,{outgoing:false,incoming:true});
  h.setMembershipLists({outgoing:{status:'fresh'},incoming:{status:'fresh'}});await h.check();
  assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,0);
+});
+
+
+test('group changes baseline separately, show accessible card text and Mark all read clears every update kind',async t=>{
+ const h=await harness(t);h.setStatus({epoch:membershipEpoch,membershipReady:true,groupsReady:true});await newSpeech(h);
+ const card=cards(h)[0],change=[...card.querySelectorAll('a')].find(a=>a.textContent.includes('Changed group:'));
+ assert(change);assert.match(change.textContent,/Changed group: S&D → Renew · 17 June 2026/);
+ assert(card.querySelector('button[aria-label="Mark Changed group: S&D → Renew · 17 June 2026 update read"]'));
+ assert.equal(h.controls.groupsStore.snapshot().baselines['42'].generation,5);
+ await h.click('Mark all read',card);
+ assert.notEqual(h.item().entries[0].readAt,null);assert.notEqual(h.controls.membershipStore.snapshot().entries[0].readAt,null);assert.notEqual(h.controls.groupsStore.snapshot().entries[0].readAt,null);
+ assert.match(card.textContent,/Earlier group updates \(1\)/);
+ const requests=h.requests.filter(request=>request.route==='following-groups');assert(requests.length);assert(requests.every(request=>!request.url.searchParams.has('member')&&!request.options?.body));
+});
+test('group transport errors preserve baseline and retry discovers the switch',async t=>{
+ const h=await harness(t);h.setStatus({epoch:membershipEpoch,groupsReady:true});await h.render();await h.check();const before=h.controls.groupsStore.snapshot();
+ h.fail('following-groups');h.setStatus({generation:6});await h.check();assert.deepEqual(h.controls.groupsStore.snapshot(),before);assert.match(h.container.textContent,/Couldn't check group updates/);
+ h.fail('');h.setStatus({generation:7});await h.click('Retry group updates');assert.equal(h.controls.groupsStore.snapshot().baselines['42'].generation,5);assert.equal(h.controls.groupsStore.snapshot().entries[0].mark,6);
 });
