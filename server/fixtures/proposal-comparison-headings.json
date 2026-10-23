@@ -294,6 +294,13 @@
         "category": "present-text"
       },
       {
+        "left": "Tairiscint i gcomhair rúin",
+        "right": "Leasú",
+        "category": "motion-resolution",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0025-AM-001-006/A-10-2026-0025-AM-001-006_ga.docx",
+        "fetchedAt": "2026-10-23T17:07:02.293504+00:00"
+      },
+      {
         "left": "Seasamh ón gComhairle",
         "right": "Leasú",
         "category": "council-position",
