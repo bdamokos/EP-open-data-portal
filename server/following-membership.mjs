@@ -1,6 +1,6 @@
 import {ODP_BASE} from './odp.mjs';
 
-export const MEMBERSHIP_VIEW_VERSION=1;
+export const MEMBERSHIP_VIEW_VERSION=2;
 export const membershipLists=['outgoing','incoming'];
 export function membershipSchema(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS membership_marks(event_id TEXT PRIMARY KEY,mark INTEGER NOT NULL);
@@ -28,7 +28,7 @@ export function membershipPersons(rows) {
 export async function membershipTask(worker,task) {
   const {store}=worker,{generation,body}=task,list=body.list,key='membership:'+list;
   try {
-    const params={'parliamentary-term':10,limit:100,offset:body.offset};
+    const params={limit:100,offset:body.offset};
     const record=await worker.request('/meps/show-'+list,params);
     const rows=record.payload?.data;
     if(!Array.isArray(rows)||rows.length>100)throw Error('Invalid membership list page.');
@@ -38,11 +38,12 @@ export async function membershipTask(worker,task) {
     const sources=[...(body.sources||[]),{url:record.url||new URL('/api/v2/meps/show-'+list,ODP_BASE).href,retrievedAt:record.fetchedAt}];
     const observation={generation,mandates,malformed:(body.malformed||0)+parsed.malformed,sources,retrievedAt:record.fetchedAt};
     if(rows.length===100)store.taskProgress(task,{...body,...observation,offset:body.offset+rows.length,lastPage:signature});
-    else {store.putSource(generation,key,'membership',observation,record.fetchedAt);store.finishTask(task);}
+    else {store.putSource(generation,key,'membership',observation,record.fetchedAt);store.putSource(generation,key+':attempt','membership-attempt',{generation,lastAttemptAt:record.fetchedAt,lastError:null},record.fetchedAt);store.finishTask(task);}
   } catch(error) {
     // Retain the last complete observation, with its original provenance.
     if(worker.stopped||worker.controller?.signal.aborted)throw error;
-    store.assertWriter();store.finishTask(task);
+    const lastAttemptAt=new Date(store.clock()).toISOString(),lastError=String(error?.message||error).replace(/[\r\n]+/g,' ').slice(0,240);
+    store.putSource(generation,key+':attempt','membership-attempt',{generation,lastAttemptAt,lastError},lastAttemptAt);store.finishTask(task);
   }
 }
 export function scheduleMembership(store,generation,prefix='') {
@@ -56,8 +57,8 @@ export function freezeMembership(store,generation,previous) {
   const db=store.db,prior=previous?membershipSnapshot(store,previous):null;
   const lists={},mandates=new Map(),conflicts=new Set();
   for(const list of membershipLists) {
-    const observation=store.source(generation,'membership:'+list)?.work;
-    lists[list]={status:observation?(observation.generation===generation?'fresh':'stale'):'unavailable',retrievedAt:observation?.retrievedAt||null,sources:observation?.sources||[],malformed:observation?.malformed||0};
+    const observation=store.source(generation,'membership:'+list)?.work,attempt=store.source(generation,'membership:'+list+':attempt')?.work;
+    lists[list]={status:observation?(observation.generation===generation?'fresh':'stale'):'unavailable',retrievedAt:observation?.retrievedAt||null,sources:observation?.sources||[],malformed:observation?.malformed||0,lastAttemptAt:attempt?.lastAttemptAt||observation?.retrievedAt||null,lastError:attempt?.lastError||null};
     for(const mandate of observation?.mandates||[]) {
       const old=mandates.get(mandate.id);
       if(old&&JSON.stringify(old)!==JSON.stringify(mandate))conflicts.add(mandate.mep);

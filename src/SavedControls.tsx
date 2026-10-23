@@ -9,6 +9,11 @@ const listeners=new Set<()=>void>();let storage:Storage|null=null;
 try{storage=window.localStorage;}catch{}
 const membershipListeners=new Set<()=>void>();
 export const membershipStore=createMembershipStore(storage,()=>{membershipListeners.forEach(listener=>listener());queueMicrotask(refreshSavedClock);});
+type MembershipCheck='unknown'|'available'|'unavailable'|'error';
+let membershipCheck:MembershipCheck='unknown';
+const membershipCheckListeners=new Set<()=>void>();
+function setMembershipCheck(value:MembershipCheck){membershipCheck=value;membershipCheckListeners.forEach(listener=>listener());}
+export function useMembershipCheck(){return useSyncExternalStore(callback=>{membershipCheckListeners.add(callback);return()=>membershipCheckListeners.delete(callback);},()=>membershipCheck);}
 export function useMembership(){return useSyncExternalStore(callback=>{membershipListeners.add(callback);return()=>membershipListeners.delete(callback);},membershipStore.snapshot);}
 export const savedStore=createSavedStore(storage,()=>{listeners.forEach(listener=>listener());queueMicrotask(()=>{membershipStore.syncFollows(savedStore.snapshot().items);refreshSavedClock();});});
 membershipStore.syncFollows(savedStore.snapshot().items);
@@ -94,7 +99,7 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
         lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status');
       }
       expected=status;
-    }catch(error){savedStore.setCheckState('error');if(hasMembers)failures.push(error);}
+    }catch(error){savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');failures.push(error);}}
     let data:SavedStates={questions:[],checkedAt:'',coverage:{indexComplete:expected?.indexComplete===true}};
     const questions=items.filter(item=>item.kind==='question'),questionKey=taskKey(language,questions);
     // Question sources do not depend on marker readiness or manifest processing.
@@ -126,12 +131,14 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
     };
     const checkMembership=async()=>{
       if(!hasMembers||!expected)return;
-      if(!expected.membershipReady){membershipStore.unavailable();return;}
+      if(expected.membershipReady===false){membershipStore.unavailable();setMembershipCheck('unavailable');return;}
+      if(expected.membershipReady!==true)return;
       try {
         const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
         const snapshot=await api<MembershipSnapshot>('insights/following-membership?'+params);verify(snapshot,expected);
         if(!membershipStore.observe(snapshot,savedStore.snapshot().items))throw Error('Invalid membership snapshot.');
-      }catch(error){membershipStore.unavailable();failures.push(error);}
+        setMembershipCheck(Object.values(snapshot.lists).some(list=>list.status==='unavailable')?'unavailable':'available');
+      }catch(error){setMembershipCheck('error');failures.push(error);}
     };
     await Promise.all([checkQuestions(),checkMembers(),checkMembership()]);
     if(failures.length)throw failures[0];

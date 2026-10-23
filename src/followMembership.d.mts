@@ -1,7 +1,7 @@
 export type MembershipEvent={id:string;mep:string;type:'mandate-ended'|'mandate-started';subtype:null|'joined'|'returned';date:string;mark:number};
 export type MembershipEntry=MembershipEvent&{kind:'membership';discoveredAt:number;readAt:number|null};
 export type MembershipMember={roster:'current'|'absent';status:'former'|'current'|'unverified';endDate:string|null};
-export type MembershipSnapshot={epoch:string;generation:number;lists:Record<'outgoing'|'incoming',{status:'fresh'|'stale'|'unavailable';retrievedAt:string|null;sources:{url:string;retrievedAt:string}[];malformed:number}>;events:MembershipEvent[];members:Record<string,MembershipMember>};
+export type MembershipSnapshot={epoch:string;generation:number;lists:Record<'outgoing'|'incoming',{status:'fresh'|'stale'|'unavailable';retrievedAt:string|null;sources:{url:string;retrievedAt:string}[];malformed:number;lastAttemptAt?:string|null;lastError?:string|null}>;events:MembershipEvent[];members:Record<string,MembershipMember>};
 export type MembershipState={epoch:string|null;generation:number|null;availability:Record<'outgoing'|'incoming',boolean>;baselines:Record<string,{savedAt:number;generation:number|null}>;entries:MembershipEntry[];members:Record<string,MembershipMember>;persistent:boolean;storageError:boolean};
 export const MEMBERSHIP_KEY:string;
 export const MEMBERSHIP_WINDOW:number;

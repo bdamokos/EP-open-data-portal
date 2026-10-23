@@ -38,7 +38,7 @@ test('one page per task, full pagination, valid empty list and failed partial pa
   const next=store.beginCycle().generation,calls=[];
   let fail=true;
   const worker=new ActivityWorker(store,{fetchRecord:async(endpoint,params)=>{
-    calls.push([endpoint,params.offset]);
+    assert.equal(Object.hasOwn(params,'parliamentary-term'),false);calls.push([endpoint,params.offset]);
     if(endpoint.endsWith('outgoing')&&params.offset===100)throw Error('offline');
     if(endpoint.endsWith('outgoing'))return {payload:{data:Array.from({length:100},(_,i)=>person(100+i,mandate(`${100+i}-m-1`,'2025-01-01')))},fetchedAt:'2026-10-23T10:00:00Z'};
     if(fail)throw Error('offline');
@@ -49,12 +49,17 @@ test('one page per task, full pagination, valid empty list and failed partial pa
   store.publish(next);
   const snapshot=membershipSnapshot(store,next);
   assert.equal(snapshot.lists.outgoing.status,'stale');assert.equal(snapshot.lists.incoming.status,'unavailable');assert.equal(snapshot.events.length,1);
+  for(const list of ['outgoing','incoming']){assert.equal(snapshot.lists[list].lastError,'offline');assert(Number.isFinite(Date.parse(snapshot.lists[list].lastAttemptAt)));}
+  assert.equal(snapshot.lists.outgoing.retrievedAt,'2026-10-23T09:00:00Z');
   assert(calls.some(([endpoint,offset])=>endpoint.endsWith('outgoing')&&offset===100));
   const third=store.beginCycle().generation;fail=false;scheduleMembership(store,third);
   while((task=store.nextTask(third)))await worker.task(task);
   store.publish(third);
   assert.equal(membershipSnapshot(store,third).lists.incoming.status,'fresh');assert.equal(membershipSnapshot(store,third).lists.outgoing.status,'stale');
   assert.equal(membershipSnapshot(store,third).lists.incoming.sources.length,1);
+  assert.equal(membershipSnapshot(store,third).lists.incoming.lastError,null);
+  assert.equal(membershipSnapshot(store,third).lists.incoming.lastAttemptAt,'2026-10-23T10:00:00Z');
+  assert.deepEqual(membershipSnapshot(store,next),snapshot);
 });
 test('snapshots freeze publication roster, stable marks, 503/409 validation and generation pruning',t=>{
   const {store,put,read}=fixture(t),g1=store.beginCycle().generation;

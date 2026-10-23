@@ -1,6 +1,6 @@
 import {MembershipUpdates} from './MembershipUpdates';
 import {membershipEntries} from './followMembership.mjs';
-import {membershipStore,useMembership} from './SavedControls';
+import {membershipStore,useMembership,useMembershipCheck} from './SavedControls';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {Status} from './Status';
 import {savedKey,type SavedItem,type SavedStates} from './bookmarks.mjs';
@@ -60,7 +60,7 @@ function FollowCard({item,language,onMember,renderActivity,now,resolution,retry,
   </article>;
 }
 export function Saved({language,onBack,onMember,renderActivity}:SavedProps) {
-  const membership=useMembership(),saved=useSaved(),now=useSavedNow(),resolver=useResolveSavedMembers(language),items=saved.items,[checking,setChecking]=useState(false),[error,setError]=useState('');
+  const membershipCheck=useMembershipCheck(),membership=useMembership(),saved=useSaved(),now=useSavedNow(),resolver=useResolveSavedMembers(language),items=saved.items,[checking,setChecking]=useState(false),[error,setError]=useState('');
   const key=items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(','),context=language+':'+key,request=useRef(0),active=useRef(false);
   const [attempt,setAttempt]=useState(0),[completion,setCompletion]=useState<{items:SavedItem[];message:string}|null>(null);
   useEffect(()=>{active.current=true;setChecking(false);setError('');setCompletion(null);return()=>{active.current=false;request.current++;};},[context]);
@@ -89,11 +89,13 @@ export function Saved({language,onBack,onMember,renderActivity}:SavedProps) {
     {!saved.persistent&&<p>Browser storage is unavailable. Follows last only for this tab.</p>}
     {saved.storageError&&<p role="alert" className="explorer-storage-error">Changes since {new Date(saved.unsavedSince||Date.now()).toLocaleTimeString()} could not be saved in this browser and will be lost on reload. <button onClick={()=>store.retryStorage()}>Retry saving</button></p>}
     {membership.storageError&&<p role="alert">Membership updates could not be saved in this browser. <button onClick={()=>membershipStore.retryStorage()}>Retry saving membership updates</button></p>}
+    {items.some(item=>item.kind==='mep')&&membershipCheck==='unavailable'&&<p className="explorer-membership-status">Some membership updates are unavailable.</p>}
+    {items.some(item=>item.kind==='mep')&&membershipCheck==='error'&&<p className="explorer-membership-status" role="alert">Couldn't check membership updates. <button onClick={check}>Retry membership updates</button></p>}
     {saved.restarted&&<p>Update tracking restarted. Previously unread items are kept.</p>}
     {items.some(item=>item.kind==='mep')&&saved.checkState==='unavailable'&&<p>Update checks are not available yet for MEPs. <button onClick={check}>Retry</button></p>}
     {items.some(item=>item.kind==='mep')&&saved.checkState==='error'&&<p>Couldn't check for MEP updates. <button onClick={check}>Retry</button></p>}
     {items.some(item=>item.kind==='question')&&saved.questionCheckState==='error'&&<p>Couldn't check for question answers. <button onClick={check}>Retry</button></p>}
-    {error&&<p>{error}</p>}
+    {error&&membershipCheck!=='error'&&<p>{error}</p>}
     {!items.length&&<p>Follow a MEP or save a question to see new activity and answers here.</p>}
     <div className="explorer-saved-items">{items.map(item=><FollowCard key={savedKey(item)+':'+item.savedAt} item={item} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={item.kind==='question'?saved.questionCheckState:saved.checkState} check={check}/>)}</div>
   </section>;

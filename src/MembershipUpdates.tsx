@@ -13,7 +13,7 @@ export function MembershipUpdates({member,language,now,onMember}:{member:string;
     }}>{membershipIsNew(entry,now)&&<span className="explorer-saved-new">New</span>}{entry.type==='mandate-ended'?'Left Parliament':entry.subtype==='returned'?'Returned to Parliament':'Joined Parliament'} · <span lang={language}>{mandateDate(entry.date,language)}</span></a>
     {membershipIsNew(entry,now)&&<button onClick={read} aria-label={`Mark ${entry.type==='mandate-ended'?'Left Parliament':'Joined or returned to Parliament'} update read`}>Mark read</button>}</div>;
   };
-  return <>{!Object.values(state.availability).some(Boolean)&&<p>Membership updates are unavailable.</p>}{status?.status==='former'&&<p>Former MEP · mandate ended <span lang={language}>{mandateDate(status.endDate!,language)}</span></p>}
+  return <>{status?.status==='former'&&<p>Former MEP · mandate ended <span lang={language}>{mandateDate(status.endDate!,language)}</span></p>}
     {fresh.map(row)}{history.length>0&&<details className="explorer-saved-history"><summary>Earlier membership updates ({history.length})</summary>{history.map(row)}</details>}</>;
 }
 

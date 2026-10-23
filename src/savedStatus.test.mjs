@@ -9,14 +9,14 @@ async function harness(t,items=[member()],v2=false) {
  window.localStorage.setItem(v2?'ep.following.v2':'ep.bookmarks.v1',JSON.stringify({version:v2?2:1,items}));
  const requests=[],opened=[],waiting=[];let root,vite,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null;
  let status={epoch:'one',generation:5,marksReady:true,indexComplete:true,publishedAt:null};
- let ids=[['old',0,5]],entries=[],questionAnswers=[];
+ let ids=[['old',0,5]],entries=[],questionAnswers=[],membershipLists={incoming:{status:'fresh'},outgoing:{status:'fresh'}},invalidMembership=false;
  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();if(vite)await vite.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
  t.mock.method(globalThis,'fetch',async(input,options)=>{
   const url=new URL(input,window.location.href),route=url.pathname.split('/').at(-1);requests.push({url,route,options});
   if(fail===route)return Response.json({error:{code:'fixture_failure',message:'Fixture unavailable'}},{status:503});
   if(conflict&&route==='following-manifest'){conflict--;return Response.json({error:{code:'generation_changed',message:'Changed'}},{status:409});}
   if(route==='following-status')return Response.json(status);
-  if(route==='following-membership')return Response.json({epoch:status.epoch,generation:status.generation,lists:{incoming:{status:'fresh'},outgoing:{status:'fresh'}},members:{'42':{status:'former',roster:'absent',endDate:'2026-04-13'}},events:status.generation>=6?[{id:'42-m-1:end',mep:'42',type:'mandate-ended',subtype:null,date:'2026-04-13',mark:6}]:[]});
+  if(route==='following-membership')return Response.json({epoch:invalidMembership?'invalid':status.epoch,generation:status.generation,lists:membershipLists,members:{'42':{status:'former',roster:'absent',endDate:'2026-04-13'}},events:status.generation>=6?[{id:'42-m-1:end',mep:'42',type:'mandate-ended',subtype:null,date:'2026-04-13',mark:6}]:[]});
   if(route==='following-manifest')return Response.json({epoch:status.epoch,generation:status.generation,rosterBasis:'publication',indexComplete:true,members:Object.fromEntries([...items.filter(x=>x.kind==='mep'),member()].map(x=>[x.id,[status.generation,3,1,0]]))});
   if(route==='following-member'){
    const response=Response.json({epoch:status.epoch,generation:status.generation,member:url.searchParams.get('member'),status:'available',rosterBasis:'publication',ids,entries,truncated:0});
@@ -37,7 +37,7 @@ async function harness(t,items=[member()],v2=false) {
  const check=()=>click('Check for updates');
  const background=(force=false,lang='en')=>act(async()=>{await controls.checkSaved(lang,force).catch(()=>{});});
  const holdNextDetail=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);memberGate={started,wait};return {ready,release};};
- return {window,container,controls,requests,opened,holdNextDetail,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:route=>fail=route,conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
+ return {setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:route=>fail=route,conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
 }
 const cards=h=>[...h.container.querySelectorAll('.explorer-saved-items>article')];
 const rows=card=>[...card.querySelectorAll('.explorer-saved-disclosure')];
@@ -180,4 +180,32 @@ test('reading a membership entry leaves activity unread',async t=>{
  const link=[...cards(h)[0].querySelectorAll('a')].find(node=>node.textContent.includes('Left Parliament'));await dispatch(h,link);
  assert.equal(h.item().entries[0].readAt,null);assert.notEqual(h.controls.membershipStore.snapshot().entries[0].readAt,null);
  assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+});
+
+for(const failure of ['fetch','verification'])test(`membership ${failure} failure preserves baselines and later discoveries`,async t=>{
+ const h=await harness(t);h.setStatus({epoch:membershipEpoch,membershipReady:true});await h.render();await h.check();
+ const before=h.controls.membershipStore.snapshot();
+ if(failure==='fetch')h.fail('following-membership');else h.invalidMembership(true);
+ h.setStatus({generation:6});await h.check();
+ assert.deepEqual(h.controls.membershipStore.snapshot(),before);
+ assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,1);
+ assert.match(h.container.querySelector('.explorer-membership-status').textContent,/Couldn't check membership updates/);
+ assert(!h.window.localStorage.getItem('ep.following.membership.v1').includes('error'));
+ h.fail('');h.invalidMembership(false);h.setStatus({generation:7});await h.click('Retry membership updates');
+ assert.equal(h.controls.membershipStore.snapshot().baselines['42'].generation,5);
+ assert.equal(h.controls.membershipStore.snapshot().entries[0].mark,6);
+ assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,0);
+ assert.match(cards(h)[0].textContent,/Left Parliament/);
+});
+test('server membership unavailability appears once on Following and never in cards',async t=>{
+ const h=await harness(t,[member(),member({id:'43',title:'Second member'})]);
+ await h.render();assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,0);
+ h.setStatus({epoch:membershipEpoch,membershipReady:false});await h.check();
+ assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,1);
+ for(const card of cards(h))assert.doesNotMatch(card.textContent,/Membership updates are unavailable/);
+ h.setStatus({membershipReady:true});h.setMembershipLists({outgoing:{status:'unavailable'},incoming:{status:'fresh'}});await h.check();
+ assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,1);
+ assert.deepEqual(h.controls.membershipStore.snapshot().availability,{outgoing:false,incoming:true});
+ h.setMembershipLists({outgoing:{status:'fresh'},incoming:{status:'fresh'}});await h.check();
+ assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,0);
 });
