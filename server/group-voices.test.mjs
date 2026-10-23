@@ -44,10 +44,14 @@ test('projection writes roll back atomically with speech sources',t=>{
  assert.equal(store.source(gen,'/speeches/'+p.id),undefined);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM group_voice_observations').get().n,0);
 });
 test('upgrade cursors survive core publication, restart and an old-image generation advance',t=>{
- const store=setup(t),gen=store.beginCycle().generation,worker=new ActivityWorker(store,{clock:now});
+ const directory=mkdtempSync(path.join(os.tmpdir(),'group-voices-restart-'));let store=new ActivityStore(directory,{clock:now});
+ t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});assert.equal(store.acquire(),true);
+ const gen=store.beginCycle().generation;let worker=new ActivityWorker(store,{clock:now});
  store.enqueue(gen,'existing','speeches',{offset:750},100);store.finishTask(store.nextTask(gen));
  initializeGroupVoices(worker,gen,[{start:'2026-09-01',end:'2026-09-30'}]);let task=nextGroupVoiceTask(store,gen);store.taskProgress(task,{...task.body,offset:250});
  store.putSource(gen,'/speeches/test','speech',{groupVoices:groupVoiceProjection(speech(),{fetchedAt:stamp})},stamp);store.publish(gen); // optional queue cannot block publication
+ store.release();store.close();
+ store=new ActivityStore(directory,{clock:now});assert.equal(store.acquire(),true);worker=new ActivityWorker(store,{clock:now});
  const second=store.beginCycle().generation;task=nextGroupVoiceTask(store,second);assert.equal(task.body.offset,250);initializeGroupVoices(worker,second,[{start:'2026-09-01',end:'2026-09-30'}]);assert.equal(nextGroupVoiceTask(store,second).body.offset,250);
  store.publish(second);
  // Legacy code copies core sources/items, not these additive tables.

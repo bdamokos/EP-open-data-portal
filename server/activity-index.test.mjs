@@ -198,7 +198,11 @@ test('accepted activity GUIDs resolve to exact source IDs without inventing cate
 test('selected source outside the first page remains accessible; incomplete and unsupported category totals stay unknown',()=> {
   const dir=temp(),s=new ActivityStore(dir,{clock:instant});
   try {s.acquire();const cycle=s.beginCycle();s.setMembers([{id:'257043',name:'MEP'}]);s.putSource(cycle.generation,'/q','document',question,fetchedAt,documentRows(question,'/q',fetchedAt).rows);
+    const newer={...question,id:'eli/dl/doc/E-10-2026-003032',identifier:'E-10-2026-003032',document_date:'2026-07-10',inverse_answers_to:[]};
+    s.putSource(cycle.generation,'/newer','document',newer,fetchedAt,documentRows(newer,'/newer',fetchedAt).rows);
     const p=s.page('257043',{limit:1,sourceId:question.identifier});
+    assert.deepEqual(p.items.map(item=>item.sourceId),[newer.identifier]);assert.equal(p.nextOffset,1);
+    assert.deepEqual(p.selectedItems.map(item=>item.sourceId),[question.identifier]);
     assert.equal(p.items[0].recordKind,'document');assert.equal(p.selectedItems[0].sourceId,question.identifier);assert.equal(p.selectedItems[0].id,'written-questions:'+question.identifier);assert.equal(p.total,null);
     assert.equal(p.categoryCoverage['reports-shadow'].total,null);
     s.publish(cycle.generation);
