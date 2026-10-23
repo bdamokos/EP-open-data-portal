@@ -1,3 +1,4 @@
+import {contributionGroup,groupContributions} from './group-aggregation.mjs';
 import {datedPerson} from './group-attribution.mjs';
 import {XMLParser} from 'fast-xml-parser';
 import {readFileSync} from 'node:fs';
@@ -55,17 +56,19 @@ export function namedVote(vote,record,members,metadata,referenceDate,groupOn=()=
   const rawGroups=Object.fromEntries(Object.entries(fields).map(([key,field])=>[key,[...new Set(array(vote[field]).map(personId).filter(Boolean))]]));
   const positions=new Map();for(const [position,ids] of Object.entries(rawGroups))for(const id of ids){const old=positions.get(id)||new Set();old.add(position);positions.set(id,old);}
   const conflicts=[...positions].filter(([,values])=>values.size>1).map(([id])=>id);
-  const groups=Object.fromEntries(Object.entries(rawGroups).map(([position,ids])=>[position,memberPeople(ids.filter(id=>!conflicts.includes(id)),members,metadata).map(person=>datedPerson(person,vote.activity_date,groupOn))]));
+  const groups=Object.fromEntries(Object.entries(rawGroups).map(([position,ids])=>[position,memberPeople(ids.filter(id=>!conflicts.includes(id)),members,metadata).map(person=>({...datedPerson(person,vote.activity_date,groupOn),contributionGroup:contributionGroup(person.id,vote.activity_date,groupOn)}))]));
   const hasNamedData=Object.values(fields).every(field=>Array.isArray(vote[field]));
   const totals={for:vote.number_of_votes_favor??null,against:vote.number_of_votes_against??null,abstaining:vote.number_of_votes_abstention??null};
   const intendedFields={for:'had_voter_intended_favor',against:'had_voter_intended_against',abstaining:'had_voter_intended_abstention'};
-  const intendedCorrections=Object.fromEntries(Object.entries(intendedFields).map(([position,field])=>[position,memberPeople(array(vote[field]).map(personId).filter(Boolean),members,metadata).map(person=>datedPerson(person,vote.activity_date,groupOn))]));
+  const intendedCorrections=Object.fromEntries(Object.entries(intendedFields).map(([position,field])=>[position,memberPeople(array(vote[field]).map(personId).filter(Boolean),members,metadata).map(person=>({...datedPerson(person,vote.activity_date,groupOn),contributionGroup:contributionGroup(person.id,vote.activity_date,groupOn)}))]));
   const malformedVoterReferences=Object.values(fields).reduce((count,field)=>count+array(vote[field]).filter(v=>!personId(v)).length,0);
   return {id:vote.activity_id||tail(vote.id),date:vote.activity_date||null,start:vote.activity_start_date||null,titles:vote.activity_label||{},subjects:vote.referenceText||{},scope:voteScope(vote),outcome:tail(vote.decision_outcome),method:tail(vote.decision_method),
     parentIds:refs(vote.inverse_consists_of),recordedDocumentIds:refs(vote.recorded_in_a_realization_of).map(documentId).filter(Boolean),
     aggregateTotals:totals,namedCounts:hasNamedData?Object.fromEntries(Object.entries(groups).map(([key,people])=>[key,people.length])):null,namedVotersAvailable:hasNamedData,groups:hasNamedData?groups:null,
     uniqueNamedVoters:hasNamedData?positions.size:null,currentRosterWithoutNamedRecord:hasNamedData?[...members.keys()].filter(id=>!positions.has(id)).length:null,conflictingVoterIds:conflicts,malformedVoterReferences,
     totalsMatchNamed:hasNamedData && !conflicts.length && !malformedVoterReferences && Object.keys(totals).every(k=>totals[k]===groups[k].length),
+    politicalGroups:hasNamedData?[...new Set(Object.values(groups).flat().map(p=>p.contributionGroup).filter(Boolean))].sort().map(code=>({code,positions:Object.fromEntries(Object.entries(groups).map(([position,people])=>[position,people.filter(p=>p.contributionGroup===code)]))})):null,
+    groupContributions:groupContributions(Object.values(groups).flat().map(p=>({id:p.id,date:vote.activity_date})),groupOn),
     intendedCorrections,stats:demographicStats(hasNamedData?[...positions.keys()]:[],members,metadata,referenceDate),
     evidence:{apiUrl:record.url,fetchedAt:sourceDate(record),relationship:'decision.inverse_consists_of → vote-results; vote-results.executed → agenda item; actual had_voter_favor / against / abstention → person'},
     countBasis:'Actual named roll-call positions only. Intended corrections are shown separately. Members of the current roster without a named record are not classified as absent or abstaining. Vote counts and unique people are different denominators.'};
@@ -76,12 +79,16 @@ export function topicVotes(topic,results,decisions,members,metadata,referenceDat
   return decisions.payload.data.filter(n=>refs(n.inverse_consists_of).some(p=>parentIds.has(p))).map(n=>({...namedVote(n,decisions,members,metadata,referenceDate,groupOn),
     associations:parents.filter(p=>refs(n.inverse_consists_of).includes(canonical(p.id))).map(p=>({resultId:p.activity_id,documentIds:refs(p.based_on_a_realization_of).map(documentId).filter(Boolean),procedureIds:refs(p.inverse_consists_of).map(procedureId).filter(Boolean),agendaItemId:topic.id,resultApiUrl:results.url,resultFetchedAt:sourceDate(results)}))})).sort((a,b)=> (a.scope==='final-text'?0:1)-(b.scope==='final-text'?0:1)||a.id.localeCompare(b.id));
 }
-export function finalVotePatterns(votes,members,metadata) {
+export function finalVotePatterns(votes,members,metadata,groupOn=()=>'unavailable') {
   const finals=votes.filter(v=>v.scope==='final-text'&&v.namedVotersAvailable),observations=new Map();
-  for(const vote of finals)for(const [position,people] of Object.entries(vote.groups))for(const person of people){const row=observations.get(person.id)||{id:person.id,for:0,against:0,abstaining:0};row[position]++;observations.set(person.id,row);}
+  for(const vote of finals)for(const [position,people] of Object.entries(vote.groups))for(const person of people){
+    const group=contributionGroup(person.id,vote.date,groupOn),key=JSON.stringify([person.id,group]);
+    const row=observations.get(key)||{id:person.id,contributionGroup:group,for:0,against:0,abstaining:0};row[position]++;observations.set(key,row);
+  }
   const groups={for:[],against:[],abstaining:[],mixed:[]};
-  for(const row of observations.values()){const positions=['for','against','abstaining'].filter(p=>row[p]);const group=positions.length===1?positions[0]:'mixed';groups[group].push({...memberPeople([row.id],members,metadata)[0],observations:{for:row.for,against:row.against,abstaining:row.abstaining,named:row.for+row.against+row.abstaining,selectedFinalTextVotes:finals.length}});}
-  return {finalTextVoteIds:finals.map(v=>v.id),voteCount:finals.length,groups,uniqueNamedPeople:observations.size,basis:'Descriptive groups over observed final-text roll-calls for this agenda topic only. A final resolution is not necessarily legislation. Missing records and intended corrections do not count as positions; this is not an inference of general political support.'};
+  for(const row of observations.values()){const positions=['for','against','abstaining'].filter(p=>row[p]);const pattern=positions.length===1?positions[0]:'mixed';groups[pattern].push({...memberPeople([row.id],members,metadata)[0],contributionGroup:row.contributionGroup,affiliationGroup:row.contributionGroup??memberPeople([row.id],members,metadata)[0].group,observations:{for:row.for,against:row.against,abstaining:row.abstaining,named:row.for+row.against+row.abstaining,selectedFinalTextVotes:finals.length}});}
+
+  return {groupContributions:groupContributions(finals.flatMap(v=>Object.values(v.groups).flat().map(p=>({id:p.id,date:v.date}))),groupOn),finalTextVoteIds:finals.map(v=>v.id),voteCount:finals.length,groups,uniqueNamedPeople:new Set([...observations.values()].map(row=>row.id)).size,basis:'Descriptive patterns per person and dated political group over observed final-text roll-calls for this agenda topic only. A final resolution is not necessarily legislation. Missing records and intended corrections do not count as positions; this is not an inference of general political support.'};
 }
 
 export function topicRoles(topic,rows,documents,members,metadata,groupOn=()=>'unavailable') {

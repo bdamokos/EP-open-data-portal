@@ -1,3 +1,5 @@
+import {generationGroupOn} from './group-attribution.mjs';
+import {activityAffiliation} from './group-aggregation.mjs';
 import {groupHistorySchema,freezeGroupHistory} from './group-history.mjs';
 import {membershipSchema,freezeMembership} from './following-membership.mjs';
 import {followMarksVersion,prepareFollowMarks,publishFollowMarks,followIndexComplete} from './follow-marks.mjs';
@@ -361,8 +363,11 @@ export class ActivityStore {
       }));
       return outcomes.get(id);
     };
+    const groupOn=generationGroupOn(this,generation);
     const present=body=>{
       const row=parse(body);
+      const question=row.recordKind==='answer'&&row.relatedQuestionId?this.source(generation,'/parliamentary-questions/'+row.relatedQuestionId)?.work:null;
+      Object.assign(row,activityAffiliation(row,question,groupOn,parse(member.body)?.groupCode));
       if(row.recordKind==='document' && row.motionType) {
         const source=this.source(generation,'/plenary-documents/'+row.sourceId);
         if(source && isMotion(source.work)) {

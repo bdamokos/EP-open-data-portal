@@ -42,7 +42,7 @@ export function generationGroupOn(store,generation) {
   return cache.get(generation);
 }
 
-// Keep group as the current-roster dimension for ordering/charts/filters.
+// Keep group as the current-roster dimension for ordering and people demographics.
 // An explicit null suppresses affiliation for a known non-serving day.
 export function datedPerson(person,date,groupOn) {
   const group=groupOn(person.id,date);
