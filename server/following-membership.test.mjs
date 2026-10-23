@@ -93,3 +93,13 @@ test('existing deployments start without a fabricated snapshot, then baseline at
   const next=reopened.beginCycle().generation;reopened.publish(next);
   assert.equal(followingStatus(reopened).membershipReady,true);assert.equal(read(next).status,200);
 });
+
+test('failed snapshot publication rolls back membership marks and active generation atomically',t=>{
+  const {store,put}=fixture(t),g=store.beginCycle().generation;
+  store.setMembers([{id:'42'}]);put(g,'outgoing',[person(43,mandate('43-m-1','2024-07-16','2026-04-13'))]);
+  store.db.exec("CREATE TRIGGER reject_membership BEFORE INSERT ON membership_snapshots BEGIN SELECT RAISE(ABORT,'snapshot rejected'); END");
+  assert.throws(()=>store.publish(g),/snapshot rejected/);assert.equal(store.get('active'),null);
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM membership_marks').get().n,0);
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM membership_snapshots').get().n,0);
+  store.db.exec('DROP TRIGGER reject_membership');store.publish(g);assert.equal(membershipSnapshot(store,g).events[0].mark,g);
+});

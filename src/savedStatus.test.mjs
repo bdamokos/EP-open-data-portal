@@ -174,3 +174,10 @@ test('Mark all read clears activity and membership together',async t=>{
  const h=await harness(t);h.setStatus({epoch:membershipEpoch,membershipReady:true});await newSpeech(h);await h.click('Mark all read',cards(h)[0]);
  assert.notEqual(h.item().entries[0].readAt,null);assert.notEqual(h.controls.membershipStore.snapshot().entries[0].readAt,null);
 });
+
+test('reading a membership entry leaves activity unread',async t=>{
+ const h=await harness(t);h.setStatus({epoch:membershipEpoch,membershipReady:true});await newSpeech(h);
+ const link=[...cards(h)[0].querySelectorAll('a')].find(node=>node.textContent.includes('Left Parliament'));await dispatch(h,link);
+ assert.equal(h.item().entries[0].readAt,null);assert.notEqual(h.controls.membershipStore.snapshot().entries[0].readAt,null);
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+});

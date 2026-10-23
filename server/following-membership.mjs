@@ -13,7 +13,7 @@ export function membershipPersons(rows) {
   for(const person of rows) {
     if(!/^[1-9]\d{0,8}$/.test(person?.identifier||'')||!Array.isArray(person.hasMembership)){malformed++;continue;}
     for(const membership of person.hasMembership) {
-      if(!membership||typeof membership!=='object'){malformed++;continue;}
+      if(!membership||typeof membership!=='object'||typeof membership.identifier!=='string'||typeof membership.organization!=='string'||typeof membership.role!=='string'){malformed++;continue;}
       if(membership.organization!=='org/ep-10'||membership.role!=='def/ep-roles/MEMBER_PARLIAMENT')continue;
       const id=membership.identifier,period=membership.memberDuring;
       if(!/^\d{1,9}-m-\d{1,12}$/.test(id||'')||id.split('-m-')[0]!==String(person.identifier)||!validDate(period?.startDate)||
