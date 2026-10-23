@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createGroupOn,generationGroupOn,datedPerson,attributeSpeechResponse} from './group-attribution.mjs';
+import {createGroupOn,generationGroupOn,datedPerson} from './group-attribution.mjs';
 import {namedVote,topicRoles} from './insights-legislation-model.mjs';
 import {finalVotePatterns} from './insights-legislation-model.mjs';
 
@@ -56,16 +56,6 @@ test('dated named voters, intended corrections and document roles preserve curre
   const roles=topicRoles({documentIds:['Q']},[{sourceId:'Q',mepId:'124846',date:'2026-06-16',provenance:{role:'AUTHOR'}}],[],roster,metadata,groupOn);
   assert.equal(roles[0].affiliationGroup,'S&D');assert.equal(roles[0].date,'2026-06-16');
 });
-test('speech, retained transcript and intervention attribution never rewrite explicit group/committee designations',()=>{
-  const speaker={id:'124846',name:'Pina Picierno',group:'Renew'},designation={id:'ECR',politicalGroup:true,source:'participation_in_name_of'};
-  const speech={date:'2026-06-16',speakers:[speaker],intervention:{speaker,onBehalfOf:[designation]}};
-  const output=attributeSpeechResponse({...speech,metadata:speech,items:[speech],speechId:'MTG-PL-2026-06-16-OTH-1',debates:[{records:[speech]}]},groupOn);
-  assert.equal(output.speakers[0].affiliationGroup,'S&D');assert.equal(output.metadata.speakers[0].affiliationGroup,'S&D');assert.equal(output.items[0].intervention.speaker.affiliationGroup,'S&D');assert.equal(output.debates[0].records[0].speakers[0].affiliationGroup,'S&D');
-  assert.deepEqual(output.intervention.onBehalfOf,[designation]);assert.equal(speech.speakers[0].affiliationGroup,undefined);
-  const committee={...speech,intervention:{speaker,onBehalfOf:[{id:'AFET',politicalGroup:false}]}};
-  assert.equal(attributeSpeechResponse(committee,groupOn).intervention.speaker.affiliationGroup,'S&D');assert.equal(attributeSpeechResponse(committee,groupOn).intervention.onBehalfOf[0].id,'AFET');
-});
-
 test('question authors use the response generation even when publication changes during metadata loading',async()=>{
   const {QuestionInsights,insightQuery}=await import('./insights-store.mjs');
   let generation=1,reads=0;

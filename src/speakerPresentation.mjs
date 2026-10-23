@@ -31,11 +31,6 @@ export function speakerPresentation(person,language='en',{chair=false,interventi
       roles.push(code?speakerTerm(code,language):supplied);
     }
   }
-  // Represented organisations and committee capacities take precedence here.
-  if(!chair&&!intervention?.onBehalfOf?.length&&person?.affiliationGroup) {
-    const code=person.affiliationGroup;
-    roles.push({text:({PPE:'EPP','Verts/ALE':'Greens/EFA',NI:'Non-attached',TheLeft:'The Left'})[code]||code,language:''});
-  }
   if(chair&&specific)roles.push(speakerTerm('chair',language));
   if(!specific&&chair)roles.push(speakerTerm('name-unavailable',language));
   return {name,roles,nameUnavailable:!specific};

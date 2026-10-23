@@ -76,7 +76,6 @@ export interface MemberProfile extends DirectoryMember {
 }
 export type SpeakerRoleLabel={text:string;language:string;reuse?:{personId:string;currentSpeechId:string;currentDate:string;currentSource:{url:string;fetchedAt:string};speechId:string;date:string;source:{url:string;fetchedAt:string};compared:{language:string;current:string;previous:string}[]}};
 export interface SpeechSpeaker {
-  affiliationGroup?:string|null;
   id:string;
   name:string;
   role?:string|null;

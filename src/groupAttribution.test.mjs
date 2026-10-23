@@ -6,9 +6,9 @@ import {createServer} from 'vite';
 import {Window} from 'happy-dom';
 import {speakerPresentation} from './speakerPresentation.mjs';
 
-test('speaker affiliation is separate from explicit on-behalf-of and committee capacities',()=>{
+test('speaker lines retain existing roles without adding personal affiliation',()=>{
   const speaker={id:'124846',name:'Pina Picierno',affiliationGroup:'S&D'};
-  assert.deepEqual(speakerPresentation(speaker).roles,[{text:'S&D',language:''}]);
+  assert.deepEqual(speakerPresentation(speaker).roles,[]);
   for(const designation of [{id:'ECR',politicalGroup:true},{id:'AFET',politicalGroup:false}]) {
     const intervention={speaker,onBehalfOf:[{...designation,source:'participation_in_name_of'}]};
     assert.deepEqual(speakerPresentation(speaker,'en',{intervention}).roles,[]);

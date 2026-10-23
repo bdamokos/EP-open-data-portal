@@ -48,16 +48,3 @@ export function datedPerson(person,date,groupOn) {
   const group=groupOn(person.id,date);
   return {...person,affiliationGroup:typeof group==='object'?group.code:group==='not-serving'?null:person.group??null};
 }
-
-export function attributeSpeechResponse(response,groupOn) {
-  const person=(value,date)=>value?datedPerson(value,date,groupOn):value;
-  const intervention=(value,date)=>value?{...value,speaker:person(value.speaker,date),chair:person(value.chair,date)}:value;
-  const speech=row=>({...row,...(row.speakers?{speakers:row.speakers.map(value=>person(value,row.date))}:{}),...(row.intervention?{intervention:intervention(row.intervention,row.date)}:{})});
-  const result=speech(response);
-  if(response.metadata)result.metadata=speech(response.metadata);
-  if(response.items)result.items=response.items.map(speech);
-  if(response.debates)result.debates=response.debates.map(debate=>({...debate,records:debate.records.map(speech)}));
-  // Context metadata belongs to the selected speech; its exact ID supplies date.
-  if(response.speechId&&response.intervention)result.intervention=intervention(response.intervention,response.speechId.slice(7,17));
-  return result;
-}
