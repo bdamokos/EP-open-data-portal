@@ -2,18 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,Fragment} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('shared trail link hides the unfinished catalogue from document and dossier readers',async t=>{
   const original=Object.getOwnPropertyDescriptor(globalThis,'window');
   Object.defineProperty(globalThis,'window',{value:{location:{pathname:'/explore'}},configurable:true,writable:true});
-  let vite;
+  let loadModule;
   t.after(async()=>{
-    if(vite)await vite.close();
+    if(loadModule)await loadModule.close();
     original?Object.defineProperty(globalThis,'window',original):delete globalThis.window;
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {AmendmentTrailLink}=await vite.ssrLoadModule('/src/AmendmentTrailLink.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {AmendmentTrailLink}=await loadModule('/src/AmendmentTrailLink.tsx');
   for(const document of ['JURI-AL-788004','TA-10-2026-0254','P10_TA(2026)0254','A-9-2023-0001','B-11-2030-0001']){
     assert.equal(renderToStaticMarkup(createElement(AmendmentTrailLink,{document},'Unsupported document')),'',document);
   }

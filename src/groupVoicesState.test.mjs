@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {GROUP_VOICE_DEFAULTS as defaults,readGroupVoicesState,changeGroupVoicesState,groupVoicesUrl,visibleGroupPeople} from './groupVoicesState.mjs';
 test('retired time links normalise while preserving exact filters and route-owned parameters',()=>{
  const url=new URL('https://example.test/?lang=hu&view=groups&gv-tab=time&gv-person=42&gv-subject=foreign&gv-period=2026-09');const state=readGroupVoicesState(url.searchParams),next=groupVoicesUrl(url.href,state);
- assert.equal(state.tab,'subjects');assert.equal(state.group,'S_D');assert.equal(next.searchParams.get('gv-person'),'42');assert.equal(next.searchParams.get('gv-subject'),'foreign');assert.equal(next.searchParams.get('lang'),'hu');assert.equal(next.searchParams.get('gv-tab'),'subjects');assert.equal(next.searchParams.get('gv-group'),'S_D');assert.deepEqual(readGroupVoicesState(next.searchParams),state);assert.deepEqual(readGroupVoicesState(next.searchParams),state);
+ assert.equal(state.tab,'subjects');assert.equal(state.group,'S_D');assert.equal(next.searchParams.get('gv-person'),'42');assert.equal(next.searchParams.get('gv-subject'),'foreign');assert.equal(next.searchParams.get('lang'),'hu');assert.equal(next.searchParams.get('gv-tab'),'subjects');assert.equal(next.searchParams.get('gv-group'),'S_D');assert.deepEqual(readGroupVoicesState(next.searchParams),state);
 });
 test('person toggles preserve subject and list limit; other list facets reset expansion',()=>{
  const state={...defaults,tab:'people',peopleLimit:50,subject:'foreign',person:'42',offset:40};

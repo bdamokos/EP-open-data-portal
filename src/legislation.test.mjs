@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const people=Array.from({length:8},(_,i)=>({id:String(i+1),name:'Contributor '+(i+1),currentMep:false}));
 const stats={uniquePeople:8,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:8,denominator:0,referenceDate:'2026-10-07',dimensions:{country:[],group:[],gender:[],age:[]}};
-const votes=['final-text','amendment','procedural'].map((scope,i)=>({id:'test-'+scope,date:'2026-10-07',scope,titles:{en:scope},subjects:{en:scope},outcome:'ADOPTED',aggregateTotals:{for:12-i,against:3,abstaining:1},namedVotersAvailable:false,intendedCorrections:{for:[],against:[],abstaining:[]}}));
+const votes=['final-text','amendment','procedural'].map((scope,i)=>({id:'test-'+scope,date:'2026-10-07',scope,titles:i?{en:scope}:{bg:'Bulgarian title',fr:'French final text'},subjects:i?{en:scope}:{bg:'Bulgarian subject',fr:'French final subject'},outcome:'ADOPTED',aggregateTotals:{for:12-i,against:3,abstaining:1},namedVotersAvailable:false,intendedCorrections:{for:[],against:[],abstaining:[]}}));
 const topic={id:'test-topic',title:'Test agenda item',date:'2026-10-07',kind:'PLENARY_VOTE',documentIds:['A-10-2026-0237']};
 function legislation(params) {
   return {view:'legislation',sitting:{id:'MTG-PL-2026-10-07',phase:'past',date:'2026-10-07'},sittings:[{id:'MTG-PL-2026-10-07',phase:'past',date:'2026-10-07'}],topics:[topic],coverage:{agendaError:null},detail:params.has('topic')?{
@@ -24,8 +24,8 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   const pending=[],calls=[];
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const request of pending.splice(0))request.resolve(Response.json(legislation(request.params)));});if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const request of pending.splice(0))request.resolve(Response.json(legislation(request.params)));});if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href),params=url.searchParams;calls.push(url);
     if(url.pathname.endsWith('/insights/legislation')) {
@@ -40,8 +40,8 @@ test('vote changes preserve agenda readers and expansion through loading, failur
     throw new Error('Unexpected request: '+url);
   });
   // Use the existing TSX pipeline without a listening server or external data.
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {Legislation}=await vite.ssrLoadModule('/src/Legislation.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);
   root=createRoot(container);
@@ -52,7 +52,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const change=async(selector,value)=>act(async()=>{const node=find(selector);node.value=value;node.dispatchEvent(new window.Event('change',{bubbles:true}));});
   const shown=()=>find('.insight-vote-detail h3').textContent;
   const voteSection=()=>find('.insight-vote-select').closest('section');
-  assert.equal(shown(),'final-text');
+  assert.equal(shown(),'French final subject');assert.equal(find('.insight-vote-detail h3').lang,'fr');
   assert.match(find('.insight-topic-detail').textContent,/Some source records are unavailable/,'missing documents alone retain the coverage warning');
   assert.equal(container.querySelector('.insight-data-credit'),null);
   assert.equal(container.querySelectorAll('footer .data-notice').length,1);
@@ -94,7 +94,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   assert.equal(jumpButtons[2].getAttribute('aria-current'),'true');assert.equal(jumpButtons[1].getAttribute('aria-current'),null);
   assert.equal(speechRequests().at(-1),'test-speech-3');
   jump.open=true;await act(async()=>jumpButtons[1].click());
-  await change('select[aria-label="Document language"]','fr');
+  await change('select[aria-label="Text language"]','fr');
   find('.insight-inline-reader[id] details').open=true;
   const nodes=['.insight-topic-detail h2','.insight-procedure-context','.insight-speech-panel','.insight-inline-reader[id]','.insight-participants'].map(selector=>[selector,find(selector)]);
   function preserved() {
@@ -103,7 +103,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
     assert.equal(find('.insight-participants').querySelectorAll('article').length,8);
     assert.equal(counter(),'Speech 2 of 3');
     assert.equal(find('.insight-speech-jump [aria-current="true"]').textContent,jumpButtons[1].textContent);
-    assert.equal(find('select[aria-label="Document language"]').value,'fr');
+    assert.equal(find('select[aria-label="Text language"]').value,'fr');
     assert(find('.insight-inline-reader[id] details').open);
   }
   async function respond(status=200) {
@@ -126,6 +126,6 @@ test('vote changes preserve agenda readers and expansion through loading, failur
     preserved();assert.equal(pending.length,0,'history should reuse the saved vote');
   }
   await travel('back');assert.equal(shown(),'amendment');
-  await travel('back');assert.equal(shown(),'final-text');
+  await travel('back');assert.equal(shown(),'French final subject');assert.equal(find('.insight-vote-detail h3').lang,'fr');
   await travel('forward');assert.equal(shown(),'amendment');
 });

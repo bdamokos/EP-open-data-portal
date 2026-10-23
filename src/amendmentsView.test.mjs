@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {parseSplitRequest} from '../server/amendment-splits.mjs';
 
 test('amendment reader preserves empty edits, exact split bindings, source languages and recorded parse failures',async t=>{
@@ -10,10 +10,10 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    if(vite)await vite.close();
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -41,8 +41,8 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
       {id:'AM-conflicted',number:118,conflicted:true,date:'2099-01-01',authors:[{name:'Arbitrary author must be hidden',personId:'42'}],originalText:'Arbitrary text must be hidden',proposedText:'Arbitrary replacement must be hidden',outcome:'unavailable',variants:[{listId:'AM-list-1',authors:[{name:'First source author',personId:'42'}],originalText:'First source original',proposedText:'First source proposal',language:'en'},{listId:'AM-list-2',committeeProposer:'Committee on Transport',originalText:'Second source original',proposedText:'Second source proposal',language:'fr'}],gaps:['Source variants conflict.']}
     ],total:5,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:['English wording unavailable']},failures:{total:2,unresolved:2}});
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {Amendments}=await vite.ssrLoadModule('/src/Amendments.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(Amendments,{document:'B-10-2026-0424',language:'en'})));
@@ -107,10 +107,10 @@ test('refresh removes a corrected decision binding when split descriptions are u
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root,reads=0;
+  let loadModule,root,reads=0;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    if(vite)await vite.close();
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -122,8 +122,8 @@ test('refresh removes a corrected decision binding when split descriptions are u
     const decisions=++reads===1?[first,second]:[second];
     return Response.json({items:[{id:'A-10-2026-0254-AM-1',number:1,targetDocumentId:'A-10-2026-0254',splitParts:[],decisions,outcome:reads===1?'mixed':'REJECTED'}],total:1,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:['Split descriptions unavailable.']}});
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {Amendments}=await vite.ssrLoadModule('/src/Amendments.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(Amendments,{document:'A-10-2026-0254',showFailures:false})));

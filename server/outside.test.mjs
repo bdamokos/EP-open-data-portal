@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
@@ -295,7 +296,7 @@ test('one named participant cannot hide another outside participant with no head
   assert.equal(outsideSpeaker(store,'227855',{language:'en'}).person.name,'Sviatlana Tsikhanouskaya');
   assert.equal(outsideSpeaker(store,'999999',{language:'en'}).person.name,'Speaker 999999');
 }));
-test('HTTP outside-speaker routes read the index and enforce query, method and origin rules',async()=>{
+test('HTTP outside-speaker routes read the index and enforce query, method and origin rules',loopback,async()=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'outside-http-'));
   process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=directory;
   const {activityIndex}=await import('./activity-index-worker.mjs');const {store}=activityIndex();store.acquire();const {generation}=store.beginCycle();seed(store,generation);
@@ -312,3 +313,12 @@ test('HTTP outside-speaker routes read the index and enforce query, method and o
     const head=await fetch(base+'/api/outside/directory',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
   }finally{store.db.exec('PRAGMA query_only=OFF');server.closeAllConnections();await new Promise(resolve=>server.close(resolve));store.close();rmSync(directory,{recursive:true,force:true});}
 });
+
+test('outside contribution titles follow display order without changing source language evidence',withStore((store,generation)=>{
+  seed(store,generation);
+  const row=store.db.prepare('SELECT speech,person,body FROM outside_contributions WHERE generation=? LIMIT 1').get(generation),body=JSON.parse(row.body);
+  body.titles={bg:'Bulgarian title',fr:'French title'};
+  store.db.prepare('UPDATE outside_contributions SET body=? WHERE generation=? AND speech=? AND person=?').run(JSON.stringify(body),generation,row.speech,row.person);
+  const selected=outsideSpeaker(store,row.person,{term:'all',language:'ga'}).contributions.find(item=>item.id===body.id);
+  assert.deepEqual(selected.titles,{fr:'French title'});assert.deepEqual(selected.originalLanguages,body.originalLanguages);
+}));

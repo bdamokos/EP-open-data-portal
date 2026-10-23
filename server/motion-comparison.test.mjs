@@ -193,3 +193,12 @@ test('word diff preserves decimal separator and punctuation changes without pars
   }
   assert.deepEqual(wordDiff('59.58','59,58'),[{type:'equal',text:'59'},{type:'removed',text:'.'},{type:'added',text:','},{type:'equal',text:'58'}]);
 });
+
+test('common display language uses the shared fallback rather than the first ISO code',async()=>{
+  for(const [available,requested,expected] of [[['bg','de','es','fr'],'ga','fr'],[['bg','de','es'],'ga','es'],[['bg','de'],'ga','de'],[['bg','fr'],'bg','bg']]){
+    const s=scenario(),codes={bg:'BUL',de:'DEU',es:'SPA',fr:'FRA'};
+    for(const id of [original,joint])s.records.get('/plenary-documents/'+id).is_realized_by=available.map(code=>({language:'language/'+codes[code],is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:`distribution/example/${id}_${code}.docx`}]}));
+    const result=await s.compare(original,joint,{language:requested});assert.equal(result.textLanguage,expected);assert.equal(result.requestedLanguage,requested);
+    assert(result.documents.every(document=>document.language===expected));
+  }
+});
