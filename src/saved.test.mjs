@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {createSavedStore,savedKey,readSaved,savedLinks,SAVED_KEY,LEGACY_KEY} from './bookmarks.mjs';
-import {followEntries,itemHasNew,NEW_WINDOW_MS} from './followUpdates.mjs';
+import {followEntries,itemHasNew,nextExpiry,NEW_WINDOW_MS} from './followUpdates.mjs';
 import {orderedMemberships,ongoingLabels} from './memberships.mjs';
 const storage=()=>{const data=new Map();return {getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v)};};
 const mep={kind:'mep',id:'42',title:'Member'},question={kind:'question',id:'E-10-2026-003031',title:'Question',baseline:{answerIds:[]}};
@@ -20,7 +20,7 @@ test('questions retain exact answer baselines and read history through reloads',
 test('following primes archive; only unseen per-kind marks produce entries, and retained read entries are never re-added',()=>{
  const store=changedStore();assert(item(store).unresolved.activity);assert.equal(savedLinks(item(store)).length,0);
  store.materialize(detail([['old',0,5],['new',0,6],['answer',1,3]],[{id:'new',title:'Late activity',titleLanguage:'fr',kind:'activity',recordKind:'speech',category:'plenary-contributions',mark:6}]));
- assert.deepEqual(fresh(store).map(x=>[x.id,x.title,x.titleLanguage,x.category]),[['new','Late activity','fr','plenary-contributions']]);assert.deepEqual(item(store).seen,{activity:6,answer:3});assert.deepEqual(item(store).signalledAt,{});
+ assert.deepEqual(fresh(store).map(x=>[x.id,x.title,x.titleLanguage,x.category]),[['new','Late activity','fr','plenary-contributions']]);assert.deepEqual(item(store).seen,{activity:6,answer:3});assert.deepEqual(item(store).signals,{});
  store.markEntryRead('mep:42','activity','new');const readAt=item(store).entries[0].readAt;
  store.materialize(detail([['new',0,6],['old',0,5],['answer',1,3]]));assert(!item(store).updated);assert.equal(item(store).entries[0].readAt,readAt);
 });
@@ -58,10 +58,57 @@ test('v1 and existing v2 unread migrations stamp discovery once and legacy signa
  assert(!itemHasNew(item(store),now+NEW_WINDOW_MS));store.markRead('mep:42');assert(!item(store).legacyUpdated);
 });
 test('resolved discoveries inherit first per-kind signal, including delayed resolution beyond expiry',t=>{
- let now=1000;t.mock.method(Date,'now',()=>now);const store=changedStore();assert.equal(item(store).signalledAt.activity,1000);
- now+=500;store.applyManifest(manifest(6,4,'one',6));assert.equal(item(store).signalledAt.activity,1000);assert.equal(item(store).signalledAt.answer,1500);
+ let now=1000;t.mock.method(Date,'now',()=>now);const store=changedStore();assert.deepEqual(item(store).signals.activity,[[6,1000]]);
+ now+=500;store.applyManifest(manifest(6,4,'one',6));assert.deepEqual(item(store).signals.activity,[[6,1000]]);assert.deepEqual(item(store).signals.answer,[[4,1500]]);
  now=1000+NEW_WINDOW_MS;store.materialize(detail([['speech',0,6],['answer',1,4]]));
  assert.deepEqual(item(store).entries.map(x=>[x.id,x.discoveredAt]),[['answer',1500],['speech',1000]]);assert.deepEqual(fresh(store).map(x=>x.id),['answer']);assert.equal(followEntries(item(store),now).history[0].id,'speech');
+});
+test('later manifest rises get their own 24-hour window before and after delayed resolution',t=>{
+ const hour=60*60*1000,t0=1000;let now=t0;t.mock.method(Date,'now',()=>now);
+ const disk=storage();let store=createSavedStore(disk);store.toggle(mep);store.applyManifest(manifest(4));store.applyManifest(manifest(5));
+ assert.deepEqual(item(store).signals.activity,[[5,t0]]);
+ now=t0+25*hour;assert(!itemHasNew(item(store),now));store.applyManifest(manifest(7));
+ assert(item(store).updated);assert(followEntries(item(store),now).unresolved);assert.equal(nextExpiry([item(store)],now),t0+49*hour);
+ store=createSavedStore(disk);store.applyManifest(manifest(7));
+ assert.deepEqual(item(store).signals.activity,[[5,t0],[7,t0+25*hour]]);
+ now=t0+26*hour;store.materialize(detail([['old',0,5],['new',0,7]],[],{generation:7}));
+ const view=followEntries(item(store),now);
+ assert.deepEqual(view.history.map(x=>[x.id,x.discoveredAt]),[['old',t0]]);
+ assert.deepEqual(view.fresh.map(x=>[x.id,x.discoveredAt]),[['new',t0+25*hour]]);
+ assert.deepEqual(item(store).signals,{});assert(!view.unresolved);assert(item(store).updated);
+ assert.equal(nextExpiry([item(store)],now),t0+49*hour);
+ assert(itemHasNew(item(store),t0+49*hour-1));assert(!itemHasNew(item(store),t0+49*hour));
+});
+test('signal lists drop oldest pairs at twenty without backdating later retained marks',t=>{
+ const t0=1000;let now=t0;t.mock.method(Date,'now',()=>now);const disk=storage();let store=createSavedStore(disk);
+ store.toggle(mep);store.applyManifest(manifest(4));
+ for(let value=5;value<=26;value++) {now=t0+(value-5)*1000;store.applyManifest(manifest(value));}
+ const expected=Array.from({length:20},(_,i)=>[i+7,t0+(i+2)*1000]);
+ assert.deepEqual(item(store).signals.activity,expected);
+ store=createSavedStore(disk);store.applyManifest(manifest(26));assert.deepEqual(item(store).signals.activity,expected);
+ now+=1000;store.materialize(detail([['dropped',0,5],['earliest-kept',0,7],['later-kept',0,8],['latest',0,26]],[],{generation:26}));
+ assert.deepEqual(Object.fromEntries(item(store).entries.map(x=>[x.id,x.discoveredAt])),{'dropped':t0+2000,'earliest-kept':t0+2000,'later-kept':t0+3000,'latest':t0+21000});
+ store.applyManifest(manifest(27));assert.equal(item(store).signals.activity.length,1);
+ store.markRead('mep:42');assert.deepEqual(item(store).signals,{});assert(!item(store).updated);
+});
+test('stored v2 scalar signals migrate once and preserve discovery through later rises',t=>{
+ const t0=1000;let now=t0+NEW_WINDOW_MS+1000;t.mock.method(Date,'now',()=>now);
+ for(const signalledAt of [{activity:t0},t0]) {
+  const disk=storage();disk.setItem(SAVED_KEY,JSON.stringify({version:2,epoch:'one',items:[{...mep,seen:{activity:4,answer:3},entries:[],signalledAt}],legacyKeys:[]}));
+  let store=createSavedStore(disk);assert.deepEqual(item(store).signals.activity,[[4,t0]]);
+  assert.equal(JSON.parse(disk.getItem(SAVED_KEY)).items[0].signalledAt,undefined);
+  store=createSavedStore(disk);store.applyManifest(manifest(5));assert.deepEqual(item(store).signals.activity,[[5,t0]]);assert(!item(store).updated);
+  store.applyManifest(manifest(7));assert.deepEqual(item(store).signals.activity,[[5,t0],[7,now]]);assert(item(store).updated);
+  store.materialize(detail([['old',0,5],['new',0,7]],[],{generation:7}));
+  assert.deepEqual(fresh(store).map(x=>[x.id,x.discoveredAt]),[['new',now]]);assert.equal(followEntries(item(store),now).history[0].discoveredAt,t0);
+ }
+});
+test('trimmed marks never inherit a future retained time and missing covering signals use resolution time',t=>{
+ const now=1000;t.mock.method(Date,'now',()=>now);const disk=storage();
+ disk.setItem(SAVED_KEY,JSON.stringify({version:2,epoch:'one',items:[{...mep,seen:{activity:4,answer:3},entries:[],signals:{activity:[[7,now+1000]]}}],legacyKeys:[]}));
+ const store=createSavedStore(disk);store.applyManifest(manifest(7));
+ store.materialize(detail([['below-retained',0,5],['above-retained',0,8]],[],{generation:7}));
+ assert(item(store).entries.every(entry=>entry.discoveredAt===now));
 });
 test('compaction retains five history entries, accumulates omissions, and expiry requires no write',t=>{
  let now=1000;t.mock.method(Date,'now',()=>now);const disk=storage(),store=changedStore(disk);store.materialize(detail(Array.from({length:8},(_,i)=>['item-'+i,0,6])));

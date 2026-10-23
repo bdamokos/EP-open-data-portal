@@ -61,6 +61,18 @@ test('unresolved signals expire independently by kind without restarting their w
   assert(!itemHasNew({unresolved:false,signalledAt:now},now));
 });
 
+test('unresolved signal lists use only the latest rise per kind for badge and expiry',()=>{
+  const item={unresolved:{activity:true,answer:true},signals:{activity:[[5,now-NEW_WINDOW_MS-1],[7,now-100]],answer:[[3,now-NEW_WINDOW_MS+1],[4,now-50]]}};
+  assert(itemHasNew(item,now));assert(followEntries(item,now).unresolved);
+  assert.equal(nextExpiry([item],now),now-100+NEW_WINDOW_MS);
+  assert.equal(nextExpiry([item],now-100+NEW_WINDOW_MS),now-50+NEW_WINDOW_MS);
+  assert(!itemHasNew(item,now-50+NEW_WINDOW_MS));assert.equal(nextExpiry([item],now-50+NEW_WINDOW_MS),null);
+  const resolved={...item,unresolved:false};assert(!itemHasNew(resolved,now));assert.equal(nextExpiry([resolved],now),null);
+  const single={unresolved:{activity:true},signals:{activity:[[5,now-100]]}};
+  assert(itemHasNew(single,now));assert.equal(nextExpiry([single],now),now-100+NEW_WINDOW_MS);
+  assert(!itemHasNew(single,now-100+NEW_WINDOW_MS));
+});
+
 test('nextExpiry selects the earliest future unread or unresolved expiry and ignores read and expired entries',()=>{
   const earliest=entry('first',{discoveredAt:now-NEW_WINDOW_MS+1});
   const items=[{entries:[entry('read',{readAt:now,discoveredAt:now-NEW_WINDOW_MS+0.5}),entry('expired',{discoveredAt:now-NEW_WINDOW_MS}),entry('last')]},{entries:[earliest]}];

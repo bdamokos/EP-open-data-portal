@@ -37,6 +37,20 @@ export function savedObservation(item,state) {
 const mark=value=>Number.isSafeInteger(value)&&value>=0?value:null;
 const marks=row=>({activity:mark(row?.[0]),answer:mark(row?.[1])});
 const maxMark=(a,b)=>a==null?b:b==null?a:Math.max(a,b);
+const SIGNAL_LIMIT=20;
+function cleanSignals(item) {
+  const signals={};
+  for(const kind of ['activity','answer']) {
+    const pairs=[];
+    for(const pair of Array.isArray(item.signals?.[kind])?item.signals[kind]:[]) {
+      if(Array.isArray(pair)&&mark(pair[0])!==null&&Number.isFinite(pair[1])&&(!pairs.length||pair[0]>pairs.at(-1)[0]))pairs.push([pair[0],pair[1]]);
+    }
+    const legacyAt=typeof item.signalledAt==='number'?item.signalledAt:item.signalledAt?.[kind];
+    if(!pairs.length&&Number.isFinite(legacyAt))pairs.push([mark(item.seen?.[kind])??0,legacyAt]);
+    if(pairs.length)signals[kind]=pairs.slice(-SIGNAL_LIMIT);
+  }
+  return signals;
+}
 const identity=entry=>(entry.kind==='answer'?'answer':'activity')+':'+entry.id;
 const minimal=({kind,id,title,titleLanguage,memberId,savedAt})=>({kind,id,title,titleLanguage,memberId,savedAt});
 const keys=items=>items.map(savedKey).sort();
@@ -67,7 +81,7 @@ function migrate(item,now=Date.now()) {
     const {unreadAnswers,unreadActivities,...question}=item;
     return compactItem({...question,...common},now);
   }
-  return compactItem({...minimal(item),...common,seen:null,signalledAt:{},
+  return compactItem({...minimal(item),...common,seen:null,signals:{},
     ...(item.baseline?.activityVersion===3&&item.baseline.activityIdsComplete?{legacy:item.baseline}:{})},now);
 }
 export function savedLinks(item) {return item.entries||[];}
@@ -86,10 +100,10 @@ export function createSavedStore(storage,notify=()=>void 0) {
         const now=Date.now();
         items=cleaned.map(item=>{
           const old=originals.get(savedKey(item));
-          if(!Array.isArray(old.entries)||old.legacyUpdated&&!Number.isFinite(old.legacyAt))migration=true;
+          if(!Array.isArray(old.entries)||old.legacyUpdated&&!Number.isFinite(old.legacyAt)||old.signalledAt!==undefined)migration=true;
           const entries=Array.isArray(old.entries)?old.entries.filter(entry=>entry&&validSource(entry.id)).map(entry=>({...unreadEntries([entry])[0],discoveredAt:Number.isFinite(entry.discoveredAt)?entry.discoveredAt:now,readAt:Number.isFinite(entry.readAt)?entry.readAt:null})):migrateUnread(unreadEntries(old.unread||[...(item.unreadActivities||[]).map(x=>({...x,kind:'activity'})),...(item.unreadAnswers||[]).map(x=>({...x,kind:'answer'}))]),now);
           const base=item.kind==='question'?{...item,unreadAnswers:undefined,unreadActivities:undefined}:{...minimal(item),seen:old.seen?{activity:mark(old.seen.activity),answer:mark(old.seen.answer)}:null,legacy:cleanState(old.legacy)};
-          return compactItem({...base,entries,historyOmitted:count(old.historyOmitted),unreadOmitted:count(old.unreadOmitted),unreadOmittedAt:old.unreadOmittedAt??(old.unreadOmitted?now:undefined),legacyUpdated:old.legacyUpdated===true||!Array.isArray(old.entries)&&item.kind==='question'&&item.updated&&!entries.length,legacyAt:old.legacyAt??now,changedAt:Number.isFinite(old.changedAt)?old.changedAt:undefined,signalledAt:{activity:old.signalledAt?.activity,answer:old.signalledAt?.answer}},now);
+          return compactItem({...base,entries,historyOmitted:count(old.historyOmitted),unreadOmitted:count(old.unreadOmitted),unreadOmittedAt:old.unreadOmittedAt??(old.unreadOmitted?now:undefined),legacyUpdated:old.legacyUpdated===true||!Array.isArray(old.entries)&&item.kind==='question'&&item.updated&&!entries.length,legacyAt:old.legacyAt??now,changedAt:Number.isFinite(old.changedAt)?old.changedAt:undefined,signals:cleanSignals(old)},now);
         });
         epoch=typeof raw.epoch==='string'?raw.epoch:null;legacyKeys=Array.isArray(raw.legacyKeys)?raw.legacyKeys.filter(x=>typeof x==='string'):[];
         // Also protect stores written before the mirror was capped, even if an
@@ -137,7 +151,7 @@ export function createSavedStore(storage,notify=()=>void 0) {
         const limit=item.kind==='mep'?1000:100;
         if(items.filter(x=>x.kind===item.kind).length>=limit)throw Error(item.kind==='mep'?'The MEP selection is too large.':'You can save up to 100 questions.');
         const added={...item,id:String(item.id),savedAt:lastSavedAt=Math.max(Date.now(),lastSavedAt+1),updated:false};
-        items=[...items,item.kind==='mep'?{...minimal(added),seen:manifest?.members[item.id]?marks(manifest.members[item.id]):null,entries:[],historyOmitted:0,unreadOmitted:0,legacyUpdated:false,signalledAt:{}}:{...added,entries:[],historyOmitted:0}];
+        items=[...items,item.kind==='mep'?{...minimal(added),seen:manifest?.members[item.id]?marks(manifest.members[item.id]):null,entries:[],historyOmitted:0,unreadOmitted:0,legacyUpdated:false,signals:{}}:{...added,entries:[],historyOmitted:0}];
       }
       if(!publish(true)){items=before;legacyKeys=previousKeys;try{storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys}));storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:legacyMirror(items)}));}catch{}derive();refresh();throw Error("Couldn't save in this browser: storage is full or blocked. This follow change was not kept.");}
     },
@@ -147,12 +161,17 @@ export function createSavedStore(storage,notify=()=>void 0) {
       items=items.map(item=>{
         if(item.kind!=='mep')return item;
         const row=data.members[item.id],seen=reset||!item.seen&&!item.legacy?(row?marks(row):null):item.seen;
-        const signalledAt={...item.signalledAt};
+        const signals={...item.signals};
         for(const [kind,index] of [['activity',0],['answer',1]]) {
-          if(row&&seen&&(row[index]??0)>(seen[kind]??0))signalledAt[kind]??=now;
-          else delete signalledAt[kind];
+          if(row&&seen&&(row[index]??0)>(seen[kind]??0)) {
+            let pairs=signals[kind]||[];
+            // Legacy scalars have no upper mark until the first manifest arrives.
+            if(pairs.length===1&&pairs[0][0]<=(seen[kind]??0))pairs=[[row[index],pairs[0][1]]];
+            if(row[index]>(pairs.at(-1)?.[0]??0))pairs=[...pairs,[row[index],now]];
+            signals[kind]=pairs.slice(-SIGNAL_LIMIT);
+          } else delete signals[kind];
         }
-        return {...item,seen,signalledAt,...(reset?{legacy:undefined}:{})};
+        return {...item,seen,signals,...(reset?{legacy:undefined}:{})};
       });
       if(reset)restarted=true;epoch=data.epoch;checkState='available';return publish(true);
     },
@@ -172,17 +191,20 @@ export function createSavedStore(storage,notify=()=>void 0) {
           const {title,titleLanguage,date,relatedQuestionId}=cleanEntries([rich.get(key)])[0];
           unread.set(key,{...entry,title,titleLanguage,date,relatedQuestionId});
         }
-        const seen={activity:null,answer:null,...item.seen},legacy=item.legacy,known={activity:new Set(legacy?.latestIds),answer:new Set(legacy?.answerIds)};
+        const seen={activity:null,answer:null,...item.seen},legacy=item.legacy,known={activity:new Set(legacy?.latestIds),answer:new Set(legacy?.answerIds)},now=Date.now();
         for(const [id,code,value] of data.ids) {
           const kind=code===1?'answer':'activity',entry={id,kind,mark:value,recordKind:kind==='answer'?'answer':undefined};
           if(legacy?!known[kind].has(id):item.seen&&value>(item.seen[kind]??0)) {
-            const key=identity(entry);if(!unread.has(key))unread.set(key,{...cleanEntries([rich.get(key)||entry])[0],...entry,recordKind:rich.get(key)?.recordKind||entry.recordKind,discoveredAt:item.signalledAt?.[kind]??Date.now(),readAt:null});
+            // Oldest pairs are dropped, never merged: earlier marks use the first
+            // retained time (unless future), without backdating later discoveries.
+            const at=item.signals?.[kind]?.find(([signalMark])=>signalMark>=value)?.[1];
+            const key=identity(entry);if(!unread.has(key))unread.set(key,{...cleanEntries([rich.get(key)||entry])[0],...entry,recordKind:rich.get(key)?.recordKind||entry.recordKind,discoveredAt:Number.isFinite(at)&&at<=now?at:now,readAt:null});
           }
           seen[kind]=maxMark(seen[kind],value);
         }
         if(!item.seen&&!legacy)Object.assign(seen,marks(manifest.members[item.id]));
         const entries=[...unread.values()];
-        return {...item,seen,legacy:undefined,entries,signalledAt:{}};
+        return {...item,seen,legacy:undefined,entries,signals:{}};
       });
       // Acceptance is independent of persistence: failed writes keep the
       // materialized entries in memory and expose the existing storage banner.
@@ -190,7 +212,7 @@ export function createSavedStore(storage,notify=()=>void 0) {
     },
     markRead(key){return update(key,item=>({...item,
       ...(item.kind==='mep'?{seen:manifest?{activity:maxMark(item.seen?.activity,manifest.members[item.id]?.[0]??null),answer:maxMark(item.seen?.answer,manifest.members[item.id]?.[1]??null)}:item.seen}:{baseline:item.current||item.baseline}),
-      entries:markAllRead(item.entries||[],Date.now()),unreadOmitted:0,signalledAt:{},changedAt:undefined,legacyUpdated:false}));},
+      entries:markAllRead(item.entries||[],Date.now()),unreadOmitted:0,signals:{},changedAt:undefined,legacyUpdated:false}));},
     markEntryRead(key,kind,id){return update(key,item=>({...item,entries:markEntryRead(item.entries||[],kind,id,Date.now())}));},
     openQuestion(key){return update(key,item=>item.kind==='question'?{...item,baseline:item.current||item.baseline,changedAt:undefined,legacyUpdated:false}:item);},
   };

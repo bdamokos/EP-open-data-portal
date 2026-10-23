@@ -11,11 +11,14 @@ export function isNewEntry(entry,now) {
   return entry.readAt===null&&withinWindow(entry.discoveredAt,now);
 }
 
-// Stores may signal the two kinds separately; a scalar covers a single signal.
+// Only the latest rise keeps an unresolved kind new; older scalar stores still load.
 function unresolvedTimes(item) {
   if(!item.unresolved)return [];
   if(typeof item.signalledAt==='number')return item.unresolved===true||kinds.some(kind=>item.unresolved[kind])?[item.signalledAt]:[];
-  return kinds.flatMap(kind=>(item.unresolved===true||item.unresolved[kind])&&Number.isFinite(item.signalledAt?.[kind])?[item.signalledAt[kind]]:[]);
+  return kinds.flatMap(kind=>{
+    const at=item.signals?.[kind]?.at(-1)?.[1]??item.signalledAt?.[kind];
+    return (item.unresolved===true||item.unresolved[kind])&&Number.isFinite(at)?[at]:[];
+  });
 }
 
 function signalTimes(item) {
