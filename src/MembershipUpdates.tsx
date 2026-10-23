@@ -7,7 +7,7 @@ export function MembershipUpdates({member,language,now,onMember}:{member:string;
   const row=(entry:MembershipEntry)=>{
     const href='?'+new URLSearchParams({lang:language,member});
     const read=()=>membershipStore.markRead(member,entry.id);
-    return <div className="explorer-saved-entry" key={entry.id}><a href={href} onAuxClick={event=>{if(event.button===1)read();}} onClick={event=>{
+    return <div className="explorer-saved-entry explorer-membership-entry" key={entry.id}><a className="explorer-membership-link" href={href} onAuxClick={event=>{if(event.button===1)read();}} onClick={event=>{
       read();if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
       event.preventDefault();onMember(Number(member));
     }}>{membershipIsNew(entry,now)&&<span className="explorer-saved-new">New</span>}{entry.type==='mandate-ended'?'Left Parliament':entry.subtype==='returned'?'Returned to Parliament':'Joined Parliament'} · <span lang={language}>{mandateDate(entry.date,language)}</span></a>
