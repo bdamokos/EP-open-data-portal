@@ -412,3 +412,124 @@ test('replacement instructions with an omitted opener retain nested terms until 
     assert.equal(proposalCandidates(result,'Article 7').length,0);assert.equal(proposalCandidates(result,'Article 2').length,1);assert.equal(result.complete,true);
   }
 });
+
+
+test('plural possessives retain replacement Article 7 and the full outer Article 1 extent',()=>{
+  for(const [open,close,possessive] of [['‘','’','’'],["'","'","'"],['“','”',"'"]]){
+    const paragraphs=['Article 1','The Regulation is amended as follows:','(1) Article 6 is replaced by the following:',open+'Article 6',
+      '1. The operators'+possessive+' obligations include “annual reports”.','Article 7','1. Additional replacement text.'+close+';','Article 2','Final text.'];
+    const result=parseProposal(archive(body(paragraphs.map((text,i)=>p(text,i===2?'Point0':'')).join(''))));
+    assert.equal(proposalCandidates(result,'Article 7').length,0,open);
+    assert.equal(proposalCandidates(result,'Article 1')[0].extent.end,7,open);
+    assert.equal(proposalCandidates(result,'Article 2').length,1,open);
+    assert.equal(result.complete,true,JSON.stringify(result.gaps));
+  }
+});
+
+test('ambiguous apostrophes keep safe quotation scope and explicit uncertainty',()=>{
+  for(const ending of ['operators’;', 'operators’', 'term’ followed by more text.']){
+    const result=parseProposal(archive(body(p('Article 1')+p('(1) Article 6 is replaced by the following:','Point0')+
+      p('‘Article 6')+p('1. The '+ending)+p('Article 7')+p('1. Final replacement text.’;')+p('Article 2'))));
+    assert.equal(proposalCandidates(result,'Article 7').length,0,ending);
+    assert.equal(proposalCandidates(result,'Article 2').length,1,ending);
+    assert(result.gaps.some(gap=>gap.code==='ambiguous-quotation-boundary'),ending);
+    assert.equal(result.complete,false);assert.equal(proposalCandidates(result,'Article 1')[0].complete,false);
+  }
+  const state={marks:[],implicit:false};
+  assert.equal(quotationClosed('‘Article 6',state,'en'),false);
+  assert.equal(quotationClosed('The “operators’ obligations” include ‘annual reports’.',state,'en'),false);
+  assert.equal(quotationClosed('The sentence ends.’;',state,'en'),true);
+  assert.equal(state.ambiguous,undefined);
+  const implicit={marks:[],implicit:true};
+  assert.equal(quotationClosed('operators’;',implicit,'en'),false);assert(implicit.ambiguous);
+});
+
+test('footnote and endnote equations retain exact note positions, paths and owning-unit completeness',()=>{
+  const ref=kind=>`<w:p><w:r><w:t>1. Provision.</w:t><w:${kind}Reference w:id="1"/></w:r></w:p>`;
+  const notePart=(kind,math)=>`<w:${kind}s xmlns:w="urn:word" xmlns:m="urn:math"><w:${kind} w:id="0" w:type="separator"/><w:${kind} w:id="1">`+
+    p('Introductory note.')+`<w:p><w:r><w:t>😀 Equation: </w:t></w:r><m:oMath>${math}</m:oMath><w:r><w:t> — </w:t></w:r><w:hyperlink r:id="r1"><w:r><w:t>source</w:t></w:r></w:hyperlink></w:p></w:${kind}></w:${kind}s>`;
+  const equation=`<m:sSub><m:e>${r('E')}</m:e><m:sub>${r('j')}</m:sub></m:sSub>`;
+  const buffer=archive(body(p('Article 1')+ref('footnote')+p('Article 2')+ref('endnote')),
+    ['footnote','endnote'].flatMap(kind=>[[`word/${kind}s.xml`,notePart(kind,equation)],[`word/_rels/${kind}s.xml.rels`,'<Relationships><Relationship Id="r1" Target="https://example.org/source" TargetMode="External"/></Relationships>']]));
+  const result=parseProposal(buffer,{sourceUrl});
+  assert.equal(result.complete,true,JSON.stringify(result.gaps));assert(result.contentComplete);
+  assert.equal(result.objects.length,2);assert.equal(result.paragraphs.flatMap(p=>p.objects).length,0);
+  for(const [i,note] of result.notes.entries()){
+    const kind=i?'endnote':'footnote',object=note.objects[0],id=i?'endnote:1':'1';
+    assert.equal(note.id,id);assert.equal(note.complete,true);assert.equal(note.objects.length,1);
+    assert.equal(object.note,id);assert.equal(object.paragraph,1);assert.equal(object.paragraphOffset,'😀 Equation: '.length);
+    assert.equal(object.offset,'Introductory note.\n😀 Equation: '.length);assert.equal(note.text[object.offset],'\uFFFC');
+    assert.equal(object.sourcePart,`word/${kind}s.xml`);assert.equal(note.source.part,object.sourcePart);
+    assert.equal(note.source.path,`/w:${kind}s[1]/w:${kind}[2]`);assert.equal(object.path,note.source.path+'/w:p[2]/m:oMath[1]');
+    assert.equal(object.status,'converted');assert.equal(object.sourceUrl,sourceUrl);assert(isSafeMathML(object.math));
+    assert(JSON.stringify(object.math).includes('"tag":"msub"'));assert.equal(result.objects[i],object);
+    assert.equal(note.text.slice(note.linkSpans[0].start,note.linkSpans[0].end),'source');
+  }
+  const ordinary=docxContent(buffer);assert(ordinary.notes.every(note=>!('objects'in note)&&!('complete'in note)&&!('source'in note)));
+  assert.deepEqual(ordinary.notes.map(note=>note.text),result.notes.map(note=>note.text));
+  assert.deepEqual(ordinary.anchors,result.anchors);
+});
+
+test('unsupported, missing, truncated and unexplained note content cannot claim completeness',()=>{
+  const ref='<w:p><w:r><w:t>1. Provision.</w:t><w:footnoteReference w:id="1"/></w:r></w:p>';
+  const document=body(p('Article 1')+ref+p('Article 2')+ref+p('Article 3')+p('1. Unaffected.'));
+  const note=inside=>`<w:footnotes xmlns:w="urn:word" xmlns:m="urn:math"><w:footnote w:id="1">${inside}</w:footnote></w:footnotes>`;
+  for(const inside of [
+    `<w:p><m:oMath><m:phant><m:e>${r('x')}</m:e></m:phant></m:oMath></w:p>`,
+    '<w:p><w:r><w:drawing/></w:r></w:p>',p('Unexplained \uFFFC'),p('x'.repeat(4001)),
+    p('Visible.')+'<w:altChunk/>'+p('After unknown block.'),
+  ]){
+    const result=parseProposal(archive(document,[['word/footnotes.xml',note(inside)]]),{sourceUrl});
+    assert.equal(result.notes[0].complete,false);assert.equal(result.contentComplete,false);assert.equal(result.complete,false);
+    assert(result.gaps.some(gap=>gap.code==='incomplete-note'&&gap.note==='1'));
+    for(const value of ['1','2'])assert.equal(proposalCandidates(result,'Article '+value)[0].complete,false);
+    assert.equal(proposalCandidates(result,'Article 3')[0].complete,true);
+    for(const object of result.notes[0].objects){assert.equal(object.complete,false);assert.equal(object.sourcePart,'word/footnotes.xml');assert.equal(object.note,'1');}
+  }
+  const missing=parseProposal(archive(document));assert.equal(missing.contentComplete,false);assert.equal(proposalCandidates(missing,'Article 1')[0].complete,false);
+});
+
+test('custom note labels keep adjusted object offsets without changing the source paragraph offset',()=>{
+  const document=body(p('Article 1')+'<w:p><w:r><w:t>1. Provision.</w:t><w:footnoteReference w:id="7" w:customMarkFollows="1"/><w:t>*</w:t></w:r></w:p>');
+  const notes=`<w:footnotes xmlns:w="urn:word" xmlns:m="urn:math"><w:footnote w:id="7"><w:p><w:r><w:t>*) Note </w:t></w:r><m:oMath>${r('x')}</m:oMath></w:p></w:footnote></w:footnotes>`;
+  const result=parseProposal(archive(document,[['word/footnotes.xml',notes]]));
+  const note=result.notes[0],object=note.objects[0];assert.equal(note.text,'Note \uFFFC');assert.equal(object.offset,5);assert.equal(object.paragraphOffset,8);assert.equal(note.label,'*');assert(note.complete);
+});
+
+test('mathematical alphabets and styles preserve symbol identity through validated token attributes',()=>{
+  const cases=[['double-struck','','double-struck'],['script','b','bold-script'],['fraktur','p','fraktur'],['sans-serif','bi','sans-serif-bold-italic'],['monospace','p','monospace'],['roman','p','normal'],['roman','bi','bold-italic']];
+  for(const [script,style,variant] of cases){
+    const converted=math(`<m:r><m:rPr><m:scr m:val="${script}"/>${style?`<m:sty m:val="${style}"/>`:''}</m:rPr><m:t>R</m:t></m:r>`);
+    assert(converted.complete,JSON.stringify(converted.unsupported));assert(isSafeMathML(converted.math));
+    assert.equal(converted.math.children[0].children[0].attributes.mathvariant,variant);
+  }
+  const plain=math(r('R')),styled=math('<m:r><m:rPr><m:scr m:val="double-struck"/></m:rPr><m:t>R</m:t></m:r>');
+  assert.notDeepEqual(plain.math,styled.math);assert.equal(plain.complete,true);
+  for(const properties of ['<m:unknown/>','<m:scr/>','<m:scr m:val="unknown"/>','<m:sty m:val="unknown"/>',
+    '<m:scr m:val="double-struck"/><m:sty m:val="bi"/>','<m:scr m:val="roman" onclick="x"/>',
+    '<m:scr m:val="roman"><m:unknown/></m:scr>','<m:scr m:val="roman"/><m:scr m:val="script"/>',
+    '<m:scr m:val="&quot; onload=&quot;alert(1)"/>','<m:sty m:val="__proto__"/>']){
+    const converted=math(`<m:r><m:rPr>${properties}</m:rPr><m:t>R</m:t></m:r>`);
+    assert.equal(converted.complete,false,properties);assert.equal(converted.math,null);assert(converted.unsupported.length);
+  }
+  for(const xml of ['<m:r><m:rPr/><m:rPr/><m:t>x</m:t></m:r>','<m:r><m:rPr onload="x"/><m:t>x</m:t></m:r>',
+    '<m:r onload="x"><m:t>x</m:t></m:r>','<m:r><m:t onload="x">x</m:t></m:r>',r('x'.repeat(100001)),
+    '<m:r><m:rPr>'+ '<m:unknown/>'.repeat(10001)+'</m:rPr><m:t>x</m:t></m:r>'])assert.equal(math(xml).complete,false,xml.slice(0,80));
+  for(const attributes of [{mathvariant:'double-struck',onload:'x'},{mathvariant:'url(javascript:x)'},{mathvariant:'DOUBLE-STRUCK'},{mathvariant:'__proto__'}]){
+    assert.equal(isSafeMathML({tag:'math',children:[{tag:'mi',attributes,children:['R']}]}),false);
+  }
+  assert.equal(isSafeMathML({tag:'math',attributes:{mathvariant:'double-struck'},children:['R']}),false);
+  const unresolved=parseProposal(archive(body(p('Article 1')+`<w:p><m:oMath><m:r><m:rPr><m:scr m:val="unknown"/></m:rPr><m:t>R</m:t></m:r></m:oMath></w:p>`)));
+  assert.equal(unresolved.contentComplete,false);assert(unresolved.gaps.some(gap=>gap.code==='unresolved-math'&&gap.sourcePath));assert.equal(proposalCandidates(unresolved,'Article 1')[0].complete,false);
+});
+
+
+test('source instruction styles verify trailing delimiters without guessing from punctuation',()=>{
+  for(const ending of ['compensation’;','operators’;','sentence.]’;']){
+    const result=parseProposal(archive(body(p('Article 1')+p('(1) Article 6 is replaced by the following:','Point0')+
+      p('‘Article 6')+p('1. The '+ending)+p('(2) Article 8 is deleted.','Point0')+p('Article 2'))));
+    assert.equal(proposalCandidates(result,'Article 1 – paragraph 1 – point 1')[0].extent.end,4);
+    assert.equal(proposalCandidates(result,'Article 1 – paragraph 1 – point 2').length,1);
+    assert.equal(result.complete,true,JSON.stringify(result.gaps));
+  }
+});
