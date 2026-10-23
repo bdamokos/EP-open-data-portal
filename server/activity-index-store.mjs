@@ -370,7 +370,8 @@ export class ActivityStore {
           const relatedJointMotions=this.relatedJointMotions(generation,row.sourceId).map(joint=>{
             const id=joint.work.identifier, files=documentFiles(joint.work).filter(file=>['PDF','DOCX'].includes(file.format));
             const preferred=code=>files.find(file=>file.language===code && file.format==='PDF') || files.find(file=>file.language===code);
-            const file=preferred(language) || preferred('en') || files[0];
+            const fileLanguage=languagePreference(files.map(file=>file.language).filter(Boolean),language)[0];
+            const file=preferred(fileLanguage) || files[0];
             const titles=joint.work.title_dcterms || {};
             const authors=documentRows(joint.work,joint.key,joint.fetchedAt).rows;
             return {sourceId:id,reference:motionReference(id),title:titles[languagePreference(Object.keys(titles).filter(code=>titles[code]?.trim()),language)[0]]||id,outcome:outcome(joint),
