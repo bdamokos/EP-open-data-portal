@@ -22,15 +22,23 @@ export async function contractDigest(root) {
   return {digest: createHash('sha256').update(JSON.stringify(versions)).digest('hex'), versions};
 }
 
+const revisionPattern = /export const API_CONTRACT_REVISION = ([1-9]\d*);/g;
+const revisionDeclaration = /\bexport\s+(?:const|let|var)\s+API_CONTRACT_REVISION\b/g;
 const versionPattern = /export const API_VERSION = ([1-9]\d*);/g;
+const versionDeclaration = /\bexport\s+(?:const|let|var)\s+API_VERSION\b/g;
 const registryPattern = /export const API_CONTRACT_DIGESTS = Object\.freeze\(\{([\s\S]*?)\}\);/g;
 
 // Parse data, never execute a registry read from a Git ref or conflict side.
 export function parseRegistry(source) {
   const versionMatches = [...source.matchAll(versionPattern)];
   const registryMatches = [...source.matchAll(registryPattern)];
-  if (versionMatches.length !== 1 || registryMatches.length !== 1) throw new Error('Expected one API_VERSION and one API_CONTRACT_DIGESTS declaration');
+  if (versionMatches.length !== 1 || [...source.matchAll(versionDeclaration)].length !== 1 || registryMatches.length !== 1) throw new Error('Expected one API_VERSION and one API_CONTRACT_DIGESTS declaration');
   const version = Number(versionMatches[0][1]);
+  const revisions = [...source.matchAll(revisionPattern)];
+  const declarations = [...source.matchAll(revisionDeclaration)];
+  if (declarations.length > 1 || declarations.length !== revisions.length) throw new Error('Expected one positive integer API_CONTRACT_REVISION declaration');
+  // Old Git refs predate wrapping and use the version as the history key.
+  const revision = revisions.length ? Number(revisions[0][1]) : version;
   const entries = [];
   let remaining = registryMatches[0][1];
   while (remaining.trim()) {
@@ -39,14 +47,19 @@ export function parseRegistry(source) {
     entries.push([Number(match[1]), match[2]]);
     remaining = remaining.slice(match[0].length);
   }
-  if (!Number.isSafeInteger(version) || !entries.length || entries.some(([key], i) => key !== i + 1) || entries.at(-1)[0] !== version) {
-    throw new Error('API_VERSION must select the newest entry in a contiguous registry starting at 1');
+  if (!Number.isSafeInteger(revision) || version !== (revision - 1) % 999 + 1 || !entries.length || entries.some(([key], i) => key !== i + 1) || entries.at(-1)[0] !== revision) {
+    throw new Error('API_CONTRACT_REVISION must select the newest contiguous entry; API_VERSION must wrap from 999 to 1');
   }
-  return {version, entries};
+  return {version, revision, entries};
 }
 
 export function renderRegistry(source, registry) {
-  return source.replace(versionPattern, `export const API_VERSION = ${registry.version};`)
+  const revision = registry.revision;
+  const declaration = `export const API_CONTRACT_REVISION = ${revision};`;
+  const withRevision = source.match(revisionPattern)
+    ? source.replace(revisionPattern, declaration)
+    : source.replace(versionPattern, `${declaration}\n$&`);
+  return withRevision.replace(versionPattern, `export const API_VERSION = ${registry.version};`)
     .replace(registryPattern, `export const API_CONTRACT_DIGESTS = Object.freeze({\n${registry.entries.map(([key, digest]) => `  ${key}: '${digest}',`).join('\n')}\n});`);
 }
 
@@ -77,7 +90,7 @@ export function registrySides(source) {
   if (state !== 'outside') throw new Error('Unterminated API version conflict');
   const sources = conflicts ? sides : [source];
   const registries = sources.map(parseRegistry);
-  const skeletons = sources.map(text => renderRegistry(text, {version: 1, entries: [[1, '0'.repeat(64)]]}));
+  const skeletons = sources.map(text => renderRegistry(text, {version: 1, revision: 1, entries: [[1, '0'.repeat(64)]]}));
   if (skeletons.some(text => text !== skeletons[0])) throw new Error('Resolve conflicting code outside the API version declarations first');
   return {source: sources[0], registries};
 }
@@ -95,7 +108,7 @@ export function reconcileRegistry(main, branches, digest, force = false) {
     entries.push([entries.length + 1, entry[1]]);
   }
   if (force || entries.at(-1)[1] !== digest) entries.push([entries.length + 1, digest]);
-  return {version: entries.length, entries};
+  return {version: (entries.length - 1) % 999 + 1, revision: entries.length, entries};
 }
 
 export function assertRecordedHistory(baseline, current) {
@@ -109,7 +122,7 @@ export function assertBranchHistory(main, branch, current) {
   // Unpublished stack entries may be renumbered, but their digest occurrences
   // must survive after main, including repeated semantic-only records.
   const available = new Map();
-  for (const [, digest] of current.entries.slice(main.version)) available.set(digest, (available.get(digest) ?? 0) + 1);
+  for (const [, digest] of current.entries.slice(main.revision)) available.set(digest, (available.get(digest) ?? 0) + 1);
   for (const [version, digest] of branch.entries) {
     if (main.entries[version - 1]?.[1] === digest) continue;
     const count = available.get(digest) ?? 0;

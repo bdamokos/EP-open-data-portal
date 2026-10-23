@@ -8,9 +8,42 @@ import {fileURLToPath} from 'node:url';
 import {assertBranchHistory, assertRecordedHistory, contractDigest, parseRegistry, reconcileRegistry, registrySides, renderRegistry} from './api-contract.mjs';
 
 const a = 'a'.repeat(64), b = 'b'.repeat(64), c = 'c'.repeat(64), d = 'd'.repeat(64);
-const registry = (...digests) => ({version: digests.length, entries: digests.map((digest, i) => [i + 1, digest])});
+const registry = (...digests) => ({version: (digests.length - 1) % 999 + 1, revision: digests.length, entries: digests.map((digest, i) => [i + 1, digest])});
 const template = `// Keep this comment.\nexport const API_VERSION = 1;\nexport const API_CONTRACT_DIGESTS = Object.freeze({\n  1: '${a}',\n});\nexport function versionedApiUrl(url) { return url; }\n`;
 const source = (...digests) => renderRegistry(template, registry(...digests));
+
+test('revision history crosses 998, 999 and 1 without reusing keys', () => {
+  let current = registry(...Array(998).fill(a));
+  for (const [revision, version, digest] of [[999, 999, b], [1000, 1, c], [1001, 2, d]]) {
+    const next = reconcileRegistry(current, [current], digest);
+    assert.equal(next.revision, revision);
+    assert.equal(next.version, version);
+    assertRecordedHistory(current, next);
+    assert.deepEqual(parseRegistry(renderRegistry(template, next)), next);
+    assert.deepEqual(reconcileRegistry(current, [next], digest), next);
+    current = next;
+  }
+  const second = reconcileRegistry(registry(...Array(1998).fill(a)), [], b);
+  assert.equal(second.revision, 1999);
+  assert.equal(second.version, 1);
+  assert.equal(second.entries[0][1], a);
+  assert.equal(second.entries[1998][1], b);
+});
+
+test('legacy and wrapped declarations normalize together while invalid revisions fail closed', () => {
+  assert.deepEqual(parseRegistry(template), registry(a));
+  const modern = source(a);
+  const conflict = `<<<<<<< HEAD\n${template}=======\n${modern}>>>>>>> branch\n`;
+  assert.deepEqual(registrySides(conflict).registries, [registry(a), registry(a)]);
+  for (const text of [modern.replace('REVISION = 1;', 'REVISION = 0;'),
+    modern.replace('REVISION = 1;', 'REVISION = 9007199254740992;'),
+    modern.replace('REVISION = 1;', 'REVISION = 2;'),
+    modern + '\nexport const API_CONTRACT_REVISION = 0;',
+    modern + '\nexport const API_VERSION = 0;',
+    source(...Array(1000).fill(a)).replace('API_VERSION = 1;', 'API_VERSION = 1000;')]) {
+    assert.throws(() => parseRegistry(text));
+  }
+});
 
 test('next version starts after main and unchanged contracts are idempotent', () => {
   const main = registry(a, b);
@@ -52,6 +85,10 @@ test('stack checks allow parent renumbering while preserving main and every pare
   assert.throws(() => assertBranchHistory(main, parent, registry(a, b, d)), /removed or replaced/);
   assert.throws(() => assertBranchHistory(main, registry(a, b, b), bumped), /discarded/);
   assert.doesNotThrow(() => assertBranchHistory(main, registry(a, b, b), registry(a, c, b, b, d)));
+  const wrappedMain = registry(...Array(999).fill(a), b);
+  const wrappedParent = registry(...Array(998).fill(a), b, b);
+  assert.throws(() => assertBranchHistory(wrappedMain, wrappedParent, wrappedMain), /discarded/);
+  assert.doesNotThrow(() => assertBranchHistory(wrappedMain, wrappedParent, registry(...Array(999).fill(a), b, b)));
 });
 
 test('strict registry parser rejects duplicate, missing, unsafe and malformed versions', () => {
@@ -195,6 +232,23 @@ test('CLI --force records semantic-only changes and normal reruns leave them int
   assert.deepEqual(parseRegistry(await f.read()), registry(f.digest, f.digest));
 });
 
+test('CLI --force wraps an unchanged digest from 998 through 999 to 1', async t => {
+  const f = await fixture(t);
+  await f.write(source(...Array(998).fill(f.digest)));
+  for (const [revision, version] of [[999, 999], [1000, 1]]) {
+    const result = f.run('--force');
+    assert.equal(result.status, 0, result.stderr);
+    const current = parseRegistry(await f.read());
+    assert.equal(current.revision, revision);
+    assert.equal(current.version, version);
+    assert(current.entries.every(([, digest]) => digest === f.digest));
+    const before = await f.read();
+    assert.equal(f.run('--check').status, 0);
+    assert.equal(f.run().status, 0);
+    assert.equal(await f.read(), before);
+  }
+});
+
 test('stacked PR check accepts the bump after main advances, and rejects losing parent history', async t => {
   const f = await fixture(t);
   await f.write(source(f.digest, b));
@@ -219,4 +273,45 @@ test('stacked PR check accepts the bump after main advances, and rejects losing 
   assert.match(missing.stderr, /discarded/);
   await f.write(source(f.digest, b, f.digest));
   assert.match(f.run('--check', '--base', 'parent').stderr, /removed or replaced/);
+});
+
+test('CLI reconciles a stacked merge across wrap, retains semantic bumps, and checks read-only', async t => {
+  const f = await fixture(t);
+  const common = Array(998).fill(f.digest);
+  git(f.root, 'switch', 'main');
+  await f.write(source(...common));
+  git(f.root, 'add', 'server/api-version.mjs');
+  git(f.root, 'commit', '-m', 'History at 998');
+  git(f.root, 'switch', 'feature');
+  git(f.root, 'merge', '--ff-only', 'main');
+  await f.write(source(...common, b));
+  git(f.root, 'add', 'server/api-version.mjs');
+  git(f.root, 'commit', '-m', 'Parent at 999');
+  git(f.root, 'branch', 'parent');
+  await f.write(source(...common, b, b));
+  git(f.root, 'add', 'server/api-version.mjs');
+  git(f.root, 'commit', '-m', 'Child semantic bump wraps to 1');
+  git(f.root, 'switch', 'main');
+  await f.write(source(...common, c));
+  git(f.root, 'add', 'server/api-version.mjs');
+  git(f.root, 'commit', '-m', 'Parallel main at 999');
+  git(f.root, 'switch', 'feature');
+  assert.throws(() => git(f.root, '-c', 'merge.conflictStyle=diff3', 'merge', 'main'));
+  const bump = f.run();
+  assert.equal(bump.status, 0, bump.stderr);
+  const updated = await f.read();
+  const next = parseRegistry(updated);
+  assert.deepEqual(next, registry(...common, c, b, b, f.digest));
+  assert.equal(next.version, 3);
+  assert.equal(next.revision, 1002);
+  assert.equal(f.run('--check', '--base', 'parent').status, 0);
+  assert.equal(await f.read(), updated);
+  assert.equal(f.run().status, 0);
+  assert.equal(await f.read(), updated);
+  // A second occurrence of b must survive even though its public version wrapped.
+  git(f.root, 'branch', 'wrapped-child', 'HEAD');
+  await f.write(source(...common, c, b, f.digest));
+  const missing = f.run('--check', '--base', 'wrapped-child');
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /discarded/);
 });
