@@ -73,6 +73,68 @@ test('body extraction excludes covers while preserving citations, numbered refer
   assert.equal(motionBody({paragraphs:['The European Parliament,',...Array(DIFF_LIMITS.paragraphs+1).fill('1. Body')]},'en').status,'unavailable');
 });
 const block=(label,text,kind='paragraph')=>({index:Number(label)-1,kind,label,text});
+const objectWarning='A drawing, equation or other document object is shown as a placeholder; the surrounding text is retained.';
+function structuredText(paragraphs) {
+  return {paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((value,index)=>({
+    path:`body/p[${index}]`,ordinal:index,container:'body',containerPath:'body',segment:0,complete:!value.includes('\uFFFC'),
+  })),documentObjects:paragraphs.flatMap((value,paragraph)=>value.includes('\uFFFC')?[{paragraph,offset:value.indexOf('\uFFFC'),status:'unresolved',kind:'drawing'}]:[]),
+  extractionWarnings:[objectWarning],notes:[]};
+}
+test('a structured cover logo does not prevent comparison of a complete resolution body',async()=>{
+  const text=structuredText(['Cover logo \uFFFC','The European Parliament,','A. Whereas public records matter;','1. Calls for action.']);
+  assert.equal(motionBody(text,'en').status,'available');
+  const s=scenario(),compare=createMotionComparison({request:s.request,readText:async(node,language)=>{
+    const saved=await s.readText(node,language);
+    return {...saved,...structuredText(['Cover logo \uFFFC',...saved.paragraphs])};
+  }});
+  for(const stage of ['original-joint','original-adopted','joint-adopted'])assert.equal((await compare(original,joint,{stage})).status,'available',stage);
+  assert.deepEqual(text.extractionWarnings,[objectWarning],'the saved extraction evidence is retained');
+});
+test('unresolved body objects and incomplete rows block comparison with a resolution-specific reason',()=>{
+  const reason='Part of this resolution (a drawing, equation or other object) can only be read in the original document.';
+  const text=structuredText(['Cover logo \uFFFC','The European Parliament,','1. Public text \uFFFC']);
+  assert.deepEqual(motionBody(text,'en'),{status:'unavailable',reason});
+  text.extractionWarnings=[];
+  assert.deepEqual(motionBody(text,'en'),{status:'unavailable',reason},'warning absence cannot hide a known body object');
+  text.documentObjects=[];text.paragraphSources[2].complete=true;
+  assert.deepEqual(motionBody(text,'en'),{status:'unavailable',reason},'the row placeholder independently marks incomplete text');
+  text.paragraphs[2]='1. Public text';text.paragraphSources[2].complete=false;
+  assert.deepEqual(motionBody(text,'en'),{status:'unavailable',reason:'Part of this resolution could not be read completely. Open the original document to compare it.'},'nonobject incompleteness has its own reason');
+  text.extractionWarnings=['Numbering unavailable'];
+  assert.deepEqual(motionBody(text,'en'),{status:'unavailable',reason:'Numbering unavailable'},'nonobject warnings take precedence');
+  text.paragraphs[2]+='\uFFFC';
+  assert.deepEqual(motionBody(text,'en'),{status:'unavailable',reason:'Numbering unavailable'},'nonobject warnings also precede object gaps');
+  text.extractionWarnings=[];text.paragraphs[2]='1. Public text';text.paragraphSources[2].complete=true;
+  text.notes=[{label:'1',text:'A note with an object \uFFFC'}];
+  assert.deepEqual(motionBody(text,'en'),{status:'unavailable',reason},'notes are included in the compared text');
+});
+test('only object-placeholder warnings are waived, with valid source and object locations',()=>{
+  const make=()=>structuredText(['Cover logo \uFFFC','The European Parliament,','1. Public text.']);
+  for(const warning of ['Numbering unavailable','A referenced footnote or endnote is missing.']) {
+    const text=make();text.extractionWarnings.push(warning);
+    assert.deepEqual(motionBody(text,'en'),{status:'unavailable',reason:warning});
+  }
+  const symbol=make();symbol.documentObjects[0].kind='symbol';
+  symbol.extractionWarnings=['An unmapped symbol is shown as an object placeholder; the surrounding text is retained.'];
+  assert.equal(motionBody(symbol,'en').status,'available','unresolved cover symbols are scoped like drawings');
+  symbol.paragraphs[2]+='\uFFFC';symbol.paragraphSources[2].complete=false;
+  symbol.documentObjects.push({paragraph:2,offset:symbol.paragraphs[2].length-1,kind:'symbol',status:'unresolved'});
+  assert.match(motionBody(symbol,'en').reason,/a drawing, equation or other object/);
+  const mutations=[
+    text=>delete text.structureStatus,text=>delete text.paragraphSources,text=>delete text.documentObjects,
+    text=>text.paragraphSources.pop(),text=>text.paragraphSources[2].ordinal=0,
+    text=>text.paragraphSources[2].path=text.paragraphSources[0].path,
+    text=>delete text.paragraphSources[2].complete,text=>text.documentObjects[0].paragraph=99,
+    text=>text.documentObjects[0].offset=-1,text=>text.documentObjects[0].status='unknown',
+  ];
+  for(const mutate of mutations) {
+    const text=make();mutate(text);
+    assert.deepEqual(motionBody(text,'en'),{status:'unavailable',reason:objectWarning});
+  }
+  const legacy={paragraphs:make().paragraphs,extractionWarnings:[objectWarning]};
+  assert.deepEqual(motionBody(legacy,'en'),{status:'unavailable',reason:objectWarning});
+  legacy.extractionWarnings=[];assert.equal(motionBody(legacy,'en').status,'available');
+});
 test('matching translated cover headings are excluded using the following resolution structure',()=>{
   for(const [language,heading] of [['cs','Evropský parlament'],['da','Europa-Parlamentet'],['et','Euroopa Parlament'],['hr','Europski parlament'],['lv','Eiropas Parlaments'],['hu','Az Európai Parlament'],['mt','Il-Parlament Ewropew'],['fi','Euroopan parlamentti'],['sv','Europaparlamentet']]) {
     const body=motionBody({paragraphs:[heading,'2024-2029','B10-0441/2026','6.10.2026','Cover title','Author',heading+',','–\tPublic citation.','A.\tPublic recital.','1.\tPublic paragraph.']},language);
