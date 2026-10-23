@@ -1,7 +1,12 @@
+import {matchesCommittee} from './memberFilters.mjs';
+import {coverageStore} from './SavedControls';
+import {FormerMemberNotice} from './MembershipUpdates';
+import {PersonName,PersonNamesProvider} from './PersonName';
 import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
 import {lazyView} from './lazyView';
 import {filterCountry,matchesCountry} from './countries.mjs';
 import {explorerParams,useExplorerParam} from './explorerUrl';
+import {compareMembers} from './memberOrder.mjs';
 import {SpeechCloud} from './SpeechCloud';
 import {FindInText,TextSearch} from './TextSearch';
 import {InterventionBadges,SpeechContextPanel,InterventionStatistics,speechCategories,matchesSpeechCategory} from './SpeechInterventions';
@@ -10,7 +15,8 @@ import {SpeakerName,SpeakerRoleLine} from './SpeakerIdentity';
 import {publicationBody} from './publication-body.mjs';
 import {CommitteeMemberships} from './CommitteeMemberships';
 import {ParliamentaryService} from './ParliamentaryService';
-import {SaveButton,useSavedChecks} from './SavedControls';
+import {ProfileMemberships} from './ProfileMemberships';
+import {SaveButton,useSavedChecks,useSaved} from './SavedControls';
 import {interfaceTerm} from './terms.mjs';
 import {ParliamentHeader} from './ParliamentHeader';
 import {QuestionStatus} from './QuestionStatus';
@@ -22,7 +28,7 @@ import { Portrait } from "./components/Portrait";
 import './focus.css';
 import { DataNotice } from "./components/DataNotice";
 import { API_ROOT } from "./api";
-import { interfaceLabel, countryName, languageName } from "./interfaceLabels.mjs";
+import { interfaceLabel, countryName, compareCountries, languageName } from "./interfaceLabels.mjs";
 import { publicUrl } from "./publicUrl";
 import { interfaceCopy, interfaceLanguages } from "./interfaceCopy";
 import type {
@@ -54,6 +60,7 @@ import {selectLanguageText} from './language.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
 import {useMemberVotesJourney} from './useMemberVotesJourney';
 import {useMemberMotionJourney} from './useMemberMotionJourney';
+import {motionJourneyParams} from './motionJourney.mjs';
 import type {MemberMotionReaderProps} from './MemberMotionReader';
 
 const MemberVotes=lazyView(()=>import('./MemberVotes').then(module=>({default:module.MemberVotes})));
@@ -194,7 +201,7 @@ function AuthorMention({text,authors,lang,anchors,links,marks,notePrefix,offset=
 function CoAuthors({authors,lang,member}:{authors?:CoAuthor[];lang:string;member:number}) {
   const people=linkedCoAuthors(authors);
   if(!people.length)return null;
-  return <details className="explorer-coauthors" lang="en"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id} lang="">{person.id===member ? <strong>{person.name}</strong> : <a href={coAuthorProfileUrl(location.pathname,lang,person.id)}>{person.name}</a>}</li>)}</ul></details>;
+  return <details className="explorer-coauthors" lang="en"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id} lang="">{person.id===member ? <strong><PersonName id={person.id} label={person.name}/></strong> : <a href={coAuthorProfileUrl(location.pathname,lang,person.id)}><PersonName id={person.id} label={person.name}/></a>}</li>)}</ul></details>;
 }
 function PublicationText({ sourceId, member, lang, heading, headingDate, includeAnswers = false,question }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string} }) {
   const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang,sourceId]);
@@ -279,6 +286,28 @@ function LinkedActivityFallback({ sourceId, member, lang, complete }: { sourceId
     {document.data && !matched && <p>The API did not return the exact linked document or answer.</p>}
     {contribution.data && <><p>{speechAuthor ? "The speech API names this MEP as a participant." : "The speech source is available. A relationship to this MEP has not been established."}</p><Detail speech={contribution.data} lang={lang} /></>}
   </aside>;
+}
+export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpenProfile}:{member:number|string;sourceId:string;lang:string;profileHref:string;onOpenProfile:()=>void}) {
+  const state=useData<JoinedActivityPage>(`latest-activities/${member}?lang=${lang}&limit=1&source-id=${encodeURIComponent(sourceId)}`);
+  const selected=state.data?.selectedItems.find(item=>item.sourceId===sourceId);
+  const scope=JSON.stringify([member,sourceId,lang]);
+  const [motion,setMotion]=useState(()=>({scope,query:new URLSearchParams()}));
+  const motionQuery=motion.scope===scope?motion.query:new URLSearchParams();
+  const onMotionChange:MemberMotionReaderProps['onJourneyChange']=(binding,next)=>{
+    const query=motionJourneyParams(binding,next);query.set('member',String(member));
+    setMotion({scope,query});
+  };
+  return <section lang="en">
+    <Status scope={`following-detail:${scope}`} pending={state.loading} message={state.error?'Activity temporarily unavailable.':selected?'Activity loaded.':state.data?'Linked activity is not in the saved index.':null}/>
+    {state.loading&&!selected&&<p role="status">Checking the saved linked activity…</p>}
+    {state.error&&<ErrorView message={state.error} retry={state.retry}/>}
+    {selected?<JoinedDetails key={`${scope}:${selected.id}`} item={selected} member={Number(member)} lang={lang} motionQuery={motionQuery} onMotionChange={onMotionChange}/>:
+      !state.loading&&state.data&&<LinkedActivityFallback key={scope} sourceId={sourceId} member={Number(member)} lang={lang} complete={state.data.cache.complete}/>}
+    {!selected&&!state.loading&&<p><a href={profileHref} onClick={event=>{
+      if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+      event.preventDefault();onOpenProfile();
+    }}>Open in profile</a></p>}
+  </section>;
 }
 function Activities({ id, lang, memberName, initialActivity, onOpen, category, onCategory, offset, onOffset, motionQuery, onMotionChange, preserveScroll }: { id: number; lang: string; memberName?:string; initialActivity: string | null; onOpen: (id: string | null,options?:{replace?:boolean}) => void; category: string; onCategory: (category: string) => void; offset:number; onOffset:(offset:number)=>void; motionQuery:URLSearchParams; onMotionChange:MemberMotionReaderProps['onJourneyChange']; preserveScroll:boolean }) {
   const [categoriesOpen,setCategoriesOpen]=useState(false);
@@ -474,8 +503,12 @@ export default function App() {
   // Member and Votes tab navigation add one entry through the URL effect.
   const memberStep=useRef(false);
   const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
-  const directoryState = useData<Directory>(view==='outside'||view==='groups'?null:"directory");
+  const directoryState=useData<Directory>(view==='outside'||view==='groups'?null:"directory");
   const directory = directoryState.data;
+  const coverageFollows=useSaved().items;
+  useEffect(()=>{coverageStore.observe(directory,coverageFollows,Boolean(directoryState.error));},[directory,directoryState.error,coverageFollows]);
+  const followed=useSaved().items.find(item=>item.kind==='mep'&&item.id===String(member));
+  const outsideRoster=Boolean(member&&directory&&!directoryState.error&&!directory.members.some(item=>item.id===member));
   const error = directoryState.error;
   const profile = useData<MemberProfile>(!view && member && tab === "profile" ? `profile/${member}` : null);
   const c = interfaceCopy(lang);
@@ -489,6 +522,18 @@ export default function App() {
     const observer=new ResizeObserver(measure);observer.observe(tabs);
     return ()=>{observer.disconnect();page.style.removeProperty("--explorer-tabs-height");};
   }, [member, view, lang]);
+  // The member wall stays mounted (hidden) behind member pages and Following,
+  // so returning keeps its portraits; restore where the reader left it.
+  const wallVisible=!view&&!member;
+  const wallScroll=useRef({page:0,portraits:0});
+  const wallShown=useRef(wallVisible);
+  useLayoutEffect(()=>{
+    const returned=wallVisible&&!wallShown.current;wallShown.current=wallVisible;
+    if(!returned)return;
+    const page=document.querySelector<HTMLElement>(".explorer"),portraits=page?.querySelector<HTMLElement>(".explorer-portraits");
+    if(portraits)portraits.scrollTop=wallScroll.current.portraits;
+    if(page)page.scrollTop=wallScroll.current.page;
+  },[wallVisible]);
   const scrolledView = useRef({member,tab,view});
   useEffect(() => {
     // Small screens scroll the whole explorer; start new pages at the top and new tabs at their content.
@@ -497,13 +542,13 @@ export default function App() {
     if(!page||page.scrollHeight<=page.clientHeight)return;
     if(!view&&tab==='votes'&&votes.hasSavedScroll)return;
     if(!view&&tab==='activities'&&motions.hasSavedScroll)return;
-    if(previous.member!==member||previous.view!==view){if(!speechLink&&!activityLink)page.scrollTo({top:0});return;}
+    if(previous.member!==member||previous.view!==view){if(!wallVisible&&!speechLink&&!activityLink)page.scrollTo({top:0});return;}
     if(previous.tab===tab||(tab==="speeches"&&speechLink)||(tab==="activities"&&activityLink))return;
     const body=page.querySelector<HTMLElement>(".explorer-profile-body"),tabs=page.querySelector<HTMLElement>(".explorer-tabs");
     if(!body||!tabs||getComputedStyle(tabs).position!=="sticky")return;
     const contentTop=page.scrollTop+body.getBoundingClientRect().top-page.getBoundingClientRect().top-tabs.offsetHeight;
     if(page.scrollTop>contentTop)page.scrollTo({top:contentTop});
-  }, [member, tab, view, speechLink, activityLink,votes.hasSavedScroll,motions.hasSavedScroll]);
+  }, [member, tab, view, speechLink, activityLink,votes.hasSavedScroll,motions.hasSavedScroll,wallVisible]);
   // Apply the destination after the existing responsive scroll policy has settled.
   function focusDestination(){
     const intent=pendingDestination.current;
@@ -583,23 +628,14 @@ export default function App() {
             normalize(m.firstName + " " + m.lastName).includes(
               normalize(search),
             )) &&
-          (!committee ||
-            m.memberships?.some(
-              (v: Membership) =>
-                v.current &&
-                v.id === committee &&
-                (role === "both" ||
-                  (role === "substitute"
-                    ? v.role === "MEMBER_SUBSTITUTE"
-                    : v.role !== "MEMBER_SUBSTITUTE")),
-            )),
-      ) || [],
+          matchesCommittee(m,committee,role),
+      ).sort(compareMembers) || [],
     [directory, country, group, search, committee, role],
   );
   const partialCommittee = Boolean(committee && !directory?.index.complete);
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = profile.data?.id === member ? profile.data : selected;
-  const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || `MEP ${member}`;
+  const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || `MEP ${member}`;
   const pageTitle = view==='legislation' ? null : view ? {questions:'Questions',outside:'Outside voices',groups:'Group voices',amendments:'Amendments',saved:'Following'}[view]
     : member ? `${memberName} · ${tab==='profile'?c.profile:tab==='activities'?c.activities:tab==='amendments'?'Amendments':tab==='votes'?'Votes':c.speeches}` : c.title;
   const pageTitleLanguage=view||member&&(tab==='amendments'||tab==='votes')?'en':lang;
@@ -695,7 +731,7 @@ export default function App() {
     navigateView(null);
     pendingDestination.current={view:null,member,opener};
   };
-  return <ErrorBoundary resetKey={`${view}:${member}:${tab}:${restoration}`} language={lang}
+  return <PersonNamesProvider members={directory?.members}><ErrorBoundary resetKey={`${view}:${member}:${tab}:${restoration}`} language={lang}
     navigation={<ParliamentHeader view={view||'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>}
     onRetry={()=>{pendingDestination.current={view,member};}}
   ><Suspense fallback={<ViewLoading language={lang}/>}><ViewContent onReady={focusDestination} render={()=>{
@@ -704,9 +740,9 @@ export default function App() {
     return view==='groups' ? <GroupVoices {...props}/> : view==='amendments' ? <AmendmentsPage {...props}/> : view==='legislation' ? <Legislation {...props} members={directory?.members}/> : view==='outside' ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>;
   }
   return (
-    <main className="explorer" lang={lang}>
+    <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current.page=event.currentTarget.scrollTop;}}>
         <ParliamentHeader view={view==='saved'?'saved':'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>
-        {view === 'saved' ? <Saved language={lang} onBack={leaveSaved} onMember={openInsightMember}/> : member ? (
+        {view === 'saved' ? <Saved language={lang} onBack={leaveSaved} onMember={openInsightMember} renderActivity={props=><FollowingActivityDetail {...props} lang={lang}/>}/> : member ? (
           <section className="explorer-profile">
             <button
               lang={lang}
@@ -726,12 +762,12 @@ export default function App() {
               )}
               <div>
                 <h1 lang="" tabIndex={-1} aria-label={memberName}>
-                  {profile.data?.firstName || selected?.firstName}
+                  {profile.data?.firstName || selected?.firstName || followed?.title || (outsideRoster?`MEP ${member}`:null)}
                   <br />
                   {profile.data?.lastName || selected?.lastName}
                 </h1>
                 <p lang="">
-                  {selected?.countryCode} · {selected?.groupCode}
+                  {[selected?.countryCode,selected?.groupCode].filter(Boolean).join(' · ')}
                 </p>
                 <SaveButton item={{kind:'mep',id:String(member),title:[profile.data?.firstName||selected?.firstName,profile.data?.lastName||selected?.lastName].filter(Boolean).join(' ')}}/>
               </div>
@@ -756,7 +792,8 @@ export default function App() {
               {publicAmendmentsEnabled&&<button lang="en" className={tab === "amendments" ? "selected" : ""} aria-pressed={tab === "amendments"} onClick={() => changeMemberTab("amendments")}>Amendments</button>}
             </nav>
             <div className="explorer-profile-body">
-              {tab === "speeches" ? (
+              {outsideRoster&&<FormerMemberNotice member={member} language={lang}/>}
+              {outsideRoster&&tab==='activities' ? null : tab === "speeches" ? (
                 <Speeches
                   key={member}
                   id={member}
@@ -797,16 +834,19 @@ export default function App() {
                           </a>
                         </p>
                       )}
-                      <h2 lang={lang}>{c.committee}</h2>
-                      <CommitteeMemberships profile={profile.data} committees={directory?.committees||[]} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
+                      {!(profile.data.committeeMemberships?.complete && !profile.data.committeeMemberships.items.length) && <>
+                        <h2 lang={profile.data.currentAffiliation?.status==='matched'?lang:'en'}>{profile.data.currentAffiliation?.status==='matched'?c.committee:'Committee records'}</h2>
+                        <CommitteeMemberships profile={profile.data} committees={directory?.committees||[]} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
+                      </>}
+                      <ProfileMemberships profile={profile.data} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
                     </>
                   )}
                 </>
               )}
             </div>
           </section>
-        ) : (
-          <section className="explorer-wall">
+        ) : null}
+          <section className="explorer-wall" hidden={!wallVisible}>
             <h1 lang={lang}>{c.title}</h1>
             <div className="explorer-filters">
               <label lang={lang}>
@@ -851,7 +891,7 @@ export default function App() {
                       new Set(directory?.members.map((m) => filterCountry(m.countryCode))),
                     )
                       .filter(Boolean)
-                      .sort()
+                      .sort((a,b) => compareCountries(lang,a,b))
                       .map((v) => {
                         const name=countryName(lang,v);
                         return <option lang={name===v?'':lang} key={v} value={v}>{name}</option>;
@@ -866,9 +906,10 @@ export default function App() {
                   >
                     <option lang="en" value="">All</option>
                     {Array.from(
-                      new Set(directory?.members.map((m) => m.groupCode)),
+                      new Set(directory?.members.map((m) => m.groupCode).filter((code): code is string => typeof code === 'string' && Boolean(code))),
                     )
-                      .sort()
+                      .filter((v): v is string => Boolean(v))
+                      .sort((a,b) => a.localeCompare(b,lang))
                       .map((v) => (
                         <option lang="" key={v}>{v}</option>
                       ))}
@@ -941,15 +982,13 @@ export default function App() {
                     )}
                   </div>
                 )}
-                <div className="explorer-portraits" data-portrait-scroll-root>
+                <div className="explorer-portraits" data-portrait-scroll-root onScroll={event=>{if(wallVisible)wallScroll.current.portraits=event.currentTarget.scrollTop;}}>
                     {filtered.map(m => (
                       <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>
                         <Portrait
                           member={{
                             ...m,
-                            imageUrl: m.memberships
-                              ? `${API_ROOT}/portrait/${m.id}`
-                              : publicUrl("assets/portrait-placeholder.svg"),
+                            imageUrl: `${API_ROOT}/portrait/${m.id}`,
                           }}
                           labelled
                           onClick={() => {
@@ -963,6 +1002,9 @@ export default function App() {
                             setTab("speeches");
                           }}
                         />
+                        <div className="explorer-portrait-follow">
+                          <SaveButton compact item={{kind:'mep',id:String(m.id),title:[m.firstName,m.lastName].filter(Boolean).join(' ')}}/>
+                        </div>
                         {committee && (
                           <small>
                             {m.memberships
@@ -977,7 +1019,6 @@ export default function App() {
               </>
             )}
           </section>
-        )}
         <footer className="explorer-footer" lang="en">
           <label>
             Language
@@ -997,5 +1038,5 @@ export default function App() {
         </footer>
     </main>
   );
-  }}/></Suspense></ErrorBoundary>;
+  }}/></Suspense></ErrorBoundary></PersonNamesProvider>;
 }

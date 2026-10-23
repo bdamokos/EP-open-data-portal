@@ -477,7 +477,7 @@ for (const heading of ['Annex I: Technical requirements', 'ANNEX – Technical r
   });
 }
 
-for (const heading of ['FOLLOW-UP','FOLLOW-UP:','FOLLOW-UP.','Follow-Up','Follow-up','Further Action']) {
+for (const heading of ['FOLLOW-UP','FOLLOW-UP:','FOLLOW-UP.','Follow-Up','Follow-up','Further Action','Follow-up:','Further action:','Follow-up.','Further action;']) {
   test(`${heading} closes a dash list and withholds paragraph 19 despite later 20`, () => {
     const text=motion(['19. Calls for:', '– first item;', '– second item;', heading, 'follow-up prose;', '20. Independent;']);
     const options={originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'};
@@ -578,4 +578,23 @@ for (const [language,opening,heading] of [
   const text=document([opening+',','19. Last provision;',heading,'Quoted justification prose.'],{textLanguage:language});
   assert.equal(segmentMotionUnits(text,language).at(-1).end,1);
   assert.equal(placement(text,{originalText:'Quoted justification prose.',proposedText:'Changed;',language}).reason,'target_not_found');
+});
+
+
+test('an unclassified annex-like boundary cannot lend its later units to the resolution', () => {
+  const text=motion(['19. Final provision;','ANNEX I Technical requirements','1. Annex provision;']);
+  assert.equal(placement(text,{originalText:'1. Annex provision;',proposedText:'Changed;'}).reason,'target_not_found');
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'resolution_extent_uncertain');
+});
+
+test('unknown baselines require verified resolution document identity; other baselines never use resolution wording', () => {
+  const text=motion(['19. Original wording;','20. Next;']);
+  const options={originalText:'19. Original wording;',proposedText:'Changed;',targetLabel:'Paragraph 19'};
+  assert.equal(placement(text,{...options,baseline:'unknown'}).reason,'baseline_unavailable');
+  assert.equal(placement(text,{...options,baseline:'unknown',resolutionDocument:true}).status,'placed');
+  for(const baseline of ['commission-proposal','present-text','council-position','other']) {
+    assert.equal(placement(text,{...options,baseline,resolutionDocument:true}).reason,'baseline_unavailable',baseline);
+  }
+  assert.equal(placement(text,{...options,baseline:'unknown',resolutionDocument:true,targetLabel:'Article 19'}).reason,'baseline_unavailable');
+  assert.equal(placement(document(['19. Original wording;']),{...options,baseline:'unknown',resolutionDocument:true}).reason,'baseline_unavailable');
 });

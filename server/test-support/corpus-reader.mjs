@@ -7,6 +7,7 @@ export function allowSlowCorpusReaders(t) {
   const query=CorpusReader.prototype.query;
   t.mock.method(CorpusReader.prototype,'query',function(...args) {
     this.timeoutMs=readerTimeoutMs;
+    this.statusTimeoutMs=readerTimeoutMs;
     return query.apply(this,args);
   });
 }

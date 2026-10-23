@@ -1,3 +1,4 @@
+import {generationGroupOn,datedPerson} from './group-attribution.mjs';
 import {calendarYears,currentTermSittings} from './plenary-calendar.mjs';
 import { HttpError } from './http-utils.mjs';
 import { odp } from './odp.mjs';
@@ -84,8 +85,9 @@ export class LegislationInsights {
     const sittings=[...past,...upcoming];
     return {sittings,sources,complete:true,year,years,start:CURRENT_TERM_START};
   }
-  async query(query,savedCatalogue=null) {
-    const status=this.store.status();if(!status.currentMeps||!status.servingGeneration)throw new HttpError(503,'insights_loading','The saved MEP index is not available yet.');
+  async query(query,savedCatalogue=null,binding=null) {
+    const status=binding?.status||this.store.status();
+    const groupOn=binding?.groupOn||generationGroupOn(this.store,status.servingGeneration);if(!status.currentMeps||!status.servingGeneration)throw new HttpError(503,'insights_loading','The saved MEP index is not available yet.');
     const catalogue=savedCatalogue||await this.catalogue();
     if(query.week) {
       const today=brusselsDay(this.clock()),held=catalogue.sittings.filter(s=>s.activity_date<=today).sort((a,b)=>b.activity_date.localeCompare(a.activity_date)),anchor=held[0]||[...catalogue.sittings].sort((a,b)=>a.activity_date.localeCompare(b.activity_date))[0];
@@ -97,7 +99,7 @@ export class LegislationInsights {
       if(!sittings.length||sittings.length>5)throw new HttpError(404,'sitting_not_found','Choose a listed plenary week.');
       const days=[];
       // Only this week's published sittings, using the same bounded daily source reads.
-      for(const sitting of sittings)days.push(await this.query({language:query.language,sitting:sitting.activity_id},catalogue));
+      for(const sitting of sittings)days.push(await this.query({language:query.language,sitting:sitting.activity_id},catalogue,{status,groupOn}));
       const base=days[0];
       return {...base,week,topics:days.flatMap(day=>day.topics.map(topic=>({...topic,sittingId:day.sitting.id}))),agendaSittings:days.map(day=>({...day.sitting,agendaComplete:day.coverage.agendaComplete,agendaError:day.coverage.agendaError})),coverage:{...base.coverage,agendaComplete:days.every(day=>day.coverage.agendaComplete),agendaError:days.filter(day=>day.coverage.agendaError).map(day=>day.sitting.date+': '+day.coverage.agendaError).join('; ')||null,sources:uniqueSources(days.flatMap(day=>day.coverage.sources))}};
     }
@@ -123,8 +125,8 @@ export class LegislationInsights {
       const docs=topic.documentIds.slice(0,LEGISLATION_LIMITS.selectedDocuments);
       const documents=docs.length?this.store.db.prepare(`SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind='document' AND json_extract(body,'$.identifier') IN (${docs.map(()=>'?').join(',')}) LIMIT ?`).all(status.servingGeneration,...docs,LEGISLATION_LIMITS.selectedDocuments).map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at})):[];
       const rows=docs.length?this.store.db.prepare(`SELECT body FROM items WHERE generation=? AND source_id IN (${docs.map(()=>'?').join(',')}) LIMIT ?`).all(status.servingGeneration,...docs,LEGISLATION_LIMITS.roleRows).map(r=>JSON.parse(r.body)):[];
-      const roles=topicRoles(topic,rows,documents,members,metadata);
-      for(const id of topic.agendaCreatorIds||[])if(!roles.some(r=>r.id===id))roles.push({...memberPeople([id],members,metadata)[0],role:'AGENDA_CONTRIBUTOR',sourceId:topic.id,date:topic.date,dateBasis:'agenda date',apiUrl:topic.evidence.apiUrl,fetchedAt:topic.evidence.fetchedAt,relationships:['agenda.structuredContent.creators label typeof=person → exact person resource'],participationId:null,stage:null,procedureId:null});
+      const roles=topicRoles(topic,rows,documents,members,metadata,groupOn);
+      for(const id of topic.agendaCreatorIds||[])if(!roles.some(r=>r.id===id))roles.push({...datedPerson(memberPeople([id],members,metadata)[0],topic.date,groupOn),role:'AGENDA_CONTRIBUTOR',sourceId:topic.id,date:topic.date,dateBasis:'agenda date',apiUrl:topic.evidence.apiUrl,fetchedAt:topic.evidence.fetchedAt,relationships:['agenda.structuredContent.creators label typeof=person → exact person resource'],participationId:null,stage:null,procedureId:null});
       const missingDocuments=topic.documentIds.filter(id=>!documents.some(d=>d.work.identifier===id));
       const procedures=[];const gaps=[];const committeeWork=[];
       const debateCandidates=new Map(),speechSources=[];
@@ -160,9 +162,10 @@ export class LegislationInsights {
       if(contributionIds.size>LEGISLATION_LIMITS.contributions)contributionsTruncated=true;
       const selectedContributions=[...contributionIds].slice(0,LEGISLATION_LIMITS.contributions);
       const speechRows=selectedContributions.length?this.store.db.prepare(`SELECT body FROM items WHERE generation=? AND category='plenary-contributions' AND source_id IN (${selectedContributions.map(()=>'?').join(',')}) LIMIT 1000`).all(status.servingGeneration,...selectedContributions).map(r=>JSON.parse(r.body)):[];
-      const speeches=[...new Map(speechRows.map(r=>[r.sourceId,r])).values()].map(row=>({sourceId:row.sourceId,date:row.date,title:row.titles?.[query.language]||row.titles?.en||row.reference,kind:row.speechKind,start:row.start,end:row.end,people:memberPeople(speechRows.filter(r=>r.sourceId===row.sourceId).map(r=>r.mepId),members,metadata),provenance:row.provenance}));
+      const speeches=[...new Map(speechRows.map(r=>[r.sourceId,r])).values()].map(row=>({sourceId:row.sourceId,date:row.date,title:row.titles?.[query.language]||row.titles?.en||row.reference,kind:row.speechKind,start:row.start,end:row.end,people:memberPeople(speechRows.filter(r=>r.sourceId===row.sourceId).map(r=>r.mepId),members,metadata).map(person=>datedPerson(person,row.date,groupOn)),provenance:row.provenance}));
       const participantIds=[...roles.map(r=>r.id),...speechRows.map(r=>String(r.mepId))];
-      const people=memberPeople(participantIds,members,metadata).map(person=>({...person,
+      const participantDate=id=>[...roles.filter(role=>role.id===id).map(role=>role.date),...speeches.filter(speech=>speech.people.some(person=>person.id===id)).map(speech=>speech.date)].filter(Boolean).sort().at(-1)||null;
+      const people=memberPeople(participantIds,members,metadata).map(person=>({...datedPerson(person,participantDate(person.id),groupOn),
         demographics:person.currentMep?Object.fromEntries(Object.entries(demographicStats([person.id],members,metadata,sitting.activity_date).dimensions).map(([key,rows])=>[key,rows[0].label])):null}));
       // Resolve only guests actually linked to selected contributions, never the roster or voters.
       const guests=new Set(speeches.flatMap(speech=>speech.people.filter(person=>!person.currentMep&&!speakerNameIsSpecific(person.name)).map(person=>person.id)));
@@ -181,7 +184,7 @@ export class LegislationInsights {
           // No false paging, no filter-output=voters (that removes named voters).
           const decisions=await recordSource('/meetings/'+sitting.activity_id+'/decisions',{'vote-method':'ROLL_CALL_EV',limit:1,offset:0});
           const truncated=decisions.payload.data.length>LEGISLATION_LIMITS.decisions;
-          votes=topicVotes(topic,results,{...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,LEGISLATION_LIMITS.decisions)}},members,metadata,sitting.activity_date);
+          votes=topicVotes(topic,results,{...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,LEGISLATION_LIMITS.decisions)}},members,metadata,sitting.activity_date,groupOn);
           voteCoverage={available:true,sourceDecisionCount:decisions.payload.data.length,truncated,sourceUrl:decisions.url,fetchedAt:new Date(decisions.fetchedAt).toISOString(),error:null};
         } catch(error){voteCoverage.error=error.message;gaps.push({source:'named roll-calls',message:error.message,sourceError:true});}
       }

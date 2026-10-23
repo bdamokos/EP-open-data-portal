@@ -2,7 +2,7 @@
 
 Describe the problem and resulting behaviour.
 
-- [ ] If an API response contract changed, bump API_VERSION
+- [ ] If an API response contract changed, run `npm run api:bump` and commit the registry change
 
 ## Validation
 

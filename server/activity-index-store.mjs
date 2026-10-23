@@ -1,3 +1,8 @@
+import {groupHistorySchema,freezeGroupHistory} from './group-history.mjs';
+import {membershipSchema,freezeMembership} from './following-membership.mjs';
+import {followMarksVersion,prepareFollowMarks,publishFollowMarks,followIndexComplete} from './follow-marks.mjs';
+import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
+import {sourceTitle} from './source-titles.mjs';
 import {activityReadVersion,initializeActivityReads,prepareQuestionFiles,projectQuestionFiles,copyQuestionFiles,motionDocuments} from './activity-read-projections.mjs';
 import {groupVoicesSchema,groupVoicesCopy,groupVoicesPrune,recordGroupVoice} from './group-voices-store.mjs';
 import { DatabaseSync } from 'node:sqlite';
@@ -34,7 +39,7 @@ export class ActivityStore {
     this.db = observeSqlite(new DatabaseSync(this.filename),'activity');
     if(!this.initializeIndexes) {
       try {
-        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1)throw new Error('Unprepared activity indexes.');
+        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1||this.get('followMarksVersion')!==followMarksVersion)throw new Error('Unprepared activity indexes.');
       } catch {this.db.close();throw new Error('Activity indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(this.initializeIndexes)this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
@@ -63,6 +68,7 @@ export class ActivityStore {
     if(!this.initializeIndexes)this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;');
     if (this.get('schema') !== 1) throw new Error('Unsupported activity-index schema.');
     try {assertRefreshSnapshot(this);}catch(error){this.db.close();throw error;}
+    membershipSchema(this.db);groupHistorySchema(this.db);
     if(this.initializeIndexes){outsideSchema(this.db);amendmentsSchema(this.db);groupVoicesSchema(this.db);refreshPolicyTables(this.db);}
   }
   get(key) { return parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value); }
@@ -79,7 +85,7 @@ export class ActivityStore {
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
       assertRefreshSnapshot(this);
       const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion;
-      if((initialize||initializeProofs||this.get('activityReadVersion')!==activityReadVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+      if((initialize||initializeProofs||this.get('activityReadVersion')!==activityReadVersion||this.get('followMarksVersion')!==followMarksVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
       // Refresh against the current clock before commit; elapsed build time must
@@ -100,6 +106,9 @@ export class ActivityStore {
       if(this.get('refreshPolicyVersion')!==1) {
         if(!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
         refreshPolicySchema(this);initialized=true;refresh();
+      }
+      if(this.get('followMarksVersion')!==followMarksVersion) {
+        prepareFollowMarks(this);initialized=true;refresh();
       }
       refresh();
       return true;
@@ -165,7 +174,7 @@ export class ActivityStore {
       const active=this.get('active') || 0, generation=(this.get('sequence') || 0)+1;
       this.set('sequence',generation);
       if (active) {
-        for (const table of ['sources','items','tasks']) this.db.prepare(`DELETE FROM ${table} WHERE generation<>?`).run(active);
+        this.pruneGenerations(active);
         this.set('previous',null);
         this.db.prepare('INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
@@ -181,6 +190,8 @@ export class ActivityStore {
         groupVoicesCopy(this.db,generation,active);
         amendmentsCopy(this.db,generation,active);
       }
+      // The copied active rows are unchanged; only later writes are touched.
+      this.db.exec('DELETE FROM follow_touched');
       const cycle={ generation, initial:!active, startedAt:new Date(this.clock()).toISOString(), phase:'discovering', error:null, requests:0 };
       this.set('working',cycle);return cycle;
     });
@@ -189,7 +200,7 @@ export class ActivityStore {
   enqueue(generation,key,kind,body,priority=50,refreshCompleted=false,{retryGap=false}={}) {
     const enqueue=()=>{
       this.assertWriter();
-      const gap=this.db.prepare('SELECT kind,body,priority,retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
+      const gap=this.db.prepare('SELECT kind,body,priority,retry_at,attempts FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
       if(gap) {
         if(!retryGap || gap.retry_at>this.clock() || this.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(generation,key))return false;
         // Admission and its marker commit together. Checkpoints retain any
@@ -200,7 +211,10 @@ export class ActivityStore {
       const pending=outside?-1:kind==='motion-outcomes'?null:0;
       this.db.prepare('INSERT OR IGNORE INTO tasks(generation,key,kind,body,priority,done) VALUES (?,?,?,?,?,?)').run(generation,key,kind,JSON.stringify(body),priority,pending);
       if(refreshCompleted)this.db.prepare('UPDATE tasks SET done=?,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE generation=? AND key=? AND done=1').run(pending,JSON.stringify(body),priority,generation,key);
-      if(gap)this.db.prepare('INSERT OR IGNORE INTO refresh_gap_admissions VALUES (?,?)').run(generation,key);
+      if(gap) {
+        this.db.prepare('UPDATE tasks SET attempts=? WHERE generation=? AND key=?').run(gap.attempts,generation,key);
+        this.db.prepare('INSERT OR IGNORE INTO refresh_gap_admissions VALUES (?,?)').run(generation,key);
+      }
       return true;
     };
     return retryGap&&!this.db.isTransaction?this.transaction(enqueue):enqueue();
@@ -219,7 +233,7 @@ export class ActivityStore {
     return this.db.isTransaction?finish():this.transaction(finish);
   }
   failTask(task,error) {
-    this.assertWriter();const delay=Math.min(30*60_000,30_000*2**Math.min(task.attempts,6));
+    this.assertWriter();const delay=Math.max(Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):Math.min(30*60_000,30_000*2**Math.min(task.attempts,6)));
     this.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET attempts=attempts+1,retry_at=?,error=? WHERE generation=? AND key=?`).run(this.clock()+delay,String(error.message).slice(0,350),task.generation,task.key);
     if(!task.groupVoiceJob&&this.get('working')?.generation===task.generation)this.updateCycle({phase:'retrying',error:String(error.message).slice(0,350)});
   }
@@ -262,9 +276,18 @@ export class ActivityStore {
     });
   }
   replaceRows(generation,key,rows) {
-    this.assertWriter();this.db.prepare('DELETE FROM items WHERE generation=? AND source_key=?').run(generation,key);
+    this.assertWriter();
+    const touch=this.db.prepare('INSERT OR IGNORE INTO follow_touched VALUES (?,?)');
+    touch.run(generation,key);
+    this.db.prepare('DELETE FROM items WHERE generation=? AND source_key=?').run(generation,key);
     const put=this.db.prepare('INSERT OR REPLACE INTO items VALUES (?,?,?,?,?,?,?)');
-    for (const row of rows) put.run(generation,key,row.sourceId,String(row.mepId),row.category,row.date,JSON.stringify(row));
+    const displaced=this.db.prepare('SELECT source_key FROM items WHERE generation=? AND source_id=? AND mep=? AND category=?');
+    for (const row of rows) {
+      // REPLACE can delete another source's row through the identity/category PK.
+      const old=displaced.get(generation,row.sourceId,String(row.mepId),row.category);
+      if(old&&old.source_key!==key)touch.run(generation,old.source_key);
+      put.run(generation,key,row.sourceId,String(row.mepId),row.category,row.date,JSON.stringify(row));
+    }
   }
   setMembers(nodes) {
     this.transaction(()=>{ this.assertWriter();this.db.exec('DELETE FROM members');const q=this.db.prepare('INSERT OR REPLACE INTO members VALUES (?,?)');
@@ -276,13 +299,26 @@ export class ActivityStore {
       if (progress.total!==progress.completed) throw new Error('Cannot publish an incomplete generation.');
       const old=this.get('active');this.set('lastRefreshRequests',this.get('working')?.requests || 0);this.set('previous',old);this.set('active',generation);this.set('working',null);
       this.set('refreshPolicyGeneration',generation);
-      this.set('lastSuccess',new Date(this.clock()).toISOString());this.set('unresolved',unresolved);
+      const publishedAt=new Date(this.clock()).toISOString();
+      publishFollowMarks(this,generation,publishedAt,followIndexComplete(this,generation),old);
+      freezeMembership(this,generation,old);freezeGroupHistory(this,generation,old);
+      this.set('lastSuccess',publishedAt);this.set('unresolved',unresolved);
       // Retain the immediately previous generation for recovery; cache is reproducible public data.
-      for (const table of ['sources','items','tasks']) this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,old || generation);
+      this.pruneGenerations(generation,old || generation);
       outsidePrune(this.db,generation,old);
       amendmentsPrune(this.db,generation,old);
       groupVoicesPrune(this.db,generation,old);
     });
+  }
+  pruneGenerations(first,second=first) {
+    const low=Math.min(first,second),high=Math.max(first,second);
+    // NOT IN / <> scans all retained item bodies even when nothing is deleted.
+    // Separate indexed ranges also handle a nonadjacent recovery generation.
+    for(const table of ['sources','items','tasks','follow_summary','follow_generations','follow_touched','membership_snapshots','group_history_snapshots']) {
+      this.db.prepare(`DELETE FROM ${table} WHERE generation<?`).run(low);
+      this.db.prepare(`DELETE FROM ${table} WHERE generation>?`).run(high);
+      if(low!==high)this.db.prepare(`DELETE FROM ${table} WHERE generation>? AND generation<?`).run(low,high);
+    }
   }
   status() {
     const cycle=this.get('working'), active=this.get('active'), generation=active || cycle?.generation || 0;
@@ -293,7 +329,7 @@ export class ActivityStore {
     const recoveryCount=this.db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE '+recoveryWhere).get(recoveryGeneration).n;
     const recoveryExamples=this.db.prepare('SELECT body,attempts,retry_at,error FROM tasks WHERE '+recoveryWhere+' ORDER BY key LIMIT 20').all(recoveryGeneration).map(task=>{const body=parse(task.body);return {sourceId:body.recoveryId,detectedAt:body.detectedAt,searchWindow:body.searchWindow,attempts:task.attempts,nextRetryAt:new Date(task.retry_at || this.clock()).toISOString(),lastError:task.error};});
     const gapCount=this.db.prepare('SELECT COUNT(*) AS n FROM refresh_gaps WHERE generation=?').get(generation).n;
-    const gapExamples=this.db.prepare("SELECT key,kind,error,attempts,failed_at AS failedAt,CASE WHEN kind='coverage' THEN NULL ELSE retry_at END AS retryAt,sitting_id AS sittingId,json_extract(body,'$.endpoint') AS endpoint,json_extract(body,'$.recoveryId') AS sourceId,json_extract(body,'$.start') AS start,json_extract(body,'$.end') AS end FROM refresh_gaps WHERE generation=? ORDER BY key LIMIT 20").all(generation);
+    const gapExamples=this.db.prepare("SELECT key,kind,error,attempts,failed_at AS failedAt,CASE WHEN kind='coverage' THEN NULL ELSE retry_at END AS retryAt,sitting_id AS sittingId,json_extract(body,'$.endpoint') AS endpoint,json_extract(body,'$.recoveryId') AS sourceId,json_extract(body,'$.start') AS start,json_extract(body,'$.end') AS end FROM refresh_gaps WHERE generation=? ORDER BY key LIMIT 20").all(generation).map(gap=>({...gap,retryAt:gap.retryAt===null?null:new Date(gap.retryAt).toISOString()}));
     const refreshSnapshotReady=refreshSnapshotMatches(this);
     return { schemaVersion:1, enabled:true, term:10, complete:Boolean(active)&&gapCount===0&&refreshSnapshotReady, servingGeneration:generation,
       refreshSnapshotReady,
@@ -346,7 +382,7 @@ export class ActivityStore {
       if(row.recordKind==='answer'&&row.relatedQuestionId) {
         const question=this.source(generation,'/parliamentary-questions/'+row.relatedQuestionId)?.work;
         const titles=Object.assign({},...(question?.is_realized_by||[]).map(expression=>expression.title||{}),question?.title_dcterms||{});
-        if(Object.keys(titles).length)return {...localize({...row,titles},language),relatedQuestionTitles:titles,relatedQuestionTitle:titles[language]||titles.en||Object.values(titles)[0]};
+        if(Object.keys(titles).length)return {...localize({...row,titles},language),relatedQuestionTitles:titles,relatedQuestionTitle:sourceTitle(titles[language]||titles.en||Object.values(titles)[0])};
       }
       return localize(row,language);
     };

@@ -37,7 +37,11 @@ test('document context HTTP contract is bounded, query-separated and never start
   const wording={en:'1. Published English wording.',hu:'1. Közzétett magyar szöveg.'};
   const variants=['en','hu',null].map(language=>{
     const source={url:'https://data.europarl.europa.eu/distribution/doc/list_'+(language||'unknown')+'.docx',language,fetchedAt,contentHash:(language==='en'?'a':language==='hu'?'b':'c').repeat(64),sourceVersion:{byteSize:1024,issued:'2026-10-08'}};
-    return {id:amendmentId,targetDocumentId:id,listId,language,textIntegrity:'complete',originalText:wording[language]||'Unknown-language source wording.',proposedText:'Published replacement.',targetLabel:null,targetLabelLanguage:language,authors:[],wordingSource:source,fieldSources:{wording:source},sourceFreshness:{status:'fresh'},gaps:[]};
+    const baseline=language==='en'?'commission-proposal':language==='hu'?'present-text':'unknown';
+    const baselineSource={category:baseline,headings:[{left:{raw:language==='en'?'Text proposed by the Commission':language==='hu'?'Hatályos szöveg':'Unrecognised source label',category:baseline},right:{raw:language==='hu'?'Módosítás':'Amendment',category:'other'}}],conflicted:false,language,sourceUrl:source.url,fetchedAt};
+    const documentReferences=language?[{field:'DocRef',raw:'COM(2025)87 final',scope:'amendment'}]:null;
+    const targetPath=language?{proposal:[{raw:'Article 1 – paragraph 1',labels:[{raw:'Article 1'},{raw:'paragraph 1'}]}],underlying:[{document:'Regulation (EU) 2023/956',raw:'Article 26 – paragraph 1 a (new)',labels:[{raw:'Article 26'},{raw:'paragraph 1 a (new)'}]}],language,sourceUrl:source.url,fetchedAt}:null;
+    return {id:amendmentId,targetDocumentId:id,listId,language,baseline,baselineSource,documentReferences,targetPath,textIntegrity:'complete',originalText:wording[language]||'Unknown-language source wording.',proposedText:'Published replacement.',targetLabel:null,targetLabelLanguage:language,authors:[],wordingSource:source,fieldSources:{wording:source},sourceFreshness:{status:'fresh'},gaps:[]};
   });
   t.mock.method(documentContext,'findAmendment',()=>({id:amendmentId,targetDocumentId:id,variants}));
   let bodyReads=0;
@@ -55,6 +59,7 @@ test('document context HTTP contract is bounded, query-separated and never start
       if(selector!==undefined)assert.equal(result.body.requestedWordingLanguage,selector==='unknown'?null:selector);
       assert.deepEqual(result.body.amendment.variants.map(variant=>variant.language),['en','hu',null]);
       assert.deepEqual(result.body.amendment.variants.map(variant=>variant.source),variants.map(variant=>variant.wordingSource));
+      for(const field of ['baseline','baselineSource','documentReferences','targetPath'])assert.deepEqual(result.body.amendment.variants.map(variant=>variant[field]),variants.map(variant=>variant[field]),field);
       const conditional=await read(route,{headers:{'If-None-Match':result.headers.etag}});assert.equal(conditional.status,304);assert.equal(conditional.text,'');noStore(conditional);
       const head=await read(route,{method:'HEAD'});assert.equal(head.status,200);assert.equal(head.text,'');assert.equal(head.headers.etag,result.headers.etag);noStore(head);
       const conditionalHead=await read(route,{method:'HEAD',headers:{'If-None-Match':result.headers.etag}});assert.equal(conditionalHead.status,304);assert.equal(conditionalHead.text,'');noStore(conditionalHead);
