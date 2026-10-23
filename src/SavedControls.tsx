@@ -22,6 +22,7 @@ async function memberDetail(item:SavedItem,language:string,expected:FollowingSta
   const data=await api<FollowingMember>('insights/following-member?'+params);verify(data,expected);
   savedStore.materialize(data,item);return data;
 }
+function checkedStatus():FollowingStatus|null {return status;}
 const opening=new Map<string,Promise<unknown>>();
 export function openSavedMember(item:SavedItem,language:string):Promise<unknown> {
   const key=taskKey(language,[item]),existing=opening.get(key);if(existing)return existing;
@@ -29,7 +30,10 @@ export function openSavedMember(item:SavedItem,language:string):Promise<unknown>
     try{await checkSaved(language);}catch(error){if(!status?.marksReady||!savedStore.snapshot().manifest)throw error;}
     if(!status?.marksReady)throw Error('Update checks are not available yet.');
     try{return await memberDetail(item,language,status);}catch(error){
-      if((error as {code?:string}).code==='generation_changed'){status=null;lastStatus=0;await checkSaved(language,true);if(status?.marksReady)return memberDetail(item,language,status);}
+      if((error as {code?:string}).code==='generation_changed') {
+        status=null;lastStatus=0;await checkSaved(language,true);
+        const refreshed=checkedStatus();if(refreshed?.marksReady)return memberDetail(item,language,refreshed);
+      }
       throw error;
     }
   })().finally(()=>opening.delete(key));opening.set(key,run);return run;
