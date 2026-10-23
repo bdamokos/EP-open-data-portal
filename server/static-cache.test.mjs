@@ -1,11 +1,13 @@
 import {loopback} from './test-support/loopback.mjs';
-import { test } from "node:test";
+import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import {execFileAsync} from './test-support/subprocess.mjs';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import { mkdtemp, mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
+beforeEach(registerSubprocesses);
 
 test("missing or malformed build manifests safely fall back to five-minute caching", async t => {
   const script = `

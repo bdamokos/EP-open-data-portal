@@ -1,10 +1,12 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {execFileAsync} from './test-support/subprocess.mjs';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import os from 'node:os';
 import path from 'node:path';
+
+beforeEach(registerSubprocesses);
 
 async function fixture(t,age) {
   const directory=await mkdtemp(path.join(os.tmpdir(),'mep-directory-cache-'));

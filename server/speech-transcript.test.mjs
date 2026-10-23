@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,rmSync,constants} from 'node:fs';
 import {open} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {execFileAsync} from './test-support/subprocess.mjs';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import {Worker} from 'node:worker_threads';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,6 +15,8 @@ import {CorpusWorker} from './corpus-worker.mjs';
 import {odp} from './odp.mjs';
 import {zstdDecompressSync} from 'node:zlib';
 import {allowSlowCorpusReaders,readerTimeoutMs} from './test-support/corpus-reader.mjs';
+
+beforeEach(registerSubprocesses);
 
 beforeEach(allowSlowCorpusReaders);
 

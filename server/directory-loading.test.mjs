@@ -1,9 +1,11 @@
-import test from 'node:test';
+import test,{beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
-import {execFileAsync} from './test-support/subprocess.mjs';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import {mkdtemp,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+
+beforeEach(registerSubprocesses);
 
 const moduleUrl=JSON.stringify(new URL('./odp.mjs',import.meta.url).href);
 const queueUrl=JSON.stringify(new URL('./upstream-queue.mjs',import.meta.url).href);

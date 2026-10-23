@@ -1,8 +1,8 @@
-import test from 'node:test';
+import test,{beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';
-import {execFileAsync} from './test-support/subprocess.mjs';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import {createHash} from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +11,8 @@ import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {SpeechInterventions} from './speech-intervention-service.mjs';
 import {runWithRequestSignal} from './request-budget.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
+
+beforeEach(registerSubprocesses);
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/speaker-names-20261017.json',import.meta.url)));
 const [greek,bulgarian,chair]=fixture.examples.map(example=>example.person);
 const day='2026-10-06',speechId='MTG-PL-2026-10-06-OTH-1',parentId='MTG-PL-2026-10-06-PVCRE-ITM-1';

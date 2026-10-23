@@ -1,15 +1,17 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {deflateRawSync} from 'node:zlib';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {execFileAsync} from './test-support/subprocess.mjs';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import {docxContent,documentText,documentStructure} from './document-text.mjs';
 import {runWithRequestSignal,cancelledRequest} from './request-budget.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 import {HttpError} from './http-utils.mjs';
+
+beforeEach(registerSubprocesses);
 
 function zip(document,extra={}) {
   const locals=[],centrals=[],entries=Object.entries({'word/document.xml':document,...extra});let offset=0;

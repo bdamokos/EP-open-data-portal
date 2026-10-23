@@ -1,9 +1,11 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
-import {execFileAsync} from './test-support/subprocess.mjs';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import {mkdtemp,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+
+beforeEach(registerSubprocesses);
 const moduleUrl=new URL('./odp.mjs',import.meta.url).href;
 
 async function fixture(t,scenario) {

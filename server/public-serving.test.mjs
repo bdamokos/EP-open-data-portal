@@ -1,11 +1,13 @@
 import {loopback} from './test-support/loopback.mjs';
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,readdirSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,readdirSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {readJson} from '../src/client.mjs';
-import {execFileAsync} from './test-support/subprocess.mjs';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
+
+beforeEach(registerSubprocesses);
 
 test('public serving does not swallow reserved paths, source files or missing assets',loopback,async t=>{
   const directory=mkdtempSync(path.join(tmpdir(),'public-serving-'));
@@ -74,4 +76,56 @@ test('public data reads omit credentials on initial, retry and terminal-error re
   }
   const source=readFileSync(new URL('../src/client.mjs',import.meta.url),'utf8');
   assert.doesNotMatch(source,/Work Tools|session has expired|sign in/i);
+});
+
+
+test('real node:test timeout and cancellation reap children before FIFO fixture cleanup',async t=>{
+  const directory=mkdtempSync(path.join(tmpdir(),'subprocess-lifecycle-'));
+  try {
+    for(const mode of ['timeout','cancel']) {
+      const fixture=path.join(directory,mode+'-fixture'),proof=path.join(directory,mode+'-proof.json');
+      const script=`
+        import {test,beforeEach} from 'node:test';
+        import assert from 'node:assert/strict';
+        import {mkdirSync,writeFileSync,rmSync,existsSync} from 'node:fs';
+        import {execFileAsync,registerSubprocesses} from ${JSON.stringify(new URL('./test-support/subprocess.mjs',import.meta.url).href)};
+        beforeEach(registerSubprocesses);
+        const directory=${JSON.stringify(fixture)},proof=${JSON.stringify(proof)},mode=${JSON.stringify(mode)};
+        const controller=new AbortController();
+        test('intentional '+mode,{timeout:mode==='timeout'?5000:110_000,signal:controller.signal},async t=>{
+          const order=[];let child,closed=false;
+          t.after(()=>{
+            assert(child,'the hanging child was spawned');
+            assert.equal(closed,true,'close must precede fixture cleanup even when the runner cancels the body');
+            assert.equal(child.signalCode,'SIGKILL');
+            assert.throws(()=>process.kill(child.pid,0),{code:'ESRCH'});
+            order.push('reaped');rmSync(directory,{recursive:true,force:true});order.push('removed');
+          });
+          t.after(()=>{
+            assert.equal(existsSync(directory),false,'fixture hooks keep FIFO ordering');
+            order.push('last');writeFileSync(proof,JSON.stringify({order,closed}));
+          });
+          mkdirSync(directory);const pidFile=directory+'/child.pid';
+          const running=execFileAsync(t,process.execPath,['-e',"require('node:fs').writeFileSync(process.argv[1],String(process.pid));setInterval(()=>{},1000);",pidFile]);
+          running.catch(()=>{});child=running.child;child.once('close',()=>closed=true);
+          while(!existsSync(pidFile)){t.signal.throwIfAborted();await new Promise(resolve=>setImmediate(resolve));}
+          if(mode==='cancel')controller.abort(new Error('Intentional runner cancellation'));
+          await running;
+        });
+      `;
+      const filename=path.join(directory,mode+'.test.mjs');writeFileSync(filename,script);
+      // Start an independent runner while retaining NODE_OPTIONS/network guarding.
+      let output;
+      await assert.rejects(execFileAsync(t,process.execPath,['--test','--test-reporter=tap',filename],{encoding:'utf8',env:{...process.env,NODE_TEST_CONTEXT:undefined}}),error=>{
+        output=error.stdout;
+        assert.equal(error.code,1,'the nested test intentionally times out or is cancelled');
+        assert.match(error.stdout,/# cancelled 1/);
+        assert.match(error.stdout,mode==='timeout'?/testTimeoutFailure/:/testAborted/);
+        assert.doesNotMatch(error.stdout,/hookFailed/,'fixture cleanup must complete successfully');return true;
+      });
+      assert(existsSync(proof),'Missing lifecycle proof: '+output);
+      assert.deepEqual(JSON.parse(readFileSync(proof,'utf8')),{order:['reaped','removed','last'],closed:true});
+      assert.equal(existsSync(fixture),false);
+    }
+  }finally{rmSync(directory,{recursive:true,force:true});}
 });

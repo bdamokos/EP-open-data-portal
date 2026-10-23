@@ -1,14 +1,16 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {execFileAsync} from './test-support/subprocess.mjs';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import {deflateRawSync} from 'node:zlib';
 import {docxParagraphs,docxContent,allowedDownload,documentText,documentNotes} from './document-text.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 import {motionBody,compareMotionBodies} from './motion-diff.mjs';
+
+beforeEach(registerSubprocesses);
 
 function zip(xml,styles,extra={}) {
   const entries=[['word/document.xml',xml],...(styles===undefined?[]:[['word/styles.xml',styles]]),...Object.entries(extra)],locals=[],directory=[];let offset=0;

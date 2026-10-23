@@ -1,13 +1,15 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {chmod, mkdtemp, readFile, readdir, rm, stat, truncate, writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {execFileAsync} from './test-support/subprocess.mjs';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import {PortraitCache} from './portrait-cache.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 import {createPortraitLoader} from '../src/portraitLoader.mjs';
+
+beforeEach(registerSubprocesses);
 
 const source = id => `https://www.europarl.europa.eu/mepphoto/${id}.jpg`;
 const jpeg = (body = 'test image') => new Response(body, {headers: {'content-type': 'image/jpeg'}});
