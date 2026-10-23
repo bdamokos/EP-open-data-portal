@@ -45,3 +45,23 @@ test('new follow, epoch restart, out-of-order reads, reload and failed storage',
 test('malformed snapshots, event ids, codes, markers and dates are rejected',()=>{
  for(const bad of [{...event(),id:'42-m-1:end'},{...event(),date:'2026-02-31'},{...event(),mark:7},{...event(),to:{org:'org/2',groupId:null,code:'Renew'}}])assert.equal(validGroupsSnapshot(snapshot(6,[bad])),false);
 });
+
+
+test('epoch changes rebaseline while retaining unread entries, read history and discovery times',()=>{
+ const {store,storage,time}=fixture();store.observe(snapshot(),items);
+ store.observe(snapshot(6,[event(),event('43')]),items);time(200);store.markRead('43');
+ const entries=store.snapshot().entries;
+ const rebuiltEpoch='00000000-0000-0000-0000-000000000002';
+ store.observe({...snapshot(1),epoch:rebuiltEpoch},items);
+ assert.deepEqual(store.snapshot().entries,entries);
+ assert.equal(groupEntries(store.snapshot(),'42',200).fresh.length,1);
+ assert.equal(groupEntries(store.snapshot(),'43',200).history.length,1);
+ assert.equal(store.snapshot().baselines['42'].generation,1);
+ assert.deepEqual(createGroupsStore(storage).snapshot().entries,entries);
+ // Rebuilt marks refresh event metadata without rediscovery or losing acknowledgment.
+ store.observe({...snapshot(2,[event('42',1),event('43',1),event('42',2,'2026-07-01')]),epoch:rebuiltEpoch},items);
+ assert.equal(store.snapshot().entries.length,3);
+ assert.equal(store.snapshot().entries[0].discoveredAt,100);
+ assert.equal(store.snapshot().entries[1].readAt,200);
+ assert.equal(store.snapshot().entries[2].discoveredAt,200);
+});

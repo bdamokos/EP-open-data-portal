@@ -79,11 +79,17 @@ export function scheduleGroupHistory(store,generation,prefix='') {
   store.enqueue(generation,prefix+'group-history:discover','group-history-discover',{},106);
 }
 function people(store,generation) {
-  const ids=new Set(store.db.prepare('SELECT id FROM members').all().map(row=>row.id));
+  const ids=new Set(store.source(generation,'group-history:known-people')?.work.ids||[]);
+  for(const row of store.db.prepare('SELECT id FROM members').all())ids.add(row.id);
   // A later roster/list omission cannot erase a known term-10 person's history.
   for(const row of store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='group-history'").all(generation))ids.add(row.key.slice('group-history:'.length));
   for(const list of membershipLists)for(const mandate of store.source(generation,'membership:'+list)?.work.mandates||[])ids.add(mandate.mep);
   return [...ids];
+}
+// Called inside discovery/publication transactions, independently of acquisition.
+function rememberPeople(store,generation,ids) {
+  store.assertWriter();
+  store.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,'group-history:known-people','group-history-known-people',JSON.stringify({ids}),new Date(store.clock()).toISOString());
 }
 const timestamp=value=>typeof value==='number'?new Date(value).toISOString():value;
 export async function groupHistoryTask(worker,task) {
@@ -92,7 +98,10 @@ export async function groupHistoryTask(worker,task) {
     // Missing/oldest observations lead each cycle, so cold acquisition progresses
     // rather than repeatedly using its allowance on the same current members.
     const ids=people(store,generation).sort((a,b)=>(Date.parse(store.source(generation,'group-history:'+a+':attempt')?.work.lastAttemptAt||store.source(generation,'group-history:'+a)?.fetchedAt)||0)-(Date.parse(store.source(generation,'group-history:'+b+':attempt')?.work.lastAttemptAt||store.source(generation,'group-history:'+b)?.fetchedAt)||0)||Number(a)-Number(b));
-    store.transaction(()=>ids.forEach((id,index)=>store.enqueue(generation,'group-history:'+id,'group-history-person',{id},105-index/10000)));
+    store.transaction(()=>{
+      rememberPeople(store,generation,ids);
+      ids.forEach((id,index)=>store.enqueue(generation,'group-history:'+id,'group-history-person',{id},105-index/10000));
+    });
     store.finishTask(task);return;
   }
   const key=kind==='group-history-person'?'group-history:'+body.id:kind==='group-history-body'?'group-body:'+body.id:'group-history:catalogue';
@@ -151,7 +160,9 @@ export function freezeGroupHistory(store,generation,previous) {
   const prior=previous?groupHistorySnapshot(store,previous):null,members={},events=new Map((prior?.events||[]).map(event=>[event.id,event]));
   const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(store.clock()));
   const mark=store.db.prepare('INSERT OR IGNORE INTO membership_marks VALUES (?,?)'),read=store.db.prepare('SELECT mark FROM membership_marks WHERE event_id=?');
-  for(const id of people(store,generation)) {
+  const ids=people(store,generation);
+  rememberPeople(store,generation,ids);
+  for(const id of ids) {
     const source=store.source(generation,'group-history:'+id)?.work,attempt=store.source(generation,'group-history:'+id+':attempt')?.work;
     const stale=!!source&&(source.generation!==generation||!!attempt?.lastError);
     const person=source?{...source,stale,lastError:attempt?.lastError||null,lastAttemptAt:attempt?.lastAttemptAt||source.retrievedAt}:{coverage:'unavailable',mandateCoverage:'unavailable',mandates:[],groups:[],ambiguous:[],stale:false,lastError:attempt?.lastError||null,lastAttemptAt:attempt?.lastAttemptAt||null};

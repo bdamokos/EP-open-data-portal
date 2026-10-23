@@ -103,3 +103,35 @@ test('known term-10 people survive later roster/list omissions and correction id
  put(third,person(mandate(),group('f-1','org/1','2024-07-16','2026-06-17'),group('f-2','org/2','2026-06-18')));store.publish(third);
  const corrected=groupHistorySnapshot(store,third);assert.equal(corrected.events.length,1);assert.equal(corrected.events[0].id,'42:group:2026-06-18:2');assert.equal(corrected.events[0].mark,third);
 });
+
+
+test('failed and deferred first observations survive roster/list omissions and are retried',async t=>{
+ const {store}=fixture(t),g=store.beginCycle().generation;
+ store.setMembers([{id:'42'}]);
+ store.putSource(g,'membership:outgoing','membership',{mandates:[{mep:'43',id:'43-m-1',start:'2024-07-16',end:'2026-01-01'}]},day);
+ let offline=true;const calls=[];
+ const worker=new ActivityWorker(store,{clock:()=>Date.parse(day),fetchRecord:async endpoint=>{
+  calls.push(endpoint);if(offline)throw Error('offline');
+  const id=endpoint.split('/').at(-1);
+  return {payload:{data:[{...full(),identifier:id,hasMembership:full().hasMembership.map(m=>({...m,identifier:m.identifier.replace('42-',id+'-')}))}]},fetchedAt:day};
+ }});worker.readCachedMepRecord=async()=>null;
+ store.enqueue(g,'group-history:discover','group-history-discover',{},106);await worker.task(store.nextTask(g));
+ await worker.task(store.nextTask(g)); // 42 fails its first fetch.
+ store.updateCycle({groupHistoryRefetches:150});
+ await worker.task(store.nextTask(g)); // 43 is deferred before its first fetch.
+ assert.deepEqual(calls,['/meps/42']);
+ assert.equal(store.source(g,'group-history:42'),undefined);assert.equal(store.source(g,'group-history:43'),undefined);
+ store.publish(g);
+ const next=store.beginCycle().generation;store.setMembers([]);
+ store.putSource(next,'membership:outgoing','membership',{mandates:[]},day);store.publish(next);
+ const retained=groupHistorySnapshot(store,next);
+ assert.deepEqual(Object.keys(retained.members).sort(),['42','43']);
+ assert.equal(retained.coverage.unavailable,2);assert.equal(retained.members['42'].lastError,'offline');assert.equal(retained.members['43'].lastAttemptAt,null);
+ // Retry after another generation and pruning, with neither roster nor list evidence.
+ const third=store.beginCycle().generation;offline=false;
+ for(const [org,identity]of Object.entries(mapping))store.putSource(third,'group-body:'+org.slice(4),'group-body',{org,...identity},day);
+ store.enqueue(third,'group-history:discover','group-history-discover',{},106);await worker.task(store.nextTask(third));
+ let task;while((task=store.nextTask(third)))await worker.task(task);
+ assert.deepEqual(calls.slice(1).sort(),['/meps/42','/meps/43']);store.publish(third);
+ assert.equal(groupHistorySnapshot(store,third).coverage.complete,2);
+});

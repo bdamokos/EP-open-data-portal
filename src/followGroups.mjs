@@ -59,7 +59,7 @@ export function createGroupsStore(storage,notify=()=>{},clock=Date.now) {
         if(coverage==='complete'&&baselines[id].generation===null)baselines[id].generation=snapshot.generation;
       }
       const observed=new Map(snapshot.events.map(event=>[event.id,event]));
-      const entries=reset?[]:state.entries.filter(entry=>snapshot.members[entry.mep]?.coverage!=='complete'||snapshot.members[entry.mep]?.stale||observed.has(entry.id)).map(entry=>({...entry,...observed.get(entry.id)}));
+      const entries=state.entries.filter(entry=>reset||snapshot.members[entry.mep]?.coverage!=='complete'||snapshot.members[entry.mep]?.stale||observed.has(entry.id)).map(entry=>({...entry,...observed.get(entry.id)}));
       const known=new Set(entries.map(entry=>entry.id));
       for(const event of snapshot.events) {
         const baseline=baselines[event.mep];
