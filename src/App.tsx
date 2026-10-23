@@ -639,7 +639,7 @@ export default function App() {
   const partialCommittee = Boolean(committee && !directory?.index.complete);
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = profile.data?.id === member ? profile.data : selected;
-  const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || `MEP ${member}`;
+  const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || `MEP ${member}`;
   const pageTitle = view==='legislation' ? null : view ? {questions:'Questions',outside:'Outside voices',groups:'Group voices',amendments:'Amendments',saved:'Following'}[view]
     : member ? `${memberName} · ${tab==='profile'?c.profile:tab==='activities'?c.activities:tab==='amendments'?'Amendments':tab==='votes'?'Votes':c.speeches}` : c.title;
   const pageTitleLanguage=view||member&&(tab==='amendments'||tab==='votes')?'en':lang;
@@ -771,12 +771,11 @@ export default function App() {
                   {profile.data?.lastName || selected?.lastName}
                 </h1>
                 <p lang="">
-                  {selected?.countryCode} · {selected?.groupCode}
+                  {[selected?.countryCode,selected?.groupCode].filter(Boolean).join(' · ')}
                 </p>
                 <SaveButton item={{kind:'mep',id:String(member),title:[profile.data?.firstName||selected?.firstName,profile.data?.lastName||selected?.lastName].filter(Boolean).join(' ')}}/>
               </div>
             </div>
-            {outsideRoster&&<FormerMemberNotice member={member} language={lang}/>}
             <nav className="explorer-tabs" aria-label="MEP sections" lang={lang}>
               <button
                 className={tab === "profile" ? "selected" : ""}
@@ -797,6 +796,7 @@ export default function App() {
               {publicAmendmentsEnabled&&<button lang="en" className={tab === "amendments" ? "selected" : ""} aria-pressed={tab === "amendments"} onClick={() => changeMemberTab("amendments")}>Amendments</button>}
             </nav>
             <div className="explorer-profile-body">
+              {outsideRoster&&<FormerMemberNotice member={member} language={lang}/>}
               {outsideRoster&&(tab==='profile'||tab==='activities') ? null : tab === "speeches" ? (
                 <Speeches
                   key={member}
