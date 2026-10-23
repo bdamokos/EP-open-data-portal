@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -42,7 +43,7 @@ const read=(base,route)=>new Promise((resolve,reject)=>{
   request.on('error',reject);
 });
 
-test('HTTP deadline releases the reader, aborts its unshared cold source and keeps health responsive',async t=>{
+test('HTTP deadline releases the reader, aborts its unshared cold source and keeps health responsive',loopback,async t=>{
   const {server}=await import('./index.mjs');await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${server.address().port}`;
   t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));});

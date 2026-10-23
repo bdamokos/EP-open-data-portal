@@ -125,8 +125,19 @@ test('an unknown stored colour scheme falls back to the system setting',async t=
 test('the first-paint script applies a saved override exactly like the app, before the app module loads',async t=>{
   const {COLOUR_SCHEME_KEY,applyColourScheme}=await import('./colourScheme.mjs');
   const [script,html]=await Promise.all([readFile(new URL('../public/assets/colour-scheme.js',import.meta.url),'utf8'),readFile(new URL('../index.html',import.meta.url),'utf8')]);
-  assert(html.indexOf('assets/colour-scheme.js')>-1&&html.indexOf('assets/colour-scheme.js')<html.indexOf('type="module"'),'the override script runs before the app module');
-  assert(!/<script[^>]*colour-scheme[^>]*(?:async|defer|type="module")/.test(html),'the override script blocks rendering');
+  const page=new Window({url:'http://localhost/',settings:{disableJavaScriptEvaluation:true,disableJavaScriptFileLoading:true,disableCSSFileLoading:true}});
+  t.after(()=>page.happyDOM.close());
+  page.document.write(html);
+  const scripts=[...page.document.querySelectorAll('script')];
+  const bootstraps=scripts.filter(node=>node.getAttribute('src')==='./assets/colour-scheme.js');
+  const modules=scripts.filter(node=>node.getAttribute('src')==='/src/main.tsx');
+  assert.equal(bootstraps.length,1,'one actual bootstrap script is present');
+  assert.equal(modules.length,1,'one actual app module script is present');
+  const [bootstrapNode]=bootstraps,[moduleNode]=modules;
+  assert(page.document.head.contains(bootstrapNode),'the bootstrap runs in the document head');
+  assert.equal(moduleNode.getAttribute('type'),'module');
+  for(const attribute of ['type','async','defer','nomodule'])assert.equal(bootstrapNode.hasAttribute(attribute),false,`bootstrap must be blocking: ${attribute}`);
+  assert(scripts.indexOf(bootstrapNode)<scripts.indexOf(moduleNode),'the blocking bootstrap precedes the actual app module');
   for(const stored of ['light','dark','sepia',null]) {
     const bootstrap=new Window({url:'http://localhost/'}),app=new Window({url:'http://localhost/'});
     t.after(()=>{bootstrap.happyDOM.close();app.happyDOM.close();});

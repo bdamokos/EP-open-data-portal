@@ -1,3 +1,4 @@
+import {languagePreference} from './language-order.mjs';
 import {speechWebsite} from './ep-links.mjs';
 
 export const SOURCE_LANGUAGES='bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ');
@@ -78,7 +79,7 @@ export function humanSourceUrl(value,{language='en',reference,record}={}) {
 
 export function recordTitle(record,language='en') {
   const title=record.process_title||record.title_dcterms||record.activity_label;
-  return [typeof title==='string'?title:title?.[language]||title?.en,record.label,record.identifier,record.activity_id,record.process_id,record.id].find(value=>typeof value==='string'&&value.trim())||'Source record';
+  return [typeof title==='string'?title:title?.[languagePreference(Object.keys(title||{}).filter(code=>typeof title[code]==='string'&&title[code].trim()),language)[0]],record.label,record.identifier,record.activity_id,record.process_id,record.id].find(value=>typeof value==='string'&&value.trim())||'Source record';
 }
 export function recordMatches(target,record) {
   if(target.collection)return true;

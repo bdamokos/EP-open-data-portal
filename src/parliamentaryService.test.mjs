@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 test('profile service line distinguishes continuous service, returning members, future mandates and unavailable data',async t=>{
-  const vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>vite.close());
-  const {ParliamentaryService}=await vite.ssrLoadModule('/src/ParliamentaryService.tsx');
+  const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>loadModule.close());
+  const {ParliamentaryService}=await loadModule('/src/ParliamentaryService.tsx');
   const render=(service,status='matched')=>renderToStaticMarkup(createElement(ParliamentaryService,{profile:{parliamentaryService:service,currentAffiliation:status?{status}:undefined},lang:'hu',date:value=>value}));
   const continuous={day:'2026-10-19',currentSince:'2012-01-04',periods:[{start:'2012-01-04',end:null}],error:null};
   assert.match(render(continuous),/MEP since.*lang="hu">2012-01-04/);assert.doesNotMatch(render(continuous),/Previous service/);

@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -7,7 +8,7 @@ import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
 import {requestSignal,requestTimeout} from './request-budget.mjs';
 
-test('document context HTTP contract is bounded, query-separated and never starts a writer',async t=>{
+test('document context HTTP contract is bounded, query-separated and never starts a writer',loopback,async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'document-context-http-'));
   process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=directory;
   const {server}=await import('./index.mjs');const {activityIndex}=await import('./activity-index-worker.mjs');

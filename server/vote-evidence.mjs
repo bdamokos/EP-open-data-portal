@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {languagePreference} from './language-order.mjs';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 
 const origin='https://data.europarl.europa.eu/';
@@ -29,8 +30,8 @@ export function exactReference(value,kind='event') {
 export const references=(value,kind='event')=>unique(list(value).map(value=>exactReference(value,kind)).filter(Boolean));
 export const eventUri=node=>exactReference(node);
 export function preferred(map,language) {
-  const key=unique([language,'en',...Object.keys(map)]).find(key=>typeof map[key]==='string'&&map[key].trim());
-  return key?{title:map[key],titleLanguage:key}:{title:null,titleLanguage:null};
+  const key=languagePreference(Object.keys(map).filter(key=>typeof map[key]==='string'&&map[key].trim()),language)[0];
+  return key!==undefined?{title:map[key],titleLanguage:key||null}:{title:null,titleLanguage:null};
 }
 export function mergeSourceNodes(a,b) {
   if(!a)return {node:b,fields:[]};

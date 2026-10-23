@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {createElement,act,StrictMode,Fragment} from 'react';import {Window} from 'happy-dom';import {createServer} from 'vite';
+import {createElement,act,StrictMode,Fragment} from 'react';import {Window} from 'happy-dom';import {freshLoader} from './test-support/viteRunner.mjs';
 const baseline={activityVersion:3,activityIdsComplete:true,revision:'old',answerIds:[],latestIds:['old']};
 const member=(extra={})=>({kind:'mep',id:'42',title:'Fixture member',savedAt:1,...extra});
 const settle=()=>act(async()=>{await new Promise(resolve=>setTimeout(resolve,30));});
@@ -7,10 +7,10 @@ async function harness(t,items=[member()],v2=false) {
  const window=new Window({url:'http://localhost/'}),globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  window.localStorage.setItem(v2?'ep.following.v2':'ep.bookmarks.v1',JSON.stringify({version:v2?2:1,items}));
- const requests=[],opened=[],waiting=[];let root,vite,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null;
+ const requests=[],opened=[],waiting=[];let root,loadModule,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null;
  let status={epoch:'one',generation:5,marksReady:true,indexComplete:true,publishedAt:null};
  let ids=[['old',0,5]],entries=[],questionAnswers=[],membershipLists={incoming:{status:'fresh'},outgoing:{status:'fresh'}},invalidMembership=false;
- t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();if(vite)await vite.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
+ t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
  t.mock.method(globalThis,'fetch',async(input,options)=>{
   const url=new URL(input,window.location.href),route=url.pathname.split('/').at(-1);requests.push({url,route,options});
   if(fail===route)return Response.json({error:{code:'fixture_failure',message:'Fixture unavailable'}},{status:503});
@@ -29,8 +29,8 @@ async function harness(t,items=[member()],v2=false) {
   if(route==='saved')return Response.json({questions:(JSON.parse(options.body).questions||[]).map(id=>({id,status:'available',title:'Question',revision:'one',answers:questionAnswers})),coverage:{indexComplete:true}});
   assert.fail('Unexpected route '+url);
  });
- vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
- const {Saved}=await vite.ssrLoadModule('/src/Saved.tsx'),controls=await vite.ssrLoadModule('/src/SavedControls.tsx'),{createRoot}=await import('react-dom/client');
+ loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+ const {Saved}=await loadModule('/src/Saved.tsx'),controls=await loadModule('/src/SavedControls.tsx'),{createRoot}=await import('react-dom/client');
  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
  function Checks({language}){controls.useSavedChecks(language);return null;}
  const render=(language='en',strict=false)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,harness.focusChecks&&createElement(Checks,{language}),createElement(controls.SavedNav,{onClick(){}}),createElement(Saved,{language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));

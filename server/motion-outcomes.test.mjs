@@ -141,6 +141,21 @@ test('joint downloads retain DOCX-only files and label fallback languages, with 
     }
   });
 });
+test('related joint downloads follow display language order and prefer PDF within the selected language',t=>{
+  const store=storeTest(t),cycle=seed(store),original='B-10-2026-0441',joint=work('RC-10-2026-0441');
+  const person=store.db.prepare('SELECT mep FROM items WHERE source_id=?').get(original).mep;
+  store.setMembers([{id:person,name:'Source author'}]);
+  joint.title_dcterms={bg:'Bulgarian title',fr:'French title'};
+  joint.is_realized_by=[['bg','BUL'],['fr','FRA']].map(([code,authority])=>({language:'language/'+authority,is_embodied_by:['DOCX','PDF'].map(format=>({format:'file-type/'+format,is_exemplified_by:`distribution/example/joint-${code}.${format.toLowerCase()}`}))}));
+  const endpoint='/plenary-documents/'+joint.identifier;
+  store.putSource(cycle.generation,endpoint,'document',joint,fixture.retrievedAt,documentRows(joint,endpoint,fixture.retrievedAt).rows);
+  for(const [requested,expected] of [['ga','fr'],['bg','bg']]){
+    const related=store.page(person,{sourceId:original,language:requested}).selectedItems.find(item=>item.sourceId===original).relatedJointMotions[0];
+    assert.equal(related.title,expected==='fr'?'French title':'Bulgarian title');
+    assert.equal(related.documentLanguage,expected);assert.equal(related.documentFormat,'PDF');
+    assert(related.url.endsWith(`joint-${expected}.pdf`));
+  }
+});
 test('both filtered motion categories retain the outcome badge data',t=>{
   const store=storeTest(t),cycle=store.beginCycle();
   const document=work('B-10-2026-0423'),person=document.workHadParticipation[0].had_participant_person[0].split('/').at(-1);

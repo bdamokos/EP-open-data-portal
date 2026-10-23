@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const source={url:'https://example.test/public-fixture',fetchedAt:'2026-10-16T12:00:00Z'};
 const coverage={complete:false,pending:0,unresolved:0,gaps:1,truncated:false,initialized:true,generation:1,updatedAt:source.fetchedAt,tasks:[],source:'Public test fixture'};
@@ -50,10 +50,10 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
     ResizeObserver:class {observe(){} disconnect(){}},IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    if(vite)await vite.close();
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -72,8 +72,8 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
     throw new Error('Unexpected request: '+url);
   });
   // Exercise the real component and URL/data hooks without opening a listening server.
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {OutsideVoices}=await vite.ssrLoadModule('/src/OutsideVoices.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {OutsideVoices}=await loadModule('/src/OutsideVoices.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=language=>act(async()=>root.render(createElement(OutsideVoices,{language,onBack(){}})));
