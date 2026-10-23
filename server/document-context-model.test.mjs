@@ -496,6 +496,39 @@ for (const heading of ['FOLLOW-UP','FOLLOW-UP:','FOLLOW-UP.','Follow-Up','Follow
   });
 }
 
+for (const heading of ['Further action and monitoring.', 'Follow-up actions and recommendations;']) {
+  test(`recorded headings close provision scope at every level: ${heading}`, () => {
+    for (let level=1;level<=6;level++) {
+      const text=motion(['19. Calls for:', '(a) first point;', '– first item;', heading, 'follow-up prose;', '(b) orphan point;', '20. Next;']);
+      text.paragraphFormats=text.paragraphs.map((_,index)=>index===6?{heading:level}:{});
+      const before=structuredClone(text),units=segmentMotionUnits(text,'en');
+      assert.deepEqual(units.find(unit=>unit.label==='19'),{kind:'paragraph',label:'19',parent:null,start:3,end:5,level:1});
+      assert.equal(units.find(unit=>unit.kind==='heading').start,6);
+      assert(!units.some(unit=>unit.kind==='point'&&unit.label==='b'));
+      assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'resolution_extent_uncertain');
+      for (const proposedText of ['Changed;', '', 'deleted']) {
+        assert.equal(placement(text,{originalText:'19. Calls for: (a) first point; – first item;',proposedText,targetLabel:'Paragraph 19'}).reason,'resolution_extent_uncertain');
+        assert.equal(placement(text,{originalText:'(a) first point;',proposedText,targetLabel:'Paragraph 19 point a'}).reason,'resolution_extent_uncertain');
+        assert.equal(placement(text,{originalText:'– first item;',proposedText}).reason,'resolution_extent_uncertain');
+        for (const originalText of [heading,'follow-up prose;','(b) orphan point;',heading+' follow-up prose;']) {
+          assert.equal(placement(text,{originalText,proposedText}).reason,'target_not_found');
+        }
+      }
+      assert.deepEqual(placement(text,{originalText:'20. Next;',proposedText:'Changed;',targetLabel:'Paragraph 20'}).span,{start:9,end:9});
+      assert.deepEqual(text,before,'segmentation retains source indexes, text and formatting');
+    }
+  });
+}
+
+test('recorded headings retain explicit numbered provision and point identities', () => {
+  const text=motion(['A. whereas first;', 'B. whereas next;', '19. Calls for:', '(a) first point;', '– first item;', '20. Next;']);
+  text.paragraphFormats=text.paragraphs.map((_,index)=>index>=3&&index!==7?{heading:2}:{});
+  const options={originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'};
+  assert.equal(placement(text,options).status,'placed');assert.equal(placement(text,options).insertAfter,7);
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Recital A a (new)'}).insertAfter,3);
+  assert.equal(placement(text,{originalText:'(a) first point; – first item;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).status,'placed');
+});
+
 test('an ambiguous heading withholds an earlier point through its paragraph extent', () => {
   const text=motion(['19. Calls for:', '(a) first point;', '(b) last point;', 'FOLLOW-UP', '(c) orphan point;', '20. Next;']);
   assert.equal(placement(text,{originalText:'(a) first point;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).reason,'resolution_extent_uncertain');

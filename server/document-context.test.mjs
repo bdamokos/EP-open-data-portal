@@ -31,8 +31,8 @@ test('the real cold document reader preserves local failures and allows an immed
   }
 });
 
-function archive(documentXml,stylesXml) {
-  const entries=[['word/document.xml',documentXml],['word/styles.xml',stylesXml]],local=[],central=[];let offset=0;
+function archive(documentXml,stylesXml,parts={}) {
+  const entries=[['word/document.xml',documentXml],['word/styles.xml',stylesXml],...Object.entries(parts)],local=[],central=[];let offset=0;
   for(const [path,xml] of entries) {
     const name=Buffer.from(path),body=Buffer.from(xml),compressed=deflateRawSync(body),header=Buffer.alloc(30),directory=Buffer.alloc(46);
     header.writeUInt32LE(0x04034b50);header.writeUInt16LE(8,8);header.writeUInt32LE(compressed.length,18);header.writeUInt32LE(body.length,22);header.writeUInt16LE(name.length,26);
@@ -365,4 +365,43 @@ for(const heading of ['Follow-up:','Further action:','Follow-up.','Further actio
   assert.equal(inserted.reason,'resolution_extent_uncertain');
   assert.equal(resolveAmendmentPlacement(text,{language:'en',originalText:'follow-up prose;',proposedText:'Changed;'}).reason,'target_not_found');
   assert.equal(resolveAmendmentPlacement(text,{language:'en',originalText:'20. Next;',proposedText:'Changed;',targetLabel:'Paragraph 20'}).status,'placed');
+});
+
+for (const [name,properties,styles,level] of [
+  ['inherited Heading 1','<w:pStyle w:val="FollowUp"/>','<w:style w:type="paragraph" w:styleId="Heading1"><w:pPr><w:outlineLvl w:val="0"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="FollowUp"><w:basedOn w:val="Heading1"/></w:style>',1],
+  ['Heading 2','<w:pStyle w:val="Heading2"/>','<w:style w:type="paragraph" w:styleId="Heading2"><w:pPr><w:outlineLvl w:val="1"/></w:pPr></w:style>',2],
+  ['direct outline 4','<w:outlineLvl w:val="3"/>','',4],
+  ['direct outline 9','<w:outlineLvl w:val="8"/>','',6],
+])for (const heading of ['Further action and monitoring.','Follow-up actions and recommendations;'])test(`DOCX ${name} excludes punctuated heading prose from context placement: ${heading}`,async()=>{
+  const paragraph=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>';
+  const title='<w:p><w:pPr>'+properties+'</w:pPr><w:r><w:rPr><w:i/></w:rPr><w:t>'+heading+'</w:t></w:r></w:p>';
+  const prose='<w:p><w:hyperlink r:id="source"><w:r><w:t>follow-up prose;</w:t></w:r></w:hyperlink><w:r><w:footnoteReference w:id="1"/></w:r></w:p>';
+  const xml='<w:document xmlns:w="urn:word" xmlns:r="urn:relationships"><w:body>'+paragraph('The European Parliament,')+paragraph('19. Calls for:')+paragraph('– first item;')+title+prose+paragraph('20. Next;')+'</w:body></w:document>';
+  const parsed=docxContent(archive(xml,'<w:styles xmlns:w="urn:word">'+styles+'</w:styles>',{
+    'word/_rels/document.xml.rels':'<Relationships><Relationship Id="source" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.europarl.europa.eu/" TargetMode="External"/></Relationships>',
+    'word/footnotes.xml':'<w:footnotes xmlns:w="urn:word"><w:footnote w:id="1">'+paragraph('Source note.')+'</w:footnote></w:footnotes>',
+  }));
+  assert.equal(parsed.paragraphFormats[3].heading,level);
+  assert.deepEqual(parsed.links,[{paragraph:4,start:0,end:16,url:'https://www.europarl.europa.eu/'}]);
+  assert.deepEqual(parsed.anchors,[{paragraph:4,offset:16,note:'1',label:'1'}]);
+  const text={...summary,...parsed},before=structuredClone(text);
+  const units=segmentMotionUnits(text,'en');assert.equal(units.find(unit=>unit.label==='19').end,2);assert.equal(units.find(unit=>unit.kind==='heading').start,3);
+  for (const [originalText,proposedText,targetLabel,reason] of [
+    ['','19a. New;','Paragraph 19 a (new)','resolution_extent_uncertain'],
+    ['19. Calls for: – first item;','Changed;','Paragraph 19','resolution_extent_uncertain'],
+    ['– first item;','Changed;',null,'resolution_extent_uncertain'],
+    [heading,'Changed;',null,'target_not_found'],
+    ['follow-up prose;','Changed;',null,'target_not_found'],
+    ['follow-up prose;','deleted',null,'target_not_found'],
+    ['20. Next;','Changed;','Paragraph 20',null],
+  ]) {
+    const amendment={...indexed,baseline:'motion-resolution',originalText,proposedText,targetLabel,targetLabelLanguage:'en'};
+    const reader=service({readText:async()=>text,findAmendment:()=>amendment});
+    const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+    if(reason) {assert.equal(result.placement.status,'unresolved');assert.equal(result.placement.reason,reason);}
+    else {assert.equal(result.placement.status,'placed');assert.deepEqual(result.placement.span,{start:5,end:5});}
+    assert.deepEqual(result.document.selectedText,before,'full source, formatting, links, notes and offsets remain intact');
+    assert.equal(result.target.evidence.amendmentId,amendmentId);assert.equal(result.target.evidence.listId,listId);assert.equal(result.target.evidence.wordingLanguage,'en');
+  }
+  assert.deepEqual(text,before);
 });
