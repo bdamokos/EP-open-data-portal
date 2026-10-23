@@ -10,9 +10,10 @@ test('only the profile wrapper enriches bodies and reuses the exact primary pers
   t.after(async()=>{if(previous===undefined)delete process.env.ODP_CACHE_DIR;else process.env.ODP_CACHE_DIR=previous;await rm(dir,{recursive:true,force:true});});
   const membership={id:'membership/124936-f-153501',organization:'org/5177',role:'def/ep-roles/MEMBER',membershipClassification:'def/ep-entities/NATIONAL_POLITICAL_GROUP',memberDuring:{startDate:'2019-07-02',endDate:'2024-07-15'}};
   const person={identifier:'124936',givenName:'Maria',familyName:'Arena',hasMembership:[membership,{...membership,id:'membership/second',organization:'org/5154'},{id:'membership/124936-m-16006',organization:'org/ep-9',role:'def/ep-roles/MEMBER_PARLIAMENT',memberDuring:{startDate:'2019-07-02',endDate:'2024-07-15'}}]};
-  const requests=[];let retriedLabel,failMember=false;
+  const requests=[];let retriedLabel,failMember=false,invalidMember=false;
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input);requests.push(url.pathname);
+    if(url.pathname==='/api/v2/meps/124936'&&invalidMember)return Response.json({data:[]});
     if(url.pathname==='/api/v2/meps/124936')return failMember?Response.json({error:'Unavailable'},{status:404}):Response.json({data:[person]});
     if(url.pathname==='/api/v2/meps/show-current')return Response.json({data:[]});
     if(url.pathname==='/api/v2/corporate-bodies/5177')return Response.json({data:[{id:'org/5177',identifier:'5177',classification:membership.membershipClassification,prefLabel:{fr:'Parti Socialiste'}}]});
@@ -55,7 +56,13 @@ test('only the profile wrapper enriches bodies and reuses the exact primary pers
   const retained=await odpProfileWithMemberships('124936');
   assert.equal(retained.firstName,'Maria');assert.equal(retained.membershipHistory.items.length,2);
   assert.equal(retained.membershipHistory.sources[0].stale,true);
-  person.hasMembership=[];failMember=false;
+  failMember=false;invalidMember=true;
+  for(let i=0;i<2;i++) {
+    const invalidRefresh=await odpProfileWithMemberships('124936');
+    assert.equal(invalidRefresh.firstName,'Maria');assert.equal(invalidRefresh.membershipHistory.items.length,2);
+    assert.equal(invalidRefresh.membershipHistory.sources[0].stale,true);
+  }
+  invalidMember=false;person.hasMembership=[];failMember=false;
   const refreshed=await odpProfileWithMemberships('124936');
   assert.equal(refreshed.membershipHistory.observationComplete,true);assert.deepEqual(refreshed.membershipHistory.observations,[]);
   const reads=requests.filter(url=>url==='/api/v2/meps/124936').length;

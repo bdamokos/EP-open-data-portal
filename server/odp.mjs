@@ -149,7 +149,7 @@ function observeSource(entry,priority,signal) {
 export async function odp(
   endpoint,
   params = {},
-  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
+  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
   signal?.throwIfAborted();
   const url = new URL(ODP_BASE + endpoint);
@@ -173,6 +173,9 @@ export async function odp(
     } catch { /* Missing or invalid reproducible cache. */ }
   }
   signal?.throwIfAborted();
+  if(stored&&validate) {
+    try {validate(stored.payload);} catch {stored=undefined;}
+  }
   if(cachedOnly) {
     if(!stored)throw new HttpError(404,'odp_cache_miss','This source record is not retained.');
     return {...stored,stale:Date.now()-stored.fetchedAt>=ttl || daily&&dayOf(stored.fetchedAt)!==today()};
@@ -187,16 +190,16 @@ export async function odp(
   if (!force && stored && staleWhileRevalidate) {
     const failure=refreshFailures.get(key);
     if (!pending.has(key) && (!failure || failure.retryAt<=Date.now()))
-      void odp(endpoint,params,{force:true,ttl,daily,priority:'background'}).catch(()=>{});
+      void odp(endpoint,params,{force:true,ttl,daily,validate,priority:'background'}).catch(()=>{});
     return {...stored,stale:true,refreshInProgress:pending.has(key),refreshError:failure?.message || null};
   }
   signal?.throwIfAborted();
   const shared=pending.get(key);
-  if(shared)return observeSource(shared,priority,signal);
+  if(shared){if(validate)shared.validators.add(validate);return observeSource(shared,priority,signal);}
   // Cold interactive work includes admission and body in one bounded job.
   // Background retries retain their owner while waiting through upstream pauses.
   const budget=priority==='background'?{signal:undefined,abort:()=>{},dispose:()=>{}}:createRequestBudget(30_000);
-  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,foregroundWaiters:new Set(),settled:false,promise:null};
+  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,foregroundWaiters:new Set(),validators:new Set(validate?[validate]:[]),settled:false,promise:null};
   const job = runWithRequestSignal(undefined,async () => {
     let rateFailures=0;
     for(;;){
@@ -268,6 +271,7 @@ export async function odp(
             "odp_invalid",
             "Parliament returned an unexpected data structure.",
           );
+        for(const validate of entry.validators)validate(payload);
         const record = { url: key, fetchedAt: Date.now(), payload };
         const serialized = JSON.stringify(record);
         refreshFailures.delete(key);
@@ -383,7 +387,7 @@ let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
 export const DIRECTORY_VERSION = 2;
-export const PROFILE_VERSION = 4;
+export const PROFILE_VERSION = 5;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -538,10 +542,14 @@ export async function readCachedMepRecord(id,{now=Date.now(),signal}={}) {
   }catch(error){if(signal?.aborted)throw error;return null;}
 }
 async function mepRecord(id, force = false, {priority='interactive'}={}) {
+  const validate=payload=>{
+    if(payload?.data?.length!==1||String(payload.data[0]?.identifier)!==String(id))
+      throw new HttpError(404,'mep_not_found','This MEP profile is unavailable.');
+  };
   const record = await odp(
     `/meps/${id}`,
     {},
-    { force, ttl: 7 * 24 * 60 * 60 * 1000, priority },
+    { force, ttl: 7 * 24 * 60 * 60 * 1000, priority, validate },
   );
   const person = record.payload.data[0];
   if (!person || String(person.identifier) !== String(id))
