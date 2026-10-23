@@ -769,7 +769,7 @@ test('member-vote A-report Read in context reaches the Commission proposal',asyn
     return Response.json(String(url).includes('document-context/')?proposalContextResponse(DOCUMENT,AMENDMENT,listId,7):responseFor(url,{items:[item]}));
   }});
   await h.click('Read in context');await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
-  assert(h.container.textContent.includes('Showing the Commission proposal COM(2025)0087'));
+  assert(h.container.textContent.includes('Commission proposal · COM(2025)0087'));
   assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,'true');
   assert(h.calls.some(url=>url.includes('wording-lang=en')&&!url.includes('body=0')));
 });

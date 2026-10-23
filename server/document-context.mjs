@@ -158,7 +158,7 @@ export class DocumentContext {
       const explicit=[...new Set(documentReferences.filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).flatMap(r=>commissionReferences(r.raw).map(r=>r.celex)))];
       const eligible=typeof chosen.language==='string'&&(query.id.startsWith('A-')||explicit.length===1);
       const source=eligible?await this.readProposal({...(query.id.startsWith('A-')?{reportId:query.id}:{celex:explicit[0]}),language:chosen.language,documentReferences}):null;
-      baseline={kind:'commission-proposal',celex:source?.celex??null,workId:source?.workId??null,language:chosen.language,status:source?.status??'unresolved',items:[],gaps:source?.gaps??['proposal-identity-unavailable'],evidence:source?.evidence??[],attribution:'Legal text © European Union. Changes highlighted by this explorer are not an official consolidated text.'};
+      baseline={kind:'commission-proposal',celex:source?.celex??null,workId:source?.workId??null,language:chosen.language,status:source?.status??'unresolved',items:[],gaps:source?.gaps??['proposal-identity-unavailable'],evidence:source?.evidence??[],attribution:'Legal text © European Union.'};
       const items=[];
       try {
         for(const item of source?.items||[]) {

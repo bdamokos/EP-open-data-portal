@@ -42,8 +42,8 @@ const responseFor=(data:DocumentContextResponse|null,id:string,language:string,r
 
 const placementReasons:Record<string,string>={
   ...proposalPlacementReasons,
-  resolution_extent_uncertain:'The boundaries of this passage could not be established safely.',
-  resolution_end_unavailable:'The end of the resolution could not be established safely.',
+  resolution_extent_uncertain:'The boundaries of this passage could not be determined.',
+  resolution_end_unavailable:'The end of the resolution could not be determined.',
   baseline_unavailable:'The text this amendment changes is not included in this document.',
   different_text_languages:'The document and amendment wording are in different languages.',
   duplicate_target_label:'A provision with the proposed label already exists.',
@@ -55,7 +55,7 @@ const placementReasons:Record<string,string>={
   target_not_found:'The passage this amendment changes could not be found.',
   source_passage_incomplete:'The source passage is incomplete.',
   source_structure_unavailable:'The document structure is unavailable.',
-  matching_budget:'The automatic location search reached its limit.',
+  matching_budget:'The amendment’s location could not be determined.',
   amendment_wording_unavailable:'The amendment wording is unavailable.',
 };
 const amendmentNumber=(id:string|undefined)=>id?.match(/-AM-(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'')||null;
@@ -101,7 +101,9 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     placement.operation==='insert'?validIndex(placement.insertAfter)&&placement.insertBefore===placement.insertAfter+1:
       placement.span&&validIndex(placement.span.start)&&validIndex(placement.span.end)&&placement.span.end>=placement.span.start));
   const number=amendmentNumber(amendmentRequest?.amendmentId),amendmentHeading='amendment-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
-  const placementReason=placementReasons[placement?.reason||'']||'The published evidence does not identify one complete passage.';
+  const placementReason=placement?.reason==='different_text_languages'&&wording?.language===null?'The amendment wording language is unknown.':
+    placement?.reason==='different_text_languages'&&!text?.textLanguage?'The document text language is unknown.':
+      placementReasons[placement?.reason||'']||'The amendment’s location could not be determined.';
   const extracted=publicationBody(allParagraphs,id,text?.textLanguage);
   const exactBody=extracted.exact&&Number.isInteger(extracted.start)&&extracted.start>=0&&extracted.paragraphs.length===allParagraphs.length-extracted.start&&extracted.paragraphs.every((paragraph,index)=>paragraph===allParagraphs[extracted.start+index]);
   const placementStart=placed?(placement?.operation==='insert'?placement.insertAfter:placement?.span?.start):undefined;
@@ -116,8 +118,8 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     return <ReferenceText text={value} start={start} anchors={annotatedSpan.anchors.filter(anchor=>anchor.offset>start&&anchor.offset<=end||start===0&&anchor.offset===0)} links={clipped} final notePrefix={notePrefix}/>;
   }:undefined;
   const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-labelledby={amendmentHeading}>
-    <h4 id={amendmentHeading} lang="en">Amendment{number?' '+number:''} · proposed change</h4>
-    {wording&&<WordingDiff original={placement?.operation==='insert'?'':wording.originalText} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" renderOriginal={inPlace?renderOriginal:undefined}/>}
+    <h4 id={amendmentHeading} lang="en">Amendment{number?' '+number:''}</h4>
+    {wording&&<WordingDiff original={placement?.operation==='insert'?'':wording.originalText} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={inPlace?renderOriginal:undefined}/>}
     {inPlace&&annotationFallback&&<p className="wording-diff__note" lang="en">Footnotes and links are shown in the full document's original</p>}
   </section>;
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
@@ -140,7 +142,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
       {actual&&<p className="document-context-language">{actual!==language?<>{languageName(language)} unavailable · showing {languageName(actual)}.</>:<>Text language: {languageName(actual)}</>}</p>}
       {hasText&&!loadError&&(text?.stale||text?.refreshError)&&<p className="document-context-notice">{text?.refreshError?'Couldn’t update the document. Showing saved text.':'Showing saved text.'}</p>}
       {hasText?<>
-        {amendmentRequest?.amendmentId&&(placement?(placed?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to amendment</button></div>:<p className="document-context-notice" role="status">This amendment could not be placed in the text. {placementReason} The full document is below.</p>):found?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to passage</button>{target?.quoteMatches===false&&<p>The published text differs from the amendment’s quotation.</p>}</div>:<p className="document-context-notice">Passage not found. The full document is below.</p>)}
+        {amendmentRequest?.amendmentId&&(placement?(placed?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to amendment</button></div>:<p className="document-context-notice" role="status">{placementReason}</p>):found?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to passage</button>{target?.quoteMatches===false&&<p>The published text differs from the amendment’s quotation.</p>}</div>:<p className="document-context-notice">The passage this amendment changes could not be found.</p>)}
         {incomplete&&<p className="document-context-notice">Some content is only available in the original document.</p>}
         <ReferenceScope key={id+':'+language} texts={readerTexts(body.paragraphs,notes,links)} notes={notes} notePrefix={notePrefix} language={interfaceLanguage} textLanguage={actual} renderQuestion={question=><InsightQuestionReader id={question} language={interfaceLanguage} heading="Referenced question" includeAnswers/>}>
           <div className="document-context-text" ref={reader} lang={actual||''}>{placement&&!placed&&wording&&amendmentBlock(false)}<DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,allParagraphs.length)} exactOffsets

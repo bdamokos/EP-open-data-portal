@@ -11,11 +11,11 @@ import {FindInText} from './TextSearch';
 const units=(list:ProposalUnit[]):ProposalUnit[]=>list.flatMap(unit=>[unit,...units(unit.children)]);
 const safeHref=(raw:string|undefined|null)=>{try{const url=new URL(raw||'');return url.protocol==='https:'&&!url.username&&!url.password?url.href:null;}catch{return null;}};
 export const proposalPlacementReasons:Record<string,string>={
-  amends_existing_law:'This amendment amends existing law, not the proposal text.',
+  amends_existing_law:'This amendment changes existing law.',
   council_position_unavailable:'The Council position is unavailable here.',
   baseline_unknown:'The source does not identify the text this amendment changes.',
   proposal_baseline_unavailable:'The Commission proposal is unavailable here.',
-  math_comparison_unavailable:'The equations could not be compared safely.',
+  math_comparison_unavailable:'The equations could not be compared.',
   parent_target_not_found:'The provision that would contain the new text could not be found.',
   conflicting_target_evidence:'The published location and original wording do not agree.',
   duplicate_target_label:'A provision with the proposed label already exists.',
@@ -27,7 +27,7 @@ export const proposalPlacementReasons:Record<string,string>={
   source_structure_unavailable:'The source does not establish the complete boundaries of this provision.',
   source_passage_incomplete:'The source passage is incomplete.',
   different_text_languages:'The proposal and amendment wording are in different languages.',
-  matching_budget:'The automatic location search reached its limit.',
+  matching_budget:'The amendment’s location could not be determined.',
 };
 
 type Placement=NonNullable<DocumentContextResponse['placement']>;
@@ -87,7 +87,7 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
   const placement=data.placement,placed=placement?.status==='placed'&&!!wording&&placement.itemIndex!==undefined&&!!items[placement.itemIndex]&&baseline.language===wording.language;
   const effective=placed?placement:null;
   const number=amendmentId?.match(/-AM-(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'');
-  const com=baseline.celex?.match(/^5(\d{4})PC(\d{4})$/),title=com?`COM(${com[1]})${com[2]}`:'Commission proposal';
+  const com=baseline.celex?.match(/^5(\d{4})PC(\d{4})$/),identity=com?`Commission proposal · COM(${com[1]})${com[2]}`:'Commission proposal';
   const official=baseline.celex?`https://eur-lex.europa.eu/legal-content/${baseline.language.toUpperCase()}/TXT/?uri=CELEX:${baseline.celex}`:null;
   const report=`https://www.europarl.europa.eu/doceo/document/${data.documentId}_${baseline.language.toUpperCase()}.html`;
   const showAmendment=()=>{const node=reader.current?.querySelector<HTMLElement>('[data-context-target="true"]');node?.scrollIntoView({block:'center'});node?.focus({preventScroll:true});};
@@ -104,18 +104,19 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
       }
       renderOriginal=(value,start)=>{const end=start+value.length;return <ReferenceText text={value} start={start} anchors={anchors.filter(a=>a.offset>start&&a.offset<=end||start===0&&a.offset===0)} links={links.map(l=>({...l,start:Math.max(l.start,start),end:Math.min(l.end,end)})).filter(l=>l.end>l.start)} final notePrefix={prefix+'-'+placement.itemIndex}/>;};
     }
-    return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment '+number+' proposed change'}><h4>Amendment{number?' '+number:''} · proposed change</h4>{wording&&<WordingDiff original={placement?.operation==='insert'?'':original} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" renderOriginal={renderOriginal}/>}</section>;
+    return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment'+(number?' '+number:'')}><h4 lang="en">Amendment{number?' '+number:''}</h4>{wording&&<WordingDiff original={placement?.operation==='insert'?'':original} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={renderOriginal}/>}</section>;
   };
   return <>
-    <p className="proposal-context-summary">Showing the Commission proposal {title} that this amendment changes. {official&&<a href={official} target="_blank" rel="noreferrer">Official proposal ↗</a>} · <a href={report} target="_blank" rel="noreferrer">Parliament {data.documentId.startsWith('A-')?'report':'document'} ↗</a></p>
+    <p className="proposal-context-summary">{official?<a href={official} target="_blank" rel="noreferrer">{identity} ↗</a>:identity} · <a href={report} target="_blank" rel="noreferrer">Parliament {data.documentId.startsWith('A-')?'report':'document'} ↗</a></p>
     <p className="document-context-language">Text language: {baseline.language.toUpperCase()}</p>
     <div className="document-context-tools"><FindInText target={reader} label="Find in proposal"/></div>
-    {placed?<div className="document-context-passage"><button type="button" onClick={showAmendment}>Go to amendment</button></div>:<p className="document-context-notice" role="status">This amendment could not be placed in the text. {proposalPlacementReasons[placement?.reason||'']||'The published evidence does not identify one complete passage.'} The full proposal is below.</p>}
-    {baseline.status!=='available'&&<p className="document-context-notice">Some proposal content could not be loaded or refreshed. Check the official proposal for the complete source.</p>}
+    {placed?<div className="document-context-passage"><button type="button" onClick={showAmendment}>Go to amendment</button></div>:<p className="document-context-notice" role="status">{proposalPlacementReasons[placement?.reason||'']||'The amendment’s location could not be determined.'}</p>}
+    {baseline.status!=='available'&&<p className="document-context-notice">Some proposal content is unavailable.</p>}
+    {baseline.items.some(item=>item.source.stale||item.source.refreshError)&&<p className="document-context-notice">{baseline.items.some(item=>item.source.refreshError)?'Couldn’t update the proposal. Showing saved text.':'Showing saved proposal text.'}</p>}
     <div className="document-context-text proposal-context-text" ref={reader} lang={baseline.language}>{!placed&&amendmentBlock(false)}{items.map((item,index)=>{
       const p=item.proposal,notes=p.notes as DocumentNote[],links=p.links as DocumentLink[];
       return <section key={index} data-proposal-item={item.kind+'-'+item.index}><h4 className="proposal-item-heading">{item.kind==='act'?'Proposal':'Annexes'}{item.index>1?' · part '+item.index:''}</h4>
-        {p.gaps.length>0&&<p className="document-context-notice">Some source structure could not be read. The original document is authoritative.</p>}
+        {p.gaps.length>0&&<p className="document-context-notice">{p.gaps.some(gap=>gap.code==='excerpted-source')?'This view contains source excerpts.':p.contentComplete===false?'Some source content is unavailable.':'Some source structure could not be read.'}</p>}
         <ReferenceScope texts={readerTexts(p.paragraphs.map(p=>p.text),notes,links)} notes={notes} notePrefix={prefix+'-'+index} language={language} textLanguage={baseline.language} renderQuestion={question=><InsightQuestionReader id={question} language={language} heading="Referenced question" includeAnswers/>}>
           <ItemText proposal={p} itemIndex={index} placement={effective} block={amendmentBlock} prefix={prefix+'-'+index}/>
         </ReferenceScope>

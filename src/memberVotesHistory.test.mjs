@@ -289,7 +289,7 @@ test('unknown wording language and conflicting same-language versions do not acq
     assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
     assert.equal(Boolean(h.container.querySelector('.document-context-reader [data-context-target="true"]')),false);
     assert.equal(Boolean(h.container.querySelector('.document-context-text [data-source-paragraph]')),true,'the exact source body stays readable without an assigned passage');
-    assert.equal(h.container.querySelector('.document-context-reader').textContent.includes('This amendment could not be placed in the text.'),true);
+    assert.equal(h.container.querySelector('.document-context-reader .document-context-notice[role="status"]').textContent,kind==='unknown'?'The amendment wording language is unknown.':'The amendment wording is unavailable.');
     const resolved=source.results.find(result=>result.document);
     assert.notEqual(resolved.target.status,'found');assert.equal(Object.hasOwn(resolved,'requestedWordingLanguage'),true);
     assert.equal(resolved.requestedWordingLanguage,kind==='unknown'?null:'hu');

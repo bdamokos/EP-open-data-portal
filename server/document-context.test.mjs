@@ -330,6 +330,6 @@ test('available Commission DOCX projection retains provenance and places only th
   const buffer=archive(xml,'<w:styles xmlns:w="urn:word"/>');
   const reader=service({findAmendment:()=>variant,readProposal:async()=>({status:'available',celex:'52025PC0087',workId:'exact-work',language:'en',gaps:[],evidence:[],items:[{kind:'act',index:1,itemId:'exact-item',expressionId:'exact-expression',buffer,source:{url:'https://publications.europa.eu/resource/celex/52025PC0087',sha256:'a'.repeat(64),fetchedAt:new Date(at).toISOString(),stale:false,refreshError:null}}]})});
   const value=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(value.baseline.celex,'52025PC0087');assert.equal(value.baseline.items[0].source.sha256,'a'.repeat(64));assert.equal(value.proposal.items[0].proposal.paragraphs.length,4);
+  assert.equal(value.baseline.attribution,'Legal text © European Union.');assert.equal(value.baseline.celex,'52025PC0087');assert.equal(value.baseline.items[0].source.sha256,'a'.repeat(64));assert.equal(value.proposal.items[0].proposal.paragraphs.length,4);
   assert.equal(value.placement.status,'placed');assert.equal(value.placement.originalText,original);assert.deepEqual(value.placement.span,{start:1,end:1});assert.equal(value.document.selectedText,undefined);
 });

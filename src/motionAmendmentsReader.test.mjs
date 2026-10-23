@@ -962,6 +962,6 @@ test('motion Read in context can render an explicitly identified Commission prop
   await h.respond(page({items:[item]}));await h.click(/^Amendment 13/);await h.click('Read in context');
   const request=h.requests.find(request=>request.url.pathname.includes('document-context/'));assert(request);
   await h.respond(proposalContextResponse(documentId,item.id,item.listId,7),{request});
-  assert(h.container.textContent.includes('Showing the Commission proposal COM(2025)0087'));
+  assert(h.container.textContent.includes('Commission proposal · COM(2025)0087'));
   assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,'true');
 });

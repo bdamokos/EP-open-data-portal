@@ -72,7 +72,7 @@ test('context preserves exact source indices, inline text, note offsets and targ
 test('missing target leaves the full official document readable with plain copy',async t=>{
   const h=await harness(t,()=>response(report,sourceDocument(report,['Context stays visible.','Exact <angle> text.']),{target:{...target,status:'unavailable',paragraphs:[],reason:'source-boundary-not-matched'}}));
   await h.render({request:{documentId:report,amendmentId:amendment,view:'document',onBack:()=>{}},language:'en'});
-  assert(h.container.textContent.includes('Passage not found. The full document is below.'));
+  assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
   assert(h.container.textContent.includes('Exact <angle> text.'));
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   assert(!h.container.textContent.includes('source-boundary-not-matched'));
@@ -115,7 +115,7 @@ test('a pinned wording language opens its matching body and stays pinned when th
   assert(h.requests.includes(`document-context/${report}?lang=fr&amendment=${amendment}&list=${list}&wording-lang=hu`));
   assert.equal(h.container.querySelector('.document-context-text').lang,'fr');
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0,'a different body language cannot use the Hungarian quotation');
-  assert(h.container.textContent.includes('Passage not found. The full document is below.'));
+  assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
   await h.render({request:{...request,wordingLanguage:'en'},language:'en'});
   assert.equal(h.container.querySelector('.document-context-text').lang,'en','changing the wording pin starts a new reading session');
   assert(h.requests.includes(`document-context/${report}?lang=en&amendment=${amendment}&list=${list}&wording-lang=en`));
@@ -339,7 +339,7 @@ test('an amendment or pinned list mismatch withholds target highlighting while k
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'en'});
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   assert(h.container.textContent.includes('Exact target passage.'));
-  assert(h.container.textContent.includes('Passage not found. The full document is below.'));
+  assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
 });
 
 test('a failed adopted lookup offers retry without claiming that the selected text is unavailable',async t=>{
@@ -373,8 +373,12 @@ test('placed insertion renders a framed WordingDiff between complete paragraph 1
   const reader=h.container.querySelector('.document-context-text'),children=[...reader.children],block=reader.querySelector('[data-amendment-block]');
   assert.equal(children[children.indexOf(block)-1].dataset.sourceParagraph,'2');
   assert.equal(children[children.indexOf(block)+1].dataset.sourceParagraph,'3');
-  assert.match(block.textContent,/Amendment 40 · proposed change/);assert(block.querySelector('.wording-diff ins'));
+  assert.equal(block.querySelector('h4').textContent,'Amendment 40');assert(block.querySelector('.wording-diff ins'));
   assert.equal(block.querySelector('del'),null);assert.equal(h.container.querySelectorAll('[data-context-target]').length,1);
+  assert.equal(block.querySelector('.wording-diff__note').textContent,'New text');
+  assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Changes').getAttribute('aria-pressed'),'true');
+  assert.equal(block.querySelector('.wording-diff__legend'),null);
+  assert(!block.textContent.includes('Mostly rewritten'));
   await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Go to amendment'));
   assert.equal(h.scrolls.at(-1).element,block);assert.equal(document.activeElement,block);
 });
@@ -382,6 +386,10 @@ test('replacement and deletion substitute the entire span with WordingDiff in so
   for(const operation of ['replace','delete'])await t.test(operation,async t=>{
     const h=await harness(t,()=>overlayResponse({operation,span:{start:1,end:2}}));await h.render({request:overlayRequest,language:'en'});
     const block=h.container.querySelector('[data-amendment-block]');assert(block.querySelector('.wording-diff del'));
+    assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Changes').getAttribute('aria-pressed'),'true');
+    assert.equal(block.querySelectorAll('.wording-diff__passage').length,1);
+    assert.equal(block.querySelector('.wording-diff__legend'),null);
+    assert(!block.textContent.includes('Mostly rewritten'));
     assert.equal(h.container.querySelector('[data-source-paragraph="1"]'),null);assert.equal(h.container.querySelector('[data-source-paragraph="2"]'),null);
     assert.equal(block.nextElementSibling.dataset.sourceParagraph,'3');
     if(operation==='delete'){assert.equal(block.querySelector('ins'),null);assert(![...block.querySelectorAll('.wording-diff__passage')].some(p=>p.textContent==='deleted'));}
@@ -389,7 +397,7 @@ test('replacement and deletion substitute the entire span with WordingDiff in so
 });
 test('unresolved placement shows wording above the full unchanged baseline without a false location',async t=>{
   const h=await harness(t,()=>overlayResponse({operation:'replace',status:'unresolved',reason:'baseline_unavailable'}));await h.render({request:overlayRequest,language:'en'});
-  assert.match(h.container.textContent,/This amendment could not be placed in the text.*not included in this document/s);
+  assert.equal(h.container.querySelector('[role="status"]').textContent,'The text this amendment changes is not included in this document.');
   const reader=h.container.querySelector('.document-context-text');assert(reader.firstElementChild.querySelector('.wording-diff'));
   assert.equal(reader.querySelectorAll('[data-source-paragraph]').length,4);assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
   assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
@@ -400,7 +408,7 @@ for(const [suffix,label] of [['-AM-040','Amendment 40'],['-AM-040a','Amendment 4
     const amendmentId=report+suffix,data=overlayResponse();data.amendment.id=amendmentId;data.target.evidence.amendmentId=amendmentId;
     const h=await harness(t,()=>data);await h.render({request:{...overlayRequest,amendmentId},language:'en'});
     const block=h.container.querySelector('[data-amendment-block]'),heading=block.querySelector('h4');
-    assert.equal(heading.textContent,label+' · proposed change');assert.equal(heading.lang,'en');
+    assert.equal(heading.textContent,label);assert.equal(heading.lang,'en');
     assert.equal(block.getAttribute('aria-labelledby'),heading.id);assert.equal(block.hasAttribute('lang'),false);
   });
 
@@ -439,8 +447,8 @@ test('committee body extraction retains an amendment placed before its body star
 });
 
 for(const [reason,copy] of Object.entries({
-  resolution_extent_uncertain:'The boundaries of this passage could not be established safely.',
-  resolution_end_unavailable:'The end of the resolution could not be established safely.',
+  resolution_extent_uncertain:'The boundaries of this passage could not be determined.',
+  resolution_end_unavailable:'The end of the resolution could not be determined.',
   insertion_reference_unavailable:'The insertion location is not specified clearly enough.',
   relative_target_not_found:'The preceding provision could not be found.',
   multiple_published_targets:'The published location matches more than one passage.',
@@ -448,14 +456,14 @@ for(const [reason,copy] of Object.entries({
   target_not_found:'The passage this amendment changes could not be found.',
   source_passage_incomplete:'The source passage is incomplete.',
   source_structure_unavailable:'The document structure is unavailable.',
-  matching_budget:'The automatic location search reached its limit.',
+  matching_budget:'The amendment’s location could not be determined.',
   amendment_wording_unavailable:'The amendment wording is unavailable.',
-  unknown_reason:'The published evidence does not identify one complete passage.',
+  unknown_reason:'The amendment’s location could not be determined.',
 }))test(`unresolved ${reason} explains the gap without implying a location`,async t=>{
   const data=overlayResponse({status:'unresolved',reason});
   if(reason==='amendment_wording_unavailable')data.amendment.variants[0].wordingStatus='unavailable';
   const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
-  assert(h.container.querySelector('[role="status"]').textContent.includes(copy));
+  assert.equal(h.container.querySelector('[role="status"]').textContent,copy);
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   assert.equal(h.container.querySelectorAll('[data-source-paragraph]').length,4);
 });
@@ -508,7 +516,7 @@ test('Commission proposal replaces the report body for recorded CBAM amendments 
   for(const selected of [4,7,8]){
     number=selected;await h.render({...props,request:{...props.request,amendmentId:report+'-AM-'+selected}});
     assert.equal(h.container.querySelector('[data-amendment-block]')?.dataset.contextTarget,'true');
-    assert(h.container.textContent.includes('Showing the Commission proposal COM(2025)0087'));
+    assert(h.container.textContent.includes('Commission proposal · COM(2025)0087'));
     assert(!h.container.textContent.includes('Report body must not replace the proposal.'));
     assert(h.container.querySelector('[data-proposal-item="act-1"]'));
     assert(h.container.querySelector('[data-proposal-item="annex-1"]'));
@@ -516,6 +524,16 @@ test('Commission proposal replaces the report body for recorded CBAM amendments 
     assert(h.container.querySelector('.proposal-table'));
     assert(h.container.textContent.includes('Legal text © European Union'));
     const link=h.container.querySelector('.proposal-context-summary a');assert(link.href.includes('CELEX:52025PC0087'));
+    assert.equal(link.textContent,'Commission proposal · COM(2025)0087 ↗');
+    assert.equal(h.container.querySelectorAll('.proposal-context-summary a').length,2);
+    const block=h.container.querySelector('[data-amendment-block]');
+    assert.equal(block.getAttribute('aria-label'),'Amendment '+selected);
+    assert.equal(block.querySelector('h4').textContent,'Amendment '+selected);
+    assert.equal(block.querySelector('h4').lang,'en');
+    assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Changes').getAttribute('aria-pressed'),'true');
+    assert.equal(block.querySelectorAll('.wording-diff__passage').length,1);
+    assert.equal(block.querySelector('.wording-diff__legend'),null);
+    assert(!block.textContent.includes('Mostly rewritten'));assert(!block.textContent.includes('official document is authoritative'));
   }
 });
 
@@ -533,7 +551,7 @@ test('proposal deletion includes instruction 21(a) and its quotation while keepi
 test('proposal unresolved math retains the diff at the top and renders unchanged equations safely',async t=>{
   const value=proposalContextResponse(report,amendment,list,8);value.placement={...value.placement,status:'unresolved',reason:'math_comparison_unavailable'};
   const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
-  assert(h.container.textContent.includes('The equations could not be compared safely.'));
+  assert.equal(h.container.querySelector('[role="status"]').textContent,'The equations could not be compared.');
   assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,undefined);
   assert(h.container.querySelector('math'));assert.equal(h.container.querySelector('.proposal-context-text').firstElementChild.dataset.amendmentBlock,'true');
 });
@@ -612,4 +630,22 @@ test('overlays preserve surrounding paragraph formatting and complete source tab
     if(operation==='replace'||operation==='delete')assert.equal(reader.querySelector('[data-source-paragraph="1"],[data-source-paragraph="2"]'),null);
     if(operation==='unresolved')assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
   });
+});
+
+for(const [name,status,stale,refreshError] of [
+  ['saved','available',true,null],
+  ['refresh failed','available',false,'download-failed'],
+  ['partial','partial',false,null],
+  ['partial saved','partial',true,'download-failed'],
+])test(`proposal ${name} distinguishes saved text from unavailable content`,async t=>{
+  const value=proposalContextResponse(report,amendment,list,7);
+  value.baseline.status=status;value.baseline.items[0].source={...value.baseline.items[0].source,stale,refreshError};
+  const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+  const notices=[...h.container.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
+  assert.equal(notices.includes('Some proposal content is unavailable.'),status==='partial');
+  assert.equal(notices.includes('Couldn’t update the proposal. Showing saved text.'),!!refreshError);
+  assert.equal(notices.includes('Showing saved proposal text.'),stale&&!refreshError);
+  assert(!h.container.textContent.includes('authoritative'));assert(!h.container.textContent.includes('consolidated'));
+  assert(h.container.querySelector('[data-amendment-block] del'));
+  assert.equal(h.container.querySelector('.document-context-document>.document-context-source:last-child').textContent,'Legal text © European Union.');
 });
