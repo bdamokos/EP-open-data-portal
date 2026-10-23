@@ -496,12 +496,13 @@ test('custom note labels keep adjusted object offsets without changing the sourc
   const note=result.notes[0],object=note.objects[0];assert.equal(note.text,'Note \uFFFC');assert.equal(object.offset,5);assert.equal(object.paragraphOffset,8);assert.equal(note.label,'*');assert(note.complete);
 });
 
-test('mathematical alphabets and styles preserve symbol identity through validated token attributes',()=>{
-  const cases=[['double-struck','','double-struck'],['script','b','bold-script'],['fraktur','p','fraktur'],['sans-serif','bi','sans-serif-bold-italic'],['monospace','p','monospace'],['roman','p','normal'],['roman','bi','bold-italic']];
+test('mathematical alphabets and styles preserve Unicode symbol identity and explicit upright semantics',()=>{
+  const cases=[['double-struck','','ℝ'],['script','b','𝓡'],['fraktur','p','ℜ'],['sans-serif','bi','𝙍'],['monospace','p','𝚁'],['roman','p','R'],['roman','bi','𝑹']];
   for(const [script,style,variant] of cases){
     const converted=math(`<m:r><m:rPr><m:scr m:val="${script}"/>${style?`<m:sty m:val="${style}"/>`:''}</m:rPr><m:t>R</m:t></m:r>`);
     assert(converted.complete,JSON.stringify(converted.unsupported));assert(isSafeMathML(converted.math));
-    assert.equal(converted.math.children[0].children[0].attributes.mathvariant,variant);
+    const token=converted.math.children[0].children[0];assert.deepEqual(token.children,[variant]);
+    assert.deepEqual(token.attributes,script==='roman'&&style==='p'?{mathvariant:'normal'}:undefined);
   }
   const plain=math(r('R')),styled=math('<m:r><m:rPr><m:scr m:val="double-struck"/></m:rPr><m:t>R</m:t></m:r>');
   assert.notDeepEqual(plain.math,styled.math);assert.equal(plain.complete,true);
@@ -532,4 +533,60 @@ test('source instruction styles verify trailing delimiters without guessing from
     assert.equal(proposalCandidates(result,'Article 1 – paragraph 1 – point 2').length,1);
     assert.equal(result.complete,true,JSON.stringify(result.gaps));
   }
+});
+
+
+test('mathematical Unicode mappings preserve exceptional letters and reject unmapped alphabets',()=>{
+  const styled=(script,style,text)=>math(`<m:r><m:rPr><m:scr m:val="${script}"/><m:sty m:val="${style}"/></m:rPr><m:t>${text}</m:t></m:r>`);
+  for(const [script,style,text,expected] of [
+    ['double-struck','p','CHNPQRZabc012','ℂℍℕℙℚℝℤ𝕒𝕓𝕔𝟘𝟙𝟚'],
+    ['script','p','BEFHILMRego','ℬℰℱℋℐℒℳℛℯℊℴ'],['fraktur','p','CHIRZ','ℭℌℑℜℨ'],
+    ['roman','i','hAz','ℎ𝐴𝑧'],['roman','bi','Q_19','𝑸_𝟏𝟗'],['roman','b','Ab09','𝐀𝐛𝟎𝟗'],
+  ]){const out=styled(script,style,text);assert(out.complete,JSON.stringify(out.unsupported));assert.deepEqual(out.math.children[0].children[0].children,[expected]);}
+  for(const [script,style,text] of [['double-struck','p','α'],['script','p','1'],['roman','bi','é'],['roman','i','9']]){
+    const out=styled(script,style,text);assert.equal(out.complete,false);assert.equal(out.math,null);assert(out.unsupported.some(name=>name.startsWith('unmapped-mathematical-character:')));
+  }
+  const normal=styled('roman','p','α');assert(normal.complete);assert.equal(normal.math.children[0].children[0].attributes.mathvariant,'normal');
+});
+
+test('every supported math container validates operand names and cardinality without losing repeated sequences',()=>{
+  const one=name=>`<m:${name}>${r('1')}</m:${name}>`;
+  const cases=[['f',['num','den']],['sSub',['e','sub']],['sSup',['e','sup']],['sSubSup',['e','sub','sup']],
+    ['rad',['e','deg']],['nary',['e','sub','sup']],['func',['e','fName']],['limLow',['e','lim']],['limUpp',['e','lim']],['acc',['e']],['bar',['e']]];
+  for(const [name,operands] of cases){
+    const valid=operands.map(one).join('');assert(math(`<m:${name}>${valid}</m:${name}>`).complete,name);
+    for(const operand of operands){const out=math(`<m:${name}>${valid}${one(operand)}</m:${name}>`);assert.equal(out.complete,false,name+':'+operand);assert.equal(out.math,null);assert(out.unsupported.includes(`operand-cardinality:m:${name}:m:${operand}`));}
+    for(const missing of operands){const out=math(`<m:${name}>${operands.filter(operand=>operand!==missing).map(one).join('')}</m:${name}>`);assert.equal(out.complete,false,name+' missing '+missing);}
+    const out=math(`<m:${name}>${valid}${one('num'===operands[0]?'lim':'num')}</m:${name}>`);assert.equal(out.complete,false,name+' unexpected operand');
+  }
+  for(const name of ['d','eqArr'])assert(math(`<m:${name}>${one('e')}${one('e')}</m:${name}>`).complete,name);
+  const matrix=`<m:m><m:mr>${one('e')}${one('e')}</m:mr><m:mr>${one('e')}${one('e')}</m:mr></m:m>`;assert(math(matrix).complete);
+  for(const xml of ['<m:f>'+one('num')+'</m:f>','<m:d>'+one('num')+'</m:d>',
+    '<m:eqArr>'+one('e')+one('sub')+'</m:eqArr>','<m:m><m:mr>'+one('e')+one('den')+'</m:mr></m:m>',
+    '<m:m>'+one('e')+'</m:m>','<m:rad><m:radPr><m:degHide m:val="1"/></m:radPr>'+one('deg')+one('e')+'</m:rad>',
+    '<m:nary><m:naryPr><m:subHide m:val="1"/></m:naryPr>'+one('sub')+one('e')+'</m:nary>',
+    '<m:f><m:fPr><w:r><w:t>3</w:t></w:r></m:fPr>'+one('num')+one('den')+'</m:f>',
+    '<m:f><m:fPr><m:ctrlPr><w:rPr><w:b><w:t>3</w:t></w:b></w:rPr></m:ctrlPr></m:fPr>'+one('num')+one('den')+'</m:f>',
+    '<m:f><m:fPr>3</m:fPr>'+one('num')+one('den')+'</m:f>',
+    '<m:rad><m:radPr><m:degHide/></m:radPr>'+one('deg')+one('e')+'</m:rad>',
+    '<m:nary><m:naryPr><m:subHide/></m:naryPr>'+one('sub')+one('e')+'</m:nary>',
+    '<m:nary><m:naryPr><m:supHide/></m:naryPr>'+one('sup')+one('e')+'</m:nary>',
+    '<m:f><m:fPr/><m:fPr/>'+one('num')+one('den')+'</m:f>',
+    '<m:f><m:fPr>'+one('num')+'</m:fPr>'+one('num')+one('den')+'</m:f>']){
+    const out=math(xml);assert.equal(out.complete,false,xml);assert.equal(out.math,null);assert.equal(out.sourceUrl,sourceUrl);
+  }
+  for(const xml of ['<m:oMathParaPr>'+r('3')+'</m:oMathParaPr>'+r('1'),'<m:ctrlPr>'+r('3')+'</m:ctrlPr>'+r('1'),'<m:r><w:rPr><w:t>3</w:t></w:rPr><m:t>1</m:t></m:r>'])assert.equal(math(xml).complete,false,xml);
+  for(const flag of ['subHide','supHide']){
+    const out=math(`<m:nary><m:naryPr><m:${flag}/></m:naryPr><m:sub>${flag==='subHide'?r('1'):''}</m:sub><m:sup>${flag==='supHide'?r('2'):''}</m:sup>${one('e')}</m:nary>`);
+    assert.equal(out.complete,false);assert(out.unsupported.includes('hidden-operand:m:nary'));
+  }
+  const squareRoot=math('<m:rad><m:radPr><m:degHide/></m:radPr><m:deg/>'+one('e')+'</m:rad>');assert(squareRoot.complete);
+  const emptyLimits=math('<m:nary><m:naryPr><m:subHide/><m:supHide/></m:naryPr><m:sub/><m:sup/>'+one('e')+'</m:nary>');assert(emptyLimits.complete);
+  const duplicate='<m:f>'+one('num')+one('den')+one('num')+'</m:f>';
+  const document=body(p('Article 1')+`<w:p><m:oMath>${duplicate}</m:oMath></w:p>`);
+  const result=parseProposal(archive(document),{sourceUrl});assert.equal(result.complete,false);assert.equal(proposalCandidates(result,'Article 1')[0].complete,false);
+  assert(result.gaps.some(gap=>gap.code==='unresolved-math'&&gap.sourcePath));assert.equal(result.objects[0].sourceUrl,sourceUrl);
+  const noteXml=`<w:footnotes xmlns:w="urn:word" xmlns:m="urn:math"><w:footnote w:id="1"><w:p><m:oMath>${duplicate}</m:oMath></w:p></w:footnote></w:footnotes>`;
+  const withNote=parseProposal(archive(body(p('Article 1')+'<w:p><w:r><w:t>Provision.</w:t><w:footnoteReference w:id="1"/></w:r></w:p>'),[['word/footnotes.xml',noteXml]]),{sourceUrl});
+  assert.equal(withNote.notes[0].complete,false);assert.equal(proposalCandidates(withNote,'Article 1')[0].complete,false);assert(withNote.gaps.some(gap=>gap.code==='incomplete-note'));assert.equal(withNote.notes[0].objects[0].sourceUrl,sourceUrl);
 });
