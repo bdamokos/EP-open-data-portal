@@ -1,0 +1,26 @@
+.amendment-named-votes {border-top:1px solid var(--line);}
+.amendment-named-votes__body {max-width:640px;min-width:0;}
+.amendment-named-votes h6 {font-size:15px;margin:14px 0 8px;}
+.amendment-named-votes__authors {list-style:none;padding:0;margin:0 0 16px;}
+.amendment-named-votes__authors li {display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:6px 0;}
+.amendment-named-votes__authors strong {text-align:right;}
+.amendment-named-votes [data-position=For] {color:var(--vote-for);}
+.amendment-named-votes [data-position=Against] {color:var(--vote-against);}
+.amendment-named-votes [data-position=Abstained] {color:var(--vote-abstain);}
+.amendment-named-votes table {width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums;}
+.amendment-named-votes caption {text-align:left;font-weight:600;margin-bottom:8px;}
+.amendment-named-votes th,.amendment-named-votes td {text-align:center;border-bottom:1px solid var(--line);padding:4px 0;}
+.amendment-named-votes th:first-child {width:40%;text-align:left;font-weight:500;overflow-wrap:anywhere;}
+.amendment-named-votes thead th {font-size:13px;color:var(--ink-muted);}
+.amendment-named-votes button {font:inherit;color:var(--accent);background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius-sm);min-width:44px;min-height:44px;padding:4px;cursor:pointer;}
+.amendment-named-votes button[aria-expanded=true] {background:var(--accent-soft);color:var(--accent-strong);border-color:var(--accent);}
+.amendment-named-votes__people {padding:2px 12px 12px;border-left:2px solid var(--accent);margin:16px 0;}
+.amendment-named-votes__people ul {list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:6px;}
+.amendment-named-votes__people a {display:inline-block;padding-block:6px;}
+.amendment-named-votes__sources {font-size:13px;color:var(--ink-muted);}
+.amendment-named-votes__sources small {display:block;overflow-wrap:anywhere;}
+@media(max-width:420px) {
+  .amendment-named-votes {font-size:14px;}
+  .amendment-named-votes th:first-child {width:37%;}
+  .amendment-named-votes__authors li {gap:8px;}
+}
