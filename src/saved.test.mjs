@@ -79,3 +79,16 @@ test('preparation absence never claims outside roster',()=>{
 test('membership ordering and period-end labels remain complete',()=>{
  assert.equal(ongoingLabels.hu,'jelenleg');assert.equal(Object.keys(ongoingLabels).length,24);assert.deepEqual(orderedMemberships([{id:'AFET',role:'MEMBER',current:true}],[{id:'AFET',code:'AFET'}]).map(x=>x.id),['AFET']);
 });
+test('late detail and question responses cannot mutate a newly refollowed item with the same ID',()=>{
+ const store=createSavedStore(storage());store.toggle(mep);store.applyManifest(manifest());const old=item(store);store.toggle(mep);store.toggle(mep);store.applyManifest(manifest(6));
+ store.materialize(detail([['late',0,6]]),old);assert.equal(item(store).unread.length,0);assert.equal(item(store).seen.activity,5);
+ store.toggle(question);const before=store.snapshot().items.find(x=>x.kind==='question');store.toggle(question);store.toggle({...question,baseline:undefined});
+ store.observe({questions:[{id:question.id,status:'available',revision:'stale',answers:[{id:'old-answer'}]}]},[before]);
+ assert.equal(store.snapshot().items.find(x=>x.kind==='question').current,undefined);
+});
+test('failed migration persistence keeps the original legacy baseline intact until retry succeeds',()=>{
+ const disk=storage();legacy(disk,[{...mep,baseline:{activityVersion:3,activityIdsComplete:true,latestIds:['old'],answerIds:[]},unreadAnswers:[{id:'carried'}]}]);
+ const original=disk.getItem(LEGACY_KEY),store=createSavedStore(disk),set=disk.setItem;disk.setItem=()=>{throw Error('blocked');};
+ assert.equal(store.applyManifest(manifest(6)),false);assert.equal(disk.getItem(LEGACY_KEY),original);assert(item(store).legacy);assert.equal(item(store).unread.length,1);
+ disk.setItem=set;assert(store.retryStorage());assert.equal(JSON.parse(disk.getItem(LEGACY_KEY)).items[0].baseline,undefined);assert(item(createSavedStore(disk)).legacy);
+});
