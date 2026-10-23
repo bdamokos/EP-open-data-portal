@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 function comparison(stage,language='en') {
   const ids=stage==='original-joint'?['B-10-2026-0441','RC-10-2026-0441']:stage==='original-adopted'?['B-10-2026-0441','TA-10-2026-0339']:['RC-10-2026-0441','TA-10-2026-0339'];
@@ -17,15 +17,15 @@ test('comparison is lazy and stage/language changes never display stale wording,
   const window=new Window({url:'http://localhost/'}),globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;const pending=[],calls=[];
-  t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const item of pending.splice(0))item.resolve(Response.json(comparison(item.stage)));});if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;const pending=[],calls=[];
+  t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const item of pending.splice(0))item.resolve(Response.json(comparison(item.stage)));});if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);calls.push(url);const stage=url.searchParams.get('stage');
     if(stage==='original-joint')return Response.json(comparison(stage,url.searchParams.get('lang')));
     return new Promise(resolve=>pending.push({resolve,stage}));
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {MotionOutcome}=await vite.ssrLoadModule('/src/MotionOutcome.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {MotionOutcome}=await loadModule('/src/MotionOutcome.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(MotionOutcome,{sourceId:'B-10-2026-0441',reference:'B10-0441/2026',language:'en',outcome:{status:'lapsed'},related:[{sourceId:'RC-10-2026-0441',reference:'RC-B10-0441/2026',title:'Public joint text',url:null,outcome:{status:'adopted'}}]})));
   assert.equal(calls.length,0);
@@ -63,11 +63,11 @@ async function readerHarness(t) {
   const globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of requests)if(!request.done)request.resolve(Response.json({}));if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of requests)if(!request.done)request.resolve(Response.json({}));if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',input=>new Promise(resolve=>requests.push({url:new URL(input,window.location.href),resolve,done:false})));
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {MotionComparison}=await vite.ssrLoadModule('/src/MotionComparison.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {MotionComparison}=await loadModule('/src/MotionComparison.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(MotionComparison,{originalId:'B-10-2026-0441',jointId:'RC-10-2026-0441',language:'en'})));
   const respond=data=>act(async()=>{const request=requests.at(-1);request.done=true;request.resolve(Response.json(data));});
@@ -121,12 +121,12 @@ test('clean readers preserve each exact document order and all wording/notes reg
 test('a common-language fallback does not claim both source documents lack the requested language',async t=>{
   const h=await readerHarness(t),result=fullComparison();
   // A common-language catalog cannot establish which of the two documents lacks English.
-  result.textLanguage='fr';result.availableLanguages=['fr'];result.documents=result.documents.map(doc=>({...doc,language:'fr'}));
+  result.textLanguage='fr';result.availableLanguages=['fr','de'];result.documents=result.documents.map(doc=>({...doc,language:'fr'}));
   await h.respond(result);
-  assert.equal(h.container.querySelector('.explorer-diff-notice').textContent,'English is unavailable in one or both texts. Showing French.');
+  assert.equal(h.container.querySelector('.text-language-note').textContent,'English unavailable in one or both texts · showing French');
   await h.click('Full text');assert.equal(h.container.querySelector('.explorer-diff-reader').lang,'fr');
   const language=h.container.querySelectorAll('.explorer-diff-controls select')[1];await h.change('.explorer-diff-controls label:nth-child(2) select','fr');
   assert.equal(h.container.querySelector('.explorer-diff-reader'),null);assert.equal(document.activeElement,language);
   await h.respond({...result,requestedLanguage:'fr'});
-  assert.equal(h.container.querySelector('.explorer-diff-notice'),null);assert.equal(h.container.querySelectorAll('.explorer-diff-controls select')[1],language);assert.equal(document.activeElement,language);
+  assert.equal(h.container.querySelector('.text-language-note'),null);assert.equal(h.container.querySelectorAll('.explorer-diff-controls select')[1],language);assert.equal(document.activeElement,language);
 });

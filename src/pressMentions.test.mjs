@@ -2,17 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('dossier press releases keep exact links and English titles without a coverage disclaimer',async t=>{
   const window=new Window({url:'http://localhost/?view=legislation'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    if(vite)await vite.close();
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -24,6 +24,8 @@ test('dossier press releases keep exact links and English titles without a cover
     item('20261015IPR48200','Second release','2026-10-15T13:18:00.000Z'),
     item('20261012IPR48100','Third release','2026-10-12T08:00:00.000Z'),
     item('20261011IPR48090','Fourth release','2026-10-11T08:00:00.000Z'),
+    item('20261010IPR48080','Fifth release','2026-10-10T08:00:00.000Z'),
+    item('20261009IPR48070','Sixth release','2026-10-09T08:00:00.000Z'),
   ];
   const requested=[];let answerSummary,failures=0;
   const pendingSummary=new Promise(resolve=>{answerSummary=resolve;});
@@ -35,8 +37,8 @@ test('dossier press releases keep exact links and English titles without a cover
     if(url.pathname.endsWith('/insights/press-releases')){requested.push(ref);if(ref===failing&&!failures++)return Response.json({error:{message:'Press releases unavailable.'}},{status:500});return Response.json({view:'press-releases',reference:ref,items:ref===reference?items:[],total:ref===reference?6:0,coverage});}
     throw new Error('Unexpected request '+url);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {ProcedureContext}=await vite.ssrLoadModule('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(ProcedureContext,{reference,language:'fr'})));
   assert.match(container.textContent,/Loading summary/);
@@ -49,6 +51,7 @@ test('dossier press releases keep exact links and English titles without a cover
   assert.equal(section.querySelector('h4').textContent,'Parliament press releases · latest 3 of 6');
   const links=[...section.querySelectorAll('li a')];
   assert.deepEqual(links.map(link=>link.getAttribute('href')),items.slice(0,3).map(entry=>entry.url),'agenda items show at most three');
+  assert.deepEqual(links.map(link=>link.querySelector('span').textContent),items.slice(0,3).map(entry=>entry.title));
   assert(links.every(link=>link.target==='_blank'&&link.rel==='noreferrer'));
   assert.equal(links[0].querySelector('span').getAttribute('lang'),'en','titles stay English inside any interface language');
   const details=[...section.querySelectorAll('li small')];
@@ -56,7 +59,13 @@ test('dossier press releases keep exact links and English titles without a cover
   assert.equal(details[0].querySelector('time').getAttribute('lang'),'fr');
   assert.equal(section.querySelector('.press-mentions-scope'),null);
   await act(async()=>root.render(createElement(ProcedureContext,{reference,language:'fr',showTitle:true})));
-  assert.equal(container.querySelectorAll('.press-mentions li').length,4,'the dossier view shows up to five');
+  const dossier=container.querySelector('.press-mentions');
+  assert.equal(dossier.querySelector('h4').textContent,'Parliament press releases · latest 5 of 6');
+  const dossierLinks=[...dossier.querySelectorAll('li a')];
+  assert.deepEqual(dossierLinks.map(link=>link.getAttribute('href')),items.slice(0,5).map(entry=>entry.url),'dossiers show exactly the first five of six releases');
+  assert.deepEqual(dossierLinks.map(link=>link.querySelector('span').textContent),items.slice(0,5).map(entry=>entry.title));
+  assert(dossierLinks.every(link=>link.target==='_blank'&&link.rel==='noreferrer'));
+  assert(dossierLinks.every(link=>link.querySelector('span').getAttribute('lang')==='en'));
   await act(async()=>root.render(createElement(ProcedureContext,{reference:empty,language:'fr'})));
   assert.deepEqual(requested.at(-1),empty);
   assert.equal(container.querySelector('.press-mentions'),null,'no found items render nothing, not a zero');

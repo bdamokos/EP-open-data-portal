@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {readExplorerParam,explorerParams} from './explorerQuery.mjs';
 
 test('addressee links retain exact organisations and reject malformed selections',()=>{
@@ -27,15 +27,15 @@ test('question addressee controls reset paging, preserve combined scopes and fil
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,CSS:window.CSS,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:class {observe(){} disconnect(){}},requestAnimationFrame:window.requestAnimationFrame.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;const requests=[];
-  t.after(async()=>{if(root)await act(async()=>root.unmount());await vite?.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;const requests=[];
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await loadModule?.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async(input,init)=>{
     const url=new URL(input,location.href);requests.push({url,body:init?.body?JSON.parse(init.body):null});
     if(url.pathname.endsWith('/corpus/search'))return Response.json({results:[],total:0,offset:0,limit:20,nextOffset:null,coverage:{complete:false}});
     assert(url.pathname.endsWith('/insights/questions'));return Response.json(response(url));
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {QuestionTopics}=await vite.ssrLoadModule('/src/QuestionTopics.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {QuestionTopics}=await loadModule('/src/QuestionTopics.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(QuestionTopics,{language:'en',onBack(){}})));
   assert.deepEqual([...container.querySelectorAll('.insight-question-addressee')].map(n=>n.textContent),['To the Council','To the Commission','Addressee unavailable','To the Vice-President / High Representative','To the org/Unfamiliar_1']);

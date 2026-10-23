@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
@@ -36,7 +37,7 @@ test("missing or malformed build manifests safely fall back to five-minute cachi
   }
 });
 
-test("static caching follows emitted build assets and keeps HTML, ranges and failures fresh", async (t) => {
+test("static caching follows emitted build assets and keeps HTML, ranges and failures fresh",loopback, async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "static-cache-"));
   await mkdir(path.join(directory, "assets"));
   await mkdir(path.join(directory, ".vite"));

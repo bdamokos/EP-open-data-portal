@@ -1,6 +1,7 @@
 import { outsidePerson, outsideCapacity } from './outside-model.mjs';
 import {speechAgendaMembership} from './speech-agenda.mjs';
 import { HttpError } from './http-utils.mjs';
+import {languagePreference} from './language-order.mjs';
 
 const parse = value => JSON.parse(value);
 // Capacity is derived from retained source text, including records indexed by older code.
@@ -79,8 +80,8 @@ function agendasFor(store, generation, ids) {
   }));
 }
 function localizedTitles(titles,language) {
-  const key=titles[language]?language:titles.en?'en':Object.keys(titles)[0];
-  return key?{[key]:titles[key]}:{};
+  const key=languagePreference(Object.keys(titles).filter(code=>typeof titles[code]==='string'&&titles[code].trim()),language)[0];
+  return key!==undefined?{[key]:titles[key]}:{};
 }
 function publicContribution(row,language) {
   return Object.fromEntries(['id','personId','date','term','start','end','parentIds','reportedParentIds','documentId','parentDocumentId','reference','originalLanguages','websiteUrl','websiteLanguage','source','headerSource','rosterSource'].map(key=>[key,row[key]]).concat([['titles',localizedTitles(row.titles,language)],['header',row.header?Object.fromEntries(['personId','name','role','languageTag','original','capacity'].map(key=>[key,row.header[key]])):null]]));

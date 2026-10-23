@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -6,7 +7,7 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-test('an expired chunked POST cannot enter corpus search when its remaining body arrives',async t=>{
+test('an expired chunked POST cannot enter corpus search when its remaining body arrives',loopback,async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'corpus-post-budget-'));
   const fixture={CORPUS_ENABLED:'true',CORPUS_DIR:directory,EXPLORER_DIST_DIR:directory,ODP_CACHE_DIR:undefined,ACTIVITY_INDEX_DIR:undefined};
   for(const [key,value] of Object.entries(fixture)){

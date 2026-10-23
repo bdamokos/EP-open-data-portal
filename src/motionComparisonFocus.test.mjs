@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const pair={originalId:'B-10-2026-0441',jointId:'RC-10-2026-0441'};
 const body='Distinctive source passage that must never become a live announcement.';
@@ -19,11 +19,11 @@ async function harness(t,initial={}) {
   const globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
+  let loadModule,root;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const request of requests)if(!request.finished){request.finished=true;request.resolve(Response.json({}));}
-    await Promise.resolve();if(vite)await vite.close();await window.happyDOM.close();
+    await Promise.resolve();if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   t.mock.method(globalThis,'fetch',input=>{
@@ -31,8 +31,8 @@ async function harness(t,initial={}) {
     assert.match(url.pathname,/\/api\/motion-comparison\/B-10-/,'comparison focus tests only use stubbed comparison requests');
     return new Promise(resolve=>requests.push({url,resolve,finished:false}));
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {MotionComparison}=await vite.ssrLoadModule('/src/MotionComparison.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {MotionComparison}=await loadModule('/src/MotionComparison.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=props=>act(async()=>root.render(createElement(MotionComparison,{...pair,language:'en',...initial,...props})));
   await render();
@@ -86,7 +86,7 @@ test('requested comparison language and actual fallback remain distinct while na
   assert.equal(h.requests[0].url.searchParams.get('lang'),'hu');
   await h.finish(h.requests[0],comparison('original-joint','hu',{textLanguage:'en'}));
   const select=h.language();assert(select);select.focus();assert.equal(select.value,'en');
-  assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');assert.match(h.container.querySelector('.explorer-diff-notice').textContent,/is unavailable in one or both texts\. Showing/);
+  assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');assert.match(h.container.querySelector('.text-language-note').textContent,/unavailable in one or both texts · showing/);
   await h.change(select,'fr');assert.equal(select.value,'fr');assert(h.language()===select);
   assert.equal(h.requests.at(-1).url.searchParams.get('lang'),'fr');assert.equal(h.container.querySelector('.explorer-diff-rows'),null);
   await h.finish(h.requests.at(-1),comparison('original-joint','fr',{textLanguage:'en',availableLanguages:['en']}));
@@ -98,17 +98,17 @@ test('requested comparison language and actual fallback remain distinct while na
 
 test('unadmitted actual language metadata keeps the valid requested choice without inventing language options',async t=>{
   for(const actual of ['mul','und'])await t.test(actual,async t=>{
-    const h=await harness(t,{language:'hu'}),admitted=['en','hu','fr'];
+    const h=await harness(t,{language:'hu'}),admitted=['hu','en','fr'];
     await h.finish(h.requests[0],comparison('original-joint','hu',{availableLanguages:admitted}));
     const select=h.language();await h.change(select,'fr');
     assert.equal(h.requests.at(-1).url.searchParams.get('lang'),'fr');
     await h.finish(h.requests.at(-1),comparison('original-joint','fr',{textLanguage:actual,availableLanguages:admitted}));
     assert(h.language()===select);assert(document.activeElement===select);assert.equal(select.value,'fr','the admitted requested choice remains usable when actual metadata is not a selectable language');
     assert.deepEqual([...select.options].map(option=>option.value),admitted,'neither an unavailable placeholder nor the unadmitted actual code becomes an option');
-    assert.deepEqual([...select.options].map(option=>option.textContent),admitted.map(code=>new Intl.DisplayNames(['hu'],{type:'language'}).of(code)));
+    assert.deepEqual([...select.options].map(option=>option.textContent),admitted.map(code=>new Intl.DisplayNames([code],{type:'language'}).of(code)));
     assert.equal(h.container.querySelector('.explorer-diff-rows').lang,actual,'selector validity does not rewrite actual source-language metadata');
     assert.equal(h.container.querySelector('.explorer-diff-documents a').textContent,'Source DOCX · '+actual.toUpperCase()+' ↗');
-    assert.match(h.container.querySelector('.explorer-diff-notice').textContent,/is unavailable in one or both texts\. Showing/);
+    assert.match(h.container.querySelector('.text-language-note').textContent,/unavailable in one or both texts · showing/);
     await h.wait();assert.match(h.status().textContent,new RegExp('Text language: '+actual.toUpperCase()+'\\.'));
     assert(!h.status().textContent.includes(body));
   });
@@ -149,7 +149,8 @@ test('stage and exact motion-pair changes cannot inherit an unrelated language c
   const result=comparison('original-adopted','en',{textLanguage:'it',availableLanguages:['it']});
   result.documents=result.documents.map((document,index)=>{const id=index?'TA-10-2026-0340':nextPair.originalId;return {...document,id,reference:id,title:id,sourceUrl:`https://data.europarl.europa.eu/distribution/example/${id}_it.docx`};});
   await h.finish(current,result);
-  assert.deepEqual([...h.language().options].map(option=>option.value),['it']);assert.equal(h.language().value,'it');
+  assert.equal(h.language(),null,'one available language has no picker when it was not focused');
+  assert.match(h.container.querySelector('.text-language-note').textContent,/showing Italian/);
   assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'it');assert.match(h.container.querySelector('.explorer-diff-documents').textContent,/B-10-2026-0449/);
   assert.doesNotMatch(h.container.querySelector('.explorer-diff-documents').textContent,/B-10-2026-0441|RC-10-2026-0441/);
 });

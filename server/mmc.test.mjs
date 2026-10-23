@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { clipUrl, matchRecording, officialEmbed, recordingDetail, speechMedia, validateCatalogue } from './mmc.mjs';
@@ -19,6 +20,8 @@ const deps={directory:'/nonexistent-mmc-test',speech:async()=>speech,catalogue,d
 test('actual Oct7 timestamps produce outward UTC bounds and keep the published embed event',async()=>{
   const result=await speechMedia(speech.id,'hu','hu',deps);
   assert.equal(result.available,true);assert.equal(result.status,'matched');
+  assert.equal(result.audioVerification,'official-content-map-runtime-check-required');
+  assert.equal(result.selectionMethod,'iframe-inventory-and-adaptation');assert.deepEqual(result.selectionVerifiedLanguages,[]);
   assert.equal(result.clip.startUtc,'2026-10-07T09:19:15Z');assert.equal(result.clip.endUtc,'2026-10-07T09:20:55Z');
   assert.match(result.embedUrl,/audio=or/);assert.equal(result.initialAudio,'or');assert.equal(result.requestedAudio,'hu');assert.equal(result.requiresAudioCheck,true);
   assert.deepEqual(result.audioMapping.channels.find(c=>c.language==='hu'),{slot:16,language:'hu',providerCode:'qaw'});
@@ -35,10 +38,7 @@ test('Irish supplied by a record-specific public content map is not blocked by t
   assert.equal(result.status,'matched');assert.equal(result.requestedAudio,'ga');assert.equal(result.requiresAudioCheck,true);
   assert.deepEqual(result.audioMapping.channels.find(c=>c.language==='ga'),{slot:24,language:'ga',providerCode:'qag'});
 });
-test('public content mapping replaces static per-record proof and still requires actual player evidence',async()=>{
-  const result=await speechMedia(speech.id,'hu','hu',deps);
-  assert.equal(result.available,true);assert.equal(result.audioVerification,'official-content-map-runtime-check-required');
-  assert.equal(result.selectionMethod,'iframe-inventory-and-adaptation');assert.deepEqual(result.selectionVerifiedLanguages,[]);
+test('an explicit original-audio request keeps the original channel',async()=>{
   const original=await speechMedia(speech.id,'hu','or',deps);assert.equal(original.available,true);assert.equal(original.requestedAudio,'or');assert.match(original.embedUrl,/audio=or/);
 });
 test('missing content metadata and cross-source identity or coverage mismatch never enable a player',async()=>{
@@ -93,7 +93,7 @@ test('catalogue snapshots reject changed source origins, duplicate IDs and incom
   assert.throws(()=>validateCatalogue({...catalogue,records:[catalogue.records[0],catalogue.records[0]],total:2}));
   assert.throws(()=>validateCatalogue({...catalogue,sourcePages:[{url:'https://evil.example/search',status:200}]}));
 });
-test('HTTP media endpoint rejects methods, origins, duplicate/unknown queries and invalid language before upstream work',async()=>{
+test('HTTP media endpoint rejects methods, origins, duplicate/unknown queries and invalid language before upstream work',loopback,async()=>{
   const {server}=await import('./index.mjs');
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base='http://127.0.0.1:'+server.address().port+'/api/speech-media/'+speech.id;
