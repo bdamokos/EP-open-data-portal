@@ -121,17 +121,18 @@ export class QuestionInsights {
     const a=await this.analysis(query);
     const groupOn=a.groupOn;
     if(query.cluster && query.cluster!=='unassigned' && !a.clusters.some(c=>c.id===query.cluster))throw new HttpError(404,'cluster_not_found','That topic is not in this window.');
-    const inTime=q=>!query.from||q.date>=query.from&&q.date<=query.to,hasTopic=q=>(!query.cluster || (query.cluster==='unassigned'?q.clusterId==null:q.clusterId===query.cluster))&&(!query.word||q.tokens.includes(query.word)),hasCountry=q=>!query.country||q.countries.includes(query.country);
-    const hasGroup=q=>!query.group||q.authors.some(p=>contributionGroup(p.id,q.date,groupOn)===query.group);
+    const groupAuthors=q=>q.authors.filter(p=>!query.group||contributionGroup(p.id,q.date,groupOn)===query.group);
+    const inTime=q=>!query.from||q.date>=query.from&&q.date<=query.to,hasTopic=q=>(!query.cluster || (query.cluster==='unassigned'?q.clusterId==null:q.clusterId===query.cluster))&&(!query.word||q.tokens.includes(query.word)),hasCountry=q=>!query.country||groupAuthors(q).some(p=>a.members.has(p.id)&&memberCountry(p.id,a.members,a.metadata)===query.country);
+    const hasGroup=q=>!query.group||groupAuthors(q).length>0;
     const hasAddressee=q=>matchesAddressee(q.addressees,query.addressee)&&hasGroup(q);
     const subjectBase=a.questions.filter(q=>!query.subject||q.places.some(place=>place.id===query.subject));
     const recipientBase=subjectBase.filter(hasAddressee),timeBase=recipientBase.filter(inTime),countryBase=timeBase.filter(hasCountry),selected=countryBase.filter(hasTopic);
-    const geography=query.from||query.addressee||query.subject||query.group?countryQuestions({...a,questions:timeBase},a.members,a.metadata):a;
+    const geography=query.from||query.addressee||query.subject||query.group?countryQuestions({...a,questions:query.group?timeBase.map(q=>({...q,authors:groupAuthors(q)})):timeBase},a.members,a.metadata):a;
     const countryAnalysis=query.country?geography.countries.find(c=>c.code===query.country):null,countryFeatures=new Map((countryAnalysis?.features||[]).map(f=>[f.id,f]));
     const wordCounts=new Map(),clusterCounts=new Map();for(const q of countryBase){for(const token of q.tokens)wordCounts.set(token,(wordCounts.get(token)||0)+1);if(q.clusterId)clusterCounts.set(q.clusterId,(clusterCounts.get(q.clusterId)||0)+1);}
     const shownWords=a.wordCandidates.filter(w=>wordCounts.has(w.word)).map(w=>({...w,contextQuestionCount:wordCounts.get(w.word)})).sort((a,b)=>b.contextQuestionCount-a.contextQuestionCount||a.word.localeCompare(b.word)).slice(0,60);
-    const topicBase=timeBase.filter(hasTopic),countryFacets=geography.countries.map(country=>{const questions=topicBase.filter(q=>q.countries.includes(country.code));return {code:country.code,count:questions.length,authors:new Set(questions.flatMap(q=>q.authors.filter(author=>memberCountry(author.id,a.members,a.metadata)===country.code).map(a=>a.id))).size};});
-    const ids=questions=>questions.flatMap(q=>q.authors.map(p=>p.id));
+    const topicBase=timeBase.filter(hasTopic),countryFacets=geography.countries.map(country=>{const questions=topicBase.filter(q=>groupAuthors(q).some(p=>a.members.has(p.id)&&memberCountry(p.id,a.members,a.metadata)===country.code));return {code:country.code,count:questions.length,authors:new Set(questions.flatMap(q=>groupAuthors(q).filter(author=>a.members.has(author.id)&&memberCountry(author.id,a.members,a.metadata)===country.code).map(a=>a.id))).size};});
+    const ids=questions=>questions.flatMap(q=>groupAuthors(q).map(p=>p.id));
     // Disjunctive facet: counts respect every other filter but retain alternatives.
     const addresseeCounts=new Map();
     for(const q of subjectBase.filter(q=>inTime(q)&&hasCountry(q)&&hasTopic(q)&&hasGroup(q))) {

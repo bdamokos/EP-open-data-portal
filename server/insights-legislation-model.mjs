@@ -67,7 +67,7 @@ export function namedVote(vote,record,members,metadata,referenceDate,groupOn=()=
     aggregateTotals:totals,namedCounts:hasNamedData?Object.fromEntries(Object.entries(groups).map(([key,people])=>[key,people.length])):null,namedVotersAvailable:hasNamedData,groups:hasNamedData?groups:null,
     uniqueNamedVoters:hasNamedData?positions.size:null,currentRosterWithoutNamedRecord:hasNamedData?[...members.keys()].filter(id=>!positions.has(id)).length:null,conflictingVoterIds:conflicts,malformedVoterReferences,
     totalsMatchNamed:hasNamedData && !conflicts.length && !malformedVoterReferences && Object.keys(totals).every(k=>totals[k]===groups[k].length),
-    politicalGroups:hasNamedData?[...new Set(Object.values(groups).flat().map(p=>p.contributionGroup).filter(Boolean))].sort().map(code=>({code,positions:Object.fromEntries(Object.entries(groups).map(([position,people])=>[position,people.filter(p=>p.contributionGroup===code)]))})):null,
+    politicalGroups:hasNamedData?[...new Set(Object.values(groups).flat().map(p=>p.contributionGroup||'unavailable'))].sort().map(code=>({code,positions:Object.fromEntries(Object.entries(groups).map(([position,people])=>[position,people.filter(p=>(p.contributionGroup||'unavailable')===code)]))})):null,
     groupContributions:groupContributions(Object.values(groups).flat().map(p=>({id:p.id,date:vote.activity_date})),groupOn),
     intendedCorrections,stats:demographicStats(hasNamedData?[...positions.keys()]:[],members,metadata,referenceDate),
     evidence:{apiUrl:record.url,fetchedAt:sourceDate(record),relationship:'decision.inverse_consists_of → vote-results; vote-results.executed → agenda item; actual had_voter_favor / against / abstention → person'},

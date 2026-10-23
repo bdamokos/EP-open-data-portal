@@ -21,10 +21,15 @@ test('vote matrix and group drill-down consume dated server buckets, including c
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(VoteView,{vote,language:'en',country:null})));
   const matrix=()=>container.querySelector('.insight-vote-matrix');
-  assert.match(matrix().textContent,/S&D/);assert.doesNotMatch(matrix().textContent,/Renew|Unknown/);
+  assert.match(matrix().textContent,/S&D/);assert.doesNotMatch(matrix().textContent,/Renew|Unknown/);assert.match(matrix().textContent,/Unavailable/);
   const oldGroup=[...matrix().querySelectorAll('button')].find(button=>button.getAttribute('aria-label')==='S&D, for: 1 MEP');assert(oldGroup);
   await act(async()=>oldGroup.click());
   assert.match(container.querySelector('.insight-voter-list').textContent,/Pina Picierno/);assert.doesNotMatch(container.querySelector('.insight-voter-list').textContent,/Other author|Unknown history|Renew/);
+  const unavailable=[...matrix().querySelectorAll('button')].find(button=>button.getAttribute('aria-label')==='Unavailable, for: 1 MEP');assert(unavailable);
+  await act(async()=>unavailable.click());assert.match(container.querySelector('.insight-voter-list').textContent,/Unknown history/);
   await act(async()=>root.render(createElement(VoteView,{vote,language:'en',country:'IT'})));
   assert.doesNotMatch(matrix().textContent,/EPP|Renew/);assert.match(matrix().textContent,/S&D/);
+  const missing={...vote,id:'all-unavailable',politicalGroups:[{code:'unavailable',positions:vote.groups}]};
+  await act(async()=>root.render(createElement(VoteView,{vote:missing,language:'en',country:null})));
+  assert.match(matrix().textContent,/Unavailable/);assert.match(container.textContent,/Browse voters/);assert.doesNotMatch(container.textContent,/No named voters in this election country/);
 });

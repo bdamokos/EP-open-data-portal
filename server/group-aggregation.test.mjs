@@ -41,7 +41,7 @@ test('named votes and final patterns split a switcher by vote date, with exact c
   const roster=new Map([['124846',{name:'Pina Picierno',groupCode:'Renew'}]]),metadata=new Map();
   const make=(date,position)=>namedVote({activity_id:date,activity_date:date,referenceText:{en:'Motion for a resolution (as a whole)'},had_voter_favor:position==='for'?['person/124846']:[],had_voter_against:position==='against'?['person/124846']:[],had_voter_abstention:[]},{url:'https://data.europarl.europa.eu/api/v2/test'},roster,metadata,date,resolve);
   const before=make('2026-06-16','for'),after=make('2026-06-17','against');
-  assert.equal(before.groups.for[0].contributionGroup,'S&D');assert.equal(after.groups.against[0].contributionGroup,'Renew');
+  assert.equal(before.groups.for[0].contributionGroup,'S&D');assert.equal(before.politicalGroups[0].code,'S&D');assert.equal(after.groups.against[0].contributionGroup,'Renew');
   const patterns=finalVotePatterns([before,after],roster,metadata,resolve);
   assert.equal(patterns.uniqueNamedPeople,1);assert.equal(patterns.groupContributions.total,2);assert.equal(patterns.groups.mixed.length,0);
   assert.equal(patterns.groups.for[0].contributionGroup,'S&D');assert.equal(patterns.groups.against[0].contributionGroup,'Renew');
@@ -67,5 +67,28 @@ test('persisted answer activity uses the linked question tabling date on reads, 
     store.db.prepare('UPDATE sources SET body=? WHERE generation=? AND key=?').run(JSON.stringify({...work,document_date:null}),generation,key);
     const missing=store.page('124846',{sourceId:work.identifier+'-ASW'}).selectedItems[0];
     assert.equal(missing.date,'2026-06-20');assert.equal(missing.affiliationGroup,'Renew');assert.equal(missing.contributionGroup,null);assert.equal(missing.affiliationDate,null);
+    const {QuestionInsights,insightQuery}=await import('./insights-store.mjs');
+    const service=new QuestionInsights(store,{clock:()=>Date.parse('2026-10-23T12:00:00Z'),loadMetadata:async()=>new Map(),loadQuestionBodies:async()=>new Map()});
+    const undated=await service.query(insightQuery(new URLSearchParams('days=term'),{now:Date.parse('2026-10-23T12:00:00Z')}));
+    assert.equal(undated.coverage.undatedQuestions,1);assert.equal(undated.questions.length,0);assert.equal(undated.selectedStats.groupContributions.total,0);
   }finally{store.close();rmSync(directory,{recursive:true,force:true});}
+});
+test('question country and dated-group filters must match the same coauthor, including facets and metrics',async()=>{
+  const {QuestionInsights,insightQuery}=await import('./insights-store.mjs');
+  const work={id:'eli/dl/doc/E-10-2026-000001',identifier:'E-10-2026-000001',document_date:'2026-06-16',work_type:'def/ep-document-types/QUESTION_WRITTEN',title_dcterms:{en:'Digital safeguards'},creator:['person/124846','person/256852'],inverse_answers_to:[{identifier:'E-10-2026-000001-ASW',document_date:'2026-06-20'}]};
+  const roster=[['124846',{name:'Pina Picierno',groupCode:'Renew',countryCode:'FR'}],['256852',{name:'Other coauthor',groupCode:'ECR',countryCode:'DE'}]];
+  const store={status:()=>({currentMeps:2,servingGeneration:1,complete:true,sourceCounts:{document:1}}),db:{prepare(sql){
+    if(sql.includes('group_history_snapshots'))return {get:()=>({body:JSON.stringify(snapshot)})};
+    if(sql.startsWith('SELECT COUNT'))return {get:(...args)=>({n:args.length===1?0:1})};
+    if(sql.startsWith('SELECT key,body'))return {all:()=>[{key:'/parliamentary-questions/'+work.identifier,body:JSON.stringify(work),fetched_at:'2026-10-23T10:00:00Z'}]};
+    if(sql.startsWith('SELECT id,body'))return {all:()=>roster.map(([id,body])=>({id,body:JSON.stringify(body)}))};
+    assert.fail(sql);
+  }}};
+  const clock=()=>Date.parse('2026-10-23T12:00:00Z'),service=new QuestionInsights(store,{clock,loadMetadata:async()=>new Map(),loadQuestionBodies:async()=>new Map()});
+  const query=insightQuery(new URLSearchParams('days=term&group=S%26D&country=DE'),{now:clock()});
+  const wrongCountry=await service.query(query);assert.equal(wrongCountry.counts.selectedQuestions,0);assert.equal(wrongCountry.selectedStats.groupContributions.total,0);
+  const france=wrongCountry.facets.countries.find(r=>r.code==='FR'),germany=wrongCountry.facets.countries.find(r=>r.code==='DE');
+  assert.deepEqual(france,{code:'FR',count:1,authors:1});assert.deepEqual(germany,{code:'DE',count:0,authors:0});
+  assert.equal(wrongCountry.geography.countries.find(r=>r.code==='DE').questionCount,0);
+  const match=await service.query({...query,country:'FR'});assert.equal(match.counts.selectedQuestions,1);assert.equal(match.selectedStats.groupContributions.total,1);assert.equal(match.selectedStats.groupContributions.rows[0].label,'S&D');assert.equal(match.selectedStats.groupContributions.rows[0].medianAnswerDays,4);
 });
