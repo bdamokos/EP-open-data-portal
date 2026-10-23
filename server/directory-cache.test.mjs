@@ -1,13 +1,16 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import os from 'node:os';
 import path from 'node:path';
 
-async function fixture(age) {
+beforeEach(registerSubprocesses);
+
+async function fixture(t,age) {
   const directory=await mkdtemp(path.join(os.tmpdir(),'mep-directory-cache-'));
+  t.after(()=>rm(directory,{recursive:true,force:true}));
   const fetchedAt=Date.now()-age,classification='def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING';
   const person={identifier:'257043',givenName:'Maravillas',familyName:'Abadía Jover',sortLabel:'Abadía Jover',hasMembership:[{organization:'org/6572',role:'def/ep-roles/MEMBER',membershipClassification:classification,memberDuring:{startDate:'2024-07-16'}}]};
   const body={identifier:'6572',label:'EMPL',prefLabel:{en:'Employment and Social Affairs'},classification,temporal:{startDate:'2024-07-16'}};
@@ -23,15 +26,15 @@ async function fixture(age) {
   await writeFile(path.join(directory,'sync-state.json'),JSON.stringify({lastSuccess:new Date().toISOString(),lastAttempt:new Date(Date.now()+86400000).toISOString()}));
   return {directory,fetchedAt,records};
 }
-function run(directory,script) {
-  return JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{env:{...process.env,ODP_CACHE_DIR:directory},encoding:'utf8',timeout:8000}));
+async function run(t,directory,script) {
+  return JSON.parse((await execFileAsync(t,process.execPath,['--input-type=module','-e',script],{env:{...process.env,ODP_CACHE_DIR:directory},encoding:'utf8'})).stdout);
 }
 const moduleUrl=JSON.stringify(new URL('./odp.mjs',import.meta.url).href);
-test('a cold directory load retains its independent owner after its first reader leaves',async()=>{
+test('a cold directory load retains its independent owner after its first reader leaves',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'directory-readers-'));
   try {
     await writeFile(path.join(directory,'sync-state.json'),JSON.stringify({lastSuccess:new Date().toISOString(),lastAttempt:new Date(Date.now()+86400000).toISOString()}));
-    const out=run(directory,`
+    const out=await run(t,directory,`
       const {odpDirectory}=await import(${moduleUrl});
       const {runWithRequestSignal}=await import(${JSON.stringify(new URL('./request-budget.mjs',import.meta.url).href)});
       let ready,finish,sourceSignal,calls=0;const started=new Promise(resolve=>ready=resolve);
@@ -45,10 +48,10 @@ test('a cold directory load retains its independent owner after its first reader
     assert.equal(out.rejected,'reader closed');assert.equal(out.sourceAborted,false);assert.equal(out.members,0);assert.equal(out.calls,2);
   }finally{await rm(directory,{recursive:true,force:true});}
 });
-test('a cold process serves the expired saved directory without waiting for Parliament refresh',async()=>{
-  const f=await fixture(7*3600000);
+test('a cold process serves the expired saved directory without waiting for Parliament refresh',async t=>{
+  const f=await fixture(t,7*3600000);
   try {
-    const out=run(f.directory,`let requests=0;globalThis.fetch=()=>{requests++;return new Promise(()=>{});};const {odpDirectory}=await import(${moduleUrl});const start=performance.now();const result=await Promise.race([odpDirectory().then(data=>({ready:true,data})),new Promise(resolve=>setTimeout(()=>resolve({ready:false}),250))]);let second=null;if(result.ready)for(let i=0;i<25;i++){second=await odpDirectory();if(second.index.complete)break;await new Promise(r=>setTimeout(r,10));}console.log(JSON.stringify({result,second,requests,elapsed:performance.now()-start}));process.exit(0);`);
+    const out=await run(t,f.directory,`let requests=0;globalThis.fetch=()=>{requests++;return new Promise(()=>{});};const {odpDirectory}=await import(${moduleUrl});const start=performance.now();const result=await Promise.race([odpDirectory().then(data=>({ready:true,data})),new Promise(resolve=>setTimeout(()=>resolve({ready:false}),250))]);let second=null;if(result.ready)for(let i=0;i<25;i++){second=await odpDirectory();if(second.index.complete)break;await new Promise(r=>setTimeout(r,10));}console.log(JSON.stringify({result,second,requests,elapsed:performance.now()-start}));process.exit(0);`);
     assert(out.result.ready,'saved names must not wait behind expired source refresh');
     assert.equal(out.result.data.members.length,1);assert.equal(out.result.data.committees[0].code,'EMPL');
     assert.equal(Date.parse(out.result.data.fetchedAt),f.fetchedAt,'serving saved data must retain its source date');
@@ -57,10 +60,10 @@ test('a cold process serves the expired saved directory without waiting for Parl
     assert.equal(out.requests,1,'one bounded shared-queue refresh starts; no roster/profile fan-out');
   }finally{await rm(f.directory,{recursive:true,force:true});}
 });
-test('expiry keeps a loaded directory and memberships available while refresh is pending or fails',async()=>{
-  const f=await fixture(0);
+test('expiry keeps a loaded directory and memberships available while refresh is pending or fails',async t=>{
+  const f=await fixture(t,0);
   try {
-    const out=run(f.directory,`let requests=0;const requestUrls=[];globalThis.fetch=async url=>{requests++;requestUrls.push(String(url));return new Response('{}',{status:500,headers:{'content-type':'application/json'}});};const {odpDirectory}=await import(${moduleUrl});await odpDirectory();let warm;for(let i=0;i<25;i++){warm=await odpDirectory();if(warm.index.complete)break;await new Promise(r=>setTimeout(r,10));}const now=Date.now();Date.now=()=>now+7*3600000;const result=await Promise.race([odpDirectory().then(data=>({ready:true,data})),new Promise(resolve=>setTimeout(()=>resolve({ready:false}),250))]);await new Promise(r=>setTimeout(r,100));const after=result.ready?await odpDirectory():null;const settledRequests=requests;for(let i=0;i<5;i++)await odpDirectory();await new Promise(r=>setTimeout(r,50));console.log(JSON.stringify({warm,result,after,requests,settledRequests,requestUrls}));process.exit(0);`);
+    const out=await run(t,f.directory,`let requests=0;const requestUrls=[];globalThis.fetch=async url=>{requests++;requestUrls.push(String(url));return new Response('{}',{status:500,headers:{'content-type':'application/json'}});};const {odpDirectory}=await import(${moduleUrl});await odpDirectory();let warm;for(let i=0;i<25;i++){warm=await odpDirectory();if(warm.index.complete)break;await new Promise(r=>setTimeout(r,10));}const now=Date.now();Date.now=()=>now+7*3600000;const result=await Promise.race([odpDirectory().then(data=>({ready:true,data})),new Promise(resolve=>setTimeout(()=>resolve({ready:false}),250))]);await new Promise(r=>setTimeout(r,100));const after=result.ready?await odpDirectory():null;const settledRequests=requests;for(let i=0;i<5;i++)await odpDirectory();await new Promise(r=>setTimeout(r,50));console.log(JSON.stringify({warm,result,after,requests,settledRequests,requestUrls}));process.exit(0);`);
     assert(out.warm.index.complete);assert(out.result.ready,'expiry must not block an already loaded wall');
     assert.equal(out.result.data.members[0].memberships[0].role,'MEMBER');
     assert(out.after.index.complete,'refresh must not clear the loaded membership map');
@@ -72,11 +75,11 @@ test('expiry keeps a loaded directory and memberships available while refresh is
     assert(counts.every(count=>count===1),'each failed source is fetched only once before its retry deadline');
   }finally{await rm(f.directory,{recursive:true,force:true});}
 });
-test('a completed source refresh replaces saved names without clearing loaded memberships',async()=>{
-  const f=await fixture(7*3600000);
+test('a completed source refresh replaces saved names without clearing loaded memberships',async t=>{
+  const f=await fixture(t,7*3600000);
   try {
     const fresh={...f.records[0].payload.data[0],givenName:'Updated'};
-    const out=run(f.directory,`
+    const out=await run(t,f.directory,`
       const payloads=new Map(${JSON.stringify(f.records.map(record=>[record.url,record.payload]))});
       let completeRoster;
       const rosterReady=new Promise(resolve=>{completeRoster=resolve;});
