@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {chmod, mkdtemp, readFile, readdir, rm, stat, truncate, writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
+import {execFileAsync} from './test-support/subprocess.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import {PortraitCache} from './portrait-cache.mjs';
@@ -27,10 +27,10 @@ test('a restarted portrait endpoint uses the saved binary without profile or ima
   const directory = await fixture(t);
   const moduleUrl = JSON.stringify(new URL('./odp.mjs', import.meta.url).href);
   const script = `let profiles=0,images=0;globalThis.fetch=async url=>{if(String(url).includes('/api/v2/')){profiles++;return new Response(JSON.stringify({data:[{identifier:'257043',givenName:'Test',familyName:'Member'}]}),{headers:{'content-type':'application/ld+json'}});}images++;return new Response('saved image',{headers:{'content-type':'image/jpeg'}});};const {odpPortrait}=await import(${moduleUrl});const image=await odpPortrait(257043);console.log(JSON.stringify({profiles,images,body:image.body.toString(),sourceUrl:image.sourceUrl,fetchedAt:image.fetchedAt}));`;
-  const run = () => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', script], {
-    env: {...process.env, ODP_CACHE_DIR: directory}, encoding: 'utf8', timeout: 5000,
-  }));
-  const first = run(), restarted = run();
+  const run = async () => JSON.parse((await execFileAsync(t,process.execPath, ['--input-type=module', '-e', script], {
+    env: {...process.env, ODP_CACHE_DIR: directory}, encoding: 'utf8',
+  })).stdout);
+  const first = await run(), restarted = await run();
   assert.equal(first.profiles, 1); assert.equal(first.images, 1);
   assert.equal(restarted.profiles, 0); assert.equal(restarted.images, 0);
   assert.equal(restarted.body, 'saved image'); assert.equal(restarted.fetchedAt, first.fetchedAt);

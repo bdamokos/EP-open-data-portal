@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
+import {execFileAsync} from './test-support/subprocess.mjs';
 import {mkdtemp,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
@@ -11,7 +11,7 @@ async function run(t,script) {
   const directory=await mkdtemp(path.join(tmpdir(),'directory-loading-'));
   t.after(()=>rm(directory,{recursive:true,force:true}));
   await writeFile(path.join(directory,'sync-state.json'),JSON.stringify({lastSuccess:new Date().toISOString(),lastAttempt:new Date(Date.now()+86400_000).toISOString()}));
-  return JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',`
+  return JSON.parse((await execFileAsync(t,process.execPath,['--input-type=module','-e',`
     // Exercise projection and recovery independently of upstream admission; the
     // source queue has its own rolling-limit and concurrency regression suite.
     const {UpstreamQueue}=await import(${queueUrl});
@@ -29,7 +29,7 @@ async function run(t,script) {
     };
     const until=async predicate=>{for(let i=0;i<100;i++){const value=await predicate();if(value)return value;await new Promise(resolve=>setTimeout(resolve,5));}throw Error('Fixture did not settle');};
     ${script}
-  `],{env:{...process.env,ODP_CACHE_DIR:directory},encoding:'utf8',timeout:5000}));
+  `],{env:{...process.env,ODP_CACHE_DIR:directory},encoding:'utf8'})).stdout);
 }
 
 test('a cold directory yields roster and exact committee IDs before optional details or profiles finish',async t=>{

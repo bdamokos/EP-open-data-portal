@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,rmSync,constants} from 'node:fs';
 import {open} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
+import {execFileAsync} from './test-support/subprocess.mjs';
 import {Worker} from 'node:worker_threads';
 import os from 'node:os';
 import path from 'node:path';
@@ -274,7 +274,7 @@ test('transcript responses return before teardown and retain their reader slot u
     store.acquire();store.putDocument({sourceId:id,kind:'speech',date:'2026-10-07',term:10},[{sourceKey:'de',language:'de',translationType:'original',sourceFormat:'xml-fragment',sourceUrl:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:date,body:'Retained text.',raw:xml}]);
     store.putSpeechMetadata(activity,'https://data.europarl.europa.eu/api/v2/speeches/'+id,date);store.release();
     const url='https://data.europarl.europa.eu/api/v2/meps/show-current?limit=1000&offset=0&format=application%2Fld%2Bjson';
-    const fifo=path.join(cache,createHash('sha256').update(url).digest('hex')+'.json');execFileSync('mkfifo',[fifo]);
+    const fifo=path.join(cache,createHash('sha256').update(url).digest('hex')+'.json');await execFileAsync(t,'mkfifo',[fifo],{});
     handle=await open(fifo,constants.O_RDWR|constants.O_NONBLOCK);
     process.env.ODP_CACHE_DIR=cache;reader=new CorpusReader(corpus,{timeoutMs:readerTimeoutMs});
     // FIFO reads can block native I/O, but some Node/platform combinations

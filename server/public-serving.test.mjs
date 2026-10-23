@@ -4,10 +4,11 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,readdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {execFileSync} from 'node:child_process';
+import {execFileAsync} from './test-support/subprocess.mjs';
 
-test('public serving does not swallow reserved paths, source files or missing assets',loopback,async()=>{
+test('public serving does not swallow reserved paths, source files or missing assets',loopback,async t=>{
   const directory=mkdtempSync(path.join(tmpdir(),'public-serving-'));
+  t.after(()=>rmSync(directory,{recursive:true,force:true}));
   mkdirSync(path.join(directory,'assets'));
   writeFileSync(path.join(directory,'index.html'),'<h1>Public explorer</h1>');
   writeFileSync(path.join(directory,'assets','app.js'),'export const publicAsset=true;');
@@ -38,11 +39,11 @@ test('public serving does not swallow reserved paths, source files or missing as
   }
 });
 
-test('production runtime staging excludes examples, tests and declarations',()=>{
+test('production runtime staging excludes examples, tests and declarations',async t=>{
   const directory=mkdtempSync(path.join(tmpdir(),'runtime-stage-'));
   const destination=path.join(directory,'server');
   try{
-    execFileSync(process.execPath,[new URL('../scripts/stage-runtime.mjs',import.meta.url).pathname,destination]);
+    await execFileAsync(t,process.execPath,[new URL('../scripts/stage-runtime.mjs',import.meta.url).pathname,destination],{});
     const files=readdirSync(destination);
     assert(files.includes('index.mjs'));assert(files.includes('insights-speech-stopwords.json'));assert(files.includes('insights-speech-stopwords.LICENSE.txt'));
     assert(!files.some(name=>/test|fixture|\.d\.mts/.test(name)));
