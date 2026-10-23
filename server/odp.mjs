@@ -383,7 +383,7 @@ let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
 export const DIRECTORY_VERSION = 2;
-export const PROFILE_VERSION = 3;
+export const PROFILE_VERSION = 4;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -595,16 +595,30 @@ export async function odpProfile(id, force = false, options={}) {
 }
 const readCommitteeMemberships = createCommitteeMembershipReader({request:odp});
 const readProfileMemberships = createProfileMembershipReader({request:odp});
+const rejectedProfileObservations = new Set();
 export async function odpProfileWithMemberships(id) {
-  const {profile,record} = await loadProfile(id);
+  let {profile,record} = await loadProfile(id);
   const parentSignal=requestSignal();
+  if(rejectedProfileObservations.has(String(id))) {
+    try {({profile,record}=await loadProfile(id,true));}
+    catch {
+      parentSignal?.throwIfAborted();
+      record={...record,stale:true,refreshError:true};
+    }
+  }
+  const observations=profileMemberships(record.payload.data[0],record);
+  if(observations.observationComplete)rejectedProfileObservations.delete(String(id));
+  else {
+    rejectedProfileObservations.delete(String(id));rejectedProfileObservations.add(String(id));
+    if(rejectedProfileObservations.size>256)rejectedProfileObservations.delete(rejectedProfileObservations.values().next().value);
+  }
   const optionalSignal=AbortSignal.timeout(8000);
   const signal=AbortSignal.any([optionalSignal,...(parentSignal?[parentSignal]:[])]);
-  const membershipHistory=await readProfileMemberships(profileMemberships(record.payload.data[0],record),{signal,parentSignal});
+  const membershipHistory=await readProfileMemberships(observations,{signal,parentSignal});
   const committeeMemberships=await readCommitteeMemberships(profile,today(),{signal:parentSignal,optionalSignal:signal});
   if(!membershipHistory.observationComplete) {
     committeeMemberships.complete=false;
-    committeeMemberships.error=membershipHistory.observationAvailable?'Some membership observations are incomplete or malformed. Showing available committee history.':'Committee membership observations are unavailable.';
+    committeeMemberships.error=membershipHistory.observationAvailable?'Some membership records are incomplete. Available committee history is shown.':'Committee membership information is unavailable.';
   }
   return {...profile,membershipHistory,committeeMemberships};
 }

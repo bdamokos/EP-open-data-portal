@@ -114,3 +114,13 @@ test('malformed observations retain raw entries and supported rows, while ordina
   assert.equal(value.items[1].bodyId,null);assert.equal(value.items[1].role,null);
   assert.equal(value.observationIssues.length,3);assert.equal(value.observationComplete,false);assert.equal(value.complete,false);assert.equal(policy(value),'no-store');
 });
+
+
+test('only explicit Parliament mandates may omit membership classification',()=>{
+  for(const value of [undefined,null,'']) {
+    const incomplete=history([row('5177','2019-07-02','2024-07-15',{membershipClassification:value})]);
+    assert.equal(incomplete.observationComplete,false);assert.equal(incomplete.observationIssues[0].issues[0],'missing-classification');
+  }
+  const mandate={id:'membership/mandate',organization:'org/ep-9',role:'def/ep-roles/MEMBER_PARLIAMENT'};
+  assert.equal(history([mandate]).observationComplete,true);
+});

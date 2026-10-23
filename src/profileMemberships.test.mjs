@@ -22,18 +22,18 @@ test('profile disclosures are collapsed, retain raw identifiers, language and sa
   assert.equal(page.querySelector('details').firstElementChild.tagName,'SUMMARY');
   assert.equal(page.querySelector('a').href,'https://data.europarl.europa.eu/org/5177');
   assert.match(page.textContent,/Start date not supplied — End date not supplied/);assert.doesNotMatch(page.textContent,/Present/);
-  assert.match(page.textContent,/Invalid start date: 2024-02-30/);assert.match(page.textContent,/Invalid end date:.*unknown/);
+  assert.match(page.textContent,/Start date invalid in source/);assert.match(page.textContent,/End date invalid in source/);
   assert.match(page.textContent,/def\/ep-roles\/UNKNOWN_ROLE/);assert.match(page.textContent,/Name unavailable/);
   assert.equal([...page.querySelectorAll('[lang=fr]')][0].textContent,'Parti Socialiste');
-  assert.equal([...page.querySelectorAll('[lang=hu]')].find(node=>node.textContent==='Tag').textContent,'Tag');
+  assert(![...page.querySelectorAll('ol p')].some(node=>node.textContent==='Tag'),'ordinary affiliation membership is implicit');
   assert.equal(page.querySelector('ol').classList.contains('explorer-membership'),false);
-  assert.match(render({...history,observationAvailable:false,observationComplete:false,observations:null}).textContent,/Membership observations are unavailable/);
-  assert.doesNotMatch(render({...history,observationAvailable:false,observationComplete:false,observations:null}).textContent,/No memberships supplied/);
+  assert.match(render({...history,observationAvailable:false,observationComplete:false,observations:null}).textContent,/Membership information is unavailable/);
+  assert.doesNotMatch(render({...history,observationAvailable:false,observationComplete:false,observations:null}).textContent,/No memberships listed in the source/);
   for(const entries of [[{}],['bad'],[{},rows[0],{...rows[1],role:null,organization:null}]]) {
     const malformed=profileMemberships({hasMembership:entries},{url:'https://data.europarl.europa.eu/api/v2/meps/124936',fetchedAt:Date.now()});
     const page=render(malformed);
-    assert.match(page.textContent,/Some membership observations are incomplete or malformed/);
-    assert.doesNotMatch(page.textContent,/No memberships supplied|Membership observations are unavailable/);
+    assert.match(page.textContent,/Some membership records are incomplete/);
+    assert.doesNotMatch(page.textContent,/No memberships listed in the source|Membership information is unavailable/);
     assert(page.querySelector('button'));
     if(entries.length>1){assert.match(page.textContent,/org\/5177/);assert.match(page.textContent,/Organisation identifier not supplied/);assert.match(page.textContent,/Role not supplied/);}
   }

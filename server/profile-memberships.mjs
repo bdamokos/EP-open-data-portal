@@ -1,6 +1,6 @@
 import {waitForRequest} from './request-budget.mjs';
 
-export const PROFILE_MEMBERSHIPS_VERSION = 2;
+export const PROFILE_MEMBERSHIPS_VERSION = 3;
 export const reference = value => typeof value === 'string' ? value : typeof value?.id === 'string' ? value.id : '';
 const local = value => reference(value).replace(/^https:\/\/data\.europarl\.europa\.eu\//, '');
 export const validMembershipDay = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -35,7 +35,8 @@ export function profileMemberships(person, record) {
     else {
       if(!reference(raw.organization))issues.push('missing-organization');
       if(!reference(raw.role))issues.push('missing-role');
-      if(raw.membershipClassification!=null&&!reference(raw.membershipClassification))issues.push('invalid-classification');
+      const mandate=local(raw.role)==='def/ep-roles/MEMBER_PARLIAMENT'&&/^org\/ep-[1-9]\d*$/.test(local(raw.organization));
+      if(!reference(raw.membershipClassification)&&!mandate)issues.push('missing-classification');
       if(raw.memberDuring!=null&&(typeof raw.memberDuring!=='object'||Array.isArray(raw.memberDuring)))issues.push('invalid-period');
     }
     return issues.length?[{index,issues}]:[];
@@ -54,7 +55,7 @@ export function profileMemberships(person, record) {
   });
   return {version:PROFILE_MEMBERSHIPS_VERSION,observationAvailable:available,observationComplete,observationIssues,observations,items,
     labelsComplete:items.length===0,dateIssues:items.some(row=>row.dateIssues.length),sources:[source(record)],
-    complete:observationComplete,error:!available?'Membership observations are unavailable.':observationIssues.length?'Some membership observations are incomplete or malformed.':null};
+    complete:observationComplete,error:!available?'Membership information is unavailable.':observationIssues.length?'Some membership records are incomplete.':null};
 }
 
 export function createProfileMembershipReader({request}={}) {
@@ -92,6 +93,6 @@ export function createProfileMembershipReader({request}={}) {
     const complete=history.observationComplete&&labelsComplete;
     return {...history,items,labelsComplete,complete,
       sources:[...history.sources,...[...bodies.values()].map(body=>body.source)],
-      error:!history.observationComplete?history.error:labelsComplete?null:'Some organisation names are unavailable. Showing the published identifiers.'};
+      error:!history.observationComplete?history.error:labelsComplete?null:items.some(row=>!hasLabels(row.body))?'Some organisation names are unavailable. Their source identifiers are shown.':'Some organisation names could not be refreshed.'};
   };
 }
