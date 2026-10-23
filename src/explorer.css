@@ -295,3 +295,12 @@
 .explorer-suggestion-card p{font-size:.9rem;line-height:1.5}
 .explorer-suggestion-card>div{min-width:0}
 .explorer-suggestion-card .explorer-saved-actions{display:flex;flex-wrap:wrap;gap:.5rem}
+.explorer-profile-memberships { margin-top: 24px; }
+.explorer-profile-memberships details { border-top: 1px solid var(--line); padding: 12px 0; }
+.explorer-profile-memberships summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+.explorer-profile-memberships h3 { font-size: 16px; margin: 20px 0 12px; }
+.explorer-profile-memberships ol { list-style: none; margin: 0; padding: 0; }
+.explorer-profile-memberships li { border-top: 1px solid var(--line); padding: 12px 0; overflow-wrap: anywhere; }
+.explorer-profile-memberships li:first-child { border-top: 0; }
+.explorer-profile-memberships li p { margin: 4px 0; }
+.explorer-affiliation-dates { color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
