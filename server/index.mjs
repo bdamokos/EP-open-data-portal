@@ -1,3 +1,5 @@
+import {followingResponse} from './insights-following.mjs';
+import {savedPostQuery,savedStates} from './insights-saved.mjs';
 import {groupVoicesQuery} from './group-voices-model.mjs';
 import {groupVoicesPage} from './group-voices-store.mjs';
 import http from 'node:http';
@@ -83,22 +85,22 @@ function requireQuery(searchParams,allowed) {
     throw new HttpError(400,'invalid_query','Unsupported or repeated query parameter.');
 }
 
-async function corpusSearchBody(request) {
-  if(!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(String(request.headers['content-type']||'')))throw new HttpError(415,'invalid_content_type','Use application/json for corpus search.');
+async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject='search',size='128 KiB'}={}) {
+  if(!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(String(request.headers['content-type']||'')))throw new HttpError(415,'invalid_content_type','Use application/json for this request.');
   const length=request.headers['content-length'];
-  if(length!==undefined && (!/^\d+$/.test(length)||Number(length)>CORPUS_LIMITS.requestBytes))throw new HttpError(413,'request_too_large','The search request exceeds 128 KiB.');
+  if(length!==undefined && (!/^\d+$/.test(length)||Number(length)>limit))throw new HttpError(413,'request_too_large',`The ${subject} request exceeds ${size}.`);
   const signal=requestSignal();signal?.throwIfAborted();
   let cleanup;
   const body=new Promise((resolve,reject)=>{
     const chunks=[];let bytes=0;
     const onData=chunk=>{
       bytes+=chunk.length;
-      if(bytes>CORPUS_LIMITS.requestBytes){reject(new HttpError(413,'request_too_large','The search request exceeds 128 KiB.'));return;}
+      if(bytes>limit){reject(new HttpError(413,'request_too_large',`The ${subject} request exceeds ${size}.`));return;}
       chunks.push(chunk);
     };
     const onEnd=()=>{
       try{resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));}
-      catch{reject(new HttpError(400,'invalid_json','The search body must be valid JSON.'));}
+      catch{reject(new HttpError(400,'invalid_json',`The ${subject} body must be valid JSON.`));}
     };
     cleanup=()=>{request.removeListener('data',onData);request.removeListener('error',reject);request.removeListener('end',onEnd);};
     request.on('data',onData);request.once('error',reject);request.once('end',onEnd);
@@ -124,9 +126,10 @@ async function handleApi(request,response,url,apiPrefix){
  const segments=routeSegments(url.pathname,apiPrefix);
  const endpoint=segments[0]||'';
  if(endpoint&&!apiEndpoints.has(endpoint))throw new HttpError(404,'not_found','The requested API endpoint does not exist.');
- const isCorpusSearch=segments.length===2&&endpoint==='corpus'&&segments[1]==='search';
- if(request.method==='OPTIONS'){setCommonSecurityHeaders(response);response.statusCode=204;response.setHeader('Allow',isCorpusSearch?'GET, HEAD, POST, OPTIONS':'GET, HEAD, OPTIONS');response.setHeader('Cache-Control','no-store');response.setHeader('CDN-Cache-Control','no-store');response.setHeader('Vary','Origin');response.end();return;}
- requireMethod(request,isCorpusSearch?['GET','HEAD','POST']:['GET','HEAD']);
+ const isSavedPost=segments.length===2&&endpoint==='insights'&&segments[1]==='saved';
+ const allowsPost=isSavedPost||segments.length===2&&endpoint==='corpus'&&segments[1]==='search';
+ if(request.method==='OPTIONS'){setCommonSecurityHeaders(response);response.statusCode=204;response.setHeader('Allow',allowsPost?'GET, HEAD, POST, OPTIONS':'GET, HEAD, OPTIONS');response.setHeader('Cache-Control','no-store');response.setHeader('CDN-Cache-Control','no-store');response.setHeader('Vary','Origin');response.end();return;}
+ requireMethod(request,allowsPost?['GET','HEAD','POST']:['GET','HEAD']);
  if(!endpoint||endpoint==='healthz'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:API_VERSION,...(!endpoint?{endpoints:[...apiEndpoints]}:{}),time:new Date().toISOString()});return;}
  if(endpoint==='plenary-live'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,await plenaryLive.snapshot());return;}
     const queryKeys={directory:['lang','retry'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang'],'speech-transcript':['lang'],'source-record':['lang','url'],'motion-comparison':['lang','joint','stage']};
@@ -190,6 +193,18 @@ async function handleApi(request,response,url,apiPrefix){
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'group-voices') {
       result=groupVoicesPage(activityIndex().store,groupVoicesQuery(url.searchParams));
     }
+    else if (segments.length === 2 && segments[0] === 'insights' && ['following-status','following-manifest','following-member'].includes(segments[1])) {
+      const reply=followingResponse(activityIndex().store,segments[1],url.searchParams);
+      const cacheControl=request.headers.authorization?'no-store':reply.cacheControl||'no-store';
+      sendJson(request,response,reply.status,reply.body,{cacheControl,cdnCacheControl:currentVersion?cacheControl:'no-store'});
+      return;
+    }
+    else if (isSavedPost && request.method==='POST') {
+      requireQuery(url.searchParams,['lang']);
+      const body=await jsonRequestBody(request,{limit:8192,subject:'saved questions',size:'8 KiB'});
+      requestSignal()?.throwIfAborted();
+      result=savedStates(activityIndex().store,savedPostQuery(url.searchParams,body));
+    }
     else if (segments.length === 2 && segments[0] === 'insights') {
       insightService ??= createInsights(activityIndex().store,{officialSources:official().sources,eurovocCatalog:official().catalog});
       result = await insightService.query(segments[1], url.searchParams);
@@ -210,7 +225,7 @@ async function handleApi(request,response,url,apiPrefix){
       if ([...url.searchParams.keys()].some(key => !allowed.has(key) || url.searchParams.getAll(key).length !== 1)) throw new HttpError(400,'invalid_query','Unsupported or repeated search query parameter.');
       if(request.method==='POST') {
         requireQuery(url.searchParams,['lang']);
-        const body=await corpusSearchBody(request);
+        const body=await jsonRequestBody(request);
         requestSignal()?.throwIfAborted();
         result=await corpusSearch(corpusSearchOptions({uiLanguage:language,...body}));
       } else {
