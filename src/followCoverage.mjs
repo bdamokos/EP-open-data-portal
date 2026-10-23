@@ -56,7 +56,8 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
       if(!removed.some(id=>c.members.includes(id)))return true;
       if(!cancelled.some(v=>v.dimension===c.dimension&&v.value===c.value))cancelled.push({dimension:c.dimension,value:c.value,cancelledAt:actionAt});
       return false;
-    }).map(c=>({...c,members:[...new Set([...c.members,...c.pending.filter(id=>current.has(id))])],pending:c.pending.filter(id=>!current.has(id))}));
+    // A dismissed MEP followed later (e.g. from the profile) joins the set, so unfollowing them cancels it.
+    }).map(c=>({...c,members:[...new Set([...c.members,...c.pending.filter(id=>current.has(id)),...c.dismissed.filter(id=>current.has(id))])],pending:c.pending.filter(id=>!current.has(id)),dismissed:c.dismissed.filter(id=>!current.has(id))}));
     const unresolvedFollows={};
     for(const dimension of dimensions){
       const unresolved=[];

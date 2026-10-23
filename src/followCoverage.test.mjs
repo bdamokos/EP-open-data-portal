@@ -196,3 +196,11 @@ test('legacy pending follows never clear existing cancellations with unknown ord
   assert.deepEqual(restored.snapshot().cancelled,[]);
  }
 });
+test('a dismissed MEP followed later joins the set, so unfollowing them cancels it',()=>{
+ const {store}=harness();store.observe(directory([member(1)]),follows(1));
+ store.observe(directory([member(1),member(2)]),follows(1));store.dismiss(2);
+ store.observe(directory([member(1),member(2)]),follows(1,2));
+ assert(store.snapshot().coverages.every(c=>c.members.includes('2')&&!c.dismissed.includes('2')));
+ store.observe(directory([member(1),member(2)]),follows(1));assert.equal(store.snapshot().coverages.length,0);
+ store.observe(directory([member(1),member(2),member(3)]),follows(1));assert.equal(store.suggestions().length,0);
+});
