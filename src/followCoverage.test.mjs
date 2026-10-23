@@ -10,7 +10,7 @@ test('singleton enrolls silently; newcomer persists through observations and rel
  const {store,storage}=harness();store.observe(directory([member(1)]),follows(1));assert.equal(store.snapshot().coverages.length,2);
  store.observe(directory([member(1),member(2)]),follows(1));assert.equal(store.suggestions().length,1);assert.equal(store.suggestions()[0].reasons.length,2);
  store.observe(directory([member(1),member(2)]),follows(1));assert.equal(store.suggestions().length,1);
- const reloaded=createCoverageStore(storage);reloaded.observe(directory([member(1),member(2)]),follows(1));assert.equal(reloaded.suggestions().length,1);
+ const reloaded=createCoverageStore(storage,()=>{},()=>Date.parse('2026-10-01'));reloaded.observe(directory([member(1),member(2)]),follows(1));assert.equal(reloaded.suggestions().length,1);
  reloaded.dismiss(2);reloaded.observe(directory([member(1),member(2)]),follows(1));assert.equal(reloaded.suggestions().length,0);
 });
 test('known group switch gets Now in; unknown to known never suggests',()=>{
@@ -53,13 +53,13 @@ test('v1 migration preserves coverage state and consolidates differing baselines
  const {storage}=harness();
  const coverage={dimension:'group',value:'S&D',enrolledAt:123,members:['1'],pending:['2'],dismissed:['3'],last:{1:'S&D',2:'EPP',3:'EPP',4:'EPP'}};
  storage.setItem(COVERAGE_KEY,JSON.stringify({version:1,followed:['1'],coverages:[coverage,{...coverage,value:'EPP',members:['4'],pending:[],dismissed:[],last:{1:'S&D',2:'EPP',3:'EPP',4:'S&D'}}]}));
- const store=createCoverageStore(storage);
- assert.equal(store.snapshot().version,2);
+ const store=createCoverageStore(storage,()=>{},()=>Date.parse('2026-10-01'));
+ assert.equal(store.snapshot().version,3);
  assert.deepEqual(store.snapshot().coverages[0],Object.fromEntries(Object.entries(coverage).filter(([key])=>key!=='last')));
  assert.equal(store.snapshot().last.group['4'],null);
  store.observe(directory([member(1),member(2),member(3),member(4)]),follows(1));
  assert.deepEqual(store.suggestions().map(s=>s.member.id),[2]);
- const restored=createCoverageStore(storage);assert.deepEqual(restored.snapshot(),store.snapshot());
+ const restored=createCoverageStore(storage,()=>{},()=>Date.parse('2026-10-01'));assert.deepEqual(restored.snapshot(),store.snapshot());
 });
 test('observation storage scales by dimensions rather than coverages',()=>{
  const {store,storage}=harness();
@@ -99,7 +99,7 @@ test('explicit unfollow cancellation survives departure, reload and return until
  store.syncFollows(follows(1));
  store.observe(directory([member(1)]),follows(1));
  assert.equal(store.snapshot().coverages.length,0);assert.equal(store.snapshot().cancelled.length,2);
- const restored=createCoverageStore(storage);
+ const restored=createCoverageStore(storage,()=>{},()=>Date.parse('2026-10-01'));
  restored.observe(directory([member(1),member(2)]),follows(1));
  assert.equal(restored.snapshot().coverages.length,0);assert.deepEqual(restored.suggestions(),[]);
  // An unrelated user follow cannot clear the cancelled filters.
@@ -109,7 +109,7 @@ test('explicit unfollow cancellation survives departure, reload and return until
  // A new matching follow clears only its dimension/value cancellations.
  const matching=member(4,'EPP');
  restored.observe(directory([member(1),other,matching]),follows(1,3,4));
- assert.deepEqual(restored.snapshot().cancelled,[{dimension:'group',value:'S&D'}]);
+ assert.deepEqual(restored.snapshot().cancelled.map(({cancelledAt,...c})=>c),[{dimension:'group',value:'S&D'}]);
  restored.observe(directory([member(1),other,matching,member(2)]),follows(1,3,4));
  assert.deepEqual(restored.suggestions().map(s=>s.member.id),[2]);
  assert.equal(restored.suggestions()[0].reasons.length,1);
@@ -121,11 +121,11 @@ test('follow before directory load clears cancellation once matching values beco
  store.observe(directory([member(1),member(2)]),follows(1,2));
  store.observe(directory([member(1)]),follows(1,2));
  store.syncFollows(follows(1));
- const reloaded=createCoverageStore(storage);
+ const reloaded=createCoverageStore(storage,()=>{},()=>Date.parse('2026-10-01'));
  reloaded.syncFollows(follows(1,2));
  assert.equal(reloaded.snapshot().cancelled.length,2);
  // The unresolved action survives another reload and an observation without that MEP.
- const restored=createCoverageStore(storage);
+ const restored=createCoverageStore(storage,()=>{},()=>Date.parse('2026-10-01'));
  restored.observe(directory([member(1)]),follows(1,2));
  assert.equal(restored.snapshot().cancelled.length,2);
  restored.observe(directory([member(1),member(2)]),follows(1,2));
@@ -140,11 +140,11 @@ test('unresolved follows resolve per dimension and are discarded on unfollow',()
  store.observe(directory([member(1),member(2)]),follows(1,2));
  store.observe(directory([member(1)]),follows(1,2));
  store.syncFollows(follows(1));
- const restored=createCoverageStore(storage);
+ const restored=createCoverageStore(storage,()=>{},()=>Date.parse('2026-10-01'));
  restored.syncFollows(follows(1,2));
  restored.observe(directory([member(1),member(2,null)]),follows(1,2));
- assert.deepEqual(restored.snapshot().cancelled,[{dimension:'group',value:'S&D'}]);
- assert.deepEqual(restored.snapshot().unresolvedFollows,{group:['2']});
+ assert.deepEqual(restored.snapshot().cancelled.map(({cancelledAt,...c})=>c),[{dimension:'group',value:'S&D'}]);
+ assert.deepEqual(restored.snapshot().unresolvedFollows,{group:[{id:'2',followedAt:Date.parse('2026-10-01')+1}]});
  restored.observe(directory([member(1),member(2)]),follows(1,2));
  assert.deepEqual(restored.snapshot().cancelled,[]);
  assert.deepEqual(restored.snapshot().unresolvedFollows,{});
@@ -157,4 +157,42 @@ test('unresolved follows resolve per dimension and are discarded on unfollow',()
  restored.observe(directory([member(1),member(2)]),follows(1));
  assert.equal(restored.snapshot().cancelled.length,2);
  assert.equal(restored.snapshot().coverages.length,0);
+});
+
+test('an unresolved follow cannot undo a later explicit cancellation when its MEP appears',()=>{
+ const {store,storage}=harness();
+ // A is fully followed; B is followed while absent from every observation.
+ store.observe(directory([member(1)]),follows(1));
+ store.syncFollows(follows(1,2));
+ const followedAt=store.snapshot().unresolvedFollows.group[0].followedAt;
+ store.syncFollows(follows(2));
+ const cancelled=store.snapshot().cancelled;
+ assert.ok(cancelled.every(c=>c.cancelledAt>followedAt));
+ // Resolve after a reload, with B the only listed member of A's old group.
+ const restored=createCoverageStore(storage,()=>{},()=>Date.parse('2026-10-01'));
+ restored.observe(directory([member(2)]),follows(2));
+ assert.deepEqual(restored.snapshot().unresolvedFollows,{});
+ assert.deepEqual(restored.snapshot().cancelled,cancelled);
+ assert.deepEqual(restored.snapshot().coverages,[]);
+ restored.observe(directory([member(1),member(2)]),follows(2));
+ assert.deepEqual(restored.suggestions(),[]);
+});
+
+test('legacy pending follows never clear existing cancellations with unknown ordering',()=>{
+ for(const pendingTimestamp of [undefined,200])for(const cancellationTimestamp of [undefined,200]){
+  const {storage}=harness();
+  const pending=pendingTimestamp===undefined?'2':{id:'2',followedAt:pendingTimestamp};
+  storage.setItem(COVERAGE_KEY,JSON.stringify({version:2,coverages:[],followed:['2'],last:{},
+   cancelled:[{dimension:'group',value:'S&D',...(cancellationTimestamp===undefined?{}:{cancelledAt:cancellationTimestamp})}],
+   unresolvedFollows:{group:[pending]}}));
+  const restored=createCoverageStore(storage,()=>{},()=>300);
+  restored.observe(directory([member(2)]),follows(2));
+  assert.equal(restored.snapshot().cancelled.length,1);
+  assert.equal(restored.snapshot().coverages.some(c=>c.dimension==='group'),false);
+  restored.observe(directory([member(1),member(2)]),follows(2));
+  assert.equal(restored.suggestions().some(s=>s.reasons.some(r=>r.context.includes('S&D'))),false);
+  // A genuinely new matching follow can still reactivate migrated coverage.
+  restored.syncFollows(follows(1,2));
+  assert.deepEqual(restored.snapshot().cancelled,[]);
+ }
 });

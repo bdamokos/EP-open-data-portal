@@ -9,11 +9,12 @@ const values=member=>({country:member.countryCode?filterCountry(member.countryCo
 const matches=(value,target)=>Array.isArray(value)?value.includes(target):value===target;
 const filter=value=>dimensions.includes(value?.dimension)&&typeof value.value==='string'&&Boolean(value.value);
 const observation=value=>value&&typeof value==='object'&&!Array.isArray(value)&&Object.entries(value).every(([id,value])=>ids([id])&&(value===null||typeof value==='string'||Array.isArray(value)&&value.every(v=>typeof v==='string')));
-const initialState=()=>({version:2,coverages:[],followed:[],last:{},cancelled:[],unresolvedFollows:{},storageError:false});
-function decode(raw) {
+const timestamp=value=>Number.isFinite(value)&&value>=0;
+const initialState=()=>({version:3,coverages:[],followed:[],last:{},cancelled:[],unresolvedFollows:{},storageError:false});
+function decode(raw,now) {
   try {
     const data=JSON.parse(raw);
-    if(![1,2].includes(data?.version)||!ids(data.followed)||!Array.isArray(data.coverages))return null;
+    if(![1,2,3].includes(data?.version)||!ids(data.followed)||!Array.isArray(data.coverages))return null;
     if(!data.coverages.every(c=>filter(c)&&Number.isFinite(c.enrolledAt)&&ids(c.members)&&ids(c.dismissed)&&ids(c.pending)))return null;
     if(data.version===1){
       const last={};
@@ -26,14 +27,19 @@ function decode(raw) {
       }
       return {...initialState(),followed:data.followed,last,coverages:data.coverages.map(({last,...c})=>c)};
     }
-    if(!data.last||!Object.entries(data.last).every(([dimension,value])=>dimensions.includes(dimension)&&observation(value))||!Array.isArray(data.cancelled)||!data.cancelled.every(filter))return null;
-    if(data.unresolvedFollows!==undefined&&(!data.unresolvedFollows||Array.isArray(data.unresolvedFollows)||typeof data.unresolvedFollows!=='object'||!Object.entries(data.unresolvedFollows).every(([dimension,value])=>dimensions.includes(dimension)&&ids(value))))return null;
-    return {...initialState(),...data};
+    if(!data.last||!Object.entries(data.last).every(([dimension,value])=>dimensions.includes(dimension)&&observation(value))||!Array.isArray(data.cancelled)||!data.cancelled.every(c=>filter(c)&&(c.cancelledAt===undefined||timestamp(c.cancelledAt))))return null;
+    if(data.unresolvedFollows!==undefined&&(!data.unresolvedFollows||Array.isArray(data.unresolvedFollows)||typeof data.unresolvedFollows!=='object'||!Object.entries(data.unresolvedFollows).every(([dimension,value])=>dimensions.includes(dimension)&&Array.isArray(value)&&value.every(action=>typeof action==='string'?ids([action]):action&&ids([action.id])&&(action.followedAt===undefined||timestamp(action.followedAt))))))return null;
+    // Unknown follow times are oldest; unknown cancellations are at least as
+    // recent as every saved follow, so migration cannot undo an explicit unfollow.
+    const unresolvedFollows=Object.fromEntries(Object.entries(data.unresolvedFollows||{}).map(([dimension,actions])=>[dimension,actions.map(action=>typeof action==='string'?{id:action,followedAt:0}:{...action,followedAt:action.followedAt??0})]));
+    const migratedCancellationAt=Math.max(now,0,...Object.values(unresolvedFollows).flat().map(action=>action.followedAt));
+    const cancelled=data.cancelled.map(c=>({...c,cancelledAt:c.cancelledAt??migratedCancellationAt}));
+    return {...initialState(),...data,version:3,cancelled,unresolvedFollows};
   }catch{return null;}
 }
 export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
   let state=initialState(),directory=null,events=[];
-  try {state={...state,...decode(storage?.getItem(COVERAGE_KEY)),storageError:!storage};}catch{state.storageError=true;}
+  try {state={...state,...decode(storage?.getItem(COVERAGE_KEY),clock()),storageError:!storage};}catch{state.storageError=true;}
   const publish=()=>{
     try {if(!storage)throw Error('Storage unavailable');storage.setItem(COVERAGE_KEY,JSON.stringify(state));state={...state,storageError:false};}
     catch{state={...state,storageError:true};}notify();return !state.storageError;
@@ -42,10 +48,13 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
     const followed=items.filter(i=>i.kind==='mep').map(i=>String(i.id)),current=new Set(followed),removed=state.followed.filter(id=>!current.has(id));
     if(JSON.stringify(followed)===JSON.stringify(state.followed)&&!Object.values(state.unresolvedFollows).some(value=>value.length))return;
     const added=followed.filter(id=>!state.followed.includes(id));
+    // Preserve action order even within one clock tick, after reload, or if the
+    // wall clock moves backwards. Resolution retains the original follow time.
+    const actionAt=Math.max(clock(),1,...state.cancelled.map(c=>c.cancelledAt+1),...Object.values(state.unresolvedFollows).flat().map(action=>action.followedAt+1));
     const cancelled=[...state.cancelled];
     const coverages=state.coverages.filter(c=>{
       if(!removed.some(id=>c.members.includes(id)))return true;
-      if(!cancelled.some(v=>v.dimension===c.dimension&&v.value===c.value))cancelled.push({dimension:c.dimension,value:c.value});
+      if(!cancelled.some(v=>v.dimension===c.dimension&&v.value===c.value))cancelled.push({dimension:c.dimension,value:c.value,cancelledAt:actionAt});
       return false;
     }).map(c=>({...c,members:[...new Set([...c.members,...c.pending.filter(id=>current.has(id))])],pending:c.pending.filter(id=>!current.has(id))}));
     const unresolvedFollows={};
@@ -53,12 +62,12 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
       const unresolved=[];
       // A profile follow can precede directory loading. Retain each unknown
       // dimension across observations and reloads until it can clear cancellation.
-      for(const id of new Set([...(state.unresolvedFollows[dimension]||[]),...added])){
+      for(const {id,followedAt} of [...(state.unresolvedFollows[dimension]||[]),...added.map(id=>({id,followedAt:actionAt}))]){
         if(!current.has(id))continue;
         const member=observedDirectory?.members.find(m=>String(m.id)===id);
         const value=member?values(member)[dimension]:state.last[dimension]?.[id];
-        if(value==null){unresolved.push(id);continue;}
-        for(let i=cancelled.length-1;i>=0;i--)if(cancelled[i].dimension===dimension&&matches(value,cancelled[i].value))cancelled.splice(i,1);
+        if(value==null){unresolved.push({id,followedAt});continue;}
+        for(let i=cancelled.length-1;i>=0;i--)if(cancelled[i].cancelledAt<followedAt&&cancelled[i].dimension===dimension&&matches(value,cancelled[i].value))cancelled.splice(i,1);
       }
       if(unresolved.length)unresolvedFollows[dimension]=unresolved;
     }
@@ -67,7 +76,7 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
   };
   return {
     snapshot:()=>state,syncFollows,retryStorage:publish,
-    reload(){try{const next=decode(storage?.getItem(COVERAGE_KEY));state=next?{...next,storageError:false}:{...initialState(),storageError:false};notify();}catch{state={...state,storageError:true};notify();}},
+    reload(){try{const next=decode(storage?.getItem(COVERAGE_KEY),clock());state=next?{...next,storageError:false}:{...initialState(),storageError:false};notify();}catch{state={...state,storageError:true};notify();}},
     observe(next,items,error=false){
       const usable=next&&!error&&!next.directoryCache?.refreshError;
       syncFollows(items,usable?next:directory);if(!usable)return;
