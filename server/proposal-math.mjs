@@ -2,6 +2,11 @@
 // attributes, URLs and upstream markup are never carried into rendered MathML.
 export const MATHML_TAGS=Object.freeze(['math','mrow','mi','mn','mo','mtext','mfrac','msub','msup','msubsup','msqrt','mroot','munder','mover','munderover','mtable','mtr','mtd']);
 const tags=new Set(MATHML_TAGS);
+export const MATHML_VARIANTS=Object.freeze(['normal','bold','italic','bold-italic','script','bold-script','fraktur','bold-fraktur','double-struck','sans-serif','bold-sans-serif','sans-serif-italic','sans-serif-bold-italic','monospace']);
+const variants=new Set(MATHML_VARIANTS),tokens=new Set(['mi','mn','mo','mtext']);
+const alphabets={roman:{p:'normal',b:'bold',i:'italic',bi:'bold-italic'},script:{p:'script',i:'script',b:'bold-script',bi:'bold-script'},
+  fraktur:{p:'fraktur',b:'bold-fraktur'},'double-struck':{p:'double-struck'},
+  'sans-serif':{p:'sans-serif',b:'bold-sans-serif',i:'sans-serif-italic',bi:'sans-serif-bold-italic'},monospace:{p:'monospace'}};
 const node=(tag,...children)=>({tag,children:children.flat().filter(value=>value!==null&&value!==undefined)});
 const child=(nodes,key)=>nodes?.find(value=>Object.hasOwn(value,key));
 const children=(nodes,key)=>child(nodes,key)?.[key]??[];
@@ -16,7 +21,7 @@ export function isSafeMathML(tree) {
     if(typeof value==='string'){characters+=value.length;return characters<=100000;}
     const attributes=value?.attributes;
     const safeAttributes=attributes===undefined||attributes&&typeof attributes==='object'&&Object.keys(attributes).length===1&&
-      (value.tag==='mover'&&Object.keys(attributes)[0]==='accent'&&attributes.accent==='true'||value.tag==='munder'&&Object.keys(attributes)[0]==='accentunder'&&attributes.accentunder==='true');
+      (value.tag==='mover'&&Object.keys(attributes)[0]==='accent'&&attributes.accent==='true'||value.tag==='munder'&&Object.keys(attributes)[0]==='accentunder'&&attributes.accentunder==='true'||tokens.has(value.tag)&&Object.keys(attributes)[0]==='mathvariant'&&variants.has(attributes.mathvariant));
     return value&&typeof value==='object'&&tags.has(value.tag)&&safeAttributes&&Object.keys(value).every(key=>['tag','children','attributes'].includes(key))&&Array.isArray(value.children)&&value.children.every(item=>visit(item,depth+1));
   }
   return visit(tree,0)&&tree?.tag==='math';
@@ -24,6 +29,28 @@ export function isSafeMathML(tree) {
 export function ommlToMathML(input,{sourceUrl=null}={}) {
   const unsupported=new Set();let count=0;
   const fail=name=>{unsupported.add(name);return node('mtext','\uFFFC');};
+  function runVariant(run){
+    const properties=run.filter(part=>Object.hasOwn(part,'m:rPr'));
+    if(properties.length>1)unsupported.add('duplicate-m:rPr');
+    const values=new Map();
+    for(const property of properties){
+      if(Object.keys(property).some(key=>key!=='m:rPr'))unsupported.add('m:rPr-attributes');
+      for(const part of property['m:rPr']??[])for(const [name,value] of Object.entries(part)){
+        if(++count>10000){unsupported.add('complexity-limit');return null;}
+        if(name==='#text'&&!String(value).trim()||name===':@')continue;
+        if(!['m:scr','m:sty'].includes(name)){unsupported.add('run-property:'+name);continue;}
+        const attributes=part[':@'],setting=attributes?.['@_m:val'];
+        if(values.has(name)||!Array.isArray(value)||value.some(item=>Object.keys(item).some(key=>key!=='#text'||String(item[key]).trim()))||
+          !attributes||Object.keys(attributes).length!==1||typeof setting!=='string')unsupported.add('malformed-run-property:'+name);
+        values.set(name,setting);
+      }
+    }
+    if(!values.size)return null;
+    const script=values.get('m:scr')??'roman',style=values.get('m:sty')??(script==='roman'?'i':'p');
+    const variant=Object.hasOwn(alphabets,script)&&Object.hasOwn(alphabets[script],style)?alphabets[script][style]:null;
+    if(!variant)unsupported.add('mathematical-alphabet-or-style');
+    return variant;
+  }
   function sequence(nodes,depth=0) {
     if(depth>48||++count>10000)return fail('complexity-limit');
     const out=[];
@@ -35,12 +62,20 @@ export function ommlToMathML(input,{sourceUrl=null}={}) {
       const get=(prop,name)=>val(properties(prop),name);
       if(['m:oMath','m:oMathPara','m:e','m:num','m:den','m:sub','m:sup','m:deg','m:lim','m:fName'].includes(key))out.push(...sequence(value,depth+1).children);
       else if(key==='m:r') {
-        // w:rPr is presentation only. Unknown content in a run still fails.
+        // Mathematical alphabets change symbol identity. Only validated OMML
+        // properties become allowlisted token attributes; unknown properties fail.
+        if(entry[':@'])unsupported.add('math-run-attributes');
+        const variant=runVariant(value??[]);
         for(const part of value??[])for(const [name,runs] of Object.entries(part)) {
-          if([':@','m:rPr','w:rPr'].includes(name))continue;
+          if(++count>10000){out.push(fail('complexity-limit'));break;}
+          if([':@','m:rPr','w:rPr'].includes(name)||name==='#text'&&!String(runs).trim())continue;
           if(name!=='m:t'){out.push(fail(name));continue;}
+          if(part[':@']&&Object.entries(part[':@']).some(([key,value])=>key!=='@_xml:space'||!['default','preserve'].includes(value)))unsupported.add('math-text-attributes');
+          for(const run of runs??[])if(Object.keys(run).some(key=>key!=='#text'))unsupported.add('math-text-content');
           const text=(runs??[]).filter(run=>'#text'in run).map(run=>String(run['#text'])).join('');
-          out.push(node(/^\d+(?:[.,]\d+)?$/.test(text)?'mn':/^[+\-=<>≤≥≠×÷∑∏∫∈∉±·(),;:|]+$/u.test(text)?'mo':/^[\p{L}]+$/u.test(text)?'mi':'mtext',text));
+          const token=node(/^\d+(?:[.,]\d+)?$/.test(text)?'mn':/^[+\-=<>≤≥≠×÷∑∏∫∈∉±·(),;:|]+$/u.test(text)?'mo':/^[\p{L}]+$/u.test(text)?'mi':'mtext',text);
+          if(variant)token.attributes={mathvariant:variant};
+          out.push(token);
         }
       }
       else if(key==='m:f') {

@@ -1,3 +1,5 @@
+import type { DocumentNote, NoteAnchor, DocumentLink } from './explorerTypes'
+
 export type ProposalUnitKind = 'frontmatter' | 'memorandum' | 'preamble' | 'body' | 'signature' | 'financial-statement' | 'title' | 'citation' | 'recital' | 'enacting-formula' | 'chapter' | 'section' | 'article' | 'annex' | 'paragraph' | 'subparagraph' | 'point' | 'indent' | 'quotation' | 'table'
 export interface ProposalPathSegment {
   kind: string
@@ -16,18 +18,27 @@ export interface ProposalPathSegment {
   hierarchyAmbiguous?: boolean
 }
 export type MathMLTag = 'math' | 'mrow' | 'mi' | 'mn' | 'mo' | 'mtext' | 'mfrac' | 'msub' | 'msup' | 'msubsup' | 'msqrt' | 'mroot' | 'munder' | 'mover' | 'munderover' | 'mtable' | 'mtr' | 'mtd'
-export interface MathMLNode { tag: MathMLTag; children: Array<MathMLNode | string>; attributes?: { accent?: 'true'; accentunder?: 'true' } }
+export interface MathMLNode { tag: MathMLTag; children: Array<MathMLNode | string>; attributes?: { accent?: 'true'; accentunder?: 'true'; mathvariant?: string } }
 export interface ProposalObject {
   kind: 'math' | 'drawing' | 'object' | 'symbol' | 'unsupported'
   status: 'mapped' | 'converted' | 'unresolved'
   paragraph: number
   offset: number
   path: string
+  sourcePart?: string
+  note?: string
+  paragraphOffset?: number
   replacement: string
   complete: boolean
   sourceUrl: string | null
   math?: MathMLNode | null
   unsupported?: string[]
+}
+export interface ProposalNote extends DocumentNote {
+  source?: { part: string; path: string }
+  extractionComplete?: boolean
+  complete: boolean
+  objects: ProposalObject[]
 }
 export interface ProposalNumbering { id: string; abstractId: string; level: number; format: string }
 export interface ProposalParagraph {
@@ -65,6 +76,7 @@ export interface ProposalUnit {
   pathConflict: boolean
   instructionPath?: ProposalPathSegment[]
   boundaryBasis?: 'quotation-mark' | 'replacement-instruction'
+  boundaryAmbiguous?: boolean
   closingBoundaryBasis?: 'instruction-style' | 'source-heading'
   underlyingPath?: ProposalPathSegment[]
   instruction?: { operation: 'amend' | 'replace' | 'insert' | 'delete' | 'unknown'; raw: string; underlyingTargets: ProposalPathSegment[] }
@@ -85,10 +97,10 @@ export interface ProposalDocument {
   paragraphs: ProposalParagraph[]
   units: ProposalUnit[]
   objects: ProposalObject[]
-  notes: unknown[]
-  anchors: unknown[]
-  links: unknown[]
-  gaps: Array<{ code: string; message: string; paragraph?: number; path?: ProposalPathSegment[] }>
+  notes: ProposalNote[]
+  anchors: NoteAnchor[]
+  links: DocumentLink[]
+  gaps: Array<{ code: string; message: string; paragraph?: number; note?: string; sourcePath?: string; path?: ProposalPathSegment[] }>
 }
 export interface ProposalTargetPath {
   language: string

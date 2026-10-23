@@ -17,3 +17,20 @@ test('MathML renderer creates allowlisted React elements, safe accent attributes
   }
   assert(!render({...base,complete:false,math:null,sourceUrl:'javascript:alert(1)'}).includes('<a'));
 });
+
+
+test('MathML renderer accepts mathematical variants and rejects malformed attributes and oversized trees',async t=>{
+  const vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>vite.close());
+  const {ProposalMath}=await vite.ssrLoadModule('/src/ProposalMath.tsx');
+  const {MATHML_VARIANTS,isSafeMathML}=await import('../server/proposal-math.mjs');
+  const render=math=>renderToStaticMarkup(createElement(ProposalMath,{object:{kind:'math',complete:true,status:'converted',math,sourceUrl:null}}));
+  for(const variant of MATHML_VARIANTS){const tree={tag:'math',children:[{tag:'mi',attributes:{mathvariant:variant},children:['R']}]};assert(isSafeMathML(tree));assert(render(tree).includes(`mathvariant="${variant}"`));}
+  let deep={tag:'mi',children:['R']};for(let i=0;i<66;i++)deep={tag:'mrow',children:[deep]};
+  for(const tree of [
+    {tag:'math',children:[{tag:'mi',attributes:{mathvariant:'double-struck',onclick:'x'},children:['R']}]},
+    {tag:'math',children:[{tag:'mi',attributes:{mathvariant:'" onload="x'},children:['R']}]},
+    {tag:'math',attributes:{mathvariant:'double-struck'},children:['R']},
+    {tag:'math',children:['x'.repeat(100001)]},{tag:'math',children:[deep]},
+    {tag:'math',children:Array.from({length:20001},()=>({tag:'mi',children:['x']}))},
+  ]){assert.equal(isSafeMathML(tree),false);const html=render(tree);assert(html.includes('Equation unavailable'));assert(!html.includes('<math>'));assert(!html.includes('onload='));}
+});

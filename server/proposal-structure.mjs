@@ -7,7 +7,7 @@ import {instructionOperation} from './proposal-instructions.mjs';
 import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel,normaliseForMatching};
-export const PROPOSAL_PARSER_VERSION='2';
+export const PROPOSAL_PARSER_VERSION='3';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -86,12 +86,21 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   for(const object of content.documentObjects??[]) {
     if(!Number.isInteger(object.paragraph)||object.paragraph<0||object.paragraph>=content.paragraphs.length)throw new TypeError('Invalid proposal object position.');
     const objectCopy={...object,complete:object.complete??object.status==='mapped',sourceUrl:officialDocumentUrl(object.sourceUrl)??sourceUrl};
+    if(objectCopy.kind==='math'&&!objectCopy.complete)gaps.push({code:'unresolved-math',paragraph:object.paragraph,sourcePath:object.path,message:'A source equation could not be converted without changing its mathematics.'});
     const list=objectsByParagraph.get(object.paragraph)??[];list.push(objectCopy);objectsByParagraph.set(object.paragraph,list);
   }
+  const notes=(content.notes??[]).map(note=>{
+    const objects=note.objects??[],unexplained=[...note.text.matchAll(/\uFFFC/g)].some(match=>!objects.some(object=>object.offset===match.index));
+    const complete=note.complete!==false&&!unexplained&&objects.every(object=>object.complete);
+    if(!complete)gaps.push({code:'incomplete-note',note:note.id,message:'A source note contains unconverted or unverified content.'});
+    return {...note,objects,complete};
+  });
+  const noteById=new Map(notes.map(note=>[note.id,note])),notesByParagraph=new Map();
+  for(const anchor of content.anchors??[]){const list=notesByParagraph.get(anchor.paragraph)??[];list.push(anchor.note);notesByParagraph.set(anchor.paragraph,list);}
   const paragraphs=content.paragraphs.map((text,index)=>{
     const source=content.paragraphSources?.[index]??null,properties=content.paragraphProperties?.[index]??null,objects=objectsByParagraph.get(index)??[];
     const unexplained=[...text.matchAll(/\uFFFC/g)].some(match=>!objects.some(object=>object.offset===match.index));
-    const complete=!unexplained&&objects.every(object=>object.complete)&&properties?.numberingComplete!==false&&properties?.notesComplete!==false&&
+    const complete=!unexplained&&objects.every(object=>object.complete)&&(notesByParagraph.get(index)??[]).every(id=>noteById.get(id)?.complete)&&properties?.numberingComplete!==false&&properties?.notesComplete!==false&&
       (source?.complete!==false||objects.length>0&&!!properties&&properties.numberingComplete&&properties.notesComplete);
     return {index,text,source,properties,objects,complete};
   });
@@ -128,6 +137,16 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     if(segment.kind==='paragraph'){const at=base.findIndex(item=>item.kind==='paragraph');if(at>=0)return [...base.slice(0,at),segment];}
     return [...base,segment];
   };
+  function observedQuotation(text,state,index){
+    const before=state.ambiguities??0,closed=quotationClosed(text,state,language);
+    if((state.ambiguities??0)>before)state.ambiguousParagraph=index;
+    if(state.ambiguous&&!state.root.boundaryAmbiguous){
+      state.root.boundaryAmbiguous=true;
+      state.boundaryGap={code:'ambiguous-quotation-boundary',paragraph:index,path:state.root.path,message:'An apostrophe or quotation mark does not establish a unique replacement boundary.'};
+      gaps.push(state.boundaryGap);
+    }
+    return closed;
+  }
   function inlineQuotation(owner,index) {
     if(!owner.instruction)return;
     const text=paragraphs[index].text,match=/:\s*([‘“„«"'”])/u.exec(text);
@@ -143,7 +162,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     const state={owner,ownerLevel:points.at(-1)?.level??-1,root:scope,last:target,container:header?target:scope,
       paragraph:number?.kind==='paragraph'?target:null,points:number?.kind==='point'?[{unit:target,level:number.level}]:[],
       underlyingPath:header?[header]:context,marks:[],implicit:false};
-    if(!quotationClosed(inner,state,language))quote=state;
+    if(!observedQuotation(inner,state,index))quote=state;
   }
   let area=make(root,'frontmatter',0,{normative:false}),container=null,paragraph=null,points=[],quote=null,sectionStack=[],last=null;
   const reset=()=>{container=null;paragraph=null;points=[];quote=null;sectionStack=[];last=null;};
@@ -153,7 +172,15 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     if(!paragraph)paragraph=make(baseContainer(),'paragraph',at,{segment:label('paragraph','1',language),implicit:true});
     return paragraph;
   }
-  function closeQuote(){quote=null;last=points.at(-1)?.unit??paragraph??container??area;}
+  function closeQuote(sourceBoundary=null){
+    // A source instruction/annex heading immediately after a possible trailing
+    // delimiter independently verifies that boundary. An earlier ambiguous
+    // apostrophe followed by more replacement text remains unresolved.
+    if(sourceBoundary!==null&&quote.ambiguities===1&&quote.ambiguousTail&&quote.ambiguousParagraph===sourceBoundary-1){
+      delete quote.root.boundaryAmbiguous;gaps.splice(gaps.indexOf(quote.boundaryGap),1);
+    }
+    quote=null;last=points.at(-1)?.unit??paragraph??container??area;
+  }
   const tableStart=new Map(),tableParagraphs=new Set();
   const tables=(content.tables??[]).filter(table=>Array.isArray(table.paragraphs));
   const outerTables=tables.filter(table=>!tables.some(parent=>parent!==table&&table.sourcePath.startsWith(parent.sourcePath+'/')));
@@ -176,8 +203,8 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     if(['frontmatter','memorandum'].includes(area.kind)&&(/Rfrenceinterinstitutionnelle|Typedudocument|Statut/i.test(style)||/^\d{4}\/\d{4}\s*\((?:COD|CNS|APP)\)$/u.test(trim))){region('preamble',i,false);retain(make(area,'title',i),i);continue;}
     if(nonnormative.has(area.kind)&&area.kind!=='frontmatter') {retain(area,i);continue;}
     const pointLevel=style.match(stylePoint)?.[1];
-    if(quote&&pointLevel!==undefined&&Number(pointLevel)<=quote.ownerLevel&&!opening.test(trim)){quote.root.closingBoundaryBasis='instruction-style';closeQuote();}
-    if(quote&&headed?.kind==='annex'&&/Annexetitre/i.test(style)&&!opening.test(trim)){quote.root.closingBoundaryBasis='source-heading';closeQuote();}
+    if(quote&&pointLevel!==undefined&&Number(pointLevel)<=quote.ownerLevel&&!opening.test(trim)){quote.root.closingBoundaryBasis='instruction-style';closeQuote(i);}
+    if(quote&&headed?.kind==='annex'&&/Annexetitre/i.test(style)&&!opening.test(trim)){quote.root.closingBoundaryBasis='source-heading';closeQuote(i);}
     if(!quote&&(/Formuledadoption/i.test(style)||sourceRegion==='enacting-formula'||/^(?:HAVE ADOPTED|HAS ADOPTED|HÄRIGENOM FÖRESKRIVS)/u.test(trim))) {
       region('body',i,true);retain(make(area,'enacting-formula',i),i);continue;
     }
@@ -211,7 +238,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       } else if(/Titrearticle/i.test(style)&&q.container.kind==='article')target=make(q.container,'title',i,{scope:'quoted',instructionPath:q.owner.path,underlyingPath:q.container.underlyingPath});
       else target=make(q.points.at(-1)?.unit??q.paragraph??q.container,'subparagraph',i,{scope:'quoted',instructionPath:q.owner.path,underlyingPath:(q.paragraph??q.container).underlyingPath??q.underlyingPath});
       retain(target,i);q.last=target;
-      if(quotationClosed(text,q,language))closeQuote();
+      if(observedQuotation(text,q,i))closeQuote();
       continue;
     }
     if(headed) {
@@ -280,15 +307,15 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   function finish(unit,inheritedConflict=false) {
     if(inheritedConflict)unit.pathConflict=true;
     for(const child of unit.children)finish(child,!!unit.pathConflict);
-    unit.complete=unit.content.every(index=>paragraphs[index].complete)&&unit.children.every(child=>child.complete)&&!unit.pathConflict;
+    unit.complete=unit.content.every(index=>paragraphs[index].complete)&&unit.children.every(child=>child.complete)&&!unit.pathConflict&&!unit.boundaryAmbiguous;
     if(unit.kind==='table')unit.complete&&=unit.table.complete;
   }
   finish(root);
   const structureComplete=sourceStructured&&!gaps.length;
   return {parserVersion:PROPOSAL_PARSER_VERSION,language,item,identity,sourceUrl,sourceHash,sourceKind:content.sourceKind??'extracted-text',
-    complete:root.complete&&structureComplete,contentComplete:paragraphs.every(paragraph=>paragraph.complete),structureComplete,
-    paragraphs,notes:content.notes??[],anchors:content.anchors??[],links:content.links??[],units:root.children,gaps,numberingMode:content.numberingMode??'supplied-text',
-    objects:paragraphs.flatMap(paragraph=>paragraph.objects)};
+    complete:root.complete&&structureComplete,contentComplete:paragraphs.every(paragraph=>paragraph.complete)&&notes.every(note=>note.complete),structureComplete,
+    paragraphs,notes,anchors:content.anchors??[],links:content.links??[],units:root.children,gaps,numberingMode:content.numberingMode??'supplied-text',
+    objects:[...paragraphs.flatMap(paragraph=>paragraph.objects),...notes.flatMap(note=>note.objects)]};
 }
 
 function freezeTree(value) {

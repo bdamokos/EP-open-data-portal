@@ -1,4 +1,4 @@
-import {parseProposal} from '../server/proposal-structure.mjs';
+import {parseProposal,proposalCandidates} from '../server/proposal-structure.mjs';
 import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
 import {proposalContextResponse} from './test-support/proposalContext.mjs';
 import test from 'node:test';
@@ -15,7 +15,7 @@ const sourceDocument=(id,paragraphs=['Official title.','Source recital.','Exact 
   id,titles:{en:'***II Official source title'},date:'2026-10-08',kind:'REPORT',roles:[],files:[],answers:[],selectedDocumentId:id,
   selectedText:{status:'available',paragraphs,textLanguage:'en',requestedLanguage:'en',availableTextLanguages:['en'],translationType:'original',sourceFormat:'DOCX',sourceUrl:source,fetchedAt:'2026-10-17T18:00:00Z',stale:false,refreshInProgress:false,refreshError:null,reason:null,extraction:'official-docx-paragraphs',notesStatus:'extracted',notes:[],noteAnchors:[],documentLinks:[],...extra},
 });
-const response=(id,doc=sourceDocument(id),extra={})=>({version:1,documentId:id,requestedLanguage:'en',document:doc,related:{status:'not-requested',items:[],gaps:[]},amendment:null,target:{status:'not-requested',paragraphs:[],basis:null,relation:null,quoteMatches:null,reason:null},sources:[],...extra});
+const response=(id,doc=sourceDocument(id),extra={})=>({version:4,documentId:id,requestedLanguage:'en',document:doc,related:{status:'not-requested',items:[],gaps:[]},amendment:null,target:{status:'not-requested',paragraphs:[],basis:null,relation:null,quoteMatches:null,reason:null},sources:[],...extra});
 const target={status:'found',paragraphs:[2],basis:'published-reference',relation:'at',quoteMatches:false,reason:null};
 const amendmentSource={id:amendment,status:'available',basis:'index',variants:[{listId:list}],gaps:[]};
 const wordingVariant=(language,extra={})=>({listId:list,language,wordingStatus:'available',originalText:'Original wording.',proposedText:'Proposed wording.',...extra});
@@ -409,6 +409,14 @@ test('unresolved placement shows wording above the full unchanged baseline witho
   assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
 });
 
+test('conflicting baselines show a short reason and preserve the full source without a placed diff',async t=>{
+  const h=await harness(t,()=>overlayResponse({operation:'replace',status:'unresolved',reason:'conflicting_baselines'}));await h.render({request:overlayRequest,language:'en'});
+  assert.match(h.container.textContent,/Conflicting comparison texts\./);
+  const reader=h.container.querySelector('.document-context-text');assert(reader.firstElementChild.querySelector('.wording-diff'));
+  assert.equal(reader.querySelectorAll('[data-source-paragraph]').length,4);assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
+  assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
+});
+
 for(const [suffix,label] of [['-AM-040','Amendment 40'],['-AM-040a','Amendment 40a'],['-AM-000','Amendment 0'],['-other','Amendment']])
   test(`amendment label handles ${suffix} without leaking the identifier`,async t=>{
     const amendmentId=report+suffix,data=overlayResponse();data.amendment.id=amendmentId;data.target.evidence.amendmentId=amendmentId;
@@ -562,6 +570,31 @@ test('proposal unresolved math retains the diff at the top and renders unchanged
   assert(h.container.querySelector('math'));assert.equal(h.container.querySelector('.proposal-context-text').firstElementChild.dataset.amendmentBlock,'true');
 });
 
+
+test('proposal reader renders note equations at their source offset and exposes unsupported note gaps',async t=>{
+  const noteText='Preserved note prefix at '+String.fromCharCode(0xFFFC)+' linked source after.';
+  const offset=25,url='https://example.test/note-source';assert.equal(noteText[offset],String.fromCharCode(0xFFFC));
+  const object={kind:'math',status:'converted',complete:true,offset,replacement:String.fromCharCode(0xFFFC),sourceUrl:source,
+    math:{tag:'math',children:[{tag:'msub',children:[{tag:'mi',children:['E']},{tag:'mi',children:['j']}]}]}};
+  const paragraphs=['Article 1','1. Original provision.','Article 2','Keep this source.'];
+  const content={paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),
+    notes:[{id:'1',label:'1',text:noteText,links:[url],linkSpans:[{start:27,end:40,url}],objects:[object],complete:true}],anchors:[{paragraph:1,offset:22,note:'1',label:'1'}],links:[]};
+  let value;
+  const h=await harness(t,()=>value);
+  for(const complete of [true,false]){
+    const p=parseProposal({...content,notes:[{...content.notes[0],complete,objects:[{...object,complete,status:complete?'converted':'unresolved',math:complete?object.math:null}]}]});
+    value=proposalContextResponse(report,amendment,list,4);
+    const variant={...value.amendment.variants[0],targetPath:null,targetLabel:'Article 1 – paragraph 1',originalText:paragraphs[1],proposedText:'1. Revised provision.'};
+    value.amendment.variants=[variant];value.proposal.items=[{kind:'act',index:1,proposal:p}];value.placement=resolveProposalPlacement(value.proposal.items,variant);
+    const selected=amendment+(complete?'':'a');value.amendment.id=selected;value.target.evidence.amendmentId=selected;
+    await h.render({request:{documentId:report,amendmentId:selected,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+    const note=h.container.querySelector('.legal-notes li');assert(note);
+    assert.equal(note.querySelector('a[href="'+url+'"]').textContent,'linked source');assert(note.textContent.includes(' after.'));assert(!note.textContent.includes(String.fromCharCode(0xFFFC)));
+    const link=h.container.querySelector('sup a');assert(link);assert.equal(new URL(link.href).hash,'#'+note.id);
+    if(complete){assert.equal(note.querySelector('msub').innerHTML,'<mi>E</mi><mi>j</mi>');assert(note.innerHTML.indexOf('Preserved note prefix at ')<note.innerHTML.indexOf('<math>'));assert.equal(value.placement.status,'placed');}
+    else {assert(!note.querySelector('math'));assert(note.textContent.includes('Equation unavailable'));assert(note.querySelector('a[href="'+source+'"]'));assert.equal(p.contentComplete,false);assert.equal(proposalCandidates(p,'Article 1')[0].complete,false);assert(p.gaps.some(gap=>gap.code==='incomplete-note'));assert.equal(value.placement.status,'unresolved');}
+  }
+});
 
 test('partial proposal splice keeps links and note anchors in unchanged and changed source text',async t=>{
   const text='1. Keep before. A changed sentence. Keep after.',start=text.indexOf('changed'),end=start+'changed'.length;

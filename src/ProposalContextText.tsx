@@ -2,9 +2,10 @@ import {useId,useRef,type ReactNode} from 'react';
 import type {DocumentContextResponse} from './DocumentContextTypes';
 import type {DocumentLink,NoteAnchor,DocumentNote} from './explorerTypes';
 import type {ProposalDocument,ProposalTable,ProposalUnit} from './proposalTypes';
-import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from './References';
+import {ReferenceScope,ReferenceText,readerTexts} from './References';
 import {InsightQuestionReader} from './InsightReaders';
 import {ProposalMath} from './ProposalMath';
+import {ProposalNotes} from './ProposalNotes';
 import {WordingDiff} from './components/WordingDiff';
 import {FindInText} from './TextSearch';
 
@@ -79,7 +80,7 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
     const table=topTables.find(t=>t.paragraphs[0]===index);
     const empty=topTables.filter(t=>!t.paragraphs.length&&t.anchor===index).map(tableNode);
     return [...empty,...(table?[tableNode(table)]:tableParagraphs.has(index)?[]:row(p.index))];
-  })}{topTables.filter(t=>!t.paragraphs.length&&t.anchor===proposal.paragraphs.length).map(tableNode)}<DocumentNotes notes={proposal.notes as DocumentNote[]} prefix={prefix}/></>;
+  })}{topTables.filter(t=>!t.paragraphs.length&&t.anchor===proposal.paragraphs.length).map(tableNode)}<ProposalNotes notes={proposal.notes} prefix={prefix}/></>;
 }
 
 export function ProposalContextText({data,wording,amendmentId,language}:{data:DocumentContextResponse;wording:Variant|null;amendmentId?:string;language:string}) {

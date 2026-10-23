@@ -186,7 +186,7 @@ function templateText(nodes) {
     key==='w:t' ? value.map(item=>item['#text'] || '').join('') : Array.isArray(value)&&!['w:del','w:moveFrom'].includes(key) ? templateText(value) : [])).join('');
 }
 function paragraphsOf(nodes,context) {
-  context.sourceIndex=sourceIndex(nodes);context.counterGaps??={lists:false,notes:false};const result=[];let segment=0;
+  context.sourceIndex??=sourceIndex(nodes);context.counterGaps??={lists:false,notes:false};const result=[];let segment=0;
   function visit(nodes,boundary={container:'other',containerPath:'/'}) {
   for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
     if(key==='w:p'){
@@ -232,7 +232,7 @@ function paragraphsOf(nodes,context) {
   return result;
 }
 // Paragraphs stay plain strings. Footnotes and links are returned separately with exact positions.
-export function docxContent(buffer,{includeParagraphProperties=false,numbering=numberingLabels}={}) {
+export function docxContent(buffer,{includeParagraphProperties=false,includeNoteObjects=false,numbering=numberingLabels}={}) {
   const parts=docxParts(buffer),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set();
   let incompleteNumber=false;
   const label=numbering(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),{add(message){incompleteNumber=true;warnings.add(message);}});
@@ -243,14 +243,26 @@ export function docxContent(buffer,{includeParagraphProperties=false,numbering=n
   if(!body.length || body.length>20000 || body.map(p=>p.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
   const supplied=new Map();
   for(const kind of ['footnote','endnote'])if(parts.has('word/'+kind+'s.xml')) {
+    const sourcePart='word/'+kind+'s.xml',document=parser().parse(parts.get(sourcePart)),index=sourceIndex(document);
     const context={style,numberLabel,warnings,links:externalLinks(parts.get('word/_rels/'+kind+'s.xml.rels'))};
-    for(const node of children(parser().parse(parts.get('word/'+kind+'s.xml')),'w:'+kind+'s')||[]) {
+    for(const node of children(document,'w:'+kind+'s')||[]) {
       if(!node['w:'+kind]||!['normal',undefined].includes(attribute(node,'type')))continue;
-      const paragraphs=paragraphsOf(node['w:'+kind],context),spans=[];let offset=0;
-      for(const part of paragraphs){spans.push(...part.spans.map(span=>({...span,start:span.start+offset,end:span.end+offset})));offset+=part.text.length+1;}
+      // Use the whole note part's index for unambiguous source paths. Ordinary
+      // extraction keeps its existing note projection unless objects are asked for.
+      const noteWarnings=includeNoteObjects?new Set():warnings;context.warnings=noteWarnings;
+      context.sourceIndex=includeNoteObjects?index:undefined;
+      const paragraphs=paragraphsOf(node['w:'+kind],context),spans=[],objects=[];let offset=0;
+      for(const [paragraph,part] of paragraphs.entries()){
+        spans.push(...part.spans.map(span=>({...span,start:span.start+offset,end:span.end+offset})));
+        objects.push(...part.objects.map(object=>({...object,paragraph,paragraphOffset:object.offset,offset:object.offset+offset,sourcePart})));
+        offset+=part.text.length+1;
+      }
+      for(const warning of noteWarnings)warnings.add(warning);
       const text=paragraphs.map(p=>p.text).join('\n').slice(0,NOTE_LIMITS.text);
       const key=(kind==='endnote'?'endnote:':'')+String(attribute(node,'id'));
-      supplied.set(key,{text,truncated:offset-1>NOTE_LIMITS.text,spans:spans.filter(span=>span.end<=text.length).slice(0,NOTE_LIMITS.links)});
+      supplied.set(key,{text,truncated:offset-1>NOTE_LIMITS.text,spans:spans.filter(span=>span.end<=text.length).slice(0,NOTE_LIMITS.links),
+        ...(includeNoteObjects?{source:{part:sourcePart,path:index.get(node).path},objects:objects.filter(object=>object.offset+object.replacement.length<=text.length),
+          extractionComplete:paragraphs.every(part=>part.properties.numberingComplete&&part.properties.notesComplete)&&![...noteWarnings].some(warning=>/blocks could not be read/iu.test(warning))}:{})});
     }
   }
   const notes=[],anchors=[],labels=new Map();
@@ -261,17 +273,19 @@ export function docxContent(buffer,{includeParagraphProperties=false,numbering=n
       if(mark.numberingUnknown&&!mark.label)warnings.add('Some automatic note labels are unknown after skipped document content.');
       labels.set(id,mark.label||(mark.numberingUnknown?'?':noteLabel(mark.kind,paragraph.section,mark.custom)));
     }
-    if(!supplied.has(id)){warnings.add('A referenced footnote or endnote is missing.');continue;}
+    if(!supplied.has(id)){warnings.add('A referenced footnote or endnote is missing.');if(includeNoteObjects)paragraph.properties.notesComplete=false;continue;}
     let note=notes.find(n=>n.id===id);
     if(!note){
-      if(notes.length>=NOTE_LIMITS.notes){warnings.add('The referenced notes exceed the supported note count.');continue;}
+      if(notes.length>=NOTE_LIMITS.notes){warnings.add('The referenced notes exceed the supported note count.');if(includeNoteObjects)paragraph.properties.notesComplete=false;continue;}
       const label=labels.get(id),source=supplied.get(id);
       if(source.truncated)warnings.add('A referenced note exceeds the supported text size.');
       if(!source.text)warnings.add('A referenced footnote or endnote is empty.');
       // A custom mark repeats its label as ordinary footnote text; automatic numbering does not.
       const text=mark.custom&&mark.label&&source.text.startsWith(label)&&/^[\s.)]/.test(source.text.slice(label.length))?source.text.slice(label.length).replace(/^[\s.)]+/,''):source.text,removed=source.text.length-text.length;
       const linkSpans=source.spans.map(span=>({...span,start:span.start-removed,end:span.end-removed})).filter(span=>span.start>=0);
-      note={id,label,text,links:[...new Set(source.spans.map(span=>span.url))],linkSpans};notes.push(note);
+      note={id,label,text,links:[...new Set(source.spans.map(span=>span.url))],linkSpans,
+        ...(includeNoteObjects?{source:source.source,extractionComplete:source.extractionComplete&&!source.truncated&&!!source.text,
+          objects:source.objects.map(object=>({...object,note:id,offset:object.offset-removed})).filter(object=>object.offset>=0)}:{})};notes.push(note);
     }
     anchors.push({paragraph:index,offset:mark.offset,note:note.id,label:note.label});
   }});

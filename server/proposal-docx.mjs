@@ -18,7 +18,7 @@ function wrappedChildren(nodes,key) {
 // never independently flatten hidden/deleted runs into the proposal text.
 export function proposalDocx(buffer,{sourceUrl=null}={}) {
   let numbering;
-  const content=docxContent(buffer,{includeParagraphProperties:true,numbering:(...args)=>(numbering=proposalNumberingLabels(...args))});
+  const content=docxContent(buffer,{includeParagraphProperties:true,includeNoteObjects:true,numbering:(...args)=>(numbering=proposalNumberingLabels(...args))});
   const parts=docxParts(buffer),document=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(parts.get('word/document.xml'));
   const index=sourceIndex(document),byPath=new Map(),tables=[];
   const paragraphByPath=new Map(content.paragraphSources.map((source,i)=>[source.path,i]));
@@ -56,6 +56,21 @@ export function proposalDocx(buffer,{sourceUrl=null}={}) {
     const metadata=numbering.metadata(children(node?.['w:p'],'w:pPr'));
     if(metadata)content.paragraphProperties[i].numbering=metadata;
   }
-  content.documentObjects=content.documentObjects.map(object=>object.kind==='math'?{...object,...ommlToMathML(byPath.get(object.path),{sourceUrl})}:{...object,complete:object.status==='mapped',sourceUrl:officialDocumentUrl(sourceUrl)});
+  function convert(object,nodes){
+    return object.kind==='math'?{...object,...ommlToMathML(nodes.get(object.path),{sourceUrl})}:
+      {...object,complete:object.status==='mapped',sourceUrl:officialDocumentUrl(sourceUrl)};
+  }
+  content.documentObjects=content.documentObjects.map(object=>convert({...object,sourcePart:'word/document.xml'},byPath));
+  const noteParts=new Map();
+  for(const note of content.notes){
+    const part=note.source.part;
+    if(!noteParts.has(part)){
+      const document=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(parts.get(part)),index=sourceIndex(document),nodes=new Map();
+      function collect(entries){for(const entry of entries??[])for(const [key,value] of Object.entries(entry)){if(index.has(entry))nodes.set(index.get(entry).path,entry);if(key!==':@'&&Array.isArray(value))collect(value);}}
+      collect(document);noteParts.set(part,nodes);
+    }
+    note.objects=note.objects.map(object=>convert(object,noteParts.get(part)));
+    note.complete=note.extractionComplete&&note.objects.every(object=>object.complete);
+  }
   return {...content,tables,sourceKind:'docx',numberingMode:'proposal-abstract-continuation'};
 }

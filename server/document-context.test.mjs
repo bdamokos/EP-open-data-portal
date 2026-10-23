@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {deflateRawSync} from 'node:zlib';
 import {DocumentContext,documentContextQuery} from './document-context.mjs';
+import {extractAmendments} from './amendment-documents.mjs';
 import {resolveAmendmentPlacement,segmentMotionUnits} from './document-context-model.mjs';
 import {documentText,docxContent} from './document-text.mjs';
 import {HttpError} from './http-utils.mjs';
@@ -331,7 +332,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,3);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,4);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -345,7 +346,7 @@ test('context explicitly withholds a proposal baseline and conflicting decision 
 
 test('proposal selection uses the wording language, preserves source identity and avoids proposal reads for other baselines',async()=>{
   let calls=[];
-  const selected={...indexed,baseline:'commission-proposal',language:'hu',targetLabelLanguage:'hu',targetPath:{language:'hu',proposal:[{raw:'1. cikk – (1) bekezdés'}],underlying:[]},originalText:'Eredeti szöveg.',proposedText:'Javasolt szöveg.'};
+  const selected={...indexed,baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false},language:'hu',targetLabelLanguage:'hu',targetPath:{language:'hu',proposal:[{raw:'1. cikk – (1) bekezdés'}],underlying:[]},originalText:'Eredeti szöveg.',proposedText:'Javasolt szöveg.'};
   const reader=service({findAmendment:()=>selected,readProposal:async request=>{calls.push(request);return {status:'language-unavailable',celex:'52025PC0087',workId:'exact-work',language:'hu',items:[],gaps:['language-unavailable'],evidence:[]};}});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'hu'}),{store:{}});
   assert.equal(calls.length,1);assert.equal(calls[0].language,'hu');assert.equal(calls[0].reportId,id);
@@ -358,7 +359,7 @@ test('proposal selection uses the wording language, preserves source identity an
 });
 
 test('available Commission DOCX projection retains provenance and places only the source paragraph',async()=>{
-  const original='1. Original proposal sentence.',variant={...indexed,baseline:'commission-proposal',language:'en',targetLabelLanguage:'en',targetLabel:'Article 1 – paragraph 1',originalText:original,proposedText:'1. Changed proposal sentence.'};
+  const original='1. Original proposal sentence.',variant={...indexed,baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false},language:'en',targetLabelLanguage:'en',targetLabel:'Article 1 – paragraph 1',originalText:original,proposedText:'1. Changed proposal sentence.'};
   const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>Article 1</w:t></w:r></w:p><w:p><w:r><w:t>'+original+'</w:t></w:r></w:p><w:p><w:r><w:t>Article 2</w:t></w:r></w:p><w:p><w:r><w:t>Keep this source.</w:t></w:r></w:p></w:body></w:document>';
   const buffer=archive(xml,'<w:styles xmlns:w="urn:word"/>');
   const reader=service({findAmendment:()=>variant,readProposal:async()=>({status:'available',celex:'52025PC0087',workId:'exact-work',language:'en',gaps:[],evidence:[],items:[{kind:'act',index:1,itemId:'exact-item',expressionId:'exact-expression',buffer,source:{url:'https://publications.europa.eu/resource/celex/52025PC0087',sha256:'a'.repeat(64),fetchedAt:new Date(at).toISOString(),stale:false,refreshError:null}}]})});
@@ -409,7 +410,7 @@ test('motion and legacy Irish baselines place only within the exact motion or re
       assert.equal(result.amendment.variants[0].baseline,baseline??null,'source category is retained without conversion to another baseline');
     }
     for(const [baseline,reason] of [['commission-proposal','proposal_baseline_unavailable'],['present-text','amends_existing_law'],['council-position','council_position_unavailable'],['other','baseline_unavailable']]) {
-      const blocked=service({request:async()=>record(motionWork),readText:async()=>text,findAmendment:()=>({...amendment,baseline}),readProposal:async()=>({status:'unresolved',items:[],gaps:['proposal-identity-unavailable'],evidence:[]})});
+      const blocked=service({request:async()=>record(motionWork),readText:async()=>text,findAmendment:()=>({...amendment,baseline,baselineSource:{category:baseline,conflicted:false}}),readProposal:async()=>({status:'unresolved',items:[],gaps:['proposal-identity-unavailable'],evidence:[]})});
       assert.equal((await blocked.query(request,{store:{}})).placement.reason,reason,baseline);
     }
     const noResolution=service({request:async()=>record(motionWork),readText:async()=>({...text,paragraphs:[...paragraphs.slice(1)],paragraphSources:text.paragraphSources.slice(1)}),findAmendment:()=>amendment});
@@ -465,4 +466,89 @@ for (const [name,properties,styles,level] of [
     assert.equal(result.target.evidence.amendmentId,amendmentId);assert.equal(result.target.evidence.listId,listId);assert.equal(result.target.evidence.wordingLanguage,'en');
   }
   assert.deepEqual(text,before);
+});
+
+
+test('indexed comparison conflicts block only the selected variant and retain the complete source descriptor',async()=>{
+  const paragraphs=['The European Parliament,','19. Original wording;','20. Next;'];
+  const text={...summary,paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
+  const headings=[{left:{raw:'Motion for a resolution',category:'motion-resolution'},right:{raw:'Amendment',category:'other'}},{left:{raw:'Text proposed by the Commission',category:'commission-proposal'},right:{raw:'Amendment',category:'other'}}];
+  for(const conflicted of [true,false,undefined]) {
+    const baselineSource={category:'unknown',headings,language:'en',sourceUrl:source.url,fetchedAt:source.fetchedAt,...(conflicted===undefined?{}:{conflicted})};
+    const selected={...indexed,baseline:'unknown',baselineSource,originalText:paragraphs[1],proposedText:'19. Revised wording;',targetLabel:'Paragraph 19',targetLabelLanguage:'en'};
+    const alternate={...selected,language:'fr',baselineSource:{...baselineSource,conflicted:true}};
+    const reader=service({readText:async()=>text,findAmendment:()=>({...selected,variants:[selected,alternate]})});
+    const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+    assert.equal(result.amendment.basis,'index');assert.deepEqual(result.amendment.variants[0].baselineSource,baselineSource);assert.equal(result.amendment.variants[0].baseline,'unknown');
+    assert.equal(result.placement.status,conflicted===true?'unresolved':'placed');
+    if(conflicted===true){assert.equal(result.placement.reason,'conflicting_baselines');assert.equal(result.placement.span,undefined);}
+    else assert.deepEqual(result.placement.span,{start:1,end:1});
+  }
+});
+
+test('published comparison headings retain conflict provenance while withholding motion recovery',async()=>{
+  const p=text=>'<w:p><w:r><w:t>'+text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</w:t></w:r></w:p>';
+  const table=(heading,before,after)=>'<w:tbl><w:tr><w:tc>'+p(heading)+'</w:tc><w:tc>'+p('Amendment')+'</w:tc></w:tr><w:tr><w:tc>'+p(before)+'</w:tc><w:tc>'+p(after)+'</w:tc></w:tr></w:tbl>';
+  const paragraphs=['The European Parliament,','19. Original wording continued;','20. Next;'];
+  const text={...summary,paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
+  const cases=[
+    {headings:['Motion for a resolution','Text proposed by the Commission'],category:'unknown',conflicted:true},
+    {headings:['Text proposed by the Commission','Council position'],category:'unknown',conflicted:true},
+    ...[['Motion for a resolution','motion-resolution'],['Unrecognised source label','unknown'],['Text proposed by the Commission','commission-proposal'],['Council position','council-position'],['Present text','present-text']].map(([heading,category])=>({headings:[heading,heading],category,conflicted:false})),
+  ];
+  for(const scenario of cases) {
+    const xml='<w:document xmlns:w="urn:word"><w:body>'+p('<Amend><NumAm>40</NumAm><DocAmend>Proposal for a regulation</DocAmend><Article>Paragraph 19</Article>')+table(scenario.headings[0],'19. Original wording','19. Revised wording')+table(scenario.headings[1],'continued;','continued with changes;')+p('</Amend>')+'</w:body></w:document>';
+    const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+id],is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:source.url}]}]};
+    const reader=service({request:async()=>record({...work,inverse_foresees_change_of:[list]}),download:async()=>({buffer:archive(xml,'<w:styles xmlns:w="urn:word"/>'),resolvedSourceUrl:source.url}),readText:async()=>text,readProposal:async()=>({status:'unresolved',items:[],gaps:['proposal-identity-unavailable'],evidence:[]})});
+    const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}));
+    const [variant]=result.amendment.variants;
+    assert.equal(result.amendment.basis,'published-list');assert.equal(variant.wordingStatus,'available',JSON.stringify({scenario,variant}));assert.equal(variant.baseline,scenario.category);
+    assert.equal(variant.baselineSource.category,scenario.category);assert.equal(variant.baselineSource.conflicted,scenario.conflicted);assert.deepEqual(variant.baselineSource.headings.map(row=>row.left.raw),scenario.headings);
+    assert.equal(variant.baselineSource.language,'en');assert.equal(variant.baselineSource.sourceUrl,source.url);assert.equal(variant.baselineSource.fetchedAt,source.fetchedAt);
+    assert.equal(variant.gaps.some(gap=>gap.code==='baseline-conflict'),scenario.conflicted);
+    if(scenario.conflicted){assert.equal(result.placement.status,'unresolved');assert.equal(result.placement.reason,'conflicting_baselines');assert.equal(result.placement.span,undefined);}
+    else if(['motion-resolution','unknown'].includes(scenario.category)){assert.equal(result.placement.status,'placed');assert.deepEqual(result.placement.span,{start:1,end:1});}
+    else assert.equal(result.placement.reason,scenario.category==='commission-proposal'?'proposal_baseline_unavailable':scenario.category==='present-text'?'amends_existing_law':scenario.category==='council-position'?'council_position_unavailable':'baseline_unavailable');
+  }
+});
+
+for(const basis of ['index','published-list'])test(`${basis} Commission routing requires matching category and explicit non-conflict evidence`,async()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-excerpts-20261016.json',import.meta.url))).documents.find(row=>row.targetDocumentId==='A-10-2025-0085');
+  const documentId=fixture.targetDocumentId,amendmentId=documentId+'-AM-7',listId=fixture.listId;
+  const buffer=archive(fixture.documentXml,fixture.stylesXml);
+  const extraction=extractAmendments(buffer,{listId,targetDocumentId:documentId,language:'en',sourceUrl:fixture.sourceUrl,fetchedAt:source.fetchedAt});
+  const published=extraction.amendments.find(row=>row.number===7);
+  assert.equal(published.baselineSource.conflicted,false);
+  const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+documentId],is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:fixture.sourceUrl}]}]};
+  const report={...work,id:'eli/dl/doc/'+documentId,identifier:documentId,inverse_foresees_change_of:[list]};
+  const cases=[
+    {name:'confirmed',baseline:'commission-proposal',baselineSource:published.baselineSource,reads:1,reason:'proposal_baseline_unavailable'},
+    {name:'conflicting',baseline:'commission-proposal',baselineSource:{...published.baselineSource,conflicted:true},reads:0,reason:'conflicting_baselines'},
+    {name:'missing conflict',baseline:'commission-proposal',baselineSource:Object.fromEntries(Object.entries(published.baselineSource).filter(([key])=>key!=='conflicted')),reads:0,reason:'baseline_unavailable'},
+    {name:'unknown conflict',baseline:'commission-proposal',baselineSource:{...published.baselineSource,conflicted:null},reads:0,reason:'baseline_unavailable'},
+    {name:'missing source',baseline:'commission-proposal',baselineSource:null,reads:0,reason:'baseline_unavailable'},
+    {name:'category disagreement',baseline:'commission-proposal',baselineSource:{...published.baselineSource,category:'motion-resolution'},reads:0,reason:'baseline_unavailable'},
+    {name:'unknown category',baseline:'commission-proposal',baselineSource:{...published.baselineSource,category:'unknown'},reads:0,reason:'baseline_unavailable'},
+    {name:'baseline disagreement',baseline:'other',baselineSource:published.baselineSource,reads:0,reason:'baseline_unavailable'},
+    ...['unknown','motion-resolution','present-text','council-position'].map(baseline=>({name:'conflicting '+baseline,baseline,baselineSource:{...published.baselineSource,category:baseline,conflicted:true},reads:0,reason:'conflicting_baselines'})),
+  ];
+  for(const scenario of cases){
+    let proposalReads=0;
+    const fields={baseline:scenario.baseline,baselineSource:scenario.baselineSource};
+    const selected={...published,...fields,id:amendmentId,targetDocumentId:documentId,listId,language:'en',textIntegrity:'complete',wordingSource:source,
+      decisions:[{id:'one',amendmentIds:[amendmentId],reference:'Paragraph 19',source},{id:'two',amendmentIds:[amendmentId],reference:'Paragraph 20',source}]};
+    // Conflicting target references must not replace a comparison-conflict result.
+    if(scenario.reason!=='conflicting_baselines')delete selected.decisions;
+    const reader=service({request:async()=>record(report),findAmendment:()=>basis==='index'?selected:null,download:async url=>({buffer,resolvedSourceUrl:url}),
+      readProposal:async()=>{proposalReads++;return {status:'unresolved',items:[],gaps:['proposal-identity-unavailable'],evidence:[]};}});
+    if(basis==='published-list'){
+      const readList=reader.readList.bind(reader);
+      reader.readList=async(...args)=>{const value=await readList(...args);return {...value,extraction:{...value.extraction,amendments:value.extraction.amendments.map(row=>row.number===7?{...row,...fields}:row)}};};
+    }
+    const result=await reader.query(documentContextQuery(documentId,new URLSearchParams({amendment:amendmentId,list:listId,'wording-lang':'en'})),{store:basis==='index'?{}:null});
+    assert.equal(result.amendment.basis,basis,scenario.name);assert.equal(result.amendment.variants[0].baseline,scenario.baseline,scenario.name);
+    assert.deepEqual(result.amendment.variants[0].baselineSource,scenario.baselineSource,scenario.name);
+    assert.equal(proposalReads,scenario.reads,scenario.name);assert.equal(result.placement.status,'unresolved',scenario.name);assert.equal(result.placement.reason,scenario.reason,scenario.name);
+    if(!scenario.reads){assert.equal(result.baseline,null,scenario.name);assert.equal(result.proposal,null,scenario.name);assert.deepEqual(result.document.selectedText,summary,scenario.name);}
+  }
 });
