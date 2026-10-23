@@ -1,3 +1,5 @@
+import {groupHistorySchema,freezeGroupHistory} from './group-history.mjs';
+import {membershipSchema,freezeMembership} from './following-membership.mjs';
 import {followMarksVersion,prepareFollowMarks,publishFollowMarks,followIndexComplete} from './follow-marks.mjs';
 import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
 import {sourceTitle} from './source-titles.mjs';
@@ -66,6 +68,7 @@ export class ActivityStore {
     if(!this.initializeIndexes)this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;');
     if (this.get('schema') !== 1) throw new Error('Unsupported activity-index schema.');
     try {assertRefreshSnapshot(this);}catch(error){this.db.close();throw error;}
+    membershipSchema(this.db);groupHistorySchema(this.db);
     if(this.initializeIndexes){outsideSchema(this.db);amendmentsSchema(this.db);groupVoicesSchema(this.db);refreshPolicyTables(this.db);}
   }
   get(key) { return parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value); }
@@ -298,6 +301,7 @@ export class ActivityStore {
       this.set('refreshPolicyGeneration',generation);
       const publishedAt=new Date(this.clock()).toISOString();
       publishFollowMarks(this,generation,publishedAt,followIndexComplete(this,generation),old);
+      freezeMembership(this,generation,old);freezeGroupHistory(this,generation,old);
       this.set('lastSuccess',publishedAt);this.set('unresolved',unresolved);
       // Retain the immediately previous generation for recovery; cache is reproducible public data.
       this.pruneGenerations(generation,old || generation);
@@ -310,7 +314,7 @@ export class ActivityStore {
     const low=Math.min(first,second),high=Math.max(first,second);
     // NOT IN / <> scans all retained item bodies even when nothing is deleted.
     // Separate indexed ranges also handle a nonadjacent recovery generation.
-    for(const table of ['sources','items','tasks','follow_summary','follow_generations','follow_touched']) {
+    for(const table of ['sources','items','tasks','follow_summary','follow_generations','follow_touched','membership_snapshots','group_history_snapshots']) {
       this.db.prepare(`DELETE FROM ${table} WHERE generation<?`).run(low);
       this.db.prepare(`DELETE FROM ${table} WHERE generation>?`).run(high);
       if(low!==high)this.db.prepare(`DELETE FROM ${table} WHERE generation>? AND generation<?`).run(low,high);

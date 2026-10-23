@@ -527,6 +527,15 @@ function startDirectoryDetails(work, {retry=false}={}) {
     }
   })().finally(() => {directoryDetailsPromise = null;});
 }
+// Exact raw profile-cache lookup only: no network request and no stale record.
+export async function readCachedMepRecord(id,{now=Date.now(),signal}={}) {
+  if(!/^[1-9]\d{0,8}$/.test(id))throw new Error('Invalid MEP identifier.');
+  try {
+    const record=await odp(`/meps/${id}`,{},{cachedOnly:true,ttl:7*24*60*60*1000,signal});
+    if(record.fetchedAt>now||now-record.fetchedAt>=7*24*60*60*1000)return null;
+    return record;
+  }catch(error){if(signal?.aborted)throw error;return null;}
+}
 async function mepRecord(id, force = false, {priority='interactive'}={}) {
   const record = await odp(
     `/meps/${id}`,

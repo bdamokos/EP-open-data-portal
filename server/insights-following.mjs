@@ -1,16 +1,18 @@
+import {groupHistorySnapshot} from './group-history.mjs';
+import {membershipSnapshot} from './following-membership.mjs';
 import {followMarksVersion,markedKinds,followIndexComplete} from './follow-marks.mjs';
 import {HttpError} from './http-utils.mjs';
 import {odpLanguage} from './odp.mjs';
 import {savedItemPreview} from './insights-saved.mjs';
 
 export function followingQuery(view,search) {
-  const allowed=view==='following-status'?[]:view==='following-manifest'?['epoch','generation']:['epoch','generation','member','lang'];
+  const allowed=view==='following-status'?[]:['following-manifest','following-membership','following-groups','group-history'].includes(view)?['epoch','generation']:['epoch','generation','member','lang'];
   for(const key of search.keys())if(!allowed.includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated following query.');
   if(view==='following-status')return {};
   const epoch=search.get('epoch'),raw=search.get('generation');
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(epoch||''))throw new HttpError(400,'invalid_epoch','An index epoch is required.');
   if(!/^[1-9]\d*$/.test(raw||'')||!Number.isSafeInteger(Number(raw)))throw new HttpError(400,'invalid_generation','A positive generation is required.');
-  if(view==='following-manifest')return {epoch,generation:Number(raw)};
+  if(['following-manifest','following-membership','following-groups','group-history'].includes(view))return {epoch,generation:Number(raw)};
   const member=search.get('member');
   if(!/^[1-9]\d{0,8}$/.test(member||''))throw new HttpError(400,'invalid_member','A valid member ID is required.');
   return {epoch,generation:Number(raw),member,language:odpLanguage(search.get('lang')||'en')};
@@ -25,7 +27,7 @@ function generationInfo(store,generation) {
 export function followingStatus(store) {
   const active=store.get('active')||0,generation=active||store.get('working')?.generation||0;
   const info=active?generationInfo(store,active):null;
-  return {epoch:store.get('marksEpoch'),generation,marksReady:Boolean(info?.ready),indexComplete:Boolean(active&&info?.index_complete&&followIndexComplete(store,active)),publishedAt:info?.published_at||null};
+  return {epoch:store.get('marksEpoch'),generation,marksReady:Boolean(info?.ready),membershipReady:Boolean(active&&membershipSnapshot(store,active)),groupsReady:Boolean(active&&store.db.prepare('SELECT 1 FROM group_history_snapshots WHERE generation=?').get(active)),indexComplete:Boolean(active&&info?.index_complete&&followIndexComplete(store,active)),publishedAt:info?.published_at||null};
 }
 
 // All identity reads are covering. Only the selected 200 previews load JSON bodies.
@@ -37,9 +39,18 @@ export function followingResponse(store,view,search) {
   const query=followingQuery(view,search),status=followingStatus(store);
   if(view==='following-status')return {status:200,body:status,cacheControl:'public, max-age=60'};
   const unavailable=()=>({status:503,body:{error:{code:'marks_unavailable',message:'Update checks are not available yet.'}}});
-  if(!status.marksReady)return unavailable();
+  if(['following-membership','following-groups','group-history'].includes(view)?!store.get('active'):!status.marksReady)return unavailable();
   if(query.epoch!==status.epoch||![store.get('active'),store.get('previous')].includes(query.generation))return {
     status:409,body:{error:{code:'generation_changed',message:'The index generation has changed.',epoch:status.epoch,generation:status.generation}}};
+  if(['following-groups','group-history'].includes(view)) {
+    const snapshot=groupHistorySnapshot(store,query.generation);
+    const body=view==='following-groups'&&snapshot?{members:Object.fromEntries(Object.entries(snapshot.members).map(([id,person])=>[id,{coverage:person.coverage,stale:person.stale}])),events:snapshot.events}:snapshot;
+    return body?{status:200,body:{epoch:query.epoch,generation:query.generation,...body},cacheControl:'public, max-age=3600'}:unavailable();
+  }
+  if(view==='following-membership') {
+    const snapshot=membershipSnapshot(store,query.generation);
+    return snapshot?{status:200,body:{epoch:query.epoch,generation:query.generation,...snapshot},cacheControl:'public, max-age=3600'}:unavailable();
+  }
   const info=generationInfo(store,query.generation);
   if(!info?.ready)return unavailable();
   const common={epoch:query.epoch,generation:query.generation,rosterBasis:info.roster_basis};
