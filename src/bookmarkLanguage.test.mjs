@@ -8,19 +8,19 @@ function storage(items=[]) {
   return {getItem:key=>data.get(key)||null,setItem(key,value){data.set(key,value);writes++;},raw:()=>data.get('ep.following.v2')||data.get('ep.bookmarks.v1'),writes:()=>writes};
 }
 
-test('legacy and explicit unknown languages survive cleaning without inferring from title text or writing storage',()=>{
+test('legacy and explicit unknown languages survive cleaning without inferring from title text; migration persists once',()=>{
   const items=[
     {...question,updated:true,newAnswer:true,newActivity:true,latest:[{id:'speech',title:'Bonjour'}],unreadAnswers:[{id:'answer',title:'Szia',titleLanguage:null}]},
     {...question,id:'E-10-2026-003032',titleLanguage:'mul'},
     {...question,id:'E-10-2026-003033',titleLanguage:'und'},
   ];
-  const disk=storage(items),before=disk.raw(),store=createSavedStore(disk);
+  const disk=storage(items),store=createSavedStore(disk),before=disk.raw(),writes=disk.writes();
   store.reload();
-  assert.equal(disk.raw(),before);assert.equal(disk.writes(),0);
+  assert.equal(disk.raw(),before);assert.equal(disk.writes(),writes);
   const loaded=store.snapshot().items;
   assert.equal(loaded[0].titleLanguage,null);assert.equal(loaded[0].latest[0].titleLanguage,null);
-  assert.equal(loaded[0].unreadAnswers[0].titleLanguage,null);
-  assert(loaded[0].updated&&loaded[0].newAnswer&&loaded[0].newActivity);
+  assert.equal(loaded[0].entries[0].titleLanguage,null);
+  assert(loaded[0].updated&&loaded[0].newAnswer);
   assert.equal(loaded[1].titleLanguage,'mul');assert.equal(loaded[2].titleLanguage,'und');
   assert.deepEqual(loaded.map(item=>item.id),items.map(item=>item.id));
 });
@@ -32,7 +32,7 @@ test('question title and language follow the same selected observation and persi
     store=createSavedStore(disk);
     const item=store.snapshot().items[0];
     assert.equal(item.title,title);assert.equal(item.titleLanguage,titleLanguage);
-    assert.equal(item.unreadAnswers[0].title,title);assert.equal(item.unreadAnswers[0].titleLanguage,titleLanguage);
+    assert.equal(item.entries[0].title,'Titre français');assert.equal(item.entries[0].titleLanguage,'fr');
     assert(item.newAnswer);assert.equal(item.id,question.id);
   }
   store.observe({members:[],questions:[{id:question.id,status:'available',title:'Old server title',revision:'new',answers:[]}]});
@@ -46,7 +46,7 @@ test('migrated answer titles preserve language metadata through materialization 
  const data={epoch:'one',generation:2,member:'42',status:'available',ids:[['fr-answer',1,2],['unknown',1,2]],entries:[{id:'fr-answer',title:'Réponse',titleLanguage:'fr',kind:'answer',mark:2},{id:'unknown',title:'Unknown',kind:'answer',mark:2}]};
  store.materialize(data);let item=createSavedStore(disk).snapshot().items[0];
  assert.deepEqual(savedLinks(item).map(x=>[x.title,x.titleLanguage]),[['Réponse','fr'],['Unknown',null]]);
- store.markAnswerRead('mep:42','unknown');item=createSavedStore(disk).snapshot().items[0];assert.equal(savedLinks(item)[0].titleLanguage,'fr');
+ store.markEntryRead('mep:42','answer','unknown');item=createSavedStore(disk).snapshot().items[0];assert.equal(savedLinks(item)[0].titleLanguage,'fr');
 });
 
 test('absent titles never lend their language to identifier fallbacks or another title source',()=>{

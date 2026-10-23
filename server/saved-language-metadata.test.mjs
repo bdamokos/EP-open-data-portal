@@ -51,7 +51,7 @@ test('saved responses pair chosen titles with exact dictionary keys without chan
     data.set('ep.bookmarks.v1',raw);const disk={getItem:key=>data.get(key)||null,setItem(key,value){data.set(key,value);}};
     const browser=createSavedStore(disk);browser.observe(results[1]);
     const loaded=createSavedStore(disk).snapshot().items[0];
-    assert.equal(loaded.titleLanguage,'hu');assert.equal(loaded.unreadAnswers[0].titleLanguage,'hu');
+    assert.equal(loaded.titleLanguage,'hu');assert.equal(loaded.entries.find(entry=>entry.kind==='answer').titleLanguage,'hu');
     assert(loaded.newAnswer);assert(!loaded.newActivity);
   } finally {store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});}
 });

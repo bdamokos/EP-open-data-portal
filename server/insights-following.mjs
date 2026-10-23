@@ -50,10 +50,11 @@ export function followingResponse(store,view,search) {
   } else {
     const exists=store.db.prepare('SELECT 1 FROM follow_summary WHERE generation=? AND mep=?').get(query.generation,query.member);
     const rows=exists?store.db.prepare(followingIdsSql).all(...markedKinds.flatMap(()=>[query.generation,query.member,query.member])):[];
-    const readers=markedKinds.map(([,index,predicate])=>store.db.prepare(`SELECT source_id,date,body FROM items INDEXED BY ${index} WHERE generation=? AND mep=? AND source_id=? AND date IS ? AND ${predicate} LIMIT 1`));
-    const entries=rows.slice(0,200).map(row=>({
-      ...savedItemPreview(store,query.generation,readers[row.kind].get(query.generation,query.member,row.source_id,row.date),query.language),kind:markedKinds[row.kind][0],mark:row.mark,
-    }));
+    const readers=markedKinds.map(([,index,predicate])=>store.db.prepare(`SELECT source_id,date,category,body FROM items INDEXED BY ${index} WHERE generation=? AND mep=? AND source_id=? AND date IS ? AND ${predicate} LIMIT 1`));
+    const entries=rows.slice(0,200).map(row=>{
+      const item=readers[row.kind].get(query.generation,query.member,row.source_id,row.date);
+      return {...savedItemPreview(store,query.generation,item,query.language),category:item.category,kind:markedKinds[row.kind][0],mark:row.mark};
+    });
     body={...common,member:query.member,status:exists?'available':'outside-roster',ids:rows.map(row=>[row.source_id,row.kind,row.mark]),entries,truncated:Math.max(0,rows.length-entries.length)};
   }
   return {status:200,body,cacheControl:'public, max-age=3600'};
