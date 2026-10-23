@@ -11,11 +11,11 @@ test('live playback survives browsing and minimising, expires safely, and closes
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let root,loadModule;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,d] of originals)d?Object.defineProperty(globalThis,key,d):delete globalThis[key];});
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,d] of originals)d?Object.defineProperty(globalThis,key,d):delete globalThis[key];});
   const item={id:'MTG-PL-2026-10-20-OJ-ITM-D-72',titles:{en:'Debate in the timetable'},kind:'PLENARY_DEBATE'};
   const payload={status:'live',checkedAt:new Date(initial).toISOString(),validUntil:new Date(initial+75_000).toISOString(),current:{id:'D27530',title:'Current source debate',updatedAt:new Date(initial).toISOString()},broadcast:{id:'broadcast-1',channel:'EbS+',title:'Broadcast title',embedUrl:'https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN',languages:['EN']},agenda:{state:'presumed',sittingId:'MTG-PL-2026-10-20',items:[item]},sources:[]};
   t.mock.method(globalThis,'fetch',async url=>{assert(new URL(url,location.href).pathname.endsWith('/plenary-live'));return Response.json(payload);});
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {PlenaryLiveProvider,PlenaryLiveBanner,ScheduledNow}=await loadModule('/src/PlenaryLive.tsx');
   const originalInterval=globalThis.setInterval;
 const timers=[],originalTimeout=globalThis.setTimeout;

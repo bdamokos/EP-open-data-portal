@@ -13,10 +13,11 @@ test('question trends expose measures and retain keyboard and select filtering',
   let loadModule, root;
   t.after(async () => {
     if (root) await act(async () => root.unmount());
+    if (loadModule) await loadModule.close();
     await window.happyDOM.close();
     for (const [key, descriptor] of originals) descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key];
   });
-  loadModule = await freshLoader(t,{configFile: false, server: {middlewareMode: true, hmr: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
+  loadModule = await freshLoader({configFile: false, server: {middlewareMode: true, hmr: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
   const {QuestionTrend} = await loadModule('/src/InsightCharts.tsx');
   const {createRoot} = await import('react-dom/client');
   const container = document.createElement('div'); document.body.append(container);

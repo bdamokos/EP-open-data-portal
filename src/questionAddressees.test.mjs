@@ -28,13 +28,13 @@ test('question addressee controls reset paging, preserve combined scopes and fil
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loadModule,root;const requests=[];
-  t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await loadModule?.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async(input,init)=>{
     const url=new URL(input,location.href);requests.push({url,body:init?.body?JSON.parse(init.body):null});
     if(url.pathname.endsWith('/corpus/search'))return Response.json({results:[],total:0,offset:0,limit:20,nextOffset:null,coverage:{complete:false}});
     assert(url.pathname.endsWith('/insights/questions'));return Response.json(response(url));
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {QuestionTopics}=await loadModule('/src/QuestionTopics.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(QuestionTopics,{language:'en',onBack(){}})));

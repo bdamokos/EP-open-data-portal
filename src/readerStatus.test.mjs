@@ -35,6 +35,7 @@ async function harness(t,{stored=false}={}) {
     if(root)await act(async()=>root.unmount());
     for(const request of requests)if(!request.finished)request.resolve(Response.json({}));
     await Promise.resolve();
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -44,7 +45,7 @@ async function harness(t,{stored=false}={}) {
     assert.match(route,/^(document|speech|speech-transcript)\//,'reader tests must not contact unrelated services');
     return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const readers=await loadModule('/src/InsightReaders.tsx');
   const {expireActivityReads}=await loadModule('/src/data.ts');
   const {createRoot}=await import('react-dom/client');

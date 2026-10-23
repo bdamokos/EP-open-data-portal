@@ -19,6 +19,7 @@ async function mount(t,fetch,{capacityReached=false}={}) {
   let loadModule,root;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -28,7 +29,7 @@ async function mount(t,fetch,{capacityReached=false}={}) {
     assert(url.pathname.endsWith('/amendments'));
     return Response.json({items:[],total:0,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:[]},failures:{total:20,unresolved:20,capacityReached}});
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);

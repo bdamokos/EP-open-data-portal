@@ -12,8 +12,8 @@ async function harness(t) {
   }
   let loadModule,root;
   t.mock.method(globalThis,'fetch',(input,options)=>new Promise(resolve=>requests.push({url:new URL(input,window.location.href),signal:options.signal,resolve,finished:false})));
-  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const r of requests)if(!r.finished)r.resolve(Response.json({}));await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true}});
+  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const r of requests)if(!r.finished)r.resolve(Response.json({}));if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true}});
   const {useSpeechData}=await loadModule('/src/data.ts'),{createRoot}=await import('react-dom/client');
   function Reader({id='X',language='en'}){const state=useSpeechData(id,language);return createElement('section',null,createElement('output',null,JSON.stringify(state)),createElement('button',{onClick:state.retry},'Retry'));}
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);

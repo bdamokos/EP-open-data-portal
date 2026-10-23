@@ -63,6 +63,7 @@ async function harness(t,language,query='?view=outside',deferDetail=false) {
   const people=[detail.person,...[null,'mul','und','en-t-hu-mtec'].map((roleLanguageTag,index)=>({...detail.person,id:String(50+index),name:'Another source '+index,roleLanguageTag}))];
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -74,7 +75,7 @@ async function harness(t,language,query='?view=outside',deferDetail=false) {
     assert.equal(url.pathname,'/api/outside/42','no source, index or corpus requests are allowed');
     return deferDetail?new Promise(resolve=>{finishDetail=()=>resolve(Response.json(detail));}):Promise.resolve(Response.json(detail));
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {OutsideVoices}=await loadModule('/src/OutsideVoices.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');container.lang=language;document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(OutsideVoices,{language,onBack(){}})));

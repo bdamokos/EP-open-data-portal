@@ -53,6 +53,7 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
   let loadModule,root;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -71,7 +72,7 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
     throw new Error('Unexpected request: '+url);
   });
   // Exercise the real component and URL/data hooks without opening a listening server.
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {OutsideVoices}=await loadModule('/src/OutsideVoices.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);

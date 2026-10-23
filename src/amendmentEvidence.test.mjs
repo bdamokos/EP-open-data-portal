@@ -12,7 +12,7 @@ for(const language of ['en','hu','fr'])test(`${language}: source-variant author 
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loadModule,root;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const name='Ágnes Source',proposerDate='2026-10-06';
@@ -35,7 +35,7 @@ for(const language of ['en','hu','fr'])test(`${language}: source-variant author 
     const url=new URL(input,window.location.href);assert(url.pathname.endsWith('/amendments'));assert.equal(url.searchParams.get('member'),'42');
     return Response.json({items,total:items.length,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:[]}});
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(Amendments,{member:'42',language,showFailures:false})));

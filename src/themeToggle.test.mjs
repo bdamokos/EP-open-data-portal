@@ -22,10 +22,11 @@ async function setup(t,failure,systemDark=false) {
   let loadModule,root;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {ThemeToggle}=await loadModule('/src/ThemeToggle.tsx');
   const {applyColourScheme,readColourScheme}=await loadModule('/src/colourScheme.mjs');
   applyColourScheme(readColourScheme());

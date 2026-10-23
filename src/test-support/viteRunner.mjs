@@ -9,7 +9,9 @@ after(async()=>{
 
 // Share transforms for each configuration within a test file, but give each
 // harness fresh module instances. Keep the caller's server options and logging.
-export async function freshLoader(t,options) {
+// The caller owns disposal: await load.close() after consumer teardown, including
+// any dynamic imports it performs. Registering a hook here would run too early.
+export async function freshLoader(options) {
   // Plugin hooks can carry per-harness state and cannot be keyed as JSON.
   const isolated=Boolean(options.plugins?.length);
   let server;
@@ -21,10 +23,12 @@ export async function freshLoader(t,options) {
   }
   const vite=await server;
   let runner;
-  t.after(async()=>{
-    try {if(runner)await runner.close();}
+  try {runner=createServerModuleRunner(vite.environments.ssr,{hmr:false});}
+  catch(error) {if(isolated)await vite.close();throw error;}
+  const load=path=>runner.import(path);
+  load.close=async()=>{
+    try {await runner.close();}
     finally {if(isolated)await vite.close();}
-  });
-  runner=createServerModuleRunner(vite.environments.ssr,{hmr:false});
-  return path=>runner.import(path);
+  };
+  return load;
 }

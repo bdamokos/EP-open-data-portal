@@ -9,9 +9,10 @@ test('shared trail link hides the unfinished catalogue from document and dossier
   Object.defineProperty(globalThis,'window',{value:{location:{pathname:'/explore'}},configurable:true,writable:true});
   let loadModule;
   t.after(async()=>{
+    if(loadModule)await loadModule.close();
     original?Object.defineProperty(globalThis,'window',original):delete globalThis.window;
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {AmendmentTrailLink}=await loadModule('/src/AmendmentTrailLink.tsx');
   for(const document of ['JURI-AL-788004','TA-10-2026-0254','P10_TA(2026)0254','A-9-2023-0001','B-11-2030-0001']){
     assert.equal(renderToStaticMarkup(createElement(AmendmentTrailLink,{document},'Unsupported document')),'',document);

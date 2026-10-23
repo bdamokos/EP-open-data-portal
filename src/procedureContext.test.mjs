@@ -12,6 +12,7 @@ test('dossier summary loading and failure do not expose the unfinished amendment
   let loadModule,root,respond;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -22,7 +23,7 @@ test('dossier summary loading and failure do not expose the unfinished amendment
     assert(url.pathname.endsWith('/insights/procedure-context'));
     return pending;
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);

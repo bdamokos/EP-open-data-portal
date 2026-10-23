@@ -22,12 +22,13 @@ test('priority changes preserve requests and decoded portraits, and can start a 
   let loadModule, root, nextBlob = 0;
   t.after(async () => {
     if (root) await act(async () => root.unmount());
+    if (loadModule) await loadModule.close();
     await window.happyDOM.close();
     for (const [key, descriptor] of originals) descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key];
   });
   t.mock.method(URL, 'createObjectURL', () => `blob:portrait-${++nextBlob}`);
   t.mock.method(URL, 'revokeObjectURL', url => revoked.push(url));
-  loadModule = await freshLoader(t,{configFile: false, server: {middlewareMode: true, hmr: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
+  loadModule = await freshLoader({configFile: false, server: {middlewareMode: true, hmr: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
   const {portraitLoader} = await loadModule('/src/portraitLoader.mjs');
   t.mock.method(portraitLoader, 'load', (url, {signal, priority}) => {
     const priorities = [priority];

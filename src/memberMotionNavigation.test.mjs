@@ -16,10 +16,10 @@ async function harness(t,{query,initialJourney,config:initialConfig={}}={}) {
   let root,loadModule,latest;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    await window.happyDOM.close();
+    if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const module=await loadModule('/src/useMemberMotionJourney.ts'),helper=await loadModule('/src/motionJourney.mjs'),{createRoot}=await import('react-dom/client');
   const initial=query?new URLSearchParams(query):helper.motionJourneyUrl(location.href,binding,initialJourney?.(helper.createMotionJourney(binding))||helper.createMotionJourney(binding)).searchParams;
   history.replaceState(null,'','/?'+initial);

@@ -4,7 +4,7 @@ import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {freshLoader} from './test-support/viteRunner.mjs';
 test('profile service line distinguishes continuous service, returning members, future mandates and unavailable data',async t=>{
-  const loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>loadModule.close());
   const {ParliamentaryService}=await loadModule('/src/ParliamentaryService.tsx');
   const render=service=>renderToStaticMarkup(createElement(ParliamentaryService,{profile:{parliamentaryService:service},lang:'hu',date:value=>value}));
   const continuous={day:'2026-10-19',currentSince:'2012-01-04',periods:[{start:'2012-01-04',end:null}],error:null};

@@ -18,6 +18,7 @@ for(const locale of ['en','hu','fr'])test(`${locale}: target labels and topics k
   let loadModule,root,reads=0;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -52,7 +53,7 @@ for(const locale of ['en','hu','fr'])test(`${locale}: target labels and topics k
     const items=fixtures(reads++>0);
     return Response.json({items,total:items.length,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:[],lastUpdated:'2026-10-16T12:00:00Z'}});
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);

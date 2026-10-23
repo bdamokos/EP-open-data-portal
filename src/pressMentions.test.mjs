@@ -12,6 +12,7 @@ test('dossier press releases keep exact links and English titles without a cover
   let loadModule,root;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -34,7 +35,7 @@ test('dossier press releases keep exact links and English titles without a cover
     if(url.pathname.endsWith('/insights/press-releases')){requested.push(ref);if(ref===failing&&!failures++)return Response.json({error:{message:'Press releases unavailable.'}},{status:500});return Response.json({view:'press-releases',reference:ref,items:ref===reference?items:[],total:ref===reference?6:0,coverage});}
     throw new Error('Unexpected request '+url);
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(ProcedureContext,{reference,language:'fr'})));

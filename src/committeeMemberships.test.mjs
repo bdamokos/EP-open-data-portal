@@ -6,7 +6,7 @@ import {freshLoader} from './test-support/viteRunner.mjs';
 import {Window} from 'happy-dom';
 
 test('current committee cards show former role levels, merged chair service and localized current roles',async t=>{
-  const loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>loadModule.close());
   const {CommitteeMemberships}=await loadModule('/src/CommitteeMemberships.tsx');
   const committee={id:'6363',code:'FEMM',names:{en:'Women’s Rights and Gender Equality',hu:'Nőjogi és Esélyegyenlőségi Bizottság'}};
   const periods=[{role:'MEMBER',start:'2022-01-25',end:null,current:true,observations:[]},{role:'CHAIR',start:'2019-07-10',end:'2022-01-24',current:false,observations:[]}];

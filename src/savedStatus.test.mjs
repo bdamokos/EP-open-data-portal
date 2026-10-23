@@ -10,7 +10,7 @@ async function harness(t,items=[member()],v2=false) {
  const requests=[],opened=[],waiting=[];let root,loadModule,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null;
  let status={epoch:'one',generation:5,marksReady:true,indexComplete:true,publishedAt:null};
  let ids=[['old',0,5]],entries=[],questionAnswers=[],membershipLists={incoming:{status:'fresh'},outgoing:{status:'fresh'}},invalidMembership=false;
- t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
+ t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
  t.mock.method(globalThis,'fetch',async(input,options)=>{
   const url=new URL(input,window.location.href),route=url.pathname.split('/').at(-1);requests.push({url,route,options});
   if(fail===route)return Response.json({error:{code:'fixture_failure',message:'Fixture unavailable'}},{status:503});
@@ -29,7 +29,7 @@ async function harness(t,items=[member()],v2=false) {
   if(route==='saved')return Response.json({questions:(JSON.parse(options.body).questions||[]).map(id=>({id,status:'available',title:'Question',revision:'one',answers:questionAnswers})),coverage:{indexComplete:true}});
   assert.fail('Unexpected route '+url);
  });
- loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+ loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {Saved}=await loadModule('/src/Saved.tsx'),controls=await loadModule('/src/SavedControls.tsx'),{createRoot}=await import('react-dom/client');
  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
  function Checks({language}){controls.useSavedChecks(language);return null;}

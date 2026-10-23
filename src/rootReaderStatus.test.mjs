@@ -38,7 +38,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const request of pending)if(!request.finished)request.resolve(Response.json({}));
-    await Promise.resolve();await window.happyDOM.close();
+    await Promise.resolve();if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(unexpected,[],'all app requests use isolated public-source fixtures');
   });
@@ -57,7 +57,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
     if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
     unexpected.push(url.href);throw new Error('Unexpected fixture request: '+url.href);
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {default:App}=await loadModule('/src/App.tsx'),{expireActivityReads}=await loadModule('/src/data.ts');
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(App)));

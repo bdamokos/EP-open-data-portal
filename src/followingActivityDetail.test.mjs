@@ -26,7 +26,7 @@ async function harness(t,{sourceId=questionId,selected=[],items=[],complete=fals
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const resolve of pending)resolve(Response.json(page([])));
-    await window.happyDOM.close();
+    if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];
     assert.deepEqual(unexpected,[],'all reads use offline fixtures');
   });
@@ -52,7 +52,7 @@ async function harness(t,{sourceId=questionId,selected=[],items=[],complete=fals
     }
     unexpected.push(url.href);throw new Error('Unexpected fixture request: '+url.href);
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {FollowingActivityDetail}=await loadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=()=>root.render(createElement(FollowingActivityDetail,props));

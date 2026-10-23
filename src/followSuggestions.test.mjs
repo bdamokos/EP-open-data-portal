@@ -10,8 +10,8 @@ test('suggestion actions preserve focus; failed follows announce an alert; stora
    originals.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  }
  let root,loadModule;
- t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
- loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+ t.after(async()=>{if(root)await act(async()=>root.unmount());await loadModule?.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+ loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {FollowSuggestions}=await loadModule('/src/FollowSuggestions.tsx'),{coverageStore,savedStore}=await loadModule('/src/SavedControls.tsx'),{createRoot}=await import('react-dom/client');
  const m=id=>({id,firstName:'Member',lastName:String(id),countryCode:'MT',groupCode:null,memberships:[],imageUrl:'/assets/portrait-placeholder.svg'});
  const d=members=>({members,committees:[],index:{complete:true,error:null}});

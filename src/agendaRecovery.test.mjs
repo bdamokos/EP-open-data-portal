@@ -23,8 +23,8 @@ async function harness(t,query='') {
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected fetch: '+url);
     return new Promise(resolve=>requests.push({url,signal:options.signal,resolve}));
   });
-  t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const r of requests)r.resolve(Response.json({}));});await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const r of requests)r.resolve(Response.json({}));});if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);

@@ -9,11 +9,11 @@ async function harness(t) {
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  const loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);
   const caught=[],root=createRoot(container,{onCaughtError:error=>caught.push(error)});
-  t.after(async()=>{await act(async()=>root.unmount());await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
+  t.after(async()=>{await act(async()=>root.unmount());await loadModule.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
   const boundary=await loadModule('/src/ErrorBoundary.tsx');
   return {...boundary,load:path=>loadModule(path),window,container,caught,render:element=>act(async()=>root.render(element)),click:text=>act(async()=>{const button=[...container.querySelectorAll('button')].find(node=>node.textContent===text);assert(button,text);button.focus();button.click();})};
 }

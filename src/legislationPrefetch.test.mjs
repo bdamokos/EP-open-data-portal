@@ -27,10 +27,10 @@ async function harness(t,width=1440) {
   });
   t.after(async()=>{
     if(root)await act(async()=>{root.unmount();for(const request of requests.filter(r=>!r.settled))request.resolve(Response.json(response(request.url.searchParams)));});
-    await window.happyDOM.close();
+    if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Legislation}=await loadModule('/src/Legislation.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=language=>act(async()=>root.render(createElement(Legislation,{language,onBack(){}})));

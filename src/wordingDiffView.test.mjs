@@ -13,10 +13,10 @@ test('wording comparison modes, accessible announcements, source language, defau
   let loadModule,root;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    await window.happyDOM.close();
+    if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {WordingDiff}=await loadModule('/src/components/WordingDiff.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   let props={original:'La vieille politique.\n',proposed:'La nouvelle politique.\n',language:'fr',emptySemantics:'insertion-deletion'};

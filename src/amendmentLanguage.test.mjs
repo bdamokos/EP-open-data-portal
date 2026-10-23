@@ -15,7 +15,7 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loadModule,root;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const base={targetDocumentId:'A-10-2026-0254',procedureIds:['2025-0407'],outcome:'unavailable'};
@@ -54,7 +54,7 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
     const selected=items.map(item=>item.titles?{...item,title:item.titles[locale]||item.titles.en||Object.values(item.titles)[0]}:item);
     return Response.json({items:selected,total:items.length,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:['Some sources unavailable.'],lastUpdated:'2026-10-16T12:00:00Z'},failures:{total:2,unresolved:2}});
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {AmendmentsPage,Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(AmendmentsPage,{language:locale,onBack(){}})));

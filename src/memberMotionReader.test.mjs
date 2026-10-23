@@ -45,7 +45,7 @@ async function harness(t,{url=baseHref,props={},autoApply=true,wordingLanguage='
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const entry of pending.splice(0))entry.resolve(Response.json(entry.body));
-    await window.happyDOM.close();
+    if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of saved)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(historyWrites,[],'history belongs to the parent');
   });
@@ -56,7 +56,7 @@ async function harness(t,{url=baseHref,props={},autoApply=true,wordingLanguage='
     const body=isList?fixturePage(url,wordingLanguage):fixtureContext(url);
     return (isList?delayList:delayContext)?new Promise(resolve=>pending.push({url,body,resolve})):Response.json(body);
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {MemberMotionReader}=await loadModule('/src/MemberMotionReader.tsx'),{createRoot}=await import('react-dom/client');
   const main=document.createElement('main'),panel=document.createElement('div'),container=document.createElement('div');
   main.className='explorer';panel.className='explorer-profile-body';document.body.append(main);main.append(panel);panel.append(container);root=createRoot(container);

@@ -22,7 +22,7 @@ async function harness(t,{mismatch=false}={}) {
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loadModule,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());frames.clear();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();frames.clear();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',()=>{});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');assert.equal(url.origin,'http://localhost','only isolated local request stubs are permitted');calls.push(url);
@@ -34,7 +34,7 @@ async function harness(t,{mismatch=false}={}) {
     const id=decodeURIComponent(url.pathname.slice('/api/document/'.length));assert([questionA,questionB,answerA].includes(id),'document requests retain exact public source IDs');assert.equal(url.search,'?lang=en');
     return Response.json(publication(mismatch&&id===questionA?questionB:id));
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {InsightQuestionReader}=await loadModule('/src/InsightReaders.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=heading=>act(async()=>root.render(createElement(InsightQuestionReader,{id:questionA,language:'en',includeAnswers:true,heading:heading||'Question A'})));

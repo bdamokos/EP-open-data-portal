@@ -11,7 +11,7 @@ test('progress is independent, preserves exact selection and lazy readable docum
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loadModule,root,answerSummary,answerProgress,answerDocuments;
   t.after(async()=>{
-    if(root)await act(async()=>root.unmount());await window.happyDOM.close();
+    if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const ref='2025/0223(COD)',dossier='http://publications.europa.eu/resource/cellar/9d07a799-630b-11f0-bf4e-01aa75ed71a1',work=dossier+'a';
@@ -27,7 +27,7 @@ test('progress is independent, preserves exact selection and lazy readable docum
     if(url.pathname.endsWith('/procedure-progress'))return new Promise(resolve=>{answerProgress=resolve;});
     throw new Error('Unexpected request '+url);
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(ProcedureContext,{reference:ref,language:'en'})));

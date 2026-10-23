@@ -13,6 +13,7 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   let loadModule,root;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -40,7 +41,7 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
       {id:'AM-conflicted',number:118,conflicted:true,date:'2099-01-01',authors:[{name:'Arbitrary author must be hidden',personId:'42'}],originalText:'Arbitrary text must be hidden',proposedText:'Arbitrary replacement must be hidden',outcome:'unavailable',variants:[{listId:'AM-list-1',authors:[{name:'First source author',personId:'42'}],originalText:'First source original',proposedText:'First source proposal',language:'en'},{listId:'AM-list-2',committeeProposer:'Committee on Transport',originalText:'Second source original',proposedText:'Second source proposal',language:'fr'}],gaps:['Source variants conflict.']}
     ],total:5,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:['English wording unavailable']},failures:{total:2,unresolved:2}});
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
@@ -109,6 +110,7 @@ test('refresh removes a corrected decision binding when split descriptions are u
   let loadModule,root,reads=0;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
+    if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -120,7 +122,7 @@ test('refresh removes a corrected decision binding when split descriptions are u
     const decisions=++reads===1?[first,second]:[second];
     return Response.json({items:[{id:'A-10-2026-0254-AM-1',number:1,targetDocumentId:'A-10-2026-0254',splitParts:[],decisions,outcome:reads===1?'mixed':'REJECTED'}],total:1,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:['Split descriptions unavailable.']}});
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);

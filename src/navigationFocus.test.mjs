@@ -23,7 +23,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
     if(root)await act(async()=>root.unmount());
     releaseModule();
     pending.forEach(request=>request.resolve(Response.json(page())));
-    await window.happyDOM.close();
+    if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(unexpected,[]);
   });
@@ -49,7 +49,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
   });
   // The conditional transform plugin needs an isolated server for its delayed-view graph.
-  loadModule=await freshLoader(t,{configFile:false,plugins:delayedModule?[{name:'delay-view-fixture',transform(code,id){if(id.endsWith('/GroupVoices.tsx'))return 'await globalThis.__navigationViewGate;\n'+code;}}]:[],server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,plugins:delayedModule?[{name:'delay-view-fixture',transform(code,id){if(id.endsWith('/GroupVoices.tsx'))return 'await globalThis.__navigationViewGate;\n'+code;}}]:[],server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {default:App}=await loadModule('/src/App.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container,{onCaughtError:()=>{}});

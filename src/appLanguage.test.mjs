@@ -57,7 +57,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
   let root,loadModule;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    await window.happyDOM.close();
+    if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(unexpected,[],'every fetch stays within the isolated app fixtures');
   });
@@ -85,7 +85,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
     }
     unexpected.push(url.href);throw new Error('Unexpected fixture request: '+url.href);
   });
-  loadModule=await freshLoader(t,{configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {default:App}=await loadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(App)));
