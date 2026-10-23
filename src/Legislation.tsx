@@ -39,7 +39,8 @@ function VoteView({vote,language,onMember,country}:{country:string|null;vote:Nam
   const people=countryPeople(position),filtered=group?people.filter(p=>(p.group||'Unknown')===group):people;
   const groups=[...new Set(choices.flatMap(p=>countryPeople(p).map(person=>person.group||'Unknown')))].sort((a,b)=>choices.reduce((n,p)=>n+countryPeople(p).filter(person=>(person.group||'Unknown')===b).length-countryPeople(p).filter(person=>(person.group||'Unknown')===a).length,0)||a.localeCompare(b));
   function choose(p:keyof typeof positions,g:string|null){const active=document.activeElement;if(active instanceof HTMLButtonElement&&!active.closest('.insight-voter-list'))opener.current=active;setPosition(p);setGroup(g);setShowPeople(true);requestAnimationFrame(()=>{heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'start'});});}
-  const label=interfaceTerm('vote',language),fallback=selectLanguageText(vote.titles,language,label.text,label.language),title=selectLanguageText(vote.subjects,language,fallback.text,fallback.language);
+  const titles={...vote.titles,...Object.fromEntries(Object.entries(vote.subjects).filter(([,text])=>text.trim()))};
+  const label=interfaceTerm('vote',language),title=selectLanguageText(titles,language,label.text,label.language);
   return <section className="insight-vote-detail" lang="en">
     <h3 lang={title.language}>{title.text}</h3>
     <p className="insight-record-meta"><span lang={voteScope(vote.scope,language).language}>{voteScope(vote.scope,language).text}</span><span lang={language}>{humanDate(vote.date,language)}</span><span>{vote.outcome.toLowerCase()}</span></p>
