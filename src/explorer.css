@@ -294,3 +294,4 @@
 .explorer-suggestion-card h3{margin:0;overflow-wrap:anywhere}
 .explorer-suggestion-card p{font-size:.9rem;line-height:1.5}
 .explorer-suggestion-card>div{min-width:0}
+.explorer-suggestion-card .explorer-saved-actions{display:flex;flex-wrap:wrap;gap:.5rem}

@@ -57,7 +57,7 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
       const nextState={...state,coverages};
       if(JSON.stringify(nextState)!==JSON.stringify(state)){state=nextState;publish();}
     },
-    observeMembership(snapshot){events=snapshot.events.filter(e=>!e.lists||e.lists.some(list=>snapshot.lists[list].status!=='unavailable'));state={...state};notify();},
+    observeMembership(snapshot){events=snapshot.events.filter(e=>(e.lists||Object.keys(snapshot.lists)).some(list=>snapshot.lists[list].status!=='unavailable'));state={...state};notify();},
     suggestions(){
       if(!directory)return [];
       return directory.members.flatMap(member=>{
