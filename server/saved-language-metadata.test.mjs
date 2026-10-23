@@ -34,7 +34,7 @@ test('saved responses pair chosen titles with exact dictionary keys without chan
     });
     const sourceCount=store.db.prepare('SELECT count(*) n FROM sources').get().n;
     store.db.exec('PRAGMA query_only=ON');
-    const results=['en','hu','fr'].map(language=>savedStates(store,savedQuery(new URLSearchParams({questions:ids.join(','),members:'257043',lang:language}))));
+    const results=['en','hu','fr'].map(language=>savedStates(store,savedQuery(new URLSearchParams({questions:ids.join(','),lang:language}))));
     for(const [locale,result] of results.entries()) {
       const language=['en','hu','fr'][locale];
       for(const [index,item] of result.questions.entries()) {
@@ -42,19 +42,13 @@ test('saved responses pair chosen titles with exact dictionary keys without chan
         assert.deepEqual([item.title,item.titleLanguage],expected);
         assert.equal(item.id,ids[index]);
         assert.deepEqual([item.latest[0].title,item.latest[0].titleLanguage],expected);
-        const memberEntry=result.members[0].answers.find(a=>a.id===item.latest[0].id);
-        assert.deepEqual([memberEntry.title,memberEntry.titleLanguage],cases[index].expected[language]||[ids[index]+'-ASW',null]);
-        assert.equal(memberEntry.relatedQuestionId,item.id);
         assert.equal(item.revision,results[0].questions[index].revision,'changing display language is not new activity');
       }
-      assert.equal(result.members[0].name,'A proper name');
-      assert.equal(result.members[0].titleLanguage,undefined,'proper names are not assigned a guessed title language');
-      assert.equal(result.members[0].revision,results[0].members[0].revision);
-      assert.deepEqual(result.members[0].activityIds,results[0].members[0].activityIds);
+
     }
     assert.equal(store.db.prepare('SELECT count(*) n FROM sources').get().n,sourceCount);
-    let raw=JSON.stringify({version:1,items:[{kind:'question',id:ids[0],title:'Legacy unknown',baseline:{revision:results[0].questions[0].revision,answerIds:[]}}]});
-    const disk={getItem:()=>raw,setItem(_key,value){raw=value;}};
+    const data=new Map();let raw=JSON.stringify({version:1,items:[{kind:'question',id:ids[0],title:'Legacy unknown',baseline:{revision:results[0].questions[0].revision,answerIds:[]}}]});
+    data.set('ep.bookmarks.v1',raw);const disk={getItem:key=>data.get(key)||null,setItem(key,value){data.set(key,value);}};
     const browser=createSavedStore(disk);browser.observe(results[1]);
     const loaded=createSavedStore(disk).snapshot().items[0];
     assert.equal(loaded.titleLanguage,'hu');assert.equal(loaded.unreadAnswers[0].titleLanguage,'hu');

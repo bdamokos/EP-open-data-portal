@@ -4,8 +4,8 @@ import {createSavedStore,readSaved,savedLinks} from './bookmarks.mjs';
 
 const question={kind:'question',id:'E-10-2026-003031',title:'Legacy title',baseline:{revision:'old',answerIds:[]}};
 function storage(items=[]) {
-  let raw=JSON.stringify({version:1,items}),writes=0;
-  return {getItem:()=>raw,setItem(_key,value){raw=value;writes++;},raw:()=>raw,writes:()=>writes};
+  const data=new Map([['ep.bookmarks.v1',JSON.stringify({version:1,items})]]);let writes=0;
+  return {getItem:key=>data.get(key)||null,setItem(key,value){data.set(key,value);writes++;},raw:()=>data.get('ep.following.v2')||data.get('ep.bookmarks.v1'),writes:()=>writes};
 }
 
 test('legacy and explicit unknown languages survive cleaning without inferring from title text or writing storage',()=>{
@@ -37,28 +37,16 @@ test('question title and language follow the same selected observation and persi
   }
   store.observe({members:[],questions:[{id:question.id,status:'available',title:'Old server title',revision:'new',answers:[]}]});
   assert.equal(store.snapshot().items[0].titleLanguage,null,'new text without metadata cannot inherit an older title language');
-  assert.equal(JSON.parse(disk.raw()).version,1);
+  assert.equal(JSON.parse(disk.raw()).version,2);
 });
 
-test('answer titles carry their own metadata through preview fallbacks, older responses and individual acknowledgement',()=>{
-  const disk=storage([{kind:'mep',id:'257043',title:'A name',titleLanguage:null,baseline:{activityVersion:3,revision:'old',total:1,latestIds:['speech'],answerIds:[]}}]);
-  let store=createSavedStore(disk);
-  const state={id:'257043',status:'available',name:'A name',revision:'new',total:2,activityIds:['speech','new-speech'],
-    latest:[{id:'answer-fr',date:'2026-10-15',title:'Preview français',titleLanguage:'fr',recordKind:'answer'}],
-    answers:[{id:'answer-hu',title:'Válasz',titleLanguage:'hu',relatedQuestionId:question.id},{id:'answer-fr'},{id:'answer-unknown',title:'Unknown answer'},{id:'answer-fixed',relatedQuestionId:question.id}]};
-  store.observe({questions:[],members:[state]});store=createSavedStore(disk);
-  let item=store.snapshot().items[0];
-  assert.equal(item.titleLanguage,null);assert(item.newAnswer&&item.newActivity);
-  assert.deepEqual(savedLinks(item).slice(0,4).map(a=>[a.id,a.title,a.titleLanguage]),[
-    ['answer-fixed','Question '+question.id,'en'],['answer-fr','Preview français','fr'],['answer-hu','Válasz','hu'],['answer-unknown','Unknown answer',null],
-  ]);
-  store.markActivityRead('mep:257043');store.markAnswerRead('mep:257043','answer-hu');
-  store.observe({questions:[],members:[{...state,latest:[],answers:state.answers.map(({title,titleLanguage,...a})=>a)}]});
-  store=createSavedStore(disk);item=store.snapshot().items[0];
-  assert.deepEqual(item.unreadAnswers.map(a=>a.id),['answer-fixed','answer-fr','answer-unknown']);
-  assert.equal(item.unreadAnswers[1].title,'Preview français');assert.equal(item.unreadAnswers[1].titleLanguage,'fr');
-  assert.equal(item.newActivity,false);assert(item.newAnswer&&item.updated);
-  assert(item.baseline.answerIds.includes('answer-hu'));
+test('migrated answer titles preserve language metadata through materialization and acknowledgement',()=>{
+ const disk=storage([{kind:'mep',id:'42',title:'A name',baseline:{activityVersion:3,activityIdsComplete:true,latestIds:[],answerIds:[]}}]);
+ const store=createSavedStore(disk);store.applyManifest({epoch:'one',generation:2,indexComplete:true,rosterBasis:'publication',members:{42:[null,2,0,2]}});
+ const data={epoch:'one',generation:2,member:'42',status:'available',ids:[['fr-answer',1,2],['unknown',1,2]],entries:[{id:'fr-answer',title:'Réponse',titleLanguage:'fr',kind:'answer',mark:2},{id:'unknown',title:'Unknown',kind:'answer',mark:2}]};
+ store.materialize(data);let item=createSavedStore(disk).snapshot().items[0];
+ assert.deepEqual(savedLinks(item).map(x=>[x.title,x.titleLanguage]),[['Réponse','fr'],['Unknown',null]]);
+ store.markAnswerRead('mep:42','unknown');item=createSavedStore(disk).snapshot().items[0];assert.equal(savedLinks(item)[0].titleLanguage,'fr');
 });
 
 test('absent titles never lend their language to identifier fallbacks or another title source',()=>{
