@@ -38,7 +38,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const request of pending)if(!request.finished)request.resolve(Response.json({}));
-    await Promise.resolve();if(loadModule)await loadModule.close();await window.happyDOM.close();
+    await Promise.resolve();t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(unexpected,[],'all app requests use isolated public-source fixtures');
   });
@@ -60,12 +60,15 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {default:App}=await loadModule('/src/App.tsx'),{expireActivityReads}=await loadModule('/src/data.ts');
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  // Module loading uses real timers; only mounted application deadlines are advanced.
+  t.mock.timers.enable({apis:['setTimeout']});
+  const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
   await act(async()=>root.render(createElement(App)));
   const click=node=>{assert(node,'Missing control');return act(async()=>node.click());};
   const finish=(route,data,status=200)=>act(async()=>{
     const request=pending.find(request=>request.route===route&&!request.finished);assert(request,'Missing request: '+route);request.finished=true;request.resolve(Response.json(data,{status}));
   });
-  return {window,container,pending,click,finish,expireActivityReads,wait:()=>act(async()=>new Promise(resolve=>setTimeout(resolve,400)))};
+  return {window,container,pending,click,finish,expireActivityReads,tick,wait:()=>tick(350)};
 }
 const status=reader=>reader.querySelector('[role="status"][aria-live="polite"]');
 test('a statistics restart clamps a filtered page when fewer matching records remain',async t=>{
