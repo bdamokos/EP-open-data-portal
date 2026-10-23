@@ -17,7 +17,7 @@ function fixture(t) {
   assert(store.acquire());
   const put=(generation,id,{date='2026-10-20',members=['42'],categories=['written-questions'],kind='document'}={})=>store.putSource(generation,id,'document',{},new Date(now).toISOString(),members.flatMap(mepId=>categories.map(category=>({sourceId:id,mepId,category,date,recordKind:kind,titles:{en:id,fr:'Titre '+id}}))));
   const read=(view,generation=store.get('active'),member='42',extra={})=>followingResponse(store,view,new URLSearchParams({epoch:store.get('marksEpoch'),generation,...(view==='following-member'?{member}:{}),...extra}));
-  return {store,directory,put,read,tick:()=>{now+=1000;}};
+  return {store,directory,put,read,clock:()=>now,tick:()=>{now+=1000;}};
 }
 
 test('only published identities get durable marks; backdates, categories, kinds and reappearance retain exact semantics',t=>{
@@ -101,7 +101,7 @@ test('readiness distinguishes no publication, unknown roster and missing prepara
 });
 
 test('offline preparation backfills previous before active, excludes work, fences leases, and runs once',t=>{
-  const {store,directory,put,read}=fixture(t),g1=store.beginCycle().generation;
+  const {store,directory,put,read,clock}=fixture(t),g1=store.beginCycle().generation;
   store.setMembers([{id:'42'},{id:'43'}]);put(g1,'old');store.publish(g1);
   const g2=store.beginCycle().generation;put(g2,'new');store.publish(g2);
   // Simulate a retained previous generation alongside unfinished work without beginCycle pruning it.
@@ -110,9 +110,9 @@ test('offline preparation backfills previous before active, excludes work, fence
   store.db.exec('DROP TABLE item_marks; DROP TABLE follow_summary; DROP TABLE follow_generations;');
   store.set('followMarksVersion',null);store.set('marksEpoch',null);
   assert.throws(()=>new ActivityStore(directory),/need preparation/);
-  assert.throws(()=>prepareIndexes({activityDirectory:directory,log:()=>{}}),/lease is active/);
+  assert.throws(()=>prepareIndexes({activityDirectory:directory,clock,log:()=>{}}),/lease is active/);
   store.release();
-  const prepared=prepareIndexes({activityDirectory:directory,log:()=>{}});assert.equal(prepared[0].noop,false);
+  const prepared=prepareIndexes({activityDirectory:directory,clock,log:()=>{}});assert.equal(prepared[0].noop,false);
   assert.equal(store.get('activityReadVersion'),readVersion);assert.equal(store.get('markBaseline'),g2);
   assert.equal(read('following-member',g1).body.ids[0][2],g1);
   for(const snapshot of [g1,g2]) {
@@ -124,7 +124,7 @@ test('offline preparation backfills previous before active, excludes work, fence
   assert.equal(store.db.prepare("SELECT 1 FROM item_marks WHERE source_id='never-published'").get(),undefined);
   assert.equal(followingStatus(store).marksReady,true);
   assert.equal(store.db.prepare('SELECT published_at FROM follow_generations WHERE generation=?').get(g1).published_at,null);
-  const epoch=store.get('marksEpoch');assert.equal(prepareIndexes({activityDirectory:directory,log:()=>{}})[0].noop,true);assert.equal(store.get('marksEpoch'),epoch);
+  const epoch=store.get('marksEpoch');assert.equal(prepareIndexes({activityDirectory:directory,clock,log:()=>{}})[0].noop,true);assert.equal(store.get('marksEpoch'),epoch);
   store.set('active',g1);store.set('previous',g2);store.set('refreshPolicyGeneration',g1);
   assert.equal(followingStatus(store).generation,g1);assert.equal(read('following-manifest',g2).status,200,'retained recovery snapshots remain readable');
 });
@@ -196,7 +196,7 @@ test('incremental publication handles deletions, shared identities, kind changes
 });
 
 test('preparation upgrades integer marks without losing first appearance and captures pre-existing working deletions',t=>{
-  const {store,directory,put,read}=fixture(t),g1=store.beginCycle().generation;
+  const {store,directory,put,read,clock}=fixture(t),g1=store.beginCycle().generation;
   store.setMembers([{id:'42'}]);put(g1,'old');store.publish(g1);
   const g2=store.beginCycle().generation;put(g2,'later');store.publish(g2);
   const g3=store.beginCycle().generation;store.transaction(()=>store.replaceRows(g3,'later',[]));
@@ -206,7 +206,7 @@ test('preparation upgrades integer marks without losing first appearance and cap
     INSERT INTO item_marks SELECT mep,CASE kind WHEN 0 THEN 'activity' ELSE 'answer' END,source_id,mark FROM integer_marks;
     DROP TABLE integer_marks; DROP TABLE follow_touched; ALTER TABLE follow_generations DROP COLUMN roster_basis;`);
   store.set('followMarksVersion',1);store.release();
-  prepareIndexes({activityDirectory:directory,log:()=>{}});
+  prepareIndexes({activityDirectory:directory,clock,log:()=>{}});
   assert.equal(store.get('marksEpoch'),epoch);
   assert.match(store.db.prepare("SELECT sql FROM sqlite_master WHERE name='item_marks'").get().sql,/WITHOUT ROWID/);
   assert.equal(store.db.prepare("SELECT mark,typeof(kind) AS type FROM item_marks WHERE source_id='old'").get().mark,g1);
