@@ -8,7 +8,7 @@ export function publicationBody(paragraphs, documentId, language) {
     // Removing tags shifts character positions, so footnote markers are not placed in this text.
     return body>0?{paragraphs:cleaned.slice(body),header:paragraphs.slice(0,body),start:body,exact:false}:{paragraphs:cleaned,header:[],start:0,exact:false};
   }
-  const match=String(documentId).match(/^([EPH])-10-(\d{4})-(\d+)(-ASW)?$/);
+  const match=String(documentId).match(/^([EPHO])-10-(\d{4})-(\d+)(-ASW)?$/);
   if(language!=='en'||!match||!Array.isArray(paragraphs)||paragraphs.length<2)return original;
   const reference=`${match[1]}-${match[3]}/${match[2]}`;
   if(match[4]) {

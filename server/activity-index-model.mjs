@@ -1,3 +1,4 @@
+import {sourceTitle} from './source-titles.mjs';
 import { languageCode, speechWebsite } from './ep-links.mjs';
 
 export const AMENDMENT_LINKS_VERSION = 3;
@@ -131,6 +132,6 @@ export function speechRows(activity, fetchedAt) {
 }
 export function localize(row, language) {
   const titleLanguage = row.titles[language] ? language : row.titles.en ? 'en' : Object.keys(row.titles)[0] || null;
-  return { ...row, id: `${row.category}:${row.sourceId}`, title: titleLanguage ? row.titles[titleLanguage] : row.reference, titleLanguage, requestedLanguage: language, availableFileLanguages: [...new Set(row.files.map(f => f.language).filter(Boolean))],
+  return { ...row, id: `${row.category}:${row.sourceId}`, title: titleLanguage ? sourceTitle(row.titles[titleLanguage]) : row.reference, titleLanguage, requestedLanguage: language, availableFileLanguages: [...new Set(row.files.map(f => f.language).filter(Boolean))],
     transcriptPath: row.recordKind === 'speech' ? `../speech/${row.sourceId}?lang=${language}` : null };
 }

@@ -25,6 +25,16 @@ const styles=`<w:styles xmlns:w="urn:word">
   <w:style w:type="table" w:styleId="Grid"><w:tblPr><w:tblBorders><w:top w:val="single"/></w:tblBorders></w:tblPr></w:style>
 </w:styles>`;
 
+test('only question headers and explicit motion Depute blocks supply author ordering text',()=>{
+  const p=(text,style)=>`<w:p>${style?`<w:pPr><w:pStyle w:val="${style}"/></w:pPr>`:''}${run(text)}</w:p>`;
+  const question=docxContent(zip(doc(p('Question for oral answer O-000042/2026')+p('Zoë Member (Renew), Alex Common (S&amp;D)')+p('Objet : Titre','QuestionSubject')+p('Third Author')+p('Alex Common, Zoë Member'))));
+  assert.deepEqual(question.authorBylineParagraphs,['Question for oral answer O-000042/2026','Zoë Member (Renew), Alex Common (S&D)']);
+  const marker=run('&lt;Depute&gt;','<w:vanish/>')+run('Zoë Member, Alex Common')+run('&lt;/Depute&gt;','<w:vanish/>');
+  const motion=docxContent(zip(doc(p('MOTION FOR A RESOLUTION')+`<w:p>${marker}</w:p>`+p('on behalf of the Group')+p('Alex Common, Zoë Member'))));
+  assert.deepEqual(motion.authorBylineParagraphs,['Zoë Member, Alex Common']);
+  assert.deepEqual(docxContent(zip(doc(p('Alex Common, Zoë Member')))).authorBylineParagraphs,[]);
+});
+
 test('paragraph styles, character toggles and direct emphasis are recorded beside unchanged text',()=>{
   const xml=doc(`<w:p><w:pPr><w:pStyle w:val="DocType"/></w:pPr>${run('MOTION')}</w:p>`
     +`<w:p><w:pPr><w:pStyle w:val="Hanging"/></w:pPr>${run('A.')}<w:r><w:tab/></w:r>${run('plain ')}${run('italic','<w:i/>')}${run(' strong','<w:rStyle w:val="Strong"/>')}${run('2','<w:vertAlign w:val="superscript"/>')}</w:p>`

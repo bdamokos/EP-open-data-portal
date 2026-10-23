@@ -10,9 +10,13 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   const originalFetch = globalThis.fetch;
   const previousDirectory = process.env.ODP_CACHE_DIR;
   process.env.ODP_CACHE_DIR = directory;
-  let profileLoads = 0, imageLoads = 0;
+  let profileLoads = 0, rosterLoads = 0, imageLoads = 0;
   globalThis.fetch = async value => {
     const url = new URL(value);
+    if (url.origin === 'https://data.europarl.europa.eu' && url.pathname === '/api/v2/meps/show-current') {
+      rosterLoads++;
+      return Response.json({data:[{identifier:'43','api:country-of-representation':'FI','api:political-group':'PPE'}]});
+    }
     if (url.origin === 'https://data.europarl.europa.eu' && url.pathname === '/api/v2/meps/43') {
       profileLoads++;
       return new Response(JSON.stringify({data: [{identifier: '43', givenName: 'Public', familyName: 'Member',hasMembership:[{id:'membership/43-m-10',organization:'org/ep-10',role:'def/ep-roles/MEMBER_PARLIAMENT',memberDuring:{startDate:'2024-07-16'}}]}]}), {headers: {'content-type': 'application/ld+json'}});
@@ -47,6 +51,8 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   assert.equal(first.headers.get('vary'), 'Origin');
   const body = await first.json();
   assert.equal(body.id, 43);
+  assert.equal(body.countryCode,'FI');
+  assert.equal(body.groupCode,'PPE');
   assert(body.fetchedAt);
   assert.equal(body.parliamentaryService.currentSince,'2024-07-16');
   const unchanged = await get('/api/profile/43?lang=en', {headers: {'If-None-Match': first.headers.get('etag')}});
@@ -58,6 +64,7 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   assert.equal(head.headers.get('cdn-cache-control'), first.headers.get('cdn-cache-control'));
   assert.equal(await head.text(), '');
   assert.equal(profileLoads, 1);
+  assert.equal(rosterLoads, 1);
 
   for (const resource of ['/api/profile/43?lang=en', '/api/portrait/43']) {
     const current = await get(resource);
