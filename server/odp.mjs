@@ -340,9 +340,9 @@ const tail = (value) =>
     .split("/")
     .at(-1);
 export function memberships(person, day) {
-  return (person.hasMembership || [])
+  return (Array.isArray(person.hasMembership)?person.hasMembership:[])
     .filter((m) =>
-      String(m.membershipClassification || "").includes(
+      String(m?.membershipClassification || "").includes(
         "/COMMITTEE_PARLIAMENTARY_",
       ),
     )
@@ -580,7 +580,7 @@ async function loadProfile(id, force = false, {priority='interactive'}={}) {
     },
     birthDate: person.bday,
     birthPlace: person.placeOfBirth,
-    parliamentaryService: parliamentaryService(person,today()),
+    parliamentaryService: parliamentaryService(person,day,affiliationError?'unavailable':current?'matched':'not-current'),
     email: firstString(person.hasEmail).replace(/^mailto:/, ""),
     memberships: memberships(person),
     accounts: (person.account || []).map((a) => a.id),
@@ -604,7 +604,7 @@ export async function odpProfileWithMemberships(id) {
   const committeeMemberships=await readCommitteeMemberships(profile,today(),{signal:parentSignal,optionalSignal:signal});
   if(!membershipHistory.observationComplete) {
     committeeMemberships.complete=false;
-    committeeMemberships.error='Committee membership observations are unavailable.';
+    committeeMemberships.error=membershipHistory.observationAvailable?'Some membership observations are incomplete or malformed. Showing available committee history.':'Committee membership observations are unavailable.';
   }
   return {...profile,membershipHistory,committeeMemberships};
 }

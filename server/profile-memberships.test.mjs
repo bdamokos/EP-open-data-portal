@@ -91,3 +91,26 @@ test('Parliament offices retain exact term bodies without repeating ordinary man
   const reader=createProfileMembershipReader({request:async endpoint=>{calls++;assert.equal(endpoint,'/corporate-bodies/ep-9');return {url:'https://data.europarl.europa.eu/api/v2/corporate-bodies/ep-9',fetchedAt:0,payload:{data:[{id:'org/ep-9',identifier:'ep-9',classification:'def/ep-entities/EU_INSTITUTION',prefLabel:{en:'European Parliament'}}]}};}});
   const result=await reader(history);assert.equal(calls,1);assert.equal(result.complete,true);
 });
+
+
+test('lookup priority includes recent open offices before older bounded bodies while display keeps uncertain periods last',async()=>{
+  const old=Array.from({length:20},(_,i)=>row(String(i+1),'2010-01-01','2014-01-01',{membershipClassification:'def/ep-entities/WORKING_GROUP'}));
+  const offices=['6630','6634','ep-10','6631'].map(id=>row(id,'2024-07-16',null,{membershipClassification:id==='ep-10'?'def/ep-entities/EU_INSTITUTION':'def/ep-entities/GOVERNING_BODY',role:'def/ep-roles/PRESIDENT'}));
+  const input=history([...old,...offices,row('5177')]);const seen=[];
+  await read(async endpoint=>{seen.push(endpoint.split('/').at(-1));throw Error('Unavailable');})(input);
+  assert.deepEqual(seen.slice(0,5),['5177','6630','6634','ep-10','6631']);assert.equal(seen.length,16);
+  assert.deepEqual(input.items.slice(-4).map(item=>item.bodyId),offices.map(row=>row.organization));
+});
+
+test('malformed observations retain raw entries and supported rows, while ordinary mandates need no classification',async()=>{
+  const mandate={id:'membership/mandate',organization:'org/ep-9',role:'def/ep-roles/MEMBER_PARLIAMENT',memberDuring:{startDate:'2019-07-02'}};
+  assert.equal(history([mandate]).observationComplete,true);
+  for(const entries of [[{}],['bad'],[null]]) {
+    const value=history(entries);assert.equal(value.observationAvailable,true);assert.equal(value.observationComplete,false);assert.equal(value.complete,false);assert.deepEqual(value.observations,entries);assert.equal(value.observationIssues.length,1);
+  }
+  const entries=[{},'bad',row('5177'),row('5154',null,null,{role:null,organization:null}),mandate];
+  const value=await read(async()=>response(body('5177')))(history(entries));
+  assert.deepEqual(value.observations,entries);assert.equal(value.items.length,2);assert.equal(value.items[0].body.prefLabel.fr,'Parti Socialiste');
+  assert.equal(value.items[1].bodyId,null);assert.equal(value.items[1].role,null);
+  assert.equal(value.observationIssues.length,3);assert.equal(value.observationComplete,false);assert.equal(value.complete,false);assert.equal(policy(value),'no-store');
+});

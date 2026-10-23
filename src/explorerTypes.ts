@@ -51,7 +51,7 @@ export interface Directory {
   };
 }
 export interface ProfileMembershipHistory {
-  version:number;observationComplete:boolean;observations:unknown[]|null;labelsComplete:boolean;dateIssues:boolean;complete:boolean;error:string|null;
+  version:number;observationAvailable:boolean;observationComplete:boolean;observationIssues:{index:number;issues:string[]}[];observations:unknown[]|null;labelsComplete:boolean;dateIssues:boolean;complete:boolean;error:string|null;
   sources:{url:string;fetchedAt:string;stale:boolean}[];
   items:{index:number;section:'national-parties'|'political-groups'|'delegations'|'other-roles';membershipId:string|null;bodyId:string|null;
     role:string|null;classification:string|null;start:unknown;end:unknown;dateIssues:string[];observation:unknown;

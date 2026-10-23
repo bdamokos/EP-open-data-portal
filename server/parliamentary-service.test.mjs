@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parliamentaryService} from './parliamentary-service.mjs';
 const membership=(term,start,end=null,id='m-'+term)=>({id,organization:'org/ep-'+term,role:'def/ep-roles/MEMBER_PARLIAMENT',memberDuring:{startDate:start,...(end?{endDate:end}:{})}});
-const service=hasMembership=>parliamentaryService({hasMembership},'2026-10-19');
+const service=hasMembership=>parliamentaryService({hasMembership},'2026-10-19','matched');
 test('Omarjee’s consecutive published mandates yield 4 January 2012, preserving all exact source periods',()=>{
   // https://data.europarl.europa.eu/api/v2/meps/30482, retrieved 2026-10-19.
   const rows=[membership(7,'2012-01-04','2014-06-30','membership/30482-m-14855'),membership(10,'2024-07-16',null,'membership/30482-m-16991'),membership(9,'2019-07-02','2024-07-15','membership/30482-m-16246'),membership(8,'2014-07-01','2019-07-01','membership/30482-m-15161')];
@@ -32,7 +32,7 @@ test('unknown potentially active mandates and historical overlaps withhold a def
 });
 test('future mandates cannot establish a current since date and an ended mandate includes its last day',()=>{
   assert.equal(service([membership(11,'2030-01-01')]).currentSince,null);
-  const value=parliamentaryService({hasMembership:[membership(9,'2019-07-02','2024-07-15')]},'2024-07-15');assert.equal(value.currentSince,'2019-07-02');
+  const value=parliamentaryService({hasMembership:[membership(9,'2019-07-02','2024-07-15')]},'2024-07-15','matched');assert.equal(value.currentSince,'2019-07-02');
   assert.equal(service([]).currentSince,null);
 });
 
@@ -42,4 +42,14 @@ test('well-formed ended mandates are complete and former service gaps stay separ
   assert.equal(value.currentSince,null);assert.equal(value.complete,true);assert.equal(value.error,null);
   assert.equal(value.periods.length,2);assert.equal(value.periods[0].end,'2014-06-30');assert.equal(value.periods[1].start,'2019-07-02');
   for(const person of [{},{hasMembership:null}])assert.equal(parliamentaryService(person,'2026-10-23').complete,false);
+});
+
+test('open mandates never establish current service without an exact current roster match',()=>{
+  const person={hasMembership:[membership(9,'2019-07-02')]};
+  for(const status of ['not-current','unavailable',undefined]) {
+    const value=parliamentaryService(person,'2026-10-23',status);
+    assert.equal(value.currentSince,null);assert.equal(value.complete,true);
+    assert.deepEqual(value.periods[0].observations[0],{membershipId:'m-9',parliamentId:'org/ep-9',start:'2019-07-02',end:null});
+  }
+  assert.equal(parliamentaryService(person,'2026-10-23','matched').currentSince,'2019-07-02');
 });
