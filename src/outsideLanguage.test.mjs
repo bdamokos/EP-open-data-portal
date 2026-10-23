@@ -88,7 +88,7 @@ const effective=node=>{assert(node,'Missing language boundary');return node.clos
 const expectLanguage=(node,language)=>assert.equal(effective(node),language,node?.textContent);
 const selectedTitles=language=>[
   [language==='hu'?'Magyar cím':'English title',language==='hu'?'hu':'en'],['Deutscher Titel','de'],
-  ['Contribution','en'],['Source without a language',''],['Multilingual source','mul'],
+  ['This later entry must stay unused','de'],['Source without a language',''],['Multilingual source','mul'],
   ['Undetermined source','und'],['Intitulé français','fr'],
 ];
 const assertTitles=(host,language)=>{

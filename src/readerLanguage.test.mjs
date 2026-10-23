@@ -139,7 +139,7 @@ test('reader fallbacks separate localized display names from English copy and pr
     for(const kind of ['question','speech']) {
       await h.render(el(kind==='question'?h.InsightQuestionReader:h.InsightSpeechReader,{key:kind,id:kind==='question'?questionId:speechId,language:'hu'}));
       assert.equal(effectiveLanguage(h.container.querySelector('.insight-reader-text')),actual??'');
-      const fallback=h.container.querySelector('.insight-language-fallback');
+      const fallback=h.container.querySelector('.text-language-note');
       if(actual) {
         assert.equal(effectiveLanguage(fallback),'en');
         assert.deepEqual([...fallback.querySelectorAll('span')].map(effectiveLanguage),['hu','hu']);
@@ -283,13 +283,13 @@ test('OPEN cloud flat names keep the original aria-label mechanism with exact Fr
   t.diagnostic(JSON.stringify({assessment:'OPEN',accessibleName:region.getAttribute('aria-label'),mechanism:'aria-label',constituents:[{text:'Speech by ',language:'en'},{text:'Titre français',language:'fr'}],effectiveLang:effectiveLanguage(region)}));
 });
 
-test('OPEN compound reader headings keep exact date-bearing labels, status and local-find names',async t=>{
+test('compound reader headings retain date-bearing status and find names with the shared Text language selector',async t=>{
   const h=await harness(t,route=>route.startsWith('document/')?question('fr'):undefined);
   const heading='Answer 2 · 2026. márc. 25.';
   await h.render(el(h.InsightQuestionReader,{id:questionId,language:'hu',heading}));await h.settle(375);
   const select=h.container.querySelector('.insight-reader-heading select'),find=h.container.querySelector('button[aria-label^="Find in"]'),status=h.container.querySelector('[aria-live]');
   assert.equal(h.container.querySelector('h3').textContent,heading);assert.equal(effectiveLanguage(h.container.querySelector('h3')),'en');
-  assert.equal(select.getAttribute('aria-label'),heading+' language');assert.equal(select.hasAttribute('aria-labelledby'),false);assert.equal(effectiveLanguage(select),'en');
+  assert.equal(select.getAttribute('aria-label'),'Text language');assert.equal(select.hasAttribute('aria-labelledby'),false);assert.equal(effectiveLanguage(select),'en');
   assert.equal(find.getAttribute('aria-label'),'Find in '+heading.toLowerCase());assert.equal(find.hasAttribute('aria-labelledby'),false);assert.equal(effectiveLanguage(find),'en');
   assert.equal(status.textContent,heading+': Text loaded.');assert.equal(effectiveLanguage(status),'en');
   t.diagnostic(JSON.stringify({assessment:'OPEN',heading,constituents:[{text:'Answer 2',language:'en'},{text:'2026. márc. 25.',language:'hu'}],effectiveLang:'en',selectorName:select.getAttribute('aria-label'),findName:find.getAttribute('aria-label'),status:status.textContent,mechanism:'existing text and aria-label strings'}));

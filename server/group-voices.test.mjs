@@ -146,3 +146,16 @@ test('cross-group subject counts use the same most-recent row cap as people and 
  assert.equal(groupVoicesPage(store,query('group=PPE&subject=climate&part=contributions')).total,0,'The capped page and the comparison agree.');
  assert.deepEqual(ecr,{id:'ECR',total:1,subjects:{climate:1},truncated:false});
 });
+
+test('group contribution display titles use preference order and retain unknown language text',t=>{
+  const store=setup(t),gen=store.beginCycle().generation,worker={store,clock:now};initializeGroupVoices(worker,gen,[]);const p=groupVoiceProjection(speech(),{fetchedAt:stamp});
+  for(const [titles,title,titleLanguage] of [
+    [{bg:'Bulgarian title',fr:'Titre français'},'Titre français','fr'],
+    [{bg:'Bulgarian title',fr:'   '},'Bulgarian title','bg'],
+    [{'':'Unknown-language title'},'Unknown-language title',null],
+  ]) {
+    store.putSource(gen,'/speeches/'+p.id,'speech',{id:p.id,groupVoices:p,outside:{titles}},stamp);
+    const row=groupVoicesPage(store,query('lang=ga&part=contributions')).contributions[0];
+    assert.equal(row.title,title);assert.equal(row.titleLanguage,titleLanguage);
+  }
+});

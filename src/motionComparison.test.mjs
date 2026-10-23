@@ -121,12 +121,12 @@ test('clean readers preserve each exact document order and all wording/notes reg
 test('a common-language fallback does not claim both source documents lack the requested language',async t=>{
   const h=await readerHarness(t),result=fullComparison();
   // A common-language catalog cannot establish which of the two documents lacks English.
-  result.textLanguage='fr';result.availableLanguages=['fr'];result.documents=result.documents.map(doc=>({...doc,language:'fr'}));
+  result.textLanguage='fr';result.availableLanguages=['fr','de'];result.documents=result.documents.map(doc=>({...doc,language:'fr'}));
   await h.respond(result);
-  assert.equal(h.container.querySelector('.explorer-diff-notice').textContent,'English is unavailable in one or both texts. Showing French.');
+  assert.equal(h.container.querySelector('.text-language-note').textContent,'English unavailable in one or both texts · showing French');
   await h.click('Full text');assert.equal(h.container.querySelector('.explorer-diff-reader').lang,'fr');
   const language=h.container.querySelectorAll('.explorer-diff-controls select')[1];await h.change('.explorer-diff-controls label:nth-child(2) select','fr');
   assert.equal(h.container.querySelector('.explorer-diff-reader'),null);assert.equal(document.activeElement,language);
   await h.respond({...result,requestedLanguage:'fr'});
-  assert.equal(h.container.querySelector('.explorer-diff-notice'),null);assert.equal(h.container.querySelectorAll('.explorer-diff-controls select')[1],language);assert.equal(document.activeElement,language);
+  assert.equal(h.container.querySelector('.text-language-note'),null);assert.equal(h.container.querySelectorAll('.explorer-diff-controls select')[1],language);assert.equal(document.activeElement,language);
 });

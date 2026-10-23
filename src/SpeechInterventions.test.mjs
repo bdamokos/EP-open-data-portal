@@ -29,13 +29,14 @@ test('procedural notes explain later contributions without speech controls, whil
   t.mock.method(globalThis,'fetch',async url=>{
     calls.push(String(url));assert(String(url).includes('speech-context/'),'procedural notes must not fetch individual speech pages');
     const records=String(url).includes(first.id)?[first,...notes,last]:String(url).includes(last.id)?[first,last,...notes]:[first,unmatchedRow,unconfirmed];
-    return Response.json({speechId:first.id,unavailable:false,debates:[{id:fixture.parent.activity_id,titles:{en:'Debate'},records,exchanges:[],coverage:{complete:true,available:4,expected:4,missingIds:[]}}]});
+    return Response.json({speechId:first.id,unavailable:false,debates:[{id:fixture.parent.activity_id,titles:{bg:'Bulgarian debate',fr:'Débat français'},records,exchanges:[],coverage:{complete:true,available:4,expected:4,missingIds:[]}}]});
   });
   vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {SpeechContextPanel}=await vite.ssrLoadModule('/src/SpeechInterventions.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{key:first.id,id:first.id,language:'en'})));
   await act(async()=>container.querySelector('button').click());
+  const caption=window.document.querySelector('.intervention-debate > .intervention-caption');assert.equal(caption.textContent,'Débat français');assert.equal(caption.lang,'fr');
   const entries=[...container.querySelectorAll('.intervention-sequence>li')];
   assert.equal(entries.length,4);assert.match(entries[1].textContent,/The sitting was briefly suspended/);
   assert.match(entries[2].textContent,/ESTEBAN GONZÁLEZ PONSVice-President · Chairing the sitting/);

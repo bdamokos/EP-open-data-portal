@@ -120,8 +120,8 @@ for(const language of ['en','hu','fr']) {
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-profile h1')),'');
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-back')),language);
     assert.equal(effectiveLanguage(exactText(h.container,'h2',c.speeches)),language);
-    const expected=[language==='hu'?'Magyar cím':language==='fr'?'Titre français':'English title','English fallback','Erster Titel','Plenary contribution','Plenary contribution','Language unknown title'];
-    const expectedLanguages=[language,'en','de','en','en',''];
+    const expected=[language==='hu'?'Magyar cím':language==='fr'?'Titre français':'English title','English fallback','Erster Titel','Do not scan to this title','Plenary contribution','Language unknown title'];
+    const expectedLanguages=[language,'en','de','it','en',''];
     const rows=[...h.container.querySelectorAll('.explorer-speech')];assert.equal(rows.length,speeches.length);
     rows.forEach((row,index)=>{
       const title=row.querySelector('strong');assert.equal(title.textContent,expected[index]);assert.equal(effectiveLanguage(title),expectedLanguages[index]);
@@ -169,7 +169,7 @@ for(const language of ['en','hu','fr']) {
       assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-download summary')),'en');
       assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-heading h3')),'en');
       assert.equal(effectiveLanguage(reader.querySelector('.explorer-publication-files select')),'en');
-      assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-heading option')),'');
+      for(const option of reader.querySelectorAll('.explorer-reader-heading option[value]:not([value=""])'))assert.equal(effectiveLanguage(option),option.value);
       assert(reader.querySelector('sup a[href*="-note-1"]'),'superscript source note marker remains available');
       assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
       const author=reader.querySelector('.explorer-coauthors strong');assert.equal(author.textContent,'Mika Aaltola');assert.equal(effectiveLanguage(author),'');assert.equal(author.querySelector('a'),null,'the current author remains strong, not a self-link');
@@ -183,8 +183,7 @@ for(const language of ['en','hu','fr']) {
         assert.equal(save.querySelector('span[lang]').textContent,label);assert.equal(effectiveLanguage(save.querySelector('span[lang]')),language);
         const answer=reader.querySelector('#document-'+answerId),answerHeading='Answer · '+date('2026-10-02',language);
         assert.equal(answer.querySelector('h3').textContent,answerHeading);assert.equal(effectiveLanguage(answer.querySelector('h3 span')),language);
-        // OPEN: this existing flat name mixes English with a localized date.
-        const answerSelect=answer.querySelector('select');assert.equal(answerSelect.getAttribute('aria-label'),answerHeading+' language');assert.equal(effectiveLanguage(answerSelect),'en');
+        const answerSelect=answer.querySelector('select');assert.equal(answerSelect.getAttribute('aria-label'),'Text language');assert.equal(effectiveLanguage(answerSelect),'en');
         await h.click(save);
         const saved=JSON.parse(h.window.localStorage.getItem('ep.following.v2')).items[0];
         assert.equal(saved.id,questionId);assert.equal(saved.title,questions[0].title);assert.equal(saved.titleLanguage,'fr');assert.deepEqual(saved.baseline.answerIds,[]);
@@ -195,11 +194,11 @@ for(const language of ['en','hu','fr']) {
   });
 }
 
-test('linked-source fallback keeps the first dictionary entry and an unknown identifier fallback without changing exact links',async t=>{
+test('linked-source fallback skips empty titles while preserving source language and exact links',async t=>{
   const h=await harness(t,'hu',{items:[],query:{member:String(member.id),module:'activities',activity:questionId},linkedDocument:{titles:{de:'',fr:'Do not select a later entry'}}});
   const fallback=h.container.querySelector('aside.explorer-notice');assert(fallback);assert.equal(effectiveLanguage(fallback),'en');
   await h.click(exactText(fallback,'button','Check this source with Parliament'));
-  const title=fallback.querySelector('h3');assert.equal(title.textContent,questionId);assert.equal(effectiveLanguage(title),'');
+  const title=fallback.querySelector('h3');assert.equal(title.textContent,'Do not select a later entry');assert.equal(effectiveLanguage(title),'fr');
   assert(fallback.querySelector('#document-'+questionId));
   assert.equal(fallback.querySelector('.explorer-publication-files a').href,download);
 });
