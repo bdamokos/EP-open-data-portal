@@ -94,7 +94,7 @@ function indexAdd(index,uri,node,paths) {
 
 // One pure transform per sitting. All joins use exact public source identities;
 // member, language, page and selected-decision projections are separate.
-export function deriveVoteEvidence(snapshot) {
+export function deriveVoteEvidence(snapshot,{includeBindingEvidence=false}={}) {
   const results=new Map(),requests=new Map(),components=new Map(),parents=new Map(),decisions=new Map(),globalGaps=[];
   for(const node of [...list(snapshot.results),...list(snapshot.requests),...list(snapshot.conflictingResults)]) {
     if(!node||typeof node!=='object'||Array.isArray(node)){globalGaps.push({code:'invalid-source-node'});continue;}
@@ -132,7 +132,7 @@ export function deriveVoteEvidence(snapshot) {
     const resultUris=unique([...inverse,...forward]);
     const ambiguous=resultUris.length>1;
     const resultRelationship={inverseResultIds:inverse.map(identifier),forwardResultIds:forward.map(identifier),binding:ambiguous?'ambiguous':inverse.length&&forward.length?'consistent':resultUris.length?'single-direction':'unlinked'};
-    const gaps=invalid(raw,{inverse_consists_of:'event',decided_on_a_realization_of:'doc',was_motivated_by:'event'}),parts=[],requesters=[];
+    const gaps=invalid(raw,{inverse_consists_of:'event',decided_on_a_realization_of:'doc',was_motivated_by:'event'}),parts=[],requesters=[],bindingConflicts=[];
     if(raw._conflictingSourceObservations)gaps.push({code:'conflicting-decision-source'});
     if(ambiguous)gaps.push({code:'ambiguous-result-binding'});
     for(const ruri of resultUris)if(!results.has(ruri)||results.get(ruri).conflicting)gaps.push({code:results.has(ruri)?'conflicting-result-source':'missing-result',id:identifier(ruri)});
@@ -141,6 +141,16 @@ export function deriveVoteEvidence(snapshot) {
     for(const target of references(raw.decided_on_a_realization_of,'doc')) {
       const entry=components.get(target);
       if(!entry){if(/-SPLIT-\d+-\d+$/.test(target))gaps.push({code:'missing-component',id:identifier(target)});continue;}
+      if(includeBindingEvidence) {
+        const component=entry.component,request=requests.get(component.requestUri),owners=parents.get(component.requestUri)||new Set(),expected=resultUris.length===1?resultUris[0]:null;
+        // Ownership and definition contradictions are independent of readable
+        // wording and of whether the referenced result record was retrieved.
+        if(component.gaps.some(gap=>gap.code==='conflicting-component-definition'))bindingConflicts.push({code:'conflicting-component-definition',id:identifier(target),evidencePaths:component.evidencePaths});
+        if(owners.size>1)bindingConflicts.push({code:'ambiguous-component-owner',id:identifier(target),requestId:identifier(component.requestUri),resultIds:[...owners].map(identifier)});
+        if(expected&&owners.size&&!owners.has(expected))bindingConflicts.push({code:'component-outside-result',id:identifier(target),resultIds:[...owners].map(identifier)});
+        if(request?.conflicting)bindingConflicts.push({code:'conflicting-component-request',id:identifier(target),evidencePaths:request.paths});
+        if(request&&term(request.node.had_activity_type)&&term(request.node.had_activity_type)!=='REQUEST_VOTE_SPLIT')bindingConflicts.push({code:'unsupported-component-request',id:identifier(target)});
+      }
       if(!subjectUri)continue;
       const component=entry.component,request=requests.get(component.requestUri),owners=parents.get(component.requestUri)||new Set();
       if(!owners.has(subjectUri)){gaps.push({code:'component-outside-result',id:identifier(target)});continue;}
@@ -160,7 +170,7 @@ export function deriveVoteEvidence(snapshot) {
     }
     if(!resultUris.length)gaps.push({code:'unlinked-result'});
     if(term(raw.decision_method)==='VOTE_ELECTRONIC_ROLLCALL'&&!requesters.length)gaps.push({code:'roll-call-requester-not-established'});
-    decisions.set(uri,{subjectId:subjectUri?identifier(subjectUri):null,resultRelationship,parts,rollCallRequesters:requesters,evidenceGaps:gaps,evidencePaths:sourcePaths(snapshot,raw,'decision')});
+    decisions.set(uri,{subjectId:subjectUri?identifier(subjectUri):null,resultRelationship,parts,rollCallRequesters:requesters,evidenceGaps:gaps,evidencePaths:sourcePaths(snapshot,raw,'decision'),...(includeBindingEvidence?{bindingConflicts}:{})});
   }
   const subjects=[];
   for(const [uri,entry] of results) {

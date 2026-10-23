@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {voteFixture,contradictoryVoteFixture,decisionId,amendmentId} from '../server/test-support/decision-votes.mjs';
+import {voteFixture,contradictoryVoteFixture,splitBindingFixture,decisionId,amendmentId} from '../server/test-support/decision-votes.mjs';
 
 const item={id:amendmentId,number:114,targetDocumentId:'B-10-2026-0424',outcome:'ADOPTED',authors:[{name:'Author One',personId:'197591'},{name:'Author Two',personId:'197481'},{name:'Unresolved Author',personId:null},{name:'Unlisted Author',personId:'999'}]};
 const decision={id:decisionId,outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:2,against:1,abstaining:1}};
@@ -65,4 +65,22 @@ for(const scenario of ['ambiguous-result-binding','conflicting-result-source','c
  assert.equal(h.container.querySelector('table'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
  assert.match(h.container.querySelector('.explorer-amendment-decision').textContent,/Adopted/);
  assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For2/);
+});
+
+for(const scenario of [
+ {ownership:'shared',wording:'valid'},
+ {ownership:'shared',wording:'missing'},
+ {ownership:'shared',wording:'unreadable'},
+ {definitions:'conflicting',context:'present'},
+ {definitions:'conflicting',context:'missing'},
+ {ownership:'outside',wording:'missing',context:'missing'},
+])test('known component contradictions are withheld: '+JSON.stringify(scenario),async t=>{
+ const f=splitBindingFixture(scenario),data=await f.read(),h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:f.indexed});await h.render();await h.open();
+ assert.equal(h.container.querySelector('table'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
+ assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Vote records differ/);
+ assert.match(h.container.querySelector('.explorer-amendment-decision').textContent,/Adopted/);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For2/);
+});
+for(const scenario of [{wording:'missing'},{wording:'unreadable',context:'missing'},{ownership:'unknown',context:'missing'}])test('missing split context stays distinct from contradictions: '+JSON.stringify(scenario),async t=>{
+ const f=splitBindingFixture(scenario),data=await f.read(),h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:f.indexed});await h.render();await h.open();
+ assert(h.container.querySelector('table'));assert.match(h.container.querySelector('[aria-label="Authors’ votes"]').textContent,/Author One · S&DFor/);
 });

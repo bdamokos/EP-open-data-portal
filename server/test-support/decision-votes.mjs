@@ -33,3 +33,17 @@ export function contradictoryVoteFixture(scenario) {
   }else throw Error('Unknown scenario');
   return {...f,indexed};
 }
+export function splitBindingFixture({ownership='single',wording='valid',definitions='consistent',context='present'}={}) {
+  const f=voteFixture(),parent=f.day.results.find(node=>node.id===f.raw.inverse_consists_of[0]);
+  const part='MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-77-1';
+  const request={id:'eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-77',had_activity_type:'def/ep-activities/REQUEST_VOTE_SPLIT',created_a_realization_of:[{id:'eli/dl/doc/'+part,number:1,...(wording==='missing'?{}:{expressionContent:{en:wording==='valid'?'<p>Exact part</p>':'<p>Broken'}})}]};
+  parent.was_motivated_by=ownership==='single'||ownership==='shared'?[request]:[];
+  f.day.requests=[structuredClone(request)];
+  if(ownership==='shared'||ownership==='outside')f.day.results.push({id:'eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-999999',had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',was_motivated_by:[structuredClone(request)]});
+  if(definitions==='conflicting') {
+    const alternate=structuredClone(request);alternate.created_a_realization_of[0].number=2;alternate.created_a_realization_of[0].expressionContent={en:'<p>Conflicting definition</p>'};f.day.requests.push(alternate);
+  }
+  if(context==='missing')f.day.results=f.day.results.filter(node=>node.id!==parent.id);
+  f.raw.decided_on_a_realization_of.push('eli/dl/doc/'+part);
+  return {...f,indexed:{id:decisionId,outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:2,against:1,abstaining:1},partId:'eli/dl/doc/'+part,partNumber:1,componentBinding:'single-amendment'}};
+}

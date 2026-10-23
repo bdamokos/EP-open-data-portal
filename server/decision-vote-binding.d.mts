@@ -1,1 +1,1 @@
-export function decisionVoteBindingConflict(vote:{resultRelationship?:{binding:string;inverseResultIds?:string[];forwardResultIds?:string[]};evidenceGaps?:{code:string;field?:string;details?:{code:string}[]}[]}):boolean;
+export function decisionVoteBindingConflict(vote:{resultRelationship?:{binding:string;inverseResultIds?:string[];forwardResultIds?:string[]};bindingConflicts?:{code:string}[];evidenceGaps?:{code:string;field?:string;details?:{code:string}[]}[]}):boolean;

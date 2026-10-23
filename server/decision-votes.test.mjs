@@ -1,7 +1,8 @@
+import {deriveVoteEvidence,eventUri} from './vote-evidence.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {decisionVotes,decisionVotesQuery} from './decision-votes.mjs';
-import {voteFixture,contradictoryVoteFixture,decisionId,amendmentId} from './test-support/decision-votes.mjs';
+import {voteFixture,contradictoryVoteFixture,splitBindingFixture,decisionId,amendmentId} from './test-support/decision-votes.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
 
 const now={now:Date.parse('2026-10-24')};
@@ -51,5 +52,21 @@ test('contradictory result and component ownership withhold every named join',as
   const f=contradictoryVoteFixture(scenario),data=await f.read();
   assert(data.decision.evidenceGaps.some(gap=>gap.code===scenario),scenario);assert.equal(data.integrity,'conflicting',scenario);assert.deepEqual(data.voters,[],scenario);
   assert(data.decision.resultRelationship);assert.equal(data.decision.outcome,'ADOPTED');
+ }
+});
+
+test('component ownership and definitions remain independent of wording and parent availability',async()=>{
+ for(const ownership of ['single','shared','outside','unknown'])for(const wording of ['valid','missing','unreadable'])for(const definitions of ['consistent','conflicting'])for(const context of ['present','missing']) {
+  const scenario={ownership,wording,definitions,context},f=splitBindingFixture(scenario),data=await f.read(),blocked=ownership==='shared'||ownership==='outside'||definitions==='conflicting';
+  assert.equal(data.integrity,blocked?'conflicting':'complete',JSON.stringify(scenario));assert.equal(data.voters.length,blocked?0:4,JSON.stringify(scenario));
+  assert.equal(data.decision.bindingConflicts.length>0,blocked,JSON.stringify(scenario));
+  // The optional graph observation must not change the member reader contract.
+  const legacy=deriveVoteEvidence(f.day).decisions.get(eventUri(f.raw));assert.equal(Object.hasOwn(legacy,'bindingConflicts'),false);
+ }
+});
+test('an omitted request type is unknown; a supplied different type contradicts a split binding',async()=>{
+ for(const type of [undefined,'def/ep-activities/REQUEST_VOTE_SEPARATE']) {
+  const f=splitBindingFixture({context:'missing',wording:'missing'});f.day.requests[0].had_activity_type=type;
+  const data=await f.read();assert.equal(data.integrity,type?'conflicting':'complete');
  }
 });
