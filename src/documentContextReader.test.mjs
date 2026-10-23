@@ -688,3 +688,36 @@ for(const [name,status,stale,refreshError] of [
   assert(h.container.querySelector('[data-amendment-block] del'));
   assert.equal(h.container.querySelector('.document-context-document>.document-context-source:last-child').textContent,'Legal text © European Union.');
 });
+
+
+for(const [name,mutate] of [
+  ['nested document ID',d=>{d.document.id=otherAdopted;}],
+  ['selected document ID',d=>{d.document.selectedDocumentId=otherAdopted;}],
+  ['evidence amendment ID',d=>{d.target.evidence.amendmentId=report+'-AM-999';}],
+  ['evidence list ID',d=>{d.target.evidence.listId=report+'-AM-999-999';}],
+  ['evidence language',d=>{d.target.evidence.wordingLanguage='fr';}],
+  ['missing evidence',d=>{delete d.target.evidence;}],
+  ['variant list ID',d=>{d.amendment.variants[0].listId=report+'-AM-999-999';}],
+  ['variant language',d=>{d.amendment.variants[0].language='fr';}],
+])test('Commission placement independently rejects '+name,async t=>{
+  const request={documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}};
+  for(const invalid of [false,true])await t.test(invalid?'independent mismatch':'valid control',async t=>{
+    const value=proposalContextResponse(report,amendment,list,4);if(invalid)mutate(value);
+    const h=await harness(t,()=>value);await h.render({request,language:'en'});
+    assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,invalid?0:1);
+    assert(h.container.querySelector('.proposal-context-text'),'full proposal stays readable');
+    if(invalid){
+      assert.equal(h.container.querySelector('[data-amendment-block]').hasAttribute('tabindex'),false);
+      assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
+    }
+  });
+});
+
+test('Commission placement uses matching proposal fallback language without report text',async t=>{
+  const value=proposalContextResponse(report,amendment,list,4);delete value.document.selectedText;
+  value.requestedLanguage='fr';delete value.requestedWordingLanguage;
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'fr'});
+  assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,1);
+  assert.equal(h.container.querySelector('.proposal-context-text').lang,'en');
+});

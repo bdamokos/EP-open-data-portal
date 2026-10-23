@@ -78,7 +78,8 @@ function matchUnit(proposal,unit,original) {
   // If the match consumes a normalized source line, retain its original label,
   // quotation and punctuation too. A partial sentence keeps its exact slice.
   const lineStart=text.lastIndexOf('\n',start-1)+1,nextBreak=text.indexOf('\n',end),lineEnd=nextBreak<0?text.length:nextBreak;
-  if(at===0||mapped.positions[at-1].end<=lineStart)start=lineStart;
+  const consumesLineEnd=!normal(text.slice(end,lineEnd));
+  if(consumesLineEnd&&(at===0||mapped.positions[at-1].end<=lineStart))start=lineStart;
   if(!normal(text.slice(end,lineEnd)))end=lineEnd;
   else if(/[.;'’”"]\s*$/u.test(original))end+=text.slice(end,lineEnd).match(/^[.;'’”"]+/u)?.[0].length??0;
   const from=toSourcePosition(paragraphs,start),to=toSourcePosition(paragraphs,end);
@@ -121,6 +122,14 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     const highest=Math.max(...anchors.map(a=>a.index)),best=anchors.filter(a=>a.index===highest);
     if(best.length!==1||best[0].unit.pathConflict)return unresolved('multiple_published_targets');
     const anchor=best[0],proposal=items[anchor.itemIndex].proposal;
+    // A suffix boundary must follow physical siblings in increasing source order.
+    // Descendants and provisions under other parents do not establish this boundary.
+    const siblings=flat(proposal.units).filter(unit=>unit.scope==='proposal'&&unit.kind===label.kind&&parentKey(unit)===parentKey(anchor.unit)).sort((a,b)=>a.extent.start-b.extent.start);
+    for(let i=0;i<siblings.length;i++){
+      const current=siblings[i],previous=siblings[i-1];
+      const currentRank=suffixRank(current.label?.suffix,label.suffix),previousRank=previous?suffixRank(previous.label?.suffix,label.suffix):0;
+      if(current.pathConflict||current.label?.number===null||currentRank<0||previous&&(previous.extent.end>current.extent.start||previous.label.number>current.label.number||previous.label.number===current.label.number&&previousRank>=currentRank))return unresolved('source_structure_unavailable');
+    }
     if(!anchor.unit.complete||proposal.paragraphs.slice(anchor.unit.extent.start,anchor.unit.extent.end).some(p=>!p.source||p.source.complete===false)||proposal.gaps.some(gap=>gap.code==='unclosed-quotation'&&gap.paragraph>=anchor.unit.extent.start&&gap.paragraph<anchor.unit.extent.end))return unresolved('source_passage_incomplete');
     if(unparsedArticleHeading(proposal,anchor.unit))return unresolved('source_structure_unavailable');
     const insertBefore=anchor.unit.extent.end;

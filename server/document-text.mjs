@@ -233,7 +233,7 @@ function paragraphsOf(nodes,context) {
 }
 // Paragraphs stay plain strings. Footnotes and links are returned separately with exact positions.
 export function docxContent(buffer,{includeParagraphProperties=false,includeNoteObjects=false,numbering=numberingLabels}={}) {
-  const parts=docxParts(buffer),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set();
+  const parts=docxParts(buffer),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set(),extractionGaps=[];
   let incompleteNumber=false;
   const label=numbering(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),{add(message){incompleteNumber=true;warnings.add(message);}});
   const numberLabel=properties=>{incompleteNumber=false;const value=label(properties);return {label:value,incomplete:incompleteNumber};};
@@ -260,9 +260,12 @@ export function docxContent(buffer,{includeParagraphProperties=false,includeNote
       for(const warning of noteWarnings)warnings.add(warning);
       const text=paragraphs.map(p=>p.text).join('\n').slice(0,NOTE_LIMITS.text);
       const key=(kind==='endnote'?'endnote:':'')+String(attribute(node,'id'));
-      supplied.set(key,{text,truncated:offset-1>NOTE_LIMITS.text,spans:spans.filter(span=>span.end<=text.length).slice(0,NOTE_LIMITS.links),
+      const availableSpans=spans.filter(span=>span.end<=text.length),truncated=offset-1>NOTE_LIMITS.text,linksTruncated=availableSpans.length>NOTE_LIMITS.links;
+      supplied.set(key,{text,truncated,spans:availableSpans.slice(0,NOTE_LIMITS.links),
         ...(includeNoteObjects?{source:{part:sourcePart,path:index.get(node).path},objects:objects.filter(object=>object.offset+object.replacement.length<=text.length),
-          extractionComplete:paragraphs.every(part=>part.properties.numberingComplete&&part.properties.notesComplete)&&![...noteWarnings].some(warning=>/blocks could not be read/iu.test(warning))}:{})});
+          gaps:[...(truncated?[{code:'note-text-truncated',limit:NOTE_LIMITS.text,retained:text.length,total:offset-1,message:'A source note exceeds the retained text limit.'}]:[]),
+            ...(linksTruncated?[{code:'note-links-truncated',limit:NOTE_LIMITS.links,retained:NOTE_LIMITS.links,total:availableSpans.length,message:'A source note exceeds the retained hyperlink limit.'}]:[])],
+          extractionComplete:!truncated&&!linksTruncated&&paragraphs.every(part=>part.properties.numberingComplete&&part.properties.notesComplete)&&![...noteWarnings].some(warning=>/blocks could not be read/iu.test(warning))}:{})});
     }
   }
   const notes=[],anchors=[],labels=new Map();
@@ -276,8 +279,18 @@ export function docxContent(buffer,{includeParagraphProperties=false,includeNote
     if(!supplied.has(id)){warnings.add('A referenced footnote or endnote is missing.');if(includeNoteObjects)paragraph.properties.notesComplete=false;continue;}
     let note=notes.find(n=>n.id===id);
     if(!note){
-      if(notes.length>=NOTE_LIMITS.notes){warnings.add('The referenced notes exceed the supported note count.');if(includeNoteObjects)paragraph.properties.notesComplete=false;continue;}
+      if(notes.length>=NOTE_LIMITS.notes){
+        warnings.add('The referenced notes exceed the supported note count.');
+        if(includeNoteObjects){
+          paragraph.properties.notesComplete=false;
+          const source=supplied.get(id).source;
+          extractionGaps.push({code:'note-count-truncated',note:id,paragraph:index,offset:mark.offset,sourcePart:source.part,sourcePath:source.path,
+            limit:NOTE_LIMITS.notes,message:'A referenced source note exceeds the retained note count.'});
+        }
+        continue;
+      }
       const label=labels.get(id),source=supplied.get(id);
+      if(includeNoteObjects)extractionGaps.push(...source.gaps.map(gap=>({...gap,note:id,sourcePart:source.source.part,sourcePath:source.source.path})));
       if(source.truncated)warnings.add('A referenced note exceeds the supported text size.');
       if(!source.text)warnings.add('A referenced footnote or endnote is empty.');
       // A custom mark repeats its label as ordinary footnote text; automatic numbering does not.
@@ -289,11 +302,21 @@ export function docxContent(buffer,{includeParagraphProperties=false,includeNote
     }
     anchors.push({paragraph:index,offset:mark.offset,note:note.id,label:note.label});
   }});
-  const links=body.flatMap((paragraph,index)=>paragraph.spans.map(span=>({paragraph:index,...span}))).slice(0,NOTE_LIMITS.documentLinks);
+  const documentLinks=body.flatMap((paragraph,index)=>paragraph.spans.map(span=>({paragraph:index,...span}))),links=documentLinks.slice(0,NOTE_LIMITS.documentLinks);
+  if(includeNoteObjects){
+    const omitted=new Map();
+    for(const link of documentLinks.slice(NOTE_LIMITS.documentLinks))omitted.set(link.paragraph,(omitted.get(link.paragraph)??0)+1);
+    for(const [paragraph,count] of omitted){
+      body[paragraph].properties.annotationsComplete=false;body[paragraph].source.complete=false;
+      extractionGaps.push({code:'document-links-truncated',paragraph,sourcePart:'word/document.xml',sourcePath:body[paragraph].source.path,
+        limit:NOTE_LIMITS.documentLinks,omitted:count,message:'Source paragraph hyperlinks exceed the retained document hyperlink limit.'});
+    }
+  }
   const subject=body.findIndex(paragraph=>paragraph.paragraphStyle==='QuestionSubject');
   const authorBylineParagraphs=subject>0 ? body.slice(0,subject).map(paragraph=>paragraph.text) : body.filter(paragraph=>paragraph.authorMarker).map(paragraph=>paragraph.text);
   return {paragraphs:body.map(p=>p.text),notes,anchors,links,structureStatus:'extracted',paragraphSources:body.map(p=>p.source),
     ...(includeParagraphProperties?{paragraphProperties:body.map(p=>p.properties)}:{}),
+    ...(includeNoteObjects?{extractionGaps}:{}),
     authorBylineParagraphs,
     documentObjects:body.flatMap((p,paragraph)=>p.objects.map(object=>({paragraph,...object}))),extractionWarnings:[...warnings],
     formattingVersion:FORMATTING_VERSION,paragraphFormats:body.map(p=>p.format),tables:tables.found};

@@ -42,9 +42,15 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
     const objects=paragraph.objects.filter(o=>o.offset>=start&&o.offset<end&&text[o.offset]==='\uFFFC').sort((a,b)=>a.offset-b.offset);
     const nodes:ReactNode[]=[];let from=start;
     const textPart=(a:number,b:number)=><ReferenceText key={'t'+a} text={text.slice(a,b)} start={a} anchors={selectedAnchors.filter(n=>n.offset>a&&n.offset<=b||a===0&&n.offset===0)} links={selectedLinks.map(l=>({...l,start:Math.max(a,l.start),end:Math.min(b,l.end)})).filter(l=>l.end>l.start)} final={b===end} notePrefix={prefix}/>;
-    for(const object of objects){nodes.push(textPart(from,object.offset));nodes.push(object.kind==='math'?<ProposalMath key={'o'+object.offset} object={object}/>:<span className="document-context-object" key={'o'+object.offset}>[Content in original]{safeHref(object.sourceUrl)&&<> <a href={safeHref(object.sourceUrl)!} target="_blank" rel="noreferrer">View original ↗</a></>}</span>);from=object.offset+1;const after=selectedAnchors.filter(a=>a.offset===from);if(after.length)nodes.push(<ReferenceText key={'n'+from} text="" start={from} anchors={after} links={[]} final notePrefix={prefix}/>);}
+    for(const object of objects){nodes.push(textPart(from,object.offset));nodes.push(object.kind==='math'?<ProposalMath key={'o'+object.offset} object={object} linkUrl={selectedLinks.find(link=>link.start<=object.offset&&link.end>=object.offset+1)?.url}/>:<span className="document-context-object" key={'o'+object.offset}>[Content in original]{safeHref(object.sourceUrl)&&<> <a href={safeHref(object.sourceUrl)!} target="_blank" rel="noreferrer">View original ↗</a></>}</span>);from=object.offset+1;const after=selectedAnchors.filter(a=>a.offset===from);if(after.length)nodes.push(<ReferenceText key={'n'+from} text="" start={from} anchors={after} links={[]} final notePrefix={prefix}/>);}
     nodes.push(textPart(from,end));return nodes;
   }
+  const topTables=units(proposal.units).filter(u=>u.kind==='table'&&u.table).map(u=>u.table!);
+  const anchorId=placement?.evidence?.find(e=>e.basis==='preceding-sibling-subtree')?.anchor;
+  const owner=units(proposal.units).find(unit=>unit.id===anchorId);
+  const insertionTable=active&&placement.operation==='insert'&&owner
+    ? topTables.flatMap(table=>[table,...(table.nestedTables??[])]).filter(table=>table.paragraphs.includes(placement.insertAfter!)&&!table.paragraphs.includes(owner.extent.start)).sort((a,b)=>a.sourcePath.length-b.sourcePath.length)[0]
+    : undefined;
   const row=(index:number)=>{
     const splice=active?placement.splice:undefined;
     if(splice&&index>=splice.start.paragraph&&index<=splice.end.paragraph){
@@ -54,9 +60,8 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
       return nodes;
     }
     const p=<p key={index} data-source-paragraph={index}>{sourceSlice(index)}</p>;
-    return active&&placement.operation==='insert'&&placement.insertAfter===index?[p,block(true,proposal)]:[p];
+    return active&&placement.operation==='insert'&&!insertionTable&&placement.insertAfter===index?[p,block(true,proposal)]:[p];
   };
-  const topTables=units(proposal.units).filter(u=>u.kind==='table'&&u.table).map(u=>u.table!);
   function tableNode(table:ProposalTable):ReactNode {
     const nested=table.nestedTables??[],children=nested.filter(t=>!nested.some(parent=>parent!==t&&t.sourcePath.startsWith(parent.sourcePath+'/')));
     const nestedParagraphs=new Set(children.flatMap(t=>t.paragraphs));
@@ -65,7 +70,7 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
       if(child)return [tableNode({...child,nestedTables:nested.filter(t=>t.sourcePath.startsWith(child.sourcePath+'/'))})];
       return nestedParagraphs.has(index)?[]:row(index);
     });
-    return <div className="proposal-table-scroll" key={table.sourcePath}><table className="proposal-table"><tbody>{table.rows.map((tr,ri)=><tr key={ri}>{tr.cells.map((cell,ci)=>{
+    const content=<div className="proposal-table-scroll" key={table.sourcePath}><table className="proposal-table"><tbody>{table.rows.map((tr,ri)=><tr key={ri}>{tr.cells.map((cell,ci)=>{
       if(cell.verticalMerge==='continue'||cell.horizontalMerge==='continue')return null;
       let rowSpan=1;if(cell.verticalMerge==='start')while(table.rows[ri+rowSpan]?.cells[ci]?.verticalMerge==='continue')rowSpan++;
       let colSpan=cell.colSpan;if(cell.horizontalMerge==='start'){let after=ci+1;while(tr.cells[after]?.horizontalMerge==='continue')colSpan+=tr.cells[after++].colSpan;}
@@ -74,6 +79,7 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
       for(let after=1;after<rowSpan;after++)merged.push(...table.rows[ri+after].cells[ci].paragraphs);
       return <td key={ci} colSpan={colSpan} rowSpan={rowSpan}>{cellContent([...new Set(merged)].sort((a,b)=>a-b))}</td>;
     })}</tr>)}</tbody></table></div>;
+    return insertionTable?.sourcePath===table.sourcePath?[content,block(true,proposal)]:content;
   }
   const tableParagraphs=new Set(topTables.flatMap(t=>t.paragraphs));
   return <>{proposal.paragraphs.flatMap((p,index)=>{

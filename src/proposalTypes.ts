@@ -46,7 +46,7 @@ export interface ProposalParagraph {
   text: string
   complete: boolean
   source: { path: string; ordinal: number; container: string; containerPath: string; segment: number; complete: boolean } | null
-  properties: { styleId: string | null; numberingLabel: string; numberingComplete: boolean; notesComplete: boolean; numbering?: ProposalNumbering } | null
+  properties: { styleId: string | null; numberingLabel: string; numberingComplete: boolean; notesComplete: boolean; annotationsComplete?: boolean; numbering?: ProposalNumbering } | null
   objects: ProposalObject[]
 }
 export interface ProposalTable {
@@ -100,7 +100,7 @@ export interface ProposalDocument {
   notes: ProposalNote[]
   anchors: NoteAnchor[]
   links: DocumentLink[]
-  gaps: Array<{ code: string; message: string; paragraph?: number; note?: string; sourcePath?: string; path?: ProposalPathSegment[] }>
+  gaps: Array<{ code: string; message: string; paragraph?: number; note?: string; sourcePath?: string; sourcePart?: string; offset?: number; limit?: number; retained?: number; total?: number; omitted?: number; path?: ProposalPathSegment[] }>
 }
 export interface ProposalTargetPath {
   language: string

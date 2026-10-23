@@ -10,7 +10,9 @@ const resolve=(projection,targetLabel,originalText='',proposedText='New provisio
 const cbamItems=['act','annex'].map(kind=>({kind,index:1,proposal:parseProposal(fixture(`52025PC0087-${kind}-excerpt.json`),{item:kind})}));
 
 test('CBAM recorded amendments 4–8 place only the changed source extent',()=>{
-  for(const amendment of fixture('proposal-placement-cbam.json').amendments){
+  const amendments=fixture('proposal-placement-cbam.json').amendments;
+  assert.deepEqual(amendments.map(amendment=>amendment.number),[4,5,6,7,8]);
+  for(const amendment of amendments){
     const placed=resolveProposalPlacement(cbamItems,amendment);assert.equal(placed.status,'placed','AM'+amendment.number+': '+placed.reason);
     assert.equal(placed.itemIndex,amendment.number===8?1:0);assert.equal(placed.operation,amendment.number===7?'delete':'replace');
     assert(placed.originalText.includes(amendment.number===7?'the following paragraph 1a is inserted':'By 31 August')||amendment.number===6||amendment.number===8);
@@ -95,4 +97,29 @@ test('recorded COD Recital 3a is inserted after recital 3 and before recital 4',
   const recorded=fixture('proposal-placement-gas-storage.json'),proposal=parseProposal(recorded),items=[{kind:'act',index:1,proposal}];
   const placed=resolveProposalPlacement(items,recorded.recitalAmendment),three=proposalCandidates(proposal,'Recital 3')[0],four=proposalCandidates(proposal,'Recital 4')[0];
   assert.equal(placed.status,'placed');assert.equal(placed.operation,'insert');assert.equal(placed.insertAfter,three.extent.end-1);assert.equal(placed.insertBefore,four.extent.start);
+});
+
+
+test('first, middle and last sentence edits retain numbering; full extents retain source prefixes',()=>{
+  const paragraph='1. First sentence. Middle sentence. Last sentence.';
+  for(const original of ['First sentence.','Middle sentence.','Last sentence.','First sentence. Middle sentence. Last sentence.'])for(const proposed of ['Changed sentence.','']){
+    const result=resolve(source(['Article 1',paragraph]),'Article 1 – paragraph 1',original,proposed);
+    assert.equal(result.status,'placed');
+    const whole=original.startsWith('First')&&original.endsWith('Last sentence.');
+    assert.equal(result.splice.start.offset,whole?0:paragraph.indexOf(original));
+    assert.equal(result.splice.end.offset,paragraph.indexOf(original)+original.length);
+    assert.equal(result.originalText,whole?paragraph:original);
+  }
+  const quoted='‘1. Full paragraph.’;';
+  for(const proposed of ['Changed paragraph.',''])assert.equal(resolve(source(['Article 1',quoted]),'Article 1 – paragraph 1','Full paragraph.',proposed).originalText,quoted);
+});
+
+test('suffix insertions require physically ordered siblings within the exact parent',()=>{
+  for(const [paragraphs,label] of [
+    [['Article 1','1. One.','Article 1c','1. C.','Article 1a','1. A.','Article 2'],'Article 1 b (new)'],
+    [['Article 1b','1. B.','Article 1','1. One.','Article 2'],'Article 1 c (new)'],
+  ])assert.equal(resolve(source(paragraphs),label).reason,'source_structure_unavailable');
+  assert.equal(resolve(source(['Article 1','1. One.','(a) Child.','Article 1a','1. A.','Article 1c','1. C.','Article 2']),'Article 1 b (new)').insertBefore,5);
+  const nested=source(['Article 1','The act is amended:','(4) A.','(4c) C.','(4b) B.','Article 2','The act is amended:','(4) Other.'],['Titrearticle','','Point0','Point0','Point0','Titrearticle','','Point0']);
+  assert.equal(resolve(nested,'Article 2 – paragraph 1 – point 4 a (new)').status,'placed','other parent order does not affect the selected siblings');
 });

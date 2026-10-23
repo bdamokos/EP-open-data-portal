@@ -22,6 +22,8 @@ const candidates = proposalCandidates(proposal, target);
 
 The result contains `parserVersion`, `sourceHash`, exact source context, `paragraphs`, ordered `units`, notes, links, objects and explicit `gaps`. `src/proposalTypes.ts` describes the frontend projection.
 
+The bounded DOCX projection retains at most 500 body hyperlinks, 500 referenced notes, 4,000 UTF-16 code units per note and 10 hyperlink spans per note. Actual truncation produces a gap with the source part/path and affected note or paragraph. Only owning paragraphs and their containing units lose completeness; retained text, objects and links keep their positions.
+
 - Unit `path` segments preserve labels, suffixes and scripts. Chapter, section and title containers remain in the tree. `proposalCandidates` permits an article/annex/recital address to omit its preceding heading containers, returning every candidate when the result is ambiguous.
 - `extent: {start, end}` is a half-open range of paragraph indices including descendants. `content` identifies directly owned paragraphs; `spans` supplies exact UTF-16 slices. An instruction and inline replacement can share a paragraph through disjoint slices.
 - Memorandum, preamble, signature and financial statement remain separate regions. Articles, including binding final articles, belong to the legal body. A non-normative region is never treated as an article container.
