@@ -13,6 +13,7 @@ import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
 import {createCommitteeMembershipReader} from './committee-memberships.mjs';
 import {parliamentaryService} from './parliamentary-service.mjs';
+import {profileMemberships,createProfileMembershipReader} from './profile-memberships.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
@@ -382,7 +383,7 @@ let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
 export const DIRECTORY_VERSION = 2;
-export const PROFILE_VERSION = 2;
+export const PROFILE_VERSION = 3;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -551,7 +552,7 @@ async function mepRecord(id, force = false, {priority='interactive'}={}) {
     );
   return record;
 }
-export async function odpProfile(id, force = false, {priority='interactive'}={}) {
+async function loadProfile(id, force = false, {priority='interactive'}={}) {
   const record = await mepRecord(id,force,{priority});
   const person = record.payload.data[0];
   // The per-person record carries country URIs and dated organization IDs,
@@ -587,12 +588,25 @@ export async function odpProfile(id, force = false, {priority='interactive'}={})
     sources: [sourceSummary(record), ...affiliationSources],
   };
   profileIndex.set(Number(id), result);
-  return result;
+  return {profile:result,record};
+}
+export async function odpProfile(id, force = false, options={}) {
+  return (await loadProfile(id,force,options)).profile;
 }
 const readCommitteeMemberships = createCommitteeMembershipReader({request:odp});
+const readProfileMemberships = createProfileMembershipReader({request:odp});
 export async function odpProfileWithMemberships(id) {
-  const profile = await odpProfile(id);
-  return {...profile, committeeMemberships:await readCommitteeMemberships(profile,today(),{signal:requestSignal()})};
+  const {profile,record} = await loadProfile(id);
+  const parentSignal=requestSignal();
+  const optionalSignal=AbortSignal.timeout(8000);
+  const signal=AbortSignal.any([optionalSignal,...(parentSignal?[parentSignal]:[])]);
+  const membershipHistory=await readProfileMemberships(profileMemberships(record.payload.data[0],record),{signal,parentSignal});
+  const committeeMemberships=await readCommitteeMemberships(profile,today(),{signal:parentSignal,optionalSignal:signal});
+  if(!membershipHistory.observationComplete) {
+    committeeMemberships.complete=false;
+    committeeMemberships.error='Committee membership observations are unavailable.';
+  }
+  return {...profile,membershipHistory,committeeMemberships};
 }
 function startIndex() {
   if (indexPromise || indexState.complete) return;

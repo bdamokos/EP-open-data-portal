@@ -11,5 +11,7 @@ test('profile service line distinguishes continuous service, returning members, 
   assert.match(render(continuous),/MEP since.*lang="hu">2012-01-04/);assert.doesNotMatch(render(continuous),/Previous service/);
   const returned={...continuous,currentSince:'2024-12-05',periods:[{start:'2019-07-02',end:'2024-07-15'},{start:'2024-12-05',end:null},{start:'2030-01-01',end:'2035-01-01'}]};
   const text=render(returned);assert.match(text,/MEP since.*2024-12-05/);assert.match(text,/Previous service:.*2019-07-02.*2024-07-15/);assert.doesNotMatch(text,/2030/);
+  const former=render({day:'2026-10-23',currentSince:null,periods:[{start:'2009-07-14',end:'2014-06-30'},{start:'2019-07-02',end:'2024-07-15'}],error:null});
+  assert.match(former,/Parliamentary service/);assert.match(former,/2009-07-14.*2014-06-30.*2019-07-02.*2024-07-15/);assert.doesNotMatch(former,/dates unavailable|MEP since/);
   assert.equal(render(undefined),'');assert.match(render({...continuous,currentSince:null,error:'Some dates are unavailable.'}),/Parliamentary service dates unavailable/);
 });

@@ -13,7 +13,7 @@ export function CommitteeMemberships({profile,committees,lang,roleName,date,retr
   const ordered=cards.slice().sort((a,b)=>rank(a.roles)-rank(b.roles)||order(a)-order(b)||a.code.localeCompare(b.code));
   const period=(start:string|null,end:string|null)=> <>{start?date(start,lang):<span lang="en">Start date unavailable</span>} — {end?date(end,lang):(ongoingLabels[lang]||ongoingLabels.en)}</>;
   return <>
-    {!ordered.length&&<p lang="en">No active committee memberships were returned.</p>}
+    {!ordered.length&&<p lang="en">{history?.complete?'No active committee memberships were returned.':'Current committee memberships are unavailable.'}</p>}
     {ordered.map(card=>{
       const body=committees.find(c=>c.id===card.id);
       const names:Record<string,string>=Object.keys(card.names).length?card.names:body?.names||{};

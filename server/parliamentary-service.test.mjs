@@ -35,3 +35,11 @@ test('future mandates cannot establish a current since date and an ended mandate
   const value=parliamentaryService({hasMembership:[membership(9,'2019-07-02','2024-07-15')]},'2024-07-15');assert.equal(value.currentSince,'2019-07-02');
   assert.equal(service([]).currentSince,null);
 });
+
+
+test('well-formed ended mandates are complete and former service gaps stay separate',()=>{
+  const value=service([membership(7,'2009-07-14','2014-06-30'),membership(9,'2019-07-02','2024-07-15')]);
+  assert.equal(value.currentSince,null);assert.equal(value.complete,true);assert.equal(value.error,null);
+  assert.equal(value.periods.length,2);assert.equal(value.periods[0].end,'2014-06-30');assert.equal(value.periods[1].start,'2019-07-02');
+  for(const person of [{},{hasMembership:null}])assert.equal(parliamentaryService(person,'2026-10-23').complete,false);
+});
