@@ -14,9 +14,10 @@ test('HTTP response budget paginates complete multilingual question/answer group
     ACTIVITY_INDEX_DIR:path.join(directory,'index'),ODP_CACHE_DIR:undefined};
   const saved=Object.fromEntries(Object.keys(fixture).map(key=>[key,process.env[key]]));
   for(const [key,value] of Object.entries(fixture))value===undefined?delete process.env[key]:process.env[key]=value;
-  let index,store,service,server;
+  let index,store,service,server,readerTimeout;
   try {
     const {config}=await import('./config.mjs');
+    const {readerTimeoutMs}=await import('./test-support/corpus-reader.mjs');
     const {ActivityStore}=await import('./activity-index-store.mjs');
     const {CorpusStore}=await import('./corpus-store.mjs');
     const {corpus}=await import('./corpus-worker.mjs');
@@ -48,6 +49,7 @@ test('HTTP response budget paginates complete multilingual question/answer group
     // Fixture writes precede listen; disable idle reuse races as in corpus.test.
     server.keepAliveTimeout=0;
     service=corpus();
+    readerTimeout=service.reader.timeoutMs;service.reader.timeoutMs=readerTimeoutMs;
     await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     const base=`http://127.0.0.1:${server.address().port}/api/corpus/search`;
     for(const method of ['GET','POST']){
@@ -80,7 +82,8 @@ test('HTTP response budget paginates complete multilingual question/answer group
     assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0,'bounded HTTP reads schedule no corpus collection');
   } finally {
     if(server?.listening){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
-    service?.store.close();store?.close();index?.close();
+    if(service){service.reader.timeoutMs=readerTimeout;service.store.close();}
+    store?.close();index?.close();
     for(const [key,value] of Object.entries(saved))value===undefined?delete process.env[key]:process.env[key]=value;
     rmSync(directory,{recursive:true,force:true});
   }
