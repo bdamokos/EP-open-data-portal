@@ -49,7 +49,7 @@ export function projectGroupHistory(person,mapping) {
     }
     if(!covered)complete=false;
   }
-  return {coverage:complete?'complete':'partial',mandateCoverage:mandates.length&&!malformed?'complete':'partial',mandates,groups,ambiguous,malformed};
+  return {coverage:complete?'complete':'partial',mandateCoverage:mandates.length&&!parsed.malformed?'complete':'partial',mandates,groups,ambiguous,malformed};
 }
 export function groupEvents(mep,person,today) {
   const events=[];
@@ -80,6 +80,8 @@ export function scheduleGroupHistory(store,generation,prefix='') {
 }
 function people(store,generation) {
   const ids=new Set(store.db.prepare('SELECT id FROM members').all().map(row=>row.id));
+  // A later roster/list omission cannot erase a known term-10 person's history.
+  for(const row of store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='group-history'").all(generation))ids.add(row.key.slice('group-history:'.length));
   for(const list of membershipLists)for(const mandate of store.source(generation,'membership:'+list)?.work.mandates||[])ids.add(mandate.mep);
   return [...ids];
 }

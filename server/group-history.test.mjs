@@ -93,3 +93,13 @@ test('catalogue pagination and exact body details separate display codes from st
  const next=store.beginCycle().generation;scheduleGroupHistory(store,next);while((task=store.nextTask(next)))await worker.task(task);
  assert.equal(calls.length,4); // Only the previously unavailable person is fetched; catalogue identities reuse their daily cache.
 });
+
+
+test('known term-10 people survive later roster/list omissions and correction identities get new marks',t=>{
+ const {store,put}=fixture(t),g=store.beginCycle().generation;store.setMembers([{id:'42'}]);put(g);store.publish(g);
+ const next=store.beginCycle().generation;store.setMembers([]);store.publish(next);
+ const retained=groupHistorySnapshot(store,next);assert.equal(retained.members['42'].coverage,'complete');assert.equal(retained.members['42'].stale,true);assert.equal(retained.events.length,1);
+ const third=store.beginCycle().generation;
+ put(third,person(mandate(),group('f-1','org/1','2024-07-16','2026-06-17'),group('f-2','org/2','2026-06-18')));store.publish(third);
+ const corrected=groupHistorySnapshot(store,third);assert.equal(corrected.events.length,1);assert.equal(corrected.events[0].id,'42:group:2026-06-18:2');assert.equal(corrected.events[0].mark,third);
+});
