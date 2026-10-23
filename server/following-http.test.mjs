@@ -29,7 +29,7 @@ test('following and saved POST transports validate, version, cache and revalidat
   const id='E-10-2026-000001',work={identifier:id,parliamentary_term:['org/ep-10'],work_type:'QUESTION_WRITTEN',document_date:'2026-10-01',title_dcterms:{en:'English',fr:'Français'},creator:['person/42'],inverse_answers_to:[{identifier:id+'-ASW',document_date:'2026-10-02'}]};
   const {documentRows}=await import('./activity-index-model.mjs');
   store.putSource(g1,'/parliamentary-questions/'+id,'document',work,'2026-10-23T10:00:00Z',documentRows(work,'/parliamentary-questions/'+id,'2026-10-23T10:00:00Z').rows);store.publish(g1);
-  const manifest=await read('following-manifest?'+params());assert.equal(manifest.status,200);assert.equal(manifest.body.epoch,epoch);assert.equal(manifest.body.generation,g1);assert.deepEqual(manifest.body.members['42'],[g1,g1,1,1]);assert.deepEqual(manifest.body.members['43'],[null,null,0,0]);
+  const manifest=await read('following-manifest?'+params());assert.equal(manifest.status,200);assert.equal(manifest.body.epoch,epoch);assert.equal(manifest.body.generation,g1);assert.equal(manifest.body.rosterBasis,'publication');assert.deepEqual(manifest.body.members['42'],[g1,g1,1,1]);assert.deepEqual(manifest.body.members['43'],[null,null,0,0]);
   for(const route of ['following-manifest?'+params(),'following-member?'+params(g1,{member:'42',lang:'fr'})]) {
     const first=await read(route);assert.equal(first.headers.get('cache-control'),'public, max-age=3600');assert.equal(first.headers.get('cdn-cache-control'),'public, max-age=3600');assert(first.headers.get('etag'));
     const cached=await read(route,{headers:{'If-None-Match':first.headers.get('etag')}});assert.equal(cached.status,304);assert.equal(cached.text,'');
@@ -37,7 +37,7 @@ test('following and saved POST transports validate, version, cache and revalidat
     const unversioned=await read(route.replace('&v='+API_VERSION,''));assert.equal(unversioned.headers.get('cdn-cache-control'),'no-store');
     const authorized=await read(route,{headers:{Authorization:'test'}});noStore(authorized);
   }
-  const detail=await read('following-member?'+params(g1,{member:'42',lang:'fr'}));assert.equal(detail.body.entries[0].title,'Français');assert.equal(detail.body.entries[0].titleLanguage,'fr');
+  const detail=await read('following-member?'+params(g1,{member:'42',lang:'fr'}));assert.equal(detail.body.rosterBasis,'publication');assert.equal(detail.body.entries[0].title,'Français');assert.equal(detail.body.entries[0].titleLanguage,'fr');
   const g2=store.beginCycle().generation;store.publish(g2);
   assert.equal((await read('following-manifest?'+params(g1))).status,200);
   assert.equal((await read('following-member?'+params(g1,{member:'42'}))).status,200);

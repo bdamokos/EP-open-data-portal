@@ -171,7 +171,7 @@ export class ActivityStore {
       const active=this.get('active') || 0, generation=(this.get('sequence') || 0)+1;
       this.set('sequence',generation);
       if (active) {
-        for (const table of ['sources','items','tasks','follow_summary','follow_generations']) this.db.prepare(`DELETE FROM ${table} WHERE generation<>?`).run(active);
+        this.pruneGenerations(active);
         this.set('previous',null);
         this.db.prepare('INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
@@ -187,6 +187,8 @@ export class ActivityStore {
         groupVoicesCopy(this.db,generation,active);
         amendmentsCopy(this.db,generation,active);
       }
+      // The copied active rows are unchanged; only later writes are touched.
+      this.db.exec('DELETE FROM follow_touched');
       const cycle={ generation, initial:!active, startedAt:new Date(this.clock()).toISOString(), phase:'discovering', error:null, requests:0 };
       this.set('working',cycle);return cycle;
     });
@@ -271,9 +273,18 @@ export class ActivityStore {
     });
   }
   replaceRows(generation,key,rows) {
-    this.assertWriter();this.db.prepare('DELETE FROM items WHERE generation=? AND source_key=?').run(generation,key);
+    this.assertWriter();
+    const touch=this.db.prepare('INSERT OR IGNORE INTO follow_touched VALUES (?,?)');
+    touch.run(generation,key);
+    this.db.prepare('DELETE FROM items WHERE generation=? AND source_key=?').run(generation,key);
     const put=this.db.prepare('INSERT OR REPLACE INTO items VALUES (?,?,?,?,?,?,?)');
-    for (const row of rows) put.run(generation,key,row.sourceId,String(row.mepId),row.category,row.date,JSON.stringify(row));
+    const displaced=this.db.prepare('SELECT source_key FROM items WHERE generation=? AND source_id=? AND mep=? AND category=?');
+    for (const row of rows) {
+      // REPLACE can delete another source's row through the identity/category PK.
+      const old=displaced.get(generation,row.sourceId,String(row.mepId),row.category);
+      if(old&&old.source_key!==key)touch.run(generation,old.source_key);
+      put.run(generation,key,row.sourceId,String(row.mepId),row.category,row.date,JSON.stringify(row));
+    }
   }
   setMembers(nodes) {
     this.transaction(()=>{ this.assertWriter();this.db.exec('DELETE FROM members');const q=this.db.prepare('INSERT OR REPLACE INTO members VALUES (?,?)');
@@ -286,14 +297,24 @@ export class ActivityStore {
       const old=this.get('active');this.set('lastRefreshRequests',this.get('working')?.requests || 0);this.set('previous',old);this.set('active',generation);this.set('working',null);
       this.set('refreshPolicyGeneration',generation);
       const publishedAt=new Date(this.clock()).toISOString();
-      publishFollowMarks(this,generation,publishedAt,followIndexComplete(this,generation));
+      publishFollowMarks(this,generation,publishedAt,followIndexComplete(this,generation),old);
       this.set('lastSuccess',publishedAt);this.set('unresolved',unresolved);
       // Retain the immediately previous generation for recovery; cache is reproducible public data.
-      for (const table of ['sources','items','tasks','follow_summary','follow_generations']) this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,old || generation);
+      this.pruneGenerations(generation,old || generation);
       outsidePrune(this.db,generation,old);
       amendmentsPrune(this.db,generation,old);
       groupVoicesPrune(this.db,generation,old);
     });
+  }
+  pruneGenerations(first,second=first) {
+    const low=Math.min(first,second),high=Math.max(first,second);
+    // NOT IN / <> scans all retained item bodies even when nothing is deleted.
+    // Separate indexed ranges also handle a nonadjacent recovery generation.
+    for(const table of ['sources','items','tasks','follow_summary','follow_generations','follow_touched']) {
+      this.db.prepare(`DELETE FROM ${table} WHERE generation<?`).run(low);
+      this.db.prepare(`DELETE FROM ${table} WHERE generation>?`).run(high);
+      if(low!==high)this.db.prepare(`DELETE FROM ${table} WHERE generation>? AND generation<?`).run(low,high);
+    }
   }
   status() {
     const cycle=this.get('working'), active=this.get('active'), generation=active || cycle?.generation || 0;

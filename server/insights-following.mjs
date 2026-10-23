@@ -18,7 +18,7 @@ export function followingQuery(view,search) {
 
 function generationInfo(store,generation) {
   if(store.get('followMarksVersion')!==followMarksVersion)return null;
-  return store.db.prepare(`SELECT published_at,index_complete,EXISTS(SELECT 1 FROM follow_summary WHERE generation=?) AS ready
+  return store.db.prepare(`SELECT published_at,index_complete,roster_basis,EXISTS(SELECT 1 FROM follow_summary WHERE generation=?) AS ready
     FROM follow_generations WHERE generation=?`).get(generation,generation);
 }
 
@@ -29,9 +29,9 @@ export function followingStatus(store) {
 }
 
 // All identity reads are covering. Only the selected 200 previews load JSON bodies.
-export const followingIdsSql=markedKinds.map(([kind,index,predicate],number)=>`SELECT current.source_id AS source_id,${number} AS kind,mark.mark AS mark,current.date AS date FROM
+export const followingIdsSql=markedKinds.map(([,index,predicate],number)=>`SELECT current.source_id AS source_id,${number} AS kind,mark.mark AS mark,current.date AS date FROM
   (SELECT source_id,MAX(date) AS date FROM items INDEXED BY ${index} WHERE generation=? AND mep=? AND ${predicate} GROUP BY source_id) current
-  JOIN item_marks mark ON mark.mep=? AND mark.kind='${kind}' AND mark.source_id=current.source_id`).join(' UNION ALL ')+' ORDER BY mark DESC,date DESC,source_id DESC,kind';
+  JOIN item_marks mark ON mark.mep=? AND mark.kind=${number} AND mark.source_id=current.source_id`).join(' UNION ALL ')+' ORDER BY mark DESC,date DESC,source_id DESC,kind';
 
 export function followingResponse(store,view,search) {
   const query=followingQuery(view,search),status=followingStatus(store);
@@ -42,7 +42,7 @@ export function followingResponse(store,view,search) {
     status:409,body:{error:{code:'generation_changed',message:'The index generation has changed.',epoch:status.epoch,generation:status.generation}}};
   const info=generationInfo(store,query.generation);
   if(!info?.ready)return unavailable();
-  const common={epoch:query.epoch,generation:query.generation};
+  const common={epoch:query.epoch,generation:query.generation,rosterBasis:info.roster_basis};
   let body;
   if(view==='following-manifest') {
     const rows=store.db.prepare('SELECT * FROM follow_summary WHERE generation=? ORDER BY mep').all(query.generation);
