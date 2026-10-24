@@ -32,6 +32,21 @@ Bundled supporting data: committee labels from the corporate-bodies API, country
 
 To add a source, document it here (access path, licence, limits), route it through the existing client, cache and queue, and add a small test fixture that records its source URL and retrieval time.
 
+### Character references
+
+The handwritten text decoders share `server/character-references.mjs`. Each adapter selects its existing policy; all require semicolons and decode one layer per call. Decoded markup remains text and still needs output escaping. Raw records, identifiers, language keys and provenance are unchanged.
+
+| Adapter | Named references | Numeric references and invalid input |
+| --- | --- | --- |
+| `source-titles.mjs` | Case-sensitive `@nodable/entities` `ALL_ENTITIES` table | Decimal and `x`/`X` hexadecimal; preserve zero, surrogates and values above U+10FFFF. Non-string values pass through. |
+| `member-votes-model.mjs` reference text | Five XML names, case-sensitive | Decimal and lowercase `x` hexadecimal; preserve zero, surrogates, values above U+10FFFF, C0 controls except tab/LF/CR, and U+FFFE/U+FFFF. |
+| `press-releases-model.mjs` `decodeHtml` | Case-insensitive XML names plus `nbsp`, curly quotes, dashes and ellipsis; `nbsp` becomes an ordinary space | At most seven decimal or six hexadecimal digits (`x`/`X`); preserve zero and values above U+10FFFF. Existing surrogate/control decoding and string coercion are retained. |
+| `amendment-splits.mjs` descriptions | Five XML names, case-sensitive | Decimal and `x`/`X` hexadecimal; unsupported references produce `unsafe_xml`, invalid numeric values or C0 controls except tab/LF/CR produce `invalid_xml`. Existing U+FFFE/U+FFFF decoding is retained. |
+
+Unknown or malformed references stay literal except in split descriptions, whose XML checks reject them. Split descriptions unwrap a fully escaped `partValue` fragment at its boundary, then decode text nodes once; CDATA stays literal. XML validation still applies before text decoding, including rejection of uppercase `#X` in an ordinary fragment. Press feeds retain their XML-parser layer followed by their title-text layer. Tag removal and whitespace handling remain in the adapters.
+
+Other XML readers use `fast-xml-parser`; OEIL enables its HTML entity mode. `src/Transcript.tsx` uses the browser's XML `DOMParser`. Those parsers own tree, attribute and CDATA handling and do not add a second shared-helper pass. There is no handwritten character-reference decoder in `src`; its following-store `decode` functions read JSON.
+
 ## Licences and attribution
 
 | Material | Terms | Basis |
