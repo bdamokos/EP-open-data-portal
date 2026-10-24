@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act,useState} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('live playback survives browsing and minimising, expires safely, and closes back to its opener',async t=>{
   const window=new Window({url:'http://localhost/?view=legislation&lang=en'}),initial=Date.parse('2026-10-20T07:10:00Z');let now=initial,tick;
@@ -10,13 +10,13 @@ test('live playback survives browsing and minimising, expires safely, and closes
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>{callback();return 0;},IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let root,vite;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,d] of originals)d?Object.defineProperty(globalThis,key,d):delete globalThis[key];});
+  let root,loadModule;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,d] of originals)d?Object.defineProperty(globalThis,key,d):delete globalThis[key];});
   const item={id:'MTG-PL-2026-10-20-OJ-ITM-D-72',titles:{en:'Debate in the timetable'},kind:'PLENARY_DEBATE'};
   const payload={status:'live',checkedAt:new Date(initial).toISOString(),validUntil:new Date(initial+75_000).toISOString(),current:{id:'D27530',title:'Current source debate',updatedAt:new Date(initial).toISOString()},broadcast:{id:'broadcast-1',channel:'EbS+',title:'Broadcast title',embedUrl:'https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN',languages:['EN']},agenda:{state:'presumed',sittingId:'MTG-PL-2026-10-20',items:[item]},sources:[]};
   t.mock.method(globalThis,'fetch',async url=>{assert(new URL(url,location.href).pathname.endsWith('/plenary-live'));return Response.json(payload);});
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {PlenaryLiveProvider,PlenaryLiveBanner,ScheduledNow}=await vite.ssrLoadModule('/src/PlenaryLive.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {PlenaryLiveProvider,PlenaryLiveBanner,ScheduledNow}=await loadModule('/src/PlenaryLive.tsx');
   const originalInterval=globalThis.setInterval;
 const timers=[],originalTimeout=globalThis.setTimeout;
   t.mock.method(globalThis,'setTimeout',(callback,ms,...args)=>{if(ms===30_000)timers.push(callback);return originalTimeout(callback,ms,...args);});

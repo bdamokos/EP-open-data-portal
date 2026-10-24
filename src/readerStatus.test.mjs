@@ -3,7 +3,7 @@ import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const body='Distinctive reader content that must stay outside every live announcement.';
 const questionId='E-10-2026-003031',speechId='MTG-PL-2026-03-25-OTH-2017069380111';
@@ -30,12 +30,12 @@ async function harness(t,{stored=false}={}) {
   const globals={window,document:window.document,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let root,vite;
+  let root,loadModule;
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const request of requests)if(!request.finished)request.resolve(Response.json({}));
     await Promise.resolve();
-    if(vite)await vite.close();
+    t.mock.timers.reset();if(loadModule)await loadModule.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -45,10 +45,13 @@ async function harness(t,{stored=false}={}) {
     assert.match(route,/^(document|speech|speech-transcript)\//,'reader tests must not contact unrelated services');
     return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const readers=await vite.ssrLoadModule('/src/InsightReaders.tsx');
-  const {expireActivityReads}=await vite.ssrLoadModule('/src/data.ts');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const readers=await loadModule('/src/InsightReaders.tsx');
+  const {expireActivityReads}=await loadModule('/src/data.ts');
   const {createRoot}=await import('react-dom/client');
+  // Module loading uses real timers; only mounted application deadlines are advanced.
+  t.mock.timers.enable({apis:['setTimeout']});
+  const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
   const trigger=document.createElement('button');trigger.textContent='Read selected item';document.body.append(trigger);trigger.focus();
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=element=>act(async()=>root.render(element));
@@ -58,9 +61,9 @@ async function harness(t,{stored=false}={}) {
     assert(request,'Missing request: '+route);request.finished=true;
     if(error)request.reject(new Error('Fixture request failed.'));else request.resolve(data instanceof Response?data:Response.json(data));
   });
-  const wait=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,400)));
+  const wait=()=>tick(350);
   const status=()=>container.querySelector('[role="status"][aria-live="polite"]');
-  return {window,container,trigger,reader,render,finish,wait,status,expireActivityReads,requests};
+  return {window,container,trigger,reader,render,finish,wait,tick,status,expireActivityReads,requests};
 }
 
 test('settled readers announce concise status once and keep document bodies out of live regions',async t=>{
@@ -72,7 +75,8 @@ test('settled readers announce concise status once and keep document bodies out 
     const observer=new h.window.MutationObserver(()=>{if(status.textContent)announcements.push(status.textContent);});
     observer.observe(status,{subtree:true,childList:true,characterData:true});t.after(()=>observer.disconnect());
     await h.finish(kind==='question'?`document/${questionId}?lang=en`:`speech/${speechId}?lang=en`,kind==='question'?question():speech());
-    await h.wait();
+    await h.tick(349);assert.equal(status.textContent,'','reader completion retains its debounce');
+    await h.tick(1);
     const expected=kind==='question'?'Question: Text loaded.':'Speech loaded.';
     assert.equal(h.status(),status,'completion updates the existing status region');assert.equal(status.textContent,expected);
     assert.equal(status.getAttribute('aria-atomic'),'true');assert.equal(status.getAttribute('lang'),'en');
@@ -194,7 +198,8 @@ test('failed refresh retries retain readable text, exact source metadata and sel
 
 test('HTTP-200 extraction failures honor their retry hint and localized retry label without declaring absence',async t=>{
   const h=await harness(t),route=`document/${questionId}?lang=hu`,data=question(questionId,'hu','error');
-  data.selectedText.nextRetryAt=new Date(Date.now()+900).toISOString();
+  let now=Date.now();t.mock.method(Date,'now',()=>now);
+  data.selectedText.nextRetryAt=new Date(now+900).toISOString();
   await h.render(h.reader('question',{language:'hu',includeAnswers:true}));await h.finish(route,data);
   const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);assert.equal(retry.lang,'hu');assert.equal(retry.textContent,'Újrapróbálkozás');
   assert.equal(retry.closest('p'),null,'retry is an action outside the error paragraph');
@@ -202,7 +207,9 @@ test('HTTP-200 extraction failures honor their retry hint and localized retry la
   assert(hint);assert.match(hint.textContent,/Try again in 1 second\./);assert.equal(hint.getAttribute('aria-live'),'off');
   retry.click();assert.equal(h.requests.length,1);assert(!h.container.textContent.includes('No answer published.'));
   assert(!h.container.textContent.includes('Text unavailable.'));
-  await act(async()=>new Promise(resolve=>setTimeout(resolve,950)));
+  now+=899;await h.tick(899);assert.equal(retry.disabled,true);
+  await act(async()=>retry.click());assert.equal(h.requests.length,1,'no request before expiry');
+  now+=1;await h.tick(1);
   assert.equal(retry.disabled,false,'the server hint expiring enables a manual retry');assert.equal(h.requests.length,1,'a hint does not start an automatic retry');
   assert.equal(retry.getAttribute('aria-describedby'),null);assert.equal(h.container.querySelector('.reader-retry-hint'),null);
   await act(async()=>{retry.focus();retry.click();});await h.finish(route,question(questionId,'hu'));
@@ -212,10 +219,18 @@ test('HTTP-200 extraction failures honor their retry hint and localized retry la
 test('HTTP error cooldowns disable the local speech and document retry until the supplied time',async t=>{
   for(const kind of ['question','speech'])await t.test(kind,async t=>{
     const h=await harness(t),route=kind==='question'?`document/${questionId}?lang=en`:`speech/${speechId}?lang=en`;
+    let now=Date.now();t.mock.method(Date,'now',()=>now);
     await h.render(h.reader(kind));
-    await h.finish(route,Response.json({error:{code:'upstream_busy',message:'Busy.',retryAt:Date.now()+60_000}},{status:503}));
+    await h.finish(route,Response.json({error:{code:'upstream_busy',message:'Busy.',retryAt:now+60_000}},{status:503}));
     const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);
     await act(async()=>retry.click());assert.equal(h.requests.length,1);
+    for(let second=0;second<59;second++){now+=1000;await h.tick(1000);}
+    now+=999;await h.tick(999);assert.equal(retry.disabled,true);
+    await act(async()=>retry.click());assert.equal(h.requests.length,1);
+    now+=1;await h.tick(1);assert.equal(retry.disabled,false);
+    assert.equal(h.requests.length,1,'expiry enables the control without an automatic request');
+    await act(async()=>retry.click());assert.equal(h.requests.length,2);
+    await h.finish(route,kind==='question'?question():speech());
   });
 });
 
@@ -266,7 +281,12 @@ test('retained speech refresh failures retry locally without losing body, langua
     await h.finish(stored?savedRoute:route,Response.json({error:{code:'upstream_busy',message:'Refresh failed.',retryAt:now+4_000}},{status:503}));
     const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);assert.equal(retry.lang,'hu');
     assert.equal(h.container.querySelector('.insight-reader-text'),text);assert.equal(text.lang,'fr');assert.equal(text.textContent,body);assert.equal(h.container.querySelector('.insight-source-document'),source);
-    now+=4_001;await act(async()=>new Promise(resolve=>setTimeout(resolve,4_050)));
+    // Advance each countdown callback with its matching wall clock, then the exact deadline.
+    for(const ms of [1000,1000,1000,999]){now+=ms;await h.tick(ms);}
+    assert.equal(retry.disabled,true);await act(async()=>retry.click());
+    assert.equal(h.requests.filter(request=>request.route===(stored?savedRoute:route)).length,2,'cooldown never retries automatically or accepts early clicks');
+    now+=1;await h.tick(1);
+    assert.equal(h.requests.filter(request=>request.route===(stored?savedRoute:route)).length,2,'expiry only enables a manual retry');
     assert.equal(retry.disabled,false);
     await act(async()=>{retry.focus();retry.click();retry.click();});assert.equal(h.container.querySelector('.reader-retry'),null,'active refresh cannot start a second retry');
     assert.equal(h.container.querySelector('.insight-reader-text'),text,'manual refresh never removes the saved body');

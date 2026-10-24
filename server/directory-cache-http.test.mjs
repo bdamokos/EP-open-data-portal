@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
@@ -6,7 +7,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {versionedApiUrl} from './api-version.mjs';
 
-test('directory polling and conditional reads cannot retain a loading membership snapshot', async t => {
+test('directory polling and conditional reads cannot retain a loading membership snapshot',loopback, async t => {
   const directory = await mkdtemp(path.join(tmpdir(), 'directory-cache-http-'));
   const originalFetch = globalThis.fetch;
   const previousDirectory = process.env.ODP_CACHE_DIR;

@@ -1,0 +1,4 @@
+.text-language-picker{display:inline-flex;flex-direction:column;gap:4px;min-width:0;max-width:100%;font-size:inherit;color:var(--ink-muted)}
+.text-language-picker select.text-language-select{box-sizing:border-box;min-height:44px;width:auto;max-width:min(100%,18rem);padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--accent);font:inherit;text-overflow:ellipsis}
+.text-language-picker select.text-language-select:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.text-language-note{color:var(--ink-muted);font-size:.85em;line-height:1.5}

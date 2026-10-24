@@ -52,8 +52,8 @@ test('speech titles retain requested/English/fixed fallback selection with their
     {language:'fr',titles:{hu:'Magyar',en:'English',fr:'Français'},title:'Français',titleLanguage:'fr'},
     {language:'hu',titles:{fr:'Français',en:'English'},title:'English',titleLanguage:'en'},
     {language:'fr',titles:{hu:'Magyar',fr:'',en:'English'},title:'English',titleLanguage:'en'},
-    {language:'en',titles:{hu:'Magyar'},title:'Speech',titleLanguage:'en'},
-    {language:'hu',titles:{fr:'Français',hu:'',en:''},title:'Speech',titleLanguage:'en'},
+    {language:'en',titles:{hu:'Magyar'},title:'Magyar',titleLanguage:'hu'},
+    {language:'hu',titles:{bg:'Български',fr:'Français',hu:'',en:''},title:'Français',titleLanguage:'fr'},
     {language:'fr',titles:{},title:'Speech',titleLanguage:'en'},
   ];
   for(const [i,{language,titles,title,titleLanguage}] of cases.entries()) {
@@ -74,14 +74,14 @@ test('speech titles retain requested/English/fixed fallback selection with their
   }
 });
 
-test('sitting scope titles retain requested/English/null selection without a first-key fallback',async t=>{
+test('sitting scope titles use the shared display preference and retain actual language',async t=>{
   const cases=[
     {language:'en',labels:{hu:'Ülés',en:'Sitting'},title:'Sitting',titleLanguage:'en'},
     {language:'hu',labels:{en:'Sitting',hu:'Ülés'},title:'Ülés',titleLanguage:'hu'},
     {language:'fr',labels:{en:'Sitting',fr:'Séance'},title:'Séance',titleLanguage:'fr'},
     {language:'hu',labels:{fr:'Séance',en:'Sitting'},title:'Sitting',titleLanguage:'en'},
     {language:'fr',labels:{fr:'',en:'Sitting'},title:'Sitting',titleLanguage:'en'},
-    {language:'hu',labels:{fr:'Séance'},title:null,titleLanguage:null},
+    {language:'hu',labels:{bg:'Заседание',fr:'Séance'},title:'Séance',titleLanguage:'fr'},
     {language:'en',labels:{},title:null,titleLanguage:null},
   ];
   for(const {language,labels,title,titleLanguage} of cases) {
@@ -173,4 +173,22 @@ test('retained cloud carries raw role language and known English independently o
   const result=await service.query(query(`sitting=${sitting}&lang=en`)),person=result.speeches[0].people[0];
   assert.equal(person.role,labels.bg.text);assert.equal(person.roleLanguage,'bg');assert.deepEqual(person.roleLabels,labels);
   assert.equal(person.roleSource.speechId,row.activity_id);
+});
+
+test('fallback display titles do not train English phrases in live or retained clouds',async t=>{
+  const content='We discussed nord stream and energy.';
+  for(const retained of [false,true])for(const english of [false,true]) {
+    const titles=english?{en:'Nord Stream',fr:'Nord Stream'}:{fr:'Nord Stream'},row=activity(1,{titles,fragments:{en:xml('en',content)}});
+    let service;
+    if(!retained)({service}=serviceFor(t,{data:[row]}));
+    else {
+      const source=record([]);
+      service=new SpeechCloudInsights(storeFor(t),{clock:now,request:async()=>assert.fail('Retained clouds must not fetch upstream'),legislation:{catalogue:async()=>({sittings:[{activity_id:sitting,activity_date:date}]})},
+        readCorpusPage:async()=>({revision:'1',total:1,nextOffset:null,records:[{id:row.activity_id,metadata:{activity:row,summary:{date,titles},speakers:[],sourceUrl:source.url,fetchedAt:new Date(now()).toISOString()},text:{body:content,translationType:'original',sourceUrl:source.url,fetchedAt:new Date(now()).toISOString()}}]})});
+    }
+    const result=await service.query(query(retained?`sitting=${sitting}&lang=en`:`member=${member}&days=term&lang=en`));
+    assert.equal(result.speeches[0].title,'Nord Stream');assert.equal(result.speeches[0].titleLanguage,english?'en':'fr');
+    assert.equal(Object.hasOwn(result.speeches[0],'analysisTitle'),false);
+    assert.deepEqual(result.words.map(word=>word.word).sort(),english?['discussed','energy','nord-stream']:['discussed','energy','nord','stream']);
+  }
 });

@@ -1,15 +1,17 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {deflateRawSync} from 'node:zlib';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import {docxContent,documentText,documentStructure} from './document-text.mjs';
 import {runWithRequestSignal,cancelledRequest} from './request-budget.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 import {HttpError} from './http-utils.mjs';
+
+beforeEach(registerSubprocesses);
 
 function zip(document,extra={}) {
   const locals=[],centrals=[],entries=Object.entries({'word/document.xml':document,...extra});let offset=0;
@@ -169,7 +171,7 @@ test('structure and source provenance survive persistence and settled retention 
   const file=path.join(directory,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),saved=JSON.parse(await readFile(file,'utf8'));
   assert.deepEqual(saved.paragraphSources,content.paragraphSources);
   const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});console.log(JSON.stringify(await documentText(${JSON.stringify(work)},'en',{directory:${JSON.stringify(directory)},clock:()=>Date.parse('2027-12-01'),download:async()=>{throw new Error('Unexpected cold refresh');}})));`;
-  const restarted=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{encoding:'utf8',timeout:5000}));
+  const restarted=JSON.parse((await execFileAsync(t,process.execPath,['--input-type=module','-e',script],{encoding:'utf8'})).stdout);
   assert.equal(restarted.stale,false);assert.equal(restarted.refreshInProgress,false);assert.equal(restarted.structureStatus,'extracted');assert.deepEqual(restarted.paragraphSources,result.paragraphSources);assert.deepEqual(restarted.sourceVersion,source);
 });
 

@@ -3,7 +3,7 @@ import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createElement as el,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const languages=['en','hu','fr'];
 const effectiveLanguage=element=>element.closest('[lang]')?.getAttribute('lang');
@@ -81,8 +81,8 @@ async function harness(t,respond) {
   const globals={window,document:window.document,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,matchMedia:()=>({matches:true}),requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){scrolls.push({element:this,options});});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1];
@@ -90,8 +90,8 @@ async function harness(t,respond) {
     const data=respond(route,url.searchParams);assert.notEqual(data,undefined,'Unexpected fixture request: '+route+url.search);
     return Response.json(data);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const [readers,references,cloud,procedure]=await Promise.all(['/src/InsightReaders.tsx','/src/References.tsx','/src/SpeechCloud.tsx','/src/ProcedureContext.tsx'].map(path=>vite.ssrLoadModule(path)));
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const [readers,references,cloud,procedure]=await Promise.all(['/src/InsightReaders.tsx','/src/References.tsx','/src/SpeechCloud.tsx','/src/ProcedureContext.tsx'].map(path=>loadModule(path)));
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const settle=(delay=10)=>act(async()=>new Promise(resolve=>setTimeout(resolve,delay)));
@@ -139,7 +139,7 @@ test('reader fallbacks separate localized display names from English copy and pr
     for(const kind of ['question','speech']) {
       await h.render(el(kind==='question'?h.InsightQuestionReader:h.InsightSpeechReader,{key:kind,id:kind==='question'?questionId:speechId,language:'hu'}));
       assert.equal(effectiveLanguage(h.container.querySelector('.insight-reader-text')),actual??'');
-      const fallback=h.container.querySelector('.insight-language-fallback');
+      const fallback=h.container.querySelector('.text-language-note');
       if(actual) {
         assert.equal(effectiveLanguage(fallback),'en');
         assert.deepEqual([...fallback.querySelectorAll('span')].map(effectiveLanguage),['hu','hu']);
@@ -283,13 +283,13 @@ test('OPEN cloud flat names keep the original aria-label mechanism with exact Fr
   t.diagnostic(JSON.stringify({assessment:'OPEN',accessibleName:region.getAttribute('aria-label'),mechanism:'aria-label',constituents:[{text:'Speech by ',language:'en'},{text:'Titre français',language:'fr'}],effectiveLang:effectiveLanguage(region)}));
 });
 
-test('OPEN compound reader headings keep exact date-bearing labels, status and local-find names',async t=>{
+test('compound reader headings retain date-bearing status and find names with the shared Text language selector',async t=>{
   const h=await harness(t,route=>route.startsWith('document/')?question('fr'):undefined);
   const heading='Answer 2 · 2026. márc. 25.';
   await h.render(el(h.InsightQuestionReader,{id:questionId,language:'hu',heading}));await h.settle(375);
   const select=h.container.querySelector('.insight-reader-heading select'),find=h.container.querySelector('button[aria-label^="Find in"]'),status=h.container.querySelector('[aria-live]');
   assert.equal(h.container.querySelector('h3').textContent,heading);assert.equal(effectiveLanguage(h.container.querySelector('h3')),'en');
-  assert.equal(select.getAttribute('aria-label'),heading+' language');assert.equal(select.hasAttribute('aria-labelledby'),false);assert.equal(effectiveLanguage(select),'en');
+  assert.equal(select.getAttribute('aria-label'),'Text language');assert.equal(select.hasAttribute('aria-labelledby'),false);assert.equal(effectiveLanguage(select),'en');
   assert.equal(find.getAttribute('aria-label'),'Find in '+heading.toLowerCase());assert.equal(find.hasAttribute('aria-labelledby'),false);assert.equal(effectiveLanguage(find),'en');
   assert.equal(status.textContent,heading+': Text loaded.');assert.equal(effectiveLanguage(status),'en');
   t.diagnostic(JSON.stringify({assessment:'OPEN',heading,constituents:[{text:'Answer 2',language:'en'},{text:'2026. márc. 25.',language:'hu'}],effectiveLang:'en',selectorName:select.getAttribute('aria-label'),findName:find.getAttribute('aria-label'),status:status.textContent,mechanism:'existing text and aria-label strings'}));

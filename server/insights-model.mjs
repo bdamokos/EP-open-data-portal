@@ -5,7 +5,7 @@ import {phraseModelSteps} from './insights-phrases.mjs';
 import {finishWork,cooperativeWork} from './cooperative-work.mjs';
 import {questionAddressees} from './question-addressees.mjs';
 
-export const INSIGHTS_VERSION = 'titles-phrases-facets-v13-dated-contributions';
+export const INSIGHTS_VERSION = 'titles-phrases-facets-v14-dated-contributions-display-language-order';
 export const officialApi = path => 'https://data.europarl.europa.eu/api/v2' + path;
 export function personId(value) {
   let reference=typeof value==='string' ? value : value?.id;

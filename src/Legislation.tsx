@@ -1,5 +1,6 @@
 import {legislationContributors,legislationOffice,mergeSpeechSpeakers,orderLegislationPeople,type SpeechHeaders,type SpeechSpeaker} from './legislationContributors.mjs';
 import {PersonName,usePersonName} from './PersonName';
+import {selectLanguageText} from './language.mjs';
 import {matchesCountry} from './countries.mjs';
 import {useExplorerParam} from './explorerUrl';
 import {PlenaryLiveBanner,ScheduledNow} from './PlenaryLive';
@@ -43,7 +44,8 @@ function VoteView({vote,language,onMember,country}:{country:string|null;vote:Nam
   const people=countryPeople(position),filtered=group?groupPeople(group,position):people;
   const groups=(vote.politicalGroups||[]).map(row=>row.code).filter(code=>choices.some(p=>groupPeople(code,p).length)).sort((a,b)=>choices.reduce((n,p)=>n+groupPeople(b,p).length-groupPeople(a,p).length,0)||a.localeCompare(b));
   function choose(p:keyof typeof positions,g:string|null){const active=document.activeElement;if(active instanceof HTMLButtonElement&&!active.closest('.insight-voter-list'))opener.current=active;setPosition(p);setGroup(g);setShowPeople(true);requestAnimationFrame(()=>{heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'start'});});}
-  const title=vote.subjects[language]?{text:vote.subjects[language],language}:vote.subjects.en?{text:vote.subjects.en,language:'en'}:vote.titles[language]?{text:vote.titles[language],language}:vote.titles.en?{text:vote.titles.en,language:'en'}:interfaceTerm('vote',language);
+  const titles={...vote.titles,...Object.fromEntries(Object.entries(vote.subjects).filter(([,text])=>text.trim()))};
+  const label=interfaceTerm('vote',language),title=selectLanguageText(titles,language,label.text,label.language);
   return <section className="insight-vote-detail" lang="en">
     <h3 lang={title.language}>{title.text}</h3>
     <p className="insight-record-meta"><span lang={voteScope(vote.scope,language).language}>{voteScope(vote.scope,language).text}</span><span lang={language}>{humanDate(vote.date,language)}</span><span>{vote.outcome.toLowerCase()}</span></p>

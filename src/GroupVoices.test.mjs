@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 const basePeople=[{id:'42',name:'Éva Example',total:3,subjects:{foreign:2,climate:1}},...Array.from({length:22},(_,i)=>({id:String(100+i),name:'Speaker '+String(i+1).padStart(2,'0'),total:1,subjects:{foreign:1}}))];
 const coverage={initialized:true,observedOralRecords:25,pending:0,truncated:false,note:'Available recorded designations · partial coverage'};
 async function harness(t,query='?view=groups&gv-group=PPE&gv-tab=people',{websiteUrl=true,stored=true}={}){
@@ -14,7 +14,7 @@ async function harness(t,query='?view=groups&gv-group=PPE&gv-tab=people',{websit
  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,ResizeObserver:class {observe(){} disconnect(){}},IntersectionObserver:class {observe(){} disconnect(){}},IS_REACT_ACT_ENVIRONMENT:true};
  const originals=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  window.HTMLElement.prototype.scrollIntoView=function(){};window.HTMLElement.prototype.scrollTo=function(){};
- let vite,root,fail=false,deferPerson=false;const calls=[],delays=[],personResponses=[];
+ let loadModule,root,fail=false,deferPerson=false;const calls=[],delays=[],personResponses=[];
  t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,location.href);if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});calls.push(url);
   const speechRoute=url.pathname.match(/^\/api\/(speech-transcript|speech|speech-context)\/(MTG-PL-2026-10-06-OTH-\d+)$/);
   if(speechRoute){
@@ -31,9 +31,9 @@ async function harness(t,query='?view=groups&gv-group=PPE&gv-tab=people',{websit
   if(deferPerson&&url.searchParams.has('person'))return new Promise(resolve=>personResponses.push(()=>resolve(Response.json(result))));
   return Response.json(result);
  });
- vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
- const {default:App}=await vite.ssrLoadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
- t.after(async()=>{await act(async()=>root.unmount());delays.forEach(resolve=>resolve(Response.json({people:[],months:[],coverage,window:{}})));await vite.close();await window.happyDOM.close();for(const [key,d] of originals)d?Object.defineProperty(globalThis,key,d):delete globalThis[key];});
+ loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+ const {default:App}=await loadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+ t.after(async()=>{await act(async()=>root.unmount());delays.forEach(resolve=>resolve(Response.json({people:[],months:[],coverage,window:{}})));await loadModule.close();await window.happyDOM.close();for(const [key,d] of originals)d?Object.defineProperty(globalThis,key,d):delete globalThis[key];});
  await act(async()=>root.render(createElement(App)));await viewReady(container);
  const click=async node=>{await act(async()=>{assert(node);node.focus();node.click();});await viewReady(container);};
  const restore=url=>act(async()=>{history.replaceState(null,'',url);window.dispatchEvent(new window.PopStateEvent('popstate'));});

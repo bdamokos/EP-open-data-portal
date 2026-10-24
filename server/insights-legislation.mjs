@@ -1,5 +1,6 @@
 import {contributionGroup,groupContributions} from './group-aggregation.mjs';
 import {generationGroupOn,datedPerson} from './group-attribution.mjs';
+import {languagePreference} from './language-order.mjs';
 import {calendarYears,currentTermSittings} from './plenary-calendar.mjs';
 import { HttpError } from './http-utils.mjs';
 import { odp } from './odp.mjs';
@@ -22,6 +23,10 @@ const verifiedSpeechAnchors={
 export const sourceCacheState=record=>({stale:record?.stale===true,refreshInProgress:record?.refreshInProgress===true,refreshError:record?.refreshError||null});
 export const sourceIsTransient=record=>record?.stale===true||record?.refreshInProgress===true||Boolean(record?.refreshError);
 const sourceEvidence=record=>({apiUrl:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),...sourceCacheState(record)});
+const displayTitle=(titles,language,fallback)=>{
+  const code=languagePreference(Object.keys(titles||{}).filter(code=>typeof titles[code]==='string'&&titles[code].trim()),language)[0];
+  return code===undefined?fallback:titles[code];
+};
 function uniqueSources(sources) {
   const records=new Map();
   for(const source of sources) {
@@ -117,7 +122,7 @@ export class LegislationInsights {
     }
     const foreseen={url:agendaSources[0]?.apiUrl||'https://data.europarl.europa.eu/api/v2/meetings/'+sitting.activity_id+'/foreseen-activities',fetchedAt:agendaSources[0]?.fetchedAt||null,payload:{data:agendaNodes}};
     const topics=agendaTopics(meeting,foreseen).slice(0,LEGISLATION_LIMITS.agendaTopics);
-    const localize=n=>({...n,title:n.titles[query.language]||n.titles.en||Object.values(n.titles)[0]||n.id,titleLanguage:n.titles[query.language]?query.language:n.titles.en?'en':Object.keys(n.titles)[0]||null});
+    const localize=n=>{const code=languagePreference(Object.keys(n.titles).filter(code=>n.titles[code]?.trim()),query.language)[0];return {...n,title:n.titles[code]||n.id,titleLanguage:code||null};};
     let detail=null;
     if(query.topic) {
       const topic=topics.find(t=>t.id===query.topic);if(!topic)throw new HttpError(404,'topic_not_found','That agenda topic is not in the selected sitting.');
@@ -163,7 +168,7 @@ export class LegislationInsights {
       if(contributionIds.size>LEGISLATION_LIMITS.contributions)contributionsTruncated=true;
       const selectedContributions=[...contributionIds].slice(0,LEGISLATION_LIMITS.contributions);
       const speechRows=selectedContributions.length?this.store.db.prepare(`SELECT body FROM items WHERE generation=? AND category='plenary-contributions' AND source_id IN (${selectedContributions.map(()=>'?').join(',')}) LIMIT 1000`).all(status.servingGeneration,...selectedContributions).map(r=>JSON.parse(r.body)):[];
-      const speeches=[...new Map(speechRows.map(r=>[r.sourceId,r])).values()].map(row=>({sourceId:row.sourceId,date:row.date,title:row.titles?.[query.language]||row.titles?.en||row.reference,kind:row.speechKind,start:row.start,end:row.end,people:memberPeople(speechRows.filter(r=>r.sourceId===row.sourceId).map(r=>r.mepId),members,metadata).map(person=>({...datedPerson(person,row.date,groupOn),contributionGroup:contributionGroup(person.id,row.date,groupOn)})),provenance:row.provenance}));
+      const speeches=[...new Map(speechRows.map(r=>[r.sourceId,r])).values()].map(row=>({sourceId:row.sourceId,date:row.date,title:displayTitle(row.titles,query.language,row.reference),kind:row.speechKind,start:row.start,end:row.end,people:memberPeople(speechRows.filter(r=>r.sourceId===row.sourceId).map(r=>r.mepId),members,metadata).map(person=>({...datedPerson(person,row.date,groupOn),contributionGroup:contributionGroup(person.id,row.date,groupOn)})),provenance:row.provenance}));
       const participantIds=[...roles.map(r=>r.id),...speechRows.map(r=>String(r.mepId))];
       const participantDate=id=>[...roles.filter(role=>role.id===id).map(role=>role.date),...speeches.filter(speech=>speech.people.some(person=>person.id===id)).map(speech=>speech.date)].filter(Boolean).sort().at(-1)||null;
       const people=memberPeople(participantIds,members,metadata).map(person=>({...datedPerson(person,participantDate(person.id),groupOn),
@@ -192,12 +197,12 @@ export class LegislationInsights {
       const selectedVote=query.vote?votes.find(v=>v.id===query.vote):votes[0]||null;
       if(query.vote&&!selectedVote)throw new HttpError(404,'vote_not_found','That roll-call is not joined to this agenda topic.');
       detail={...localize(topic),phase,procedures,committeeWork:[...new Map(committeeWork.map(e=>[e.id,e])).values()].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12),roles,speeches,people,stats:{...demographicStats(participantIds,members,metadata,sitting.activity_date),groupContributions:groupContributions([...roles.map(r=>({id:r.id,date:r.date})),...speechRows.map(r=>({id:String(r.mepId),date:r.date}))],groupOn)},
-        votes:votes.map(v=>({id:v.id,date:v.date,title:v.titles[query.language]||v.titles.en||v.id,subject:v.subjects[query.language]||v.subjects.en||null,scope:v.scope,outcome:v.outcome,namedVotersAvailable:v.namedVotersAvailable,aggregateTotals:v.aggregateTotals,uniqueNamedVoters:v.uniqueNamedVoters})),
+        votes:votes.map(v=>({id:v.id,date:v.date,title:displayTitle(v.titles,query.language,v.id),subject:displayTitle(v.subjects,query.language,null),scope:v.scope,outcome:v.outcome,namedVotersAvailable:v.namedVotersAvailable,aggregateTotals:v.aggregateTotals,uniqueNamedVoters:v.uniqueNamedVoters})),
         selectedVote,finalVotePatterns:finalVotePatterns(votes,members,metadata,groupOn),voteCoverage,
         coverage:{missingDocumentIds:missingDocuments,roleRowsTruncated:rows.length>=LEGISLATION_LIMITS.roleRows,speechAssociations:{status:speechSources.length?'exact-bounded-joins':phase==='upcoming'?'not-yet-held':'source-unavailable',context:phase==='upcoming'?'previous-debates':'debates',count:speechSources.length?speeches.length:null,exactChildReferences:contributionIds.size,childrenWithoutSavedContributionRows:selectedContributions.filter(id=>!speeches.some(s=>s.sourceId===id)).length,truncated:contributionsTruncated||debateCandidates.size>LEGISLATION_LIMITS.debateEvents,sources:speechSources,reason:speechSources.length?'Speakers are joined only from exact actual-debate child IDs to saved contribution rows. Document-backed debates can precede the selected sitting. Unmatched child refs include chair/non-contribution activities and unresolved records; they are not a count of missing speeches. This bounded selection is not a full corpus.':'No exact debate association was resolved within the selected source bounds. Whole-day activities/procedure-event listing timed out in verification. No title matching or inferred counterpart IDs are used.'},gaps}};
     }
-    return {version:1,view:'legislation',requestedLanguage:query.language,sitting:{id:sitting.activity_id,phase,date:sitting.activity_date,title:sitting.activity_label?.[query.language]||sitting.activity_label?.en||sitting.activity_id,agendaDocumentIds:array(sitting.documented_by_a_realization_of).map(tail)},
-      sittings:catalogue.sittings.map(s=>({id:s.activity_id,phase:s.activity_date>today?'upcoming':s.activity_date===today?'today':'past',date:s.activity_date,title:s.activity_label?.[query.language]||s.activity_label?.en||s.activity_id})),topics:topics.map(localize),detail,
+    return {version:1,view:'legislation',requestedLanguage:query.language,sitting:{id:sitting.activity_id,phase,date:sitting.activity_date,title:displayTitle(sitting.activity_label,query.language,sitting.activity_id),agendaDocumentIds:array(sitting.documented_by_a_realization_of).map(tail)},
+      sittings:catalogue.sittings.map(s=>({id:s.activity_id,phase:s.activity_date>today?'upcoming':s.activity_date===today?'today':'past',date:s.activity_date,title:displayTitle(s.activity_label,query.language,s.activity_id)})),topics:topics.map(localize),detail,
       coverage:{indexComplete:status.complete,servingGeneration:status.servingGeneration,rosterFetchedAt:status.rosterFetchedAt,lastSuccessfulRefresh:status.lastSuccessfulRefresh,pendingSpeechRecoveries:status.pendingSpeechRecoveries?.count||0,catalogueYear:catalogue.year,catalogueYears:catalogue.years,catalogueStart:catalogue.start,catalogueComplete:catalogue.complete,agendaComplete,agendaError,scope:'Current-term catalogue-listed plenary sittings, with exact agenda/document/procedure joins. This is activity in a selected sitting, not an assertion that each procedure remains open or legislative.',sources},
       attribution:'European Parliament Open Data API v2, CC BY 4.0',limits:LEGISLATION_LIMITS};
   }

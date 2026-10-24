@@ -3,7 +3,7 @@ import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const member={id:257043,firstName:'Mika',lastName:'Aaltola',sortName:'AALTOLA Mika',gender:'m',countryCode:'FI',groupCode:'EPP',memberships:[],accounts:[]};
 const questionId='E-10-2026-003031',speechId='MTG-PL-2026-03-25-OTH-2017069380111';
@@ -33,12 +33,12 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1440,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let root,vite;
+  let root,loadModule;
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',()=>{});
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const request of pending)if(!request.finished)request.resolve(Response.json({}));
-    await Promise.resolve();if(vite)await vite.close();await window.happyDOM.close();
+    await Promise.resolve();t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(unexpected,[],'all app requests use isolated public-source fixtures');
   });
@@ -57,15 +57,18 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
     if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
     unexpected.push(url.href);throw new Error('Unexpected fixture request: '+url.href);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {default:App}=await vite.ssrLoadModule('/src/App.tsx'),{expireActivityReads}=await vite.ssrLoadModule('/src/data.ts');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {default:App}=await loadModule('/src/App.tsx'),{expireActivityReads}=await loadModule('/src/data.ts');
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  // Module loading uses real timers; only mounted application deadlines are advanced.
+  t.mock.timers.enable({apis:['setTimeout']});
+  const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
   await act(async()=>root.render(createElement(App)));
   const click=node=>{assert(node,'Missing control');return act(async()=>node.click());};
   const finish=(route,data,status=200)=>act(async()=>{
     const request=pending.find(request=>request.route===route&&!request.finished);assert(request,'Missing request: '+route);request.finished=true;request.resolve(Response.json(data,{status}));
   });
-  return {window,container,pending,click,finish,expireActivityReads,wait:()=>act(async()=>new Promise(resolve=>setTimeout(resolve,400)))};
+  return {window,container,pending,click,finish,expireActivityReads,tick,wait:()=>tick(350)};
 }
 const status=reader=>reader.querySelector('[role="status"][aria-live="polite"]');
 test('a statistics restart clamps a filtered page when fewer matching records remain',async t=>{
@@ -146,7 +149,7 @@ test('selected written question keeps full text and downloads while announcing s
   await h.finish(`document/${questionId}?member=${member.id}&lang=en`,{error:{message:'Document fixture temporarily unavailable.'}},503);await h.wait();
   assert.equal(status(refreshed).textContent,'Question: Text temporarily unavailable.');assertOrdinaryText(refreshed);assertDownloads(refreshed);
   assert.equal(refreshed.querySelectorAll('[role="status"],[role="alert"]').length,1,'the reader error has one narrow announcement');
-  const language=refreshed.querySelector('select[aria-label="Question language"]');
+  const language=refreshed.querySelector('select[aria-label="Text language"]');
   await act(async()=>{language.value='fr';language.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
   await h.finish(`document/${questionId}?member=${member.id}&lang=fr`,documentResult('fr',false));await h.wait();
   assert.equal(status(refreshed).textContent,'Question: Text unavailable.');assert.match(refreshed.textContent,/Text unavailable\. Download the document below\./);assertDownloads(refreshed,'fr');

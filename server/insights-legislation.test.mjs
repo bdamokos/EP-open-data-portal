@@ -157,6 +157,40 @@ test('read-only service uses exact parent/child speech join, bounded requests an
   }finally{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});}
 });
 
+test('sitting, speech and vote display titles follow the shared order without changing exact source joins',async()=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'insights-title-language-')),store=new ActivityStore(directory);
+  const labels={bg:'Bulgarian display title',de:'German display title',es:'Spanish display title',fr:'French display title'};
+  try {
+    store.acquire();const {generation}=store.beginCycle();store.setMembers([...members.values()]);
+    const speech=structuredClone(fixture.speech),s=speech.payload.data[0];s.activity_label=labels;
+    store.putSource(generation,'/speeches/'+s.activity_id,'speech',{id:s.activity_id},new Date(speech.fetchedAt).toISOString(),speechRows(s,new Date(speech.fetchedAt).toISOString()));
+    const meetings=structuredClone(fixture.meetings),decisions=structuredClone(fixture.decisions);
+    for(const sitting of meetings.payload.data)sitting.activity_label=labels;
+    for(const decision of decisions.payload.data){decision.activity_label=labels;decision.referenceText=labels;}
+    const request=async(ep,params)=>{
+      if(ep==='/meetings')return params.offset===0?meetings:{...meetings,payload:{data:[]}};
+      if(ep.endsWith('/foreseen-activities'))return fixture.foreseen;
+      if(ep.startsWith('/speeches/'))return speech;
+      if(ep==='/events/'+fixture.speechParent.payload.data[0].activity_id)return fixture.speechParent;
+      if(ep.endsWith('/vote-results'))return fixture.results;
+      if(ep.endsWith('/decisions'))return decisions;
+      if(ep.startsWith('/plenary-documents/'))return fixture.report;
+      throw new Error('Unexpected source: '+ep);
+    };
+    const clock=()=>Date.parse('2026-10-14T09:30:00Z'),service=new LegislationInsights(store,{request,clock,loadMetadata:async()=>metadata});
+    store.db.exec('PRAGMA query_only=ON');
+    for(const [language,expected] of [['ga',labels.fr],['bg',labels.bg],['es',labels.es]]){
+      const query=topic=>insightQuery(new URLSearchParams({lang:language,sitting:'MTG-PL-2026-10-07',topic:'MTG-PL-2026-10-07-OJ-ITM-'+topic}),{kind:'legislation',now:clock()});
+      const debate=await service.query(query('D-69'));
+      assert.equal(debate.sitting.title,expected);assert(debate.sittings.every(sitting=>sitting.title===expected));
+      assert.equal(debate.detail.speeches[0].title,expected);assert.equal(debate.detail.speeches[0].sourceId,s.activity_id);
+      const vote=await service.query(query('V-48'));
+      assert.equal(vote.detail.votes[0].title,expected);assert.equal(vote.detail.votes[0].subject,expected);
+      assert.equal(vote.detail.selectedVote.id,'MTG-PL-2026-10-07-DEC-197457');
+    }
+  }finally{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});}
+});
+
 // October 7 is upcoming at this clock. Source models are explicitly projected test inputs.
 test('upcoming sittings skip unheld votes, retain exact previous procedure debates and do not manufacture future speeches',async()=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'insights-upcoming-test-')),store=new ActivityStore(directory),calls=[];
