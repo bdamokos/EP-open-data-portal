@@ -45,3 +45,28 @@ test('only the matching English answer header moves; mismatched IDs, other langu
   for(const [id,language] of [['E-10-2026-003031-ASW','en'],['E-10-2026-002520-ASW','ga']])assert.deepEqual(publicationBody(input,id,language).paragraphs,input);
   const prose=['This paragraph discusses E-002520/2026','Actual answer text'];assert.deepEqual(publicationBody(prose,'E-10-2026-002520-ASW','en').paragraphs,prose);
 });
+
+const taId='TA-10-2026-0007';
+const taParagraphs=['European Parliament','2024-2029','\uFFFC','TEXTS ADOPTED','P10_TA(2026)0007','Murder of Mehdi Kessaci – urgent need for ambitious European action against drug trafficking','European Parliament resolution of 20 January 2026 on the murder of Mehdi Kessaci: urgent need for ambitious European action against drug trafficking (2025/3020(RSP))','The European Parliament,','–\thaving regard to the Treaty on European Union (TEU),','1.\tCalls for action;'];
+test('adopted texts retain the formal resolution heading and exact body offsets after the matched masthead',()=>{
+  const source=[...taParagraphs],body=publicationBody(source,taId,'en');
+  assert.deepEqual(body,{paragraphs:source.slice(6),header:source.slice(0,6),start:6,exact:true,coverLogoParagraph:2});
+  assert.deepEqual(source,taParagraphs);
+  for(const [id,title,lead,extra] of [
+    ['TA-10-2026-0008','EU-Mercosur Partnership Agreement','European Parliament resolution of 21 January 2026 seeking an opinion from the Court of Justice on the compatibility with the Treaties (2026/2560(RSP))',[]],
+    ['TA-10-2026-0250','Implementation and delivery of the Sustainable Development Goals','European Parliament resolution of 7 July 2026 on the implementation and delivery of the Sustainable Development Goals (2025/2248(INI))',[]],
+    ['TA-10-2025-0001','EU/Republic of Serbia agreement','European Parliament legislative resolution of 21 January 2025 on the draft Council decision (2024/0074(NLE))',['(Consent)']],
+  ]) {
+    const reference=id.match(/^TA-10-(\d{4})-(\d{4})$/),input=[...source.slice(0,4),`P10_TA(${reference[1]})${reference[2]}`,title,lead,...extra,...source.slice(7)];
+    const result=publicationBody(input,id,'en');assert.equal(result.start,6);assert.deepEqual(result.paragraphs,input.slice(6));
+  }
+  const noLogo=source.filter((_,i)=>i!==2);assert.equal(publicationBody(noLogo,taId,'en').start,5);
+});
+test('unknown or mismatched adopted covers and A/B/RC readers retain all original paragraphs',()=>{
+  for(const [id,lang] of [[taId,'fr'],[taId,null],['TA-10-2026-0008','en'],['B-10-2026-0057','en'],['RC-10-2026-0007','en'],['A-10-2026-0237','en']])assert.equal(publicationBody(taParagraphs,id,lang).start,0);
+  for(const mutate of [
+    p=>p[0]='Another institution',p=>p[1]='2019-2024',p=>p[2]='Unknown figure \uFFFC',p=>p[3]='Other publication',
+    p=>p[4]='P10_TA(2026)0008',p=>p[5]+='\uFFFC',p=>p[6]='Unrecognised opening',p=>p[8]='Unstructured text',
+    p=>p.push('The European Parliament,','– another resolution'),
+  ]){const p=[...taParagraphs];mutate(p);assert.equal(publicationBody(p,taId,'en').start,0);}
+});

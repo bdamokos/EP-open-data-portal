@@ -1,2 +1,4 @@
 // start is the first body paragraph's index in the supplied list; exact is false when cleaning changed characters.
-export function publicationBody(paragraphs:string[],documentId:string,language:string|null|undefined):{paragraphs:string[];header:string[];start:number;exact:boolean};
+export function publicationBody(paragraphs:string[],documentId:string,language:string|null|undefined):{paragraphs:string[];header:string[];start:number;exact:boolean;coverLogoParagraph?:number|null};
+
+export function publicationHasMissingContent(text:unknown,body:{start:number;coverLogoParagraph?:number|null}):boolean;
