@@ -54,3 +54,21 @@ test('older projections and document-only observations cannot establish a full p
   for(const reference of ['2025/0407A(COD)','2025/0407A(RSP)'])assert.equal(read([reference]).items[0].status,'unavailable');
   const next=store.beginCycle().generation;store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(next,'/procedures/'+procedure);store.publish(next);assert.equal(read().items[0].status,'unavailable');
 });
+
+for(const [label,types] of [
+  ['COD first',['def/ep-procedure-types/COD','def/ep-procedure-types/RSP']],
+  ['RSP first',['def/ep-procedure-types/RSP','def/ep-procedure-types/COD']],
+  ['unreadable type',['def/ep-procedure-types/COD',{}]],
+  ['nested values',[['def/ep-procedure-types/COD','def/ep-procedure-types/RSP']]],
+])test('conflicting or unreadable procedure types withhold all dossier attribution: '+label,t=>{
+  const {store,read}=setup(t),generation=store.beginCycle().generation;
+  store.putSource(generation,'/procedures/'+procedure,'procedure',{id:'eli/dl/proc/'+procedure,process_type:types,consists_of:[{id:'eli/dl/event/exact-stage',had_activity_type:'def/REFERRAL',activity_date:'2026-10-01'}]},'2026-10-23T10:00:00Z');store.publish(generation);
+  for(const item of read([reference,'2025/0407A(RSP)']).items){assert.equal(item.status,'unavailable');assert.deepEqual(item.entries,[]);}
+});
+
+test('equivalent string and object procedure types deduplicate to one verified code',t=>{
+  const {store,read}=setup(t),generation=store.beginCycle().generation;
+  store.putSource(generation,'/procedures/'+procedure,'procedure',{id:'eli/dl/proc/'+procedure,process_type:['def/ep-procedure-types/COD',{id:'https://data.europarl.europa.eu/def/ep-procedure-types/COD'},'COD'],consists_of:[{id:'eli/dl/event/exact-stage',had_activity_type:'def/REFERRAL',activity_date:'2026-10-01'}]},'2026-10-23T10:00:00Z');store.publish(generation);
+  const [matching,other]=read([reference,'2025/0407A(RSP)']).items;
+  assert.equal(matching.status,'available');assert.equal(matching.entries.length,1);assert.equal(other.status,'unavailable');assert.deepEqual(other.entries,[]);
+});
