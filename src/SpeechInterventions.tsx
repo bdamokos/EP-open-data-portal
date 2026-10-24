@@ -1,3 +1,6 @@
+import {AvailabilityNote,PartialValue} from './AvailabilityNote';
+import {sourceAvailability} from '../server/source-availability.mjs';
+import {brusselsDay} from '../server/analysis-period.mjs';
 import {transcriptParagraphs,TranscriptText} from './Transcript';
 import {GROUP_VOICE_GROUPS} from './groupVoiceTerms.mjs';
 import {useEffect,useId,useRef,useState} from 'react';
@@ -41,8 +44,6 @@ export function InterventionStatistics({member,onItems,filter}:{member:number;on
   const [state,setState]=useState<{member:number;data:InterventionStatistics|null;loading:boolean;error:string|null}>({member,data:null,loading:true,error:null});
   const [attempt,setAttempt]=useState(0);
   const {data:result,loading,error}=state.member===member?state:{data:null,loading:true,error:null};
-  const latestDataDate=result?.coverage.latestDataDate;
-  const refreshedAt=(result?.sources||[]).map(source=>source.fetchedAt).filter(value=>Number.isFinite(Date.parse(value))).sort().at(-1);
   const missingContributions=result&&((result.coverage.total!==null&&result.coverage.available<result.coverage.total)||(result.coverage.issues||[]).some(issue=>!['retained-corpus','total-unavailable'].includes(issue)));
   useEffect(()=>{
     let active=true;const controller=new AbortController();
@@ -66,11 +67,10 @@ export function InterventionStatistics({member,onItems,filter}:{member:number;on
     {result&&<><div className="intervention-stats-grid" aria-busy={loading}>{speechCategories.map(([key,label,type])=>{
       const written=result.items.filter(item=>matchesSpeechCategory(item,'written')).length;
       const count=key==='total'?result.coverage.available:key==='written'?(written||result.coverage.complete?written:null):result.counts[key];
-      return <div key={key}><InterventionIcon type={type}/><strong>{filter&&count!==null?<a href={filter.href(key)} aria-label={`${label}: ${count}. Filter contributions`} aria-current={filter.selected===key?'true':undefined} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();filter.select(key);}}>{count}</a>:count??'—'}</strong><span>{label}</span></div>;
+      return <div key={key}><InterventionIcon type={type}/><strong>{filter&&count!==null?<a href={filter.href(key)} aria-label={`${label}: ${count}. Filter contributions`} aria-current={filter.selected===key?'true':undefined} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();filter.select(key);}}>{count}</a>:count??'—'}</strong><span>{label}{count!==null&&key!=='total'&&result.coverage.unclassified>0&&<PartialValue partial/>}</span></div>;
     })}</div>
       {!loading&&<>
-        {latestDataDate?<p className="intervention-caption" title="Latest contribution date in the speech collection.">Latest data: <time dateTime={latestDataDate}>{humanDate(latestDataDate)}</time></p>:refreshedAt&&<p className="intervention-caption">Source refreshed: <time dateTime={refreshedAt}>{humanDate(refreshedAt)}</time></p>}
-        {missingContributions&&<p className="intervention-caption">Some contributions are unavailable.</p>}
+        <AvailabilityNote sources={result.availability||sourceAvailability({sourceKey:'speech-metadata',family:'speeches',start:'2024-07-16',end:brusselsDay(),latestObservedDate:result.coverage.latestDataDate,observedRecords:result.coverage.available,route:'public-api',checkedAt:result.sources.map(source=>source.fetchedAt).filter(Boolean).sort().at(-1)})} label="speech record" partial={Boolean(missingContributions||result.coverage.unclassified>0)} end={brusselsDay()}/>
         {result.coverage.unclassified>0&&<p className="intervention-caption">{result.coverage.unclassified} {result.coverage.unclassified===1?'contribution could':'contributions could'} not be classified.</p>}
       </>}
     </>}

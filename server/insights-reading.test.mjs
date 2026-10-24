@@ -146,9 +146,10 @@ test('question trend distinguishes trailing unknown days, earlier zeroes and par
   assert.equal(daily.latestObservedDate,'2026-10-16');
   assert.deepEqual(daily.bins.find(b=>b.start==='2026-10-11'),{start:'2026-10-11',end:'2026-10-11',availability:'observed',count:0,total:0,share:null});
   assert.equal(daily.bins.find(b=>b.start==='2026-10-16').share,0);
+  assert.equal(daily.bins.find(b=>b.start==='2026-10-16').availability,'partial');
   for(const bin of daily.bins.filter(b=>b.start>'2026-10-16'))assert.deepEqual([bin.availability,bin.count,bin.total,bin.share],['unavailable',null,null,null]);
   const filtered=questionTrend([all[0]],[],window,daily.latestObservedDate);
-  assert.equal(filtered.bins.find(b=>b.start==='2026-10-16').availability,'observed','country/topic absence does not move the source frontier');
+  assert.equal(filtered.bins.find(b=>b.start==='2026-10-16').availability,'partial','country/topic absence does not move the source frontier');
   const weekly=questionTrend(all,all,{...window,days:31});
   const partial=weekly.bins.find(b=>b.start==='2026-10-12');assert.equal(partial.availability,'partial');assert.equal(partial.count,1);assert.equal(partial.total,1);
   assert.equal(weekly.bins.at(-1).count,null);

@@ -1,3 +1,4 @@
+import {oralAvailability,indexAvailability} from './availability-evidence.mjs';
 import {generationGroupOn,datedPerson} from './group-attribution.mjs';
 import {languagePreference} from './language-order.mjs';
 import {calendarYears,currentTermSittings} from './plenary-calendar.mjs';
@@ -13,7 +14,7 @@ import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from '
 import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='plenary-weeks-v3';
+export const LEGISLATION_VIEW_VERSION='plenary-weeks-v4-availability';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -199,6 +200,10 @@ export class LegislationInsights {
         votes:votes.map(v=>({id:v.id,date:v.date,title:displayTitle(v.titles,query.language,v.id),subject:displayTitle(v.subjects,query.language,null),scope:v.scope,outcome:v.outcome,namedVotersAvailable:v.namedVotersAvailable,aggregateTotals:v.aggregateTotals,uniqueNamedVoters:v.uniqueNamedVoters})),
         selectedVote,finalVotePatterns:finalVotePatterns(votes,members,metadata),voteCoverage,
         coverage:{missingDocumentIds:missingDocuments,roleRowsTruncated:rows.length>=LEGISLATION_LIMITS.roleRows,speechAssociations:{status:speechSources.length?'exact-bounded-joins':phase==='upcoming'?'not-yet-held':'source-unavailable',context:phase==='upcoming'?'previous-debates':'debates',count:speechSources.length?speeches.length:null,exactChildReferences:contributionIds.size,childrenWithoutSavedContributionRows:selectedContributions.filter(id=>!speeches.some(s=>s.sourceId===id)).length,truncated:contributionsTruncated||debateCandidates.size>LEGISLATION_LIMITS.debateEvents,sources:speechSources,reason:speechSources.length?'Speakers are joined only from exact actual-debate child IDs to saved contribution rows. Document-backed debates can precede the selected sitting. Unmatched child refs include chair/non-contribution activities and unresolved records; they are not a count of missing speeches. This bounded selection is not a full corpus.':'No exact debate association was resolved within the selected source bounds. Whole-day activities/procedure-event listing timed out in verification. No title matching or inferred counterpart IDs are used.'},gaps}};
+    }
+    if(detail){
+      const latestVoteDate=this.store.db.prepare('SELECT MAX(substr(sitting_id,8,10)) date FROM motion_sitting_summary WHERE generation=? AND decisions_present=1 AND substr(sitting_id,8,10)<=?').get(status.servingGeneration,today)?.date||null;
+      detail.availability={speech:oralAvailability(this.store,{generation:status.servingGeneration}),vote:indexAvailability(this.store,{sourceKey:'vote-decisions',family:'votes',generation:status.servingGeneration,latestObservedDate:latestVoteDate})};
     }
     return {version:1,view:'legislation',requestedLanguage:query.language,sitting:{id:sitting.activity_id,phase,date:sitting.activity_date,title:displayTitle(sitting.activity_label,query.language,sitting.activity_id),agendaDocumentIds:array(sitting.documented_by_a_realization_of).map(tail)},
       sittings:catalogue.sittings.map(s=>({id:s.activity_id,phase:s.activity_date>today?'upcoming':s.activity_date===today?'today':'past',date:s.activity_date,title:displayTitle(s.activity_label,query.language,s.activity_id)})),topics:topics.map(localize),detail,

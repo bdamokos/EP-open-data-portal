@@ -18,6 +18,7 @@ import {odpSpeech} from './odp.mjs';
 import {speechMedia} from './mmc.mjs';
 import {CorpusReader} from './corpus-reader.mjs';
 import {allowSlowCorpusReaders} from './test-support/corpus-reader.mjs';
+import {periodAvailability} from './source-availability.mjs';
 
 const fetchedAt='2026-10-17T10:00:00Z',now=()=>Date.parse(fetchedAt),url='https://data.europarl.europa.eu/api/v2/speeches?include-output=xml_fragment';
 const xml='<oralStatements><speech xml:lang="de-t-en-mtec"><from><person refersTo="person/42">Exact Speaker</person></from><p>Climate climate water.</p></speech></oralStatements>';
@@ -46,6 +47,31 @@ test('retained batches preserve exact language and provenance without XML decomp
   assert.equal(en.records[0].text.body,'Climate climate water.');assert.equal(en.records[0].text.translationType,'machine');assert.equal(en.records[0].text.sourceUrl,url);assert.equal(en.records[0].text.fetchedAt,fetchedAt);
   const hu=await retainedSpeechData({sourceIds:[id],language:'hu'});assert.equal(hu.records[0].text,null);assert.deepEqual(hu.records[0].availableLanguages,['en']);
   assert.deepEqual(store.db.prepare('SELECT checked_at,sha256 FROM texts').all(),before);
+});
+
+test('speech availability ignores the member filter and separates metadata from retained language text',t=>{
+  const {store,add}=fixture(t,{realReaders:false});
+  add(activity(1,{date:'2026-10-07',member:'42'}));
+  add(activity(2,{date:'2026-10-15',member:'43',fragments:{hu:xml.replace('de-t-en-mtec','hu')}}));
+  const page=store.speechPage({member:'42',language:'en',from:'2026-10-01',to:'2026-10-17',metadataOnly:false});
+  assert.equal(page.total,1);
+  assert.equal(page.coverage.availability.metadata.latestObservedDate,'2026-10-15');
+  assert.equal(page.coverage.availability.text.latestObservedDate,'2026-10-07');
+  const hu=store.speechPage({member:'42',language:'hu',from:'2026-10-01',to:'2026-10-17',metadataOnly:false});
+  assert.equal(hu.coverage.availability.text.latestObservedDate,'2026-10-15');
+  assert.equal(hu.records[0].text,null);
+  const absent=store.speechPage({member:'99',language:'en',from:'2026-10-01',to:'2026-10-17',metadataOnly:false});
+  assert.equal(absent.total,0);assert.deepEqual(absent.coverage.availability,page.coverage.availability);
+});
+
+test('a failed earlier corpus window remains null below a newer language frontier',t=>{
+  const {store,add}=fixture(t,{realReaders:false});add(activity(1,{date:'2026-10-15'}));
+  store.enqueue('failed-window','speeches',{start:'2026-09-01',end:'2026-09-30'},50);
+  store.failTask(store.task('failed-window'),new Error('source unavailable'));
+  const evidence=store.speechPage({language:'en',from:'2026-09-01',to:'2026-10-17'}).coverage.availability.text;
+  assert.equal(evidence.latestObservedDate,'2026-10-15');
+  assert.equal(periodAvailability({start:'2026-09-01',end:'2026-09-30'},evidence,0).observedCount,null);
+  assert.equal(periodAvailability({start:'2026-09-01',end:'2026-09-30'},evidence,2).state,'partial');
 });
 test('metadata-only reads work without a retained transcript and isolate damaged metadata',async t=>{
   const {store,add}=fixture(t),id=add(activity(2),{text:false});

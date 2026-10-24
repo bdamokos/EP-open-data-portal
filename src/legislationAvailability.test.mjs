@@ -41,13 +41,13 @@ test('agenda availability distinguishes scheduled items, waits, gaps, source err
     return container.querySelector('.insight-topic-detail').textContent;
   }
   for(const kind of ['debate','vote']) {
-    assert.match(await show('future-'+kind),/is in the future/);
+    assert.match(await show('future-'+kind),/scheduled\./i);
     assert.equal(container.querySelector('[role="alert"]'),null);
     assert.match(await show('today-'+kind),/scheduled today/);
     assert.equal(container.querySelector('[role="alert"]'),null);
-    assert.match(await show('recent-'+kind),/not available here yet/);
-    assert.match(await show('old-'+kind),/coverage or .* links may be incomplete/i);
-    assert.match(await show('error-'+kind),/could not be loaded/);
+    assert.match(await show('recent-'+kind),/No linked .* observed/);
+    assert.match(await show('old-'+kind),/No linked .* observed/);
+    assert.match(await show('error-'+kind),/could not be checked/);
     assert(container.querySelector('[role="alert"]'));
   }
   recover=true;
