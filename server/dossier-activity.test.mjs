@@ -99,6 +99,12 @@ test('one unavailable amendment target retains the next target continuation',asy
   const first=await x.service.query(x.q('amendments'));assert.equal(first.coverage.status,'unavailable');assert.deepEqual(first.pagination.next,{offset:0,targetOffset:1});
   const next=await x.service.query(x.q('amendments',MEMBER,'target-offset=1'));assert.equal(next.items[0].amendment.number,3);
 });
+test('target observations stay separate from broader amendment discovery failures',async t=>{
+  const x=setup(t),discovery={pending:true,refreshGaps:true,capacityGaps:[]};
+  const service=new DossierActivity(x.store,{reader:x.service.reader,readAmendments:()=>({items:[amendment(3,MEMBER)],total:1,coverage:{observationComplete:true,targetGaps:[],gaps:['Other targets failed.'],discovery}})});
+  const r=await service.query(x.q('amendments'));
+  assert.equal(r.checkedTarget,DOC);assert.equal(r.coverage.status,'complete');assert.deepEqual(r.coverage.gaps,[]);assert.deepEqual(r.coverage.discovery,discovery);
+});
 test('named votes preserve Maran and Boylan opposition and keep outcome separate',async t=>{
   const x=setup(t),maran=await x.service.query(x.q('votes')),boylan=await x.service.query(x.q('votes',OTHER));
   assert.equal(maran.items.length,2);

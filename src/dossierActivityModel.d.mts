@@ -1,0 +1,9 @@
+import type {DossierActivityResponse,DossierAmendment,DossierItem,DossierVote,DossierSection,DossierFilter} from './DossierActivityTypes';
+export const dossierSections:DossierSection[];
+export const dossierFilters:DossierFilter[];
+export function fullDossierReference(value:unknown):value is string;
+export function validDossierPerson(value:unknown):value is string;
+export function dossierHref(reference:string,person?:string|number|null,language?:string,base?:string):string;
+export function dossierAmendmentVotes(item:DossierAmendment,votes:DossierVote[]):DossierVote[];
+export function dossierTimeline(items:DossierItem[]):{id:string;date:string|null;kind:DossierItem['kind'];items:DossierItem[]}[];
+export function mergeDossierPage(previous:DossierActivityResponse|null,page:DossierActivityResponse):DossierActivityResponse;

@@ -114,7 +114,7 @@ export class DossierActivity {
     if(section==='roles') {
       const roles=local.roles.filter(role=>!member||role.personId===member);page(roles);coverage.status=!Array.isArray(work.had_participation)&&!roles.length?'unavailable':local.gaps.length?'partial':'complete';
     }else if(section==='speeches')await this.speeches(result,work,query,page);
-    else if(section==='amendments')await this.amendments(result,work,query,page);
+    else if(section==='amendments')await this.amendments(result,work,query);
     else await this.ballots(result,work,query);
     if(coverage.sources.some(s=>s.stale||s.refreshInProgress||s.refreshError)){coverage.status='partial';coverage.gaps.push('Some source observations are refreshing.');}
     if(coverage.status==='unavailable')coverage.observedCount=null;
@@ -124,7 +124,7 @@ export class DossierActivity {
     requestSignal()?.throwIfAborted();return result;
   }
   async speeches(result,work,query,page) {
-    const {coverage}=result,{targetOffset,language,member,offset,limit}=query;
+    const {coverage}=result,{targetOffset,language,member}=query;
     const debates=sorted(array(work.consists_of).filter(event=>tail(event.had_activity_type)==='PLENARY_DEBATE'&&/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/.test(canonical(event.id))).map(event=>({...event,date:date(event.activity_date)})));
     const selected=debates.slice(targetOffset,targetOffset+DOSSIER_ACTIVITY_LIMITS.debatesPerPage),children=new Map();
     for(const event of selected)try {
@@ -156,10 +156,8 @@ export class DossierActivity {
     const nextTarget=targetOffset+selected.length<debates.length?{offset:0,targetOffset:targetOffset+selected.length}:null;
     page(sorted(unique(items)),nextTarget);
     if(selected.length&&!children.size)coverage.status='unavailable';
-    // Offset/limit apply after exact person and debate association checks.
-    void offset;void limit;
   }
-  async amendments(result,work,query,page) {
+  async amendments(result,work,query) {
     const {coverage,procedure}=result,{member,language,targetOffset,offset,limit}=query;
     const retained=this.store.readSnapshot(()=>{
       const ids=[];
@@ -202,15 +200,16 @@ export class DossierActivity {
         if(!authorAtTabling(variant,member,tabling)){coverage.gaps.push('An author’s mandate could not be checked on the tabling date.');continue;}
         const stages=[...new Set(tabling.observations.map(event=>event.stage))];
         const amendment={...row,...variant,conflicted:match.aggregateMatched?row.conflicted:false,variants:match.aggregateMatched?row.variants:undefined,authorMatch:{...row.authorMatch,variantListIds:match.variantListIds}};
-        items.push({kind:'amendment',id:row.id+'@'+(variant.listId||'aggregate'),date:tabling.date||date(variant.documentDate)||date(variant.date),dateBasis:tabling.date?'tabling':'document',stage:stages.length===1?stages[0]:null,tabling,amendment,source:variant.proposerSource||variant.metadataSource||variant.sources?.[0]||source(record)});
+        const from=variant.proposerSource||variant.metadataSource||variant.sources?.[0]||source(record);
+        items.push({kind:'amendment',id:row.id+'@'+(variant.listId||'aggregate'),date:tabling.date||date(variant.documentDate)||date(variant.date),dateBasis:tabling.date?'tabling':'document',stage:stages.length===1?stages[0]:null,tabling,amendment,source:source(from,from.language||null)});
       }
     }
-    result.items=sorted(items);coverage.observedCount=data.total;coverage.status=data.coverage.complete?'complete':'partial';
-    coverage.gaps.push(...array(data.coverage.gaps).filter(gap=>typeof gap==='string'));
+    result.items=sorted(items);coverage.observedCount=items.length;coverage.status=data.coverage.observationComplete?'complete':'partial';
+    coverage.gaps.push(...array(data.coverage.targetGaps||data.coverage.gaps).filter(gap=>typeof gap==='string'));
+    coverage.discovery=data.coverage.discovery||null;
     result.checkedTarget=target;
     result.pagination.next=offset+limit<data.total?{offset:offset+limit,targetOffset}:targetOffset+1<targets.length?{offset:0,targetOffset:targetOffset+1}:null;
     coverage.truncated=Boolean(result.pagination.next);
-    void page;
   }
   async ballots(result,work,query) {
     const {coverage}=result,{offset,member,language}=query;

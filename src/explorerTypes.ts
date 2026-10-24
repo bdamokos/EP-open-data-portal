@@ -279,6 +279,7 @@ export interface RelatedJointMotion {
   documentLanguage?:string|null;
 }
 export interface JoinedActivity {
+  procedureIds?: string[];
   id: string;
   sourceId: string;
   category: string;
