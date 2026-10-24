@@ -1,12 +1,13 @@
 import {AvailabilityNote} from './AvailabilityNote';
 import type {SourceAvailability} from '../server/source-availability.mjs';
+import {SittingCalendarNotice} from './PlenaryPeriodNavigation';
 import {usePersonName} from './PersonName';
 import type {SpeechSpeaker} from './legislationContributors.mjs';
 import {AnalysisPeriodControl} from './AnalysisPeriod';
 import type {AnalysisPeriod} from '../server/analysis-period.mjs';
 import {useEffect,useId,useRef,useState,type ReactNode} from 'react';
 import {api} from './data';
-import {createDataClient} from './client.mjs';
+import {createSpeechCloudClient} from './sittingCalendarCache.mjs';
 import {humanDate} from './InsightCharts';
 import {InsightSpeechReader} from './InsightReaders';
 import {TextSearch} from './TextSearch';
@@ -14,8 +15,8 @@ import './SpeechCloud.css';
 
 type CloudPerson=SpeechSpeaker&{currentMep:boolean};
 type CloudSpeech={id:string;date:string;title:string;titleLanguage?:string|null;machineTranslation:boolean;people:CloudPerson[]};
-export type SpeechCloudResult={availability?:SourceAvailability;restarted?:boolean;scope:{kind:'member'|'sitting'|'week'|'topic';phase:'upcoming'|'past'};language:string;words:{word:string;label:string|null;speechCount:number;occurrences:number;speechIds:string[]}[];speeches:CloudSpeech[];coverage:{basis?:string;transcripts:number;matchedSpeechRecords:number;missingLanguage:number;unreadableText:number;complete:boolean;truncated:boolean;associationUnavailable:boolean;sourceRecords?:{unique:number;declared:number|null;duplicates:number;issues:string[]}};window:{start:string|null;end:string|null};nextPage:number|null};
-const client=createDataClient(api,{maxEntries:48,maxAge:30*60_000,timeoutFor:()=>35_000});
+export type SpeechCloudResult={availability?:SourceAvailability;restarted?:boolean;scope:{kind:'member'|'sitting'|'week'|'topic';phase:'upcoming'|'past'};language:string;words:{word:string;label:string|null;speechCount:number;occurrences:number;speechIds:string[]}[];speeches:CloudSpeech[];coverage:{catalogueComplete?:boolean;basis?:string;transcripts:number;matchedSpeechRecords:number;missingLanguage:number;unreadableText:number;complete:boolean;truncated:boolean;associationUnavailable:boolean;sourceRecords?:{unique:number;declared:number|null;duplicates:number;issues:string[]}};window:{start:string|null;end:string|null};nextPage:number|null};
+const client=createSpeechCloudClient(api);
 const languages='bg cs da de el en es et fi fr ga hr hu it lt lv nl pl pt ro sk sl sv'.split(' ');
 const wordLabel=(word:string)=>['ai','gdp','nato'].includes(word)?word.toUpperCase():word;
 
@@ -70,6 +71,7 @@ export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage
   return <section lang="en" className="explorer-cloud">
     <header className="explorer-cloud-heading">{title!==false&&<h3 lang={title?'':'en'}>{title||(member?'Speech word cloud':topic?'Words in this debate':'Plenary word cloud')}</h3>}<div className="explorer-cloud-controls">{controls&&<span lang={interfaceLanguage} style={{display:'contents'}}>{controls}</span>}<label>Text language<select value={language} onChange={event=>setLanguage(event.target.value)}>{languages.map(code=><option lang={interfaceLanguage} key={code} value={code}>{languageLabel(code)}</option>)}</select></label>{member&&<AnalysisPeriodControl value={days} periods={[30,90,180,365]} onChange={setDays}/>}</div></header>
     {!member&&!topic&&<TextSearch prefix="agenda-fts" label={week?'Search this week’s speeches':'Search this sitting’s speeches'} language={interfaceLanguage} kinds={['speech']} scopeIdentity={JSON.stringify({sitting,week,country})} from={data?.window.start||undefined} to={data?.window.end||undefined} country={country||undefined} sourceIds={!data?.window.start?[]:undefined} disabledReason={!data?.window.start||!data?.window.end?data?'No held sitting dates are available for this selection.':'Loading dates in this selection…':undefined} scopeNote={'Searches all indexed speech contributions within this '+(week?'plenary week':'sitting')+'. Includes available text languages beyond the word cloud’s current language. '+(country?'Respects the selected MEP election country. ':'')+'Saved transcript and language coverage may be incomplete.'}/>}
+    {data&&<SittingCalendarNotice complete={data.coverage.catalogueComplete}/>}
     {data&&<p className="explorer-cloud-caption"><strong>{data.coverage.transcripts} {data.coverage.transcripts===1?'speech':'speeches'}</strong>{!member&&speakers>0&&<> · {speakers} {speakers===1?'speaker':'speakers'}</>}{data.window.start&&<> · <span lang={interfaceLanguage}>{humanDate(data.window.start,interfaceLanguage)}</span>{data.window.end&&data.window.end!==data.window.start&&<> — <span lang={interfaceLanguage}>{humanDate(data.window.end,interfaceLanguage)}</span></>}</>}</p>}
     {data&&<AvailabilityNote sources={data.availability} label="text" language={interfaceLanguage} end={data.window.end} partial={data.coverage.truncated||!data.coverage.complete||data.coverage.missingLanguage>0||data.coverage.unreadableText>0}/>}
     {loading&&!data&&<p role="status">Loading speech text…</p>}

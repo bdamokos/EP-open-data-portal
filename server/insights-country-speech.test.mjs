@@ -1,3 +1,4 @@
+import {yearCatalogue} from './test-support/catalogue-fixture.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync,mkdtempSync,rmSync} from 'node:fs';import path from 'node:path';import os from 'node:os';
 import {countryQuestions,enrichmentProbability,adjustProbabilities} from './insights-countries.mjs';
 import {analyzeQuestions} from './insights-model.mjs';import {insightQuery} from './insights-store.mjs';
@@ -41,7 +42,7 @@ test('saved participation links count distinct voters and current delegation sha
   const decisions={...fixture.decisions,payload:{data:[firstVote,secondVote,firstVote]}};
   const speech=fixture.speech.payload.data[0];store.putSource(generation,'/speeches/'+speech.activity_id,'speech',{id:speech.activity_id},'2026-10-07',speechRows(speech,'2026-10-07'));
   const request=async(ep,params)=>{calls.push(ep);if(ep==='/meetings')return params.offset===0?fixture.meetings:{...fixture.meetings,payload:{data:[]}};if(ep.endsWith('/foreseen-activities'))return fixture.foreseen;if(ep.endsWith('/vote-results'))return fixture.results;if(ep.endsWith('/decisions'))return decisions;throw Error('Unexpected upstream fan-out '+ep);};
-  const service=new LegislationInsights(store,{clock:now,request,loadMetadata:async()=>new Map()});store.db.exec('PRAGMA query_only=ON');const result=await participation(service,store,participationQuery(new URLSearchParams('sitting=MTG-PL-2026-10-07&country=IT')),{clock:now,readEvent:async id=>id===fixture.speechParent.payload.data[0].activity_id?fixture.speechParent:null});assert.equal(result.topics.find(t=>t.id.endsWith('-D-69')).speakers,1);const italy=result.countries.find(c=>c.code==='IT'),spain=result.countries.find(c=>c.code==='ES');
+  const service=new LegislationInsights(store,{clock:now,request:yearCatalogue(request),loadMetadata:async()=>new Map()});store.db.exec('PRAGMA query_only=ON');const result=await participation(service,store,participationQuery(new URLSearchParams('sitting=MTG-PL-2026-10-07&country=IT')),{clock:now,readEvent:async id=>id===fixture.speechParent.payload.data[0].activity_id?fixture.speechParent:null});assert.equal(result.topics.find(t=>t.id.endsWith('-D-69')).speakers,1);const italy=result.countries.find(c=>c.code==='IT'),spain=result.countries.find(c=>c.code==='ES');
   assert.equal(italy.delegationSize,3);assert.equal(spain.delegationSize,2);
   const debate=result.topics.find(t=>t.id.endsWith('-D-69')),debateIT=italy.topics.find(t=>t.id===debate.id);
   assert.equal(debate.allSpeakers,1);assert.equal(debate.voters,null);assert.equal(debate.allVoters,null);

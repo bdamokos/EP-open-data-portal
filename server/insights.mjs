@@ -40,7 +40,7 @@ export function createInsights(store,options={}) {
     if(view==='procedure-progress')return procedureProgress.query(procedureProgressQuery(searchParams));
     if(view==='topic-trends')return topicTrends.query(topicTrendsQuery(searchParams,{now:clock()}));
     if(view==='saved')return savedStates(store,savedQuery(searchParams));
-    if(view==='participation'){const query=participationQuery(searchParams);return views.get([INSIGHTS_VERSION,view,store.status().servingGeneration,store.get('availabilityRevision')||0,brusselsDay(clock()),query],()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}));}
+    if(view==='participation'){const query=participationQuery(searchParams);return views.get([INSIGHTS_VERSION,LEGISLATION_VIEW_VERSION,view,store.status().servingGeneration,store.get('availabilityRevision')||0,brusselsDay(clock()),query],()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}));}
     if(!['questions','legislation'].includes(view))throw new HttpError(404,'insight_not_found','Unknown insight view.');
     const query=insightQuery(searchParams,{kind:view,now:options.clock?.()??Date.now()});
     const version=view==='legislation'?INSIGHTS_VERSION+':'+LEGISLATION_VIEW_VERSION:INSIGHTS_VERSION;
