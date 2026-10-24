@@ -1,4 +1,5 @@
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
+import {decodeCharacterReferences} from './character-references.mjs';
 
 // Parliament's press RSS feeds announce press releases. The feeds carry no
 // procedure or document references, so each announced page is read once: its
@@ -12,12 +13,8 @@ export const DOSSIER_DOCUMENT=/^(?:(?:A|B|RC|TA)-\d{1,2}-\d{4}-\d{4}|[A-Z]{4}-(?
 const MAX_PAGE_BYTES=2*1024*1024;
 const array=value=>value==null?[]:Array.isArray(value)?value:[value];
 const text=value=>typeof value==='string'?value:String(value?.['#text']??'');
-const named={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',rsquo:'’',lsquo:'‘',rdquo:'”',ldquo:'“',ndash:'–',mdash:'—',hellip:'…'};
 export function decodeHtml(value) {
-  return String(value).replace(/&(#x[0-9a-f]{1,6}|#\d{1,7}|[a-z]{2,8});/gi,(entity,name)=>{
-    if(name[0]==='#'){const code=name[1]==='x'||name[1]==='X'?parseInt(name.slice(2),16):Number(name.slice(1));return code>0&&code<=0x10ffff?String.fromCodePoint(code):entity;}
-    return named[name.toLowerCase()]??entity;
-  });
+  return decodeCharacterReferences(String(value),'press-html');
 }
 const plain=html=>decodeHtml(String(html).replace(/<[^>]*>/g,' ')).replace(/\s+/g,' ').trim();
 // Attribute values may be double-quoted, single-quoted or unquoted.
