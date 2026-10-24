@@ -62,6 +62,11 @@ test('speech availability ignores the member filter and separates metadata from 
   assert.equal(hu.records[0].text,null);
   const absent=store.speechPage({member:'99',language:'en',from:'2026-10-01',to:'2026-10-17',metadataOnly:false});
   assert.equal(absent.total,0);assert.deepEqual(absent.coverage.availability,page.coverage.availability);
+  add(activity(3,{date:'2026-10-09',member:'44',kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'}));
+  const mixed=store.speechPage({member:'42',metadataOnly:true,kinds:['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT']});
+  assert.deepEqual(mixed.coverage.availability.metadataSources.map(source=>[source.subtype,source.latestObservedDate]),[
+    ['PLENARY_DEBATE_SPEECH','2026-10-15'],['PLENARY_DEBATE_WRITTEN_STATEMENT','2026-10-09']
+  ]);
 });
 
 test('a failed earlier corpus window remains null below a newer language frontier',t=>{

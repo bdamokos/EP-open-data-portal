@@ -1,7 +1,7 @@
 import {availabilitySummary,type SourceAvailability} from '../server/source-availability.mjs';
 import './AvailabilityNote.css';
 
-const sourceNames:Record<string,string>={QUESTION_WRITTEN:'Written questions',QUESTION_WRITTEN_PRIORITY:'Priority questions',QUESTION_ORAL:'Oral questions','oral-speeches':'Oral speeches','outside-speeches':'Outside speakers','speech-metadata':'Speech records','speech-text':'Speech text','procedure-debates':'Dossier debates','procedure-votes':'Dossier votes','procedure-committee':'Committee events'};
+const sourceNames:Record<string,string>={PLENARY_DEBATE_SPEECH:'Oral contributions',PLENARY_DEBATE_WRITTEN_STATEMENT:'Written statements',QUESTION_WRITTEN:'Written questions',QUESTION_WRITTEN_PRIORITY:'Priority questions',QUESTION_ORAL:'Oral questions','oral-speeches':'Oral speeches','outside-speeches':'Outside speakers','speech-metadata':'Speech records','speech-text':'Speech text','procedure-debates':'Dossier debates','procedure-votes':'Dossier votes','procedure-committee':'Committee events'};
 const date=(value:string,language:string)=>new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(value.slice(0,10)+'T12:00Z'));
 export function PartialValue({partial}:{partial?:boolean}) {return partial?<small className="availability-partial" lang="en">Partial</small>:null;}
 export function AvailabilityNote({sources,label='record',language='en',end,partial=false}:{sources?:SourceAvailability|SourceAvailability[]|null;label?:string;language?:string;end?:string|null;partial?:boolean}) {

@@ -533,7 +533,8 @@ export class CorpusStore {
       const failed=this.db.prepare("SELECT key,body FROM tasks WHERE done=0 AND error IS NOT NULL AND kind IN ('speeches','speech','speech-metadata','speech-metadata-detail') LIMIT 501").all();
       const gaps=failed.length>500?[{reason:'source-gap'}]:failed.map(row=>availabilityGap(parse(row.body),row.key));
       const args={family:'speeches',start:from,end:to>today?today:to,today,gaps,limited:pending,snapshot:{revision:this.get('availabilityRevision')||0},retention:{policy:this.get('speechLanguages')||null,history:historyStatus(this)}};
-      availability={metadata:sourceAvailability({...args,sourceKey:'speech-metadata',latestObservedDate:latestKindDate}),text:params.metadataOnly?null:sourceAvailability({...args,sourceKey:'speech-text',stage:'text',language:params.language,latestObservedDate:latestTextDate})};
+      const dates=new Map(this.db.prepare('SELECT kind,MAX(date) date FROM speech_catalog WHERE kind IN ('+kinds.map(()=>'?').join(',')+') AND date<=? GROUP BY kind').all(...kinds,today).map(row=>[row.kind,row.date]));
+      availability={metadata:sourceAvailability({...args,sourceKey:'speech-metadata',latestObservedDate:latestKindDate}),metadataSources:kinds.map(kind=>sourceAvailability({...args,sourceKey:kind,subtype:kind,latestObservedDate:dates.get(kind)||null})),text:params.metadataOnly?null:sourceAvailability({...args,sourceKey:'speech-text',subtype:kinds.length===1?kinds[0]:null,stage:'text',language:params.language,latestObservedDate:latestTextDate})};
     }
     return {...result,total,offset,revision,missingRetainedLanguage,nextOffset:offset+ids.length<total?offset+ids.length:null,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt')),latestDataDate,availability}};
   });}

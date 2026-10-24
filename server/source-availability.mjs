@@ -1,6 +1,6 @@
 import {brusselsDay} from './analysis-period.mjs';
 
-export const SOURCE_AVAILABILITY_VERSION=1;
+export const SOURCE_AVAILABILITY_VERSION=2;
 export const validDay=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00Z'))&&new Date(value+'T12:00Z').toISOString().slice(0,10)===value;
 export function sourceTime(value) {
   const time=typeof value==='number'?value:typeof value==='string'&&/^\d+$/.test(value)?Number(value):Date.parse(value);
