@@ -75,7 +75,7 @@ export async function readJson(url, { signal, priority = 'auto', getPriority = (
   }
 }
 
-export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, timeoutFor = () => 8_000, prefetchDelay = 150 } = {}) {
+export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, maxAgeFor = () => maxAge, timeoutFor = () => 8_000, prefetchDelay = 150 } = {}) {
   const cache = new Map();
   const pending = new Map();
   const prefetches = new Set();
@@ -137,7 +137,7 @@ export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, timeo
   const get = (route, { force = false, priority = 'auto', signal } = {}) => {
     if (signal?.aborted) return Promise.reject(signal.reason);
     const saved = cache.get(route);
-    if (!force && saved && Date.now() - saved.at < maxAge) return Promise.resolve(saved.data);
+    if (!force && saved && Date.now() - saved.at < maxAgeFor(saved.data,route)) return Promise.resolve(saved.data);
     const entry = pending.get(route) || start(route, priority);
     const consumer = { entry, priority };
     entry.consumers.add(consumer);
