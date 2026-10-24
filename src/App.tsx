@@ -21,6 +21,8 @@ import {ProfileMemberships} from './ProfileMemberships';
 import {SaveButton,useSavedChecks,useSaved} from './SavedControls';
 import {interfaceTerm} from './terms.mjs';
 import {ParliamentHeader} from './ParliamentHeader';
+import {InsightFrame} from './InsightFrame';
+import {plenaryModes,plenaryModeTitles,type PlenaryMode} from './plenaryModes';
 import {QuestionStatus} from './QuestionStatus';
 import {MotionStatuses,MotionOutcome} from './MotionOutcome';
 import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -475,6 +477,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
 export default function App() {
   const [initial] = useState(() => new URLSearchParams(location.search));
   const [restoration,setRestoration]=useState(0);
+  const [plenaryMode]=useExplorerParam<PlenaryMode>('pl-mode','agenda',plenaryModes);
   const [lang, setLang] = useState(() => queryLanguage(initial));
   const [member, setMember] = useState<number | null>(
     /^\d+$/.test(initial.get("member") || "")
@@ -737,12 +740,13 @@ export default function App() {
   ><Suspense fallback={<ViewLoading language={lang}/>}><ViewContent onReady={focusDestination} render={()=>{
   if (view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
-    return view==='groups' ? <GroupVoices {...props}/> : view==='amendments' ? <AmendmentsPage {...props}/> : view==='legislation' ? <Legislation {...props} members={directory?.members}/> : view==='outside' ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>;
+    const title={groups:'Group voices',amendments:'Amendments',legislation:plenaryModeTitles[plenaryMode],outside:'Outside voices',questions:'Questions'}[view];
+    return <InsightFrame {...props} view={view}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>view==='groups' ? <GroupVoices {...props}/> : view==='amendments' ? <AmendmentsPage {...props}/> : view==='legislation' ? <Legislation {...props} members={directory?.members}/> : view==='outside' ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>}/></Suspense></InsightFrame>;
   }
   return (
     <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current.page=event.currentTarget.scrollTop;}}>
         <ParliamentHeader view={view==='saved'?'saved':'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>
-        {view === 'saved' ? <Saved language={lang} onBack={leaveSaved} onMember={openInsightMember} renderActivity={props=><FollowingActivityDetail {...props} lang={lang}/>}/> : member ? (
+        {view === 'saved' ? <Suspense fallback={<ViewLoading language={lang} title="Following" embedded/>}><ViewContent onReady={focusDestination} render={()=><Saved language={lang} onBack={leaveSaved} onMember={openInsightMember} renderActivity={props=><FollowingActivityDetail {...props} lang={lang}/>}/>}/></Suspense> : member ? (
           <section className="explorer-profile">
             <button
               lang={lang}

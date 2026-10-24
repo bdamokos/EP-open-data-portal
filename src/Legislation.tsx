@@ -5,6 +5,7 @@ import {matchesCountry} from './countries.mjs';
 import {useExplorerParam} from './explorerUrl';
 import {PlenaryLiveBanner,ScheduledNow} from './PlenaryLive';
 import {useState,useEffect,useRef,useCallback,useId} from 'react';
+import {plenaryModes,plenaryModeTitles,type PlenaryMode} from './plenaryModes';
 import {prefetchInsightData,useInsightData} from './InsightData';
 import {InsightShell,InsightStatus,InsightPeople,InsightDemographics,humanDate} from './InsightShared';
 import {groupColor,groupLabel} from './InsightCharts';
@@ -76,8 +77,8 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const displayName=usePersonName();
   const readerId=useId(),speechTop=useRef<HTMLElement>(null),speechJump=useRef<HTMLDetailsElement>(null),speechJumpSummary=useRef<HTMLElement>(null);
   const [country,setCountry]=useExplorerParam<string|null>('agenda-country',null);
-  const [mode,setMode]=useExplorerParam<'agenda'|'participation'|'cloud'|'trends'|'dossier'>('pl-mode','agenda',['agenda','participation','cloud','trends','dossier']),[officialTopic,setOfficialTopic]=useExplorerParam<string|null>('trend-source',null),[referenceDraft,setReferenceDraft]=useState(''),[reference,setReference]=useExplorerParam<string>('dossier-ref',''),[referenceError,setReferenceError]=useState('');
-  const pageTitle={agenda:"Plenary agenda",participation:"What’s hot",cloud:"Plenary word cloud",trends:"Topic timeline",dossier:"Dossiers"}[mode];
+  const [mode,setMode]=useExplorerParam<PlenaryMode>('pl-mode','agenda',plenaryModes),[officialTopic,setOfficialTopic]=useExplorerParam<string|null>('trend-source',null),[referenceDraft,setReferenceDraft]=useState(''),[reference,setReference]=useExplorerParam<string>('dossier-ref',''),[referenceError,setReferenceError]=useState('');
+  const pageTitle=plenaryModeTitles[mode];
   useEffect(()=>{window.document.title=`${pageTitle} — European Parliament data explorer`;},[pageTitle]);
   const [,setTrendTopic]=useExplorerParam<string>('trend-topic',''),[,setTrendWeek]=useExplorerParam<string>('trend-week',''),[,setTrendSearch]=useExplorerParam<string>('trend-search',''),[,setTrendDossier]=useExplorerParam<string|null>('trend-dossier',null);
   const [agendaPeriod,setAgendaPeriod]=useExplorerParam<string>('agenda-period','');
