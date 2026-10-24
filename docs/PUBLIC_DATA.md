@@ -102,7 +102,19 @@ Question Subject chips identify place names in English titles using the retained
 
 ### Open Data API
 
-- `/meetings` accepts comma-separated years and offset pagination. Some historical agenda endpoints return HTTP 204. The UI shows those as unavailable agendas and keeps the sitting selectable.
+Sitting calendars share `server/meetings-reader.mjs`: one bounded, coalesced `/meetings?year=` observation per current-term year, with page URLs, retrieval times, content hashes, freshness and coverage. Complete fresh observations are reused in memory for one minute; source pages use the existing 15-minute ODP cache. Each year has independent page, row and byte limits. HTTP 204 ends paging only after a successful page. Repeated pages, conflicting identities and mismatched year/date/URI records leave explicit gaps. Current-term future sittings remain available to agenda readers; Votes uses held sittings through Brussels today.
+
+| Reader | Meeting data and navigation |
+| --- | --- |
+| Vote periods and Member Votes | Shared yearly catalogue; Monday weeks and held sitting days. Exact selected sittings retain a separate full `/meetings/{id}` identity check. |
+| Legislation, What’s hot and Word cloud | Shared yearly catalogue, including future sittings; the common period picker offers weeks and individual days. Nested reads use the same catalogue observation. |
+| Live plenary | Today’s `/meetings/{id}/foreseen-activities`; no catalogue scan or sitting picker. |
+| Activity index and amendment outcomes | Exact sitting decisions and results discovered from document relationships; no catalogue scan. Legacy stored vote-week hints read the index only. |
+| Source-record inspector | A bounded view of the requested public meeting record or collection; no calendar assembly. |
+
+Incomplete calendars keep known sittings selectable and carry the same per-year coverage into agenda, participation and cloud responses. Missing selections remain unavailable while coverage is incomplete. The default latest week is unavailable if a missing year could contain a newer sitting. The response keeps known calendar options with no selected sitting; explicit known periods and saved links remain usable. These responses use `no-store`; partial or refreshing browser observations recheck on reopening. Assembled views retry after one minute, and cloud recovery restarts pagination. An HTTP 204 agenda stays unavailable and its sitting stays selectable. Full exact meeting records remain separate from catalogue observations, so attendance readers can retain participant fields and independent validation.
+
+- `/meetings` accepts comma-separated years and offset pagination.
 - Speech and date-range filters have no span limit in the API. The current term starts 16 July 2024.
 - Records can contain fields such as `notation_codictPersonId`. These are fields of the open API, not calls to another service.
 - `/meps/show-current?mandate-date=YYYY-MM-DD` gives the dated roster. Use it, not today's roster, to classify historical speakers.

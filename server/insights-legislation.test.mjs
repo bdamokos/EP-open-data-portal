@@ -1,3 +1,4 @@
+import {yearCatalogue} from './test-support/catalogue-fixture.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,mkdtempSync,rmSync} from 'node:fs';
@@ -20,12 +21,12 @@ const topics=agendaTopics(meeting,fixture.foreseen);
 test('weekly agendas retain each exact sitting, source and unavailable day without loading other weeks',async()=>{
   const clock=()=>Date.parse('2026-10-15T12:00:00Z'),calls=[];
   const nodes=['2026-10-06','2026-10-07','2026-10-08','2026-10-19'].map(date=>JSON.parse(JSON.stringify(meeting.payload.data[0]).replaceAll('2026-10-07',date)));
-  const service=new LegislationInsights({status:()=>({currentMeps:1,servingGeneration:1})},{clock,request:async(endpoint)=>{
+  const service=new LegislationInsights({status:()=>({currentMeps:1,servingGeneration:1})},{clock,request:yearCatalogue(async(endpoint)=>{
     calls.push(endpoint);
     if(endpoint.includes('2026-10-06'))throw new Error('Agenda not supplied');
     const payload=endpoint==='/meetings'?{data:nodes}:JSON.parse(JSON.stringify(fixture.foreseen.payload).replaceAll('2026-10-07',endpoint.includes('2026-10-08')?'2026-10-08':'2026-10-07'));
     return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:clock(),payload};
-  }});
+  })});
   const q=value=>insightQuery(new URLSearchParams(value),{kind:'legislation',now:clock()});
   const result=await service.query(q('week=latest'));
   assert.equal(result.week,'2026-10-05');assert.equal(result.agendaSittings.length,3);
@@ -33,52 +34,52 @@ test('weekly agendas retain each exact sitting, source and unavailable day witho
   assert(result.topics.some(t=>t.sittingId==='MTG-PL-2026-10-07'));
   assert(result.topics.some(t=>t.sittingId==='MTG-PL-2026-10-08'));
   assert(result.topics.every(t=>t.id.startsWith(t.sittingId+'-')));
-  assert.deepEqual(calls,['/meetings',...nodes.slice(0,3).map(s=>'/meetings/'+s.activity_id+'/foreseen-activities')]);
+  assert.deepEqual(calls,['/meetings','/meetings','/meetings',...nodes.slice(0,3).map(s=>'/meetings/'+s.activity_id+'/foreseen-activities')]);
   assert(result.coverage.sources.some(s=>s.apiUrl.includes('2026-10-08')));
   assert.equal((await service.query(q('week=2026-10-05'))).topics.length,result.topics.length);
   await assert.rejects(service.query(q('week=2026-10-12')),e=>e.status===404);
   for(const value of ['week=','week=2026-10-06','week=2026-02-30','week=latest&sitting=MTG-PL-2026-10-07','week=2026-10-05&topic=foo','week=2026-10-05&vote=foo'])assert.throws(()=>q(value),e=>e.status===400,value);
 });
 test('plenary catalogue retains all current-term sittings across years and pages, including every published future sitting',async()=>{
-  const node=date=>({activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'});
+  const node=date=>({id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'});
   const dates=Array.from({length:155},(_,i)=>new Date(Date.parse('2024-07-15T12:00:00Z')+i*86400_000).toISOString().slice(0,10));
   const nodes=[...dates.map(node),node('2025-12-18'),node('2026-10-14'),...Array.from({length:6},(_,i)=>node('2026-11-'+String(i+1).padStart(2,'0')))];
   const calls=[],clock=()=>Date.parse('2026-10-15T12:00:00Z');
-  const service=new LegislationInsights({status:()=>({currentMeps:1,servingGeneration:1})},{clock,request:async(endpoint,params)=>{
-    calls.push([endpoint,params]);assert.equal(params.year,'2024,2025,2026');
-    return {url:'https://data.europarl.europa.eu/api/v2/meetings?offset='+params.offset,fetchedAt:clock(),payload:{data:nodes.slice(params.offset,params.offset+params.limit)}};
-  }});
+  const service=new LegislationInsights({status:()=>({currentMeps:1,servingGeneration:1})},{clock,request:yearCatalogue(async(endpoint,params)=>{
+    calls.push([endpoint,params]);assert([2024,2025,2026].includes(params.year));
+    return {url:'https://data.europarl.europa.eu/api/v2/meetings?offset='+params.offset,fetchedAt:clock(),payload:{data:nodes.filter(n=>Number(n.activity_date.slice(0,4))===params.year).slice(params.offset,params.offset+params.limit)}};
+  })});
   const result=await service.catalogue();
-  assert.deepEqual(calls.map(([,p])=>p.offset),[0,50,100,150]);
+  assert.deepEqual(calls.map(([,p])=>p.offset),[0,50,100,150,0,0]);
   assert.equal(result.sittings.length,nodes.length-1);assert(result.complete);
   assert.deepEqual(result.years,[2024,2025,2026]);assert.equal(result.start,'2024-07-16');
   assert.equal(result.sittings[0].activity_date,'2026-10-14');
   assert(result.sittings.some(s=>s.activity_date==='2024-07-16'));
   assert(!result.sittings.some(s=>s.activity_date==='2024-07-15'));
   assert.equal(result.sittings.filter(s=>s.activity_date>='2026-11-01').length,6);
-  await service.catalogue();assert.equal(calls.length,4,'catalogue metadata is reused');
+  await service.catalogue();assert.equal(calls.length,6,'catalogue metadata is reused');
 });
-test('plenary catalogue fails explicitly if upstream repeats a full page instead of advancing',async()=>{
-  const nodes=Array.from({length:50},(_,i)=>({activity_id:'meeting-'+i,activity_date:'2026-10-15',had_activity_type:'def/ep-activities/PLENARY_SITTING'}));let calls=0;
-  const service=new LegislationInsights(null,{clock:()=>Date.parse('2026-10-15T12:00:00Z'),request:async()=>{calls++;return {payload:{data:nodes},url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:0};}});
-  await assert.rejects(service.catalogue(),e=>e.code==='insights_catalogue_paging');assert.equal(calls,2);
+test('repeated full catalogue pages retain exact sittings with a paging gap',async()=>{
+  const nodes=Array.from({length:50},(_,index)=>{const date=new Date(Date.parse('2026-01-01T12:00:00Z')+index*86400_000).toISOString().slice(0,10);return {id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'};});let calls=0;
+  const service=new LegislationInsights(null,{clock:()=>Date.parse('2026-10-15T12:00:00Z'),request:yearCatalogue(async()=>{calls++;return {payload:{data:nodes},url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:0};})});
+  const result=await service.catalogue();assert.equal(result.complete,false);assert.equal(result.coverage.years[2].stopReason,'repeated-page');assert.equal(result.sittings.length,50);assert.equal(calls,4);
 });
 test('the first current-term sitting can be selected without fetching other sitting details',async()=>{
   const clock=()=>Date.parse('2026-10-15T12:00:00Z'),calls=[];
-  const service=new LegislationInsights({status:()=>({currentMeps:1,servingGeneration:1})},{clock,request:async(endpoint)=>{
-    calls.push(endpoint);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:clock(),payload:{data:endpoint==='/meetings'?[{activity_id:'MTG-PL-2024-07-16',activity_date:'2024-07-16',had_activity_type:'def/ep-activities/PLENARY_SITTING'}]:[]}};
-  }});
+  const service=new LegislationInsights({status:()=>({currentMeps:1,servingGeneration:1})},{clock,request:yearCatalogue(async(endpoint)=>{
+    calls.push(endpoint);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:clock(),payload:{data:endpoint==='/meetings'?[{id:'eli/dl/event/MTG-PL-2024-07-16',activity_id:'MTG-PL-2024-07-16',activity_date:'2024-07-16',had_activity_type:'def/ep-activities/PLENARY_SITTING'}]:[]}};
+  })});
   const result=await service.query({language:'en',sitting:'MTG-PL-2024-07-16'});
   assert.equal(result.sitting.date,'2024-07-16');assert.equal(result.sitting.phase,'past');
   assert.equal(result.coverage.catalogueStart,'2024-07-16');
-  assert.deepEqual(calls,['/meetings','/meetings/MTG-PL-2024-07-16/foreseen-activities']);
+  assert.deepEqual(calls,['/meetings','/meetings','/meetings','/meetings/MTG-PL-2024-07-16/foreseen-activities']);
 });
 test('unavailable historical agendas preserve the selected date and the sitting catalogue with an explicit gap',async()=>{
   const clock=()=>Date.parse('2026-10-15T12:00:00Z');
-  const service=new LegislationInsights({status:()=>({currentMeps:1,servingGeneration:1})},{clock,request:async(endpoint)=>{
+  const service=new LegislationInsights({status:()=>({currentMeps:1,servingGeneration:1})},{clock,request:yearCatalogue(async(endpoint)=>{
     if(endpoint!=='/meetings')throw new Error('No agenda supplied for this date');
-    return {url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:clock(),payload:{data:[{activity_id:'MTG-PL-2024-07-16',activity_date:'2024-07-16',had_activity_type:'def/ep-activities/PLENARY_SITTING'}]}};
-  }});
+    return {url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:clock(),payload:{data:[{id:'eli/dl/event/MTG-PL-2024-07-16',activity_id:'MTG-PL-2024-07-16',activity_date:'2024-07-16',had_activity_type:'def/ep-activities/PLENARY_SITTING'}]}};
+  })});
   const result=await service.query({language:'en',sitting:'MTG-PL-2024-07-16'});
   assert.equal(result.sitting.date,'2024-07-16');assert.equal(result.sittings.length,1);
   assert.equal(result.coverage.agendaComplete,false);assert.equal(result.coverage.agendaError,'No agenda supplied for this date');
@@ -87,15 +88,15 @@ test('unavailable historical agendas preserve the selected date and the sitting 
 test('the first plenary week remains selectable and missing agendas produce null observations and explicit gaps',async()=>{
   const clock=()=>Date.parse('2026-10-15T12:00:00Z'),calls=[];
   const store={status:()=>({currentMeps:1,servingGeneration:1}),db:{prepare:()=>({get:()=>undefined,all:()=>[{id:'125065',body:'{"id":"125065","name":"Test member"}'}]})}};
-  const service=new LegislationInsights(store,{clock,loadMetadata:async()=>new Map(),request:async(endpoint)=>{
+  const service=new LegislationInsights(store,{clock,loadMetadata:async()=>new Map(),request:yearCatalogue(async(endpoint)=>{
     calls.push(endpoint);if(endpoint!=='/meetings')throw new Error('No agenda supplied for this date');
-    return {url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:clock(),payload:{data:['2024-07-16','2024-07-17'].map(date=>({activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'}))}};
-  }});
+    return {url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:clock(),payload:{data:['2024-07-16','2024-07-17'].map(date=>({id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'}))}};
+  })});
   const result=await participation(service,store,participationQuery(new URLSearchParams('week=2024-07-15')),{clock});
   assert.deepEqual(result.window,{start:'2024-07-15',end:'2024-07-21'});
   assert.equal(result.coverage.gaps.length,2);assert(result.coverage.gaps.every(g=>g.kind==='agenda-unavailable'));
   assert(result.series.every(row=>row.speakers===null&&row.voters===null&&row.amendmentVotes===null));
-  assert.equal(calls.length,3);assert(!calls.some(ep=>/vote-results|decisions|speeches/.test(ep)));
+  assert.equal(calls.length,5);assert(!calls.some(ep=>/vote-results|decisions|speeches/.test(ep)));
 });
 test('actual agenda contains 18 topics through supplied meeting-part child refs, with exact doc/procedure links',()=>{
   assert.equal(topics.length,18);const t=topics.find(t=>t.id.endsWith('-V-48'));
@@ -141,7 +142,7 @@ test('read-only service uses exact parent/child speech join, bounded requests an
     const s=fixture.speech.payload.data[0];store.putSource(generation,'/speeches/'+s.activity_id,'speech',{id:s.activity_id},new Date(fixture.speech.fetchedAt).toISOString(),speechRows(s,new Date(fixture.speech.fetchedAt).toISOString()));
     const report=fixture.report.payload.data[0];store.putSource(generation,'/plenary-documents/'+report.identifier,'document',projectDocument(report),new Date(fixture.report.fetchedAt).toISOString(),documentRows(report,'/plenary-documents/'+report.identifier,new Date(fixture.report.fetchedAt).toISOString()).rows);
     const request=async(ep,params)=>{calls.push([ep,params]);if(ep==='/meetings')return params.offset===0?fixture.meetings:{...fixture.meetings,payload:{data:[]}};if(ep.endsWith('/foreseen-activities'))return fixture.foreseen;if(ep.startsWith('/speeches/'))return fixture.speech;if(ep==='/events/'+fixture.speechParent.payload.data[0].activity_id)return fixture.speechParent;if(ep.endsWith('/vote-results'))return fixture.results;if(ep.endsWith('/decisions')){assert.equal(params['vote-method'],'ROLL_CALL_EV');assert(!('filter-output' in params));return fixture.decisions;}if(ep.startsWith('/plenary-documents/'))return fixture.report;throw new Error('Source not retained in this projected fixture: '+ep);};
-    const clock=()=>Date.parse('2026-10-14T09:30:00Z');const service=new LegislationInsights(store,{request,clock,loadMetadata:async()=>metadata});store.db.exec('PRAGMA query_only=ON');
+    const clock=()=>Date.parse('2026-10-14T09:30:00Z');const service=new LegislationInsights(store,{request:yearCatalogue(request),clock,loadMetadata:async()=>metadata});store.db.exec('PRAGMA query_only=ON');
     const q=s=>insightQuery(new URLSearchParams(s),{kind:'legislation',now:clock()});
     const result=await service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-D-69'));
     assert.equal(result.detail.speeches.length,1);assert.equal(result.detail.speeches[0].sourceId,s.activity_id);assert.equal(result.detail.speeches[0].people[0].id,'257043');assert.equal(result.detail.coverage.speechAssociations.exactChildReferences,70);
@@ -150,7 +151,7 @@ test('read-only service uses exact parent/child speech join, bounded requests an
     const count=calls.length;await service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-D-69'));assert.equal(calls.length,count);
     const vote=await service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-V-48'));assert.equal(vote.detail.selectedVote.namedCounts.for,454);
     assert(!calls.some(([ep])=>ep.endsWith('/activities')||ep.endsWith('/events')));
-    const mismatchService=new LegislationInsights(store,{clock,loadMetadata:async()=>metadata,request:async(ep,params)=>ep.startsWith('/speeches/') ? {...fixture.speech,payload:{data:[{...s,id:'eli/dl/event/unrelated-record'}]}} : request(ep,params)});
+    const mismatchService=new LegislationInsights(store,{clock,loadMetadata:async()=>metadata,request:yearCatalogue(async(ep,params)=>ep.startsWith('/speeches/') ? {...fixture.speech,payload:{data:[{...s,id:'eli/dl/event/unrelated-record'}]}} : request(ep,params))});
     const mismatch=await mismatchService.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-D-69'));
     assert.equal(mismatch.detail.speeches.length,0);assert.equal(mismatch.detail.coverage.speechAssociations.count,null);
     assert(mismatch.detail.coverage.gaps.some(g=>g.message.includes('requested source identity')));
@@ -177,7 +178,7 @@ test('sitting, speech and vote display titles follow the shared order without ch
       if(ep.startsWith('/plenary-documents/'))return fixture.report;
       throw new Error('Unexpected source: '+ep);
     };
-    const clock=()=>Date.parse('2026-10-14T09:30:00Z'),service=new LegislationInsights(store,{request,clock,loadMetadata:async()=>metadata});
+    const clock=()=>Date.parse('2026-10-14T09:30:00Z'),service=new LegislationInsights(store,{request:yearCatalogue(request),clock,loadMetadata:async()=>metadata});
     store.db.exec('PRAGMA query_only=ON');
     for(const [language,expected] of [['ga',labels.fr],['bg',labels.bg],['es',labels.es]]){
       const query=topic=>insightQuery(new URLSearchParams({lang:language,sitting:'MTG-PL-2026-10-07',topic:'MTG-PL-2026-10-07-OJ-ITM-'+topic}),{kind:'legislation',now:clock()});
@@ -201,14 +202,14 @@ test('upcoming sittings skip unheld votes, retain exact previous procedure debat
     const parent={...fixture.speechParent.payload.data[0],id:'eli/dl/event/MTG-PL-2026-10-06-PVCRE-ITM-18',activity_id:'MTG-PL-2026-10-06-PVCRE-ITM-18',activity_date:'2026-10-06',consists_of:[oldSpeech.id]};
     const procedure={...fixture.procedure.payload.data[0],label:'2025/2117(INI)',consists_of:[{id:parent.id,activity_id:parent.activity_id,activity_date:parent.activity_date,had_activity_type:parent.had_activity_type},{id:'eli/dl/event/AFET-PR-775469-DEPOT-2025-10-22',activity_id:'AFET-PR-775469-DEPOT-2025-10-22',activity_date:'2025-10-22',had_activity_type:'def/ep-activities/COMMITTEE_TABLING_REPORT',based_on_a_realization_of:['eli/dl/doc/AFET-PR-775469']}]};
     const request=async(ep,params)=>{calls.push(ep);if(ep==='/meetings')return params.offset===0?fixture.meetings:{...fixture.meetings,payload:{data:[]}};if(ep.endsWith('/foreseen-activities'))return fixture.foreseen;if(ep.startsWith('/procedures/'))return {...fixture.procedure,payload:{data:[procedure]}};if(ep==='/events/'+parent.activity_id)return {...fixture.speechParent,payload:{data:[parent]}};throw new Error('unexpected source '+ep);};
-    const clock=()=>Date.parse('2026-10-06T18:00:00Z'),service=new LegislationInsights(store,{request,clock,loadMetadata:async()=>metadata});
+    const clock=()=>Date.parse('2026-10-06T18:00:00Z'),service=new LegislationInsights(store,{request:yearCatalogue(request),clock,loadMetadata:async()=>metadata});
     const query=s=>insightQuery(new URLSearchParams(s),{kind:'legislation',now:clock()});
     const result=await service.query(query('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-V-48'));
     assert.equal(result.sitting.phase,'upcoming');assert.equal(result.detail.phase,'upcoming');assert.equal(result.detail.votes.length,0);assert.equal(result.detail.selectedVote,null);assert(!calls.some(ep=>/decisions|vote-results/.test(ep)));
     assert.equal(result.detail.coverage.speechAssociations.context,'previous-debates');assert.equal(result.detail.speeches.length,1);assert.equal(result.detail.speeches[0].date,'2026-10-06');
     assert(result.detail.procedures[0].websiteUrl.endsWith('reference=2025%2F2117(INI)'));assert.equal(result.detail.committeeWork[0].kind,'COMMITTEE_TABLING_REPORT');
     await assert.rejects(service.query(query('sitting=MTG-PL-2026-10-07&vote=MTG-PL-2026-10-07-DEC-197457')),e=>e.status===400);
-    const gapService=new LegislationInsights(store,{clock,loadMetadata:async()=>metadata,request:async(ep,params)=>ep.endsWith('/foreseen-activities')?Promise.reject(new Error('upstream unavailable')):request(ep,params)});
+    const gapService=new LegislationInsights(store,{clock,loadMetadata:async()=>metadata,request:yearCatalogue(async(ep,params)=>ep.endsWith('/foreseen-activities')?Promise.reject(new Error('upstream unavailable')):request(ep,params))});
     const gap=await gapService.query(query('sitting=MTG-PL-2026-10-07'));assert.equal(gap.coverage.agendaError,'upstream unavailable');assert.equal(gap.coverage.agendaComplete,false);assert.equal(gap.topics.length,0);
   }finally{store.close();rmSync(directory,{recursive:true,force:true});}
 });
@@ -219,7 +220,7 @@ test('actual October 19 agenda has six upcoming items and no expectation of futu
   try {
     store.acquire();store.beginCycle();store.setMembers([{id:'257043',name:'Maravillas Abadía Jover'}]);
     const request=async(ep,params)=>{calls.push(ep);if(ep==='/meetings')return params.offset===0?f.meeting:{...f.meeting,payload:{data:[]}};if(ep.endsWith('/foreseen-activities'))return f.foreseen;throw new Error('No earlier source supplied');};
-    const clock=()=>Date.parse('2026-10-14T12:00:00Z'),service=new LegislationInsights(store,{clock,request,loadMetadata:async()=>new Map()});
+    const clock=()=>Date.parse('2026-10-14T12:00:00Z'),service=new LegislationInsights(store,{clock,request:yearCatalogue(request),loadMetadata:async()=>new Map()});
     const base=await service.query(insightQuery(new URLSearchParams(),{kind:'legislation',now:clock()}));
     assert.equal(base.sitting.phase,'upcoming');assert.equal(base.topics.length,6);
     const detail=await service.query(insightQuery(new URLSearchParams('sitting=MTG-PL-2026-10-19&topic=MTG-PL-2026-10-19-OJ-ITM-D-22'),{kind:'legislation',now:clock()}));
@@ -234,7 +235,7 @@ test('legislation responses from before per-person demographic buckets are not r
     store.acquire();store.beginCycle();store.setMembers([{id:'257043',name:'MEP'}]);
     const query=insightQuery(new URLSearchParams('sitting=MTG-PL-2026-10-07'),{kind:'legislation',now:clock()});
     await new InsightViewCache({directory:views,clock}).get([INSIGHTS_VERSION,'legislation',store.status().servingGeneration,'2026-10-14',query],async()=>({view:'legislation',oldSchema:true}));
-    const service=createInsights(store,{clock,viewCache:{directory:views},loadMetadata:async()=>metadata,request:async(endpoint,params)=>endpoint==='/meetings'?params.offset===0?fixture.meetings:{...fixture.meetings,payload:{data:[]}}:fixture.foreseen});
+    const service=createInsights(store,{clock,viewCache:{directory:views},loadMetadata:async()=>metadata,request:yearCatalogue(async(endpoint,params)=>endpoint==='/meetings'?params.offset===0?fixture.meetings:{...fixture.meetings,payload:{data:[]}}:fixture.foreseen)});
     const result=await service.query('legislation',new URLSearchParams('sitting=MTG-PL-2026-10-07'));
     assert.equal(result.oldSchema,undefined);assert.equal(result.topics.length,18);
   }finally{store.close();rmSync(directory,{recursive:true,force:true});}
