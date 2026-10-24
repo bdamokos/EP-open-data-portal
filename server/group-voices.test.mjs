@@ -18,6 +18,9 @@ test('optional group jobs preserve failed intervals below the source frontier',t
  const newest=speech('1','2026-10-16');worker.saveSpeech(generation,newest,stamp);
  store.db.prepare('INSERT INTO group_voice_state VALUES (?,?)').run(generation,groupVoiceProjection(newest).version);
  const period={start:'2026-09-01',end:'2026-09-30'};
+ const older=groupVoicesPage(store,query('period=2026-09'));
+ assert.equal(older.availability.latestObservedDate,'2026-10-16');
+ assert.equal(periodAvailability(period,older.availability,0).observedCount,0);
  assert.equal(periodAvailability(period,groupVoicesPage(store,query()).availability,0).state,'observed');
  enqueueGroupVoice(store,generation,'failed-month',{params:{'sitting-date':period.start,'sitting-date-end':period.end}});
  store.failTask(nextGroupVoiceTask(store,generation),new Error('optional catalogue failed'));
