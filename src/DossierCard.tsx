@@ -28,8 +28,8 @@ export function DossierCard({item,language,now}:{item:FollowedDossier;language:s
     </div>;
   };
   return <article className="dossier-follow-card">
-    <div className="explorer-saved-heading"><h3 title={item.title} lang={item.titleLanguage||''}>{item.title}</h3><FollowDossierButton reference={item.id} compact/></div>
-    <p className="dossier-follow-reference" lang="">{item.id}</p>
+    <h3 className="dossier-follow-title" title={item.title} lang={item.titleLanguage||''}>{item.title}</h3>
+    <div className="dossier-identity-row dossier-follow-meta"><p lang="">{item.id}</p><FollowDossierButton reference={item.id} compact/></div>
     <div className="explorer-saved-state">{hasNew?<strong className="explorer-update-label">{freshEntries.length+omitted} new</strong>:pending?<p>Checking for updates…</p>:!partial&&<p>No new updates.</p>}</div>
     {partial&&<p className="dossier-follow-gap">Some sources couldn't be checked.</p>}
     <div className="explorer-saved-actions"><a href={href}>Open dossier</a><button aria-expanded={dossierOpen} onClick={()=>setDossierOpen(value=>!value)}>{dossierOpen?'Hide dossier':'Read here'}</button>{hasNew&&<button onClick={()=>dossierStore.markRead(item.id)}>Mark all read</button>}</div>

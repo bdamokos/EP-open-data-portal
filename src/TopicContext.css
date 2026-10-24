@@ -32,7 +32,11 @@
 @media(max-width:680px){.procedure-progress-timeline>li{grid-template-columns:1fr;gap:6px;}.procedure-progress-filters{align-items:start;}.procedure-progress-filters label{width:100%;}.procedure-progress-next{padding:12px;}.procedure-progress header>small{font-size:13px;}}
 .insight-dossier-title {margin-bottom:24px;max-width:80ch;}
 .insight-dossier-title h2 {font-size:24px;line-height:1.4;margin:0 0 12px;}
-.insight-dossier-title p {font-size:15px;color:var(--ink-muted);}
+.dossier-identity-row {display:flex;align-items:flex-start;flex-wrap:wrap;gap:0 12px;}
+.dossier-identity-row>p {flex:1;min-width:min(100%,10ch);min-height:44px;display:flex;align-items:center;margin:0;font-size:15px;color:var(--ink-muted);overflow-wrap:anywhere;}
+.dossier-identity-row>.explorer-save-button {flex-shrink:0;white-space:nowrap;max-width:100%;}
+.dossier-identity-row>small {flex-basis:100%;margin-top:8px;}
+@media(max-width:680px){.insight-dossier-title {margin-bottom:20px;}.insight-dossier-title h2 {font-size:20px;line-height:1.35;margin-bottom:8px;}}
 .insight-procedure-context header>div {display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
 .insight-procedure-context time,.insight-summary-footer small {font-size:14px;color:var(--ink-muted);}
 .insight-summary-stage select,.insight-topic-trends select {min-height:44px;max-width:100%;padding:8px;background:var(--surface);color:var(--ink);border-radius:var(--radius-sm);border:1px solid var(--line-strong);}
@@ -93,5 +97,3 @@
 .insight-trend-dossier-source a {display:inline-flex;align-items:center;min-height:44px;font-size:13px;color:var(--ink-muted);}
 @media(max-width:1000px){.insight-trends-layout {gap:24px;grid-template-columns:minmax(200px,35%) minmax(0,1fr);}}
 @media(max-width:680px){.insight-trends-layout {grid-template-columns:1fr;}.insight-trend-list {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}.insight-trend-list button {grid-template-columns:minmax(0,1fr) auto;padding:10px 8px;}.insight-trend-list svg {display:none;}.insight-trend-chart text {font-size:24px;}.insight-trend-events li {grid-template-columns:1fr;gap:0;}.insight-trend-events time {padding:0 0 10px;}.insight-official-summary {font-size:16px;}.insight-summary-stage {max-width:100%;}.insight-procedure-context header>div {width:100%;}.insight-topic-trends>.insight-section-heading {align-items:start;}.insight-topic-trends h2 {font-size:26px;}}
-
-.insight-dossier-follow { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
