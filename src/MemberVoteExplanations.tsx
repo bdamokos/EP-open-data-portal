@@ -42,7 +42,8 @@ export function MemberVoteExplanations({vote,data,memberId,language,onDecision}:
   const response=request.data;
   const valid=response?.version===2&&response.memberId===memberId&&response.decisionId===vote.id&&response.sittingId===vote.sittingId&&response.snapshotId===data.snapshotId&&
     response.subjectId===vote.subjectId&&response.matchScope==='subject'&&Array.isArray(response.items)&&
-    ['searched','partial','unavailable'].includes(response.coverage?.status)&&response.items.every(item=>item&&item.kind==='oral'&&item.matchScope==='subject'&&item.subjectId===vote.subjectId&&Array.isArray(item.sources)&&Array.isArray(item.classification?.sources)&&
+    ['searched','partial','unavailable'].includes(response.coverage?.status)&&typeof response.coverage.searchComplete==='boolean'&&
+    Array.isArray(response.coverage.gaps)&&response.coverage.gaps.every(gap=>gap&&typeof gap.code==='string')&&response.items.every(item=>item&&item.kind==='oral'&&item.matchScope==='subject'&&item.subjectId===vote.subjectId&&Array.isArray(item.sources)&&Array.isArray(item.classification?.sources)&&
       item.presentationAnchorDecisionId===response.presentationAnchorDecisionId&&new RegExp('^'+vote.sittingId+'-[A-Z0-9-]+$').test(item.id)&&item.speech?.id===item.id);
   const result=valid?response:null,items=result?.items||[],anchor=result?.presentationAnchorDecisionId;
   const final=anchor===vote.id,canRetry=result?.coverage.gaps?.some(gap=>retryableGap(gap.code));

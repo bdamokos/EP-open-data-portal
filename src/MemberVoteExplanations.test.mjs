@@ -89,6 +89,13 @@ test('structural gaps retain uncertainty without offering a retry',async t=>{
   assert.equal(view.container.querySelectorAll('button').length,0);
 });
 
+test('malformed coverage cannot crash the reader or claim that nothing was found',async t=>{
+  const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:{code:'speech-source-unavailable'}}})});
+  assert.match(view.container.textContent,/Explanations couldn’t be loaded/);
+  assert.doesNotMatch(view.container.textContent,/No oral explanation found/);
+  assert.equal(view.container.querySelectorAll('button').length,1);
+});
+
 test('multiple disclosures have unique mounted targets and keep external attribution out of the reader',async t=>{
   const response=result();response.items.push({...response.items[0],id:sitting+'-OTH-999',speech:{...response.items[0].speech,id:sitting+'-OTH-999'}});
   const view=await mount(t,{response,handler:url=>url.includes('speech-transcript/'+sitting+'-OTH-999')?Response.json({id:sitting+'-OTH-999',available:true,metadata:response.items[1].speech,xml:'<oralStatements><speech><p>Another explanation.</p></speech></oralStatements>',textLanguage:'en',availableTextLanguages:['en']}):null});
