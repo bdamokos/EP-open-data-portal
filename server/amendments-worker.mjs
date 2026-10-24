@@ -382,7 +382,7 @@ function scheduleProfileDependency(worker,generation,id,targetId) {
       const message='Some amendment author-profile dependencies exceed the 100-target processing limit; author coverage remains incomplete.';
       const prior=next.capacityGap || {};
       next={...next,capacityGap:{...prior,count:Math.max(1,prior.count || 0),message:prior.message?prior.message.includes(message)?prior.message:prior.message+' '+message:message}};
-      for(const target of overflow)if(amendmentTarget(target))store.db.prepare("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND key=? AND kind='document'").run(generation,targetKey(target));
+      for(const target of overflow)if(amendmentTarget(target))store.db.prepare("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND json_type(body,'$.amendmentLinksVersion') IS NOT NULL AND key=? AND kind='document'").run(generation,targetKey(target));
     }
     if(next!==saved) {
       // Admission can also append a full snapshot or capacity gap. Preserve

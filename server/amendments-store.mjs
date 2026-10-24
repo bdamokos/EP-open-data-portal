@@ -397,7 +397,9 @@ export function enqueueAmendment(store,generation,key,kind,body,priority=105,ref
           // in the direct queue or its reserved full snapshots.
           const capacityGap={count:(saved.capacityGap?.count || 0)+1,message:'Additional untouched amendment discovery exceeded the bounded checkpoint and is deferred to normal catalogue refresh.'};
           saveCheckpoint({...saved,capacityGap});
-          store.db.prepare("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')").run(generation);
+          // An unchanged JSON UPDATE still fires every source projection trigger.
+          // Saturation can recur after each job; only invalidate present markers.
+          store.db.prepare("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND json_type(body,'$.amendmentLinksVersion') IS NOT NULL AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')").run(generation);
           return false;
         }
       }
