@@ -14,7 +14,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
-import { amendmentReadVersion, amendmentReadIndexes, amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
+import { amendmentReadVersion, amendmentReadIndexes, amendmentLinkIndexVersion, amendmentLinkIndexes, amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches} from './refresh-policy.mjs';
@@ -42,7 +42,7 @@ export class ActivityStore {
     this.db = observeSqlite(new DatabaseSync(this.filename),'activity');
     if(!this.initializeIndexes) {
       try {
-        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1||this.get('followMarksVersion')!==followMarksVersion)throw new Error('Unprepared activity indexes.');
+        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1||this.get('followMarksVersion')!==followMarksVersion)throw new Error('Unprepared activity indexes.');
       } catch {this.db.close();throw new Error('Activity indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(this.initializeIndexes)this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
@@ -91,8 +91,8 @@ export class ActivityStore {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
       assertRefreshSnapshot(this);
-      const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion;
-      if((initialize||initializeProofs||this.get('activityReadVersion')!==activityReadVersion||this.get('followMarksVersion')!==followMarksVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+      const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion,initializeLinks=this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion;
+      if((initialize||initializeProofs||initializeLinks||this.get('activityReadVersion')!==activityReadVersion||this.get('followMarksVersion')!==followMarksVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       initializeAvailabilityHistory(this);
       // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
@@ -101,6 +101,7 @@ export class ActivityStore {
       const refresh=()=>{if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner).changes!==1)throw new Error('Activity-index writer lease was lost.');};
       if(initialize){this.initializeResourceIndexes();initialized=true;refresh();}
       if(initializeProofs){amendmentReadIndexes(this.db);this.set('amendmentReadVersion',amendmentReadVersion);initialized=true;refresh();}
+      if(initializeLinks){amendmentLinkIndexes(this.db);this.set('amendmentLinkIndexVersion',amendmentLinkIndexVersion);initialized=true;refresh();}
       if(this.get('motionLinksIndexVersion')!==1) {
         this.assertWriter();
         this.db.exec('INSERT OR IGNORE INTO motion_links '+motionLinkSelect('source','sources AS source, '));

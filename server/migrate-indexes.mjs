@@ -5,12 +5,26 @@ import {existsSync,statSync} from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {ActivityStore} from './activity-index-store.mjs';
-import {amendmentReadVersion} from './amendments-store.mjs';
+import {amendmentReadVersion,amendmentLinkIndexVersion} from './amendments-store.mjs';
 import {CorpusStore} from './corpus-store.mjs';
-import {absolutePathFromEnvironment,integerFromEnvironment} from './config.mjs';
+import {absolutePathFromEnvironment,booleanFromEnvironment,integerFromEnvironment} from './config.mjs';
 
 const bytes=filename=>['','-wal','-shm'].reduce((sum,suffix)=>sum+(existsSync(filename+suffix)?statSync(filename+suffix).size:0),0);
-const prepared=(store,kind)=>store.get('resourceIndexes')===1&&(kind==='activity'?store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion&&store.get('refreshPolicyVersion')===1&&store.get('followMarksVersion')===followMarksVersion:store.get('questionDiscoveryVersion')===1);
+const prepared=(store,kind)=>store.get('resourceIndexes')===1&&(kind==='activity'?store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('amendmentLinkIndexVersion')===amendmentLinkIndexVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion&&store.get('refreshPolicyVersion')===1&&store.get('followMarksVersion')===followMarksVersion:store.get('questionDiscoveryVersion')===1);
+
+// Run before opening the HTTP listener or starting either source writer.
+export function prepareStartupIndexes() {
+  const activity=booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'),corpus=booleanFromEnvironment('CORPUS_ENABLED');
+  const activityDirectory=activity?absolutePathFromEnvironment('ACTIVITY_INDEX_DIR'):undefined;
+  const corpusDirectory=corpus?absolutePathFromEnvironment('CORPUS_DIR'):undefined;
+  if(activity&&!activityDirectory)throw new Error('ACTIVITY_INDEX_DIR is required when the activity index is enabled.');
+  if(corpus&&!corpusDirectory)throw new Error('CORPUS_DIR is required when the corpus is enabled.');
+  if(!activity&&!corpus)return [];
+  return prepareIndexes({activityDirectory,corpusDirectory,
+    activityLimitMiB:integerFromEnvironment('ACTIVITY_INDEX_MAX_DISK_MIB',8192,64,131072),
+    corpusLimitMiB:integerFromEnvironment('CORPUS_MAX_DISK_MIB',2048,64,131072),
+  });
+}
 
 // No HTTP server, upstream calls, background jobs or generation changes. The
 // normal leases still fence another writer; never override an unexpired lease.
