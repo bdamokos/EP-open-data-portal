@@ -24,16 +24,16 @@ export function DossierCard({item,language,now}:{item:FollowedDossier;language:s
         if(!expanded){if(isNewEntry(current,now))setRetained(previous=>previous.some(value=>value.id===entry.id)?previous:[...previous,{...entry,readAt:now}]);dossierStore.markEntryRead(item.id,entry.id);}
         setOpen(previous=>{const next=new Set(previous);if(expanded)next.delete(entry.id);else next.add(entry.id);return next;});
       }}><span aria-hidden="true">{expanded?'▾':'▸'}</span>{isNewEntry(current,now)&&<span className="explorer-saved-new">New</span>}<span lang={entry.titleLanguage||''}>{entry.title}</span><small>{labels[entry.change||entry.eventKind]||'Dossier update'}{entry.date&&<> · <span lang={language}>{entry.change==='date'&&entry.previousDate?<>{humanDate(entry.previousDate,language)} → </>:null}{humanDate(entry.date,language)}</span></>}</small></button>
-      {expanded&&<div className="explorer-saved-detail">{entry.documentId&&/^[A-Z0-9-]{1,100}$/.test(entry.documentId)?<InsightQuestionReader id={entry.documentId} language={language} heading="Document"/>:entry.eventKind==='press'&&press?<a href={press} target="_blank" rel="noreferrer">Read press release ↗</a>:<><a href={href}>Open dossier</a><ProcedureContext reference={item.id} language={language} initialSummary={entry.summaryId}/></>}</div>}
+      {expanded&&<div className="explorer-saved-detail">{entry.documentId&&/^[A-Z0-9-]{1,100}$/.test(entry.documentId)?<InsightQuestionReader id={entry.documentId} language={language} heading="Document"/>:entry.eventKind==='press'&&press?<a href={press} target="_blank" rel="noreferrer">Read press release ↗</a>:<><a href={href}>Open dossier</a><ProcedureContext reference={item.id} language={language} showIdentity={false} initialSummary={entry.summaryId}/></>}</div>}
     </div>;
   };
   return <article className="dossier-follow-card">
-    <h3 className="dossier-follow-title" title={item.title} lang={item.titleLanguage||''}>{item.title}</h3>
-    <div className="dossier-identity-row dossier-follow-meta"><p lang="">{item.id}</p><FollowDossierButton reference={item.id} compact/></div>
+    <h3 className="dossier-follow-title" data-expanded={dossierOpen||undefined} title={item.title} lang={item.titleLanguage||''}>{item.title}</h3>
+    <div className="dossier-identity-row dossier-follow-meta"><p lang="">{item.id}</p><FollowDossierButton reference={item.id}/></div>
     <div className="explorer-saved-state">{hasNew?<strong className="explorer-update-label">{freshEntries.length+omitted} new</strong>:pending?<p>Checking for updates…</p>:!partial&&<p>No new updates.</p>}</div>
     {partial&&<p className="dossier-follow-gap">Some sources couldn't be checked.</p>}
     <div className="explorer-saved-actions"><a href={href}>Open dossier</a><button aria-expanded={dossierOpen} onClick={()=>setDossierOpen(value=>!value)}>{dossierOpen?'Hide dossier':'Read here'}</button>{hasNew&&<button onClick={()=>dossierStore.markRead(item.id)}>Mark all read</button>}</div>
-    {dossierOpen&&<ProcedureContext reference={item.id} language={language} showTitle/>}
+    {dossierOpen&&<ProcedureContext reference={item.id} language={language} showTitle showIdentity={false}/>}
     {freshEntries.length>LIST_LIMIT||omitted?<p>{freshEntries.length+omitted} dossier updates. <a href={href}>Open dossier</a></p>:listed.map(row)}
     {(visibleHistory.length>0||historyOmitted>0)&&<details className="explorer-saved-history"><summary>Earlier updates ({visibleHistory.length+historyOmitted})</summary>{visibleHistory.map(row)}{historyOmitted>0&&<a href={href}>Open dossier for more</a>}</details>}
   </article>;

@@ -1,3 +1,5 @@
+import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,touchAvailability,historyStatus} from './availability-history.mjs';
+import {activityAvailability} from './availability-evidence.mjs';
 import {groupHistorySchema,freezeGroupHistory} from './group-history.mjs';
 import {membershipSchema,freezeMembership} from './following-membership.mjs';
 import {followMarksVersion,prepareFollowMarks,publishFollowMarks,followIndexComplete} from './follow-marks.mjs';
@@ -72,6 +74,10 @@ export class ActivityStore {
     membershipSchema(this.db);groupHistorySchema(this.db);
     if(this.initializeIndexes){outsideSchema(this.db);amendmentsSchema(this.db);groupVoicesSchema(this.db);refreshPolicyTables(this.db);}
   }
+  readSnapshot(fn) {
+    if(this.db.isTransaction)return fn();
+    this.db.exec('BEGIN');try {const value=fn();this.db.exec('COMMIT');return value;}catch(error){this.db.exec('ROLLBACK');throw error;}
+  }
   get(key) { return parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value); }
   set(key,value) { this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value)); }
   transaction(fn) {
@@ -88,6 +94,7 @@ export class ActivityStore {
       const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion;
       if((initialize||initializeProofs||this.get('activityReadVersion')!==activityReadVersion||this.get('followMarksVersion')!==followMarksVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
+      initializeAvailabilityHistory(this);
       // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
       // Refresh against the current clock before commit; elapsed build time must
       // never roll back a completed build solely because its old TTL expired.
@@ -226,8 +233,10 @@ export class ActivityStore {
   finishTask(task) {
     const finish=()=>{
       this.assertWriter();this.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET done=1,error=NULL WHERE generation=? AND key=?`).run(task.generation,task.key);
+      observeCheck(this,task.body?.availabilityCheck);
       if(!task.groupVoiceJob) {
-        this.db.prepare('DELETE FROM refresh_gaps WHERE generation=? AND key=?').run(task.generation,task.key);
+        const removedGap=this.db.prepare('DELETE FROM refresh_gaps WHERE generation=? AND key=?').run(task.generation,task.key).changes;
+        if(removedGap)touchAvailability(this);
         this.db.prepare('DELETE FROM refresh_gap_admissions WHERE generation=? AND key=?').run(task.generation,task.key);
       }
     };
@@ -265,15 +274,28 @@ export class ActivityStore {
       .map(source=>({key:source.key,work:parse(source.body),fetchedAt:source.fetched_at}));
   }
   markSeen(generation,key) { this.assertWriter();this.db.prepare('UPDATE sources SET seen=1 WHERE generation=? AND key=?').run(generation,key); }
-  putSource(generation,key,kind,work,fetchedAt,rows=[]) {
+  putSource(generation,key,kind,work,fetchedAt,rows=[],{acquisition='unknown',sourceUrl=null}={}) {
     this.transaction(()=> {
       this.assertWriter();
+      const existed=Boolean(this.db.prepare('SELECT 1 FROM sources WHERE generation=? AND key=?').get(generation,key));
       this.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,key,kind,JSON.stringify(work),fetchedAt);
       projectQuestionFiles(this.db,generation,key,kind,work);
       if(kind==='document')updateDocumentRefresh(this,generation,key,work,fetchedAt);
       if(kind==='motion-outcomes')updateSittingRefresh(this,generation,key,work,fetchedAt);
       this.replaceRows(generation,key,rows);
       if(Object.hasOwn(work,'groupVoices'))recordGroupVoice(this,generation,work.groupVoices,work.outside,work.id);
+      const url=sourceUrl||work.groupVoices?.source?.url||work.outside?.source?.url||null;
+      const add=(record,family,subtype,stage='metadata',language=null,variant=null)=>observeSource(this,{sourceId:record.identifier||record.id,family,subtype,stage,language,variant,date:record.document_date||record.date,fetchedAt,url,acquisition,existed});
+      if(kind==='document'||kind==='amendment-list') {
+        add(work,/QUESTION/.test(work.work_type||'')?'questions':'documents',String(work.work_type||'').split('/').at(-1));
+        for(const answer of work.inverse_answers_to||[])if(answer&&typeof answer==='object')add(answer,'answers','QUESTION_WRITTEN_ANSWER');
+      }
+      if(kind==='speech'||kind==='outside-speech') {
+        const speech=work.outside||work.groupVoices||work;
+        add(speech,'speeches',work.kind||(work.groupVoices?'PLENARY_DEBATE_SPEECH':null));
+      }
+      if(kind==='motion-outcomes')for(const decision of work.decisions||[])observeSource(this,{sourceId:decision.activity_id||decision.id,family:'votes',subtype:'decision',date:decision.activity_date,fetchedAt,url,acquisition,existed});
+      finishAvailabilityWrite(this);
     });
   }
   replaceRows(generation,key,rows) {
@@ -334,6 +356,7 @@ export class ActivityStore {
     const refreshSnapshotReady=refreshSnapshotMatches(this);
     return { schemaVersion:1, enabled:true, term:10, complete:Boolean(active)&&gapCount===0&&refreshSnapshotReady, servingGeneration:generation,
       refreshSnapshotReady,
+      availabilityRevision:this.get('availabilityRevision')||0,availabilityHistory:historyStatus(this),
       coverageGaps:{count:gapCount,examples:gapExamples},
       phase:cycle?.phase || (active?'ready':'waiting'), lastSuccessfulRefresh:this.get('lastSuccess'), refreshStartedAt:cycle?.startedAt || null,
       stale:!this.get('lastSuccess') || this.clock()-Date.parse(this.get('lastSuccess'))>26*60*60_000,
@@ -345,7 +368,8 @@ export class ActivityStore {
       unresolvedJoinCount:(this.get('unresolved') || []).length, unresolvedJoins:(this.get('unresolved') || []).slice(0,100), unresolvedCategories:[...new Set((this.get('unresolved') || []).map(join=>join.category || 'reports-shadow'))], unsupportedCategories:Object.entries(CATEGORY_GAPS).map(([category,reason])=>({category,label:CATEGORIES[category],reason})),
       dataSource:'European Parliament Open Data API v2', attribution:'European Parliament, CC BY 4.0', schedule:'Daily after 03:00 Europe/Brussels; interrupted initial loads resume automatically.' };
   }
-  page(mep,{language='en',category=null,limit=10,offset=0,sourceId=null}={}) {
+  page(mep,options={}) {return this.readSnapshot(()=>this.activityPage(mep,options));}
+  activityPage(mep,{language='en',category=null,limit=10,offset=0,sourceId=null}={}) {
     const member=this.db.prepare('SELECT body FROM members WHERE id=?').get(String(mep));
     if (!member) return null;
     const status=this.status(), generation=status.servingGeneration;
@@ -397,8 +421,9 @@ export class ActivityStore {
       return [id,{status:state,indexedCount:counts[id] || 0,total:state==='available'?counts[id] || 0:null,reason}];
     }));
     const exactTotal=category?categoryCoverage[category]?.status==='available':status.complete;
+    const availability=activityAvailability(this,generation,{category,limited:!exactTotal});
     return { mepId:Number(mep), member:parse(member.body), term:10, requestedLanguage:language, category, total:exactTotal?total:null, indexedTotal:total, offset, limit, nextOffset:offset+items.length<total?offset+items.length:null,
-      order:'MEP activity/question date descending; answers remain attached to their question; source ID and category break ties', cache:status, categories:CATEGORIES, categoryGroups:CATEGORY_GROUPS, categoryCoverage, unclassifiedMotionCount:counts['unclassified-motions'] || 0, selectedItems, items };
+      order:'MEP activity/question date descending; answers remain attached to their question; source ID and category break ties', availability,cache:status, categories:CATEGORIES, categoryGroups:CATEGORY_GROUPS, categoryCoverage, unclassifiedMotionCount:counts['unclassified-motions'] || 0, selectedItems, items };
   }
   close() { this.release();this.db.close(); }
 }

@@ -96,7 +96,6 @@ export function Saved({language,onBack,onMember,renderActivity}:SavedProps) {
     <button onClick={onBack}>← Back</button>
     <div className="explorer-saved-heading"><h1>Following</h1><button onClick={()=>{if(items.length)check();void checkDossierUpdates();}} disabled={!items.length&&!dossiers.items.length} aria-disabled={checking||dossierChecking||undefined} style={checking||dossierChecking?{opacity:.45,cursor:'default'}:undefined}>{checking||dossierChecking?'Checking…':'Check for updates'}</button></div>
     <FollowSuggestions/>
-    <p className="explorer-saved-caption">Updates stay marked new until you open them, or for 24 hours.</p>
     {!saved.persistent&&<p>Browser storage is unavailable. Follows last only for this tab.</p>}
     {saved.storageError&&<p role="alert" className="explorer-storage-error">Changes since {new Date(saved.unsavedSince||Date.now()).toLocaleTimeString()} could not be saved in this browser and will be lost on reload. <button onClick={()=>store.retryStorage()}>Retry saving</button></p>}
     {items.some(item=>item.kind==='mep')&&<GroupUpdateStatus retry={check}/>}

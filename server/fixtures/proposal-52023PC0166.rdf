@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rdf:RDF xmlns:ns1="http://publications.europa.eu/ontology/cdm#" xmlns:ns2="http://www.w3.org/2002/07/owl#" xmlns:ns3="http://publications.europa.eu/ontology/cdm/cmr#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="http://publications.europa.eu/resource/comnat/COM_2023_0166_FIN"><ns1:resource_legal_internal_number_prefix rdf:datatype="http://www.w3.org/2001/XMLSchema#string">COM</ns1:resource_legal_internal_number_prefix>
+    <ns1:resource_legal_internal_number_year rdf:datatype="http://www.w3.org/2001/XMLSchema#year">2023</ns1:resource_legal_internal_number_year>
+    <ns1:work_created_by_agent rdf:resource="http://publications.europa.eu/resource/authority/corporate-body/ENV" />
+    <ns1:act_preparatory_initiates_dossier rdf:resource="http://publications.europa.eu/resource/procedure/2023_85" />
+    <ns1:work_created_by_agent rdf:resource="http://publications.europa.eu/resource/authority/corporate-body/COM" />
+    <ns1:work_part_of_dossier rdf:resource="http://publications.europa.eu/resource/internal_proc/D37AC968CA9F9B8A7312B7899C069C422B8B02B35931F1CF0FE51D39F6EC60EB" />
+    <ns1:work_has_resource-type rdf:resource="http://publications.europa.eu/resource/authority/resource-type/PROP_DIR" />
+    <ns1:version rdf:datatype="http://www.w3.org/2001/XMLSchema#string">final</ns1:version>
+    <ns1:resource_legal_id_celex rdf:datatype="http://www.w3.org/2001/XMLSchema#string">52023PC0166</ns1:resource_legal_id_celex>
+    <ns1:work_version rdf:datatype="http://www.w3.org/2001/XMLSchema#string">final</ns1:work_version>
+    <ns1:resource_legal_internal_number_sequential_number rdf:datatype="http://www.w3.org/2001/XMLSchema#positiveInteger">166</ns1:resource_legal_internal_number_sequential_number>
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/cbafeec2-c94e-11ed-a05c-01aa75ed71a1"><ns2:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2023_0166_FIN" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282023%29166%20final" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/celex/52023PC0166" />
+  </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/cbafeec2-c94e-11ed-a05c-01aa75ed71a1.0001.01/DOC_1"><ns2:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282023%29166%20final.ENG.docx.1_EN_ACT_part1_v7.docx" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2023_0166_FIN.ENG.docx.1_EN_ACT_part1_v7.docx" />
+    <ns1:item_belongs_to_manifestation rdf:resource="http://publications.europa.eu/resource/cellar/cbafeec2-c94e-11ed-a05c-01aa75ed71a1.0001.01" />
+    <ns3:manifestationMimeType>application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml</ns3:manifestationMimeType>
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/cbafeec2-c94e-11ed-a05c-01aa75ed71a1.0001.01"><ns2:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282023%29166%20final.ENG.docx" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2023_0166_FIN.ENG.docx" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/celex/52023PC0166" /><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/cbafeec2-c94e-11ed-a05c-01aa75ed71a1.0001"><ns2:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282023%29166%20final.ENG" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2023_0166_FIN.ENG" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/immc/COM%282023%29166%20final"><ns1:work_part_of_dossier rdf:resource="http://publications.europa.eu/resource/procedure/2023_85" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/comnat/COM_2023_0166_FIN.ENG.docx"><ns1:manifestation_type rdf:datatype="http://www.w3.org/2001/XMLSchema#string">docx</ns1:manifestation_type>
+    <ns1:manifestation_manifests_expression rdf:resource="http://publications.europa.eu/resource/comnat/COM_2023_0166_FIN.ENG" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/comnat/COM_2023_0166_FIN.ENG"><ns1:expression_uses_language rdf:resource="http://publications.europa.eu/resource/authority/language/ENG" />
+    <ns1:expression_belongs_to_work rdf:resource="http://publications.europa.eu/resource/comnat/COM_2023_0166_FIN" />
+    </rdf:Description></rdf:RDF>

@@ -40,6 +40,9 @@ test('following a dossier from its reader establishes a quiet baseline and expos
   assert(h.controls.dossierStore.snapshot().items[0].entries[0].readAt!==null);assert.equal(row.getAttribute('aria-expanded'),'true');assert.equal(location.search,'?view=saved');
   await act(async()=>row.click());assert.equal(h.container.querySelector('.explorer-saved-history'),null);assert(h.container.textContent.includes('Parliament position adopted'),'read row remains in place during this visit');
   await h.click('Read here');assert.match(h.container.textContent,/Public dossier title/);
+  assert.equal(h.container.querySelectorAll('.explorer-save-button').length,1,'the open reader reuses the card follow control');
+  assert.equal(h.container.querySelectorAll('.insight-dossier-title').length,0,'the open reader does not repeat dossier identity');
+  assert.equal(h.container.querySelector('.dossier-follow-title').getAttribute('data-expanded'),'true');
 });
 test('automatic source reads are bounded to five dossiers and all follow checks request English',async t=>{
   const h=await harness(t);

@@ -219,10 +219,10 @@ export function ReferenceText({text,start=0,anchors=[],links=[],marks:formatMark
   while(next<marks.length)mark();
   return <>{nodes}</>;
 }
-export function DocumentNotes({notes,prefix}:{notes:DocumentNote[];prefix:string}) {
+export function DocumentNotes({notes,prefix,renderText}:{notes:DocumentNote[];prefix:string;renderText?:(note:DocumentNote)=>ReactNode}) {
   if(!notes.length)return null;
   return <details className="legal-notes" open><summary lang="en">Notes · {notes.length}</summary><ol>{notes.map(note=><li key={note.id} id={`${prefix}-note-${note.id}`} value={/^\d+$/.test(note.label)?Number(note.label):undefined}>
-    <span className="legal-note-label">{/^\d+$/.test(note.label)?null:note.label+' '}</span><ReferenceText text={note.text} links={note.linkSpans||[]} linkify/>
+    <span className="legal-note-label">{/^\d+$/.test(note.label)?null:note.label+' '}</span>{renderText?renderText(note):<ReferenceText text={note.text} links={note.linkSpans||[]} linkify/>}
     {note.links.filter(link=>!note.text.includes(link)&&!(note.linkSpans||[]).some(span=>span.url===link)).map(link=><span key={link} lang="en"> <SourceLink url={link} compact>Link ↗</SourceLink></span>)}
   </li>)}</ol></details>;
 }

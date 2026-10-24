@@ -39,14 +39,8 @@ function bodyCompleteness(text,start) {
       || (text.notes || []).some(note=>note.text.includes('\uFFFC')),
   };
 }
-export function motionBody(text,language) {
-  const anchors=text.noteAnchors || text.anchors || [];
-  const paragraphs=(text.paragraphs || []).map((value,index)=>{
-    let marked=value;
-    // Insert backwards so equal-offset references retain their order in the source.
-    for(const anchor of anchors.filter(a=>a.paragraph===index).reverse().sort((a,b)=>b.offset-a.offset))marked=marked.slice(0,anchor.offset)+'['+anchor.label+']'+marked.slice(anchor.offset);
-    return marked;
-  }),opening=openings[language];
+export function motionBodyStart(paragraphs,language) {
+  const opening=openings[language];
   // Some translations use the same Parliament heading on the cover and in the body.
   // Require a following citation/recital/operative item and one unambiguous boundary.
   const normalized=paragraphs.map(normalize),starts=[];
@@ -55,7 +49,17 @@ export function motionBody(text,language) {
     let next=i+1;while(next<normalized.length&&!normalized[next])next++;
     if(/^(?:[–—−\-•]\s*\S|(?:\d+|\p{Lu}{1,3})[.)]\s+\S)/u.test(normalized[next] || ''))starts.push(i);
   }
-  const start=starts.length===1?starts[0]:-1;
+  return starts.length===1?starts[0]:-1;
+}
+export function motionBody(text,language) {
+  const anchors=text.noteAnchors || text.anchors || [];
+  const paragraphs=(text.paragraphs || []).map((value,index)=>{
+    let marked=value;
+    // Insert backwards so equal-offset references retain their order in the source.
+    for(const anchor of anchors.filter(a=>a.paragraph===index).reverse().sort((a,b)=>b.offset-a.offset))marked=marked.slice(0,anchor.offset)+'['+anchor.label+']'+marked.slice(anchor.offset);
+    return marked;
+  });
+  const start=motionBodyStart(paragraphs,language);
   if(start<0)return {status:'unavailable',reason:'The resolution body could not be separated from the cover material in this language.'};
   if(text.notesStatus==='not-extracted')return {status:'unavailable',reason:'The document notes have not been extracted for this saved text.'};
   const complete=bodyCompleteness(text,start);

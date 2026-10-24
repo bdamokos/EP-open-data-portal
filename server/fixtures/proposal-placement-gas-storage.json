@@ -1,0 +1,430 @@
+{
+  "attribution": "European Commission / Publications Office; legal text © European Union",
+  "sourceUrl": "https://publications.europa.eu/resource/cellar/546fa3db-f9a4-11ef-b7db-01aa75ed71a1.0022.01/DOC_1",
+  "retrievedAt": "2026-10-21T19:58:27.914Z",
+  "sourceSha256": "03ef32a1872ba39db6ded63969d0877d65b8feb840bc8602a1153105bebb70d9",
+  "coverage": {
+    "complete": false
+  },
+  "structureStatus": "extracted",
+  "paragraphs": [
+    "(1)\tRegulation (EU) 2022/1032 of the Parliament and of the Council was adopted in reaction to the gas-supply crisis and unprecedented price increases caused by the escalation of the Russian military aggression against Ukraine since February 2022, impelling the Union to act in a coordinated and comprehensive manner to avoid potential risks resulting from further gas-supply disruptions.",
+    "(2)\tRegulation (EU) 2022/1032 amended Regulation (EU) 2017/1938 by introducing a temporary legal framework for measures regarding the filling level of underground storage facilities to strengthen the security of gas supply in the Union, in particular gas supplies to protected customers.",
+    "(3)\tGas-storage facilities provide for 30% of the Union’s gas consumption during the winter months, and well-filled underground gas-storage facilities contribute substantially to the security of gas supply by providing additional gas in the event of high demand or supply disruptions.",
+    "(4)\tThe laying down of a mandatory target to ensure that gas-storage facilities are 90% full by 1 November (filling target), with a series of intermediate targets for each Member State in February, May, July and September of the year thereafter (filling trajectory), proved to be fundamental amidst the energy crisis sparked by the weaponisation of Russian gas supplies and invasion of Ukraine in both: (i) weathering the gas-supply shortages; and (ii) reducing market uncertainties and price volatility.",
+    "(5)\tDespite the substantial improvement of the gas market situation compared to 2022-2023 period, the European gas market remains tight. More intense competition for global LNG supplies can increase Member States exposure to price volatility. The gas price development during the 2024/2025 winter may confirm the trend. In such situation, the role of gas storages remains paramount. Predictable filling trajectories increase transparency and prevent market distortion.",
+    "(6)\tPursuant to Regulation (EU) 2017/1938 the obligation of the Member States to follow an annual filling trajectory and to ensure that the filling target is achieved by 1 November of each year expires on 31 December 2025.",
+    "(7)\tAt the same time, the overall framework to meet this 1 November target must be flexible enough during the filling season to allow a swift reaction to constantly changing market conditions and in particular to take advantage of the best purchasing conditions.",
+    "(8)\tThe purpose of intermediary filling targets, agreed upon each year by the Member States, is to ensure that the mandatory 1 November target is met. However, these targets are indicative and should allow for storage filling in such a way that there is sufficient flexibility available for market participants throughout the year in accordance with Recommendation XXX.",
+    "(9)\tCommission’s assessment of the current energy-security framework has confirmed the positive impact of the storage-filling requirements on the security of gas supply and those positive effects should be preserved beyond 2025.",
+    "(10)\tIt is therefore necessary to extend by two years the relevant gas storage filling provisions that provide predictability and transparency as to the utilisation of gas-storage facilities across the Union.",
+    "(11)\tRegulation (EU) 2017/1938 should therefore be amended accordingly,",
+    "HAVE ADOPTED THIS REGULATION:",
+    "Article 1",
+    "Amendment to Regulation (EU) 2017/1938",
+    "In Article 22 of Regulation (EU) 2017/1938, the fourth paragraph is replaced by the following:",
+    "“Article 2, points (27) to (31), Articles 6a to 6d, Article 16(3), Article 17a, Article 18a, Article 20(4), and Annexes Ia and Ib shall apply until 31 December 2027.”",
+    "Article2",
+    "Entry into force",
+    "This Regulation shall enter into force on the day following that of its publication in the Official Journal of the European Union.",
+    "This Regulation shall be binding in its entirety and directly applicable in all Member States."
+  ],
+  "paragraphSources": [
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[73]",
+      "ordinal": 72,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[74]",
+      "ordinal": 73,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[75]",
+      "ordinal": 74,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[76]",
+      "ordinal": 75,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[77]",
+      "ordinal": 76,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[78]",
+      "ordinal": 77,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[79]",
+      "ordinal": 78,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[80]",
+      "ordinal": 79,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[81]",
+      "ordinal": 80,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[82]",
+      "ordinal": 81,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[83]",
+      "ordinal": 82,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[84]",
+      "ordinal": 83,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[85]",
+      "ordinal": 84,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[86]",
+      "ordinal": 85,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[88]",
+      "ordinal": 87,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 5,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[89]",
+      "ordinal": 88,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 5,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[90]",
+      "ordinal": 89,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 5,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[91]",
+      "ordinal": 90,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 5,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[92]",
+      "ordinal": 91,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 5,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[93]",
+      "ordinal": 92,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 5,
+      "complete": true
+    }
+  ],
+  "paragraphProperties": [
+    {
+      "styleId": "ManualConsidrant",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "ManualConsidrant",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "ManualConsidrant",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "ManualConsidrant",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "ManualConsidrant",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "ManualConsidrant",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "ManualConsidrant",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "ManualConsidrant",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "ManualConsidrant",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "ManualConsidrant",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "ManualConsidrant",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Formuledadoption",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Titrearticle",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Normal",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Normal",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Normal",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Titrearticle",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Normal",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Applicationdirecte",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Applicationdirecte",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    }
+  ],
+  "amendment": {
+    "originalText": "",
+    "proposedText": "Article1a\nReporting\nThe Commission does not have the power to impose sanctions or impose national energy policy guidelines on the basis of these reports.",
+    "targetLabel": "Article 1 a (new)",
+    "targetPath": {
+      "proposal": [
+        {
+          "raw": "Article 1 a (new)",
+          "labels": [
+            {
+              "raw": "Article 1 a (new)"
+            }
+          ]
+        }
+      ],
+      "underlying": [],
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0079-AM-010-018/A-10-2025-0079-AM-010-018_en.docx",
+      "fetchedAt": "2026-10-21T19:58:16.326Z"
+    },
+    "documentReferences": [
+      {
+        "field": "DocRef",
+        "raw": "(COM(2025)0099 – C10-0041/2025 – 2025/0051(COD))",
+        "sourceRaw": "(COM(2025)0099 – C10-0041/2025 – 2025/0051(COD))",
+        "scope": "amendment"
+      },
+      {
+        "field": "DocAmend",
+        "raw": "Proposal for a regulation",
+        "sourceRaw": "Proposal for a regulation",
+        "scope": "amendment"
+      },
+      {
+        "field": "Article",
+        "raw": "Article 1 a (new)",
+        "sourceRaw": "Article 1 a (new)",
+        "scope": "amendment"
+      }
+    ],
+    "language": "en",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0079-AM-010-018/A-10-2025-0079-AM-010-018_en.docx",
+      "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0079-AM-010-018/A-10-2025-0079-AM-010-018_en.docx",
+      "fetchedAt": "2026-10-21T19:58:16.326Z",
+      "language": "en",
+      "contentHash": "a7fd64a68f6a84e8da09772dbc845f40f7980bb991a36f17ed756f62628dd704",
+      "retrievedByteSize": 31387,
+      "sourceVersion": {
+        "byteSize": 31387,
+        "issued": "2025-07-03T16:28:06+02:00"
+      },
+      "stale": false,
+      "refreshInProgress": false,
+      "refreshError": null
+    }
+  },
+  "recitalAmendment": {
+    "originalText": "",
+    "proposedText": "(3 a)\tMember States should be able to decide unilaterally, without prior approval from the Commission, to deviate from the filling target.",
+    "targetLabel": "Recital 3 a (new)",
+    "targetPath": {
+      "proposal": [
+        {
+          "raw": "Recital 3 a (new)",
+          "labels": [
+            {
+              "raw": "Recital 3 a (new)"
+            }
+          ]
+        }
+      ],
+      "underlying": [],
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0079-AM-010-018/A-10-2025-0079-AM-010-018_en.docx",
+      "fetchedAt": "2026-10-21T20:02:35.335Z"
+    },
+    "documentReferences": [
+      {
+        "field": "DocRef",
+        "raw": "(COM(2025)0099 – C10-0041/2025 – 2025/0051(COD))",
+        "sourceRaw": "(COM(2025)0099 – C10-0041/2025 – 2025/0051(COD))",
+        "scope": "amendment"
+      },
+      {
+        "field": "DocAmend",
+        "raw": "Proposal for a regulation",
+        "sourceRaw": "Proposal for a regulation",
+        "scope": "amendment"
+      },
+      {
+        "field": "Article",
+        "raw": "Recital 3 a (new)",
+        "sourceRaw": "Recital 3 a (new)",
+        "scope": "amendment"
+      }
+    ],
+    "language": "en",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0079-AM-010-018/A-10-2025-0079-AM-010-018_en.docx",
+      "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0079-AM-010-018/A-10-2025-0079-AM-010-018_en.docx",
+      "fetchedAt": "2026-10-21T20:02:35.335Z",
+      "language": "en",
+      "contentHash": "a7fd64a68f6a84e8da09772dbc845f40f7980bb991a36f17ed756f62628dd704",
+      "retrievedByteSize": 31387,
+      "sourceVersion": {
+        "byteSize": 31387,
+        "issued": "2025-07-03T16:28:06+02:00"
+      },
+      "stale": false,
+      "refreshInProgress": false,
+      "refreshError": null
+    }
+  }
+}
