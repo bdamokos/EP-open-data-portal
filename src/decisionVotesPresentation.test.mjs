@@ -41,3 +41,12 @@ test('a complete response cannot hide a known tally mismatch behind a missing to
   assert.equal(validateDecisionVotes(data,decisionId),false);
  }
 });
+
+test('indexed tallies must agree with named counts when the fresh tally is missing',async()=>{
+ for(const position of ['for','against','abstaining']){
+  const data=await voteFixture().read();data.decision.totals[position]=null;data.decision.namedVoters.totalsMatch=null;
+  assert(validateDecisionVotes(data,decisionId));
+  assert(amendmentVoteBinding(item,{id:decisionId,totals:{[position]:data.decision.namedVoters.counts[position]}},data));
+  assert.equal(amendmentVoteBinding(item,{id:decisionId,totals:{[position]:99}},data),false);
+ }
+});

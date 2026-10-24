@@ -49,7 +49,7 @@ export function amendmentVoteBinding(item,indexed,data) {
     if(indexed.componentBinding!=='single-amendment'||vote.componentIds.length!==1||vote.componentIds[0]!==docId(indexed.partId))return false;
   }else if(indexed.partNumber!=null||vote.componentIds.length)return false;
   if(['outcome','method'].some(key=>indexed[key]&&vote[key]&&indexed[key]!==vote[key]))return false;
-  return !positions.some(p=>indexed.totals?.[p]!=null&&vote.totals[p]!=null&&indexed.totals[p]!==vote.totals[p]);
+  return !positions.some(p=>indexed.totals?.[p]!=null&&(vote.totals[p]!=null&&indexed.totals[p]!==vote.totals[p]||vote.namedVoters?.available&&vote.namedVoters.counts?.[p]!=null&&indexed.totals[p]!==vote.namedVoters.counts[p]));
 }
 export function authorVotePosition(id,data) {
   if(!person(String(id??'')))return 'MEP unresolved';

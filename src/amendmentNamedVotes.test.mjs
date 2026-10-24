@@ -101,5 +101,15 @@ test('group sources show the captured membership generation and retrieval date',
 test('a missing tally does not hide a known mismatch or imply an unlisted author had no vote',async t=>{
  const f=voteFixture();f.raw.number_of_votes_favor=99;delete f.raw.number_of_votes_abstention;const data=await f.read();
  const h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:{...decision,totals:{for:99,against:1,abstaining:null}}});
- await h.render();await h.open();assert.equal(h.container.querySelector('table'),null);assert.match(h.container.textContent,/Unlisted AuthorUnavailable/);assert.match(h.container.textContent,/Named list incomplete/);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For99/);
+ await h.render();await h.open();assert.equal(h.container.querySelector('table'),null);assert.match(h.container.textContent,/Vote record does not match this amendment/);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For99/);
 });
+
+for(const [position,field] of [['for','number_of_votes_favor'],['against','number_of_votes_against'],['abstaining','number_of_votes_abstention']]){
+ for(const matches of [true,false])test('missing fresh '+position+' tally with '+(matches?'matching':'contradictory')+' indexed count',async t=>{
+  const f=voteFixture();delete f.raw[field];const data=await f.read();
+  const h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:{...decision,totals:{...decision.totals,[position]:matches?decision.totals[position]:99}}});
+  await h.render();await h.open();assert.match(h.container.querySelector('.explorer-amendment-decision').textContent,/Adopted/);
+  if(matches){assert(h.container.querySelector('table'));assert.match(h.container.textContent,/Unlisted AuthorNo recorded vote/);}
+  else{assert.equal(h.container.querySelector('table'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.textContent,/Vote record does not match this amendment/);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/99/);}
+ });
+}
