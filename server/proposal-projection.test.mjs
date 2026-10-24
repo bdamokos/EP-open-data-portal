@@ -168,3 +168,53 @@ test('unchanged body math retains equation-only and mixed hyperlinks, anchors an
     if(mixed){assert(paragraph.textContent.startsWith('Before '));assert(paragraph.textContent.includes(' after'));}
   }
 });
+
+test('proposal table merges follow grid columns and retain every continuation paragraph once',async t=>{
+  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>load.close());
+  const {ProposalContextText}=await load('/src/ProposalContextText.tsx');
+  const c=(label,colSpan=1,vertical=null,horizontal=null,nested=false)=>({label,colSpan,vertical,horizontal,nested});
+  const separate=[c('A2'),c('B2')],joined=[c('AB2',2)],start=c('C-start',1,'start'),continued=c('C-continuation',1,'continue');
+  const cases=[
+    ['ordinary control',[[c('A'),c('B'),start],[...separate,continued]],'C-start',2,1],
+    ['preceding cells join',[[c('A'),c('B'),start],[...joined,continued]],'C-start',2,1],
+    ['preceding cells split',[[c('AB',2),start],[...separate,continued]],'C-start',2,1],
+    ['multirow span changes',[[c('A'),c('B'),start],[...joined,continued],[c('A3'),c('B3'),c('C-third',1,'continue')]],'C-start',3,1],
+    ['horizontal and vertical merge',[[c('A'),c('B'),c('CD-start',1,'start','start'),c('D-start',1,'start','continue')],[...joined,c('CD-next',1,'continue','start'),c('D-next',1,'continue','continue')],[c('A3'),c('B3'),c('CD-third',2,'continue')]],'CD-start',3,2],
+    ['nested continuation content',[[c('A'),c('B'),start],[...joined,c('C-nested',1,'continue',null,true)]],'C-start',2,1],
+    ['orphan vertical continuation',[[c('A'),c('B'),continued]],'C-continuation',1,1],
+    ['mismatched vertical range',[[c('AB-start',2,'start'),c('C')],[c('A-next',1,'continue'),c('BC-next',2)]],'AB-start',1,2],
+    ['broken vertical chain',[[start],[c('C-middle')],[continued]],'C-start',1,1],
+    ['orphan horizontal continuation',[[c('A'),c('B-orphan',1,null,'continue')]],'B-orphan',1,1],
+    ['inconsistent horizontal vertical merge',[[c('AB-start',1,'start','start'),c('B-start',1,'start','continue')],[c('A-next',1,'continue','start'),c('B-next',1,null,'continue')]],'AB-start',1,2],
+  ];
+  for(const [name,rows,ownerLabel,rowSpan,colSpan] of cases)await t.test(name,async t=>{
+    const table='<w:tbl><w:tblGrid>'+Array.from({length:4},()=>'<w:gridCol w:w="1000"/>').join('')+'</w:tblGrid>'+rows.map(cells=>'<w:tr>'+cells.map(cell=>'<w:tc><w:tcPr>'+
+      (cell.colSpan>1?`<w:gridSpan w:val="${cell.colSpan}"/>`:'')+(cell.vertical?`<w:vMerge w:val="${cell.vertical==='start'?'restart':'continue'}"/>`:'')+
+      (cell.horizontal?`<w:hMerge w:val="${cell.horizontal==='start'?'restart':'continue'}"/>`:'')+'</w:tcPr>'+p(cell.label)+
+      (cell.nested?'<w:tbl><w:tr><w:tc>'+p('Nested one')+p('Nested two')+'</w:tc></w:tr></w:tbl>'+p('After nested'):'')+'</w:tc>').join('')+'</w:tr>').join('')+'</w:tbl>';
+    const proposal=parseProposal(archive(body(p('Article 1')+p('1. Original wording.')+table+p('Article 2')+p('1. Next.'))),{sourceUrl});
+    const wording={language:'en',targetLabel:'Article 1 – paragraph 1',originalText:'1. Original wording.',proposedText:'1. Revised wording.'};
+    const items=[{kind:'act',index:1,proposal}],placement=resolveProposalPlacement(items,wording);assert.equal(placement.status,'placed');
+    const data={documentId:'A-10-2025-0085',baseline:{kind:'commission-proposal',celex:'52025PC0087',language:'en',status:'available',items:[],attribution:''},proposal:{items},placement};
+    const window=new Window();t.after(()=>window.happyDOM.close());
+    const render=(nextPlacement=placement,nextWording=wording)=>{window.document.body.innerHTML=renderToStaticMarkup(createElement(ProposalContextText,{data:{...data,placement:nextPlacement},wording:nextWording,language:'en'}));return window.document;};
+    let doc=render();
+    for(const paragraph of proposal.paragraphs.filter(p=>p.index!==1)){
+      const nodes=doc.querySelectorAll(`[data-source-paragraph="${paragraph.index}"]`);assert.equal(nodes.length,1,paragraph.text);assert.equal(nodes[0].textContent,paragraph.text);
+    }
+    const owner=[...doc.querySelectorAll('td')].find(td=>td.querySelector(':scope > p')?.textContent===ownerLabel);assert(owner);
+    assert.equal(owner.rowSpan,rowSpan);assert.equal(owner.colSpan,colSpan);
+    assert.deepEqual([...owner.querySelectorAll('[data-source-paragraph]')].map(node=>Number(node.dataset.sourceParagraph)),[...owner.querySelectorAll('[data-source-paragraph]')].map(node=>Number(node.dataset.sourceParagraph)).sort((a,b)=>a-b));
+    if(rows.some(row=>row.some(cell=>cell.nested))){assert.equal(doc.querySelectorAll('table').length,2);assert(owner.textContent.includes('C-nestedNested oneNested twoAfter nested'));}
+    // A replacement in a continuation belongs to the merged cell.
+    const target=proposal.paragraphs.find(p=>p.text===rows.at(-1).at(-1).label);
+    const replacement={status:'placed',operation:'replace',itemIndex:0,span:{start:target.index,end:target.index},splice:{start:{paragraph:target.index,offset:0},end:{paragraph:target.index,offset:target.text.length}},originalText:target.text,evidence:[]};
+    doc=render(replacement,{...wording,originalText:target.text,proposedText:'Cell replacement'});assert(doc.querySelector('[data-amendment-block]').closest('td'));
+    if(rowSpan>1)assert.equal(doc.querySelector('[data-amendment-block]').closest('td').rowSpan,rowSpan);
+    const insertionWording={language:'en',targetLabel:'Article 1 a (new)',originalText:'',proposedText:'Article 1a. New provision.'};
+    const insertion=resolveProposalPlacement(items,insertionWording);
+    if(insertion.status==='placed'){
+      doc=render(insertion,insertionWording);const block=doc.querySelector('[data-amendment-block]');assert.equal(block.closest('td'),null);assert.equal(block.previousElementSibling.className,'proposal-table-scroll');assert.equal(block.nextElementSibling.textContent,'Article 2');
+    }
+  });
+});

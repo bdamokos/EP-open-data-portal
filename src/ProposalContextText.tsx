@@ -19,6 +19,7 @@ export const proposalPlacementReasons:Record<string,string>={
   math_comparison_unavailable:'The equations could not be compared.',
   parent_target_not_found:'The provision that would contain the new text could not be found.',
   conflicting_target_evidence:'The published location and original wording do not agree.',
+  client_target_unconfirmed:'The amendment’s location could not be confirmed.',
   duplicate_target_label:'A provision with the proposed label already exists.',
   relative_target_not_found:'The preceding provision could not be found.',
   multiple_published_targets:'The published location matches more than one passage.',
@@ -70,15 +71,30 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
       if(child)return [tableNode({...child,nestedTables:nested.filter(t=>t.sourcePath.startsWith(child.sourcePath+'/'))})];
       return nestedParagraphs.has(index)?[]:row(index);
     });
-    const content=<div className="proposal-table-scroll" key={table.sourcePath}><table className="proposal-table"><tbody>{table.rows.map((tr,ri)=><tr key={ri}>{tr.cells.map((cell,ci)=>{
-      if(cell.verticalMerge==='continue'||cell.horizontalMerge==='continue')return null;
-      let rowSpan=1;if(cell.verticalMerge==='start')while(table.rows[ri+rowSpan]?.cells[ci]?.verticalMerge==='continue')rowSpan++;
-      let colSpan=cell.colSpan;if(cell.horizontalMerge==='start'){let after=ci+1;while(tr.cells[after]?.horizontalMerge==='continue')colSpan+=tr.cells[after++].colSpan;}
-      const merged=[...cell.paragraphs];
-      if(cell.horizontalMerge==='start'){let after=ci+1;while(tr.cells[after]?.horizontalMerge==='continue')merged.push(...tr.cells[after++].paragraphs);}
-      for(let after=1;after<rowSpan;after++)merged.push(...table.rows[ri+after].cells[ci].paragraphs);
-      return <td key={ci} colSpan={colSpan} rowSpan={rowSpan}>{cellContent([...new Set(merged)].sort((a,b)=>a-b))}</td>;
-    })}</tr>)}</tbody></table></div>;
+    type GridCell={column:number;colSpan:number;rowSpan:number;paragraphs:number[]};
+    let previous=new Map<string,GridCell>();
+    const rows=table.rows.map(tr=>{
+      const rendered:GridCell[]=[],continuing=new Map<string,GridCell>();let column=0;
+      for(let ci=0;ci<tr.cells.length;ci++){
+        const cell=tr.cells[ci],members=[cell];
+        if(cell.horizontalMerge==='start')while(tr.cells[ci+1]?.horizontalMerge==='continue')members.push(tr.cells[++ci]);
+        const colSpan=members.reduce((sum,member)=>sum+member.colSpan,0),range=column+':'+(column+colSpan);
+        const paragraphs=members.flatMap(member=>member.paragraphs);
+        const vertical=members.every(member=>member.verticalMerge===cell.verticalMerge)?cell.verticalMerge:null;
+        const owner=vertical==='continue'?previous.get(range):undefined;
+        if(owner){owner.rowSpan++;owner.paragraphs.push(...paragraphs);continuing.set(range,owner);}
+        else {
+          // An orphan or mismatched continuation still owns readable source content.
+          const current={column,colSpan,rowSpan:1,paragraphs};rendered.push(current);
+          if(vertical==='start')continuing.set(range,current);
+        }
+        column+=colSpan;
+      }
+      previous=continuing;return rendered;
+    });
+    const content=<div className="proposal-table-scroll" key={table.sourcePath}><table className="proposal-table"><tbody>{rows.map((cells,ri)=><tr key={ri}>{cells.map(cell=>
+      <td key={cell.column} colSpan={cell.colSpan} rowSpan={cell.rowSpan}>{cellContent([...new Set(cell.paragraphs)].sort((a,b)=>a-b))}</td>
+    )}</tr>)}</tbody></table></div>;
     return insertionTable?.sourcePath===table.sourcePath?[content,block(true,proposal)]:content;
   }
   const tableParagraphs=new Set(topTables.flatMap(t=>t.paragraphs));

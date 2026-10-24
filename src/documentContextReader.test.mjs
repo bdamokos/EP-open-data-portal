@@ -6,7 +6,7 @@ import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createElement as el,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const report='A-10-2026-0237',amendment=report+'-AM-40',list=report+'-AM-037-046';
 const original='B-10-2026-0424',adopted='TA-10-2026-0342',otherAdopted='TA-10-2026-0343';
@@ -27,8 +27,8 @@ async function harness(t,respond) {
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){scrolls.push({element:this,options});});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1];
@@ -37,8 +37,8 @@ async function harness(t,respond) {
     const value=await respond(route,url.searchParams);assert.notEqual(value,undefined,'Unexpected request: '+route+url.search);
     return value instanceof Response?value:Response.json(value);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {DocumentContextReader}=await vite.ssrLoadModule('/src/DocumentContextReader.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {DocumentContextReader}=await loadModule('/src/DocumentContextReader.tsx');
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,15)));
   const render=async(props,wait=true)=>{await act(async()=>root.render(el(DocumentContextReader,props)));if(wait)await settle();};
@@ -699,6 +699,8 @@ for(const [name,mutate] of [
   ['missing evidence',d=>{delete d.target.evidence;}],
   ['variant list ID',d=>{d.amendment.variants[0].listId=report+'-AM-999-999';}],
   ['variant language',d=>{d.amendment.variants[0].language='fr';}],
+  ['unknown selected language',d=>{d.amendment.variants[0].language=null;d.target.evidence.wordingLanguage=null;}],
+  ['amendment ID',d=>{d.amendment.id=report+'-AM-999';}],
 ])test('Commission placement independently rejects '+name,async t=>{
   const request={documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}};
   for(const invalid of [false,true])await t.test(invalid?'independent mismatch':'valid control',async t=>{
@@ -706,7 +708,13 @@ for(const [name,mutate] of [
     const h=await harness(t,()=>value);await h.render({request,language:'en'});
     assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,invalid?0:1);
     assert(h.container.querySelector('.proposal-context-text'),'full proposal stays readable');
+    for(const [i,item] of value.proposal.items.entries())for(const paragraph of item.proposal.paragraphs){
+      if(!invalid&&i===value.placement.itemIndex&&paragraph.index>=value.placement.span.start&&paragraph.index<=value.placement.span.end)continue;
+      const node=h.container.querySelector(`[data-proposal-item="${item.kind}-${item.index}"] [data-source-paragraph="${paragraph.index}"]`);assert(node);if(!paragraph.objects.length)assert.equal(node.textContent,paragraph.text);
+    }
     if(invalid){
+      assert.equal(h.container.querySelector('[role="status"]').textContent,'The amendment’s location could not be confirmed.');
+      assert(!h.container.textContent.includes('The published location and original wording do not agree.'));
       assert.equal(h.container.querySelector('[data-amendment-block]').hasAttribute('tabindex'),false);
       assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
     }
@@ -720,4 +728,35 @@ test('Commission placement uses matching proposal fallback language without repo
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'fr'});
   assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,1);
   assert.equal(h.container.querySelector('.proposal-context-text').lang,'en');
+});
+
+for(const reason of ['conflicting_target_evidence','math_comparison_unavailable','source_passage_incomplete'])test('Commission reader preserves resolver reason '+reason+' without client evidence',async t=>{
+  const value=proposalContextResponse(report,amendment,list,4);
+  // Establish the conflict through the resolver, with an unrelated original quote.
+  if(reason==='conflicting_target_evidence'){
+    value.placement=resolveProposalPlacement(value.proposal.items,{...value.amendment.variants[0],originalText:'Unrelated wording that does not occur in the proposal.'});
+    assert.equal(value.placement.status,'unresolved');assert.equal(value.placement.reason,reason);
+  }else value.placement={...value.placement,status:'unresolved',reason};
+  delete value.target.evidence;
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const copy={conflicting_target_evidence:'The published location and original wording do not agree.',math_comparison_unavailable:'The equations could not be compared.',source_passage_incomplete:'The source passage is incomplete.'};
+  assert.equal(h.container.querySelector('[role="status"]').textContent,copy[reason]);
+  assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,0);
+  assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
+  for(const item of value.proposal.items)for(const paragraph of item.proposal.paragraphs){const node=h.container.querySelector(`[data-proposal-item="${item.kind}-${item.index}"] [data-source-paragraph="${paragraph.index}"]`);assert(node);if(!paragraph.objects.length)assert.equal(node.textContent,paragraph.text);}
+});
+
+test('an unknown selected wording language withholds otherwise valid Commission placement neutrally',async t=>{
+  for(const wordingLanguage of ['en',null])await t.test(wordingLanguage??'unknown',async t=>{
+    const value=proposalContextResponse(report,amendment,list,4);value.requestedWordingLanguage=wordingLanguage;
+    const h=await harness(t,()=>value);
+    await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage,view:'document',onBack:()=>{}},language:'en'});
+    assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,wordingLanguage?1:0);
+    assert.equal([...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'),!!wordingLanguage);
+    if(!wordingLanguage){
+      assert.equal(h.container.querySelector('[role="status"]').textContent,'The amendment’s location could not be confirmed.');
+      for(const item of value.proposal.items)for(const paragraph of item.proposal.paragraphs)assert(h.container.querySelector(`[data-proposal-item="${item.kind}-${item.index}"] [data-source-paragraph="${paragraph.index}"]`));
+    }
+  });
 });
