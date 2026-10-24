@@ -1,5 +1,6 @@
 import { createElement, type ReactNode } from 'react'
 import { SourceLink } from './SourceLink'
+import './ProposalMath.css'
 import type { MathMLNode, ProposalObject } from './proposalTypes'
 
 const allowed = new Set(['math', 'mrow', 'mi', 'mn', 'mo', 'mtext', 'mfrac', 'msub', 'msup', 'msubsup', 'msqrt', 'mroot', 'munder', 'mover', 'munderover', 'mtable', 'mtr', 'mtd'])
@@ -30,7 +31,7 @@ function sourceLink(value: string | null): string | null {
 /** Renders JSON elements and text through React. Upstream markup is never inserted. */
 export function ProposalMath({ object, linkUrl }: { object: ProposalObject; linkUrl?: string }) {
   const linked = (content: ReactNode) => linkUrl ? <SourceLink url={linkUrl} compact>{content}</SourceLink> : content
-  if (object.kind === 'math' && object.complete && object.status === 'converted' && safeTree(object.math)) return linked(renderNode(object.math, 0))
+  if (object.kind === 'math' && object.complete && object.status === 'converted' && safeTree(object.math)) return <span className="proposal-math-scroll"><span className="proposal-math-content">{linked(renderNode(object.math, 0))}</span></span>
   const href = sourceLink(object.sourceUrl)
   return <span className="proposal-object" role="note">{linked('[Equation unavailable]')}{href && <> <a href={href} target="_blank" rel="noopener noreferrer">View official document</a></>}</span>
 }

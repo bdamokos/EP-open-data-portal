@@ -1,0 +1,4 @@
+.proposal-math-scroll{display:inline-flex;align-items:baseline;vertical-align:baseline;max-width:100%;overflow-x:auto}
+/* Keep an HTML line box and space for MathML token descenders inside the scroll area. */
+.proposal-math-content{display:inline-block;flex:0 0 auto;padding-block:.25em}
+.proposal-math-scroll math{max-width:none;overflow:visible}

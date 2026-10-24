@@ -17,7 +17,7 @@ test('proposal notes render positioned equations while retaining note anchors, l
     createElement(component,{notes,prefix:'proposal'})));
   const html=render(ProposalNotes);
   assert(html.includes('href="#proposal-note-1"'));assert(html.includes('id="proposal-note-1"'));
-  assert(html.includes('Before <math>'));assert(html.includes('<msub><mi>E</mi><mi>j</mi></msub>'));
+  assert(html.includes('Before '));assert(html.includes('<math>'));assert(html.includes('<msub><mi>E</mi><mi>j</mi></msub>'));
   assert(html.includes('href="https://example.org/source"'));assert(html.includes('linked source'));assert(html.includes(' after.'));assert(!html.includes('\uFFFC'));
   const unsupported=render(ProposalNotes,[{...note,complete:false,objects:[{...object,complete:false,status:'unresolved',math:null}]}]);
   assert(unsupported.includes('Equation unavailable'));assert(unsupported.includes('View official document'));assert(!unsupported.includes('<math>'));assert(!unsupported.includes('\uFFFC'));

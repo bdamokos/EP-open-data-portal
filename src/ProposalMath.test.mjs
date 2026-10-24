@@ -11,7 +11,7 @@ test('MathML renderer creates allowlisted React elements, safe accent attributes
   const base={kind:'math',status:'converted',complete:true,sourceUrl};
   const render=object=>renderToStaticMarkup(createElement(ProposalMath,{object}));
   const html=render({...base,math:{tag:'math',children:[{tag:'mover',attributes:{accent:'true'},children:[{tag:'mi',children:['Q']},{tag:'mo',children:['\u0305']} ]},{tag:'mtext',children:['<script>alert(1)</script>']} ]}});
-  assert(html.startsWith('<math>'));assert(html.includes('<mover accent="true">'));assert(html.includes('&lt;script&gt;'));assert(!html.includes('<script>'));
+  assert(html.includes('<math>'));assert(html.includes('<mover accent="true">'));assert(html.includes('&lt;script&gt;'));assert(!html.includes('<script>'));
   for(const math of [{tag:'math',children:[{tag:'script',children:['alert(1)']}]},{tag:'math',children:[],attributes:{onload:'alert(1)'}},{tag:'math',children:[{tag:'mover',attributes:{href:'javascript:alert(1)'},children:[]}]}]) {
     const out=render({...base,math});assert(out.includes('Equation unavailable'));assert(!out.includes('<math>'));assert(out.includes('View official document'));
   }
