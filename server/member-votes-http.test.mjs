@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test} from 'node:test';
 import {API_VERSION} from './api-version.mjs';
 import assert from 'node:assert/strict';
@@ -34,7 +35,7 @@ function fixtureService({unavailable=false}={}) {
   return {service:new MemberVotes({request,clock}),calls};
 }
 
-test('member-votes HTTP contract retains actual positions, bounded snapshot pagination and explicit failures',async t=>{
+test('member-votes HTTP contract retains actual positions, bounded snapshot pagination and explicit failures',loopback,async t=>{
   const originalFetch=globalThis.fetch,originalQuery=memberVotes.query;
   const enabled={activity:process.env.ACTIVITY_INDEX_ENABLED,corpus:process.env.CORPUS_ENABLED};
   process.env.ACTIVITY_INDEX_ENABLED='false';process.env.CORPUS_ENABLED='false';

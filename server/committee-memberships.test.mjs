@@ -119,3 +119,13 @@ test('unreadable committee IDs remain an explicit gap while valid current roles 
   const value=await read({memberships:[row('1','MEMBER','2026-01-01'),row('not-numeric','CHAIR','2020-01-01','2021-01-01')]},'2026-10-19');
   assert.equal(value.complete,false);assert(value.error);assert.equal(value.items[0].roles[0],'MEMBER');assert.deepEqual(calls,['/corporate-bodies/1']);
 });
+
+
+test('uncertain committee dates cannot establish a confirmed empty current set',async()=>{
+  const read=createCommitteeMembershipReader({request:()=>assert.fail('No current exact body is established')});
+  for(const membership of [row('1','MEMBER',null),row('1','MEMBER','2024-02-30'),row('1','MEMBER','2024-07-16','2024-07-15')]) {
+    const result=await read({memberships:[membership]},'2026-10-23');assert.equal(result.complete,false);assert(result.error);
+  }
+  const ended=await read({memberships:[row('1','MEMBER','2019-07-02','2024-07-15')]},'2026-10-23');
+  assert.equal(ended.complete,true);assert.deepEqual(ended.items,[]);
+});

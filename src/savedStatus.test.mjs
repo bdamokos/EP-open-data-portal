@@ -1,16 +1,16 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {createElement,act,StrictMode,Fragment} from 'react';import {Window} from 'happy-dom';import {createServer} from 'vite';
+import {createElement,act,StrictMode,Fragment} from 'react';import {Window} from 'happy-dom';import {freshLoader} from './test-support/viteRunner.mjs';
 const baseline={activityVersion:3,activityIdsComplete:true,revision:'old',answerIds:[],latestIds:['old']};
 const member=(extra={})=>({kind:'mep',id:'42',title:'Fixture member',savedAt:1,...extra});
-const settle=()=>act(async()=>{await new Promise(resolve=>setTimeout(resolve,30));});
+const settle=()=>act(async()=>{});
 async function harness(t,items=[member()],v2=false) {
  const window=new Window({url:'http://localhost/'}),globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  window.localStorage.setItem(v2?'ep.following.v2':'ep.bookmarks.v1',JSON.stringify({version:v2?2:1,items}));
- const requests=[],opened=[],waiting=[];let root,vite,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null;
+ const requests=[],opened=[],waiting=[];let root,loadModule,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null;
  let status={epoch:'one',generation:5,marksReady:true,indexComplete:true,publishedAt:null};
  let ids=[['old',0,5]],entries=[],questionAnswers=[],membershipLists={incoming:{status:'fresh'},outgoing:{status:'fresh'}},invalidMembership=false;
- t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();if(vite)await vite.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
+ t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
  t.mock.method(globalThis,'fetch',async(input,options)=>{
   const url=new URL(input,window.location.href),route=url.pathname.split('/').at(-1);requests.push({url,route,options});
   if(fail===route)return Response.json({error:{code:'fixture_failure',message:'Fixture unavailable'}},{status:503});
@@ -29,8 +29,11 @@ async function harness(t,items=[member()],v2=false) {
   if(route==='saved')return Response.json({questions:(JSON.parse(options.body).questions||[]).map(id=>({id,status:'available',title:'Question',revision:'one',answers:questionAnswers})),coverage:{indexComplete:true}});
   assert.fail('Unexpected route '+url);
  });
- vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
- const {Saved}=await vite.ssrLoadModule('/src/Saved.tsx'),controls=await vite.ssrLoadModule('/src/SavedControls.tsx'),{createRoot}=await import('react-dom/client');
+ loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+ const {Saved}=await loadModule('/src/Saved.tsx'),controls=await loadModule('/src/SavedControls.tsx'),{createRoot}=await import('react-dom/client');
+ // Control expiry deadlines after module loading; leave focus-refresh intervals alone.
+ t.mock.timers.enable({apis:['setTimeout']});
+ const tick=ms=>act(async()=>{t.mock.timers.tick(ms);});
  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
  function Checks({language}){controls.useSavedChecks(language);return null;}
  const render=(language='en',strict=false)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,harness.focusChecks&&createElement(Checks,{language}),createElement(controls.SavedNav,{onClick(){}}),createElement(Saved,{language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));
@@ -38,7 +41,7 @@ async function harness(t,items=[member()],v2=false) {
  const check=()=>click('Check for updates');
  const background=(force=false,lang='en')=>act(async()=>{await controls.checkSaved(lang,force).catch(()=>{});});
  const holdNextDetail=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);memberGate={started,wait};return {ready,release};};
- return {setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:route=>fail=route,conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
+ return {tick,setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:route=>fail=route,conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
 }
 const cards=h=>[...h.container.querySelectorAll('.explorer-saved-items>article')];
 const rows=card=>[...card.querySelectorAll('.explorer-saved-disclosure')];
@@ -61,9 +64,13 @@ test('Profile marks nothing; modified and middle clicks preserve href and mark o
  const other=rows(cards(h)[1])[0];const middle=await dispatch(h,other,{button:1},'auxclick');assert.equal(middle.defaultPrevented,false);assert(Number.isFinite(h.controls.savedStore.snapshot().items[1].entries[0].readAt));
 });
 test('one expiry timer drops the badge and moves expired entries to Earlier updates without a storage write',async t=>{
- const now=Date.now(),entry={...speech,discoveredAt:now-86_400_000+1500,readAt:null};
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const entry={...speech,discoveredAt:now-86_400_000+1500,readAt:null};
  const h=await harness(t,[member({seen:{activity:6,answer:3},entries:[entry]})],true);await h.render();assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
- const before=h.window.localStorage.getItem('ep.following.v2');await act(async()=>new Promise(resolve=>setTimeout(resolve,1550)));
+ const before=h.window.localStorage.getItem('ep.following.v2');
+ now+=1499;await h.tick(1499);assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ assert.equal(h.window.localStorage.getItem('ep.following.v2'),before);
+ now+=1;await h.tick(1);
  assert(!h.container.querySelector('.explorer-saved-count'));assert.equal(cards(h)[0].querySelector('summary').textContent,'Earlier updates (1)');assert(!cards(h)[0].querySelector('.explorer-saved-new'));assert.equal(h.window.localStorage.getItem('ep.following.v2'),before);
 });
 test('history shows five expandable entries and a full-profile link; Mark all read retains recent history',async t=>{

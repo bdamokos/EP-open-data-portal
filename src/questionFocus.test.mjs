@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};};
 const stats={uniquePeople:3,uniqueCurrentMeps:3,peopleOutsideCurrentRoster:0,denominator:3,referenceDate:'2026-10-16',dimensions:{country:[],group:[],gender:[],age:[]}};
@@ -17,8 +17,8 @@ async function harness(t,respond,{query='?view=questions',props={}}={}) {
   window.cancelAnimationFrame=id=>frames.delete(id);
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const calls=[],reveals=[];
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){reveals.push({target:this,options,focused:document.activeElement});});
   t.mock.method(globalThis,'fetch',async input=>{
@@ -26,8 +26,8 @@ async function harness(t,respond,{query='?view=questions',props={}}={}) {
     assert(url.pathname.endsWith('/insights/questions'),'focus tests must not request corpus, media or remote source data');
     const result=await respond(url);return result instanceof Response?result:Response.json(result);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {QuestionTopics}=await vite.ssrLoadModule('/src/QuestionTopics.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {QuestionTopics}=await loadModule('/src/QuestionTopics.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=element=>act(async()=>root.render(element));
   await render(createElement(QuestionTopics,{language:'en',onBack(){},...props}));

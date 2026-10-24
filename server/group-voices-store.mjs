@@ -1,6 +1,7 @@
 import {GROUP_VOICE_GROUPS,GROUP_VOICE_SUBJECTS} from '../src/groupVoiceTerms.mjs';
 import {GROUP_VOICE_LIMITS,GROUP_VOICE_VERSION,groupVoiceProjection} from './group-voices-model.mjs';
 import {nameScript,speakerNameIsSpecific} from '../src/speakerNames.mjs';
+import {languagePreference} from './language-order.mjs';
 
 export function groupVoicesSchema(db){
   db.exec(`CREATE TABLE IF NOT EXISTS group_voice_observations(generation INTEGER,speech TEXT,date TEXT,body TEXT,PRIMARY KEY(generation,speech));
@@ -95,8 +96,8 @@ function identity(store,generation,id,speech){
 }
 function localized(titles,language){
   const available=Object.keys(titles||{}).filter(key=>typeof titles[key]==='string'&&titles[key].trim());
-  const titleLanguage=available.includes(language)?language:available.includes('en')?'en':available[0]||null;
-  return {title:titleLanguage?titles[titleLanguage]:null,titleLanguage};
+  const code=languagePreference(available,language)[0];
+  return {title:code!==undefined?titles[code]:null,titleLanguage:code||null};
 }
 
 // Summary uses only indexed scalar designation rows. Source bodies are read at

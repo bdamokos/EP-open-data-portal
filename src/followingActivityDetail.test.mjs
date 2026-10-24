@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const questionId='E-10-2026-000001',answerId=questionId+'-ASW',motionId='B-10-2026-0441',jointId='RC-10-2026-0441';
 const activity=(sourceId,extra={})=>({id:'written-questions:'+sourceId,sourceId,category:'written-questions',recordKind:'document',title:'Same source title',titleLanguage:'en',date:'2026-10-22',reference:sourceId,files:[],provenance:{role:'AUTHOR'},...extra});
@@ -22,11 +22,11 @@ async function harness(t,{sourceId=questionId,selected=[],items=[],complete=fals
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   window.HTMLElement.prototype.scrollIntoView=function(){};
-  let root,vite,attempts=0,props={member:'42',sourceId,lang:'en',profileHref:'/?member=42&module=activities&activity='+encodeURIComponent(sourceId),onOpenProfile:()=>opened.push(sourceId)};
+  let root,loadModule,attempts=0,props={member:'42',sourceId,lang:'en',profileHref:'/?member=42&module=activities&activity='+encodeURIComponent(sourceId),onOpenProfile:()=>opened.push(sourceId)};
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const resolve of pending)resolve(Response.json(page([])));
-    if(vite)await vite.close();await window.happyDOM.close();
+    if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];
     assert.deepEqual(unexpected,[],'all reads use offline fixtures');
   });
@@ -52,8 +52,8 @@ async function harness(t,{sourceId=questionId,selected=[],items=[],complete=fals
     }
     unexpected.push(url.href);throw new Error('Unexpected fixture request: '+url.href);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {FollowingActivityDetail}=await vite.ssrLoadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {FollowingActivityDetail}=await loadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=()=>root.render(createElement(FollowingActivityDetail,props));
   await act(async()=>render());

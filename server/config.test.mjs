@@ -54,3 +54,9 @@ test('worker flags and readers share boolean parsing after import without retrie
   await assert.rejects(retainedSpeechMetadata(id),/CORPUS_ENABLED must be a boolean/);
   await assert.rejects(speechTranscript(id,'en'),/CORPUS_ENABLED must be a boolean/);
 });
+
+test('the default JSON response budget remains 5 MiB',async t=>{
+  environment(t,['JSON_RESPONSE_LIMIT_BYTES']);
+  const {config}=await import('./config.mjs?default-response-budget');
+  assert.equal(config.jsonResponseLimitBytes,5*1024*1024);
+});

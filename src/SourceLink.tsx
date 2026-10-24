@@ -1,3 +1,4 @@
+import {languagePreference} from '../server/language-order.mjs';
 import {useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 import {humanSourceUrl,sourceTarget,recordTitle,sourceLanguages,SOURCE_LANGUAGES} from '../server/source-links.mjs';
@@ -12,8 +13,9 @@ function recordLanguage(record:Record<string,unknown>|undefined,language:string)
   if(!record)return '';
   const titles=record.process_title||record.title_dcterms||record.activity_label;
   const values=titles&&typeof titles==='object'?titles as Record<string,unknown>:null;
-  const selected=typeof titles==='string'?titles:values?.[language]||values?.en;
-  if(typeof selected==='string'&&selected.trim())return typeof titles==='string'?'':values?.[language]?language:'en';
+  const actual=languagePreference(Object.keys(values||{}).filter(code=>typeof values?.[code]==='string'&&String(values[code]).trim()),language)[0];
+  const selected=typeof titles==='string'?titles:values?.[actual];
+  if(typeof selected==='string'&&selected.trim())return typeof titles==='string'?'':actual;
   return [record.label,record.identifier,record.activity_id,record.process_id,record.id].some(value=>typeof value==='string'&&value.trim())?'':'en';
 }
 
@@ -33,7 +35,7 @@ function Value({value,language,depth=0}:{value:unknown;language:string;depth?:nu
   const entries=Object.entries(value);
   if(!entries.length)return <span className="source-empty">Empty {Array.isArray(value)?'list':'object'}</span>;
   if(entries.every(([key,child])=>SOURCE_LANGUAGES.includes(key)&&typeof child==='string')){
-    const actual=entries.some(([key])=>key===language)?language:entries.some(([key])=>key==='en')?'en':entries[0][0];
+    const actual=languagePreference(entries.filter(([,text])=>String(text).trim()).map(([code])=>code),language)[0]||entries[0][0];
     return <span lang={actual}>{String((value as Record<string,unknown>)[actual])}{actual!==language&&<small className="source-empty" lang="en"> · Showing {actual.toUpperCase()}</small>}</span>;
   }
   return <dl className="source-fields">{entries.slice(0,80).map(([key,child])=><div key={key}><dt>{Array.isArray(value)?Number(key)+1:fieldName(key)}</dt><dd>{child!==null&&typeof child==='object'?<ExpandableValue value={child} language={language} depth={depth+1}/>:<Value value={child} language={language} depth={depth+1}/>}</dd></div>)}{entries.length>80&&<div><dt>More fields</dt><dd>Full detail is available in the download.</dd></div>}</dl>;

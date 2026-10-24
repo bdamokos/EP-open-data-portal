@@ -4,7 +4,7 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {findReferences,referenceSegments,referenceKey,referenceKeys,documentCelexCandidates,questionCandidates,cellarProcedureReference,linkedSegments,noteReferenceKeys,referenceFromUrl} from './legal-reference-text.mjs';
-import {LegalReferences,parseCelex,parseCellar,referencesQuery,celexQuery,cellarQuery} from './legal-references.mjs';
+import {LegalReferences,QUESTION_REFERENCE_VERSION,parseCelex,parseCellar,referencesQuery,celexQuery,cellarQuery} from './legal-references.mjs';
 import {parseSummaryPage} from './official-context.mjs';
 
 const keys=text=>findReferences(text).map(ref=>[ref.key,ref.text]);
@@ -147,4 +147,22 @@ test('older Legislative Observatory summaries keep hard-wrapped division text as
   const summary=parseSummaryPage(html,'2000/0194(COD)');
   assert.equal(summary.date,'2002-06-25');
   assert.deepEqual(summary.blocks.map(block=>block.text),['PURPOSE : to establish a common EU framework for the assessment and management of exposure to environmental noise.','CONTENT : the aim of this Directive shall be to define a common approach.','To that end the following actions shall be implemented progressively:','- the determination of exposure to environmental noise, through noise mapping;','- ensuring that information is made available to the public.']);
+});
+
+test('question title cache invalidates prior display ordering across restarts',async()=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'question-title-order-'));
+  try {
+    const clock=()=>Date.parse('2026-10-23T10:00:00Z'),key='question:E-2026-000001',language='ga';
+    let calls=0;
+    const request=async endpoint=>{calls++;return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:clock(),payload:{data:[{identifier:'E-10-2026-000001',title_dcterms:{bg:'Bulgarian title',fr:'French title'}}]}};};
+    const previous=new LegalReferences({}, {directory,clock,request});
+    const oldKey=previous.cache.key(['question-reference-v2',key,language]);
+    await previous.cache.save(oldKey,{key,kind:'question',status:'found',title:'Bulgarian title',titleLanguage:'bg'});
+    assert(QUESTION_REFERENCE_VERSION>2);
+    const current=new LegalReferences({}, {directory,clock,request});
+    const result=await current.query({keys:[key],language});
+    assert.equal(calls,1);assert.equal(result.references[0].title,'French title');assert.equal(result.references[0].titleLanguage,'fr');
+    const restarted=await new LegalReferences({}, {directory,clock,request}).query({keys:[key],language});
+    assert.equal(calls,1);assert.equal(restarted.references[0].title,'French title');
+  }finally{await rm(directory,{recursive:true,force:true});}
 });

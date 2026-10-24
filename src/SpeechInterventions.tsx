@@ -7,6 +7,7 @@ import './SpeechInterventions.css';
 import {SpeakerName,SpeakerRoles,SpeakerRoleLine} from './SpeakerIdentity';
 import {speakerTerm} from './speakerPresentation.mjs';
 import {humanDate} from './InsightCharts';
+import {selectLanguageText} from './language.mjs';
 
 const labels:Record<Intervention['type'],string>={speech:'Speech',written:'Written statement',chair:'Chair',procedure:'Procedure','oral-explanation-of-vote':'Oral explanation of vote','catch-the-eye':'Catch the eye','blue-card-question':'Blue-card question','blue-card-intervention':'Blue-card intervention','blue-card-answer':'Blue-card answer','blue-card-reaction':'Blue-card reaction','blue-card':'Blue card',unclassified:'Unclassified'};
 export const speechCategories=[
@@ -109,9 +110,10 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
   const toggleReading=(id:string)=>setReading(value=>value===id?null:id);
   useEffect(()=>{if(reading){readingRef.current?.focus({preventScroll:true});readingRef.current?.scrollIntoView({block:'nearest'});}},[reading]);
   const time=(row:SpeechSequenceRow)=>row.start?new Intl.DateTimeFormat(language,{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Brussels'}).format(new Date(row.start)):null;
+  const title=selectLanguageText(debate.titles,language,debate.id,'');
   return <section className="intervention-debate" lang="en">
     <div className="intervention-sequence-heading"><h4>{exchange&&!full?'Blue-card exchange':'Debate sequence'}</h4>{exchange&&<button onClick={()=>setFull(value=>!value)}>{full?'Show exchange':'Show full debate'}</button>}</div>
-    <p className="intervention-caption" lang={debate.titles[language]?language:debate.titles.en?'en':''}>{debate.titles[language]||debate.titles.en||debate.id}</p>
+    <p className="intervention-caption" lang={title.language}>{title.text}</p>
     {debate.error?<SequenceError message={debate.error} retryAt={debate.retryAt} loading={loading} retry={retry}/>:<ol className="intervention-sequence">{rows.map(row=><li key={row.id} className={(row.id===speechId?'is-current ':'')+(row.exchangeId?'is-exchange':'')}>
       <div className="intervention-sequence-node"><InterventionIcon type={row.intervention.type}/></div>
       <div className="intervention-sequence-entry">

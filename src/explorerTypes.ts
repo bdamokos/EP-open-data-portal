@@ -50,7 +50,16 @@ export interface Directory {
     error: string | null;
   };
 }
+export interface ProfileMembershipHistory {
+  version:number;observationAvailable:boolean;observationComplete:boolean;observationIssues:{index:number;issues:string[]}[];observations:unknown[]|null;labelsComplete:boolean;dateIssues:boolean;complete:boolean;error:string|null;
+  sources:{url:string;fetchedAt:string;stale:boolean}[];
+  items:{index:number;section:'national-parties'|'political-groups'|'delegations'|'other-roles';membershipId:string|null;bodyId:string|null;
+    role:string|null;classification:string|null;start:unknown;end:unknown;dateIssues:string[];observation:unknown;
+    body:({id:string;identifier:string;prefLabel?:Record<string,string>;classification:string;temporal?:unknown;isVersionOf?:unknown;
+      source:{url:string;fetchedAt:string;stale:boolean}} & Record<string,unknown>)|null}[];
+}
 export interface MemberProfile extends DirectoryMember {
+  membershipHistory?:ProfileMembershipHistory;
   birthDate?: string;
   birthPlace?: string;
   currentAffiliation?:{

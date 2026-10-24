@@ -1,9 +1,10 @@
+import {loopback} from './test-support/loopback.mjs';
 import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,rmSync,constants} from 'node:fs';
 import {open} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import {Worker} from 'node:worker_threads';
 import os from 'node:os';
 import path from 'node:path';
@@ -14,6 +15,8 @@ import {CorpusWorker} from './corpus-worker.mjs';
 import {odp} from './odp.mjs';
 import {zstdDecompressSync} from 'node:zlib';
 import {allowSlowCorpusReaders,readerTimeoutMs} from './test-support/corpus-reader.mjs';
+
+beforeEach(registerSubprocesses);
 
 beforeEach(allowSlowCorpusReaders);
 
@@ -28,7 +31,7 @@ async function readerIdle(reader) {
   while(reader.busy&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,5));
   assert.equal(reader.busy,false,'reader releases its concurrency slot after worker exit');
 }
-test('corpus transcript reads retain XML, exact keys, languages and provenance without writes or upstream requests',async t=>{
+test('corpus transcript reads retain XML, exact keys, languages and provenance without writes or upstream requests',loopback,async t=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'retained-speech-'));
   const old={CORPUS_ENABLED:process.env.CORPUS_ENABLED,CORPUS_DIR:process.env.CORPUS_DIR};
   const store=new CorpusStore(directory);store.acquire();
@@ -273,7 +276,7 @@ test('transcript responses return before teardown and retain their reader slot u
     store.acquire();store.putDocument({sourceId:id,kind:'speech',date:'2026-10-07',term:10},[{sourceKey:'de',language:'de',translationType:'original',sourceFormat:'xml-fragment',sourceUrl:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:date,body:'Retained text.',raw:xml}]);
     store.putSpeechMetadata(activity,'https://data.europarl.europa.eu/api/v2/speeches/'+id,date);store.release();
     const url='https://data.europarl.europa.eu/api/v2/meps/show-current?limit=1000&offset=0&format=application%2Fld%2Bjson';
-    const fifo=path.join(cache,createHash('sha256').update(url).digest('hex')+'.json');execFileSync('mkfifo',[fifo]);
+    const fifo=path.join(cache,createHash('sha256').update(url).digest('hex')+'.json');await execFileAsync(t,'mkfifo',[fifo],{});
     handle=await open(fifo,constants.O_RDWR|constants.O_NONBLOCK);
     process.env.ODP_CACHE_DIR=cache;reader=new CorpusReader(corpus,{timeoutMs:readerTimeoutMs});
     // FIFO reads can block native I/O, but some Node/platform combinations

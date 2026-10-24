@@ -1,3 +1,4 @@
+import {languagePreference} from '../server/language-order.mjs';
 const days=[
   ['lundi','Monday','Montag'],['mardi','Tuesday','Dienstag'],
   ['mercredi','Wednesday','Mittwoch'],['jeudi','Thursday','Donnerstag'],
@@ -29,7 +30,7 @@ function agendaLanguages(values) {
 export function selectVoteTitle(values,requested,fallback='',fallbackLanguage='en') {
   const supplied=values&&typeof values==='object'&&!Array.isArray(values)?values:{};
   const parsed=agendaLanguages(supplied);
-  for(const language of [...new Set([requested,'en',...Object.keys(supplied).filter(key=>key!=='mul'),'mul'])]) {
+  for(const language of [...(requested==='mul'&&Object.hasOwn(supplied,'mul')?['mul']:[]),...languagePreference([...new Set([...Object.keys(supplied),...Object.keys(parsed)])].filter(key=>key!=='mul'),requested),...(Object.hasOwn(supplied,'mul')?['mul']:[])]) {
     if(usable(supplied[language]))return {text:supplied[language],language,sourceLiteral:supplied[language]};
     if(usable(parsed[language]))return {text:parsed[language],language,sourceLiteral:supplied.mul};
   }

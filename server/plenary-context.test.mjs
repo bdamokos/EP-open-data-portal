@@ -149,7 +149,8 @@ test('procedure titles retain complete localized text and adoption uses only rec
   const title='Official title '.repeat(60),work={process_title:{en:title,fr:'Titre officiel'}};
   assert.deepEqual(procedureTitle(projectProcedure(work),'fr'),{title:'Titre officiel',titleLanguage:'fr'});
   assert.deepEqual(procedureTitle(projectProcedure(work),'hu'),{title:title.trim(),titleLanguage:'en'});
-  assert.deepEqual(procedureTitle({process_title:{fr:'Titre'}},'hu'),{title:null,titleLanguage:null});
+  assert.deepEqual(procedureTitle({process_title:{bg:'Заглавие',fr:'Titre'}},'ga'),{title:'Titre',titleLanguage:'fr'});
+  assert.deepEqual(procedureTitle({process_title:{'':'Unknown title'}},'ga'),{title:'Unknown title',titleLanguage:null});
   assert.equal(projectProcedure({}).process_title,null);
   const event=(type,date)=>({had_activity_type:'def/ep-activities/'+type,activity_date:date});
   const events=[event('PLENARY_VOTE','2026-02-01'),event('PLENARY_ADOPT_POSITION','2026-02-02'),event('SIGNATURE','2026-03-01'),event('PUBLICATION_OFFICIAL_JOURNAL','2026-03-03')];

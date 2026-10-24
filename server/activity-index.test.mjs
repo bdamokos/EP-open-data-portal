@@ -1,3 +1,4 @@
+import {loopback} from './test-support/loopback.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -122,7 +123,7 @@ test('real EP records verify report-to-procedure shadow and question-to-answer j
   assert.equal(rows.find(row=>row.recordKind==='answer').date,'2026-09-18');
 });
 
-test('HTTP joined endpoints read the persistent cache and validate categories, paging, methods and origin',async t=> {
+test('HTTP joined endpoints read the persistent cache and validate categories, paging, methods and origin',loopback,async t=> {
   const dir=temp();process.env.ACTIVITY_INDEX_ENABLED='1';process.env.ACTIVITY_INDEX_DIR=dir;
   const {activityIndex}=await import('./activity-index-worker.mjs');const {store}=activityIndex();
   assert(store.acquire());const cycle=store.beginCycle();store.setMembers([{id:'257043',name:'MEP'}]);store.putSource(cycle.generation,'/q','document',projectDocument(question),fetchedAt,documentRows(question,'/q',fetchedAt).rows);
@@ -197,7 +198,11 @@ test('accepted activity GUIDs resolve to exact source IDs without inventing cate
 test('selected source outside the first page remains accessible; incomplete and unsupported category totals stay unknown',()=> {
   const dir=temp(),s=new ActivityStore(dir,{clock:instant});
   try {s.acquire();const cycle=s.beginCycle();s.setMembers([{id:'257043',name:'MEP'}]);s.putSource(cycle.generation,'/q','document',question,fetchedAt,documentRows(question,'/q',fetchedAt).rows);
+    const newer={...question,id:'eli/dl/doc/E-10-2026-003032',identifier:'E-10-2026-003032',document_date:'2026-07-10',inverse_answers_to:[]};
+    s.putSource(cycle.generation,'/newer','document',newer,fetchedAt,documentRows(newer,'/newer',fetchedAt).rows);
     const p=s.page('257043',{limit:1,sourceId:question.identifier});
+    assert.deepEqual(p.items.map(item=>item.sourceId),[newer.identifier]);assert.equal(p.nextOffset,1);
+    assert.deepEqual(p.selectedItems.map(item=>item.sourceId),[question.identifier]);
     assert.equal(p.items[0].recordKind,'document');assert.equal(p.selectedItems[0].sourceId,question.identifier);assert.equal(p.selectedItems[0].id,'written-questions:'+question.identifier);assert.equal(p.total,null);
     assert.equal(p.categoryCoverage['reports-shadow'].total,null);
     s.publish(cycle.generation);

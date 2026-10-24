@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {sourceTitle} from '../server/source-titles.mjs';
 
 const stats=()=>({uniquePeople:3,uniqueCurrentMeps:1,peopleOutsideCurrentRoster:2,denominator:1,referenceDate:'2026-10-17',basis:'current roster',metadataSourceDates:{from:null,to:null},
@@ -25,8 +25,8 @@ async function harness(t,{response=questions(),language='en'}={}) {
     requestAnimationFrame:window.requestAnimationFrame.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const calls=[],memberCalls=[];
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);calls.push(url);
@@ -35,8 +35,8 @@ async function harness(t,{response=questions(),language='en'}={}) {
     assert(url.pathname.endsWith('/insights/questions'),'only the fixture Questions endpoint and portrait placeholders are allowed');
     return Response.json(response);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {QuestionTopics}=await vite.ssrLoadModule('/src/QuestionTopics.tsx'),shared=await vite.ssrLoadModule('/src/InsightShared.tsx'),{createRoot}=await import('react-dom/client');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {QuestionTopics}=await loadModule('/src/QuestionTopics.tsx'),shared=await loadModule('/src/InsightShared.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=element=>act(async()=>root.render(element));
   await render(createElement(QuestionTopics,{language,onBack(){},onMember:(...args)=>memberCalls.push(args)}));
