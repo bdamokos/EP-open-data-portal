@@ -30,7 +30,7 @@ const reference=renderPage(data,theme);
 writeFileSync(join(destination,'reference.html'),reference);
 const headerPath=join(directory,'header-legislation.html');
 if(existsSync(headerPath)){
-  const context=contextualData(data,{profiles:files.filter(f=>/^person-\d+\.json$/.test(f)).map(read),roster:read('roster-2026-09-11.json'),procedures:['2025-0176','2025-0407','2025-0233'].map(id=>read(id+'.json'))});
+  const context=contextualData(data,{agendas:files.filter(f=>/^MTG-.*-PVCRE-ITM-\d+\.json$/.test(f)).map(read),profiles:files.filter(f=>/^person-\d+\.json$/.test(f)).map(read),roster:read('roster-2026-09-11.json'),procedures:['2025-0176','2025-0407','2025-0233'].map(id=>read(id+'.json'))});
   writeFileSync(join(destination,'context-examples.json'),JSON.stringify(context,null,2));
   writeFileSync(join(destination,'index.html'),renderContext(context,{theme,header:readFileSync(headerPath,'utf8'),headerCss:readFileSync(new URL('../../src/ParliamentHeader.css',import.meta.url),'utf8')}));
 }else writeFileSync(join(destination,'index.html'),reference);

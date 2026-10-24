@@ -1,16 +1,16 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Window} from 'happy-dom';
-import {renderContext} from './context-view.mjs';
+import {contextualData,renderContext} from './context-view.mjs';
 
 const source={url:'https://data.europarl.europa.eu/api/v2/procedures/2025-0001',fetchedAt:'2026-10-23T12:00:00Z',language:null};
 function sample(){
-  const d={id:'2025-0001',reference:'2025/0001(COD)',title:'A dossier',source,roles:[{personId:'42'},{personId:'43'}],coverage:{roleRecords:2,ballots:2,declaredBallots:2,debates:0}};
+  const d={id:'2025-0001',reference:'2025/0001(COD)',title:'A dossier',source,debateIds:['eli/dl/event/debate-1'],roles:[{personId:'42'},{personId:'43'}],coverage:{roleRecords:2,ballots:2,declaredBallots:2,debates:0}};
   const vote={id:'eli/dl/event/decision-1',kind:'vote',date:'2026-09-16',stage:null,title:'Agreement',position:{position:'For',status:'recorded'},outcome:'ADOPTED',intentions:[],source};
   const amendment={id:'document-AM-1@list-1',kind:'amendment',date:'2026-09-08',stage:'RDG1',source,amendment:{number:1,listId:'list-1',documentDate:'2026-09-09',metadataDate:'2026-09-08',tablingDate:'2026-09-08',dateDiscrepancy:true,source,authors:[{name:'Person One',personId:42,status:'resolved'}],onBehalfOf:'on behalf of The Left Group',tablingObservations:[{id:'eli/dl/event/tabling-1',date:'2026-09-08',source}],outcomes:[{id:vote.id,outcome:'ADOPTED'}]}};
   const first={id:d.id+':42',dossierId:d.id,person:{id:'42',name:'Person One'},roles:[{role:'RAPPORTEUR_CO',committee:'ENVI'}],events:[{id:'role-1',kind:'role',date:'2026-02-11',stage:'RDG1',title:'Co-rapporteur recorded',detail:'ENVI',source},amendment,vote]};
   const second={id:d.id+':43',dossierId:d.id,person:{id:'43',name:'Person Two'},roles:[{role:'RAPPORTEUR_SHADOW',committee:null}],events:[{...vote,id:'eli/dl/event/decision-2',position:{position:null,status:'unavailable'}}]};
-  return {dossiers:[d],examples:[first,second],context:{people:{42:{givenName:'Person',familyName:'One'},43:{givenName:'Person',familyName:'Two'}},milestones:{[d.id]:[]}}};
+  return {dossiers:[d],examples:[first,second],context:{agendas:[{id:'eli/dl/event/debate-1',date:'2026-09-15',title:'A joint debate',source}],people:{42:{givenName:'Person',familyName:'One'},43:{givenName:'Person',familyName:'Two'}},milestones:{[d.id]:[]}}};
 }
 const header='<header class="parliament-header"><nav><button>Members</button><button>Plenary agenda</button></nav><button class="explorer-scheme-toggle">Theme</button><button class="explorer-search-icon">Search</button></header>';
 async function open(t,query='',data=sample(),base='http://prototype.test/'){
@@ -40,7 +40,7 @@ test('participant names retain their profile destination while the secondary lin
   const work=new URL(document.querySelector('.participant .work-link').href);
   assert.equal(name.searchParams.get('member'),'42');assert.equal(name.searchParams.get('module'),'profile');
   assert.equal(work.searchParams.get('person'),'42');assert.equal(work.searchParams.get('pl-mode'),'dossier');
-  assert.match(document.querySelector('.route-map').textContent,/Plenary agenda › 15 September 2026/);
+  assert.match(document.querySelector('.route-map').textContent,/Plenary agenda › 15 Sept 2026/);
 });
 test('Back restores profile category, page offset and keyboard focus after filtering the person view',async t=>{
   const query='?member=42&dossier-id=2025-0001&module=activities&activity-category=amendment&activity-offset=10';
@@ -85,4 +85,27 @@ test('the inline embedded view supports the same scope and Back without an HTTP 
   assert.match(document.querySelector('.person-chip').textContent,/Person One/);
   document.getElementById('back-entry').click();await settle();
   assert.equal(document.querySelector('h1').textContent,'Plenary agenda');assert.equal(document.activeElement.id,'participant-42');
+});
+
+test('agenda navigation never assigns a captured debate to a different dossier',async t=>{
+  const data=sample(),first=data.examples[0];
+  for(const id of ['2025-0407','2025-0233']){
+    data.dossiers.push({...data.dossiers[0],id,reference:id.replace('-', '/')+'(COD)',debateIds:[]});
+    data.examples.push({...first,id:id+':42',dossierId:id});
+  }
+  for(const e of data.examples){
+    const ref=data.dossiers.find(d=>d.id===e.dossierId).reference;
+    const {document,settle}=await open(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(ref)+'&person='+e.person.id,data);
+    document.querySelector('.mode-nav a').click();await settle();
+    if(e.dossierId==='2025-0001')assert.match(document.querySelector('.agenda-grid').textContent,/A joint debate/);
+    else{assert.match(document.querySelector('.empty').textContent,/Agenda context unavailable/);assert.doesNotMatch(document.getElementById('context-app').textContent,/A joint debate/);assert.equal(document.querySelectorAll('.participant').length,0);}
+    const direct=await open(t,'?view=legislation&pl-mode=agenda&dossier-ref='+encodeURIComponent(ref),data);
+    assert.equal(!!direct.document.querySelector('.agenda-grid'),e.dossierId==='2025-0001');
+  }
+});
+test('agenda metadata uses exact linked IDs and milestones sort by date then ID',()=>{
+  const data=sample(),record={url:source.url,fetchedAt:source.fetchedAt,payload:{data:[{id:'eli/dl/proc/2025-0001',consists_of:[{id:'b',activity_date:'2026-09-15',had_activity_type:'PLENARY_DEBATE'},{id:'a',activity_date:'2025-12-01',had_activity_type:'TABLING_PLENARY'}]}]}};
+  const result=contextualData(data,{profiles:[],roster:{payload:{data:[]}},procedures:[record],agendas:[{...record,payload:{data:[{id:'eli/dl/event/debate-1',activity_date:'2026-09-15',activity_label:{en:'Published debate'}}]}}]});
+  assert.deepEqual(result.context.milestones['2025-0001'].map(x=>x.id),['a','b']);
+  assert.equal(result.context.agendas[0].id,'eli/dl/event/debate-1');assert.equal(result.context.agendas[0].title,'Published debate');
 });
