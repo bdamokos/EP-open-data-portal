@@ -1,3 +1,4 @@
+import {yearCatalogue} from './test-support/catalogue-fixture.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,readFileSync,rmSync,writeFileSync,readdirSync} from 'node:fs';
@@ -119,7 +120,7 @@ test('the Brussels day invalidates an assembled upcoming sitting before its five
   let now=Date.parse('2026-10-06T21:59:00Z');
   try {
     store.acquire();store.beginCycle();store.setMembers([{id:'257043',name:'Maravillas Abadía Jover'}]);store.db.exec('PRAGMA query_only=ON');
-    const service=createInsights(store,{clock:()=>now,viewCache:{directory:path.join(directory,'views')},loadMetadata:async()=>new Map(),request:async(endpoint,params)=>endpoint==='/meetings'?params.offset===0?source.meetings:{...source.meetings,payload:{data:[]}}:source.foreseen});
+    const service=createInsights(store,{clock:()=>now,viewCache:{directory:path.join(directory,'views')},loadMetadata:async()=>new Map(),request:yearCatalogue(async(endpoint,params)=>endpoint==='/meetings'?params.offset===0?source.meetings:{...source.meetings,payload:{data:[]}}:source.foreseen)});
     const search=new URLSearchParams('sitting=MTG-PL-2026-10-07');
     assert.equal((await service.query('legislation',search)).sitting.phase,'upcoming');
     now=Date.parse('2026-10-06T22:01:00Z');assert.equal((await service.query('legislation',search)).sitting.phase,'today');

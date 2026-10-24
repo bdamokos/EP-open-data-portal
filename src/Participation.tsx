@@ -1,4 +1,4 @@
-import {plenaryMonday as calendarMonday,groupPlenaryWeeks} from './plenaryPeriods.mjs';
+import {PlenaryPeriodSelect,latestHeldSitting,weekPeriod,SittingCalendarNotice,type Sitting} from './PlenaryPeriodNavigation';
 import {useExplorerParam} from './explorerUrl';
 import {useInsightData} from './InsightData';
 import {countryName} from './CountryMap';
@@ -7,20 +7,9 @@ import {humanDate} from './InsightCharts';
 import {Status} from './Status';
 type Metric='speakers'|'voters'|'amendmentVotes';
 type Row={id:string;title:string;titleLanguage?:string|null;date:string;sittingId:string;upcoming:boolean;speakers:number|null;voters:number|null;amendmentVotes:number|null;rollCalls:number};
-type Response={topics:Row[];series:({date:string}&Record<Metric,number|null>)[];window:{start:string;end:string};coverage:{topicsWithSpeechLinks:number;topics:number;gaps:{kind:string;sitting:string}[]}};
-type Sitting={id:string;date:string;phase?:string};
-export function plenaryMonday(date:string){return calendarMonday(date)||date;}
-// Plenary views default to the whole week of the most recent held sitting; single sittings remain selectable.
-export const latestHeldSitting=(sittings:Sitting[])=>[...sittings].filter(s=>s.phase!=='upcoming').sort((a,b)=>b.date.localeCompare(a.date))[0]||sittings[0];
-export const weekPeriod=(sitting:Sitting|undefined)=>sitting?'week:'+plenaryMonday(sitting.date):'';
-export function PlenaryPeriodSelect({value,sittings,language,onChange,includeLatest=false}:{value:string;sittings:Sitting[];language:string;onChange:(period:string)=>void;includeLatest?:boolean}) {
-  const weeks=groupPlenaryWeeks(sittings).map(item=>item.week),upcoming=(week:string)=>sittings.filter(s=>plenaryMonday(s.date)===week).every(s=>s.phase==='upcoming');
-  const missing=value&&!weeks.some(week=>value==='week:'+week)&&!sittings.some(s=>value==='sitting:'+s.id)&&!(includeLatest&&value==='week:latest');
-  const date=value.slice(5),missingLabel=value.startsWith('week:')&&/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date))?'Week of '+humanDate(date,language):value.startsWith('sitting:')?'Sitting '+value.slice(8):value;
-  return <label lang="en">Period<select value={value} onChange={event=>onChange(event.target.value)}>{includeLatest&&<option value="week:latest">Latest plenary week</option>}{missing&&<option value={value} lang={language==='en'?'en':''}>{missingLabel}</option>}<optgroup lang="en" label="Plenary weeks">{weeks.map(week=><option lang={language==='en'?'en':''} key={week} value={'week:'+week}>Week of {humanDate(week,language)}{upcoming(week)?' · upcoming':''}</option>)}</optgroup><optgroup lang="en" label="Single sittings">{sittings.map(s=><option lang={s.phase==='upcoming'&&language!=='en'?'':language} key={s.id} value={'sitting:'+s.id}>{humanDate(s.date,language)}{s.phase==='upcoming'?' · upcoming':''}</option>)}</optgroup></select></label>;
-}
-export function Participation({language,sittings,onTopic}:{language:string;sittings:Sitting[];onTopic:(sitting:string,topic:string)=>void}) {
-  const [period,setPeriod]=useExplorerParam('hot-period',weekPeriod(latestHeldSitting(sittings))),[metric,setMetric]=useExplorerParam<Metric>('hot-rank','speakers',['speakers','voters','amendmentVotes']),[country,setCountry]=useExplorerParam<string|null>('hot-country',null),[search,setSearch]=useExplorerParam<string>('hot-search','');
+type Response={topics:Row[];series:({date:string}&Record<Metric,number|null>)[];window:{start:string;end:string};coverage:{catalogueComplete?:boolean;topicsWithSpeechLinks:number;topics:number;gaps:{kind:string;sitting:string}[]}};
+export function Participation({language,sittings,onTopic,latestAvailable=true}:{language:string;sittings:Sitting[];latestAvailable?:boolean;onTopic:(sitting:string,topic:string)=>void}) {
+  const [period,setPeriod]=useExplorerParam('hot-period',weekPeriod(latestHeldSitting(sittings,latestAvailable))),[metric,setMetric]=useExplorerParam<Metric>('hot-rank','speakers',['speakers','voters','amendmentVotes']),[country,setCountry]=useExplorerParam<string|null>('hot-country',null),[search,setSearch]=useExplorerParam<string>('hot-search','');
   const [kind,value]=[period.slice(0,period.indexOf(':')),period.slice(period.indexOf(':')+1)];
   const params=new URLSearchParams({lang:language,...(country?{country}:{}),[kind]:value});
   const state=useInsightData<Response>(value?'insights/participation?'+params:null),data=state.data;
@@ -49,8 +38,10 @@ export function Participation({language,sittings,onTopic}:{language:string;sitti
       <label className="insight-participation-search">Find an agenda item<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search titles"/></label>
     </div>
     {(country||search)&&<div className="insight-active-filters" aria-label="Active participation filters">{country&&<button onClick={()=>chooseCountry(null)}>MEPs elected in <span lang={language}>{countryName(country,language)}</span> ×</button>}{search&&<button onClick={()=>setSearch('')}>Title: <span lang="">{search}</span> ×</button>}</div>}
+    {!period&&!latestAvailable&&<p>Latest week unavailable. Choose a period.</p>}
     {!data&&state.loading&&<p role="status">Loading participation…</p>}{state.error&&<p role="alert">Participation temporarily unavailable. <button onClick={state.retry}>Reload</button></p>}
     {data&&<>
+      <SittingCalendarNotice complete={data.coverage.catalogueComplete}/>
       <p className="insight-chart-caption"><span lang={language}>{humanDate(data.window.start,language)}{data.window.end!==data.window.start?' — '+humanDate(data.window.end,language):''}</span> · {country?<>MEPs elected in <span lang={language}>{countryName(country,language)}</span></>:'All current MEPs'}</p>
       {future&&<p className="insight-empty-state">This period has not taken place. {rows.length?'Open a scheduled item to read its agenda and earlier linked debate.':'Activity will appear after the sitting.'}</p>}
       {!future&&!hasActivity&&!agendaUnavailable&&<p className="insight-empty-state">No saved {labels[metric].toLowerCase()} for this period. Choose another sitting or open an agenda item below.</p>}
