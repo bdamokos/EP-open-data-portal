@@ -3,10 +3,11 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
+import {sourceAvailability} from '../server/source-availability.mjs';
 import {freshLoader} from './test-support/viteRunner.mjs';
 const basePeople=[{id:'42',name:'Éva Example',total:3,subjects:{foreign:2,climate:1}},...Array.from({length:22},(_,i)=>({id:String(100+i),name:'Speaker '+String(i+1).padStart(2,'0'),total:1,subjects:{foreign:1}}))];
 const coverage={initialized:true,observedOralRecords:25,pending:0,truncated:false,note:'Available recorded designations · partial coverage'};
-async function harness(t,query='?view=groups&gv-group=PPE&gv-tab=people',{websiteUrl=true,stored=true}={}){
+async function harness(t,query='?view=groups&gv-group=PPE&gv-tab=people',{websiteUrl=true,stored=true,response={}}={}){
  const window=new Window({url:'http://localhost/'+query,settings:{disableIframePageLoading:true,disableCSSFileLoading:true}});
  class ReaderDOMParser extends window.DOMParser {
   parseFromString(...args){const parsed=super.parseFromString(...args),query=parsed.getElementsByTagNameNS.bind(parsed);parsed.getElementsByTagNameNS=(namespace,name)=>namespace==='*'?parsed.getElementsByTagName(name):query(namespace,name);return parsed;}
@@ -27,9 +28,9 @@ async function harness(t,query='?view=groups&gv-group=PPE&gv-tab=people',{websit
   if(fail)return Response.json({error:{message:'Unavailable'}},{status:503});
   if(url.searchParams.get('group')==='RENEW')return new Promise(resolve=>delays.push(resolve));
   const people=url.searchParams.get('group')==='ESN'?[{id:'7',name:'Zero Example',total:1,subjects:{climate:1}}]:basePeople,selected=people.filter(p=>!url.searchParams.get('person')||url.searchParams.get('person')===p.id),subject=url.searchParams.get('subject'),total=selected.reduce((n,p)=>n+(subject?p.subjects[subject]||0:p.total),0);
-  const result={people,months:['2026-10','2026-09'],window:{from:'2024-07-16',to:'2026-10-17'},contributions:selected.slice(0,20).map(p=>({id:'MTG-PL-2026-10-06-OTH-'+p.id,personId:p.id,date:'2026-10-06',subject:subject||'foreign',title:'Exact contribution '+p.id,titleLanguage:'en',websiteUrl:websiteUrl?'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-10-06-OTH-'+p.id+'_EN.html':null})),total,nextOffset:null,coverage,groupSubjects:[{id:'PPE',total:12,subjects:{foreign:6,climate:2,unclassified:4}},{id:'ECR',total:5,subjects:{foreign:1,unclassified:1}},{id:'ESN',total:3,subjects:{unclassified:3}}]};
+  const result={availability:sourceAvailability({sourceKey:'oral-speeches',start:'2024-07-16',end:'2026-10-17',latestObservedDate:'2026-10-18',today:'2026-10-24'}),people,months:['2026-10','2026-09'],window:{from:'2024-07-16',to:'2026-10-17'},contributions:selected.slice(0,20).map(p=>({id:'MTG-PL-2026-10-06-OTH-'+p.id,personId:p.id,date:'2026-10-06',subject:subject||'foreign',title:'Exact contribution '+p.id,titleLanguage:'en',websiteUrl:websiteUrl?'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-10-06-OTH-'+p.id+'_EN.html':null})),total,nextOffset:null,coverage,groupSubjects:[{id:'PPE',total:12,subjects:{foreign:6,climate:2,unclassified:4}},{id:'ECR',total:5,subjects:{foreign:1,unclassified:1}},{id:'ESN',total:3,subjects:{unclassified:3}}]};
   if(deferPerson&&url.searchParams.has('person'))return new Promise(resolve=>personResponses.push(()=>resolve(Response.json(result))));
-  return Response.json(result);
+  return Response.json({...result,...response});
  });
  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {default:App}=await loadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
@@ -112,4 +113,11 @@ test('defaults to People and retains subject counts and filters without bar char
  assert.equal(params().get('gv-group'),'ESN');assert.equal(params().get('gv-subject'),'foreign');
  const card=h.container.querySelector('.gv-subject');assert.match(card.textContent,/Foreign affairs0/);assert.equal(card.querySelector('.gv-bar, .gv-compare'),null);assert(h.container.querySelector('.gv-subjects .gv-empty'));
  await h.click(card.querySelector('.gv-subject-title button'));assert.equal(params().get('gv-subject'),null);assert.match(h.container.querySelector('.gv-subject-title').textContent,/Climate & energy1/);
+});
+
+for(const mode of ['gap','observed','partial'])test(`group summary and selected subject keep ${mode} counts distinct`,async t=>{
+ const availability=sourceAvailability({sourceKey:'oral-speeches',start:'2026-09-01',end:'2026-09-30',latestObservedDate:'2026-10-16',gaps:mode==='gap'?[{start:'2026-09-01',end:'2026-09-30'}]:[],limited:mode==='partial',today:'2026-10-24'});
+ const h=await harness(t,'?view=groups&gv-period=2026-09&gv-tab=subjects&gv-subject=foreign',{response:{availability,people:[],contributions:[],total:0,window:{from:'2026-09-01',to:'2026-09-30'}}});
+ const values=[...h.container.querySelectorAll('.gv-summary strong,.gv-subject-title strong,.gv-contributions h2 > small')].map(el=>el.textContent.replace(/^·\s*/,''));
+ assert.equal(values.length,5);assert(values.every(value=>value===(mode==='gap'?'Unavailable':mode==='partial'?'0 so farPartial':'0')),JSON.stringify(values));
 });

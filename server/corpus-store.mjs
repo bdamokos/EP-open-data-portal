@@ -1,3 +1,7 @@
+import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,historyStatus} from './availability-history.mjs';
+import {sourceAvailability} from './source-availability.mjs';
+import {availabilityGap} from './availability-evidence.mjs';
+import {brusselsDay} from './analysis-period.mjs';
 import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
 import {languagePreference} from './language-order.mjs';
 import { DatabaseSync } from 'node:sqlite';
@@ -152,6 +156,7 @@ export class CorpusStore {
       const initialize=this.get('resourceIndexes')!==1;
       if((initialize||this.get('questionDiscoveryVersion')!==1)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
+      initializeAvailabilityHistory(this);
       if(initialize) {
         this.db.exec('CREATE TABLE IF NOT EXISTS speech_catalog_dirty (source_id TEXT PRIMARY KEY)');
         for(const sql of [
@@ -222,7 +227,7 @@ export class CorpusStore {
   hasDueTask(){return Boolean(this.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE done=0 AND retry_at<=? LIMIT 1').get(this.clock()));}
   nextTask(){if(!this.hasDueTask())return;const row=this.db.prepare('SELECT * FROM tasks INDEXED BY task_pending_order WHERE done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(this.clock());return row && {...row,body:parse(row.body)};}
   taskProgress(task,body){this.assertWriter();this.db.prepare('UPDATE tasks SET body=?,attempts=0,error=NULL,retry_at=0 WHERE key=?').run(JSON.stringify(body),task.key);}
-  finishTask(task){this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=?').run(this.clock(),task.key);}
+  finishTask(task){const finish=()=>{this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=?').run(this.clock(),task.key);observeCheck(this,task.body?.availabilityCheck);};return this.db.isTransaction?finish():this.transaction(finish);}
   failTask(task,error,retryAfter=0) {
     this.assertWriter();
     const delay=Math.max(retryAfter*1000,Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):Math.min(6*60*60_000,60_000*2**Math.min(task.attempts,8)));
@@ -232,7 +237,7 @@ export class CorpusStore {
 
   // One source record and the texts supplied with it. Unchanged texts keep their
   // row (and FTS entry); only the confirmation time moves forward.
-  putDocument(document,texts) {
+  putDocument(document,texts,{acquisition='unknown'}={}) {
     if(!KINDS.includes(document.kind) || !/^[A-Z0-9-]{1,100}$/.test(document.sourceId))throw new Error('Invalid corpus document.');
     this.transaction(()=>{
       this.assertWriter();
@@ -247,6 +252,7 @@ export class CorpusStore {
       const confirm=this.db.prepare('UPDATE texts SET checked_at=?,translation_type=?,language=?,source_format=?,source_url=? WHERE id=?');
       for(const text of texts) {
         const hash=sha((text.raw ?? text.body)), old=existing.get(id,text.sourceKey);
+        observeSource(this,{sourceId:document.sourceId,family:document.kind==='speech'?'speeches':document.kind==='answer'?'answers':'questions',stage:'text',language:text.language,variant:text.sourceKey,date:document.date,fetchedAt:text.fetchedAt,url:text.sourceUrl,acquisition,existed:Boolean(old)});
         if(old?.sha256===hash){confirm.run(text.fetchedAt,text.translationType,text.language,text.sourceFormat,text.sourceUrl,old.id);continue;}
         const raw=text.raw==null?null:zstdCompressSync(Buffer.from(text.raw));
         const values=[text.language,text.translationType,text.sourceFormat,text.sourceUrl,text.fetchedAt,text.fetchedAt,hash,text.body.length,text.body,raw];
@@ -254,6 +260,7 @@ export class CorpusStore {
         else insert.run(id,text.language,text.sourceKey,text.translationType,text.sourceFormat,text.sourceUrl,text.fetchedAt,text.fetchedAt,hash,text.body.length,text.body,raw);
       }
       if(document.kind==='speech')this.db.prepare('UPDATE speech_catalog SET revision=? WHERE source_id=?').run(this.nextSpeechRevision(),document.sourceId);
+      finishAvailabilityWrite(this);
     });
   }
   raw(sourceId,sourceKey) {
@@ -273,7 +280,7 @@ export class CorpusStore {
     return {fragments,headerSources:rows.map(row=>({url:row.source_url,fetchedAt:row.fetched_at}))};
   }
 
-  putSpeechMetadata(activity,sourceUrl,fetchedAt) {
+  putSpeechMetadata(activity,sourceUrl,fetchedAt,{acquisition='unknown'}={}) {
     this.assertWriter();
     if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(activity?.activity_id||'')||activity.activity_date!==activity.activity_id.slice(7,17))
       throw new Error('Invalid speech metadata identity.');
@@ -344,7 +351,12 @@ export class CorpusStore {
       const updated=this.db.prepare(`INSERT INTO speech_metadata VALUES (?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET
         body=excluded.body,source_url=excluded.source_url,fetched_at=excluded.fetched_at WHERE excluded.fetched_at>=speech_metadata.fetched_at`)
         .run(activity.activity_id,zstdCompressSync(Buffer.from(body)),sourceUrl,new Date(fetchedAt).toISOString());
-      if(updated.changes)this.projectSpeechCatalog(activity,availableTextLanguages);
+      if(updated.changes){
+        this.projectSpeechCatalog(activity,availableTextLanguages);
+        observeSource(this,{sourceId:activity.activity_id,family:'speeches',subtype:summary.kind,date:activity.activity_date,fetchedAt,url:sourceUrl,acquisition,existed:Boolean(previous)});
+        for(const language of Object.keys(supplied))observeSource(this,{sourceId:activity.activity_id,family:'speeches',subtype:summary.kind,stage:'language-metadata',language,variant:language,date:activity.activity_date,fetchedAt,url:sourceUrl,acquisition,existed:Boolean(previousMetadata?.availableTextLanguages?.includes(language))});
+        finishAvailabilityWrite(this);
+      }
     });
   }
 
@@ -502,7 +514,7 @@ export class CorpusStore {
     if(member!==null){where.push('EXISTS (SELECT 1 FROM json_each(participants) WHERE value=?)');args.push(String(member));}
     if(sourceIds!==null){where.push('source_id IN ('+sourceIds.map(()=>'?').join(',')+')');args.push(...sourceIds);}
     const selection=this.db.prepare('SELECT COUNT(*) n,COALESCE(SUM(revision),0) revision FROM speech_catalog WHERE '+where.join(' AND ')).get(...args);
-    const total=selection.n,revision=total+':'+selection.revision;
+    const total=selection.n,revision=total+':'+selection.revision+':'+(this.get('availabilityCoverageRevision')||0);
     if(params.expectedRevision!==undefined&&params.expectedRevision!==revision)return {changed:true};
     const missingRetainedLanguage=params.metadataOnly||!params.language?0:this.db.prepare(`SELECT COUNT(*) n FROM speech_catalog c WHERE ${where.join(' AND ')}
       AND EXISTS (SELECT 1 FROM json_each(c.available_languages) WHERE value=?)
@@ -510,8 +522,21 @@ export class CorpusStore {
     const direction=descending?'DESC':'ASC';
     const ids=this.db.prepare(`SELECT source_id FROM speech_catalog WHERE ${where.join(' AND ')} ORDER BY date ${direction},start ${direction},numbering ${direction},source_id ${direction} LIMIT ? OFFSET ?`).all(...args,limit,offset).map(row=>row.source_id);
     const result=this.speechDataSnapshot({...params,sourceIds:ids});
-    const latestDataDate=this.db.prepare("SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT')").get().date||null;
-    return {...result,total,offset,revision,missingRetainedLanguage,nextOffset:offset+ids.length<total?offset+ids.length:null,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt')),latestDataDate}};
+    const today=brusselsDay(this.clock());
+    const latestDataDate=this.db.prepare("SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT') AND date<=?").get(today).date||null;
+    const latestKindDate=this.db.prepare('SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('+kinds.map(()=>'?').join(',')+') AND date<=?').get(...kinds,today).date||null;
+    let availability=null;
+    if(offset===0){
+      // Start at the language index: an absent language is an empty index lookup.
+      const latestTextDate=params.metadataOnly||!params.language?null:this.db.prepare(`SELECT MAX(d.date) date FROM texts t INDEXED BY text_language JOIN documents d ON d.id=t.document_id JOIN speech_catalog c ON c.source_id=d.source_id WHERE t.language=? AND t.source_format='xml-fragment' AND t.chars>0 AND d.kind='speech' AND d.date<=? AND c.kind IN (${kinds.map(()=>'?').join(',')})`).get(params.language,today,...kinds)?.date||null;
+      const pending=Boolean(this.db.prepare("SELECT 1 FROM tasks WHERE done=0 AND kind IN ('speeches','speech','speech-metadata','speech-metadata-detail') LIMIT 1").get());
+      const failed=this.db.prepare("SELECT key,body FROM tasks WHERE done=0 AND error IS NOT NULL AND kind IN ('speeches','speech','speech-metadata','speech-metadata-detail') LIMIT 501").all();
+      const gaps=failed.length>500?[{reason:'source-gap'}]:failed.map(row=>availabilityGap(parse(row.body),row.key));
+      const args={family:'speeches',start:from,end:to>today?today:to,today,gaps,limited:pending,snapshot:{revision:this.get('availabilityRevision')||0},retention:{policy:this.get('speechLanguages')||null,history:historyStatus(this)}};
+      const dates=new Map(this.db.prepare('SELECT kind,MAX(date) date FROM speech_catalog WHERE kind IN ('+kinds.map(()=>'?').join(',')+') AND date<=? GROUP BY kind').all(...kinds,today).map(row=>[row.kind,row.date]));
+      availability={metadata:sourceAvailability({...args,sourceKey:'speech-metadata',latestObservedDate:latestKindDate}),metadataSources:kinds.map(kind=>sourceAvailability({...args,sourceKey:kind,subtype:kind,latestObservedDate:dates.get(kind)||null})),text:params.metadataOnly?null:sourceAvailability({...args,sourceKey:'speech-text',subtype:kinds.length===1?kinds[0]:null,stage:'text',language:params.language,latestObservedDate:latestTextDate})};
+    }
+    return {...result,total,offset,revision,missingRetainedLanguage,nextOffset:offset+ids.length<total?offset+ids.length:null,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt')),latestDataDate,availability}};
   });}
 
   speechTranscript({sourceId,language}) {
@@ -593,6 +618,7 @@ export class CorpusStore {
     const backfilledAt=this.get('backfilledAt');
     const metadataRetained=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_metadata'").get()?this.db.prepare('SELECT COUNT(*) n FROM speech_metadata').get().n:0;
     return {schemaVersion:1,term:10,phase:this.get('phase')||'waiting',complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,
+      availabilityRevision:this.get('availabilityRevision')||0,availabilityHistory:historyStatus(this),
       coverage:this.coverage().note,capabilities:{search:true,storedText:true,kinds:KINDS,groups:['document','question'],sorts:['relevance','newest'],sourceIdsLimit:CORPUS_LIMITS.sourceIds},
       documents:Object.fromEntries(KINDS.map(kind=>[kind,{discovered:documents[kind]||0,withText:withText[kind]||0}])),
       speechMetadata:{retained:metadataRetained,backfillPending:Boolean(this.get('speechMetadataBackfill'))||tasks.some(task=>task.kind==='speech-metadata-detail'&&task.total>task.done),

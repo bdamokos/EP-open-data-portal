@@ -61,7 +61,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'11');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'12');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -334,7 +334,7 @@ test('ordinary table properties and positional annotation markers do not invalid
 });
 
 test('unsupported comparison geometry withholds both columns with a numbered gap while another amendment remains intact',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'11');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'12');
   const grid=widths=>'<w:tblGrid>'+widths.map(width=>`<w:gridCol${width==null?'':` w:w="${width}"`}/>`).join('')+'</w:tblGrid>';
   const propsCell=(text,properties='')=>'<w:tc><w:tcPr>'+properties+'</w:tcPr>'+p(text)+'</w:tc>';
   const header=row(propsCell('Motion for a resolution'),propsCell('Amendment'));
@@ -440,7 +440,7 @@ test('historical property snapshots and ordinary hidden or deleted inline text d
 });
 
 test('current paragraph-mark revisions cannot turn ambiguous decimal boundaries into accepted wording',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'11');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'12');
   for(const marker of ['del','ins','moveFrom','moveTo']) {
     const first='<w:p><w:pPr><w:rPr><w:'+marker+' w:id="9" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:rPr></w:pPr>'+run('Rate: 1')+'</w:p>';
     const xml=body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));
@@ -468,6 +468,7 @@ test('an unscoped numbering failure withholds wording and exposes the document-s
   const unsupportedNumbering='<w:p><w:pPr><w:numPr><w:numId w:val="77"/></w:numPr></w:pPr>'+run('A paragraph whose legal number cannot be read.')+'</w:p>';
   const xml=body(metadata()+table(row(cell(unsupportedNumbering),cell(p('Proposed wording'))))+p('</Amend>')+metadata(2)+table(row(cell(p('Other original')),cell(p('Other proposal'))))+p('</Amend>'));
   const result=extractAmendments(archive(xml),{...options,listId:'B-10-2026-0424-AM-001-002'});
+  assert.deepEqual(result.amendments.map(amendment=>amendment.number),[1,2]);
   assert(result.gaps.some(gap=>gap.code==='numbering-warning'&&gap.number==null));
   for(const amendment of result.amendments) {
     assert.equal(amendment.originalText,null);assert.equal(amendment.proposedText,null);
@@ -561,5 +562,14 @@ test('raw DOCX, reading-text and voting XML downloads forward caller cancellatio
     controller.abort(reason);
     await rejected;
     assert.equal(transportSignal.aborted,true);assert.equal(transportSignal.reason,reason);
+  }
+});
+
+
+test('proposal-level document target distinguishes resolution wording from Commission proposal wording',()=>{
+  const fixtures=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-excerpts-20261016.json',import.meta.url),'utf8'));
+  for(const fixture of fixtures.documents){
+    const parsed=extractAmendments(archive(fixture.documentXml,fixture.stylesXml),fixture);
+    for(const amendment of parsed.amendments)assert.equal(amendment.baseline,fixture.targetDocumentId==='A-10-2025-0085'?'commission-proposal':'motion-resolution');
   }
 });

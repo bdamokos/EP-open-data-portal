@@ -49,15 +49,17 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
   });
   // The conditional transform plugin needs an isolated server for its delayed-view graph.
-  loadModule=await freshLoader({configFile:false,plugins:delayedModule?[{name:'delay-view-fixture',transform(code,id){if(id.endsWith('/GroupVoices.tsx'))return 'await globalThis.__navigationViewGate;\n'+code;}}]:[],server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const delayedFile=delayedModule==='saved'?'Saved.tsx':delayedModule==='legislation'?'Legislation.tsx':'GroupVoices.tsx';
+  loadModule=await freshLoader({configFile:false,plugins:delayedModule?[{name:'delay-view-fixture',transform(code,id){if(id.endsWith('/'+delayedFile))return 'await globalThis.__navigationViewGate;\n'+code;}}]:[],server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {default:App}=await loadModule('/src/App.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container,{onCaughtError:()=>{}});
-  await act(async()=>root.render(createElement(App)));await viewReady(container);
+  await act(async()=>root.render(createElement(App)));
+  if(!delayedModule||!query.includes('view='+(delayedModule==='legislation'?'legislation':'groups')))await viewReady(container);
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
   const click=async node=>{assert(node,'Missing control');node.focus();await act(async()=>node.click());if(!delayedModule)await viewReady(container);};
   const finish=(data,status=200)=>act(async()=>{assert(pending.length,'Missing pending page');pending.shift().resolve(Response.json(data,{status}));});
-  return {window,container,pending,portraitRequests,button,click,finish,releaseView:async()=>{await act(async()=>{releaseModule();await loadModule('/src/GroupVoices.tsx');});await viewReady(container);}};
+  return {window,container,pending,portraitRequests,button,click,finish,releaseView:async()=>{await act(async()=>{releaseModule();await loadModule('/src/'+delayedFile);});await viewReady(container);}};
 }
 
 test('roster portraits are requested while committee memberships are unavailable',async t=>{
@@ -217,12 +219,80 @@ test('delayed view imports keep navigation focus until mount and yield to a subs
     assert(loading,'the import is still pending');
     assert.equal(loading.getAttribute('aria-busy'),'true');
     assert.equal(loading.querySelector('[role=status]').textContent,'Loading view…');
+    assert.equal(loading.querySelector('h1').textContent,'Group voices');
+    assert.equal(h.container.querySelectorAll('main:not([style*="display: none"])').length,1);
+    const header=loading.closest('main').querySelector('.parliament-header');
+    assert(header,'navigation stays outside the loading region');
+    assert.equal(header.querySelector('[aria-current=page]').textContent,'Group voices');
     const other=document.createElement('button');other.textContent='Another focus choice';document.body.append(other);
     if(moved)other.focus();
     if(moved==='returned'){document.body.tabIndex=-1;document.body.focus();}
     await h.releaseView();
+    assert.equal(h.container.querySelector('main.explorer-insights .parliament-header'),header,'data and code arrival preserve the header node');
     assert.equal(document.activeElement,moved==='returned'?document.body:moved?other:h.container.querySelector('h1'));
   });
+});
+
+test('a pending view can be left immediately and its late import cannot reopen it',async t=>{
+  const h=await harness(t,'',false,true);
+  await h.click(h.button('Group voices'));
+  assert(h.container.querySelector('[data-view-loading]'));
+  await h.click(h.button('Members'));
+  assert.equal(h.container.querySelector('[data-view-loading]'),null);
+  assert(h.container.querySelector('.explorer-filters'));
+  assert.equal(new URL(location.href).searchParams.has('view'),false);
+  await h.releaseView();
+  assert(h.container.querySelector('.explorer-filters'));
+  assert.equal(h.container.querySelector('.explorer-insights'),null);
+});
+
+test('a cold deep link renders its destination shell before the view module resolves',async t=>{
+  const h=await harness(t,'?view=groups&lang=fr',false,true);
+  assert.equal(h.container.querySelector('[data-view-loading] h1').textContent,'Group voices');
+  assert.equal(h.container.querySelector('[role=status]').textContent,'Chargement de la vue…');
+  assert.equal(h.container.querySelectorAll('main').length,1);
+  assert(h.button('Members'));
+  await h.releaseView();
+  assert.equal(h.container.querySelectorAll('main').length,1);
+});
+
+test('cold legislation links show the validated mode heading before and after the module loads',async t=>{
+  for(const [mode,title] of [['agenda','Plenary agenda'],['participation','What’s hot'],['cloud','Plenary word cloud'],['trends','Topic timeline'],['dossier','Dossiers'],['invalid','Plenary agenda']])await t.test(mode,async t=>{
+    const h=await harness(t,'?view=legislation&pl-mode='+mode,false,'legislation');
+    assert.equal(h.container.querySelector('[data-view-loading] h1').textContent,title);
+    await h.releaseView();
+    assert.equal(h.container.querySelector('h1').textContent,title);
+  });
+});
+
+test('Following retains its mounted header during a delayed first import',async t=>{
+  const h=await harness(t,'',false,'saved');
+  const header=h.container.querySelector('.parliament-header');
+  await h.click(h.button('Following'));
+  assert.equal(h.container.querySelector('[data-view-loading] h1').textContent,'Following');
+  assert.equal(h.container.querySelector('.parliament-header'),header);
+  await h.releaseView();
+  assert.equal(h.container.querySelector('.parliament-header'),header);
+  assert.equal(h.container.querySelectorAll('main').length,1);
+});
+
+test('loaded insight destinations reset the shared frame scroll on clicks and browser Back',async t=>{
+  const h=await harness(t);
+  await h.click(h.button('Questions'));
+  const frame=h.container.querySelector('main.explorer-insights');
+  const header=frame.querySelector('.parliament-header');
+  frame.scrollTop=600;
+  await h.click(h.button('Group voices'));
+  assert.equal(h.container.querySelector('main.explorer-insights'),frame);
+  assert.equal(frame.querySelector('.parliament-header'),header);
+  assert.equal(frame.scrollTop,0,'a destination starts at the top before heading focus');
+  frame.scrollTop=450;
+  const popped=new Promise(resolve=>h.window.addEventListener('popstate',resolve,{once:true}));
+  await act(async()=>{history.go(-1);await popped;});
+  await viewReady(h.container);
+  assert.equal(new URL(location.href).searchParams.get('view'),'questions');
+  assert.equal(h.container.querySelector('main.explorer-insights'),frame);
+  assert.equal(frame.scrollTop,0,'popstate preserves the old remount scroll behavior');
 });
 
 

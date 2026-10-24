@@ -1,3 +1,4 @@
+import {yearCatalogue} from './test-support/catalogue-fixture.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,readFileSync,rmSync,writeFileSync,readdirSync} from 'node:fs';
@@ -119,7 +120,7 @@ test('the Brussels day invalidates an assembled upcoming sitting before its five
   let now=Date.parse('2026-10-06T21:59:00Z');
   try {
     store.acquire();store.beginCycle();store.setMembers([{id:'257043',name:'Maravillas Abadía Jover'}]);store.db.exec('PRAGMA query_only=ON');
-    const service=createInsights(store,{clock:()=>now,viewCache:{directory:path.join(directory,'views')},loadMetadata:async()=>new Map(),request:async(endpoint,params)=>endpoint==='/meetings'?params.offset===0?source.meetings:{...source.meetings,payload:{data:[]}}:source.foreseen});
+    const service=createInsights(store,{clock:()=>now,viewCache:{directory:path.join(directory,'views')},loadMetadata:async()=>new Map(),request:yearCatalogue(async(endpoint,params)=>endpoint==='/meetings'?params.offset===0?source.meetings:{...source.meetings,payload:{data:[]}}:source.foreseen)});
     const search=new URLSearchParams('sitting=MTG-PL-2026-10-07');
     assert.equal((await service.query('legislation',search)).sitting.phase,'upcoming');
     now=Date.parse('2026-10-06T22:01:00Z');assert.equal((await service.query('legislation',search)).sitting.phase,'today');
@@ -146,9 +147,10 @@ test('question trend distinguishes trailing unknown days, earlier zeroes and par
   assert.equal(daily.latestObservedDate,'2026-10-16');
   assert.deepEqual(daily.bins.find(b=>b.start==='2026-10-11'),{start:'2026-10-11',end:'2026-10-11',availability:'observed',count:0,total:0,share:null});
   assert.equal(daily.bins.find(b=>b.start==='2026-10-16').share,0);
+  assert.equal(daily.bins.find(b=>b.start==='2026-10-16').availability,'partial');
   for(const bin of daily.bins.filter(b=>b.start>'2026-10-16'))assert.deepEqual([bin.availability,bin.count,bin.total,bin.share],['unavailable',null,null,null]);
   const filtered=questionTrend([all[0]],[],window,daily.latestObservedDate);
-  assert.equal(filtered.bins.find(b=>b.start==='2026-10-16').availability,'observed','country/topic absence does not move the source frontier');
+  assert.equal(filtered.bins.find(b=>b.start==='2026-10-16').availability,'partial','country/topic absence does not move the source frontier');
   const weekly=questionTrend(all,all,{...window,days:31});
   const partial=weekly.bins.find(b=>b.start==='2026-10-12');assert.equal(partial.availability,'partial');assert.equal(partial.count,1);assert.equal(partial.total,1);
   assert.equal(weekly.bins.at(-1).count,null);

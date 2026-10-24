@@ -238,7 +238,9 @@ test('the 101st dependency records a bounded explicit capacity gap and preserves
   assert.equal(after.capacityGap.message.split(dependencyLimitGap).length-1,1);
   assert.equal(store.source(generation,'/plenary-documents/'+overflow).work.amendmentLinksVersion,undefined);
   assert.equal(store.source(generation,'/plenary-documents/'+accepted[0]).work.amendmentLinksVersion,AMENDMENT_LINKS_VERSION);
+  store.db.exec("CREATE TABLE overflow_writes (n INTEGER); INSERT INTO overflow_writes VALUES (0); CREATE TEMP TRIGGER count_overflow_writes AFTER UPDATE OF body ON sources WHEN NEW.key='/plenary-documents/"+overflow+"' BEGIN UPDATE overflow_writes SET n=n+1; END");
   for(let pass=0;pass<3;pass++)rebuildAmendmentTarget(worker,generation,overflow);
+  assert.equal(store.db.prepare('SELECT n FROM overflow_writes').get().n,0,'Already absent dependency markers must not repeat source projection writes.');
   assert.deepEqual(store.source(generation,checkpointKey).work,after,'Repeated overflow observations must not grow the bounded gap.');
   const page=amendmentsPage(store,{document:overflow});
   assert.equal(page.coverage.complete,false);assert(page.coverage.gaps.some(gap=>gap.includes(dependencyLimitGap)));

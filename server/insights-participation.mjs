@@ -1,3 +1,6 @@
+import {sourceAvailability,periodAvailability} from './source-availability.mjs';
+import {oralAvailability} from './availability-evidence.mjs';
+import {missingSitting,requireLatestSitting} from './meetings-reader.mjs';
 import {readFile,stat} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
@@ -50,12 +53,14 @@ export function participationRows(topics,results,decisions,speechRows,members) {
 export async function participation(legislation,store,query,{clock=Date.now,readEvent=cachedEvent}={}) {
   const status=store.status(),catalogue=await legislation.catalogue(),today=brusselsDay(clock());
   const end=query.week?new Date(Date.parse(query.week+'T12:00:00Z')+6*86400_000).toISOString().slice(0,10):null;
-  const sittings=query.week?catalogue.sittings.filter(s=>s.activity_date>=query.week&&s.activity_date<=end):catalogue.sittings.filter(s=>s.activity_id===(query.sitting||catalogue.sittings[0]?.activity_id));
-  if(!sittings.length||sittings.length>5)throw new HttpError(404,'sitting_not_found','Choose a listed sitting or plenary week from the current parliamentary term.');
-  const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],sources=[...(catalogue.sources||[])];
+  const selected=query.sitting||(!query.week?requireLatestSitting(catalogue,today)?.activity_id:null);
+  const sittings=query.week?catalogue.sittings.filter(s=>s.activity_date>=query.week&&s.activity_date<=end):catalogue.sittings.filter(s=>s.activity_id===selected);
+  if(!sittings.length)missingSitting(catalogue);
+  if(sittings.length>5)throw new HttpError(502,'sitting_calendar_invalid','Too many sitting days in this week.');
+  const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],speechProjectionGaps=new Set(),sources=[...(catalogue.sources||[])];
   const recordSource=async(...args)=>{const record=await legislation.record(...args);sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});return record;};
   for(const sitting of sittings) {
-    let base;try{base=await legislation.query({language:query.language,sitting:sitting.activity_id,topic:null,vote:null});}catch{gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});continue;}sources.push(...(base.coverage?.sources||[]));const speechRows=new Map();let results=null,decisions=null;
+    let base;try{base=await legislation.query({language:query.language,sitting:sitting.activity_id,topic:null,vote:null},catalogue);}catch{gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});continue;}sources.push(...(base.coverage?.sources||[]));const speechRows=new Map();let results=null,decisions=null;
     if(base.coverage?.agendaError){gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});if(!base.topics.length)continue;}
     if(sitting.activity_date<=today) {
       try{results=await recordSource('/meetings/'+sitting.activity_id+'/vote-results',{limit:50,offset:0});decisions=await recordSource('/meetings/'+sitting.activity_id+'/decisions',{'vote-method':'ROLL_CALL_EV',limit:1,offset:0});if(decisions.payload.data.length>250){decisions={...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,250)}};gaps.push({sitting:sitting.activity_id,kind:'roll-call-limit'});}if(results.payload.data.length>=50)gaps.push({sitting:sitting.activity_id,kind:'vote-result-page-limit'});}catch{gaps.push({sitting:sitting.activity_id,kind:'votes-unavailable'});}
@@ -68,14 +73,42 @@ export async function participation(legislation,store,query,{clock=Date.now,read
         if(!event||tail(event.had_activity_type)!=='PLENARY_DEBATE'||event.activity_date!==sitting.activity_date)continue;
         const children=refs(event.consists_of).map(tail).slice(0,200);if(!children.length)continue;
         const rows=store.db.prepare(`SELECT body FROM items WHERE generation=? AND category='plenary-contributions' AND source_id IN (${children.map(()=>'?').join(',')}) LIMIT 1000`).all(status.servingGeneration,...children).map(row=>JSON.parse(row.body));
-        for(const target of refs(event.executed)){const topic=base.topics.find(t=>t.uri===target);if(topic)speechRows.set(topic.id,[...(speechRows.get(topic.id)||[]),...rows]);}
+        const retained=new Set(rows.map(row=>row.sourceId));
+        for(const target of refs(event.executed)){const topic=base.topics.find(t=>t.uri===target);if(topic){speechRows.set(topic.id,[...(speechRows.get(topic.id)||[]),...rows]);if(children.some(id=>!retained.has(id)))speechProjectionGaps.add(topic.id);}}
       }
     }
     all.push(...participationRows(base.topics,results,decisions,speechRows,members).map(row=>({...row,sittingId:sitting.activity_id,upcoming:sitting.activity_date>today})));
   }
   const countryIds=ids=>ids===null?null:new Set([...ids].filter(id=>!query.country||countryOf(id)===query.country));
   const union=(rows,field)=>new Set(rows.flatMap(row=>[...(countryIds(row[field])||[])])).size;
-  const series=sittings.map(s=>{const rows=all.filter(row=>row.sittingId===s.activity_id);return {date:s.activity_date,speakers:rows.some(r=>r.speakerIds!==null)?union(rows,'speakerIds'):null,voters:rows.some(r=>r.voterIds!==null)?union(rows,'voterIds'):null,amendmentVotes:rows.some(r=>r.amendmentVotes!==null)?new Set(rows.flatMap(r=>[...r.amendmentIds])).size:null};}).sort((a,b)=>a.date.localeCompare(b.date));
-  const countries=EU_COUNTRIES.map(code=>{const delegation=[...members].filter(id=>countryOf(id)===code),ids=new Set(delegation);return {code,delegationSize:ids.size,topics:all.map(row=>{const count=field=>row[field]===null?null:[...row[field]].filter(id=>ids.has(id)).length;const speakers=count('speakerIds'),voters=count('voterIds');return {id:row.id,sittingId:row.sittingId,title:row.title,speakers,voters,speakingShare:speakers===null||!ids.size?null:speakers/ids.size*100,votingShare:voters===null||!ids.size?null:voters/ids.size*100};})};});
-  return {view:'participation',country:query.country,countries,topics:all.map(({speakerIds,voterIds,amendmentIds,...row})=>({...row,speakers:countryIds(speakerIds)?.size??null,voters:countryIds(voterIds)?.size??null,allSpeakers:speakerIds?.size??null,allVoters:voterIds?.size??null})),series,window:{start:query.week||sittings[0].activity_date,end:end||sittings[0].activity_date},coverage:{indexComplete:status.complete,servingGeneration:status.servingGeneration,topicsWithSpeechLinks:all.filter(r=>r.speakerIds!==null).length,topics:all.length,gaps,sources},basis:'Distinct people on the current roster, using current country of representation. Actual named roll-calls only; intended corrections excluded. Speakers require existing exact cached debate-event links to saved oral contributions. Amendment roll-calls are not a count of amendments tabled and are not assigned to national delegations.'};
+  const window={start:query.week||sittings[0].activity_date,end:end||sittings[0].activity_date};
+  const oral=oralAvailability(store,{generation:status.servingGeneration,start:window.start,end:window.end});
+  const availability={speakers:oral,voters:sourceAvailability({sourceKey:'named-votes',family:'votes',start:window.start,end:window.end,records:all.filter(row=>row.voterIds!==null).map(row=>row.date),limited:gaps.some(gap=>gap.kind.includes('vote')||gap.kind.includes('roll-call')),today}),amendmentVotes:sourceAvailability({sourceKey:'amendment-roll-calls',family:'votes',start:window.start,end:window.end,records:all.filter(row=>row.amendmentVotes!==null).map(row=>row.date),limited:gaps.some(gap=>gap.kind.includes('vote')||gap.kind.includes('roll-call')),today})};
+  const fields={speakers:'speakerIds',voters:'voterIds',amendmentVotes:'amendmentVotes'};
+  const classify=(metric,rows,count,date)=>{
+    const source=availability[metric];
+    const incomplete=rows.some(row=>row[fields[metric]]===null)||gaps.some(gap=>gap.sitting===rows[0]?.sittingId);
+    return periodAvailability({start:date,end:date},{...source,limited:source.limited||incomplete,gaps:[...source.gaps,...(metric==='speakers'&&rows.some(row=>speechProjectionGaps.has(row.id))?[{start:date,end:date,reason:'speech-projection-gap'}]:[])]},count,{today});
+  };
+  const series=sittings.map(s=>{
+    const rows=all.filter(row=>row.sittingId===s.activity_id),values={speakers:rows.some(r=>r.speakerIds!==null)?union(rows,'speakerIds'):null,voters:rows.some(r=>r.voterIds!==null)?union(rows,'voterIds'):null,amendmentVotes:rows.some(r=>r.amendmentVotes!==null)?new Set(rows.flatMap(r=>[...r.amendmentIds])).size:null},states={};
+    for(const metric of Object.keys(fields)){const result=classify(metric,rows,values[metric],s.activity_date);values[metric]=result.observedCount;states[metric]=result.state;}
+    return {date:s.activity_date,...values,availability:states};
+  }).sort((a,b)=>a.date.localeCompare(b.date));
+  const countsFor=(row,idsFor)=>{
+    const speakerCount=row.speakerIds===null?null:idsFor(row.speakerIds).size,voterCount=row.voterIds===null?null:idsFor(row.voterIds).size;
+    return {speakers:classify('speakers',[row],speakerCount,row.date),voters:classify('voters',[row],voterCount,row.date),amendmentVotes:classify('amendmentVotes',[row],row.amendmentVotes,row.date)};
+  };
+  const countries=EU_COUNTRIES.map(code=>{
+    const ids=new Set([...members].filter(id=>countryOf(id)===code));
+    return {code,delegationSize:ids.size,topics:all.map(row=>{
+      const values=countsFor(row,set=>new Set([...set].filter(id=>ids.has(id)))),speakers=values.speakers.observedCount,voters=values.voters.observedCount;
+      return {id:row.id,sittingId:row.sittingId,title:row.title,speakers,voters,availability:{speakers:values.speakers.state,voters:values.voters.state},speakingShare:speakers===null||!ids.size?null:speakers/ids.size*100,votingShare:voters===null||!ids.size?null:voters/ids.size*100};
+    })};
+  });
+  const topics=all.map(row=>{
+    const values=countsFor(row,countryIds),whole=countsFor(row,set=>set),{speakerIds,voterIds,amendmentIds,...publicRow}=row;
+    return {...publicRow,...Object.fromEntries(Object.entries(values).map(([key,value])=>[key,value.observedCount])),allSpeakers:whole.speakers.observedCount,allVoters:whole.voters.observedCount,availability:Object.fromEntries(Object.entries(values).map(([key,value])=>[key,value.state]))};
+  });
+  return {view:'participation',availability,country:query.country,countries,topics,series,window,coverage:{catalogueComplete:catalogue.complete,catalogue:catalogue.coverage,indexComplete:status.complete,servingGeneration:status.servingGeneration,topicsWithSpeechLinks:all.filter(r=>r.speakerIds!==null).length,topics:all.length,gaps,sources},basis:'Distinct people on the current roster, using current country of representation. Actual named roll-calls only; intended corrections excluded. Speakers require existing exact cached debate-event links to saved oral contributions. Amendment roll-calls are not a count of amendments tabled and are not assigned to national delegations.'};
 }
