@@ -24,7 +24,7 @@ export function validateDecisionVotes(data,id) {
   if(!object(vote.resultRelationship)||!['consistent','single-direction','ambiguous','unlinked'].includes(vote.resultRelationship.binding)||!refs(vote.resultRelationship.inverseResultIds)||!refs(vote.resultRelationship.forwardResultIds)||!Array.isArray(vote.evidenceGaps)||!vote.evidenceGaps.every(gap=>object(gap)&&typeof gap.code==='string'&&(gap.details===undefined||Array.isArray(gap.details)&&gap.details.every(detail=>object(detail)&&typeof detail.code==='string'))))return false;
   if(!Array.isArray(vote.bindingConflicts)||!vote.bindingConflicts.every(gap=>object(gap)&&typeof gap.code==='string'))return false;
   if(decisionVoteBindingConflict(vote)&&(data.integrity!=='conflicting'||data.voters.length))return false;
-  if(data.groupHistory!==null&&(!object(data.groupHistory)||typeof data.groupHistory.epoch!=='string'||!Number.isSafeInteger(data.groupHistory.generation)||data.groupHistory.generation<1))return false;
+  if(data.groupHistory!==null&&(!object(data.groupHistory)||typeof data.groupHistory.epoch!=='string'||!Number.isSafeInteger(data.groupHistory.generation)||data.groupHistory.generation<1||!object(data.groupHistory.catalogue)||(data.groupHistory.catalogue.retrievedAt!=null&&(typeof data.groupHistory.catalogue.retrievedAt!=='string'||!Number.isFinite(Date.parse(data.groupHistory.catalogue.retrievedAt))))))return false;
   const ids=new Set();
   for(const voter of data.voters) {
     if(!object(voter)||!person(voter.personId)||ids.has(voter.personId)||!['recorded','conflicting'].includes(voter.status)||!(voter.status==='conflicting'?voter.position===null:positions.includes(voter.position)))return false;

@@ -28,15 +28,15 @@ test('member Amendments retains result and lazily shows author positions and gro
 });
 test('non-named, unheld and unverified components do not start reads',async t=>{
  const h=await mount(t,()=>{throw Error('Unexpected read');});
- for(const [patch,label] of [[{method:'VOTE_HAND'},'Not individually recorded'],[{method:'VOTE_ELECTRONIC'},'Not individually recorded'],[{outcome:'LAPSED'},'Not put to a vote'],[{outcome:'WITHDRAWN'},'Not put to a vote']]){await h.render({decision:{...decision,...patch}});assert.match(h.container.textContent,new RegExp(label));assert.equal(h.container.querySelector('details'),null);}
- for(const patch of [{componentBinding:'unverified'},{componentBinding:'unresolved-collective'},{partNumber:2},{partId:'part',partNumber:2}]){await h.render({decision:{...decision,...patch}});assert.equal(h.container.querySelector('details'),null);}
+ for(const [patch,label] of [[{method:'VOTE_HAND'},'Not individually recorded'],[{method:'VOTE_ELECTRONIC'},'Not individually recorded'],[{method:'VOTE_SECRET'},'Not individually recorded'],[{method:'VOTE_SECRET_BALLOT'},'Not individually recorded'],[{method:'UNKNOWN'},'Named votes unavailable'],[{method:null},'Named votes unavailable'],[{outcome:'CANCELLED'},'Not put to a vote']]){await h.render({decision:{...decision,...patch}});assert.match(h.container.textContent,new RegExp(label));assert.equal(h.container.querySelector('details'),null);}
+ for(const patch of [{outcome:'LAPSED'},{outcome:'WITHDRAWN'},{componentBinding:'unverified'},{componentBinding:'unresolved-collective'},{partNumber:2},{partId:'part',partNumber:2}]){await h.render({decision:{...decision,...patch}});assert.equal(h.container.querySelector('details'),null);}
  assert.equal(h.calls.length,0);
 });
 test('conflicting variants show the verified matrix without combined author attribution',async t=>{
- const h=await mount(t,async()=>Response.json(await voteFixture().read()));await h.render({item:{...item,conflicted:true}});await h.open();assert(h.container.querySelector('table'));assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
+ const h=await mount(t,async()=>Response.json(await voteFixture().read()));await h.render({item:{...item,conflicted:true}});await h.open();assert(h.container.querySelector('table'));assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.textContent,/Author votes withheld: sources conflict/);
 });
-test('missing group history retains positions in a separate unavailable group',async t=>{
- const f=voteFixture();f.store.db.prepare=()=>({get:()=>undefined});const h=await mount(t,async()=>Response.json(await f.read()));await h.render();await h.open();assert.match(h.container.textContent,/Author OneFor/);assert.match(h.container.textContent,/Group unavailable/);assert.equal(h.container.querySelectorAll('tbody tr').length,1);
+test('missing group history retains author positions without a group table',async t=>{
+ const f=voteFixture();f.store.db.prepare=()=>({get:()=>undefined});const h=await mount(t,async()=>Response.json(await f.read()));await h.render();await h.open();assert.match(h.container.textContent,/Author OneFor/);assert.match(h.container.textContent,/Groups unavailable for this date/);assert.equal(h.container.querySelector('table'),null);
 });
 test('partial ballots withhold group totals and avoid claiming an unlisted author had no vote',async t=>{
  const f=voteFixture();f.raw.had_voter_favor.push('invalid-person');const h=await mount(t,async()=>Response.json(await f.read()));await h.render();await h.open();assert.match(h.container.textContent,/Named list incomplete/);assert.match(h.container.textContent,/Unlisted AuthorUnavailable/);assert.equal(h.container.querySelector('table'),null);
@@ -47,7 +47,7 @@ test('wrong decision responses and transport errors offer retry, then exact data
  mode='good';await act(async()=>h.container.querySelector('button').click());assert(h.container.querySelector('table'));
 });
 test('mismatched exact components suppress every position',async t=>{
- const data=await voteFixture().read();data.decision.componentIds=['MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-2'];const h=await mount(t,async()=>Response.json(data));await h.render({decision:{...decision,partId:'eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-1',partNumber:1,componentBinding:'single-amendment'}});await h.open();assert.match(h.container.textContent,/Vote records differ/);assert.equal(h.container.querySelector('table'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
+ const data=await voteFixture().read();data.decision.componentIds=['MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-2'];const h=await mount(t,async()=>Response.json(data));await h.render({decision:{...decision,partId:'eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-1',partNumber:1,componentBinding:'single-amendment'}});await h.open();assert.match(h.container.textContent,/Vote record does not match this amendment/);assert.equal(h.container.querySelector('button'),null);assert.equal(h.container.querySelector('table'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
 });
 test('a late response for a previous decision cannot populate the next panel',async t=>{
  let resolveOld;const oldResponse=new Promise(resolve=>{resolveOld=resolve;}),nextId=decisionId.replace('197457','197458'),data=await voteFixture().read();
@@ -61,7 +61,7 @@ test('a late response for a previous decision cannot populate the next panel',as
 for(const scenario of ['ambiguous-result-binding','conflicting-result-source','component-outside-result'])test(scenario+' preserves the indexed result and withholds named joins',async t=>{
  const f=contradictoryVoteFixture(scenario),data=await f.read();
  const h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:f.indexed});await h.render();await h.open();
- assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Vote records differ/);
+ assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Vote record does not match this amendment/);
  assert.equal(h.container.querySelector('table'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
  assert.match(h.container.querySelector('.explorer-amendment-decision').textContent,/Adopted/);
  assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For2/);
@@ -77,10 +77,23 @@ for(const scenario of [
 ])test('known component contradictions are withheld: '+JSON.stringify(scenario),async t=>{
  const f=splitBindingFixture(scenario),data=await f.read(),h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:f.indexed});await h.render();await h.open();
  assert.equal(h.container.querySelector('table'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
- assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Vote records differ/);
+ assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Vote record does not match this amendment/);
  assert.match(h.container.querySelector('.explorer-amendment-decision').textContent,/Adopted/);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For2/);
 });
 for(const scenario of [{wording:'missing'},{wording:'unreadable',context:'missing'},{ownership:'unknown',context:'missing'}])test('missing split context stays distinct from contradictions: '+JSON.stringify(scenario),async t=>{
  const f=splitBindingFixture(scenario),data=await f.read(),h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:f.indexed});await h.render();await h.open();
  assert(h.container.querySelector('table'));assert.match(h.container.querySelector('[aria-label="Authors’ votes"]').textContent,/Author One · S&DFor/);
+});
+
+test('unestablished memberships stay separate from verified groups',async t=>{
+ const data=await voteFixture().read();data.voters[0].group=null;data.voters[0].groupStatus='ambiguous';
+ const h=await mount(t,async()=>Response.json(data));await h.render();await h.open();assert(h.container.querySelector('table'));assert.match(h.container.textContent,/Group not established/);assert.match(h.container.textContent,/Non-attached/);
+});
+test('unknown methods from a named read stay unavailable',async t=>{
+ const data=await voteFixture().read();data.decision.method=null;data.integrity='unavailable';
+ const h=await mount(t,async()=>Response.json(data));await h.render();await h.open();assert.match(h.container.textContent,/Named votes unavailable/);assert.doesNotMatch(h.container.textContent,/Not individually recorded/);assert.equal(h.container.querySelector('table'),null);
+});
+test('group sources show the captured membership generation and retrieval date',async t=>{
+ const data=await voteFixture().read();data.groupHistory.catalogue.retrievedAt='2026-10-23T12:00:00Z';
+ const h=await mount(t,async()=>Response.json(data));await h.render();await h.open();assert.match(h.container.textContent,/Groups: membership snapshot 7 · 2026-10-23T12:00:00Z/);
 });

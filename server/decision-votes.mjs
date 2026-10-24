@@ -24,6 +24,8 @@ export async function decisionVotes(query,{reader=memberVotes,store=null}={}) {
   const raw=day?.decisions.find(raw=>raw.activity_id===query.decision);
   const base={version:DECISION_VOTES_VERSION,decisionId:query.decision,sittingId:query.sitting,snapshotId:snapshot.id,coverage:snapshot.coverage.status};
   if(!raw)return {...base,status:'unavailable',decision:null,voters:[],integrity:'unavailable',groupHistory:null};
+  // The shared projection requires a person ID; only its decision-wide fields
+  // are used below. Named positions come from voterGroups, not this placeholder.
   const vote=projectMemberDecision(raw,day,'1',query.language,deriveVoteEvidence(day,{includeBindingEvidence:true})),actual=voterGroups(raw,'had_voter_');
   const integrity=vote.sourceConflicts||decisionVoteBindingConflict(vote)?'conflicting':!vote.namedVoters.available?'unavailable':vote.namedVoters.malformedReferences||vote.namedVoters.conflictingPersonIds.length||vote.namedVoters.totalsMatch===false?'partial':'complete';
   // Capture one frozen generation after the asynchronous vote read. No later
