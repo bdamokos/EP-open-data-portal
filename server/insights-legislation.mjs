@@ -14,7 +14,7 @@ import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from '
 import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v5';
+export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v6';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -86,6 +86,13 @@ export class LegislationInsights {
     const status=binding?.status||this.store.status();
     const groupOn=binding?.groupOn||generationGroupOn(this.store,status.servingGeneration);if(!status.currentMeps||!status.servingGeneration)throw new HttpError(503,'insights_loading','The saved MEP index is not available yet.');
     const catalogue=savedCatalogue||await this.catalogue();
+    if((query.week==='latest'||!query.week&&!query.sitting)&&latestCatalogueSitting(catalogue,brusselsDay(this.clock()))===null){
+      const today=brusselsDay(this.clock());
+      return {version:1,view:'legislation',requestedLanguage:query.language,selectionUnavailable:true,sitting:null,
+        sittings:catalogue.sittings.map(s=>({id:s.activity_id,phase:s.activity_date>today?'upcoming':s.activity_date===today?'today':'past',date:s.activity_date,title:displayTitle(s.activity_label,query.language,s.activity_id)})),topics:[],detail:null,
+        coverage:{indexComplete:status.complete,servingGeneration:status.servingGeneration,rosterFetchedAt:status.rosterFetchedAt,lastSuccessfulRefresh:status.lastSuccessfulRefresh,pendingSpeechRecoveries:status.pendingSpeechRecoveries?.count||0,catalogueYear:catalogue.year,catalogueYears:catalogue.years,catalogueStart:catalogue.start,catalogueComplete:catalogue.complete,latestAvailable:false,catalogue:catalogue.coverage,agendaComplete:false,agendaError:null,scope:'Known sitting dates; latest selection unavailable.',sources:catalogue.sources},
+        attribution:'European Parliament Open Data API v2, CC BY 4.0',limits:LEGISLATION_LIMITS};
+    }
     if(query.week) {
       const anchor=query.week==='latest'?requireLatestSitting(catalogue,brusselsDay(this.clock())):null;
       const week=query.week==='latest'?(anchor&&calendarMonday(anchor.activity_date)):query.week;

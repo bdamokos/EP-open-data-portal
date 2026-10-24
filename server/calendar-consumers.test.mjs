@@ -50,7 +50,7 @@ test('an unreadable newest year cannot silently move the default into older hist
  const request=async(endpoint,params={})=>{if(endpoint==='/meetings'&&params.year===2026)throw Error('Current year unavailable');return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:NOW,payload:{data:endpoint==='/meetings'?[meeting(params.year===2024?'2024-07-16':'2025-12-18')]:[]}};};
  const clock=()=>NOW,legislation=new LegislationInsights(store,{request,clock,loadMetadata:async()=>new Map()}),catalogue=await legislation.catalogue();
  assert.equal(catalogue.latestAvailable,false);assert.equal(catalogue.sittings.length,2);
- for(const query of [{language:'en'},{language:'en',week:'latest'}])await assert.rejects(legislation.query(query,catalogue),error=>error.status===503&&error.code==='sitting_calendar_unavailable');
+ for(const query of [{language:'en'},{language:'en',week:'latest'}]){const navigation=await legislation.query(query,catalogue);assert.equal(navigation.selectionUnavailable,true);assert.equal(navigation.sitting,null);assert.equal(navigation.sittings.length,2);assert.deepEqual(navigation.topics,[]);}
  await assert.rejects(participation(legislation,store,{language:'en'},{clock}),error=>error.status===503);
  const selected=await legislation.query({language:'en',sitting:'MTG-PL-2025-12-18'},catalogue);assert.equal(selected.sitting.id,'MTG-PL-2025-12-18');assert.equal(selected.coverage.latestAvailable,false);
  const week=await legislation.query({language:'en',week:'2025-12-15'},catalogue);assert.equal(week.week,'2025-12-15');
