@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {dossierAmendmentVotes,dossierHref,dossierTimeline,mergeDossierPage} from './dossierActivityModel.mjs';
+import {dossierAmendmentVotes,dossierVoteCards,dossierHref,dossierTimeline,mergeDossierPage} from './dossierActivityModel.mjs';
 import {dataTimeoutFor} from './client.mjs';
 import {readFile} from 'node:fs/promises';
 import {contrast,paintedBackground,themeCss,tokenValue} from './test-support/themeStyles.mjs';
@@ -176,7 +176,7 @@ test('collective decisions render once with a shared reference in All and Amendm
   const h=await harness(t,undefined,url=>url.searchParams.get('section')==='amendments'?Response.json(page('amendments','257727',[amendment,second])):null);
   await h.render(createElement(h.module.DossierActivity,{reference}));
   const count=()=>h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length;
-  assert.equal(count(),1);const link=[...h.container.querySelectorAll('a')].find(a=>a.textContent==='View the vote');assert(link);assert(h.container.querySelector(link.getAttribute('href')));
+  assert.equal(count(),1);assert.equal(h.container.querySelectorAll('.dossier-amendment .explorer-amendment-card header .explorer-amendment-outcome').length,0,'whole collective ballots suppress the duplicate outcome on own and shared-only cards');const link=[...h.container.querySelectorAll('a')].find(a=>a.textContent==='View the vote');assert(link);assert(h.container.querySelector(link.getAttribute('href')));
   await h.click('Amendments');assert.equal(count(),1);assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);
   await h.click('Votes');assert.equal(count(),1);assert.equal(h.container.querySelectorAll('[data-dossier-vote]').length,2);
 });
@@ -221,4 +221,31 @@ test('dossier vote bars and positions paint the shared vote tokens in both schem
       assert(contrast(position.color,paintedBackground(window,window.document.querySelector('.dossier-vote'),scheme))>=4.5);
     }finally{await window.happyDOM.close();}
   }
+});
+
+
+test('an adopted split-part ballot preserves the rejected overall amendment in both exact binding shapes',async t=>{
+  for(const componentOnly of [false,true])await t.test(componentOnly?'component ID only':'exact part decision ID',async t=>{
+    const split={...amendment,amendment:{...amendment.amendment,outcome:'REJECTED',splitParts:[{id:'exact-part-one',number:1,description:'First part'},{id:'exact-part-two',number:2,description:'Second part'}],decisions:[{id:componentOnly?'component-source-decision':agreement.id,partId:'exact-part-one',partNumber:1,outcome:'ADOPTED'},{id:'unloaded-part-two',partId:'exact-part-two',partNumber:2,outcome:'REJECTED'}]}};
+    const vote={...agreement,vote:{...agreement.vote,title:'Split part 1',context:{amendmentIds:[],componentIds:['exact-part-one']}}};
+    const h=await harness(t,undefined,url=>url.searchParams.get('section')==='amendments'?Response.json(page('amendments','257727',[split])):url.searchParams.get('section')==='votes'?Response.json(page('votes','257727',[vote])):null);
+    await h.render(createElement(h.module.DossierActivity,{reference}));
+    const card=h.container.querySelector('.dossier-amendment');
+    assert.equal(card.querySelector('.explorer-amendment-card header [data-outcome]').textContent,'Rejected');
+    assert.equal(card.querySelectorAll('[data-dossier-vote]').length,1);
+    assert.match(card.querySelector('.dossier-vote .member-votes-result-heading').textContent,/Adopted/);
+    assert.equal(card.querySelector('.explorer-amendment-voting').open,false,'overall result stays visible without opening split details');
+  });
+});
+
+test('component markers without indexed parts and incomplete split coverage retain the amendment outcome',()=>{
+  for(const extra of [{decisions:[{id:agreement.id,partNumber:1}]},{decisions:[{id:agreement.id,partId:'unindexed-part'}]},{decisions:[{id:agreement.id,componentBinding:'unverified'}]},{decisions:[{id:agreement.id,componentReferences:['exact-component']}]},{splitCoverageComplete:false},{splitCoverage:[{requestId:'exact-request'}]}]){
+    const split={...amendment,amendment:{...amendment.amendment,...extra}};
+    assert.equal(dossierVoteCards([split],[agreement]).get(split.id).showOutcome,true,JSON.stringify(extra));
+  }
+  const second={...amendment,id:'shared-only'};
+  const cards=dossierVoteCards([amendment,second],[agreement]);
+  assert.equal(cards.get(amendment.id).showOutcome,false);
+  assert.equal(cards.get(second.id).showOutcome,false);
+  assert.equal(cards.get(second.id).shared.length,1);
 });
