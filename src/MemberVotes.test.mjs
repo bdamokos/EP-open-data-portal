@@ -70,7 +70,17 @@ async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  t.mock.method(globalThis,'fetch',async(url,options)=>{if(String(url).includes('/api/vote-periods'))return Response.json(calendar);if(String(url).includes('/api/member-attendance/'))return attendanceHandler(url,options);calls.push(String(url));return handler(url,options,calls.length);});
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    if(String(url).includes('/api/vote-periods'))return Response.json(calendar);
+    // Attachment behavior has its own component tests. Keep these vote-reader
+    // fixtures and request assertions scoped to the member-votes contract.
+    if(String(url).includes('/api/member-vote-explanations/')){
+      const params=new URL(String(url),'http://localhost').searchParams,decisionId=params.get('decision');
+      return Response.json({version:2,memberId:String(MEMBER),decisionId,sittingId:decisionId.slice(0,17),snapshotId:params.get('snapshot'),subjectId:SUBJECT,matchScope:'subject',presentationAnchorDecisionId:null,items:[],written:{status:'unsupported',count:null},coverage:{status:'searched',searchComplete:true,gaps:[]}});
+    }
+    if(String(url).includes('/api/member-attendance/'))return attendanceHandler(url,options);
+    calls.push(String(url));return handler(url,options,calls.length);
+  });
   // The parent owns the hook's optional HTTP status field. Exercise that integration in memory
   // until it lands here; all other cases use the worktree's unmodified shared hook.
   const plugins=statusCompatibility?[{name:'member-votes-shared-status-contract',enforce:'pre',transform(source,id){
@@ -817,11 +827,8 @@ for(const [status,memberStatus,expected] of [
   const detail=visiblePane(h.container),attendance=detail.querySelector('.member-votes-attendance');
   assert.match(attendance.textContent,expected);assert.match(detail.querySelector('.member-votes-position').textContent,/No recorded position/);
   assert.equal(attendance.parentElement.className,'member-votes-strip');
-  assert.equal(attendance.querySelectorAll('details').length,1);
-  assert.match(attendance.textContent,/Rule 162.*Corrections can appear in later minutes/);
-  assert.match(attendance.textContent,/retrieved 2026-03-26T12:00:00Z/);
-  const link=[...attendance.querySelectorAll('a')].find(node=>node.textContent.includes('PDF, English'));
-  assert.equal(link.href,'https://data.europarl.europa.eu/distribution/doc/PV-10-2026-03-25-ATT_en.pdf');
+  assert.equal(attendance.querySelectorAll('details, a, time, code').length,0);
+  assert.doesNotMatch(attendance.textContent,/About the attendance register|Content hash|PDF issued/);
 });
 
 test('attendance starts only after valid votes settle and failures leave votes and pagination usable',async t=>{

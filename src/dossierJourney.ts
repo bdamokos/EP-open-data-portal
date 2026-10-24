@@ -108,7 +108,8 @@ export function useDossierJourney() {
           }
           const target=saved.focus?document.querySelector<HTMLElement>(saved.focus):null;target?.focus({preventScroll:true});
         }else{
-          const heading=document.querySelector<HTMLElement>('.insight-dossier-title h2')||document.querySelector<HTMLElement>('[data-dossier-reference] h3')||document.querySelector<HTMLElement>('main h1');
+          const person=new URLSearchParams(window.location.search).get('dossier-person');
+          const heading=(person?document.querySelector<HTMLElement>('[data-dossier-reference] h3'):null)||document.querySelector<HTMLElement>('.insight-dossier-title h2')||document.querySelector<HTMLElement>('[data-dossier-reference] h3')||document.querySelector<HTMLElement>('main h1');
           if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}
         }
         pending=null;destination=null;
