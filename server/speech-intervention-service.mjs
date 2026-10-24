@@ -1,3 +1,5 @@
+import {sourceAvailability} from './source-availability.mjs';
+import {brusselsDay} from './analysis-period.mjs';
 import {odp,speechSummary,speakerIdentities} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {interventionMetadata,buildInterventionSequence,speechId,speechPeople} from './speech-interventions.mjs';
@@ -94,7 +96,7 @@ export class SpeechInterventions {
         let record;
         if(saved) {
           state.corpusRevision=saved.revision;
-          state.latestDataDate=saved.coverage?.latestDataDate||null;
+          state.latestDataDate=saved.coverage?.latestDataDate||null;state.availability??=saved.coverage?.availability?.metadataSources||saved.coverage?.availability?.metadata||null;
           state.issues.add('retained-corpus');
           if(saved.truncated)state.issues.add('retained-byte-limit');
           const rows=saved.records.filter(row=>row.metadata);
@@ -121,7 +123,7 @@ export class SpeechInterventions {
     const sourceComplete=state.ended&&state.issues.size===0&&state.rows.size===state.total;
     const classificationsComplete=(metadata.length>0||sourceComplete)&&(!state.corpusMode||sourceComplete)&&!metadata.some(m=>['unclassified','blue-card'].includes(m.type));
     const observed=value=>(value>0||classificationsComplete)?value:null;
-    return {memberId:key,restarted,items:rows.map(row=>state.summaries.get(row.activity_id)||speechSummary(row)),counts:{groupOrations:state.corpusMode?observed(groupOrations.length):groupOrations.length,blueQuestions:observed(count('blue-card-question')+count('blue-card-intervention')),blueAnswers:observed(count('blue-card-answer')),blueReactions:observed(count('blue-card-reaction')),catchTheEye:count('catch-the-eye')||null},groups:[...new Set(groupOrations.flatMap(m=>m.onBehalfOf.filter(g=>g.politicalGroup).map(g=>g.id)))].map(id=>({id,label:groupLabelsFrom(metadata,id),count:groupOrations.filter(m=>m.onBehalfOf.some(g=>g.id===id)).length})),
+    return {memberId:key,restarted,availability:state.availability||sourceAvailability({sourceKey:'speech-metadata',family:'speeches',start:'2024-07-16',end:brusselsDay(this.clock()),limited:true,route:'public-api',observedRecords:rows.length,checkedAt:state.sources.map(source=>source.fetchedAt).filter(Boolean).sort().at(-1)}),items:rows.map(row=>state.summaries.get(row.activity_id)||speechSummary(row)),counts:{groupOrations:state.corpusMode?observed(groupOrations.length):groupOrations.length,blueQuestions:observed(count('blue-card-question')+count('blue-card-intervention')),blueAnswers:observed(count('blue-card-answer')),blueReactions:observed(count('blue-card-reaction')),catchTheEye:count('catch-the-eye')||null},groups:[...new Set(groupOrations.flatMap(m=>m.onBehalfOf.filter(g=>g.politicalGroup).map(g=>g.id)))].map(id=>({id,label:groupLabelsFrom(metadata,id),count:groupOrations.filter(m=>m.onBehalfOf.some(g=>g.id===id)).length})),
       coverage:{complete:sourceComplete&&classificationsComplete,available:state.rows.size,total:state.total,headers:metadata.filter(m=>m.headerAvailable).length,unclassified:count('unclassified')+count('blue-card'),issues:[...state.issues],latestDataDate:state.latestDataDate||null},
       nextPage:!state.ended&&state.page+1<INTERVENTION_LIMITS.memberPages?state.page+1:null,sources:state.sources};
   }

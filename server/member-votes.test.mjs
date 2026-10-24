@@ -50,7 +50,7 @@ function setup({decisions=[finalDecision],results,agenda=fixture.foreseen.payloa
 test('single-sitting collection exposes its bounded period and reuses source reads across members',async()=>{
   const {service,calls}=setup();
   const first=await service.query(MEMBER,query('sitting='+SITTING));
-  assert.equal(first.version,4);
+  assert.equal(first.version,6);
   assert.equal(first.period.sittingId,SITTING);
   assert.equal(first.period.from,'2026-10-07');
   assert.equal(first.period.to,'2026-10-07');
@@ -663,4 +663,15 @@ test('recordedTotal covers all observed decisions before position and alignment 
   // Collection failure is tested separately; the projection must withhold the count.
   unavailable.service.snapshot=async()=>({id:'a'.repeat(64),period:all.period,days:[],coverage:{status:'unavailable'}});
   assert.equal((await unavailable.service.query(MEMBER,query(`sitting=${SITTING}`))).pagination.recordedTotal,null);
+});
+
+test('held weeks crossing New Year read only years through Brussels today',async()=>{
+  for(const today of ['2025-12-30T12:00:00Z','2026-01-02T12:00:00Z']){
+    const now=Date.parse(today),{service,calls}=setup({clock:()=>now,meetings:[]});
+    const selected=memberVotesQuery(new URLSearchParams('week=2025-12-29'),{now});
+    const result=await service.query(MEMBER,selected);
+    assert.equal(result.period.from,'2025-12-29');assert.equal(result.period.to,'2026-01-04');
+    assert.equal(result.coverage.status,'complete');
+    assert.deepEqual(calls.filter(call=>call.endpoint==='/meetings').map(call=>call.params.year),today.startsWith('2025')?[2025]:[2025,2026]);
+  }
 });

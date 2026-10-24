@@ -7,7 +7,7 @@ async function harness(t,items=[member()],v2=false) {
  const window=new Window({url:'http://localhost/'}),globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  window.localStorage.setItem(v2?'ep.following.v2':'ep.bookmarks.v1',JSON.stringify({version:v2?2:1,items}));
- const requests=[],opened=[],waiting=[];let root,loadModule,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null;
+ const requests=[],opened=[],waiting=[];let root,loadModule,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null,statusGate=null;
  let status={epoch:'one',generation:5,marksReady:true,indexComplete:true,publishedAt:null};
  let ids=[['old',0,5]],entries=[],questionAnswers=[],membershipLists={incoming:{status:'fresh'},outgoing:{status:'fresh'}},invalidMembership=false;
  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
@@ -15,7 +15,10 @@ async function harness(t,items=[member()],v2=false) {
   const url=new URL(input,window.location.href),route=url.pathname.split('/').at(-1);requests.push({url,route,options});
   if(fail===route)return Response.json({error:{code:'fixture_failure',message:'Fixture unavailable'}},{status:503});
   if(conflict&&route==='following-manifest'){conflict--;return Response.json({error:{code:'generation_changed',message:'Changed'}},{status:409});}
-  if(route==='following-status')return Response.json(status);
+  if(route==='following-status'){
+   const response=Response.json(status),gate=statusGate;statusGate=null;
+   if(gate){gate.started();await gate.wait;}return response;
+  }
   if(route==='following-groups')return Response.json({epoch:status.epoch,generation:status.generation,members:{'42':{coverage:'complete',stale:false}},events:status.generation>=6?[{id:'42:group:2026-06-17:7035',mep:'42',type:'group-changed',date:'2026-06-17',mark:6,from:{org:'org/7038',groupId:'org/SD',code:'S&D'},to:{org:'org/7035',groupId:'org/RENEW',code:'Renew'}}]:[]});
   if(route==='following-membership')return Response.json({epoch:invalidMembership?'invalid':status.epoch,generation:status.generation,lists:membershipLists,members:{'42':{status:'former',roster:'absent',endDate:'2026-04-13'}},events:status.generation>=6?[{id:'42-m-1:end',mep:'42',type:'mandate-ended',subtype:null,date:'2026-04-13',mark:6}]:[]});
   if(route==='following-manifest')return Response.json({epoch:status.epoch,generation:status.generation,rosterBasis:'publication',indexComplete:true,members:Object.fromEntries([...items.filter(x=>x.kind==='mep'),member()].map(x=>[x.id,[status.generation,3,1,0]]))});
@@ -31,23 +34,186 @@ async function harness(t,items=[member()],v2=false) {
  });
  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {Saved}=await loadModule('/src/Saved.tsx'),controls=await loadModule('/src/SavedControls.tsx'),{createRoot}=await import('react-dom/client');
- // Control expiry deadlines after module loading; leave focus-refresh intervals alone.
+ // Control notification expiry and background-check deadlines after module loading.
  t.mock.timers.enable({apis:['setTimeout']});
  const tick=ms=>act(async()=>{t.mock.timers.tick(ms);});
  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
  function Checks({language}){controls.useSavedChecks(language);return null;}
- const render=(language='en',strict=false)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,harness.focusChecks&&createElement(Checks,{language}),createElement(controls.SavedNav,{onClick(){}}),createElement(Saved,{language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));
+ const render=(language='en',strict=false,following=true)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,(harness.focusChecks||!following)&&createElement(Checks,{language}),createElement(controls.SavedNav,{onClick(){}}),following&&createElement(Saved,{language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));
  const click=async(text,scope=container)=>{await act(async()=>{const button=[...scope.querySelectorAll('button')].find(x=>x.textContent===text);assert(button,'Missing '+text+' in '+scope.textContent);button.click();});await settle();};
  const check=()=>click('Check for updates');
  const background=(force=false,lang='en')=>act(async()=>{await controls.checkSaved(lang,force).catch(()=>{});});
  const holdNextDetail=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);memberGate={started,wait};return {ready,release};};
- return {tick,setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:route=>fail=route,conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
+ const holdNextStatus=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);statusGate={started,wait};return {ready,release};};
+ return {tick,setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,holdNextStatus,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:route=>fail=route,conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
 }
 const cards=h=>[...h.container.querySelectorAll('.explorer-saved-items>article')];
 const rows=card=>[...card.querySelectorAll('.explorer-saved-disclosure')];
 const dispatch=async(h,node,extra={},type='click')=>{const event=new h.window.MouseEvent(type,{bubbles:true,cancelable:true,button:0,...extra});await act(async()=>node.dispatchEvent(event));return event;};
 const speech={id:'late',title:'Late speech',titleLanguage:'fr',date:'2026-01-01',kind:'activity',recordKind:'speech',category:'plenary-contributions',mark:6};
 async function newSpeech(h){await h.render('en',true);await h.check();h.setStatus({generation:6});h.setDetail([['old',0,5],['late',0,6]],[speech]);await h.check();await settle();}
+
+test('navigation checks before Following opens, then waits four hours for a prepared snapshot',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}}),member({id:'43',seen:{activity:5,answer:3}}),{kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:1,baseline:{revision:'one',answerIds:[]},current:{revision:'one',answerIds:[]}}],true);
+ h.setStatus({epoch:'11111111-1111-1111-1111-111111111111',membershipReady:true,groupsReady:true});
+ await h.render('en',true,false);await settle();
+ assert.equal(h.container.textContent,'Following','total follows are not a notification');
+ assert(h.requests.some(x=>x.route==='following-manifest'));
+ assert(!h.requests.some(x=>x.route==='following-member'),'badge checks need no activity details');
+ h.setStatus({generation:6});h.setQuestionAnswers([{id:'new-answer'}]);
+ const initial=h.requests.filter(x=>x.route==='following-status').length;
+ now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,initial,'prepared data is not polled every minute');
+ now+=4*60*60_000-60_000;await h.tick(4*60*60_000-60_000);await settle();
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'3 new');
+ assert.equal(h.container.querySelector('.explorer-saved-count').title,'3 followed items have new updates');
+ assert(!h.container.querySelector('.explorer-saved-view'));
+ assert(!h.requests.some(x=>x.route==='following-member'),'multiple marker kinds still count each MEP once');
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count,'focus shares the polling throttle');
+ await h.clear();now+=4*60*60_000;await h.tick(4*60*60_000);
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count,'unmount cleans up polling');
+});
+test('background polling waits while hidden and refreshes on returning without opening Following',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ await h.render('en',false,false);await settle();
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
+ h.setStatus({generation:6});now+=4*60*60_000;await h.tick(4*60*60_000);
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
+ Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
+ await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ assert.equal(h.container.querySelector('.explorer-saved-count').title,'1 followed item has new updates');
+});
+test('unprepared data retries until ready and then backs off; a failed manifest retries sooner',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ h.setStatus({marksReady:false});await h.render('en',false,false);await settle();
+ assert(!h.requests.some(x=>x.route==='following-manifest'));
+ h.setStatus({marksReady:true,generation:6});h.fail('following-manifest');
+ now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.controls.savedStore.snapshot().checkState,'error');
+ h.fail('');now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.controls.savedStore.snapshot().checkState,'available');
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
+});
+test('a manual failure replaces the prepared deadline with a one-minute retry',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ await h.render('en',false,false);await settle();
+ now+=120_000;h.fail('following-status');await h.background(true);
+ assert.equal(h.controls.savedStore.snapshot().checkState,'error');
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ h.fail('');h.setStatus({generation:6});now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count+1);
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+});
+test('question-only status failures retry after one minute despite a cached prepared status',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[{kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:1,baseline:{revision:'one',answerIds:[]},current:{revision:'one',answerIds:[]}}],true);
+ await h.render('en',false,false);await settle();h.fail('following-status');
+ now+=4*60*60_000;await h.tick(4*60*60_000);await settle();
+ assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ h.fail('');h.setStatus({generation:6});h.setQuestionAnswers([{id:'new-answer'}]);
+ now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count+1);
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+});
+test('membership and group snapshots must be prepared before checks back off',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ h.setStatus({epoch:'11111111-1111-1111-1111-111111111111',membershipReady:false,groupsReady:false});
+ await h.render('en',false,false);await settle();
+ h.setStatus({membershipReady:true});now+=60_000;await h.tick(60_000);await settle();
+ assert(h.requests.some(x=>x.route==='following-membership'));
+ assert(!h.requests.some(x=>x.route==='following-groups'));
+ h.setStatus({groupsReady:true});now+=60_000;await h.tick(60_000);await settle();
+ assert(h.requests.some(x=>x.route==='following-groups'));
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
+});
+test('hidden follow and language changes receive their pending initial check on visibility',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ await h.render('en',false,false);await settle();
+ Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
+ const stored=JSON.parse(h.window.localStorage.getItem('ep.following.v2'));
+ stored.items.push({kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:2});
+ await act(async()=>{
+   h.window.localStorage.setItem('ep.following.v2',JSON.stringify(stored));
+   h.window.dispatchEvent(new h.window.StorageEvent('storage',{key:'ep.following.v2'}));
+ });
+ await h.render('fr',false,false);now+=120_000;await h.tick(120_000);
+ assert(!h.requests.some(x=>x.route==='saved'),'no hidden request');
+ Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
+ await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
+ const questions=h.requests.filter(x=>x.route==='saved');assert.equal(questions.length,1);
+ assert.equal(questions[0].url.searchParams.get('lang'),'fr');
+ assert.deepEqual(JSON.parse(questions[0].options.body).questions,['E-10-2026-003031']);
+ assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');
+});
+test('an in-flight check cannot launch the changed selection while the tab is hidden',async t=>{
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true),gate=h.holdNextStatus();
+ await h.render('en',false,false);await gate.ready;
+ Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
+ const stored=JSON.parse(h.window.localStorage.getItem('ep.following.v2'));
+ stored.items.push({kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:2});
+ await act(async()=>{
+   h.window.localStorage.setItem('ep.following.v2',JSON.stringify(stored));
+   h.window.dispatchEvent(new h.window.StorageEvent('storage',{key:'ep.following.v2'}));
+ });
+ await act(async()=>gate.release());await settle();
+ assert(!h.requests.some(x=>x.route==='saved'),'in-flight completion must defer the new question');
+ Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
+ await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
+ assert.equal(h.requests.filter(x=>x.route==='saved').length,1);
+ assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');
+});
+test('a visible selection change that joined another check stays pending through hiding',async t=>{
+ const question=id=>({kind:'question',id,title:id,savedAt:id.endsWith('1')?1:2});
+ const h=await harness(t,[question('E-10-2026-003031')],true),gate=h.holdNextStatus();
+ await h.render('en',false,false);await gate.ready;
+ await act(async()=>h.controls.savedStore.toggle(question('E-10-2026-003032')));
+ Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
+ await act(async()=>gate.release());await settle();
+ const bodies=()=>h.requests.filter(x=>x.route==='saved').map(x=>JSON.parse(x.options.body).questions);
+ assert.deepEqual(bodies(),[['E-10-2026-003031']]);
+ Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
+ await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
+ assert.deepEqual(bodies().at(-1),['E-10-2026-003031','E-10-2026-003032']);
+ assert.equal(h.controls.savedStore.snapshot().items[1].availability,'available');
+});
+test('a queued language change waits for visibility before starting its request',async t=>{
+ const h=await harness(t,[{kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:1}],true),gate=h.holdNextStatus();
+ await h.render('en',false,false);await gate.ready;await h.render('fr',false,false);
+ Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
+ await act(async()=>gate.release());await settle();
+ const languages=()=>h.requests.filter(x=>x.route==='saved').map(x=>x.url.searchParams.get('lang'));
+ assert.deepEqual(languages(),['en']);
+ Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
+ await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
+ assert.deepEqual(languages(),['en','fr']);
+});
+test('failed initial checks and follows without a save timestamp retain the normal deadlines',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({savedAt:undefined,seen:{activity:5,answer:3}})],true);
+ h.fail('following-status');await h.render('en',false,false);await settle();
+ const count=()=>h.requests.filter(x=>x.route==='following-status').length;
+ assert.equal(count(),1);now+=1000;await h.tick(1000);await settle();assert.equal(count(),1);
+ h.fail('');now+=59_000;await h.tick(59_000);await settle();assert.equal(count(),2);
+ const manifests=h.requests.filter(x=>x.route==='following-manifest').length;
+ now+=1000;await h.tick(1000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-manifest').length,manifests);
+});
 
 test('visible Following auto-resolves; inline read leaves the other MEP new and leaving acknowledges nothing',async t=>{
  const h=await harness(t,[member(),member({id:'43',title:'Second member'})]);await newSpeech(h);
@@ -152,7 +318,7 @@ test('a second manifest advance surfaces the opening error instead of silently c
 });
 
 test('focus checks status at most once per minute; failed tasks retry without a generation change',async t=>{
- harness.focusChecks=true;t.after(()=>harness.focusChecks=false);const h=await harness(t,[member({baseline})]);await h.render();h.fail('following-member');await h.background();
+ harness.focusChecks=true;t.after(()=>harness.focusChecks=false);const h=await harness(t,[member({baseline})]);h.fail('following-member');await h.render();await h.background();
  let now=Date.now();t.mock.method(Date,'now',()=>now);const count=()=>h.requests.filter(x=>x.route==='following-status').length,initial=count();
  await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));assert.equal(count(),initial);
  now+=60_001;h.fail('');await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));assert.equal(count(),initial+1);assert(!h.item().legacy);

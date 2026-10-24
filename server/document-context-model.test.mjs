@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resolveDocumentTarget} from './document-context-model.mjs';
+import {amendmentOperation,DELETION_MARKERS,resolveAmendmentPlacement,segmentMotionUnits,resolveDocumentTarget} from './document-context-model.mjs';
 
 function document(paragraphs, overrides = {}) {
   const {sources = {}, ...fields} = overrides;
@@ -306,4 +306,345 @@ test('English reference grammar is not silently applied to another or unknown so
   assert.equal(resolveDocumentTarget(text, {targetLabel: 'Recital D', language: 'fr'}).reason, 'reference_language_unsupported');
   assert.equal(resolveDocumentTarget(text, {targetLabel: 'Recital D'}).reason, 'reference_language_unsupported');
   assert.deepEqual(resolveDocumentTarget(text, {originalText: 'D. exact source text;', language: 'fr'}), found([0]));
+});
+
+
+const motion = paragraphs => document(['Cover', 'The European Parliament,', '– having regard to public sources,', ...paragraphs], {textLanguage:'en'});
+const placement = (text, options) => resolveAmendmentPlacement(text, {language:'en', ...options});
+test('units retain complete extents, parents, citations, headings and suffixed recital identities', () => {
+  const units=segmentMotionUnits(motion(['A. whereas first;', 'Ba. whereas inserted;', 'AO. whereas last;', 'OPERATIVE SECTION', '19. Main provision:', '(a) first point', 'continued point', '(b) second point', '20. Next provision;']), 'en');
+  assert.deepEqual(units.find(unit=>unit.label==='19'), {kind:'paragraph',label:'19',parent:6,start:7,end:10,level:1});
+  assert.equal(units.find(unit=>unit.label==='a').parent,7);
+  assert.equal(units.find(unit=>unit.label==='a').end,9);
+  assert.deepEqual(units.filter(unit=>unit.kind==='recital').map(unit=>unit.label),['A','Ba','AO']);
+  assert.equal(units[0].kind,'citation');
+});
+test('paragraph 19a inserts after paragraph 19 and all of its points, before 20', () => {
+  const text=motion(['19. Main provision:', '(a) first point', 'continuation', '(b) second point', '20. Next provision;']);
+  const result=placement(text,{originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',referenceText:'After § 19'});
+  assert.equal(result.operation,'insert');assert.equal(result.status,'placed');
+  assert.equal(result.insertAfter,6);assert.equal(result.insertBefore,7);assert.equal(text.paragraphs[result.insertBefore],'20. Next provision;');
+  assert.deepEqual(result.evidence.map(item=>item.basis),['published-reference','relative-reference']);
+});
+test('recital insertion and highest existing suffixed sibling keep source order', () => {
+  const text=motion(['A. whereas first;', 'B. whereas second;', 'Ba. whereas existing suffix;', 'C. whereas next;']);
+  const result=placement(text,{originalText:'',proposedText:'Bb. whereas new;',targetLabel:'Recital B b (new)',referenceText:'After recital B'});
+  assert.equal(result.status,'placed');assert.equal(result.insertAfter,5);assert.equal(result.insertBefore,6);
+});
+test('replace and delete cross-check the full multi-paragraph provision', () => {
+  const text=motion(['19. Opening provision', 'continues in a second source paragraph;', '20. Next;']);
+  for(const proposedText of ['19. New provision;', '', 'deleted']) {
+    const result=placement(text,{originalText:'19.  Opening provision\ncontinues in a second source paragraph;',proposedText,targetLabel:'Paragraph 19'});
+    assert.equal(result.status,'placed');assert.deepEqual(result.span,{start:3,end:4});
+    assert.equal(result.operation,proposedText==='19. New provision;'?'replace':'delete');
+  }
+});
+test('whole-cell localized deletion markers do not turn ordinary prose into a deletion', () => {
+  for(const marker of DELETION_MARKERS)assert.equal(amendmentOperation({originalText:'Source text',proposedText:' '+marker.toUpperCase()+' '}),'delete',marker);
+  assert.equal(amendmentOperation({originalText:'Source text',proposedText:'The word deleted occurs in this sentence.'}),'replace');
+  assert.equal(amendmentOperation({originalText:null,proposedText:'New'}),null);
+});
+test('CBAM amendment 7 is deletion despite a nested new provision; proposal baseline is unavailable', async () => {
+  const {readFile}=await import('node:fs/promises');
+  const fixtures=JSON.parse(await readFile(new URL('./fixtures/amendment-docx-excerpts-20261016.json',import.meta.url),'utf8'));
+  const am=fixtures.documents.find(doc=>doc.targetDocumentId==='A-10-2025-0085').expected.find(am=>am.number===7);
+  const result=placement(motion(['1. Unrelated report paragraph;']),am);
+  assert.equal(result.operation,'delete');assert.equal(result.status,'unresolved');assert.equal(result.reason,'baseline_unavailable');
+  assert.equal(placement(motion(['1. First;']),{originalText:'',proposedText:'Article 1a',targetLabel:'Article 1 a (new)'}).reason,'baseline_unavailable');
+});
+test('label/quote disagreement, repeated labels and insertion/relative conflicts stay unresolved', () => {
+  const text=motion(['19. Actual text;', '20. Other text;']);
+  assert.equal(placement(text,{originalText:'20. Other text;',proposedText:'New',targetLabel:'Paragraph 19'}).reason,'conflicting_target_evidence');
+  assert.equal(placement(text,{originalText:'',proposedText:'New',targetLabel:'Paragraph 19 a (new)',referenceText:'After § 20'}).reason,'conflicting_target_evidence');
+  const duplicate=motion(['19. Actual;', '19a. Existing;', '20. Next;']);
+  assert.equal(placement(duplicate,{originalText:'',proposedText:'New',targetLabel:'Paragraph 19 a (new)'}).reason,'duplicate_target_label');
+  const repeated=motion(['19. Actual;', '19. Actual;', '20. Next;']);
+  assert.equal(placement(repeated,{originalText:'19. Actual;',proposedText:'New',targetLabel:'Paragraph 19'}).reason,'multiple_published_targets');
+});
+test('placement quotation fallback stays bounded, unique, in the resolution and in the wording language', () => {
+  const text=motion(['19. Complete text;', '20. Next;']);
+  assert.equal(placement(text,{originalText:'19. Complete text;',proposedText:'New',targetLabel:'Unsupported location'}).status,'placed');
+  assert.equal(placement(text,{originalText:'Cover',proposedText:'New'}).reason,'target_not_found');
+  assert.equal(placement(text,{originalText:'19. Complete text;',proposedText:'New',language:'fr'}).reason,'different_text_languages');
+  assert.equal(placement(text,{originalText:'19. Complete text;',proposedText:'x'.repeat(65537)}).reason,'matching_budget');
+  assert.equal(placement(document(['19. Complete text;']),{originalText:'19. Complete text;',proposedText:'New'}).reason,'baseline_unavailable');
+  text.paragraphSources[3].complete=false;
+  assert.equal(placement(text,{originalText:'19. Complete text;',proposedText:'New',targetLabel:'Paragraph 19'}).reason,'source_passage_incomplete');
+});
+
+for(const [kind,base,labels,next] of [
+  ['Paragraph','19',['19. First;', '19b. Earlier sibling;', '19aa. Later sibling;', '20. Next;'],'20. Next;'],
+  ['Recital','B',['B. whereas first;', 'Bb. whereas earlier sibling;', 'Baa. whereas later sibling;', 'C. whereas next;'],'C. whereas next;'],
+])test(`${kind} insertion anchors to the last source sibling when suffix lengths differ`,()=>{
+  const text=motion(labels),result=placement(text,{originalText:'',proposedText:'New provision;',targetLabel:kind+' '+base+' c (new)'});
+  assert.equal(result.status,'placed');assert.equal(result.insertAfter,5);assert.equal(result.insertBefore,6);
+  assert.equal(text.paragraphs[result.insertBefore],next);
+  assert.equal(result.evidence[0].anchor,base+'aa');
+});
+
+
+test('dash items and unlabelled prose retain a certain paragraph extent', () => {
+  const text=motion(['19. Calls for:', '– first item;', '– SECOND ITEM', 'a continuation:', 'further details;', '20. Next;']);
+  const unit=segmentMotionUnits(text,'en').find(unit=>unit.label==='19');
+  assert.equal(unit.end,7);
+  const result=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
+  assert.equal(result.status,'placed');assert.equal(result.insertBefore,8);
+});
+test('a short uppercase colon row is uncertain rather than an assumed continuation',()=>{
+  const text=motion(['19. First;', 'FURTHER ACTION:', '– item;', '20. Next;']);
+  assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,3);
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'resolution_extent_uncertain');
+});
+test('a lowercase colon continuation retains its following dash items',()=>{
+  const text=motion(['19. First;', 'further action:', '– item;', '20. Next;']);
+  assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,5);
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).status,'placed');
+});
+test('table labels cannot create a body identity or retain the preceding scope',()=>{
+  const text=motion(['19. Main:', '99. Quoted table text;', '(a) body point;', '20. Next;']);
+  Object.assign(text.paragraphSources[4],{container:'table-cell',containerPath:'table/cell',segment:1});
+  const units=segmentMotionUnits(text,'en');
+  assert(!units.some(unit=>unit.label==='99'||unit.kind==='point'));
+  for(const number of [19,99])assert.equal(placement(text,{originalText:'(a) body point;',proposedText:'Changed;',targetLabel:`Paragraph ${number} point a`}).status,'unresolved');
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'source_passage_incomplete');
+});
+for(const change of ['ordinal','segment','containerPath','complete'])test(`source ${change} break resets parent scope and prevents orphan point placement`,()=>{
+  const text=motion(['19. Main:', 'continuation;', '(a) body point;', '20. Next;']);
+  if(change==='ordinal')for(let i=4;i<text.paragraphSources.length;i++)text.paragraphSources[i].ordinal++;
+  else text.paragraphSources[4][change]=change==='complete'?false:'different';
+  assert(!segmentMotionUnits(text,'en').some(unit=>unit.kind==='point'));
+  assert.equal(placement(text,{originalText:'(a) body point;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).status,'unresolved');
+});
+test('a locally complete child cannot be addressed when its ancestor subtree breaks later',()=>{
+  const text=motion(['19. Main:', '(a) first;', '(b) second;', 'broken continuation;', '20. Next;']);
+  text.paragraphSources[6].complete=false;
+  assert.equal(placement(text,{originalText:'(a) first;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).reason,'source_passage_incomplete');
+});
+for(const heading of ['Annex','ANNEX','ANNEX II','EXPLANATORY STATEMENT','Signature','Notes'])test(`explicit ${heading} boundary caps the last provision before subsequent material`,()=>{
+  const text=motion(['19. Final provision;',heading,'1. Annex text;']);
+  const units=segmentMotionUnits(text,'en');assert.equal(units.find(unit=>unit.label==='19').end,3);assert(!units.some(unit=>unit.kind==='paragraph'&&unit.label==='1'));
+  const result=placement(text,{originalText:'',proposedText:'19a. New;',targetLabel:'Paragraph 19 a (new)'});
+  assert.equal(result.status,'placed');assert.equal(result.insertAfter,3);assert.equal(result.insertBefore,4);
+  assert.equal(placement(text,{originalText:'19. Final provision;',proposedText:'Changed;',targetLabel:'Paragraph 19'}).status,'placed');
+  assert.equal(placement(text,{originalText:'1. Annex text;',proposedText:'Changed;'}).status,'unresolved');
+});
+test('a final insertion requires an explicit resolution end, while an interior insertion does not',()=>{
+  const options={originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'};
+  assert.equal(placement(motion(['19. Final;']),options).reason,'resolution_end_unavailable');
+  assert.equal(placement(motion(['19. Final;', 'Ordinary continuation mentioning an annex.']),options).reason,'resolution_end_unavailable');
+  assert.equal(placement(motion(['19. First;', '20. Next;']),options).status,'placed');
+});
+
+
+test('standalone annex headings cap resolution bodies in all 24 supported languages',()=>{
+  const labels=[
+    ['bg','Европейският парламент','ПРИЛОЖЕНИЕ'],['es','El Parlamento Europeo','ANEXO'],['cs','Evropský parlament','PŘÍLOHA'],['da','Europa-Parlamentet','BILAG'],
+    ['de','Das Europäische Parlament','ANLAGE'],['et','Euroopa Parlament','LISA'],['el','Το Ευρωπαϊκό Κοινοβούλιο','ΠΑΡΑΡΤΗΜΑ'],['en','The European Parliament','ANNEX'],
+    ['fr','Le Parlement européen','ANNEXE'],['ga','Parlaimint na hEorpa','IARSCRÍBHINN'],['hr','Europski parlament','PRILOG'],['it','Il Parlamento europeo','ALLEGATO'],
+    ['lv','Eiropas Parlaments','PIELIKUMS'],['lt','Europos Parlamentas','PRIEDAS'],['hu','Az Európai Parlament','MELLÉKLET'],['mt','Il-Parlament Ewropew','ANNESS'],
+    ['nl','Het Europees Parlement','BIJLAGE'],['pl','Parlament Europejski','ZAŁĄCZNIK'],['pt','O Parlamento Europeu','ANEXO'],['ro','Parlamentul European','ANEXĂ'],
+    ['sk','Európsky parlament','PRÍLOHA'],['sl','Evropski parlament','PRILOGA'],['fi','Euroopan parlamentti','LIITE'],['sv','Europaparlamentet','BILAGA'],
+  ];
+  for(const [language,opening,annex] of labels) {
+    const text=document([opening+',','1. Source body;',annex+' I','2. Outside the resolution;'],{textLanguage:language});
+    assert.equal(segmentMotionUnits(text,language).at(-1).end,1,language);
+    assert.equal(placement(text,{originalText:'2. Outside the resolution;',proposedText:'Changed;',language}).status,'unresolved',language);
+  }
+});
+
+
+test('uppercase dash items without a colon introduction are still paragraph continuations',()=>{
+  const text=motion(['19. Main provision;', '– FIRST ITEM', '– SECOND ITEM', '20. Next;']);
+  assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,5);
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).insertBefore,6);
+});
+test('a missing ordinal resets scope without disabling an independent complete paragraph',()=>{
+  const text=motion(['19. Main;', '20. Independent;']);text.paragraphSources[4].ordinal++;
+  assert.equal(placement(text,{originalText:'20. Independent;',proposedText:'Changed;',targetLabel:'Paragraph 20'}).status,'placed');
+});
+
+
+for (const heading of ['Annex I: Technical requirements', 'ANNEX – Technical requirements', 'Annex: Technical requirements', 'Annex 2 — Technical requirements']) {
+  test(`titled ${heading} ends paragraph 19 before annex numbering or quoted prose`, () => {
+    const text=motion(['19. Final provision;',heading,'1. Annex provision;','Quoted annex prose.']);
+    const units=segmentMotionUnits(text,'en');
+    assert.equal(units.find(unit=>unit.label==='19').end,3);
+    assert(!units.some(unit=>unit.start>=4));
+    const inserted=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
+    assert.equal(inserted.status,'placed');assert.equal(inserted.insertBefore,4);
+    assert.equal(placement(text,{originalText:'Quoted annex prose.',proposedText:'Changed;'}).reason,'target_not_found');
+    assert.equal(placement(text,{originalText:'1. Annex provision;',proposedText:'Changed;',targetLabel:'Paragraph 1'}).reason,'target_not_found');
+  });
+}
+
+for (const heading of ['FOLLOW-UP','FOLLOW-UP:','FOLLOW-UP.','Follow-Up','Follow-up','Further Action','Follow-up:','Further action:','Follow-up.','Further action;']) {
+  test(`${heading} closes a dash list and withholds paragraph 19 despite later 20`, () => {
+    const text=motion(['19. Calls for:', '– first item;', '– second item;', heading, 'follow-up prose;', '20. Independent;']);
+    const options={originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'};
+    assert.equal(placement(text,options).reason,'resolution_extent_uncertain');
+    const source='19. Calls for: – first item; – second item;';
+    for (const proposedText of ['Changed;', '', 'deleted']) {
+      assert.equal(placement(text,{originalText:source,proposedText,targetLabel:'Paragraph 19'}).reason,'resolution_extent_uncertain');
+      assert.equal(placement(text,{originalText:'– first item;',proposedText}).reason,'resolution_extent_uncertain');
+    }
+    assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,5);
+    assert(!segmentMotionUnits(text,'en').some(unit=>unit.kind==='point'));
+    assert.equal(placement(text,{originalText:heading,proposedText:'Changed;'}).reason,'target_not_found');
+    assert.equal(placement(text,{originalText:'follow-up prose;',proposedText:'Changed;'}).reason,'target_not_found');
+    assert.equal(placement(text,{originalText:'20. Independent;',proposedText:'Changed;',targetLabel:'Paragraph 20'}).status,'placed');
+    assert.equal(placement(motion(['19. Main;',heading]),options).reason,'resolution_extent_uncertain');
+  });
+}
+
+for (const heading of ['Further action and monitoring.', 'Follow-up actions and recommendations;']) {
+  test(`recorded headings close provision scope at every level: ${heading}`, () => {
+    for (let level=1;level<=6;level++) {
+      const text=motion(['19. Calls for:', '(a) first point;', '– first item;', heading, 'follow-up prose;', '(b) orphan point;', '20. Next;']);
+      text.paragraphFormats=text.paragraphs.map((_,index)=>index===6?{heading:level}:{});
+      const before=structuredClone(text),units=segmentMotionUnits(text,'en');
+      assert.deepEqual(units.find(unit=>unit.label==='19'),{kind:'paragraph',label:'19',parent:null,start:3,end:5,level:1});
+      assert.equal(units.find(unit=>unit.kind==='heading').start,6);
+      assert(!units.some(unit=>unit.kind==='point'&&unit.label==='b'));
+      assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'resolution_extent_uncertain');
+      for (const proposedText of ['Changed;', '', 'deleted']) {
+        assert.equal(placement(text,{originalText:'19. Calls for: (a) first point; – first item;',proposedText,targetLabel:'Paragraph 19'}).reason,'resolution_extent_uncertain');
+        assert.equal(placement(text,{originalText:'(a) first point;',proposedText,targetLabel:'Paragraph 19 point a'}).reason,'resolution_extent_uncertain');
+        assert.equal(placement(text,{originalText:'– first item;',proposedText}).reason,'resolution_extent_uncertain');
+        for (const originalText of [heading,'follow-up prose;','(b) orphan point;',heading+' follow-up prose;']) {
+          assert.equal(placement(text,{originalText,proposedText}).reason,'target_not_found');
+        }
+      }
+      assert.deepEqual(placement(text,{originalText:'20. Next;',proposedText:'Changed;',targetLabel:'Paragraph 20'}).span,{start:9,end:9});
+      assert.deepEqual(text,before,'segmentation retains source indexes, text and formatting');
+    }
+  });
+}
+
+test('recorded headings retain explicit numbered provision and point identities', () => {
+  const text=motion(['A. whereas first;', 'B. whereas next;', '19. Calls for:', '(a) first point;', '– first item;', '20. Next;']);
+  text.paragraphFormats=text.paragraphs.map((_,index)=>index>=3&&index!==7?{heading:2}:{});
+  const options={originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'};
+  assert.equal(placement(text,options).status,'placed');assert.equal(placement(text,options).insertAfter,7);
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Recital A a (new)'}).insertAfter,3);
+  assert.equal(placement(text,{originalText:'(a) first point; – first item;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).status,'placed');
+});
+
+test('an ambiguous heading withholds an earlier point through its paragraph extent', () => {
+  const text=motion(['19. Calls for:', '(a) first point;', '(b) last point;', 'FOLLOW-UP', '(c) orphan point;', '20. Next;']);
+  assert.equal(placement(text,{originalText:'(a) first point;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).reason,'resolution_extent_uncertain');
+  assert(!segmentMotionUnits(text,'en').some(unit=>unit.kind==='point'&&unit.label==='c'));
+});
+
+test('ordinary punctuated prose mentioning annexes remains within its provision', () => {
+  const text=motion(['19. Main;', 'Annex I sets out technical requirements.', 'The explanatory statement explains the purpose;', '20. Next;']);
+  const result=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
+  assert.equal(result.status,'placed');assert.equal(result.insertBefore,6);
+});
+
+test('an incomplete explicit end still prevents units or quotes after it', () => {
+  const text=motion(['19. Main;', 'Annex I: Technical requirements', '20. Outside;']);
+  text.paragraphSources[4].complete=false;
+  assert(!segmentMotionUnits(text,'en').some(unit=>unit.label==='20'));
+  assert.equal(placement(text,{originalText:'20. Outside;',proposedText:'Changed;'}).reason,'target_not_found');
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'source_passage_incomplete');
+});
+
+test('public RC-0441 AM 2 and B-0424 AM 31 retain their published placements', async () => {
+  const {readFile}=await import('node:fs/promises');
+  const fixtures=JSON.parse(await readFile(new URL('./fixtures/amendment-placement-excerpts.json',import.meta.url),'utf8'));
+  for (const sample of fixtures) {
+    const text=document(sample.paragraphs,{textLanguage:'en'}), result=placement(text,sample.amendment);
+    assert.equal(result.status,'placed',sample.documentId);
+    if (sample.documentId.startsWith('RC-')) {
+      assert.equal(text.paragraphs[result.insertAfter],sample.paragraphs[1]);
+      assert.equal(text.paragraphs[result.insertBefore],sample.paragraphs[2]);
+      assert.equal(result.insertAfter,1);assert.equal(result.insertBefore,2);
+    } else assert.deepEqual(result.span,{start:1,end:1});
+  }
+});
+
+
+// Exact headings from the public DOCX language versions of A-10-2025-0076.
+// Source URLs and spelling (including Latvian/Lithuanian title delimiters) are
+// retained in the fixture; the short bodies below isolate boundary behavior.
+test('all 24 localized explanatory and titled annex headings end the resolution', async () => {
+  const {readFile}=await import('node:fs/promises');
+  const samples=JSON.parse(await readFile(new URL('./fixtures/resolution-end-headings.json',import.meta.url),'utf8'));
+  assert.equal(new Set(samples.map(sample=>sample.language)).size,24);
+  for (const sample of samples) {
+    const {language,opening,annex,explanatoryStatement,titledAnnex}=sample;
+    for (const heading of [explanatoryStatement,titledAnnex,annex+' I: Technical requirements',annex+' – Technical requirements']) {
+      const paragraphs=[opening+',','19. Final provision;',heading,'Quoted outside prose.','1. Outside provision;'];
+      const text=document(paragraphs,{textLanguage:language});
+      const units=segmentMotionUnits(text,language);
+      assert.equal(units.find(unit=>unit.label==='19').end,1,language+' / '+heading);
+      assert(!units.some(unit=>unit.start>=2),language+' / '+heading);
+      for (const proposedText of ['Changed;', '', 'deleted']) {
+        assert.equal(placement(text,{originalText:'Quoted outside prose.',proposedText,language}).reason,'target_not_found',language+' / '+heading);
+        assert.equal(placement(text,{originalText:'1. Outside provision;',proposedText,language}).reason,'target_not_found',language+' / '+heading);
+      }
+      // Repeated prose after the end must not compete with a resolution quote.
+      const inside=document([opening+',','19. Same wording;',heading,'19. Same wording;'],{textLanguage:language});
+      const replaced=placement(inside,{originalText:'19. Same wording;',proposedText:'Changed;',language});
+      assert.equal(replaced.status,'placed',language+' / '+heading);assert.deepEqual(replaced.span,{start:1,end:1});
+    }
+  }
+});
+
+for (const [language,opening,heading] of [
+  ['fr','Le Parlement européen','EXPOSÉ DES MOTIFS'],
+  ['de','Das Europäische Parlament','BEGRÜNDUNG'],
+  ['hu','Az Európai Parlament','INDOKOLÁS'],
+]) test(`${heading} prose cannot quote-match back into the resolution`, () => {
+  const text=document([opening+',','19. Last provision;',heading,'This prose is outside the resolution.'],{textLanguage:language});
+  assert.equal(placement(text,{originalText:'This prose is outside the resolution.',proposedText:'Changed;',language}).reason,'target_not_found');
+});
+
+
+// Published amendment justification headings:
+// https://www.europarl.europa.eu/doceo/document/A-7-2013-0414_BG.pdf
+// https://www.europarl.europa.eu/doceo/document/A-10-2026-0040-AM-004-006_GA.pdf
+for (const [language,opening,heading] of [
+  ['bg','Европейският парламент','Обосновка'],
+  ['ga','Parlaimint na hEorpa','Réasúnú'],
+]) test(`localized ${heading} justification ends the resolution`, () => {
+  const text=document([opening+',','19. Last provision;',heading,'Quoted justification prose.'],{textLanguage:language});
+  assert.equal(segmentMotionUnits(text,language).at(-1).end,1);
+  assert.equal(placement(text,{originalText:'Quoted justification prose.',proposedText:'Changed;',language}).reason,'target_not_found');
+});
+
+
+test('an unclassified annex-like boundary cannot lend its later units to the resolution', () => {
+  const text=motion(['19. Final provision;','ANNEX I Technical requirements','1. Annex provision;']);
+  assert.equal(placement(text,{originalText:'1. Annex provision;',proposedText:'Changed;'}).reason,'target_not_found');
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'resolution_extent_uncertain');
+});
+
+test('unknown baselines require verified resolution document identity; other baselines never use resolution wording', () => {
+  const text=motion(['19. Original wording;','20. Next;']);
+  const options={originalText:'19. Original wording;',proposedText:'Changed;',targetLabel:'Paragraph 19'};
+  assert.equal(placement(text,{...options,baseline:'unknown'}).reason,'baseline_unavailable');
+  assert.equal(placement(text,{...options,baseline:'unknown',resolutionDocument:true}).status,'placed');
+  for(const baseline of ['commission-proposal','present-text','council-position','other']) {
+    assert.equal(placement(text,{...options,baseline,resolutionDocument:true}).reason,'baseline_unavailable',baseline);
+  }
+  assert.equal(placement(text,{...options,baseline:'unknown',resolutionDocument:true,targetLabel:'Article 19'}).reason,'baseline_unavailable');
+  assert.equal(placement(document(['19. Original wording;']),{...options,baseline:'unknown',resolutionDocument:true}).reason,'baseline_unavailable');
+});
+
+
+test('conflicting comparison sources never enter motion placement or legacy unknown recovery', () => {
+  const text=motion(['19. Original wording;','20. Next;']);
+  const options={originalText:'19. Original wording;',proposedText:'Changed;',targetLabel:'Paragraph 19',resolutionDocument:true};
+  for(const baseline of ['unknown',null,undefined,'motion-resolution','commission-proposal','council-position','present-text','other']) {
+    const baselineSource={category:baseline,headings:[],conflicted:true};
+    const result=placement(text,{...options,baseline,baselineSource});
+    assert.equal(result.status,'unresolved',String(baseline));assert.equal(result.reason,'conflicting_baselines');assert.equal(result.span,undefined);
+    assert.equal(baselineSource.conflicted,true);
+  }
+  for(const baselineSource of [undefined,null,{category:'unknown',headings:[]},{category:'unknown',headings:[],conflicted:false}]) {
+    for(const baseline of ['unknown',null,undefined,'motion-resolution'])assert.equal(placement(text,{...options,baseline,baselineSource}).status,'placed');
+    assert.equal(placement(text,{...options,baseline:'unknown',baselineSource,resolutionDocument:false}).reason,'baseline_unavailable');
+    for(const baseline of ['commission-proposal','council-position','present-text','other'])assert.equal(placement(text,{...options,baseline,baselineSource}).reason,'baseline_unavailable');
+  }
 });

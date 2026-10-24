@@ -1,3 +1,7 @@
+import {LegislationInsights} from '../server/insights-legislation.mjs';
+import {insightQuery} from '../server/insights-store.mjs';
+import {participation,participationQuery} from '../server/insights-participation.mjs';
+import {SpeechCloudInsights,speechCloudQuery} from '../server/speech-cloud.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -25,10 +29,10 @@ async function harness(t,path,component,query,respond,props={}) {
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(Component,{language:'en',onBack(){},...props})));
   const status=()=>container.querySelector('[role="status"][aria-live="polite"][aria-atomic="true"]');
-  assert(status(),'the result status region is present before a result settles');
+  assert(component==='Legislation'||status(),'the result status region is present before a result settles');
   const messages=[];
-  const observer=new window.MutationObserver(()=>{if(status().textContent)messages.push(status().textContent);});
-  observer.observe(status(),{childList:true,subtree:true,characterData:true});t.after(()=>observer.disconnect());
+  const observer=new window.MutationObserver(()=>{if(status()?.textContent)messages.push(status().textContent);});
+  observer.observe(status()||container,{childList:true,subtree:true,characterData:true});t.after(()=>observer.disconnect());
   const navigate=query=>act(async()=>{history.replaceState(null,'','/'+query);window.dispatchEvent(new window.PopStateEvent('popstate'));});
   const click=text=>act(async()=>{const button=[...container.querySelectorAll('button')].find(node=>node.textContent===text);assert(button,'Missing button: '+text);button.click();});
   return {window,container,calls,status,messages,navigate,click,tick};
@@ -146,4 +150,45 @@ test('question failures retain existing error and missing-topic announcements wi
   assert.equal(h.status().textContent,'');assert.equal(h.container.querySelector('[role="alert"]'),null);
   assert([...h.container.querySelectorAll('[role="status"]')].some(node=>node.textContent.includes('unavailable in this period')));
   assert.equal(new URL(location.href).searchParams.get('q-topic'),'exact-missing-topic');
+});
+test('participation leaves latest unselected when newer calendar years are unavailable',async t=>{
+ const sitting={id:'MTG-PL-2025-12-18',date:'2025-12-18',phase:'past'};
+ const h=await harness(t,'/src/Participation.tsx','Participation','',()=>({window:{start:sitting.date,end:sitting.date},series:[],topics:[],coverage:{topicsWithSpeechLinks:0,topics:0,gaps:[]}}),{sittings:[sitting],latestAvailable:false,onTopic(){}});
+ await h.tick();assert.equal(h.calls.length,0);assert.match(h.container.textContent,/Latest week unavailable/);
+ const select=h.container.querySelector('select');assert.equal(select.value,'');
+ await act(async()=>{select.value='sitting:'+sitting.id;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});await h.tick();
+ assert.equal(h.calls.length,1);assert.equal(h.calls[0].searchParams.get('sitting'),sitting.id);
+});
+function incompleteCalendarApi() {
+  const now=Date.parse('2026-10-19T12:00:00Z'),clock=()=>now;
+  const store={status:()=>({currentMeps:1,servingGeneration:1,complete:false}),db:{prepare:()=>({all:()=>[],get:()=>null})}};
+  const request=async(endpoint,params={})=>{
+    if(endpoint==='/meetings'&&params.year===2026)throw Error('Current year unavailable');
+    const date=params.year===2024?'2024-07-16':'2025-12-18';
+    return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:now,payload:{data:endpoint==='/meetings'?[{id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'}]:[],meta:{total:0}}};
+  };
+  const legislation=new LegislationInsights(store,{request,clock,loadMetadata:async()=>new Map()}),cloud=new SpeechCloudInsights(store,{request,clock,legislation,readCorpusPage:null});
+  return async url=>{
+    const params=new URLSearchParams(url.searchParams);params.delete('v');
+    if(url.pathname.endsWith('/insights/legislation'))return legislation.query(insightQuery(params,{kind:'legislation',now}));
+    if(url.pathname.endsWith('/insights/participation'))return participation(legislation,store,participationQuery(params),{clock});
+    if(url.pathname.endsWith('/insights/speech-cloud'))return cloud.query(speechCloudQuery(params,{now}));
+    throw Error('Unexpected route '+url.pathname);
+  };
+}
+for(const mode of ['participation','cloud'])test(mode+' keeps explicit saved sitting links usable across an unreadable latest year',async t=>{
+ const key=mode==='participation'?'hot-period':'cloud-period',id='MTG-PL-2025-12-18';
+ const h=await harness(t,'/src/Legislation.tsx','Legislation','?pl-mode='+mode+'&'+key+'=sitting%3A'+id,incompleteCalendarApi());
+ await h.tick();await h.tick();
+ assert(h.calls.some(url=>url.pathname.endsWith('/insights/legislation')&&url.searchParams.get('sitting')===id));
+ assert(h.calls.some(url=>url.pathname.endsWith('/insights/'+(mode==='cloud'?'speech-cloud':'participation'))&&url.searchParams.get('sitting')===id));
+ assert(h.container.querySelector('select'));assert(!h.container.textContent.includes('Latest week unavailable'));
+});
+test('unknown latest keeps known Agenda dates selectable on a fresh visit',async t=>{
+ const h=await harness(t,'/src/Legislation.tsx','Legislation','',incompleteCalendarApi());
+ await h.tick();assert.match(h.container.textContent,/Latest week unavailable/);
+ const select=h.container.querySelector('.insight-controls select');assert([...select.options].some(option=>option.value==='sitting:MTG-PL-2025-12-18'));
+ assert(!h.container.textContent.includes('0 agenda items'));
+ await act(async()=>{select.value='sitting:MTG-PL-2025-12-18';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});await h.tick();
+ assert(h.calls.some(url=>url.pathname.endsWith('/insights/legislation')&&url.searchParams.get('sitting')==='MTG-PL-2025-12-18'));assert(!h.container.textContent.includes('Latest week unavailable'));
 });

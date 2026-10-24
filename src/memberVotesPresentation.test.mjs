@@ -11,7 +11,7 @@ const projection=projectMemberSitting(fixture.snapshots[0],String(memberId),'en'
 const clone=value=>structuredClone(value);
 function response(overrides={}) {
   const items=projection.items.filter(item=>item.actualPosition.status==='recorded');
-  return {version:4,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
+  return {version:6,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
 }
 const state={week:'latest',sittingId,positions:'recorded',offset:0,decisionId:null,snapshotId:null};
 const accepts=(data,requestState=state)=>validateMemberVotesResponse(data,{memberId,state:requestState});
@@ -138,11 +138,11 @@ test('alignment request omission is byte compatible and response validates count
   filtered.items[0].alignment='against';assert.equal(accepts(filtered,{...state,alignment:'with'}),false);
 });
 
-test('v4 guards recorded totals and carries non-named status through selected and whole-text decisions',()=>{
+test('response guards recorded totals and carries non-named status through selected and whole-text decisions',()=>{
   const data=response();
   for(const total of [null,-1,1.5,data.pagination.observedTotal+1]){const invalid=clone(data);invalid.pagination.recordedTotal=total;assert.equal(accepts(invalid),false);}
   const missing=clone(data);delete missing.pagination.recordedTotal;assert.equal(accepts(missing),false);
-  const previous=clone(data);previous.version=3;assert.equal(accepts(previous),false);
+  for(const version of [3,4,5]){const previous=clone(data);previous.version=version;assert.equal(accepts(previous),false);}
   const selected={...clone(projection.items[0]),method:'VOTE_HAND',ballotStatus:'conducted',actualPosition:{status:'not-individually-recorded',position:null}};
   data.selected={status:'found',item:selected};
   const whole={...clone(selected),scope:{kind:'whole-text',basis:'english-reference-label'}};

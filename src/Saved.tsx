@@ -92,7 +92,6 @@ export function Saved({language,onBack,onMember,renderActivity}:SavedProps) {
     <button onClick={onBack}>← Back</button>
     <div className="explorer-saved-heading"><h1>Following</h1><button onClick={check} disabled={!items.length} aria-disabled={checking||undefined} style={checking?{opacity:.45,cursor:'default'}:undefined}>{checking?'Checking…':'Check for updates'}</button></div>
     <FollowSuggestions/>
-    <p className="explorer-saved-caption">New updates stay marked until you open them, or for 24 hours after they are found. Recent updates stay listed under Earlier updates.</p>
     {!saved.persistent&&<p>Browser storage is unavailable. Follows last only for this tab.</p>}
     {saved.storageError&&<p role="alert" className="explorer-storage-error">Changes since {new Date(saved.unsavedSince||Date.now()).toLocaleTimeString()} could not be saved in this browser and will be lost on reload. <button onClick={()=>store.retryStorage()}>Retry saving</button></p>}
     {items.some(item=>item.kind==='mep')&&<GroupUpdateStatus retry={check}/>}

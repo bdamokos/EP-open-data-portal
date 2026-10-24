@@ -1,3 +1,5 @@
+import {proposalContextResponse} from './test-support/proposalContext.mjs';
+import {contextOverlayResponse,assertContextOverlay} from './test-support/contextOverlay.mjs';
 import {wordingText,wordingViewText} from './test-support/wordingText.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -44,7 +46,7 @@ function stateFrom(url) {
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:4,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:6,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
@@ -79,13 +81,14 @@ async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:
   }}]:[];
   vite=await createServer({configFile:false,plugins,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const module=await vite.ssrLoadModule('/src/MemberVotes.tsx');
+  const DocumentContextReader=renderContext==='reader'?(await vite.ssrLoadModule('/src/DocumentContextReader.tsx')).DocumentContextReader:null;
   const {PersonNamesProvider}=await vite.ssrLoadModule('/src/PersonName.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   current={...structuredClone(module.defaultMemberVotesState),...state};
   const draw=()=>root.render(createElement(PersonNamesProvider,{members},createElement(module.MemberVotes,{...props,state:current,key:renderKey})));
   props={memberId:MEMBER,memberName:'Test member',language:'en',onStateChange:(next,options)=>{current=next;changes.push({state:structuredClone(next),options});draw();},
-    renderContext:request=>{contexts.push(request);return renderContext?renderContext(request):createElement('div',{'data-testid':'context'},request.documentId,createElement('button',{onClick:request.onBack},'Back from context'));}};
+    renderContext:request=>{contexts.push(request);return DocumentContextReader?createElement(DocumentContextReader,{request,language:'en'}):renderContext?renderContext(request):createElement('div',{'data-testid':'context'},request.documentId,createElement('button',{onClick:request.onBack},'Back from context'));}};
   await act(async()=>draw());
   return {container,calls,changes,contexts,module,get state(){return current;},async update(patch){await act(async()=>{current={...current,...patch};draw();});},
     async updateProps(patch){await act(async()=>{props={...props,...patch};draw();});},
@@ -746,6 +749,31 @@ test('a complete empty sitting keeps the no-votes message under an outcome filte
  const h=await mount(t,{state:{week:WEEK,sittingId:SITTING,alignment:'against'},handler:url=>Response.json(responseFor(url,{items:[],coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:0}]}}))});
  assert.match(visiblePane(h.container).textContent,/No votes were recorded at this sitting\./);
  assert.doesNotMatch(visiblePane(h.container).textContent,/No recorded votes against/);
+});
+
+
+test('vote Read in context reaches the same in-place amendment diff as motion reading',async t=>{
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}}),listId=DOCUMENT+'-AM-001-020';
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},renderContext:'reader',handler:url=>{
+    if(String(url).includes('/api/references'))return Response.json({references:[]});
+    return Response.json(String(url).includes('document-context/')?contextOverlayResponse(DOCUMENT,AMENDMENT,listId):responseFor(url,{items:[item]}));
+  }});
+  await h.click('Read in context');await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
+  assertContextOverlay(h.container);
+  assert(h.calls.some(url=>url.includes('wording-lang=en')&&!url.includes('body=0')));
+});
+
+
+test('member-vote A-report Read in context reaches the Commission proposal',async t=>{
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}}),listId=DOCUMENT+'-AM-001-020';
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},renderContext:'reader',handler:url=>{
+    if(String(url).includes('/api/references'))return Response.json({references:[]});
+    return Response.json(String(url).includes('document-context/')?proposalContextResponse(DOCUMENT,AMENDMENT,listId,7):responseFor(url,{items:[item]}));
+  }});
+  await h.click('Read in context');await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
+  assert(h.container.textContent.includes('Commission proposal · COM(2025)0087'));
+  assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,'true');
+  assert(h.calls.some(url=>url.includes('wording-lang=en')&&!url.includes('body=0')));
 });
 
 test('amendment vote proposers use exact directory IDs and preserve unknown labels',async t=>{
