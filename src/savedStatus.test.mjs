@@ -31,12 +31,12 @@ async function harness(t,items=[member()],v2=false) {
  });
  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {Saved}=await loadModule('/src/Saved.tsx'),controls=await loadModule('/src/SavedControls.tsx'),{createRoot}=await import('react-dom/client');
- // Control expiry deadlines after module loading; leave focus-refresh intervals alone.
+ // Control notification expiry and background-check deadlines after module loading.
  t.mock.timers.enable({apis:['setTimeout']});
  const tick=ms=>act(async()=>{t.mock.timers.tick(ms);});
  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
  function Checks({language}){controls.useSavedChecks(language);return null;}
- const render=(language='en',strict=false)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,harness.focusChecks&&createElement(Checks,{language}),createElement(controls.SavedNav,{onClick(){}}),createElement(Saved,{language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));
+ const render=(language='en',strict=false,following=true)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,(harness.focusChecks||!following)&&createElement(Checks,{language}),createElement(controls.SavedNav,{onClick(){}}),following&&createElement(Saved,{language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));
  const click=async(text,scope=container)=>{await act(async()=>{const button=[...scope.querySelectorAll('button')].find(x=>x.textContent===text);assert(button,'Missing '+text+' in '+scope.textContent);button.click();});await settle();};
  const check=()=>click('Check for updates');
  const background=(force=false,lang='en')=>act(async()=>{await controls.checkSaved(lang,force).catch(()=>{});});
@@ -48,6 +48,58 @@ const rows=card=>[...card.querySelectorAll('.explorer-saved-disclosure')];
 const dispatch=async(h,node,extra={},type='click')=>{const event=new h.window.MouseEvent(type,{bubbles:true,cancelable:true,button:0,...extra});await act(async()=>node.dispatchEvent(event));return event;};
 const speech={id:'late',title:'Late speech',titleLanguage:'fr',date:'2026-01-01',kind:'activity',recordKind:'speech',category:'plenary-contributions',mark:6};
 async function newSpeech(h){await h.render('en',true);await h.check();h.setStatus({generation:6});h.setDetail([['old',0,5],['late',0,6]],[speech]);await h.check();await settle();}
+
+test('navigation checks before Following opens, then waits four hours for a prepared snapshot',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}}),member({id:'43',seen:{activity:5,answer:3}}),{kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:1,baseline:{revision:'one',answerIds:[]},current:{revision:'one',answerIds:[]}}],true);
+ h.setStatus({epoch:'11111111-1111-1111-1111-111111111111',membershipReady:true,groupsReady:true});
+ await h.render('en',true,false);await settle();
+ assert.equal(h.container.textContent,'Following','total follows are not a notification');
+ assert(h.requests.some(x=>x.route==='following-manifest'));
+ assert(!h.requests.some(x=>x.route==='following-member'),'badge checks need no activity details');
+ h.setStatus({generation:6});h.setQuestionAnswers([{id:'new-answer'}]);
+ const initial=h.requests.filter(x=>x.route==='following-status').length;
+ now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,initial,'prepared data is not polled every minute');
+ now+=4*60*60_000-60_000;await h.tick(4*60*60_000-60_000);await settle();
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'3 new');
+ assert.equal(h.container.querySelector('.explorer-saved-count').title,'3 followed items have new updates');
+ assert(!h.container.querySelector('.explorer-saved-view'));
+ assert(!h.requests.some(x=>x.route==='following-member'),'multiple marker kinds still count each MEP once');
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count,'focus shares the polling throttle');
+ await h.clear();now+=4*60*60_000;await h.tick(4*60*60_000);
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count,'unmount cleans up polling');
+});
+test('background polling waits while hidden and refreshes on returning without opening Following',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ await h.render('en',false,false);await settle();
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
+ h.setStatus({generation:6});now+=4*60*60_000;await h.tick(4*60*60_000);
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
+ Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
+ await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ assert.equal(h.container.querySelector('.explorer-saved-count').title,'1 followed item has new updates');
+});
+test('unprepared data retries until ready and then backs off; a failed manifest retries sooner',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ h.setStatus({marksReady:false});await h.render('en',false,false);await settle();
+ assert(!h.requests.some(x=>x.route==='following-manifest'));
+ h.setStatus({marksReady:true,generation:6});h.fail('following-manifest');
+ now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.controls.savedStore.snapshot().checkState,'error');
+ h.fail('');now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.controls.savedStore.snapshot().checkState,'available');
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
+});
 
 test('visible Following auto-resolves; inline read leaves the other MEP new and leaving acknowledges nothing',async t=>{
  const h=await harness(t,[member(),member({id:'43',title:'Second member'})]);await newSpeech(h);
@@ -152,7 +204,7 @@ test('a second manifest advance surfaces the opening error instead of silently c
 });
 
 test('focus checks status at most once per minute; failed tasks retry without a generation change',async t=>{
- harness.focusChecks=true;t.after(()=>harness.focusChecks=false);const h=await harness(t,[member({baseline})]);await h.render();h.fail('following-member');await h.background();
+ harness.focusChecks=true;t.after(()=>harness.focusChecks=false);const h=await harness(t,[member({baseline})]);h.fail('following-member');await h.render();await h.background();
  let now=Date.now();t.mock.method(Date,'now',()=>now);const count=()=>h.requests.filter(x=>x.route==='following-status').length,initial=count();
  await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));assert.equal(count(),initial);
  now+=60_001;h.fail('');await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));assert.equal(count(),initial+1);assert(!h.item().legacy);

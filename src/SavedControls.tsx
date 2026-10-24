@@ -181,12 +181,25 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
 }
 export function useSavedChecks(language:string,following=false) {
   const {items}=useSaved(),key=items.map(item=>savedKey(item)+':'+item.savedAt).sort().join(',');
-  useEffect(()=>{void checkSaved(language).catch(()=>{});},[following,key,language]);
   useEffect(()=>{
-    const check=()=>{if(document.visibilityState==='visible'&&Date.now()-lastStatus>=60_000)void checkSaved(language).catch(()=>{});};
-    window.addEventListener('focus',check);document.addEventListener('visibilitychange',check);
-    return()=>{window.removeEventListener('focus',check);document.removeEventListener('visibilitychange',check);};
-  },[language]);
+    if(!key)return;
+    let active=true,timer:ReturnType<typeof setTimeout>|undefined;
+    const delay=()=>{
+      const saved=savedStore.snapshot(),hasMembers=saved.items.some(item=>item.kind==='mep'),hasQuestions=saved.items.some(item=>item.kind==='question');
+      const waiting=!status||hasMembers&&(!status.marksReady||saved.checkState!=='available'||membershipCheck==='error'||groupsCheck==='error')||hasQuestions&&saved.questionCheckState!=='available';
+      return waiting?60_000:4*60*60_000;
+    };
+    const check=async(initial=false)=>{
+      clearTimeout(timer);
+      if(document.visibilityState!=='visible')return;
+      if(initial||Date.now()-lastStatus>=delay())await checkSaved(language).catch(()=>{});
+      if(active){clearTimeout(timer);timer=setTimeout(()=>void check(),Math.max(1000,lastStatus+delay()-Date.now()));}
+    };
+    const refresh=()=>{void check();};
+    void check(true);
+    window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);
+    return()=>{active=false;clearTimeout(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};
+  },[following,key,language]);
 }
 type Resolution={pending?:boolean;error?:string};
 const resolutionAttempts=new Map<string,{at:number;error?:string;done?:boolean}>();
@@ -228,5 +241,5 @@ export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;co
 }
 export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:boolean}) {
   const groups=useGroups(),membership=useMembership(),saved=useSaved(),now=useSavedNow(),items=saved.items,updates=items.filter(item=>itemHasNew(item,now)||item.kind==='mep'&&membership.entries.some(entry=>entry.mep===item.id&&membershipIsNew(entry,now))||item.kind==='mep'&&groups.entries.some(entry=>entry.mep===item.id&&groupIsNew(entry,now))).length;
-  return <button onClick={onClick} lang="en" aria-current={current?'page':undefined}>Following{updates>0?<span className="explorer-saved-count">{updates} new</span>:items.length>0?<small> {items.length}</small>:null}</button>;
+  return <button onClick={onClick} lang="en" aria-current={current?'page':undefined}>Following{updates>0&&<span className="explorer-saved-count" title={`${updates} followed ${updates===1?'item has':'items have'} new updates`}>{updates} new</span>}</button>;
 }
