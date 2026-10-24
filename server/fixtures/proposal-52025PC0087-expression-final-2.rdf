@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rdf:RDF xmlns:ns1="http://www.w3.org/2002/07/owl#" xmlns:ns2="http://publications.europa.eu/ontology/cdm#" xmlns:ns3="http://publications.europa.eu/ontology/cdm/cmr#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1"><ns1:sameAs rdf:resource="http://publications.europa.eu/resource/celex/52025PC0087" />
+    <ns1:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2025_0087_FIN" />
+    <ns1:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282025%2987%20final" />
+  </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/comnat/COM_2025_0087_FIN.ENG"><ns2:expression_belongs_to_work rdf:resource="http://publications.europa.eu/resource/comnat/COM_2025_0087_FIN" />
+    <ns2:expression_uses_language rdf:resource="http://publications.europa.eu/resource/authority/language/ENG" />
+    <ns2:version rdf:datatype="http://www.w3.org/2001/XMLSchema#string">final/2</ns2:version>
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0001.01"><ns1:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282025%2987%20final.ENG.docx" />
+    <ns1:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2025_0087_FIN.ENG.docx" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/immc/COM%282025%2987%20final"><ns2:work_part_of_dossier rdf:resource="http://publications.europa.eu/resource/procedure/2025_39" />
+  </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0001"><ns1:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282025%2987%20final.ENG" />
+    <ns1:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2025_0087_FIN.ENG" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/celex/52025PC0087"><ns2:work_part_of_dossier rdf:resource="http://publications.europa.eu/resource/procedure/2025_39" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0001.01/DOC_1"><ns1:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282025%2987%20final.ENG.docx.1_EN_ACT_part1_v5.docx" />
+    <ns1:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2025_0087_FIN.ENG.docx.1_EN_ACT_part1_v5.docx" />
+    <ns2:item_belongs_to_manifestation rdf:resource="http://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0001.01" />
+    <ns3:manifestationMimeType>application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml</ns3:manifestationMimeType>
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0001.01/DOC_2"><ns1:sameAs rdf:resource="http://publications.europa.eu/resource/immc/COM%282025%2987%20final.ENG.docx.1_EN_annexe_proposition_part1_v4.docx" />
+    <ns1:sameAs rdf:resource="http://publications.europa.eu/resource/comnat/COM_2025_0087_FIN.ENG.docx.1_EN_annexe_proposition_part1_v4.docx" />
+    <ns2:item_belongs_to_manifestation rdf:resource="http://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0001.01" />
+    <ns3:manifestationMimeType>application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml</ns3:manifestationMimeType>
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/comnat/COM_2025_0087_FIN"><ns2:work_version rdf:datatype="http://www.w3.org/2001/XMLSchema#string">final</ns2:work_version>
+    <ns2:resource_legal_internal_number_prefix rdf:datatype="http://www.w3.org/2001/XMLSchema#string">COM</ns2:resource_legal_internal_number_prefix>
+    <ns2:act_preparatory_initiates_dossier rdf:resource="http://publications.europa.eu/resource/procedure/2025_39" />
+    <ns2:resource_legal_internal_number_year rdf:datatype="http://www.w3.org/2001/XMLSchema#year">2025</ns2:resource_legal_internal_number_year>
+    <ns2:work_created_by_agent rdf:resource="http://publications.europa.eu/resource/authority/corporate-body/COM" />
+    <ns2:version rdf:datatype="http://www.w3.org/2001/XMLSchema#string">final</ns2:version>
+    <ns2:work_has_resource-type rdf:resource="http://publications.europa.eu/resource/authority/resource-type/PROP_REG" />
+    <ns2:work_created_by_agent rdf:resource="http://publications.europa.eu/resource/authority/corporate-body/TAXUD" />
+    <ns2:resource_legal_id_celex rdf:datatype="http://www.w3.org/2001/XMLSchema#string">52025PC0087</ns2:resource_legal_id_celex>
+    <ns2:resource_legal_internal_number_sequential_number rdf:datatype="http://www.w3.org/2001/XMLSchema#positiveInteger">87</ns2:resource_legal_internal_number_sequential_number>
+    <ns2:work_part_of_dossier rdf:resource="http://publications.europa.eu/resource/intproc/05BF91390B4F2C73FEE9495D583E293996B96F6112577FF922121F61829563EB" />
+    <ns2:work_part_of_dossier rdf:resource="http://publications.europa.eu/resource/procedure/2025_39" />
+    </rdf:Description><rdf:Description rdf:about="http://publications.europa.eu/resource/comnat/COM_2025_0087_FIN.ENG.docx"><ns2:manifestation_type rdf:datatype="http://www.w3.org/2001/XMLSchema#string">docx</ns2:manifestation_type>
+    <ns2:manifestation_manifests_expression rdf:resource="http://publications.europa.eu/resource/comnat/COM_2025_0087_FIN.ENG" />
+    </rdf:Description></rdf:RDF>

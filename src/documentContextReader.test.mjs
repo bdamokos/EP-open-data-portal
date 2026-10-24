@@ -1,9 +1,12 @@
+import {parseProposal,proposalCandidates} from '../server/proposal-structure.mjs';
+import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
+import {proposalContextResponse} from './test-support/proposalContext.mjs';
 import test from 'node:test';
 import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {createElement as el,act} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const report='A-10-2026-0237',amendment=report+'-AM-40',list=report+'-AM-037-046';
 const original='B-10-2026-0424',adopted='TA-10-2026-0342',otherAdopted='TA-10-2026-0343';
@@ -12,7 +15,7 @@ const sourceDocument=(id,paragraphs=['Official title.','Source recital.','Exact 
   id,titles:{en:'***II Official source title'},date:'2026-10-08',kind:'REPORT',roles:[],files:[],answers:[],selectedDocumentId:id,
   selectedText:{status:'available',paragraphs,textLanguage:'en',requestedLanguage:'en',availableTextLanguages:['en'],translationType:'original',sourceFormat:'DOCX',sourceUrl:source,fetchedAt:'2026-10-17T18:00:00Z',stale:false,refreshInProgress:false,refreshError:null,reason:null,extraction:'official-docx-paragraphs',notesStatus:'extracted',notes:[],noteAnchors:[],documentLinks:[],...extra},
 });
-const response=(id,doc=sourceDocument(id),extra={})=>({version:1,documentId:id,requestedLanguage:'en',document:doc,related:{status:'not-requested',items:[],gaps:[]},amendment:null,target:{status:'not-requested',paragraphs:[],basis:null,relation:null,quoteMatches:null,reason:null},sources:[],...extra});
+const response=(id,doc=sourceDocument(id),extra={})=>({version:4,documentId:id,requestedLanguage:'en',document:doc,related:{status:'not-requested',items:[],gaps:[]},amendment:null,target:{status:'not-requested',paragraphs:[],basis:null,relation:null,quoteMatches:null,reason:null},sources:[],...extra});
 const target={status:'found',paragraphs:[2],basis:'published-reference',relation:'at',quoteMatches:false,reason:null};
 const amendmentSource={id:amendment,status:'available',basis:'index',variants:[{listId:list}],gaps:[]};
 const wordingVariant=(language,extra={})=>({listId:list,language,wordingStatus:'available',originalText:'Original wording.',proposedText:'Proposed wording.',...extra});
@@ -24,8 +27,8 @@ async function harness(t,respond) {
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let loadModule,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){scrolls.push({element:this,options});});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1];
@@ -34,8 +37,8 @@ async function harness(t,respond) {
     const value=await respond(route,url.searchParams);assert.notEqual(value,undefined,'Unexpected request: '+route+url.search);
     return value instanceof Response?value:Response.json(value);
   });
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {DocumentContextReader}=await vite.ssrLoadModule('/src/DocumentContextReader.tsx');
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {DocumentContextReader}=await loadModule('/src/DocumentContextReader.tsx');
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,15)));
   const render=async(props,wait=true)=>{await act(async()=>root.render(el(DocumentContextReader,props)));if(wait)await settle();};
@@ -69,7 +72,7 @@ test('context preserves exact source indices, inline text, note offsets and targ
 test('missing target leaves the full official document readable with plain copy',async t=>{
   const h=await harness(t,()=>response(report,sourceDocument(report,['Context stays visible.','Exact <angle> text.']),{target:{...target,status:'unavailable',paragraphs:[],reason:'source-boundary-not-matched'}}));
   await h.render({request:{documentId:report,amendmentId:amendment,view:'document',onBack:()=>{}},language:'en'});
-  assert(h.container.textContent.includes('Passage not found. The full document is below.'));
+  assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
   assert(h.container.textContent.includes('Exact <angle> text.'));
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   assert(!h.container.textContent.includes('source-boundary-not-matched'));
@@ -112,7 +115,7 @@ test('a pinned wording language opens its matching body and stays pinned when th
   assert(h.requests.includes(`document-context/${report}?lang=fr&amendment=${amendment}&list=${list}&wording-lang=hu`));
   assert.equal(h.container.querySelector('.document-context-text').lang,'fr');
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0,'a different body language cannot use the Hungarian quotation');
-  assert(h.container.textContent.includes('Passage not found. The full document is below.'));
+  assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
   await h.render({request:{...request,wordingLanguage:'en'},language:'en'});
   assert.equal(h.container.querySelector('.document-context-text').lang,'en','changing the wording pin starts a new reading session');
   assert(h.requests.includes(`document-context/${report}?lang=en&amendment=${amendment}&list=${list}&wording-lang=en`));
@@ -197,8 +200,11 @@ test('an uncached document body stays pending until a terminal unavailable respo
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
 });
 
-test('a mismatched returned document or language is never displayed',async t=>{
-  const h=await harness(t,()=>response(report,sourceDocument(original,['Wrong document.']),{requestedLanguage:'fr'}));
+for(const [name,data] of [
+  ['returned document',response(report,sourceDocument(original,['Wrong document.']))],
+  ['requested language',response(report,sourceDocument(report,['Wrong document.']),{requestedLanguage:'fr'})],
+])test(`a mismatched ${name} is never displayed when the other identity matches`,async t=>{
+  const h=await harness(t,()=>data);
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
   assert(!h.container.textContent.includes('Wrong document.'));assert(h.container.textContent.includes('Document unavailable here.'));
 });
@@ -331,12 +337,15 @@ test('source hyperlinks spanning an unresolved object keep both visible linked f
   assert.equal(h.container.querySelector('.document-context-object').href,source);
 });
 
-test('an amendment or pinned list mismatch withholds target highlighting while keeping the body',async t=>{
-  const h=await harness(t,()=>response(report,sourceDocument(report),{target,amendment:{...amendmentSource,id:report+'-AM-41'}}));
+for(const [name,selected] of [
+  ['amendment',{...amendmentSource,id:report+'-AM-41'}],
+  ['pinned list',{...amendmentSource,variants:[{listId:report+'-AM-047-056'}]}],
+])test(`a ${name} mismatch withholds target highlighting while keeping the body`,async t=>{
+  const h=await harness(t,()=>response(report,sourceDocument(report),{target,amendment:selected}));
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'en'});
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   assert(h.container.textContent.includes('Exact target passage.'));
-  assert(h.container.textContent.includes('Passage not found. The full document is below.'));
+  assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
 });
 
 test('a failed adopted lookup offers retry without claiming that the selected text is unavailable',async t=>{
@@ -355,6 +364,249 @@ test('references keep the interface language when the source text language chang
   assert.equal(h.container.querySelector('.document-context-text').lang,'fr');
   const lookups=h.requests.filter(route=>route.startsWith('references?'));
   assert(lookups.length>0);assert(lookups.every(route=>new URLSearchParams(route.split('?')[1]).get('lang')==='en'));
+});
+
+
+function overlayResponse({operation='insert',status='placed',reason,span,insertAfter=2,insertBefore=3}={}) {
+  return response(report,sourceDocument(report,['The European Parliament,','19. Main provision:', '(a) final point;', '20. Following provision;']),{
+    requestedWordingLanguage:'en',amendment:{...amendmentSource,variants:[wordingVariant('en',{originalText:operation==='insert'?'':'19. Main provision: (a) final point;',proposedText:operation==='delete'?'deleted':'19a. New proposed provision;'})]},
+    target:{...target,evidence:pinnedEvidence('en')},placement:{operation,status,reason,span,insertAfter,insertBefore,evidence:[]},
+  });
+}
+const overlayRequest={documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}};
+test('placed insertion renders a framed WordingDiff between complete paragraph 19 and paragraph 20, with focus',async t=>{
+  const h=await harness(t,()=>overlayResponse());await h.render({request:overlayRequest,language:'en'});
+  const reader=h.container.querySelector('.document-context-text'),children=[...reader.children],block=reader.querySelector('[data-amendment-block]');
+  assert.equal(children[children.indexOf(block)-1].dataset.sourceParagraph,'2');
+  assert.equal(children[children.indexOf(block)+1].dataset.sourceParagraph,'3');
+  assert.equal(block.querySelector('h4').textContent,'Amendment 40');assert(block.querySelector('.wording-diff ins'));
+  assert.equal(block.querySelector('del'),null);assert.equal(h.container.querySelectorAll('[data-context-target]').length,1);
+  assert.equal(block.querySelector('.wording-diff__note').textContent,'New text');
+  assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Changes').getAttribute('aria-pressed'),'true');
+  assert.equal(block.querySelector('.wording-diff__legend'),null);
+  assert(!block.textContent.includes('Mostly rewritten'));
+  await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Go to amendment'));
+  assert.equal(h.scrolls.at(-1).element,block);assert.equal(document.activeElement,block);
+});
+test('replacement and deletion substitute the entire span with WordingDiff in source order',async t=>{
+  for(const operation of ['replace','delete'])await t.test(operation,async t=>{
+    const h=await harness(t,()=>overlayResponse({operation,span:{start:1,end:2}}));await h.render({request:overlayRequest,language:'en'});
+    const block=h.container.querySelector('[data-amendment-block]');assert(block.querySelector('.wording-diff del'));
+    assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Changes').getAttribute('aria-pressed'),'true');
+    assert.equal(block.querySelectorAll('.wording-diff__passage').length,1);
+    assert.equal(block.querySelector('.wording-diff__legend'),null);
+    assert(!block.textContent.includes('Mostly rewritten'));
+    assert.equal(h.container.querySelector('[data-source-paragraph="1"]'),null);assert.equal(h.container.querySelector('[data-source-paragraph="2"]'),null);
+    assert.equal(block.nextElementSibling.dataset.sourceParagraph,'3');
+    if(operation==='delete'){assert.equal(block.querySelector('ins'),null);assert(![...block.querySelectorAll('.wording-diff__passage')].some(p=>p.textContent==='deleted'));}
+  });
+});
+test('unresolved placement shows wording above the full unchanged baseline without a false location',async t=>{
+  const h=await harness(t,()=>overlayResponse({operation:'replace',status:'unresolved',reason:'baseline_unavailable'}));await h.render({request:overlayRequest,language:'en'});
+  assert.equal(h.container.querySelector('[role="status"]').textContent,'The text this amendment changes is not included in this document.');
+  const reader=h.container.querySelector('.document-context-text');assert(reader.firstElementChild.querySelector('.wording-diff'));
+  assert.equal(reader.querySelectorAll('[data-source-paragraph]').length,4);assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
+  assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
+});
+
+test('conflicting baselines show a short reason and preserve the full source without a placed diff',async t=>{
+  const h=await harness(t,()=>overlayResponse({operation:'replace',status:'unresolved',reason:'conflicting_baselines'}));await h.render({request:overlayRequest,language:'en'});
+  assert.match(h.container.textContent,/Conflicting comparison texts\./);
+  const reader=h.container.querySelector('.document-context-text');assert(reader.firstElementChild.querySelector('.wording-diff'));
+  assert.equal(reader.querySelectorAll('[data-source-paragraph]').length,4);assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
+  assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
+});
+
+for(const [suffix,label] of [['-AM-040','Amendment 40'],['-AM-040a','Amendment 40a'],['-AM-000','Amendment 0'],['-other','Amendment']])
+  test(`amendment label handles ${suffix} without leaking the identifier`,async t=>{
+    const amendmentId=report+suffix,data=overlayResponse();data.amendment.id=amendmentId;data.target.evidence.amendmentId=amendmentId;
+    const h=await harness(t,()=>data);await h.render({request:{...overlayRequest,amendmentId},language:'en'});
+    const block=h.container.querySelector('[data-amendment-block]'),heading=block.querySelector('h4');
+    assert.equal(heading.textContent,label);assert.equal(heading.lang,'en');
+    assert.equal(block.getAttribute('aria-labelledby'),heading.id);assert.equal(block.hasAttribute('lang'),false);
+  });
+
+test('amendment passage keeps its wording language in both diff views',async t=>{
+  const data=overlayResponse();data.requestedWordingLanguage='hu';data.document.selectedText.textLanguage='hu';
+  data.amendment.variants[0].language='hu';data.target.evidence.wordingLanguage='hu';
+  const h=await harness(t,()=>({...data,requestedLanguage:'hu'}));
+  await h.render({request:{...overlayRequest,wordingLanguage:'hu'},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.querySelector('h4').lang,'en');
+  for(const view of ['Changes','Side by side']) {
+    await h.click([...block.querySelectorAll('button')].find(button=>button.textContent===view));
+    const passages=[...block.querySelectorAll('.wording-diff__passage')];assert(passages.length);assert(passages.every(p=>p.lang==='hu'));
+  }
+});
+
+for(const operation of ['insert','replace','delete'])test(`${operation} before an extracted body retains the full source and a reachable amendment`,async t=>{
+  // Question headers exercise an exact nonzero start; committee extraction is also checked below.
+  const id='E-10-2026-0001',amendmentId=id+'-AM-40',data=overlayResponse({operation,span:operation==='insert'?undefined:{start:0,end:1},insertAfter:0,insertBefore:1});
+  data.documentId=id;data.document=sourceDocument(id,['Question for written answer E-0001/2026','Subject: Source subject','Body paragraph.']);
+  data.amendment.id=amendmentId;data.target.evidence.amendmentId=amendmentId;
+  const h=await harness(t,()=>data);await h.render({request:{...overlayRequest,documentId:id,amendmentId},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert(block);
+  assert.equal(block.nextElementSibling.dataset.sourceParagraph,operation==='insert'?'1':'2');
+  if(operation==='insert')assert.equal(block.previousElementSibling.dataset.sourceParagraph,'0');
+  await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Go to amendment'));
+  assert.equal(h.scrolls.at(-1).element,block);assert.equal(document.activeElement,block);
+});
+
+test('committee body extraction retains an amendment placed before its body start',async t=>{
+  const id='LIBE-PR-123456',amendmentId=id+'-AM-40',data=overlayResponse({insertAfter:0,insertBefore:1});
+  data.documentId=id;data.document=sourceDocument(id,['Cover','CONTENTS','Page 1','DRAFT REPORT','Body paragraph.']);
+  data.amendment.id=amendmentId;data.target.evidence.amendmentId=amendmentId;
+  const h=await harness(t,()=>data);await h.render({request:{...overlayRequest,documentId:id,amendmentId},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert(block);
+  assert.equal(block.previousElementSibling.dataset.sourceParagraph,'0');assert.equal(block.nextElementSibling.dataset.sourceParagraph,'1');
+});
+
+for(const [reason,copy] of Object.entries({
+  resolution_extent_uncertain:'The boundaries of this passage could not be determined.',
+  resolution_end_unavailable:'The end of the resolution could not be determined.',
+  insertion_reference_unavailable:'The insertion location is not specified clearly enough.',
+  relative_target_not_found:'The preceding provision could not be found.',
+  multiple_published_targets:'The published location matches more than one passage.',
+  multiple_quoted_targets:'The quoted wording appears more than once.',
+  target_not_found:'The passage this amendment changes could not be found.',
+  source_passage_incomplete:'The source passage is incomplete.',
+  source_structure_unavailable:'The document structure is unavailable.',
+  matching_budget:'The amendment’s location could not be determined.',
+  amendment_wording_unavailable:'The amendment wording is unavailable.',
+  unknown_reason:'The amendment’s location could not be determined.',
+}))test(`unresolved ${reason} explains the gap without implying a location`,async t=>{
+  const data=overlayResponse({status:'unresolved',reason});
+  if(reason==='amendment_wording_unavailable')data.amendment.variants[0].wordingStatus='unavailable';
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  assert.equal(h.container.querySelector('[role="status"]').textContent,copy);
+  assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
+  assert.equal(h.container.querySelectorAll('[data-source-paragraph]').length,4);
+});
+
+
+for(const operation of ['replace','delete'])test(`${operation} preserves unchanged and deleted source links and note anchors in both diff modes`,async t=>{
+  const data=overlayResponse({operation,span:{start:1,end:2}}),text=data.document.selectedText;
+  text.paragraphs=['The European Parliament,','19. Keep linked words and remove cited words;', 'continued text;', '20. Following provision;'];
+  text.notes=[{id:'1',label:'1',text:'Source footnote remains available.',links:[]},{id:'2',label:'2',text:'Deleted footnote remains available.',links:[]}];
+  text.documentLinks=[{paragraph:1,start:9,end:21,url:'https://example.org/unchanged'},{paragraph:1,start:33,end:44,url:'https://example.org/deleted'}];
+  text.noteAnchors=[{paragraph:1,offset:21,note:'1',label:'1'},{paragraph:1,offset:44,note:'2',label:'2'},{paragraph:2,offset:15,note:'1',label:'1'}];
+  const variant=data.amendment.variants[0];variant.originalText=text.paragraphs.slice(1,3).join(' ');variant.proposedText=operation==='delete'?'deleted':'19. Keep linked words and add different text; continued text;';
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');
+  const verify=()=>{
+    assert.equal(block.querySelectorAll('a[href="https://example.org/unchanged"]').length,1);
+    assert.equal(block.querySelectorAll('a[href="https://example.org/deleted"]').length,1);
+    assert.equal(block.querySelectorAll('sup').length,3);
+    assert(block.querySelector('del a[href="https://example.org/deleted"]'));
+    assert(block.querySelector('del sup'));
+    assert.equal(block.querySelector('ins a, ins sup'),null);
+    for(const mark of block.querySelectorAll('sup a'))assert(h.container.querySelector(mark.getAttribute('href')),'note destination retained');
+    assert(h.container.querySelector('.legal-notes').textContent.includes('Source footnote remains available.'));
+    assert(!block.textContent.includes("Footnotes and links are shown in the full document's original"));
+  };
+  await h.click([...block.querySelectorAll('button')].find(button=>button.textContent==='Changes'));verify();
+  await h.click([...block.querySelectorAll('button')].find(button=>button.textContent==='Side by side'));verify();
+  const proposed=block.querySelectorAll('.wording-diff__columns section')[1];assert.equal(proposed.querySelector('sup,a'),null);
+});
+test('whitespace-normalized original offsets preserve source annotations',async t=>{
+  const data=overlayResponse({operation:'replace',span:{start:1,end:2}}),text=data.document.selectedText;
+  text.documentLinks=[{paragraph:1,start:4,end:8,url:'https://example.org/main'}];text.noteAnchors=[{paragraph:2,offset:16,note:'1',label:'1'}];text.notes=[{id:'1',label:'1',text:'Source note.',links:[]}];
+  data.amendment.variants[0].originalText='  19.  Main provision:\n (a) final point;  ';
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.querySelector('a[href="https://example.org/main"]').textContent,'Main');assert.equal(block.querySelectorAll('sup').length,1);
+});
+test('non-equivalent amendment original shows annotation fallback while retaining the notes list',async t=>{
+  const data=overlayResponse({operation:'replace',span:{start:1,end:2}}),text=data.document.selectedText;
+  text.documentLinks=[{paragraph:1,start:4,end:8,url:'https://example.org/main'}];text.noteAnchors=[{paragraph:2,offset:16,note:'1',label:'1'}];text.notes=[{id:'1',label:'1',text:'Source note.',links:[]}];
+  data.amendment.variants[0].originalText='Main provision with changed wording.';
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert(block.textContent.includes("Footnotes and links are shown in the full document's original"));assert.equal(block.querySelector('sup,a'),null);assert(h.container.querySelector('.legal-notes').textContent.includes('Source note.'));
+});
+
+
+test('Commission proposal replaces the report body for recorded CBAM amendments 4, 7 and 8',async t=>{
+  let number=4;
+  const h=await harness(t,(_route,params)=>proposalContextResponse(report,params.get('amendment'),list,number));
+  const props={request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'};
+  for(const selected of [4,7,8]){
+    number=selected;await h.render({...props,request:{...props.request,amendmentId:report+'-AM-'+selected}});
+    assert.equal(h.container.querySelector('[data-amendment-block]')?.dataset.contextTarget,'true');
+    assert(h.container.textContent.includes('Commission proposal · COM(2025)0087'));
+    assert(!h.container.textContent.includes('Report body must not replace the proposal.'));
+    assert(h.container.querySelector('[data-proposal-item="act-1"]'));
+    assert(h.container.querySelector('[data-proposal-item="annex-1"]'));
+    assert(h.container.querySelector('math'));
+    assert(h.container.querySelector('.proposal-table'));
+    assert(h.container.textContent.includes('Legal text © European Union'));
+    const link=h.container.querySelector('.proposal-context-summary a');assert(link.href.includes('CELEX:52025PC0087'));
+    assert.equal(link.textContent,'Commission proposal · COM(2025)0087 ↗');
+    assert.equal(h.container.querySelectorAll('.proposal-context-summary a').length,2);
+    const block=h.container.querySelector('[data-amendment-block]');
+    assert.equal(block.getAttribute('aria-label'),'Amendment '+selected);
+    assert.equal(block.querySelector('h4').textContent,'Amendment '+selected);
+    assert.equal(block.querySelector('h4').lang,'en');
+    assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Changes').getAttribute('aria-pressed'),'true');
+    assert.equal(block.querySelectorAll('.wording-diff__passage').length,1);
+    assert.equal(block.querySelector('.wording-diff__legend'),null);
+    assert(!block.textContent.includes('Mostly rewritten'));assert(!block.textContent.includes('official document is authoritative'));
+  }
+});
+
+test('proposal deletion includes instruction 21(a) and its quotation while keeping 21(b) readable',async t=>{
+  const h=await harness(t,()=>proposalContextResponse(report,amendment,list,7));
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert(block);assert.equal(block.dataset.contextTarget,'true');
+  assert(block.querySelector('del').textContent.includes('the following paragraph 1a is inserted'));
+  assert(block.textContent.includes('the past compliance of the authorised CBAM declarant'));
+  assert(block.nextElementSibling.textContent.startsWith('(b)'));assert(!block.textContent.includes('the following paragraph 3a'));
+  await h.click([...h.container.querySelectorAll('button')].find(b=>b.textContent==='Go to amendment'));
+  assert.equal(h.scrolls.at(-1).element,block);assert.equal(h.window.document.activeElement,block);
+});
+
+test('proposal unresolved math retains the diff at the top and renders unchanged equations safely',async t=>{
+  const value=proposalContextResponse(report,amendment,list,8);value.placement={...value.placement,status:'unresolved',reason:'math_comparison_unavailable'};
+  const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(h.container.querySelector('[role="status"]').textContent,'The equations could not be compared.');
+  assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,undefined);
+  assert(h.container.querySelector('math'));assert.equal(h.container.querySelector('.proposal-context-text').firstElementChild.dataset.amendmentBlock,'true');
+});
+
+
+test('proposal reader renders note equations at their source offset and exposes unsupported note gaps',async t=>{
+  const noteText='Preserved note prefix at '+String.fromCharCode(0xFFFC)+' linked source after.';
+  const offset=25,url='https://example.test/note-source';assert.equal(noteText[offset],String.fromCharCode(0xFFFC));
+  const object={kind:'math',status:'converted',complete:true,offset,replacement:String.fromCharCode(0xFFFC),sourceUrl:source,
+    math:{tag:'math',children:[{tag:'msub',children:[{tag:'mi',children:['E']},{tag:'mi',children:['j']}]}]}};
+  const paragraphs=['Article 1','1. Original provision.','Article 2','Keep this source.'];
+  const content={paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),
+    notes:[{id:'1',label:'1',text:noteText,links:[url],linkSpans:[{start:27,end:40,url}],objects:[object],complete:true}],anchors:[{paragraph:1,offset:22,note:'1',label:'1'}],links:[]};
+  let value;
+  const h=await harness(t,()=>value);
+  for(const complete of [true,false]){
+    const p=parseProposal({...content,notes:[{...content.notes[0],complete,objects:[{...object,complete,status:complete?'converted':'unresolved',math:complete?object.math:null}]}]});
+    value=proposalContextResponse(report,amendment,list,4);
+    const variant={...value.amendment.variants[0],targetPath:null,targetLabel:'Article 1 – paragraph 1',originalText:paragraphs[1],proposedText:'1. Revised provision.'};
+    value.amendment.variants=[variant];value.proposal.items=[{kind:'act',index:1,proposal:p}];value.placement=resolveProposalPlacement(value.proposal.items,variant);
+    const selected=amendment+(complete?'':'a');value.amendment.id=selected;value.target.evidence.amendmentId=selected;
+    await h.render({request:{documentId:report,amendmentId:selected,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+    const note=h.container.querySelector('.legal-notes li');assert(note);
+    assert.equal(note.querySelector('a[href="'+url+'"]').textContent,'linked source');assert(note.textContent.includes(' after.'));assert(!note.textContent.includes(String.fromCharCode(0xFFFC)));
+    const link=h.container.querySelector('sup a');assert(link);assert.equal(new URL(link.href).hash,'#'+note.id);
+    if(complete){assert.equal(note.querySelector('msub').innerHTML,'<mi>E</mi><mi>j</mi>');assert(note.innerHTML.indexOf('Preserved note prefix at ')<note.innerHTML.indexOf('<math>'));assert.equal(value.placement.status,'placed');}
+    else {assert(!note.querySelector('math'));assert(note.textContent.includes('Equation unavailable'));assert(note.querySelector('a[href="'+source+'"]'));assert.equal(p.contentComplete,false);assert.equal(proposalCandidates(p,'Article 1')[0].complete,false);assert(p.gaps.some(gap=>gap.code==='incomplete-note'));assert.equal(value.placement.status,'unresolved');}
+  }
+});
+
+test('partial proposal splice keeps links and note anchors in unchanged and changed source text',async t=>{
+  const text='1. Keep before. A changed sentence. Keep after.',start=text.indexOf('changed'),end=start+'changed'.length;
+  const paragraphs=['Article 1',text];
+  const p=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),
+    notes:[{id:'1',label:'1',text:'Source note.',links:[]}],anchors:[{paragraph:1,offset:end,note:'1',label:'1'}],links:[{paragraph:1,start,end,url:'https://example.test/source'}]});
+  const value=proposalContextResponse(report,amendment,list,4),variant={...value.amendment.variants[0],targetPath:null,targetLabel:'Article 1 – paragraph 1',originalText:'A changed sentence.',proposedText:'A revised sentence.'};
+  value.amendment.variants=[variant];value.proposal.items=[{kind:'act',index:1,proposal:p}];value.placement=resolveProposalPlacement(value.proposal.items,variant);
+  const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.dataset.contextTarget,'true');
+  assert(block.previousElementSibling.textContent.includes('Keep before.'));assert.equal(block.nextElementSibling.textContent,' Keep after.');
+  assert(block.querySelector('a[href="https://example.test/source"]'));assert(block.querySelector('sup'));assert(h.container.textContent.includes('Source note.'));
 });
 
 test('recorded formatting styles paragraphs, emphasis and tables without moving text, notes or targets',async t=>{
@@ -398,4 +650,113 @@ test('a note anchored just before an unresolved object stays visible with format
   assert.equal(p.querySelector('i').textContent,'Before');
   const mark=p.querySelector('sup.legal-note-mark'),object=p.querySelector('.document-context-object');
   assert(mark,'the note marker is rendered');assert(mark.compareDocumentPosition(object)&h.window.Node.DOCUMENT_POSITION_FOLLOWING,'the marker precedes the object placeholder');
+});
+
+
+test('overlays preserve surrounding paragraph formatting and complete source tables',async t=>{
+  for(const operation of ['insert','replace','delete','unresolved'])await t.test(operation,async t=>{
+    const data=overlayResponse({operation:operation==='unresolved'?'insert':operation,status:operation==='unresolved'?'unresolved':'placed',reason:operation==='unresolved'?'resolution_extent_uncertain':undefined,span:operation==='replace'||operation==='delete'?{start:1,end:2}:undefined});
+    const text=data.document.selectedText;
+    text.paragraphs.push('Cell one','Cell two');
+    Object.assign(text,{formatStatus:'extracted',paragraphFormats:[{heading:1,marks:[{start:0,end:3,kind:'bold'}]},{indent:2,hanging:2},{},{marks:[{start:4,end:13,kind:'italic'}]},{},{}],tables:[{rows:[[{start:4,end:5},{start:5,end:6}]],bordered:true}]});
+    const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+    const reader=h.container.querySelector('.document-context-text'),block=reader.querySelector('[data-amendment-block]');assert(block);
+    assert.equal(reader.querySelector('[data-source-paragraph="0"]').getAttribute('role'),'heading');
+    assert.equal(reader.querySelector('[data-source-paragraph="0"] b').textContent,'The');
+    assert.equal(reader.querySelector('[data-source-paragraph="3"] i').textContent,'Following');
+    assert.deepEqual([...reader.querySelectorAll('table.doc-table-bordered td')].map(cell=>cell.textContent),['Cell one','Cell two']);
+    if(operation==='insert')assert.equal(block.previousElementSibling.dataset.sourceParagraph,'2');
+    if(operation==='replace'||operation==='delete')assert.equal(reader.querySelector('[data-source-paragraph="1"],[data-source-paragraph="2"]'),null);
+    if(operation==='unresolved')assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
+  });
+});
+
+for(const [name,status,stale,refreshError] of [
+  ['saved','available',true,null],
+  ['refresh failed','available',false,'download-failed'],
+  ['partial','partial',false,null],
+  ['partial saved','partial',true,'download-failed'],
+])test(`proposal ${name} distinguishes saved text from unavailable content`,async t=>{
+  const value=proposalContextResponse(report,amendment,list,7);
+  value.baseline.status=status;value.baseline.items[0].source={...value.baseline.items[0].source,stale,refreshError};
+  const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+  const notices=[...h.container.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
+  assert.equal(notices.includes('Some proposal content is unavailable.'),status==='partial');
+  assert.equal(notices.includes('Couldn’t update the proposal. Showing saved text.'),!!refreshError);
+  assert.equal(notices.includes('Showing saved proposal text.'),stale&&!refreshError);
+  assert(!h.container.textContent.includes('authoritative'));assert(!h.container.textContent.includes('consolidated'));
+  assert(h.container.querySelector('[data-amendment-block] del'));
+  assert.equal(h.container.querySelector('.document-context-document>.document-context-source:last-child').textContent,'Legal text © European Union.');
+});
+
+
+for(const [name,mutate] of [
+  ['nested document ID',d=>{d.document.id=otherAdopted;}],
+  ['selected document ID',d=>{d.document.selectedDocumentId=otherAdopted;}],
+  ['evidence amendment ID',d=>{d.target.evidence.amendmentId=report+'-AM-999';}],
+  ['evidence list ID',d=>{d.target.evidence.listId=report+'-AM-999-999';}],
+  ['evidence language',d=>{d.target.evidence.wordingLanguage='fr';}],
+  ['missing evidence',d=>{delete d.target.evidence;}],
+  ['variant list ID',d=>{d.amendment.variants[0].listId=report+'-AM-999-999';}],
+  ['variant language',d=>{d.amendment.variants[0].language='fr';}],
+  ['unknown selected language',d=>{d.amendment.variants[0].language=null;d.target.evidence.wordingLanguage=null;}],
+  ['amendment ID',d=>{d.amendment.id=report+'-AM-999';}],
+])test('Commission placement independently rejects '+name,async t=>{
+  const request={documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}};
+  for(const invalid of [false,true])await t.test(invalid?'independent mismatch':'valid control',async t=>{
+    const value=proposalContextResponse(report,amendment,list,4);if(invalid)mutate(value);
+    const h=await harness(t,()=>value);await h.render({request,language:'en'});
+    assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,invalid?0:1);
+    assert(h.container.querySelector('.proposal-context-text'),'full proposal stays readable');
+    for(const [i,item] of value.proposal.items.entries())for(const paragraph of item.proposal.paragraphs){
+      if(!invalid&&i===value.placement.itemIndex&&paragraph.index>=value.placement.span.start&&paragraph.index<=value.placement.span.end)continue;
+      const node=h.container.querySelector(`[data-proposal-item="${item.kind}-${item.index}"] [data-source-paragraph="${paragraph.index}"]`);assert(node);if(!paragraph.objects.length)assert.equal(node.textContent,paragraph.text);
+    }
+    if(invalid){
+      assert.equal(h.container.querySelector('[role="status"]').textContent,'The amendment’s location could not be confirmed.');
+      assert(!h.container.textContent.includes('The published location and original wording do not agree.'));
+      assert.equal(h.container.querySelector('[data-amendment-block]').hasAttribute('tabindex'),false);
+      assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
+    }
+  });
+});
+
+test('Commission placement uses matching proposal fallback language without report text',async t=>{
+  const value=proposalContextResponse(report,amendment,list,4);delete value.document.selectedText;
+  value.requestedLanguage='fr';delete value.requestedWordingLanguage;
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'fr'});
+  assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,1);
+  assert.equal(h.container.querySelector('.proposal-context-text').lang,'en');
+});
+
+for(const reason of ['conflicting_target_evidence','math_comparison_unavailable','source_passage_incomplete'])test('Commission reader preserves resolver reason '+reason+' without client evidence',async t=>{
+  const value=proposalContextResponse(report,amendment,list,4);
+  // Establish the conflict through the resolver, with an unrelated original quote.
+  if(reason==='conflicting_target_evidence'){
+    value.placement=resolveProposalPlacement(value.proposal.items,{...value.amendment.variants[0],originalText:'Unrelated wording that does not occur in the proposal.'});
+    assert.equal(value.placement.status,'unresolved');assert.equal(value.placement.reason,reason);
+  }else value.placement={...value.placement,status:'unresolved',reason};
+  delete value.target.evidence;
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const copy={conflicting_target_evidence:'The published location and original wording do not agree.',math_comparison_unavailable:'The equations could not be compared.',source_passage_incomplete:'The source passage is incomplete.'};
+  assert.equal(h.container.querySelector('[role="status"]').textContent,copy[reason]);
+  assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,0);
+  assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
+  for(const item of value.proposal.items)for(const paragraph of item.proposal.paragraphs){const node=h.container.querySelector(`[data-proposal-item="${item.kind}-${item.index}"] [data-source-paragraph="${paragraph.index}"]`);assert(node);if(!paragraph.objects.length)assert.equal(node.textContent,paragraph.text);}
+});
+
+test('an unknown selected wording language withholds otherwise valid Commission placement neutrally',async t=>{
+  for(const wordingLanguage of ['en',null])await t.test(wordingLanguage??'unknown',async t=>{
+    const value=proposalContextResponse(report,amendment,list,4);value.requestedWordingLanguage=wordingLanguage;
+    const h=await harness(t,()=>value);
+    await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage,view:'document',onBack:()=>{}},language:'en'});
+    assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,wordingLanguage?1:0);
+    assert.equal([...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'),!!wordingLanguage);
+    if(!wordingLanguage){
+      assert.equal(h.container.querySelector('[role="status"]').textContent,'The amendment’s location could not be confirmed.');
+      for(const item of value.proposal.items)for(const paragraph of item.proposal.paragraphs)assert(h.container.querySelector(`[data-proposal-item="${item.kind}-${item.index}"] [data-source-paragraph="${paragraph.index}"]`));
+    }
+  });
 });

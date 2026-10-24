@@ -21,6 +21,7 @@ function checkedAmendmentRead(record) {
   record=checkedAggregateAttribution(record);
   const row=checkedAmendmentBindings({...checkedProposer(record),...checkedLabel(record)});
   if((record.listId || record.textParserVersion!=null || typeof record.originalText==='string' || typeof record.proposedText==='string')&&record.textParserVersion!==AMENDMENT_EXTRACTION_VERSION) {
+    row.baseline='unknown';row.baselineSource=null;row.documentReferences=[];row.targetPath=null;
     row.originalText=null;row.proposedText=null;row.textIntegrity='incomplete';row.wordingRetained=false;
     row.gaps=[...new Set([...row.gaps,wordingUpgradeGap])];
   }
