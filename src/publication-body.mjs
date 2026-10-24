@@ -1,4 +1,4 @@
-import {motionBodyStart,bodyCompleteness} from './resolution-body.mjs';
+import {motionBodyStart,bodyCompleteness} from '../server/resolution-body.mjs';
 
 // Keep original extraction and source offsets intact when moving a recognised header.
 export function publicationBody(paragraphs, documentId, language) {

@@ -1,5 +1,5 @@
-import {motionBodyStart,bodyCompleteness,objectWarnings} from '../src/resolution-body.mjs';
-export {motionBodyStart} from '../src/resolution-body.mjs';
+import {motionBodyStart,bodyCompleteness,objectWarnings} from './resolution-body.mjs';
+export {motionBodyStart} from './resolution-body.mjs';
 // Document identity is established by the source graph before any paragraph alignment.
 export const DIFF_LIMITS=Object.freeze({paragraphs:600,characters:300000,wordCells:250000});
 const normalize=value=>String(value).normalize('NFC').replace(/\u00ad/g,'').replace(/\s+/gu,' ').trim();
