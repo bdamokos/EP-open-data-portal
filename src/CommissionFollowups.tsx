@@ -19,10 +19,13 @@ function FileLink({file,locale}:{file:FollowupFile;locale:string}) {
 export function CommissionFollowups({id,language,interfaceLanguage}:{id:string;language:string;interfaceLanguage:string}) {
   const state=useData<FollowupResponse>('commission-followups/'+encodeURIComponent(id)+'?'+new URLSearchParams({lang:language}));
   const data=state.data?.documentId===id&&state.data.requestedLanguage===language?state.data:null;
-  const failed=Boolean(state.error)||Boolean(data?.gaps?.some(gap=>gap.reason==='lookup-failed'));
+  const retryable=Boolean(data?.gaps?.some(gap=>gap.reason==='lookup-failed'||gap.reason==='time-budget'));
+  const recordGap=Boolean(data?.gaps?.some(gap=>!gap.reason.startsWith('file-')));
   if(state.loading&&!data)return null;
   const items=data?.items||[];
-  if(!items.length&&!failed&&data?.status!=='partial')return null;
+  const failed=Boolean(state.error)||(!items.length&&retryable);
+  const status=failed?'Commission follow-up could not be checked.':items.length&&recordGap?'Some follow-up documents could not be checked.':null;
+  if(!items.length&&!status)return null;
   return <div className="commission-followups" lang="en">
     {items.map(item=>{
       const [primary,...others]=preferredFiles(item.files,language);
@@ -33,7 +36,6 @@ export function CommissionFollowups({id,language,interfaceLanguage}:{id:string;l
         {others.length>0&&<details><summary>Other languages</summary><ul>{others.map(file=><li key={file.language}><FileLink file={file} locale={interfaceLanguage}/></li>)}</ul></details>}
       </div>;
     })}
-    {failed&&<p role="status">Commission follow-up could not be checked. <button type="button" onClick={state.retry}>Try again</button></p>}
-    {data?.status==='partial'&&<p>Some follow-up documents could not be checked.</p>}
+    {status&&<p role="status">{status}{(failed||retryable)&&<> <button type="button" onClick={state.retry}>Try again</button></>}</p>}
   </div>;
 }

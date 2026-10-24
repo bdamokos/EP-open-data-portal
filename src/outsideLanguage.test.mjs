@@ -131,9 +131,9 @@ test('speaker titles retain source fallback keys and per-title boundaries throug
     const options=[...q('.ov-month-filter select').options];
     assert.equal(options[0].textContent,'All months');expectLanguage(options[0],'en');
     const localizedMonth=new Intl.DateTimeFormat(language,{month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date('2026-06-01T12:00:00Z'));
-    assert.equal(options[1].textContent,localizedMonth+': 7 agenda items');expectLanguage(options[1],language==='en'?'en':'');
+    assert.equal(options[1].textContent,localizedMonth+': 7 · Partial agenda items');expectLanguage(options[1],language==='en'?'en':'');
     assert(options[2].disabled,'the unchanged empty month remains disabled');
-    const monthButton=q('.ov-monthly button');assert.equal(monthButton.getAttribute('aria-label'),options[1].textContent);expectLanguage(monthButton,language==='en'?'en':'');expectLanguage(monthButton.querySelector('small'),language);
+    const monthButton=q('.ov-monthly button');assert.equal(monthButton.getAttribute('aria-label'),options[1].textContent);expectLanguage(monthButton,language==='en'?'en':'');expectLanguage(monthButton.querySelector('small[aria-hidden="true"]'),language);expectLanguage(monthButton.querySelector('.availability-partial'),'en');
     await h.click('Appearances');
     const appearance=[...h.container.querySelectorAll('.ov-appearance')].find(node=>node.querySelector('summary b').textContent===card.querySelector('small').textContent);
     assert(appearance);assertTitles(appearance.querySelector('summary>span'),language);expectLanguage(appearance.querySelector('summary b'),language);

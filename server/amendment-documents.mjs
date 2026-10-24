@@ -1,8 +1,9 @@
 import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
+import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTargetPath } from './amendment-baseline.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='11';
+export const AMENDMENT_EXTRACTION_VERSION='12';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-text-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -230,7 +231,7 @@ const numberIn=(raw,paragraphStyle)=>{
   const match=raw.match(/<NumAm>\s*([1-9]\d*)\s*<\/NumAm>/)||raw.match(/^\s*Amendment\s*([1-9]\d*)\b/iu)||(/^AmNumberTabs\d*$/i.test(paragraphStyle||'')&&raw.match(/^[^\d<>]+?\s*([1-9]\d*)\s*$/u));
   const number=match&&Number(match[1]);return Number.isSafeInteger(number)?number:null;
 };
-const heading=text=>/^(?:Amendment|Amendement|Änderungsantrag|Ændringsforslag|Módosítás|Enmienda|Emendamento|Alteração|Amendament|Poprawka|Wijziging|Τροπολογία|Pozmeňujúci návrh|Pozměňovací návrh)$/iu.test(text);
+const legacyHeading=text=>/^(?:Amendment|Amendement|Änderungsantrag|Ændringsforslag|Módosítás|Enmienda|Emendamento|Alteração|Amendament|Poprawka|Wijziging|Τροπολογία|Pozmeňujúci návrh|Pozměňovací návrh)$/iu.test(text);
 const groupNumber=group=>group?.filter(b=>b.kind==='paragraph').map(b=>numberIn(b.raw,b.paragraphStyle)).find(Boolean)||null;
 
 /** Extract individual amendments without flattening the original/proposed columns. */
@@ -271,6 +272,9 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     for(const block of group.filter(block=>block.kind==='paragraph'))for(const code of block.losses||[])if(CONTENT_LOSSES[code])gap(code,number,CONTENT_LOSSES[code]);
     const authors=[...new Set(field(raw,'Members').flatMap(names=>names.split(/[,;\n]+/).map(clean).filter(Boolean)))];
     const onBehalfOf=field(raw,'AuNomDe').map(metadata).filter(Boolean).join('; ')||null;
+    const documentReferences=['DocRef','DocAmend','Article','DocAmend2','Article2','DocAmend3','Article3','DocAmend4','Article4'].flatMap(tag=>field(raw,tag).map(value=>({field:tag,raw:metadata(value),sourceRaw:value,scope:'amendment'})));
+    for(const value of field(coverRaw,'DocRef'))documentReferences.push({field:'DocRef',raw:metadata(value),sourceRaw:value,scope:'document'});
+    const targetPath={...amendmentTargetPath(documentReferences),language,sourceUrl,fetchedAt},comparisonHeadings=[];
     const targetParts=field(raw,'Article');
     for(let i=2;i<=4;i++)for(const article of field(raw,'Article'+i))targetParts.push([field(raw,'DocAmend'+i)[0],article].filter(Boolean).join(' — '));
     if(!targetParts.length&&committee) {
@@ -294,7 +298,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
         for(const code of Object.keys(CONTENT_LOSSES))if(cells.some(cell=>cell.losses.includes(code)))gap(code,number,CONTENT_LOSSES[code]);
         if(cells.every(c=>!c.text))continue;
         if(!headerConfirmed) {
-          if(cells.length===2&&heading(cells[1].text)){headerConfirmed=true;continue;}
+          if(cells.length===2&&(isAmendmentHeading(cells[1].text,language)||legacyHeading(cells[1].text))){headerConfirmed=true;comparisonHeadings.push({left:comparisonHeading(cells[0].text,language),right:comparisonHeading(cells[1].text,language)});continue;}
           gap('comparison-header',number,'The comparison column headings could not be identified.');break;
         }
         if(cells.length!==2){gap('comparison-columns',number,'A comparison row does not contain exactly two columns.');continue;}
@@ -312,7 +316,9 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       if(/<\/Justification>|<\/Amend>|<Original>/.test(block.raw))inJustification=false;
     }
     if(justificationParts.some(Boolean))justification=justificationParts.filter(Boolean).join('\n');
-    const record={number,listId:listId??null,targetDocumentId:targetDocumentId??null,date,documentDate:date,dateBasis,authors,committeeProposer:committee,onBehalfOf,targetLabel,originalText:comparableRows?before.join('\n').trim():null,proposedText:comparableRows?after.join('\n').trim():null,justification,language,sources:[{url:sourceUrl,fetchedAt,date,dateBasis,language,format:'DOCX'}]};
+    const baselineSource={...baselineDescriptor(comparisonHeadings),language,sourceUrl,fetchedAt},baseline=baselineSource.category;
+    if(baselineSource.conflicted)gap('baseline-conflict',number,'Comparison tables name different baseline categories.');
+    const record={baselineSource,documentReferences,targetPath,number,listId:listId??null,targetDocumentId:targetDocumentId??null,date,documentDate:date,dateBasis,authors,committeeProposer:committee,onBehalfOf,baseline,targetLabel,originalText:comparableRows?before.join('\n').trim():null,proposedText:comparableRows?after.join('\n').trim():null,justification,language,sources:[{url:sourceUrl,fetchedAt,date,dateBasis,language,format:'DOCX'}]};
     if(!authors.length)gap('authors-unavailable',number,'No explicit amendment proposer names were found in this document block.');
     if(!date)gap('date-unavailable',number,'The amendment document does not supply a supported document date.');
     if(!targetLabel)gap('target-unavailable',number,'The amendment target location was not recorded.');

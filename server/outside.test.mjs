@@ -1,3 +1,4 @@
+import {periodAvailability} from './source-availability.mjs';
 import {loopback} from './test-support/loopback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -321,4 +322,15 @@ test('outside contribution titles follow display order without changing source l
   store.db.prepare('UPDATE outside_contributions SET body=? WHERE generation=? AND speech=? AND person=?').run(JSON.stringify(body),generation,row.speech,row.person);
   const selected=outsideSpeaker(store,row.person,{term:'all',language:'ga'}).contributions.find(item=>item.id===body.id);
   assert.deepEqual(selected.titles,{fr:'French title'});assert.deepEqual(selected.originalLanguages,body.originalLanguages);
+}));
+
+
+test('an older failed Outside month stays unavailable beneath newer observations',withStore((store,generation)=>{
+  seed(store,generation);
+  store.putSource(generation,'outside:gap:month','outside-gap',{taskBody:{params:{'sitting-date':'2025-01-01','sitting-date-end':'2025-01-31'}}},saved.fetchedAt);
+  const response=outsideDirectory(store,outsideQuery(new URLSearchParams('term=10')));
+  const evidence=response.coverage.availability;
+  assert(evidence.latestObservedDate>'2025-01-31');
+  assert.equal(periodAvailability({start:'2025-01-01',end:'2025-01-31'},evidence,0).observedCount,null);
+  assert.equal(periodAvailability({start:'2025-01-01',end:'2025-01-31'},evidence,2).state,'partial');
 }));

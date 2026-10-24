@@ -21,6 +21,7 @@ function checkedAmendmentRead(record) {
   record=checkedAggregateAttribution(record);
   const row=checkedAmendmentBindings({...checkedProposer(record),...checkedLabel(record)});
   if((record.listId || record.textParserVersion!=null || typeof record.originalText==='string' || typeof record.proposedText==='string')&&record.textParserVersion!==AMENDMENT_EXTRACTION_VERSION) {
+    row.baseline='unknown';row.baselineSource=null;row.documentReferences=[];row.targetPath=null;
     row.originalText=null;row.proposedText=null;row.textIntegrity='incomplete';row.wordingRetained=false;
     row.gaps=[...new Set([...row.gaps,wordingUpgradeGap])];
   }
@@ -342,6 +343,7 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   if(readCoverage.proposer)gaps.push(proposerDateGap);
   if(readCoverage.splits)gaps.push(SPLIT_BINDING_GAP);
   if(readCoverage.freshness)gaps.push(sourceFreshnessGap);
+  const targetGaps=[...gaps];
   const working=store.get('working'),active=store.get('active');
   const generations=[...new Set([generation,working?.generation,active].filter(Boolean))];
   const refreshGaps=generations.some(id=>store.db.prepare("SELECT 1 FROM refresh_gaps WHERE generation=? AND kind IN ('document','motion-outcomes') LIMIT 1").get(id));
@@ -354,13 +356,13 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
     return [typeof detail?.message==='string'?detail.message:'Some amendment discovery was deferred after the checkpoint capacity was reached.'];
   });
   gaps.push(...new Set(capacityGaps));
-  if(!records.length)gaps.push(document?'This document has no indexed amendment records.':'Amendment discovery is incomplete.');
+  if(!records.length){const gap=document?'This document has no indexed amendment records.':'Amendment discovery is incomplete.';gaps.push(gap);targetGaps.push(gap);}
   if(!document)gaps.push('Coverage includes indexed plenary amendment lists; older targets are enriched in bounded batches.');
   const lastUpdated=records.map(record=>record.lastUpdated).filter(Boolean).sort().at(-1) || null;
   const indexedObservationComplete=Boolean(document&&readCoverage.rows>0&&records.length&&records.every(record=>record.complete)&&!listProjectionUnverified&&!readCoverage.wording&&!readCoverage.proposer&&!readCoverage.splits&&!readCoverage.freshness);
   const emptyObservation=document&&records.length===1?checkedEmptyObservation(records[0],document,readCoverage.rows):null;
   const observationComplete=indexedObservationComplete||Boolean(emptyObservation);
-  return {items,total,offset,limit,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length&&!refreshGaps),observationComplete,emptyObservation,
+  return {items,total,offset,limit,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length&&!refreshGaps),observationComplete,emptyObservation,targetGaps,discovery:{pending,refreshGaps,capacityGaps},
     observationScope:emptyObservation?'published-amendment-list-relationships':'indexed-plenary-amendment-sources',indexed:Boolean(records.length),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope:'plenary',servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation)},failures:amendmentFailureSummary(store)};
 }
 
@@ -396,7 +398,9 @@ export function enqueueAmendment(store,generation,key,kind,body,priority=105,ref
           // in the direct queue or its reserved full snapshots.
           const capacityGap={count:(saved.capacityGap?.count || 0)+1,message:'Additional untouched amendment discovery exceeded the bounded checkpoint and is deferred to normal catalogue refresh.'};
           saveCheckpoint({...saved,capacityGap});
-          store.db.prepare("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')").run(generation);
+          // An unchanged JSON UPDATE still fires every source projection trigger.
+          // Saturation can recur after each job; only invalidate present markers.
+          store.db.prepare("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND json_type(body,'$.amendmentLinksVersion') IS NOT NULL AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')").run(generation);
           return false;
         }
       }

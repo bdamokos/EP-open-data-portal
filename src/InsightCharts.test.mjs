@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act, createElement, useState} from 'react';
 import {Window} from 'happy-dom';
+import {sourceAvailability} from '../server/source-availability.mjs';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('question trends expose measures and retain keyboard and select filtering', async t => {
@@ -30,7 +31,7 @@ test('question trends expose measures and retain keyboard and select filtering',
   const changes = [];
   function Trend({interactive = true, selected = true, comparison = true, countryFiltered = false, language = 'en'}) {
     const [range, setRange] = useState(null);
-    return createElement(QuestionTrend, {data: {interval: 'week', bins}, language, selected, comparison, countryFiltered, scope: 'Water', range,
+    return createElement(QuestionTrend, {data: {interval: 'week', bins,sources:[sourceAvailability({sourceKey:'questions',start:'2026-10-01',end:'2026-10-16',latestObservedDate:'2026-10-14'})]}, language, selected, comparison, countryFiltered, scope: 'Water', range,
       onRange: interactive ? value => {changes.push(value); setRange(value);} : undefined});
   }
   const render = props => act(async () => root.render(createElement(Trend, props)));
@@ -44,7 +45,7 @@ test('question trends expose measures and retain keyboard and select filtering',
   assert.match(container.querySelector('svg').getAttribute('aria-label'), /Water: Question counts by week/);
   assert.equal(points().length, 3);
   assert.match(points()[0].getAttribute('aria-label'), /Oct 1, 2026–Oct 7, 2026: 3 questions, 8 total/);
-  assert.equal(container.querySelectorAll('svg path').length, 2, 'count mode retains the all-question baseline');
+  assert.equal(container.querySelectorAll('svg path[data-series=all]').length, 2, 'count mode retains the all-question baseline');
   await press(points()[0], 'Enter');
   assert.deepEqual(changes.at(-1), {start: bins[0].start, end: bins[0].end});
   assert.equal(points()[0].getAttribute('aria-pressed'), 'true');
@@ -93,9 +94,9 @@ test('question trends expose measures and retain keyboard and select filtering',
   bins[2] = {...bins[2], availability: 'unavailable', count: null, total: null};
   await render({interactive: true, selected: false});
   assert.equal(points().length, 2, 'unavailable counts are not plotted at zero');
-  assert.match(select().options[2].textContent, /Partial period/);
+  assert.match(select().options[2].textContent, /Partial\./);
   assert.match(select().options[3].textContent, /Unavailable/);
   assert.doesNotMatch(select().options[3].textContent, /0 questions/);
   assert.equal(container.querySelector('svg path').getAttribute('d').split('L').length, 2, 'baseline stops at the frontier');
-  assert.match(container.textContent, /timeline is unavailable/);
+  assert.match(container.textContent, /Later dates unavailable/);
 });

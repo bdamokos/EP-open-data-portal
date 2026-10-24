@@ -1,4 +1,7 @@
+import {ActivityDossierLinks} from './DossierActivity';
+import {useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
 import {matchesCommittee} from './memberFilters.mjs';
+import {AvailabilityNote} from './AvailabilityNote';
 import {coverageStore} from './SavedControls';
 import {FormerMemberNotice} from './MembershipUpdates';
 import {PersonName,PersonNamesProvider} from './PersonName';
@@ -21,6 +24,8 @@ import {ProfileMemberships} from './ProfileMemberships';
 import {SaveButton,useSavedChecks,useSaved} from './SavedControls';
 import {interfaceTerm} from './terms.mjs';
 import {ParliamentHeader} from './ParliamentHeader';
+import {InsightFrame} from './InsightFrame';
+import {plenaryModes,plenaryModeTitles,type PlenaryMode} from './plenaryModes';
 import {QuestionStatus} from './QuestionStatus';
 import {MotionStatuses,MotionOutcome} from './MotionOutcome';
 import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -137,7 +142,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
     [body?.xml],
   );
   return (
-    <div className="explorer-speech-detail" lang={lang}>
+    <div className="explorer-speech-detail" lang={lang} data-reader-source={speech.id} data-reader-language={transcriptLanguage} data-reader-pending={state.loading?"true":undefined}>
       <Status scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={state.error||!body?null:text.error?'Parliament returned transcript text that could not be read.':text.paragraphs.length?'Transcript loaded.':'No transcript text is available from Parliament’s API for this contribution.'}/>
       {state.data?.speakers?.map(person=><div key={person.id}><strong><SpeakerName person={person} language={lang}/></strong><SpeakerRoleLine person={person} language={lang} intervention={state.data?.intervention} className="insight-secondary"/></div>)}
       {state.data?.intervention?.type!=='chair'&&<InterventionBadges value={state.data?.intervention} language={lang}/>}
@@ -227,12 +232,13 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, include
 function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionChange }: { item: JoinedActivity; lang: string; member: number; memberName?:string; motionQuery:URLSearchParams; onMotionChange:MemberMotionReaderProps['onJourneyChange'] }) {
   const hasText=item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer';
   const motion=/^(?:B|RC)-10-\d{4}-\d{4,6}$/.test(item.sourceId);
-  const [documentOpen,setDocumentOpen]=useState(false);
+  const [documentOpen,setDocumentOpen]=useDossierReaderState('activity-document:'+item.sourceId,false);
   const document=useData<PublicationDocument>(item.recordKind!=='speech' && !hasText && (!motion||documentOpen) ? `document/${item.sourceId}?member=${member}&lang=${lang}` : null);
   const roles: Record<string,string> = {AUTHOR:"Author",QUESTION_AUTHOR:"Author of the question",RAPPORTEUR:"Rapporteur",RAPPORTEUR_SHADOW:"Shadow rapporteur",RAPPORTEUR_OPINION:"Opinion rapporteur",RAPPORTEUR_SHADOW_OPINION:"Shadow opinion rapporteur",SPEAKER:"Plenary contribution"};
   const stage=item.provenance.stage==='RDG1'?interfaceTerm('first-reading',lang):item.provenance.stage==='RDG2'?interfaceTerm('second-reading',lang):{text:item.provenance.stage,language:''};
-  if (item.recordKind === "speech") return <Detail speech={{id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null}} lang={lang} />;
-  return <div className="explorer-speech-detail" lang={lang}>
+  if (item.recordKind === "speech") return <><ActivityDossierLinks procedureIds={item.procedureIds} person={member} language={lang}/><Detail speech={{id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null}} lang={lang} /></>;
+  return <div className="explorer-speech-detail" lang={lang} data-reader-pending={document.loading?"true":undefined}>
+    <ActivityDossierLinks procedureIds={item.procedureIds} person={member} language={lang}/>
     {!hasText&&<p lang="en"><strong lang={roles[item.provenance.role] ? "en" : ""}>{item.relatedJointMotions?.length && item.provenance.role==="AUTHOR" ? "Author of the original motion" : roles[item.provenance.role] || item.provenance.role}</strong>{item.provenance.stage ? <> · <span lang={stage.language}>{stage.text}</span></> : ""}</p>}
     {!hasText&&<span lang="en"><AmendmentTrailLink document={item.sourceId} language={lang}>Amendments to this document</AmendmentTrailLink></span>}
     <MotionOutcome outcome={item.resolutionOutcome} related={item.relatedJointMotions} reference={item.reference} sourceId={item.sourceId} language={lang} memberId={member} memberName={memberName}/>
@@ -371,6 +377,7 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
       </nav>}
     </>}
     <h3 ref={resultsHeading} tabIndex={-1} className="explorer-activity-results-title">{selectedLabel}{state.data && coverage?.status!=="source-not-verified" ? ` · ${state.data.indexedTotal} saved` : ""}</h3>
+    {page&&coverage?.status!=='source-not-verified'&&<AvailabilityNote sources={page.availability} language={lang}/>}
     {state.loading && !state.data && <p role="status">Loading saved results…</p>}
     {state.error && <ErrorView message={state.error} retry={state.retry} />}
     {page && <>
@@ -385,6 +392,7 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
         return <article className="explorer-speech" id={`publication-${item.id}`} key={key}>
           <button className="explorer-speech-toggle" aria-expanded={isOpen(item)} onClick={()=>{const next=isOpen(item)?null:key;onOpen(next);}}><span><small><span>{item.recordKind === "answer" ? "Answer" : item.category === "written-questions" ? "Written question" : item.category === "oral-questions" ? "Oral question" : item.categoryLabel} · <time lang={lang} dateTime={item.date}>{date(item.date,lang)}</time></span></small><strong lang={item.titleLanguage||""}>{item.title}</strong>{item.recordKind!=="answer"&&item.answerStatus&&<QuestionStatus answered={item.answerStatus==="answered"}/>} {item.resolutionOutcome&&<MotionStatuses outcome={item.resolutionOutcome} related={item.relatedJointMotions} sourceId={item.sourceId}/>}</span><b aria-hidden="true">{isOpen(item)?"−":"+"}</b></button>
 
+          {!isOpen(item)&&item.provenance.role.startsWith('RAPPORTEUR')&&<ActivityDossierLinks procedureIds={item.procedureIds} person={id} language={lang}/>}
           {isOpen(item) && <JoinedDetails item={item} lang={lang} member={id} memberName={memberName} motionQuery={motionQuery} onMotionChange={onMotionChange} />}
         </article>;
       })}
@@ -473,8 +481,10 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   </section>;
 }
 export default function App() {
+  useDossierJourney();
   const [initial] = useState(() => new URLSearchParams(location.search));
   const [restoration,setRestoration]=useState(0);
+  const [plenaryMode]=useExplorerParam<PlenaryMode>('pl-mode','agenda',plenaryModes);
   const [lang, setLang] = useState(() => queryLanguage(initial));
   const [member, setMember] = useState<number | null>(
     /^\d+$/.test(initial.get("member") || "")
@@ -539,7 +549,7 @@ export default function App() {
     // Small screens scroll the whole explorer; start new pages at the top and new tabs at their content.
     const previous=scrolledView.current;scrolledView.current={member,tab,view};
     const page=document.querySelector<HTMLElement>(".explorer");
-    if(!page||page.scrollHeight<=page.clientHeight)return;
+    if(!page||page.scrollHeight<=page.clientHeight||dossierJourneyRestoring())return;
     if(!view&&tab==='votes'&&votes.hasSavedScroll)return;
     if(!view&&tab==='activities'&&motions.hasSavedScroll)return;
     if(previous.member!==member||previous.view!==view){if(!wallVisible&&!speechLink&&!activityLink)page.scrollTo({top:0});return;}
@@ -552,7 +562,7 @@ export default function App() {
   // Apply the destination after the existing responsive scroll policy has settled.
   function focusDestination(){
     const intent=pendingDestination.current;
-    if(!intent||intent.view!==view||intent.member!==member)return;
+    if(!intent||intent.view!==view||intent.member!==member||dossierJourneyRestoring())return;
     // Suspense can retain the previous view's hidden DOM while a chunk loads.
     if(document.querySelector('[data-view-loading]'))return;
     // Selected speech links already hand focus to the exact item once it mounts.
@@ -737,12 +747,13 @@ export default function App() {
   ><Suspense fallback={<ViewLoading language={lang}/>}><ViewContent onReady={focusDestination} render={()=>{
   if (view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
-    return view==='groups' ? <GroupVoices {...props}/> : view==='amendments' ? <AmendmentsPage {...props}/> : view==='legislation' ? <Legislation {...props} members={directory?.members}/> : view==='outside' ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>;
+    const title={groups:'Group voices',amendments:'Amendments',legislation:plenaryModeTitles[plenaryMode],outside:'Outside voices',questions:'Questions'}[view];
+    return <InsightFrame {...props} view={view}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>view==='groups' ? <GroupVoices {...props}/> : view==='amendments' ? <AmendmentsPage {...props}/> : view==='legislation' ? <Legislation {...props} members={directory?.members}/> : view==='outside' ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>}/></Suspense></InsightFrame>;
   }
   return (
     <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current.page=event.currentTarget.scrollTop;}}>
         <ParliamentHeader view={view==='saved'?'saved':'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>
-        {view === 'saved' ? <Saved language={lang} onBack={leaveSaved} onMember={openInsightMember} renderActivity={props=><FollowingActivityDetail {...props} lang={lang}/>}/> : member ? (
+        {view === 'saved' ? <Suspense fallback={<ViewLoading language={lang} title="Following" embedded/>}><ViewContent onReady={focusDestination} render={()=><Saved language={lang} onBack={leaveSaved} onMember={openInsightMember} renderActivity={props=><FollowingActivityDetail {...props} lang={lang}/>}/>}/></Suspense> : member ? (
           <section className="explorer-profile">
             <button
               lang={lang}
@@ -809,7 +820,7 @@ export default function App() {
                         <DocumentContextReader request={request} language={lang} selectedDocumentId={votes.journey.adoptedId} onSelectedDocumentIdChange={votes.onSelectedDocumentIdChange}/>
                       </Suspense>}/>
                   </Suspense>
-              ) : publicAmendmentsEnabled && tab === "amendments" ? <Amendments key={member} member={member} language={lang} onMember={openInsightMember} heading="Amendments tabled"/> : tab === "activities" ? <Activities id={member} lang={lang} memberName={memberName} initialActivity={activityLink} onOpen={changeActivity} category={activityCategory} onCategory={changeActivityCategory} offset={activityOffset} onOffset={changeActivityOffset} motionQuery={motions.query} onMotionChange={motions.onJourneyChange} preserveScroll={motions.hasSavedScroll} /> : (
+              ) : publicAmendmentsEnabled && tab === "amendments" ? <Amendments key={member} member={member} language={lang} onMember={openInsightMember} heading="Amendments tabled"/> : tab === "activities" ? <Activities id={member} lang={lang} memberName={memberName} initialActivity={activityLink} onOpen={changeActivity} category={activityCategory} onCategory={changeActivityCategory} offset={activityOffset} onOffset={changeActivityOffset} motionQuery={motions.query} onMotionChange={motions.onJourneyChange} preserveScroll={motions.hasSavedScroll||dossierJourneyRestoring()} /> : (
                 <>
                   {profile.loading && <p role="status" lang="en">Loading profile…</p>}
                   {profile.error && (
