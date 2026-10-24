@@ -1,3 +1,4 @@
+import {indexAvailability,savedGaps} from './availability-evidence.mjs';
 import {generationGroupOn,datedPerson} from './group-attribution.mjs';
 import {languagePreference} from './language-order.mjs';
 import {subjectPlace} from './insights-places.mjs';
@@ -85,7 +86,7 @@ export class QuestionInsights {
     requestSignal()?.throwIfAborted();
     const status=this.store.status();if(!status.currentMeps||!status.servingGeneration)throw new HttpError(503,'insights_loading','The saved activity index is not available yet.');
     const groupOn=generationGroupOn(this.store,status.servingGeneration);
-    const key=JSON.stringify([status.servingGeneration,status.complete,status.progress?.completed,status.rosterFetchedAt,query.start,query.end]);
+    const key=JSON.stringify([status.servingGeneration,status.availabilityRevision,status.complete,status.progress?.completed,status.rosterFetchedAt,query.start,query.end]);
     const old=this.cache.get(key);if(old && this.clock()-old.at<INSIGHTS_LIMITS.cacheMs)return old.value;
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
     // Language and filter views share this analysis, but each view has its own
@@ -94,15 +95,22 @@ export class QuestionInsights {
       // Use the existing store, not a second ActivityStore or worker. All statements are SELECTs.
       const params=[status.servingGeneration,query.start,query.end];
       const where="generation=? AND kind='document' AND json_extract(body,'$.document_date') BETWEEN ? AND ? AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')";
-      const count=this.store.db.prepare('SELECT COUNT(*) AS n FROM sources WHERE '+where).get(...params).n;
-      const rows=this.store.db.prepare('SELECT key,body,fetched_at FROM sources WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions);
-      const members=new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)]));
+      const frozen=this.store.readSnapshot(()=>({
+        count:this.store.db.prepare('SELECT COUNT(*) AS n FROM sources WHERE '+where).get(...params).n,
+        rows:this.store.db.prepare('SELECT key,body,fetched_at FROM sources WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
+        members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
+        gaps:savedGaps(this.store,status.servingGeneration,'questions'),revision:this.store.get('availabilityRevision')||0,checkedAt:this.store.get('lastSuccess'),
+        frontiers:this.store.db.prepare("SELECT json_extract(body,'$.work_type') subtype,json_extract(body,'$.document_date') date,fetched_at fetchedAt FROM sources WHERE generation=? AND kind='document' AND key LIKE '/parliamentary-questions/%'").all(status.servingGeneration)
+      }));
+      const {count,rows,members}=frozen;
       const metadata=await this.loadMetadata({members});
       const sources=rows.map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at}));
       const bodies=await this.loadQuestionBodies(sources);
       const analysis=await analyzeQuestionsAsync(sources.map(questionFromSource).filter(Boolean),{bodies,signal});
       const geography=countryQuestions(analysis,members,metadata);
-      const value={...analysis,...geography,members,metadata,status,groupOn,indexedMatchingQuestions:count,truncated:count>rows.length,computedAt:new Date(this.clock()).toISOString()};
+      const availability=['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL'].map(subtype=>indexAvailability(this.store,{sourceKey:subtype,family:'questions',subtype,start:query.start,end:query.end,generation:status.servingGeneration,gaps:frozen.gaps,limited:count>rows.length,checkedAt:frozen.checkedAt,revision:frozen.revision,
+        records:frozen.frontiers.filter(q=>String(q.subtype).endsWith('/'+subtype))}));
+      const value={...analysis,...geography,members,metadata,status,availability,groupOn,indexedMatchingQuestions:count,truncated:count>rows.length,computedAt:new Date(this.clock()).toISOString()};
       const bytes=Buffer.byteLength(JSON.stringify({...analysis,...geography}));
       signal.throwIfAborted();
       if(bytes<=INSIGHTS_LIMITS.cacheBytes) {
@@ -141,8 +149,8 @@ export class QuestionInsights {
       counts:{indexedMatchingQuestions:a.indexedMatchingQuestions,analyzedQuestions:a.questions.length,totalQuestions:a.status.complete&&!a.truncated?a.indexedMatchingQuestions:null,selectedQuestions:selected.length,contextUnassignedQuestions:countryBase.filter(q=>q.clusterId===null).length,countryUnassignedQuestions:query.country?countryBase.filter(q=>q.clusterId===null).length:null,clusters:a.clusters.length},
       selection:{subject:query.subject||null,subjectLabel:subjectPlace(query.subject)?.label||null,cluster:query.cluster,word:query.word,wordLabel:query.word?(a.termLabels?.[query.word]||query.word):null,country:query.country,addressee:query.addressee,from:query.from||null,to:query.to||null},facets:{countries:countryFacets,addressees:addresseeFacets,availableQuestions:countryBase.length},stats:stats(recipientBase),selectedStats:stats(selected,true),clusters:a.clusters.map(c=>({...c,contextQuestionCount:clusterCounts.get(c.id)||0,countryQuestionCount:query.country?clusterCounts.get(c.id)||0:null})),words:shownWords.map(w=>({...w,countryQuestionCount:query.country?w.contextQuestionCount:null})),analysis:a.analysis,
       geography:{countries:geography.countries.map(c=>({...c,features:[...new Map([...c.features.filter(f=>f.highlighted).slice(0,8),...c.features.filter(f=>f.id===(query.word?'word:'+query.word:'cluster:'+query.cluster))].map(f=>[f.id,f])).values()]})),selected:countryAnalysis,unknownCountryQuestions:geography.unknownCountryQuestions,method:geography.method},
-      trend:questionTrend(recipientBase.filter(hasCountry),recipientBase.filter(q=>hasCountry(q)&&hasTopic(q)),query,a.questions.map(q=>q.date).filter(Boolean).sort().at(-1)||null),questions:selected.slice(query.offset,query.offset+query.limit).map(present),offset:query.offset,limit:query.limit,nextOffset:query.offset+query.limit<selected.length?query.offset+query.limit:null,
-      coverage:{indexComplete:a.status.complete,truncated:a.truncated,scope:'Saved term-10 question sources, with all explicitly supplied authors. Demographics cover only people on the current saved MEP roster.',servingGeneration:a.status.servingGeneration,sourceCounts:a.status.sourceCounts,rosterFetchedAt:a.status.rosterFetchedAt,lastSuccessfulRefresh:a.status.lastSuccessfulRefresh,pendingSpeechRecoveries:a.status.pendingSpeechRecoveries?.count||0,sourceFetchedFrom:a.questions.map(q=>q.fetchedAt).filter(Boolean).sort()[0]||null,sourceFetchedTo:a.questions.map(q=>q.fetchedAt).filter(Boolean).sort().at(-1)||null},
+      trend:questionTrend(recipientBase.filter(hasCountry),recipientBase.filter(q=>hasCountry(q)&&hasTopic(q)),query,a.availability),questions:selected.slice(query.offset,query.offset+query.limit).map(present),offset:query.offset,limit:query.limit,nextOffset:query.offset+query.limit<selected.length?query.offset+query.limit:null,
+      availability:a.availability,coverage:{indexComplete:a.status.complete,truncated:a.truncated,scope:'Saved term-10 question sources, with all explicitly supplied authors. Demographics cover only people on the current saved MEP roster.',servingGeneration:a.status.servingGeneration,sourceCounts:a.status.sourceCounts,rosterFetchedAt:a.status.rosterFetchedAt,lastSuccessfulRefresh:a.status.lastSuccessfulRefresh,pendingSpeechRecoveries:a.status.pendingSpeechRecoveries?.count||0,sourceFetchedFrom:a.questions.map(q=>q.fetchedAt).filter(Boolean).sort()[0]||null,sourceFetchedTo:a.questions.map(q=>q.fetchedAt).filter(Boolean).sort().at(-1)||null},
       cache:{computedAt:a.computedAt,ttlSeconds:60,readOnly:true},attribution:'European Parliament Open Data API v2, CC BY 4.0',limits:INSIGHTS_LIMITS};
   }
 }

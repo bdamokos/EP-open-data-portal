@@ -1,4 +1,5 @@
 import {matchesCommittee} from './memberFilters.mjs';
+import {AvailabilityNote} from './AvailabilityNote';
 import {coverageStore} from './SavedControls';
 import {FormerMemberNotice} from './MembershipUpdates';
 import {PersonName,PersonNamesProvider} from './PersonName';
@@ -373,6 +374,7 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
       </nav>}
     </>}
     <h3 ref={resultsHeading} tabIndex={-1} className="explorer-activity-results-title">{selectedLabel}{state.data && coverage?.status!=="source-not-verified" ? ` · ${state.data.indexedTotal} saved` : ""}</h3>
+    {page&&coverage?.status!=='source-not-verified'&&<AvailabilityNote sources={page.availability} language={lang}/>}
     {state.loading && !state.data && <p role="status">Loading saved results…</p>}
     {state.error && <ErrorView message={state.error} retry={state.retry} />}
     {page && <>

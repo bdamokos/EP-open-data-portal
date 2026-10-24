@@ -1,3 +1,4 @@
+import type {SourceAvailability} from '../server/source-availability.mjs';
 import type {DocumentTable,ParagraphFormat} from './DocumentFormatting';
 import type { MemberSummary } from "./types";
 export interface Membership {
@@ -134,6 +135,7 @@ export interface SpeechContext {
   debates:{id:string;titles:Record<string,string>;records:SpeechSequenceRow[];exchanges:SpeechExchange[];error?:string;retryAt?:number;coverage:{complete:boolean;expected:number|null;available:number;missingIds:string[];reassignedIds?:string[]};sources?:{url:string;fetchedAt:string;stale:boolean}[]}[];
 }
 export interface InterventionStatistics {
+  availability?:SourceAvailability|SourceAvailability[];
   restarted?:boolean;
   memberId:string;items:Speech[];counts:{groupOrations:number|null;blueQuestions:number|null;blueAnswers:number|null;blueReactions:number|null;catchTheEye:number|null};
   groups:{id:string;label:string;count:number}[];coverage:{complete:boolean;available:number;total:number|null;headers:number;unclassified:number;issues:string[];latestDataDate?:string|null};
@@ -150,6 +152,7 @@ export interface Publication {
   publishedAt: string;
 }
 export interface ActivityPage {
+  availability?:SourceAvailability[];
   items: Publication[];
   limit: number;
   sourceUrl: string;
@@ -303,6 +306,7 @@ export interface JoinedActivity {
   provenance: { apiUrl: string; sourceFetchedAt: string; role: string; relationship: string; procedureApiUrl?: string; stage?: string };
 }
 export interface JoinedActivityPage {
+  availability?:SourceAvailability[];
   categories: Record<string,string>;
   categoryGroups: {label:string;categories:string[]}[];
   categoryCoverage: Record<string,{status:'available'|'backfilling'|'incomplete-joins'|'source-not-verified';indexedCount:number;total:number|null;reason:string|null}>;

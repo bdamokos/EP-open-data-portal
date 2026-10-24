@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
+import {sourceAvailability} from '../server/source-availability.mjs';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
 async function cloud(t,fetch) {
@@ -76,10 +77,15 @@ test('retained-speech coverage remains visible beside an incomplete calendar',as
     const data=result(speeches.slice(0,1));
     if(!retained)delete data.coverage.basis;
     data.coverage.catalogueComplete=calendarComplete;
+    data.coverage.complete=calendarComplete;
+    data.availability=sourceAvailability({sourceKey:'speech-text',family:'speeches',stage:'text',language:'en',start:'2026-10-07',end:'2026-10-07',latestObservedDate:retained?'2026-10-08':null,limited:true,observedRecords:retained?null:data.speeches.length,checkedAt:'2026-10-24T10:00:00Z',route:retained?'saved':'public-api',today:'2026-10-24'});
     const ui=await cloud(t,async()=>Response.json(data));await ui.render({member:1});
     const text=ui.container.textContent;
     assert.equal(text.includes('Some sitting dates unavailable.'),!calendarComplete);
-    assert.equal(/saved speech records|Saved speeches only/.test(text),retained,'retained records have a speech-source gap independently of calendar coverage');
-    if(!retained&&!calendarComplete)assert(!text.includes('The cloud covers the available records.'),'a calendar-only gap has one notice');
+    const note=ui.container.querySelector('.availability-note>p').textContent;
+    assert.match(note,/Partial coverage/,'the source qualifier remains independent of calendar coverage');
+    if(!retained)assert.equal(note,'Records observed · Partial coverage');
+    assert.match(ui.container.querySelector('.availability-note details').textContent,/Counts describe saved records/);
+    assert.equal(ui.container.querySelectorAll('.availability-note').length,1,'the source has one shared coverage note');
   });
 });

@@ -8,7 +8,7 @@ import {InsightViewCache} from './insights-view-cache.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
 import {HttpError} from './http-utils.mjs';
 const NOW=Date.parse('2026-10-19T12:00:00Z');
-const store={status:()=>({currentMeps:1,servingGeneration:1,complete:true}),db:{prepare:()=>({all:()=>[],get:()=>null})}};
+const store={clock:()=>NOW,get:()=>null,status:()=>({currentMeps:1,servingGeneration:1,complete:true}),db:{prepare:()=>({all:()=>[],get:()=>null})}};
 const meeting=date=>({id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'});
 function setup(){let now=NOW,failed=true;const calls=[];const clock=()=>now,request=async(endpoint,params={})=>{calls.push([endpoint,params.year]);if(endpoint==='/meetings'&&params.year===2025&&failed)throw new HttpError(502,'odp_unavailable','Source unavailable');return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?'+new URLSearchParams(params),fetchedAt:now,payload:{data:endpoint==='/meetings'&&params.year===2026?[meeting('2026-10-07'),meeting('2026-10-20')]:[]}};};const reader=new MeetingsReader({request,clock}),legislation=new LegislationInsights(store,{request,clock,meetings:reader,loadMetadata:async()=>new Map()});return {reader,legislation,calls,clock,request,recover(){failed=false;now+=60_001;}};}
 const policy=(view,value)=>apiCachePolicy({method:'GET'},new URL('https://example.test/api/insights/'+view),value);

@@ -25,7 +25,7 @@ function storeFor(t) {
   db.exec('CREATE TABLE members(id TEXT PRIMARY KEY,body TEXT NOT NULL)');
   db.prepare('INSERT INTO members VALUES (?,?)').run(member,JSON.stringify({id:member,name:'Saved speaker'}));
   db.exec('PRAGMA query_only=ON');
-  return {db,status:()=>({servingGeneration:1})};
+  return {db,get:()=>null,status:()=>({servingGeneration:1})};
 }
 function serviceFor(t,{data=[],labels={},detail}={}) {
   const source=record(data),calls=[];
