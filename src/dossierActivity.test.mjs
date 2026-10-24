@@ -6,7 +6,7 @@ import {freshLoader} from './test-support/viteRunner.mjs';
 import {dossierAmendmentVotes,dossierHref,dossierTimeline,mergeDossierPage} from './dossierActivityModel.mjs';
 import {dataTimeoutFor} from './client.mjs';
 import {readFile} from 'node:fs/promises';
-import {contrast,paintedBackground,themeCss} from './test-support/themeStyles.mjs';
+import {contrast,paintedBackground,themeCss,tokenValue} from './test-support/themeStyles.mjs';
 
 const reference='2025/0176(COD)',source={url:'https://data.europarl.europa.eu/api/v2/procedures/2025-0176',fetchedAt:'2026-10-23T12:00:00Z',language:'en'};
 const role={kind:'role',id:'participation/257727',personId:'257727',role:'RAPPORTEUR_CO',committee:'ENVI',date:'2026-02-11',dateBasis:'recorded',stage:'RDG1',source};
@@ -179,4 +179,46 @@ test('collective decisions render once with a shared reference in All and Amendm
   assert.equal(count(),1);const link=[...h.container.querySelectorAll('a')].find(a=>a.textContent==='View the vote');assert(link);assert(h.container.querySelector(link.getAttribute('href')));
   await h.click('Amendments');assert.equal(count(),1);assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);
   await h.click('Votes');assert.equal(count(),1);assert.equal(h.container.querySelectorAll('[data-dossier-vote]').length,2);
+});
+
+
+test('later vote pages stay explicit at their amendment and join once when loaded',async t=>{
+  const unresolved={...amendment,amendment:{...amendment.amendment,outcome:null}};
+  const h=await harness(t,undefined,url=>{
+    if(url.searchParams.get('section')==='amendments')return Response.json(page('amendments','257727',[unresolved]));
+    if(url.searchParams.get('section')==='votes')return Response.json(url.searchParams.get('offset')==='0'?
+      page('votes','257727',[rejection],{pagination:{offset:0,targetOffset:0,limit:25,next:{offset:25,targetOffset:0}}}):
+      page('votes','257727',[agreement],{pagination:{offset:25,targetOffset:0,limit:25,next:null}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  assert.match(h.container.querySelector('.dossier-amendment').textContent,/Vote details not loaded/);
+  assert.equal(h.container.querySelectorAll('.dossier-amendment [data-dossier-vote]').length,0);
+  await h.click('Check more votes');
+  const card=h.container.querySelector('.dossier-amendment');
+  assert.equal(card.querySelectorAll('[data-dossier-vote]').length,1);
+  assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1);
+  assert.equal(card.querySelector('.explorer-amendment-card header .explorer-amendment-outcome'),null,'do not contradict the exact bound ballot with an unavailable badge');
+  assert.doesNotMatch(card.textContent,/Vote details not loaded/);
+  assert.equal(card.querySelector('.dossier-vote>.dossier-source>summary').textContent,'Vote source');
+  assert.equal(card.querySelector(':scope>.dossier-source>summary').textContent,'Amendment source');
+  assert.doesNotMatch(card.querySelector('.dossier-vote>.dossier-muted').textContent,/Stage not stated/);
+  assert.match(card.querySelector('.dossier-vote>.dossier-muted').textContent,/Sep 16, 2026/);
+  assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='votes').at(-1).searchParams.get('offset'),'25');
+});
+
+test('dossier vote bars and positions paint the shared vote tokens in both schemes',async()=>{
+  const css=await readFile(new URL('./DossierActivity.css',import.meta.url),'utf8'),voteCss=await readFile(new URL('./MemberVotes.css',import.meta.url),'utf8');
+  for(const scheme of ['light','dark']){
+    const window=new Window({url:'http://localhost/'});
+    try{
+      const style=window.document.createElement('style');style.textContent=themeCss(scheme)+voteCss+css;window.document.head.append(style);
+      window.document.body.innerHTML='<article class="dossier-vote"><span class="member-votes-position member-votes-position-for">For</span><span class="member-votes-bar"><span class="member-votes-for"></span><span class="member-votes-against"></span><span class="member-votes-abstaining"></span></span></article>';
+      for(const [selector,token] of [['.member-votes-for','vote-for'],['.member-votes-against','vote-against'],['.member-votes-abstaining','vote-abstain']]){
+        const expected=window.document.createElement('span');expected.style.backgroundColor=tokenValue(scheme,token);window.document.body.append(expected);
+        assert.equal(window.getComputedStyle(window.document.querySelector(selector)).backgroundColor,window.getComputedStyle(expected).backgroundColor,scheme+' '+selector);
+      }
+      const position=window.getComputedStyle(window.document.querySelector('.member-votes-position-for'));
+      assert(contrast(position.color,paintedBackground(window,window.document.querySelector('.dossier-vote'),scheme))>=4.5);
+    }finally{await window.happyDOM.close();}
+  }
 });
