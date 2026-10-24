@@ -26,7 +26,7 @@ async function harness(t) {
   function Shell() {
     journey.useDossierJourney();const [query,setQuery]=useState(location.search);
     useEffect(()=>{const sync=()=>setQuery(location.search);window.addEventListener('popstate',sync);return()=>window.removeEventListener('popstate',sync);},[]);
-    return new URLSearchParams(query).get('view')==='legislation'?createElement('main',{className:'explorer-insights'},createElement('section',{'data-dossier-reference':'2025/0176(COD)','data-dossier-person':'257727'},createElement('h3',null,'Work on this dossier'),createElement('a',{href:origin,id:'return-link',onClick:journey.dossierLinkClick},'Back'))):createElement(Origin);
+    return new URLSearchParams(query).get('view')==='legislation'?createElement('main',{className:'explorer-insights'},createElement('div',{className:'insight-dossier-title'},createElement('h2',null,'Long official dossier title')),createElement('section',{'data-dossier-reference':'2025/0176(COD)','data-dossier-person':new URLSearchParams(query).get('dossier-person')||''},createElement('h3',null,'Work on this dossier'),createElement('a',{href:origin,id:'return-link',onClick:journey.dossierLinkClick},'Back'))):createElement(Origin);
   }
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=()=>act(async()=>root.render(createElement(Shell)));
@@ -69,4 +69,15 @@ test('only plain same-origin clicks enter the SPA journey',async t=>{
     let prevented=false;h.journey.dossierLinkClick({currentTarget:anchor,button:0,preventDefault(){prevented=true;},...modifier});assert.equal(prevented,false);assert.equal(location.href,before);
   }
   anchor.href='https://example.org/external';let prevented=false;h.journey.dossierLinkClick({currentTarget:anchor,button:0,preventDefault(){prevented=true;}});assert.equal(prevented,false);assert.equal(location.href,before);
+});
+
+
+test('entering a person scope focuses its heading while the full dossier keeps its title target',async t=>{
+  const h=await harness(t);
+  await h.click('#origin-link');await h.frames();
+  assert.equal(document.activeElement,h.container.querySelector('[data-dossier-reference] h3'));
+  await h.click('#return-link');await h.frames();
+  h.container.querySelector('#origin-link').href=dossier.replace('&dossier-person=257727','');
+  await h.click('#origin-link');await h.frames();
+  assert.equal(document.activeElement,h.container.querySelector('.insight-dossier-title h2'));
 });
