@@ -2171,3 +2171,31 @@ test('amendment and failure queries reject unsupported, repeated, malformed and 
   assert.equal(amendmentQuery(new URLSearchParams('status=unresolved&limit=1'),{failures:true}).status,'unresolved');
   for(const query of ['status=bogus','status=all&status=all','document='+targetId])assert.throws(()=>amendmentQuery(new URLSearchParams(query),{failures:true}),error=>error.status===400,query);
 });
+
+
+test('damaged refresh retains accepted document references and target paths with their wording',async t=>{
+  for(const attribution of ['present','absent','null']) {
+    const {store,worker,generation}=setup(t),singleListId=targetId+'-AM-001-001';
+    const oldUrl='https://data.europarl.europa.eu/distribution/example/attribution_old_en.docx',newUrl='https://data.europarl.europa.eu/distribution/example/attribution_new_en.docx';
+    const baseline=extractAmendments(comparisonDocx([['Accepted original','Accepted proposal']]),{listId:singleListId,targetDocumentId:targetId,language:'en',sourceUrl:oldUrl,fetchedAt:earlier});
+    const accepted=baseline.amendments[0];
+    if(attribution==='present') {
+      accepted.documentReferences=[{field:'DocRef',raw:'COM(2025)87 final'}];
+      accepted.targetPath={proposal:[{raw:'Article 1 – paragraph 1'}],underlying:[{raw:'Article 26 – paragraph 1 a (new)'}]};
+    } else if(attribution==='null') {accepted.documentReferences=null;accepted.targetPath=null;}
+    else {delete accepted.documentReferences;delete accepted.targetPath;}
+    const references=accepted.documentReferences??[],targetPath=accepted.targetPath??null;
+    store.putSource(generation,'/plenary-documents/'+targetId,'document',target,earlier);
+    putList(store,generation,'amendment:list:'+singleListId,{...list([]),id:'eli/dl/doc/'+singleListId,identifier:singleListId,files:[{format:'DOCX',language:'en',url:newUrl}],extraction:{...baseline,sourceUrl:oldUrl,fetchedAt:earlier,language:'en',parserVersion:AMENDMENT_EXTRACTION_VERSION}},earlier);
+    worker.downloadAmendmentDocx=async()=>({buffer:comparisonDocx([['Damaged original','Damaged proposal'],['Extra','Unsupported','Column']])});
+    enqueueAmendment(store,generation,'attribution-refresh','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
+    await worker.task(nextAmendmentTask(store,generation));
+    const saved=store.source(generation,'amendment:list:'+singleListId).work.extraction.amendments[0];
+    const [item]=amendmentsPage(store,{document:targetId}).items;
+    for(const row of [saved,item]) {
+      assert.equal(row.proposedText,'Accepted proposal');assert.equal(row.wordingRetained,true);
+      assert.deepEqual(row.documentReferences,references);assert.deepEqual(row.targetPath,targetPath);
+      assert.equal(row.baseline,accepted.baseline);assert.deepEqual(row.baselineSource,accepted.baselineSource);
+    }
+  }
+});

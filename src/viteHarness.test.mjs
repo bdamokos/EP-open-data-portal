@@ -12,7 +12,6 @@ const excluded=new Map([
   ['activityVote.test.mjs',[219]],
   ['motionOutcome.test.mjs',[219]],
   ['contextAnnotations.test.mjs',[186]],
-  ['ProposalMath.test.mjs',[189]],
   ['client.test.mjs',[219]],
   ['memberAttendancePresentation.test.mjs',[219]],
   ['memberVotesJourney.test.mjs',[219]],

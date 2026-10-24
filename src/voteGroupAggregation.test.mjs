@@ -2,22 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {namedVote} from '../server/insights-legislation-model.mjs';
 
 test('vote matrix and group drill-down consume dated server buckets, including country selection and unavailable history',async t=>{
   const window=new Window({url:'http://localhost/'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,CSS:window.CSS,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,IntersectionObserver:class {observe(){} disconnect(){}},ResizeObserver:class {observe(){} disconnect(){}},requestAnimationFrame:callback=>callback(),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(vite)await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  let load,root;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async()=>new Response('',{status:404}));
   window.HTMLElement.prototype.scrollIntoView=()=>{};
   const roster=new Map([['124846',{name:'Pina Picierno',groupCode:'Renew',countryCode:'IT'}],['42',{name:'Other author',groupCode:'PPE',countryCode:'FR'}],['43',{name:'Unknown history',groupCode:'Renew',countryCode:'IT'}]]);
   const resolve=id=>id==='124846'?{code:'S&D'}:id==='42'?{code:'PPE'}:'unavailable';
   const vote=namedVote({activity_id:'test',activity_date:'2026-06-16',had_voter_favor:['person/124846','person/42','person/43'],had_voter_against:[],had_voter_abstention:[],number_of_votes_favor:3,number_of_votes_against:0,number_of_votes_abstention:0},{url:'https://data.europarl.europa.eu/api/v2/test'},roster,new Map(),'2026-06-16',resolve);
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}},plugins:[{name:'test-vote-view',transform(code,id){if(id.endsWith('/Legislation.tsx'))return code+'\nexport {VoteView,ContributorAnalysis};';}}]});
-  const {VoteView,ContributorAnalysis}=await vite.ssrLoadModule('/src/Legislation.tsx'),{createRoot}=await import('react-dom/client');
+  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}},plugins:[{name:'test-vote-view',transform(code,id){if(id.endsWith('/Legislation.tsx'))return code+'\nexport {VoteView,ContributorAnalysis};';}}]});
+  const {VoteView,ContributorAnalysis}=await load('/src/Legislation.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(VoteView,{vote,language:'en',country:null})));
   const matrix=()=>container.querySelector('.insight-vote-matrix');

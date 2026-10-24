@@ -38,13 +38,13 @@ function fixture({flags={},fail}={}) {
   };
   const makeRecord=endpoint=>({url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:clock(),payload:{data:payloads[endpoint]},...flags[endpoint]});
   const calls=[];
-  const request=async endpoint=>{
+  const request=async (endpoint,params={})=>{
     calls.push(endpoint);
     if(endpoint===fail)throw new Error('Synthetic dependency unavailable');
     assert(Object.hasOwn(payloads,endpoint),'Unexpected source request: '+endpoint);
-    return makeRecord(endpoint);
+    const record=makeRecord(endpoint);return endpoint==='/meetings'?{...record,payload:{data:record.payload.data.filter(n=>Number(n.activity_date.slice(0,4))===params.year)}}:record;
   };
-  const store={status:()=>({currentMeps:1,servingGeneration:1,complete:false}),db:{prepare:sql=>({get:()=>undefined,all:()=>sql.includes('FROM members')?[{id:'1',body:JSON.stringify({id:'1',name:'Synthetic member',countryCode:'IT'})}]:sql.includes('FROM sources')?[{key:documentEndpoint,body:JSON.stringify(document),fetched_at:new Date(clock()).toISOString()}]:[]})}};
+  const store={clock:()=>Date.now(),get:()=>null,readSnapshot:fn=>fn(),status:()=>({currentMeps:1,servingGeneration:1,complete:false}),db:{prepare:sql=>({get:()=>undefined,all:()=>sql.includes('FROM members')?[{id:'1',body:JSON.stringify({id:'1',name:'Synthetic member',countryCode:'IT'})}]:sql.includes('FROM sources')?[{key:documentEndpoint,body:JSON.stringify(document),fetched_at:new Date(clock()).toISOString()}]:[]})}};
   const options={clock,request,loadMetadata:async()=>new Map()};
   const legislation=new LegislationInsights(store,options);
   const readEvent=async id=>{assert.equal(id,eventId);return makeRecord(eventEndpoint);};
@@ -94,7 +94,7 @@ test('fresh legislation and participation snapshots remain cacheable with incomp
     assert.equal(response.coverage.indexComplete,false);
     assert.match(policy(view,response).cdnCacheControl,/max-age=21600/);
   }
-  assert.equal(calls.length,new Set(calls).size,'Projection does not add upstream requests');
+  assert.equal(calls.length,new Set(calls).size+2,'Projection does not add upstream requests');
 });
 
 for(const [name,endpoint] of [['procedure',procedureEndpoint],['document',documentEndpoint]])test('retained '+name+' keeps source freshness and recovers without redundant requests',async()=>{

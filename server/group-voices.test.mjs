@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
+import {periodAvailability} from './source-availability.mjs';
 import {groupVoiceProjection,groupVoicesQuery} from './group-voices-model.mjs';
 import {groupVoicesPage,initializeGroupVoices,nextGroupVoiceTask,groupVoicesCopy,enqueueGroupVoice} from './group-voices-store.mjs';
 const now=()=>Date.parse('2026-10-17T12:00Z'),stamp=new Date(now()).toISOString();
@@ -12,6 +13,23 @@ const participation=(person,group)=>({id:'participation/'+person,participation_r
 const speech=(id='1',date='2026-10-06',ps=[participation('42','S_D')])=>({activity_id:`MTG-PL-${date}-OTH-${id}`,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:ps});
 function setup(t){const dir=mkdtempSync(path.join(os.tmpdir(),'group-voices-')),store=new ActivityStore(dir,{clock:now});store.acquire();t.after(()=>{store.close();rmSync(dir,{recursive:true,force:true});});return store;}
 const query=(text='')=>{const params=new URLSearchParams(text);if(!params.has('group'))params.set('group','S_D');return groupVoicesQuery(params,{now:now()});};
+test('optional group jobs preserve failed intervals below the source frontier',t=>{
+ const store=setup(t),{generation}=store.beginCycle(),worker=new ActivityWorker(store,{clock:now});
+ const newest=speech('1','2026-10-16');worker.saveSpeech(generation,newest,stamp);
+ store.db.prepare('INSERT INTO group_voice_state VALUES (?,?)').run(generation,groupVoiceProjection(newest).version);
+ const period={start:'2026-09-01',end:'2026-09-30'};
+ const older=groupVoicesPage(store,query('period=2026-09'));
+ assert.equal(older.availability.latestObservedDate,'2026-10-16');
+ assert.equal(periodAvailability(period,older.availability,0).observedCount,0);
+ assert.equal(periodAvailability(period,groupVoicesPage(store,query()).availability,0).state,'observed');
+ enqueueGroupVoice(store,generation,'failed-month',{params:{'sitting-date':period.start,'sitting-date-end':period.end}});
+ store.failTask(nextGroupVoiceTask(store,generation),new Error('optional catalogue failed'));
+ const response=groupVoicesPage(store,query());
+ assert.equal(response.coverage.pending,1);assert.equal(response.availability.limited,true);
+ assert.equal(response.availability.latestObservedDate,'2026-10-16');
+ assert.equal(periodAvailability(period,response.availability,0).observedCount,null);
+ assert.equal(periodAvailability(period,response.availability,1).state,'partial');
+});
 test('designation and person belong to the same exact speaking participation; duplicates count once',()=>{
  const a=speech('1','2026-10-06',[participation('42','S_D'),participation('42','S_D'),{had_participant_person:'person/43'}, {participation_in_name_of:'org/PPE'},participation('44','NI'),{...participation('45','PPE'),participation_role:'def/ep-roles/PRESIDING'}]);
  const p=groupVoiceProjection(a,{fetchedAt:stamp});assert.deepEqual(p.designations,[{person:'42',group:'S_D',participationIds:['participation/42']}]);

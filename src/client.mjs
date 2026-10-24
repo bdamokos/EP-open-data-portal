@@ -11,7 +11,7 @@ export function dataTimeoutFor(route) {
   if (path.startsWith('speech-context/')) return 60_000;
   if (path.startsWith('profile/')) return 40_000;
   if (/^(directory$|vote-periods$|speeches\/|activities\/|speech-statistics\/|speech\/|document\/|document-context\/|member-votes\/|speech-media\/|references$|reference-summary$|source-record$)/.test(path)) return 35_000;
-  if (/^insights\/(questions|speech-cloud|procedure-context|procedure-progress|press-releases|topic-trends|legislation|participation)$/.test(path)) return 35_000;
+  if (/^insights\/(questions|speech-cloud|procedure-context|procedure-progress|press-releases|topic-trends|legislation|participation|dossier-activity|dossier-references)$/.test(path)) return 35_000;
   return 8_000;
 }
 
@@ -75,7 +75,7 @@ export async function readJson(url, { signal, priority = 'auto', getPriority = (
   }
 }
 
-export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, timeoutFor = () => 8_000, prefetchDelay = 150 } = {}) {
+export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, maxAgeFor = () => maxAge, timeoutFor = () => 8_000, prefetchDelay = 150 } = {}) {
   const cache = new Map();
   const pending = new Map();
   const prefetches = new Set();
@@ -137,7 +137,7 @@ export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, timeo
   const get = (route, { force = false, priority = 'auto', signal } = {}) => {
     if (signal?.aborted) return Promise.reject(signal.reason);
     const saved = cache.get(route);
-    if (!force && saved && Date.now() - saved.at < maxAge) return Promise.resolve(saved.data);
+    if (!force && saved && Date.now() - saved.at < maxAgeFor(saved.data,route)) return Promise.resolve(saved.data);
     const entry = pending.get(route) || start(route, priority);
     const consumer = { entry, priority };
     entry.consumers.add(consumer);

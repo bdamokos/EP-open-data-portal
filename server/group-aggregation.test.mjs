@@ -77,7 +77,9 @@ test('question country and dated-group filters must match the same coauthor, inc
   const {QuestionInsights,insightQuery}=await import('./insights-store.mjs');
   const work={id:'eli/dl/doc/E-10-2026-000001',identifier:'E-10-2026-000001',document_date:'2026-06-16',work_type:'def/ep-document-types/QUESTION_WRITTEN',title_dcterms:{en:'Digital safeguards'},creator:['person/124846','person/256852'],inverse_answers_to:[{identifier:'E-10-2026-000001-ASW',document_date:'2026-06-20'}]};
   const roster=[['124846',{name:'Pina Picierno',groupCode:'Renew',countryCode:'FR'}],['256852',{name:'Other coauthor',groupCode:'ECR',countryCode:'DE'}]];
-  const store={status:()=>({currentMeps:2,servingGeneration:1,complete:true,sourceCounts:{document:1}}),db:{prepare(sql){
+  const store={clock:()=>Date.parse('2026-10-23T12:00:00Z'),get:()=>null,readSnapshot:fn=>fn(),status:()=>({currentMeps:2,servingGeneration:1,complete:true,sourceCounts:{document:1}}),db:{prepare(sql){
+    if(sql.includes('FROM refresh_gaps'))return {all:()=>[]};
+    if(sql.startsWith("SELECT json_extract(body,'$.work_type')"))return {all:()=>[{subtype:work.work_type,date:work.document_date,fetchedAt:'2026-10-23T10:00:00Z'}]};
     if(sql.includes('group_history_snapshots'))return {get:()=>({body:JSON.stringify(snapshot)})};
     if(sql.startsWith('SELECT COUNT'))return {get:(...args)=>({n:args.length===1?0:1})};
     if(sql.startsWith('SELECT key,body'))return {all:()=>[{key:'/parliamentary-questions/'+work.identifier,body:JSON.stringify(work),fetched_at:'2026-10-23T10:00:00Z'}]};

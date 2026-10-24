@@ -1,4 +1,5 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
+import {decodeCharacterReferences} from './character-references.mjs';
 
 // Increment when the grammar or its binding rules change, so stored failures can
 // be retried. Recognition produces selectors, never source offsets or final text.
@@ -11,13 +12,9 @@ const fail = (code, message) => { throw problem(code, message); };
 const clone = value => structuredClone(value);
 
 function decodeEntities(value) {
-  return value.replace(/&([^;\s]+);/g, (whole, entity) => {
-    const named = {amp:'&', lt:'<', gt:'>', apos:"'", quot:'"'};
-    if (Object.hasOwn(named, entity)) return named[entity];
-    if (!/^#(?:[0-9]+|x[0-9a-f]+)$/i.test(entity)) fail('unsafe_xml', 'Only standard XML character references are supported.');
-    const point = entity[1].toLowerCase() === 'x' ? Number.parseInt(entity.slice(2),16) : Number(entity.slice(1));
-    if (!Number.isSafeInteger(point) || point < 1 || point > 0x10ffff || point >= 0xd800 && point <= 0xdfff || point < 0x20 && ![9,10,13].includes(point)) fail('invalid_xml', 'Invalid XML character reference.');
-    return String.fromCodePoint(point);
+  return decodeCharacterReferences(value,'split-xml',(_entity,reason)=>{
+    if(reason==='unsupported')fail('unsafe_xml', 'Only standard XML character references are supported.');
+    fail('invalid_xml', 'Invalid XML character reference.');
   });
 }
 

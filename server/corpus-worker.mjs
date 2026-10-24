@@ -1,3 +1,4 @@
+import {cataloguePage,acquisitionMode} from './availability-history.mjs';
 import {discoverQuestionFiles} from './question-discovery.mjs';
 import path from 'node:path';
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises';
@@ -101,8 +102,8 @@ export class CorpusWorker {
     const steps=speechTextSteps(activity,sourceUrl,fetchedAt);
     for(;;){const step=steps.next();if(step.done)return step.value;await this.checkpoint();}
   }
-  retainSpeechMetadata(activity,sourceUrl,fetchedAt) {
-    try {this.store.putSpeechMetadata(activity,sourceUrl,fetchedAt);}
+  retainSpeechMetadata(activity,sourceUrl,fetchedAt,options={}) {
+    try {this.store.putSpeechMetadata(activity,sourceUrl,fetchedAt,options);}
     catch(error) {
       // Losing ownership or stopping is never a recoverable metadata gap.
       this.store.assertWriter();
@@ -194,7 +195,8 @@ export class CorpusWorker {
       const graph=new Map(record.payload.data.map(node=>[node.id,node]));
       const hits=record.payload.searchResults?.hits;
       const matched=hits?hits.map(hit=>({id:tail(hit.id),node:graph.get(hit.id)})):record.payload.data.filter(node=>node.activity_id).map(node=>({id:node.activity_id,node}));
-      if(!matched.length){this.store.finishTask(task);return;}
+      const availabilityCheck=cataloguePage(body,record,{sourceKey:metadataOnly?'speech-metadata':'speech-text',endpoint:'/speeches',params,start:body.start,end:body.end,acquisition:acquisitionMode(this.store,task,{corpus:true}),complete:!matched.length});
+      if(!matched.length){this.store.finishTask({...task,body:{...body,availabilityCheck}});return;}
       const signature=matched.map(item=>item.id).sort().join('|');
       if(signature===body.lastPage)throw new Error('EP speech pagination repeated a page.');
       for(const {id,node} of matched) {
@@ -207,15 +209,15 @@ export class CorpusWorker {
         }
         if(node.activity_id!==id)throw new Error('Speech metadata does not match its exact search identifier.');
         if(metadataOnly) {
-          this.retainSpeechMetadata(node,url.href,record.fetchedAt);
+          this.retainSpeechMetadata(node,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
           await this.checkpoint();continue;
         }
         const {document,texts}=await this.extractSpeech(node,url.href,record.fetchedAt);
-        this.store.putDocument(document,this.keep(texts));
-        this.retainSpeechMetadata(node,url.href,record.fetchedAt);
+        this.store.putDocument(document,this.keep(texts),{acquisition:acquisitionMode(this.store,task,{corpus:true})});
+        this.retainSpeechMetadata(node,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
         await this.checkpoint();
       }
-      this.store.taskProgress(task,{...body,offset:body.offset+matched.length,lastPage:signature});
+      this.store.taskProgress(task,{...body,offset:body.offset+matched.length,lastPage:signature,availabilityCheck});
     } else if(task.kind==='speech'||task.kind==='speech-metadata-detail') {
       if(!SPEECH_ID.test(body.id))throw new Error('Invalid speech identifier.');
       const metadataOnly=task.kind==='speech-metadata-detail',params=metadataOnly?{}:{'include-output':'xml_fragment'};
@@ -226,10 +228,10 @@ export class CorpusWorker {
       const url=new URL(ODP_BASE+'/speeches/'+body.id);for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,value);
       if(!metadataOnly) {
         const {document,texts}=await this.extractSpeech(activity,url.href,record.fetchedAt);
-        this.store.putDocument(document,this.keep(texts));
+        this.store.putDocument(document,this.keep(texts),{acquisition:acquisitionMode(this.store,task,{corpus:true})});
       }
-      if(metadataOnly)this.store.putSpeechMetadata(activity,url.href,record.fetchedAt);
-      else this.retainSpeechMetadata(activity,url.href,record.fetchedAt);
+      if(metadataOnly)this.store.putSpeechMetadata(activity,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
+      else this.retainSpeechMetadata(activity,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
       this.store.finishTask(task);
     } else if(task.kind==='docx') {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');
@@ -238,7 +240,7 @@ export class CorpusWorker {
       const result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal}),{source:'documents',priority:'background',signal});
       signal.throwIfAborted();
       this.store.putDocument({sourceId:body.sourceId,kind:body.kind,parentId:body.parentId,date:body.date,term:10,originalLanguages:body.originalLanguages},
-        [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'docx',sourceUrl:body.url,fetchedAt:new Date(this.clock()).toISOString(),body:result.paragraphs.join('\n'),raw:null}]);
+        [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'docx',sourceUrl:body.url,fetchedAt:new Date(this.clock()).toISOString(),body:result.paragraphs.join('\n'),raw:null}],{acquisition:acquisitionMode(this.store,task,{corpus:true})});
       this.store.finishTask(task);
     } else throw new Error('Unknown corpus task.');
   }
