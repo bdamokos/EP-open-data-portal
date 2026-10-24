@@ -10,11 +10,13 @@ export function dossierHref(reference,person,language='en',base=location.href) {
   return url.pathname+url.search;
 }
 
+const matchesDecision=(decision,row)=>decision.id===row.vote.id||Boolean(decision.partId&&[...(row.vote.context?.componentIds||[]),...(row.vote.parts||[]).map(part=>part.componentId)].includes(decision.partId));
+
 // A shared procedure, title, amendment number or tally never binds a ballot.
 export function dossierAmendmentVotes(item,votes) {
   if(item.amendment.conflicted)return [];
   const decisions=item.amendment.decisions||[];
-  return votes.filter(row=>decisions.some(decision=>decision.id===row.vote.id||decision.partId&&[...(row.vote.context?.componentIds||[]),...(row.vote.parts||[]).map(part=>part.componentId)].includes(decision.partId)));
+  return votes.filter(row=>decisions.some(decision=>matchesDecision(decision,row)));
 }
 
 export function dossierVoteCards(amendments,votes) {
@@ -25,7 +27,8 @@ export function dossierVoteCards(amendments,votes) {
       if(rendered.has(vote.id))shared.push(vote);
       else {rendered.add(vote.id);own.push(vote);}
     }
-    cards.set(amendment.id,{votes:own,shared});
+    const unloaded=!amendment.amendment.conflicted&&(amendment.amendment.decisions||[]).some(decision=>!votes.some(vote=>matchesDecision(decision,vote)));
+    cards.set(amendment.id,{votes:own,shared,unloaded});
   }
   return cards;
 }
