@@ -1,3 +1,5 @@
+import {sourceAvailability,periodAvailability} from './source-availability.mjs';
+import {indexAvailability,savedGaps} from './availability-evidence.mjs';
 import {HttpError} from './http-utils.mjs';
 import {languagePreference} from './language-order.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
@@ -26,7 +28,7 @@ export function procedureTitle(work,language) {
 export function savedProcedureEvents(store,{start,end,language='en'}) {
   const generation=store.status().servingGeneration;
   const rows=store.db.prepare("SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind='procedure' ORDER BY key").all(generation);
-  const procedures=[];
+  const procedures=[],frontiers=Object.fromEntries(['debates','votes','committee'].map(kind=>[kind,[]]));
   for(const row of rows) {
     const id=row.key.match(/^\/procedures\/(\d{4}-\d{4}[A-Z]?)$/)?.[1];if(!id)continue;
     const work=JSON.parse(row.body);if(tail(work.id)!==id)continue;
@@ -34,15 +36,18 @@ export function savedProcedureEvents(store,{start,end,language='en'}) {
     const fetchedAt=Number.isFinite(timestamp)?new Date(timestamp).toISOString():null;
     const events=array(work.consists_of).flatMap(event=>{
       const kind=eventKind(tail(event.had_activity_type)),eventId=tail(event.id),date=event.activity_date;
-      if(!kind||!/^eli\/dl\/event\/[A-Z0-9-]{1,150}$/.test(String(event.id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''))||!/^\d{4}-\d{2}-\d{2}$/.test(date||'')||date<start||date>end)return [];
-      return [{id:eventId,date,kind,procedureId:id}];
+      if(!kind||!/^eli\/dl\/event\/[A-Z0-9-]{1,150}$/.test(String(event.id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''))||!/^\d{4}-\d{2}-\d{2}$/.test(date||''))return [];
+      frontiers[kind].push({date,fetchedAt});
+      return date<start||date>end?[]:[{id:eventId,date,kind,procedureId:id}];
     });
     if(events.length)procedures.push({id,events,fetchedAt,...procedureTitle(work,language),status:procedureStatus(work,fetchedAt?.slice(0,10))});
   }
-  return {procedures:procedures.slice(0,600),truncated:procedures.length>600};
+  procedures.sort((a,b)=>b.events.map(e=>e.date).sort().at(-1).localeCompare(a.events.map(e=>e.date).sort().at(-1))||a.id.localeCompare(b.id));
+  return {procedures:procedures.slice(0,600),truncated:procedures.length>600,frontiers};
 }
 const monday=date=>{const value=new Date(date+'T12:00:00Z');value.setUTCDate(value.getUTCDate()-(value.getUTCDay()+6)%7);return value.toISOString().slice(0,10);};
-export function topicTimeline(procedures,mappings,{start,end,concept}) {
+export function topicTimeline(procedures,mappings,{start,end,concept},availability=null) {
+  availability??=Object.fromEntries(['debates','votes','committee'].map(kind=>[kind,sourceAvailability({sourceKey:kind,family:'procedures',subtype:kind,start,end,records:procedures.flatMap(p=>p.events.filter(e=>e.kind===kind).map(e=>e.date))})]));
   const weeks=[];for(let date=monday(start);date<=end;date=new Date(Date.parse(date+'T12:00Z')+7*86400_000).toISOString().slice(0,10))weeks.push(date);
   const topics=new Map();
   for(const procedure of procedures) {
@@ -58,20 +63,28 @@ export function topicTimeline(procedures,mappings,{start,end,concept}) {
   const shown=displayed.map(topic=>{
     const events=[...topic.events.values()],series=new Map(weeks.map(week=>[week,{week,debates:0,votes:0,committee:0}]));
     for(const event of events){const bin=series.get(weekOf(event.date));if(bin)bin[event.kind]++;}
+    for(const bin of series.values()) {
+      const startDay=bin.week<start?start:bin.week,weekEnd=new Date(Date.parse(bin.week+'T12:00Z')+6*86400_000).toISOString().slice(0,10);
+      bin.availability={};
+      for(const metric of ['debates','votes','committee']) {
+        const state=periodAvailability({start:startDay,end:weekEnd>end?end:weekEnd},availability[metric],bin[metric]);
+        bin[metric]=state.observedCount;bin.availability[metric]=state.state;
+      }
+    }
     const latest=events.sort((a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id)).slice(0,50).map(event=>({...event,procedures:event.procedures.slice(0,5),additionalProcedures:Math.max(0,event.procedures.length-5)}));
     return {id:topic.id,label:topic.label,language:topic.language,dossiers:topic.dossiers.size,eventCount:topic.events.size,eventsTruncated:topic.events.size>50,series:[...series.values()],events:latest};
   });
   const listed=new Set(shown.flatMap(topic=>topic.events.flatMap(event=>event.procedures.map(p=>p.id))));
   const dossiers=Object.fromEntries(procedures.filter(p=>listed.has(p.id)).map(p=>[p.id,{reference:mappings.get(p.id).reference,title:p.title??null,titleLanguage:p.titleLanguage??null,status:p.status||{state:'none',date:null},fetchedAt:p.fetchedAt??null}]));
-  return {weeks,topicLimitReached:ranked.length>120,topics:shown,dossiers};
+  return {weeks,topicLimitReached:ranked.length>120,topics:shown,dossiers,availability};
 }
 export class TopicTrends {
   constructor(store,catalog,{clock=Date.now}={}){Object.assign(this,{store,catalog,clock});this.states=new Map();}
   async query(query) {
     requestSignal()?.throwIfAborted();
-    const {page,...selection}=query,key=JSON.stringify([this.store.status().servingGeneration,selection]);let state=this.states.get(key);
+    const {page,...selection}=query,key=JSON.stringify([this.store.status().servingGeneration,this.store.get('availabilityRevision')||0,selection]);let state=this.states.get(key);
     if(state&&this.clock()-state.at>30*60_000){this.states.delete(key);state=null;}
-    if(!state){state={at:this.clock(),...savedProcedureEvents(this.store,selection),page:-1,result:null,pending:null};this.states.set(key,state);while(this.states.size>4)this.states.delete(this.states.keys().next().value);}
+    if(!state){state=this.store.readSnapshot(()=>({at:this.clock(),...savedProcedureEvents(this.store,selection),generation:this.store.status().servingGeneration,revision:this.store.get('availabilityRevision')||0,checkedAt:this.store.get('lastSuccess'),gaps:savedGaps(this.store,this.store.status().servingGeneration,'procedures'),indexComplete:this.store.status().complete,page:-1,result:null,pending:null}));this.states.set(key,state);while(this.states.size>4)this.states.delete(this.states.keys().next().value);}
     if(state.pending)await waitForRequest(state.pending);if(state.result&&!state.result.coverage.sourceError&&(state.page>=page||state.result.nextPage===null))return state.result;
     const job=sharedRequest(async()=>{
       const ids=state.procedures.map(p=>p.id),known=await this.catalog.known(ids,query.language),missing=ids.filter(id=>!known.has(id)||known.get(id).stale);let sourceError=false;
@@ -79,8 +92,9 @@ export class TopicTrends {
       requestSignal()?.throwIfAborted();
       if(!sourceError)state.page++;
       const remaining=ids.filter(id=>!known.has(id)||known.get(id).stale).length,mapped=[...known.values()].filter(value=>value.state==='mapped').length;
-      const timeline=topicTimeline(state.procedures,known,query);
-      state.result={view:'topic-trends',language:query.language,window:{start:query.start,end:query.end,days:query.days},...timeline,coverage:{procedures:ids.length,mapped,unmapped:[...known.values()].filter(v=>v.state!=='mapped').length,pending:remaining,sourceError,truncated:state.truncated,indexComplete:this.store.status().complete},savedSources:state.procedures.map(p=>({id:p.id,fetchedAt:p.fetchedAt})),nextPage:remaining&&!sourceError&&state.page<11?state.page+1:null,sources:[...new Map([...known.values()].filter(v=>v.source).map(v=>[v.source.url,v.source])).values()],computedAt:new Date(this.clock()).toISOString()};return state.result;
+      const availability=Object.fromEntries(['debates','votes','committee'].map(kind=>[kind,indexAvailability(this.store,{sourceKey:'procedure-'+kind,family:'procedures',subtype:kind,start:query.start,end:query.end,records:state.frontiers[kind],generation:state.generation,revision:state.revision,checkedAt:state.checkedAt,gaps:state.gaps,limited:state.truncated||sourceError||remaining>0||mapped<ids.length})]));
+      const timeline=topicTimeline(state.procedures,known,query,availability);
+      state.result={view:'topic-trends',language:query.language,window:{start:query.start,end:query.end,days:query.days},...timeline,coverage:{procedures:ids.length,mapped,unmapped:[...known.values()].filter(v=>v.state!=='mapped').length,pending:remaining,sourceError,truncated:state.truncated,indexComplete:state.indexComplete},savedSources:state.procedures.map(p=>({id:p.id,fetchedAt:p.fetchedAt})),nextPage:remaining&&!sourceError&&state.page<11?state.page+1:null,sources:[...new Map([...known.values()].filter(v=>v.source).map(v=>[v.source.url,v.source])).values()],computedAt:new Date(this.clock()).toISOString()};return state.result;
     }).finally(()=>state.pending=null);state.pending=job;return waitForRequest(job);
   }
 }

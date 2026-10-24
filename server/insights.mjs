@@ -1,6 +1,6 @@
 import {SpeechWordInsights,speechWordsQuery} from './insights-speech-words.mjs';
 import {SpeechCloudInsights,speechCloudQuery} from './speech-cloud.mjs';
-import {OfficialContextSources} from './official-context.mjs';
+import {OfficialContextSources,getSharedOfficialContextSources} from './official-context.mjs';
 import {EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext,procedureContextQuery} from './procedure-context.mjs';
 import {ProcedureProgress,procedureProgressQuery} from './procedure-progress.mjs';
@@ -28,7 +28,7 @@ export function createInsights(store,options={}) {
   const speechWords=new SpeechWordInsights(store,shared);
   const questions=new QuestionInsights(store,shared),legislation=new LegislationInsights(store,shared);
   const speechCloud=new SpeechCloudInsights(store,{...shared,legislation});
-  const officialSources=options.officialSources||new OfficialContextSources({clock,...options.officialContext});
+  const officialSources=options.officialSources||(options.officialContext||options.clock?new OfficialContextSources({clock,...options.officialContext}):getSharedOfficialContextSources());
   const catalog=options.eurovocCatalog||new EurovocCatalog(officialSources,{clock,...options.eurovoc});
   const procedureContext=new ProcedureContext(officialSources,catalog),topicTrends=new TopicTrends(store,catalog,{clock});
   const procedureProgress=new ProcedureProgress(officialSources);
@@ -40,10 +40,10 @@ export function createInsights(store,options={}) {
     if(view==='procedure-progress')return procedureProgress.query(procedureProgressQuery(searchParams));
     if(view==='topic-trends')return topicTrends.query(topicTrendsQuery(searchParams,{now:clock()}));
     if(view==='saved')return savedStates(store,savedQuery(searchParams));
-    if(view==='participation'){const query=participationQuery(searchParams);return views.get([INSIGHTS_VERSION,view,store.status().servingGeneration,brusselsDay(clock()),query],()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}));}
+    if(view==='participation'){const query=participationQuery(searchParams);return views.get([INSIGHTS_VERSION,LEGISLATION_VIEW_VERSION,view,store.status().servingGeneration,store.get('availabilityRevision')||0,brusselsDay(clock()),query],()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}));}
     if(!['questions','legislation'].includes(view))throw new HttpError(404,'insight_not_found','Unknown insight view.');
     const query=insightQuery(searchParams,{kind:view,now:options.clock?.()??Date.now()});
     const version=view==='legislation'?INSIGHTS_VERSION+':'+LEGISLATION_VIEW_VERSION:INSIGHTS_VERSION;
-    return views.get([version,view,store.status().servingGeneration,view==='legislation'?brusselsDay(clock()):null,query],()=>view==='questions'?questions.query(query):legislation.query(query));
+    return views.get([version,view,store.status().servingGeneration,store.get('availabilityRevision')||0,view==='legislation'?brusselsDay(clock()):null,query],()=>view==='questions'?questions.query(query):legislation.query(query));
   }};
 }

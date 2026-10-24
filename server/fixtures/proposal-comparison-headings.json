@@ -1,0 +1,746 @@
+[
+  {
+    "language": "bg",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_bg.docx",
+    "fetchedAt": "2026-10-21T17:49:04.897144+00:00",
+    "examples": [
+      {
+        "left": "Текст, предложен от Комисията",
+        "right": "Изменение",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Текст в сила",
+        "right": "Изменение",
+        "category": "present-text"
+      },
+      {
+        "left": "Предложение за резолюция",
+        "right": "Изменение",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_bg.docx",
+        "fetchedAt": "2026-10-21T17:50:18.741842+00:00"
+      },
+      {
+        "left": "Позиция на Съвета",
+        "right": "Изменение",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_bg.docx",
+        "fetchedAt": "2026-10-21T17:56:03.188392+00:00"
+      }
+    ]
+  },
+  {
+    "language": "es",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_es.docx",
+    "fetchedAt": "2026-10-21T17:49:04.876912+00:00",
+    "examples": [
+      {
+        "left": "Texto de la Comisión",
+        "right": "Enmienda",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Texto en vigor",
+        "right": "Enmienda",
+        "category": "present-text"
+      },
+      {
+        "left": "Propuesta de Resolución",
+        "right": "Enmienda",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_es.docx",
+        "fetchedAt": "2026-10-21T17:50:18.751052+00:00"
+      },
+      {
+        "left": "Posición del Consejo",
+        "right": "Enmienda",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_es.docx",
+        "fetchedAt": "2026-10-21T17:56:03.159400+00:00"
+      }
+    ]
+  },
+  {
+    "language": "cs",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_cs.docx",
+    "fetchedAt": "2026-10-21T17:49:05.198780+00:00",
+    "examples": [
+      {
+        "left": "Znění navržené Komisí",
+        "right": "Pozměňovací návrh",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Platné znění",
+        "right": "Pozměňovací návrh",
+        "category": "present-text"
+      },
+      {
+        "left": "Návrh usnesení",
+        "right": "Pozměňovací návrh",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_cs.docx",
+        "fetchedAt": "2026-10-21T17:50:19.427105+00:00"
+      },
+      {
+        "left": "Postoj Rady",
+        "right": "Pozměňovací návrh",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_cs.docx",
+        "fetchedAt": "2026-10-21T17:56:03.602867+00:00"
+      }
+    ]
+  },
+  {
+    "language": "da",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_da.docx",
+    "fetchedAt": "2026-10-21T17:49:05.139298+00:00",
+    "examples": [
+      {
+        "left": "Kommissionens forslag",
+        "right": "Ændringsforslag",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Gældende ordlyd",
+        "right": "Ændringsforslag",
+        "category": "present-text"
+      },
+      {
+        "left": "Forslag til beslutning",
+        "right": "Ændringsforslag",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_da.docx",
+        "fetchedAt": "2026-10-21T17:50:19.002709+00:00"
+      },
+      {
+        "left": "Rådets holdning",
+        "right": "Ændringsforslag",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_da.docx",
+        "fetchedAt": "2026-10-21T17:56:03.711791+00:00"
+      }
+    ]
+  },
+  {
+    "language": "de",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_de.docx",
+    "fetchedAt": "2026-10-21T17:49:05.710161+00:00",
+    "examples": [
+      {
+        "left": "Vorschlag der Kommission",
+        "right": "Geänderter Text",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Derzeitiger Wortlaut",
+        "right": "Geänderter Text",
+        "category": "present-text"
+      },
+      {
+        "left": "Entschließungsantrag",
+        "right": "Geänderter Text",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_de.docx",
+        "fetchedAt": "2026-10-21T17:50:19.838671+00:00"
+      },
+      {
+        "left": "Standpunkt des Rates",
+        "right": "Geänderter Text",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_de.docx",
+        "fetchedAt": "2026-10-21T17:56:04.241611+00:00"
+      }
+    ]
+  },
+  {
+    "language": "et",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_et.docx",
+    "fetchedAt": "2026-10-21T17:49:05.781300+00:00",
+    "examples": [
+      {
+        "left": "Komisjoni ettepanek",
+        "right": "Muudatusettepanek",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Kehtiv tekst",
+        "right": "Muudatusettepanek",
+        "category": "present-text"
+      },
+      {
+        "left": "Resolutsiooni ettepanek",
+        "right": "Muudatusettepanek",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_et.docx",
+        "fetchedAt": "2026-10-21T17:50:19.957408+00:00"
+      },
+      {
+        "left": "Nõukogu seisukoht",
+        "right": "Muudatusettepanek",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_et.docx",
+        "fetchedAt": "2026-10-21T17:56:04.043033+00:00"
+      }
+    ]
+  },
+  {
+    "language": "el",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_el.docx",
+    "fetchedAt": "2026-10-21T17:49:06.230444+00:00",
+    "examples": [
+      {
+        "left": "Κείμενο που προτείνει η Επιτροπή",
+        "right": "Τροπολογία",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Ισχύον κείμενο",
+        "right": "Τροπολογία",
+        "category": "present-text"
+      },
+      {
+        "left": "Πρόταση ψηφίσματος",
+        "right": "Τροπολογία",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_el.docx",
+        "fetchedAt": "2026-10-21T17:50:20.316098+00:00"
+      },
+      {
+        "left": "Θέση του Συμβουλίου",
+        "right": "Τροπολογία",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_el.docx",
+        "fetchedAt": "2026-10-21T17:56:04.495468+00:00"
+      }
+    ]
+  },
+  {
+    "language": "en",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_en.docx",
+    "fetchedAt": "2026-10-21T17:49:06.308267+00:00",
+    "examples": [
+      {
+        "left": "Text proposed by the Commission",
+        "right": "Amendment",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Present text",
+        "right": "Amendment",
+        "category": "present-text"
+      },
+      {
+        "left": "Motion for a resolution",
+        "right": "Amendment",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_en.docx",
+        "fetchedAt": "2026-10-21T17:50:20.387782+00:00"
+      },
+      {
+        "left": "Council position",
+        "right": "Amendment",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_en.docx",
+        "fetchedAt": "2026-10-21T17:56:04.621248+00:00"
+      }
+    ]
+  },
+  {
+    "language": "fr",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_fr.docx",
+    "fetchedAt": "2026-10-21T17:49:07.396835+00:00",
+    "examples": [
+      {
+        "left": "Texte proposé par la Commission",
+        "right": "Amendement",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Texte en vigueur",
+        "right": "Amendement",
+        "category": "present-text"
+      },
+      {
+        "left": "Proposition de résolution",
+        "right": "Amendement",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_fr.docx",
+        "fetchedAt": "2026-10-21T17:50:20.736865+00:00"
+      },
+      {
+        "left": "Position du Conseil",
+        "right": "Amendement",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_fr.docx",
+        "fetchedAt": "2026-10-21T17:56:04.994438+00:00"
+      }
+    ]
+  },
+  {
+    "language": "ga",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_ga.docx",
+    "fetchedAt": "2026-10-21T17:49:07.412037+00:00",
+    "examples": [
+      {
+        "left": "Téacs arna mholadh ag an gCoimisiún",
+        "right": "Leasú",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "An téacs atá ann",
+        "right": "Leasú",
+        "category": "present-text"
+      },
+      {
+        "left": "Tairiscint i gcomhair rúin",
+        "right": "Leasú",
+        "category": "motion-resolution",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0025-AM-001-006/A-10-2026-0025-AM-001-006_ga.docx",
+        "fetchedAt": "2026-10-23T17:07:02.293504+00:00"
+      },
+      {
+        "left": "Seasamh ón gComhairle",
+        "right": "Leasú",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_ga.docx",
+        "fetchedAt": "2026-10-21T17:56:05.027471+00:00"
+      }
+    ]
+  },
+  {
+    "language": "hr",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_hr.docx",
+    "fetchedAt": "2026-10-21T17:49:07.817643+00:00",
+    "examples": [
+      {
+        "left": "Tekst koji je predložila Komisija",
+        "right": "Izmjena",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Tekst na snazi",
+        "right": "Izmjena",
+        "category": "present-text"
+      },
+      {
+        "left": "Prijedlog rezolucije",
+        "right": "Izmjena",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_hr.docx",
+        "fetchedAt": "2026-10-21T17:50:20.850178+00:00"
+      },
+      {
+        "left": "Stajalište Vijeća",
+        "right": "Izmjena",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_hr.docx",
+        "fetchedAt": "2026-10-21T17:56:05.569726+00:00"
+      }
+    ]
+  },
+  {
+    "language": "it",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_it.docx",
+    "fetchedAt": "2026-10-21T17:49:08.096258+00:00",
+    "examples": [
+      {
+        "left": "Testo della Commissione",
+        "right": "Emendamento",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Testo in vigore",
+        "right": "Emendamento",
+        "category": "present-text"
+      },
+      {
+        "left": "Proposta di risoluzione",
+        "right": "Emendamento",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_it.docx",
+        "fetchedAt": "2026-10-21T17:50:21.255539+00:00"
+      },
+      {
+        "left": "Posizione del Consiglio",
+        "right": "Emendamento",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_it.docx",
+        "fetchedAt": "2026-10-21T17:56:05.464707+00:00"
+      }
+    ]
+  },
+  {
+    "language": "lv",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_lv.docx",
+    "fetchedAt": "2026-10-21T17:49:08.484563+00:00",
+    "examples": [
+      {
+        "left": "Komisijas ierosinātais teksts",
+        "right": "Grozījums",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Spēkā esošais teksts",
+        "right": "Grozījums",
+        "category": "present-text"
+      },
+      {
+        "left": "Rezolūcijas priekšlikums",
+        "right": "Grozījums",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_lv.docx",
+        "fetchedAt": "2026-10-21T17:50:21.272341+00:00"
+      },
+      {
+        "left": "Padomes nostāja",
+        "right": "Grozījums",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_lv.docx",
+        "fetchedAt": "2026-10-21T17:56:05.833589+00:00"
+      }
+    ]
+  },
+  {
+    "language": "lt",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_lt.docx",
+    "fetchedAt": "2026-10-21T17:49:08.726802+00:00",
+    "examples": [
+      {
+        "left": "Komisijos siūlomas tekstas",
+        "right": "Pakeitimas",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Dabartinis tekstas",
+        "right": "Pakeitimas",
+        "category": "present-text"
+      },
+      {
+        "left": "Pasiūlymas dėl rezoliucijos",
+        "right": "Pakeitimas",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_lt.docx",
+        "fetchedAt": "2026-10-21T17:50:21.702510+00:00"
+      },
+      {
+        "left": "Tarybos pozicija",
+        "right": "Pakeitimas",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_lt.docx",
+        "fetchedAt": "2026-10-21T17:56:06.153347+00:00"
+      }
+    ]
+  },
+  {
+    "language": "hu",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_hu.docx",
+    "fetchedAt": "2026-10-21T17:49:10.107057+00:00",
+    "examples": [
+      {
+        "left": "A Bizottság által javasolt szöveg",
+        "right": "Módosítás",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Hatályos szöveg",
+        "right": "Módosítás",
+        "category": "present-text"
+      },
+      {
+        "left": "Állásfoglalásra irányuló indítvány",
+        "right": "Módosítás",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_hu.docx",
+        "fetchedAt": "2026-10-21T17:50:21.526974+00:00"
+      },
+      {
+        "left": "A Tanács álláspontja",
+        "right": "Módosítás",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_hu.docx",
+        "fetchedAt": "2026-10-21T17:56:06.176889+00:00"
+      }
+    ]
+  },
+  {
+    "language": "mt",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_mt.docx",
+    "fetchedAt": "2026-10-21T17:49:10.083989+00:00",
+    "examples": [
+      {
+        "left": "Test propost mill-Kummissjoni",
+        "right": "Emenda",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Test fis-seħħ",
+        "right": "Emenda",
+        "category": "present-text"
+      },
+      {
+        "left": "Mozzjoni għal riżoluzzjoni",
+        "right": "Emenda",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_mt.docx",
+        "fetchedAt": "2026-10-21T17:50:21.987131+00:00"
+      },
+      {
+        "left": "Pożizzjoni tal-Kunsill",
+        "right": "Emenda",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_mt.docx",
+        "fetchedAt": "2026-10-21T17:56:06.674286+00:00"
+      }
+    ]
+  },
+  {
+    "language": "nl",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_nl.docx",
+    "fetchedAt": "2026-10-21T17:49:10.614627+00:00",
+    "examples": [
+      {
+        "left": "Door de Commissie voorgestelde tekst",
+        "right": "Amendement",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Bestaande tekst",
+        "right": "Amendement",
+        "category": "present-text"
+      },
+      {
+        "left": "Ontwerpresolutie",
+        "right": "Amendement",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_nl.docx",
+        "fetchedAt": "2026-10-21T17:50:21.982518+00:00"
+      },
+      {
+        "left": "Standpunt van de Raad",
+        "right": "Amendement",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_nl.docx",
+        "fetchedAt": "2026-10-21T17:56:06.688759+00:00"
+      }
+    ]
+  },
+  {
+    "language": "pl",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_pl.docx",
+    "fetchedAt": "2026-10-21T17:49:10.986873+00:00",
+    "examples": [
+      {
+        "left": "Tekst proponowany przez Komisję",
+        "right": "Poprawka",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Tekst obowiązujący",
+        "right": "Poprawka",
+        "category": "present-text"
+      },
+      {
+        "left": "Projekt rezolucji",
+        "right": "Poprawka",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_pl.docx",
+        "fetchedAt": "2026-10-21T17:50:22.317871+00:00"
+      },
+      {
+        "left": "Stanowisko Rady",
+        "right": "Poprawka",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_pl.docx",
+        "fetchedAt": "2026-10-21T17:56:07.265012+00:00"
+      }
+    ]
+  },
+  {
+    "language": "pt",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_pt.docx",
+    "fetchedAt": "2026-10-21T17:49:11.484585+00:00",
+    "examples": [
+      {
+        "left": "Texto da Comissão",
+        "right": "Alteração",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Texto em vigor",
+        "right": "Alteração",
+        "category": "present-text"
+      },
+      {
+        "left": "Proposta de resolução",
+        "right": "Alteração",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_pt.docx",
+        "fetchedAt": "2026-10-21T17:50:22.309114+00:00"
+      },
+      {
+        "left": "Posição do Conselho",
+        "right": "Alteração",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_pt.docx",
+        "fetchedAt": "2026-10-21T17:56:07.260540+00:00"
+      }
+    ]
+  },
+  {
+    "language": "ro",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_ro.docx",
+    "fetchedAt": "2026-10-21T17:49:11.783301+00:00",
+    "examples": [
+      {
+        "left": "Textul propus de Comisie",
+        "right": "Amendamentul",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Textul în vigoare",
+        "right": "Amendamentul",
+        "category": "present-text"
+      },
+      {
+        "left": "Propunerea de rezoluție",
+        "right": "Amendamentul",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_ro.docx",
+        "fetchedAt": "2026-10-21T17:50:22.598419+00:00"
+      },
+      {
+        "left": "Poziția Consiliului",
+        "right": "Amendamentul",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_ro.docx",
+        "fetchedAt": "2026-10-21T17:56:07.532562+00:00"
+      }
+    ]
+  },
+  {
+    "language": "sk",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_sk.docx",
+    "fetchedAt": "2026-10-21T17:49:12.106697+00:00",
+    "examples": [
+      {
+        "left": "Text predložený Komisiou",
+        "right": "Pozmeňujúci návrh",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Platný text",
+        "right": "Pozmeňujúci návrh",
+        "category": "present-text"
+      },
+      {
+        "left": "Návrh uznesenia",
+        "right": "Pozmeňujúci návrh",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_sk.docx",
+        "fetchedAt": "2026-10-21T17:50:22.560773+00:00"
+      },
+      {
+        "left": "Pozícia Rady",
+        "right": "Pozmeňujúci návrh",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_sk.docx",
+        "fetchedAt": "2026-10-21T17:56:07.761300+00:00"
+      }
+    ]
+  },
+  {
+    "language": "sl",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_sl.docx",
+    "fetchedAt": "2026-10-21T17:49:12.402555+00:00",
+    "examples": [
+      {
+        "left": "Besedilo, ki ga predlaga Komisija",
+        "right": "Predlog spremembe",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Veljavno besedilo",
+        "right": "Predlog spremembe",
+        "category": "present-text"
+      },
+      {
+        "left": "Predlog resolucije",
+        "right": "Predlog spremembe",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_sl.docx",
+        "fetchedAt": "2026-10-21T17:50:22.905799+00:00"
+      },
+      {
+        "left": "Stališče Sveta",
+        "right": "Predlog spremembe",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_sl.docx",
+        "fetchedAt": "2026-10-21T17:56:08.213724+00:00"
+      }
+    ]
+  },
+  {
+    "language": "fi",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_fi.docx",
+    "fetchedAt": "2026-10-21T17:49:12.815196+00:00",
+    "examples": [
+      {
+        "left": "Komission teksti",
+        "right": "Tarkistus",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Nykyinen teksti",
+        "right": "Tarkistus",
+        "category": "present-text"
+      },
+      {
+        "left": "Päätöslauselmaesitys",
+        "right": "Tarkistus",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_fi.docx",
+        "fetchedAt": "2026-10-21T17:50:22.941435+00:00"
+      },
+      {
+        "left": "Neuvoston kanta",
+        "right": "Tarkistus",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_fi.docx",
+        "fetchedAt": "2026-10-21T17:56:08.158548+00:00"
+      }
+    ]
+  },
+  {
+    "language": "sv",
+    "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0085/A-10-2025-0085_sv.docx",
+    "fetchedAt": "2026-10-21T17:49:13.093530+00:00",
+    "examples": [
+      {
+        "left": "Kommissionens förslag",
+        "right": "Ändringsförslag",
+        "category": "commission-proposal"
+      },
+      {
+        "left": "Nuvarande lydelse",
+        "right": "Ändringsförslag",
+        "category": "present-text"
+      },
+      {
+        "left": "Förslag till resolution",
+        "right": "Ändringsförslag",
+        "category": "motion-resolution",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_sv.docx",
+        "fetchedAt": "2026-10-21T17:50:23.394248+00:00"
+      },
+      {
+        "left": "Rådets ståndpunkt",
+        "right": "Ändringsförslag",
+        "category": "council-position",
+        "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0166-AM-001-007/A-10-2025-0166-AM-001-007_sv.docx",
+        "fetchedAt": "2026-10-21T17:56:08.706645+00:00"
+      }
+    ]
+  }
+]

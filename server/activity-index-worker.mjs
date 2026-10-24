@@ -1,3 +1,4 @@
+import {cataloguePage,acquisitionMode,observeSource,finishAvailabilityWrite} from './availability-history.mjs';
 import {groupHistoryTask,scheduleGroupHistory} from './group-history.mjs';
 import {membershipTask,scheduleMembership} from './following-membership.mjs';
 import { booleanFromEnvironment, integerFromEnvironment, absolutePathFromEnvironment } from './config.mjs';
@@ -221,7 +222,8 @@ export class ActivityWorker {
     } else if(task.kind==='catalog') {
       const r=await this.request(body.endpoint,{...body.params,limit:250,offset:body.offset});
       const nodes=r.payload.data;
-      if(!nodes.length){this.store.finishTask(task);return;}
+      const availabilityCheck=cataloguePage(body,r,{sourceKey:body.endpoint,endpoint:body.endpoint,params:{...body.params,limit:250,offset:body.offset},acquisition:acquisitionMode(this.store,task),complete:!nodes.length});
+      if(!nodes.length){this.store.finishTask({...task,body:{...body,availabilityCheck}});return;}
       const signatures=nodes.map(w=>w.identifier || tail(w.id)).join('|');
       if(signatures===body.lastPage)throw new Error('EP document pagination repeated a page.');
       for(const w of nodes){const id=w.identifier || tail(w.id);if(!safeId(id))throw new Error('EP document identifier was invalid.');
@@ -230,13 +232,13 @@ export class ActivityWorker {
         this.store.markSeen(generation,endpoint);
         if(!old)this.store.enqueue(generation,endpoint,'document',{endpoint},101);
       }
-      this.store.taskProgress(task,{...body,offset:body.offset+nodes.length,lastPage:signatures});
+      this.store.taskProgress(task,{...body,offset:body.offset+nodes.length,lastPage:signatures,availabilityCheck});
     } else if(task.kind==='speeches' && body.recoveryId) {
       if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(body.recoveryId))throw new Error('Invalid speech recovery identifier.');
       const r=await this.request('/speeches/'+body.recoveryId);
       const activity=r.payload.data.find(node=>node.activity_id===body.recoveryId);
       if(!activity)throw new Error(`Published speech ${body.recoveryId} has no matching detail record.`);
-      this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob);
+      this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob,{acquisition:acquisitionMode(this.store,task)});
       this.store.finishTask(task);
     } else if(task.kind==='speeches') {
       const r=await this.request('/speeches',{...body.params,limit:250,offset:body.offset});
@@ -276,12 +278,13 @@ export class ActivityWorker {
       }
       const nodes=matched.filter(({node})=>node?.activity_id).map(({node})=>node);
       const hitCount=hits?.length ?? nodes.length;
-      if(!hitCount){this.store.finishTask(task);return;}
+      const availabilityCheck=cataloguePage(body,r,{sourceKey:'speech-metadata',endpoint:'/speeches',params:{...body.params,limit:250,offset:body.offset},start:body.params['sitting-date'],end:body.params['sitting-date-end'],acquisition:acquisitionMode(this.store,task),complete:!hitCount});
+      if(!hitCount){this.store.finishTask({...task,body:{...body,availabilityCheck}});return;}
       const signatures=(hits ? hits.map(hit=>hit.id) : nodes.map(a=>a.activity_id)).sort().join('|');
       if(signatures===body.lastPage)throw new Error('EP speech pagination repeated a page.');
       for(const activity of nodes){if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(activity.activity_id))throw new Error('EP speech identifier was invalid.');
-        this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob);}
-      this.store.taskProgress(task,{...body,offset:body.offset+hitCount,lastPage:signatures});
+        this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob,{acquisition:acquisitionMode(this.store,task)});}
+      this.store.taskProgress(task,{...body,offset:body.offset+hitCount,lastPage:signatures,availabilityCheck});
     } else if(task.kind==='feed') {
       if(!body.start) {
         body.start=feedStart(this.store,this.clock());
@@ -318,7 +321,7 @@ export class ActivityWorker {
         if(tail(work.work_type)==='REPORT_PLENARY')this.store.enqueue(generation,endpoint,'procedure',{endpoint},103,true);
       }
       const {rows}=documentRows(projected,body.endpoint,r.fetchedAt,proc);
-      this.store.putSource(generation,body.endpoint,'document',projected,r.fetchedAt,rows);this.store.finishTask(task);
+      this.store.putSource(generation,body.endpoint,'document',projected,r.fetchedAt,rows,{acquisition:acquisitionMode(this.store,task),sourceUrl:r.url});this.store.finishTask(task);
       if(isMotion(projected))this.scheduleMotionOutcomes(generation,projected);
       scheduleAmendments(this,generation,projected,r.fetchedAt,body.endpoint);
     } else if(task.kind==='motion-outcomes') {
@@ -332,7 +335,7 @@ export class ActivityWorker {
       this.store.finishTask(task);
     }
   }
-  saveSpeech(generation,activity,fetchedAt,outsideOnly=false,queryUrl=null,groupVoiceOnly=false) {
+  saveSpeech(generation,activity,fetchedAt,outsideOnly=false,queryUrl=null,groupVoiceOnly=false,{acquisition='unknown'}={}) {
     const key='/speeches/'+activity.activity_id;
     let outside=outsideSpeech(activity,fetchedAt,queryUrl);
     const previous=this.store.source(generation,key)?.work.outside;
@@ -342,8 +345,14 @@ export class ActivityWorker {
     // A metadata-only weekly refresh must retain a previously checked header.
     if(outside && previous?.headerChecked && (!outside.headerChecked || previous.headers.some(header=>header.name)&&!outside.headers.some(header=>header.name))) outside={...outside,headers:previous.headers,headerChecked:true,headerSource:previous.headerSource || previous.source};
     if(outside?.headerChecked && !outside.headerSource)outside.headerSource={url:queryUrl || ODP_BASE+key+'?format=application%2Fld%2Bjson',fetchedAt};
-    if(groupVoiceOnly){this.store.transaction(()=>recordGroupVoice(this.store,generation,groupVoiceProjection(activity,{fetchedAt,url:queryUrl}),outside,activity.activity_id));return;}
-    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt));
+    if(groupVoiceOnly){this.store.transaction(()=>{
+      this.store.assertWriter();
+      const existed=Boolean(this.store.db.prepare('SELECT 1 FROM group_voice_observations WHERE generation=? AND speech=?').get(generation,activity.activity_id));
+      recordGroupVoice(this.store,generation,groupVoiceProjection(activity,{fetchedAt,url:queryUrl}),outside,activity.activity_id);
+      observeSource(this.store,{sourceId:activity.activity_id,family:'speeches',subtype:tail(activity.had_activity_type),date:activity.activity_date,fetchedAt,url:queryUrl,acquisition,existed});
+      finishAvailabilityWrite(this.store);
+    });return;}
+    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,date:activity.activity_date,kind:tail(activity.had_activity_type),...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt),{acquisition,sourceUrl:queryUrl});
     recordOutside(this.store,generation,outside);
     if(outsideOnly && outside && this.store.source(generation,'outside:roster:'+outside.date) && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,outside.id))this.store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='outside-speech'").run(generation,key);
   }
@@ -399,7 +408,7 @@ export class ActivityWorker {
       if(!activity)throw new Error('Outside speech detail has no matching record.');
       const url=new URL(ODP_BASE+endpoint);for(const [key,value]of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,String(value));
       const existing=this.store.source(generation,endpoint);
-      this.saveSpeech(generation,activity,r.fetchedAt,existing?.work.outside?.term===9,url.href);
+      this.saveSpeech(generation,activity,r.fetchedAt,existing?.work.outside?.term===9,url.href,false,{acquisition:acquisitionMode(this.store,task)});
       const unnamed=this.store.db.prepare("SELECT person FROM outside_contributions WHERE generation=? AND speech=? AND json_extract(body,'$.header.name') IS NULL").all(generation,body.id).map(row=>row.person);
       if(unnamed.length) {
         if(!body.language)this.store.enqueue(generation,'outside:english:'+body.id,'outside-detail',{id:body.id,language:'en'},102);
@@ -424,8 +433,11 @@ export class ActivityWorker {
     this.store.finishTask(task);
   }
   finishOutsideGap(task) {
-    this.store.assertWriter();
-    this.store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='outside-gap'").run(task.generation,'outside:gap:'+task.key);
+    this.store.transaction(()=>{
+      this.store.assertWriter();
+      const removed=this.store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='outside-gap'").run(task.generation,'outside:gap:'+task.key).changes;
+      if(removed)finishAvailabilityWrite(this.store);
+    });
   }
   failOutside(task,error) {
     const optional=task.kind.startsWith('outside-') || task.body.outsideOnly || task.key.startsWith('outside:upgrade:');
@@ -515,7 +527,7 @@ export class ActivityWorker {
     const confirmationDay=sittingConfirmationDay(body.sittingId);
     if(sittingSnapshotConfirmed(fresh,body.sittingId,record.fetchedAt))fresh.finality={confirmationDay,confirmedAt:record.fetchedAt};
     const replacement=truncated && saved && !saved.work.truncated ? {...saved.work,lastRefreshFailure,amendmentEvidence:fresh.amendmentEvidence || fresh} : fresh;
-    this.store.putSource(generation,key,'motion-outcomes',replacement,truncated && saved && !saved.work.truncated?saved.fetchedAt:record.fetchedAt);
+    this.store.putSource(generation,key,'motion-outcomes',replacement,truncated && saved && !saved.work.truncated?saved.fetchedAt:record.fetchedAt,[],{acquisition:acquisitionMode(this.store,task),sourceUrl:record.url});
     if(!await refreshSittingTargets(this,generation,body.sittingId,replacement)) {
       this.store.taskProgress(task,{...next,amendmentRebuildPending:true});return;
     }

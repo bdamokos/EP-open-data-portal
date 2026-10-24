@@ -1,0 +1,400 @@
+{
+  "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_en.docx",
+  "fetchedAt": "2026-10-21T19:21:00.484Z",
+  "attribution": "European Parliament; legal text © European Union",
+  "amendments": [
+    {
+      "number": 4,
+      "originalText": "1.\tBy 31 August of each year, and for the first time in 2027 for the year 2026, each authorised CBAM declarant shall use the CBAM registry referred to in Article 14 to submit a CBAM declaration for the preceding calendar year.",
+      "proposedText": "1.\tBy 30 September of each year, and for the first time in 2027 for the year 2026, each authorised CBAM declarant shall use the CBAM registry referred to in Article 14 to submit a CBAM declaration for the preceding calendar year.",
+      "targetLabel": "Article 1 – paragraph 1 – point 4 – point a\nRegulation (EU) 2023/956 — Article 6 – paragraph 1",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 4 – point a",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 4"
+              },
+              {
+                "raw": "point a"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2023/956",
+            "raw": "Article 6 – paragraph 1",
+            "labels": [
+              {
+                "raw": "Article 6"
+              },
+              {
+                "raw": "paragraph 1"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_en.docx",
+        "fetchedAt": "2026-10-21T19:21:00.484Z"
+      },
+      "language": "en",
+      "baseline": "commission-proposal",
+      "documentReferences": [
+        {
+          "field": "DocRef",
+          "raw": "(COM(2025)0087 – C10-0035/2025 – 2025/0039(COD))",
+          "sourceRaw": "(COM(2025)0087 – C10-0035/2025 – 2025/0039(COD))",
+          "scope": "amendment"
+        },
+        {
+          "field": "DocAmend",
+          "raw": "Proposal for a regulation",
+          "sourceRaw": "Proposal for a regulation",
+          "scope": "amendment"
+        },
+        {
+          "field": "Article",
+          "raw": "Article 1 – paragraph 1 – point 4 – point a",
+          "sourceRaw": "Article 1 – paragraph 1 – point 4 – point a",
+          "scope": "amendment"
+        },
+        {
+          "field": "DocAmend2",
+          "raw": "Regulation (EU) 2023/956",
+          "sourceRaw": "Regulation (EU) 2023/956",
+          "scope": "amendment"
+        },
+        {
+          "field": "Article2",
+          "raw": "Article 6 – paragraph 1",
+          "sourceRaw": "Article 6 – paragraph 1",
+          "scope": "amendment"
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "originalText": "By 31 August of each year, and for the first time in 2027 for the year 2026, the authorised CBAM declarant shall surrender via the CBAM registry a number of CBAM certificates that corresponds to the embedded emissions declared in accordance with Article 6(2), point (c), and verified in accordance with Article 8, for the calendar year preceding the surrender.;",
+      "proposedText": "By 30 September of each year, and for the first time in 2027 for the year 2026, the authorised CBAM declarant shall surrender via the CBAM registry a number of CBAM certificates that corresponds to the embedded emissions declared in accordance with Article 6(2), point (c), and verified in accordance with Article 8, for the calendar year preceding the surrender.;",
+      "targetLabel": "Article 1 – paragraph 1 – point 16 – point a\nRegulation (EU) 2023/956 — Article 22 – paragraph 1",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 16 – point a",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 16"
+              },
+              {
+                "raw": "point a"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2023/956",
+            "raw": "Article 22 – paragraph 1",
+            "labels": [
+              {
+                "raw": "Article 22"
+              },
+              {
+                "raw": "paragraph 1"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_en.docx",
+        "fetchedAt": "2026-10-21T19:21:00.484Z"
+      },
+      "language": "en",
+      "baseline": "commission-proposal",
+      "documentReferences": [
+        {
+          "field": "DocRef",
+          "raw": "(COM(2025)0087 – C10-0035/2025 – 2025/0039(COD))",
+          "sourceRaw": "(COM(2025)0087 – C10-0035/2025 – 2025/0039(COD))",
+          "scope": "amendment"
+        },
+        {
+          "field": "DocAmend",
+          "raw": "Proposal for a regulation",
+          "sourceRaw": "Proposal for a regulation",
+          "scope": "amendment"
+        },
+        {
+          "field": "Article",
+          "raw": "Article 1 – paragraph 1 – point 16 – point a",
+          "sourceRaw": "Article 1 – paragraph 1 – point 16 – point a",
+          "scope": "amendment"
+        },
+        {
+          "field": "DocAmend2",
+          "raw": "Regulation (EU) 2023/956",
+          "sourceRaw": "Regulation (EU) 2023/956",
+          "scope": "amendment"
+        },
+        {
+          "field": "Article2",
+          "raw": "Article 22 – paragraph 1",
+          "sourceRaw": "Article 22 – paragraph 1",
+          "scope": "amendment"
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "originalText": "2.\tFrom the first quarter of the year 2027, the authorised CBAM declarant shall ensure that the number of CBAM certificates on its account in the CBAM registry at the end of each quarter corresponds to at least 50 % of the embedded emissions in all goods it has imported since the beginning of the calendar year, taking into account the adjustment for free allocation as referred to in Article 31, determined by reference to any of the following:",
+      "proposedText": "2.\tFrom 2027, the authorised CBAM declarant shall ensure that the number of CBAM certificates on its account in the CBAM registry at the end of each quarter corresponds to at least 50 % of the embedded emissions in all goods it has imported since the beginning of the calendar year, taking into account the adjustment for free allocation as referred to in Article 31, determined by reference to any of the following:",
+      "targetLabel": "Article 1 – paragraph 1 – point 16 – point b\nRegulation (EU) 2023/956 — Article 22 – paragraph 2",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 16 – point b",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 16"
+              },
+              {
+                "raw": "point b"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2023/956",
+            "raw": "Article 22 – paragraph 2",
+            "labels": [
+              {
+                "raw": "Article 22"
+              },
+              {
+                "raw": "paragraph 2"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_en.docx",
+        "fetchedAt": "2026-10-21T19:21:00.484Z"
+      },
+      "language": "en",
+      "baseline": "commission-proposal",
+      "documentReferences": [
+        {
+          "field": "DocRef",
+          "raw": "(COM(2025)0087 – C10-0035/2025 – 2025/0039(COD))",
+          "sourceRaw": "(COM(2025)0087 – C10-0035/2025 – 2025/0039(COD))",
+          "scope": "amendment"
+        },
+        {
+          "field": "DocAmend",
+          "raw": "Proposal for a regulation",
+          "sourceRaw": "Proposal for a regulation",
+          "scope": "amendment"
+        },
+        {
+          "field": "Article",
+          "raw": "Article 1 – paragraph 1 – point 16 – point b",
+          "sourceRaw": "Article 1 – paragraph 1 – point 16 – point b",
+          "scope": "amendment"
+        },
+        {
+          "field": "DocAmend2",
+          "raw": "Regulation (EU) 2023/956",
+          "sourceRaw": "Regulation (EU) 2023/956",
+          "scope": "amendment"
+        },
+        {
+          "field": "Article2",
+          "raw": "Article 22 – paragraph 2",
+          "sourceRaw": "Article 22 – paragraph 2",
+          "scope": "amendment"
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "originalText": "(a)\tthe following paragraph 1a is inserted:\n‘1a. The competent authority may decrease the amount of the penalty calculated in accordance with paragraph 1, considering one or more of the following factors:\na) the extent of unreported information;\nb) the level of cooperation and readiness of the authorised CBAM declarant to comply with requests for information;\nc) the unintentional nature of the behaviour of the authorised CBAM declarant;\nd) the past compliance of the authorised CBAM declarant.;’",
+      "proposedText": "deleted",
+      "targetLabel": "Article 1 – paragraph 1 – point 21 – point a\nRegulation (EU) 2023/956 — Article 26 – paragraph 1 a (new)",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 21 – point a",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 21"
+              },
+              {
+                "raw": "point a"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2023/956",
+            "raw": "Article 26 – paragraph 1 a (new)",
+            "labels": [
+              {
+                "raw": "Article 26"
+              },
+              {
+                "raw": "paragraph 1 a (new)"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_en.docx",
+        "fetchedAt": "2026-10-21T19:21:00.484Z"
+      },
+      "language": "en",
+      "baseline": "commission-proposal",
+      "documentReferences": [
+        {
+          "field": "DocRef",
+          "raw": "(COM(2025)0087 – C10-0035/2025 – 2025/0039(COD))",
+          "sourceRaw": "(COM(2025)0087 – C10-0035/2025 – 2025/0039(COD))",
+          "scope": "amendment"
+        },
+        {
+          "field": "DocAmend",
+          "raw": "Proposal for a regulation",
+          "sourceRaw": "Proposal for a regulation",
+          "scope": "amendment"
+        },
+        {
+          "field": "Article",
+          "raw": "Article 1 – paragraph 1 – point 21 – point a",
+          "sourceRaw": "Article 1 – paragraph 1 – point 21 – point a",
+          "scope": "amendment"
+        },
+        {
+          "field": "DocAmend2",
+          "raw": "Regulation (EU) 2023/956",
+          "sourceRaw": "Regulation (EU) 2023/956",
+          "scope": "amendment"
+        },
+        {
+          "field": "Article2",
+          "raw": "Article 26 – paragraph 1 a (new)",
+          "sourceRaw": "Article 26 – paragraph 1 a (new)",
+          "scope": "amendment"
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "originalText": "When reliable data for the exporting country cannot be applied for a type of goods, the default values shall be based on the average emission intensity of the ten exporting countries with the highest emission intensities for which reliable data can be applied for that type of goods.;",
+      "proposedText": "When reliable data for the exporting country cannot be applied to a type of commodity, the default values will be based on the average emission intensity of the 10% of exporting countries with the highest emission intensities for which reliable data are available for that type of commodity; if the number of exporting countries for which reliable data are available is more than 30, the default values will be based on the average emission intensity of the three countries with the highest emission intensities for which reliable data are available.;",
+      "targetLabel": "Annex I – paragraph 1 – point 2 – point a\nRegulation (EU) 2023/956 — Annex IV – point 4.1 – fourth sentence",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Annex I – paragraph 1 – point 2 – point a",
+            "labels": [
+              {
+                "raw": "Annex I"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 2"
+              },
+              {
+                "raw": "point a"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2023/956",
+            "raw": "Annex IV – point 4.1 – fourth sentence",
+            "labels": [
+              {
+                "raw": "Annex IV"
+              },
+              {
+                "raw": "point 4.1"
+              },
+              {
+                "raw": "fourth sentence"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_en.docx",
+        "fetchedAt": "2026-10-21T19:21:00.484Z"
+      },
+      "language": "en",
+      "baseline": "commission-proposal",
+      "documentReferences": [
+        {
+          "field": "DocRef",
+          "raw": "(COM(2025)0087 – C10-0035/2025 – 2025/0039(COD))",
+          "sourceRaw": "(COM(2025)0087 – C10-0035/2025 – 2025/0039(COD))",
+          "scope": "amendment"
+        },
+        {
+          "field": "DocAmend",
+          "raw": "Proposal for a regulation",
+          "sourceRaw": "Proposal for a regulation",
+          "scope": "amendment"
+        },
+        {
+          "field": "Article",
+          "raw": "Annex I – paragraph 1 – point 2 – point a",
+          "sourceRaw": "Annex I – paragraph 1 – point 2 – point a",
+          "scope": "amendment"
+        },
+        {
+          "field": "DocAmend2",
+          "raw": "Regulation (EU) 2023/956",
+          "sourceRaw": "Regulation (EU) 2023/956",
+          "scope": "amendment"
+        },
+        {
+          "field": "Article2",
+          "raw": "Annex IV – point 4.1 – fourth sentence",
+          "sourceRaw": "Annex IV – point 4.1 – fourth sentence",
+          "scope": "amendment"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "attribution": "European Commission / Publications Office; European Parliament",
+  "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0085-AM-004-008/A-10-2025-0085-AM-004-008_en.docx",
+  "retrievedAt": "2026-10-21",
+  "amendments": [
+    {
+      "number": 5,
+      "sourceText": "‘By 31 August of each year, and for the first time in 2027 for the year 2026, the authorised CBAM declarant shall surrender via the CBAM registry a number of CBAM certificates that corresponds to the embedded emissions declared in accordance with Article 6(2), point (c), and verified in accordance with Article 8, for the calendar year preceding the surrender.’;",
+      "original": "By 31 August of each year, and for the first time in 2027 for the year 2026, the authorised CBAM declarant shall surrender via the CBAM registry a number of CBAM certificates that corresponds to the embedded emissions declared in accordance with Article 6(2), point (c), and verified in accordance with Article 8, for the calendar year preceding the surrender.;"
+    },
+    {
+      "number": 7,
+      "sourceText": "(a)the following paragraph 1a is inserted:\n‘1a. The competent authority may decrease the amount of the penalty calculated in accordance with paragraph 1, considering one or more of the following factors:\na) the extent of unreported information;\nb) the level of cooperation and readiness of the authorised CBAM declarant to comply with requests for information;\nc) the unintentional nature of the behaviour of the authorised CBAM declarant;\nd) the past compliance of the authorised CBAM declarant.’;",
+      "original": "(a)the following paragraph 1a is inserted:\n‘1a. The competent authority may decrease the amount of the penalty calculated in accordance with paragraph 1, considering one or more of the following factors:\na) the extent of unreported information;\nb) the level of cooperation and readiness of the authorised CBAM declarant to comply with requests for information;\nc) the unintentional nature of the behaviour of the authorised CBAM declarant;\nd) the past compliance of the authorised CBAM declarant.;’"
+    },
+    {
+      "number": 8,
+      "sourceText": "‘When reliable data for the exporting country cannot be applied for a type of goods, the default values shall be based on the average emission intensity of the ten exporting countries with the highest emission intensities for which reliable data can be applied for that type of goods.’;",
+      "original": "When reliable data for the exporting country cannot be applied for a type of goods, the default values shall be based on the average emission intensity of the ten exporting countries with the highest emission intensities for which reliable data can be applied for that type of goods.;"
+    }
+  ]
+}

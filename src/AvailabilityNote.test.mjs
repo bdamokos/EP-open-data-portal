@@ -1,0 +1,30 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {createElement,act} from 'react';
+import {Window} from 'happy-dom';
+import {freshLoader} from './test-support/viteRunner.mjs';
+import {sourceAvailability} from '../server/source-availability.mjs';
+
+test('coverage copy preserves positive upstream text, language retention and accessible source details',async t=>{
+  const window=new Window({url:'http://localhost/'}),globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {AvailabilityNote}=await load('/src/AvailabilityNote.tsx'),{createRoot}=await import('react-dom/client');
+  const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
+  t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  const render=source=>act(async()=>root.render(createElement(AvailabilityNote,{sources:source,label:'text',end:'2026-10-24'})));
+  await render(sourceAvailability({sourceKey:'speech-text',family:'speeches',stage:'text',language:'hu',observedRecords:3,route:'public-api',checkedAt:'2026-10-24T10:00:00Z',limited:true,retention:{reason:'language-not-retained'}}));
+  assert.match(container.querySelector('p').textContent,/Records observed/);
+  assert.doesNotMatch(container.querySelector('p').textContent,/unavailable/i);
+  assert.match(container.textContent,/Hungarian text/);
+  assert.match(container.textContent,/Source language not retained locally/);
+  assert.equal(container.querySelector('details>summary').textContent,'Coverage');
+  assert.match(container.textContent,/Collection date unavailable/);
+  await render(sourceAvailability({sourceKey:'speech-text',latestObservedDate:'2026-10-16'}));
+  assert.match(container.querySelector('p').textContent,/Later dates unavailable/);
+  assert.equal(container.querySelector('time').getAttribute('datetime'),'2026-10-16');
+  await render(sourceAvailability({sourceKey:'speech-text',latestObservedDate:'2026-10-16',gaps:[{start:'2026-09-01',end:'2026-09-30'}]}));
+  assert.match(container.querySelector('p').textContent,/Partial coverage/);
+  assert.match(container.textContent,/Some records could not be checked/);
+});
