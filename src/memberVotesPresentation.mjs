@@ -49,7 +49,7 @@ function withinPeriod(item,period,withSitting=true) {
 function outcomeShape(item) {
   if(!isObject(item?.actualPosition))return false;
   if(item.actualPosition.status==='recorded'?!['for','against','abstaining'].includes(item.actualPosition.position):item.actualPosition.position!==null)return false;
-  if(item.actualPosition.status==='not-individually-recorded'&&(item.ballotStatus!=='conducted'||!['VOTE_HAND','VOTE_ELECTRONIC','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(item.method)))return false;
+  if(item.actualPosition.status==='not-individually-recorded'&&(item.ballotStatus!=='conducted'||!['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(item.method)))return false;
   return isObject(item)&&nullableString(item.method)&&nullableString(item.outcome)&&['conducted','not-conducted','unknown'].includes(item.ballotStatus)&&isObject(item.scope)&&['whole-text','amendment','split-part','procedural','unclassified'].includes(item.scope.kind)&&isObject(item.actualPosition)&&['recorded','no-record','not-individually-recorded','unavailable','conflicting','not-conducted'].includes(item.actualPosition.status)&&[null,'for','against','abstaining'].includes(item.actualPosition.position)&&isObject(item.intention)&&['reported','not-reported','unavailable'].includes(item.intention.status)&&Array.isArray(item.intention.positions)&&item.intention.positions.every(position=>['for','against','abstaining'].includes(position))&&isObject(item.totals)&&['for','against','abstaining'].every(key=>item.totals[key]===null||integer(item.totals[key]));
 }
 function componentShape(part) {

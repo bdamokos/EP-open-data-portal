@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {projectMemberSitting} from '../server/member-votes-model.mjs';
+import {knownVoteMethodLabel,voteMethodLabel} from './voteMethod.mjs';
 import {MEMBER_VOTES_PAGE_SIZE,memberVotesRoute,validateMemberVotesResponse,groupMemberVotes,displayVoteTitle,memberVoteLabel,memberVotePosition,memberVoteOutcome,memberVoteTotals,votingRecordUrl,topLevelVoteDocuments,exactAmendmentTargets} from './memberVotesPresentation.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/member-votes.json',import.meta.url)));
@@ -149,4 +150,24 @@ test('v4 guards recorded totals and carries non-named status through selected an
   assert.equal(accepts(data,{...state,decisionId:selected.id}),true);
   assert.equal(memberVotePosition(selected),'Not individually recorded');
   for(const patch of [{actualPosition:{status:'not-individually-recorded',position:'for'}},{ballotStatus:'unknown'},{method:'VOTE_UNKNOWN'}]){const invalid=clone(data);invalid.selected.item={...invalid.selected.item,...patch};assert.equal(accepts(invalid,{...state,decisionId:selected.id}),false);}
+});
+
+test('electronic secret ballots validate across list, selected and whole-text decisions with source precedence',()=>{
+  const raw={...fixture.snapshots[0].decisions[0],type:'Vote',decision_method:'def/ep-decision-methods/VOTE_ELECTRONIC_SECRET'};
+  for(const key of ['had_voter_favor','had_voter_against','had_voter_abstention'])delete raw[key];
+  for(const patch of [{},{decision_outcome:'def/ep-statuses/LAPSED'},{had_voter_favor:['person/'+memberId]}]){
+    const item=projectMemberSitting({...fixture.snapshots[0],decisions:[{...raw,...patch}]},String(memberId)).items[0];
+    const expected=patch.decision_outcome?'Not put to a vote':patch.had_voter_favor?'Position unavailable':'Not individually recorded';
+    const data=response({positions:'all',items:[item],subjects:[],pagination:{offset:0,limit:50,returned:1,observedTotal:1,recordedTotal:0,filteredTotal:1,nextOffset:null},selected:{status:'found',item},alignmentCounts:{with:0,against:0,abstained:0,unclassified:1}});
+    const subject=clone(projection.subjects[0]);
+    subject.wholeTextDecisions=[{...clone(item),scope:{kind:'whole-text',basis:'english-reference-label'}}];
+    subject.counts={observed:1,filtered:1,page:1};item.subjectId=subject.id;
+    data.subjects=[subject];
+    assert.equal(accepts(data,{...state,positions:'all',decisionId:item.id}),true,expected);
+    assert.equal(memberVotePosition(item),expected);
+    assert.equal(memberVotePosition(subject.wholeTextDecisions[0]),expected);
+  }
+  assert.equal(voteMethodLabel('VOTE_ELECTRONIC_SECRET'),'Secret ballot (electronic)');
+  assert.equal(knownVoteMethodLabel('VOTE_ELECTRONIC_SECRET'),'Secret ballot (electronic)');
+  for(const method of ['VOTE_SECRET','VOTE_SECRET_BALLOT'])assert.equal(voteMethodLabel(method),'Secret ballot');
 });

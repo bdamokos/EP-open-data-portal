@@ -231,10 +231,12 @@ test('alignment uses conducted recorded ballots and the official outcome, never 
 
 test('recognised non-named conducted ballots require no supplied actual voter fields',()=>{
   const base={...fullDecision};for(const key of ['had_voter_favor','had_voter_against','had_voter_abstention'])delete base[key];
-  for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_SECRET','VOTE_SECRET_BALLOT']){
+  for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']){
     const raw={...base,decision_method:'def/ep-decision-methods/'+method},vote=project(raw);
+    assert.equal(vote.ballotStatus,'conducted',method);assert.equal(vote.namedVoters.available,false);
     assert.deepEqual(vote.actualPosition,{status:'not-individually-recorded',position:null},method);assert.equal(memberVoteAlignment(vote),'unclassified');
-    assert.equal(project({...raw,decision_outcome:'def/ep-statuses/LAPSED'}).actualPosition.status,'not-conducted');
+    const lapsed=project({...raw,decision_outcome:'def/ep-statuses/LAPSED'});
+    assert.equal(lapsed.ballotStatus,'not-conducted');assert.equal(lapsed.actualPosition.status,'not-conducted');
     for(const value of [[],['person/197591'],null,'bad',['malformed']])assert.equal(project({...raw,had_voter_favor:value}).actualPosition.status,'unavailable',method+':'+JSON.stringify(value));
     assert.equal(project({...raw,had_voter_favor:['person/197591'],had_voter_against:['person/197591']}).actualPosition.status,'conflicting');
     assert.equal(project({...raw,_conflictingSourceObservations:{fields:['decision_method']}}).actualPosition.status,'conflicting');

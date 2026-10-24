@@ -56,7 +56,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
   const arraysAvailable=Object.values(actual.supplied).every(Boolean);
   const notConducted=['LAPSED','WITHDRAWN','CANCELLED','CANCELED','NOT_HELD'].includes(outcome);
   const type=tail(typeof raw.type==='string'?raw.type:raw['@type']);
-  const nonNamedMethod=['VOTE_HAND','VOTE_ELECTRONIC','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(method);
+  const nonNamedMethod=['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(method);
   const ballotStatus=notConducted?'not-conducted':type==='Vote'&&(arraysAvailable||nonNamedMethod)?'conducted':'unknown';
   const available=ballotStatus==='conducted'&&method==='VOTE_ELECTRONIC_ROLLCALL'&&arraysAvailable;
   const conflictingPersonIds=[...actual.byPerson].filter(([,values])=>values.length>1).map(([id])=>id).sort((a,b)=>Number(a)-Number(b));

@@ -2,6 +2,7 @@ const labels=Object.freeze({
   VOTE_ELECTRONIC_ROLLCALL:'Roll-call vote',
   VOTE_HAND:'Show of hands',
   VOTE_ELECTRONIC:'Electronic vote (names not recorded)',
+  VOTE_ELECTRONIC_SECRET:'Secret ballot (electronic)',
   VOTE_SECRET:'Secret ballot',
   VOTE_SECRET_BALLOT:'Secret ballot',
 });
