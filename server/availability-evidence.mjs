@@ -21,9 +21,9 @@ export function indexAvailability(store,{sourceKey,family=sourceKey,subtype=null
     gaps:gaps??savedGaps(store,generation,family),checkedAt,today:brusselsDay(store.clock()),
     snapshot:{generation,revision}});
 }
-export function oralAvailability(store,{generation,start='2024-07-16',end=brusselsDay(store.clock()),limited=false}={}) {
+export function oralAvailability(store,{generation,start='2024-07-16',end=brusselsDay(store.clock()),limited=false,gaps=null}={}) {
   const date=store.db.prepare('SELECT MAX(date) date FROM group_voice_observations WHERE generation=? AND date<=?').get(generation,end)?.date||null;
-  return indexAvailability(store,{sourceKey:'oral-speeches',family:'speeches',subtype:'PLENARY_DEBATE_SPEECH',generation,start,end,latestObservedDate:date,limited});
+  return indexAvailability(store,{sourceKey:'oral-speeches',family:'speeches',subtype:'PLENARY_DEBATE_SPEECH',generation,start,end,latestObservedDate:date,limited,gaps});
 }
 
 export function activityAvailability(store,generation,{category=null,limited=false}={}) {

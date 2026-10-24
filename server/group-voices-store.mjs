@@ -1,4 +1,4 @@
-import {oralAvailability} from './availability-evidence.mjs';
+import {oralAvailability,savedGaps,availabilityGap} from './availability-evidence.mjs';
 import {GROUP_VOICE_GROUPS,GROUP_VOICE_SUBJECTS} from '../src/groupVoiceTerms.mjs';
 import {GROUP_VOICE_LIMITS,GROUP_VOICE_VERSION,groupVoiceProjection} from './group-voices-model.mjs';
 import {nameScript,speakerNameIsSpecific} from '../src/speakerNames.mjs';
@@ -104,9 +104,13 @@ function localized(titles,language){
 // Summary uses only indexed scalar designation rows. Source bodies are read at
 // most once per person for a name, and only for the bounded contribution page.
 // Nothing here reads raw XML, refreshes a source or infers group membership.
-export function groupVoicesPage(store,query){
+export function groupVoicesPage(store,query){return store.readSnapshot(()=>groupVoicesSnapshot(store,query));}
+function groupVoicesSnapshot(store,query){
   const generation=generationOf(store),{rows,truncated}=scopeRows(store,generation,query);
-  const shared={group:query.group,period:query.period,window:{from:query.from,to:query.to},coverage:coverage(store,generation,query,truncated),availability:oralAvailability(store,{generation,start:query.from,end:query.to,limited:truncated})};
+  const state=coverage(store,generation,query,truncated);
+  const failed=store.db.prepare('SELECT key,body FROM group_voice_jobs WHERE generation=? AND done=0 AND error IS NOT NULL LIMIT 501').all(generation);
+  const jobGaps=failed.length>500?[{reason:'source-gap'}]:failed.map(row=>availabilityGap(JSON.parse(row.body),row.key));
+  const shared={group:query.group,period:query.period,window:{from:query.from,to:query.to},coverage:state,availability:oralAvailability(store,{generation,start:query.from,end:query.to,limited:truncated||state.pending>0||!state.initialized,gaps:[...savedGaps(store,generation,'speeches'),...jobGaps]})};
   const selected=rows.filter(row=>(!query.person||row.person===query.person)&&(!query.subject||row.subject===query.subject));
   const page={...shared,total:selected.length,offset:query.offset,limit:query.limit,nextOffset:query.offset+query.limit<selected.length?query.offset+query.limit:null,
     contributions:selected.slice(query.offset,query.offset+query.limit).map(row=>{
