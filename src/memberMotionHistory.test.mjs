@@ -65,6 +65,7 @@ async function harness(t,selection=query({}),{context=contextResponse,motions=mo
   if(url.pathname.startsWith('/api/profile/'))return Response.json({...members[Number(url.pathname.split('/').at(-1))-1],birthDate:null,memberships:[]});
   if(url.pathname.startsWith('/api/latest-activities/'))return Response.json(await latest(url));
   if(url.pathname.startsWith('/api/motion-amendments/')){const result=await motions(url);return result instanceof Response?result:Response.json(result);}
+  if(url.pathname.startsWith('/api/commission-followups/'))return Response.json({documentId:decodeURIComponent(url.pathname.split('/').at(-1)),requestedLanguage:url.searchParams.get('lang')||'en',status:'none-listed',items:[],gaps:[],sources:[]});
   if(url.pathname.startsWith('/api/document-context/')){const result=await context(url);return result instanceof Response?result:Response.json(result);}
   if(url.pathname.startsWith('/api/document/'))return Response.json({...contextDocument(decodeURIComponent(url.pathname.split('/').at(-1))),roles:['AUTHOR'],coAuthors:[]});
   if(url.pathname.startsWith('/api/qa-motion-cache/'))return Response.json({id:url.pathname.split('/').at(-1)});

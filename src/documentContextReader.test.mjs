@@ -212,6 +212,7 @@ test('adopted texts require an exact choice and load their own body without an a
   assert(h.container.textContent.includes('Some linked texts could not be loaded.'));
   await h.click(choices[0]);assert(h.container.textContent.includes('Adopted wording only.'));
   assert(h.requests.includes(`document-context/${adopted}?lang=en`));
+  assert.deepEqual(h.requests.filter(route=>route.startsWith('commission-followups/')),[`commission-followups/${adopted}?lang=en`],'only the selected adopted text requests follow-ups');
   assert(!h.requests.some(route=>route.includes(adopted)&&route.includes('amendment=')));
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   await h.click(h.container.querySelector('.document-context-choices-back'));

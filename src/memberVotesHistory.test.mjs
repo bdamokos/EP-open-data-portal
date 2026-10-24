@@ -72,6 +72,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
     if(url.pathname.startsWith('/api/profile/'))return Response.json({...members[Number(url.pathname.split('/').at(-1))-1],birthDate:null,memberships:[]});
     if(url.pathname.startsWith('/api/document/'))return Response.json({...contextDocument(decodeURIComponent(url.pathname.split('/').at(-1))),roles:['AUTHOR'],coAuthors:[]});
     if(url.pathname.startsWith('/api/member-votes/'))return Response.json(response(url));
+    if(url.pathname.startsWith('/api/commission-followups/'))return Response.json({documentId:decodeURIComponent(url.pathname.split('/').at(-1)),requestedLanguage:url.searchParams.get('lang')||'en',status:'none-listed',items:[],gaps:[],sources:[]});
     if(url.pathname.startsWith('/api/document-context/')){
       const id=decodeURIComponent(url.pathname.split('/').at(-1));
       const choices=[ADOPTED,OTHER_ADOPTED].map(id=>({...contextDocument(id),relationship:{from:id,field:'adopts',to:DOCUMENT}}));

@@ -51,6 +51,7 @@ async function harness(t,{url=baseHref,props={},autoApply=true,wordingLanguage='
   });
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);requests.push(url);
+    if(url.pathname.startsWith('/api/commission-followups/'))return Response.json({documentId:decodeURIComponent(url.pathname.split('/').at(-1)),requestedLanguage:url.searchParams.get('lang')||'en',status:'none-listed',items:[],gaps:[],sources:[]});
     const isList=url.pathname.startsWith('/api/motion-amendments/');
     assert(isList||url.pathname.startsWith('/api/document-context/'),'Unexpected request: '+url.href);
     const body=isList?fixturePage(url,wordingLanguage):fixtureContext(url);
@@ -118,7 +119,7 @@ test('bad saved AM/list remain unavailable but exact motion/adopted headers reco
   await h.click('Read motion');assert.equal(h.state().amendments.amendmentId,joint+'-AM-13');assert.equal(h.state().amendments.variantListId,joint+'-AM-001-020');assert.match(h.container.textContent,/Public complete document body/);
   assert.equal(h.requests.at(-1).pathname,'/api/document-context/'+original);assert.equal(h.requests.at(-1).searchParams.has('amendment'),false);assert.equal(h.requests.at(-1).searchParams.has('list'),false);
   await h.click('← Back');await h.click('Find the adopted text');assert(h.button(/Public adopted title/));assert.equal(h.query().has('ma-ta'),false,'a single related TA is never selected automatically');
-  await h.click(/Public adopted title/);assert.equal(h.changes.at(-1).reason,'adopted-choice');assert.equal(h.state().selectedTA,ta);assert.equal(h.requests.at(-1).pathname,'/api/document-context/'+ta);
+  await h.click(/Public adopted title/);assert.equal(h.changes.at(-1).reason,'adopted-choice');assert.equal(h.state().selectedTA,ta);assert.equal(h.requests.filter(url=>url.pathname.startsWith('/api/document-context/')).at(-1).pathname,'/api/document-context/'+ta);assert.equal(h.requests.at(-1).pathname,'/api/commission-followups/'+ta);
 });
 
 test('unsupported/duplicate text shares never mount a fallback; valid closed RC restores from controlled query',async t=>{
