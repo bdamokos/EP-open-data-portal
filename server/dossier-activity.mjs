@@ -161,10 +161,32 @@ export class DossierActivity {
   }
   async amendments(result,work,query,page) {
     const {coverage,procedure}=result,{member,language,targetOffset,offset,limit}=query;
-    const targets=[...new Set(array(work.consists_of).flatMap(event=>[...refs(event.based_on_a_realization_of),...refs(event.created_a_realization_of)]).map(tail).filter(id=>/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(id)))].sort();
+    const retained=this.store.readSnapshot(()=>{
+      const ids=[];
+      if(this.store.reportsForProcedure)for(const report of this.store.reportsForProcedure(result.generation,procedure.id)){
+        if(ids.length>DOSSIER_ACTIVITY_LIMITS.documents)break;
+        if(refs(report.work.inverse_created_a_realization_of).includes('eli/dl/proc/'+procedure.id))ids.push(tail(report.work.id));
+      }
+      return ids;
+    });
+    // A joint debate can name other dossiers' reports. Its document list never
+    // establishes this procedure's amendment targets.
+    const candidates=[...new Set([...retained,...array(work.consists_of).filter(event=>tail(event.had_activity_type)==='TABLING_PLENARY').flatMap(event=>refs(event.based_on_a_realization_of)).map(tail)].filter(id=>/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(id)))].sort();
+    const targets=candidates.slice(0,DOSSIER_ACTIVITY_LIMITS.documents);
+    if(candidates.length>targets.length)coverage.gaps.push('Some amendment targets are outside this checked scope.');
     if(targetOffset>=targets.length){coverage.gaps.push('No checked amendment target is linked in this procedure observation.');return;}
-    const target=targets[targetOffset],record=await this.reader.record('/plenary-documents/'+target),nodes=record.payload.data.filter(node=>canonical(node.id)==='eli/dl/doc/'+target);
-    if(nodes.length!==1||!refs(nodes[0].inverse_created_a_realization_of).includes('eli/dl/proc/'+procedure.id))throw new HttpError(502,'dossier_amendment_target','The exact amendment target is unavailable.');
+    const target=targets[targetOffset];let record;
+    result.checkedTarget=target;
+    try {
+      record=await this.reader.record('/plenary-documents/'+target);
+      const nodes=record.payload.data.filter(node=>canonical(node.id)==='eli/dl/doc/'+target);
+      if(nodes.length!==1||!refs(nodes[0].inverse_created_a_realization_of).includes('eli/dl/proc/'+procedure.id))throw new HttpError(502,'dossier_amendment_target','The exact amendment target is unavailable.');
+    }catch(error){
+      if(isLocalRequestFailure(error))throw error;
+      coverage.status='unavailable';coverage.gaps.push('Amendment target '+target+' is unavailable.');
+      result.pagination.next=targetOffset+1<targets.length?{offset:0,targetOffset:targetOffset+1}:null;
+      coverage.truncated=Boolean(result.pagination.next);return;
+    }
     coverage.sources.push(source(record));
     const captured=this.store.readSnapshot(()=>{
       if(this.store.status().servingGeneration!==result.generation)throw new HttpError(409,'dossier_generation_changed','The activity index changed. Retry amendments.');

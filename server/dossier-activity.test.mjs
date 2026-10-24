@@ -89,6 +89,16 @@ test('ambiguous aggregate keeps only a checked matching published variant',async
   const x=setup(t,{amendments:[aggregate]});const r=await x.service.query(x.q('amendments'));
   assert.equal(r.items.length,1);assert.equal(r.items[0].amendment.listId,variant.listId);assert.equal(r.items[0].amendment.authors[0].personId,MEMBER);
 });
+test('joint-debate documents never introduce a different dossier amendment target',async t=>{
+  const x=setup(t);x.work.consists_of[0].based_on_a_realization_of=['eli/dl/doc/A-10-2025-0001','eli/dl/doc/'+DOC];
+  const r=await x.service.query(x.q('amendments'));
+  assert.equal(r.checkedTarget,DOC);assert(!x.calls.includes('/plenary-documents/A-10-2025-0001'));
+});
+test('one unavailable amendment target retains the next target continuation',async t=>{
+  const x=setup(t);x.work.consists_of.push({id:uri('other-tabling'),had_activity_type:'def/ep-activities/TABLING_PLENARY',based_on_a_realization_of:['eli/dl/doc/A-10-2025-0001']});
+  const first=await x.service.query(x.q('amendments'));assert.equal(first.coverage.status,'unavailable');assert.deepEqual(first.pagination.next,{offset:0,targetOffset:1});
+  const next=await x.service.query(x.q('amendments',MEMBER,'target-offset=1'));assert.equal(next.items[0].amendment.number,3);
+});
 test('named votes preserve Maran and Boylan opposition and keep outcome separate',async t=>{
   const x=setup(t),maran=await x.service.query(x.q('votes')),boylan=await x.service.query(x.q('votes',OTHER));
   assert.equal(maran.items.length,2);
@@ -101,6 +111,17 @@ test('named votes preserve Maran and Boylan opposition and keep outcome separate
 test('contradictory vote parents never enrich this dossier',async t=>{
   const x=setup(t);x.day.decisions[0].inverse_consists_of.push(uri(SITTING+'-VOT-ITM-999999'));
   const r=await x.service.query(x.q('votes'));assert(!r.items.some(item=>item.id.endsWith('196161')));
+});
+test('non-named ballots and intentions never become recorded member positions',async t=>{
+  const x=setup(t),raw=x.day.decisions[0];raw.decision_method='def/ep-decision-methods/VOTE_HAND';
+  delete raw.had_voter_favor;delete raw.had_voter_against;delete raw.had_voter_abstention;
+  raw.had_voter_intended_favor=['person/'+MEMBER];
+  const r=await x.service.query(x.q('votes')),vote=r.items.find(item=>item.id.endsWith('196161')).vote;
+  assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'unavailable');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
+});
+test('a person without a recorded role is never replaced by a named participant',async t=>{
+  const x=setup(t),r=await x.service.query(x.q('roles','99999'));
+  assert.equal(r.memberId,'99999');assert.equal(r.items.length,0);assert(r.participants.every(person=>person.id!=='99999'));
 });
 test('caps keep unknown totals and expose a continuation rather than a complete history',async t=>{
   const x=setup(t);x.work.had_participation=Array.from({length:DOSSIER_ACTIVITY_LIMITS.roles+1},(_,i)=>role('r'+i));
