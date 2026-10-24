@@ -33,42 +33,82 @@ async function mount(t,{response=result(),handler}={}) {
   let props={vote:{id:decision,sittingId:sitting,subjectId:subject},data:{snapshotId:snapshot,period:{kind:'sitting'}},memberId:'197655',language:'en',onDecision:id=>selected.push(id)};
   const render=()=>root.render(createElement(MemberVoteExplanations,{...props,key:props.vote.id+':'+props.memberId+':'+props.language}));
   await act(async()=>render());
-  return {container,calls,selected,async update(patch){props={...props,...patch};await act(async()=>render());},async click(label){const button=[...container.querySelectorAll('button')].find(button=>button.textContent.trim()===label);assert(button,label);await act(async()=>button.click());}};
+  return {container,calls,selected,async update(patch){props={...props,...patch};await act(async()=>render());},async click(label){const button=[...container.querySelectorAll('button')].find(button=>button.textContent.replace(/^[▸▾]\s*/, '').trim()===label);assert(button,label);await act(async()=>button.click());}};
 }
 
 test('a final vote loads metadata first, then reads the explanation and video independently',async t=>{
   const view=await mount(t);
-  assert.match(view.container.textContent,/Explanation of vote/);assert.equal(view.calls.length,1);
+  assert.match(view.container.textContent,/Read oral explanation of vote/);assert.equal(view.calls.length,1);
   assert.equal(view.calls.some(call=>call.url.includes('speech-transcript/')),false);
-  await view.click('Read explanation');
+  await view.click('Read oral explanation of vote');
   assert.equal(view.container.querySelector('i')?.textContent,'explanation',view.container.innerHTML);
   assert.match(view.container.textContent,/English unavailable · showing French/);assert.match(view.container.textContent,/Machine translation/);
   assert.equal(view.calls.some(call=>call.url.includes('speech-media/')),false);
   await view.click('Video');assert(view.calls.some(call=>call.url.includes('speech-media/')));
   assert.match(view.container.textContent,/Recording unavailable/);
-  await view.click('Close explanation');assert.equal(view.container.querySelector('[aria-label="Speech video"]'),null);
+  await view.click('Close oral explanation');assert.equal(view.container.querySelector('[aria-label="Speech video"]'),null);
 });
 
 test('other decisions show a subject explanation with a final-vote link, never an amendment explanation claim',async t=>{
   const other=sitting+'-DEC-189209',response=result({decisionId:other});
   const view=await mount(t,{response,handler:url=>url.includes('member-vote-explanations/')?Response.json({...response,decisionId:new URL(url,'http://localhost').searchParams.get('decision')}):null});
   await view.update({vote:{id:other,sittingId:sitting,subjectId:subject}});
-  assert.match(view.container.textContent,/Explanation about this text/);assert.match(view.container.textContent,/About the text as a whole/);
-  await view.click('View final vote');assert.deepEqual(view.selected,[decision]);
+  assert.match(view.container.textContent,/Read oral explanation on the whole text/);
+  assert.doesNotMatch(view.container.textContent,/Final vote/);
+  await view.click('Read oral explanation on the whole text');
+  await view.click('Final vote');assert.deepEqual(view.selected,[decision]);
 });
 
 test('failed and mismatched responses preserve the vote and cannot supply stale attachments',async t=>{
   const view=await mount(t,{response:result({memberId:'42'})});
-  assert.match(view.container.textContent,/Explanations unavailable/);assert.doesNotMatch(view.container.textContent,/Read explanation|No matching/);
+  assert.match(view.container.textContent,/Explanations couldn’t be loaded/);assert.doesNotMatch(view.container.textContent,/Read oral explanation|No oral explanation found/);
   assert(view.container.querySelector('button')?.textContent.includes('Retry'));
   await view.update({vote:{id:sitting+'-DEC-999',sittingId:sitting,subjectId:subject}});
-  assert.doesNotMatch(view.container.textContent,/Read explanation/);
+  assert.doesNotMatch(view.container.textContent,/Read oral explanation/);
 });
 
-test('incomplete searches and written-source gaps are not presented as zero explanations',async t=>{
-  const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'source-unavailable'}]}})});
-  assert.match(view.container.textContent,/could not be fully checked/);assert.match(view.container.textContent,/Written explanations are not available here/);
-  assert.doesNotMatch(view.container.textContent,/No matching|0 explanations/);
-  assert([...view.container.querySelectorAll('button')].some(button=>button.textContent==='Retry explanations'));
-  assert.match(view.container.querySelector('a').href,/\/197655\/NAME\/other-activities\/written-explanations$/);
+test('incomplete searches stay distinct from none found, without repeated attribution or links',async t=>{
+  const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'speech-source-unavailable'}]}})});
+  assert.match(view.container.textContent,/could not be fully checked/);
+  assert.doesNotMatch(view.container.textContent,/No oral explanation found|Written explanations|0 explanations/);
+  assert.equal(view.container.querySelectorAll('button').length,1);
+  assert.equal(view.container.querySelector('button').textContent,'Retry');
+  assert.equal(view.container.querySelectorAll('a,h3,section,[role="alert"]').length,0);
+});
+
+test('a complete empty search is one quiet line and has no retry',async t=>{
+  const view=await mount(t,{response:result({items:[]})});
+  assert.equal(view.container.textContent,'No oral explanation found.');
+  assert.equal(view.container.querySelectorAll('p').length,1);
+  assert.equal(view.container.querySelectorAll('a,button,h3,section').length,0);
+});
+
+test('structural gaps retain uncertainty without offering a retry',async t=>{
+  const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'parent-read-limit'},{code:'explanation-transcript-conflict'}]}})});
+  assert.match(view.container.textContent,/could not be fully checked/);
+  assert.equal(view.container.querySelectorAll('button').length,0);
+});
+
+test('multiple disclosures have unique mounted targets and keep external attribution out of the reader',async t=>{
+  const response=result();response.items.push({...response.items[0],id:sitting+'-OTH-999',speech:{...response.items[0].speech,id:sitting+'-OTH-999'}});
+  const view=await mount(t,{response});
+  const toggles=()=>[...view.container.querySelectorAll('button[aria-expanded]')];
+  assert(toggles().every(button=>!button.hasAttribute('aria-controls')));
+  await act(async()=>toggles()[0].click());
+  const first=toggles()[0].getAttribute('aria-controls');assert(first);assert(view.container.querySelector('[id="'+first+'"]'));
+  await act(async()=>toggles()[1].click());
+  const second=toggles()[1].getAttribute('aria-controls');assert(second);assert.notEqual(first,second);
+  assert.equal(toggles()[0].hasAttribute('aria-controls'),false);
+  assert.equal(view.container.querySelector('[id="'+first+'"]'),null);
+  assert(view.container.querySelector('[id="'+second+'"]'));
+  assert.equal(view.container.querySelectorAll('a,h3,section').length,0);
+  assert.doesNotMatch(view.container.textContent,/Written explanations|Member’s page|Source ↗/);
+  await act(async()=>toggles()[1].click());assert.equal(view.container.querySelectorAll('[aria-controls]').length,0);
+});
+
+test('partial matches show one qualifier and at most one useful retry',async t=>{
+  const view=await mount(t,{response:result({coverage:{status:'partial',searchComplete:false,gaps:[{code:'parent-source-stale'}]}})});
+  assert.match(view.container.textContent,/Read oral explanation of vote/);
+  assert.match(view.container.textContent,/Some records unavailable/);
+  assert.equal([...view.container.querySelectorAll('button')].filter(button=>button.textContent==='Retry').length,1);
 });

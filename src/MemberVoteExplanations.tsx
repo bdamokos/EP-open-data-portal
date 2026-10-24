@@ -15,6 +15,11 @@ type Explanations={version:2;memberId:string;decisionId:string;sittingId:string;
   matchScope:'subject';presentationAnchorDecisionId:string|null;written:{status:'unsupported';count:null};items:Explanation[];
   coverage:{status:'searched'|'partial'|'unavailable';searchComplete:boolean;gaps:{code:string}[]}};
 
+const retryableGap=(code:string)=>/-source-(?:unavailable|stale)$/.test(code)||[
+  'speech-collection-incomplete','speech-total-changed','speech-count-mismatch','speech-hit-unavailable',
+  'request_timeout','upstream_busy','odp_rate_limited','odp_unavailable','odp_no_content',
+].includes(code);
+
 function ExplanationReader({item,language}:{item:Explanation;language:string}) {
   const [selected,setSelected]=useState(language),state=useSpeechData(item.id,selected),body=state.transcript;
   const paragraphs=transcriptParagraphs(body?.xml||null).paragraphs;
@@ -40,20 +45,24 @@ export function MemberVoteExplanations({vote,data,memberId,language,onDecision}:
     ['searched','partial','unavailable'].includes(response.coverage?.status)&&response.items.every(item=>item&&item.kind==='oral'&&item.matchScope==='subject'&&item.subjectId===vote.subjectId&&Array.isArray(item.sources)&&Array.isArray(item.classification?.sources)&&
       item.presentationAnchorDecisionId===response.presentationAnchorDecisionId&&new RegExp('^'+vote.sittingId+'-[A-Z0-9-]+$').test(item.id)&&item.speech?.id===item.id);
   const result=valid?response:null,items=result?.items||[],anchor=result?.presentationAnchorDecisionId;
-  const final=anchor===vote.id;
-  return <section className="member-vote-explanations" aria-label="Vote explanations">
-    <h3>{items.length&&!final?'Explanation about this text':'Explanation of vote'}</h3>
-    {request.loading&&!result&&<p role="status">Finding explanations…</p>}
-    {(request.error||response&&!valid)&&<p role="alert">Explanations unavailable. <button type="button" disabled={request.loading} onClick={request.retry}>Retry explanations</button></p>}
-    {items.length>0&&!final&&<p className="member-votes-muted">About the text as a whole.{anchor&&<> <button type="button" onClick={()=>onDecision(anchor)}>View final vote</button></>}</p>}
-    {items.map(item=><div className="vote-explanation" key={item.id}>
-      <div className="vote-explanation-heading"><span>Oral explanation</span><button type="button" aria-expanded={reading===item.id} aria-controls={contentId} onClick={()=>setReading(reading===item.id?null:item.id)}>{reading===item.id?'Close explanation':'Read explanation'}</button>
-        <a href={item.speech.websiteUrl||item.classification.sources[0]?.url||item.sources[0]?.url} target="_blank" rel="noreferrer">Source ↗</a></div>
-      {reading===item.id&&<div id={contentId}><ExplanationReader key={item.id+':'+language} item={item} language={language}/></div>}
-    </div>)}
-    {result&&!items.length&&<p>{result.coverage.searchComplete?'No matching oral explanation found.':'Oral explanations could not be fully checked.'}</p>}
-    {items.length>0&&result?.coverage.status==='partial'&&<p className="member-votes-muted">Some explanation records are unavailable.</p>}
-    {result&&!result.coverage.searchComplete&&<button type="button" disabled={request.loading} onClick={request.retry}>Retry explanations</button>}
-    {result&&<p className="member-votes-muted">Written explanations are not available here. <a href={`https://www.europarl.europa.eu/meps/en/${memberId}/NAME/other-activities/written-explanations`} target="_blank" rel="noreferrer">Member’s page ↗</a></p>}
-  </section>;
+  const final=anchor===vote.id,canRetry=result?.coverage.gaps?.some(gap=>retryableGap(gap.code));
+  const retry=<button className="vote-explanation-action" type="button" disabled={request.loading} onClick={request.retry}>Retry</button>;
+  return <div className="member-vote-explanations">
+    {request.loading&&!result&&<p className="vote-explanation-status" role="status">Checking for oral explanations…</p>}
+    {(request.error||response&&!valid)&&<p className="vote-explanation-status" role="status">Explanations couldn’t be loaded. {retry}</p>}
+    {items.map((item,index)=>{
+      const open=reading===item.id,id=contentId+'-'+index;
+      return <div className="vote-explanation" key={item.id}>
+        <button className="vote-explanation-action vote-explanation-toggle" type="button" aria-expanded={open} aria-controls={open?id:undefined} onClick={()=>setReading(open?null:item.id)}>
+          <span aria-hidden="true">{open?'▾':'▸'}</span> {open?'Close oral explanation':final?'Read oral explanation of vote':'Read oral explanation on the whole text'}
+        </button>
+        {index===0&&result?.coverage.status==='partial'&&<span className="vote-explanation-status"> · Some records unavailable{canRetry&&<> {retry}</>}</span>}
+        {open&&<div id={id} className="vote-explanation-body">
+          <ExplanationReader key={item.id+':'+language} item={item} language={language}/>
+          {!final&&anchor&&<button className="vote-explanation-action" type="button" onClick={()=>onDecision(anchor)}>Final vote</button>}
+        </div>}
+      </div>;
+    })}
+    {result&&!items.length&&<p className="vote-explanation-status">{result.coverage.searchComplete?'No oral explanation found.':'Oral explanations could not be fully checked.'}{!result.coverage.searchComplete&&canRetry&&<> {retry}</>}</p>}
+  </div>;
 }
