@@ -30,3 +30,9 @@
 .document-context-choices time{font-size:.8rem;color:var(--context-muted);white-space:nowrap}
 .document-context-reader button:focus-visible,.document-context-reader select:focus-visible,.document-context-reader a:focus-visible{outline:2px solid var(--context-blue);outline-offset:3px}
 @media(max-width:600px){.document-context-heading{display:block}.document-context-heading h3{font-size:1.1rem}.document-context-tools{justify-content:flex-start;max-width:none;margin:.6rem 0}.document-context-text{font-size:.95rem;line-height:1.7}.document-context-text p.document-context-target{padding:.5rem .65rem}.document-context-choices button{display:block}.document-context-choices time{display:block;margin-top:.35rem}}
+
+.commission-followups { margin-block: .5rem 1rem; color: var(--context-muted); font-size: .875rem; }
+.commission-followup p, .commission-followups > p { margin-block: .35rem; }
+.commission-followup details { margin-block: .25rem; }
+.commission-followup summary { cursor: pointer; width: fit-content; }
+.commission-followup ul { margin-block: .35rem; padding-inline-start: 1.25rem; }

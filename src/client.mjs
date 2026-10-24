@@ -10,7 +10,7 @@ export function dataTimeoutFor(route) {
   if (path.startsWith('motion-comparison/')) return 90_000;
   if (path.startsWith('speech-context/')) return 60_000;
   if (path.startsWith('profile/')) return 40_000;
-  if (/^(directory$|vote-periods$|speeches\/|activities\/|speech-statistics\/|speech\/|document\/|document-context\/|member-votes\/|speech-media\/|references$|reference-summary$|source-record$)/.test(path)) return 35_000;
+  if (/^(directory$|vote-periods$|speeches\/|activities\/|speech-statistics\/|speech\/|document\/|document-context\/|commission-followups\/|member-votes\/|speech-media\/|references$|reference-summary$|source-record$)/.test(path)) return 35_000;
   if (/^insights\/(questions|speech-cloud|procedure-context|procedure-progress|press-releases|topic-trends|legislation|participation)$/.test(path)) return 35_000;
   return 8_000;
 }
@@ -115,8 +115,9 @@ export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, timeo
         // Superseded callers receive the replacement, even if a loader ignores abort.
         if (entry.invalidated) return entry.replacement.promise;
         if (entry.abandoned) throw controller.signal.reason;
-        cache.delete(route);
-        cache.set(route, { data, at: Date.now() });
+        const followups=route.startsWith('commission-followups/');
+        const clean=!followups||(!data.gaps?.length&&!data.sources?.some(source=>source.stale||source.refreshInProgress||source.refreshError));
+        if(clean){cache.delete(route);cache.set(route, { data, at: Date.now() });}
         while (cache.size > maxEntries) cache.delete(cache.keys().next().value);
         return data;
       }, error => {

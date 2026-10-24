@@ -170,3 +170,11 @@ test('a foreground reader joining a prefetch promotes both retry admission and t
   await tick(1);assert.deepEqual(await foreground,{items:['ready']});
   assert.equal(calls,2);assert.deepEqual(priorities,['low','auto']);cancel();
 });
+
+test('follow-up gaps and stale observations are readable but never memoised as clean success',async()=>{
+  const route='commission-followups/TA-10-2025-0247?lang=en';
+  for(const value of [{status:'partial',gaps:[{reason:'lookup-failed'}],sources:[]},{status:'available',gaps:[],sources:[{stale:true}]},{status:'available',gaps:[],sources:[{refreshError:'offline'}]},{status:'available',gaps:[],sources:[{refreshInProgress:true}]}]){
+    let reads=0;const client=createDataClient(async()=>{reads++;return value;});await client.get(route);await client.get(route);assert.equal(reads,2);assert.equal(client.peek(route),null);
+  }
+  let reads=0;const client=createDataClient(async()=>{if(++reads===1)throw Error('offline');return {status:'none-listed',gaps:[],sources:[]};});await assert.rejects(client.get(route));assert.equal((await client.get(route)).status,'none-listed');await client.get(route);assert.equal(reads,2);
+});

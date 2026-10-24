@@ -2,6 +2,7 @@ import {selectLanguageText} from './language.mjs';
 import {TextLanguagePicker,TextLanguageFallback} from './TextLanguagePicker';
 import {useId,useRef,useState,type ReactNode} from 'react';
 import {useData} from './data';
+import {CommissionFollowups} from './CommissionFollowups';
 import type {DocumentContextRequest,DocumentContextResponse} from './DocumentContextTypes';
 import type {PublicationDocument,NoteAnchor,DocumentLink} from './explorerTypes';
 import {publicationBody} from './publication-body.mjs';
@@ -89,6 +90,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {!state.loading&&!loadError&&!document&&<p>Document unavailable here.</p>}
     {document&&<>
       {actual&&<p className="document-context-language">{actual!==language?<TextLanguageFallback requested={language} actual={actual} interfaceLanguage={interfaceLanguage}/>:<>Text language: {languageName(actual)}</>}</p>}
+      {id.startsWith('TA-')&&<CommissionFollowups id={id} language={language} interfaceLanguage={interfaceLanguage}/>}
       {hasText&&!loadError&&(text?.stale||text?.refreshError)&&<p className="document-context-notice">{text?.refreshError?'Couldn’t update the document. Showing saved text.':'Showing saved text.'}</p>}
       {hasText?<>
         {amendmentRequest?.amendmentId&&(found?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to passage</button>{target?.quoteMatches===false&&<p>The published text differs from the amendment’s quotation.</p>}</div>:<p className="document-context-notice">Passage not found. The full document is below.</p>)}
