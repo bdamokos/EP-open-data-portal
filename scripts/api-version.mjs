@@ -34,7 +34,7 @@ async function run(args) {
     const branch = parseRegistry(git(root, 'show', `${baselineSha}:server/api-version.mjs`));
     assertBranchHistory(main, branch, current);
     if (current.entries.at(-1)[1] !== digest) throw new Error(`Unbumped API contract change. Run npm run api:bump. Expected digest: ${digest}`);
-    console.log(`API contract ${current.version} matches; main mappings preserved from ${mainSha}; branch digests preserved from ${baselineSha}.`);
+    console.log(`API contract ${current.version} (revision ${current.revision}) matches; main mappings preserved from ${mainSha}; branch digests preserved from ${baselineSha}.`);
     return;
   }
   const {source, registries} = registrySides(original);
@@ -43,7 +43,7 @@ async function run(args) {
   // All fetching, parsing, imports and validation complete before the sole write.
   if (await readFile(filename, 'utf8') !== original) throw new Error('API version file changed while computing the digest; retry');
   if (updated !== original) await writeFile(filename, updated);
-  console.log(`API_VERSION=${next.version}; baseline origin/main ${mainSha}; digest ${digest}.${updated === original ? ' No changes.' : ' Review and stage server/api-version.mjs.'}`);
+  console.log(`API_VERSION=${next.version}; revision=${next.revision}; baseline origin/main ${mainSha}; digest ${digest}.${updated === original ? ' No changes.' : ' Review and stage server/api-version.mjs.'}`);
 }
 
 run(process.argv.slice(2)).catch(error => {
