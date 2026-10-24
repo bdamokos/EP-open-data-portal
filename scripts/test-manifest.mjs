@@ -11,6 +11,7 @@ export const slow = [
   {file: 'server/speaker-identity.test.mjs', reason: 'Spawns Node to check retained speaker identity.'},
   {file: 'server/portrait-cache.test.mjs', reason: 'Spawns Node to check portrait cache restarts.'},
   {file: 'server/speech-transcript.test.mjs', reason: 'Spawns Node to check transcript metadata isolation.'},
+  {file: 'server/proposal-structure.test.mjs', reason: 'Spawns Node to check 8 MiB parsing under a 256 MiB heap.'},
   {file: 'server/docx-fidelity.test.mjs', reason: 'Spawns Node to check retained DOCX fidelity.'},
   {file: 'server/test-runner.test.mjs', reason: 'Spawns Node to verify runner profiles, preload inheritance and capability failures.'},
   {file: 'server/profile-affiliation.test.mjs', reason: 'Spawns Node to check isolated profile and roster affiliation reads.'},

@@ -1,0 +1,22 @@
+{
+  "sourceUrl": "https://data.europarl.europa.eu/api/v2/plenary-documents/A-10-2025-0085?format=application%2Fld%2Bjson",
+  "fetchedAt": "2026-10-21T13:00:28Z",
+  "scope": "Exact report identity, procedure relationships and English alternative title only.",
+  "report": {
+    "id": "eli/dl/doc/A-10-2025-0085",
+    "identifier": "A-10-2025-0085",
+    "work_type": "def/ep-document-types/REPORT_PLENARY",
+    "inverse_created_a_realization_of": [
+      "eli/dl/proc/2025-0039"
+    ],
+    "is_realized_by": [
+      {
+        "id": "eli/dl/doc/A-10-2025-0085/en",
+        "language": "http://publications.europa.eu/resource/authority/language/ENG",
+        "title_alternative": {
+          "en": "REPORT - on the proposal for a regulation of the European Parliament and of the Council amending Regulation (EU) 2023/956 as regards simplifying and strengthening the carbon border adjustment mechanism - (COM(2025)0087 - C10-0035/2025 - 2025/0039(COD)) - Committee on the Environment, Climate and Food Safety - Rapporteur: Antonio Decaro"
+        }
+      }
+    ]
+  }
+}

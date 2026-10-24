@@ -1,0 +1,34 @@
+[
+  {
+    "documentId": "RC-10-2026-0441",
+    "sourceUrl": "https://www.europarl.europa.eu/doceo/document/RC-10-2026-0441_EN.html",
+    "fetchedAt": "2026-10-21T17:52:48.769Z",
+    "paragraphs": [
+      "The European Parliament,",
+      "19. Reaffirms that relations with Russia cannot be normalised without a just and lasting peace for Ukraine based on full territorial integrity, the complete withdrawal of Russian troops, the release of all prisoners of war, detained civilians and forcibly deported Ukrainian children, Russia’s payment of full reparations and compensation to Ukraine and the establishment of full accountability for war crimes, crimes against humanity and Russia’s crime of aggression against Ukraine, an end to internal political repression, the restoration of the rule of law and full respect for international law; calls for the political and diplomatic isolation of the Russian regime for as long as necessary, including through coordinated efforts to exclude its representatives from key international forums and prevent any normalisation of Russia’s participation in international sporting and cultural events;",
+      "20. Instructs its President to forward this resolution to the Council, the Commission, the Vice-President of the Commission / High Representative of the Union for Foreign Affairs and Security Policy, the governments and parliaments of the Member States, the Council of Europe, the Organization for Security and Co-operation in Europe, the United Nations, and the authorities of the Russian Federation, Ukraine, the Republic of Moldova and Georgia."
+    ],
+    "amendment": {
+      "targetLabel": "Paragraph 19 a (new)",
+      "originalText": "",
+      "proposedText": "19a.\tCalls on the Vice-President of the Commission / High Representative of the Union for Foreign Affairs and Security Policy, the Commission and the Member States to apply the same standards on electoral integrity consistently to all third countries, including EU partners;"
+    },
+    "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0441-AM-001-002/RC-10-2026-0441-AM-001-002_en.docx"
+  },
+  {
+    "documentId": "B-10-2026-0424",
+    "sourceUrl": "https://www.europarl.europa.eu/doceo/document/B-10-2026-0424_EN.html",
+    "fetchedAt": "2026-10-21T17:52:48.927Z",
+    "paragraphs": [
+      "The European Parliament,",
+      "1. Condemns Islamist entryism strategies aimed at weakening democratic institutions, the rule of law, equality between women and men, freedom of conscience, freedom of expression, public order, social cohesion and the values enshrined in Article 2 TEU;",
+      "2. Stresses that Europe must remain free, open and faithful to its principles, but that it can no longer fund, consult or legitimise networks that use its language, procedures and funding to weaken its values from within;"
+    ],
+    "amendment": {
+      "targetLabel": "Paragraph 1",
+      "originalText": "1.\tCondemns Islamist entryism strategies aimed at weakening democratic institutions, the rule of law, equality between women and men, freedom of conscience, freedom of expression, public order, social cohesion and the values enshrined in Article 2 TEU;",
+      "proposedText": "1.\tCondemns religious and, in particular, Islamist entryism strategies as an unacceptable form of covert and malicious interference aimed at weakening democratic institutions, the rule of law and the neutrality of public institutions; is concerned by the fact that religious entryism spearheads efforts to roll back women’s rights and gender equality, sexual health and reproductive rights, LGBTIQ+ rights, equality between women and men, freedom of conscience, freedom of expression, public order, social cohesion and the values enshrined in Article 2 TEU;"
+    },
+    "amendmentSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-031-040/B-10-2026-0424-AM-031-040_en.docx"
+  }
+]

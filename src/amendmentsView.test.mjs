@@ -48,15 +48,15 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   await act(async()=>root.render(createElement(Amendments,{document:'B-10-2026-0424',language:'en'})));
   const cards=[...container.querySelectorAll('.explorer-amendment-card')];
   assert.equal(cards.length,5);
-  assert.match(cards[0].textContent,/No original text \(insertion\)/);
-  assert.match(cards[1].textContent,/Text deleted/);
+  assert.match(cards[0].textContent,/New text/);
+  assert.match(cards[1].textContent,/Deleted text/);
   assert(cards[0].querySelector('ins'));assert(cards[1].querySelector('del'));
   assert.equal(cards[2].querySelector('.wording-diff'),null);
   assert.match(cards[2].textContent,/Original text unavailable/);
   assert.match(cards[2].textContent,/No outcome is recorded/);
   assert.match(container.querySelector('.explorer-amendment-coverage').textContent,/partial coverage/);
   assert.equal(cards[0].querySelector('.wording-diff').lang,'en');
-  assert.equal(cards[0].querySelector('.wording-diff__columns section:nth-child(2) p').lang,'fr');
+  assert.equal(cards[0].querySelector('.wording-diff__passage').lang,'fr');
   const parts=[...cards[0].querySelectorAll('.explorer-amendment-part')];
   assert.equal(parts[0].querySelector('blockquote').lang,'en');
   assert.equal(parts[0].querySelectorAll('.explorer-amendment-decision').length,1);

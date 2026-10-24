@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {wordingText} from './test-support/wordingText.mjs';
 
 const effectiveLanguage=node=>node?.closest('[lang]')?.getAttribute('lang');
 
@@ -48,17 +49,27 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   const absent=card('absent-list');
   assert.match(absent.querySelector(':scope>.explorer-amendment-evidence-state').textContent,/absent from the current recorded document relationship/);
   assert.match(absent.textContent,/Showing previously indexed wording/);
-  assert.match(absent.textContent,/No original text \(insertion\)/);
+  assert.equal(absent.querySelector('.wording-diff__note').textContent,'New text');
+  assert.equal(absent.querySelector('.wording-diff__toggle button[aria-pressed="true"]').textContent,'Changes');
+  const insertion=absent.querySelector('.wording-diff__passage>ins');assert(insertion);
+  assert.equal(wordingText(absent,'original'),'');assert.equal(wordingText(absent,'proposed'),'Proposition conservée');
+  assert.equal(effectiveLanguage(insertion),'fr');
+  assert.doesNotMatch(absent.textContent,/Original (?:text|wording) (?:is )?unavailable/);
+  await act(async()=>[...absent.querySelectorAll('button')].find(button=>button.textContent==='Side by side').click());
+  assert.match(absent.querySelector('.wording-diff__columns section:first-child>p').textContent,/No original text \(insertion\)/);
   assert.equal(absent.querySelector('.wording-diff__columns section:nth-child(2)>p').lang,'fr');
   assert.doesNotMatch(absent.textContent,/record is retained from an earlier indexed source/,'a retained wording flag does not invent whole-record retention');
   const missing=card('missing');
   assert.match(missing.textContent,/Original text unavailable in the extracted document/);
+  assert.equal(missing.querySelector('.wording-diff,ins,del'),null,'unavailable original wording does not imply an insertion');
+  assert.doesNotMatch(missing.textContent,/New text|No original text \(insertion\)/);
   assert.equal(missing.querySelector('.explorer-amendment-evidence-state'),null,'a current list does not receive an unverified or stale label');
   const variants=card('variants').querySelectorAll('.explorer-amendment-variant');
   assert.match(variants[0].querySelector('.explorer-amendment-evidence-state').textContent,/incomplete.*unverified/s);
   assert.doesNotMatch(variants[0].textContent,/unavailable in the extracted document/);
   assert.match(variants[1].querySelector('.explorer-amendment-evidence-state').textContent,/absent.*record is retained/s);
   assert.match(variants[1].textContent,/Showing previously indexed wording/);
+  await act(async()=>[...variants[1].querySelectorAll('button')].find(button=>button.textContent==='Side by side').click());
   assert.match(variants[1].textContent,/Text deleted/);
   for(const state of container.querySelectorAll('.explorer-amendment-evidence-state'))assert.equal(effectiveLanguage(state),'en');
   for(const row of [withheld,card('unsafe-baseline'),missing,variants[0]])for(const paragraph of row.querySelectorAll('.explorer-amendment-texts p'))assert.equal(effectiveLanguage(paragraph),'en','withheld and unavailable wording explanations stay English');
