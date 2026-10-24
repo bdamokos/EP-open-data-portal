@@ -28,16 +28,20 @@ test('following and saved POST transports validate, version, cache and revalidat
   const unready=await read('following-manifest?'+params());assert.equal(unready.status,503);assert.equal(unready.body.error.code,'marks_unavailable');noStore(unready);
   store.setMembers([{id:'42'},{id:'43'}]);
   const id='E-10-2026-000001',work={identifier:id,parliamentary_term:['org/ep-10'],work_type:'QUESTION_WRITTEN',document_date:'2026-10-01',title_dcterms:{en:'English',fr:'Français'},creator:['person/42'],inverse_answers_to:[{identifier:id+'-ASW',document_date:'2026-10-02'}]};
+  store.putSource(g1,'/procedures/2025-0407','procedure',{id:'eli/dl/proc/2025-0407',process_type:'def/COD',process_title:{en:'Dossier'},consists_of:[{id:'eli/dl/event/exact-stage',had_activity_type:'def/REFERRAL',activity_date:'2026-10-01'}]},'2026-10-23T10:00:00Z');
   const {documentRows}=await import('./activity-index-model.mjs');
   store.putSource(g1,'/parliamentary-questions/'+id,'document',work,'2026-10-23T10:00:00Z',documentRows(work,'/parliamentary-questions/'+id,'2026-10-23T10:00:00Z').rows);store.publish(g1);
   const manifest=await read('following-manifest?'+params());assert.equal(manifest.status,200);assert.equal(manifest.body.epoch,epoch);assert.equal(manifest.body.generation,g1);assert.equal(manifest.body.rosterBasis,'publication');assert.deepEqual(manifest.body.members['42'],[g1,g1,1,1]);assert.deepEqual(manifest.body.members['43'],[null,null,0,0]);
-  for(const route of ['group-history?'+params(),'following-groups?'+params(),'following-membership?'+params(),'following-manifest?'+params(),'following-member?'+params(g1,{member:'42',lang:'fr'})]) {
+  for(const route of ['following-dossiers?'+params(g1,{procedures:'2025/0407(COD)'}),'group-history?'+params(),'following-groups?'+params(),'following-membership?'+params(),'following-manifest?'+params(),'following-member?'+params(g1,{member:'42',lang:'fr'})]) {
     const first=await read(route);assert.equal(first.headers.get('cache-control'),'public, max-age=3600');assert.equal(first.headers.get('cdn-cache-control'),'public, max-age=3600');assert(first.headers.get('etag'));
     const cached=await read(route,{headers:{'If-None-Match':first.headers.get('etag')}});assert.equal(cached.status,304);assert.equal(cached.text,'');
     const head=await read(route,{method:'HEAD'});assert.equal(head.status,200);assert.equal(head.text,'');assert.equal(head.headers.get('etag'),first.headers.get('etag'));
     const unversioned=await read(route.replace('&v='+API_VERSION,''));assert.equal(unversioned.headers.get('cdn-cache-control'),'no-store');
     const authorized=await read(route,{headers:{Authorization:'test'}});noStore(authorized);
   }
+  const dossiers=await read('following-dossiers?'+params(g1,{procedures:'2025/0407(COD)'}));assert.equal(dossiers.body.items[0].entries.length,1);
+  const wrongType=await read('following-dossiers?'+params(g1,{procedures:'2025/0407(RSP)'}));assert.equal(wrongType.body.items[0].status,'unavailable');
+  assert.equal((await read('following-dossiers?'+params(g1,{procedures:'2025/0407(COD)',extra:'x'}))).status,400);
   const detail=await read('following-member?'+params(g1,{member:'42',lang:'fr'}));assert.equal(detail.body.rosterBasis,'publication');assert.equal(detail.body.entries[0].title,'Français');assert.equal(detail.body.entries[0].titleLanguage,'fr');
   assert.deepEqual(detail.body.entries.map(entry=>[entry.kind,entry.category]),[['answer','written-questions'],['activity','written-questions']]);
   const g2=store.beginCycle().generation;store.publish(g2);

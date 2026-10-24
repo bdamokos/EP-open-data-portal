@@ -121,7 +121,6 @@
 
 .insight-procedure-context header,.insight-procedure-context .insight-summary-footer { max-width:80ch; }
 @media(max-width:680px) {
-  .explorer-insights .insight-dossier-title h2 { font-size:20px; line-height:1.35; }
   .insight-author-analysis .insight-demographic-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 14px; }
   .insight-author-analysis .insight-donut { grid-column:1/-1; }
   .insight-author-analysis .insight-country-table { grid-column:1/-1; }

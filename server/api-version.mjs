@@ -1,6 +1,6 @@
 // Bump only for API response contract changes, never for commits or releases.
-export const API_CONTRACT_REVISION = 191;
-export const API_VERSION = 191;
+export const API_CONTRACT_REVISION = 197;
+export const API_VERSION = 197;
 
 // Keys are monotonic revisions, including after the public version wraps.
 export const API_CONTRACT_DIGESTS = Object.freeze({
@@ -189,12 +189,18 @@ export const API_CONTRACT_DIGESTS = Object.freeze({
   183: 'aefe5c6be5e529b0c8fb5ee0762ebb61356551338cd782a4e182f28436ef8900',
   184: '6346a84f813504d8003c37c06e9ed3180d283cacdfb443880f84e45621b31e2f',
   185: '2b6b00952a987208cf3d543063a309d14d1045dc4ca505f8452fc2fd2c5fa950',
-  186: 'dc9c7da38440884f9eb9bbda4d2d27cb61d610444524493fb74076ce92e9e0a4',
-  187: '7063f6641c16d34d6b99c1d153f39b5894137a9578f4b3128f01c220e5bf0975',
-  188: 'ffec0ae72c620003c4371641a036241cfda19b8460d51547952ac394c300b956',
-  189: '3fdefa571f6222f9e25709cdb8bcdd177d2a2033fc358c83e2f76216bb320ec9',
-  190: '105cf481f06bc75e6d25eaea25fb042921fb465309068a2d2ca9fd7fdd21dd27',
-  191: 'c2f75afc05ef9b060ea6e1715ff8bff10eaf719d67e5fb1a90da2abaa43c777b',
+  186: '675c74f65f01a93b872bd658508229c044501bc72f0e7916caad3ae676b5b614',
+  187: '2cbc31005173cdbb3beaf24134b8d227dde8ca14497824504c983bdf5773e74c',
+  188: '7af3fd4a4ffa3d706d1c148261e7f1db7aea247797bc4ad068442a1769878ce8',
+  189: '11fdb2f6377cfddc5dd9e22f1323c83db759d4e8eeb3f3ce77790e9cfe91e1ca',
+  190: '704a76ff8ef0f6eae33f85c7e8bf12ebedf856f3d94bd1666775dc8d4654406f',
+  191: 'dc9c7da38440884f9eb9bbda4d2d27cb61d610444524493fb74076ce92e9e0a4',
+  192: '7063f6641c16d34d6b99c1d153f39b5894137a9578f4b3128f01c220e5bf0975',
+  193: 'ffec0ae72c620003c4371641a036241cfda19b8460d51547952ac394c300b956',
+  194: '3fdefa571f6222f9e25709cdb8bcdd177d2a2033fc358c83e2f76216bb320ec9',
+  195: '105cf481f06bc75e6d25eaea25fb042921fb465309068a2d2ca9fd7fdd21dd27',
+  196: 'c2f75afc05ef9b060ea6e1715ff8bff10eaf719d67e5fb1a90da2abaa43c777b',
+  197: 'e31dc649ab2500684691016d71f8c97511f2f0080fced771a878caec49a45e37',
 });
 
 // Called at the transport boundary; route and page URL keys stay intact.
