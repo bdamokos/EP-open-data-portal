@@ -40,9 +40,10 @@ function paragraphAttributes(format:ParagraphFormat|undefined,headingLevel:numbe
 
 // Renders reader paragraphs with their recorded paragraph styles, emphasis and tables.
 // renderText receives offsets within the displayed paragraph and the emphasis marks for them.
-export function DocumentParagraphs({texts,start,formatting,exactOffsets,headingLevel=4,paragraphProps,renderText}:{
+export function DocumentParagraphs({texts,start,formatting,exactOffsets,headingLevel=4,paragraphProps,renderParagraph,renderText}:{
   texts:string[];start:number;formatting:{formats:ParagraphFormat[];tables:DocumentTable[]};exactOffsets:boolean;headingLevel?:number;
   paragraphProps?:(sourceIndex:number)=>ParagraphProps;
+  renderParagraph?:(sourceIndex:number,paragraph:ReactNode)=>ReactNode;
   renderText:(sourceIndex:number,text:string,from:number,to:number,final:boolean,marks:FormatMark[])=>ReactNode;
 }) {
   const end=start+texts.length;
@@ -50,9 +51,10 @@ export function DocumentParagraphs({texts,start,formatting,exactOffsets,headingL
     const text=texts[sourceIndex-start],format=formatting.formats[sourceIndex],own=paragraphProps?.(sourceIndex)||{};
     const attributes=paragraphAttributes(format,headingLevel),marks=exactOffsets?format?.marks||[]:[],label=hangingLabel(text,format);
     const className=[own.className,attributes.className].filter(Boolean).join(' ')||undefined;
-    return <p key={sourceIndex} {...attributes} {...own} className={className} style={{...attributes.style,...own.style}}>
+    const node=<p key={sourceIndex} {...attributes} {...own} className={className} style={{...attributes.style,...own.style}}>
       {label?<><span className="doc-label">{renderText(sourceIndex,text,0,label,false,marks)}</span>{renderText(sourceIndex,text,label,text.length,true,marks)}</>:renderText(sourceIndex,text,0,text.length,true,marks)}
     </p>;
+    return renderParagraph?renderParagraph(sourceIndex,node):node;
   };
   const tables=new Map<number,{table:DocumentTable;end:number}>();
   for(const table of formatting.tables){const range=tableRange(table);if(range&&range.first>=start&&range.end<=end)tables.set(range.first,{table,end:range.end});}
