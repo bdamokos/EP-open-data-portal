@@ -22,9 +22,9 @@ function vote(number) {
 function response(url) {
   const query=url.searchParams,offset=Number(query.get('offset')||0),id=query.get('decision'),items=offset?[vote(3),vote(4)]:[vote(1),vote(2)];
   const week=query.get('week')==='latest'?WEEK:query.get('week'),sitting=query.get('sitting');
-  return {version:5,member:{id:url.pathname.split('/').at(-1)},positions:query.get('positions'),alignment:query.get('alignment')||'all',alignmentCounts:{with:4,against:0,abstained:0,unclassified:0},snapshotId:query.get('snapshot')||SNAPSHOT,
+  return {version:6,member:{id:url.pathname.split('/').at(-1)},positions:query.get('positions'),alignment:query.get('alignment')||'all',alignmentCounts:{with:4,against:0,abstained:0,unclassified:0},snapshotId:query.get('snapshot')||SNAPSHOT,
     period:sitting?{kind:'sitting',week:null,sittingId:sitting,from:sitting.slice(7),to:sitting.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
-    items,pagination:{offset,limit:50,returned:2,observedTotal:4,filteredTotal:4,nextOffset:offset?null:2},
+    items,pagination:{offset,limit:50,returned:2,observedTotal:4,recordedTotal:4,filteredTotal:4,nextOffset:offset?null:2},
     selected:id?Number(id.split('-').at(-1))<=4?{status:'found',item:vote(Number(id.split('-').at(-1)))}:{status:'not-found-in-scanned-data',item:null}:{status:'not-requested',item:null},
     subjects:[{id:SUBJECT,title:'Exact subject',titleLanguage:'en',titles:{en:'Exact subject'},documentIds:[DOCUMENT],agendaItemIds:[],counts:{observed:4,filtered:4,page:2},wholeTextDecisions:[]}],coverage:{status:'partial',termWide:false}};
 }
@@ -132,11 +132,11 @@ test('Votes is public; canonical pinning replaces, every user navigation pushes 
   assert.equal(history.length,length+1,'expansion is a user step despite module replace hint');
   assert.deepEqual(JSON.parse(params().get('mv-expanded')),[SUBJECT]);
   const expanded=location.href;
-  await h.click(button(h.container,'All decisions'));assert.equal(history.length,length+2);
-  assert.equal(params().get('mv-positions'),'all');
+  await h.click(button(h.container,'Recorded positions'));assert.equal(history.length,length+2);
+  assert.equal(params().get('mv-positions'),'recorded');
   await h.click(button(h.container,'Next page'));assert.equal(history.length,length+3);assert.equal(params().get('mv-offset'),'2');
-  await h.go(-1);assert.equal(params().get('mv-offset'),null);assert.equal(params().get('mv-positions'),'all');
-  await h.go(-1);assert.equal(location.href,expanded);assert.equal(button(h.container,'Recorded positions').getAttribute('aria-pressed'),'true');
+  await h.go(-1);assert.equal(params().get('mv-offset'),null);assert.equal(params().get('mv-positions'),'recorded');
+  await h.go(-1);assert.equal(location.href,expanded);assert.equal(button(h.container,'All decisions').getAttribute('aria-pressed'),'true');
   await h.go(2);assert.equal(params().get('mv-offset'),'2');
   for(const [key,value] of new URLSearchParams(search))assert.equal(params().get(key),value);
   await h.click(button(h.container,'Following'));
@@ -393,7 +393,7 @@ test('direct sitting/context/TA selection restores exactly; another MEP receives
   await h.click(h.container.querySelector('[data-member-id="2"] button'));
   await h.click(button(h.container,'Votes'));
   const first=h.requests.find(url=>url.pathname==='/api/member-votes/2');assert(first);
-  assert.deepEqual(Object.fromEntries(first.searchParams),{week:'latest',positions:'recorded',lang:'en',offset:'0',limit:'50'});
+  assert.deepEqual(Object.fromEntries(first.searchParams),{week:'latest',positions:'all',lang:'en',offset:'0',limit:'50'});
   assert.equal(params().get('mv-decision'),null);assert.equal(params().get('mv-sitting'),null);assert.equal(params().get('mv-document'),null);
   assert.equal(params().get('ma-document'),null);
   await h.go(-3);assert.equal(location.href,original);assert.equal(params().get('member'),'1');

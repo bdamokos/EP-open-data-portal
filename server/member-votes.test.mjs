@@ -50,7 +50,7 @@ function setup({decisions=[finalDecision],results,agenda=fixture.foreseen.payloa
 test('single-sitting collection exposes its bounded period and reuses source reads across members',async()=>{
   const {service,calls}=setup();
   const first=await service.query(MEMBER,query('sitting='+SITTING));
-  assert.equal(first.version,5);
+  assert.equal(first.version,6);
   assert.equal(first.period.sittingId,SITTING);
   assert.equal(first.period.from,'2026-10-07');
   assert.equal(first.period.to,'2026-10-07');
@@ -476,8 +476,8 @@ test('recorded-only pages retain full observed counts, subject counts and off-fi
   const first=await service.query(MEMBER,query(`sitting=${SITTING}&positions=recorded&limit=2&decision=${decisions[3].activity_id}&snapshot=${all.snapshotId}`));
   const next=await service.query(MEMBER,query(`sitting=${SITTING}&positions=recorded&limit=2&offset=2&snapshot=${all.snapshotId}`));
   assert.equal(first.positions,'recorded');
-  assert.deepEqual(first.pagination,{offset:0,limit:2,returned:2,observedTotal:5,filteredTotal:3,nextOffset:2});
-  assert.deepEqual(next.pagination,{offset:2,limit:2,returned:1,observedTotal:5,filteredTotal:3,nextOffset:null});
+  assert.deepEqual(first.pagination,{offset:0,limit:2,returned:2,observedTotal:5,recordedTotal:3,filteredTotal:3,nextOffset:2});
+  assert.deepEqual(next.pagination,{offset:2,limit:2,returned:1,observedTotal:5,recordedTotal:3,filteredTotal:3,nextOffset:null});
   assert([...first.items,...next.items].every(item=>item.actualPosition.status==='recorded'));
   assert.equal(new Set([...first.items,...next.items].map(item=>item.id)).size,3);
   assert.equal(first.selected.status,'found');assert.equal(first.selected.item.id,decisions[3].activity_id);
@@ -651,6 +651,18 @@ test('alignment validation defaults compatibly and unavailable coverage has no c
   assert.equal(unavailable.coverage.status,'unavailable');assert.equal(unavailable.alignmentCounts,null);
   const complete=await setup({decisions:[],results:[],agenda:[],meetings:[{...meeting,consists_of:[]}]}).service.query(MEMBER,query(`sitting=${SITTING}&alignment=with`));
   assert.equal(complete.coverage.status,'complete');assert.deepEqual(complete.alignmentCounts,{with:0,against:0,abstained:0,unclassified:0});
+});
+
+test('recordedTotal covers all observed decisions before position and alignment filters and remains null when unavailable',async()=>{
+  const {service}=setup();
+  const all=await service.query(MEMBER,query(`sitting=${SITTING}`));
+  const recorded=await service.query(MEMBER,query(`sitting=${SITTING}&snapshot=${all.snapshotId}&positions=recorded&alignment=against`));
+  assert.equal(all.pagination.recordedTotal,all.items.filter(item=>item.actualPosition.status==='recorded').length);
+  assert.equal(recorded.pagination.recordedTotal,all.pagination.recordedTotal);
+  const unavailable=setup({failure:true});
+  // Collection failure is tested separately; the projection must withhold the count.
+  unavailable.service.snapshot=async()=>({id:'a'.repeat(64),period:all.period,days:[],coverage:{status:'unavailable'}});
+  assert.equal((await unavailable.service.query(MEMBER,query(`sitting=${SITTING}`))).pagination.recordedTotal,null);
 });
 
 test('held weeks crossing New Year read only years through Brussels today',async()=>{
