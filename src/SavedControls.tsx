@@ -48,7 +48,7 @@ const subscribeClock=(callback:()=>void)=>{
   return()=>{clockListeners.delete(callback);if(!clockListeners.size)clearTimeout(expiryTimer);};
 };
 export function useSavedNow() {return useSyncExternalStore(subscribeClock,()=>savedNow);}
-type SavedCheck={data:SavedStates;requestedKey:string};
+type SavedCheck={data:SavedStates;requestedKey:string;language:string};
 export const requestedKeys=new WeakMap<Promise<unknown>,string>();
 let pending:Promise<SavedCheck|undefined>|null=null,lastStatus=0,status:FollowingStatus|null=null;
 let statusError=false;
@@ -98,7 +98,7 @@ export function openSavedMember(item:SavedItem,language:string):Promise<unknown>
 export function checkSaved(language:string,force=false):Promise<SavedCheck|undefined> {
   if(pending) {
     if(pendingLanguage===language)return pending;
-    const queued=pending.catch(()=>undefined).then(()=>checkSaved(language,force));requestedKeys.set(queued,selectionKey());return queued;
+    const queued=pending.catch(()=>undefined).then(()=>document.visibilityState==='visible'?checkSaved(language,force):undefined);requestedKeys.set(queued,selectionKey());return queued;
   }
   pendingLanguage=language;
   const requestedKey=selectionKey();
@@ -168,7 +168,7 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
     };
     await Promise.all([checkQuestions(),checkMembers(),checkMembership(),checkGroups()]);
     if(failures.length)throw failures[0];
-    expireActivityReads();return {data,requestedKey};
+    expireActivityReads();return {data,requestedKey,language};
   };
   pending=(async()=>{
     try{return await run();}catch(error){
@@ -182,7 +182,7 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
   requestedKeys.set(pending,requestedKey);return pending;
 }
 export function useSavedChecks(language:string,following=false) {
-  const {items}=useSaved(),key=items.map(item=>savedKey(item)+':'+item.savedAt).sort().join(',');
+  const {items}=useSaved(),key=items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
   useEffect(()=>{
     if(!key)return;
     let active=true,contextPending=true,timer:ReturnType<typeof setTimeout>|undefined;
@@ -193,13 +193,21 @@ export function useSavedChecks(language:string,following=false) {
     };
     const schedule=()=>{
       clearTimeout(timer);
-      if(active&&document.visibilityState==='visible')timer=setTimeout(()=>void check(),Math.max(1000,lastStatus+delay()-Date.now()));
+      if(active&&document.visibilityState==='visible')timer=setTimeout(()=>void check(),contextPending?1000:Math.max(1000,lastStatus+delay()-Date.now()));
     };
     const check=async()=>{
       clearTimeout(timer);
       if(document.visibilityState!=='visible')return;
       if(contextPending||Date.now()-lastStatus>=delay()){
-        contextPending=false;await checkSaved(language).catch(()=>{});
+        const checked=checkSaved(language),matches=requestedKeys.get(checked)===key;
+        try{
+          const result=await checked;
+          if(result?.requestedKey===key&&result.language===language)contextPending=false;
+        }catch{
+          // Matching failures use the short retry deadline; a shared request
+          // for another selection must leave this context pending.
+          if(matches)contextPending=false;
+        }
       }
       schedule();
     };

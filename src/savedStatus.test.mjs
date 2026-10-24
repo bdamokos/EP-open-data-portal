@@ -178,6 +178,42 @@ test('an in-flight check cannot launch the changed selection while the tab is hi
  assert.equal(h.requests.filter(x=>x.route==='saved').length,1);
  assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');
 });
+test('a visible selection change that joined another check stays pending through hiding',async t=>{
+ const question=id=>({kind:'question',id,title:id,savedAt:id.endsWith('1')?1:2});
+ const h=await harness(t,[question('E-10-2026-003031')],true),gate=h.holdNextStatus();
+ await h.render('en',false,false);await gate.ready;
+ await act(async()=>h.controls.savedStore.toggle(question('E-10-2026-003032')));
+ Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
+ await act(async()=>gate.release());await settle();
+ const bodies=()=>h.requests.filter(x=>x.route==='saved').map(x=>JSON.parse(x.options.body).questions);
+ assert.deepEqual(bodies(),[['E-10-2026-003031']]);
+ Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
+ await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
+ assert.deepEqual(bodies().at(-1),['E-10-2026-003031','E-10-2026-003032']);
+ assert.equal(h.controls.savedStore.snapshot().items[1].availability,'available');
+});
+test('a queued language change waits for visibility before starting its request',async t=>{
+ const h=await harness(t,[{kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:1}],true),gate=h.holdNextStatus();
+ await h.render('en',false,false);await gate.ready;await h.render('fr',false,false);
+ Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
+ await act(async()=>gate.release());await settle();
+ const languages=()=>h.requests.filter(x=>x.route==='saved').map(x=>x.url.searchParams.get('lang'));
+ assert.deepEqual(languages(),['en']);
+ Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
+ await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
+ assert.deepEqual(languages(),['en','fr']);
+});
+test('failed initial checks and follows without a save timestamp retain the normal deadlines',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({savedAt:undefined,seen:{activity:5,answer:3}})],true);
+ h.fail('following-status');await h.render('en',false,false);await settle();
+ const count=()=>h.requests.filter(x=>x.route==='following-status').length;
+ assert.equal(count(),1);now+=1000;await h.tick(1000);await settle();assert.equal(count(),1);
+ h.fail('');now+=59_000;await h.tick(59_000);await settle();assert.equal(count(),2);
+ const manifests=h.requests.filter(x=>x.route==='following-manifest').length;
+ now+=1000;await h.tick(1000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-manifest').length,manifests);
+});
 
 test('visible Following auto-resolves; inline read leaves the other MEP new and leaving acknowledges nothing',async t=>{
  const h=await harness(t,[member(),member({id:'43',title:'Second member'})]);await newSpeech(h);
