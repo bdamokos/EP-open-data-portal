@@ -100,6 +100,63 @@ test('unprepared data retries until ready and then backs off; a failed manifest 
  now+=60_000;await h.tick(60_000);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
 });
+test('a manual failure replaces the prepared deadline with a one-minute retry',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ await h.render('en',false,false);await settle();
+ now+=120_000;h.fail('following-status');await h.background(true);
+ assert.equal(h.controls.savedStore.snapshot().checkState,'error');
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ h.fail('');h.setStatus({generation:6});now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count+1);
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+});
+test('question-only status failures retry after one minute despite a cached prepared status',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[{kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:1,baseline:{revision:'one',answerIds:[]},current:{revision:'one',answerIds:[]}}],true);
+ await h.render('en',false,false);await settle();h.fail('following-status');
+ now+=4*60*60_000;await h.tick(4*60*60_000);await settle();
+ assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ h.fail('');h.setStatus({generation:6});h.setQuestionAnswers([{id:'new-answer'}]);
+ now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count+1);
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+});
+test('membership and group snapshots must be prepared before checks back off',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ h.setStatus({epoch:'11111111-1111-1111-1111-111111111111',membershipReady:false,groupsReady:false});
+ await h.render('en',false,false);await settle();
+ h.setStatus({membershipReady:true});now+=60_000;await h.tick(60_000);await settle();
+ assert(h.requests.some(x=>x.route==='following-membership'));
+ assert(!h.requests.some(x=>x.route==='following-groups'));
+ h.setStatus({groupsReady:true});now+=60_000;await h.tick(60_000);await settle();
+ assert(h.requests.some(x=>x.route==='following-groups'));
+ const count=h.requests.filter(x=>x.route==='following-status').length;
+ now+=60_000;await h.tick(60_000);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
+});
+test('hidden follow and language changes receive their pending initial check on visibility',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ await h.render('en',false,false);await settle();
+ Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
+ const stored=JSON.parse(h.window.localStorage.getItem('ep.following.v2'));
+ stored.items.push({kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:2});
+ await act(async()=>{
+   h.window.localStorage.setItem('ep.following.v2',JSON.stringify(stored));
+   h.window.dispatchEvent(new h.window.StorageEvent('storage',{key:'ep.following.v2'}));
+ });
+ await h.render('fr',false,false);now+=120_000;await h.tick(120_000);
+ assert(!h.requests.some(x=>x.route==='saved'),'no hidden request');
+ Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
+ await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
+ const questions=h.requests.filter(x=>x.route==='saved');assert.equal(questions.length,1);
+ assert.equal(questions[0].url.searchParams.get('lang'),'fr');
+ assert.deepEqual(JSON.parse(questions[0].options.body).questions,['E-10-2026-003031']);
+ assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');
+});
 
 test('visible Following auto-resolves; inline read leaves the other MEP new and leaving acknowledges nothing',async t=>{
  const h=await harness(t,[member(),member({id:'43',title:'Second member'})]);await newSpeech(h);

@@ -51,6 +51,8 @@ export function useSavedNow() {return useSyncExternalStore(subscribeClock,()=>sa
 type SavedCheck={data:SavedStates;requestedKey:string};
 export const requestedKeys=new WeakMap<Promise<unknown>,string>();
 let pending:Promise<SavedCheck|undefined>|null=null,lastStatus=0,status:FollowingStatus|null=null;
+let statusError=false;
+const checkListeners=new Set<()=>void>();
 let manifestDone='',questionsDone='',pendingLanguage='';
 const taskKey=(language:string,items:SavedItem[])=>JSON.stringify([status?.epoch,status?.generation,status?.marksReady,language,items.map(item=>[savedKey(item),item.savedAt])]);
 const selectionKey=()=>savedStore.snapshot().items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
@@ -108,10 +110,10 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
     // A new selection can use a fresh status already held by this tab.
     try {
       if(force||!status||Date.now()-lastStatus>=60_000) {
-        lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status');
+        lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status');statusError=false;
       }
       expected=status;
-    }catch(error){savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');setGroupsCheck('error');failures.push(error);}}
+    }catch(error){statusError=true;savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');setGroupsCheck('error');failures.push(error);}}
     let data:SavedStates={questions:[],checkedAt:'',coverage:{indexComplete:expected?.indexComplete===true}};
     const questions=items.filter(item=>item.kind==='question'),questionKey=taskKey(language,questions);
     // Question sources do not depend on marker readiness or manifest processing.
@@ -176,29 +178,36 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
       }
       throw error;
     }
-  })().finally(()=>{pending=null;if(selectionKey()!==requestedKey)void checkSaved(language).catch(()=>{});});
+  })().finally(()=>{pending=null;checkListeners.forEach(listener=>listener());if(selectionKey()!==requestedKey)void checkSaved(language).catch(()=>{});});
   requestedKeys.set(pending,requestedKey);return pending;
 }
 export function useSavedChecks(language:string,following=false) {
   const {items}=useSaved(),key=items.map(item=>savedKey(item)+':'+item.savedAt).sort().join(',');
   useEffect(()=>{
     if(!key)return;
-    let active=true,timer:ReturnType<typeof setTimeout>|undefined;
+    let active=true,contextPending=true,timer:ReturnType<typeof setTimeout>|undefined;
     const delay=()=>{
       const saved=savedStore.snapshot(),hasMembers=saved.items.some(item=>item.kind==='mep'),hasQuestions=saved.items.some(item=>item.kind==='question');
-      const waiting=!status||hasMembers&&(!status.marksReady||saved.checkState!=='available'||membershipCheck==='error'||groupsCheck==='error')||hasQuestions&&saved.questionCheckState!=='available';
+      const waiting=statusError||!status||hasMembers&&(!status.marksReady||status.membershipReady===false||status.groupsReady===false||saved.checkState!=='available'||membershipCheck==='error'||groupsCheck==='error')||hasQuestions&&saved.questionCheckState!=='available';
       return waiting?60_000:4*60*60_000;
     };
-    const check=async(initial=false)=>{
+    const schedule=()=>{
+      clearTimeout(timer);
+      if(active&&document.visibilityState==='visible')timer=setTimeout(()=>void check(),Math.max(1000,lastStatus+delay()-Date.now()));
+    };
+    const check=async()=>{
       clearTimeout(timer);
       if(document.visibilityState!=='visible')return;
-      if(initial||Date.now()-lastStatus>=delay())await checkSaved(language).catch(()=>{});
-      if(active){clearTimeout(timer);timer=setTimeout(()=>void check(),Math.max(1000,lastStatus+delay()-Date.now()));}
+      if(contextPending||Date.now()-lastStatus>=delay()){
+        contextPending=false;await checkSaved(language).catch(()=>{});
+      }
+      schedule();
     };
     const refresh=()=>{void check();};
-    void check(true);
+    checkListeners.add(schedule);
+    void check();
     window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);
-    return()=>{active=false;clearTimeout(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};
+    return()=>{active=false;clearTimeout(timer);checkListeners.delete(schedule);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};
   },[following,key,language]);
 }
 type Resolution={pending?:boolean;error?:string};
