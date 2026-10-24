@@ -112,3 +112,10 @@ for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_SECRET','VOTE_SECRET_BA
   status='not-conducted';ballotStatus='not-conducted';outcome='LAPSED';await h.render({decisionId:sitting+'-DEC-198253'});
   assert.match(h.container.querySelector('.member-votes-position').textContent,/Not put to a vote/);assert.doesNotMatch(h.container.textContent,/Not individually recorded/);
 });
+
+for(const outcome of ['LAPSED','WITHDRAWN'])test('activity labels an unheld '+outcome+' ballot without its retained roll-call method',async t=>{
+  const h=await mount(t,async()=>{const value=exactResponse({outcome,method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:'not-conducted',position:{status:'not-conducted',position:null}});value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});
+  await h.render();
+  assert.match(h.container.querySelector('.activity-vote__meta').textContent,/Not put to a vote/);
+  assert.doesNotMatch(h.container.textContent,/Roll-call vote/);
+});

@@ -88,6 +88,7 @@ async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:
     renderContext:request=>{contexts.push(request);return renderContext?renderContext(request):createElement('div',{'data-testid':'context'},request.documentId,createElement('button',{onClick:request.onBack},'Back from context'));}};
   await act(async()=>draw());
   return {container,calls,changes,contexts,module,get state(){return current;},async update(patch){await act(async()=>{current={...current,...patch};draw();});},
+    async updateProps(patch){await act(async()=>{props={...props,...patch};draw();});},
     async remount(){await act(async()=>{renderKey++;draw();});},
     async click(text){const target=button(container,text);assert(target,'Missing button: '+text);await act(async()=>target.click());},
     async select(selector,value){const target=container.querySelector(selector);assert(target,'Missing control: '+selector);await act(async()=>{if(target.tagName==='INPUT'){Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(target,value);target.dispatchEvent(new window.Event('input',{bubbles:true}));}else target.value=value;target.dispatchEvent(new window.Event('change',{bubbles:true}));});}};
@@ -226,13 +227,13 @@ test('off-page whole-text outcomes do not add empty subjects or hide the recorde
 
 test('null totals, real zero totals and lapsed decisions remain distinct without invented member choices',async t=>{
   const items=[vote(1,{totals:{for:0,against:0,abstaining:0}}),vote(2,{totals:{for:400,against:null,abstaining:0}}),
-    vote(3,{outcome:'LAPSED',ballotStatus:'not-conducted',method:null,actualPosition:{status:'not-conducted',position:null},totals:{for:null,against:null,abstaining:null}}),
+    vote(3,{outcome:'LAPSED',ballotStatus:'not-conducted',method:'VOTE_ELECTRONIC_ROLLCALL',actualPosition:{status:'not-conducted',position:null},totals:{for:null,against:null,abstaining:null}}),
     vote(4,{method:'VOTE_HAND',alignment:'unclassified',actualPosition:{status:'not-individually-recorded',position:null},totals:{for:null,against:null,abstaining:null}})];
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,positions:'all',expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items}))});
   const rows=h.container.querySelectorAll('.member-votes-row');
   assert.equal(rows[0].querySelector('.member-votes-bar'),null);assert.deepEqual([...rows[0].querySelectorAll('.member-votes-counts b')].map(item=>item.textContent),['0','0','0']);
-  assert.equal(rows[1].querySelector('.member-votes-bar,.member-votes-counts'),null);assert.match(rows[1].textContent,/No tally published/);
-  assert.match(rows[2].textContent,/Not put to a vote.*Lapsed/);assert.equal(rows[2].querySelector('.member-votes-bar,.member-votes-counts'),null);
+  assert.equal(rows[1].querySelector('.member-votes-bar,.member-votes-counts'),null);assert.match(rows[1].textContent,/Tallies unavailable/);assert.doesNotMatch(rows[1].textContent,/No tally published/);
+  assert.match(rows[2].textContent,/Not put to a vote.*Lapsed/);assert.doesNotMatch(rows[2].textContent,/Roll-call vote/);assert.equal(rows[2].querySelector('.member-votes-row-copy .member-votes-muted'),null);assert.equal(rows[2].querySelector('.member-votes-bar,.member-votes-counts'),null);
   assert.match(rows[3].textContent,/Not individually recorded/);assert.equal(rows[3].querySelector('.member-votes-position-for'),null);
 });
 
@@ -830,4 +831,73 @@ test('not-listed detail discloses an unsupplied excused list beside the no-absen
   const text=visiblePane(h.container).querySelector('.member-votes-attendance').textContent;
   assert.match(text,/Not listed as present; this register supplies no excused list/);
   assert.match(text,/This does not establish absence: members can vote without being listed, and mandate dates are not checked here/);
+});
+
+for(const outcome of ['LAPSED','WITHDRAWN'])test('unheld '+outcome+' detail replaces its retained method label',async t=>{
+  const item=vote(1,{outcome,ballotStatus:'not-conducted',method:'VOTE_ELECTRONIC_ROLLCALL',actualPosition:{status:'not-conducted',position:null},totals:{for:null,against:null,abstaining:null}});
+  const h=await mount(t,{state:{week:WEEK,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item]}))});
+  const detail=visiblePane(h.container);
+  assert.equal(detail.querySelector('.member-votes-detail > .member-votes-muted').textContent,'Not put to a vote');
+  assert.doesNotMatch(detail.textContent,/Roll-call vote/);
+});
+
+test('partial totals keep base wording in detail while entirely null totals say unpublished',async t=>{
+  const items=[vote(1,{totals:{for:400,against:null,abstaining:0}}),vote(2,{totals:{for:null,against:null,abstaining:null}})];
+  const h=await mount(t,{state:{week:WEEK,decisionId:items[0].id},handler:url=>Response.json(responseFor(url,{items}))});
+  assert.match(visiblePane(h.container).querySelector('.member-votes-result').textContent,/Tallies unavailable/);
+  assert.doesNotMatch(visiblePane(h.container).textContent,/No tally published/);
+  await h.update({decisionId:items[1].id});
+  assert.match(visiblePane(h.container).querySelector('.member-votes-result').textContent,/No tally published/);
+});
+
+test('pending attendance survives filter, page and decision reloads for the same scope',async t=>{
+  let releaseVotes,releaseAttendance,holdVotes=false;
+  const attendanceGate=new Promise(resolve=>{releaseAttendance=resolve;}),reads=[];
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:async url=>{
+    if(holdVotes)await new Promise(resolve=>{releaseVotes=resolve;});
+    return Response.json(responseFor(url));
+  },attendanceHandler:async(url,{signal})=>{reads.push({url:String(url),signal});await attendanceGate;return Response.json(attendanceResponse());}});
+  assert.equal(reads.length,1);
+  for(const patch of [{positions:'recorded'},{offset:50},{decisionId:decision(1)}]){
+    holdVotes=true;await h.update(patch);
+    assert.equal(reads.length,1);assert.equal(reads[0].signal.aborted,false);
+    holdVotes=false;await act(async()=>releaseVotes());
+    assert.equal(reads.length,1);assert.equal(reads[0].signal.aborted,false);
+  }
+  await act(async()=>releaseAttendance());
+  assert.match(visiblePane(h.container).querySelector('.member-votes-attendance').textContent,/Listed as present/);
+  await h.update({decisionId:null,offset:0});
+  assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/listed present/);
+  assert.equal(reads.length,1);
+});
+
+for(const change of ['member','language','period','resolved sittings','empty resolved sittings'])test('attendance route clears when '+change+' changes',async t=>{
+  let holdVotes=false,releaseVotes,releaseAttendance;
+  const gate=new Promise(resolve=>{releaseAttendance=resolve;}),reads=[];
+  t.after(()=>releaseAttendance());
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:async url=>{
+    if(holdVotes)await new Promise(resolve=>{releaseVotes=resolve;});
+    return Response.json(responseFor(url,change.includes('resolved sittings')&&holdVotes?{coverage:{scannedSittingIds:change==='empty resolved sittings'?[]:['MTG-PL-2026-03-26']}}:{}));
+  },attendanceHandler:async(url,{signal})=>{reads.push({url:String(url),signal});await gate;return Response.json(attendanceResponse());}});
+  assert.equal(reads.length,1);holdVotes=true;
+  if(change==='member')await h.updateProps({memberId:42});
+  else if(change==='language')await h.updateProps({language:'fr'});
+  else await h.update(change==='period'?{week:'2026-03-30',snapshotId:null}:{positions:'recorded'});
+  if(change.includes('resolved sittings')){
+    assert.equal(reads[0].signal.aborted,false);
+    await act(async()=>releaseVotes());
+    if(change==='empty resolved sittings'){assert.equal(reads.length,1);assert.equal(h.container.querySelector('.member-votes-attendance-line'),null);}
+    else {assert.equal(reads.length,2);assert.match(reads[1].url,/MTG-PL-2026-03-26/);}
+  }else{
+    assert.equal(h.container.querySelector('.member-votes-attendance-line'),null);
+    await act(async()=>releaseVotes());
+  }
+  assert.equal(reads[0].signal.aborted,true);
+  await act(async()=>releaseAttendance());
+});
+
+test('unattempted attendance detail stays hidden with an empty sitting selection',async t=>{
+  const h=await mount(t,{state:{week:WEEK,decisionId:decision(1)},handler:url=>Response.json(responseFor(url,{coverage:{scannedSittingIds:[]}}))});
+  assert(visiblePane(h.container).querySelector('.member-votes-detail'));
+  assert.equal(h.container.querySelector('.member-votes-attendance'),null);
 });

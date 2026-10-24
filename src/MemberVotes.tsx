@@ -93,7 +93,7 @@ function Wording({documentId,amendmentId,language,openContext}:{documentId:strin
   </section>;
 }
 
-function Detail({vote,data,memberName,language,onDecision,openContext,attendance,attendanceLoading}:{vote:MemberVote;data:MemberVotesResponse;memberName:string;language:string;onDecision:(id:string)=>void;openContext:(context:MemberVotesContext)=>void;attendance:MemberAttendanceResponse|null;attendanceLoading:boolean}) {
+function Detail({vote,data,memberName,language,onDecision,openContext,attendance,attendanceLoading,attendanceAttempted}:{vote:MemberVote;data:MemberVotesResponse;memberName:string;language:string;onDecision:(id:string)=>void;openContext:(context:MemberVotesContext)=>void;attendance:MemberAttendanceResponse|null;attendanceLoading:boolean;attendanceAttempted:boolean}) {
   const subject=data.subjects.find(subject=>subject.id===vote.subjectId),title=subject?chosenTitle(subject,language):null;
   const targets=exactAmendmentTargets(vote),documents=topLevelVoteDocuments(vote),recordUrl=votingRecordUrl(vote);
   const requesterLabels=vote.rollCallRequesters.filter(requester=>requester.binding==='exact-decision-was_motivated_by').map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text);
@@ -105,7 +105,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,attendance
     {subject?.wholeTextDecisions.length?subject.wholeTextDecisions.map(whole=><WholeText key={whole.id} vote={whole} memberName={memberName} onDecision={onDecision}/>):null}
     <section className="member-votes-strip" aria-label="Member position and Parliament result"><Position vote={vote} memberName={memberName}/><Result vote={vote}/>
       {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention">Declared intention: <strong>{vote.intention.positions.map(position=>({for:'For',against:'Against',abstaining:'Abstain'}[position])).join(', ')}</strong>. Declared afterwards; the official result and totals are unchanged.</p>}
-      <AttendanceDetail day={attendance?.sittings.find(day=>day.sittingId===vote.sittingId)} loading={attendanceLoading}/>
+      {attendanceAttempted&&<AttendanceDetail day={attendance?.sittings.find(day=>day.sittingId===vote.sittingId)} loading={attendanceLoading}/>}
     </section>
     {vote.parts.map(part=>{
       const text=selectLanguageText(Object.fromEntries(Object.entries(part.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
@@ -118,7 +118,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,attendance
       return <div key={component.componentId}><h4>{component.number!==null?'Part '+component.number:'Another part'}</h4>{text.text?<p lang={text.language}>{text.text}</p>:<p>Part wording unavailable here.</p>}</div>;
     })}<p className="member-votes-muted">Each part has its own decision and outcome.</p></details>}
     {siblingVotes.length>0&&<section className="member-votes-siblings"><h3>Other decisions shown for this split vote</h3>{siblingVotes.map(item=><button type="button" key={item.id} onClick={()=>onDecision(item.id)}>{memberVoteLabel(item,language)} · {memberVoteOutcome(item)}</button>)}</section>}
-    <p className="member-votes-muted">{voteMethodLabel(vote.method)}</p>
+    <p className="member-votes-muted">{vote.ballotStatus==='not-conducted'?'Not put to a vote':voteMethodLabel(vote.method)}</p>
     {requesterLabels.length>0&&<p className="member-votes-requester">Roll call requested by {requesterLabels.map((label,index)=><span key={index} lang={label.language}>{index>0?', ':''}{label.text}</span>)}.</p>}
     {recordUrl&&<p className="member-votes-source"><a href={recordUrl} target="_blank" rel="noreferrer">Parliament’s voting record ↗</a></p>}
     {documents.length>0&&<section className="member-votes-documents"><h3>About the text</h3>{documents.map(documentId=><div key={documentId}><button type="button" onClick={()=>openContext({documentId,view:'document'})}>Read {documentId.startsWith('A-')?'report':documentId.startsWith('RC-')?'joint motion':'motion'} · {documentId}</button><button type="button" onClick={()=>openContext({documentId,view:'adopted'})}>Find adopted text</button></div>)}</section>}
@@ -137,10 +137,23 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const request=useData<MemberVotesResponse>(route) as ReturnType<typeof useData<MemberVotesResponse>>&{status?:number};
   const valid=Boolean(request.data&&validateMemberVotesResponse(request.data,{memberId,state}));
   const data=valid?request.data:null,groups=useMemo(()=>data?groupMemberVotes(data):[],[data]);
-  const attendanceIds=data?.coverage.scannedSittingIds??[];
-  let attendanceRoute:string|null=null;
-  // Wait for canonical snapshot pinning too, so it cannot abort and restart this read.
-  try{if(data&&!request.loading&&!request.error&&state.snapshotId===data.snapshotId)attendanceRoute=memberAttendanceRoute(memberId,attendanceIds,language);}catch{/* Invalid or empty sitting selections never start a read. */}
+  const attendanceScope=JSON.stringify([memberId,language,state.sittingId?['sitting',state.sittingId]:['week',state.week]]);
+  const [lastAttendance,setLastAttendance]=useState<{scope:string;route:string;sittingIds:string[]}|null>(null);
+  const attendanceReady=Boolean(data&&!request.loading&&!request.error&&state.snapshotId===data.snapshotId);
+  const resolvedAttendance=useMemo(()=>{
+    // Start only after valid votes and canonical snapshot pinning settle.
+    if(data&&attendanceReady)try{
+      const sittingIds=data.coverage.scannedSittingIds;
+      return {scope:attendanceScope,route:memberAttendanceRoute(memberId,sittingIds,language),sittingIds};
+    }catch{/* Invalid or empty sitting selections never start a read. */}
+    return null;
+  },[data,attendanceReady,attendanceScope,memberId,language]);
+  useEffect(()=>{
+    setLastAttendance(previous=>attendanceReady?resolvedAttendance:previous?.scope===attendanceScope?previous:null);
+  },[resolvedAttendance,attendanceScope,attendanceReady]);
+  // Filters, pages and selected decisions do not change the register identity.
+  const attendanceSelection=attendanceReady?resolvedAttendance:lastAttendance?.scope===attendanceScope?lastAttendance:null;
+  const attendanceRoute=attendanceSelection?.route??null,attendanceIds=attendanceSelection?.sittingIds??[];
   const attendanceRequest=useData<MemberAttendanceResponse>(attendanceRoute);
   const attendance=attendanceRoute&&!attendanceRequest.error&&validateMemberAttendanceResponse(attendanceRequest.data,{memberId,sittingIds:attendanceIds})?attendanceRequest.data:null;
   const selected=state.decisionId&&data?.selected.status==='found'&&data.selected.item?.id===state.decisionId?data.selected.item:null;
@@ -208,7 +221,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
           const title=group.subject?chosenTitle(group.subject,language):null;
           return <section className="member-votes-subject" key={group.id}><h3><button type="button" data-vote-group={group.id} aria-expanded={state.expandedSubjectIds.includes(group.id)} onClick={()=>change({expandedSubjectIds:state.expandedSubjectIds.includes(group.id)?state.expandedSubjectIds.filter(item=>item!==group.id):[...state.expandedSubjectIds,group.id]},true)}><span className="member-votes-disclosure" aria-hidden="true">{state.expandedSubjectIds.includes(group.id)?'−':'+'}</span><span><span lang={title?.language} title={title?.raw}>{title?.text||'Vote without a linked subject'}</span><span className="member-votes-subject-count">{group.subject?`${group.subject.counts.filtered} ${countLabel(group.subject.counts.filtered,state.positions==='recorded'?'recorded position':'decision')} in this subject · ${group.subject.counts.page} on this page`:dateLabel(group.items[0]?.date||null)}</span><span className="member-votes-subject-count">{memberVotePositionSummary(group.items)}</span></span></button></h3>
             {group.subject?.wholeTextDecisions.map(whole=><WholeText key={whole.id} vote={whole} memberName={memberName} onDecision={selectDecision}/>)}
-            <div hidden={!state.expandedSubjectIds.includes(group.id)}>{group.items.map(vote=><button type="button" className="member-votes-row" key={vote.id} data-vote-id={vote.id} onClick={()=>selectDecision(vote.id)}><span className="member-votes-row-copy"><span>{memberVoteLabel(vote,language)}</span><span className="member-votes-muted">{voteMethodLabel(vote.method)}</span>{vote.alignment==='against'&&<span className="member-votes-against-outcome">Against outcome</span>}{vote.intention.status==='reported'&&<span className="member-votes-muted">Intention declared</span>}</span><Position vote={vote} memberName={memberName}/><Result vote={vote}/><span aria-hidden="true">›</span></button>)}</div>
+            <div hidden={!state.expandedSubjectIds.includes(group.id)}>{group.items.map(vote=><button type="button" className="member-votes-row" key={vote.id} data-vote-id={vote.id} onClick={()=>selectDecision(vote.id)}><span className="member-votes-row-copy"><span>{memberVoteLabel(vote,language)}</span>{vote.ballotStatus!=='not-conducted'&&<span className="member-votes-muted">{voteMethodLabel(vote.method)}</span>}{vote.alignment==='against'&&<span className="member-votes-against-outcome">Against outcome</span>}{vote.intention.status==='reported'&&<span className="member-votes-muted">Intention declared</span>}</span><Position vote={vote} memberName={memberName}/><Result vote={vote}/><span aria-hidden="true">›</span></button>)}</div>
           </section>;
         })}
         {!groups.length&&data.coverage.status!=='unavailable'&&<p className="member-votes-empty">{data.coverage.status==='complete'&&data.pagination.observedTotal===0&&Array.isArray(data.coverage.sittings)&&data.coverage.sittings.some(day=>day?.state==='complete'&&day.observedDecisionCount===0&&(!state.sittingId||day.sittingId===state.sittingId))?(state.sittingId?'No votes were recorded at this sitting.':'No votes were recorded in this week.'):data.pagination.filteredTotal>0?'No matching voting records on this page.':state.alignment!=='all'?data.coverage.status==='partial'?`No matching recorded votes among the available records for this ${state.sittingId?'sitting day':'week'}.`:`No recorded ${state.alignment==='abstained'?'abstentions':`votes ${state.alignment} Parliament’s outcome`} ${state.sittingId?'on this sitting day':'in this week'}.`:state.positions==='recorded'?'No recorded positions are available for this period. Choose All decisions to see available outcomes.':'No decisions are available for this period.'}</p>}
@@ -216,7 +229,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
       </div>
       <div ref={detailRef} className="member-votes-pane" hidden={!state.decisionId||Boolean(state.context)} onScroll={event=>{detailScroll.current=event.currentTarget.scrollTop;}}>
         <button className="member-votes-back" type="button" onClick={()=>change({decisionId:null,context:null})}>← Back to votes</button>
-        <div ref={headingRef}>{selected?<Detail vote={selected} data={data} attendance={attendance} attendanceLoading={attendanceRequest.loading} memberName={memberName} language={language} onDecision={selectDecision} openContext={context=>change({context})}/>:state.decisionId?<div className="member-votes-empty"><h2 tabIndex={-1}>Vote unavailable</h2><p>The requested decision is unavailable in this period.</p></div>:null}</div>
+        <div ref={headingRef}>{selected?<Detail vote={selected} data={data} attendance={attendance} attendanceLoading={attendanceRequest.loading} attendanceAttempted={attendanceRoute!==null} memberName={memberName} language={language} onDecision={selectDecision} openContext={context=>change({context})}/>:state.decisionId?<div className="member-votes-empty"><h2 tabIndex={-1}>Vote unavailable</h2><p>The requested decision is unavailable in this period.</p></div>:null}</div>
       </div>
       {state.context&&(contextAllowed?renderContext({...state.context,onBack:()=>change({context:null})}):<div className="member-votes-empty"><button type="button" onClick={()=>change({context:null})}>← Back to vote</button><p>The requested document is unavailable for this vote.</p></div>)}
     </>}

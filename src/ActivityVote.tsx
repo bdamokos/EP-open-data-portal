@@ -42,7 +42,7 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
   }
   if(!route)return <>{children}</>;
   const record=vote?votingRecordUrl(vote):null;
-  const method=vote?voteMethodLabel(vote.method):null;
+  const method=vote?.ballotStatus==='not-conducted'?'Not put to a vote':vote?voteMethodLabel(vote.method):null;
   const requesters=vote?.rollCallRequesters.map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text)||[];
   return <div className="activity-vote" lang="en">
     {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p>{sourceConflict?'Current vote sources disagree. The saved activity result is shown separately.':'The saved activity result differs from the current voting record. The current record is shown below.'}</p><div aria-label="Saved activity result">{children}</div></div>}
