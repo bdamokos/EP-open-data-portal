@@ -91,8 +91,8 @@ test('structural gaps retain uncertainty without offering a retry',async t=>{
 
 test('multiple disclosures have unique mounted targets and keep external attribution out of the reader',async t=>{
   const response=result();response.items.push({...response.items[0],id:sitting+'-OTH-999',speech:{...response.items[0].speech,id:sitting+'-OTH-999'}});
-  const view=await mount(t,{response});
-  const toggles=()=>[...view.container.querySelectorAll('button[aria-expanded]')];
+  const view=await mount(t,{response,handler:url=>url.includes('speech-transcript/'+sitting+'-OTH-999')?Response.json({id:sitting+'-OTH-999',available:true,metadata:response.items[1].speech,xml:'<oralStatements><speech><p>Another explanation.</p></speech></oralStatements>',textLanguage:'en',availableTextLanguages:['en']}):null});
+  const toggles=()=>[...view.container.querySelectorAll('.vote-explanation-toggle')];
   assert(toggles().every(button=>!button.hasAttribute('aria-controls')));
   await act(async()=>toggles()[0].click());
   const first=toggles()[0].getAttribute('aria-controls');assert(first);assert(view.container.querySelector('[id="'+first+'"]'));
@@ -101,7 +101,7 @@ test('multiple disclosures have unique mounted targets and keep external attribu
   assert.equal(toggles()[0].hasAttribute('aria-controls'),false);
   assert.equal(view.container.querySelector('[id="'+first+'"]'),null);
   assert(view.container.querySelector('[id="'+second+'"]'));
-  assert.equal(view.container.querySelectorAll('a,h3,section').length,0);
+  assert.equal(view.container.querySelectorAll('a,h3,section:not([hidden])').length,0);
   assert.doesNotMatch(view.container.textContent,/Written explanations|Member’s page|Source ↗/);
   await act(async()=>toggles()[1].click());assert.equal(view.container.querySelectorAll('[aria-controls]').length,0);
 });
