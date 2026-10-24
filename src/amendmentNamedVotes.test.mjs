@@ -97,3 +97,9 @@ test('group sources show the captured membership generation and retrieval date',
  const data=await voteFixture().read();data.groupHistory.catalogue.retrievedAt='2026-10-23T12:00:00Z';
  const h=await mount(t,async()=>Response.json(data));await h.render();await h.open();assert.match(h.container.textContent,/Groups: membership snapshot 7 · 2026-10-23T12:00:00Z/);
 });
+
+test('a missing tally does not hide a known mismatch or imply an unlisted author had no vote',async t=>{
+ const f=voteFixture();f.raw.number_of_votes_favor=99;delete f.raw.number_of_votes_abstention;const data=await f.read();
+ const h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:{...decision,totals:{for:99,against:1,abstaining:null}}});
+ await h.render();await h.open();assert.equal(h.container.querySelector('table'),null);assert.match(h.container.textContent,/Unlisted AuthorUnavailable/);assert.match(h.container.textContent,/Named list incomplete/);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For99/);
+});

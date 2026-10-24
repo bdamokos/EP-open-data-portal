@@ -7,7 +7,7 @@ import {requestSignal} from './request-budget.mjs';
 import {list,exactReference,references,identifier,deriveVoteEvidence} from './vote-evidence.mjs';
 import {decisionVoteBindingConflict} from './decision-vote-binding.mjs';
 
-export const DECISION_VOTES_VERSION=3;
+export const DECISION_VOTES_VERSION=4;
 
 export function decisionVotesQuery(id,search,options) {
   if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(id))throw new HttpError(400,'invalid_decision','Use an exact decision identifier.');
@@ -27,7 +27,8 @@ export async function decisionVotes(query,{reader=memberVotes,store=null}={}) {
   // The shared projection requires a person ID; only its decision-wide fields
   // are used below. Named positions come from voterGroups, not this placeholder.
   const vote=projectMemberDecision(raw,day,'1',query.language,deriveVoteEvidence(day,{includeBindingEvidence:true})),actual=voterGroups(raw,'had_voter_');
-  const integrity=vote.sourceConflicts||decisionVoteBindingConflict(vote)?'conflicting':!vote.namedVoters.available?'unavailable':vote.namedVoters.malformedReferences||vote.namedVoters.conflictingPersonIds.length||vote.namedVoters.totalsMatch===false?'partial':'complete';
+  const tallyMismatch=vote.namedVoters.available&&['for','against','abstaining'].some(position=>vote.totals[position]!==null&&vote.totals[position]!==vote.namedVoters.counts?.[position]);
+  const integrity=vote.sourceConflicts||decisionVoteBindingConflict(vote)?'conflicting':!vote.namedVoters.available?'unavailable':vote.namedVoters.malformedReferences||vote.namedVoters.conflictingPersonIds.length||(tallyMismatch||vote.namedVoters.totalsMatch===false)?'partial':'complete';
   // Capture one frozen generation after the asynchronous vote read. No later
   // publication can mix group identities within this response.
   const generation=store?.status().servingGeneration||null;
@@ -40,5 +41,5 @@ export async function decisionVotes(query,{reader=memberVotes,store=null}={}) {
   return {...base,status:'found',integrity,voters,groupHistory:history?{epoch:store.get('marksEpoch'),generation,catalogue:history.catalogue}:null,
     decision:{id:vote.id,date:vote.date,method:vote.method,outcome:vote.outcome,ballotStatus:vote.ballotStatus,totals:vote.totals,amendmentIds:vote.context.amendmentIds,componentIds:vote.context.componentIds,
       decidedIds:references(raw.decided_on_a_realization_of,'doc').map(identifier),referencesValid:list(raw.decided_on_a_realization_of).length>0&&list(raw.decided_on_a_realization_of).every(value=>exactReference(value,'doc')),
-      resultRelationship:vote.resultRelationship,evidenceGaps:vote.evidenceGaps,bindingConflicts:vote.bindingConflicts,namedVoters:vote.namedVoters,sourceConflicts:vote.sourceConflicts,evidencePaths:vote.evidencePaths,sources:vote.sources}};
+      resultRelationship:vote.resultRelationship,evidenceGaps:vote.evidenceGaps,bindingConflicts:vote.bindingConflicts,namedVoters:{...vote.namedVoters,totalsMatch:tallyMismatch?false:vote.namedVoters.totalsMatch},sourceConflicts:vote.sourceConflicts,evidencePaths:vote.evidencePaths,sources:vote.sources}};
 }

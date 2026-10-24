@@ -16,7 +16,7 @@ export function decisionVotesRoute(id,language) {
   return 'decision-votes/'+id+'?'+new URLSearchParams({lang:language});
 }
 export function validateDecisionVotes(data,id) {
-  if(!object(data)||data.version!==3||data.decisionId!==id||data.sittingId!==id.slice(0,17)||! /^[a-f0-9]{64}$/.test(data.snapshotId)||!['complete','partial','unavailable'].includes(data.coverage)||!['found','unavailable'].includes(data.status)||!['complete','partial','conflicting','unavailable'].includes(data.integrity)||!Array.isArray(data.voters))return false;
+  if(!object(data)||data.version!==4||data.decisionId!==id||data.sittingId!==id.slice(0,17)||! /^[a-f0-9]{64}$/.test(data.snapshotId)||!['complete','partial','unavailable'].includes(data.coverage)||!['found','unavailable'].includes(data.status)||!['complete','partial','conflicting','unavailable'].includes(data.integrity)||!Array.isArray(data.voters))return false;
   if(data.status==='unavailable')return data.decision===null&&data.voters.length===0&&data.integrity==='unavailable';
   const vote=data.decision;
   if(!object(vote)||vote.id!==id||vote.date!==id.slice(7,17)||!['method','outcome'].every(key=>vote[key]===null||typeof vote[key]==='string')||!['conducted','not-conducted','unknown'].includes(vote.ballotStatus)||typeof vote.referencesValid!=='boolean'||!refs(vote.amendmentIds)||!refs(vote.componentIds)||!object(vote.totals)||!positions.every(p=>vote.totals[p]===null||Number.isSafeInteger(vote.totals[p])&&vote.totals[p]>=0))return false;
@@ -33,7 +33,7 @@ export function validateDecisionVotes(data,id) {
   }
   if(data.integrity==='complete') {
     const named=vote.namedVoters;
-    if(vote.sourceConflicts||vote.method!=='VOTE_ELECTRONIC_ROLLCALL'||vote.ballotStatus!=='conducted'||!named?.available||named.malformedReferences!==0||!Array.isArray(named.conflictingPersonIds)||named.conflictingPersonIds.length||named.totalsMatch===false||data.voters.some(voter=>voter.status!=='recorded')||!positions.every(p=>named.counts?.[p]===data.voters.filter(voter=>voter.position===p).length))return false;
+    if(vote.sourceConflicts||vote.method!=='VOTE_ELECTRONIC_ROLLCALL'||vote.ballotStatus!=='conducted'||!named?.available||named.malformedReferences!==0||!Array.isArray(named.conflictingPersonIds)||named.conflictingPersonIds.length||named.totalsMatch===false||positions.some(p=>vote.totals[p]!==null&&vote.totals[p]!==named.counts?.[p])||data.voters.some(voter=>voter.status!=='recorded')||!positions.every(p=>named.counts?.[p]===data.voters.filter(voter=>voter.position===p).length))return false;
   }
   return true;
 }

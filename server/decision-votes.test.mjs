@@ -70,3 +70,14 @@ test('an omitted request type is unknown; a supplied different type contradicts 
   const data=await f.read();assert.equal(data.integrity,type?'conflicting':'complete');
  }
 });
+
+test('each supplied tally is checked even when another tally is missing',async()=>{
+ const fields=['number_of_votes_favor','number_of_votes_against','number_of_votes_abstention'];
+ for(const missing of fields){
+  const matching=voteFixture();delete matching.raw[missing];assert.equal((await matching.read()).integrity,'complete');
+  for(const mismatched of fields.filter(field=>field!==missing)){
+   const f=voteFixture();delete f.raw[missing];f.raw[mismatched]=99;const data=await f.read();
+   assert.equal(data.integrity,'partial');assert.equal(data.decision.namedVoters.totalsMatch,false);assert.equal(data.voters.length,4);
+  }
+ }
+});

@@ -33,3 +33,11 @@ test('missing context and split wording remain separate from contradictory bindi
  assert(validateDecisionVotes(data,decisionId));assert(amendmentVoteBinding(item,{id:decisionId},data));
  data.decision.evidenceGaps=[{code:'ambiguous-component',details:[{code:'conflicting-component-definition'}]}];assert.equal(validateDecisionVotes(data,decisionId),false);
 });
+
+test('a complete response cannot hide a known tally mismatch behind a missing total',async()=>{
+ const fields=['for','against','abstaining'];
+ for(const missing of fields)for(const mismatched of fields.filter(field=>field!==missing)){
+  const data=await voteFixture().read();data.decision.totals[missing]=null;data.decision.totals[mismatched]=99;data.decision.namedVoters.totalsMatch=null;
+  assert.equal(validateDecisionVotes(data,decisionId),false);
+ }
+});
