@@ -267,6 +267,25 @@ test('Following retains its mounted header during a delayed first import',async 
   assert.equal(h.container.querySelectorAll('main').length,1);
 });
 
+test('loaded insight destinations reset the shared frame scroll on clicks and browser Back',async t=>{
+  const h=await harness(t);
+  await h.click(h.button('Questions'));
+  const frame=h.container.querySelector('main.explorer-insights');
+  const header=frame.querySelector('.parliament-header');
+  frame.scrollTop=600;
+  await h.click(h.button('Group voices'));
+  assert.equal(h.container.querySelector('main.explorer-insights'),frame);
+  assert.equal(frame.querySelector('.parliament-header'),header);
+  assert.equal(frame.scrollTop,0,'a destination starts at the top before heading focus');
+  frame.scrollTop=450;
+  const popped=new Promise(resolve=>h.window.addEventListener('popstate',resolve,{once:true}));
+  await act(async()=>{history.go(-1);await popped;});
+  await viewReady(h.container);
+  assert.equal(new URL(location.href).searchParams.get('view'),'questions');
+  assert.equal(h.container.querySelector('main.explorer-insights'),frame);
+  assert.equal(frame.scrollTop,0,'popstate preserves the old remount scroll behavior');
+});
+
 
 test('history navigation to another query in a failed view clears its boundary',async t=>{
   const h=await harness(t,'?view=groups&gv-group=ECR',false,false,true);

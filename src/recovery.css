@@ -5,6 +5,7 @@
 .explorer-recovery-actions button,.explorer-recovery a { min-height:44px; padding:10px 14px; }
 .explorer-recovery-actions a { color:inherit; text-decoration:underline; }
 .view-loading { min-width:0; }
+.explorer>.view-loading { padding:24px var(--explorer-gutter); min-height:0; overflow-y:auto; }
 .view-loading>p { margin:24px 0; color:var(--ink-muted); }
 .view-loading-placeholders { display:grid; gap:16px; max-width:960px; margin:24px 0; }
 .view-loading-placeholders span { display:block; height:72px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface-2); }
