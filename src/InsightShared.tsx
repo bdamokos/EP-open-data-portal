@@ -7,12 +7,15 @@ import './Insights.css';
 import './ExplorerLayout.css';
 import {ParliamentHeader} from './ParliamentHeader';
 import {DataNotice} from './components/DataNotice';
+import {useInsightFrame} from './InsightFrame';
 
 export const countryName=(code:string,language='en')=>{try{return /^[A-Z]{2}$/.test(code)?new Intl.DisplayNames([language],{type:'region'}).of(code==='EL'?'GR':code)||code:code;}catch{return code;}};
 const countryLanguage=(code:string,language:string)=>code==='Unknown'?'en':countryName(code,language)===code?'':language;
 export const roleName=(role:string)=>({RAPPORTEUR:'Rapporteur',RAPPORTEUR_SHADOW:'Shadow rapporteur',RAPPORTEUR_OPINION:'Opinion rapporteur',RAPPORTEUR_SHADOW_OPINION:'Shadow opinion rapporteur',AUTHOR:'Author',QUESTION_AUTHOR:'Question author',AGENDA_CONTRIBUTOR:'Agenda contributor',SPEAKER:'Speaker',PRESIDING:'Chairing the sitting',WRITTEN_STATEMENT:'Written statement'} as Record<string,string>)[role]||role.toLowerCase().replaceAll('_',' ');
 export function InsightShell({title,description,view,children,onBack,onNavigate,onSaved,language='en'}:InsightProps&{title:string;description?:string;view:'legislation'|'questions'|'outside'|'amendments'|'groups';children:ReactNode}) {
-  return <main className="explorer-insights" lang={language}><ParliamentHeader view={view} onMembers={onBack} onNavigate={onNavigate} onSaved={onSaved} language={language}/><section className="insight-intro" lang="en"><h1>{title}</h1>{description&&<p>{description}</p>}</section>{children}<footer><DataNotice className="insight-data-notice"/></footer></main>;
+  const framed=useInsightFrame();
+  const content=<><section className="insight-intro" lang="en"><h1>{title}</h1>{description&&<p>{description}</p>}</section>{children}<footer><DataNotice className="insight-data-notice"/></footer></>;
+  return framed?content:<main className="explorer-insights" lang={language}><ParliamentHeader view={view} onMembers={onBack} onNavigate={onNavigate} onSaved={onSaved} language={language}/>{content}</main>;
 }
 export function InsightStatus({loading,error,retry,loadingMessage='Loading…',errorMessage='Could not load this item.'}:{loading:boolean;error:string|null;retry:()=>void;loadingMessage?:string;errorMessage?:string}) {
   const [visible,setVisible]=useState(false);useEffect(()=>{setVisible(false);if(!loading)return;const timer=setTimeout(()=>setVisible(true),300);return()=>clearTimeout(timer);},[loading]);
