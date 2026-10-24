@@ -42,3 +42,17 @@ export class MeetingsReader extends VoteSourceReader {
   }
 }
 export const meetingsReader=new MeetingsReader();
+
+// Only years that could contain a newer held sitting affect the default choice.
+// null means latest is unknown; undefined means a complete empty catalogue.
+export function latestCatalogueSitting(catalogue,today) {
+  const held=catalogue.sittings.filter(sitting=>sitting.activity_date<=today).sort((a,b)=>b.activity_date.localeCompare(a.activity_date));
+  const relevant=catalogue.coverage?.years?.filter(year=>!held[0]||year.year>=Number(held[0].activity_date.slice(0,4)));
+  if(relevant?.some(year=>year.state!=='complete')||catalogue.complete===false&&!relevant)return null;
+  return held[0]||[...catalogue.sittings].sort((a,b)=>a.activity_date.localeCompare(b.activity_date))[0];
+}
+export function requireLatestSitting(catalogue,today) {
+  const latest=latestCatalogueSitting(catalogue,today);
+  if(latest===null)throw new HttpError(503,'sitting_calendar_unavailable','Latest sitting dates unavailable. Choose a period.');
+  return latest;
+}

@@ -1,4 +1,4 @@
-import {missingSitting} from './meetings-reader.mjs';
+import {missingSitting,requireLatestSitting} from './meetings-reader.mjs';
 import {readFile,stat} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
@@ -51,7 +51,8 @@ export function participationRows(topics,results,decisions,speechRows,members) {
 export async function participation(legislation,store,query,{clock=Date.now,readEvent=cachedEvent}={}) {
   const status=store.status(),catalogue=await legislation.catalogue(),today=brusselsDay(clock());
   const end=query.week?new Date(Date.parse(query.week+'T12:00:00Z')+6*86400_000).toISOString().slice(0,10):null;
-  const sittings=query.week?catalogue.sittings.filter(s=>s.activity_date>=query.week&&s.activity_date<=end):catalogue.sittings.filter(s=>s.activity_id===(query.sitting||catalogue.sittings[0]?.activity_id));
+  const selected=query.sitting||(!query.week?requireLatestSitting(catalogue,today)?.activity_id:null);
+  const sittings=query.week?catalogue.sittings.filter(s=>s.activity_date>=query.week&&s.activity_date<=end):catalogue.sittings.filter(s=>s.activity_id===selected);
   if(!sittings.length)missingSitting(catalogue);
   if(sittings.length>5)throw new HttpError(502,'sitting_calendar_invalid','Too many sitting days in this week.');
   const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],sources=[...(catalogue.sources||[])];

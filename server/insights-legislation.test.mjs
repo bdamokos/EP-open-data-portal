@@ -59,10 +59,10 @@ test('plenary catalogue retains all current-term sittings across years and pages
   assert.equal(result.sittings.filter(s=>s.activity_date>='2026-11-01').length,6);
   await service.catalogue();assert.equal(calls.length,6,'catalogue metadata is reused');
 });
-test('plenary catalogue fails explicitly if upstream repeats a full page instead of advancing',async()=>{
-  const nodes=Array.from({length:50},(_,i)=>({id:'eli/dl/event/meeting-'+i,activity_id:'meeting-'+i,activity_date:'2026-10-15',had_activity_type:'def/ep-activities/PLENARY_SITTING'}));let calls=0;
+test('repeated full catalogue pages retain exact sittings with a paging gap',async()=>{
+  const nodes=Array.from({length:50},(_,index)=>{const date=new Date(Date.parse('2026-01-01T12:00:00Z')+index*86400_000).toISOString().slice(0,10);return {id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'};});let calls=0;
   const service=new LegislationInsights(null,{clock:()=>Date.parse('2026-10-15T12:00:00Z'),request:yearCatalogue(async()=>{calls++;return {payload:{data:nodes},url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:0};})});
-  const result=await service.catalogue();assert.equal(result.complete,false);assert.equal(result.coverage.years[2].stopReason,'identity');assert.equal(calls,4);
+  const result=await service.catalogue();assert.equal(result.complete,false);assert.equal(result.coverage.years[2].stopReason,'repeated-page');assert.equal(result.sittings.length,50);assert.equal(calls,4);
 });
 test('the first current-term sitting can be selected without fetching other sitting details',async()=>{
   const clock=()=>Date.parse('2026-10-15T12:00:00Z'),calls=[];

@@ -8,8 +8,8 @@ import {Status} from './Status';
 type Metric='speakers'|'voters'|'amendmentVotes';
 type Row={id:string;title:string;titleLanguage?:string|null;date:string;sittingId:string;upcoming:boolean;speakers:number|null;voters:number|null;amendmentVotes:number|null;rollCalls:number};
 type Response={topics:Row[];series:({date:string}&Record<Metric,number|null>)[];window:{start:string;end:string};coverage:{catalogueComplete?:boolean;topicsWithSpeechLinks:number;topics:number;gaps:{kind:string;sitting:string}[]}};
-export function Participation({language,sittings,onTopic}:{language:string;sittings:Sitting[];onTopic:(sitting:string,topic:string)=>void}) {
-  const [period,setPeriod]=useExplorerParam('hot-period',weekPeriod(latestHeldSitting(sittings))),[metric,setMetric]=useExplorerParam<Metric>('hot-rank','speakers',['speakers','voters','amendmentVotes']),[country,setCountry]=useExplorerParam<string|null>('hot-country',null),[search,setSearch]=useExplorerParam<string>('hot-search','');
+export function Participation({language,sittings,onTopic,latestAvailable=true}:{language:string;sittings:Sitting[];latestAvailable?:boolean;onTopic:(sitting:string,topic:string)=>void}) {
+  const [period,setPeriod]=useExplorerParam('hot-period',weekPeriod(latestHeldSitting(sittings,latestAvailable))),[metric,setMetric]=useExplorerParam<Metric>('hot-rank','speakers',['speakers','voters','amendmentVotes']),[country,setCountry]=useExplorerParam<string|null>('hot-country',null),[search,setSearch]=useExplorerParam<string>('hot-search','');
   const [kind,value]=[period.slice(0,period.indexOf(':')),period.slice(period.indexOf(':')+1)];
   const params=new URLSearchParams({lang:language,...(country?{country}:{}),[kind]:value});
   const state=useInsightData<Response>(value?'insights/participation?'+params:null),data=state.data;
@@ -38,6 +38,7 @@ export function Participation({language,sittings,onTopic}:{language:string;sitti
       <label className="insight-participation-search">Find an agenda item<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search titles"/></label>
     </div>
     {(country||search)&&<div className="insight-active-filters" aria-label="Active participation filters">{country&&<button onClick={()=>chooseCountry(null)}>MEPs elected in <span lang={language}>{countryName(country,language)}</span> ×</button>}{search&&<button onClick={()=>setSearch('')}>Title: <span lang="">{search}</span> ×</button>}</div>}
+    {!period&&!latestAvailable&&<p>Latest week unavailable. Choose a period.</p>}
     {!data&&state.loading&&<p role="status">Loading participation…</p>}{state.error&&<p role="alert">Participation temporarily unavailable. <button onClick={state.retry}>Reload</button></p>}
     {data&&<>
       <SittingCalendarNotice complete={data.coverage.catalogueComplete}/>

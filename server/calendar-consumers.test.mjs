@@ -46,3 +46,17 @@ test('HTTP 204 agendas remain unavailable and selectable; successful empty calen
  const result=await legislation.query({language:'en',sitting:'MTG-PL-2026-10-07'},catalogue);assert.equal(result.coverage.agendaComplete,false);assert.equal(result.coverage.agendaError,'No content');assert.equal(result.topics.length,0);assert(result.sittings.some(s=>s.id===result.sitting.id));
  const empty=new LegislationInsights(store,{clock:()=>NOW,request:async()=>({url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:NOW,payload:{data:[]}})});assert.equal((await empty.catalogue()).complete,true);await assert.rejects(empty.query({language:'en',week:'latest'}),e=>e.status===404);
 });
+test('an unreadable newest year cannot silently move the default into older history',async()=>{
+ const request=async(endpoint,params={})=>{if(endpoint==='/meetings'&&params.year===2026)throw Error('Current year unavailable');return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:NOW,payload:{data:endpoint==='/meetings'?[meeting(params.year===2024?'2024-07-16':'2025-12-18')]:[]}};};
+ const clock=()=>NOW,legislation=new LegislationInsights(store,{request,clock,loadMetadata:async()=>new Map()}),catalogue=await legislation.catalogue();
+ assert.equal(catalogue.latestAvailable,false);assert.equal(catalogue.sittings.length,2);
+ for(const query of [{language:'en'},{language:'en',week:'latest'}])await assert.rejects(legislation.query(query,catalogue),error=>error.status===503&&error.code==='sitting_calendar_unavailable');
+ await assert.rejects(participation(legislation,store,{language:'en'},{clock}),error=>error.status===503);
+ const selected=await legislation.query({language:'en',sitting:'MTG-PL-2025-12-18'},catalogue);assert.equal(selected.sitting.id,'MTG-PL-2025-12-18');assert.equal(selected.coverage.latestAvailable,false);
+ const week=await legislation.query({language:'en',week:'2025-12-15'},catalogue);assert.equal(week.week,'2025-12-15');
+ const cloud=new SpeechCloudInsights(store,{request,clock,legislation,readCorpusPage:null});assert.equal((await cloud.scope({language:'en',sitting:'MTG-PL-2025-12-18'})).dates[0].start,'2025-12-18');
+});
+test('an older calendar gap does not block a verified newer latest week',async()=>{
+ const {legislation}=setup(),catalogue=await legislation.catalogue();assert.equal(catalogue.latestAvailable,true);
+ assert.equal((await legislation.query({language:'en',week:'latest'},catalogue)).week,'2026-10-05');
+});

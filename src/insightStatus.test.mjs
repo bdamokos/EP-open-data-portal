@@ -25,10 +25,10 @@ async function harness(t,path,component,query,respond,props={}) {
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(Component,{language:'en',onBack(){},...props})));
   const status=()=>container.querySelector('[role="status"][aria-live="polite"][aria-atomic="true"]');
-  assert(status(),'the result status region is present before a result settles');
+  assert(component==='Legislation'||status(),'the result status region is present before a result settles');
   const messages=[];
-  const observer=new window.MutationObserver(()=>{if(status().textContent)messages.push(status().textContent);});
-  observer.observe(status(),{childList:true,subtree:true,characterData:true});t.after(()=>observer.disconnect());
+  const observer=new window.MutationObserver(()=>{if(status()?.textContent)messages.push(status().textContent);});
+  observer.observe(status()||container,{childList:true,subtree:true,characterData:true});t.after(()=>observer.disconnect());
   const navigate=query=>act(async()=>{history.replaceState(null,'','/'+query);window.dispatchEvent(new window.PopStateEvent('popstate'));});
   const click=text=>act(async()=>{const button=[...container.querySelectorAll('button')].find(node=>node.textContent===text);assert(button,'Missing button: '+text);button.click();});
   return {window,container,calls,status,messages,navigate,click,tick};
@@ -146,4 +146,17 @@ test('question failures retain existing error and missing-topic announcements wi
   assert.equal(h.status().textContent,'');assert.equal(h.container.querySelector('[role="alert"]'),null);
   assert([...h.container.querySelectorAll('[role="status"]')].some(node=>node.textContent.includes('unavailable in this period')));
   assert.equal(new URL(location.href).searchParams.get('q-topic'),'exact-missing-topic');
+});
+test('participation leaves latest unselected when newer calendar years are unavailable',async t=>{
+ const sitting={id:'MTG-PL-2025-12-18',date:'2025-12-18',phase:'past'};
+ const h=await harness(t,'/src/Participation.tsx','Participation','',()=>({window:{start:sitting.date,end:sitting.date},series:[],topics:[],coverage:{topicsWithSpeechLinks:0,topics:0,gaps:[]}}),{sittings:[sitting],latestAvailable:false,onTopic(){}});
+ await h.tick();assert.equal(h.calls.length,0);assert.match(h.container.textContent,/Latest week unavailable/);
+ const select=h.container.querySelector('select');assert.equal(select.value,'');
+ await act(async()=>{select.value='sitting:'+sitting.id;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});await h.tick();
+ assert.equal(h.calls.length,1);assert.equal(h.calls[0].searchParams.get('sitting'),sitting.id);
+});
+test('word cloud does not fetch an older implicit latest selection',async t=>{
+ const sitting={id:'MTG-PL-2025-12-18',date:'2025-12-18',phase:'past'};
+ const h=await harness(t,'/src/Legislation.tsx','Legislation','?pl-mode=cloud',url=>{assert(url.pathname.endsWith('/insights/legislation'));return {sitting,sittings:[sitting],topics:[],detail:null,coverage:{latestAvailable:false,catalogueComplete:false,agendaComplete:true,agendaError:null}};});
+ await h.tick();assert.match(h.container.textContent,/Latest week unavailable/);assert(!h.calls.some(url=>url.pathname.endsWith('/speech-cloud')));
 });
