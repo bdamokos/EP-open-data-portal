@@ -31,9 +31,10 @@ async function harness(t,query='?view=legislation&pl-mode=dossier&dossier-ref='+
   });
   load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const module=await load('/src/DossierActivity.tsx'),{createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  const render=element=>act(async()=>root.render(element));
-  const click=async text=>act(async()=>{const control=[...container.querySelectorAll('button,a,summary')].find(node=>node.textContent.trim()===text||node.textContent.trim().startsWith(text+' '));assert(control,'Missing '+text);control.click();});
-  const navigate=async query=>act(async()=>{history.replaceState(null,'',query);window.dispatchEvent(new Event('popstate'));});
+  const settle=async()=>{const until=Date.now()+5000;while(container.querySelector('[data-dossier-pending="true"],[data-reader-pending="true"]')){assert(Date.now()<until,'Dossier rendering did not settle');await act(async()=>{await new Promise(resolve=>setTimeout(resolve,10));});}};
+  const render=async element=>{await act(async()=>root.render(element));await settle();};
+  const click=async text=>{await act(async()=>{const control=[...container.querySelectorAll('button,a,summary')].find(node=>node.textContent.trim()===text||node.textContent.trim().startsWith(text+' '));assert(control,'Missing '+text);control.click();});await settle();};
+  const navigate=async query=>{await act(async()=>{history.replaceState(null,'',query);window.dispatchEvent(new Event('popstate'));});await settle();};
   return {window,container,calls,module,load,render,click,navigate};
 }
 
@@ -168,4 +169,14 @@ test('dossier controls and cards retain readable dark/light tokens and 44px targ
       assert.equal(window.getComputedStyle(window.document.querySelector('button')).minHeight,'44px');
     }finally{await window.happyDOM.close();}
   }
+});
+
+test('collective decisions render once with a shared reference in All and Amendments, and once in Votes',async t=>{
+  const second={...amendment,id:'A-10-2026-0010-AM-4@list',amendment:{...amendment.amendment,id:'A-10-2026-0010-AM-4',number:4}};
+  const h=await harness(t,undefined,url=>url.searchParams.get('section')==='amendments'?Response.json(page('amendments','257727',[amendment,second])):null);
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  const count=()=>h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length;
+  assert.equal(count(),1);const link=[...h.container.querySelectorAll('a')].find(a=>a.textContent==='View the vote');assert(link);assert(h.container.querySelector(link.getAttribute('href')));
+  await h.click('Amendments');assert.equal(count(),1);assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);
+  await h.click('Votes');assert.equal(count(),1);assert.equal(h.container.querySelectorAll('[data-dossier-vote]').length,2);
 });

@@ -12,7 +12,7 @@ const change='dossier-journey-change';
 const capture='dossier-journey-capture';
 const readerStates=new Map<string,Map<string,unknown>>();
 
-const routeKey=(href:string)=>{const url=new URL(href,location.href);if(!url.searchParams.has('role'))url.searchParams.set('role','both');if(!url.searchParams.has('lang'))url.searchParams.set('lang','en');if(url.searchParams.has('member')&&!url.searchParams.has('view')&&!url.searchParams.has('module'))url.searchParams.set('module','profile');url.searchParams.sort();return url.pathname+url.search+url.hash;};
+const routeKey=(href:string)=>{const url=new URL(href,window.location.href);if(!url.searchParams.has('role'))url.searchParams.set('role','both');if(!url.searchParams.has('lang'))url.searchParams.set('lang','en');if(url.searchParams.has('member')&&!url.searchParams.has('view')&&!url.searchParams.has('module'))url.searchParams.set('module','profile');url.searchParams.sort();return url.pathname+url.search+url.hash;};
 function pathFor(node:Element|null):string|null {
   if(!node||node===document.body)return null;
   const parts:string[]=[];
@@ -33,15 +33,15 @@ export function rememberDossierOrigin() {
     const path=pathFor(node);if(!path)continue;
     nodes.push({path,top:node.scrollTop,left:node.scrollLeft,...(node.tagName==='DETAILS'?{open:(node as HTMLDetailsElement).open}:{}),...(node.tagName==='SELECT'?{value:(node as HTMLSelectElement).value}:{})});
   }
-  const snapshot={href:location.href,nodes,focus:pathFor(document.activeElement)};
-  snapshots.set(routeKey(location.href),snapshot);if(snapshots.size>30){const key=snapshots.keys().next().value!;snapshots.delete(key);readerStates.delete(key);}
+  const snapshot={href:window.location.href,nodes,focus:pathFor(document.activeElement)};
+  snapshots.set(routeKey(window.location.href),snapshot);if(snapshots.size>30){const key=snapshots.keys().next().value!;snapshots.delete(key);readerStates.delete(key);}
   return snapshot;
 }
 export const dossierJourneyRestoring=()=>Boolean(pending);
 export const dossierBackHref=()=>origin;
-export function dossierReaderValue<T>(name:string,fallback:T):T {const values=readerStates.get(routeKey(location.href));return values?.has(name)?values.get(name) as T:fallback;}
+export function dossierReaderValue<T>(name:string,fallback:T):T {if(typeof window==='undefined')return fallback;const values=readerStates.get(routeKey(window.location.href));return values?.has(name)?values.get(name) as T:fallback;}
 export function navigateDossier(href:string) {
-  const url=new URL(href,location.href);if(url.origin!==location.origin)return false;
+  const url=new URL(href,window.location.href);if(url.origin!==window.location.origin)return false;
   const leaving=rememberDossierOrigin();
   const wasDossier=new URL(leaving.href).searchParams.get('pl-mode')==='dossier';
   if(!wasDossier&&url.searchParams.get('pl-mode')==='dossier')origin=leaving.href;
@@ -52,22 +52,22 @@ export function navigateDossier(href:string) {
 }
 export function dossierLinkClick(event:MouseEvent<HTMLAnchorElement>) {
   if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.currentTarget.target&&event.currentTarget.target!=='_self')return;
-  const url=new URL(event.currentTarget.href,location.href);if(url.origin!==location.origin)return;
+  const url=new URL(event.currentTarget.href,window.location.href);if(url.origin!==window.location.origin)return;
   event.preventDefault();navigateDossier(url.href);
 }
 
 // Capture reader choices with the complete origin URL. URL-owned activity,
 // category, country and page fields remain App's responsibility.
 export function useDossierReaderState<T>(name:string,initial:T):[T,Dispatch<SetStateAction<T>>] {
-  const read=()=>{const values=readerStates.get(routeKey(location.href));return values?.has(name)?values.get(name) as T:initial;};
+  const read=()=>{if(typeof window==='undefined')return initial;const values=readerStates.get(routeKey(window.location.href));return values?.has(name)?values.get(name) as T:initial;};
   const [stored,setStored]=useState(()=>({name,value:read()}));
   const value=stored.name===name?stored.value:read();
   const setValue:Dispatch<SetStateAction<T>>=next=>setStored({name,value:typeof next==='function'?(next as (previous:T)=>T)(value):next});
   const current=useRef(value);current.current=value;
   useEffect(()=>{
     setStored(previous=>previous.name===name?previous:{name,value:read()});
-    const save=()=>{const key=routeKey(location.href),values=readerStates.get(key)||new Map<string,unknown>();values.set(name,current.current);readerStates.set(key,values);};
-    const restore=()=>{const values=readerStates.get(routeKey(location.href));if(values?.has(name))setStored({name,value:values.get(name) as T});};
+    const save=()=>{const key=routeKey(window.location.href),values=readerStates.get(key)||new Map<string,unknown>();values.set(name,current.current);readerStates.set(key,values);};
+    const restore=()=>{const values=readerStates.get(routeKey(window.location.href));if(values?.has(name))setStored({name,value:values.get(name) as T});};
     window.addEventListener(capture,save);window.addEventListener('popstate',restore);
     return()=>{window.removeEventListener(capture,save);window.removeEventListener('popstate',restore);};
   },[name]);
@@ -75,7 +75,7 @@ export function useDossierReaderState<T>(name:string,initial:T):[T,Dispatch<SetS
 }
 
 function destinationMounted() {
-  const query=new URLSearchParams(location.search);
+  const query=new URLSearchParams(window.location.search);
   if(query.get('view')==='legislation'&&query.get('pl-mode')==='dossier'){
     const panel=document.querySelector<HTMLElement>('[data-dossier-reference]');
     if(panel?.dataset.dossierReference!==query.get('dossier-ref')||panel.dataset.dossierPerson!==(query.get('dossier-person')||''))return false;
@@ -92,7 +92,7 @@ export function useDossierJourney() {
   const scheduled=useRef<number|null>(null);
   useEffect(()=>{
     const apply=()=>{
-      if(!destination||routeKey(location.href)!==routeKey(destination)||!destinationMounted())return;
+      if(!destination||routeKey(window.location.href)!==routeKey(destination)||!destinationMounted())return;
       if(scheduled.current!==null)return;
       // Run after the destination's own responsive scroll effects.
       scheduled.current=window.requestAnimationFrame(()=>{
@@ -115,7 +115,7 @@ export function useDossierJourney() {
       });
     };
     const restore=()=>{
-      if(!navigating){pending=snapshots.get(routeKey(location.href))||null;destination=pending?location.href:null;origin=history.state?.dossierOrigin||null;}
+      if(!navigating){pending=snapshots.get(routeKey(window.location.href))||null;destination=pending?window.location.href:null;origin=history.state?.dossierOrigin||null;}
       apply();
     };
     const cancel=(event:Event)=>{if(event.isTrusted){pending=null;destination=null;}};

@@ -17,6 +17,19 @@ export function dossierAmendmentVotes(item,votes) {
   return votes.filter(row=>decisions.some(decision=>decision.id===row.vote.id||decision.partId&&[...(row.vote.context?.componentIds||[]),...(row.vote.parts||[]).map(part=>part.componentId)].includes(decision.partId)));
 }
 
+export function dossierVoteCards(amendments,votes) {
+  const rendered=new Set(),cards=new Map();
+  for(const amendment of amendments){
+    const own=[],shared=[];
+    for(const vote of dossierAmendmentVotes(amendment,votes)){
+      if(rendered.has(vote.id))shared.push(vote);
+      else {rendered.add(vote.id);own.push(vote);}
+    }
+    cards.set(amendment.id,{votes:own,shared});
+  }
+  return cards;
+}
+
 export function dossierTimeline(items) {
   const groups=new Map();
   for(const item of items){
