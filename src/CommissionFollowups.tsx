@@ -7,14 +7,16 @@ type Followup={id:string;documentDate:string|null;files:FollowupFile[]};
 type FollowupResponse={documentId:string;requestedLanguage:string;status:'available'|'partial'|'unavailable'|'none-listed';items:Followup[];gaps:{id:string|null;reason:string}[]};
 const languageName=(code:string,locale:string)=>{try{return new Intl.DisplayNames([locale],{type:'language'}).of(code)||code.toUpperCase();}catch{return code.toUpperCase();}};
 const formatName=(format:string)=>format==='DOCX'?'Word document':format;
-const dateLabel=(date:string,locale:string)=>new Intl.DateTimeFormat(locale==='en'?'en-GB':locale,{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(date));
+const dateLabel=(date:string,locale:string)=>{
+  try{return new Intl.DateTimeFormat(locale==='en'?'en-GB':locale,{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(date));}catch{return null;}
+};
 const preferredFiles=(files:FollowupFile[],language:string)=>languagePreference([...new Set(files.map(file=>file.language))],language).flatMap(code=>{
   const candidates=files.filter(file=>file.language===code).sort((a,b)=>['PDF','HTML','DOCX'].indexOf(a.format)-['PDF','HTML','DOCX'].indexOf(b.format)||a.url.localeCompare(b.url));
   return candidates.slice(0,1);
 });
 function FileLink({file,locale}:{file:FollowupFile;locale:string}) {
   const name=languageName(file.language,locale),format=formatName(file.format);
-  return <a href={file.url} target="_blank" rel="noreferrer" hrefLang={file.language} lang={file.language} aria-label={`Commission follow-up · ${name} · ${format}`}>{name} · {format} ↗</a>;
+  return <a href={file.url} target="_blank" rel="noreferrer" hrefLang={file.language} aria-label={`Commission follow-up, ${name}, ${format}`}><span lang={locale}>{name}</span> · {format} ↗</a>;
 }
 export function CommissionFollowups({id,language,interfaceLanguage}:{id:string;language:string;interfaceLanguage:string}) {
   const state=useData<FollowupResponse>('commission-followups/'+encodeURIComponent(id)+'?'+new URLSearchParams({lang:language}));
@@ -29,8 +31,9 @@ export function CommissionFollowups({id,language,interfaceLanguage}:{id:string;l
   return <div className="commission-followups" lang="en">
     {items.map(item=>{
       const [primary,...others]=preferredFiles(item.files,language);
+      const formattedDate=item.documentDate?dateLabel(item.documentDate,interfaceLanguage):null;
       return <div className="commission-followup" key={item.id}>
-        <p>Commission follow-up{item.documentDate&&<> · <time dateTime={item.documentDate} lang={interfaceLanguage}>{dateLabel(item.documentDate,interfaceLanguage)}</time></>}{' · '}
+        <p>Commission follow-up{formattedDate&&<> · <time dateTime={item.documentDate!} lang={interfaceLanguage}>{formattedDate}</time></>}{' · '}
           {primary?<><FileLink file={primary} locale={interfaceLanguage}/>{' '}<TextLanguageFallback requested={language} actual={primary.language} interfaceLanguage={interfaceLanguage}/></>:<>File unavailable here.</>}
         </p>
         {others.length>0&&<details><summary>Other languages</summary><ul>{others.map(file=><li key={file.language}><FileLink file={file} locale={interfaceLanguage}/></li>)}</ul></details>}

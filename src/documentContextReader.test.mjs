@@ -677,9 +677,28 @@ test('follow-up links prefer PDF per expression language, show dates and disclos
   const h=await harness(t,()=>response(adopted),()=>({status:'available',items:[followupItem('SP-one',files),{...followupItem('SP-two',[followupFile('en','DOCX')]),documentDate:null}],gaps:[]}));
   await h.render({request:directAdopted,language:'en'});const rows=h.container.querySelectorAll('.commission-followup');assert.equal(rows.length,2);
   assert.equal(rows[0].querySelector('time').textContent,'11 May 2026');assert.equal(rows[0].querySelector('time').dateTime,'2026-05-11');assert.equal(rows[1].querySelector('time'),null);
-  const primary=rows[0].querySelector('a');assert.equal(primary.textContent,'English · PDF ↗');assert.equal(primary.hreflang,'en');assert.equal(primary.lang,'en');assert.equal(primary.target,'_blank');assert.equal(primary.rel,'noreferrer');assert.equal(primary.getAttribute('aria-label'),'Commission follow-up · English · PDF');
+  const primary=rows[0].querySelector('a');assert.equal(primary.textContent,'English · PDF ↗');assert.equal(primary.hreflang,'en');assert.equal(primary.hasAttribute('lang'),false);assert.equal(primary.querySelector('span').lang,'en');assert.equal(primary.target,'_blank');assert.equal(primary.rel,'noreferrer');assert.equal(primary.getAttribute('aria-label'),'Commission follow-up, English, PDF');
   const disclosure=rows[0].querySelector('details');assert.equal(disclosure.querySelector('summary').textContent,'Other languages');assert.equal(disclosure.querySelectorAll('a').length,2);assert.equal(disclosure.querySelector('a').textContent,'French · PDF ↗');assert.equal(rows[1].querySelector('a').textContent,'English · Word document ↗');
   assert.equal(h.container.querySelector('.document-context-language').nextElementSibling.className,'commission-followups');assert(!h.container.textContent.includes('92679'));assert(!h.container.textContent.includes('10 June'));
+});
+test('follow-up file language labels use the interface language and preserve the target language',async t=>{
+  const h=await harness(t,()=>response(adopted,sourceDocument(adopted),{requestedLanguage:'fr'}),()=>({status:'available',items:[followupItem('SP-one',[followupFile('fr'),followupFile('en')])],gaps:[]}));
+  await h.render({request:directAdopted,language:'fr'});
+  const links=h.container.querySelectorAll('.commission-followup a');assert.equal(links.length,2);
+  for(const [index,code] of ['fr','en'].entries()){
+    const name=new Intl.DisplayNames(['fr'],{type:'language'}).of(code),link=links[index];
+    assert.equal(link.hasAttribute('lang'),false);assert.equal(link.hreflang,code);
+    assert.equal(link.querySelector('span').lang,'fr');assert.equal(link.querySelector('span').textContent,name);
+    assert.equal(link.textContent,`${name} · PDF ↗`);assert.equal(link.getAttribute('aria-label'),`Commission follow-up, ${name}, PDF`);
+  }
+});
+test('invalid follow-up dates omit the date and leave the document and file readable',async t=>{
+  const dates=['not-a-date','2026-13-40',''];
+  const h=await harness(t,()=>response(adopted),()=>({status:'available',items:dates.map((documentDate,index)=>({...followupItem('SP-'+index),documentDate})),gaps:[]}));
+  await h.render({request:directAdopted,language:'en'});
+  const rows=h.container.querySelectorAll('.commission-followup');assert.equal(rows.length,dates.length);
+  for(const row of rows){assert.equal(row.querySelector('time'),null);assert.equal(row.querySelector('p').textContent,'Commission follow-up · English · PDF ↗ ');assert(row.querySelector('a'));}
+  assert(h.container.textContent.includes('Exact target passage.'));
 });
 test('follow-up fallback reuses the reader language wording',async t=>{
   const h=await harness(t,()=>response(adopted,sourceDocument(adopted),{requestedLanguage:'hu'}),()=>({status:'available',items:[followupItem()],gaps:[]}));await h.render({request:directAdopted,language:'hu'});
