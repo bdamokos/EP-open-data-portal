@@ -178,7 +178,7 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
       }
       throw error;
     }
-  })().finally(()=>{pending=null;checkListeners.forEach(listener=>listener());if(selectionKey()!==requestedKey)void checkSaved(language).catch(()=>{});});
+  })().finally(()=>{pending=null;checkListeners.forEach(listener=>listener());if(document.visibilityState==='visible'&&selectionKey()!==requestedKey)void checkSaved(language).catch(()=>{});});
   requestedKeys.set(pending,requestedKey);return pending;
 }
 export function useSavedChecks(language:string,following=false) {

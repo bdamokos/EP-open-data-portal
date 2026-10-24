@@ -7,7 +7,7 @@ async function harness(t,items=[member()],v2=false) {
  const window=new Window({url:'http://localhost/'}),globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  window.localStorage.setItem(v2?'ep.following.v2':'ep.bookmarks.v1',JSON.stringify({version:v2?2:1,items}));
- const requests=[],opened=[],waiting=[];let root,loadModule,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null;
+ const requests=[],opened=[],waiting=[];let root,loadModule,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null,statusGate=null;
  let status={epoch:'one',generation:5,marksReady:true,indexComplete:true,publishedAt:null};
  let ids=[['old',0,5]],entries=[],questionAnswers=[],membershipLists={incoming:{status:'fresh'},outgoing:{status:'fresh'}},invalidMembership=false;
  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
@@ -15,7 +15,10 @@ async function harness(t,items=[member()],v2=false) {
   const url=new URL(input,window.location.href),route=url.pathname.split('/').at(-1);requests.push({url,route,options});
   if(fail===route)return Response.json({error:{code:'fixture_failure',message:'Fixture unavailable'}},{status:503});
   if(conflict&&route==='following-manifest'){conflict--;return Response.json({error:{code:'generation_changed',message:'Changed'}},{status:409});}
-  if(route==='following-status')return Response.json(status);
+  if(route==='following-status'){
+   const response=Response.json(status),gate=statusGate;statusGate=null;
+   if(gate){gate.started();await gate.wait;}return response;
+  }
   if(route==='following-groups')return Response.json({epoch:status.epoch,generation:status.generation,members:{'42':{coverage:'complete',stale:false}},events:status.generation>=6?[{id:'42:group:2026-06-17:7035',mep:'42',type:'group-changed',date:'2026-06-17',mark:6,from:{org:'org/7038',groupId:'org/SD',code:'S&D'},to:{org:'org/7035',groupId:'org/RENEW',code:'Renew'}}]:[]});
   if(route==='following-membership')return Response.json({epoch:invalidMembership?'invalid':status.epoch,generation:status.generation,lists:membershipLists,members:{'42':{status:'former',roster:'absent',endDate:'2026-04-13'}},events:status.generation>=6?[{id:'42-m-1:end',mep:'42',type:'mandate-ended',subtype:null,date:'2026-04-13',mark:6}]:[]});
   if(route==='following-manifest')return Response.json({epoch:status.epoch,generation:status.generation,rosterBasis:'publication',indexComplete:true,members:Object.fromEntries([...items.filter(x=>x.kind==='mep'),member()].map(x=>[x.id,[status.generation,3,1,0]]))});
@@ -41,7 +44,8 @@ async function harness(t,items=[member()],v2=false) {
  const check=()=>click('Check for updates');
  const background=(force=false,lang='en')=>act(async()=>{await controls.checkSaved(lang,force).catch(()=>{});});
  const holdNextDetail=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);memberGate={started,wait};return {ready,release};};
- return {tick,setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:route=>fail=route,conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
+ const holdNextStatus=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);statusGate={started,wait};return {ready,release};};
+ return {tick,setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,holdNextStatus,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:route=>fail=route,conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
 }
 const cards=h=>[...h.container.querySelectorAll('.explorer-saved-items>article')];
 const rows=card=>[...card.querySelectorAll('.explorer-saved-disclosure')];
@@ -155,6 +159,23 @@ test('hidden follow and language changes receive their pending initial check on 
  const questions=h.requests.filter(x=>x.route==='saved');assert.equal(questions.length,1);
  assert.equal(questions[0].url.searchParams.get('lang'),'fr');
  assert.deepEqual(JSON.parse(questions[0].options.body).questions,['E-10-2026-003031']);
+ assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');
+});
+test('an in-flight check cannot launch the changed selection while the tab is hidden',async t=>{
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true),gate=h.holdNextStatus();
+ await h.render('en',false,false);await gate.ready;
+ Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
+ const stored=JSON.parse(h.window.localStorage.getItem('ep.following.v2'));
+ stored.items.push({kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:2});
+ await act(async()=>{
+   h.window.localStorage.setItem('ep.following.v2',JSON.stringify(stored));
+   h.window.dispatchEvent(new h.window.StorageEvent('storage',{key:'ep.following.v2'}));
+ });
+ await act(async()=>gate.release());await settle();
+ assert(!h.requests.some(x=>x.route==='saved'),'in-flight completion must defer the new question');
+ Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
+ await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
+ assert.equal(h.requests.filter(x=>x.route==='saved').length,1);
  assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');
 });
 
