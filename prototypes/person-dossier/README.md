@@ -10,6 +10,13 @@ Integration should reuse `FollowDossierButton`, the canonical-reference identity
 npm ci
 node prototypes/person-dossier/build.mjs /tmp/public-observations /tmp/person-dossier-site
 node --test prototypes/person-dossier/model.test.mjs
+node --test prototypes/person-dossier/context-view.test.mjs
 ```
 
 The bounded examples use procedures `2025-0176`, `2025-0407` and `2025-0233`. Keep source observations, generated HTML/data, screenshots and review notes outside Git. The public-source rules in `docs/PUBLIC_DATA.md` apply. The builder makes no network requests and starts no source or index writer.
+
+When the input directory contains `header-legislation.html` captured from the locally rendered `ParliamentHeader`, the builder emits the app-context walkthrough as `index.html` and retains the original real-data reference as `reference.html`. It uses the repository’s header CSS and theme tokens. The walkthrough shows existing agenda/profile locations and marks the proposed participant links and dossier participant section. Other app sections are outside the walkthrough.
+
+The person scope stays on the dossier URL. Back restores the entry URL, activity category, page offset and focused link. Amendment cards join named positions through exact decision IDs and label each decision’s own date and stage separately. Other ballots group by sitting. Unknown source identities show an unavailable state rather than another example.
+
+Browser checks must use T3 preview or an explicitly headless, isolated session. Never activate, raise, move or resize the user’s Chrome windows. Carry that constraint into delegated review briefs.
