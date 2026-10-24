@@ -70,3 +70,16 @@ test('repeated cloud changes stop at the restart bound and an explicit retry fet
   assert.deepEqual(pages,[0,1,1,1,0],'retry begins at the expired first page');
   assert.equal(ui.container.querySelector('[role="alert"],[role="status"]'),null);
 });
+
+test('retained-speech coverage remains visible beside an incomplete calendar',async t=>{
+  for(const retained of [true,false])for(const calendarComplete of [true,false])await t.test(`${retained?'retained':'public'} / calendar ${calendarComplete}`,async t=>{
+    const data=result(speeches.slice(0,1));
+    if(!retained)delete data.coverage.basis;
+    data.coverage.catalogueComplete=calendarComplete;
+    const ui=await cloud(t,async()=>Response.json(data));await ui.render({member:1});
+    const text=ui.container.textContent;
+    assert.equal(text.includes('Some sitting dates unavailable.'),!calendarComplete);
+    assert.equal(/saved speech records|Saved speeches only/.test(text),retained,'retained records have a speech-source gap independently of calendar coverage');
+    if(!retained&&!calendarComplete)assert(!text.includes('The cloud covers the available records.'),'a calendar-only gap has one notice');
+  });
+});
