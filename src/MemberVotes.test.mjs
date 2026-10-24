@@ -74,7 +74,7 @@ async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:
     // fixtures and request assertions scoped to the member-votes contract.
     if(String(url).includes('/api/member-vote-explanations/')){
       const params=new URL(String(url),'http://localhost').searchParams,decisionId=params.get('decision');
-      return Response.json({version:1,memberId:String(MEMBER),decisionId,sittingId:decisionId.slice(0,17),snapshotId:params.get('snapshot'),subjectId:SUBJECT,matchScope:'subject',presentationAnchorDecisionId:null,items:[],written:{status:'unsupported',count:null},coverage:{status:'searched',searchComplete:true,gaps:[]}});
+      return Response.json({version:2,memberId:String(MEMBER),decisionId,sittingId:decisionId.slice(0,17),snapshotId:params.get('snapshot'),subjectId:SUBJECT,matchScope:'subject',presentationAnchorDecisionId:null,items:[],written:{status:'unsupported',count:null},coverage:{status:'searched',searchComplete:true,gaps:[]}});
     }
     calls.push(String(url));return handler(url,options,calls.length);
   });

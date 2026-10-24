@@ -7,8 +7,8 @@ import {unique,eventUri,identifier,references,comparable} from './vote-evidence.
 import {speechPeople} from './speech-interventions.mjs';
 import {explanationVoteContext,matchVoteExplanation} from './member-vote-explanations-model.mjs';
 
-export const MEMBER_VOTE_EXPLANATIONS_VERSION=1;
-export const EXPLANATION_LIMITS=Object.freeze({pageSize:50,pages:4,parents:8,sourceBytes:2*1024*1024,totalBytes:8*1024*1024,timeoutMs:25_000,pending:8});
+export const MEMBER_VOTE_EXPLANATIONS_VERSION=2;
+export const EXPLANATION_LIMITS=Object.freeze({pageSize:50,pages:4,parents:24,sourceBytes:2*1024*1024,totalBytes:8*1024*1024,timeoutMs:25_000,pending:8});
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
 export function memberVoteExplanationsQuery(search,options) {

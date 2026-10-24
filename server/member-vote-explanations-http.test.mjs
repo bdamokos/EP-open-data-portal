@@ -9,7 +9,7 @@ test('explanation HTTP reads validate pinned identities, stay no-store, and enfo
   let server;
   t.after(async()=>{if(server?.listening)await new Promise(resolve=>server.close(resolve));for(const [key,value] of [['ACTIVITY_INDEX_ENABLED',saved.activity],['CORPUS_ENABLED',saved.corpus]])value===undefined?delete process.env[key]:process.env[key]=value;});
   const calls=[];
-  t.mock.method(memberVoteExplanations,'query',async(member,query)=>{calls.push({member,query});return {version:1,memberId:String(member),decisionId:query.decision,snapshotId:query.snapshot,items:[],written:{status:'unsupported',count:null}};});
+  t.mock.method(memberVoteExplanations,'query',async(member,query)=>{calls.push({member,query});return {version:2,memberId:String(member),decisionId:query.decision,snapshotId:query.snapshot,items:[],written:{status:'unsupported',count:null}};});
   ({server}=await import('./index.mjs?explanation-http'));
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${server.address().port}/api/member-vote-explanations/197655`,params=new URLSearchParams({sitting:'MTG-PL-2026-03-26',decision:'MTG-PL-2026-03-26-DEC-189210',snapshot:'a'.repeat(64)}),url=base+'?'+params;

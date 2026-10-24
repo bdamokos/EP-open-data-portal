@@ -65,6 +65,12 @@ export function matchVoteExplanation(activity,parent,day,context,memberId) {
   if(graphGaps(day).length)return {item:null,gap:'vote-context-incomplete'};
   if(!subject||!sameDay(activity,day)||!sameDay(parent,day)||term(activity.had_activity_type)!=='PLENARY_DEBATE_SPEECH'||
     term(parent.had_activity_type)!=='PLENARY_VOTE_EXPLANATIONS')return {item:null,gap:null};
+  const documents=references(parent.based_on_a_realization_of,'doc');
+  if(!documents.length||!validRefs(parent.based_on_a_realization_of,'doc'))return {item:null,gap:'explanation-document-unavailable'};
+  const subjectDocuments=references(result.based_on_a_realization_of,'doc');
+  // A verified disjoint chapter cannot explain this text. Its classification
+  // and transcript gaps belong to that other text, not every vote that day.
+  if(subjectDocuments.length&&!documents.some(id=>subjectDocuments.includes(id)))return {item:null,gap:null};
   const people=speechPeople(activity),participations=list(activity.had_participation);
   if(people.length!==1||people[0]!==String(memberId)||!participations.some(p=>term(p.participation_role)==='SPEAKER'&&list(p.had_participant_person).some(p=>String(p?.id||p).match(/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?person\/([1-9]\d*)$/)?.[1]===String(memberId))))return {item:null,gap:'speaker-unresolved'};
   const parents=references(activity.inverse_consists_of);
@@ -73,8 +79,6 @@ export function matchVoteExplanation(activity,parent,day,context,memberId) {
   if(conflictingTranscript(activity,parent))return {item:null,gap:'explanation-transcript-conflict',details:{documents:list(activity.recorded_in_a_realization_of).map((doc,index)=>typeof doc==='object'&&doc?{index,id:doc.id,identifier:doc.identifier,notation_speechId:doc.notation_speechId,is_part_of:doc.is_part_of}:{index,id:doc})}};
   const meta=interventionMetadata(activity);
   if(!['speech','oral-explanation-of-vote'].includes(meta.type))return {item:null,gap:meta.type==='unclassified'?'classification-unavailable':null};
-  const documents=references(parent.based_on_a_realization_of,'doc');
-  if(!documents.length||!validRefs(parent.based_on_a_realization_of,'doc'))return {item:null,gap:'explanation-document-unavailable'};
   const candidates=list(day.agenda).filter(node=>sameDay(node,day)&&term(node.had_activity_type)==='PLENARY_VOTE'&&
     references(node.based_on_a_realization_of,'doc').some(id=>documents.includes(id)));
   if(candidates.length!==1)return {item:null,gap:'explanation-agenda-unresolved'};

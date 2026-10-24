@@ -8,7 +8,7 @@ const sitting='MTG-PL-2026-03-26',decision=sitting+'-DEC-189210',speech=sitting+
 function result(patch={}) {
   const contribution={id:speech,kind:'oral',matchScope:'subject',subjectId:subject,presentationAnchorDecisionId:decision,parentId:sitting+'-PVCRE-ITM-9-3',documentIds:['A-10-2026-0045'],agendaItemId:sitting+'-OJ-ITM-V-46',
     speech:{id:speech,date:'2026-03-26',kind:'PLENARY_DEBATE_SPEECH',start:'2026-03-26T11:47:51+01:00',end:'2026-03-26T11:49:14+01:00',websiteUrl:'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-26-INT-2017069542706_RO.html'},classification:{basis:'speech-header-and-explanation-chapter',sources:[]},sources:[]};
-  return {version:1,memberId:'197655',decisionId:decision,sittingId:sitting,snapshotId:snapshot,subjectId:subject,matchScope:'subject',presentationAnchorDecisionId:decision,written:{status:'unsupported',count:null},items:[contribution],coverage:{status:'searched',searchComplete:true,gaps:[]},...patch};
+  return {version:2,memberId:'197655',decisionId:decision,sittingId:sitting,snapshotId:snapshot,subjectId:subject,matchScope:'subject',presentationAnchorDecisionId:decision,written:{status:'unsupported',count:null},items:[contribution],coverage:{status:'searched',searchComplete:true,gaps:[]},...patch};
 }
 async function mount(t,{response=result(),handler}={}) {
   const window=new Window({url:'http://localhost/'});

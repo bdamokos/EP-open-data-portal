@@ -98,6 +98,46 @@ test('bounded reads preserve successful explanations and expose source and paren
   const empty=setup({speeches:[]});assert.equal((await empty.service.query(MEMBER,query())).coverage.searchComplete,true);
 });
 
+test('disjoint explanation chapters do not make this text partial, but unknown document scope does',async()=>{
+  for(const fault of ['headerless','transcript-conflict','agenda-unresolved','missing-documents','conflicting-documents']) {
+    const activity=rows('speeches').find(row=>row.activity_id.endsWith('2700')),parent=rows('parent9-2')[0];
+    if(fault==='headerless')activity.recorded_in_a_realization_of=[];
+    if(fault==='transcript-conflict')activity.recorded_in_a_realization_of[0].identifier='CRE-10-2026-03-26-OTH-999';
+    if(fault==='agenda-unresolved')parent.based_on_a_realization_of=['eli/dl/doc/A-10-2026-9999'];
+    if(fault==='missing-documents')parent.based_on_a_realization_of=[];
+    if(fault==='conflicting-documents')parent.based_on_a_realization_of=[{id:'eli/dl/doc/A-10-2026-9999',identifier:'A-10-2026-0045'}];
+    const response=await setup({speeches:[activity],override:endpoint=>endpoint.endsWith(parent.activity_id)?{url:fixture['parent9-2'].url,fetchedAt:fixture['parent9-2'].fetchedAt,payload:{data:[parent]}}:null}).service.query(MEMBER,query());
+    const unknown=fault.endsWith('documents');
+    assert.deepEqual(response.items,[],fault);
+    assert.equal(response.coverage.searchComplete,!unknown,fault);
+    assert.equal(response.coverage.status,unknown?'partial':'searched',fault);
+    if(unknown)assert(response.coverage.gaps.some(gap=>gap.code==='explanation-document-unavailable'));
+    else assert.deepEqual(response.coverage.gaps,[],fault);
+  }
+});
+
+test('the default chapter budget reaches a 24th chapter and keeps an unread 25th explicit',async()=>{
+  for(const count of [24,25]) {
+    const own=rows('speeches').find(row=>row.activity_id.endsWith('2706')),parent=rows('parent9-3')[0],chapters=new Map();
+    const speeches=Array.from({length:count-1},(_,index)=>{
+      const chapterId=SITTING+'-PVCRE-ITM-'+(100+index),speechId=SITTING+'-OTH-'+(9000+index);
+      const activity={...structuredClone(own),id:'eli/dl/event/'+speechId,activity_id:speechId,inverse_consists_of:['eli/dl/event/'+chapterId]};
+      chapters.set(chapterId,{...structuredClone(parent),id:'eli/dl/event/'+chapterId,activity_id:chapterId,had_activity_type:'def/ep-activities/PLENARY_DEBATE',consists_of:[activity.id]});
+      return activity;
+    });
+    speeches.push(own);chapters.set(parent.activity_id,parent);
+    const {service,calls}=setup({speeches,override:endpoint=>{
+      const chapter=chapters.get(endpoint.slice('/events/'.length));
+      return chapter?{url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:fixture['parent9-3'].fetchedAt,payload:{data:[chapter]}}:null;
+    }});
+    const response=await service.query(MEMBER,query());
+    assert.equal(calls.filter(call=>call.endpoint.startsWith('/events/')).length,24);
+    assert.equal(response.items.length,count===24?1:0);
+    assert.equal(response.coverage.searchComplete,count===24);
+    assert.equal(response.coverage.gaps.some(gap=>gap.code==='parent-read-limit'),count===25);
+  }
+});
+
 test('snapshot validation precedes every response, rejects unknown decisions and never collects a replacement',async()=>{
   const {service,calls,expire}=setup();await service.query(MEMBER,query());const count=calls.length;expire();
   await assert.rejects(service.query(MEMBER,query()),error=>error.code==='vote_snapshot_unavailable');assert.equal(calls.length,count);
