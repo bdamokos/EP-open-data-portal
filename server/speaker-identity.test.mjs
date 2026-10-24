@@ -1,8 +1,8 @@
-import test from 'node:test';
+import test,{beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';
-import {execFileSync} from 'node:child_process';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import {createHash} from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +11,8 @@ import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {SpeechInterventions} from './speech-intervention-service.mjs';
 import {runWithRequestSignal} from './request-budget.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
+
+beforeEach(registerSubprocesses);
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/speaker-names-20261017.json',import.meta.url)));
 const [greek,bulgarian,chair]=fixture.examples.map(example=>example.person);
 const day='2026-10-06',speechId='MTG-PL-2026-10-06-OTH-1',parentId='MTG-PL-2026-10-06-PVCRE-ITM-1';
@@ -117,7 +119,7 @@ test('an aborted identity budget marks skipped bounded profiles as temporary fai
   }
 });
 
-test('an established speech retains expired empty ODP profile evidence during refresh and after its failure',async()=>{
+test('an established speech retains expired empty ODP profile evidence during refresh and after its failure',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'identity-profile-freshness-'));
   const id='MTG-PL-2026-09-01-OTH-1',now=Date.now();
   const url=(endpoint,params={})=>{
@@ -138,10 +140,10 @@ test('an established speech retains expired empty ODP profile evidence during re
     for(const record of records)await writeFile(filename(record.url),JSON.stringify(record));
     const script=`
       import assert from 'node:assert/strict';
-      let requests=0,finish;
+      let requests=0,finish,started;const refreshStarted=new Promise(resolve=>started=resolve);
       globalThis.fetch=async value=>{
         assert.equal(String(value),${JSON.stringify(profileUrl)},'Only the retained profile may refresh');
-        requests++;
+        requests++;started();
         return new Promise(resolve=>{finish=()=>resolve(new Response('{}',{status:500,headers:{'content-type':'application/json'}}));});
       };
       const {odpSpeech}=await import(${JSON.stringify(new URL('./odp.mjs',import.meta.url).href)});
@@ -149,14 +151,18 @@ test('an established speech retains expired empty ODP profile evidence during re
       const readPolicy=value=>apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/speech/'+${JSON.stringify(id)}),value);
       const during=await odpSpeech(${JSON.stringify(id)},'en');
       const duringPolicy=readPolicy(during);
-      await new Promise(resolve=>setImmediate(resolve));
+      await refreshStarted;
       assert.equal(typeof finish,'function');
       finish();
-      await new Promise(resolve=>setTimeout(resolve,20));
-      const after=await odpSpeech(${JSON.stringify(id)},'en');
+      let after;const deadline=performance.now()+110_000;
+      do {
+        after=await odpSpeech(${JSON.stringify(id)},'en');
+        if(after.speakers[0].identitySources.find(source=>source.url===${JSON.stringify(profileUrl)}).refreshError)break;
+        await new Promise(resolve=>setImmediate(resolve));
+      }while(performance.now()<deadline);
       console.log(JSON.stringify({during,after,duringPolicy,afterPolicy:readPolicy(after),requests}));
     `;
-    const out=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{env:{...process.env,ODP_CACHE_DIR:directory},encoding:'utf8',timeout:10000}));
+    const out=JSON.parse((await execFileAsync(t,process.execPath,['--input-type=module','-e',script],{env:{...process.env,ODP_CACHE_DIR:directory},encoding:'utf8'})).stdout);
     assert.equal(out.requests,1);
     for(const [value,policy]of [[out.during,out.duringPolicy],[out.after,out.afterPolicy]]){
       const identity=value.speakers.find(person=>person.id==='43');

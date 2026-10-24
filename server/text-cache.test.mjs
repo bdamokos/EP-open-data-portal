@@ -1,14 +1,16 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import {deflateRawSync} from 'node:zlib';
 import {docxParagraphs,docxContent,allowedDownload,documentText,documentNotes} from './document-text.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 import {motionBody,compareMotionBodies} from './motion-diff.mjs';
+
+beforeEach(registerSubprocesses);
 
 function zip(xml,styles,extra={}) {
   const entries=[['word/document.xml',xml],...(styles===undefined?[]:[['word/styles.xml',styles]]),...Object.entries(extra)],locals=[],directory=[];let offset=0;
@@ -30,7 +32,7 @@ test('DOCX extraction preserves paragraph/run breaks and omits deleted text and 
 });
 test('official motion hides translation tags and metadata while preserving visible headings, author, date and reference',async()=>{
   const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
-  const paragraphs=docxParagraphs(zip(fixture.documentXml,fixture.stylesXml));
+  const content=docxContent(zip(fixture.documentXml,fixture.stylesXml)),{paragraphs}=content;
   assert.deepEqual(paragraphs.slice(0,7),['European Parliament','2024-2029','Plenary sitting','B10\u20110431/2026','1.10.2026','MOTION FOR A RESOLUTION','pursuant to Rule 115(2) and (3) and (4)(c) of the Rules of Procedure']);
   assert(paragraphs.includes('Pietro Fiocchi'));assert(paragraphs.includes('on behalf of the ECR Group'));
   assert(paragraphs.includes('(D105447/07 – 2026/2824(RPS))'));
@@ -170,7 +172,7 @@ test('background work reserves capacity for interactive reads and queued reads t
   const read=q.acquire('interactive').then(release=>{order.push('interactive');return release;});
   one();const done=await read;assert.deepEqual(order,['interactive']);two();(await bg)();done();assert.equal(q.active,0);
 });
-test('all supplied speech languages survive expired disk cache and failed refresh without interactive waiting',async()=>{
+test('all supplied speech languages survive expired disk cache and failed refresh without interactive waiting',async t=>{
   const dir=await mkdtemp(path.join(os.tmpdir(),'speech-text-test-'));
   try {
     const id='MTG-PL-2026-10-07-OTH-2017097993206';
@@ -179,47 +181,94 @@ test('all supplied speech languages survive expired disk cache and failed refres
     const fragments=Object.fromEntries(langs.map(lang=>[lang,`<oralStatements><speech xml:lang="${lang==='es'?'es':'es-t-'+lang+'-mtec'}"><p>Saved ${lang}</p></speech></oralStatements>`]));
     const record={url,fetchedAt:Date.now()-7*3600000,payload:{data:[{activity_id:id,had_activity_type:'def/PLENARY_DEBATE_SPEECH',recorded_in_a_realization_of:[{originalLanguage:['http://publications.europa.eu/resource/authority/language/SPA'],'api:xmlFragment':fragments}]}]}};
     const filename=path.join(dir,createHash('sha256').update(url).digest('hex')+'.json');await writeFile(filename,JSON.stringify(record));
-    const script=`let requests=0,finish,refreshCompleted=false;globalThis.fetch=()=>{requests++;return new Promise(resolve=>finish=()=>{refreshCompleted=true;resolve(new Response('{}',{status:500,headers:{'content-type':'application/json'}}));})};const {odpSpeech}=await import(${JSON.stringify(new URL('./odp.mjs',import.meta.url).href)});const began=Date.now();const hu=await odpSpeech(${JSON.stringify(id)},'hu');const elapsed=Date.now()-began,returnedBeforeRefresh=!refreshCompleted;await new Promise(r=>setImmediate(r));finish();await new Promise(r=>setTimeout(r,40));const en=await odpSpeech(${JSON.stringify(id)},'en');console.log(JSON.stringify({hu,en,elapsed,requests,returnedBeforeRefresh}));`;
-    const out=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{env:{...process.env,ODP_CACHE_DIR:dir},encoding:'utf8',timeout:30000}));
+    const script=`
+      import assert from 'node:assert/strict';
+      let requests=0,finish,started;const refreshStarted=new Promise(resolve=>started=resolve);
+      globalThis.fetch=()=>{requests++;started();return new Promise(resolve=>finish=()=>resolve(new Response('{}',{status:500,headers:{'content-type':'application/json'}})));};
+      const {odpSpeech}=await import(${JSON.stringify(new URL('./odp.mjs',import.meta.url).href)});
+      const hu=await odpSpeech(${JSON.stringify(id)},'hu');
+      await refreshStarted;
+      const during=await odpSpeech(${JSON.stringify(id)},'en');
+      assert.equal(requests,1,'language readers join the same pending refresh');
+      assert.equal(during.textCache.refreshInProgress,true);
+      finish();
+      let en;
+      const deadline=performance.now()+110_000;
+      do {en=await odpSpeech(${JSON.stringify(id)},'en');if(en.textCache.refreshError)break;await new Promise(resolve=>setImmediate(resolve));}while(performance.now()<deadline);
+      assert.match(en.textCache.refreshError,/500/);
+      for(let i=0;i<5;i++)await odpSpeech(${JSON.stringify(id)},'hu');
+      console.log(JSON.stringify({hu,en,requests,returnedBeforeRefresh:hu.textCache.refreshInProgress}));
+    `;
+    const out=JSON.parse((await execFileAsync(t,process.execPath,['--input-type=module','-e',script],{env:{...process.env,ODP_CACHE_DIR:dir},encoding:'utf8'})).stdout);
     assert(out.returnedBeforeRefresh);assert.equal(out.hu.availableTextLanguages.length,24);assert.equal(out.hu.textLanguage,'hu');assert.equal(out.hu.translationType,'machine');assert(out.hu.textCache.stale);assert(out.en.textCache.refreshError.includes('500'));assert.equal(out.requests,1);
     assert.deepEqual(JSON.parse(await readFile(filename,'utf8')),record);
   }finally{await rm(dir,{recursive:true,force:true});}
 });
-test('document text coalesces cold reads, persists actual language and serves last-good text after refresh failure',async()=>{
+test('document text coalesces cold reads, persists actual language and serves last-good text after refresh failure',async t=>{
   const dir=await mkdtemp(path.join(os.tmpdir(),'document-text-test-'));
   const url='https://data.europarl.europa.eu/distribution/test-'+Date.now()+'/answer_ga.docx';
   const work={identifier:'E-10-2026-003031-ASW',originalLanguage:['http://publications.europa.eu/resource/authority/language/ENG'],is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/GLE',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
   try {
-    let calls=0;const download=async()=>{calls++;await new Promise(r=>setTimeout(r,10));return {paragraphs:['Actual answer text']};};
-    const [a,b]=await Promise.all([documentText(work,'en',{directory:dir,download}),documentText(work,'ga',{directory:dir,download})]);
+    let calls=0,start,finish;
+    const started=new Promise(resolve=>start=resolve),body=new Promise(resolve=>finish=resolve);
+    const download=()=>{calls++;start();return body;};
+    const first=documentText(work,'en',{directory:dir,download}),second=documentText(work,'ga',{directory:dir,download});
+    await started;assert.equal(calls,1,'concurrent languages share the pending download');
+    finish({paragraphs:['Actual answer text']});
+    const [a,b]=await Promise.all([first,second]);
     assert.equal(calls,1);assert.equal(a.textLanguage,'ga');assert.equal(a.translationType,'unspecified');assert.equal(a.status,'available');assert.deepEqual(a.paragraphs,b.paragraphs);
     const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,8);
     const clock=()=>Date.now()+8*86400000;
-    const stale=await documentText(work,'en',{directory:dir,clock,download:async()=>{throw new Error('upstream500');}});
+    let refreshCalls=0,fail;
+    const failure=new Promise((_,reject)=>fail=()=>reject(new Error('upstream500')));
+    // Attach a handler immediately; the real source queue still owns admission.
+    failure.catch(()=>{});
+    const refresh=()=>{refreshCalls++;return failure;};
+    const stale=await documentText(work,'en',{directory:dir,clock,download:refresh});
     assert(stale.stale);assert.deepEqual(stale.paragraphs,a.paragraphs);
-    await new Promise(r=>setTimeout(r,2200));
-    const after=await documentText(work,'en',{directory:dir,clock,download:async()=>{throw new Error('must not immediately retry');}});
+    assert.equal(stale.refreshInProgress,true);assert.equal(stale.textLanguage,'ga');
+    const during=await documentText(work,'ga',{directory:dir,clock,download:refresh});
+    assert.equal(during.refreshInProgress,true);fail();
+    let after;const deadline=performance.now()+110_000;
+    do {
+      after=await documentText(work,'en',{directory:dir,clock,download:refresh});
+      if(after.refreshError&&!after.refreshInProgress)break;
+      await new Promise(resolve=>setImmediate(resolve));
+    }while(performance.now()<deadline);
+    assert.equal(after.refreshInProgress,false);assert.equal(refreshCalls,1);
+    for(let i=0;i<5;i++)await documentText(work,'ga',{directory:dir,clock,download:refresh});
+    assert.equal(refreshCalls,1,'polling before the retry deadline must not redownload');
     assert.equal(after.status,'available');assert.equal(after.refreshError,'upstream500');assert.deepEqual(after.paragraphs,a.paragraphs);
   }finally{await rm(dir,{recursive:true,force:true});}
 });
-test('old extracted text is refreshed on demand and current extraction survives a process restart',async()=>{
+test('old extracted text is refreshed on demand and current extraction survives a process restart',async t=>{
   const dir=await mkdtemp(path.join(os.tmpdir(),'document-upgrade-test-'));
   try {
     await mkdir(path.join(dir,'document-text-v1'));
     const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
-    const paragraphs=docxParagraphs(zip(fixture.documentXml,fixture.stylesXml));
+    const content=docxContent(zip(fixture.documentXml,fixture.stylesXml)),{paragraphs}=content;
+    const upgraded=[];
     for(const version of [undefined,1,2,3,4,5,6,7]) {
       const url=`https://data.europarl.europa.eu/distribution/upgrade-${Date.now()}-${version}/motion.docx`;
       const work={identifier:fixture.sourceId,is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
       const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');
       const old={schemaVersion:1,extractionVersion:version,sourceId:fixture.sourceId,sourceUrl:url,fetchedAt:new Date().toISOString(),paragraphs:['<Date>{01/10/2026}1.10.2026</Date>']};
       await writeFile(file,JSON.stringify(old));let calls=0;
-      const result=await documentText(work,'en',{directory:dir,download:async()=>{calls++;return {paragraphs};}});
+      const result=await documentText(work,'en',{directory:dir,download:async()=>{calls++;return content;}});
       assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);assert.equal(calls,1);
-      assert.equal(JSON.parse(await readFile(file,'utf8')).extractionVersion,8);
-      const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});const result=await documentText(${JSON.stringify(work)},'en',{directory:${JSON.stringify(dir)},download:async()=>{throw new Error('Unexpected redownload');}});console.log(JSON.stringify(result));`;
-      const restarted=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{encoding:'utf8',timeout:5000}));
-      assert.equal(restarted.status,'available');assert.deepEqual(restarted.paragraphs,paragraphs);
+      assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,8);
+      const saved=JSON.parse(await readFile(file,'utf8'));
+      assert.equal(saved.extractionVersion,8);assert.equal(saved.sourceUrl,url);assert.deepEqual(saved.paragraphs,paragraphs);
+      upgraded.push(work);
+    }
+    // One cold process verifies every upgraded record without sharing parent memory.
+    const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});let downloads=0;const results=[];for(const work of ${JSON.stringify(upgraded)})results.push(await documentText(work,'en',{directory:${JSON.stringify(dir)},download:async()=>{downloads++;throw new Error('Unexpected redownload');}}));if(downloads)throw new Error('Restart attempted '+downloads+' downloads');console.log(JSON.stringify(results));`;
+    const restarted=JSON.parse((await execFileAsync(t,process.execPath,['--input-type=module','-e',script],{encoding:'utf8'})).stdout);
+    assert.equal(restarted.length,8);
+    for(const [index,result] of restarted.entries()) {
+      assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);
+      assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,8);assert.equal(result.refreshInProgress,false);
+      assert.equal(result.sourceUrl,upgraded[index].is_realized_by[0].is_embodied_by[0].is_exemplified_by);
     }
   }finally{await rm(dir,{recursive:true,force:true});}
 });

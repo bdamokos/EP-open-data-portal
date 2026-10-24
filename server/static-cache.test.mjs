@@ -1,16 +1,15 @@
 import {loopback} from './test-support/loopback.mjs';
-import { test } from "node:test";
+import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { execFile } from "node:child_process";
+import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import { mkdtemp, mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { promisify } from "node:util";
 
-const execFileAsync = promisify(execFile);
+beforeEach(registerSubprocesses);
 
-test("missing or malformed build manifests safely fall back to five-minute caching", async () => {
+test("missing or malformed build manifests safely fall back to five-minute caching", async t => {
   const script = `
     import { serveStatic } from ${JSON.stringify(new URL("./static-files.mjs", import.meta.url).href)};
     const headers = {};
@@ -27,7 +26,7 @@ test("missing or malformed build manifests safely fall back to five-minute cachi
         await mkdir(path.join(directory, ".vite"));
         await writeFile(path.join(directory, ".vite", "manifest.json"), manifest);
       }
-      const { stdout } = await execFileAsync(process.execPath, ["--input-type=module", "-e", script], {
+      const { stdout } = await execFileAsync(t,process.execPath, ["--input-type=module", "-e", script], {
         env: { ...process.env, EXPLORER_DIST_DIR: directory, EXPLORER_SERVE_STATIC: "true" },
       });
       assert.deepEqual(JSON.parse(stdout), { served: true, status: 200, cacheControl: "public, max-age=300" });
@@ -39,6 +38,7 @@ test("missing or malformed build manifests safely fall back to five-minute cachi
 
 test("static caching follows emitted build assets and keeps HTML, ranges and failures fresh",loopback, async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "static-cache-"));
+  t.after(()=>rm(directory,{recursive:true,force:true}));
   await mkdir(path.join(directory, "assets"));
   await mkdir(path.join(directory, ".vite"));
   const files = [
