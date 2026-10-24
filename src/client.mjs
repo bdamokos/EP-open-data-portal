@@ -10,7 +10,7 @@ export function dataTimeoutFor(route) {
   if (path.startsWith('motion-comparison/')) return 90_000;
   if (path.startsWith('speech-context/')) return 60_000;
   if (path.startsWith('profile/')) return 40_000;
-  if (/^(directory$|vote-periods$|speeches\/|activities\/|speech-statistics\/|speech\/|document\/|document-context\/|member-votes\/|speech-media\/|references$|reference-summary$|source-record$)/.test(path)) return 35_000;
+  if (/^(directory$|vote-periods$|speeches\/|activities\/|speech-statistics\/|speech\/|document\/|document-context\/|member-votes\/|decision-votes\/|speech-media\/|references$|reference-summary$|source-record$)/.test(path)) return 35_000;
   if (/^insights\/(questions|speech-cloud|procedure-context|procedure-progress|press-releases|topic-trends|legislation|participation)$/.test(path)) return 35_000;
   return 8_000;
 }

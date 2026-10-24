@@ -26,7 +26,7 @@ function count(value) {
   }
   return null;
 }
-function voterGroups(raw,prefix) {
+export function voterGroups(raw,prefix) {
   const groups={},supplied={},byPerson=new Map();let malformedReferences=0;
   for(const [position,suffix] of Object.entries(positions)) {
     const field=prefix+suffix,values=raw[field];supplied[position]=Array.isArray(values);
