@@ -13,5 +13,5 @@ export type DossierItem=DossierRole|DossierSpeech|DossierAmendment|DossierVote;
 export type DossierSection='roles'|'speeches'|'amendments'|'votes';
 export type DossierFilter='all'|DossierSection;
 export type DossierCursor={offset:number;targetOffset:number};
-export type DossierActivityResponse={version:1;procedure:DossierReference;memberId:string|null;participants:{id:string;name:string|null;roles:DossierRole[]}[];section:DossierSection;items:DossierItem[];pagination:DossierCursor&{limit:number;next:DossierCursor|null};coverage:DossierCoverage;generation:number;checkedTarget?:string};
+export type DossierActivityResponse={version:1;procedure:DossierReference;memberId:string|null;participants:{id:string;name:string|null;roles:DossierRole[]}[];section:DossierSection;items:DossierItem[];pagination:DossierCursor&{limit:number;next:DossierCursor|null};coverage:DossierCoverage;generation:number;amendmentGeneration?:number;checkedTarget?:string};
 export type DossierReferencesResponse={items:DossierReference[];coverage:{status:DossierCoverage['status'];gaps:({code?:string;message?:string;id?:string}|string)[]}};
