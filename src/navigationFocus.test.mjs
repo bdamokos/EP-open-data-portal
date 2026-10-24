@@ -49,13 +49,13 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
   });
   // The conditional transform plugin needs an isolated server for its delayed-view graph.
-  const delayedFile=delayedModule==='saved'?'Saved.tsx':'GroupVoices.tsx';
+  const delayedFile=delayedModule==='saved'?'Saved.tsx':delayedModule==='legislation'?'Legislation.tsx':'GroupVoices.tsx';
   loadModule=await freshLoader({configFile:false,plugins:delayedModule?[{name:'delay-view-fixture',transform(code,id){if(id.endsWith('/'+delayedFile))return 'await globalThis.__navigationViewGate;\n'+code;}}]:[],server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {default:App}=await loadModule('/src/App.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container,{onCaughtError:()=>{}});
   await act(async()=>root.render(createElement(App)));
-  if(!delayedModule||!query.includes('view=groups'))await viewReady(container);
+  if(!delayedModule||!query.includes('view='+(delayedModule==='legislation'?'legislation':'groups')))await viewReady(container);
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
   const click=async node=>{assert(node,'Missing control');node.focus();await act(async()=>node.click());if(!delayedModule)await viewReady(container);};
   const finish=(data,status=200)=>act(async()=>{assert(pending.length,'Missing pending page');pending.shift().resolve(Response.json(data,{status}));});
@@ -254,6 +254,15 @@ test('a cold deep link renders its destination shell before the view module reso
   assert(h.button('Members'));
   await h.releaseView();
   assert.equal(h.container.querySelectorAll('main').length,1);
+});
+
+test('cold legislation links show the validated mode heading before and after the module loads',async t=>{
+  for(const [mode,title] of [['agenda','Plenary agenda'],['participation','What’s hot'],['cloud','Plenary word cloud'],['trends','Topic timeline'],['dossier','Dossiers'],['invalid','Plenary agenda']])await t.test(mode,async t=>{
+    const h=await harness(t,'?view=legislation&pl-mode='+mode,false,'legislation');
+    assert.equal(h.container.querySelector('[data-view-loading] h1').textContent,title);
+    await h.releaseView();
+    assert.equal(h.container.querySelector('h1').textContent,title);
+  });
 });
 
 test('Following retains its mounted header during a delayed first import',async t=>{
