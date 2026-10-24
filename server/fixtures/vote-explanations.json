@@ -1,0 +1,1618 @@
+{
+  "note": "Bounded public record projections for exact-ID join tests. Collections retain selected source rows only; original response hashes and JSON pointers identify the source. They do not describe complete sitting coverage.",
+  "speeches": {
+    "url": "https://data.europarl.europa.eu/api/v2/speeches?format=application%2Fld%2Bjson&sitting-date=2026-03-26&include-output=xml_fragment&language=en&limit=500&offset=0",
+    "fetchedAt": "2026-10-23T22:24:57.274957+00:00",
+    "originalResponseHash": "a4b0d50843ba9173a66b7436ca276f287f557aa3c6bfbe6e09c07ea2ef1be77c",
+    "rows": [
+      {
+        "jsonPointer": "/data/98",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069542700",
+          "type": "Activity",
+          "activity_date": "2026-03-26",
+          "activity_end_date": "2026-03-26T11:47:40.073+01:00",
+          "activity_id": "MTG-PL-2026-03-26-OTH-2017069542700",
+          "activity_label": {
+            "en": "Combating corruption (A9-0048/2024 - Raquel García Hermida-Van Der Walle)"
+          },
+          "activity_start_date": "2026-03-26T11:46:24.852+01:00",
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+          "had_participation": {
+            "id": "eli/dl/participation/MTG-PL-2026-03-26-OTH-2017069542700_197655",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/197655"
+            ],
+            "participation_role": "def/ep-roles/SPEAKER"
+          },
+          "recorded_in_a_realization_of": [
+            {
+              "id": "eli/dl/doc/CRE-10-2026-03-26-OTH-2017069542700",
+              "type": "WorkSubdivision",
+              "is_part_of": "eli/dl/doc/CRE-10-2026-03-26-ITM-009-02",
+              "number": "2-0171-0000",
+              "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+              "identifier": "CRE-10-2026-03-26-OTH-2017069542700",
+              "notation_speechId": "2017069542700",
+              "numbering": 140,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/RON"
+              ],
+              "api:xmlFragment": {
+                "en": "<oralStatements><speech endTime=\"2026-03-26T11:47:40.073\" startTime=\"2026-03-26T11:46:24.852\" xml:lang=\"ro-t-en-mtec\"><from xml:lang=\"ro-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/197655\">Cristian Terheş</person> (<organization refersTo=\"epdata:org/7037\">ECR</organization>).</from><blockContainer><p xml:space=\"preserve\"><recordedTime time=\"2026-03-26T11:46:26.232+01:00\" type=\"startEvent\"/>Madam President, I voted against the Anti-Corruption Directive because it violates fundamental European values that made the EU different from the Soviet Union in the past.<recordedTime time=\"2026-03-26T11:46:36.682+01:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-03-26T11:46:38.342+01:00\" type=\"startEvent\"/>1. The Directive interferes with competences belonging to the Member States, in breach of national sovereignty and the principle of subsidiarity.<recordedTime time=\"2026-03-26T11:46:43.962+01:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-03-26T11:46:45.902+01:00\" type=\"startEvent\"/>2. Certain crimes are defined vaguely or even absurdly, which creates serious risks of abuse, which has already been reported by NGOs. For example, articles on bribery and influence peddling criminalise the mere promise to take unfair advantage of a public official, even if that promise is not followed by either the giving of benefits or any concrete action by the public official. Basically, words not followed by any deed are incriminated, which is absurd. It is also here that improper influence on the official is criminalized, without defining which influence is proper and which is improper.<recordedTime time=\"2026-03-26T11:47:22.272+01:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-03-26T11:47:23.352+01:00\" type=\"startEvent\"/>The Directive also imposes obligations on Member States, but exempts the EU institutions from binding transparency rules.<recordedTime time=\"2026-03-26T11:47:29.182+01:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-03-26T11:47:30.022+01:00\" type=\"startEvent\"/>In short, the EU legislates for others, while Ursula will be able to continue and exercise her discretionary power without being sanctioned.<recordedTime time=\"2026-03-26T11:47:37.352+01:00\" type=\"endEvent\"/></p></blockContainer></speech></oralStatements>"
+              }
+            }
+          ],
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-PVCRE-ITM-9-2"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/99",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069542706",
+          "type": "Activity",
+          "activity_date": "2026-03-26",
+          "activity_end_date": "2026-03-26T11:49:14.546+01:00",
+          "activity_id": "MTG-PL-2026-03-26-OTH-2017069542706",
+          "activity_label": {
+            "en": "Global Gateway – past impacts and future orientation (A10-0045/2026 - Chloé Ridel, Hildegard Bentele)"
+          },
+          "activity_start_date": "2026-03-26T11:47:51.698+01:00",
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+          "had_participation": {
+            "id": "eli/dl/participation/MTG-PL-2026-03-26-OTH-2017069542706_197655",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/197655"
+            ],
+            "participation_role": "def/ep-roles/SPEAKER"
+          },
+          "recorded_in_a_realization_of": [
+            {
+              "id": "eli/dl/doc/CRE-10-2026-03-26-OTH-2017069542706",
+              "type": "WorkSubdivision",
+              "is_part_of": "eli/dl/doc/CRE-10-2026-03-26-ITM-009-03",
+              "number": "2-0174-0000",
+              "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+              "identifier": "CRE-10-2026-03-26-OTH-2017069542706",
+              "notation_speechId": "2017069542706",
+              "numbering": 142,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/RON"
+              ],
+              "api:xmlFragment": {
+                "en": "<oralStatements><speech endTime=\"2026-03-26T11:49:14.546\" startTime=\"2026-03-26T11:47:51.698\" xml:lang=\"ro-t-en-mtec\"><from xml:lang=\"ro-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/197655\">Cristian Terheş</person> (<organization refersTo=\"epdata:org/7037\">ECR</organization>).</from><blockContainer><p xml:space=\"preserve\"><recordedTime time=\"2026-03-26T11:47:52.978+01:00\" type=\"startEvent\"/>Madam President, I voted in favour of the Global Gateway report from geopolitical realism.<recordedTime time=\"2026-03-26T11:47:58.688+01:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-03-26T11:48:00.048+01:00\" type=\"startEvent\"/>To count on the world stage, the EU must abandon its role as an actor, which only regulates and gives lessons to others, and invest in infrastructure. While the EU was teaching different countries how to regulate that men can give birth, China, through the <inline name=\"i\">Belt and Road Initiative</inline>, invested billions of euros in digital transport and energy infrastructure.<recordedTime time=\"2026-03-26T11:48:22.358+01:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-03-26T11:48:23.538+01:00\" type=\"startEvent\"/>Europe cannot afford the luxury of naivety or passivity. If we do not offer an alternative to these countries, they will not run out of infrastructure, if we do not get involved, other countries will.<recordedTime time=\"2026-03-26T11:48:35.848+01:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-03-26T11:48:36.258+01:00\" type=\"startEvent\"/>Global Gateway is right because it protects concrete European interests – access to critical raw materials and secure trade routes. It is fundamental to diversify trade routes and reduce dependencies. Connecting with Central Asia and Development <inline name=\"i\">Middle Corridor</inline> must become clear priorities.<recordedTime time=\"2026-03-26T11:48:54.308+01:00\" type=\"endEvent\"/></p><p xml:space=\"preserve\"><recordedTime time=\"2026-03-26T11:48:54.478+01:00\" type=\"startEvent\"/>At the same time, Global Gateway must not become a vehicle to advance the ideological agenda of the European Commission. It needs to be invested in infrastructure, not social engineering. Invested in partnerships, not political conditioning. Europeans' money must serve Europe's interests, not the experiments of bureaucrats.<recordedTime time=\"2026-03-26T11:49:13.308+01:00\" type=\"endEvent\"/></p></blockContainer></speech></oralStatements>"
+              }
+            }
+          ],
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-PVCRE-ITM-9-3"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/137",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-OTH-2017070840737",
+          "type": "Activity",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-OTH-2017070840737",
+          "activity_label": {
+            "en": "Global Gateway – past impacts and future orientation (debate)"
+          },
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE_WRITTEN_STATEMENT",
+          "had_participation": {
+            "id": "eli/dl/participation/MTG-PL-2026-03-26-OTH-2017070840737_190574",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/190574"
+            ],
+            "participation_role": "def/ep-roles/SPEAKER"
+          },
+          "recorded_in_a_realization_of": [
+            {
+              "id": "eli/dl/doc/CRE-10-2026-03-26-OTH-2017070840737",
+              "type": "WorkSubdivision",
+              "is_part_of": "eli/dl/doc/CRE-10-2026-03-26-ITM-004",
+              "number": "2-0087-5000",
+              "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+              "identifier": "CRE-10-2026-03-26-OTH-2017070840737",
+              "notation_speechId": "2017070840737",
+              "numbering": 87,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/DEU"
+              ],
+              "api:xmlFragment": {
+                "en": "<writtenStatements><speech xml:lang=\"de-t-en-mtec\"><from xml:lang=\"de-t-en-mtec\" xml:space=\"preserve\"><person refersTo=\"epdata:person/190574\">Tomasz Froelich</person> (<organization refersTo=\"epdata:org/7151\">ESN</organization>), <process refersTo=\"\">written</process></from><blockContainer><p xml:space=\"preserve\">The world order is becoming multipolar. That can be welcomed. That can be rejected. But that is a fact. In this multipolar world order there is a struggle for influence. To raw materials. To good trade relations. To infrastructure. To connectivity. We Europeans have lost a lot of influence worldwide in recent decades. Our share of global GDP is gradually falling. Our importance is diminishing. Other China: Beijing's economy is booming. Beijing's influence is growing. In Asia, in Africa, everywhere. This is closely linked to the New Silk Road project, which can also be an opportunity for us. This does not mean that we should not use our own geostrategic instruments in global competition, including in the area of development policy. Global Gateway could be one such tool. Could, but it isn't. Because it is completely wrongly conceived: Instead of using Global Gateway to expand infrastructure projects in third countries, secure access to resources and create win-win situations in international trade, this project is being misused for woken values imperialism, arrogant teachings and climate goals that make the rich poor and the poorest even poorer – at the price of EUR 300 billion so far, which has been spent intransparently. That doesn't help us. This only hurts us – and makes Europe increasingly unpopular and irrelevant around the world. Stop it! We really need more China in development policy.</p></blockContainer></speech></writtenStatements>"
+              }
+            }
+          ],
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-PVCRE-ITM-4"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/147",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069542699",
+          "type": "Activity",
+          "activity_date": "2026-03-26",
+          "activity_end_date": "2026-03-26T11:46:26.4+01:00",
+          "activity_id": "MTG-PL-2026-03-26-OTH-2017069542699",
+          "activity_label": {
+            "en": "Combating corruption (A9-0048/2024 - Raquel García Hermida-Van Der Walle)"
+          },
+          "activity_start_date": "2026-03-26T11:46:17.404+01:00",
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE_SPEECH",
+          "had_participation": {
+            "id": "eli/dl/participation/MTG-PL-2026-03-26-OTH-2017069542699_257113",
+            "type": "Participation",
+            "had_participant_person": [
+              "person/257113"
+            ],
+            "participation_role": "def/ep-roles/SPEAKER"
+          },
+          "recorded_in_a_realization_of": [
+            {
+              "id": "eli/dl/doc/CRE-10-2026-03-26-OTH-2017069542699",
+              "type": "WorkSubdivision",
+              "is_part_of": "eli/dl/doc/CRE-10-2026-03-26-ITM-009-02",
+              "number": "2-0170-0000",
+              "type_subdivision": "http://publications.europa.eu/resource/authority/subdivision/OTH",
+              "identifier": "CRE-10-2026-03-26-OTH-2017069542699",
+              "notation_speechId": "2017069542699",
+              "numbering": 139,
+              "originalLanguage": [
+                "http://publications.europa.eu/resource/authority/language/ITA"
+              ],
+              "api:xmlFragment": {
+                "en": "<oralStatements><speech endTime=\"2026-03-26T11:46:26.4\" startTime=\"2026-03-26T11:46:17.404\" xml:lang=\"it-t-en-mtec\"><from xml:lang=\"it-t-en-mtec\"><person refersTo=\"epdata:person/257113\">Presidente</person>.</from><blockContainer><p xml:space=\"preserve\"><recordedTime time=\"2026-03-26T11:46:17.654+01:00\" type=\"startEvent\"/>Let's move on to the explanations of vote on Raquel García Hermida-Van Der Walle's report \"Fight against corruption\".<recordedTime time=\"2026-03-26T11:46:24.014+01:00\" type=\"endEvent\"/></p></blockContainer></speech></oralStatements>"
+              }
+            }
+          ],
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-PVCRE-ITM-9-2"
+          ]
+        }
+      }
+    ]
+  },
+  "parent9-2": {
+    "url": "https://data.europarl.europa.eu/api/v2/events/MTG-PL-2026-03-26-PVCRE-ITM-9-2?format=application%2Fld%2Bjson",
+    "fetchedAt": "2026-10-23T22:24:06.880088+00:00",
+    "originalResponseHash": "c339beb725e661386487b48284cd5c58fc81bc012c2c8b62303d5aada4a931b8",
+    "rows": [
+      {
+        "jsonPointer": "/data/0",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-PVCRE-ITM-9-2",
+          "type": "Activity",
+          "activity_date": "2026-03-26",
+          "activity_end_date": "2026-03-26T11:47:43.665+01:00",
+          "activity_id": "MTG-PL-2026-03-26-PVCRE-ITM-9-2",
+          "activity_label": {
+            "en": "9.2. Combating corruption (A9-0048/2024)"
+          },
+          "activity_start_date": "2026-03-26T11:46:17.404+01:00",
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-9-2024-0048"
+          ],
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069542700",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069542699"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE_EXPLANATIONS",
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/CRE-10-2026-03-26-ITM-009-02",
+            "eli/dl/doc/PV-10-2026-03-26-ITM-009-02"
+          ]
+        }
+      }
+    ]
+  },
+  "parent9-3": {
+    "url": "https://data.europarl.europa.eu/api/v2/events/MTG-PL-2026-03-26-PVCRE-ITM-9-3?format=application%2Fld%2Bjson",
+    "fetchedAt": "2026-10-23T22:24:06.994852+00:00",
+    "originalResponseHash": "faa3fb597ef57ab18205ead6dffc65d89d1e55426c5350be0413ae9fecec7eed",
+    "rows": [
+      {
+        "jsonPointer": "/data/0",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-PVCRE-ITM-9-3",
+          "type": "Activity",
+          "activity_date": "2026-03-26",
+          "activity_end_date": "2026-03-26T11:49:20.04+01:00",
+          "activity_id": "MTG-PL-2026-03-26-PVCRE-ITM-9-3",
+          "activity_label": {
+            "en": "9.3. Global Gateway – past impacts and future orientation (A10-0045/2026)"
+          },
+          "activity_start_date": "2026-03-26T11:47:43.665+01:00",
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0045"
+          ],
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069542706",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069542703",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069542707"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE_EXPLANATIONS",
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/CRE-10-2026-03-26-ITM-009-03",
+            "eli/dl/doc/PV-10-2026-03-26-ITM-009-03"
+          ]
+        }
+      }
+    ]
+  },
+  "parent4": {
+    "url": "https://data.europarl.europa.eu/api/v2/events/MTG-PL-2026-03-26-PVCRE-ITM-4?format=application%2Fld%2Bjson",
+    "fetchedAt": "2026-10-23T22:27:35.854007+00:00",
+    "originalResponseHash": "f059540ce020497bb4775a478393f6bf8f2074b162c84dabb1adb5d6ef538fce",
+    "rows": [
+      {
+        "jsonPointer": "/data/0",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-PVCRE-ITM-4",
+          "type": "Activity",
+          "activity_date": "2026-03-26",
+          "activity_end_date": "2026-03-26T10:58:07+01:00",
+          "activity_id": "MTG-PL-2026-03-26-PVCRE-ITM-4",
+          "activity_label": {
+            "en": "4. Global Gateway – past impacts and future orientation (debate)"
+          },
+          "activity_start_date": "2026-03-26T09:58:02.6+01:00",
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0045"
+          ],
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499952",
+            "eli/dl/event/MTG-PL-2026-03-26-PVCRE-CHA-3",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069500012",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499968",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069500000",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499976",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069500006",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499970",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069450737",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069500009",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499958",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017070840737",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499972",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069500014",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069500002",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499964",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069450742",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499978",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069450740",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499982",
+            "eli/dl/event/MTG-PL-2026-03-26-PVCRE-CHA-2",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499946",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499960",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069500011",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499966",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499990",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499974",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069450738",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499984",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069450735",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499998",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499993",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499948",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069500007",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499962",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499980",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499950",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069450734",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499988",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499986",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499956",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499991",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499954",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499995",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069500004",
+            "eli/dl/event/MTG-PL-2026-03-26-OTH-2017069499944"
+          ],
+          "executed": [
+            "eli/dl/event/MTG-PL-2026-03-26-OJ-ITM-D-46",
+            "eli/dl/event/MTG-PL-2026-03-26-OJ-ITM-V-46"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE",
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-03-26-ITM-004",
+            "eli/dl/doc/CRE-10-2026-03-26-ITM-004"
+          ]
+        }
+      }
+    ]
+  },
+  "agenda": {
+    "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-03-26/foreseen-activities?format=application%2Fld%2Bjson&limit=50&offset=0",
+    "fetchedAt": "2026-10-23T22:24:07.768688+00:00",
+    "originalResponseHash": "cbe85e79b1ea5d66b43975dda06e538fa83d7e075b6265d946a329c3afe166f5",
+    "rows": [
+      {
+        "jsonPointer": "/data/2",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-OJ-ITM-D-46",
+          "type": "ForeseenActivity",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-OJ-ITM-D-46",
+          "activity_label": {
+            "en": "Global Gateway -– past impacts and future orientation"
+          },
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0045"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE"
+        }
+      },
+      {
+        "jsonPointer": "/data/5",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-OJ-ITM-V-17",
+          "type": "ForeseenActivity",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-OJ-ITM-V-17",
+          "activity_label": {
+            "en": "Combating corruption"
+          },
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-9-2024-0048",
+            "eli/dl/doc/C-9-2023-0162"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE"
+        }
+      },
+      {
+        "jsonPointer": "/data/14",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-OJ-ITM-V-46",
+          "type": "ForeseenActivity",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-OJ-ITM-V-46",
+          "activity_label": {
+            "en": "Global Gateway -– past impacts and future orientation"
+          },
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0045"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE"
+        }
+      }
+    ]
+  },
+  "results": {
+    "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-03-26/vote-results?format=application%2Fld%2Bjson&limit=500&offset=0",
+    "fetchedAt": "2026-10-23T22:22:00.777261+00:00",
+    "originalResponseHash": "13049b2f949dc8466225471389087a677cacbdbab381ce6be1745fc4fe042dc5",
+    "rows": [
+      {
+        "jsonPointer": "/data/7",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987011",
+          "type": "Activity",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-VOT-ITM-987011",
+          "activity_label": {
+            "en": "Global Gateway – past impacts and future orientation"
+          },
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0045"
+          ],
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189210",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189209"
+          ],
+          "executed": [
+            "eli/dl/event/MTG-PL-2026-03-26-OJ-ITM-V-46"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-03-26-VOT-ITM-022"
+          ],
+          "inverse_consists_of": [
+            {
+              "id": "eli/dl/event/MTG-PL-2026-03-26",
+              "consists_of": [
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987119",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987076",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987207",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987074",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987077",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987109",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987075",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987011",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987018",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987205",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987115",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987072",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987081",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987080",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987017",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987204",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987073",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987071",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987078",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987079",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987133"
+              ]
+            },
+            {
+              "id": "eli/dl/proc/2025-2073",
+              "consists_of": [
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987011"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/20",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012",
+          "type": "Activity",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-VOT-ITM-987012",
+          "activity_label": {
+            "en": "Combating corruption ***I"
+          },
+          "based_on_a_realization_of": [
+            "eli/dl/doc/A-9-2024-0048"
+          ],
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189604",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189236",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189608",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189612",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189232",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189610",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189600",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189613",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189603",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189602",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189611",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189234",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189599",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189607",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189606",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189614",
+            "eli/dl/event/MTG-PL-2026-03-26-DEC-189244"
+          ],
+          "executed": [
+            "eli/dl/event/MTG-PL-2026-03-26-OJ-ITM-V-17"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-03-26-VOT-ITM-012"
+          ],
+          "inverse_consists_of": [
+            {
+              "id": "eli/dl/event/MTG-PL-2026-03-26",
+              "consists_of": [
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987119",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987076",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987207",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987074",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987077",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987109",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987075",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987011",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987018",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987205",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987115",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987072",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987081",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987080",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987017",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987204",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987073",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987071",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987078",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987079",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012",
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987133"
+              ]
+            },
+            {
+              "id": "eli/dl/proc/2023-0135",
+              "consists_of": [
+                "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "decisions": {
+    "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-03-26/decisions?format=application%2Fld%2Bjson&limit=500&offset=0&filter-output=voters",
+    "fetchedAt": "2026-10-23T22:22:01.086312+00:00",
+    "originalResponseHash": "42bb0ed48d3e32aecea81e8401de1c9caeb8ca9bfd9851aa00c63c749d5f961b",
+    "rows": [
+      {
+        "jsonPointer": "/data/2",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189602",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189602",
+          "activity_label": {
+            "en": "Article 4, § 1 (corresponds to Article 22, § 1 in Amendment 221)"
+          },
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Article 4, § 1 (corresponds to Article 22, § 1 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/5",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189613",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189613",
+          "activity_label": {
+            "en": "Recital 26 (corresponds to recital 33 in Amendment 221)"
+          },
+          "decided_on_a_realization_of": [
+            "eli/dl/doc/A-9-2024-0048-AM-223"
+          ],
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Recital 26 (corresponds to recital 33 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/14",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189209",
+          "type": "Vote",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189209",
+          "activity_label": {
+            "en": "After § 81"
+          },
+          "decided_on_a_realization_of": [
+            "eli/dl/doc/A-10-2026-0045-AM-1"
+          ],
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC",
+          "decision_outcome": "def/ep-statuses/ADOPTED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "number_of_votes_abstention": 29,
+          "number_of_votes_against": 102,
+          "number_of_votes_favor": 499,
+          "referenceText": {
+            "en": "After § 81"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987011"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/22",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189606",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189606",
+          "activity_label": {
+            "en": "Article 4, § 2 (corresponds to Article 22, § 2 in Amendment 221)"
+          },
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Article 4, § 2 (corresponds to Article 22, § 2 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/31",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189610",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189610",
+          "activity_label": {
+            "en": "Article 20 (corresponds to Article 18 in Amendment 221)"
+          },
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Article 20 (corresponds to Article 18 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/33",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189244",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189244",
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Commission proposal"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/44",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189599",
+          "type": "Vote",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189599",
+          "activity_label": {
+            "en": "A9-0048/2024 – Raquel García Hermida-Van Der Walle – Proposal to vote on amendments"
+          },
+          "activity_start_date": "2026-03-26T11:11:00+01:00",
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/REJECTED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "number_of_votes_abstention": 16,
+          "number_of_votes_against": 446,
+          "number_of_votes_favor": 179,
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-03-26-RCV-ITM-003"
+          ],
+          "referenceText": {
+            "en": "Proposal to vote on amendments"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/48",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189210",
+          "type": "Vote",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189210",
+          "activity_label": {
+            "en": "A10-0045/2026 – Chloé Ridel, Hildegard Bentele – Motion for a resolution (as a whole)"
+          },
+          "activity_start_date": "2026-03-26T11:40:25+01:00",
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/ADOPTED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "number_of_votes_abstention": 80,
+          "number_of_votes_against": 146,
+          "number_of_votes_favor": 371,
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-03-26-RCV-ITM-069"
+          ],
+          "referenceText": {
+            "en": "Motion for a resolution (as a whole)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987011"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/62",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189234",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189234",
+          "activity_label": {
+            "en": "Text as a whole"
+          },
+          "decision_method": "def/ep-decision-methods/VOTE_HAND",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Text as a whole"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/72",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189614",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189614",
+          "activity_label": {
+            "en": "Recital 26 (corresponds to recital 33 in Amendment 221)"
+          },
+          "decision_method": "def/ep-decision-methods/VOTE_HAND",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Recital 26 (corresponds to recital 33 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/73",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189236",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189236",
+          "activity_label": {
+            "en": "Article 3, § 1 (corresponds to Article 20 in Amendment 221)"
+          },
+          "decision_method": "def/ep-decision-methods/VOTE_HAND",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Article 3, § 1 (corresponds to Article 20 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/75",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189603",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189603",
+          "activity_label": {
+            "en": "Article 4, § 1 (corresponds to Article 22, § 1 in Amendment 221)"
+          },
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Article 4, § 1 (corresponds to Article 22, § 1 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/81",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189612",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189612",
+          "activity_label": {
+            "en": "Recital 15 (corresponds to recital 19 in Amendment 221)"
+          },
+          "decided_on_a_realization_of": [
+            "eli/dl/doc/A-9-2024-0048-AM-222"
+          ],
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Recital 15 (corresponds to recital 19 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/85",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189611",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189611",
+          "activity_label": {
+            "en": "Article 20 (corresponds to Article 18 in Amendment 221)"
+          },
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Article 20 (corresponds to Article 18 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/95",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189608",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189608",
+          "activity_label": {
+            "en": "Article 4, § 2 (corresponds to Article 22, § 2 in Amendment 221)"
+          },
+          "decided_on_a_realization_of": [
+            "eli/dl/doc/A-9-2024-0048-AM-226"
+          ],
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Article 4, § 2 (corresponds to Article 22, § 2 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/100",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189607",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189607",
+          "activity_label": {
+            "en": "Article 4, § 2 (corresponds to Article 22, § 2 in Amendment 221)"
+          },
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Article 4, § 2 (corresponds to Article 22, § 2 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/106",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189600",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189600",
+          "activity_label": {
+            "en": "Article 3, § 1 (corresponds to Article 20 in Amendment 221)"
+          },
+          "decided_on_a_realization_of": [
+            "eli/dl/doc/A-9-2024-0048-AM-224"
+          ],
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Article 3, § 1 (corresponds to Article 20 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/107",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189604",
+          "type": "Decision",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189604",
+          "activity_label": {
+            "en": "Article 4, § 1 (corresponds to Article 22, § 1 in Amendment 221)"
+          },
+          "decided_on_a_realization_of": [
+            "eli/dl/doc/A-9-2024-0048-AM-225"
+          ],
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/LAPSED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "referenceText": {
+            "en": "Article 4, § 1 (corresponds to Article 22, § 1 in Amendment 221)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      },
+      {
+        "jsonPointer": "/data/114",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189232",
+          "type": "Vote",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189232",
+          "activity_label": {
+            "en": "A9-0048/2024 – Raquel García Hermida-Van Der Walle – Provisional agreement – Am 221"
+          },
+          "activity_start_date": "2026-03-26T11:11:15+01:00",
+          "decided_on_a_realization_of": [
+            "eli/dl/doc/A-9-2024-0048-AM-221"
+          ],
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/ADOPTED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "number_of_votes_abstention": 42,
+          "number_of_votes_against": 21,
+          "number_of_votes_favor": 581,
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-03-26-RCV-ITM-004"
+          ],
+          "referenceText": {
+            "en": "Provisional agreement"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987012"
+          ]
+        }
+      }
+    ]
+  },
+  "named": {
+    "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-03-26/decisions?format=application%2Fld%2Bjson&vote-method=ROLL_CALL_EV&limit=250&offset=0",
+    "fetchedAt": "2026-10-23T22:29:17.247195+00:00",
+    "originalResponseHash": "03110809f763973c81df3fbc5fae13be154df57c2fec98ff0a13fb57721bca9a",
+    "rows": [
+      {
+        "jsonPointer": "/data/0",
+        "record": {
+          "id": "eli/dl/event/MTG-PL-2026-03-26-DEC-189210",
+          "type": "Vote",
+          "activity_date": "2026-03-26",
+          "activity_id": "MTG-PL-2026-03-26-DEC-189210",
+          "activity_label": {
+            "en": "A10-0045/2026 – Chloé Ridel, Hildegard Bentele – Motion for a resolution (as a whole)"
+          },
+          "activity_start_date": "2026-03-26T11:40:25+01:00",
+          "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+          "decision_outcome": "def/ep-statuses/ADOPTED",
+          "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+          "had_voter_abstention": [
+            "person/256884",
+            "person/256961",
+            "person/197545",
+            "person/2152",
+            "person/261038",
+            "person/197398",
+            "person/257163",
+            "person/256852",
+            "person/257095",
+            "person/257143",
+            "person/257096",
+            "person/197552",
+            "person/257076",
+            "person/257139",
+            "person/213330",
+            "person/256845",
+            "person/257150",
+            "person/125023",
+            "person/257005",
+            "person/28150",
+            "person/257131",
+            "person/257144",
+            "person/197580",
+            "person/197537",
+            "person/257099",
+            "person/270261",
+            "person/197556",
+            "person/257094",
+            "person/96675",
+            "person/256843",
+            "person/260724",
+            "person/256844",
+            "person/124715",
+            "person/197820",
+            "person/96810",
+            "person/257055",
+            "person/4746",
+            "person/256851",
+            "person/257056",
+            "person/256808",
+            "person/257113",
+            "person/257060",
+            "person/256805",
+            "person/124884",
+            "person/127766",
+            "person/257093",
+            "person/197786",
+            "person/257149",
+            "person/197528",
+            "person/220840",
+            "person/96830",
+            "person/197572",
+            "person/101039",
+            "person/256857",
+            "person/96826",
+            "person/256989",
+            "person/197501",
+            "person/257080",
+            "person/256855",
+            "person/197516",
+            "person/272024",
+            "person/257054",
+            "person/197553",
+            "person/197469",
+            "person/257052",
+            "person/36392",
+            "person/239260",
+            "person/257147",
+            "person/204346",
+            "person/256811",
+            "person/197794",
+            "person/256860",
+            "person/257145",
+            "person/257077",
+            "person/197825",
+            "person/256853",
+            "person/257109",
+            "person/124877",
+            "person/257092",
+            "person/257130"
+          ],
+          "had_voter_against": [
+            "person/256929",
+            "person/197829",
+            "person/197699",
+            "person/257029",
+            "person/256949",
+            "person/256954",
+            "person/256928",
+            "person/187917",
+            "person/256877",
+            "person/257260",
+            "person/197628",
+            "person/126699",
+            "person/249982",
+            "person/236050",
+            "person/197468",
+            "person/256876",
+            "person/197627",
+            "person/97236",
+            "person/190574",
+            "person/256881",
+            "person/257016",
+            "person/267485",
+            "person/256915",
+            "person/257299",
+            "person/256966",
+            "person/204414",
+            "person/197690",
+            "person/197395",
+            "person/257135",
+            "person/257140",
+            "person/256858",
+            "person/123562",
+            "person/200345",
+            "person/257457",
+            "person/220897",
+            "person/256948",
+            "person/257255",
+            "person/197475",
+            "person/124858",
+            "person/257117",
+            "person/197416",
+            "person/197831",
+            "person/256883",
+            "person/270719",
+            "person/130881",
+            "person/257018",
+            "person/197763",
+            "person/256981",
+            "person/193292",
+            "person/125001",
+            "person/257069",
+            "person/257023",
+            "person/23699",
+            "person/125052",
+            "person/256922",
+            "person/257022",
+            "person/256942",
+            "person/257070",
+            "person/261797",
+            "person/256896",
+            "person/96653",
+            "person/256912",
+            "person/257258",
+            "person/38511",
+            "person/256955",
+            "person/257262",
+            "person/257090",
+            "person/256886",
+            "person/257155",
+            "person/256878",
+            "person/256890",
+            "person/256925",
+            "person/257116",
+            "person/28615",
+            "person/257025",
+            "person/197533",
+            "person/256945",
+            "person/257050",
+            "person/103246",
+            "person/197687",
+            "person/88552",
+            "person/256842",
+            "person/125325",
+            "person/124736",
+            "person/256907",
+            "person/256834",
+            "person/256996",
+            "person/94649",
+            "person/257007",
+            "person/256957",
+            "person/256911",
+            "person/257063",
+            "person/198373",
+            "person/198176",
+            "person/256893",
+            "person/257062",
+            "person/197500",
+            "person/197574",
+            "person/124834",
+            "person/257118",
+            "person/256983",
+            "person/197832",
+            "person/197734",
+            "person/257019",
+            "person/257024",
+            "person/256944",
+            "person/190517",
+            "person/256875",
+            "person/256909",
+            "person/189065",
+            "person/256939",
+            "person/256806",
+            "person/197503",
+            "person/256888",
+            "person/257126",
+            "person/257091",
+            "person/23788",
+            "person/257125",
+            "person/245770",
+            "person/124760",
+            "person/197795",
+            "person/23868",
+            "person/256951",
+            "person/256900",
+            "person/124875",
+            "person/257000",
+            "person/256882",
+            "person/256874",
+            "person/257120",
+            "person/256998",
+            "person/256916",
+            "person/257009",
+            "person/256967",
+            "person/256921",
+            "person/256959",
+            "person/197691",
+            "person/257021",
+            "person/256941",
+            "person/257072",
+            "person/261796",
+            "person/185771",
+            "person/256895",
+            "person/25758",
+            "person/257064",
+            "person/124813",
+            "person/257133"
+          ],
+          "had_voter_favor": [
+            "person/124784",
+            "person/124850",
+            "person/257148",
+            "person/257160",
+            "person/86057",
+            "person/185341",
+            "person/188945",
+            "person/96998",
+            "person/256946",
+            "person/256807",
+            "person/256889",
+            "person/257071",
+            "person/257044",
+            "person/5729",
+            "person/204336",
+            "person/840",
+            "person/28223",
+            "person/197466",
+            "person/256905",
+            "person/256987",
+            "person/197824",
+            "person/125027",
+            "person/125065",
+            "person/256926",
+            "person/197443",
+            "person/256978",
+            "person/197818",
+            "person/190713",
+            "person/256813",
+            "person/257030",
+            "person/125204",
+            "person/197498",
+            "person/197810",
+            "person/197392",
+            "person/197646",
+            "person/197652",
+            "person/256839",
+            "person/197738",
+            "person/257107",
+            "person/251324",
+            "person/110673",
+            "person/257001",
+            "person/4289",
+            "person/257727",
+            "person/28419",
+            "person/204400",
+            "person/256970",
+            "person/256964",
+            "person/197863",
+            "person/130100",
+            "person/34232",
+            "person/257088",
+            "person/256973",
+            "person/197490",
+            "person/257027",
+            "person/257033",
+            "person/86793",
+            "person/256999",
+            "person/197842",
+            "person/197449",
+            "person/204129",
+            "person/256831",
+            "person/257296",
+            "person/197649",
+            "person/197655",
+            "person/124799",
+            "person/256840",
+            "person/124806",
+            "person/256950",
+            "person/197461",
+            "person/197658",
+            "person/96780",
+            "person/197670",
+            "person/257119",
+            "person/96709",
+            "person/257059",
+            "person/257065",
+            "person/95074",
+            "person/256903",
+            "person/256976",
+            "person/197493",
+            "person/197525",
+            "person/197557",
+            "person/197839",
+            "person/257068",
+            "person/28226",
+            "person/204449",
+            "person/257039",
+            "person/88882",
+            "person/124785",
+            "person/197414",
+            "person/197408",
+            "person/256935",
+            "person/275087",
+            "person/197682",
+            "person/208722",
+            "person/256869",
+            "person/197589",
+            "person/220801",
+            "person/257051",
+            "person/257045",
+            "person/96932",
+            "person/218347",
+            "person/197721",
+            "person/112748",
+            "person/1909",
+            "person/197473",
+            "person/256906",
+            "person/96756",
+            "person/256962",
+            "person/257169",
+            "person/229839",
+            "person/257010",
+            "person/197534",
+            "person/257170",
+            "person/124700",
+            "person/257031",
+            "person/1294",
+            "person/197432",
+            "person/197840",
+            "person/257301",
+            "person/197417",
+            "person/256938",
+            "person/197581",
+            "person/129073",
+            "person/197647",
+            "person/197653",
+            "person/257108",
+            "person/257114",
+            "person/198073",
+            "person/190464",
+            "person/256870",
+            "person/124836",
+            "person/28229",
+            "person/1927",
+            "person/257123",
+            "person/197679",
+            "person/197514",
+            "person/135511",
+            "person/257057",
+            "person/260035",
+            "person/98341",
+            "person/257089",
+            "person/38542",
+            "person/256947",
+            "person/197464",
+            "person/256980",
+            "person/96811",
+            "person/197403",
+            "person/197429",
+            "person/197491",
+            "person/256918",
+            "person/91636",
+            "person/125046",
+            "person/124895",
+            "person/197621",
+            "person/257259",
+            "person/257297",
+            "person/257100",
+            "person/256985",
+            "person/197412",
+            "person/197444",
+            "person/256979",
+            "person/197504",
+            "person/256814",
+            "person/256820",
+            "person/202036",
+            "person/28400",
+            "person/28307",
+            "person/124866",
+            "person/22418",
+            "person/256846",
+            "person/256899",
+            "person/256904",
+            "person/197421",
+            "person/230085",
+            "person/257002",
+            "person/257048",
+            "person/257081",
+            "person/197558",
+            "person/96808",
+            "person/256997",
+            "person/257075",
+            "person/125104",
+            "person/204418",
+            "person/219652",
+            "person/256965",
+            "person/197870",
+            "person/197606",
+            "person/256936",
+            "person/197447",
+            "person/22858",
+            "person/257256",
+            "person/197573",
+            "person/125670",
+            "person/96725",
+            "person/257028",
+            "person/257034",
+            "person/257112",
+            "person/191693",
+            "person/256885",
+            "person/256891",
+            "person/96933",
+            "person/197662",
+            "person/256803",
+            "person/197722",
+            "person/197772",
+            "person/96711",
+            "person/198076",
+            "person/257040",
+            "person/124807",
+            "person/204332",
+            "person/96668",
+            "person/257011",
+            "person/98219",
+            "person/197462",
+            "person/124701",
+            "person/197781",
+            "person/197401",
+            "person/256968",
+            "person/197841",
+            "person/256974",
+            "person/28122",
+            "person/197517",
+            "person/197523",
+            "person/257020",
+            "person/257066",
+            "person/220908",
+            "person/119435",
+            "person/28390",
+            "person/257037",
+            "person/245018",
+            "person/197406",
+            "person/256977",
+            "person/197494",
+            "person/276060",
+            "person/197800",
+            "person/197618",
+            "person/198183",
+            "person/197624",
+            "person/101585",
+            "person/206158",
+            "person/256829",
+            "person/197702",
+            "person/197549",
+            "person/257103",
+            "person/183916",
+            "person/251874",
+            "person/4267",
+            "person/257043",
+            "person/5392",
+            "person/256992",
+            "person/256986",
+            "person/256809",
+            "person/96812",
+            "person/197591",
+            "person/197784",
+            "person/188096",
+            "person/257046",
+            "person/256995",
+            "person/106936",
+            "person/124713",
+            "person/103381",
+            "person/197445",
+            "person/197497",
+            "person/256815",
+            "person/257084",
+            "person/96761",
+            "person/257078",
+            "person/257106",
+            "person/124795",
+            "person/124802",
+            "person/37312",
+            "person/256830",
+            "person/197636",
+            "person/256847",
+            "person/256879",
+            "person/128483",
+            "person/125012",
+            "person/197770",
+            "person/257115",
+            "person/257121",
+            "person/107212",
+            "person/96787",
+            "person/197677",
+            "person/257082",
+            "person/58766",
+            "person/257061",
+            "person/257087",
+            "person/257049",
+            "person/96936",
+            "person/124893",
+            "person/257257",
+            "person/204413",
+            "person/119652",
+            "person/197404",
+            "person/256919",
+            "person/197492",
+            "person/197410",
+            "person/256871",
+            "person/40599",
+            "person/256833",
+            "person/96681",
+            "person/257101",
+            "person/210480",
+            "person/257124",
+            "person/257041",
+            "person/197391",
+            "person/256880",
+            "person/37324",
+            "person/124808",
+            "person/124846",
+            "person/204333",
+            "person/256990",
+            "person/220896",
+            "person/197711",
+            "person/96752",
+            "person/197672",
+            "person/99945",
+            "person/197782",
+            "person/124861",
+            "person/249603",
+            "person/199941",
+            "person/197422",
+            "person/197769",
+            "person/197413",
+            "person/197439",
+            "person/256934",
+            "person/2341",
+            "person/257026",
+            "person/204419",
+            "person/257110",
+            "person/23781",
+            "person/257438",
+            "person/256937",
+            "person/197448",
+            "person/96940",
+            "person/256824",
+            "person/197648",
+            "person/257151",
+            "person/96791",
+            "person/28399",
+            "person/124766",
+            "person/214839",
+            "person/257053",
+            "person/111412",
+            "person/257085",
+            "person/257003",
+            "person/237465",
+            "person/256943",
+            "person/197460",
+            "person/96934",
+            "person/256804",
+            "person/197773",
+            "person/256908",
+            "person/197425",
+            "person/256920",
+            "person/125042",
+            "person/125068",
+            "person/28617",
+            "person/257300",
+            "person/40224",
+            "person/28298",
+            "person/257079",
+            "person/197440",
+            "person/72779",
+            "person/24922",
+            "person/256810",
+            "person/96833",
+            "person/197577",
+            "person/257038"
+          ],
+          "number_of_votes_abstention": 80,
+          "number_of_votes_against": 146,
+          "number_of_votes_favor": 371,
+          "recorded_in_a_realization_of": [
+            "eli/dl/doc/PV-10-2026-03-26-RCV-ITM-069"
+          ],
+          "referenceText": {
+            "en": "Motion for a resolution (as a whole)"
+          },
+          "inverse_consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-26-VOT-ITM-987011"
+          ]
+        }
+      }
+    ]
+  }
+}
