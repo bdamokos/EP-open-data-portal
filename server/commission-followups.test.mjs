@@ -65,7 +65,7 @@ test('one shared deadline keeps earlier replies when a later read stalls',async(
 });
 test('absent and rejected files retain the verified reply with a gap',async()=>{
   for(const expressions of [undefined,[{id:ref(sp)+'/en',language:'ENG',is_embodied_by:[{id:'rejected',is_exemplified_by:'https://evil.example/file.pdf'}]}]]){
-    const work=reply();work.is_realized_by=expressions;const {service}=reader({replies:{[sp]:[work]}});const result=await service.query(query);assert.equal(result.items.length,1);assert.deepEqual(result.items[0].files,[]);assert(result.gaps.some(g=>g.reason==='file-unavailable'));
+    const work=reply();work.is_realized_by=expressions;const {service}=reader({replies:{[sp]:[work]}});const result=await service.query(query);assert.equal(result.items.length,1);assert.deepEqual(result.items[0].files,[]);assert(result.gaps.some(g=>g.reason===(expressions?'file-rejected':'file-unavailable')));
   }
 });
 test('reader URLs reject unsafe paths, authorities and mismatched declarations',()=>{

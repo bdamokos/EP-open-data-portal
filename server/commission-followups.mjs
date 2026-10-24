@@ -98,17 +98,17 @@ export class CommissionFollowups {
       result.checkedCount++;
       try {
         const {work,source}=await read('/external-documents/'+reply,payload=>validateReply(payload,reply,id));
-        const files=[];
+        const files=[];let declaredFiles=0;
         for(const expression of array(work.is_realized_by)){
           const languageUri=typeof expression?.language==='string'?expression.language:null,code=languageCode(languageUri);
           for(const manifestation of array(expression?.is_embodied_by)){
-            const link=followupReaderLink(manifestation);
-            if(!link||!code||typeof expression?.id!=='string'||typeof manifestation?.id!=='string'){gap('file-unavailable',reply);continue;}
+            declaredFiles++;const link=followupReaderLink(manifestation);
+            if(!link||!code||typeof expression?.id!=='string'||typeof manifestation?.id!=='string'){gap(!link?'file-rejected':!code?'file-language-unavailable':'file-identity-unavailable',reply);continue;}
             const size=manifestation.byteSize;
             files.push({expressionId:expression.id,manifestationId:manifestation.id,language:code,languageUri,...link,issued:typeof manifestation.issued==='string'?manifestation.issued:null,byteSize:(typeof size==='number'||typeof size==='string'&&/^\d+$/.test(size))&&Number.isSafeInteger(Number(size))&&Number(size)>=0?Number(size):null});
           }
         }
-        if(!files.length)gap('file-unavailable',reply);
+        if(!files.length&&!declaredFiles)gap('file-unavailable',reply);
         const item={id:reply,documentDate:date(work.document_date),relationship:{from:reply,field:'answers_to',to:id},files,source};
         result.items.push(item);
         if(Buffer.byteLength(JSON.stringify(result))>this.limits.responseBytes){result.items.pop();result.truncated=true;gap('response-budget',reply);break;}
