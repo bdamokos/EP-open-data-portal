@@ -29,7 +29,10 @@ async function harness(t) {
 }
 test('following a dossier from its reader establishes a quiet baseline and exposes inline updates, acknowledgment and history',async t=>{
   const h=await harness(t);await h.renderContext();await h.flush();
+  const follow=h.container.querySelector('.explorer-save-button');
+  assert.equal(follow.getAttribute('aria-label'),'Follow dossier '+reference);assert.equal(follow.getAttribute('aria-pressed'),'false');
   await h.click('☆Follow');assert.equal(h.controls.dossierStore.snapshot().items.length,1);assert.equal(h.controls.dossierStore.snapshot().items[0].entries.length,0);
+  assert.equal(follow.getAttribute('aria-label'),'Follow dossier '+reference);assert.equal(follow.getAttribute('aria-pressed'),'true');
   await h.renderSaved();await h.flush();assert.match(h.container.textContent,/No new updates/);assert(h.container.querySelector('a[href*="dossier-ref=2025"]'));
   h.generation(2);await act(async()=>h.controls.checkDossiers({force:true}));await h.flush();
   assert.match(h.container.textContent,/1 new/);assert.match(h.container.textContent,/Parliament position adopted/);

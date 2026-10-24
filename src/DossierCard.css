@@ -8,4 +8,5 @@
 
 @media (max-width: 600px) {
   .dossier-follow-card h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+  .dossier-follow-card .explorer-saved-actions a { flex-basis: 100%; }
 }
