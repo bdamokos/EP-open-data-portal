@@ -23,6 +23,7 @@ import {votePeriods} from './vote-periods.mjs';
 import {memberVotes,memberVotesQuery} from './member-votes.mjs';
 import {memberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
 import {documentContext,documentContextQuery} from './document-context.mjs';
+import {commissionFollowups,commissionFollowupsQuery} from './commission-followups.mjs';
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
@@ -111,7 +112,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 }
 
 // Browser transport for this app. The gateway admits the same finite route set.
-const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -171,6 +172,9 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments[0] === 'member-votes' && segments.length===2) {
       result=await memberVotes.query(positiveId(segments[1]),memberVotesQuery(url.searchParams));
+    }
+    else if(segments[0]==='commission-followups'&&segments.length===2) {
+      result=await commissionFollowups.query(commissionFollowupsQuery(segments[1],url.searchParams));
     }
     else if (segments[0] === 'member-vote-explanations' && segments.length===2) {
       result=await memberVoteExplanations.query(positiveId(segments[1]),memberVoteExplanationsQuery(url.searchParams));
