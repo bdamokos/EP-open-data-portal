@@ -55,6 +55,14 @@ export function legislationContributors(detail, headers) {
     }
     return [dimension,[...counts].filter(([,count])=>count>0).map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label))];
   }));
+  if(stats.groupContributions) {
+    const counts=new Map(stats.groupContributions.rows.map(row=>[row.label,row.count]));
+    let unavailable=stats.groupContributions.unavailable,total=stats.groupContributions.total;
+    for(const speech of detail.speeches)for(const person of speech.people.filter(person=>chairing(speech,person.id))) {
+      total--;if(person.contributionGroup)counts.set(person.contributionGroup,(counts.get(person.contributionGroup)||0)-1);else unavailable--;
+    }
+    stats.groupContributions={...stats.groupContributions,total,unavailable,rows:[...counts].filter(([,count])=>count>0).map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label))};
+  }
   return {people,roles,stats,excludedCount:excluded.length};
 }
 

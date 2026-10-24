@@ -1,3 +1,5 @@
+import {generationGroupOn} from './group-attribution.mjs';
+import {groupContributions} from './group-aggregation.mjs';
 import {sourceAvailability,periodAvailability} from './source-availability.mjs';
 import {oralAvailability} from './availability-evidence.mjs';
 import {missingSitting,requireLatestSitting} from './meetings-reader.mjs';
@@ -34,8 +36,8 @@ async function participationEvent(legislation,id,readEvent,now) {
   // Old disk events are saved observations. Only a provably newer publication replaces transient evidence.
   return disk&&(!memory||Number.isFinite(disk.fetchedAt)&&Number.isFinite(memory.fetchedAt)&&disk.fetchedAt>memory.fetchedAt)?disk:memory||disk;
 }
-export function participationRows(topics,results,decisions,speechRows,members) {
-  const rows=topics.map(topic=>({...topic,speakerIds:speechRows.has(topic.id)?new Set(speechRows.get(topic.id).filter(row=>row.speechKind==='PLENARY_DEBATE_SPEECH'&&members.has(String(row.mepId))).map(row=>String(row.mepId))):null,voterIds:null,amendmentVotes:null,amendmentIds:new Set(),rollCalls:0}));
+export function participationRows(topics,results,decisions,speechRows,members,groupOn=()=>'unavailable',includePerson=()=>true) {
+  const rows=topics.map(topic=>({...topic,speakerIds:speechRows.has(topic.id)?new Set(speechRows.get(topic.id).filter(row=>row.speechKind==='PLENARY_DEBATE_SPEECH'&&members.has(String(row.mepId))).map(row=>String(row.mepId))):null,voterIds:null,amendmentVotes:null,amendmentIds:new Set(),rollCalls:0,speakerContributions:[...new Map((speechRows.get(topic.id)||[]).filter(r=>r.speechKind==='PLENARY_DEBATE_SPEECH').map(r=>[[r.sourceId,r.mepId,r.date].join('|'),r])).values()].map(r=>({id:String(r.mepId),date:r.date})),voterContributions:[]}));
   const byId=new Map(rows.map(row=>[row.uri,row])),parents=new Map();
   for(const result of results?.payload.data||[])if(tail(result.had_activity_type)==='PLENARY_VOTE_RESULTS')for(const executed of refs(result.executed)){const row=byId.get(executed);if(row)parents.set(canonical(result.id),row);}
   const seen=new Set();
@@ -45,13 +47,15 @@ export function participationRows(topics,results,decisions,speechRows,members) {
       row.rollCalls++;row.amendmentVotes??=0;if(voteScope(vote)==='amendment'){row.amendmentIds.add(id);row.amendmentVotes=row.amendmentIds.size;}
       if(!['had_voter_favor','had_voter_against','had_voter_abstention'].some(field=>Object.hasOwn(vote,field)))continue;
       row.voterIds??=new Set();
+      const named=new Set(['had_voter_favor','had_voter_against','had_voter_abstention'].flatMap(field=>array(vote[field]).map(personId).filter(Boolean)));
+      row.voterContributions.push(...[...named].map(id=>({id,date:vote.activity_date})));
       for(const field of ['had_voter_favor','had_voter_against','had_voter_abstention'])for(const ref of array(vote[field])){const person=personId(ref);if(person&&members.has(person))row.voterIds.add(person);}
     }
   }
-  return rows;
+  return rows.map(({speakerContributions,voterContributions,...row})=>({...row,groupContributions:{speakers:row.speakerIds===null?null:groupContributions(speakerContributions.filter(p=>includePerson(p.id)),groupOn),voters:row.voterIds===null?null:groupContributions(voterContributions.filter(p=>includePerson(p.id)),groupOn)}}));
 }
 export async function participation(legislation,store,query,{clock=Date.now,readEvent=cachedEvent}={}) {
-  const status=store.status(),catalogue=await legislation.catalogue(),today=brusselsDay(clock());
+  const status=store.status(),groupOn=generationGroupOn(store,status.servingGeneration),catalogue=await legislation.catalogue(),today=brusselsDay(clock());
   const end=query.week?new Date(Date.parse(query.week+'T12:00:00Z')+6*86400_000).toISOString().slice(0,10):null;
   const selected=query.sitting||(!query.week?requireLatestSitting(catalogue,today)?.activity_id:null);
   const sittings=query.week?catalogue.sittings.filter(s=>s.activity_date>=query.week&&s.activity_date<=end):catalogue.sittings.filter(s=>s.activity_id===selected);
@@ -60,7 +64,7 @@ export async function participation(legislation,store,query,{clock=Date.now,read
   const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],speechProjectionGaps=new Set(),sources=[...(catalogue.sources||[])];
   const recordSource=async(...args)=>{const record=await legislation.record(...args);sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});return record;};
   for(const sitting of sittings) {
-    let base;try{base=await legislation.query({language:query.language,sitting:sitting.activity_id,topic:null,vote:null},catalogue);}catch{gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});continue;}sources.push(...(base.coverage?.sources||[]));const speechRows=new Map();let results=null,decisions=null;
+    let base;try{base=await legislation.query({language:query.language,sitting:sitting.activity_id,topic:null,vote:null},catalogue,{status,groupOn});}catch{gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});continue;}sources.push(...(base.coverage?.sources||[]));const speechRows=new Map();let results=null,decisions=null;
     if(base.coverage?.agendaError){gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});if(!base.topics.length)continue;}
     if(sitting.activity_date<=today) {
       try{results=await recordSource('/meetings/'+sitting.activity_id+'/vote-results',{limit:50,offset:0});decisions=await recordSource('/meetings/'+sitting.activity_id+'/decisions',{'vote-method':'ROLL_CALL_EV',limit:1,offset:0});if(decisions.payload.data.length>250){decisions={...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,250)}};gaps.push({sitting:sitting.activity_id,kind:'roll-call-limit'});}if(results.payload.data.length>=50)gaps.push({sitting:sitting.activity_id,kind:'vote-result-page-limit'});}catch{gaps.push({sitting:sitting.activity_id,kind:'votes-unavailable'});}
@@ -77,7 +81,7 @@ export async function participation(legislation,store,query,{clock=Date.now,read
         for(const target of refs(event.executed)){const topic=base.topics.find(t=>t.uri===target);if(topic){speechRows.set(topic.id,[...(speechRows.get(topic.id)||[]),...rows]);if(children.some(id=>!retained.has(id)))speechProjectionGaps.add(topic.id);}}
       }
     }
-    all.push(...participationRows(base.topics,results,decisions,speechRows,members).map(row=>({...row,sittingId:sitting.activity_id,upcoming:sitting.activity_date>today})));
+    all.push(...participationRows(base.topics,results,decisions,speechRows,members,groupOn,id=>!query.country||countryOf(id)===query.country).map(row=>({...row,sittingId:sitting.activity_id,upcoming:sitting.activity_date>today})));
   }
   const countryIds=ids=>ids===null?null:new Set([...ids].filter(id=>!query.country||countryOf(id)===query.country));
   const union=(rows,field)=>new Set(rows.flatMap(row=>[...(countryIds(row[field])||[])])).size;
@@ -108,7 +112,10 @@ export async function participation(legislation,store,query,{clock=Date.now,read
   });
   const topics=all.map(row=>{
     const values=countsFor(row,countryIds),whole=countsFor(row,set=>set),{speakerIds,voterIds,amendmentIds,...publicRow}=row;
-    return {...publicRow,...Object.fromEntries(Object.entries(values).map(([key,value])=>[key,value.observedCount])),allSpeakers:whole.speakers.observedCount,allVoters:whole.voters.observedCount,availability:Object.fromEntries(Object.entries(values).map(([key,value])=>[key,value.state]))};
+    // Empty dated buckets need the same source evidence as the topic counts.
+    // Positive contributions remain observations, including former members.
+    const groups=Object.fromEntries(Object.entries(row.groupContributions).map(([metric,buckets])=>[metric,buckets?.total>0||values[metric].observedCount!==null?buckets:null]));
+    return {...publicRow,groupContributions:groups,...Object.fromEntries(Object.entries(values).map(([key,value])=>[key,value.observedCount])),allSpeakers:whole.speakers.observedCount,allVoters:whole.voters.observedCount,availability:Object.fromEntries(Object.entries(values).map(([key,value])=>[key,value.state]))};
   });
   return {view:'participation',availability,country:query.country,countries,topics,series,window,coverage:{catalogueComplete:catalogue.complete,catalogue:catalogue.coverage,indexComplete:status.complete,servingGeneration:status.servingGeneration,topicsWithSpeechLinks:all.filter(r=>r.speakerIds!==null).length,topics:all.length,gaps,sources},basis:'Distinct people on the current roster, using current country of representation. Actual named roll-calls only; intended corrections excluded. Speakers require existing exact cached debate-event links to saved oral contributions. Amendment roll-calls are not a count of amendments tabled and are not assigned to national delegations.'};
 }

@@ -103,3 +103,13 @@ test('Questions renders decoded title entities and markup-shaped source text as 
   assert.equal(heading.children.length,0,'decoded markup never creates elements');
   assert(heading.innerHTML.includes('&lt;img'));assert(heading.innerHTML.includes('&lt;b&gt;'));
 });
+
+test('political groups count dated contributions while person demographics retain their own denominator',async t=>{
+  const selected=stats();selected.groupContributions={rows:[{label:'S&D',count:2},{label:'Renew',count:1}],total:4,unavailable:1,dateBasis:'question document_date'};
+  const h=await harness(t,{response:questions(selected)});
+  assert.equal(h.container.querySelector('.insight-donut-total').textContent,'3');
+  assert.equal(h.container.querySelector('.insight-donut-caption').textContent,'Contributions');
+  assert.match(h.container.querySelector('.insight-demographics').textContent,/3 contributions · 1 unavailable/);
+  assert.equal(h.container.querySelector('.insight-country-table li strong').textContent,'1');
+  assert.match(h.caption().textContent,/Country, gender and age: 1 current MEPs/);
+});
