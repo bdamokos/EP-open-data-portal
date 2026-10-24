@@ -7,6 +7,7 @@ import http from 'node:http';
 import {createHash} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {measureEventLoopDelay} from './event-loop-delay.mjs';
+import {prepareStartupIndexes} from './migrate-indexes.mjs';
 let eventLoopDelay;
 import {pathToFileURL} from 'node:url';
 import {apiPrefixes,config} from './config.mjs';
@@ -385,6 +386,8 @@ function shutDown(signal) {
 
 const isEntryPoint = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isEntryPoint) {
+  try {prepareStartupIndexes();}
+  catch(error){console.error('[index-prepare]',error.message);process.exit(1);}
   server.on("error", (error) => {
     console.error(`[parliament-explorer] server error: ${error.message}`);
     process.exitCode = 1;

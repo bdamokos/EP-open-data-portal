@@ -11,7 +11,7 @@ import { performance } from 'node:perf_hooks';
 import { ODP_BASE, boundedUpstream, backoffUpstream } from './odp.mjs';
 import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
 import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
-import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker } from './amendments-store.mjs';
+import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
@@ -148,7 +148,7 @@ export class ActivityWorker {
       const discovery=untouched.splice(0,CONTINUATION_LIMIT).map(({key,kind,body,priority})=>({key,kind,...(kind==='motion-outcomes'?{sittingId:JSON.parse(body).sittingId}:{endpoint:JSON.parse(body).endpoint}),priority})),overflow=untouched;
       const deferredCount=overflow.length+incomingTotal-incoming.length;
       const capacityGap=deferredCount?{count:(saved.capacityGap?.count || 0)+deferredCount,message:'Additional untouched amendment discovery exceeded the bounded checkpoint and is deferred to normal catalogue refresh.'}:saved.capacityGap || null;
-      if(deferredCount)this.store.db.prepare("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND json_type(body,'$.amendmentLinksVersion') IS NOT NULL AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')").run(generation);
+      if(deferredCount)invalidateAmendmentLinks(this.store,generation);
       if(snapshots.length || discovery.length || completed.size || capacityGap)this.store.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,CONTINUATIONS_KEY,'amendment-continuations',JSON.stringify({tasks:snapshots,discovery,completed:[...completed.values()].slice(-CONTINUATION_LIMIT),...(capacityGap?{capacityGap}:{})}),new Date(this.clock()).toISOString());
       else this.store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(generation,CONTINUATIONS_KEY);
       if(includeCore)this.store.db.prepare("DELETE FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key NOT LIKE 'outside:agenda-membership:%'").run(generation);
