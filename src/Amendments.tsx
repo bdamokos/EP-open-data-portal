@@ -160,7 +160,7 @@ function SourceVariants({item,language}:{item:Amendment;language:string}) {
     </section>)}</details>:null}
   </div>;
 }
-function AmendmentCard({item,language,onMember}:{item:Amendment;language:string;onMember?:InsightProps['onMember']}) {
+export function AmendmentCard({item,language,onMember}:{item:Amendment;language:string;onMember?:InsightProps['onMember']}) {
   const splitParts=item.splitParts||[],decisions=item.decisions||[],whole=decisions.filter(decision=>!amendmentDecisionPart(splitParts,decision));
   const authors=item.authors||[];
   const title=selectLanguageText(item.titles,language,item.title||'','');

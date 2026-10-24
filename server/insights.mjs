@@ -9,6 +9,7 @@ import { QuestionInsights,insightQuery,savedMetadata,brusselsDay } from './insig
 import { LegislationInsights,LEGISLATION_VIEW_VERSION } from './insights-legislation.mjs';
 import { HttpError } from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
+import {DossierActivity,dossierActivityQuery,dossierReferencesQuery} from './dossier-activity.mjs';
 import {INSIGHTS_VERSION} from './insights-model.mjs';
 import {savedQuery,savedStates} from './insights-saved.mjs';
 import {participationQuery,participation} from './insights-participation.mjs';
@@ -28,12 +29,15 @@ export function createInsights(store,options={}) {
   const speechWords=new SpeechWordInsights(store,shared);
   const questions=new QuestionInsights(store,shared),legislation=new LegislationInsights(store,shared);
   const speechCloud=new SpeechCloudInsights(store,{...shared,legislation});
+  const dossierActivity=new DossierActivity(store,{...shared,reader:legislation});
   const officialSources=options.officialSources||(options.officialContext||options.clock?new OfficialContextSources({clock,...options.officialContext}):getSharedOfficialContextSources());
   const catalog=options.eurovocCatalog||new EurovocCatalog(officialSources,{clock,...options.eurovoc});
   const procedureContext=new ProcedureContext(officialSources,catalog),topicTrends=new TopicTrends(store,catalog,{clock});
   const procedureProgress=new ProcedureProgress(officialSources);
   const views=new InsightViewCache({clock,...options.viewCache});
   return {async query(view,searchParams) {
+    if(view==='dossier-activity')return dossierActivity.query(dossierActivityQuery(searchParams));
+    if(view==='dossier-references')return dossierActivity.references(dossierReferencesQuery(searchParams));
     if(view==='speech-words')return speechWords.query(speechWordsQuery(searchParams,{now:clock()}));
     if(view==='speech-cloud')return speechCloud.query(speechCloudQuery(searchParams,{now:clock()}));
     if(view==='procedure-context')return procedureContext.query(procedureContextQuery(searchParams));

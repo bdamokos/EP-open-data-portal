@@ -343,6 +343,7 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   if(readCoverage.proposer)gaps.push(proposerDateGap);
   if(readCoverage.splits)gaps.push(SPLIT_BINDING_GAP);
   if(readCoverage.freshness)gaps.push(sourceFreshnessGap);
+  const targetGaps=[...gaps];
   const working=store.get('working'),active=store.get('active');
   const generations=[...new Set([generation,working?.generation,active].filter(Boolean))];
   const refreshGaps=generations.some(id=>store.db.prepare("SELECT 1 FROM refresh_gaps WHERE generation=? AND kind IN ('document','motion-outcomes') LIMIT 1").get(id));
@@ -355,13 +356,13 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
     return [typeof detail?.message==='string'?detail.message:'Some amendment discovery was deferred after the checkpoint capacity was reached.'];
   });
   gaps.push(...new Set(capacityGaps));
-  if(!records.length)gaps.push(document?'This document has no indexed amendment records.':'Amendment discovery is incomplete.');
+  if(!records.length){const gap=document?'This document has no indexed amendment records.':'Amendment discovery is incomplete.';gaps.push(gap);targetGaps.push(gap);}
   if(!document)gaps.push('Coverage includes indexed plenary amendment lists; older targets are enriched in bounded batches.');
   const lastUpdated=records.map(record=>record.lastUpdated).filter(Boolean).sort().at(-1) || null;
   const indexedObservationComplete=Boolean(document&&readCoverage.rows>0&&records.length&&records.every(record=>record.complete)&&!listProjectionUnverified&&!readCoverage.wording&&!readCoverage.proposer&&!readCoverage.splits&&!readCoverage.freshness);
   const emptyObservation=document&&records.length===1?checkedEmptyObservation(records[0],document,readCoverage.rows):null;
   const observationComplete=indexedObservationComplete||Boolean(emptyObservation);
-  return {items,total,offset,limit,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length&&!refreshGaps),observationComplete,emptyObservation,
+  return {items,total,offset,limit,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length&&!refreshGaps),observationComplete,emptyObservation,targetGaps,discovery:{pending,refreshGaps,capacityGaps},
     observationScope:emptyObservation?'published-amendment-list-relationships':'indexed-plenary-amendment-sources',indexed:Boolean(records.length),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope:'plenary',servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation)},failures:amendmentFailureSummary(store)};
 }
 
