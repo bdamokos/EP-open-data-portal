@@ -119,11 +119,14 @@ test('contradictory vote parents never enrich this dossier',async t=>{
   const r=await x.service.query(x.q('votes'));assert(!r.items.some(item=>item.id.endsWith('196161')));
 });
 test('non-named ballots and intentions never become recorded member positions',async t=>{
-  const x=setup(t),raw=x.day.decisions[0];raw.decision_method='def/ep-decision-methods/VOTE_HAND';
+  const x=setup(t),raw=x.day.decisions[0];
   delete raw.had_voter_favor;delete raw.had_voter_against;delete raw.had_voter_abstention;
   raw.had_voter_intended_favor=['person/'+MEMBER];
-  const r=await x.service.query(x.q('votes')),vote=r.items.find(item=>item.id.endsWith('196161')).vote;
-  assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'unavailable');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
+  for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']){
+    raw.decision_method='def/ep-decision-methods/'+method;
+    const r=await x.service.query(x.q('votes')),vote=r.items.find(item=>item.id.endsWith('196161')).vote;
+    assert.equal(r.version,2);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
+  }
 });
 test('a person without a recorded role is never replaced by a named participant',async t=>{
   const x=setup(t),r=await x.service.query(x.q('roles','99999'));
