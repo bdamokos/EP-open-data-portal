@@ -1,9 +1,10 @@
+import {prepareDossierMarks,publishDossierMarks} from './follow-dossiers.mjs';
 import {randomUUID} from 'node:crypto';
 import {activityOnly,answersOnly} from './activity-read-projections.mjs';
 import {refreshSnapshotMatches} from './refresh-policy.mjs';
 
 // Independent of the activity read projections: preparation never rebuilds them.
-export const followMarksVersion=2;
+export const followMarksVersion=3;
 export const markedKinds=[['activity','saved_activity_sources',activityOnly],['answer','saved_answer_sources',answersOnly]];
 
 export function assignFollowMarks(db,generation) {
@@ -77,6 +78,7 @@ export function followIndexComplete(store,generation) {
 
 export function publishFollowMarks(store,generation,publishedAt,indexComplete,previous=null,rosterBasis='publication') {
   const db=store.db;
+  publishDossierMarks(store,generation);
   const incremental=previous&&previous!==generation&&db.prepare('SELECT 1 FROM follow_summary WHERE generation=? LIMIT 1').get(previous);
   if(incremental) {
     changedIdentities(db,generation,previous);
@@ -94,6 +96,7 @@ export function publishFollowMarks(store,generation,publishedAt,indexComplete,pr
 // Called only within acquire's leased preparation transaction, after read indexes.
 export function prepareFollowMarks(store) {
   const db=store.db;
+  prepareDossierMarks(store);
   // Preserve first-publication marks/epoch when upgrading the unreleased text-kind schema.
   const legacy=db.prepare("PRAGMA table_info('item_marks')").all().some(row=>row.name==='kind'&&row.type==='TEXT');
   if(legacy)db.exec('ALTER TABLE item_marks RENAME TO legacy_item_marks;');
