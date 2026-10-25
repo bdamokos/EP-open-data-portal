@@ -11,7 +11,7 @@ import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION } from './amendments.mjs';
 import { amendmentsPage, enqueueAmendment, nextAmendmentTask } from './amendments-store.mjs';
-import { failAmendmentTask, prepareAmendments, rebuildAmendmentTarget, scheduleAmendments } from './amendments-worker.mjs';
+import { amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, failAmendmentTask, prepareAmendments, rebuildAmendmentTarget, scheduleAmendments } from './amendments-worker.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 
@@ -27,12 +27,12 @@ const oldOriginal='The original legal wording.';
 const oldProposed='The previously verified proposed wording.';
 const freshProposed='The corrected proposal sets a detailed requirement for an annual public implementation report.';
 
-function amendmentDocx(proposed=oldProposed) {
+function amendmentDocx(proposed=oldProposed,author='Alex Common',number=1) {
   const escape=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const paragraph=value=>'<w:p><w:r><w:t>'+escape(value)+'</w:t></w:r></w:p>';
   const row=values=>'<w:tr>'+values.map(value=>'<w:tc>'+paragraph(value)+'</w:tc>').join('')+'</w:tr>';
-  const xml='<w:document xmlns:w="urn:word"><w:body>'+paragraph('<Amend><Date>2.10.2026</Date><NumAm>1</NumAm>')+
-    paragraph('<Members>Alex Common</Members>')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+
+  const xml='<w:document xmlns:w="urn:word"><w:body>'+paragraph('<Amend><Date>2.10.2026</Date><NumAm>'+number+'</NumAm>')+
+    paragraph('<Members>'+author+'</Members>')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+
     row(['Text proposed by the Commission','Amendment'])+row([oldOriginal,proposed])+'</w:tbl>'+paragraph('</Amend>')+'</w:body></w:document>';
   const name=Buffer.from('word/document.xml'), body=Buffer.from(xml), compressed=deflateRawSync(body);
   const local=Buffer.alloc(30);local.writeUInt32LE(0x04034b50);local.writeUInt16LE(8,8);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(name.length,26);
@@ -555,4 +555,255 @@ test('generation adoption preserves current absence, a pending page cursor and r
   const page=amendmentsPage(store,{document:targetId});
   assert.equal(page.coverage.complete,false);assert.equal(page.coverage.pending,true);assert.equal(page.items[0].wordingRetained,true);
   assert.equal(page.items[0].proposedText,oldProposed);assert.equal(page.items[0].documentDate,documentDate);
+});
+
+
+function downgrade(context,{proof=true}={}) {
+  const {store,generation}=context,saved=store.source(generation,listKey);
+  const work={...saved.work,extraction:{...saved.work.extraction,parserVersion:'10'}};
+  if(!proof)delete work.distributionEvidence;
+  store.putSource(generation,listKey,'amendment-list',work,saved.fetchedAt);
+  // Recovery must not wait for the report's independent relationship upgrade.
+  const report=store.source(generation,targetKey);
+  store.putSource(generation,targetKey,'document',{...report.work,amendmentLinksVersion:'old'},report.fetchedAt);
+}
+
+test('parser-only upgrades reuse matching retained bytes, preserve retrieval provenance and settle once',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;
+  downgrade(context);context.advance(4*86400000);
+  store.publish(generation);
+  store.set('lastSuccess',context.at());assert.equal(worker.coreDue(),false);assert.equal(amendmentParserUpgradeDue(store,generation),true);assert.equal(worker.due(),true);
+  // Keep the daily core refresh out of this optional-upgrade assertion.
+  store.set('lastSuccess',context.at());
+  let downloads=0;worker.downloadAmendmentDocx=async()=>{downloads++;throw Error('Retained bytes should be reused');};
+  prepareAmendmentParserUpgrade(worker,generation);
+  await worker.task(nextAmendmentTask(store,generation));
+  const upgrade=nextAmendmentTask(store,generation);assert.equal(upgrade.kind,'amendment-extract');
+  await worker.task(upgrade);
+  const extraction=store.source(generation,listKey).work.extraction;
+  assert.equal(downloads,0);assert.equal(extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+  assert.equal(extraction.previousParserVersion,'10');assert.equal(extraction.fetchedAt,oldRetrievedAt);
+  assert.equal(extraction.amendments[0].proposedText,oldProposed);
+  assert.equal(amendmentsPage(store,{document:targetId}).items[0].proposedText,oldProposed);
+  assert.equal(amendmentParserUpgradeDue(store,generation),false);
+  const before=persistedEvidence(store,generation);prepareAmendmentParserUpgrade(worker,generation);assert.deepEqual(persistedEvidence(store,generation),before);
+});
+
+test('parser upgrade obtains current distribution proof directly when report metadata cannot refresh',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;
+  downgrade(context,{proof:false});
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  const detail=nextAmendmentTask(store,generation);assert.equal(detail.kind,'amendment-list-detail');assert.equal(detail.body.parserUpgrade,true);
+  await worker.task(detail);
+  assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+});
+
+for(const stage of ['extract','metadata','failed-extract','missing-distribution'])for(const pressure of [false,true])test('parser '+stage+' rebuild preserves admission and report links; pressure='+pressure,async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  const saved=store.source(generation,listKey),report=store.source(generation,targetKey),buffers=new Map();
+  const ids=Array.from({length:12},(_,i)=>targetId+'-AM-'+String(i+1).padStart(3,'0')+'-'+String(i+1).padStart(3,'0'));
+  for(const [index,id] of ids.entries()) {
+    const url='https://data.europarl.europa.eu/distribution/example/'+id+'_en.docx',buffer=amendmentDocx(freshProposed,'Alex Common',index+1);buffers.set(url,buffer);
+    const work=JSON.parse(JSON.stringify(saved.work).replaceAll(listId,id).replaceAll(descriptor.url,url));
+    work.extraction.parserVersion='10';work.extraction.amendments=work.extraction.amendments.map(amendment=>({...amendment,number:index+1}));
+    work.distributionEvidence.descriptors[0].byteSize=buffer.length;work.extraction.sourceDescriptor.byteSize=buffer.length;
+    if(stage==='metadata')delete work.distributionEvidence;
+    store.putSource(generation,'amendment:list:'+id,'amendment-list',work,saved.fetchedAt);
+  }
+  worker.downloadAmendmentDocx=async url=>{assert(buffers.has(url));return {buffer:buffers.get(url)};};
+  store.putSource(generation,targetKey,'document',{...report.work,inverse_foresees_change_of:ids.map(id=>'eli/dl/doc/'+id)},report.fetchedAt);
+  context.advance(8*86400000);
+  // Recovery must also avoid creating author-discovery work from missing dates.
+  store.db.prepare("DELETE FROM sources WHERE generation=? AND kind='amendment-roster'").run(generation);store.set('amendmentMandateFallback',true);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  const listJobs=()=>store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND done=0 AND kind IN ('amendment-extract','amendment-list-detail')").get(generation).n;
+  assert.equal(listJobs(),8);
+  if(pressure) {
+    for(let i=store.db.prepare('SELECT COUNT(*) n FROM amendment_jobs WHERE generation=?').get(generation).n;i<200;i++)enqueueAmendment(store,generation,'filler:'+i,'amendment-reparse',{},1);
+    store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:Array.from({length:200},(_,i)=>({generation,key:'reserved:'+i,kind:'amendment-reparse',body:'{}',priority:1,done:0,attempts:0,retry_at:0,error:null}))},context.at());
+  }
+  const checkpoint=store.source(generation,'amendment:continuations'),marker=store.source(generation,targetKey).work.amendmentLinksVersion;
+  const job=nextAmendmentTask(store,generation);assert.equal(job.kind,stage==='metadata'?'amendment-list-detail':'amendment-extract');
+  if(stage==='missing-distribution') {
+    const key='amendment:list:'+job.body.listId,source=store.source(generation,key);
+    store.putSource(generation,key,'amendment-list',{...source.work,distributionEvidence:{version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:'unavailable',descriptors:[]}},source.fetchedAt);
+  }
+  if(stage==='metadata')worker.fetchRecord=async endpoint=>{
+    const id=endpoint.split('/').at(-1),url='https://data.europarl.europa.eu/distribution/example/'+id+'_en.docx';
+    return {fetchedAt:context.at(),payload:{data:[{...listDetail({url,language:'en',byteSize:buffers.get(url).length}),id:'eli/dl/doc/'+id,identifier:id}]}};
+  };
+  if(stage==='failed-extract')assert.equal(failAmendmentTask(worker,{...job,attempts:2},new Error('Offline DOCX failure.')),true);
+  else await worker.task(job);
+  assert(listJobs()<=8,'Recovery rebuilds cannot bypass the eight-job admission bound.');
+  assert.equal(store.source(generation,targetKey).work.amendmentLinksVersion,marker);
+  assert.deepEqual(store.source(generation,'amendment:continuations'),checkpoint,'Recovery must not fill reserves or create capacity gaps.');
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND kind IN ('amendment-roster','amendment-members','amendment-member') AND done=0").get(generation).n,0);
+  if(stage==='extract')assert.equal(store.source(generation,'amendment:list:'+job.body.listId).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+});
+
+test('parser recovery downloads an expired or changed source and respects its bounded cold-download limit',async t=>{
+  for(const mode of ['expired','changed','cold-limit']) {
+    const context=await fixture(t),{store,worker,generation,descriptor}=context;downgrade(context);
+    if(mode==='expired')context.advance(8*86400000);
+    if(mode==='changed') {
+      const saved=store.source(generation,listKey);
+      store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,url:newUrl}]}},saved.fetchedAt);
+    }
+    if(mode==='cold-limit'){context.advance(8*86400000);worker.amendmentParserDownloads=4;}
+    let downloads=0;worker.downloadAmendmentDocx=async url=>{assert.equal(url,mode==='changed'?newUrl:oldUrl);downloads++;return {buffer:amendmentDocx(freshProposed)};};
+    prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+    await worker.task(nextAmendmentTask(store,generation));
+    if(mode==='cold-limit') {
+      assert.equal(downloads,0);assert.equal(extractionJob(store,generation).done,0);assert.equal(extractionJob(store,generation).attempts,0);
+      assert.equal(extractionJob(store,generation).retry_at,store.clock()+30*60_000);
+      context.advance(30*60_000);worker.amendmentParserDownloads=0;await worker.task(nextAmendmentTask(store,generation));
+    }
+    assert.equal(downloads,1);assert.equal(store.source(generation,listKey).work.extraction.amendments[0].proposedText,freshProposed);
+  }
+});
+
+test('verified parser-upgrade metadata survives extraction admission pressure without another source request',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;downgrade(context,{proof:false});
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  const detail=nextAmendmentTask(store,generation);
+  store.db.prepare('DELETE FROM amendment_jobs WHERE generation=? AND key=?').run(generation,extractKey);
+  for(let i=store.db.prepare('SELECT COUNT(*) n FROM amendment_jobs').get().n;i<200;i++)enqueueAmendment(store,generation,'pressure:'+i,'amendment-reparse',{},100);
+  store.db.prepare('UPDATE amendment_jobs SET done=0 WHERE generation=?').run(generation);
+  store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:Array.from({length:200},(_,i)=>({key:'reserve:'+i}))},context.at());
+  let requests=0;const fetch=worker.fetchRecord;worker.fetchRecord=async(...args)=>{requests++;return fetch(...args);};
+  await worker.task(detail);
+  assert.equal(requests,1);assert.equal(store.db.prepare('SELECT done FROM amendment_jobs WHERE generation=? AND key=?').get(generation,detail.key).done,0);
+  store.db.prepare("DELETE FROM amendment_jobs WHERE key LIKE 'pressure:%'").run();store.db.prepare("DELETE FROM sources WHERE key='amendment:continuations'").run();
+  await worker.task(detail);assert.equal(requests,1);
+  assert.equal(extractionJob(store,generation).done,0);
+  assert.equal(store.db.prepare('SELECT done FROM amendment_jobs WHERE generation=? AND key=?').get(generation,detail.key).done,1);
+});
+
+test('parser recovery respects retained cooldowns and wakes after expiry without a core refresh',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;downgrade(context);
+  const saved=store.source(generation,listKey),retryAt=store.clock()+86400000;
+  store.putSource(generation,listKey,'amendment-list',{...saved.work,wordingRefreshFailure:{descriptor,failedAt:context.at(),retryAfter:new Date(retryAt).toISOString(),error:'Retained download failure.'}},saved.fetchedAt);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(amendmentParserUpgradeDue(store,generation),false);assert.equal(extractionJob(store,generation).done,1);
+  context.advance(86400000);assert.equal(amendmentParserUpgradeDue(store,generation),true);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);assert.equal(store.source(generation,listKey).work.wordingRefreshFailure,undefined);
+});
+
+for(const migration of [true,false])test('an alternate byline deferred by the request budget resumes using retained primary bytes; migration='+migration,async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;downgrade(context);context.advance(8*86400000);
+  const saved=store.source(generation,listKey),primary={url:oldUrl,language:'bg',byteSize:null},alternate={url:newUrl,language:'de',byteSize:null};
+  if(!migration)saved.work.extraction.parserVersion=AMENDMENT_EXTRACTION_VERSION;
+  store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[primary,alternate]}},saved.fetchedAt);
+  const downloads=[];worker.downloadAmendmentDocx=async url=>{downloads.push(url);return {buffer:amendmentDocx(freshProposed,url===oldUrl?'Данило Дела Вале':'Danilo Della Valle')};};
+  if(migration){prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));}
+  else enqueueAmendment(store,generation,extractKey,'amendment-extract',{listId,targetDocumentId:targetId},112,true);
+  worker.requests=0;worker.budget=1;await worker.task(nextAmendmentTask(store,generation));
+  assert.deepEqual(downloads,[oldUrl]);assert.equal(worker.requests,1);assert.equal(extractionJob(store,generation).done,0);
+  assert.equal(store.source(generation,listKey).work.extraction.parserVersion,migration?'10':AMENDMENT_EXTRACTION_VERSION);
+  context.advance(30*60_000);worker.requests=0;worker.budget=2;worker.amendmentParserDownloads=0;
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.deepEqual(downloads,[oldUrl,newUrl]);assert.equal(worker.requests,1);assert.equal(extractionJob(store,generation).done,1);
+  assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+  assert.equal(store.source(generation,listKey).work.authorNames.source.url,newUrl);
+});
+
+test('settled parser checks avoid JSON scans and a later incompatible list invalidates the marker',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;
+  let scans=0;const prepare=store.db.prepare.bind(store.db);
+  t.mock.method(store.db,'prepare',sql=>{if(sql.includes("json_extract(body,'$.extraction.parserVersion')"))scans++;return prepare(sql);});
+  assert.equal(amendmentParserUpgradeDue(store,generation),true);
+  prepareAmendmentParserUpgrade(worker,generation);assert.equal(scans,1);
+  for(let poll=0;poll<10;poll++){assert.equal(amendmentParserUpgradeDue(store,generation),false);prepareAmendmentParserUpgrade(worker,generation);}
+  assert.equal(scans,1);
+  const saved=store.source(generation,listKey);store.putSource(generation,listKey,'amendment-list',saved.work,saved.fetchedAt);
+  assert.equal(amendmentParserUpgradeDue(store,generation),false,'A compatible update cannot introduce upgrade work.');
+  const other=listId.replace('001-001','002-002'),legacy={...saved.work,id:'eli/dl/doc/'+other,identifier:other,extraction:{...saved.work.extraction,parserVersion:'10'}};
+  store.putSource(generation,'amendment:list:'+other,'amendment-list',legacy,saved.fetchedAt);
+  assert.equal(amendmentParserUpgradeDue(store,generation),true);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(store.db.prepare('SELECT done FROM amendment_jobs WHERE generation=? AND key=?').get(generation,'amendment:extract:'+other).done,0);
+});
+
+test('a repeated failure after byline progress still exhausts three attempts',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;downgrade(context);context.advance(8*86400000);
+  const saved=store.source(generation,listKey),primary={url:oldUrl,language:'bg',byteSize:null},alternate={url:newUrl,language:'de',byteSize:null};
+  store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[primary,alternate]}},saved.fetchedAt);
+  worker.downloadAmendmentDocx=async url=>({buffer:amendmentDocx(freshProposed,url===oldUrl?'Данило Дела Вале':'Danilo Della Valle')});
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  const put=store.putSource.bind(store),failure=new Error('Persistent failure publishing extracted byline evidence.');
+  t.mock.method(store,'putSource',(g,k,kind,work,...rest)=>{if(k===listKey&&work.extraction?.parserVersion===AMENDMENT_EXTRACTION_VERSION)throw failure;return put(g,k,kind,work,...rest);});
+  for(let attempt=0;attempt<3;attempt++) {
+    const task=nextAmendmentTask(store,generation);assert.equal(task.kind,'amendment-extract');assert.equal(task.attempts,attempt);
+    await assert.rejects(worker.task(task),error=>error===failure);
+    const exhausted=failAmendmentTask(worker,task,failure);assert.equal(exhausted,attempt===2);
+    if(!exhausted){store.failTask(task,failure);context.advance(extractionJob(store,generation).retry_at-store.clock()+1);}
+  }
+  assert.equal(extractionJob(store,generation).done,1);assert(store.source(generation,listKey).work.wordingRefreshFailure);
+});
+
+test('unavailable current-schema metadata is reobserved even without report links',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.observeDistribution('omitted');downgrade(context);
+  const report=store.source(generation,targetKey);store.putSource(generation,targetKey,'document',{...report.work,inverse_foresees_change_of:[]},report.fetchedAt);
+  let requests=0;worker.fetchRecord=async endpoint=>{assert.equal(endpoint,'/documents/'+listId);requests++;return {fetchedAt:context.at(),payload:{data:[listDetail(descriptor)]}};};
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(nextAmendmentTask(store,generation).kind,'amendment-list-detail');await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(requests,1);assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  await worker.task(nextAmendmentTask(store,generation));assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+});
+
+for(const location of ['queue','tasks'])test('parser recovery adopts a delayed metadata retry in '+location+' without resetting progress',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.observeDistribution('omitted');downgrade(context);
+  const key='amendment:discover:'+targetId+':'+listId;
+  const savedBody={listId,targetDocumentId:targetId,offset:3,sources:[{url:'https://data.europarl.europa.eu/example',fetchedAt:context.at()}]};
+  enqueueAmendment(store,generation,key,'amendment-list-detail',savedBody,115,true);
+  worker.fetchRecord=async()=>{throw new Error('Offline metadata failure.');};
+  const retry=nextAmendmentTask(store,generation);
+  await assert.rejects(worker.task(retry),/Offline metadata failure/);store.failTask(retry,new Error('Offline metadata failure.'));
+  const before=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
+  assert(before.retry_at>store.clock());assert.equal(nextAmendmentTask(store,generation),null);
+  if(location!=='queue') {
+    store.putSource(generation,'amendment:continuations','amendment-continuations',{[location]:[before]},context.at());
+    store.db.prepare('DELETE FROM amendment_jobs WHERE generation=? AND key=?').run(generation,key);
+  }
+  const report=store.source(generation,targetKey);
+  store.putSource(generation,targetKey,'document',{...report.work,inverse_foresees_change_of:[]},report.fetchedAt);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  const after=location==='queue'?store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key):store.source(generation,'amendment:continuations').work[location][0];
+  assert.deepEqual(JSON.parse(after.body),{...savedBody,parserUpgrade:true});
+  assert.deepEqual({...after,body:before.body},{...before},'Only recovery intent changes; retry state and priority survive.');
+  if(location!=='queue') {
+    worker.checkpointContinuations(generation,{includeCore:false});
+    assert.deepEqual({...store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key)},{...after});
+  }
+  assert.equal(nextAmendmentTask(store,generation),null);context.advance(before.retry_at-store.clock());
+  let requests=0;worker.fetchRecord=async endpoint=>{assert.equal(endpoint,'/documents/'+listId);requests++;return {fetchedAt:context.at(),payload:{data:[listDetail(descriptor)]}};};
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(requests,1);assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  await worker.task(nextAmendmentTask(store,generation));assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+});
+
+for(const mode of ['omitted','empty'])test('fresh '+mode+' metadata observes once and preserves its distinct retry state',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.observeDistribution(mode);downgrade(context);
+  let requests=0;const fetch=worker.fetchRecord;worker.fetchRecord=async(...args)=>{requests++;return fetch(...args);};
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(requests,1);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  for(let poll=0;poll<3;poll++)prepareAmendmentParserUpgrade(worker,generation);
+  assert.equal(requests,1);assert.equal(nextAmendmentTask(store,generation),null);assert.equal(amendmentParserUpgradeDue(store,generation),false);
+  const observed=store.source(generation,listKey).work.parserMetadataObservation;
+  assert.equal(observed.retryAt,mode==='omitted'?store.clock()+86400000:null);
+  if(mode==='omitted') {
+    context.advance(86400000);assert.equal(amendmentParserUpgradeDue(store,generation),true);
+    worker.fetchRecord=async()=>{requests++;return {fetchedAt:context.at(),payload:{data:[listDetail(descriptor)]}};};
+    prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
+    assert.equal(requests,2);assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  }
 });
