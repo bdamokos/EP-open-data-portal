@@ -13,7 +13,9 @@ const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value
 const validTime=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2} ([01]\d|2[0-3]):[0-5]\d$/.test(value)&&validDate(value.slice(0,10));
 
 export function validateCatalogue(value) {
-  if(value?.schemaVersion!==1||value.term!==10||!validDate(value.dateFrom)||!validDate(value.dateTo)||value.dateFrom>value.dateTo||!Number.isFinite(Date.parse(value.fetchedAt))||!Array.isArray(value.records)||value.records.length>1000||value.records.length!==value.total||!Array.isArray(value.sourcePages)||!value.sourcePages.length||value.sourcePages.length>MAX_PAGES)throw Error('Invalid catalogue.');
+  // Legacy catalogues used variable page sizes. The ten-page acquisition limit
+  // belongs to fetchCatalogue, not to a previously retained complete snapshot.
+  if(value?.schemaVersion!==1||value.term!==10||!validDate(value.dateFrom)||!validDate(value.dateTo)||value.dateFrom>value.dateTo||!Number.isFinite(Date.parse(value.fetchedAt))||!Array.isArray(value.records)||value.records.length>1000||value.records.length!==value.total||!Array.isArray(value.sourcePages))throw Error('Invalid catalogue.');
   const ids=new Set();
   for(const row of value.records) {
     if(!idPattern.test(row.id)||ids.has(row.id)||!validTime(row.start)||!validTime(row.end)||row.end<=row.start||row.start.slice(0,10)<value.dateFrom||row.start.slice(0,10)>value.dateTo||typeof row.status!=='string')throw Error('Invalid catalogue record.');

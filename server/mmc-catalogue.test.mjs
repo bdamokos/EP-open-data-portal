@@ -85,6 +85,17 @@ test('failed refresh preserves the legacy file and usable records with stale pro
   assert.equal(policy.cdnCacheControl,'no-store');
 });
 
+test('legacy catalogues retain smaller-page provenance beyond the automatic search page limit',async t=>{
+  const directory=await temporary(t),legacy=snapshot(Array.from({length:101},(_,i)=>row('20261007-'+i+'-PLENARY')));
+  legacy.sourcePages=Array.from({length:11},(_,i)=>({url:fixture.sourceUrl+'&page='+(i+1),status:200}));
+  const bytes=JSON.stringify(legacy);await writeFile(path.join(directory,'catalogue-v1.json'),bytes);
+  const reader=createCatalogueReader({clock:()=>now,fetchImpl:async()=>new Response('blocked',{status:403})});
+  const result=await reader(date,directory);
+  assert.equal(result.total,101);assert.equal(result.sourcePages.length,11);assert.equal(result.stale,true);
+  await settle(async()=>Boolean((await reader(date,directory)).refreshError));
+  assert.equal(await readFile(path.join(directory,'catalogue-v1.json'),'utf8'),bytes);
+});
+
 test('oversized and malformed responses cannot replace a saved snapshot',async t=>{
   for(const body of ['x'.repeat(2*1024*1024+1),'not json',JSON.stringify({resultJSON:{content:[]}})]) {
     const directory=await temporary(t),file=path.join(directory,'catalogue-dates-v1',date+'.json');
