@@ -382,7 +382,7 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
 export function amendmentCompletionMarker(task,today) {
   return task.done===1&&task.kind==='motion-outcomes'&&task.key.includes(':'+today)?{key:task.key,kind:task.kind,sittingId:parse(task.body).sittingId}:null;
 }
-export function enqueueAmendment(store,generation,key,kind,body,priority=105,refreshCompleted=false) {
+export function enqueueAmendment(store,generation,key,kind,body,priority=105,refreshCompleted=false,{deferOnCapacity=false}={}) {
   store.assertWriter();
   if(!kind.startsWith('amendment-') && store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key))return false;
   const enqueue=()=>{
@@ -402,6 +402,7 @@ export function enqueueAmendment(store,generation,key,kind,body,priority=105,ref
           if(marker){completed.set(marker.key,marker);saveCheckpoint({...saved,completed:[...completed.values()]});}
           store.db.prepare('DELETE FROM amendment_jobs WHERE generation=? AND key=?').run(generation,reclaim.key);
         } else {
+          if(deferOnCapacity)return false;
           const tasks=[...(saved.tasks || [])];
           if(tasks.length<200) {
             tasks.push({generation,key,kind,body:JSON.stringify(body),priority,done:0,attempts:0,retry_at:0,error:null});

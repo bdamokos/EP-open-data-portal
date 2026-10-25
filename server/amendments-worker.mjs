@@ -232,12 +232,24 @@ export function prepareAmendmentParserUpgrade(worker,generation) {
     return;
   }
   const throughKey=worker.store.db.prepare("SELECT MAX(key) AS key FROM sources WHERE generation=? AND kind='amendment-list'").get(generation)?.key || '';
-  enqueueAmendment(worker.store,generation,parserUpgradeKey+':'+AMENDMENT_EXTRACTION_VERSION,'amendment-parser-upgrade',{afterKey:'',throughKey,sourceRevision:worker.store.get(amendmentParserSourceRevisionKey) || 0},110,true);
+  enqueueAmendment(worker.store,generation,parserUpgradeKey+':'+AMENDMENT_EXTRACTION_VERSION,'amendment-parser-upgrade',{afterKey:'',throughKey,sourceRevision:worker.store.get(amendmentParserSourceRevisionKey) || 0},110,true,{deferOnCapacity:true});
+}
+function admitParserList(store,generation,key,kind,body,priority,replacing=null) {
+  const checkpoint=store.source(generation,'amendment:continuations')?.work;
+  const reserved=[...(checkpoint?.tasks || []),...(checkpoint?.discovery || [])];
+  const existing=store.db.prepare('SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND done=0').get(generation,key)||reserved.some(task=>task.key===key);
+  if(!existing) {
+    const kinds=new Set(['amendment-extract','amendment-list-detail']);
+    const pending=store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND done=0 AND kind IN ('amendment-extract','amendment-list-detail')").get(generation).n+reserved.filter(task=>kinds.has(task.kind)&&task.done!==1).length;
+    const replaces=replacing&&store.db.prepare("SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND done=0 AND kind='amendment-list-detail'").get(generation,replacing);
+    if(pending-Number(Boolean(replaces))>=8)return false;
+  }
+  return enqueueAmendment(store,generation,key,kind,body,priority,true,{deferOnCapacity:true});
 }
 async function runParserUpgradeSlice(worker,task) {
   const {store}=worker,{generation}=task;
   const complete=await runAmendmentWorkSlice(worker,task,{
-    select:body=>store.db.prepare("SELECT key,body FROM sources WHERE generation=? AND kind='amendment-list' AND key>? AND key<=? ORDER BY key LIMIT 1").get(generation,body.afterKey,body.throughKey),
+    select:body=>store.db.prepare("SELECT key,body,COALESCE(json_extract(body,'$.document_date'),'') AS date FROM sources WHERE generation=? AND kind='amendment-list' AND key<=? AND (COALESCE(json_extract(body,'$.document_date'),'')<? OR (COALESCE(json_extract(body,'$.document_date'),'')=? AND key<?)) ORDER BY date DESC,key DESC LIMIT 1").get(generation,body.throughKey,body.afterDate ?? '\uffff',body.afterDate ?? '\uffff',body.afterKey || '\uffff'),
     action:(source,body)=>{
       const list=JSON.parse(source.body),listId=idOf(list),targetDocumentId=list.targetDocumentId;
       if(!list.extraction||list.extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION||!amendmentTarget(targetDocumentId))return;
@@ -249,11 +261,11 @@ async function runParserUpgradeSlice(worker,task) {
       // This pass uses retained list identities directly. Report-link upgrades,
       // their daily cap and unavailable target endpoints cannot block it.
       const extract=Boolean(currentDocxDescriptor(list));
-      const admitted=enqueueAmendment(store,generation,extract?'amendment:extract:'+listId:linkedListKey(targetDocumentId,listId),extract?'amendment-extract':'amendment-list-detail',{listId,targetDocumentId,parserUpgrade:true},extract?112:115,true);
+      const admitted=admitParserList(store,generation,extract?'amendment:extract:'+listId:linkedListKey(targetDocumentId,listId),extract?'amendment-extract':'amendment-list-detail',{listId,targetDocumentId,parserUpgrade:true},extract?112:115);
       if(!admitted)store.db.prepare('UPDATE amendment_jobs SET retry_at=? WHERE generation=? AND key=?').run(worker.clock()+60_000,generation,task.key);
       return admitted;
     },
-    advance:source=>({afterKey:source.key}),
+    advance:source=>({afterKey:source.key,afterDate:source.date}),
   });
   if(complete) {
     store.putSource(generation,parserUpgradeKey,'amendment-parser-upgrade',{parserVersion:AMENDMENT_EXTRACTION_VERSION,sourceRevision:task.body.sourceRevision || 0,...(task.body.retryAt?{retryAt:task.body.retryAt}:{})},new Date(worker.clock()).toISOString());
@@ -664,7 +676,7 @@ export async function amendmentTask(worker,task) {
         if(!verifiedList(list,body.targetDocumentId,candidate.id))throw new Error('Linked amendment-list detail does not verify its exact document identity, type and forward target.');
         saveVerifiedList(worker,generation,body.targetDocumentId,candidate,list,{basis:'list-detail',url:record.url,fetchedAt:record.fetchedAt});
       }
-      if(body.parserUpgrade&&currentDocxDescriptor(store.source(generation,sourceKey(body.listId))?.work)&&!enqueueAmendment(store,generation,'amendment:extract:'+body.listId,'amendment-extract',{...body},112,true)) {
+      if(body.parserUpgrade&&currentDocxDescriptor(store.source(generation,sourceKey(body.listId))?.work)&&!admitParserList(store,generation,'amendment:extract:'+body.listId,'amendment-extract',{...body},112,task.key)) {
         store.db.prepare('UPDATE amendment_jobs SET retry_at=? WHERE generation=? AND key=?').run(worker.clock()+60_000,generation,task.key);
         return;
       }
