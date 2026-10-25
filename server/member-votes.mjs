@@ -9,7 +9,7 @@ import {requestSignal,runWithRequestSignal,sharedRequest,waitForRequest,isLocalR
 import {projectMemberSitting,memberVoteAlignment} from './member-votes-model.mjs';
 import {mergeSourceNodes,sourceNodeKey,decisionSourceConflicts} from './vote-evidence.mjs';
 
-export const MEMBER_VOTES_VERSION=6;
+export const MEMBER_VOTES_VERSION=7;
 export const MEMBER_VOTES_LIMITS=Object.freeze({pageSize:50,decisionPageSize:250,cataloguePages:10,decisionPages:4,resultsPages:4,agendaPages:4,maxRows:4000,maxSittings:5,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,cacheBytes:32*1024*1024,cacheEntries:8,cacheMs:60_000,snapshotMs:10*60_000,sourceMs:15*60_000,timeoutMs:50_000});
 const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
 const dayOffset=(value,days)=>new Date(Date.parse(value+'T12:00:00Z')+days*86400_000).toISOString().slice(0,10);
@@ -89,8 +89,13 @@ export class MemberVotes extends VoteSourceReader {
     // Auxiliary requests are bounded by the same result-page/byte budgets.
     // Keep their exact edges and wording; they are never result parents.
     const resultCandidates={nodes:results.nodes.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS')};
-    const allNodes=eligible(all,'-DEC-\\d+'),namedNodes=eligible(named,'-DEC-\\d+'),resultNodes=eligible(resultCandidates,'-VOT-ITM-\\d+'),agendaNodes=eligible(agenda,'-[A-Z0-9-]{1,100}');
+    const allNodes=eligible(all,'-DEC-\\d+'),namedNodes=eligible(named,'-DEC-\\d+'),resultNodes=eligible(resultCandidates,'-VOT-ITM-\\d+');
     const requests=results.nodes.filter(n=>['REQUEST_VOTE_ROLLCALL','REQUEST_VOTE_SPLIT','REQUEST_VOTE_SEPARATE'].includes(tail(n.had_activity_type))).filter(n=>{const good=new RegExp('^eli/dl/event/'+sittingId+'-VOT-ITM-\\d+-(?:RCV|SPLIT|SEPARATE)-\\d+$').test(relative(n.id))&&n.activity_id===tail(n.id);if(!good)errors.push(relative(n.id));return good;});
+    const voteErrors=[...errors];
+    // MEETING_PART time slots can omit activity_date. They are scheduling
+    // containers, never vote items; keep dated agenda-item validation intact.
+    const agendaItems={nodes:agenda.nodes.filter(n=>!(n.type==='ForeseenActivity'&&tail(n.had_activity_type)==='MEETING_PART'&&new RegExp('^eli/dl/event/'+sittingId+'-TF-\\d{4}$').test(relative(n.id))&&n.activity_id===tail(n.id)&&refs(n.inverse_was_scheduled_in).includes('eli/dl/event/'+sittingId)))};
+    const agendaNodes=eligible(agendaItems,'-[A-Z0-9-]{1,100}');
     const merged=new Map(allNodes.map(n=>[relative(n.id),n]));const conflictingDecisionIds=[];
     for(const n of namedNodes){
       const key=relative(n.id),old=merged.get(key),{node,fields}=mergeSourceNodes(old,n);
@@ -120,10 +125,23 @@ export class MemberVotes extends VoteSourceReader {
     const missingNamedDecisionIds=allNodes.filter(n=>tail(n.decision_method)==='VOTE_ELECTRONIC_ROLLCALL'&&!['LAPSED','WITHDRAWN'].includes(tail(n.decision_outcome))&&n.type==='Vote'&&!namedIds.has(relative(n.id))).map(n=>relative(n.id));
     const unresolvedAgendaItemIds=[...new Set(parents.flatMap(n=>refs(n.executed)).filter(id=>!agendaIds.has(id)))];
     const undeclaredChildResultIds=parents.filter(n=>!Array.isArray(n.consists_of)||!n.consists_of.length).map(n=>relative(n.id));
-    const completeness={missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,invalidSourceIds:[...new Set(errors)],declaredResultCount:Array.isArray(node.consists_of)?declaredResults.length:declaredResults.length||null,declaredDecisionCount:declaredDecisions.length,complete:false};
+    // Some decision responses ignore limit/offset and repeat the entire census.
+    // Counts alone cannot prove exhaustion: require the exact declared ID set,
+    // complete result parents and unchanged, valid source observations.
+    const sameIds=(nodes,ids)=>nodes.length===ids.length&&nodes.every(n=>ids.includes(relative(n.id)));
+    const resultGraphComplete=results.coverage.state==='complete'&&parents.length>0&&!missingResultIds.length&&!undeclaredChildResultIds.length&&declaredDecisions.every(id=>new RegExp('^eli/dl/event/'+sittingId+'-DEC-\\d+$').test(id));
+    const confirmRepeated=(collection,validNodes,ids)=>{
+      if(collection.coverage.stopReason==='repeated-page'&&!collection.coverage.error&&!collection.conflicts.length&&collection.nodes.length===validNodes.length&&sameIds(validNodes,ids))Object.assign(collection.coverage,{state:'complete',stopReason:'declared-children'});
+    };
+    if(resultGraphComplete&&!voteErrors.length){
+      confirmRepeated(all,allNodes,declaredDecisions);
+      if(all.coverage.state==='complete')confirmRepeated(named,namedNodes,allNodes.filter(n=>tail(n.decision_method)==='VOTE_ELECTRONIC_ROLLCALL').map(n=>relative(n.id)));
+    }
+    const votingRecordsComplete=[all,named,results].every(c=>c.coverage.state==='complete')&&![missingResultIds,missingDecisionIds,missingNamedDecisionIds,conflictingDecisionIds,undeclaredChildResultIds,voteErrors].some(a=>a.length);
+    const completeness={missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,invalidSourceIds:[...new Set(errors)],declaredResultCount:Array.isArray(node.consists_of)?declaredResults.length:declaredResults.length||null,declaredDecisionCount:declaredDecisions.length,votingRecordsComplete,complete:false};
     completeness.complete=[all,named,results,agenda].every(c=>c.coverage.state==='complete')&&![missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,errors].some(a=>a.length);
-    const anySource=[all,named,results,agenda].some(c=>c.coverage.pages>0);
-    const coverage={sittingId,date,state:completeness.complete?'complete':anySource?'partial':'unavailable',decisions:all.coverage,namedDecisions:named.coverage,results:results.coverage,agenda:agenda.coverage,completeness,observedDecisionCount:decisions.length};
+    const anySource=[all,named,results].some(c=>c.coverage.pages>0);
+    const coverage={sittingId,date,state:votingRecordsComplete?'complete':anySource?'partial':'unavailable',decisions:all.coverage,namedDecisions:named.coverage,results:results.coverage,agenda:agenda.coverage,completeness,observedDecisionCount:decisions.length};
     return {sittingId,date,decisions,results:resultNodes,requests,conflictingResults:results.conflicts,resultEvidence:results.evidence,decisionEvidence:Object.fromEntries([...new Set([...Object.keys(all.evidence),...Object.keys(named.evidence)])].map(key=>[key,[...(all.evidence[key]||[]),...(named.evidence[key]||[])]])),agenda:agendaNodes,sources:{decisions:[...all.coverage.sources,...named.coverage.sources],results:results.coverage.sources,agenda:agenda.coverage.sources},coverage};
   }
 
@@ -144,7 +162,7 @@ export class MemberVotes extends VoteSourceReader {
     const failedSittingIds=[...expectedSittingIds.filter(id=>!scannedSittingIds.includes(id)),...days.filter(d=>d.coverage.state==='unavailable').map(d=>d.sittingId)];
     const incompleteSittingIds=days.filter(d=>d.coverage.state!=='complete').map(d=>d.sittingId);
     const collectionComplete=catalogue.coverage.state==='complete'&&!failedSittingIds.length&&!incompleteSittingIds.length;
-    const coverage={status:collectionComplete?'complete':days.some(d=>d.coverage.state!=='unavailable')?'partial':'unavailable',collectionComplete,termWide:false,expectedSittingIds,scannedSittingIds,failedSittingIds,incompleteSittingIds,catalogue:catalogue.coverage,sittings:days.map(d=>d.coverage),basis:'Only decisions retrieved for the resolved held period. Complete means bounded source collection and declared-child checks, not attendance, eligibility, universal publication or term-wide history. Missing positions are not absence. Sources can be revised; source retrieval times and hashes identify this snapshot.'};
+    const coverage={status:collectionComplete?'complete':days.some(d=>d.coverage.state!=='unavailable')?'partial':'unavailable',collectionComplete,termWide:false,expectedSittingIds,scannedSittingIds,failedSittingIds,incompleteSittingIds,catalogue:catalogue.coverage,sittings:days.map(d=>d.coverage),basis:'Voting-record coverage for the resolved held period: decision, named-position and result streams plus exact declared-child checks. Agenda context is separate; completeness.complete retains the full graph check. Complete does not establish attendance, eligibility, universal publication or term-wide history. Missing positions are not absence. Source retrieval times and hashes identify this snapshot.'};
     return {period,days,coverage};
   }
 

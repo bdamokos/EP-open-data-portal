@@ -7,7 +7,7 @@ import {requestSignal} from './request-budget.mjs';
 import {list,exactReference,references,identifier,deriveVoteEvidence} from './vote-evidence.mjs';
 import {decisionVoteBindingConflict} from './decision-vote-binding.mjs';
 
-export const DECISION_VOTES_VERSION=4;
+export const DECISION_VOTES_VERSION=5;
 
 export function decisionVotesQuery(id,search,options) {
   if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(id))throw new HttpError(400,'invalid_decision','Use an exact decision identifier.');

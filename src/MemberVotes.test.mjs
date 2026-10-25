@@ -46,7 +46,7 @@ function stateFrom(url) {
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:6,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:7,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
@@ -543,11 +543,38 @@ test('a temporary 503 keeps the retry path usable while the backend load continu
 
 test('partial period coverage is disclosed once alongside observed, filtered and page counts',async t=>{
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{coverage:{status:'partial',collectionComplete:false},pagination:{observedTotal:70,filteredTotal:1},subjects:[subject([vote(1)],{counts:{observed:70,filtered:1,page:1}})]}))});
-  const notice='Some voting records for this period are unavailable.';
+  const notice='Incomplete voting records';
   assert.equal(h.container.textContent.split(notice).length-1,1);
   assert.match(h.container.querySelector('.member-votes-tools').textContent,/1–1 of 1 decision · 1 with a recorded position/);
   assert.match(h.container.querySelector('.member-votes-subject-count').textContent,/1 decision in this subject · 1 on this page/);
   assert(!/all.term|denominator/i.test(h.container.textContent));
+});
+
+test('coverage notice names incomplete sitting days and leaves unaffected detail and document panes clear',async t=>{
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT]}});
+  const h=await mount(t,{state:{week:WEEK,expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items:[item],coverage:{status:'partial',collectionComplete:false,incompleteSittingIds:[SITTING],sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'partial',observedDecisionCount:1}]}}))});
+  assert.equal(h.container.querySelector('.member-votes-notice').textContent,'Incomplete voting records · 25 Mar 2026');
+  assert.match(h.container.querySelector('.member-votes-tools').textContent,/Partial coverage/);
+  assert.match(h.container.querySelector('.member-votes-alignment').textContent,/Partial coverage/);
+  await act(async()=>h.container.querySelector('[data-vote-id]').click());
+  assert.equal(h.container.querySelector('.member-votes-notice'),null);
+  await h.click('Read report · '+DOCUMENT);
+  assert(h.container.querySelector('[data-testid="context"]'));
+  assert.equal(h.container.querySelector('.member-votes-notice'),null);
+});
+
+test('a selected decision reports its own missing result, independently of period coverage',async t=>{
+  const item=vote(1,{evidenceGaps:[{code:'missing-result',id:SUBJECT}]});
+  const h=await mount(t,{state:{week:WEEK,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item],coverage:{status:'partial',incompleteSittingIds:[SITTING]}}))});
+  assert.equal(h.container.querySelector('.member-votes-notice').textContent,'Vote result incomplete.');
+  assert.doesNotMatch(h.container.querySelector('.member-votes-notice').textContent,/25 Mar|period/);
+});
+
+test('agenda context gaps alone do not label vote counts or the period incomplete',async t=>{
+  const h=await mount(t,{state:{week:WEEK},handler:url=>Response.json(responseFor(url,{coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:1,agenda:{state:'unavailable'},completeness:{complete:false,votingRecordsComplete:true}}]}}))});
+  assert.equal(h.container.querySelector('.member-votes-notice'),null);
+  assert.doesNotMatch(h.container.querySelector('.member-votes-tools').textContent,/Partial coverage/);
+  assert.doesNotMatch(h.container.querySelector('.member-votes-alignment').textContent,/Partial coverage/);
 });
 
 test('page navigation replaces page rows and retains the pinned snapshot and expanded subjects',async t=>{
@@ -750,7 +777,7 @@ for(const coverage of ['complete','partial','unavailable'])test('alignment empty
   if(coverage==='complete')assert.match(text,/No recorded votes against Parliament’s outcome in this week/);
   if(coverage==='partial'){assert.match(text,/No matching recorded votes among the available records for this week/);assert.match(text,/Counts in this week · Partial coverage/);}
   if(coverage==='unavailable'){
-    assert.match(text,/Some voting records for this period are unavailable/);assert.match(text,/Against the outcome \(unavailable\)/);
+    assert.match(text,/Voting records unavailable/);assert.match(text,/Against the outcome \(unavailable\)/);
     assert.equal(h.container.querySelector('.member-votes-empty'),null);assert.doesNotMatch(text,/0 decisions|No recorded votes|No matching recorded/);
   }
 });
