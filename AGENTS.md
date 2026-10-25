@@ -4,7 +4,7 @@ Use only publicly accessible parliamentary data and transparently documented pro
 
 Preserve exact identifiers, source URLs, retrieval dates, languages and explicit gaps. Do not join records solely by title, tally or name similarity. Keep unavailable observations distinct from zeroes.
 
-Write UI copy for readers, without disclaimers, hedges or method notes, and keep data gaps as short labels. Tell the maintainer about uncertainty and limits in PRs, reviews and chat instead. See the UI copy rules in CONTRIBUTING.md.
+Write plain, brief UI copy: no inline caveats or hedges, short labels for data gaps, and one explanatory line only where it changes how a number reads. Report uncertainty and limits fully to the maintainer in PRs, reviews and chat. See the UI copy rules in CONTRIBUTING.md.
 
 Use branches and pull requests for changes. Do not publish the repository, change its visibility or add a source licence without maintainer authorization. Keep cache/index directories and browser following data outside Git.
 
