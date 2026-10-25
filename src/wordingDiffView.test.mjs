@@ -81,5 +81,5 @@ test('wording comparison modes, accessible announcements, source language, defau
   await render({presentation:'comparison'});assert.equal(button('Side by side').getAttribute('aria-pressed'),'true');
   assert.match(container.textContent,/Mostly rewritten/);
   await render({original:'x'.repeat(20_001),proposed:'Small text'});assert.equal(container.querySelector('button,ins,del'),null);
-  assert.match(container.textContent,/too long or too extensively changed/);assert.equal(wordingText(container,'original'),props.original);
+  assert.match(container.textContent,/Too extensively changed to highlight\./);assert.equal(wordingText(container,'original'),props.original);
 });

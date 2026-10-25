@@ -91,7 +91,6 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
         </select></label>
         {changed?<button onClick={()=>{audioControl.current?.focus({preventScroll:true});start(selectedOriginal);}}>Restart video</button>:<button disabled={media.loading||!media.data?.available} onClick={()=>{if(replayNeedsMediaRefresh(media.data,media.error))audioControl.current?.focus({preventScroll:true});start(current.original);}}>Replay video</button>}
       </div>
-      <p className="explorer-video-audio-note">{changed?'Changing audio restarts the clip.':current.original?'Original sound from the chamber. Languages may vary.':`Parliament’s ${languageName} audio channel. Transcript language is separate.`}</p>
       {media.loading && !media.data && <p role="status">Loading video…</p>}
     {media.error && <div className="explorer-notice" role="alert"><p>{media.error}</p><button onClick={()=>{returnFocus();media.retry();}}>Try video again</button></div>}
     {media.data && <>

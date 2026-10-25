@@ -86,8 +86,6 @@ function Wording({documentId,amendmentId,language,openContext}:{documentId:strin
         <p className="member-votes-muted">{textLanguage?'Text language: '+languageLabel(textLanguage):'Text language unknown.'}{authors.length>0&&<> · Proposed by {authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/></span>)}</>}</p>
         {readable?<div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:'Original wording',proposed:'Proposed wording',emptyOriginal:'',emptyProposed:''}}/></div>:<p>Amendment wording unavailable here.</p>}
         {readable&&selected.wordingRetained&&<p className="member-votes-muted">Showing saved wording.</p>}
-        {authors.length>0&&selected.proposerRetained&&<p className="member-votes-muted">Proposer details are from an earlier source version.</p>}
-        {selected.recordRetained&&<p className="member-votes-muted">Version details are from an earlier source record.</p>}
         <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,view:'document'})}>Read in context</button>
       </>}
     </>
@@ -105,20 +103,20 @@ function Detail({vote,data,memberName,language,onDecision,openContext,attendance
     <header><p className="member-votes-eyebrow">{dateLabel(vote.date)}</p>{title&&<p className="member-votes-detail-subject" lang={title.language} title={title.raw}>{title.text}</p>}<h2 tabIndex={-1}>{memberVoteLabel(vote,language)}</h2></header>
     {subject?.wholeTextDecisions.length?subject.wholeTextDecisions.map(whole=><WholeText key={whole.id} vote={whole} memberName={memberName} onDecision={onDecision}/>):null}
     <section className="member-votes-strip" aria-label="Member position and Parliament result"><Position vote={vote} memberName={memberName}/><Result vote={vote}/>
-      {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention">Declared intention: <strong>{vote.intention.positions.map(position=>({for:'For',against:'Against',abstaining:'Abstain'}[position])).join(', ')}</strong>. Declared afterwards; the official result and totals are unchanged.</p>}
+      {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention">Declared intention: <strong>{vote.intention.positions.map(position=>({for:'For',against:'Against',abstaining:'Abstain'}[position])).join(', ')}</strong>. Declared afterwards; result unchanged.</p>}
       {attendanceAttempted&&<AttendanceDetail day={attendance?.sittings.find(day=>day.sittingId===vote.sittingId)} loading={attendanceLoading}/>}
     </section>
     {explanationsActive&&<MemberVoteExplanations key={[data.member.id,vote.id,data.snapshotId,language].join(':')} vote={vote} data={data} memberId={data.member.id} language={language} onDecision={onDecision}/>}
     {vote.parts.map(part=>{
       const text=selectLanguageText(Object.fromEntries(Object.entries(part.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
-      return text.text?<section className="member-votes-part" key={part.componentId}><h3>Published description{part.number!==null?' of part '+part.number:''}</h3><p lang={text.language}>{text.text}</p><p className="member-votes-muted">The result above applies to this individual decision.</p></section>:null;
+      return text.text?<section className="member-votes-part" key={part.componentId}><h3>Published description{part.number!==null?' of part '+part.number:''}</h3><p lang={text.language}>{text.text}</p></section>:null;
     })}
     {targets.map(target=><Wording key={vote.id+':'+target.amendmentId+':'+language} {...target} language={language} openContext={openContext}/>)}
     {!targets.length&&vote.context.amendmentIds.length>0&&<p>Amendment wording unavailable here.</p>}
     {contexts.length>0&&<details className="member-votes-related"><summary>Other parts of this split vote</summary>{contexts.map(component=>{
       const text=selectLanguageText(Object.fromEntries(Object.entries(component.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
       return <div key={component.componentId}><h4>{component.number!==null?'Part '+component.number:'Another part'}</h4>{text.text?<p lang={text.language}>{text.text}</p>:<p>Part wording unavailable here.</p>}</div>;
-    })}<p className="member-votes-muted">Each part has its own decision and outcome.</p></details>}
+    })}</details>}
     {siblingVotes.length>0&&<section className="member-votes-siblings"><h3>Other decisions shown for this split vote</h3>{siblingVotes.map(item=><button type="button" key={item.id} onClick={()=>onDecision(item.id)}>{memberVoteLabel(item,language)} · {memberVoteOutcome(item)}</button>)}</section>}
     <p className="member-votes-muted">{vote.ballotStatus==='not-conducted'?'Not put to a vote':voteMethodLabel(vote.method)}</p>
     {requesterLabels.length>0&&<p className="member-votes-requester">Roll call requested by {requesterLabels.map((label,index)=><span key={index} lang={label.language}>{index>0?', ':''}{label.text}</span>)}.</p>}
@@ -215,7 +213,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     {request.loading&&!data&&<p role="status">Loading voting records…</p>}
     {expired?<div className="member-votes-notice" role="alert"><p>This saved view of the period has expired. Refresh to load the available votes.</p><button type="button" onClick={()=>{snapshotRefresh.current={route:memberVotesRoute(memberId,{...state,snapshotId:null},language),started:false,baseline:null};change({snapshotId:null});}}>Refresh votes</button></div>:request.error?<div className="member-votes-notice" role="alert"><p>Voting records could not be loaded. Try again.</p><button type="button" disabled={request.loading} onClick={request.retry}>Retry votes</button></div>:rejected?<div className="member-votes-notice" role="alert"><p>The requested voting records are unavailable here.</p><button type="button" onClick={request.retry}>Retry votes</button></div>:null}
     {data&&!expired&&!request.error&&<>
-      {data.coverage.status!=='complete'&&<p className="member-votes-notice">Some voting records for this period are unavailable. More decisions or recorded positions may exist.</p>}
+      {data.coverage.status!=='complete'&&<p className="member-votes-notice">Some voting records for this period are unavailable.</p>}
       <div ref={listRef} className="member-votes-pane" hidden={Boolean(state.decisionId||state.context)} onScroll={event=>{listScroll.current=event.currentTarget.scrollTop;}}>
         <div className="member-votes-tools">{data.coverage.status!=='unavailable'&&<p>{data.pagination.returned?`${data.pagination.offset+1}–${data.pagination.offset+data.pagination.returned} of ${data.pagination.filteredTotal}`:'0'} {countLabel(data.pagination.filteredTotal,state.positions==='recorded'?'recorded position':'decision')}{data.pagination.recordedTotal!==null?` · ${data.pagination.recordedTotal} with a recorded position`:''}</p>}<div className="member-votes-filter" role="group" aria-label="Votes shown"><button type="button" aria-pressed={state.positions==='all'} onClick={()=>{listScroll.current=0;change({positions:'all',offset:0});}}>All decisions</button><button type="button" aria-pressed={state.positions==='recorded'} onClick={()=>{listScroll.current=0;change({positions:'recorded',offset:0});}}>Recorded positions</button></div></div>
         <OutcomeAlignmentFilter value={state.alignment} counts={data.alignmentCounts} coverage={data.coverage.status} sitting={Boolean(state.sittingId)} onChange={alignment=>{alignmentFocus.current=alignment;listScroll.current=0;change({alignment,offset:0});}}/>

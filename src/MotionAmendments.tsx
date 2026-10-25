@@ -220,7 +220,7 @@ function AmendmentDetail({item,member,memberName,language,listId,onVariant,onCon
         <>Wording language: <span lang="">{languageLabel(record.wording?.language)}</span></>}
         {record.listDocumentDate&&<> · <span lang={language}>{dateLabel(record.listDocumentDate,language)}</span></>}
       </p>
-      {(record.wordingRetained||record.recordRetained||record.proposerRetained||record.sourceFreshness?.status==='failed')&&<p className="motion-amendments__notice">Saved wording or proposer information is shown. The latest source check is incomplete.</p>}
+      
       {record.wording?.originalStatus==='available'&&record.wording.proposedStatus==='available'&&typeof record.originalText==='string'&&record.originalText!==''&&typeof record.proposedText==='string'&&record.proposedText!==''?
         <WordingDiff key={JSON.stringify(record)} original={record.originalText} proposed={record.proposedText} language={sourceLanguage(record.wording.language)} emptySemantics="not-supplied" labels={{original:'Original wording quoted in the amendment',proposed:'Proposed wording'}}/>:
         <div className="motion-amendments__wording-grid"><Wording record={record} kind="original"/><Wording record={record} kind="proposed"/></div>}

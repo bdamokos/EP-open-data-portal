@@ -56,9 +56,8 @@ export function MotionOutcome({outcome,related=[],reference,sourceId,language,me
       const url=readableDocumentUrl(motion.url);
       return <section className="explorer-motion-joint-outcome" key={motion.sourceId} aria-label={`Joint motion ${motion.reference}`}>
         <h3>Joint motion <span className="explorer-motion-reference">{motion.reference}</span></h3>
-        {outcome?.status!=='lapsed' && <p className="explorer-motion-explanation">Related joint text combining this motion with others.</p>}
         <ActivityVote indexed={{outcome:motion.outcome.status==='unavailable'?null:motion.outcome.status.toUpperCase(),method:motion.outcome.method,totals:motion.outcome.totals}} decisionId={motion.outcome.decisionId} memberId={memberId} memberName={memberName} language={language}><MotionStatus outcome={motion.outcome}/><VoteDetails outcome={motion.outcome} language={language}/></ActivityVote>
-        {motion.memberAuthorship && <p className="explorer-motion-explanation">{motion.memberAuthorship==='recorded' ? 'This MEP is also listed as an author of this joint motion.' : 'No authorship is recorded for this MEP on this joint motion.'}</p>}
+        {motion.memberAuthorship==='recorded' && <p className="explorer-motion-explanation">This MEP is also an author of this joint motion.</p>}
         {url && <a className="explorer-motion-document-link" href={url} target="_blank" rel="noreferrer" title={motion.title} lang=""><span lang="en">Read joint motion{motion.documentFormat ? ` (${motion.documentFormat}${motion.documentLanguage ? ' · '+motion.documentLanguage.toUpperCase() : ''})` : ''} ↗</span></a>}
         {sourceId.startsWith('B-')&&<CompareWording originalId={sourceId} jointId={motion.sourceId} language={language}/>}
       </section>;

@@ -35,7 +35,7 @@ test('question text search keeps country and dates while visual topic filters re
   assert.equal(container.querySelector('.insight-topic-picker'),null);
   assert.equal(container.querySelector('.insight-active-filters'),null,'analytical topic chips must not imply a full-text filter');
   assert.equal(container.querySelector('[data-question-country]').value,'IT');
-  assert.match(container.textContent,/across all topics and subjects in the selected period/);
+  assert.doesNotMatch(container.textContent,/across all topics and subjects/);
   await act(async()=>{const url=new URL(location.href);url.searchParams.set('q-fts-search','water');history.pushState(null,'',url);window.dispatchEvent(new window.Event('popstate'));});
   assert.equal(searches.length,1);
   const search=searches[0];
@@ -142,8 +142,7 @@ test('a large plenary cloud searches by exact period and country while delayed h
   assert.equal(new URL(location.href).searchParams.get('agenda-fts-page'),'3','hydrating dates must preserve the restored page');
   assert.equal(new URL(location.href).searchParams.get('agenda-fts-read'),read,'hydrating dates must preserve the restored exact reader');
   assert.equal(container.querySelector('.explorer-search-body')?.lang,'fr');
-  assert.match(container.textContent,/all indexed speech contributions within this plenary week/);
-  assert.match(container.textContent,/available text languages beyond the word cloud’s current language/);
+  assert.doesNotMatch(container.textContent,/all indexed speech contributions/);
   await act(async()=>{const select=container.querySelector('.explorer-cloud-controls select');select.value='de';select.dispatchEvent(new window.Event('change',{bubbles:true}));});
   assert.equal(cloudCalls.length,2);
   assert.deepEqual(searches.at(-1),searches[0],'changing the cloud analysis language must preserve the exact corpus search scope and page');

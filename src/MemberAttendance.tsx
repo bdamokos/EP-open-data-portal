@@ -8,6 +8,6 @@ export function AttendanceLine({data,loading,attempted}:{data:MemberAttendanceRe
 export function AttendanceDetail({day,loading}:{day?:MemberAttendanceSitting;loading:boolean}) {
   return <div className="member-votes-attendance">
     <p>{!day&&loading?'Loading attendance register…':memberAttendanceDetail(day)}</p>
-    {day?.memberStatus==='not-listed'&&<p>This does not establish absence: members can vote without being listed, and mandate dates are not checked here.</p>}
+    {day?.memberStatus==='not-listed'&&<p>Not listed doesn’t mean absent.</p>}
   </div>;
 }

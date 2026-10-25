@@ -85,7 +85,7 @@ test('retained-speech coverage remains visible beside an incomplete calendar',as
     const note=ui.container.querySelector('.availability-note>p').textContent;
     assert.match(note,/Partial coverage/,'the source qualifier remains independent of calendar coverage');
     if(!retained)assert.equal(note,'Records observed · Partial coverage');
-    assert.match(ui.container.querySelector('.availability-note details').textContent,/Counts describe saved records/);
+    assert.doesNotMatch(ui.container.querySelector('.availability-note details').textContent,/Counts describe saved records/);
     assert.equal(ui.container.querySelectorAll('.availability-note').length,1,'the source has one shared coverage note');
   });
 });

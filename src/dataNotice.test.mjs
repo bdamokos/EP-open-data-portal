@@ -34,7 +34,7 @@ test('the site notice states independence and can be hidden to a compact toggle 
   assert.equal(summary().textContent,'About this site');
   assert.equal(details.open,false,'dismissal collapses the expanded terms');
   assert.equal(window.document.activeElement,summary(),'focus moves to the remaining toggle');
-  assert.match(container.querySelector('.data-notice__body').textContent,/This site is independent\./);
+  assert.match(container.querySelector('.data-notice__body').textContent,/Independent site\./);
   assert.equal(window.localStorage.getItem('ep.data-notice.dismissed.v1'),'1');
   await act(async()=>summary().click());
   assert.equal(details.open,true,'the compact toggle reopens the same terms');

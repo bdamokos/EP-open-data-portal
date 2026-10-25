@@ -106,7 +106,7 @@ test('multiple exact references require a choice and resolver preserves gaps wit
   anchor.dispatchEvent(new h.window.MouseEvent('click',{bubbles:true,cancelable:true,ctrlKey:true}));assert.equal(prevented,false,'modifier click retains the normal href');assert.equal(location.href,before);
   await h.render(createElement(h.module.ActivityDossierLinks,{person:257727,procedureIds:['2025-0176','2025-0233','2025-0407','2025-0999','invalid']}));
   const resolver=h.calls.find(url=>url.pathname.endsWith('dossier-references'));assert.equal(resolver.searchParams.get('procedures'),'2025-0176,2025-0233,2025-0407');
-  assert.equal(h.container.querySelectorAll('a').length,1);assert.match(h.container.textContent,/Exact procedure source unavailable/);assert.match(h.container.textContent,/first three/);
+  assert.equal(h.container.querySelectorAll('a').length,1);assert.match(h.container.textContent,/Exact procedure source unavailable/);assert.match(h.container.textContent,/First 3 of 4 procedures shown\./);
   assert(!h.container.innerHTML.includes('2025%2F0233%28COD%29'));
 });
 
@@ -141,7 +141,7 @@ test('HTTP 200 unavailable target retains continuation and can retry the failed 
 
 test('document-only role cards use a separate document section and never claim an appointment date',async t=>{
   const h=await harness(t,undefined,url=>url.searchParams.get('section')==='roles'?Response.json(page('roles','257727',[{...role,dateBasis:'document',documentId:'exact-document'}])):null);
-  await h.render(createElement(h.module.DossierActivity,{reference}));assert.match(h.container.querySelector('.dossier-document-roles').textContent,/appointment dates unavailable/);assert.match(h.container.querySelector('.dossier-document-roles').textContent,/Document date/);
+  await h.render(createElement(h.module.DossierActivity,{reference}));assert.doesNotMatch(h.container.querySelector('.dossier-document-roles').textContent,/appointment dates unavailable/);assert.match(h.container.querySelector('.dossier-document-roles').textContent,/Document date/);
   assert(!h.container.querySelector('.dossier-timeline .dossier-role'));
 });
 
@@ -152,6 +152,18 @@ test('same-generation partial and complete resolver snapshots revalidate when re
   assert.equal(h.calls.filter(url=>url.pathname.endsWith('dossier-references')).length,2);
 });
 
+test('complete target reads still label incomplete broader amendment discovery',async t=>{
+  const h=await harness(t,undefined,url=>{
+    if(url.searchParams.get('section')!=='amendments')return;
+    return Response.json(page('amendments','257727',[amendment],{coverage:{status:'complete',gaps:[],sources:[source],discovery:{pending:false,refreshGaps:true,capacityGaps:['Discovery limit reached.']}}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  const coverage=h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage');
+  assert(coverage,'discovery gaps keep a coverage label');
+  assert.match(coverage.querySelector('p').textContent,/Other sources partially checked/);
+  assert.deepEqual([...coverage.querySelectorAll('details li')].map(node=>node.textContent),['Discovery limit reached.']);
+});
+
 test('coverage attributes each amendment gap to its exact requested target',async t=>{
   const h=await harness(t,undefined,url=>{
     if(url.searchParams.get('section')!=='amendments')return;
@@ -160,7 +172,7 @@ test('coverage attributes each amendment gap to its exact requested target',asyn
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more amendments');
   const coverage=[...h.container.querySelectorAll('[aria-label="Amendments coverage"] .dossier-coverage>details>ul>li')];
-  assert.equal(coverage.length,2);assert.match(coverage[0].textContent,/A-10-2026-0010 · checked source records/);assert.doesNotMatch(coverage[0].textContent,/Exact target read failed/);assert.match(coverage[1].textContent,/A-10-2026-0011 · unavailable/);assert.match(coverage[1].textContent,/Exact target read failed/);
+  assert.deepEqual(coverage.map(node=>node.textContent),['A-10-2026-0011 · Exact target read failed.']);
 });
 
 test('a mismatched section/person response fails locally while valid sections remain readable',async t=>{
@@ -210,8 +222,7 @@ test('later vote pages stay explicit at their amendment and join once when loade
   assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1);
   assert.equal(card.querySelector('.explorer-amendment-card header .explorer-amendment-outcome'),null,'do not contradict the exact bound ballot with an unavailable badge');
   assert.doesNotMatch(card.textContent,/Vote details not loaded/);
-  assert.equal(card.querySelector('.dossier-vote>.dossier-source>summary').textContent,'Vote source');
-  assert.equal(card.querySelector(':scope>.dossier-source>summary').textContent,'Amendment source');
+  assert.equal(card.querySelector('.dossier-source[href*="data.europarl.europa.eu"]'),null,'machine-readable records are not linked');
   assert.doesNotMatch(card.querySelector('.dossier-vote>.dossier-muted').textContent,/Stage not stated/);
   assert.match(card.querySelector('.dossier-vote>.dossier-muted').textContent,/Sep 16, 2026/);
   assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='votes').at(-1).searchParams.get('offset'),'25');

@@ -274,7 +274,7 @@ test('background storage errors retain entries and failed follow changes revert 
 });
 test('empty Following makes no requests; epoch reset keeps readable entries',async t=>{
  const h=await harness(t,[]);await h.render();assert(h.container.querySelector('.explorer-saved-heading button').disabled);assert.equal(h.requests.length,0);
- await act(async()=>h.controls.savedStore.toggle(member()));await h.background();h.setStatus({generation:6});h.setDetail([['late',0,6]],[speech]);await h.check();await settle();h.setStatus({epoch:'two',generation:1});await h.check();assert.equal(h.item().entries.length,1);assert.match(h.container.textContent,/Update tracking restarted/);
+ await act(async()=>h.controls.savedStore.toggle(member()));await h.background();h.setStatus({generation:6});h.setDetail([['late',0,6]],[speech]);await h.check();await settle();h.setStatus({epoch:'two',generation:1});await h.check();assert.equal(h.item().entries.length,1);assert.doesNotMatch(h.container.textContent,/Update tracking restarted/);
 });
 
 test('question answers update when MEP marks are unready and remain independent when the manifest fails',async t=>{
@@ -310,7 +310,7 @@ test('opening updates retries a detail rejected after a concurrent manifest adva
 });
 test('a second manifest advance surfaces the opening error instead of silently completing',async t=>{
  const h=await harness(t);await h.render();await h.check();await h.clear();h.setStatus({generation:6});h.setDetail([['late',0,6]]);await h.background(true);
- await h.clear();const first=h.holdNextDetail();const opening=h.controls.openSavedMember(h.item(),'en');const rejected=assert.rejects(opening,/The index generation has changed/);await first.ready;
+ await h.clear();const first=h.holdNextDetail();const opening=h.controls.openSavedMember(h.item(),'en');const rejected=assert.rejects(opening,/Data was updated/);await first.ready;
  h.setStatus({generation:7});await h.background(true);const second=h.holdNextDetail();await act(async()=>first.release());await second.ready;
  h.setStatus({generation:8});await h.background(true);await act(async()=>{second.release();await rejected;});
 

@@ -113,8 +113,6 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const body=exactBody&&(!found||indices.every(index=>index>=extracted.start))&&(!placed||placementStart!==undefined&&placementStart>=extracted.start)?extracted:{paragraphs:allParagraphs,start:0};
   const notes=text?.notes||[],anchors=text?.noteAnchors||[],links=text?.documentLinks||[],objects=text?.documentObjects||[];
   const annotatedSpan=placed&&placement?.span&&typeof wording?.originalText==='string'?mapContextAnnotations(allParagraphs,placement.span,wording.originalText,anchors,links):null;
-  const spanHasAnnotations=Boolean(placement?.span&&[...anchors,...links].some(item=>item.paragraph>=placement.span!.start&&item.paragraph<=placement.span!.end));
-  const annotationFallback=placed&&spanHasAnnotations&&!annotatedSpan;
   const renderOriginal=annotatedSpan&&typeof wording?.originalText==='string'?(value:string,start:number)=>{
     const end=start+value.length;
     const clipped=annotatedSpan.links.map(link=>({...link,start:Math.max(link.start,start),end:Math.min(link.end,end)})).filter(link=>link.end>link.start);
@@ -123,7 +121,6 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-labelledby={amendmentHeading}>
     <h4 id={amendmentHeading} lang="en">Amendment{number?' '+number:''}</h4>
     {wording&&<WordingDiff original={placement?.operation==='insert'?'':wording.originalText} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={inPlace?renderOriginal:undefined}/>}
-    {inPlace&&annotationFallback&&<p className="wording-diff__note" lang="en">Footnotes and links are shown in the full document's original</p>}
   </section>;
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
   const title=document?titleOf(document,language):null,hasText=text?.status==='available'&&allParagraphs.length>0;

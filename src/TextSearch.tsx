@@ -1,4 +1,5 @@
 import {useEffect,useId,useRef,useState,type RefObject,type ReactNode} from 'react';
+import {sourcePageUrl} from './SourceLink';
 import {API_ROOT} from './api';
 import {PersonName,usePersonName} from './PersonName';
 import {useData} from './data';
@@ -27,7 +28,7 @@ function Excerpt({text}:{text:string}){return <>{searchSnippetParts(text).map((p
 function Attribution({hit}:{hit:Hit}) {
   const displayName=usePersonName();
   const people=(hit.people||[]).filter(person=>Boolean(displayName(person.id,person.name)));
-  return people.length?<span>{hit.kind==='answer'?'Answer to a question by ':hit.kind==='question'?'Question by ':'Speaker: '}<span lang="">{people.map((person,index)=><span key={person.id+':'+index}>{index?', ':''}<PersonName id={person.id} label={person.name}/></span>)}</span></span>:hit.kind==='answer'?<span>Answering institution’s text · linked question authorship</span>:null;
+  return people.length?<span>{hit.kind==='answer'?'Answer to a question by ':hit.kind==='question'?'Question by ':'Speaker: '}<span lang="">{people.map((person,index)=><span key={person.id+':'+index}>{index?', ':''}<PersonName id={person.id} label={person.name}/></span>)}</span></span>:hit.kind==='answer'?<span>Answer</span>:null;
 }
 function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity:{sourceId:string;sourceKey:string};query:string;expectedHash?:string;sourceUrl?:string;language:string}) {
   const params=new URLSearchParams({'source-id':identity.sourceId,'source-key':identity.sourceKey});if(query.trim())params.set('q',query);
@@ -35,12 +36,12 @@ function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity
   useEffect(()=>{if(!data)return;const frame=window.requestAnimationFrame(()=>body.current?.querySelector('mark')?.scrollIntoView({block:'nearest'}));return()=>window.cancelAnimationFrame(frame);},[data]);
   return <section className="explorer-search-reader" lang="en" aria-label="Indexed matching text">
     {loading&&!data&&<p role="status">Opening saved text…</p>}
-    {error&&<p role="alert">{error} <button type="button" className="explorer-search-link" onClick={retry}>Retry</button>{sourceUrl&&<> · <a href={sourceUrl} target="_blank" rel="noreferrer">Open Parliament source ↗</a></>}</p>}
-    {data&&<><div className="explorer-search-meta"><span><span lang={language}>{languageName(data.language,language)}</span> · {data.translationType==='machine'?'Parliament machine translation':data.translationType==='original'?'Original text':'Published text'}</span><span>{identity.sourceId}</span></div>
-      {expectedHash&&expectedHash!==data.sha256&&<p className="explorer-search-status">This text changed after the search. Run the search again for updated excerpts.</p>}
+    {error&&<p role="alert">{error} <button type="button" className="explorer-search-link" onClick={retry}>Retry</button>{sourcePageUrl(sourceUrl)&&<> · <a href={sourcePageUrl(sourceUrl)!} target="_blank" rel="noreferrer">Parliament page ↗</a></>}</p>}
+    {data&&<><div className="explorer-search-meta"><span><span lang={language}>{languageName(data.language,language)}</span> · {data.translationType==='machine'?'Parliament machine translation':data.translationType==='original'?'Original text':'Published text'}</span></div>
+      {expectedHash&&expectedHash!==data.sha256&&<p className="explorer-search-status">Text changed since the search. Search again to update the excerpts.</p>}
       <div className="explorer-search-body" ref={body} lang={data.language||''}>{data.highlightRanges?searchRangeParts(data.body,data.highlightRanges).map((part,i)=>part.match?<mark key={i}>{part.text}</mark>:<span key={i}>{part.text}</span>):<Excerpt text={data.highlightedBody??data.body}/>}</div>
-      {data.highlightsTruncated&&<p className="explorer-search-hint">Only the first matching passages are highlighted in this long text.</p>}
-      <div className="explorer-search-source"><a href={data.sourceUrl} target="_blank" rel="noreferrer">Parliament source ↗</a><span>Retrieved <span lang={language}>{dateLabel(data.fetchedAt,language)}</span></span></div></>}
+      {data.highlightsTruncated&&<p className="explorer-search-hint">Only the first matches are highlighted.</p>}
+      {sourcePageUrl(data.sourceUrl,{language:data.language||language})&&<div className="explorer-search-source"><a href={sourcePageUrl(data.sourceUrl,{language:data.language||language})!} target="_blank" rel="noreferrer">Parliament page ↗</a></div>}</>}
   </section>;
 }
 
@@ -130,7 +131,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
             {selected&&read===key&&<StoredReader identity={selected} query={query} expectedHash={hit.sha256} sourceUrl={hit.sourceUrl} language={language}/>}</div>;})}</article>;
         })}
         {(offset>0||data.nextOffset!==null)&&<nav className="explorer-search-pages" aria-label="Search result pages"><button type="button" className="explorer-search-link" disabled={!offset||loading} onClick={()=>moveTo(previousOffset)}>{previousLabel}</button><span>{data.results.length?`${data.offset+1}–${data.offset+data.results.length}`:'0'} of {data.total}</span><button type="button" className="explorer-search-link" disabled={data.nextOffset===null||loading} onClick={()=>{if(data.nextOffset!==null){predecessors.current.offsets.set(data.nextOffset,offset);moveTo(data.nextOffset);}}}>Next</button></nav>}
-        {data.responseLimited&&<p className="explorer-search-hint">This page contains fewer documents because some have many matching language versions.</p>}
+        
         {data.truncated&&<p className="explorer-search-status">More matches are available. Narrow the period, language or document type to see them.</p>}
       </div>}
       {selected&&!selectedHit&&!loading&&<><p className="explorer-search-status">Opening the linked saved text independently of this results page.</p><StoredReader identity={selected} query={query} language={language}/></>}
@@ -140,7 +141,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
 
 // CSS Custom Highlights leave React-managed text, links and footnotes intact.
 // Where unsupported, select only the active match using the native Selection.
-const findExcluded='button:not(.legal-ref):not(.source-primary),script,style,[hidden]';
+const findExcluded='button:not(.legal-ref),script,style,[hidden]';
 function matchDetails(range:Range,target:HTMLElement) {
   const details=new Set<HTMLDetailsElement>();
   if(!target.contains(range.commonAncestorContainer))return details;
@@ -168,7 +169,7 @@ export function FindInText({target,label='Find in this text',onOpen}:{target:Ref
     let frame=0;const update=()=>{window.cancelAnimationFrame(frame);frame=window.requestAnimationFrame(()=>{const element=target.current;if(!element)return;const walker=document.createTreeWalker(element,window.NodeFilter.SHOW_TEXT|window.NodeFilter.SHOW_ELEMENT),nodes:{node:Text;start:number;end:number}[]=[];let node,text='',lastBlock:Element|null=null;
       while((node=walker.nextNode())){
         if(node.nodeType===window.Node.ELEMENT_NODE){if((node as Element).tagName==='BR'&&!(node as Element).closest('[hidden]'))text+=' ';continue;}
-        // Inline reference and source-reader buttons contain searchable source text.
+        // Inline reference buttons contain searchable source text.
         const parent=node.parentElement;if(!parent||parent.closest(findExcluded))continue;
         const block=parent.closest('p,div,h1,h2,h3,h4,h5,h6,li,blockquote,section,article,td,th,pre,dt,dd,figcaption');
         if(lastBlock&&block!==lastBlock&&text&&!/\s$/.test(text))text+=' ';

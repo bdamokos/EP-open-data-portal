@@ -18,7 +18,7 @@ test('coverage copy preserves positive upstream text, language retention and acc
   assert.match(container.querySelector('p').textContent,/Records observed/);
   assert.doesNotMatch(container.querySelector('p').textContent,/unavailable/i);
   assert.match(container.textContent,/Hungarian text/);
-  assert.match(container.textContent,/Source language not retained locally/);
+  assert.doesNotMatch(container.textContent,/Source language not retained locally/);
   assert.equal(container.querySelector('details>summary').textContent,'Coverage');
   assert.match(container.textContent,/Collection date unavailable/);
   await render(sourceAvailability({sourceKey:'speech-text',latestObservedDate:'2026-10-16'}));

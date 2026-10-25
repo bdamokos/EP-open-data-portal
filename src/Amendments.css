@@ -42,8 +42,8 @@
 .explorer-amendment-texts section {min-width:0;border-top:2px solid var(--am-line);padding-top:15px;}
 .explorer-amendment-texts section:nth-child(2) {border-top-color:var(--accent);}
 .explorer-amendment-texts p {white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;line-height:1.65;}
-.explorer-amendment-parts,.explorer-amendment-decisions,.explorer-amendment-failure-list {list-style:none;padding:0;margin:0;}
-.explorer-amendment-part,.explorer-amendment-decision,.explorer-amendment-failure-list>li {border-top:1px solid var(--am-line);padding:18px 0;}
+.explorer-amendment-parts,.explorer-amendment-decisions {list-style:none;padding:0;margin:0;}
+.explorer-amendment-part,.explorer-amendment-decision {border-top:1px solid var(--am-line);padding:18px 0;}
 .explorer-amendment-decision-heading {display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
 .explorer-amendment-totals {display:flex;flex-wrap:wrap;gap:16px 36px;font-size:15px;}
 .explorer-amendment-totals>div {display:grid;gap:2px;}
@@ -62,7 +62,6 @@
 .explorer-amendment-evidence ul {padding-left:20px;}
 .explorer-amendment-evidence li {margin:7px 0;}
 .explorer-amendment-pagination {display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:18px;margin:24px 0;font-size:15px;}
-.explorer-amendment-failures {border-top:1px solid var(--am-line);padding-top:14px;}
 .explorer-amendment-trail-link {display:inline-flex;align-items:center;gap:14px;margin:12px 0;font-size:16px;min-height:44px;}
 @media(max-width:680px) {.explorer-amendment-card {padding:18px 15px;}.explorer-amendment-card>header {flex-wrap:wrap;gap:10px;}.explorer-amendment-texts {grid-template-columns:1fr;gap:20px;}.explorer-amendment-finder label,.explorer-amendment-finder label:nth-child(3) {flex:1 1 100%;max-width:none;}.explorer-amendment-controls {gap:12px;}.explorer-amendment-controls label {min-width:130px;}.explorer-amendment-reference span {display:none;}.explorer-amendment-card h4 {font-size:21px;}.explorer-amendment-pagination {gap:12px;}.explorer-amendment-pagination button {padding:9px 12px;}}
 @media(prefers-reduced-motion:reduce) {.explorer-amendments * {scroll-behavior:auto!important;transition:none!important;animation:none!important;}}

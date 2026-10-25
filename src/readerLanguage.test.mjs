@@ -248,7 +248,7 @@ test('source hyperlinks retain known or unknown document language while their ow
     await h.render(el(h.ReferenceScope,{texts:[text,url],language:'en',textLanguage:language,notes},el('div',{lang:language??''},el('p',null,el(h.ReferenceText,{text,links:[{start:0,end:text.length,url}]})),el(h.DocumentNotes,{notes,prefix:'link-notes'}))));
     const labels=[...h.container.querySelectorAll('.source-link > a:first-child > span')];assert.equal(labels.length,2);
     assert(labels.every(label=>effectiveLanguage(label)===(language??'')));
-    const actions=[...h.container.querySelectorAll('.source-read')];assert.equal(actions.length,2);assert(actions.every(action=>effectiveLanguage(action)==='en'));
+    assert.equal(h.container.querySelector('.source-read'),null);
     assert.equal(effectiveLanguage(h.container.querySelector('.legal-notes summary')),'en');
   });
 });

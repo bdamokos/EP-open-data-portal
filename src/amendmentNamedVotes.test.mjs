@@ -15,7 +15,7 @@ async function mount(t,handler,{integrated=false,indexedDecision=decision}={}) {
  const {AmendmentNamedVotes}=await load('/src/AmendmentNamedVotes.tsx'),{Amendments}=await load('/src/Amendments.tsx'),{createRoot}=await import('react-dom/client');
  const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
  t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
- const render=patch=>act(async()=>root.render(createElement(integrated?Amendments:AmendmentNamedVotes,integrated?{member:197591,showFailures:false,language:'en'}:{item,decision,language:'en',...patch})));
+ const render=patch=>act(async()=>root.render(createElement(integrated?Amendments:AmendmentNamedVotes,integrated?{member:197591,language:'en'}:{item,decision,language:'en',...patch})));
  const open=async()=>{const details=container.querySelector('.amendment-named-votes__groups');await act(async()=>{if(details){details.open=true;details.dispatchEvent(new window.Event('toggle'));}});};
  return {window,container,calls,render,open};
 }

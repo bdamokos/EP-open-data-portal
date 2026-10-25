@@ -59,7 +59,7 @@ let manifestDone='',questionsDone='',pendingLanguage='';
 const taskKey=(language:string,items:SavedItem[])=>JSON.stringify([status?.epoch,status?.generation,status?.marksReady,language,items.map(item=>[savedKey(item),item.savedAt])]);
 const selectionKey=()=>savedStore.snapshot().items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
 function verify(data:{epoch:string;generation:number},expected:FollowingStatus) {
-  if(data.epoch!==expected.epoch||data.generation!==expected.generation)throw Object.assign(Error('The index generation has changed. Try again.'),{code:'generation_changed'});
+  if(data.epoch!==expected.epoch||data.generation!==expected.generation)throw Object.assign(Error('Data was updated. Try again.'),{code:'generation_changed'});
 }
 let memberReads=0;
 const memberQueue:(()=>void)[]=[];
@@ -73,7 +73,7 @@ async function memberDetail(item:SavedItem,language:string,expected:FollowingSta
   try {
     const params=new URLSearchParams({member:item.id,epoch:expected.epoch,generation:String(expected.generation),lang:language});
     const data=await api<FollowingMember>('insights/following-member?'+params);verify(data,expected);
-    if(!savedStore.materialize(data,item))throw Object.assign(Error('The index generation has changed. Try again.'),{code:'generation_changed'});
+    if(!savedStore.materialize(data,item))throw Object.assign(Error('Data was updated. Try again.'),{code:'generation_changed'});
     return data;
   }finally{release();}
 }

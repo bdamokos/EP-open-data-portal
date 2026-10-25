@@ -40,6 +40,7 @@ test('progress is independent, preserves exact selection and lazy readable docum
   assert.equal(checked.dateTime,source.fetchedAt);assert.equal(checked.textContent,'Oct 21, 2026','retrieval instants use the Brussels calendar day');
   assert.doesNotMatch(container.querySelector('.procedure-progress-latest').textContent,/Future|Past scheduled/);
   assert.match(container.querySelector('.procedure-progress-next').textContent,/Plenary vote/);
+  assert.match(container.textContent,/Some scheduled dates have passed\./);assert.doesNotMatch(container.textContent,/Some scheduled events have no date/,'a dated past event is not reported as undated');
   assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,0);
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
   await act(async()=>{button('Show timeline').focus();button('Show timeline').click();});

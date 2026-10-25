@@ -307,11 +307,11 @@ test('history navigation to another query in a failed view clears its boundary',
 
 test('former-member Profile remains readable while Activities retains its roster fallback',async t=>{
  const h=await harness(t,'?member=43&module=profile');
- assert.match(h.container.textContent,/This MEP is not in the current roster/);
+ assert.match(h.container.textContent,/Not a current MEP\./);
  assert.equal(h.container.querySelectorAll('.explorer-profile-memberships details').length,2);
  assert.equal(h.container.querySelector('.explorer-former-member a').href,'https://www.europarl.europa.eu/meps/en/43');
  await h.click(h.container.querySelectorAll('.explorer-tabs button')[2]);
  assert.equal(h.container.querySelector('.explorer-profile-memberships'),null);
- assert.match(h.container.textContent,/This MEP is not in the current roster/);
+ assert.match(h.container.textContent,/Not a current MEP\./);
  assert.equal(h.container.querySelector('.explorer-former-member a').href,'https://www.europarl.europa.eu/meps/en/43');
 });

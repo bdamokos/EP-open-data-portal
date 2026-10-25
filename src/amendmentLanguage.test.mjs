@@ -97,26 +97,18 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
   assert.equal(container.querySelector('.explorer-amendment-group-heading h3').textContent,'Topic unavailable');
   assert.equal(effectiveLanguage(container.querySelector('.explorer-amendment-group-heading h3')),'en');
   await act(async()=>{grouping.value='dossier';grouping.dispatchEvent(new window.Event('change',{bubbles:true}));});
-  const failureDetails=container.querySelector('.explorer-amendment-failures');
-  await act(async()=>{failureDetails.open=true;failureDetails.dispatchEvent(new window.Event('toggle'));});
-  assert.equal(effectiveLanguage(failureDetails.querySelector('summary')),'en');
-  const failureRows=failureDetails.querySelectorAll('.explorer-amendment-failure-list>li');
-  assert.equal(effectiveLanguage(failureRows[0].querySelector('.explorer-amendment-description-fallback>p')),'en');
-  assert.deepEqual([...failureRows[0].querySelectorAll('pre')].map(effectiveLanguage),['fr','mul','und']);
-  assert.equal(effectiveLanguage(failureRows[1].querySelector('pre')),'');
-  for(const scope of ['.explorer-amendment-card>.explorer-amendment-evidence>.explorer-amendment-meta','.explorer-amendment-decision','.explorer-amendment-evidence','.explorer-amendment-variant','.explorer-amendment-coverage','.explorer-amendment-failure-list']){
+  for(const scope of ['.explorer-amendment-card>.explorer-amendment-evidence>.explorer-amendment-meta','.explorer-amendment-decision','.explorer-amendment-evidence','.explorer-amendment-variant','.explorer-amendment-coverage']){
     const dates=[...container.querySelectorAll(scope+' time')];assert(dates.length,scope);
     for(const date of dates){assert.equal(effectiveLanguage(date),locale);assert.equal(effectiveLanguage(date.parentElement),'en');}
   }
   assert.equal(card('known-fr').querySelector('.explorer-amendment-evidence>.explorer-amendment-meta time').textContent,fmt('2026-10-06',locale));
   assert.equal(container.querySelector('.explorer-amendment-coverage time').textContent,fmt('2026-10-16',locale));
-  assert.equal(failureRows[0].querySelector('time').textContent,fmt('2026-10-10',locale));
   const authorSelect=container.querySelector('.explorer-amendment-finder select');
   await act(async()=>{authorSelect.value='42';authorSelect.dispatchEvent(new window.Event('change',{bubbles:true}));});
   await act(async()=>container.querySelector('.explorer-amendment-finder').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
   assert.equal(effectiveLanguage(container.querySelector('.explorer-amendment-section-heading h2')),'en');
   assert.equal(effectiveLanguage(container.querySelector('.explorer-amendment-section-heading h2 span')),'');
   assert(calls.some(url=>url.pathname.endsWith('/amendments')&&url.searchParams.get('member')==='42'));
-  await act(async()=>root.render(createElement('div',{lang:locale},createElement(Amendments,{language:locale,document:'A-10-2026-0254',heading:'Amendments tabled',showFailures:false}))));
+  await act(async()=>root.render(createElement('div',{lang:locale},createElement(Amendments,{language:locale,document:'A-10-2026-0254',heading:'Amendments tabled'}))));
   assert.equal(effectiveLanguage(container.querySelector('.explorer-amendment-section-heading h2')),'en','embedded MEP trails do not inherit the selected locale for English UI');
 });

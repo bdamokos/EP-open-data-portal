@@ -7,7 +7,7 @@
 .explorer-diff-documents>div{display:flex;flex-direction:column;gap:5px;font-size:14px;overflow-wrap:anywhere}
 .explorer-diff-documents span{color:var(--diff-muted)}
 .explorer-motion-comparison .explorer-diff-summary{font-weight:600;margin:18px 0 8px;font-variant-numeric:tabular-nums}
-.explorer-motion-comparison .explorer-diff-explanation,.explorer-diff-notice{font-size:14px;color:var(--diff-muted);line-height:1.55}
+.explorer-diff-notice{font-size:14px;color:var(--diff-muted);line-height:1.55}
 .explorer-motion-comparison .explorer-diff-checkbox{display:flex;flex-direction:row;gap:9px;align-items:center;min-height:44px;font-size:14px;width:fit-content}
 .explorer-motion-comparison .explorer-diff-checkbox input{width:18px;height:18px;min-height:18px;padding:0;flex-shrink:0}
 .explorer-diff-row{padding:18px 0;border-top:1px solid var(--diff-border)}
@@ -41,8 +41,6 @@
 .explorer-motion-comparison .explorer-diff-wording{margin:0;white-space:pre-wrap;line-height:1.8}
 .explorer-diff-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .explorer-motion-comparison .explorer-diff-absent{color:var(--diff-muted);font-size:14px;font-style:italic}
-.explorer-diff-sources{font-size:13px;margin:16px 0 0;overflow-wrap:anywhere}
-.explorer-diff-sources summary{cursor:pointer;min-height:30px}
 .explorer-motion-compare{margin-top:12px}
 .explorer-motion-compare>summary{cursor:pointer;font-size:14px;font-weight:600;min-height:30px;width:fit-content}
 @media(max-width:680px){.explorer-diff-columns,.explorer-diff-documents{grid-template-columns:1fr;gap:16px}.explorer-diff-passage+.explorer-diff-passage{padding-top:12px;border-top:1px dashed var(--diff-border)}.explorer-motion-compare>summary{min-height:44px;display:flex;align-items:center}.explorer-diff-controls label{flex-basis:100%}}
