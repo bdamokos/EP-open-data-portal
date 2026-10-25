@@ -170,3 +170,32 @@ test('a foreground reader joining a prefetch promotes both retry admission and t
   await tick(1);assert.deepEqual(await foreground,{items:['ready']});
   assert.equal(calls,2);assert.deepEqual(priorities,['low','auto']);cancel();
 });
+
+test('follow-up gaps and stale observations are readable but never memoised as clean success',async()=>{
+  const route='commission-followups/TA-10-2025-0247?lang=en';
+  for(const value of [{status:'partial',gaps:[{reason:'lookup-failed'}],sources:[]},{status:'available',gaps:[],sources:[{stale:true}]},{status:'available',gaps:[],sources:[{refreshError:'offline'}]},{status:'available',gaps:[],sources:[{refreshInProgress:true}]}]){
+    let reads=0;const client=createDataClient(async()=>{reads++;return value;});await client.get(route);await client.get(route);assert.equal(reads,2);assert.equal(client.peek(route),null);
+  }
+  let reads=0;const client=createDataClient(async()=>{if(++reads===1)throw Error('offline');return {status:'none-listed',gaps:[],sources:[]};});await assert.rejects(client.get(route));assert.equal((await client.get(route)).status,'none-listed');await client.get(route);assert.equal(reads,2);
+});
+
+test('an incomplete follow-up refresh evicts an older clean result and the next read can recover',async()=>{
+  const route='commission-followups/TA-10-2026-0007?lang=en';
+  const clean={status:'available',items:['saved'],gaps:[],sources:[]};
+  for(const incomplete of [
+    {...clean,status:'partial',gaps:[{reason:'lookup-failed'}]},
+    {...clean,sources:[{stale:true}]},
+    {...clean,sources:[{refreshInProgress:true}]},
+    {...clean,sources:[{refreshError:'offline'}]},
+  ]){
+    let reads=0;const refresh=deferred();
+    const client=createDataClient(async()=>++reads===2?refresh.promise:clean);
+    assert.equal(await client.get(route),clean);
+    const pending=client.get(route,{force:true});
+    assert.equal(client.peek(route),clean,'saved content stays visible while checking');
+    refresh.resolve(incomplete);assert.equal(await pending,incomplete);
+    assert.equal(client.peek(route),null,'an incomplete observation evicts the old clean cache');
+    assert.equal(await client.get(route),clean);assert.equal(reads,3);
+    assert.equal(client.peek(route),clean);await client.get(route);assert.equal(reads,3);
+  }
+});
