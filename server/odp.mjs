@@ -112,13 +112,14 @@ async function readSourceRecord(file, signal) {
   signal?.throwIfAborted();
   return Buffer.concat(parts, bytes).toString('utf8');
 }
-const dayOf = (timestamp) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Brussels",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(timestamp));
+// Every cache check formats a day; constructing the formatter dominates that.
+const brusselsDay = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Brussels",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const dayOf = (timestamp) => brusselsDay.format(new Date(timestamp));
 const today = () => dayOf(Date.now());
 function observeSource(entry,priority,signal) {
   if(priority==='background'){
@@ -339,14 +340,16 @@ const sourceKey = endpoint => {
   url.searchParams.set('format', 'application/ld+json');
   return url.href;
 };
-// Reads a retained record without promoting it into the memory cache, so a
-// warmup over every body never evicts profile and roster records.
-async function peekSource(key, signal) {
+// Reads a retained record. Only a profile's own bodies are promoted into the
+// memory cache; a warmup over every body must not evict profile and roster records.
+async function peekSource(key, signal, remember = false) {
   const held = cache.get(key)?.record;
   if (held || !cacheDir) return held || null;
   try {
     const record = JSON.parse(await readSourceRecord(filename(key), signal));
-    return record.url === key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data) ? record : null;
+    if (record.url !== key || !Number.isFinite(record.fetchedAt) || !Array.isArray(record.payload?.data)) return null;
+    if (remember) rememberSource(key, record);
+    return record;
   } catch { signal?.throwIfAborted(); return null; }
 }
 async function seedSource(key, record, {memory, signal}) {
@@ -367,7 +370,7 @@ export async function prefetchCorporateBodies(ids, {signal = requestSignal(), pr
       const key = sourceKey(bodyEndpoint(id));
       // A recent single-read failure keeps its cooldown; the reader decides.
       if ((refreshFailures.get(key)?.retryAt || 0) > Date.now()) return;
-      const held = await peekSource(key, signal);
+      const held = await peekSource(key, signal, memory);
       if (!held || Date.now() - held.fetchedAt >= TTL) missing.push(id);
     }));
     signal?.throwIfAborted();
@@ -395,8 +398,9 @@ export function startCorporateBodyWarmup({intervalMs = TTL / 2} = {}) {
   const run = () => {
     if (!cacheDir || bodyWarmup) return;
     bodyWarmup = (async () => {
-      const all = await list('/corporate-bodies', {}, {priority:'background'});
-      await prefetchCorporateBodies(all.nodes.map(node => node.identifier), {priority:'background', memory:false, signal:undefined});
+      // Offset pages of this catalogue skip bodies; one page returns all of them.
+      const all = await odp('/corporate-bodies', {limit:10000}, {priority:'background', staleWhileRevalidate:true});
+      await prefetchCorporateBodies(all.payload.data.map(node => node?.identifier), {priority:'background', memory:false, signal:undefined});
     })().catch(() => {}).finally(() => {bodyWarmup = null;});
   };
   run();
