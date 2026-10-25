@@ -1,3 +1,4 @@
+import {followingDossiers} from './follow-dossiers.mjs';
 import {followingResponse} from './insights-following.mjs';
 import {savedPostQuery,savedStates} from './insights-saved.mjs';
 import {groupVoicesQuery} from './group-voices-model.mjs';
@@ -6,6 +7,7 @@ import http from 'node:http';
 import {createHash} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {measureEventLoopDelay} from './event-loop-delay.mjs';
+import {prepareStartupIndexes} from './migrate-indexes.mjs';
 let eventLoopDelay;
 import {pathToFileURL} from 'node:url';
 import {apiPrefixes,config} from './config.mjs';
@@ -201,6 +203,12 @@ async function handleApi(request,response,url,apiPrefix){
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'group-voices') {
       result=groupVoicesPage(activityIndex().store,groupVoicesQuery(url.searchParams));
     }
+    else if (segments.length===2 && segments[0]==='insights' && segments[1]==='following-dossiers') {
+      result=followingDossiers(activityIndex().store,url.searchParams);
+      const cacheControl=request.headers.authorization?'no-store':'public, max-age=3600';
+      sendJson(request,response,200,result,{cacheControl,cdnCacheControl:currentVersion?cacheControl:'no-store'});
+      return;
+    }
     else if (segments.length === 2 && segments[0] === 'insights' && ['following-status','following-manifest','following-member','following-membership','following-groups','group-history'].includes(segments[1])) {
       const reply=followingResponse(activityIndex().store,segments[1],url.searchParams);
       const cacheControl=request.headers.authorization?'no-store':reply.cacheControl||'no-store';
@@ -382,6 +390,8 @@ function shutDown(signal) {
 
 const isEntryPoint = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isEntryPoint) {
+  try {prepareStartupIndexes();}
+  catch(error){console.error('[index-prepare]',error.message);process.exit(1);}
   server.on("error", (error) => {
     console.error(`[parliament-explorer] server error: ${error.message}`);
     process.exitCode = 1;
