@@ -1,7 +1,7 @@
 import {generationGroupOn} from './group-attribution.mjs';
 import {activityAffiliation} from './group-aggregation.mjs';
 import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,touchAvailability,historyStatus} from './availability-history.mjs';
-import {activityAvailability} from './availability-evidence.mjs';
+import {activityAvailability,activityAvailabilityIndexVersion,prepareActivityAvailability} from './availability-evidence.mjs';
 import {groupHistorySchema,freezeGroupHistory} from './group-history.mjs';
 import {membershipSchema,freezeMembership} from './following-membership.mjs';
 import {followMarksVersion,prepareFollowMarks,publishFollowMarks,followIndexComplete} from './follow-marks.mjs';
@@ -44,7 +44,7 @@ export class ActivityStore {
     this.db = observeSqlite(new DatabaseSync(this.filename),'activity');
     if(!this.initializeIndexes) {
       try {
-        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1||this.get('followMarksVersion')!==followMarksVersion)throw new Error('Unprepared activity indexes.');
+        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1||this.get('followMarksVersion')!==followMarksVersion||this.get('activityAvailabilityIndexVersion')!==activityAvailabilityIndexVersion)throw new Error('Unprepared activity indexes.');
       } catch {this.db.close();throw new Error('Activity indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(this.initializeIndexes)this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
@@ -94,7 +94,7 @@ export class ActivityStore {
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
       assertRefreshSnapshot(this);
       const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion,initializeLinks=this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion;
-      if((initialize||initializeProofs||initializeLinks||this.get('activityReadVersion')!==activityReadVersion||this.get('followMarksVersion')!==followMarksVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+      if((initialize||initializeProofs||initializeLinks||this.get('activityReadVersion')!==activityReadVersion||this.get('followMarksVersion')!==followMarksVersion||this.get('activityAvailabilityIndexVersion')!==activityAvailabilityIndexVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       initializeAvailabilityHistory(this);
       // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
@@ -120,6 +120,10 @@ export class ActivityStore {
       }
       if(this.get('followMarksVersion')!==followMarksVersion) {
         prepareFollowMarks(this);initialized=true;refresh();
+      }
+      if(this.get('activityAvailabilityIndexVersion')!==activityAvailabilityIndexVersion) {
+        prepareActivityAvailability(this.db);
+        this.set('activityAvailabilityIndexVersion',activityAvailabilityIndexVersion);initialized=true;refresh();
       }
       refresh();
       return true;

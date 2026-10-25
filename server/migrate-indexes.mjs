@@ -1,5 +1,6 @@
 import {followMarksVersion} from './follow-marks.mjs';
 import {activityReadVersion} from './activity-read-projections.mjs';
+import {activityAvailabilityIndexVersion} from './availability-evidence.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {existsSync,statSync} from 'node:fs';
 import path from 'node:path';
@@ -10,7 +11,7 @@ import {CorpusStore} from './corpus-store.mjs';
 import {absolutePathFromEnvironment,booleanFromEnvironment,integerFromEnvironment} from './config.mjs';
 
 const bytes=filename=>['','-wal','-shm'].reduce((sum,suffix)=>sum+(existsSync(filename+suffix)?statSync(filename+suffix).size:0),0);
-const prepared=(store,kind)=>store.get('resourceIndexes')===1&&(kind==='activity'?store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('amendmentLinkIndexVersion')===amendmentLinkIndexVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion&&store.get('refreshPolicyVersion')===1&&store.get('followMarksVersion')===followMarksVersion:store.get('questionDiscoveryVersion')===1);
+const prepared=(store,kind)=>store.get('resourceIndexes')===1&&(kind==='activity'?store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('amendmentLinkIndexVersion')===amendmentLinkIndexVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion&&store.get('refreshPolicyVersion')===1&&store.get('followMarksVersion')===followMarksVersion&&store.get('activityAvailabilityIndexVersion')===activityAvailabilityIndexVersion:store.get('questionDiscoveryVersion')===1);
 
 // Run before opening the HTTP listener or starting either source writer.
 export function prepareStartupIndexes() {
