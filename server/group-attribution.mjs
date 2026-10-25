@@ -11,7 +11,7 @@ const resolvers=new WeakMap();
 // One exact-ID index per frozen snapshot, never a bundle scan for each row.
 export function createGroupOn(snapshot) {
   const members=new Map(Object.entries(snapshot?.members||{}));
-  return function groupOn(mep,date) {
+  const groupOn=function(mep,date) {
     // Term 10 began on 16 July 2024. Do not project its open intervals into
     // a later parliamentary term (the five-year anniversary is an upper bound).
     if(!validDay(date)||date<CURRENT_TERM_START||date>='2029-07-16')return 'unavailable';
@@ -25,6 +25,8 @@ export function createGroupOn(snapshot) {
     const group=groups[0];
     return group?.code&&group.org&&group.groupId?{code:group.code,orgId:group.org,groupId:group.groupId}:'unavailable';
   };
+  groupOn.codes=new Set([...(snapshot?.catalogue?.bodies||[]),...Object.values(snapshot?.members||{}).flatMap(person=>person.groups||[])].map(group=>group.code).filter(Boolean));
+  return groupOn;
 }
 
 export function generationGroupOn(store,generation) {

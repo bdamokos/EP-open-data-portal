@@ -1,6 +1,5 @@
 import {questionGroupMetrics,contributionGroup} from './group-aggregation.mjs';
 import {indexAvailability,savedGaps} from './availability-evidence.mjs';
-import {groupHistorySnapshot} from './group-history.mjs';
 import {generationGroupOn,datedPerson} from './group-attribution.mjs';
 import {languagePreference} from './language-order.mjs';
 import {subjectPlace} from './insights-places.mjs';
@@ -93,8 +92,7 @@ export class QuestionInsights {
     const key=JSON.stringify([status.servingGeneration,status.availabilityRevision,status.complete,status.progress?.completed,status.rosterFetchedAt,query.start,query.end]);
     const old=this.cache.get(key);if(old && this.clock()-old.at<INSIGHTS_LIMITS.cacheMs)return old.value;
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
-    const snapshot=groupHistorySnapshot(this.store,status.servingGeneration);
-    const groupCodes=new Set([...(snapshot?.catalogue?.bodies||[]),...Object.values(snapshot?.members||{}).flatMap(person=>person.groups||[])].map(group=>group.code).filter(Boolean));
+    const groupCodes=groupOn.codes||new Set();
     // Language and filter views share this analysis, but each view has its own
     // owner. Expiring one view must cancel only its wait on the shared work.
     const job=sharedRequest(async signal=>{
