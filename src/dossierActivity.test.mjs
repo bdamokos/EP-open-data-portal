@@ -14,7 +14,7 @@ const speech={kind:'speech',id:'MTG-PL-2026-09-15-OTH-1',date:'2026-09-15',start
 const amendment={kind:'amendment',id:'A-10-2026-0010-AM-3@list',date:'2026-09-08',dateBasis:'tabling',stage:'RDG1',source,tabling:{status:'recorded',date:'2026-09-08',observations:[{id:'tabling-event',date:'2026-09-08',stage:'RDG1',source}]},amendment:{id:'A-10-2026-0010-AM-3',number:3,listId:'A-10-2026-0010-AM-001-003',targetDocumentId:'A-10-2026-0010',documentDate:'2026-09-09',dateBasis:'individual-amendment-document',outcome:'ADOPTED',textIntegrity:'complete',listRelationship:'current',authors:[{personId:'257727',name:'Named member'},{personId:'2',name:'Exact coauthor'}],onBehalfOf:['ENVI','SEDE'],decisions:[{id:'MTG-PL-2026-09-16-DEC-196161',outcome:'ADOPTED'}],sources:[source]}};
 function ballot(id,position='for',outcome='ADOPTED') {return {kind:'vote',id,date:'2026-09-16',stage:null,source,vote:{id,uri:'https://data.europarl.europa.eu/'+id,sittingId:'MTG-PL-2026-09-16',date:'2026-09-16',title:'Official decision title',titles:{en:'Official decision title'},titleLanguage:'en',referenceTexts:{en:'Provisional agreement'},scope:{kind:'amendment'},actualPosition:{status:'recorded',position},outcome,method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:'conducted',totals:{for:1,against:2,abstaining:3},context:{amendmentIds:[],componentIds:[]},parts:[],intention:{status:'not-reported',positions:[]}}};}
 const agreement=ballot('MTG-PL-2026-09-16-DEC-196161'),rejection=ballot('MTG-PL-2026-09-16-DEC-196519','against','REJECTED');
-function page(section,member='257727',items,extra={}) {return {version:1,procedure:{id:'2025-0176',reference,title:'Official full dossier title',titleLanguage:'en',source},memberId:member,section,participants:[{id:'257727',name:'Named member',roles:[role]},{id:'124984',name:'Other member',roles:[{...role,id:'role-2',personId:'124984',role:'RAPPORTEUR_SHADOW'}]}],items:items??({roles:[role],speeches:[speech],amendments:[amendment],votes:[agreement,rejection]}[section]),pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Some targets have not been checked.'],sources:[source]},generation:1,...extra};}
+function page(section,member='257727',items,extra={}) {return {version:2,procedure:{id:'2025-0176',reference,title:'Official full dossier title',titleLanguage:'en',source},memberId:member,section,participants:[{id:'257727',name:'Named member',roles:[role]},{id:'124984',name:'Other member',roles:[{...role,id:'role-2',personId:'124984',role:'RAPPORTEUR_SHADOW'}]}],items:items??({roles:[role],speeches:[speech],amendments:[amendment],votes:[agreement,rejection]}[section]),pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Some targets have not been checked.'],sources:[source]},generation:1,...extra};}
 
 async function harness(t,query='?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference)+'&dossier-person=257727',handler) {
   const window=new Window({url:'http://localhost/'+query});
@@ -37,6 +37,17 @@ async function harness(t,query='?view=legislation&pl-mode=dossier&dossier-ref='+
   const navigate=async query=>{await act(async()=>{history.replaceState(null,'',query);window.dispatchEvent(new Event('popstate'));});await settle();};
   return {window,container,calls,module,load,render,click,navigate};
 }
+
+test('electronic secret dossier ballots keep unrecorded positions separate from declared intentions',async t=>{
+  const item=structuredClone(agreement);
+  item.vote.method='VOTE_ELECTRONIC_SECRET';item.vote.actualPosition={status:'not-individually-recorded',position:null};item.vote.intention={status:'reported',positions:['for']};
+  const h=await harness(t,undefined,url=>url.pathname.endsWith('/insights/dossier-activity')?Response.json(page(url.searchParams.get('section'),url.searchParams.get('member'),url.searchParams.get('section')==='votes'?[item]:[])):null);
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  const card=h.container.querySelector('[data-dossier-vote]');assert(card);
+  assert.equal(card.querySelector('.member-votes-position strong').textContent,'Not individually recorded');
+  assert.match(card.textContent,/Declared intention: For/);assert.match(card.textContent,/Adopted/);
+  assert.equal(card.querySelector('.member-votes-position-for'),null);
+});
 
 test('All renders exact amendment ballot once, preserves dates/coauthors and joint debate scope; Votes renders every ballot once',async t=>{
   const h=await harness(t);await h.render(createElement(h.module.DossierActivity,{reference}));

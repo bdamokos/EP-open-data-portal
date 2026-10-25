@@ -836,3 +836,42 @@ test('an unknown selected wording language withholds otherwise valid Commission 
     }
   });
 });
+
+const taOpening=['European Parliament','2024-2029','\uFFFC','TEXTS ADOPTED','P10_TA(2026)0007','Murder of Mehdi Kessaci – urgent need for ambitious European action against drug trafficking','European Parliament resolution of 20 January 2026 on the murder of Mehdi Kessaci: urgent need for ambitious European action against drug trafficking (2025/3020(RSP))','The European Parliament,','–\thaving regard to the Treaty on European Union (TEU),','1.\tCalls for action;'];
+const logoWarning='A drawing, equation or other document object is shown as a placeholder; the surrounding text is retained.';
+function taText(){return {
+  structureStatus:'extracted',paragraphSources:taOpening.map((p,i)=>({path:`/w:document[1]/w:body[1]/w:p[${i+1}]`,ordinal:i,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:0,complete:i!==2})),
+  documentObjects:[{paragraph:2,offset:0,path:'/w:document[1]/w:body[1]/w:p[3]/w:r[1]/w:drawing[1]',kind:'drawing',status:'unresolved'}],extractionWarnings:[logoWarning],
+};}
+test('an exact adopted masthead omits its logo notice while body notes and links keep source offsets',async t=>{
+  const id='TA-10-2026-0007',extra={...taText(),notes:[{id:'fn1',label:'1',text:'Source note.',links:[]}],noteAnchors:[{paragraph:8,offset:2,note:'fn1',label:'1'}],documentLinks:[{paragraph:9,start:3,end:8,url:'https://www.europarl.europa.eu/'}]};
+  const h=await harness(t,()=>response(id,sourceDocument(id,taOpening,extra)));await h.render({request:{documentId:id,view:'document'},language:'en'});
+  const reader=h.container.querySelector('.document-context-text');
+  assert.equal(reader.querySelector('[data-source-paragraph]').dataset.sourceParagraph,'6');
+  assert.equal(reader.querySelector('[data-source-paragraph="6"]').textContent,taOpening[6]);
+  assert(!h.container.textContent.includes('Some content is only available'));
+  assert(!h.container.textContent.includes('Image in original'));
+  assert(!reader.textContent.includes('TEXTS ADOPTED'));assert(!reader.textContent.includes('P10_TA'));
+  assert(reader.querySelector('[data-source-paragraph="8"] sup'));
+  assert.equal(reader.querySelector('[data-source-paragraph="9"] a').textContent,'Calls');
+  assert(h.container.querySelector('.document-context-source a'));
+});
+test('adopted readers retain missing-content notices for body, note, structure and non-logo cover gaps',async t=>{
+  for(const variant of ['body-drawing','note-object','numbering-warning','missing-note','unknown-structure','invalid-position','missing-object','incomplete-body','incomplete-cover','cover-target'])await t.test(variant,async t=>{
+    const id='TA-10-2026-0007',paragraphs=[...taOpening],extra=taText();let targetExtra={};
+    if(variant==='body-drawing'){paragraphs[9]+='\uFFFC';extra.paragraphSources[9].complete=false;extra.documentObjects.push({paragraph:9,offset:paragraphs[9].length-1,kind:'drawing',status:'unresolved'});}
+    if(variant==='note-object')extra.notes=[{id:'fn1',label:'1',text:'Source note \uFFFC',links:[]}];
+    if(variant==='numbering-warning')extra.extractionWarnings.push('Some automatic numbering uses an unsupported format or value.');
+    if(variant==='missing-note')extra.notesStatus='not-extracted';
+    if(variant==='unknown-structure')extra.structureStatus='not-extracted';
+    if(variant==='invalid-position')extra.documentObjects[0].offset=99;
+    if(variant==='missing-object')extra.documentObjects=[];
+    if(variant==='incomplete-body')extra.paragraphSources[9].complete=false;
+    if(variant==='incomplete-cover')extra.paragraphSources[5].complete=false;
+    if(variant==='cover-target')targetExtra={amendment:amendmentSource,target:{...target,paragraphs:[2]}};
+    const h=await harness(t,()=>response(id,sourceDocument(id,paragraphs,extra),targetExtra));
+    await h.render({request:{documentId:id,view:'document',...(variant==='cover-target'?{amendmentId:amendment}:{})},language:'en'});
+    assert(h.container.textContent.includes('Some content is only available in the original document.'),variant);
+    if(variant==='body-drawing'||variant==='cover-target')assert(h.container.textContent.includes('Image in original'));
+  });
+});

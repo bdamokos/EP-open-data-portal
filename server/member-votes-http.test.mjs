@@ -60,11 +60,11 @@ test('member-votes HTTP contract retains actual positions, bounded snapshot pagi
   const firstResponse=await fetch(route+'?'+period+'&lang=hu&limit=1&decision='+sittingId+'-DEC-197457');
   assert.equal(firstResponse.status,200);
   const first=await firstResponse.json();
-  assert.equal(first.version,5);
+  assert.equal(first.version,6);
   assert.deepEqual(first.member,{id:'197591',uri:'https://data.europarl.europa.eu/person/197591',mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'});
   assert.deepEqual(first.period,{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'});
   assert.match(first.snapshotId,/^[a-f0-9]{64}$/);
-  assert.deepEqual(first.pagination,{offset:0,limit:1,returned:1,observedTotal:2,filteredTotal:2,nextOffset:1});
+  assert.deepEqual(first.pagination,{offset:0,limit:1,returned:1,observedTotal:2,recordedTotal:2,filteredTotal:2,nextOffset:1});
   assert.equal(first.coverage.termWide,false);
   assert.equal(first.coverage.collectionComplete,true);
   assert.deepEqual(first.coverage.scannedSittingIds,[sittingId]);
@@ -82,7 +82,7 @@ test('member-votes HTTP contract retains actual positions, bounded snapshot pagi
   assert.equal(secondResponse.status,200);
   const second=await secondResponse.json();
   assert.equal(second.snapshotId,first.snapshotId);
-  assert.deepEqual(second.pagination,{offset:1,limit:1,returned:1,observedTotal:2,filteredTotal:2,nextOffset:null});
+  assert.deepEqual(second.pagination,{offset:1,limit:1,returned:1,observedTotal:2,recordedTotal:2,filteredTotal:2,nextOffset:null});
   assert.equal(new Set([...first.items,...second.items].map(item=>item.id)).size,2);
   assert.equal(second.selected.status,'found');
   assert.equal(second.selected.item.id,selectedId);

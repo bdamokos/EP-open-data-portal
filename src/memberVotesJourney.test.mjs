@@ -14,17 +14,17 @@ const MEMBER=42,WEEK='2026-03-23',SITTING='MTG-PL-2026-03-25';
 const DECISION=SITTING+'-DEC-99',SNAPSHOT='a'.repeat(64);
 const DOCUMENT='B-10-2026-0001',AMENDMENT=DOCUMENT+'-AM-7-2';
 const LIST='B-10-2026-0001-AM-001-050',ADOPTED='TA-10-2026-0007';
-const defaults=()=>({week:'latest',sittingId:null,positions:'recorded',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
+const defaults=()=>({week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
 const queryFor=fields=>new URLSearchParams({member:String(MEMBER),...fields});
 const read=fields=>readMemberVotesJourney(queryFor(fields),MEMBER);
 const saved=journey=>{
   const query=memberVotesJourneyParams(journey);query.set('member',String(journey.memberId));return query;
 };
 
-test('an untouched journey has independent defaults and emits no API or browser fields',()=>{
+test('an untouched journey has independent defaults and serializes its explicit positions filter',()=>{
   const first=read({}),second=read({});
   assert.deepEqual(first,{memberId:MEMBER,state:defaults(),adoptedId:null,invalid:false});
-  assert.equal(memberVotesJourneyParams(first).toString(),'');
+  assert.equal(memberVotesJourneyParams(first).toString(),'mv-positions=all');
   first.state.expandedSubjectIds.push('exact-subject');
   assert.deepEqual(second.state,defaults(),'defaults must not share mutable arrays');
 });
@@ -211,7 +211,7 @@ test('canonical replacement recognizes the same exact context reconstructed from
 test('every user selection pushes despite an expansion or other replacement hint',()=>{
   const previous={...defaults(),week:WEEK,snapshotId:SNAPSHOT};
   for(const patch of [
-    {positions:'all'},{offset:50},{sittingId:SITTING},{decisionId:DECISION},
+    {positions:'recorded'},{offset:50},{sittingId:SITTING},{decisionId:DECISION},
     {expandedSubjectIds:['exact-subject']},
     {decisionId:DECISION,context:{documentId:DOCUMENT,view:'document'}},
   ])for(const requestedReplace of [false,true])assert.equal(memberVotesHistoryMode(previous,{...previous,...patch},requestedReplace),'push',JSON.stringify(patch));
@@ -283,4 +283,13 @@ test('alignment round trips, separates history and scroll, and omits its compati
   }
   for(const alignment of ['','majority','unclassified'])assert.equal(read({'mv-alignment':alignment}).invalid,true);
   assert.equal(read({'mv-alignment':'all'}).invalid,false);
+});
+
+test('legacy mv journeys without a positions key preserve recorded pages while clean visits include all',()=>{
+  assert.equal(read({}).state.positions,'all');
+  for(const fields of [{'mv-week':WEEK},{'mv-offset':'50','mv-snapshot':SNAPSHOT},{'mv-decision':DECISION}]){
+    const legacy=read(fields);assert.equal(legacy.state.positions,'recorded');assert.equal(legacy.invalid,false);
+    assert.equal(saved(legacy).get('mv-positions'),'recorded');assert.deepEqual(readMemberVotesJourney(saved(legacy),MEMBER),legacy);
+  }
+  for(const positions of ['all','recorded'])assert.equal(saved(read({'mv-positions':positions})).get('mv-positions'),positions);
 });
