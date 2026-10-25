@@ -25,7 +25,7 @@ export function createGroupOn(snapshot) {
     const group=groups[0];
     return group?.code&&group.org&&group.groupId?{code:group.code,orgId:group.org,groupId:group.groupId}:'unavailable';
   };
-  groupOn.codes=new Set([...(snapshot?.catalogue?.bodies||[]),...Object.values(snapshot?.members||{}).flatMap(person=>person.groups||[])].map(group=>group.code).filter(Boolean));
+  groupOn.codes=new Set([...(snapshot?.catalogue?.bodies||[]),...[...members.values()].flatMap(person=>person.groups||[])].map(group=>group.code).filter(Boolean));
   return groupOn;
 }
 
