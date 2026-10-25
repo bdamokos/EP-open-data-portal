@@ -1,7 +1,45 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {VotePeriods} from './vote-periods.mjs';
+import {runWithRequestSignal} from './request-budget.mjs';
 const NOW=Date.parse('2026-10-19T12:00:00Z');
 const meeting=(date,patch={})=>({id:'https://data.europarl.europa.eu/eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING',...patch});
+
+test('upstream admission pressure serves a bounded last good calendar with stale partial evidence, then recovers',async()=>{
+ let now=NOW,busy=false;
+ const {service}=setup({rows:{2026:[meeting('2026-10-06')]}});
+ service.clock=service.reader.clock=()=>now;
+ const request=service.reader.request;
+ service.reader.request=(...args)=>busy?Promise.reject(Object.assign(new Error('Rate limited'),{code:'upstream_busy',status:503})):request(...args);
+ const good=await service.query();assert.equal(good.version,2);
+ now+=60_001;busy=true;
+ const saved=await service.query();assert.deepEqual(saved.weeks,good.weeks);assert.equal(saved.coverage.status,'partial');
+ assert(saved.coverage.years.every(year=>year.state==='partial'&&year.error.code==='upstream_busy'&&year.sources.every(source=>source.stale&&source.refreshError==='Rate limited')));
+ assert.equal(saved.coverage.years[2].sources[0].fetchedAt,good.coverage.years[2].sources[0].fetchedAt);
+ assert.equal(saved.coverage.years[2].sources[0].contentHash,good.coverage.years[2].sources[0].contentHash);
+ saved.weeks.length=0;
+ assert.deepEqual((await service.query()).weeks,good.weeks,'callers cannot mutate the retained observation');
+ now=NOW+24*60*60_000;await assert.rejects(service.query(),error=>error.code==='upstream_busy','fallback does not renew its own age');
+ busy=false;assert.equal((await service.query()).coverage.status,'complete');
+});
+
+test('a calendar fallback cannot hide cold, partial, stale, timed-out or cancelled reads',async()=>{
+ const busy=Object.assign(new Error('Busy'),{code:'upstream_busy'});
+ const cold=new VotePeriods({meetings:{catalogue:async()=>{throw busy;}}});
+ await assert.rejects(cold.query(),error=>error===busy);
+ for(const stale of [false,true]){
+   const {service}=setup({rows:{2026:[meeting('2026-10-06')]},...(stale?{extra:{stale:true}}:{fail:{2025:true}})});
+   await service.query();service.reader.catalogue=async()=>{throw busy;};
+   await assert.rejects(service.query(),error=>error===busy);
+ }
+ const {service}=setup({rows:{2026:[meeting('2026-10-06')]}});await service.query();
+ for(const code of ['request_timeout','request_cancelled','odp_unavailable']){
+   const error=Object.assign(new Error(code),{code});service.reader.catalogue=async()=>{throw error;};
+   await assert.rejects(service.query(),value=>value===error);
+ }
+ const controller=new AbortController(),cancelled=Object.assign(new Error('Cancelled'),{code:'request_cancelled'});
+ service.reader.catalogue=async()=>{controller.abort(cancelled);throw busy;};
+ await assert.rejects(runWithRequestSignal(controller.signal,()=>service.query()),error=>error===cancelled);
+});
 function setup({rows={},fail={},extra={},limits={}}={}){const calls=[];const service=new VotePeriods({clock:()=>NOW,limits,request:async(endpoint,params)=>{assert.equal(endpoint,'/meetings');calls.push({...params});if(fail[params.year])throw new Error('Calendar source unavailable');return {url:'https://data.europarl.europa.eu/api/v2/meetings?'+new URLSearchParams(params),fetchedAt:NOW,payload:{data:(rows[params.year]||[]).slice(params.offset,params.offset+params.limit)},...extra};}});return {service,calls};}
 test('calendar explicitly scans every current-term year and groups only exact held sitting identities',async()=>{
  const {service,calls}=setup({rows:{2024:[meeting('2024-07-15'),meeting('2024-07-16')],2025:[meeting('2025-12-18')],2026:[meeting('2026-10-06'),meeting('2026-10-08'),meeting('2026-10-20'),meeting('2026-10-09',{had_activity_type:'OTHER'})]}});
