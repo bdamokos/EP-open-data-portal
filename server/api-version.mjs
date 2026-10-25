@@ -1,6 +1,6 @@
 // Bump only for API response contract changes, never for commits or releases.
-export const API_CONTRACT_REVISION = 208;
-export const API_VERSION = 208;
+export const API_CONTRACT_REVISION = 215;
+export const API_VERSION = 215;
 
 // Keys are monotonic revisions, including after the public version wraps.
 export const API_CONTRACT_DIGESTS = Object.freeze({
@@ -206,12 +206,19 @@ export const API_CONTRACT_DIGESTS = Object.freeze({
   200: '5fed56c87606626fc64d70863d8d7fc8b0ed5108f0203aa6209f18476b05ebd5',
   201: '3fe28bb1df37e9a87ae01461b2b01b9d2b9b3f3e3ffd74d69db642d9959facf2',
   202: '599fb3423de09e99473d2f8feb5517670dea16312d55b2ed2887b9da8ed7492e',
-  203: 'ac67ed523793f5e3204d1c5fa8d065665e85d4d0a0432c0eac1e39cb985abbb2',
-  204: '890986538716e2fb028f9bde9765205df0b9854f2d8ae6890a879841eb3f4f53',
-  205: '3e426cc21764c1f44c10e135ccfd1b7d3417be25f43291329fc24eb65a2569fb',
-  206: 'b7b829646261d4a00ce9bda98f928f09884b11c6ff70d18b72e3797607eeaee4',
-  207: 'b4a01d0937707270f1961c99ab4723fdadbe5a13e2b5ad1975ce874aa36060c2',
-  208: '2f35885ec966ceee22c2d5c4c4e23aaf942e26e27c988fc8468a4143f25e2841',
+  203: '272850894611490bcfd5d4667d5e0e7252b76e2034365c532821e1486baea27d',
+  204: '4bae9dfb38eeafbb6bf04b75f9d8e07c684ec5faf4e7fefe9be10bd7edca6c2f',
+  205: '8aeda902c241dd8ba02a4df795678bd6e11f7e752162d50729a451384843b89d',
+  206: '21e285c5667d498ad34f7be4218155eeee4921593668cc816a05b8d67ff9935f',
+  207: 'e51b62bdb4afc4986662f371b7dd0f185a3d45774f592d5c73287fba0ac11d54',
+  208: '2acd9b446ce309bacb51e26d182c151597b7f45dd5825e2911015c3d75d59921',
+  209: 'ac67ed523793f5e3204d1c5fa8d065665e85d4d0a0432c0eac1e39cb985abbb2',
+  210: '890986538716e2fb028f9bde9765205df0b9854f2d8ae6890a879841eb3f4f53',
+  211: '3e426cc21764c1f44c10e135ccfd1b7d3417be25f43291329fc24eb65a2569fb',
+  212: 'b7b829646261d4a00ce9bda98f928f09884b11c6ff70d18b72e3797607eeaee4',
+  213: 'b4a01d0937707270f1961c99ab4723fdadbe5a13e2b5ad1975ce874aa36060c2',
+  214: '2f35885ec966ceee22c2d5c4c4e23aaf942e26e27c988fc8468a4143f25e2841',
+  215: '6ba5aed927de2f2cdb0440ae56ddad58499f011e81215863427be17e9d8bc38e',
 });
 
 // Called at the transport boundary; route and page URL keys stay intact.

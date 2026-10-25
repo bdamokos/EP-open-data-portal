@@ -22,7 +22,7 @@ const wordingVariant=(language,extra={})=>({listId:list,language,wordingStatus:'
 const pinnedEvidence=(wordingLanguage,extra={})=>({amendmentId:amendment,listId:list,wordingLanguage,wordingSource:null,referenceDecisions:[],...extra});
 const choice=(id,to=original)=>({id,titles:{en:'***I Exact adopted resolution '+id.slice(-4)},date:'2026-10-08',kind:'TEXT_ADOPTED',roles:[],files:[],answers:[],relationship:{from:id,field:'adopts',to},source:{}});
 
-async function harness(t,respond) {
+async function harness(t,respond,followups=()=>({status:'none-listed',items:[],gaps:[]})) {
   const window=new Window({url:'http://localhost/'}),requests=[],scrolls=[];
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -34,6 +34,7 @@ async function harness(t,respond) {
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1];
     assert(route,'Only mocked application routes are allowed');requests.push(route+url.search);
     if(route==='references')return Response.json({references:[]});
+    if(route.startsWith('commission-followups/')){const result=await followups(route,url.searchParams);return result instanceof Response?result:Response.json({documentId:route.slice('commission-followups/'.length),requestedLanguage:url.searchParams.get('lang'),...result});}
     const value=await respond(route,url.searchParams);assert.notEqual(value,undefined,'Unexpected request: '+route+url.search);
     return value instanceof Response?value:Response.json(value);
   });
@@ -217,6 +218,7 @@ test('adopted texts require an exact choice and load their own body without an a
   assert(h.container.textContent.includes('Some linked texts could not be loaded.'));
   await h.click(choices[0]);assert(h.container.textContent.includes('Adopted wording only.'));
   assert(h.requests.includes(`document-context/${adopted}?lang=en`));
+  assert.deepEqual(h.requests.filter(route=>route.startsWith('commission-followups/')),[`commission-followups/${adopted}?lang=en`],'only the selected adopted text requests follow-ups');
   assert(!h.requests.some(route=>route.includes(adopted)&&route.includes('amendment=')));
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   await h.click(h.container.querySelector('.document-context-choices-back'));
@@ -652,6 +654,80 @@ test('a note anchored just before an unresolved object stays visible with format
   assert(mark,'the note marker is rendered');assert(mark.compareDocumentPosition(object)&h.window.Node.DOCUMENT_POSITION_FOLLOWING,'the marker precedes the object placeholder');
 });
 
+const followupFile=(language='en',format='PDF')=>({expressionId:'expression/'+language,manifestationId:'manifestation/'+language+'/'+format,language,languageUri:'authority/'+language,format,url:'https://data.europarl.europa.eu/distribution/doc/SP-example_'+language+'.'+format.toLowerCase(),issued:'2026-06-10T16:53:54Z',byteSize:92679});
+const followupItem=(id='SP-example',files=[followupFile()])=>({id,documentDate:'2026-05-11',files});
+const directAdopted={documentId:adopted,view:'document',onBack:()=>{}};
+for(const status of ['none-listed','unavailable'])test('follow-ups render nothing for '+status,async t=>{
+  const h=await harness(t,()=>response(adopted),()=>({status,items:[],gaps:[]}));await h.render({request:directAdopted,language:'en'});
+  assert.equal(h.container.querySelector('.commission-followups'),null);assert(h.container.textContent.includes('Exact target passage.'));
+});
+test('follow-up loading reserves no row and does not block the adopted text',async t=>{
+  let finish;const h=await harness(t,()=>response(adopted),()=>new Promise(resolve=>finish=resolve));await h.render({request:directAdopted,language:'en'});
+  assert.equal(h.container.querySelector('.commission-followups'),null);assert(h.container.textContent.includes('Exact target passage.'));assert.equal(h.container.querySelector('[data-context-pending]'),null);
+  await act(async()=>finish({status:'none-listed',items:[],gaps:[]}));await h.settle();
+});
+test('follow-up network failure and retry leave the document body intact',async t=>{
+  let calls=0;const h=await harness(t,()=>response(adopted),()=>++calls===1?Response.json({error:{message:'Source offline'}},{status:502}):{status:'available',items:[followupItem()],gaps:[]});
+  await h.render({request:directAdopted,language:'en'});assert(h.container.textContent.includes('Exact target passage.'));const body=h.container.querySelector('.document-context-text');
+  const notice=h.container.querySelector('.commission-followups [role="status"]');assert(notice.textContent.includes('Commission follow-up could not be checked.'));assert.equal(h.container.querySelector('[role="alert"]'),null);
+  await h.click(notice.querySelector('button'));assert.equal(calls,2);assert.equal(h.container.querySelector('.document-context-text'),body);assert(h.container.querySelector('.commission-followup a'));assert.equal(h.container.querySelector('.commission-followups [role="status"]'),null);
+});
+test('follow-up links prefer PDF per expression language, show dates and disclose other languages',async t=>{
+  const files=[followupFile('en','DOCX'),followupFile('en','HTML'),followupFile('en'),followupFile('fr','DOCX'),followupFile('fr'),followupFile('de','DOCX')];
+  const h=await harness(t,()=>response(adopted),()=>({status:'available',items:[followupItem('SP-one',files),{...followupItem('SP-two',[followupFile('en','DOCX')]),documentDate:null}],gaps:[]}));
+  await h.render({request:directAdopted,language:'en'});const rows=h.container.querySelectorAll('.commission-followup');assert.equal(rows.length,2);
+  assert.equal(rows[0].querySelector('time').textContent,'11 May 2026');assert.equal(rows[0].querySelector('time').dateTime,'2026-05-11');assert.equal(rows[1].querySelector('time'),null);
+  const primary=rows[0].querySelector('a');assert.equal(primary.textContent,'English · PDF ↗');assert.equal(primary.hreflang,'en');assert.equal(primary.hasAttribute('lang'),false);assert.equal(primary.querySelector('span').lang,'en');assert.equal(primary.target,'_blank');assert.equal(primary.rel,'noreferrer');assert.equal(primary.getAttribute('aria-label'),'Commission follow-up, English, PDF');
+  const disclosure=rows[0].querySelector('details');assert.equal(disclosure.querySelector('summary').textContent,'Other languages');assert.equal(disclosure.querySelectorAll('a').length,2);assert.equal(disclosure.querySelector('a').textContent,'French · PDF ↗');assert.equal(rows[1].querySelector('a').textContent,'English · Word document ↗');
+  assert.equal(h.container.querySelector('.document-context-language').nextElementSibling.className,'commission-followups');assert(!h.container.textContent.includes('92679'));assert(!h.container.textContent.includes('10 June'));
+});
+test('follow-up file language labels use the interface language and preserve the target language',async t=>{
+  const h=await harness(t,()=>response(adopted,sourceDocument(adopted),{requestedLanguage:'fr'}),()=>({status:'available',items:[followupItem('SP-one',[followupFile('fr'),followupFile('en')])],gaps:[]}));
+  await h.render({request:directAdopted,language:'fr'});
+  const links=h.container.querySelectorAll('.commission-followup a');assert.equal(links.length,2);
+  for(const [index,code] of ['fr','en'].entries()){
+    const name=new Intl.DisplayNames(['fr'],{type:'language'}).of(code),link=links[index];
+    assert.equal(link.hasAttribute('lang'),false);assert.equal(link.hreflang,code);
+    assert.equal(link.querySelector('span').lang,'fr');assert.equal(link.querySelector('span').textContent,name);
+    assert.equal(link.textContent,`${name} · PDF ↗`);assert.equal(link.getAttribute('aria-label'),`Commission follow-up, ${name}, PDF`);
+  }
+});
+test('invalid follow-up dates omit the date and leave the document and file readable',async t=>{
+  const dates=['not-a-date','2026-13-40',''];
+  const h=await harness(t,()=>response(adopted),()=>({status:'available',items:dates.map((documentDate,index)=>({...followupItem('SP-'+index),documentDate})),gaps:[]}));
+  await h.render({request:directAdopted,language:'en'});
+  const rows=h.container.querySelectorAll('.commission-followup');assert.equal(rows.length,dates.length);
+  for(const row of rows){assert.equal(row.querySelector('time'),null);assert.equal(row.querySelector('p').textContent,'Commission follow-up · English · PDF ↗ ');assert(row.querySelector('a'));}
+  assert(h.container.textContent.includes('Exact target passage.'));
+});
+test('follow-up fallback reuses the reader language wording',async t=>{
+  const h=await harness(t,()=>response(adopted,sourceDocument(adopted),{requestedLanguage:'hu'}),()=>({status:'available',items:[followupItem()],gaps:[]}));await h.render({request:directAdopted,language:'hu'});
+  assert(h.container.querySelector('.commission-followups').textContent.includes('magyar unavailable · showing angol'));assert(h.requests.includes('commission-followups/'+adopted+'?lang=hu'));
+});
+for(const reason of ['absent-files','rejected-files'])test('verified reply without '+reason+' keeps a readable row',async t=>{
+  const h=await harness(t,()=>response(adopted),()=>({status:'partial',items:[followupItem('SP-one',[])],gaps:[{id:'SP-one',reason:'file-unavailable'}]}));await h.render({request:directAdopted,language:'en'});
+  const row=h.container.querySelector('.commission-followup');assert(row.textContent.includes('File unavailable here.'));assert.equal(row.querySelector('a'),null);assert.equal(h.container.querySelector('.commission-followups [role="status"]'),null);
+});
+test('a failed linked reply exposes retry alongside earlier usable replies',async t=>{
+  const h=await harness(t,()=>response(adopted),()=>({status:'partial',items:[followupItem()],gaps:[{id:'SP-two',reason:'lookup-failed'}]}));await h.render({request:directAdopted,language:'en'});
+  assert(h.container.querySelector('.commission-followup a'));assert(h.container.querySelector('.commission-followups [role="status"] button'));assert(h.container.textContent.includes('Exact target passage.'));
+});
+
+for(const reason of ['lookup-failed','time-budget','unrecognised-relationship','malformed-relationship','record-rejected',
+  'file-rejected','file-language-unavailable','file-identity-unavailable','file-unavailable']){
+  for(const hasItems of [false,true])test(`follow-up status for ${reason}, items=${hasItems}`,async t=>{
+    const retryable=['lookup-failed','time-budget'].includes(reason),recordGap=!reason.startsWith('file-');
+    const h=await harness(t,()=>response(adopted),()=>({status:'partial',items:hasItems?[followupItem()]:[],gaps:[{id:null,reason}]}));
+    await h.render({request:directAdopted,language:'en'});
+    const notices=h.container.querySelectorAll('.commission-followups > [role="status"]');
+    const expected=hasItems&&recordGap?'Some follow-up documents could not be checked.':!hasItems&&retryable?'Commission follow-up could not be checked.':null;
+    assert.equal(notices.length,expected?1:0);
+    assert.equal(h.container.querySelectorAll('.commission-followups > p').length,expected?1:0,'no duplicate status line');
+    if(expected){assert(notices[0].textContent.startsWith(expected));assert.equal(!!notices[0].querySelector('button'),retryable);}
+    assert.equal(!!h.container.querySelector('.commission-followup a'),hasItems,'file gaps do not hide a working link');
+    assert(h.container.textContent.includes('Exact target passage.'));
+  });
+}
 
 test('overlays preserve surrounding paragraph formatting and complete source tables',async t=>{
   for(const operation of ['insert','replace','delete','unresolved'])await t.test(operation,async t=>{
