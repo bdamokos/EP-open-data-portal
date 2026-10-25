@@ -651,15 +651,17 @@ test('parser recovery respects retained cooldowns and wakes after expiry without
   assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);assert.equal(store.source(generation,listKey).work.wordingRefreshFailure,undefined);
 });
 
-test('an alternate byline deferred by the request budget resumes using retained primary bytes',async t=>{
+for(const migration of [true,false])test('an alternate byline deferred by the request budget resumes using retained primary bytes; migration='+migration,async t=>{
   const context=await fixture(t),{store,worker,generation}=context;downgrade(context);context.advance(8*86400000);
   const saved=store.source(generation,listKey),primary={url:oldUrl,language:'bg',byteSize:null},alternate={url:newUrl,language:'de',byteSize:null};
+  if(!migration)saved.work.extraction.parserVersion=AMENDMENT_EXTRACTION_VERSION;
   store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[primary,alternate]}},saved.fetchedAt);
   const downloads=[];worker.downloadAmendmentDocx=async url=>{downloads.push(url);return {buffer:amendmentDocx(freshProposed,url===oldUrl?'Данило Дела Вале':'Danilo Della Valle')};};
-  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  if(migration){prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));}
+  else enqueueAmendment(store,generation,extractKey,'amendment-extract',{listId,targetDocumentId:targetId},112,true);
   worker.requests=0;worker.budget=1;await worker.task(nextAmendmentTask(store,generation));
   assert.deepEqual(downloads,[oldUrl]);assert.equal(worker.requests,1);assert.equal(extractionJob(store,generation).done,0);
-  assert.equal(store.source(generation,listKey).work.extraction.parserVersion,'10');
+  assert.equal(store.source(generation,listKey).work.extraction.parserVersion,migration?'10':AMENDMENT_EXTRACTION_VERSION);
   context.advance(30*60_000);worker.requests=0;worker.budget=2;worker.amendmentParserDownloads=0;
   await worker.task(nextAmendmentTask(store,generation));
   assert.deepEqual(downloads,[oldUrl,newUrl]);assert.equal(worker.requests,1);assert.equal(extractionJob(store,generation).done,1);

@@ -678,7 +678,7 @@ export async function amendmentTask(worker,task) {
     }
     const parserUpgrade=saved.work.extraction&&saved.work.extraction.parserVersion!==AMENDMENT_EXTRACTION_VERSION;
     const retrieve=async descriptor=>{
-      const retained=parserUpgrade?await retainedAmendmentSource(store,descriptor,{signal}):null;
+      const retained=parserUpgrade||body.sourceDownloaded?await retainedAmendmentSource(store,descriptor,{signal}):null;
       if(retained)return retained;
       if(worker.requests>=worker.budget||parserUpgrade&&(worker.amendmentParserDownloads || 0)>=4) {
         store.assertWriter();
@@ -703,6 +703,7 @@ export async function amendmentTask(worker,task) {
     let authorNames=null;
     const alternate=alternateAuthorDescriptor(saved.work,extraction);
     if(alternate){
+      store.taskProgress(task,{...body,sourceDownloaded:true});
       try {
         const other=await retrieve(alternate);
         if(!other)return;
