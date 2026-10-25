@@ -13,7 +13,7 @@ import {useData} from './data';
 import {selectLanguageText} from './language.mjs';
 import {selectVoteTitle} from './voteTitles.mjs';
 import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from './MemberVotesTypes';
-import {MEMBER_VOTES_PAGE_SIZE,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteOutcome,memberVotePositionSummary,memberVotesRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
+import {MEMBER_VOTES_PAGE_SIZE,memberVotesCoverageNotice,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteOutcome,memberVotePositionSummary,memberVotesRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
 import {WordingDiff} from './components/WordingDiff';
 import {MemberVoteExplanations} from './MemberVoteExplanations';
@@ -207,6 +207,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const periodChange=(week:string,sittingId:string|null=null)=>{listScroll.current=0;onStateChange(votePeriodTransition(state,week,sittingId));};
   const expired=request.status===409;
   const rejected=Boolean(!route||request.data&&!valid);
+  const coverageNotice=data?memberVotesCoverageNotice(data,state):null;
   const contextAllowed=Boolean(state.context&&selected&&['document','adopted'].includes(state.context.view)&&(state.context.amendmentId?exactAmendmentTargets(selected).some(target=>target.documentId===state.context?.documentId&&target.amendmentId===state.context?.amendmentId):topLevelVoteDocuments(selected).includes(state.context.documentId)));
   return <section className="member-votes" lang="en" aria-label={`${memberName} · Votes`}>
     <div className="member-votes-period"><div><p className="member-votes-eyebrow">{memberName}</p><h2 ref={listHeadingRef} tabIndex={-1}>Voting records</h2><p>{periodLabel(data,state)}</p></div><VotePeriodNavigation state={state} resolvedWeek={data?.period.week} language={language} sittingCoverage={data?.coverage.sittings} onPeriod={periodChange}/></div>
@@ -214,9 +215,9 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     {request.loading&&!data&&<p role="status">Loading voting records…</p>}
     {expired?<div className="member-votes-notice" role="alert"><p>This saved view of the period has expired. Refresh to load the available votes.</p><button type="button" onClick={()=>{snapshotRefresh.current={route:memberVotesRoute(memberId,{...state,snapshotId:null},language),started:false,baseline:null};change({snapshotId:null});}}>Refresh votes</button></div>:request.error?<div className="member-votes-notice" role="alert"><p>Voting records could not be loaded. Try again.</p><button type="button" disabled={request.loading} onClick={request.retry}>Retry votes</button></div>:rejected?<div className="member-votes-notice" role="alert"><p>The requested voting records are unavailable here.</p><button type="button" onClick={request.retry}>Retry votes</button></div>:null}
     {data&&!expired&&!request.error&&<>
-      {data.coverage.status!=='complete'&&<p className="member-votes-notice">Some voting records for this period are unavailable.</p>}
+      {coverageNotice&&<p className="member-votes-notice">{coverageNotice}</p>}
       <div ref={listRef} className="member-votes-pane" hidden={Boolean(state.decisionId||state.context)} onScroll={event=>{listScroll.current=event.currentTarget.scrollTop;}}>
-        <div className="member-votes-tools">{data.coverage.status!=='unavailable'&&<p>{data.pagination.returned?`${data.pagination.offset+1}–${data.pagination.offset+data.pagination.returned} of ${data.pagination.filteredTotal}`:'0'} {countLabel(data.pagination.filteredTotal,state.positions==='recorded'?'recorded position':'decision')}{data.pagination.recordedTotal!==null?` · ${data.pagination.recordedTotal} with a recorded position`:''}</p>}<div className="member-votes-filter" role="group" aria-label="Votes shown"><button type="button" aria-pressed={state.positions==='all'} onClick={()=>{listScroll.current=0;change({positions:'all',offset:0});}}>All decisions</button><button type="button" aria-pressed={state.positions==='recorded'} onClick={()=>{listScroll.current=0;change({positions:'recorded',offset:0});}}>Recorded positions</button></div></div>
+        <div className="member-votes-tools">{data.coverage.status!=='unavailable'&&<p>{data.pagination.returned?`${data.pagination.offset+1}–${data.pagination.offset+data.pagination.returned} of ${data.pagination.filteredTotal}`:'0'} {countLabel(data.pagination.filteredTotal,state.positions==='recorded'?'recorded position':'decision')}{data.pagination.recordedTotal!==null?` · ${data.pagination.recordedTotal} with a recorded position`:''}{data.coverage.status==='partial'?' · Partial coverage':''}</p>}<div className="member-votes-filter" role="group" aria-label="Votes shown"><button type="button" aria-pressed={state.positions==='all'} onClick={()=>{listScroll.current=0;change({positions:'all',offset:0});}}>All decisions</button><button type="button" aria-pressed={state.positions==='recorded'} onClick={()=>{listScroll.current=0;change({positions:'recorded',offset:0});}}>Recorded positions</button></div></div>
         <OutcomeAlignmentFilter value={state.alignment} counts={data.alignmentCounts} coverage={data.coverage.status} sitting={Boolean(state.sittingId)} onChange={alignment=>{alignmentFocus.current=alignment;listScroll.current=0;change({alignment,offset:0});}}/>
         {groups.map(group=>{
           const title=group.subject?chosenTitle(group.subject,language):null;

@@ -18,6 +18,7 @@ export class VoteSourceReader {
   async pages(endpoint,params,kind,budget,{heldSitting=false}={}) {
     const coverage=pageCoverage(),nodes=new Map(),evidence=Object.create(null),nodeEvidence=Object.create(null),conflicts=[],size=kind==='decisions'?this.limits.decisionPageSize:this.limits.pageSize;
     const maxPages=this.limits[kind==='catalogue'?'cataloguePages':kind==='decisions'?'decisionPages':kind==='results'?'resultsPages':'agendaPages'];
+    let firstPageRows=null;
     for(let page=0;page<maxPages;page++){
       requestSignal()?.throwIfAborted();
       try {
@@ -29,6 +30,8 @@ export class VoteSourceReader {
         const bytes=Buffer.byteLength(JSON.stringify(record.payload));
         if(bytes>this.limits.sourceBytes||budget.bytes+bytes>this.limits.periodBytes)throw new HttpError(502,'vote_source_size','Parliament vote data exceeds the bounded source size.');
         budget.bytes+=bytes;
+        // Duplicate rows cannot establish that a response exceeds its limit.
+        if(page===0)firstPageRows=new Set(data.map(node=>relative(node.id))).size;
         const source=sourceEvidence(record,record.payload);coverage.sources.push(source);coverage.pages++;
         for(const [index,node] of data.entries()){const hash=sourceNodeKey(node),key=kind==='results'?hash:relative(node.id),path={sourceUrl:source.url,contentHash:source.contentHash,jsonPointer:'/data/'+index};(evidence[key]??=[]).push(path);(nodeEvidence[hash]??=[]).push(path);}
         let added=0;
@@ -57,7 +60,7 @@ export class VoteSourceReader {
       }
     }
     coverage.rows=nodes.size;
-    return {nodes:[...nodes.values()],coverage,evidence,nodeEvidence,conflicts};
+    return {nodes:[...nodes.values()],coverage,evidence,nodeEvidence,conflicts,firstPageRows};
   }
 
 }

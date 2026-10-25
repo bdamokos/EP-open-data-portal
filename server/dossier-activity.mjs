@@ -13,7 +13,7 @@ import {memberVotes} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 
-export const DOSSIER_ACTIVITY_VERSION=2;
+export const DOSSIER_ACTIVITY_VERSION=3;
 export const DOSSIER_ACTIVITY_LIMITS=Object.freeze({roles:500,documents:24,debatesPerPage:2,children:1000,speechRows:2000,votes:4000});
 const sectionNames=['roles','speeches','amendments','votes'];
 const validId=value=>/^\d{4}-\d{4}[A-Z]?$/.test(value||'');

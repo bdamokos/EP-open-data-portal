@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {projectMemberSitting} from '../server/member-votes-model.mjs';
 import {knownVoteMethodLabel,voteMethodLabel} from './voteMethod.mjs';
-import {MEMBER_VOTES_PAGE_SIZE,memberVotesRoute,validateMemberVotesResponse,groupMemberVotes,displayVoteTitle,memberVoteLabel,memberVotePosition,memberVoteOutcome,memberVoteTotals,votingRecordUrl,topLevelVoteDocuments,exactAmendmentTargets} from './memberVotesPresentation.mjs';
+import {MEMBER_VOTES_PAGE_SIZE,memberVotesCoverageNotice,memberVotesRoute,validateMemberVotesResponse,groupMemberVotes,displayVoteTitle,memberVoteLabel,memberVotePosition,memberVoteOutcome,memberVoteTotals,votingRecordUrl,topLevelVoteDocuments,exactAmendmentTargets} from './memberVotesPresentation.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/member-votes.json',import.meta.url)));
 const memberId=197591,snapshotId='a'.repeat(64),sittingId='MTG-PL-2026-10-07';
@@ -11,7 +11,7 @@ const projection=projectMemberSitting(fixture.snapshots[0],String(memberId),'en'
 const clone=value=>structuredClone(value);
 function response(overrides={}) {
   const items=projection.items.filter(item=>item.actualPosition.status==='recorded');
-  return {version:6,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
+  return {version:7,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
 }
 const state={week:'latest',sittingId,positions:'recorded',offset:0,decisionId:null,snapshotId:null};
 const accepts=(data,requestState=state)=>validateMemberVotesResponse(data,{memberId,state:requestState});
@@ -170,4 +170,22 @@ test('electronic secret ballots validate across list, selected and whole-text de
   assert.equal(voteMethodLabel('VOTE_ELECTRONIC_SECRET'),'Secret ballot (electronic)');
   assert.equal(knownVoteMethodLabel('VOTE_ELECTRONIC_SECRET'),'Secret ballot (electronic)');
   for(const method of ['VOTE_SECRET','VOTE_SECRET_BALLOT'])assert.equal(voteMethodLabel(method),'Secret ballot');
+});
+
+
+test('coverage notices preserve calendar gaps, unavailable records and missing selected decisions',()=>{
+  const incomplete={status:'partial',failedSittingIds:[],incompleteSittingIds:[sittingId],sittings:[],catalogue:{state:'partial'}};
+  assert.equal(memberVotesCoverageNotice({coverage:incomplete}),'Incomplete voting records · 7 Oct 2026 · Sitting dates incomplete');
+  assert.equal(memberVotesCoverageNotice({coverage:{...incomplete,incompleteSittingIds:[]}}),'Sitting dates incomplete');
+  assert.equal(memberVotesCoverageNotice({coverage:{status:'unavailable',catalogue:{state:'unavailable'}}}),'Voting records unavailable');
+  const missing={coverage:incomplete,selected:{status:'not-found-in-scanned-data',item:null}};
+  assert.equal(memberVotesCoverageNotice(missing,{decisionId:sittingId+'-DEC-999'}),'Partial coverage');
+  assert.equal(memberVotesCoverageNotice(missing,{decisionId:sittingId+'-DEC-999',context:{documentId:'A-10-2026-0001'}}),null);
+});
+
+
+test('selected position gaps use the existing summary without a duplicate notice',()=>{
+  const item={id:sittingId+'-DEC-1',method:'VOTE_ELECTRONIC_ROLLCALL',actualPosition:{status:'unavailable',position:null},evidenceGaps:[],sourceConflicts:null};
+  assert.equal(memberVotesCoverageNotice({coverage:{status:'partial'},selected:{status:'found',item}},{decisionId:item.id}),null);
+  assert.equal(memberVotePosition(item),'Position unavailable');
 });
