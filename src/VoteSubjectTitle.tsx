@@ -10,7 +10,7 @@ export function VoteSubjectTitle({subject,vote,language}:{subject:MemberVoteSubj
   const documentId=subject.documentIds.length===1&&/^A-10-\d{4}-\d{4,6}$/.test(subject.documentIds[0])?subject.documentIds[0]:null;
   const subjectUri='https://data.europarl.europa.eu/eli/dl/event/'+subject.id;
   const linked=documentId&&subject.uri===subjectUri&&Array.isArray(vote.context.relationships)&&vote.context.relationships.some(edge=>edge?.from===subjectUri&&edge.field==='based_on_a_realization_of'&&edge.to==='https://data.europarl.europa.eu/eli/dl/doc/'+documentId);
-  const url=linked&&original.language!==language?'https://data.europarl.europa.eu/api/v2/plenary-documents/'+documentId:null;
+  const url=linked&&(!original.text.trim()||original.language!==language)?'https://data.europarl.europa.eu/api/v2/plenary-documents/'+documentId:null;
   const request=useData<RecordResponse>(url?'source-record?'+new URLSearchParams({url,lang:language}):null);
   const records=request.data?.sourceUrl===url&&Array.isArray(request.data?.payload?.data)?request.data.payload.data:[];
   const record=records.length===1?records[0]:null;

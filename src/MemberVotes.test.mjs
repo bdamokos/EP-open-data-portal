@@ -1000,3 +1000,10 @@ test('a mismatched subject URI cannot establish the report-title relationship',a
  const h=await mount(t,{state:{decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item],subjects:[group]}))});
  assert.equal(h.calls.some(url=>url.includes('source-record?')),false);assert.equal(h.container.querySelector('.member-votes-detail-subject').textContent,'Sujet français');
 });
+
+for(const empty of [{titles:{},title:null,titleLanguage:null},{titles:{en:'  '},title:'',titleLanguage:'en'}])test('an empty subject title can use the exact English report title '+JSON.stringify(empty),async t=>{
+ const item=linkedReportVote(),group={...reportSubject([item]),...empty};
+ const h=await mount(t,{state:{decisionId:item.id},handler:url=>String(url).includes('source-record?')?Response.json(reportResponse()):Response.json(responseFor(url,{items:[item],subjects:[group]}))});
+ assert.equal(h.calls.filter(url=>url.includes('source-record?')).length,1);
+ const title=h.container.querySelector('.member-votes-detail-subject');assert.equal(title.textContent,'Exact English report title');assert.equal(title.lang,'en');
+});
