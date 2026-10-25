@@ -1,5 +1,11 @@
 import {sourceAvailability,validDay} from './source-availability.mjs';
 import {brusselsDay} from './analysis-period.mjs';
+import {activityOnly} from './activity-read-projections.mjs';
+
+export const activityAvailabilityIndexVersion=1;
+export function prepareActivityAvailability(db) {
+  db.exec(`CREATE INDEX IF NOT EXISTS activity_role_frontier ON items(generation,category,date DESC) WHERE ${activityOnly}`);
+}
 
 export function availabilityGap(body,sourceId) {
   const idDate=String(body.recoveryId||body.id||'').match(/MTG-PL-(\d{4}-\d{2}-\d{2})/)?.[1];
@@ -28,7 +34,15 @@ export function oralAvailability(store,{generation,start='2024-07-16',end=brusse
 
 export function activityAvailability(store,generation,{category=null,limited=false}={}) {
   // Role projections are enumerated across all people, before the member filter.
-  const rows=store.db.prepare("SELECT category,MAX(date) date FROM items WHERE generation=? AND COALESCE(json_extract(body,'$.recordKind'),'document')<>'answer' GROUP BY category").all(generation);
-  const selected=category?[rows.find(row=>row.category===category)||{category,date:null}]:rows;
-  return selected.map(row=>indexAvailability(store,{sourceKey:row.category,family:row.category.includes('questions')?'questions':row.category==='plenary-contributions'?'speeches':'documents',stage:'activity-role',generation,latestObservedDate:row.date,limited}));
+  // Seek one frontier per role in the covering partial index. Skipping to the
+  // next role also retains stored categories absent from the current UI list.
+  const from=`FROM items INDEXED BY activity_role_frontier WHERE generation=? AND ${activityOnly}`;
+  let rows;
+  if(category)rows=[{category,date:store.db.prepare(`SELECT date ${from} AND category=? ORDER BY date DESC LIMIT 1`).get(generation,category)?.date??null}];
+  else {
+    rows=[];
+    const next=store.db.prepare(`SELECT category,date ${from} AND category>? ORDER BY category,date DESC LIMIT 1`);
+    for(let row=store.db.prepare(`SELECT category,date ${from} ORDER BY category,date DESC LIMIT 1`).get(generation);row;row=next.get(generation,row.category))rows.push(row);
+  }
+  return rows.map(row=>indexAvailability(store,{sourceKey:row.category,family:row.category.includes('questions')?'questions':row.category==='plenary-contributions'?'speeches':'documents',stage:'activity-role',generation,latestObservedDate:row.date,limited}));
 }
