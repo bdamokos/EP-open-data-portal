@@ -1,3 +1,5 @@
+import {generationGroupOn} from './group-attribution.mjs';
+import {activityAffiliation} from './group-aggregation.mjs';
 import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,touchAvailability,historyStatus} from './availability-history.mjs';
 import {activityAvailability} from './availability-evidence.mjs';
 import {groupHistorySchema,freezeGroupHistory} from './group-history.mjs';
@@ -387,8 +389,11 @@ export class ActivityStore {
       }));
       return outcomes.get(id);
     };
+    const groupOn=generationGroupOn(this,generation),memberData=parse(member.body);
     const present=body=>{
       const row=parse(body);
+      const question=row.recordKind==='answer'&&row.relatedQuestionId?this.source(generation,'/parliamentary-questions/'+row.relatedQuestionId)?.work:null;
+      Object.assign(row,activityAffiliation(row,question,groupOn,memberData?.groupCode));
       if(row.recordKind==='document' && row.motionType) {
         const source=this.source(generation,'/plenary-documents/'+row.sourceId);
         if(source && isMotion(source.work)) {
@@ -407,7 +412,6 @@ export class ActivityStore {
         }
       }
       if(row.recordKind==='answer'&&row.relatedQuestionId) {
-        const question=this.source(generation,'/parliamentary-questions/'+row.relatedQuestionId)?.work;
         const titles=Object.assign({},...(question?.is_realized_by||[]).map(expression=>expression.title||{}),question?.title_dcterms||{});
         if(Object.keys(titles).length)return {...localize({...row,titles},language),relatedQuestionTitles:titles,relatedQuestionTitle:sourceTitle(titles[languagePreference(Object.keys(titles).filter(code=>titles[code]?.trim()),language)[0]])};
       }
@@ -423,7 +427,7 @@ export class ActivityStore {
     }));
     const exactTotal=category?categoryCoverage[category]?.status==='available':status.complete;
     const availability=activityAvailability(this,generation,{category,limited:!exactTotal});
-    return { mepId:Number(mep), member:parse(member.body), term:10, requestedLanguage:language, category, total:exactTotal?total:null, indexedTotal:total, offset, limit, nextOffset:offset+items.length<total?offset+items.length:null,
+    return { mepId:Number(mep), member:memberData, term:10, requestedLanguage:language, category, total:exactTotal?total:null, indexedTotal:total, offset, limit, nextOffset:offset+items.length<total?offset+items.length:null,
       order:'MEP activity/question date descending; answers remain attached to their question; source ID and category break ties', availability,cache:status, categories:CATEGORIES, categoryGroups:CATEGORY_GROUPS, categoryCoverage, unclassifiedMotionCount:counts['unclassified-motions'] || 0, selectedItems, items };
   }
   close() { this.release();this.db.close(); }
