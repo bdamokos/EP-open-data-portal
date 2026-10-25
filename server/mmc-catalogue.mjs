@@ -127,8 +127,8 @@ export function createCatalogueReader({fetchImpl=fetch,clock=Date.now}={}) {
       }).catch(error=>{state.loaded=null;throw error;}).finally(()=>{state.loading=false;});
     }
     await waitForRequest(state.loaded);
-    if(sourceFailure?.retryAt>clock())state.failure=sourceFailure;
     const expired=!state.saved||view(state).stale;
+    if(expired&&sourceFailure?.retryAt>clock())state.failure=sourceFailure;
     if(expired&&(!state.failure||state.failure.retryAt<=clock())) {
       if(state.saved)void refresh(date,directory,state).catch(()=>{});
       else await refresh(date,directory,state);

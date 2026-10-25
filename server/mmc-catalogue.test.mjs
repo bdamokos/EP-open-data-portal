@@ -74,6 +74,24 @@ test('403 is an unavailable search, never an empty catalogue, and pauses other d
   time+=3600001;await assert.rejects(reader(date,directory),/403/);assert.equal(calls,2);
 });
 
+test('source denial on another date never marks a fresh catalogue as failed or disables its CDN caching',async()=>{
+  let calls=0,time=now;
+  const reader=createCatalogueReader({clock:()=>time,fetchImpl:async url=>{
+    calls++;
+    return new URL(url).searchParams.get('df')===date?Response.json(payload()):new Response('blocked',{status:403});
+  }});
+  await reader(date);
+  await assert.rejects(reader('2026-10-08'),/403/);
+  for(const elapsed of [0,3600001]) {
+    time=now+elapsed;
+    const healthy=await reader(date);
+    assert.equal(healthy.stale,false);assert.equal(healthy.refreshInProgress,false);assert.equal(healthy.refreshError,null);
+    const policy=apiCachePolicy({method:'GET'},new URL('https://example.test/api/speech-media/test'),{available:true,provenance:{catalogue:healthy}});
+    assert.match(policy.cdnCacheControl,/max-age=21600/);
+  }
+  assert.equal(calls,2);
+});
+
 test('local admission failures do not create a date or source-wide failure cooldown',async t=>{
   const queue=new UpstreamQueue({maximum:1,interactiveWaitMs:30});
   const release=await queue.acquire();
