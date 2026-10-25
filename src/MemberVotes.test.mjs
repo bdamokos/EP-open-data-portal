@@ -46,7 +46,7 @@ function stateFrom(url) {
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:6,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:7,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
@@ -57,7 +57,7 @@ function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,
 const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>(item.getAttribute('aria-label')||item.textContent.trim())===text);
 const visiblePane=container=>[...container.querySelectorAll('.member-votes-pane')].find(item=>!item.hidden);
 
-async function mount(t,{state={},calendar={version:1,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}},handler=url=>Response.json(responseFor(url)),attendanceHandler=()=>Response.json({error:{code:'unavailable'}}),statusCompatibility=false,renderContext,members}={}) {
+async function mount(t,{state={},calendar={version:2,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}},handler=url=>Response.json(responseFor(url)),attendanceHandler=()=>Response.json({error:{code:'unavailable'}}),statusCompatibility=false,renderContext,members}={}) {
   const window=new Window({url:'http://localhost/'});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -348,7 +348,7 @@ test('known unavailable wording remains a competing published version and opens 
   await h.select(selector,variants[1].listId);
   assert.equal(h.container.querySelector('.member-votes-comparison'),null);
   assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Amendment wording unavailable here\./);
-  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Text language unknown\./);
+  assert.doesNotMatch(wordingViewText(h.container.querySelector('.member-votes-wording')),/Text language/);
   assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes(variants[0].proposedText));
   await h.click('Read in context');
   assert.equal(h.contexts.at(-1).listId,variants[1].listId);
@@ -543,11 +543,38 @@ test('a temporary 503 keeps the retry path usable while the backend load continu
 
 test('partial period coverage is disclosed once alongside observed, filtered and page counts',async t=>{
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{coverage:{status:'partial',collectionComplete:false},pagination:{observedTotal:70,filteredTotal:1},subjects:[subject([vote(1)],{counts:{observed:70,filtered:1,page:1}})]}))});
-  const notice='Some voting records for this period are unavailable.';
+  const notice='Incomplete voting records';
   assert.equal(h.container.textContent.split(notice).length-1,1);
   assert.match(h.container.querySelector('.member-votes-tools').textContent,/1–1 of 1 decision · 1 with a recorded position/);
   assert.match(h.container.querySelector('.member-votes-subject-count').textContent,/1 decision in this subject · 1 on this page/);
   assert(!/all.term|denominator/i.test(h.container.textContent));
+});
+
+test('coverage notice names incomplete sitting days and leaves unaffected detail and document panes clear',async t=>{
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT]}});
+  const h=await mount(t,{state:{week:WEEK,expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items:[item],coverage:{status:'partial',collectionComplete:false,incompleteSittingIds:[SITTING],sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'partial',observedDecisionCount:1}]}}))});
+  assert.equal(h.container.querySelector('.member-votes-notice').textContent,'Incomplete voting records · 25 Mar 2026');
+  assert.match(h.container.querySelector('.member-votes-tools').textContent,/Partial coverage/);
+  assert.match(h.container.querySelector('.member-votes-alignment').textContent,/Partial coverage/);
+  await act(async()=>h.container.querySelector('[data-vote-id]').click());
+  assert.equal(h.container.querySelector('.member-votes-notice'),null);
+  await h.click('Read report · '+DOCUMENT);
+  assert(h.container.querySelector('[data-testid="context"]'));
+  assert.equal(h.container.querySelector('.member-votes-notice'),null);
+});
+
+test('a selected decision reports its own missing result, independently of period coverage',async t=>{
+  const item=vote(1,{evidenceGaps:[{code:'missing-result',id:SUBJECT}]});
+  const h=await mount(t,{state:{week:WEEK,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item],coverage:{status:'partial',incompleteSittingIds:[SITTING]}}))});
+  assert.equal(h.container.querySelector('.member-votes-notice').textContent,'Vote result incomplete');
+  assert.doesNotMatch(h.container.querySelector('.member-votes-notice').textContent,/25 Mar|period/);
+});
+
+test('agenda context gaps alone do not label vote counts or the period incomplete',async t=>{
+  const h=await mount(t,{state:{week:WEEK},handler:url=>Response.json(responseFor(url,{coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:1,agenda:{state:'unavailable'},completeness:{complete:false,votingRecordsComplete:true}}]}}))});
+  assert.equal(h.container.querySelector('.member-votes-notice'),null);
+  assert.doesNotMatch(h.container.querySelector('.member-votes-tools').textContent,/Partial coverage/);
+  assert.doesNotMatch(h.container.querySelector('.member-votes-alignment').textContent,/Partial coverage/);
 });
 
 test('page navigation replaces page rows and retains the pinned snapshot and expanded subjects',async t=>{
@@ -642,7 +669,7 @@ test('a filtered-out final vote opens its exact decision and keeps missing-posit
 
 
 test('period navigation steps through held weeks and week/day changes clear period-scoped selections',async t=>{
-  const calendar={version:1,weeks:[{week:'2026-03-30',sittings:[{sittingId:'MTG-PL-2026-03-31',date:'2026-03-31'}]},{week:WEEK,sittings:[{sittingId:SITTING,date:'2026-03-25'}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}};
+  const calendar={version:2,weeks:[{week:'2026-03-30',sittings:[{sittingId:'MTG-PL-2026-03-31',date:'2026-03-31'}]},{week:WEEK,sittings:[{sittingId:SITTING,date:'2026-03-25'}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}};
   const h=await mount(t,{calendar,state:{week:WEEK,snapshotId:SNAPSHOT,offset:50,decisionId:decision(1),expandedSubjectIds:[SUBJECT]},handler:url=>{const state=stateFrom(url);return Response.json(responseFor(url,{items:state.week===WEEK?[vote(1)]:[],subjects:state.week===WEEK?[subject([vote(1)])]:[]}));}});
   assert.equal(button(h.container,'Previous plenary week').disabled,true);assert.equal(button(h.container,'Next plenary week').disabled,false);
   const day=[...h.container.querySelectorAll('.member-votes-days button')].find(item=>item.textContent.includes('25'));assert(day);await act(async()=>day.click());
@@ -660,7 +687,7 @@ test('sitting-only links show their own week and Whole week never jumps to lates
 });
 
 test('partial calendars disclose gaps separately and retain missing selected week and sitting options',async t=>{
-  const calendar={version:1,weeks:[],coverage:{status:'partial',years:[{year:2026,state:'partial',sources:[]}]}};
+  const calendar={version:2,weeks:[],coverage:{status:'partial',years:[{year:2026,state:'partial',sources:[]}]}};
   const h=await mount(t,{calendar,state:{week:'latest',sittingId:SITTING,snapshotId:SNAPSHOT}});
   assert.match(h.container.textContent,/Some plenary dates could not be loaded; the list shows known sittings/);
   const select=h.container.querySelector('.member-votes-period-navigation select');assert.equal(select.value,WEEK);assert.match(select.textContent,/Week of/);
@@ -670,14 +697,14 @@ test('partial calendars disclose gaps separately and retain missing selected wee
 });
 
 test('unavailable calendars keep an any-date fallback that snaps to Monday',async t=>{
-  const h=await mount(t,{calendar:{version:1,weeks:[],coverage:{status:'unavailable',years:[]}},state:{week:WEEK,snapshotId:SNAPSHOT}});
+  const h=await mount(t,{calendar:{version:2,weeks:[],coverage:{status:'unavailable',years:[]}},state:{week:WEEK,snapshotId:SNAPSHOT}});
   assert.match(h.container.textContent,/The plenary calendar could not be loaded/);
   await h.select('.member-votes-period-navigation input','2026-03-26');assert.equal(h.state.week,WEEK);assert.equal(h.state.sittingId,null);assert(!h.container.textContent.includes('Choose a Monday'));
 });
 
 
 test('calendar jump controls keep the direct select, accessible icons and year groups at both boundaries',async t=>{
- const calendar={version:1,weeks:[{week:WEEK,sittings:[23,24,25,26].map(day=>({sittingId:'MTG-PL-2026-03-'+day,date:'2026-03-'+day}))},{week:'2025-12-15',sittings:[{sittingId:'MTG-PL-2025-12-16',date:'2025-12-16'}]}],coverage:{status:'complete',years:[{year:2025,state:'complete',sources:[]},{year:2026,state:'complete',sources:[]}]}};
+ const calendar={version:2,weeks:[{week:WEEK,sittings:[23,24,25,26].map(day=>({sittingId:'MTG-PL-2026-03-'+day,date:'2026-03-'+day}))},{week:'2025-12-15',sittings:[{sittingId:'MTG-PL-2025-12-16',date:'2025-12-16'}]}],coverage:{status:'complete',years:[{year:2025,state:'complete',sources:[]},{year:2026,state:'complete',sources:[]}]}};
  const h=await mount(t,{calendar,state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items:[]}))});
  const row=h.container.querySelector('.member-votes-week-navigation');assert.deepEqual([...row.children].map(node=>node.tagName),['BUTTON','BUTTON','SELECT','BUTTON','BUTTON']);
  assert.deepEqual([...row.querySelectorAll('optgroup')].map(node=>node.label),['2026','2025']);
@@ -691,12 +718,12 @@ test('calendar jump controls keep the direct select, accessible icons and year g
 });
 
 test('an observed empty calendar is distinct from unavailable and does not add a date input',async t=>{
- const h=await mount(t,{calendar:{version:1,weeks:[],coverage:{status:'complete',years:[]}}});
+ const h=await mount(t,{calendar:{version:2,weeks:[],coverage:{status:'complete',years:[]}}});
  assert.match(h.container.textContent,/No held plenary weeks are listed/);assert.equal(h.container.querySelector('input[type=date]'),null);assert.equal(button(h.container,'First plenary week').disabled,true);
 });
 
 test('only complete zero-decision days are muted as no-votes, remain clickable and open a sitting empty state',async t=>{
- const calendar={version:1,weeks:[{week:WEEK,sittings:[23,24,25,26].map(day=>({sittingId:'MTG-PL-2026-03-'+day,date:'2026-03-'+day}))}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}};
+ const calendar={version:2,weeks:[{week:WEEK,sittings:[23,24,25,26].map(day=>({sittingId:'MTG-PL-2026-03-'+day,date:'2026-03-'+day}))}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}};
  const sittings=calendar.weeks[0].sittings.map((day,index)=>({...day,state:['complete','partial','unavailable','complete'][index],observedDecisionCount:index===3?1:0}));
  const h=await mount(t,{calendar,state:{week:WEEK},handler:url=>{
   const state=stateFrom(url),empty=Boolean(state.sittingId),items=empty?[]:[vote(1,{id:'MTG-PL-2026-03-26-DEC-1',sittingId:'MTG-PL-2026-03-26',date:'2026-03-26'})];
@@ -750,7 +777,7 @@ for(const coverage of ['complete','partial','unavailable'])test('alignment empty
   if(coverage==='complete')assert.match(text,/No recorded votes against Parliament’s outcome in this week/);
   if(coverage==='partial'){assert.match(text,/No matching recorded votes among the available records for this week/);assert.match(text,/Counts in this week · Partial coverage/);}
   if(coverage==='unavailable'){
-    assert.match(text,/Some voting records for this period are unavailable/);assert.match(text,/Against the outcome \(unavailable\)/);
+    assert.match(text,/Voting records unavailable/);assert.match(text,/Against the outcome \(unavailable\)/);
     assert.equal(h.container.querySelector('.member-votes-empty'),null);assert.doesNotMatch(text,/0 decisions|No recorded votes|No matching recorded/);
   }
 });
@@ -842,7 +869,8 @@ test('attendance starts only after valid votes settle and failures leave votes a
   const route=new URL(attendanceCalls[0],'http://localhost');assert.equal(route.searchParams.get('sittings'),SITTING);assert.equal(route.searchParams.has('snapshot'),false);
   assert.match(visiblePane(h.container).textContent,/Synthetic subject/);assert.equal(button(h.container,'Next page').disabled,false);
   await act(async()=>releaseAttendance());
-  assert.equal(h.container.querySelector('.member-votes-attendance-line').textContent,'Attendance register unavailable');
+  assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/Attendance couldn’t be loaded/);
+  assert(button(h.container,'Retry attendance'));
   assert.equal(h.container.querySelector('[role="alert"]'),null);assert.equal(button(h.container,'Next page').disabled,false);
   await h.click('Next page');assert.equal(h.state.offset,1);assert.equal(h.state.snapshotId,SNAPSHOT);
 });
@@ -935,4 +963,75 @@ test('unattempted attendance detail stays hidden with an empty sitting selection
   const h=await mount(t,{state:{week:WEEK,decisionId:decision(1)},handler:url=>Response.json(responseFor(url,{coverage:{scannedSittingIds:[]}}))});
   assert(visiblePane(h.container).querySelector('.member-votes-detail'));
   assert.equal(h.container.querySelector('.member-votes-attendance'),null);
+});
+
+for(const detail of [false,true])for(const failure of ['http','network','invalid'])test(`attendance ${failure} failure retries in ${detail?'detail':'list'} without implying source absence`,async t=>{
+ let attempts=0;
+ const h=await mount(t,{state:{week:WEEK,...(detail?{decisionId:decision(1)}:{})},attendanceHandler:()=>{
+   attempts++;
+   if(attempts>1)return Response.json(attendanceResponse());
+   if(failure==='network')throw new TypeError('Network failure');
+   return failure==='http'?Response.json({error:{code:'not_found'}},{status:404}):Response.json({version:0});
+ }});
+ const attendance=()=>h.container.querySelector(detail?'.member-votes-attendance':'.member-votes-attendance-line');
+ assert.match(attendance().textContent,/Attendance couldn’t be loaded/);
+ assert.doesNotMatch(attendance().textContent,/unavailable|not yet published/);
+ await h.click('Retry attendance');
+ assert.equal(attempts,2);assert.match(attendance().textContent,/Listed as present|listed present/);
+ assert.equal(button(h.container,'Retry attendance'),undefined);
+ assert.equal(h.state.decisionId,detail?decision(1):null);
+});
+
+test('a sole amendment heading is not repeated and unavailable wording has no text-language caption',async t=>{
+ const h=await mountWording(t,{variants:[wordingVariant({wordingStatus:'unavailable',originalText:null,proposedText:null,authors:[{name:'Exact proposer'}]})]});
+ const detail=h.container.querySelector('.member-votes-detail'),wording=detail.querySelector('.member-votes-wording');
+ assert.equal(detail.querySelector('h2').textContent,'Amendment 7');assert.equal(wording.querySelector('h3'),null);
+ assert.doesNotMatch(wording.textContent,/Text language/);assert.match(wording.textContent,/Proposed by Exact proposer/);
+});
+
+const linkedReportVote=()=>vote(1,{context:{...vote(1).context,relationships:[{from:'https://data.europarl.europa.eu/eli/dl/event/'+SUBJECT,field:'based_on_a_realization_of',to:'https://data.europarl.europa.eu/eli/dl/doc/'+DOCUMENT}]}});
+const reportSubject=items=>subject(items,{titles:{fr:'Sujet français'},title:'Sujet français',titleLanguage:'fr',documentIds:[DOCUMENT]});
+const reportResponse=(patch={})=>({sourceUrl:'https://data.europarl.europa.eu/api/v2/plenary-documents/'+DOCUMENT,payload:{data:[{id:'eli/dl/doc/'+DOCUMENT,identifier:DOCUMENT,work_type:'def/ep-document-types/REPORT_PLENARY',title_dcterms:{en:'Exact English report title'},...patch}]}});
+
+test('a detail uses the requested-language report title only through an exact subject relationship',async t=>{
+ const item=linkedReportVote();
+ const h=await mount(t,{state:{decisionId:item.id},handler:url=>String(url).includes('source-record?')?Response.json(reportResponse()):Response.json(responseFor(url,{items:[item],subjects:[reportSubject([item])]}))});
+ const title=()=>h.container.querySelector('.member-votes-detail-subject');
+ assert.equal(title().textContent,'Exact English report title');assert.equal(title().lang,'en');
+ const route=new URL(h.calls.find(url=>url.includes('source-record?')),'http://localhost');
+ assert.equal(route.searchParams.get('url'),reportResponse().sourceUrl);
+ await h.updateProps({language:'fr'});assert.equal(title().textContent,'Sujet français');assert.equal(title().lang,'fr');
+});
+
+for(const patch of [{identifier:'A-10-2026-9999'},{id:'eli/dl/doc/A-10-2026-9999'},{work_type:'def/ep-document-types/OTHER'},{title_dcterms:{de:'Deutscher Titel'}},{id:null}])test('mismatched or missing report titles preserve the original subject and language '+JSON.stringify(patch),async t=>{
+ const item=linkedReportVote();
+ const h=await mount(t,{state:{decisionId:item.id},handler:url=>String(url).includes('source-record?')?Response.json(reportResponse(patch)):Response.json(responseFor(url,{items:[item],subjects:[reportSubject([item])]}))});
+ const title=h.container.querySelector('.member-votes-detail-subject');assert.equal(title.textContent,'Sujet français');assert.equal(title.lang,'fr');
+});
+
+for(const ambiguous of [false,true])test('unlinked or ambiguous report context starts no subject-title lookup '+ambiguous,async t=>{
+ const item=ambiguous?linkedReportVote():vote(1),group=reportSubject([item]);if(ambiguous)group.documentIds.push('A-10-2026-9999');
+ const h=await mount(t,{state:{decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item],subjects:[group]}))});
+ assert.equal(h.calls.some(url=>url.includes('source-record?')),false);assert.equal(h.container.querySelector('.member-votes-detail-subject').lang,'fr');
+});
+
+for(const relationships of [undefined,null,{},[null]])test('malformed report relationships keep the subject usable '+JSON.stringify(relationships),async t=>{
+ const item=linkedReportVote();item.context.relationships=relationships;
+ const h=await mount(t,{state:{decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item],subjects:[reportSubject([item])]}))});
+ assert.equal(h.calls.some(url=>url.includes('source-record?')),false);
+ const title=h.container.querySelector('.member-votes-detail-subject');assert(title);assert.equal(title.textContent,'Sujet français');assert.equal(title.lang,'fr');
+});
+
+test('a mismatched subject URI cannot establish the report-title relationship',async t=>{
+ const item=linkedReportVote(),group=reportSubject([item]);group.uri='https://data.europarl.europa.eu/eli/dl/event/another-subject';item.context.relationships[0].from=group.uri;
+ const h=await mount(t,{state:{decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item],subjects:[group]}))});
+ assert.equal(h.calls.some(url=>url.includes('source-record?')),false);assert.equal(h.container.querySelector('.member-votes-detail-subject').textContent,'Sujet français');
+});
+
+for(const empty of [{titles:{},title:null,titleLanguage:null},{titles:{en:'  '},title:'',titleLanguage:'en'}])test('an empty subject title can use the exact English report title '+JSON.stringify(empty),async t=>{
+ const item=linkedReportVote(),group={...reportSubject([item]),...empty};
+ const h=await mount(t,{state:{decisionId:item.id},handler:url=>String(url).includes('source-record?')?Response.json(reportResponse()):Response.json(responseFor(url,{items:[item],subjects:[group]}))});
+ const lookups=h.calls.filter(url=>url.includes('source-record?'));assert(lookups.length>0);
+ for(const lookup of lookups)assert.equal(new URL(lookup,'http://localhost').searchParams.get('url'),reportResponse().sourceUrl);
+ const title=h.container.querySelector('.member-votes-detail-subject');assert.equal(title.textContent,'Exact English report title');assert.equal(title.lang,'en');
 });

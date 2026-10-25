@@ -1,4 +1,22 @@
 export const MEMBER_VOTES_PAGE_SIZE=50;
+
+export function memberVotesCoverageNotice(data,{decisionId=null,context=null}={}) {
+  if(context)return null;
+  if(decisionId){
+    const vote=data.selected?.status==='found'&&data.selected.item?.id===decisionId?data.selected.item:null;
+    if(!vote)return data.coverage.status==='partial'?'Partial coverage':null;
+    if(vote.sourceConflicts||vote.evidenceGaps?.some(gap=>['missing-result','conflicting-result-source','conflicting-decision-source'].includes(gap.code)))return 'Vote result incomplete';
+    return null;
+  }
+  const coverage=data.coverage;
+  if(coverage.status==='complete')return null;
+  const ids=unique([...(coverage.failedSittingIds||[]),...(coverage.incompleteSittingIds||[]),...(coverage.sittings||[]).filter(day=>day.state!=='complete').map(day=>day.sittingId)]);
+  const dates=ids.filter(validSitting).map(id=>id.slice(7)).sort();
+  const label=coverage.status==='unavailable'?'Voting records unavailable':'Incomplete voting records';
+  const days=dates.map(value=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z')));
+  const calendarGap=coverage.catalogue&&coverage.catalogue.state!=='complete';
+  return days.length?label+' · '+days.join(', ')+(calendarGap?' · Sitting dates incomplete':''):coverage.status==='unavailable'?label:calendarGap?'Sitting dates incomplete':label;
+}
 const alignments=new Set(['all','with','against','abstained']);
 const positions=new Set(['recorded','all']);
 const languages=new Set('bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' '));
@@ -62,7 +80,7 @@ function usableVote(item,period) {
   return withinPeriod(item,period)&&outcomeShape(item)&&['with','against','abstained','unclassified'].includes(item.alignment)&&nullableString(item.title)&&nullableString(item.titleLanguage)&&stringMap(item.titles)&&stringMap(item.referenceTexts)&&nullableString(item.subjectId)&&isObject(item.context)&&['documentIds','amendmentIds','componentIds'].every(key=>stringArray(item.context[key]))&&Array.isArray(item.parts)&&item.parts.every(part=>componentShape(part)&&typeof part.requestId==='string'&&typeof part.resultId==='string'&&stringMap(part.requestScopeByLanguage)&&Array.isArray(part.contextComponents)&&part.contextComponents.every(componentShape))&&Array.isArray(item.rollCallRequesters)&&item.rollCallRequesters.every(requesterShape)&&isObject(item.resultRelationship)&&['consistent','single-direction','ambiguous','unlinked'].includes(item.resultRelationship.binding);
 }
 export function validateMemberVotesResponse(data,{memberId,state={}}) {
-  if(!isObject(data)||data.version!==6||!isObject(data.member)||data.member.id!==String(memberId)||!/^\d+$/.test(data.member.id))return false;
+  if(!isObject(data)||data.version!==7||!isObject(data.member)||data.member.id!==String(memberId)||!/^\d+$/.test(data.member.id))return false;
   if(!alignments.has(data.alignment)||data.alignment!==(state.alignment??'all')||data.positions!==(state.positions??'all')||!isObject(data.coverage)||!['complete','partial','unavailable'].includes(data.coverage.status)||data.coverage.termWide!==false)return false;
   if(!matchesPeriod(data.period,state,data.coverage.status==='unavailable')||typeof data.snapshotId!=='string'||!snapshot.test(data.snapshotId)||state.snapshotId&&data.snapshotId!==state.snapshotId)return false;
   const page=data.pagination;

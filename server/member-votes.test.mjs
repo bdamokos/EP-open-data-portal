@@ -50,7 +50,7 @@ function setup({decisions=[finalDecision],results,agenda=fixture.foreseen.payloa
 test('single-sitting collection exposes its bounded period and reuses source reads across members',async()=>{
   const {service,calls}=setup();
   const first=await service.query(MEMBER,query('sitting='+SITTING));
-  assert.equal(first.version,6);
+  assert.equal(first.version,7);
   assert.equal(first.period.sittingId,SITTING);
   assert.equal(first.period.from,'2026-10-07');
   assert.equal(first.period.to,'2026-10-07');
@@ -111,6 +111,110 @@ test('declared result children missing from both decision streams prevent comple
   assert.equal(result.coverage.collectionComplete,false);
   assert.deepEqual(result.coverage.incompleteSittingIds,[SITTING]);
   assert(JSON.stringify(result.coverage).includes('199999'),'the unresolved exact child identifier remains reviewable');
+});
+
+test('official undated TF scheduling containers do not invalidate voting or agenda coverage',async()=>{
+  const retained=JSON.parse(readFileSync(new URL('./fixtures/member-votes-timeframe.json',import.meta.url)));
+  const timeframe=JSON.parse(JSON.stringify(retained.node).replaceAll('2026-10-19','2026-10-07'));
+  const {service}=setup({agenda:[...fixture.foreseen.payload.data,timeframe]});
+  const result=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(result.coverage.status,'complete');
+  assert.equal(result.coverage.sittings[0].completeness.complete,true);
+  assert.deepEqual(result.coverage.sittings[0].completeness.invalidSourceIds,[]);
+  const conflicting=await setup({agenda:[...fixture.foreseen.payload.data,{...timeframe,activity_date:'2026-10-06'}]}).service.query(MEMBER,query('sitting='+SITTING));
+  assert.deepEqual(conflicting.coverage.sittings[0].completeness.invalidSourceIds,[timeframe.id]);
+  assert.equal(conflicting.coverage.sittings[0].completeness.complete,false);
+  assert.equal(conflicting.coverage.sittings[0].completeness.votingRecordsComplete,true);
+  for(const field of ['id','activity_id','activity_date']){
+    const bad={...clone(finalDecision),[field]:field==='activity_date'?'2026-10-06':'wrong'};
+    const response=await setup({decisions:[bad]}).service.query(MEMBER,query('sitting='+SITTING));
+    assert.equal(response.coverage.status,'partial',field+' validation remains strict');
+  }
+});
+
+test('a limit-sized repeated first page cannot hide undeclared decisions beyond it',async()=>{
+  const decisions=Array.from({length:4},(_,i)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${285000+i}`,activity_id:`${SITTING}-DEC-${285000+i}`}));
+  const {service}=setup({decisions,results:[{...clone(finalResult),consists_of:decisions.slice(0,2).map(row=>row.id)}],limits:{decisionPageSize:2},override:({kind,endpoint,params,rows})=>{
+    if(kind==='decisions'||kind==='named')return source(endpoint,params,rows.slice(0,2));
+  }});
+  const result=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(result.coverage.status,'partial');
+  assert.equal(result.coverage.sittings[0].decisions.stopReason,'repeated-page');
+  assert.equal(result.pagination.observedTotal,2);
+  const duplicated=setup({decisions:decisions.slice(0,2),limits:{decisionPageSize:2},override:({kind,endpoint,params,rows})=>{
+    if(kind==='decisions'||kind==='named')return source(endpoint,params,[...rows,...rows]);
+  }});
+  assert.equal((await duplicated.service.query(MEMBER,query('sitting='+SITTING))).coverage.status,'partial','duplicate rows do not establish an oversized census');
+});
+
+test('repeated oversized named streams require conducted Vote roll calls but may omit unheld decisions',async()=>{
+  const decisions=Array.from({length:5},(_,i)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${286000+i}`,activity_id:`${SITTING}-DEC-${286000+i}`}));
+  decisions[3].decision_outcome='def/ep-statuses/LAPSED';
+  decisions[4].type='Decision';
+  for(const includeOptional of [false,true]){
+    const {service}=setup({decisions,limits:{decisionPageSize:2},override:({kind,endpoint,params,rows})=>{
+      if(kind==='decisions'||kind==='named')return source(endpoint,params,kind==='named'&&!includeOptional?rows.slice(0,3):rows);
+    }});
+    const result=await service.query(MEMBER,query('sitting='+SITTING));
+    assert.equal(result.coverage.status,'complete');
+    assert.equal(result.coverage.sittings[0].namedDecisions.stopReason,'declared-children');
+    assert.deepEqual(result.coverage.sittings[0].completeness.missingNamedDecisionIds,[]);
+  }
+});
+
+test('agenda-only failures retain exact context gaps without marking vote counts incomplete',async()=>{
+  const {service}=setup({override:({kind})=>{if(kind==='agenda')throw new Error('Temporary agenda failure');}});
+  const result=await service.query(MEMBER,query('sitting='+SITTING));
+  const day=result.coverage.sittings[0];
+  assert.equal(result.coverage.status,'complete');
+  assert.equal(result.coverage.collectionComplete,true);
+  assert.equal(day.completeness.votingRecordsComplete,true);
+  assert.equal(day.completeness.complete,false);
+  assert.equal(day.agenda.stopReason,'error');
+  assert(day.completeness.unresolvedAgendaItemIds.length>0);
+  assert(result.items[0].context.missingAgendaItemIds.length>0);
+  assert.equal(result.pagination.recordedTotal,1);
+});
+
+test('repeated full decision responses require exact declared identities and a complete result graph',async()=>{
+  const decisions=Array.from({length:4},(_,i)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${280000+i}`,activity_id:`${SITTING}-DEC-${280000+i}`}));
+  for(const scenario of ['exact','same-count-wrong-id','results-error','named-missing','changed-decision']){
+    const children=decisions.map(row=>row.id);
+    if(scenario==='same-count-wrong-id')children[3]=`eli/dl/event/${SITTING}-DEC-299999`;
+    const {service}=setup({decisions,results:[{...clone(finalResult),consists_of:children}],limits:{decisionPageSize:2},override:({kind,endpoint,params,rows})=>{
+      if(kind==='results'&&scenario==='results-error')throw new Error('Result source unavailable');
+      if(kind==='decisions'||kind==='named'){
+        const supplied=clone(rows);
+        if(kind==='named'&&scenario==='named-missing')supplied.pop();
+        if(scenario==='changed-decision'&&params.offset)supplied[0].decision_outcome='def/ep-statuses/REJECTED';
+        return source(endpoint,params,supplied);
+      }
+    }});
+    const result=await service.query(MEMBER,query('sitting='+SITTING));
+    assert.equal(result.coverage.status,scenario==='exact'?'complete':'partial',scenario);
+    if(scenario==='exact'){
+      assert.equal(result.coverage.sittings[0].decisions.stopReason,'declared-children');
+      assert.equal(result.coverage.sittings[0].namedDecisions.stopReason,'declared-children');
+      assert.equal(result.pagination.observedTotal,4);
+    }
+  }
+});
+
+test('retained 400-decision ODP census ignores offsets but reconciles every exact result child',async()=>{
+  const retained=JSON.parse(readFileSync(new URL('./fixtures/member-votes-repeated-census.json',import.meta.url)));
+  const sittingId='MTG-PL-2026-10-21',date='2026-10-21',calls=[];
+  const service=new MemberVotes({clock:()=>Date.parse('2026-10-25T12:00:00Z'),request:async(endpoint,params)=>{
+    calls.push({endpoint,params});
+    const rows=endpoint.endsWith('/decisions')?retained.decisionRows.filter(n=>!params['vote-method']||n.decision_method.endsWith('/VOTE_ELECTRONIC_ROLLCALL')):endpoint.endsWith('/vote-results')?retained.results:[];
+    return source(endpoint,params,rows);
+  }});
+  const day=await service.sitting({activity_id:sittingId,activity_date:date,consists_of:retained.results.map(n=>n.id)},{bytes:0});
+  assert.equal(day.coverage.state,'complete');
+  assert.equal(day.coverage.decisions.stopReason,'declared-children');
+  assert.equal(day.coverage.observedDecisionCount,400);
+  assert.equal(day.coverage.completeness.declaredDecisionCount,400);
+  assert.deepEqual(day.coverage.completeness.missingDecisionIds,[]);
+  assert.equal(calls.filter(call=>call.endpoint.endsWith('/decisions')&&!call.params['vote-method']).length,2);
 });
 
 test('failed selected-sitting metadata is unavailable rather than a complete empty period',async()=>{

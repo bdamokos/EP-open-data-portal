@@ -1,0 +1,119 @@
+{
+  "sourceUrl": "https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0/search?type=105&subtype=2&df=2026-10-05&dt=2026-10-08&pagesize=10",
+  "fetchedAt": "2026-10-13T18:55:25Z",
+  "payload": {
+    "resultJSON": {
+      "response": {
+        "elapsed": "18",
+        "code": "0",
+        "last": true,
+        "totalPages": 1,
+        "messages": [
+          {
+            "type": "INFO",
+            "message": "Request executed propertly"
+          }
+        ],
+        "pageSize": 10,
+        "time": "2026-10-13T20:55:25 CEST",
+        "page": 1,
+        "first": true,
+        "totalElements": "4"
+      },
+      "content": [
+        {
+          "mediaURL": "https://api.multimedia.europarl.europa.eu/en/plenary-session_20261006-0900-PLENARY",
+          "highlighted": false,
+          "EventDateEnd": "2026-10-06 19:00",
+          "mediaSubTypeId": "104",
+          "mediaRecordId": "1481188",
+          "title": "Plenary session",
+          "mediaLanguage": "en",
+          "categoryName": "PLENARY",
+          "room": "Hemicycle Strasbourg",
+          "MEDIA_status": 0,
+          "duration": 0,
+          "mediaKey": "202610060900PLENARY",
+          "downloads": 0,
+          "mediaTypeId": "105",
+          "EventDateStart": "2026-10-06 07:00",
+          "statusName": "RECORDED",
+          "mediaBusinessID": "20261006-0900-PLENARY",
+          "mediaThumbnailURL": "https://api.multimedia.europarl.europa.eu/o/epmp-backend-theme/images/epmp/media-default-thumbnail-url-ws.jpg",
+          "views": 2805,
+          "mediaDate": "2026-10-06 07:00",
+          "status": 0
+        },
+        {
+          "mediaURL": "https://api.multimedia.europarl.europa.eu/en/plenary-session_20261007-0900-PLENARY",
+          "highlighted": false,
+          "EventDateEnd": "2026-10-07 18:13",
+          "mediaSubTypeId": "104",
+          "mediaRecordId": "1481186",
+          "title": "Plenary session",
+          "mediaLanguage": "en",
+          "categoryName": "PLENARY",
+          "room": "Hemicycle Strasbourg",
+          "MEDIA_status": 0,
+          "duration": 0,
+          "mediaKey": "202610070900PLENARY",
+          "downloads": 0,
+          "mediaTypeId": "105",
+          "EventDateStart": "2026-10-07 07:00",
+          "statusName": "RECORDED",
+          "mediaBusinessID": "20261007-0900-PLENARY",
+          "mediaThumbnailURL": "https://api.multimedia.europarl.europa.eu/o/epmp-backend-theme/images/epmp/media-default-thumbnail-url-ws.jpg",
+          "views": 1903,
+          "mediaDate": "2026-10-07 07:00",
+          "status": 0
+        },
+        {
+          "mediaURL": "https://api.multimedia.europarl.europa.eu/en/plenary-session_20261005-0900-PLENARY",
+          "highlighted": false,
+          "EventDateEnd": "2026-10-05 19:13",
+          "mediaSubTypeId": "104",
+          "mediaRecordId": "1481187",
+          "title": "Plenary session",
+          "mediaLanguage": "en",
+          "categoryName": "PLENARY",
+          "room": "Hemicycle Strasbourg",
+          "MEDIA_status": 0,
+          "duration": 0,
+          "mediaKey": "202610050900PLENARY",
+          "downloads": 0,
+          "mediaTypeId": "105",
+          "EventDateStart": "2026-10-05 15:03",
+          "statusName": "RECORDED",
+          "mediaBusinessID": "20261005-0900-PLENARY",
+          "mediaThumbnailURL": "https://api.multimedia.europarl.europa.eu/o/epmp-backend-theme/images/epmp/media-default-thumbnail-url-ws.jpg",
+          "views": 2063,
+          "mediaDate": "2026-10-05 15:03",
+          "status": 0
+        },
+        {
+          "mediaURL": "https://api.multimedia.europarl.europa.eu/en/plenary-session_20261008-0900-PLENARY",
+          "highlighted": false,
+          "EventDateEnd": "2026-10-08 14:00",
+          "mediaSubTypeId": "104",
+          "mediaRecordId": "1481185",
+          "title": "Plenary session",
+          "mediaLanguage": "en",
+          "categoryName": "PLENARY",
+          "room": "Hemicycle Strasbourg",
+          "MEDIA_status": 0,
+          "duration": 0,
+          "mediaKey": "202610080900PLENARY",
+          "downloads": 0,
+          "mediaTypeId": "105",
+          "EventDateStart": "2026-10-08 07:02",
+          "statusName": "RECORDED",
+          "mediaBusinessID": "20261008-0900-PLENARY",
+          "mediaThumbnailURL": "https://api.multimedia.europarl.europa.eu/o/epmp-backend-theme/images/epmp/media-default-thumbnail-url-ws.jpg",
+          "views": 1098,
+          "mediaDate": "2026-10-08 07:02",
+          "status": 0
+        }
+      ]
+    }
+  }
+}

@@ -16,7 +16,8 @@ import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
-import { amendmentReadVersion, amendmentReadIndexes, amendmentLinkIndexVersion, amendmentLinkIndexes, amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
+import { amendmentReadVersion, amendmentReadIndexes, amendmentLinkIndexVersion, amendmentLinkIndexes, amendmentParserSourceRevisionKey, amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
+import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches} from './refresh-policy.mjs';
@@ -286,6 +287,9 @@ export class ActivityStore {
       this.assertWriter();
       const existed=Boolean(this.db.prepare('SELECT 1 FROM sources WHERE generation=? AND key=?').get(generation,key));
       this.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,key,kind,JSON.stringify(work),fetchedAt);
+      // A revision also catches incompatible sources saved behind an active or
+      // checkpointed scan cursor. Compatible writes cannot introduce upgrade work.
+      if(kind==='amendment-list'&&work.extraction&&work.extraction.parserVersion!==AMENDMENT_EXTRACTION_VERSION)this.set(amendmentParserSourceRevisionKey,(this.get(amendmentParserSourceRevisionKey) || 0)+1);
       projectQuestionFiles(this.db,generation,key,kind,work);
       if(kind==='document')updateDocumentRefresh(this,generation,key,work,fetchedAt);
       if(kind==='motion-outcomes')updateSittingRefresh(this,generation,key,work,fetchedAt);

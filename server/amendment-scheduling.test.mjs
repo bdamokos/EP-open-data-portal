@@ -136,3 +136,84 @@ test('checkpoint-only CPU work coalesces revisions, wakes due and survives legac
   assert.equal(row(store,4,sittingKey).done,1);for(const targetId of ids)assert.equal(outcome(store,4,targetId),'REJECTED');
   assert.equal(amendmentsPage(store,{}).coverage.pending,false);assert.deepEqual(store.page('1').items,accepted);assert.equal(store.get('lastSuccess'),lastSuccess);assert.equal(store.get('working'),null);assert.equal(store.get('sequence'),4);assert.equal(worker.requests,0);
 });
+
+test('parser recovery keysets lists independently of report upgrades and resumes after queue saturation',async t=>{
+  const {prepareAmendmentParserUpgrade}=await import('./amendments-worker.mjs');
+  const {AMENDMENT_DISTRIBUTION_PROOF_VERSION}=await import('./amendments.mjs');
+  const {store,worker,generation}=setup(t),ids=Array.from({length:13},(_,index)=>id(index)),key='amendment:parser-upgrade:'+(await import('./amendment-documents.mjs')).AMENDMENT_EXTRACTION_VERSION;
+  for(const targetId of ids) {
+    const listId=targetId+'-AM-001-001';
+    store.putSource(generation,'amendment:list:'+listId,'amendment-list',{id:'eli/dl/doc/'+listId,identifier:listId,targetDocumentId:targetId,extraction:{parserVersion:'10'},distributionEvidence:{version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:'available',descriptors:[{url:'https://data.europarl.europa.eu/distribution/test/'+listId+'.docx',language:'en',byteSize:null}]}},stamp);
+  }
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(task(store,generation,key));
+  assert.equal(row(store,generation,key).done,0);assert.equal(store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE kind='amendment-extract'").get().n,8);
+  const cursor=JSON.parse(row(store,generation,key).body);
+  worker.stopped=true;await worker.task(task(store,generation,key));assert.deepEqual(JSON.parse(row(store,generation,key).body),cursor);worker.stopped=false;
+  // Saturate both admission slots and the durable continuation reserve.
+  for(let i=store.db.prepare('SELECT COUNT(*) n FROM amendment_jobs').get().n;i<200;i++)enqueueAmendment(store,generation,'blocked:'+i,'amendment-reparse',{},100);
+  store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:Array.from({length:200},(_,i)=>({key:'reserve:'+i}))},stamp);
+  await worker.task(task(store,generation,key));assert.deepEqual(JSON.parse(row(store,generation,key).body),cursor,'An unadmitted list must not be skipped.');
+  store.db.prepare("DELETE FROM amendment_jobs WHERE key LIKE 'blocked:%'").run();store.db.prepare("DELETE FROM sources WHERE key='amendment:continuations'").run();
+  store.publish(generation);const next=store.beginCycle();
+  assert.deepEqual(JSON.parse(row(store,next.generation,key).body),cursor);
+  store.db.prepare("UPDATE amendment_jobs SET done=1 WHERE generation=? AND kind='amendment-extract'").run(next.generation);
+  await worker.task(task(store,next.generation,key));assert.equal(row(store,next.generation,key).done,1);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND kind='amendment-extract'").get(next.generation).n,13);assert.equal(worker.requests,0);
+});
+
+test('an incompatible list saved behind the upgrade cursor requires another bounded pass',async t=>{
+  const {prepareAmendmentParserUpgrade,amendmentParserUpgradeDue}=await import('./amendments-worker.mjs');
+  const {AMENDMENT_DISTRIBUTION_PROOF_VERSION}=await import('./amendments.mjs');
+  const {AMENDMENT_EXTRACTION_VERSION}=await import('./amendment-documents.mjs');
+  const {store,worker,generation}=setup(t),key='amendment:parser-upgrade:'+AMENDMENT_EXTRACTION_VERSION;
+  const put=targetId=>{
+    const listId=targetId+'-AM-001-001';
+    store.putSource(generation,'amendment:list:'+listId,'amendment-list',{id:'eli/dl/doc/'+listId,identifier:listId,targetDocumentId:targetId,extraction:{parserVersion:'10'},distributionEvidence:{version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:'available',descriptors:[{url:'https://data.europarl.europa.eu/distribution/test/'+listId+'.docx',language:'en',byteSize:null}]}},stamp);
+    return listId;
+  };
+  for(let i=0;i<11;i++)put(id(i));
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(task(store,generation,key));
+  const cursor=JSON.parse(row(store,generation,key).body).afterKey;
+  const late=put('A-10-2026-9999');assert('amendment:list:'+late>cursor);
+  store.db.prepare("UPDATE amendment_jobs SET done=1 WHERE generation=? AND kind='amendment-extract'").run(generation);
+  await worker.task(task(store,generation,key));assert.equal(row(store,generation,key).done,1);assert.equal(amendmentParserUpgradeDue(store,generation),true);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(task(store,generation,key));
+  assert.equal(row(store,generation,'amendment:extract:'+late).done,0);
+});
+
+test('600 stale lists use eight in-flight slots without overflowing or invalidating report links',async t=>{
+  const {prepareAmendmentParserUpgrade}=await import('./amendments-worker.mjs');
+  const {AMENDMENT_DISTRIBUTION_PROOF_VERSION}=await import('./amendments.mjs');
+  const {AMENDMENT_EXTRACTION_VERSION}=await import('./amendment-documents.mjs');
+  const {AMENDMENT_LINKS_VERSION}=await import('./activity-index-model.mjs');
+  const {store,worker,generation}=setup(t),key='amendment:parser-upgrade:'+AMENDMENT_EXTRACTION_VERSION;
+  for(let i=0;i<600;i++) {
+    const targetId=id(i),listId=targetId+'-AM-001-001';
+    store.putSource(generation,'amendment:list:'+listId,'amendment-list',{id:'eli/dl/doc/'+listId,identifier:listId,targetDocumentId:targetId,document_date:i===86?'2026-10-22':'2026-01-01',extraction:{parserVersion:'10'},distributionEvidence:{version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:'available',descriptors:[{url:'https://data.europarl.europa.eu/distribution/test/'+listId+'.docx',language:'en',byteSize:null}]}},stamp);
+    store.db.prepare('INSERT INTO sources VALUES (?,?,?,?,?,1)').run(generation,'/plenary-documents/'+targetId,'document',JSON.stringify({identifier:targetId,work_type:'def/ep-document-types/REPORT_PLENARY',amendmentLinksVersion:AMENDMENT_LINKS_VERSION}),stamp);
+  }
+  prepareAmendmentParserUpgrade(worker,generation);
+  for(let pass=0;pass<5;pass++)await worker.task(task(store,generation,key));
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND kind='amendment-extract' AND done=0").get(generation).n,8);
+  assert(row(store,generation,'amendment:extract:'+id(86)+'-AM-001-001'),'Recent lists take priority over older lists.');
+  assert.equal(row(store,generation,key).done,0);assert(row(store,generation,key).retry_at>store.clock());
+  assert.equal(store.source(generation,'amendment:continuations'),undefined);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM sources WHERE generation=? AND kind='document' AND json_extract(body,'$.amendmentLinksVersion')=?").get(generation,AMENDMENT_LINKS_VERSION).n,600);
+  assert.equal(worker.requests,0);
+});
+
+test('eight metadata jobs can each hand their slot to extraction without deadlocking at the recovery cap',async t=>{
+  const {store,worker,generation}=setup(t),targetId=id(0),lists=Array.from({length:8},(_,i)=>targetId+'-AM-'+String(i+1).padStart(3,'0')+'-'+String(i+1).padStart(3,'0'));
+  for(const listId of lists) {
+    store.putSource(generation,'amendment:list:'+listId,'amendment-list',{id:'eli/dl/doc/'+listId,identifier:listId,targetDocumentId:targetId,extraction:{parserVersion:'10'}},stamp);
+    enqueueAmendment(store,generation,'amendment:discover:'+targetId+':'+listId,'amendment-list-detail',{listId,targetDocumentId:targetId,parserUpgrade:true},115);
+  }
+  worker.fetchRecord=async endpoint=>{const listId=endpoint.split('/').at(-1);return {fetchedAt:stamp,payload:{data:[{id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+targetId],is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/test/'+listId+'.docx'}]}]}]}};};
+  for(const listId of lists) {
+    const key='amendment:discover:'+targetId+':'+listId;await worker.task(task(store,generation,key));
+    assert.equal(row(store,generation,key).done,1);
+    assert.equal(row(store,generation,'amendment:extract:'+listId).done,0);
+    assert.equal(store.db.prepare('SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND done=0').get(generation).n,8);
+  }
+  assert.equal(worker.requests,8);assert.equal(store.source(generation,'amendment:continuations'),undefined);
+});

@@ -875,3 +875,45 @@ test('adopted readers retain missing-content notices for body, note, structure a
     if(variant==='body-drawing'||variant==='cover-target')assert(h.container.textContent.includes('Image in original'));
   });
 });
+
+const reportFallbackParagraphs=['Cover page.','DRAFT EUROPEAN PARLIAMENT LEGISLATIVE RESOLUTION','Resolution context.','Amendment\t\t1','First comparison.','Amendment\t\t2','Second comparison.','EXPLANATORY STATEMENT','Explanation.','OPINION OF THE COMMITTEE ON DEVELOPMENT','Amendment 1','Opinion comparison.','Amendment 2','Another opinion comparison.'];
+function reportFallbackText(paragraphs=reportFallbackParagraphs) {
+  return sourceDocument(report,[...paragraphs],{structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))});
+}
+const fallbackRequest={documentId:report,amendmentId:report+'-AM-2',listId:report+'-AM-001-002',wordingLanguage:'en',view:'document',onBack:()=>{}};
+const fallbackResponse=(doc=reportFallbackText())=>response(report,doc,{requestedWordingLanguage:'en',amendment:{id:report+'-AM-2',status:'unavailable',variants:[{listId:fallbackRequest.listId,language:'en',wordingStatus:'unavailable',originalText:null,proposedText:null}]},placement:{status:'unresolved',reason:'amendment_wording_unavailable'}});
+
+test('unavailable wording opens the exact main-report amendment and keeps the cover and opinion readable',async t=>{
+  const h=await harness(t,()=>fallbackResponse());await h.render({request:fallbackRequest,language:'en'});
+  const selected=h.container.querySelector('[data-report-amendment="true"]');
+  assert.equal(selected.dataset.sourceParagraph,'5');assert.equal(selected.textContent,'Amendment\t\t2');
+  assert.equal(h.scrolls.at(-1).element,selected);assert.equal(h.window.document.activeElement,selected);
+  assert(h.container.textContent.includes('Cover page.'));assert(h.container.textContent.includes('Another opinion comparison.'));
+  assert.equal(h.container.querySelectorAll('[data-context-target]').length,0,'A source heading is not a verified overlay placement.');
+  assert(!h.container.textContent.includes('The amendment wording is unavailable.'));
+  await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Go to amendment'));
+  assert.equal(h.scrolls.at(-1).element,selected);
+});
+
+for(const variant of ['wrong-list','wrong-document','opinion-only','duplicate','missing-section-end','incomplete-heading','table-heading','sequence-gap','other-language'])test('report heading fallback withholds '+variant,async t=>{
+  const doc=reportFallbackText(),request={...fallbackRequest};
+  if(variant==='wrong-list')request.listId=report+'-AM-003-004';
+  if(variant==='wrong-document')request.amendmentId='A-10-2026-9999-AM-2';
+  if(variant==='opinion-only')doc.selectedText.paragraphs[5]='No main heading.';
+  if(variant==='duplicate')doc.selectedText.paragraphs[6]='Amendment 2';
+  if(variant==='missing-section-end')doc.selectedText.paragraphs=doc.selectedText.paragraphs.slice(0,7);
+  if(variant==='incomplete-heading')doc.selectedText.paragraphSources[5].complete=false;
+  if(variant==='table-heading')doc.selectedText.paragraphSources[5].container='table-cell';
+  if(variant==='sequence-gap')doc.selectedText.paragraphs[3]='Amendment 7';
+  if(variant==='other-language')doc.selectedText.textLanguage='fr';
+  const h=await harness(t,()=>fallbackResponse(doc));await h.render({request,language:'en'});
+  assert.equal(h.container.querySelectorAll('[data-report-amendment]').length,0);assert.equal(h.scrolls.length,0);
+  assert(h.container.textContent.includes('The amendment wording is unavailable.'));
+});
+
+test('title-case opinion headings cannot provide the main report amendment sequence',async t=>{
+  const doc=reportFallbackText(['Cover page.','DRAFT EUROPEAN PARLIAMENT LEGISLATIVE RESOLUTION','No main comparison.','Opinion of the Committee on Development','Amendment 1','Opinion wording.','Amendment 2','More opinion wording.','PROCEDURE']);
+  const h=await harness(t,()=>fallbackResponse(doc));await h.render({request:fallbackRequest,language:'en'});
+  assert.equal(h.container.querySelectorAll('[data-report-amendment]').length,0);assert.equal(h.scrolls.length,0);
+  assert(h.container.textContent.includes('The amendment wording is unavailable.'));
+});

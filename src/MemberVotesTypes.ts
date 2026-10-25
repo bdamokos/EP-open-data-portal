@@ -15,7 +15,7 @@ export type MemberVoteSourcePageCoverage = {
   state:'complete'|'partial'|'unavailable';
   pages:number;
   rows:number;
-  stopReason:'end'|'no-content'|'not-found'|'repeated-page'|'page-budget'|'row-budget'|'error'|'not-scanned';
+  stopReason:'end'|'no-content'|'not-found'|'repeated-page'|'declared-children'|'page-budget'|'row-budget'|'error'|'not-scanned';
   error:{code:string;message:string}|null;
   sources:MemberVoteSource[];
 };
@@ -90,13 +90,14 @@ export type MemberVoteSittingCoverage = {
     undeclaredChildResultIds:string[];
     declaredResultCount:number|null;
     declaredDecisionCount:number;
+    votingRecordsComplete:boolean;
     complete:boolean;
   };
   observedDecisionCount:number;
 };
 
 export type MemberVotesResponse = {
-  version:6;
+  version:7;
   member:{id:string;uri:string;mandateStatus:'not-assessed';historicalGroupStatus:'not-collected'};
   period:{kind:'week'|'sitting';week:string|null;sittingId:string|null;from:string|null;to:string|null};
   snapshotId:string;
