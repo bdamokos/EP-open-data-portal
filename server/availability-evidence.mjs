@@ -2,9 +2,10 @@ import {sourceAvailability,validDay} from './source-availability.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {activityOnly} from './activity-read-projections.mjs';
 
-export const activityAvailabilityIndexVersion=1;
+export const activityAvailabilityIndexVersion=2;
 export function prepareActivityAvailability(db) {
   db.exec(`CREATE INDEX IF NOT EXISTS activity_role_frontier ON items(generation,category,date DESC) WHERE ${activityOnly}`);
+  db.exec(`CREATE INDEX IF NOT EXISTS activity_member_roles ON items(generation,mep,category,date DESC,source_id DESC) WHERE ${activityOnly}`);
 }
 
 export function availabilityGap(body,sourceId) {

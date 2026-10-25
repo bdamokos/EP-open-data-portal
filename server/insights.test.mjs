@@ -120,6 +120,54 @@ test('explorers reuse saved demographic metadata across date windows and refresh
   }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
 
+test('undated question coverage uses only the existing partial index and preserves date/type scope',async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'undated-question-index-'));
+  const store=new ActivityStore(directory,{clock:now});
+  t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});});
+  assert(store.acquire());const {generation}=store.beginCycle();store.setMembers([{id:'42',name:'Member'}]);
+  const insert=store.db.prepare('INSERT INTO sources VALUES (?,?,?,?,?,1)');let sequence=0;
+  const save=(type,date,extra={})=>{
+    const id='E-10-2026-'+String(++sequence).padStart(6,'0');
+    const work={identifier:id,work_type:type,title_dcterms:{en:'Question '+id},creator:['person/42'],...(date===undefined?{}:{document_date:date})};
+    insert.run(extra.generation??generation,(extra.prefix??'/parliamentary-questions/')+id,extra.kind??'document',JSON.stringify(work),new Date(now()).toISOString());
+  };
+  for(const type of ['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL']) {
+    for(const date of [undefined,null,''])save('def/'+type,date);
+    save('def/'+type,'2026-10-01');
+  }
+  save('def/QUESTION_WRITTEN',null,{prefix:'/different-source/'}); // Scope is work type, not key prefix.
+  save('def/question_written',null); // Preserve SQLite LIKE's existing ASCII case behavior.
+  save('QUESTION_WRITTEN',null);save('def/QUESTION_WRITTEN_ANSWER',null);save('def/REPORT_PLENARY',null);
+  save('def/QUESTION_WRITTEN',' ');save('def/QUESTION_WRITTEN','invalid');
+  save('def/QUESTION_WRITTEN',null,{kind:'catalog'});
+  save('def/QUESTION_WRITTEN',null,{generation:generation+1});
+  const prepare=store.db.prepare.bind(store.db),queries=[];
+  t.mock.method(store.db,'prepare',sql=>{
+    const statement=prepare(sql);
+    if(sql.includes('INDEXED BY question_window')) {
+      const get=statement.get.bind(statement);
+      statement.get=(...args)=>{queries.push({sql,args});return get(...args);};
+    }
+    return statement;
+  });
+  store.db.exec('PRAGMA query_only=ON');
+  const result=await new QuestionInsights(store,{clock:now,loadMetadata:async()=>new Map(),loadQuestionBodies:async()=>new Map()})
+    .query(insightQuery(new URLSearchParams('days=90&lang=hu'),{now:now()}));
+  assert.equal(result.coverage.undatedQuestions,11);assert.equal(result.counts.indexedMatchingQuestions,3);
+  assert.equal(result.counts.totalQuestions,null);assert.equal(result.coverage.indexComplete,false);
+  assert.equal(queries.length,1,'only the undated count is pinned to this index');
+  const {sql,args}=queries[0];
+  const original=sql.replace(' INDEXED BY question_window',' NOT INDEXED');
+  assert.equal(prepare(original).get(...args).n,result.coverage.undatedQuestions);
+  const plan=prepare('EXPLAIN QUERY PLAN '+sql).all(...args).map(row=>row.detail).join('\n');
+  assert.match(plan,/SEARCH sources USING INDEX question_window \(generation=\?\)/);assert.doesNotMatch(plan,/SCAN|TEMP B-TREE/);
+  const program=prepare('EXPLAIN '+sql).all(...args),root=prepare("SELECT rootpage FROM sqlite_schema WHERE name='sources'").get().rootpage;
+  const tableCursors=new Set(program.filter(row=>row.opcode==='OpenRead'&&row.p2===root).map(row=>row.p1));
+  assert(!program.some(row=>row.opcode==='Column'&&tableCursors.has(row.p1)),'undated count must not read source-table columns');
+  assert(!program.some(row=>row.opcode==='Function'&&/json_extract/.test(row.p4)),'undated count must not parse source JSON');
+  store.db.exec('PRAGMA query_only=OFF');
+});
+
 test('subject filters validate exact place IDs and reject labels, unknown and repeated IDs',()=>{
   assert.equal(insightQuery(new URLSearchParams('subject=USA'),{now:now()}).subject,'USA');
   for(const value of ['subject=','subject=US','subject=usa','subject=United+States','subject=ZZZ','subject=USA&subject=FRA'])assert.throws(()=>insightQuery(new URLSearchParams(value),{now:now()}),error=>error.status===400);

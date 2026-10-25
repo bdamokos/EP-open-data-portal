@@ -4,6 +4,8 @@ Use only publicly accessible parliamentary data and transparently documented pro
 
 Preserve exact identifiers, source URLs, retrieval dates, languages and explicit gaps. Do not join records solely by title, tally or name similarity. Keep unavailable observations distinct from zeroes.
 
+Write plain, brief UI copy: no inline caveats or hedges, short labels for data gaps, and one explanatory line only where it changes how a number reads. Report uncertainty and limits fully to the maintainer in PRs, reviews and chat. See the UI copy rules in CONTRIBUTING.md.
+
 Use branches and pull requests for changes. Do not publish the repository, change its visibility or add a source licence without maintainer authorization. Keep cache/index directories and browser following data outside Git.
 
 Keep QA screenshots, browser captures, evidence bundles and agent work logs outside Git. Documentation is guidance for future contributors, not an audit trail: describe current sources, behaviour and rules, and update existing text in place. Do not add dated check logs, sampled API responses, per-change entries or agent-generated research and completion reports; Git history and PRs record what changed. Summarize validation briefly in PR descriptions or comments, and keep required project, public-source and data-access documentation concise and useful.

@@ -39,6 +39,15 @@ For a response-semantic change that does not change the endpoint inventory diges
 
 Style components with the design tokens in `src/theme.css`, never raw colour values. Each token has a light and a dark value, and every view uses the same surfaces in both schemes; the political-group, vote and status colours are reserved for data. Keep the interface independent of European Parliament branding. `src/theme.test.mjs` checks token contrast and rejects raw colours, and the focus tests run in both schemes. Check visible changes in light and dark appearance.
 
+Write interface text for readers: plain, brief and free of disclaimers, hedges and robotic phrasing. Before adding a sentence, ask whether a reader would miss it. Coding agents tend to add caveats and explanations to UI copy; report uncertainty, gaps and limits to the maintainer in full in the PR description, review replies or chat instead.
+
+- The site notice (`src/components/DataNotice.tsx`) states once that the site is independent, that its counts may be incomplete or out of date, and that readers should check the original. Do not repeat that inline.
+- Link only to human-readable public pages; `sourcePageUrl` and `SourceLink` in `src/SourceLink.tsx` apply this rule. Never link to or display machine endpoints (API, JSON-LD, SPARQL, concept URIs, the developer corner), request URLs, retrieval timestamps or record IDs as evidence. Without a public page, show no link and no note about it.
+- Mark gaps, unavailable values and partial coverage with short labels such as "Partial coverage", "Unavailable" or "—", not sentences.
+- Do not state what the app does not infer or claim, and do not explain methods. Add one line only where it changes how a number reads, such as "Shared questions count once per country".
+- Keep pipeline and maintainer terms out of public views: index generations, parsers, source variants, load states, what an API returned.
+- State empty and error states in a few words ("No matching amendments.", "Transcript unavailable."), without reasons or advice. Omit helper captions, such as search-scope notes, unless the reader can act on them.
+
 Use public sources and retain exact identifiers, dates, languages and attribution. Document a new source in `docs/PUBLIC_DATA.md` and add bounded, attributable test examples. Keep unavailable observations distinct from zeroes.
 
 Do not commit credentials, private datasets, browser storage, generated caches, runtime databases, host addresses or site-specific deployment configuration. CI does not access a deployed website or run an indexer. Deployment is separate from pull-request checks.
