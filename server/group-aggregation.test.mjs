@@ -94,3 +94,39 @@ test('question country and dated-group filters must match the same coauthor, inc
   assert.equal(wrongCountry.geography.countries.find(r=>r.code==='DE').questionCount,0);
   const match=await service.query({...query,country:'FR'});assert.equal(match.counts.selectedQuestions,1);assert.equal(match.selectedStats.groupContributions.total,1);assert.equal(match.selectedStats.groupContributions.rows[0].label,'S&D');assert.equal(match.selectedStats.groupContributions.rows[0].medianAnswerDays,4);
 });
+test('saved real group labels, missing answer status and group plus date-range trends',async()=>{
+  const {mkdtempSync,rmSync}=await import('node:fs');const {tmpdir}=await import('node:os');const {join}=await import('node:path');
+  const {ActivityStore}=await import('./activity-index-store.mjs');const {documentRows}=await import('./activity-index-model.mjs');
+  const {QuestionInsights,insightQuery}=await import('./insights-store.mjs');
+  const clock=()=>Date.parse('2026-10-23T12:00:00Z'),directory=mkdtempSync(join(tmpdir(),'group-labels-')),store=new ActivityStore(directory,{clock});
+  try {
+    store.acquire();const {generation}=store.beginCycle();store.setMembers([{id:'42',countryCode:'FR'}]);
+    const labels=['The Left','Verts/ALE','S&D','PPE','Renew','ECR','PfE','ESN','NI'];
+    const groups=labels.map((code,i)=>interval(code,`2026-06-${String(i+1).padStart(2,'0')}`,`2026-06-${String(i+1).padStart(2,'0')}`));
+    for(const [i,code] of labels.entries()) {
+      const date=groups[i].start,identifier=`E-10-2026-${String(i+1).padStart(6,'0')}`;
+      const work={identifier,id:'eli/dl/doc/'+identifier,document_date:date,work_type:'def/ep-document-types/QUESTION_WRITTEN',creator:['person/42'],title_dcterms:{en:'Digital safeguards '+code}};
+      const key='/parliamentary-questions/'+identifier;store.putSource(generation,key,'document',work,'2026-10-23T10:00:00Z',documentRows(work,key,'2026-10-23T10:00:00Z').rows);
+    }
+    store.publish(generation);
+    const options={clock,loadMetadata:async()=>new Map(),loadQuestionBodies:async()=>new Map()};
+    const query=group=>insightQuery(new URLSearchParams({days:'term',group,from:'2026-06-01',to:'2026-06-01'}),{now:clock()});
+    store.db.prepare('DELETE FROM group_history_snapshots WHERE generation=?').run(generation);
+    await assert.rejects(new QuestionInsights(store,options).query(query('The Left')),error=>error.status===503&&error.code==='group_history_unavailable');
+    store.db.prepare('INSERT INTO group_history_snapshots (body,generation) VALUES (?,?)').run(JSON.stringify({members:{42:person(groups)},catalogue:{bodies:labels.map(code=>({code}))}}),generation);
+    const service=new QuestionInsights(store,options);
+    for(const label of labels) {
+      const response=await service.query({...query(label),from:null,to:null});
+      assert.equal(response.counts.selectedQuestions,1,label);assert.equal(response.selectedStats.groupContributions.rows[0].label,label);
+      const bucket=response.selectedStats.groupContributions.rows[0];assert.equal(bucket.unanswered,0);assert.equal(bucket.answerStatusUnavailable,1);assert.equal(bucket.answeredShare,null);
+    }
+    await assert.rejects(service.query(query('TheLeft')),error=>error.status===400&&error.code==='invalid_group');
+    const ranged=await service.query(query('The Left'));
+    assert.equal(ranged.counts.selectedQuestions,1);assert.equal(ranged.trend.bins.reduce((n,b)=>n+(b.total||0),0),1);
+    assert.equal(ranged.trend.bins.reduce((n,b)=>n+(b.count||0),0),1);
+    const excluded=await service.query({...query('The Left'),from:'2026-06-02',to:'2026-06-02'});
+    assert.equal(excluded.counts.selectedQuestions,0);
+    // The trend retains the complete analysis window while the selected date range narrows the list.
+    assert.deepEqual(excluded.trend,ranged.trend);
+  }finally{store.close();rmSync(directory,{recursive:true,force:true});}
+});

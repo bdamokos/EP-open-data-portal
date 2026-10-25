@@ -20,7 +20,7 @@ for(const [frontier,retained] of [['2026-10-09',false],['2026-10-17',false],['20
   const row=response.topics[0],country=response.countries.find(row=>row.code==='HU').topics[0];
   assert.equal(response.series[0].speakers,retained?1:null);
   assert.equal(row.speakers,retained?1:null);assert.equal(row.allSpeakers,retained?1:null);
-  if(retained){assert.equal(row.groupContributions.speakers.total,1);assert.equal(row.groupContributions.speakers.unavailable,1);}
+  if(retained){assert.equal(row.groupContributions.speakers.availability,row.availability.speakers);assert.notEqual(row.groupContributions.speakers.availability,'available');assert.equal(row.groupContributions.speakers.total,1);assert.equal(row.groupContributions.speakers.unavailable,1);}
   else assert.equal(row.groupContributions.speakers,null);
   assert.equal(row.groupContributions.voters,null);
   assert.equal(row.availability.speakers,retained?'partial':'unavailable');

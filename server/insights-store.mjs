@@ -1,5 +1,6 @@
 import {questionGroupMetrics,contributionGroup} from './group-aggregation.mjs';
 import {indexAvailability,savedGaps} from './availability-evidence.mjs';
+import {groupHistorySnapshot} from './group-history.mjs';
 import {generationGroupOn,datedPerson} from './group-attribution.mjs';
 import {languagePreference} from './language-order.mjs';
 import {subjectPlace} from './insights-places.mjs';
@@ -45,7 +46,7 @@ export function insightQuery(search, {now=Date.now(),kind='questions'}={}) {
   const subject=search.get('subject');
   if(search.has('subject')&&!subjectPlace(subject))throw new HttpError(400,'invalid_subject','Choose a subject from a question title.');
   const group=search.get('group');
-  if(group!==null&&!['PPE','S&D','Renew','Verts/ALE','ECR','PfE','ESN','TheLeft','NI'].includes(group))throw new HttpError(400,'invalid_group','Choose a political group.');
+  if(group!==null&&(!group.trim()||group.length>120))throw new HttpError(400,'invalid_group','Choose a political group.');
   const addressee=search.get('addressee');
   if(addressee!==null&&!validAddresseeFilter(addressee))throw new HttpError(400,'invalid_addressee','Choose an addressee from the question filters.');
   if(country&&!countryCode(country))throw new HttpError(400,'invalid_country','Choose a country of representation.');
@@ -92,6 +93,8 @@ export class QuestionInsights {
     const key=JSON.stringify([status.servingGeneration,status.availabilityRevision,status.complete,status.progress?.completed,status.rosterFetchedAt,query.start,query.end]);
     const old=this.cache.get(key);if(old && this.clock()-old.at<INSIGHTS_LIMITS.cacheMs)return old.value;
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
+    const snapshot=groupHistorySnapshot(this.store,status.servingGeneration);
+    const groupCodes=new Set([...(snapshot?.catalogue?.bodies||[]),...Object.values(snapshot?.members||{}).flatMap(person=>person.groups||[])].map(group=>group.code).filter(Boolean));
     // Language and filter views share this analysis, but each view has its own
     // owner. Expiring one view must cancel only its wait on the shared work.
     const job=sharedRequest(async signal=>{
@@ -114,7 +117,7 @@ export class QuestionInsights {
       const geography=countryQuestions(analysis,members,metadata);
       const availability=['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL'].map(subtype=>indexAvailability(this.store,{sourceKey:subtype,family:'questions',subtype,start:query.start,end:query.end,generation:status.servingGeneration,gaps:frozen.gaps,limited:count>rows.length,checkedAt:frozen.checkedAt,revision:frozen.revision,
         records:frozen.frontiers.filter(q=>String(q.subtype).endsWith('/'+subtype))}));
-      const value={...analysis,...geography,members,metadata,status,undatedQuestions,availability,groupOn,indexedMatchingQuestions:count,truncated:count>rows.length,computedAt:new Date(this.clock()).toISOString()};
+      const value={...analysis,...geography,members,metadata,status,undatedQuestions,availability,groupOn,groupCodes,indexedMatchingQuestions:count,truncated:count>rows.length,computedAt:new Date(this.clock()).toISOString()};
       const bytes=Buffer.byteLength(JSON.stringify({...analysis,...geography}));
       signal.throwIfAborted();
       if(bytes<=INSIGHTS_LIMITS.cacheBytes) {
@@ -129,8 +132,13 @@ export class QuestionInsights {
   async query(query) {
     const a=await this.analysis(query);
     const groupOn=a.groupOn;
+    if(query.group) {
+      if(!a.groupCodes.size)throw new HttpError(503,'group_history_unavailable','Saved political-group history is unavailable.');
+      if(!a.groupCodes.has(query.group))throw new HttpError(400,'invalid_group','Choose a political group from the saved history.');
+    }
     if(query.cluster && query.cluster!=='unassigned' && !a.clusters.some(c=>c.id===query.cluster))throw new HttpError(404,'cluster_not_found','That topic is not in this window.');
-    const groupAuthors=q=>q.authors.filter(p=>!query.group||contributionGroup(p.id,q.date,groupOn)===query.group);
+    const authorsByQuestion=new Map(a.questions.map(q=>[q,query.group?q.authors.filter(p=>contributionGroup(p.id,q.date,groupOn)===query.group):q.authors]));
+    const groupAuthors=q=>authorsByQuestion.get(q);
     const inTime=q=>!query.from||q.date>=query.from&&q.date<=query.to,hasTopic=q=>(!query.cluster || (query.cluster==='unassigned'?q.clusterId==null:q.clusterId===query.cluster))&&(!query.word||q.tokens.includes(query.word)),hasCountry=q=>!query.country||groupAuthors(q).some(p=>a.members.has(p.id)&&memberCountry(p.id,a.members,a.metadata)===query.country);
     const hasGroup=q=>!query.group||groupAuthors(q).length>0;
     const hasAddressee=q=>matchesAddressee(q.addressees,query.addressee)&&hasGroup(q);
