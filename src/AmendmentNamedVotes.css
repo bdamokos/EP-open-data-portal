@@ -1,0 +1,24 @@
+.amendment-named-votes {font-size:15px;max-width:720px;min-width:0;}
+.amendment-named-votes p {margin:8px 0;}
+.amendment-named-votes__authors {list-style:none;padding:0;margin:10px 0;}
+.amendment-named-votes__authors li {padding:2px 0;}
+.amendment-named-votes [data-position=For] {color:var(--vote-for);}
+.amendment-named-votes [data-position=Against] {color:var(--vote-against);}
+.amendment-named-votes [data-position=Abstained] {color:var(--vote-abstain);}
+.amendment-named-votes__group {border-top:1px solid var(--line);}
+.explorer-amendments .amendment-named-votes__group>summary {display:grid;grid-template-columns:minmax(100px,1fr) minmax(60px,1fr) minmax(200px,2fr);align-items:center;gap:12px;font-weight:400;}
+.amendment-group-counts {display:flex;flex-wrap:wrap;gap:4px 12px;font-size:14px;font-variant-numeric:tabular-nums;}
+.amendment-vote-strip {display:flex;gap:2px;height:7px;border-radius:2px;overflow:hidden;}
+.amendment-vote-strip span {flex-basis:0;}
+.amendment-vote-strip [data-position=For] {background:var(--vote-for);}
+.amendment-vote-strip [data-position=Against] {background:var(--vote-against);}
+.amendment-vote-strip [data-position=Abstained] {background:var(--vote-abstain);}
+.amendment-named-votes__people {margin:0 0 16px;}
+.amendment-named-votes h6 {font:inherit;font-weight:600;margin:12px 0 4px;}
+.amendment-named-votes__people ul {list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:6px;}
+.amendment-named-votes__people a {display:inline-block;padding-block:6px;}
+.explorer-amendments .amendment-named-votes__sources {font-size:13px;color:var(--ink-muted);}
+.amendment-named-votes__sources small {display:block;overflow-wrap:anywhere;}
+@media(max-width:600px) {.explorer-amendments .amendment-named-votes__group>summary {grid-template-columns:1fr;gap:7px;}.amendment-group-counts {gap:4px 16px;}}
+.amendment-named-votes__group>summary>span:first-child::before {content:'▸';display:inline-block;margin-right:7px;color:var(--ink-muted);}
+.amendment-named-votes__group[open]>summary>span:first-child::before {content:'▾';}

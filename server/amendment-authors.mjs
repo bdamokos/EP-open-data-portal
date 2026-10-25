@@ -1,4 +1,5 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
+import {personNameVariants} from './speaker-identity.mjs';
 
 const MAX_XML_BYTES = 32 * 1024 * 1024;
 const array = value => value == null ? [] : Array.isArray(value) ? value : [value];
@@ -76,6 +77,7 @@ function evidenceForMember(member, date, matchType) {
   return {
     type: matchType, personId: id(member?.id ?? member?.identifier), date,
     givenName: member?.givenName || '', familyName: member?.familyName || '',
+    nameVariants: personNameVariants(member),
     mandates: periods, activeMandate: active || null,
     ...(member?.sourceUrl ? { sourceUrl: member.sourceUrl } : {}),
     ...(member?.fetchedAt != null ? { fetchedAt: member.fetchedAt } : {}),
@@ -107,10 +109,10 @@ export function createAmendmentAuthorResolver({ members = [], aliases = [], date
     const personId = id(member?.id ?? member?.identifier);
     if (!personId) continue;
     append(memberMap, personId, member);
-    if (member.givenName && member.familyName) {
+    for(const [given,family] of [['givenName','familyName'],['officialGivenName','officialFamilyName']])if(member[given]&&member[family]) {
       // Equivalent forward/reversed forms match this record once. Separate
       // duplicate input records keep their original evidence multiplicity.
-      for (const key of new Set([normalized(`${member.givenName} ${member.familyName}`), normalized(`${member.familyName} ${member.givenName}`)])) append(fullNames, key, member);
+      for (const key of new Set([normalized(`${member[given]} ${member[family]}`), normalized(`${member[family]} ${member[given]}`)])) append(fullNames, key, member);
     }
   }
   const aliasNames = new Map(), aliasDates = new Map();
@@ -146,7 +148,8 @@ export function createAmendmentAuthorResolver({ members = [], aliases = [], date
       // A name match without a mandate is still an unresolved competing identity.
       if (candidateEvidence.some(item => item.personId !== personId && !item.mandates.length)) return { ...base, evidence: candidateEvidence, status: 'ambiguous' };
       const method = candidateEvidence.some(item => item.personId === personId && item.type === 'full_name' && item.activeMandate) ? 'exact_full_name_active_mandate' : 'official_voting_alias_active_mandate';
-      return { ...base, personId, method, evidence: candidateEvidence, status: 'resolved' };
+      const member=(memberMap.get(personId)||[]).find(member=>member.givenName&&member.familyName);
+      return { ...base, personId, method, evidence: candidateEvidence, status: 'resolved',...(member?{displayName:member.givenName+' '+member.familyName}:{}),nameVariants:personNameVariants(member) };
     }
     if (allIds.length) return { ...base, evidence: candidateEvidence, status: candidateEvidence.some(item => !item.mandates.length) ? 'missing_mandate' : 'inactive' };
     return { ...base, evidence: aliasMatches.map(alias => ({ type: 'voting_alias', ...alias, date, reason: 'missing_alias_date' })) };

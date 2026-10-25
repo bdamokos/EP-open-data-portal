@@ -2199,3 +2199,14 @@ test('damaged refresh retains accepted document references and target paths with
     }
   }
 });
+
+test('a response-version upgrade reparses retained sitting relationships locally',async t=>{
+ const {store,worker,generation}=setup(t);
+ const work={...completeSitting(),amendmentVersion:AMENDMENTS_VERSION-1,splitParserVersion:SPLIT_PARSER_VERSION,sources:[{url:sourceUrl,fetchedAt:earlier}]};
+ store.putSource(generation,motionSourceKey(sitting),'motion-outcomes',work,earlier);
+ await prepareAmendments(worker,store.get('working'));
+ const task=nextAmendmentTask(store,generation);assert.equal(task.kind,'amendment-reparse');
+ await worker.task(task);
+ assert.equal(store.source(generation,motionSourceKey(sitting)).work.amendmentVersion,AMENDMENTS_VERSION);
+ assert.deepEqual(store.source(generation,motionSourceKey(sitting)).work.decisions,work.decisions);
+});

@@ -32,14 +32,14 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
     const url=new URL(input,window.location.href);assert(url.pathname.endsWith('/amendments'));
     return Response.json({items,total:1234,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:[]}});
   });
-  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement('div',{lang:language},createElement(Amendments,{language,document:'A-10-2026-0254',showFailures:false}))));
   const card=id=>container.querySelector('#amendment-'+id);
   const withheld=card('withheld');
   assert.equal(withheld.querySelector('.wording-diff,ins,del'),null);
-  assert.match(withheld.querySelector(':scope>.explorer-amendment-evidence-state').textContent,/withheld because extraction or verification is incomplete/);
+  assert.match(withheld.querySelector('.explorer-amendment-evidence-state').textContent,/withheld because extraction or verification is incomplete/);
   assert.match(withheld.textContent,/current relationship to this amendment list is unverified/);
   assert.match(withheld.textContent,/record is retained from an earlier indexed source/);
   assert.match(withheld.querySelector('.explorer-amendment-texts').textContent,/Original wording withheld pending extraction or verification/);
@@ -47,7 +47,7 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   assert.doesNotMatch(withheld.textContent,/unavailable in the extracted document|No original text \(insertion\)|Text deleted/);
   assert.doesNotMatch(card('unsafe-baseline').textContent,/Unverified old original must be withheld|Unverified old proposal must be withheld/);
   const absent=card('absent-list');
-  assert.match(absent.querySelector(':scope>.explorer-amendment-evidence-state').textContent,/absent from the current recorded document relationship/);
+  assert.match(absent.querySelector('.explorer-amendment-evidence-state').textContent,/absent from the current recorded document relationship/);
   assert.match(absent.textContent,/Showing previously indexed wording/);
   assert.equal(absent.querySelector('.wording-diff__note').textContent,'New text');
   assert.equal(absent.querySelector('.wording-diff__toggle button[aria-pressed="true"]').textContent,'Changes');

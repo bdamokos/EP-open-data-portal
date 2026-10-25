@@ -1,6 +1,6 @@
 export type AmendmentOutcome = 'ADOPTED' | 'REJECTED' | 'LAPSED' | 'WITHDRAWN' | 'mixed' | 'unavailable';
 export type AmendmentSource = {url:string;fetchedAt?:string|number|null;language?:string|null;date?:string|null;dateBasis?:string|null};
-export type AmendmentAuthor = {name:string;personId:string|number|null;method?:string|null;status?:string|null;evidence?:unknown};
+export type AmendmentAuthor = {name:string;displayName?:string;nameVariants?:{value:string;script:string;language?:string|null;source?:unknown}[];personId:string|number|null;method?:string|null;status?:string|null;evidence?:unknown};
 export type AmendmentDecision = {
   id:string;sittingId?:string|null;date?:string|null;outcome?:string|null;method?:string|null;
   partId?:string|null;partNumber?:number|string|null;reference?:string|null;

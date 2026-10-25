@@ -67,3 +67,35 @@
 @media(max-width:680px) {.explorer-amendment-card {padding:18px 15px;}.explorer-amendment-card>header {flex-wrap:wrap;gap:10px;}.explorer-amendment-texts {grid-template-columns:1fr;gap:20px;}.explorer-amendment-finder label,.explorer-amendment-finder label:nth-child(3) {flex:1 1 100%;max-width:none;}.explorer-amendment-controls {gap:12px;}.explorer-amendment-controls label {min-width:130px;}.explorer-amendment-reference span {display:none;}.explorer-amendment-card h4 {font-size:21px;}.explorer-amendment-pagination {gap:12px;}.explorer-amendment-pagination button {padding:9px 12px;}}
 @media(prefers-reduced-motion:reduce) {.explorer-amendments * {scroll-behavior:auto!important;transition:none!important;animation:none!important;}}
 @media(max-width:480px) {.explorer-tabs {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}}
+/* Amendment list: quiet rows with one result, names and labelled vote counts. */
+.explorer-amendment-card {border:0;border-bottom:1px solid var(--am-line);padding:24px 0;margin:0;background:transparent;}
+.explorer-amendment-card>header {align-items:baseline;gap:14px;}
+.explorer-amendment-number {flex:none;width:2rem;text-align:right;font-family:var(--font-serif);font-size:25px;line-height:1.2;color:var(--am-muted);}
+.explorer-amendment-card>header>div {flex:1;}
+.explorer-amendment-card h4 {font-family:var(--font-serif);font-size:22px;margin:0;}
+.explorer-amendment-card>header~* {margin-left:calc(2rem + 14px);}
+.explorer-amendment-card .explorer-amendment-authors {margin-top:7px;margin-bottom:12px;}
+.explorer-amendment-authors p {display:inline;margin:0 0 0 8px;}
+.explorer-amendment-outcome {border:0;padding:0;font-size:15px;font-weight:600;}
+.explorer-amendment-decision {padding:8px 0;border:0;}
+.explorer-amendment-decision-heading {margin-bottom:10px;justify-content:space-between;}
+.explorer-amendment-totals {gap:6px 18px;margin:7px 0;}
+.explorer-amendment-totals>div {display:flex;align-items:baseline;gap:5px;}
+.explorer-amendment-totals dd {font-size:16px;}
+.explorer-amendment-totals dt {font-size:14px;}
+.explorer-amendment-totals [data-position=For] dd {color:var(--vote-for);}
+.explorer-amendment-totals [data-position=Against] dd {color:var(--vote-against);}
+.explorer-amendment-totals [data-position=Abstained] dd {color:var(--vote-abstain);}
+.explorer-amendment-voting .explorer-amendment-meta {margin:5px 0;font-size:13px;}
+.explorer-amendments blockquote,.explorer-amendment-source-description pre {border:0;padding:0;margin:8px 0;}
+.explorer-amendment-part {padding:14px 0;}
+.explorer-amendment-part h5 {margin:0 0 7px;}
+.explorer-amendments details {margin-top:4px;}
+.explorer-amendments summary {font-weight:500;}
+.explorer-amendment-selection,.explorer-amendment-conflict,.explorer-amendment-gap {border-left:0;background:transparent;padding-left:0;}
+.explorer-amendment-evidence {margin-top:8px;}
+.visually-hidden {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+@media(max-width:680px) {.explorer-amendment-card {padding:20px 0;}.explorer-amendment-card>header {flex-wrap:nowrap;gap:10px;}.explorer-amendment-number {width:1.4rem;font-size:21px;}.explorer-amendment-card h4 {font-size:19px;}.explorer-amendment-card>header~* {margin-left:calc(1.4rem + 10px);}.explorer-amendment-outcome {font-size:14px;}}
+.explorer-amendment-number {white-space:nowrap;}
+@media(max-width:680px) {.explorer-amendment-number {width:2rem;}.explorer-amendment-card>header~* {margin-left:calc(2rem + 10px);}}
+.explorer-amendment-totals dt {order:1;}

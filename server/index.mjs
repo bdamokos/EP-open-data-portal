@@ -23,6 +23,7 @@ import {motionComparison} from './motion-comparison.mjs';
 import {motionAmendmentsQuery,motionAmendmentsPage} from './motion-amendments.mjs';
 import {votePeriods} from './vote-periods.mjs';
 import {memberVotes,memberVotesQuery} from './member-votes.mjs';
+import {decisionVotes,decisionVotesQuery} from './decision-votes.mjs';
 import {memberAttendance,memberAttendanceQuery} from './member-attendance.mjs';
 import {memberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
 import {documentContext,documentContextQuery} from './document-context.mjs';
@@ -115,7 +116,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 }
 
 // Browser transport for this app. The gateway admits the same finite route set.
-const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -178,6 +179,9 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments[0] === 'member-votes' && segments.length===2) {
       result=await memberVotes.query(positiveId(segments[1]),memberVotesQuery(url.searchParams));
+    }
+    else if (segments[0] === 'decision-votes' && segments.length===2) {
+      result=await decisionVotes(decisionVotesQuery(segments[1],url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
     }
     else if(segments[0]==='commission-followups'&&segments.length===2) {
       result=await commissionFollowups.query(commissionFollowupsQuery(segments[1],url.searchParams));

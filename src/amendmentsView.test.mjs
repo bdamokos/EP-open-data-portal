@@ -41,7 +41,7 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
       {id:'AM-conflicted',number:118,conflicted:true,date:'2099-01-01',authors:[{name:'Arbitrary author must be hidden',personId:'42'}],originalText:'Arbitrary text must be hidden',proposedText:'Arbitrary replacement must be hidden',outcome:'unavailable',variants:[{listId:'AM-list-1',authors:[{name:'First source author',personId:'42'}],originalText:'First source original',proposedText:'First source proposal',language:'en'},{listId:'AM-list-2',committeeProposer:'Committee on Transport',originalText:'Second source original',proposedText:'Second source proposal',language:'fr'}],gaps:['Source variants conflict.']}
     ],total:5,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:['English wording unavailable']},failures:{total:2,unresolved:2}});
   });
-  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
@@ -60,7 +60,7 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   const parts=[...cards[0].querySelectorAll('.explorer-amendment-part')];
   assert.equal(parts[0].querySelector('blockquote').lang,'en');
   assert.equal(parts[0].querySelectorAll('.explorer-amendment-decision').length,1);
-  assert.match(parts[0].querySelector('.explorer-amendment-totals').textContent,/For0/);
+  assert.match(parts[0].querySelector('.explorer-amendment-totals').textContent,/for0/);
   assert.match(parts[1].textContent,/Outcome unavailable for this part/);
   assert.equal(parts[1].querySelectorAll('.explorer-amendment-decision').length,0);
   assert.match(parts[0].querySelector('.explorer-amendment-selection').textContent,/excluding The text “carbon leakage”/);
@@ -122,18 +122,18 @@ test('refresh removes a corrected decision binding when split descriptions are u
     const decisions=++reads===1?[first,second]:[second];
     return Response.json({items:[{id:'A-10-2026-0254-AM-1',number:1,targetDocumentId:'A-10-2026-0254',splitParts:[],decisions,outcome:reads===1?'mixed':'REJECTED'}],total:1,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:['Split descriptions unavailable.']}});
   });
-  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(Amendments,{document:'A-10-2026-0254',showFailures:false})));
   assert.equal(container.querySelectorAll('.explorer-amendment-decision').length,2);
-  assert.equal(container.querySelectorAll('.explorer-amendment-decision [data-outcome="ADOPTED"]').length,1);
+  assert.equal(container.querySelectorAll('.explorer-amendment-card [data-outcome="ADOPTED"]').length,1);
   assert.equal(container.querySelectorAll('.explorer-amendment-decision a').length,0,'candidate pages are not rendered as exact decision sources');
   assert.match(container.querySelector('.explorer-amendment-decision').textContent,/Exact decision source page unavailable/);
   await act(async()=>[...container.querySelectorAll('button')].find(button=>button.textContent==='Refresh').click());
   assert.equal(reads,2);
   assert.equal(container.querySelectorAll('.explorer-amendment-decision').length,1);
-  assert.equal(container.querySelectorAll('.explorer-amendment-decision [data-outcome="ADOPTED"]').length,0,'the removed binding cannot leave an adopted row mounted');
-  assert.equal(container.querySelectorAll('.explorer-amendment-decision [data-outcome="REJECTED"]').length,1);
+  assert.equal(container.querySelectorAll('.explorer-amendment-card [data-outcome="ADOPTED"]').length,0,'the removed binding cannot leave an adopted row mounted');
+  assert.equal(container.querySelectorAll('.explorer-amendment-card [data-outcome="REJECTED"]').length,1);
 });

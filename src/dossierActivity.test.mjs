@@ -245,7 +245,7 @@ test('an adopted split-part ballot preserves the rejected overall amendment in b
     assert.equal(card.querySelector('.explorer-amendment-card header [data-outcome]').textContent,'Rejected');
     assert.equal(card.querySelectorAll('[data-dossier-vote]').length,1);
     assert.match(card.querySelector('.dossier-vote .member-votes-result-heading').textContent,/Adopted/);
-    assert.equal(card.querySelector('.explorer-amendment-voting').open,false,'overall result stays visible without opening split details');
+    assert.equal(card.querySelector('.explorer-amendment-voting').tagName,'DIV','overall result and split decisions are visible without opening details');
   });
 });
 
