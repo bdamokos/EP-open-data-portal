@@ -182,3 +182,10 @@ test('coverage notices preserve calendar gaps, unavailable records and missing s
   assert.equal(memberVotesCoverageNotice(missing,{decisionId:sittingId+'-DEC-999'}),'Partial coverage');
   assert.equal(memberVotesCoverageNotice(missing,{decisionId:sittingId+'-DEC-999',context:{documentId:'A-10-2026-0001'}}),null);
 });
+
+
+test('selected position gaps use the existing summary without a duplicate notice',()=>{
+  const item={id:sittingId+'-DEC-1',method:'VOTE_ELECTRONIC_ROLLCALL',actualPosition:{status:'unavailable',position:null},evidenceGaps:[],sourceConflicts:null};
+  assert.equal(memberVotesCoverageNotice({coverage:{status:'partial'},selected:{status:'found',item}},{decisionId:item.id}),null);
+  assert.equal(memberVotePosition(item),'Position unavailable');
+});

@@ -6,7 +6,6 @@ export function memberVotesCoverageNotice(data,{decisionId=null,context=null}={}
     const vote=data.selected?.status==='found'&&data.selected.item?.id===decisionId?data.selected.item:null;
     if(!vote)return data.coverage.status==='partial'?'Partial coverage':null;
     if(vote.sourceConflicts||vote.evidenceGaps?.some(gap=>['missing-result','conflicting-result-source','conflicting-decision-source'].includes(gap.code)))return 'Vote result incomplete';
-    if(vote.method==='VOTE_ELECTRONIC_ROLLCALL'&&vote.actualPosition.status==='unavailable')return 'Recorded position unavailable';
     return null;
   }
   const coverage=data.coverage;
