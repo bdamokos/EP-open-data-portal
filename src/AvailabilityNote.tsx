@@ -14,11 +14,9 @@ export function AvailabilityNote({sources,label='record',language='en',end,parti
   const qualifier=hasGap||limited?'Partial coverage':latest&&end&&end>latest?'Later dates unavailable':frontierPeriod?'Partial':null;
   return <div className="availability-note" lang="en">
     <p>{latest?<>Latest saved {label}: <time lang={language} dateTime={latest}>{date(latest,language)}</time>{qualifier?<> · {qualifier}</>:null}</>:selectedObserved?<>Records observed · Partial coverage</>:selectedChecked?'No matching records observed.':partial?'Partial coverage':'Records unavailable for this selection.'}</p>
-    <details><summary>Coverage</summary><p>Counts describe saved records. Publication timing is unknown.</p><ul>{summary.sources.map((source,index)=><li key={source.sourceKey+':'+index}>
+    <details><summary>Coverage</summary><ul>{summary.sources.map((source,index)=><li key={source.sourceKey+':'+index}>
       <strong>{sourceNames[source.sourceKey]||source.sourceKey.replaceAll('-',' ')}</strong>{source.stage==='text'&&source.language?<> · <span lang={language}>{new Intl.DisplayNames([language],{type:'language'}).of(source.language)||source.language}</span> text</>:null}
       <span>{source.latestObservedDate?<>Latest record: <time lang={language} dateTime={source.latestObservedDate}>{date(source.latestObservedDate,language)}</time>.</>:'Collection date unavailable.'}{source.gaps.length?' Some records could not be checked.':source.limited?' Some records are outside this view.':''}</span>
-      {source.retention&&typeof source.retention==='object'&&'reason' in source.retention&&source.retention.reason==='language-not-retained'?<span>Source language not retained locally.</span>:null}
-      {source.checkedAt&&<span>Snapshot checked <time lang={language} dateTime={source.checkedAt}>{date(source.checkedAt,language)}</time>.</span>}
-    </li>)}</ul></details>
+                </li>)}</ul></details>
   </div>;
 }

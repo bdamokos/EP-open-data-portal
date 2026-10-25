@@ -50,7 +50,7 @@ test('question addressee controls reset paging, preserve combined scopes and fil
   await act(async()=>{history.replaceState(null,'','/?view=questions&q-addressee=org%2FHRVP&q-country=DK&q-fts-search=medicines');window.dispatchEvent(new window.PopStateEvent('popstate'));});
   await act(async()=>{await new Promise(resolve=>setTimeout(resolve,30));});
   assert.equal(requests.findLast(r=>r.body).body.addressee,'org/HRVP');
-  assert.match(container.querySelector('.explorer-search-scope').textContent,/addressed to Vice-President \/ High Representative/);
+  assert.equal(container.querySelector('.explorer-search-scope'),null);
   await act(async()=>container.querySelector('[aria-label="Close text search"]').click());
   await change('org/CS');
   let query=new URL(location.href).searchParams;assert.equal(query.get('q-addressee'),'org/CS');assert.equal(query.get('q-country'),'DK');for(const key of ['q-offset','q-read','q-fts-page','q-fts-read'])assert.equal(query.has(key),false,key);

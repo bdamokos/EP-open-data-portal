@@ -200,7 +200,7 @@ for(const language of ['en','hu','fr']) {
 test('linked-source fallback skips empty titles while preserving source language and exact links',async t=>{
   const h=await harness(t,'hu',{items:[],query:{member:String(member.id),module:'activities',activity:questionId},linkedDocument:{titles:{de:'',fr:'Do not select a later entry'}}});
   const fallback=h.container.querySelector('aside.explorer-notice');assert(fallback);assert.equal(effectiveLanguage(fallback),'en');
-  await h.click(exactText(fallback,'button','Check this source with Parliament'));
+  await h.click(exactText(fallback,'button','Look it up'));
   const title=fallback.querySelector('h3');assert.equal(title.textContent,'Do not select a later entry');assert.equal(effectiveLanguage(title),'fr');
   assert(fallback.querySelector('#document-'+questionId));
   assert.equal(fallback.querySelector('.explorer-publication-files a').href,download);
@@ -256,10 +256,10 @@ for(const language of ['en','hu','fr'])test(language+': transcript availability 
       if(!response.textLanguage)assert(!metadata.textContent.includes('Interface-language text unavailable'));
     }else{
       assert.equal(body,null);assert.equal(find,null);assert(!metadata.textContent.includes('Language unspecified'));
-      assert(detail.textContent.includes(unreadable?'Parliament returned transcript text that could not be read.':'No transcript text is available from Parliament’s API for this contribution.'));
+      assert(detail.textContent.includes(unreadable?'Transcript could not be read.':'Transcript unavailable.'));
     }
     await h.wait();
-    assert.equal(detail.querySelector('[role="status"][aria-live]').textContent,readable?'Transcript loaded.':unreadable?'Parliament returned transcript text that could not be read.':'No transcript text is available from Parliament’s API for this contribution.');
+    assert.equal(detail.querySelector('[role="status"][aria-live]').textContent,readable?'Transcript loaded.':unreadable?'Transcript could not be read.':'Transcript unavailable.');
     assert(!h.requests.some(route=>route.startsWith('speech-media/')),'opening transcript metadata does not acquire media');
   });
 });

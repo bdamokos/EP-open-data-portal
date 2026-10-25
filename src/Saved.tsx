@@ -52,7 +52,7 @@ function FollowCard({item,language,onMember,renderActivity,now,resolution,retry,
   return <article>
     <div className="explorer-saved-heading"><h3 lang={item.titleLanguage||''}>{item.title}</h3><SaveButton item={item} language={language} compact/></div>
     <div className="explorer-saved-state">{(item.unresolved?.activity||item.unresolved?.answer)?resolution.error?<p role="alert">Couldn't load new activity. {resolution.error} <button onClick={retry}>Retry</button></p>:<strong className="explorer-update-label">Checking for new activity…</strong>:hasNew&&<strong className="explorer-update-label">{fresh.length===1&&membershipNew===0&&groupsNew===0&&fresh[0].kind==='answer'?'New answer':fresh.length+membershipNew+groupsNew?`${fresh.length+membershipNew+groupsNew+omitted} new`:item.legacyUpdated?'Updated before the upgrade':'Question details changed'}</strong>}
-    {!hasNew&&checkState==='available'&&!item.legacy&&<p>{item.availability==='available'?'No new updates.':item.checkedAt?'Update information is unavailable.':'Checking will establish a starting point for future updates.'}</p>}
+    {!hasNew&&checkState==='available'&&!item.legacy&&<p>{item.availability==='available'?'No new updates.':item.checkedAt?'Update information is unavailable.':''}</p>}
     </div>
     {item.availability==='outside-roster'&&membership.members[item.id]?.status!=='former'&&<p>No longer on the current roster.</p>}
     {item.kind==='question'&&<p>{item.current?.answerIds?.length?'Answer available.':item.availability==='available'?'No answer available in the indexed data yet.':'Answer availability has not been checked.'}</p>}
@@ -102,14 +102,12 @@ export function Saved({language,onBack,onMember,renderActivity}:SavedProps) {
     {membership.storageError&&<p role="alert">Membership updates could not be saved in this browser. <button onClick={()=>membershipStore.retryStorage()}>Retry saving membership updates</button></p>}
     {items.some(item=>item.kind==='mep')&&membershipCheck==='unavailable'&&<p className="explorer-membership-status">Some membership updates are unavailable.</p>}
     {items.some(item=>item.kind==='mep')&&membershipCheck==='error'&&<p className="explorer-membership-status" role="alert">Couldn't check membership updates. <button onClick={check}>Retry membership updates</button></p>}
-    {saved.restarted&&<p>Update tracking restarted. Previously unread items are kept.</p>}
     {items.some(item=>item.kind==='mep')&&saved.checkState==='unavailable'&&<p>Update checks are not available yet for MEPs. <button onClick={check}>Retry</button></p>}
     {items.some(item=>item.kind==='mep')&&saved.checkState==='error'&&<p>Couldn't check for MEP updates. <button onClick={check}>Retry</button></p>}
     {items.some(item=>item.kind==='question')&&saved.questionCheckState==='error'&&<p>Couldn't check for question answers. <button onClick={check}>Retry</button></p>}
     {error&&membershipCheck!=='error'&&<p>{error}</p>}
     {!dossiers.persistent&&dossiers.items.length>0&&<p>Dossier follows last only for this tab.</p>}
     {dossiers.storageError&&<p role="alert">Dossier changes couldn't be saved in this browser. <button onClick={()=>dossierStore.retryStorage()}>Retry saving</button></p>}
-    {dossiers.restarted&&<p>Dossier update tracking restarted. Earlier updates are kept.</p>}
     {!items.length&&!dossiers.items.length&&<p>Follow a MEP or dossier, or save a question to see updates here.</p>}
     <div className="explorer-saved-items">{items.map(item=><FollowCard key={savedKey(item)+':'+item.savedAt} item={item} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={item.kind==='question'?saved.questionCheckState:saved.checkState} check={check}/>)}{dossiers.items.map(item=><DossierCard key={item.id+':'+item.savedAt} item={item} language={language} now={now}/>)}</div>
   </section>;

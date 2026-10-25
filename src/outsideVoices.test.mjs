@@ -88,7 +88,7 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
   return {window,container,calls,select,change,click,navigate,render};
 }
 
-const sourceIds=container=>[...new Set([...container.querySelectorAll('.ov-evidence dl')].map(dl=>dl.querySelector('dd').textContent))].sort();
+const sourceIds=container=>[...new Set([...container.querySelectorAll('[data-ov-speech]')].map(node=>node.dataset.ovSpeech))].sort();
 const contributionIds=detail=>detail.contributions.map(c=>c.id).sort();
 
 test('resolved agenda membership shows one debate and retains the original API links in evidence',async t=>{
@@ -103,10 +103,7 @@ test('resolved agenda membership shows one debate and retains the original API l
   assert.equal(drawer.querySelector('h3').textContent,'12. Discharge 2024 (joint debate)');
   assert(!drawer.textContent.includes('Special event'));
   assert.equal(drawer.querySelectorAll('a[href$="CRE-10-2026-04-28-ITM-012_EN.html"]').length,2);
-  for(const evidence of drawer.querySelectorAll('.ov-evidence')){
-    assert(evidence.textContent.includes('Transcript chapterCRE-10-2026-04-28-ITM-012'));
-    assert(evidence.textContent.includes('API agenda links'+wrong+', '+right));
-  }
+  assert.equal(drawer.querySelector('.ov-evidence'),null,'API identifiers are not shown');
 });
 
 test('numbered transcript subitems retain their exact Debate link',async t=>{
@@ -174,7 +171,7 @@ test('month controls preserve all 11 monthly counts, unlinked speeches and equiv
     assert.equal(bars[i].querySelector('small').textContent,label.split(':')[0]);
     assert.equal(bars[i].disabled,value==='2026-03');
   }
-  assert.match(container.querySelector('.ov-sources summary').textContent,/partial/);
+  assert.match(container.querySelector('.ov-sources').textContent,/Partial coverage/);
   await change('Month','2025-12');
   assert.equal(window.location.search.includes('ov-month=2025-12'),true);
   assert.equal(new URL(window.location.href).searchParams.get('ov-tab'),'appearances');
@@ -286,26 +283,6 @@ test('a special timeline marker reveals its exact agenda item and keeps every cl
   assert(document.activeElement===container.querySelector(`.ov-drawer [data-ov-item="${special}"] h3`),'an exact dossier selection also reveals that item');
 });
 
-test('Escape closes only the source reader inside an Outside voices drawer',async t=>{
-  const detail=speaker('42','Source reader guest',[speech('2026-10-07','01',[item('2026-10-07',4)])]);
-  const url='https://data.europarl.europa.eu/api/v2/speeches/'+detail.contributions[0].id+'?format=application%2Fld%2Bjson';
-  detail.contributions[0].source={url,fetchedAt:source.fetchedAt};
-  const sourceData={sourceUrl:url,requestUrl:url,fetchedAt:source.fetchedAt,stale:false,collection:false,limited:false,records:[{title:'Guest contribution',websiteUrl:null}],payload:{data:[{id:'eli/dl/event/'+detail.contributions[0].id}]}};
-  const {window,container}=await harness(t,[detail],'?view=outside&ov-person=42',sourceData);
-  window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};window.HTMLDialogElement.prototype.close=function(){this.open=false;};
-  await act(async()=>container.querySelector('.ov-appearance-cards button').click());assert(container.querySelector('.ov-drawer'));
-  const evidence=container.querySelector('.ov-drawer .ov-evidence');evidence.open=true;
-  const trigger=evidence.querySelector('button.source-read');assert(trigger);
-  await act(async()=>trigger.click());const dialog=document.querySelector('dialog.source-dialog');assert(dialog?.open);
-  await act(async()=>dialog.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true})));
-  assert(container.querySelector('.ov-drawer'),'Escape does not reach the containing drawer listener');
-  await act(async()=>dialog.dispatchEvent(new window.Event('cancel',{cancelable:true})));
-  assert.equal(document.querySelector('dialog.source-dialog'),null);assert(container.querySelector('.ov-drawer'));assert.equal(document.activeElement,trigger);
-  await act(async()=>container.querySelector('.ov-drawer').dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true})));
-  assert.equal(container.querySelector('.ov-drawer'),null,'a subsequent Escape still closes the drawer');
-});
-
-
 test('each recent speech opens its exact transcript in one click, including repeated titles and multiple parents',async t=>{
   const day='2026-10-07';
   const detail=speaker('42','Direct guest',[
@@ -327,7 +304,7 @@ test('each recent speech opens its exact transcript in one click, including repe
     assert.equal(document.activeElement,readers[0].closest('.ov-speech-reader'));
     assert.equal(document.activeElement.getAttribute('role'),'region');
     assert.equal(document.activeElement.getAttribute('aria-label'),'Speech');
-    assert.match(container.querySelector('.ov-sources summary').textContent,/partial/);
+    assert.match(container.querySelector('.ov-sources').textContent,/Partial coverage/);
     await act(async()=>container.querySelector('[aria-label="Close speeches"]').click());
     assert.equal(document.activeElement,card,'closing returns to the exact speech card');
   }

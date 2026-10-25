@@ -255,7 +255,7 @@ test('actual FOR, later intention to abstain and official raw counts are display
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item]}))});
   const detail=visiblePane(h.container);
   assert.equal(detail.querySelector('.member-votes-position strong').textContent,'For');
-  assert.match(detail.querySelector('.member-votes-intention').textContent,/Declared intention: Abstain.*official result and totals are unchanged/);
+  assert.match(detail.querySelector('.member-votes-intention').textContent,/Declared intention: Abstain.*result unchanged/);
   assert.equal(detail.querySelector('.member-votes-bar').getAttribute('aria-label'),'For 412, Against 183, Abstaining 0');
   assert.deepEqual([...detail.querySelectorAll('.member-votes-counts b')].map(item=>item.textContent),['412','183','0']);
   assert(!/success|\d%/.test(detail.textContent));
@@ -270,7 +270,7 @@ test('detail renders exact split wording, sibling context and only exact request
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:first.id},handler:url=>Response.json(responseFor(url,{items:[first,sibling]}))});
   const detail=visiblePane(h.container);
   assert.equal(detail.querySelector('.member-votes-part p').textContent,'Littéral exact de la première partie');assert.equal(detail.querySelector('.member-votes-part p').lang,'fr');
-  assert.match(detail.querySelector('.member-votes-related').textContent,/Littéral exact de la deuxième partie.*Each part has its own decision and outcome/);
+  assert.match(detail.querySelector('.member-votes-related').textContent,/Littéral exact de la deuxième partie/);
   assert.match(detail.querySelector('.member-votes-siblings').textContent,/Part 2 · Adopted/);
   assert.match(detail.querySelector('.member-votes-requester').textContent,/Roll call requested by Demandeur exact/);assert(!detail.textContent.includes('Unbound requester'));
   await h.click('Part 2 · Adopted');assert.equal(h.state.decisionId,sibling.id);
@@ -408,8 +408,8 @@ test('saved wording and proposer qualifications apply only to the explicitly sel
   assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('Showing saved wording.'));
   await h.select(selector,variants[0].listId);
   assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Showing saved wording\./);
-  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Proposer details are from an earlier source version\./);
-  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Version details are from an earlier source record\./);
+  assert.doesNotMatch(wordingViewText(h.container.querySelector('.member-votes-wording')),/earlier source version/);
+  assert.doesNotMatch(wordingViewText(h.container.querySelector('.member-votes-wording')),/earlier source record/);
   assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Exact retained proposer/);
   await h.select(selector,variants[1].listId);
   assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('Showing saved wording.'));
@@ -543,7 +543,7 @@ test('a temporary 503 keeps the retry path usable while the backend load continu
 
 test('partial period coverage is disclosed once alongside observed, filtered and page counts',async t=>{
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{coverage:{status:'partial',collectionComplete:false},pagination:{observedTotal:70,filteredTotal:1},subjects:[subject([vote(1)],{counts:{observed:70,filtered:1,page:1}})]}))});
-  const notice='Some voting records for this period are unavailable. More decisions or recorded positions may exist.';
+  const notice='Some voting records for this period are unavailable.';
   assert.equal(h.container.textContent.split(notice).length-1,1);
   assert.match(h.container.querySelector('.member-votes-tools').textContent,/1–1 of 1 decision · 1 with a recorded position/);
   assert.match(h.container.querySelector('.member-votes-subject-count').textContent,/1 decision in this subject · 1 on this page/);
@@ -735,7 +735,7 @@ test('outcome alignment retains the snapshot, resets pagination, marks rows and 
   await act(async()=>control.click());
   assert.equal(h.state.alignment,'against');assert.equal(document.activeElement.dataset.voteAlignment,'against');assert.equal(h.state.offset,0);assert.equal(h.state.snapshotId,SNAPSHOT);
   assert.equal(button(h.container,'Against the outcome (1)').getAttribute('aria-pressed'),'true');
-  assert.match(h.container.querySelector('.member-votes-alignment').textContent,/in this week, before filters and pagination/);
+  assert.match(h.container.querySelector('.member-votes-alignment').textContent,/Counts in this week$/);
   await act(async()=>h.container.querySelector('[data-vote-group]').click());
   const row=h.container.querySelector('[data-vote-id]');assert.match(row.textContent,/Against outcome/);
   await act(async()=>row.click());assert.equal(h.state.decisionId,against.id);
@@ -748,7 +748,7 @@ for(const coverage of ['complete','partial','unavailable'])test('alignment empty
   const h=await mount(t,{state:{week:WEEK,alignment:'against'},handler:url=>Response.json(responseFor(url,{items:[],coverage:{status:coverage},alignmentCounts:coverage==='unavailable'?null:{with:0,against:0,abstained:0,unclassified:0}}))});
   const text=h.container.textContent;
   if(coverage==='complete')assert.match(text,/No recorded votes against Parliament’s outcome in this week/);
-  if(coverage==='partial'){assert.match(text,/No matching recorded votes among the available records for this week/);assert.match(text,/Counts among available records/);}
+  if(coverage==='partial'){assert.match(text,/No matching recorded votes among the available records for this week/);assert.match(text,/Counts in this week · Partial coverage/);}
   if(coverage==='unavailable'){
     assert.match(text,/Some voting records for this period are unavailable/);assert.match(text,/Against the outcome \(unavailable\)/);
     assert.equal(h.container.querySelector('.member-votes-empty'),null);assert.doesNotMatch(text,/0 decisions|No recorded votes|No matching recorded/);
@@ -816,7 +816,7 @@ test('all decisions shows non-named ballots, shared methods, counts and page sum
 for(const [status,memberStatus,expected] of [
   ['observed','listed-present',/Listed as present.*Presence at this individual vote is not recorded/],
   ['observed','listed-excused',/Listed as excused/],
-  ['observed','not-listed',/Not listed.*This does not establish absence: members can vote without being listed, and mandate dates are not checked here/],
+  ['observed','not-listed',/Not listed.*Not listed doesn’t mean absent\./],
   ['observed','conflicting',/Listed as both present and excused/],
   ['not-published',null,/not yet published/],
   ['partial',null,/Attendance register unavailable for this sitting/],
@@ -865,7 +865,7 @@ test('not-listed detail discloses an unsupplied excused list beside the no-absen
   const h=await mount(t,{state:{week:WEEK,decisionId:decision(1)},handler:url=>Response.json(responseFor(url)),attendanceHandler:()=>{const value=attendanceResponse({memberStatus:'not-listed'});value.sittings[0].excusedSupplied=false;value.sittings[0].counts.excused=null;return Response.json(value);}});
   const text=visiblePane(h.container).querySelector('.member-votes-attendance').textContent;
   assert.match(text,/Not listed as present; this register supplies no excused list/);
-  assert.match(text,/This does not establish absence: members can vote without being listed, and mandate dates are not checked here/);
+  assert.match(text,/Not listed doesn’t mean absent\./);
 });
 
 for(const outcome of ['LAPSED','WITHDRAWN'])test('unheld '+outcome+' detail replaces its retained method label',async t=>{

@@ -63,7 +63,7 @@ test('partial tallies preserve known counts and keep unknown values separate fro
 test('an exact but incomplete response retains a known outcome, method and counts',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse({outcome:null,method:null,ballotStatus:'unknown',position:{status:'unavailable',position:null}});value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});
   await h.render({indexed:{outcome:'ADOPTED',method:'VOTE_HAND',totals:{for:445,against:0,abstaining:null}}});
-  assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/For 445Against 0Abstaining —/);assert.match(h.container.textContent,/retained from the saved activity record/);assert.doesNotMatch(h.container.textContent,/Outcome unavailable/);
+  assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/For 445Against 0Abstaining —/);assert.doesNotMatch(h.container.textContent,/Outcome unavailable/);
 });
 test('unavailable observation never claims that a completed search found no records',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse();value.coverage.status='unavailable';value.alignmentCounts=null;value.items=[];value.pagination={offset:0,limit:50,returned:0,observedTotal:0,recordedTotal:null,filteredTotal:0,nextOffset:null};value.selected={status:'unavailable',item:null};return Response.json(value);});await h.render();
@@ -71,16 +71,16 @@ test('unavailable observation never claims that a completed search found no reco
 });
 test('disagreeing result snapshots remain explicitly labelled instead of silently combined',async t=>{
   const h=await mount(t,async()=>Response.json(exactResponse({outcome:'REJECTED'})));await h.render({indexed:{outcome:'ADOPTED',method:'VOTE_HAND'}});
-  assert.match(h.container.textContent,/saved activity result differs from the current voting record/);assert.match(h.container.querySelector('[aria-label="Saved activity result"]').textContent,/Adopted · Show of hands/);assert.match(h.container.querySelector('.member-votes-result').textContent,/Rejected/);
+  assert.match(h.container.textContent,/voting record has changed since this activity was saved/);assert.match(h.container.querySelector('[aria-label="Saved activity result"]').textContent,/Adopted · Show of hands/);assert.match(h.container.querySelector('.member-votes-result').textContent,/Rejected/);
 });
 test('explicit source conflict never revives a saved result as a current confirmed outcome',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse({outcome:null,method:null,ballotStatus:'unknown',position:{status:'conflicting',position:null}});value.selected.item.sourceConflicts={fields:['decision_outcome']};value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});await h.render({indexed:{outcome:'ADOPTED',method:'VOTE_HAND'}});
-  assert.match(h.container.textContent,/Current vote sources disagree/);assert.match(h.container.querySelector('[aria-label="Saved activity result"]').textContent,/Adopted/);assert.match(h.container.querySelector('.member-votes-result').textContent,/Outcome unavailable/);assert.doesNotMatch(h.container.textContent,/retained from the saved/);
+  assert.match(h.container.textContent,/Vote sources disagree/);assert.match(h.container.querySelector('[aria-label="Saved activity result"]').textContent,/Adopted/);assert.match(h.container.querySelector('.member-votes-result').textContent,/Outcome unavailable/);assert.doesNotMatch(h.container.textContent,/retained from the saved/);
 });
 
 test('a conducted named ballot cannot inherit a saved lapsed outcome',async t=>{
   const h=await mount(t,async()=>Response.json(exactResponse({outcome:null,ballotStatus:'conducted'})));await h.render({indexed:{outcome:'LAPSED',method:'VOTE_ELECTRONIC_ROLLCALL'}});
-  assert.match(h.container.textContent,/saved activity result differs/);assert.doesNotMatch(h.container.querySelector('.member-votes-result').textContent,/Lapsed/);
+  assert.match(h.container.textContent,/voting record has changed/);assert.doesNotMatch(h.container.querySelector('.member-votes-result').textContent,/Lapsed/);
 });
 test('known show-of-hands method cannot override an unavailable position when ballot type is unknown',async t=>{
   const h=await mount(t,async()=>Response.json(exactResponse({method:'VOTE_HAND',outcome:'ADOPTED',ballotStatus:'unknown',position:{status:'unavailable',position:null}})));await h.render({indexed:{outcome:'ADOPTED',method:'VOTE_HAND'}});

@@ -45,12 +45,12 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
   const method=vote?.ballotStatus==='not-conducted'?'Not put to a vote':vote?voteMethodLabel(vote.method):null;
   const requesters=vote?.rollCallRequesters.map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text)||[];
   return <div className="activity-vote" lang="en">
-    {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p>{sourceConflict?'Current vote sources disagree. The saved activity result is shown separately.':'The saved activity result differs from the current voting record. The current record is shown below.'}</p><div aria-label="Saved activity result">{children}</div></div>}
+    {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p>{sourceConflict?'Vote sources disagree.':'The voting record has changed since this activity was saved.'}</p><div aria-label="Saved activity result">{children}</div></div>}
     {vote?<>
-      {retained&&<p className="activity-vote__meta">Some result details are retained from the saved activity record.</p>}
+      
       <p className="activity-vote__meta"><span lang={language}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(vote.date))}</span>{method?' · '+method:''}</p>
       <div className="member-votes-strip" aria-label="Member position and Parliament result"><Position vote={vote} memberName={memberName||'Selected MEP'}/><Result vote={vote} showPartialTotals/>
-        {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention">Declared intention: <strong>{vote.intention.positions.map(position=>({for:'For',against:'Against',abstaining:'Abstain'}[position])).join(', ')}</strong>. Declared afterwards; the official result and totals are unchanged.</p>}
+        {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention">Declared intention: <strong>{vote.intention.positions.map(position=>({for:'For',against:'Against',abstaining:'Abstain'}[position])).join(', ')}</strong>. Declared afterwards; result unchanged.</p>}
       </div>
       {vote.parts.map(part=>{
         const text=selectLanguageText(Object.fromEntries(Object.entries(part.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);

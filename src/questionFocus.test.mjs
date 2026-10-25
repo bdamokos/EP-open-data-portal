@@ -193,7 +193,7 @@ test('subject chip clears topic and paging in one history step, focuses results,
   const url=new URL(location.href),request=h.calls.at(-1);assert.equal(url.searchParams.get('q-subject'),'USA');assert.equal(request.searchParams.get('subject'),'USA');
   for(const key of ['q-word','q-topic','q-offset','q-read'])assert.equal(url.searchParams.get(key),null);
   assert.equal(request.searchParams.get('country'),'IT');assert.equal(request.searchParams.get('addressee'),'org/COM');assert.equal(request.searchParams.get('offset'),'0');assert.equal(history.length,oldLength+1);
-  assert.equal(document.activeElement===h.resultHeading(),true);assert(h.container.textContent.includes('not official subject indexing'));
+  assert.equal(document.activeElement===h.resultHeading(),true);assert(!h.container.textContent.includes('not official subject indexing'));
   const remove=h.container.querySelector('[aria-label="Remove subject filter: United States"]');assert(remove);
   await act(async()=>remove.click());assert.equal(new URL(location.href).searchParams.get('q-subject'),null);assert.equal(h.calls.at(-1).searchParams.get('subject'),null);
   await h.navigate('?view=questions&q-subject=USA&q-word=water&q-offset=25');assert.equal(h.calls.at(-1).searchParams.get('subject'),'USA');assert.equal(h.calls.at(-1).searchParams.get('offset'),'25');

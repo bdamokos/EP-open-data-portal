@@ -1,7 +1,6 @@
 import {AvailabilityNote,PartialValue} from './AvailabilityNote';
 import {periodAvailability,availabilityValue} from '../server/source-availability.mjs';
 import {brusselsDay} from '../server/analysis-period.mjs';
-import {SourceLink} from './SourceLink';
 import {Status} from './Status';
 import {Fragment,useEffect,useMemo,useRef,useState} from 'react';
 import {useData} from './data';
@@ -39,16 +38,13 @@ const availableFocusTarget=(element:HTMLElement|null|undefined):element is HTMLE
 const drawerFocusables=(element:HTMLElement)=>[...element.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],summary,select:not([disabled]),input:not([disabled]),textarea:not([disabled]),iframe,[tabindex]')].filter(target=>!target.matches(':disabled')&&!(target.hasAttribute('tabindex')&&target.tabIndex<0)&&availableFocusTarget(target));
 
 function Sources({coverage}:{coverage?:OutsideCoverage}) {
-  return <details className="ov-sources" lang="en"><summary>Sources & coverage{coverage&&!coverage.complete?' · partial':''}</summary><p>Plenary speeches, 2024–present. Counts cover indexed contributions.</p>{coverage?.updatedAt&&<p>Updated <span lang={new Intl.DateTimeFormat().resolvedOptions().locale}>{new Date(coverage.updatedAt).toLocaleDateString()}</span>{coverage.truncated?' · result limit reached':''}</p>}<a href="https://data.europarl.europa.eu/en/developer-corner/opendata-api" target="_blank" rel="noreferrer">European Parliament Open Data ↗</a></details>;
-}
-function Evidence({contribution:c,language}:{contribution:OutsideContribution;language:string}) {
-  const source=c.headerSource||c.source;
-  return <details className="ov-evidence" lang="en"><summary>Source</summary><dl><dt>Speech</dt><dd>{c.id}</dd><dt>Person</dt><dd>person/{c.personId}</dd><dt>Agenda item</dt><dd>{c.parentIds.join(', ')||'Not linked'}</dd>{c.reportedParentIds&&<><dt>Transcript chapter</dt><dd>{c.parentDocumentId}</dd><dt>API agenda links</dt><dd>{c.reportedParentIds.join(', ')}</dd></>}<dt>Role language</dt><dd>{c.header?.languageTag||'Unavailable'}{c.header?.original?' · original':''}</dd><dt>Retrieved</dt><dd>{source.fetchedAt}</dd></dl><SourceLink url={source.url} language={language} websiteUrl={c.websiteUrl}>Speech record</SourceLink>{c.rosterSource.sources[0]&&<> · <SourceLink url={c.rosterSource.sources[0].url} language={language}>MEP roster on {c.rosterSource.date}</SourceLink></>}</details>;
+  if(!coverage?.updatedAt&&coverage?.complete!==false)return null;
+  return <p className="ov-sources" lang="en">{coverage?.updatedAt&&<>Updated <span lang={new Intl.DateTimeFormat().resolvedOptions().locale}>{new Date(coverage.updatedAt).toLocaleDateString()}</span></>}{coverage&&!coverage.complete?(coverage.updatedAt?' · ':'')+'Partial coverage':''}</p>;
 }
 function Contribution({contribution:c,language,conflict=false,initiallyReading=false}:{contribution:OutsideContribution;language:string;conflict?:boolean;initiallyReading?:boolean}) {
   const [reading,setReading]=useState(initiallyReading);
   const start=time(c.start,language),end=time(c.end,language);
-  return <article className="ov-contribution" data-ov-speech={c.id}><div className="ov-contribution-head"><strong lang={language}>{start?start+(end?'–'+end:''):date(c.date,language)}</strong><button lang="en" aria-expanded={reading} onClick={()=>setReading(!reading)}>{reading?'Close speech':'Read / watch'}</button></div>{c.header?.role&&<p lang={roleLanguage(c.header.languageTag)}>{c.header.role}{conflict&&<span lang="en" className="ov-conflict" title="Other contributions record a different speaking capacity"> · role differs</span>}</p>}<div className="ov-links" lang="en">{c.websiteUrl&&<a href={c.websiteUrl} target="_blank" rel="noreferrer">Speech ↗</a>}{itemWebsite(c)&&<a href={itemWebsite(c)!} target="_blank" rel="noreferrer">Debate ↗</a>}</div>{reading&&<div className="ov-speech-reader" role="region" aria-label="Speech" lang="en" tabIndex={-1}><InsightSpeechReader id={c.id} language={language}/></div>}<Evidence contribution={c} language={language}/></article>;
+  return <article className="ov-contribution" data-ov-speech={c.id}><div className="ov-contribution-head"><strong lang={language}>{start?start+(end?'–'+end:''):date(c.date,language)}</strong><button lang="en" aria-expanded={reading} onClick={()=>setReading(!reading)}>{reading?'Close speech':'Read / watch'}</button></div>{c.header?.role&&<p lang={roleLanguage(c.header.languageTag)}>{c.header.role}{conflict&&<span lang="en" className="ov-conflict" title="Other contributions record a different speaking capacity"> · role differs</span>}</p>}<div className="ov-links" lang="en">{c.websiteUrl&&<a href={c.websiteUrl} target="_blank" rel="noreferrer">Speech ↗</a>}{itemWebsite(c)&&<a href={itemWebsite(c)!} target="_blank" rel="noreferrer">Debate ↗</a>}</div>{reading&&<div className="ov-speech-reader" role="region" aria-label="Speech" lang="en" tabIndex={-1}><InsightSpeechReader id={c.id} language={language}/></div>}</article>;
 }
 function AgendaItem({id,agenda,contributions,language,conflicts,coSpeakers=[],onPerson,speechId}:{id:string;agenda:OutsideAgenda|null;contributions:OutsideContribution[];language:string;conflicts:string[];coSpeakers?:OutsideContribution[];onPerson:(id:string)=>void;speechId?:string}) {
   const selected=title(agenda||contributions[0],language);

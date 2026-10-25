@@ -201,7 +201,7 @@ test('choosing the verified joint text resets amendment/version/page and does no
  const jointRequests=h.requests.filter(url=>url.pathname==='/api/motion-amendments/'+JOINT);
  assert(jointRequests.length);assert.equal(jointRequests.at(-1).searchParams.get('offset'),'0');assert.equal(jointRequests.at(-1).searchParams.get('amendment'),null);
  assert.equal(h.container.querySelector('.motion-amendments__member-tag'),null,'original authorship cannot label another text’s amendment proposers');
- assert.match(h.container.querySelector('.explorer-motion-outcome').textContent,/No authorship is recorded for this MEP on this joint motion/);
+ assert.doesNotMatch(h.container.querySelector('.explorer-motion-outcome').textContent,/author of this joint motion/);
 });
 
 test('a closed exact joint-motion link survives activity and App canonicalization without opening a different reader',async t=>{

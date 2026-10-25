@@ -519,15 +519,9 @@ test('local find includes resolved source citation buttons and preserves their r
 for(const [family,url] of [
   ['procedure','https://data.europarl.europa.eu/api/v2/procedures/2025-0407'],
   ['speech','https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-10-07-OTH-123'],
-])test('local find includes '+family+' source-linked document text while excluding auxiliary source controls',async t=>{
+])test('local find includes '+family+' source-linked document text while excluding controls',async t=>{
   const text='The climate transition proposal applies.';
-  const view=await setup(t,{highlights:true,respond:call=>{
-    if(!call.url.pathname.endsWith('/source-record'))return;
-    assert.equal(call.url.searchParams.get('url'),url);assert.equal(call.url.searchParams.get('lang'),'en');
-    return Response.json({sourceUrl:url,requestUrl:url+'?format=application%2Fld%2Bjson',fetchedAt:'2026-10-16T12:00:00Z',stale:false,refreshError:null,collection:false,limited:false,records:[{title:'Exact '+family+' fixture',websiteUrl:null}],payload:{data:[{id:family==='procedure'?'eli/dl/proc/2025-0407':'eli/dl/event/MTG-PL-2026-10-07-OTH-123',process_title:{en:'Exact '+family+' fixture'}}]}});
-  }});
-  view.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
-  view.window.HTMLDialogElement.prototype.close=function(){this.open=false;};
+  const view=await setup(t,{highlights:true,respond:()=>undefined});
   const {ReferenceScope,ReferenceText}=await view.loadModule('/src/References.tsx');
   const {SourceLink}=await view.loadModule('/src/SourceLink.tsx');
   function SourceLinkedReader(){const target=useRef(null);return createElement('section',null,
@@ -537,30 +531,17 @@ for(const [family,url] of [
       createElement('p',null,createElement(SourceLink,{url:'https://data.europarl.europa.eu/api/v2/procedures/2025-0407',reference:'2025/0407(COD)',compact:true},'Supplementary procedure')),
       createElement('button',{type:'button'},'Refresh reader controls'))));}
   await act(async()=>view.root.render(createElement(SourceLinkedReader)));
-  const primary=view.find('button.source-primary'),paragraph=view.find('#source-linked-paragraph'),markup=paragraph.innerHTML;
-  assert.equal(primary.textContent,'climate transition proposal');
-  assert.equal(view.find('button.source-read:not(.source-primary)').textContent,'Read data');
-  assert.equal(view.calls.length,0,'rendering source links must not fetch upstream data');
+  const paragraph=view.find('#source-linked-paragraph'),markup=paragraph.innerHTML;
+  assert.equal(view.window.document.querySelector('.source-read'),null,'no source-data controls are rendered');
+  assert(![...view.window.document.querySelectorAll('a')].some(link=>link.href.startsWith('https://data.europarl.europa.eu/')),'machine-readable records are never linked');
   await view.click('Find in source-linked text');await view.input('input[type="search"]','climate transition');await view.flushFrames();
   assert.equal(view.find('[role="status"]').textContent,'1 / 1');
   const matches=[...view.registry.entries()].find(([key])=>!key.endsWith('active'))?.[1]?.ranges;
   assert.equal(matches.length,1);assert.equal(matches[0].toString(),'climate transition');
-  assert.equal(matches[0].startContainer.parentElement.closest('button.source-primary'),primary);
-  assert.equal(view.find('button.source-primary'),primary);assert.equal(paragraph.innerHTML,markup);
-  for(const controlText of ['Read data','Refresh reader']){
-    await view.input('input[type="search"]',controlText);await view.flushFrames();
-    assert.equal(view.find('[role="status"]').textContent,'No matches',controlText+' is a control label, not document text');
-  }
-  await view.input('input[type="search"]','climate transition');await view.flushFrames();
-  await act(async()=>primary.click());
-  const dialog=view.window.document.querySelector('dialog.source-dialog');assert(dialog?.open);
-  assert.equal(view.calls.length,1);assert.equal(view.calls[0].url.searchParams.get('url'),url);
-  assert.equal(dialog.querySelector('.source-actions a').href,url);assert.equal(dialog.querySelector('.source-record-content h3').textContent,'Exact '+family+' fixture');
-  assert.equal(view.find('button.source-primary'),primary);assert.equal(primary.getAttribute('aria-expanded'),'true');
-  await act(async()=>dialog.querySelector('button.source-close').click());await view.flushFrames();
-  assert.equal(view.window.document.querySelector('dialog.source-dialog'),null);assert.equal(view.window.document.activeElement,primary);
-  assert.equal(view.find('button.source-primary'),primary);assert.equal(primary.getAttribute('aria-expanded'),'false');assert.equal(paragraph.innerHTML,markup);
-  assert.equal(view.calls.length,1);assert.equal(view.searches().length,0);
+  assert(paragraph.contains(matches[0].startContainer));assert.equal(paragraph.innerHTML,markup);
+  await view.input('input[type="search"]','Refresh reader');await view.flushFrames();
+  assert.equal(view.find('[role="status"]').textContent,'No matches','a control label is not document text');
+  assert.equal(view.searches().length,0);
 });
 
  test('search attribution uses the directory ID and keeps raw labels available',async t=>{
@@ -580,7 +561,7 @@ test('search attribution skips unnamed people and preserves the answer fallback'
     ['question',[{id:99,name:null,role:'AUTHOR'},{id:42,name:'Dan-Ştefan MOTREANU',role:'AUTHOR'}],'Question by Dan-Ştefan Motreanu'],
     ['speech',[{id:42,name:null,role:'SPEAKER'}],'Speaker: Dan-Ştefan Motreanu'],
     ['question',[{id:99,name:null,role:'AUTHOR'}],''],
-    ['answer',[{id:99,name:null,role:'QUESTION_AUTHOR'}],'Answering institution’s text · linked question authorship'],
+    ['answer',[{id:99,name:null,role:'QUESTION_AUTHOR'}],'Answer'],
   ])await t.test(kind+JSON.stringify(people),async t=>{
     const view=await setup(t,{query:'fixture-fts-search=hydrogen',members:[{id:42,firstName:'Dan-Ştefan',lastName:'Motreanu'}],respond:({url,body})=>{
       if(!url.pathname.endsWith('/corpus/search'))return;

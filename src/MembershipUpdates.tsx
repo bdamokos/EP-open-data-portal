@@ -19,6 +19,6 @@ export function MembershipUpdates({member,language,now,onMember}:{member:string;
 
 export function FormerMemberNotice({member,language}:{member:number;language:string}) {
   const state=useMembership(),status=state.members[String(member)];
-  return <section lang="en" className="explorer-former-member"><p>{status?.status==='former'?<>Activity tracking for this MEP ended with their mandate on <span lang={language}>{mandateDate(status.endDate!,language)}</span>.</>:<>This MEP is not in the current roster. Activity tracking is limited to current MEPs.</>}</p>
+  return <section lang="en" className="explorer-former-member"><p>{status?.status==='former'?<>Mandate ended <span lang={language}>{mandateDate(status.endDate!,language)}</span>.</>:<>Not a current MEP.</>}</p>
     <p><a href={`https://www.europarl.europa.eu/meps/en/${member}`}>Official European Parliament profile</a></p></section>;
 }

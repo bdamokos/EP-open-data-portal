@@ -58,7 +58,7 @@ async function assertPublicNotice(container) {
   assert.equal(notice.querySelector('details').open,true,'legal terms can be opened from the rendered shell');
   const body=notice.querySelector('.data-notice__body');
   assert.match(body.textContent,/© European Union – Source: European Parliament/);
-  assert.match(body.textContent,/This site is independent\./);
+  assert.match(body.textContent,/Independent site\./);
   const license=body.querySelector('a[href="https://creativecommons.org/licenses/by/4.0/"]');
   assert.ok(license,'the rendered license links to CC BY 4.0');
   assert.equal(license.textContent,'CC BY 4.0');

@@ -57,22 +57,14 @@ for(const locale of ['en','hu','fr'])test(`${locale}: target labels and topics k
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  await act(async()=>root.render(createElement('div',{lang:locale},createElement(Amendments,{language:locale,document:'A-10-2026-0254',showFailures:false}))));
+  await act(async()=>root.render(createElement('div',{lang:locale},createElement(Amendments,{language:locale,document:'A-10-2026-0254'}))));
   const card=id=>container.querySelector('#amendment-'+id);
   const grouping=()=>container.querySelectorAll('.explorer-amendment-controls select')[1];
   async function group(value) {
     await act(async()=>{grouping().value=value;grouping().dispatchEvent(new window.Event('change',{bubbles:true}));});
   }
-  function assertSource(scope,expected) {
-    const line=targetSourceLine(scope);
-    if(!expected){assert.equal(line,undefined,'no source record means no target-source link is borrowed from general metadata');return;}
-    assert(line,'the exact target source is visible');
-    assert.equal(line.querySelectorAll('a').length,1);
-    assert.equal(line.querySelector('a').href,expected.url);
-    assert.equal(effectiveLanguage(line.querySelector('a')),'en','source-link controls remain English');
-    assert.equal(line.querySelector('time').textContent,fmt(expected.fetchedAt,locale));
-    assert.equal(effectiveLanguage(line.querySelector('time')),locale);
-    assert.equal(effectiveLanguage(line),'en');
+  function assertSource(scope) {
+    assert.equal(targetSourceLine(scope),undefined,'component source lines are not shown');
   }
   async function assertPaths(refreshed) {
     const items=fixtures(refreshed),normal=items.filter(item=>!item.conflicted);
@@ -106,7 +98,7 @@ for(const locale of ['en','hu','fr'])test(`${locale}: target labels and topics k
     for(const date of container.querySelectorAll('time'))assert.equal(effectiveLanguage(date),locale);
     assert.equal(card('retained').querySelector('.wording-diff__passage').getAttribute('lang'),'fr','target-label language does not change refreshed wording');
     assert.equal(card('retained').querySelector('.explorer-amendment-evidence>.explorer-amendment-meta time').textContent,fmt('2026-10-16',locale));
-    assert.match(card('decision-fallback').textContent,/Exact decision source page unavailable/);
+    assert.doesNotMatch(card('decision-fallback').textContent,/source page unavailable/);
     assert.equal([...container.querySelectorAll('a')].some(link=>link.href===candidate.url),false,'a candidate decision page never becomes exact target-label evidence');
   }
   await assertPaths(false);

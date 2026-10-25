@@ -143,13 +143,13 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
   );
   return (
     <div className="explorer-speech-detail" lang={lang} data-reader-source={speech.id} data-reader-language={transcriptLanguage} data-reader-pending={state.loading?"true":undefined}>
-      <Status scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={state.error||!body?null:text.error?'Parliament returned transcript text that could not be read.':text.paragraphs.length?'Transcript loaded.':'No transcript text is available from Parliament’s API for this contribution.'}/>
+      <Status scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={state.error||!body?null:text.error?'Transcript could not be read.':text.paragraphs.length?'Transcript loaded.':'Transcript unavailable.'}/>
       {state.data?.speakers?.map(person=><div key={person.id}><strong><SpeakerName person={person} language={lang}/></strong><SpeakerRoleLine person={person} language={lang} intervention={state.data?.intervention} className="insight-secondary"/></div>)}
       {state.data?.intervention?.type!=='chair'&&<InterventionBadges value={state.data?.intervention} language={lang}/>}
       <SpeechContextPanel key={speech.id} id={speech.id} language={lang} transcriptLanguage={transcriptLanguage} preload={Boolean(state.data)&&!state.loading}/>
       <div className="explorer-speech-transcript-heading" lang="en"><h3 lang={lang}>{c.transcript}</h3><div className="explorer-reader-tools">{video.toggle}{text.paragraphs.length>0&&<FindInText key={speech.id+':'+transcriptLanguage} label="Find in speech" target={transcriptText}/>}</div></div>
       {video.panel}
-      {speech.websiteUrl && <p className="explorer-source-link" lang="en"><a href={speech.websiteUrl} target="_blank" rel="noreferrer">Speech on Parliament’s website ↗</a>{" "}<small>Original <span lang="">{speech.websiteLanguage?.toUpperCase()}</span></small></p>}
+      {speech.websiteUrl && <p className="explorer-source-link" lang="en"><a href={speech.websiteUrl} target="_blank" rel="noreferrer">Speech on Parliament’s website ↗</a></p>}
       {state.loading && !body && <p role="status" lang="en">Loading transcript…</p>}
       {state.error && <ErrorView message={state.error} retry={state.retry} />}
       {body && (
@@ -167,7 +167,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
               : ""}
           </div>
           {text.error ? (
-            <p lang="en">Parliament returned transcript text that could not be read.</p>
+            <p lang="en">Transcript could not be read.</p>
           ) : text.paragraphs.length ? (
             <div
               className="explorer-transcript"
@@ -180,8 +180,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
             </div>
           ) : (
             <p lang="en">
-              No transcript text is available from Parliament’s API for this
-              contribution.
+              Transcript unavailable.
             </p>
           )}
         </>
@@ -194,10 +193,10 @@ function PublicationFiles({ files, lang }: { files: DocumentFile[]; lang: string
   const [selected, setSelected] = useState(lang);
   const fileKey=files.map(f => `${f.url}|${f.language}`).join(",");
   useEffect(() => setSelected(languages.includes(lang) ? lang : languages[0] || "und"), [lang, fileKey]);
-  if (!files.length) return <p lang="en">No downloadable files were returned for this document.</p>;
+  if (!files.length) return <p lang="en">No files available.</p>;
   return <div className="explorer-publication-files" lang="en">
     <label>Document language <select aria-label="Document language" value={selected} onChange={e => setSelected(e.target.value)}>{languages.map(l => <option lang={l === "und" ? "en" : ""} value={l} key={l}>{l === "und" ? "Language unavailable" : l.toUpperCase()}</option>)}</select></label>
-    {!languages.includes(lang) && <small>Files in the interface language are unavailable. Choose an available language.</small>}
+    {!languages.includes(lang) && <small>Not available in this language.</small>}
     <p>{files.filter(f => (f.language || "und") === selected).map((f,i) => <a key={f.url + i} href={f.url} target="_blank" rel="noreferrer"><span lang="">{f.format}</span> · <span lang={f.language ? "" : "en"}>{f.language?.toUpperCase() || "Language unavailable"}</span> ↗</a>)}</p>
   </div>;
 }
@@ -220,10 +219,10 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, include
   const failed=Boolean(state.error||text?.status==='error'||text?.refreshError||state.data&&!text),retryAt=state.retryAt??(text?.nextRetryAt?Date.parse(text.nextRetryAt):undefined);
   return <section className="explorer-document-text" lang="en" id={'document-'+sourceId}>
     <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={failed?`${heading}: Text temporarily unavailable.`:state.data?`${heading}: ${text?.status==='available'?'Text loaded.':'Text unavailable.'}`:null}/>
-    <div className="explorer-reader-heading"><h3>{headingDate ? <>Answer · <span lang={lang}>{date(headingDate,lang)}</span></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang="en">Read question</span></a>}{text&&<TextLanguagePicker available={text.availableTextLanguages} requested={lang} value={text.textLanguage} onChange={setRequestedLanguage} visibleLabel={false} title={text.translationType==='original'?'Original text':'Translation method not specified'} note={<TextLanguageFallback requested={requestedLanguage} actual={text.textLanguage} interfaceLanguage={lang}/>}/>}</div>
+    <div className="explorer-reader-heading"><h3>{headingDate ? <>Answer · <span lang={lang}>{date(headingDate,lang)}</span></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang="en">Read question</span></a>}{text&&<TextLanguagePicker available={text.availableTextLanguages} requested={lang} value={text.textLanguage} onChange={setRequestedLanguage} visibleLabel={false} title={text.translationType==='original'?'Original text':undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text.textLanguage} interfaceLanguage={lang}/>}/>}</div>
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}>Amendments to this document</AmendmentTrailLink>}
     {state.loading&&!text&&<p role="status">Loading text…</p>}{failed&&!state.loading&&<ReaderRetry message={'Text temporarily unavailable.'+(text?.status==='available'?' Saved text remains readable.':'')} language={lang} retry={state.retry} retryAt={retryAt}/>}
-    {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="explorer-transcript" lang={text.textLanguage||""}><DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,text.paragraphs.length)} exactOffsets={body.exact} renderText={(source,paragraph,from,to,final,marks)=><AuthorMention text={paragraph.slice(from,to)} offset={from} final={final} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),from,to)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&!failed&&<p>Text unavailable. Download the document below.</p>}
+    {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="explorer-transcript" lang={text.textLanguage||""}><DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,text.paragraphs.length)} exactOffsets={body.exact} renderText={(source,paragraph,from,to,final,marks)=><AuthorMention text={paragraph.slice(from,to)} offset={from} final={final} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),from,to)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&!failed&&<p>Text unavailable.</p>}
     {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/><details className="explorer-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details></>}
     {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={"Answer"+(answer.date?" · "+date(answer.date,lang):"")} headingDate={answer.date}/>)}
     {includeAnswers&&state.data&&!failed&&!state.loading&&!state.data.answers.length&&<p>No answer published.</p>}
@@ -274,23 +273,23 @@ function LinkedActivityFallback({ sourceId, member, lang, complete }: { sourceId
   const speechAuthor=contribution.data?.participants.includes(String(member));
   const matchedTitle=selectLanguageText(matched?.titles,lang,matched?.id||'', '');
   return <aside className="explorer-notice" lang="en">
-    <Status scope={`linked:${sourceId}:${member}:${lang}:${check}`} pending={document.loading||contribution.loading} message={document.error||contribution.error?null:!check?!sourceId?'This older link could not be matched to an API source identifier.':complete?'This item is outside this MEP’s saved activity index.':'This item has not been indexed for this MEP yet.':document.data&&!matched?'The API did not return the exact linked document or answer.':matched||contribution.data?'Linked source available.':null}/>
+    <Status scope={`linked:${sourceId}:${member}:${lang}:${check}`} pending={document.loading||contribution.loading} message={document.error||contribution.error?null:!check?!sourceId?'Link not recognised.':complete?'Not in this MEP’s activity.':'Not indexed yet.':document.data&&!matched?'Linked item unavailable.':matched||contribution.data?'Linked item loaded.':null}/>
     <strong>Linked activity <span lang={sourceId ? "" : "en"}>{sourceId || "identifier not recognised"}</span></strong>
-    <p>{!sourceId ? "This older link could not be matched to an API source identifier." : complete ? "This item is outside this MEP’s saved activity index. No category or MEP relationship is inferred from the link." : "This item has not been indexed for this MEP yet. Saved activities remain available while the term 10 load continues."}</p>
-    {sourceId && !check && <button onClick={() => setCheck(true)}>Check this source with Parliament</button>}
-    {(document.loading || contribution.loading) && <p role="status">Loading the linked source…</p>}
+    <p>{!sourceId ? "Link not recognised." : complete ? "Not in this MEP’s activity." : "Not indexed yet."}</p>
+    {sourceId && !check && <button onClick={() => setCheck(true)}>Look it up</button>}
+    {(document.loading || contribution.loading) && <p role="status">Loading…</p>}
     {document.error && <ErrorView message={document.error} retry={document.retry} />}
     {contribution.error && <ErrorView message={contribution.error} retry={contribution.retry} />}
     {matched && <>
       <h3 lang={matchedTitle.language}>{matchedTitle.text}</h3>
       {matched.date && <p><span lang={lang}>{date(matched.date,lang)}</span>{answer ? " · Answer" : ""}</p>}
-      <p>{answer && authored ? "The API links this answer to a question authored by this MEP." : document.data!.roles.length ? <>The document records these roles for this MEP: <span lang="">{document.data!.roles.join(", ")}</span>.</> : "The document source is available. A relationship to this MEP has not been established."}</p>
+      {answer && authored ? <p>Answer to this MEP’s question.</p> : document.data!.roles.length ? <p>Role: <span lang="">{document.data!.roles.join(", ")}</span></p> : <p>No link to this MEP recorded.</p>}
       <PublicationText sourceId={sourceId!} member={member} lang={lang} heading={answer ? 'Answer' : /^[EPO]-/.test(sourceId!) ? 'Question' : 'Document text'} includeAnswers={!answer && /^[EPO]-/.test(sourceId!)} />
       {answer && document.data!.id!==sourceId && <PublicationText sourceId={document.data!.id} member={member} lang={lang} heading="Linked question" />}
       <PublicationFiles files={matched.files} lang={lang} />
     </>}
-    {document.data && !matched && <p>The API did not return the exact linked document or answer.</p>}
-    {contribution.data && <><p>{speechAuthor ? "The speech API names this MEP as a participant." : "The speech source is available. A relationship to this MEP has not been established."}</p><Detail speech={contribution.data} lang={lang} /></>}
+    {document.data && !matched && <p>Linked item unavailable.</p>}
+    {contribution.data && <>{!speechAuthor&&<p>No link to this MEP recorded.</p>}<Detail speech={contribution.data} lang={lang} /></>}
   </aside>;
 }
 export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpenProfile}:{member:number|string;sourceId:string;lang:string;profileHref:string;onOpenProfile:()=>void}) {
@@ -362,7 +361,7 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
   const selectedLabel=category ? page?.categories[category] || category : "All activities";
   return <section className="explorer-activities" lang="en" data-activities-pending={state.loading&&!state.data||open&&pinned.loading&&!items.some(isOpen)?'true':undefined}>
     <div className="explorer-section-title"><h2 lang={lang}>{c.activities}</h2>
-    <TextSearch prefix="mep-activity-fts" label="Search this MEP’s text" language={lang} member={id} kinds={['speech','question','answer']} from="2024-07-16" scopeNote="Searches this MEP’s saved speeches, questions and linked answers for the current term. Reports and other activity categories are outside this text collection."/></div>
+    <TextSearch prefix="mep-activity-fts" label="Search this MEP’s text" language={lang} member={id} kinds={['speech','question','answer']} from="2024-07-16"/></div>
     {page && <>
       <div className="explorer-category-selection">
         <button aria-expanded={categoriesOpen} aria-controls="activity-categories" onClick={()=>setCategoriesOpen(value=>!value)}>{categoriesOpen ? "Close categories" : "Change category"}</button>
@@ -381,9 +380,9 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
     {state.loading && !state.data && <p role="status">Loading saved results…</p>}
     {state.error && <ErrorView message={state.error} retry={state.retry} />}
     {page && <>
-      {coverage?.status === "source-not-verified" && <div className="explorer-notice"><strong>API source not verified</strong><p>{coverage.reason}</p><p>This category is not shown as an empty history.</p></div>}
+      {coverage?.status === "source-not-verified" && <div className="explorer-notice"><strong>Unavailable</strong><p>{coverage.reason}</p></div>}
       {coverage?.status === "incomplete-joins" && <p className="explorer-notice">{coverage.reason} </p>}
-      {!state.loading && state.data && !state.data.items.length && coverage?.status !== "source-not-verified" && <p>No saved activities were found in this selection.{!page.cache.complete ? " The term 10 history is still incomplete." : ""}</p>}
+      {!state.loading && state.data && !state.data.items.length && coverage?.status !== "source-not-verified" && <p>No activities in this selection.</p>}
       {open && pinned.loading && !items.some(isOpen) && <p role="status">Checking the saved linked activity…</p>}
       {open && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
       {open && state.data && !pinned.loading && !items.some(isOpen) && <LinkedActivityFallback key={sourceId} sourceId={sourceId} member={id} lang={lang} complete={page.cache.complete} />}
@@ -397,12 +396,7 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
         </article>;
       })}
       {state.data && <div className="explorer-category-top">{offset>0 && <button onClick={()=>{moveToResults.current=true;onOffset(Math.max(0,offset-10));onOpen(null);}}>Previous</button>}{state.data.nextOffset!==null && <button onClick={()=>{moveToResults.current=true;onOffset(state.data!.nextOffset!);onOpen(null);}}>Next 10</button>}<button onClick={state.retry}>Refresh list</button></div>}
-      <details className="explorer-source-join"><summary>{page.cache.complete ? "History and source information" : "Partial term 10 history — source information"}</summary>
-        <p>{page.cache.complete ? "The saved history is available." : "Saved results are shown now. The term 10 history is incomplete; some source records are awaiting retry."}{page.cache.stale && page.cache.complete ? " The daily update is pending." : ""}</p>
-        {page.cache.lastError && <p>An upstream request failed. Saved results remain available.</p>}
-        {!category && page.unclassifiedMotionCount>0 && <p>Some motions lack a verified rule basis and remain unclassified.</p>}
-        <small>{page.cache.lastSuccessfulRefresh ? <>Last completed refresh: <span lang={lang}>{date(page.cache.lastSuccessfulRefresh,lang)}</span>. </> : ""}Questions appear by the question date, with answers attached. New answers appear as updates in Following.</small>
-      </details>
+      {(!page.cache.complete||page.cache.lastSuccessfulRefresh)&&<p className="explorer-source-join">{page.cache.lastSuccessfulRefresh?<>Updated <span lang={lang}>{date(page.cache.lastSuccessfulRefresh,lang)}</span></>:null}{!page.cache.complete?(page.cache.lastSuccessfulRefresh?' · ':'')+'Partial coverage':''}</p>}
     </>}
     {open && state.error && !state.data && <LinkedActivityFallback key={sourceId} sourceId={sourceId} member={id} lang={lang} complete={false} />}
   </section>;
@@ -461,14 +455,13 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   };
   useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){revealSpeech(target);target.querySelector<HTMLButtonElement>('.explorer-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data,enrichedSpeeches,category,categoryOffset]);
   return <section lang={lang}>
-    <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2><TextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" scopeNote="Searches saved speech text for this MEP in the current term. Transcript and language coverage may be incomplete."/></div>
+    <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2><TextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16"/></div>
     <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} filter={{selected:category,href:filterHref,select:selectCategory}}/>
     <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
     <div className="explorer-section-title" lang="en">{filtered?<h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{speechCategories.find(([key])=>key===category)?.[1]} · {filtered.length} loaded</h3>:<span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span>}</div>
-    {filtered&&<p className="intervention-caption" lang="en">Filtered from the contributions loaded for the summary. Source coverage may be incomplete.</p>}
     {!filtered&&state.loading && !state.data && <p role="status" lang="en">Loading saved speeches…</p>}
     {!filtered&&state.error && <ErrorView message={state.error} retry={state.retry} />}
-    {filtered&&!filtered.length?<p className="explorer-notice" lang="en">No matching contributions in the records loaded so far.</p>:!filtered&&state.data && !items.length && <p className="explorer-notice" lang="en">{state.data.cache.complete ? "No indexed plenary contributions were found for this MEP." : "No plenary contributions have been loaded for this MEP yet."}</p>}
+    {filtered&&!filtered.length?<p className="explorer-notice" lang="en">No matching contributions.</p>:!filtered&&state.data && !items.length && <p className="explorer-notice" lang="en">{state.data.cache.complete ? "No plenary contributions." : "No plenary contributions loaded yet."}</p>}
     {!filtered&&initialSpeech && pinned.loading && <p role="status" lang="en">Checking the saved linked speech…</p>}
     {!filtered&&initialSpeech && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
     {!filtered&&initialSpeech && state.data && !pinned.loading && !items.some(item=>item.sourceId===initialSpeech) && <LinkedActivityFallback key={initialSpeech} sourceId={initialSpeech} member={id} lang={lang} complete={state.data.cache.complete} />}
@@ -813,7 +806,7 @@ export default function App() {
                   onOpen={setSpeechLink}
                 />
               ) : tab==='votes' ? (
-                votes.journey.invalid ? <section lang="en" role="alert"><h2>Invalid voting records link</h2><p>The requested voting records are unavailable. Check the period, decision and document in the link.</p></section> :
+                votes.journey.invalid ? <section lang="en" role="alert"><h2>Invalid voting records link</h2><p>These voting records are unavailable.</p></section> :
                   <Suspense fallback={<p className="member-votes-loading" role="status" lang="en">Loading voting records…</p>}>
                     <MemberVotes key={member} memberId={member} memberName={memberName} language={lang} state={votes.journey.state} onStateChange={votes.onStateChange}
                       renderContext={request=><Suspense fallback={<p className="member-votes-loading" role="status" lang="en">Loading document context…</p>}>
@@ -975,7 +968,7 @@ export default function App() {
                 )}
                 {directory.committeeDetails && (!directory.committeeDetails.complete || directory.committeeDetails.error) && (
                   <div className="explorer-index" role="status" lang="en">
-                    {directory.committeeDetails.error || 'Loading committee names. Committee codes remain selectable.'}
+                    {directory.committeeDetails.error || 'Loading committee names…'}
                     {directory.committeeDetails.error && <button onClick={() => {void api("directory?retry=committee-details").catch(() => {}).finally(directoryState.retry);}}>Retry committee details</button>}
                   </div>
                 )}
@@ -984,7 +977,7 @@ export default function App() {
                     {directory.index.error ||
                       `Loading committee memberships: ${directory.index.loaded} / ${directory.index.total}.`}
                     {partialCommittee && (
-                      <p>Showing known matches from loaded profiles; committee results are incomplete.</p>
+                      <p>Partial results.</p>
                     )}
                     {directory.index.error && (
                       <button onClick={directoryState.retry}>
@@ -1025,7 +1018,7 @@ export default function App() {
                         )}
                       </div>
                     ))}
-                    {!filtered.length && <p lang="en">{partialCommittee ? 'No matches in the loaded memberships yet. Other profiles are still unavailable.' : 'No MEPs match these filters.'}</p>}
+                    {!filtered.length && <p lang="en">{partialCommittee ? 'No matches yet.' : 'No MEPs match these filters.'}</p>}
                   </div>
               </>
             )}

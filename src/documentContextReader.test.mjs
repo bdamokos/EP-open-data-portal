@@ -521,7 +521,7 @@ test('non-equivalent amendment original shows annotation fallback while retainin
   text.documentLinks=[{paragraph:1,start:4,end:8,url:'https://example.org/main'}];text.noteAnchors=[{paragraph:2,offset:16,note:'1',label:'1'}];text.notes=[{id:'1',label:'1',text:'Source note.',links:[]}];
   data.amendment.variants[0].originalText='Main provision with changed wording.';
   const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
-  const block=h.container.querySelector('[data-amendment-block]');assert(block.textContent.includes("Footnotes and links are shown in the full document's original"));assert.equal(block.querySelector('sup,a'),null);assert(h.container.querySelector('.legal-notes').textContent.includes('Source note.'));
+  const block=h.container.querySelector('[data-amendment-block]');assert(!block.textContent.includes("Footnotes and links are shown"));assert.equal(block.querySelector('sup,a'),null);assert(h.container.querySelector('.legal-notes').textContent.includes('Source note.'));
 });
 
 

@@ -37,7 +37,7 @@ test('motion cards keep each exact text and its outcome separate, with readable 
     assert.match(original.textContent,/Original motion B10-0441\/2026/);
     assert.match(original.textContent,/replaced by the joint text/);
     assert.match(original.textContent,/not adopted separately/);
-    assert.match(related.textContent,/No authorship is recorded for this MEP/);
+    assert.doesNotMatch(related.textContent,/author of this joint motion/);
     assert.equal(original.querySelector('dl'),null);
     assert.match(related.textContent,/Joint motion RC-B10-0441\/2026/);
     assert.match(related.textContent,/Roll-call vote/);
@@ -59,7 +59,7 @@ test('motion cards keep each exact text and its outcome separate, with readable 
   });
   await t.test('joint authorship is stated only from that joint text, independently of its adoption',()=>{
     const node=render(MotionOutcome,{...props,related:[{...joint,memberAuthorship:'recorded'}]});
-    assert.match(node.querySelector('.explorer-motion-joint-outcome').textContent,/This MEP is also listed as an author/);
+    assert.match(node.querySelector('.explorer-motion-joint-outcome').textContent,/This MEP is also an author of this joint motion/);
     const unknown=render(MotionOutcome,{...props,related:[{...joint,memberAuthorship:undefined}]});
     assert.doesNotMatch(unknown.querySelector('.explorer-motion-joint-outcome').textContent,/This MEP|authorship/);
   });

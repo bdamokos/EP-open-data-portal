@@ -1,5 +1,4 @@
 import {TextLanguagePicker,TextLanguageFallback} from './TextLanguagePicker';
-import {SourceLink} from './SourceLink';
 import {useEffect,useRef,useState} from 'react';
 import {useData} from './data';
 import {Status} from './Status';
@@ -60,11 +59,10 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
   const textBlocks=data?.rows.flatMap(row=>row[readSide]?[row[readSide]!]:[]).sort((a,b)=>a.index-b.index) || [];
   const fullNames=documentNames[stage],readIndex=readSide==='before'?0:1;
   const noDifferences=summary&&summary.changed===0&&summary.added===0&&summary.removed===0&&summary.referenceChanged===0;
-  const stale=data?.sources.some(source=>source.stale || source.refreshError) || data?.documents.some(doc=>doc.stale || doc.refreshError);
 
   const comparisonName=`${labels[0]} to ${labels[1].toLowerCase()} comparison`;
   const status=state.error?`${comparisonName} ${data?'refresh failed. Showing saved comparison.':'could not be loaded.'}`:data?
-    `${comparisonName} ${data.status==='unavailable'?'unavailable.':`available.${data.textLanguage?` Text language: ${data.textLanguage.toUpperCase()}.`:''}${summary?` ${summary.changed} changed, ${summary.removed} only in ${labels[0].toLowerCase()}, ${summary.added} only in ${labels[1].toLowerCase()}.`:' Comparison counts unavailable.'}`}${stale?' Showing saved sources.':''}`:null;
+    `${comparisonName} ${data.status==='unavailable'?'unavailable.':`available.${data.textLanguage?` Text language: ${data.textLanguage.toUpperCase()}.`:''}${summary?` ${summary.changed} changed, ${summary.removed} only in ${labels[0].toLowerCase()}, ${summary.added} only in ${labels[1].toLowerCase()}.`:' Comparison counts unavailable.'}`}`:null;
   const retry=()=>{setAttempt(value=>value+1);state.retry();};
   return <section className="explorer-motion-comparison" lang="en" aria-label="Motion wording comparison">
     <h4>Compare wording</h4>
@@ -81,31 +79,26 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
       {data&&<>
         <TextLanguageFallback requested={selectedLanguage} actual={data.textLanguage} interfaceLanguage={language} comparison/>
         {data.documents.length===2&&<div className="explorer-diff-documents">{data.documents.map((doc,i)=><div key={doc.id}><strong>{labels[i]} · {doc.reference}</strong>{doc.date&&<span lang={language}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(doc.date))}</span>}{doc.sourceUrl&&<a href={doc.sourceUrl} target="_blank" rel="noreferrer">Source DOCX · {doc.language?.toUpperCase()} ↗</a>}</div>)}</div>}
-        {stale&&<p className="explorer-diff-notice">Showing saved sources while Parliament’s data refreshes. Retrieval dates are below.</p>}
         {data.status==='unavailable'?<p className="explorer-diff-notice">{data.reason} <button type="button" onClick={retry}>Try again</button></p>:<>
           <p className="explorer-diff-summary">{summary?.changed ?? '—'} changed · {summary?.removed ?? '—'} only in {labels[0].toLowerCase()} · {summary?.added ?? '—'} only in {labels[1].toLowerCase()}</p>
           <div className="explorer-diff-views" role="group" aria-label="Reading view">{([['inline','Inline changes'],['text','Full text'],['columns','Side by side']] as const).map(([value,label])=><button key={value} type="button" aria-pressed={view===value} onClick={()=>setView(value)}>{label}</button>)}</div>
           {view==='text'?<>
             <label className="explorer-diff-read-control">Read<select value={readSide} onChange={e=>setReadSide(e.target.value as 'before'|'after')}><option value="before">{fullNames[0]}</option><option value="after">{fullNames[1]}</option></select></label>
-            <p className="explorer-diff-explanation">Full extracted {fullNames[readIndex].toLowerCase()} in its own document order, including unchanged passages and notes.</p>
             <div className="explorer-diff-reader" lang={data.textLanguage || ''}>
               <h5 lang="en">{fullNames[readIndex]}{data.documents[readIndex]?` · ${data.documents[readIndex].reference}`:''}</h5>
               {textBlocks.map(block=><div key={block.index} className="explorer-diff-text-passage" data-kind={block.kind}><p className="explorer-diff-reference" lang="en">{reference(block)}</p><p className="explorer-diff-wording">{block.text}</p></div>)}
               {!textBlocks.length&&<p lang="en">No extracted passages are available for this text.</p>}
             </div>
           </>:<>
-            <p className="explorer-diff-explanation">{view==='inline'?`Read in ${fullNames[1].toLowerCase()} order. Unmatched ${fullNames[0].toLowerCase()} passages are also shown; their placement is approximate. `:''}Paragraph alignment is approximate where wording was rewritten, moved or split. Punctuation differences can be editorial.</p>
             <p className="explorer-diff-legend"><span><del>Removed wording</del> · {fullNames[0]}</span><span><ins>Added wording</ins> · {fullNames[1]}</span></p>
             <label className="explorer-diff-checkbox"><input type="checkbox" checked={showUnchanged} onChange={e=>setShowUnchanged(e.target.checked)}/> Show unchanged passages ({summary?.unchanged ?? '—'})</label>
-            {noDifferences&&<p>No wording differences were found in the extracted resolution body and notes.</p>}
+            {noDifferences&&<p>No wording differences.</p>}
             {!rows.length&&!noDifferences&&<p>{summary?'No comparison passages are available for these results.':'No comparison passages are available. Comparison counts are unavailable.'}</p>}
             <div className="explorer-diff-rows" data-view={view} lang={data.textLanguage || ''}>{rows.map((row,i)=><article key={i} className="explorer-diff-row" data-kind={row.kind}>
               {view==='inline'?<InlinePassage row={row} labels={labels}/>:<><p className="explorer-diff-row-label" lang="en">{changeLabel(row,labels)}</p><div className="explorer-diff-columns"><Passage row={row} side="before" name={labels[0]}/><Passage row={row} side="after" name={labels[1]}/></div></>}
             </article>)}</div>
           </>}
-          <p className="explorer-diff-explanation">Cover pages and author lists are excluded. Layout whitespace is normalised; wording, punctuation and footnotes are retained. A text comparison does not identify who negotiated a change.</p>
         </>}
-        <details className="explorer-diff-sources"><summary>Sources & retrieval dates</summary>{data.documents.map(doc=><p key={doc.id}>{doc.reference} · text retrieved {doc.fetchedAt || 'date unavailable'}{doc.translationType!=='original'?' · Translation method unspecified':''}</p>)}{data.sources.map(source=><p key={source.url}><SourceLink url={source.url} language={language}>Official source record ↗</SourceLink> · {source.fetchedAt}</p>)}</details>
       </>}
     </div>
   </section>;

@@ -139,7 +139,7 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
     <div className="document-context-text proposal-context-text" ref={reader} lang={baseline.language}>{!placed&&amendmentBlock(false)}{items.map((item,index)=>{
       const p=item.proposal,notes=p.notes as DocumentNote[],links=p.links as DocumentLink[];
       return <section key={index} data-proposal-item={item.kind+'-'+item.index}><h4 className="proposal-item-heading">{item.kind==='act'?'Proposal':'Annexes'}{item.index>1?' · part '+item.index:''}</h4>
-        {p.gaps.length>0&&<p className="document-context-notice">{p.gaps.some(gap=>gap.code==='excerpted-source')?'This view contains source excerpts.':p.contentComplete===false?'Some source content is unavailable.':'Some source structure could not be read.'}</p>}
+        {p.gaps.length>0&&<p className="document-context-notice">{p.gaps.some(gap=>gap.code==='excerpted-source')?'Excerpt.':p.contentComplete===false?'Some source content is unavailable.':'Some source structure could not be read.'}</p>}
         <ReferenceScope texts={readerTexts(p.paragraphs.map(p=>p.text),notes,links)} notes={notes} notePrefix={prefix+'-'+index} language={language} textLanguage={baseline.language} renderQuestion={question=><InsightQuestionReader id={question} language={language} heading="Referenced question" includeAnswers/>}>
           <ItemText proposal={p} itemIndex={index} placement={effective} block={amendmentBlock} prefix={prefix+'-'+index}/>
         </ReferenceScope>

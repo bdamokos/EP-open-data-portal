@@ -8,7 +8,6 @@ export function OutcomeAlignmentFilter({value,counts,coverage,sitting,onChange}:
     <div className="member-votes-filter member-votes-alignment-controls" role="group" aria-label="Agreement with Parliament’s outcome" aria-describedby={id}>
       {choices.map(([key,label])=><button type="button" key={key} data-vote-alignment={key} aria-pressed={value===key} onClick={()=>onChange(key)}>{label}{key!=='all'&&` (${counts===null?'unavailable':counts[key]})`}</button>)}
     </div>
-    <p id={id} className="member-votes-muted">{counts===null?'Counts unavailable':`Counts ${coverage==='partial'?'among available records ':''}${scope}, before filters and pagination.`}</p>
-    <details><summary>How agreement with Parliament’s outcome is classified</summary><p>With the outcome: recorded For on an adopted decision, or Against on a rejected decision. Against the outcome: recorded For on a rejected decision, or Against on an adopted decision. Abstained: recorded abstention on an adopted or rejected decision.</p><p>Classification requires a conducted ballot and uses Parliament’s official outcome, which may require a special majority. Declared intentions never count. Missing, unavailable or conflicting positions, unheld ballots and other outcomes remain unclassified. This comparison covers the selected week or sitting day; historical political group membership is not collected.</p></details>
+    <p id={id} className="member-votes-muted">{counts===null?'Counts unavailable':`Counts ${scope}${coverage==='partial'?' · Partial coverage':''}`}</p>
   </div>;
 }

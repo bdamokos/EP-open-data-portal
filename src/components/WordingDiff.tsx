@@ -42,7 +42,7 @@ function Comparison({original,proposed,language,emptySemantics,presentation='com
       {presentation!=='context'&&mostlyRewritten&&<p className="wording-diff__note">Mostly rewritten</p>}
       {presentation!=='context'&&<p className="wording-diff__legend"><span>Deleted text: <s>struck through</s></span><span>Inserted text: <u>underlined</u></span></p>}
     </>}
-    {diff?.status==='too-large'&&<p className="wording-diff__note">Wording is too long or too extensively changed to highlight. Showing side by side.</p>}
+    {diff?.status==='too-large'&&<p className="wording-diff__note">Too extensively changed to highlight.</p>}
     {diff?.status==='ok'&&mode==='changes'?<>
       <Passage segments={diff.segments} language={language} renderOriginal={renderOriginal}/>
     </>:<div className="wording-diff__columns">{columns.map(column=><section key={column.side}>
@@ -51,7 +51,6 @@ function Comparison({original,proposed,language,emptySemantics,presentation='com
         column.text===''?<p>{column.empty}</p>:
         <Passage language={language} renderOriginal={column.side==='original'?renderOriginal:undefined} segments={diff?.status==='ok'?diff.segments.filter(segment=>segment.type!==(column.side==='original'?'insert':'delete')):[{type:'equal',text:column.text}]}/>}
     </section>)}</div>}
-    {presentation!=='context'&&diff?.status==='ok'&&<p className="wording-diff__note">Changes highlighted by this explorer by comparing the published original and proposed wording. The official document is authoritative.</p>}
   </div>;
 }
 export function WordingDiff(props:Props) {

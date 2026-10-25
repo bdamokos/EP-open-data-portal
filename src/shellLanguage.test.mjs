@@ -123,24 +123,6 @@ test('motion and contribution shared renderers keep English actions apart from s
   assert.equal(toggle.getAttribute('aria-expanded'),'true');
 });
 
-test('source dialog keeps exact title fallback and raw value languages distinct from English controls',async t=>{
-  const source='https://data.europarl.europa.eu/api/v2/procedures/2025-0407';
-  const h=await harness(t,{respond:()=>({sourceUrl:source,requestUrl:source,fetchedAt:'2026-10-16T12:00:00Z',records:[{title:'English procedure',websiteUrl:null},{title:'Unlabelled title',websiteUrl:null}],payload:{data:[{id:'eli/dl/proc/2025-0407',process_title:{en:'English procedure',fr:'Procédure française'},raw_note:'Unlabelled content'},{label:'Unlabelled title'}]}})});
-  const {SourceLink}=await h.load('/src/SourceLink.tsx');
-  await h.render(createElement(SourceLink,{url:source,language:'hu',contentLanguage:'fr'},'Procédure française'));
-  assert.equal(effectiveLanguage(h.container.querySelector('.source-primary span')),'fr');
-  await h.click(h.container.querySelector('button'));
-  const dialog=document.querySelector('dialog');assert(dialog.open);
-  assert.equal(effectiveLanguage(dialog.querySelector('h2')),'en');
-  assert.equal(effectiveLanguage(dialog.querySelector('h3')),'en');
-  assert.equal(effectiveLanguage(dialog.querySelector('.source-retrieved span')),'hu');
-  const options=dialog.querySelector('.source-record-picker select').options;
-  assert.equal(effectiveLanguage(options[0]),'en');assert.equal(effectiveLanguage(options[1]),'');
-  const raw=[...dialog.querySelectorAll('dt')].find(node=>node.textContent==='Raw note').nextElementSibling.querySelector('span');
-  assert.equal(effectiveLanguage(raw),'');
-  assert.equal(effectiveLanguage(dialog.querySelector('.source-close')),'en');
-});
-
 test('text-search snippets use source language while dates/options use UI locale and unknown titles remain unknown',async t=>{
   const hit={sourceId:'MTG-PL-2026-10-07-OTH-1',sourceKey:'fr',kind:'speech',parentId:null,date:'2026-10-07',language:'fr',translationType:'unspecified',sourceUrl:'https://example.test/source',sha256:'fixture',snippet:'Un passage français',people:[{id:42,name:'Source speaker',role:'SPEAKER'}]};
   const h=await harness(t,{locale:'hu',query:'fixture-search=passage',respond:()=>({total:1,limit:20,offset:0,nextOffset:null,coverage:{complete:false},results:[{sourceId:hit.sourceId,kind:'speech',date:hit.date,title:'Unlabelled source title',hits:[hit]}]})});

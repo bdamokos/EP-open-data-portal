@@ -57,35 +57,6 @@ test('an out-of-range amendment URL offers first-page recovery while preserving 
   assert.equal(Number(request.searchParams.get('offset')||0),0);
 });
 
-test('a shrinking parser-failure registry keeps its remaining records distinct from an empty page',async t=>{
-  const failures=Array.from({length:10},(_,index)=>({requestId:'request-'+index,partId:'component-'+index,description:'Recorded failure '+index,language:'en',code:'unsupported_syntax'}));
-  const calls=[];
-  const {window,container}=await mount(t,{
-    props:{document:'A-10-2026-0254'},
-    fetch:async url=>{
-      if(url.pathname.endsWith('/amendments/failures')){
-        calls.push(url);
-        return Response.json(url.searchParams.get('offset')==='10'?{items:[],total:3,offset:10,limit:10}:{items:failures,total:12,offset:0,limit:10});
-      }
-      assert(url.pathname.endsWith('/amendments'));
-      return Response.json({...page([amendment]),failures:{total:12,unresolved:12}});
-    },
-  });
-  const details=container.querySelector('.explorer-amendment-failures');
-  await act(async()=>{details.open=true;details.dispatchEvent(new window.Event('toggle'));});
-  assert.equal(details.querySelectorAll('.explorer-amendment-failure-list>li').length,10);
-  await act(async()=>button(details.querySelector('nav[aria-label="Parser failure pages"]'),'Next').click());
-  const pagination=details.querySelector('nav[aria-label="Parser failure pages"]');
-  assert.match(pagination.textContent,/0 shown of 3/);
-  assert.doesNotMatch(pagination.textContent,/11\s*[–-]\s*3/);
-  assert.doesNotMatch(details.textContent,/No parser failures recorded/i,'three remaining records cannot be presented as an empty registry');
-  const recover=button(pagination,'Go to first page');assert(recover);
-  await act(async()=>recover.click());
-  assert.match(details.textContent,/Recorded failure 0/);
-  assert.equal(button(details.querySelector('nav[aria-label="Parser failure pages"]'),'Previous').disabled,true);
-  assert(calls.some(url=>url.searchParams.get('offset')==='10'));
-});
-
 test('Clear filters is available for an outcome-only URL and removes its outcome selection',async t=>{
   const calls=[];
   const {window,container}=await mount(t,{
@@ -107,13 +78,14 @@ test('Clear filters is available for an outcome-only URL and removes its outcome
 
 test('zero indexed results with partial coverage explicitly retain the incomplete-coverage qualification',async t=>{
   const {container}=await mount(t,{
-    props:{document:'A-10-2026-0254',showFailures:false},
+    props:{document:'A-10-2026-0254'},
     fetch:async url=>{
       assert(url.pathname.endsWith('/amendments'));
       return Response.json(page([]));
     },
   });
   assert.equal(container.querySelectorAll('.explorer-amendment-card').length,0);
-  assert.match(container.querySelector('.explorer-amendment-empty').textContent,/incomplete.{0,30}coverage|coverage.{0,30}incomplete|partial coverage/i);
+  assert.match(container.querySelector('.explorer-amendment-coverage').textContent,/partial coverage/i);
+  assert.equal(container.querySelector('.explorer-amendment-empty').textContent,'No matching amendments.');
   assert.match(container.querySelector('nav[aria-label="Amendment pages"]').textContent,/0 amendments/);
 });

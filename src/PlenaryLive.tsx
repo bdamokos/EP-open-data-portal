@@ -89,5 +89,5 @@ export function PlenaryLiveBanner({language='en'}:{language?:string}) {
 
 export function ScheduledNow({id}:{id:string}) {
   const {data,fresh}=usePlenaryLive();
-  return fresh&&data?.agenda.state==='presumed'&&data.agenda.items[0]?.id===id?<span className="plenary-scheduled-now" title="Based on Parliament’s published timetable; the debate may run earlier or later.">Scheduled now</span>:null;
+  return fresh&&data?.agenda.state==='presumed'&&data.agenda.items[0]?.id===id?<span className="plenary-scheduled-now" title="Per the published timetable.">Scheduled now</span>:null;
 }

@@ -46,7 +46,7 @@ test('participation announces only settled filters and keeps focus while qualify
   await act(async()=>response.resolve({window:{start:'2026-10-20',end:'2026-10-20'},series:[],topics:[{id:'exact-agenda-id',title:'Fixture agenda',date:'2026-10-20',sittingId:'MTG-PL-2026-10-20',upcoming:true,speakers:null,voters:null,amendmentVotes:null,rollCalls:0}],coverage:{topicsWithSpeechLinks:0,topics:1,gaps:[{kind:'unavailable',sitting:'MTG-PL-2026-10-20'}]}}));
   await h.tick(349);assert.equal(status.textContent,'','results stay silent before the debounce deadline');
   await h.tick(1);
-  assert.match(status.textContent,/1 agenda item/);assert.match(status.textContent,/has not taken place; activity is unavailable/);assert.match(status.textContent,/Partial coverage/);
+  assert.match(status.textContent,/1 agenda item/);assert.match(status.textContent,/This period has not taken place\./);assert.match(status.textContent,/Partial coverage/);
   assert.equal(document.activeElement,search);assert.equal(status.lang,'en');
   h.messages.length=0;
   await h.navigate('?hot-period=sitting%3AMTG-PL-2026-10-20&hot-search=absent');

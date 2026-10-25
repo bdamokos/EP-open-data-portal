@@ -117,7 +117,7 @@ test('summary links filter all loaded records, paginate, preserve the reader cat
 test('a shared summary category restores directly and unknown counts remain unavailable',async t=>{
   const summary={memberId:String(member.id),items:[],counts:{groupOrations:null,blueQuestions:null,blueAnswers:null,blueReactions:null},groups:[],coverage:{complete:false,available:0,total:null,unclassified:0,issues:['retained-corpus']},nextPage:null,sources:[]};
   const h=await harness(t,{module:'speeches',items:[speechItem],summary,category:'blueAnswers'});
-  assert.match(h.container.textContent,/No matching contributions in the records loaded so far/);
+  assert.match(h.container.textContent,/No matching contributions\./);
   assert.equal(h.container.querySelectorAll('.intervention-stats-grid a').length,1,'only the known total has a filter link');
   assert.equal(h.container.querySelectorAll('article.explorer-speech').length,0);
   await act(async()=>{const url=new URL(location.href);url.searchParams.set('mep-speech-category','written');history.replaceState(null,'',url);window.dispatchEvent(new h.window.PopStateEvent('popstate'));});
@@ -152,7 +152,7 @@ test('selected written question keeps full text and downloads while announcing s
   const language=refreshed.querySelector('select[aria-label="Text language"]');
   await act(async()=>{language.value='fr';language.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
   await h.finish(`document/${questionId}?member=${member.id}&lang=fr`,documentResult('fr',false));await h.wait();
-  assert.equal(status(refreshed).textContent,'Question: Text unavailable.');assert.match(refreshed.textContent,/Text unavailable\. Download the document below\./);assertDownloads(refreshed,'fr');
+  assert.equal(status(refreshed).textContent,'Question: Text unavailable.');assert.match(refreshed.textContent,/Text unavailable\./);assertDownloads(refreshed,'fr');
   assert.equal(document.activeElement,toggle,'reader outcomes must not move focus from the activity control');
 });
 
@@ -251,11 +251,11 @@ test('complete retained speech metadata renders without a foreground speech-deta
 test('an explicitly checked linked activity keeps its nested document outside the fallback announcement',async t=>{
   const h=await harness(t,{items:[],activity:questionId}),fallback=h.container.querySelector('aside.explorer-notice');assert(fallback);
   assert.equal(h.pending.length,0,'a linked source is checked only after the explicit action');
-  await h.click([...fallback.querySelectorAll('button')].find(button=>button.textContent==='Check this source with Parliament'));
+  await h.click([...fallback.querySelectorAll('button')].find(button=>button.textContent==='Look it up'));
   await h.finish(`document/${questionId}?member=${member.id}&lang=en`,documentResult());await h.wait();
   const reader=fallback.querySelector('.explorer-document-text');assert(reader);assertOrdinaryText(reader);assertDownloads(reader);
   const fallbackStatus=[...fallback.children].find(node=>node.matches('[role="status"]'));
-  assert.equal(fallbackStatus.textContent,'Linked source available.');assert.equal(status(reader).textContent,'Question: Text loaded.');
+  assert.equal(fallbackStatus.textContent,'Linked item loaded.');assert.equal(status(reader).textContent,'Question: Text loaded.');
   assert.equal(h.pending.length,1,'the nested reader reuses the completed exact-source request');
 });
 

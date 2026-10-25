@@ -44,7 +44,7 @@ test('amendment-list dates remain visible without substituting unknown individua
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  await act(async()=>root.render(createElement(Amendments,{document:'A-10-2026-0254',showFailures:false})));
+  await act(async()=>root.render(createElement(Amendments,{document:'A-10-2026-0254'})));
   const cards=[...container.querySelectorAll('.explorer-amendment-card')];
   assert.match(cards[0].textContent,/Amendment-list document date Feb 2, 2026/);
   assert.doesNotMatch(cards[0].textContent,/Amendment document date Feb 2/);
@@ -63,5 +63,4 @@ test('amendment-list dates remain visible without substituting unknown individua
   assert.doesNotMatch(cards[6].textContent,/Oct 7, 2026/);
   assert.doesNotMatch(cards[7].textContent,/Aug 8, 2026/,'a decision-only row never borrows its target report date as an amendment date');
   assert.match(cards[7].textContent,/Decision date Oct 7, 2026/);
-  assert.match(cards[7].textContent,/Document date Sep 9, 2026/,'legacy dated source evidence remains available separately');
 });

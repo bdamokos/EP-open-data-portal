@@ -100,7 +100,7 @@ const assertTitles=(host,language)=>{
 test('outside directory keeps English UI, locale months and exact aggregate roles separate in EN/HU/FR',async t=>{
   for(const language of ['en','hu','fr'])await t.test(language,async t=>{
     const h=await harness(t,language),q=selector=>h.container.querySelector(selector);
-    for(const selector of ['.ov-filters label','.ov-filters input','.ov-filters option','.ov-groups button','.ov-results','.ov-legend','.ov-group-title','.ov-person-count','.ov-axis>span','.ov-sources summary','.ov>[role="status"]'])expectLanguage(q(selector),'en');
+    for(const selector of ['.ov-filters label','.ov-filters input','.ov-filters option','.ov-groups button','.ov-results','.ov-legend','.ov-group-title','.ov-person-count','.ov-axis>span','.ov-sources','.ov>[role="status"]'])expectLanguage(q(selector),'en');
     for(const node of h.container.querySelectorAll('.ov-axis>div span'))expectLanguage(node,language);
     for(const node of h.container.querySelectorAll('.ov-person-name button'))expectLanguage(node,'');
     assert.deepEqual([...h.container.querySelectorAll('.ov-person-name small')].map(effective),['fr','','mul','und','']);
@@ -109,7 +109,7 @@ test('outside directory keeps English UI, locale months and exact aggregate role
     const formatted=new Intl.DateTimeFormat(language==='en'?'en-GB':language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(day+'T12:00:00Z'));
     assert.equal(mark.getAttribute('aria-label'),`Source speaker, ${formatted}: 7 agenda items`,'mixed attributes retain the existing exact copy pending arbitration');
     assert.equal(mark.title,formatted);
-    const updated=q('.ov-sources p span');expectLanguage(updated,new Intl.DateTimeFormat().resolvedOptions().locale);
+    const updated=q('.ov-sources span');expectLanguage(updated,new Intl.DateTimeFormat().resolvedOptions().locale);
     assert.equal(updated.textContent,new Date(source.fetchedAt).toLocaleDateString(),'the existing browser-default date stays intact');
     assert(h.calls.every(url=>url.searchParams.get('lang')===language));
   });
@@ -143,9 +143,8 @@ test('speaker titles retain source fallback keys and per-title boundaries throug
     assert.deepEqual(contributionRoles.map(effective),['fr','','mul','und','','','FR-ca']);
     for(const conflict of appearance.querySelectorAll('.ov-conflict'))expectLanguage(conflict,'en');
     for(const node of appearance.querySelectorAll('.ov-day>h2,.ov-contribution-head>strong,.ov-co-speakers small'))expectLanguage(node,language);
-    for(const node of appearance.querySelectorAll('.ov-contribution-head button,.ov-evidence summary,.ov-links a,.ov-co-speakers h4'))expectLanguage(node,'en');
+    for(const node of appearance.querySelectorAll('.ov-contribution-head button,.ov-links a,.ov-co-speakers h4'))expectLanguage(node,'en');
     assert.deepEqual([...appearance.querySelectorAll('.ov-co-speakers button>span')].map(effective),['','en']);
-    assert.equal(appearance.querySelectorAll('.ov-evidence dl')[4].querySelectorAll('dd')[3].textContent,'en-t-hu-mtec','the exact transformed source tag remains available as evidence');
     await h.click('Subjects & dossiers');
     for(const node of h.container.querySelectorAll('.ov-dossier-group>h3,.ov-pending'))expectLanguage(node,'en');
     const dossierTitles=[...h.container.querySelectorAll('.ov-dossier strong')];

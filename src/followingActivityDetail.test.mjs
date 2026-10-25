@@ -92,7 +92,7 @@ test('inline documents retain co-author and download details',async t=>{
 
 test('an unmatched title or ordinary page item never replaces the exact selected source; profile links preserve modified clicks',async t=>{
   const h=await harness(t,{selected:[activity('different-id')],items:[activity(questionId)]});
-  assert.match(h.container.textContent,/This item has not been indexed for this MEP yet/);
+  assert.match(h.container.textContent,/Not indexed yet\./);
   assert.doesNotMatch(h.container.textContent,/Exact question body/);
   const link=[...h.container.querySelectorAll('a')].find(node=>node.textContent==='Open in profile');assert(link);
   assert.equal(new URL(link.href).searchParams.get('activity'),questionId);
@@ -111,7 +111,7 @@ test('loading, complete-index fallback and encoded exact source IDs stay explici
   assert.match(h.container.textContent,/Checking the saved linked activity/);
   assert.equal(h.requests[0].searchParams.get('source-id'),sourceId);assert.equal(h.requests[0].searchParams.get('limit'),'1');
   await h.finish(page([],[],true));
-  assert.match(h.container.textContent,/outside this MEP’s saved activity index/);
+  assert.match(h.container.textContent,/Not in this MEP’s activity\./);
   assert.match(h.container.textContent,/Open in profile/);
 });
 
