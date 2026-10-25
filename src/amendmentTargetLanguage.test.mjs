@@ -77,7 +77,7 @@ for(const locale of ['en','hu','fr'])test(`${locale}: target labels and topics k
   async function assertPaths(refreshed) {
     const items=fixtures(refreshed),normal=items.filter(item=>!item.conflicted);
     for(const item of normal){
-      const leaf=card(item.id).querySelector(':scope>.explorer-amendment-target');
+      const leaf=card(item.id).querySelector('.explorer-amendment-target');
       assert.equal(leaf.textContent,item.targetLabel);
       assert.equal(leaf.getAttribute('lang'),item.targetLabelLanguage??'','card labels never borrow metadata, wording, source or selected UI language');
       assertSource(card(item.id).querySelector('.explorer-amendment-evidence'),item.targetLabelSource);
@@ -105,7 +105,7 @@ for(const locale of ['en','hu','fr'])test(`${locale}: target labels and topics k
     for(const control of container.querySelectorAll('button,select,.explorer-amendment-evidence summary'))assert.equal(effectiveLanguage(control),'en');
     for(const date of container.querySelectorAll('time'))assert.equal(effectiveLanguage(date),locale);
     assert.equal(card('retained').querySelector('.wording-diff__passage').getAttribute('lang'),'fr','target-label language does not change refreshed wording');
-    assert.equal(card('retained').querySelector(':scope>.explorer-amendment-meta time').textContent,fmt('2026-10-16',locale));
+    assert.equal(card('retained').querySelector('.explorer-amendment-evidence>.explorer-amendment-meta time').textContent,fmt('2026-10-16',locale));
     assert.match(card('decision-fallback').textContent,/Exact decision source page unavailable/);
     assert.equal([...container.querySelectorAll('a')].some(link=>link.href===candidate.url),false,'a candidate decision page never becomes exact target-label evidence');
   }

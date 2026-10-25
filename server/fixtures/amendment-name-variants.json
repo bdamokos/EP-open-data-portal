@@ -1,0 +1,37 @@
+{
+  "description": "Published byline of the same exact amendment in Bulgarian and German. Wording omitted.",
+  "sources": [
+    {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0237-AM-005-014/A-10-2026-0237-AM-005-014_bg.docx",
+      "fetchedAt": "2026-10-25T08:27:34.264Z",
+      "language": "bg",
+      "amendment": {
+        "listId": "A-10-2026-0237-AM-005-014",
+        "targetDocumentId": "A-10-2026-0237",
+        "number": 5,
+        "authors": [
+          "Данило Дела Вале"
+        ],
+        "date": "2026-09-30",
+        "documentDate": "2026-09-30",
+        "dateBasis": "individual-amendment-document"
+      }
+    },
+    {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0237-AM-005-014/A-10-2026-0237-AM-005-014_de.docx",
+      "fetchedAt": "2026-10-25T08:22:34.755Z",
+      "language": "de",
+      "amendment": {
+        "listId": "A-10-2026-0237-AM-005-014",
+        "targetDocumentId": "A-10-2026-0237",
+        "number": 5,
+        "authors": [
+          "Danilo Della Valle"
+        ],
+        "date": "2026-09-30",
+        "documentDate": "2026-09-30",
+        "dateBasis": "individual-amendment-document"
+      }
+    }
+  ]
+}
