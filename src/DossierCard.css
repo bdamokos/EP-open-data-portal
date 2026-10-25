@@ -1,0 +1,12 @@
+.dossier-follow-title { margin: 0; overflow-wrap: anywhere; }
+.dossier-follow-meta { margin: 4px 0 8px; }
+.dossier-follow-card .explorer-saved-actions { align-items: center; flex-wrap: wrap; }
+.dossier-follow-card .explorer-saved-actions a { color: var(--accent); }
+.dossier-update-disclosure { width: 100%; text-align: left; background: transparent; border: 0; color: inherit; font: inherit; }
+.dossier-update-disclosure small { display: block; }
+.dossier-follow-gap { color: var(--ink-muted); }
+
+@media (max-width: 600px) {
+  .dossier-follow-title:not([data-expanded]) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+  .dossier-follow-card .explorer-saved-actions a { flex-basis: 100%; }
+}

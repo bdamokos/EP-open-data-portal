@@ -6,6 +6,7 @@ export const slow = [
   {file: 'server/text-cache.test.mjs', reason: 'Spawns Node to check retained text cache restarts.'},
   {file: 'server/directory-cache.test.mjs', reason: 'Spawns Node to check directory cache persistence.'},
   {file: 'server/public-serving.test.mjs', reason: 'Spawns Node to stage and inspect the production runtime.'},
+  {file: 'server/startup-indexes.test.mjs', reason: 'Spawns Node to check preparation before HTTP startup and active-writer refusal.'},
   {file: 'server/odp-cache.test.mjs', reason: 'Spawns Node to check cache publication and restart isolation.'},
   {file: 'server/static-cache.test.mjs', reason: 'Spawns Node to build the static asset fixture.'},
   {file: 'server/speaker-identity.test.mjs', reason: 'Spawns Node to check retained speaker identity.'},

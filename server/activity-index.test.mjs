@@ -350,3 +350,18 @@ test('title projection upgrade queues only legacy procedures, preserves cursors 
     assert.equal(s.db.prepare("SELECT json_type(body,'$.process_title') type FROM sources WHERE generation=? AND key=?").get(generation,key).type,'null');
   } finally {s.close();rmSync(dir,{recursive:true,force:true});}
 });
+
+test('procedure type upgrade refreshes an older titled projection under the existing worker budget',async()=>{
+  const directory=temp(),store=new ActivityStore(directory,{clock:instant});
+  try {
+    store.acquire();const {generation}=store.beginCycle(),key='/procedures/2025-0233';
+    store.updateCycle({initialized:true,reportJoinsReady:true,procedureTitlesQueued:true});
+    const older=projectProcedure({...procedure,process_title:{en:'Existing title'}});delete older.process_type;
+    store.putSource(generation,key,'procedure',older,fetchedAt);store.enqueue(generation,key,'procedure',{endpoint:key},103);store.finishTask({generation,key});store.release();
+    let requests=0;
+    const worker=new ActivityWorker(store,{clock:instant,budget:0,fetchRecord:async endpoint=>{requests++;assert.equal(endpoint,key);return {payload:{data:[{...procedure,process_title:{en:'Existing title'},process_type:'def/COD'}]},fetchedAt};}});
+    await worker.run();assert.equal(requests,0);assert.equal(store.get('working').procedureTypesQueued,true);
+    const task=store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,key);assert.equal(task.done,0);assert.equal(task.priority,104);
+    store.acquire();await worker.task({...task,body:JSON.parse(task.body)});assert.equal(requests,1);assert.equal(store.source(generation,key).work.process_type,'def/COD');
+  }finally{store.close();rmSync(directory,{recursive:true,force:true});}
+});

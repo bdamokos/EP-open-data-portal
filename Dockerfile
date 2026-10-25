@@ -33,6 +33,6 @@ COPY THIRD_PARTY_NOTICES.md ./
 RUN mkdir -p /data/cache /data/index && chown -R node:node /data
 USER node
 EXPOSE 8790
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60m \
   CMD node -e "fetch('http://127.0.0.1:8790/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 CMD ["node","server/index.mjs"]

@@ -28,7 +28,11 @@ export function dossierVoteCards(amendments,votes) {
       else {rendered.add(vote.id);own.push(vote);}
     }
     const unloaded=!amendment.amendment.conflicted&&(amendment.amendment.decisions||[]).some(decision=>!votes.some(vote=>matchesDecision(decision,vote)));
-    cards.set(amendment.id,{votes:own,shared,unloaded});
+    // A component ballot cannot stand in for the amendment's overall result.
+    const item=amendment.amendment,bound=[...own,...shared];
+    const whole=!item.splitParts?.length&&!item.splitCoverage?.length&&item.splitCoverageComplete!==false&&(item.decisions||[]).some(decision=>
+      !decision.partId&&decision.partNumber==null&&!decision.componentBinding&&!decision.componentReferences?.length&&bound.some(vote=>decision.id===vote.vote.id));
+    cards.set(amendment.id,{votes:own,shared,unloaded,showOutcome:!whole});
   }
   return cards;
 }

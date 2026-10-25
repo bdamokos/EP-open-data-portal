@@ -27,12 +27,14 @@ test('dossier summary loading and failure do not expose the unfinished amendment
   const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  await act(async()=>root.render(createElement(ProcedureContext,{reference:'2025/0407(COD)',language:'en'})));
+  await act(async()=>root.render(createElement(ProcedureContext,{reference:'2025/0407(COD)',language:'en',showTitle:true})));
   const amendmentLinks=()=>[...container.querySelectorAll('a')].filter(link=>link.textContent.includes('Amendments for this dossier'));
   assert.equal(amendmentLinks().length,0);
   assert.match(container.textContent,/Loading summary/);
+  assert.equal(container.querySelector('.explorer-save-button'),null,'the follow target waits until the title settles');
   await act(async()=>respond(Response.json({error:{message:'Summary service unavailable.'}},{status:503})));
   assert.equal(amendmentLinks().length,0,'a failed summary must not expose the unfinished catalogue');
   assert.match(container.textContent,/Read on Legislative Observatory/);
   assert.doesNotMatch(container.textContent,/Loading summary/);
+  assert.equal(container.querySelector('.explorer-save-button').getAttribute('aria-label'),'Follow dossier 2025/0407(COD)','source failure keeps following available');
 });

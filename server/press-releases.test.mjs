@@ -196,7 +196,7 @@ test('press writes are fenced by the activity-index lease and readers never crea
   const dir=temp();let now=Date.parse('2026-10-20T12:00:00Z');
   const activity=new ActivityStore(dir,{clock:()=>now}),press=new PressStore(dir);let other;
   try {
-    assert.equal(press.get('follow'),null);assert.deepEqual(press.mentions('2026/0196(BUD)'),{items:[],total:0});assert.equal(press.due(now,6).length,0);
+    assert.equal(press.get('follow'),null);assert.deepEqual(press.mentions('2026/0196(BUD)'),{items:[],total:0,watermark:null});assert.equal(press.due(now,6).length,0);
     assert.equal(existsSync(press.filename),false,'reads create nothing');
     assert(activity.acquire());
     other=new ActivityStore(dir,{clock:()=>now});other.db.exec('PRAGMA busy_timeout=0');
@@ -280,4 +280,36 @@ test('stale procedure files stay visible and uncached, and totals are exact',asy
     const request={method:'GET',headers:{}},route=new URL('https://example.test/api/insights/press-releases?reference=2026%2F0196(BUD)&lang=en');
     assert.equal(apiCachePolicy(request,route,result).cdnCacheControl,'no-store','a stale procedure file is not cached as a healthy answer');
   } finally {store.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('follow mode returns more than five identities with durable first-link marks and preserves unavailable OEIL state',async()=>{
+  const dir=temp(),store=new PressStore(dir),now=Date.parse('2026-10-23T10:00:00Z');
+  try {
+    store.initialize();store.set('follow',{since:'2026-10-20T12:00:00Z',feeds:{}});
+    for(let i=0;i<8;i++) {
+      const id='20261023IPR'+String(i).padStart(5,'0'),body={id,url:pressReleaseUrl(id),title:'Release '+i,publishedAt:'2020-01-01T00:00:00Z',listed:true};
+      store.discover(body,{feed:'press-releases',now});store.record(id,body,{now,links:[{kind:'procedure',value:'2026/0211(COD)'}]});
+    }
+    const service=new PressMentions(store,official),query=pressMentionsQuery(new URLSearchParams({reference:'2026/0211(COD)',following:'1'})),result=await service.query(query);
+    assert.equal(result.items.length,8);assert.equal(new Set(result.items.map(item=>item.linkedAt)).size,8,'same-clock writes are ordered');
+    assert(result.items.every(item=>item.linkedAt<=result.watermark));assert.equal(result.dossier.summaries[0].id,'1910288');
+    const first=store.release(result.items[0].id);store.record(first.id,first.body,{now:now+1000,links:[{kind:'procedure',value:'2026/0211(COD)'}]});
+    assert.equal(store.release(first.id).linked_at,first.linked_at,'a refresh does not reannounce a release');
+    const failure=await new PressMentions(store,{get(){throw Error('OEIL unavailable');}}).query(query);assert.equal(failure.dossier,null);assert.equal(failure.coverage.procedureLinks.status,'unavailable');
+    assert.equal((await service.query({reference:query.reference,language:'en'})).items.length,5,'reader preview stays bounded');
+  }finally{store.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('press matches and watermark are read from one snapshot while a separate writer publishes',async()=>{
+  const dir=temp(),reader=new PressStore(dir),writer=new PressStore(dir),reference='2026/0211(COD)',now=100;
+  const put=(store,n)=>{const id='20261023IPR'+String(n).padStart(5,'0'),body={id,url:pressReleaseUrl(id),title:'Release '+n,publishedAt:'2026-10-23T10:00:00Z'};store.transaction(()=>{store.discover(body,{feed:'press-releases',now});store.record(id,body,{now,links:[{kind:'procedure',value:reference,label:null}]});});};
+  try {
+    reader.initialize();reader.set('follow',{since:'2026-10-23',feeds:{}});put(reader,1);writer.initialize();
+    const get=reader.get.bind(reader);let published=false;
+    reader.get=key=>{const result=get(key);if(key==='linkedMark'&&!published){published=true;put(writer,2);}return result;};
+    reader.db.exec('PRAGMA query_only=ON');
+    const result=await new PressMentions(reader,official).query({reference,language:'en',following:true});
+    assert.equal(result.watermark,100);assert.equal(result.items.length,1);assert.equal(result.total,1);
+    assert.equal(writer.get('linkedMark'),101);assert.equal(reader.db.isTransaction,false);
+  }finally{reader.db.exec('PRAGMA query_only=OFF');reader.close();writer.close();rmSync(dir,{recursive:true,force:true});}
 });

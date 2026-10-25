@@ -6,6 +6,17 @@ import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 const parse=value=>JSON.parse(value);
+export const amendmentLinkIndexVersion=1;
+const amendmentLinkInvalidationWhere="json_type(body,'$.amendmentLinksVersion') IS NOT NULL AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')";
+export function amendmentLinkIndexes(db) {
+  db.exec('CREATE INDEX IF NOT EXISTS amendment_link_invalidation ON sources(generation,key) WHERE '+amendmentLinkInvalidationWhere);
+}
+export function invalidateAmendmentLinks(store,generation) {
+  store.assertWriter();
+  // Repeated overflow must seek only remaining markers, including any restored
+  // by a source refresh, rather than reparsing every retained source body.
+  return store.db.prepare("UPDATE sources INDEXED BY amendment_link_invalidation SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND "+amendmentLinkInvalidationWhere).run(generation);
+}
 const wordingUpgradeGap='Amendment wording is unverified until the current document parser refreshes its source.';
 const proposerDateGap='The amendment proposer date is unavailable; author identities cannot be checked against a mandate.';
 const sourceFreshnessGap='Some amendment wording source distributions are pending, unverified or failed; retained wording is labelled.';
@@ -400,7 +411,7 @@ export function enqueueAmendment(store,generation,key,kind,body,priority=105,ref
           saveCheckpoint({...saved,capacityGap});
           // An unchanged JSON UPDATE still fires every source projection trigger.
           // Saturation can recur after each job; only invalidate present markers.
-          store.db.prepare("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND json_type(body,'$.amendmentLinksVersion') IS NOT NULL AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')").run(generation);
+          invalidateAmendmentLinks(store,generation);
           return false;
         }
       }
