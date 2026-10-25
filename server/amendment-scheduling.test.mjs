@@ -136,3 +136,26 @@ test('checkpoint-only CPU work coalesces revisions, wakes due and survives legac
   assert.equal(row(store,4,sittingKey).done,1);for(const targetId of ids)assert.equal(outcome(store,4,targetId),'REJECTED');
   assert.equal(amendmentsPage(store,{}).coverage.pending,false);assert.deepEqual(store.page('1').items,accepted);assert.equal(store.get('lastSuccess'),lastSuccess);assert.equal(store.get('working'),null);assert.equal(store.get('sequence'),4);assert.equal(worker.requests,0);
 });
+
+test('parser recovery keysets lists independently of report upgrades and resumes after queue saturation',async t=>{
+  const {prepareAmendmentParserUpgrade}=await import('./amendments-worker.mjs');
+  const {AMENDMENT_DISTRIBUTION_PROOF_VERSION}=await import('./amendments.mjs');
+  const {store,worker,generation}=setup(t),ids=Array.from({length:13},(_,index)=>id(index)),key='amendment:parser-upgrade:'+(await import('./amendment-documents.mjs')).AMENDMENT_EXTRACTION_VERSION;
+  for(const targetId of ids) {
+    const listId=targetId+'-AM-001-001';
+    store.putSource(generation,'amendment:list:'+listId,'amendment-list',{id:'eli/dl/doc/'+listId,identifier:listId,targetDocumentId:targetId,extraction:{parserVersion:'10'},distributionEvidence:{version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:'available',descriptors:[{url:'https://data.europarl.europa.eu/distribution/test/'+listId+'.docx',language:'en',byteSize:null}]}},stamp);
+  }
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(task(store,generation,key));
+  assert.equal(row(store,generation,key).done,0);assert.equal(store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE kind='amendment-extract'").get().n,10);
+  const cursor=JSON.parse(row(store,generation,key).body);
+  worker.stopped=true;await worker.task(task(store,generation,key));assert.deepEqual(JSON.parse(row(store,generation,key).body),cursor);worker.stopped=false;
+  // Saturate both admission slots and the durable continuation reserve.
+  for(let i=store.db.prepare('SELECT COUNT(*) n FROM amendment_jobs').get().n;i<200;i++)enqueueAmendment(store,generation,'blocked:'+i,'amendment-reparse',{},100);
+  store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:Array.from({length:200},(_,i)=>({key:'reserve:'+i}))},stamp);
+  await worker.task(task(store,generation,key));assert.deepEqual(JSON.parse(row(store,generation,key).body),cursor,'An unadmitted list must not be skipped.');
+  store.db.prepare("DELETE FROM amendment_jobs WHERE key LIKE 'blocked:%'").run();store.db.prepare("DELETE FROM sources WHERE key='amendment:continuations'").run();
+  store.publish(generation);const next=store.beginCycle();
+  assert.deepEqual(JSON.parse(row(store,next.generation,key).body),cursor);
+  await worker.task(task(store,next.generation,key));assert.equal(row(store,next.generation,key).done,1);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND kind='amendment-extract'").get(next.generation).n,13);assert.equal(worker.requests,0);
+});

@@ -11,6 +11,7 @@ import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUT
 import { recordSplitResults, saveAmendmentRows, enqueueAmendment } from './amendments-store.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 import { runAmendmentWorkSlice } from './amendment-work-slices.mjs';
+import {retainedAmendmentSource,retainAmendmentSource} from './amendment-source-cache.mjs';
 import { userAgent } from './user-agent.mjs';
 import {upstreamResponseError} from './odp.mjs';
 const DAY=86400000;
@@ -218,6 +219,43 @@ export function scheduleAmendments(worker,generation,work,fetchedAt,endpoint) {
 }
 const preparationMarkers=worker=>({amendmentsPreparedVersion:AMENDMENTS_VERSION,amendmentsPreparedDay:utcDay(worker),splitParserVersion:SPLIT_PARSER_VERSION,amendmentDocumentParserVersion:AMENDMENT_EXTRACTION_VERSION,amendmentDocumentLinksVersion:AMENDMENT_LINKS_VERSION,amendmentSittingProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION,amendmentDistributionProofVersion:AMENDMENT_DISTRIBUTION_PROOF_VERSION,amendmentAuthorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION});
 const preparationKinds={documents:'document',gaps:'amendment-gap',splits:'motion-outcomes'};
+const parserUpgradeKey='amendment:parser-upgrade';
+export function amendmentParserUpgradeDue(store,generation) {
+  const marker=store.source(generation,parserUpgradeKey)?.work;
+  if(marker?.parserVersion===AMENDMENT_EXTRACTION_VERSION&&(!marker.retryAt||marker.retryAt>store.clock()))return false;
+  return Boolean(store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='amendment-list' AND json_type(body,'$.extraction')='object' AND COALESCE(json_extract(body,'$.extraction.parserVersion'),'')<>? LIMIT 1").get(generation,AMENDMENT_EXTRACTION_VERSION));
+}
+export function prepareAmendmentParserUpgrade(worker,generation) {
+  if(!amendmentParserUpgradeDue(worker.store,generation))return;
+  const throughKey=worker.store.db.prepare("SELECT MAX(key) AS key FROM sources WHERE generation=? AND kind='amendment-list'").get(generation)?.key || '';
+  enqueueAmendment(worker.store,generation,parserUpgradeKey+':'+AMENDMENT_EXTRACTION_VERSION,'amendment-parser-upgrade',{afterKey:'',throughKey},110,true);
+}
+async function runParserUpgradeSlice(worker,task) {
+  const {store}=worker,{generation}=task;
+  const complete=await runAmendmentWorkSlice(worker,task,{
+    select:body=>store.db.prepare("SELECT key,body FROM sources WHERE generation=? AND kind='amendment-list' AND key>? AND key<=? ORDER BY key LIMIT 1").get(generation,body.afterKey,body.throughKey),
+    action:(source,body)=>{
+      const list=JSON.parse(source.body),listId=idOf(list),targetDocumentId=list.targetDocumentId;
+      if(!list.extraction||list.extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION||!amendmentTarget(targetDocumentId))return;
+      const freshness=listWordingFreshness(list,{parserVersion:AMENDMENT_EXTRACTION_VERSION});
+      if(freshness.status==='failed'&&Date.parse(freshness.retryAfter)>worker.clock()) {
+        store.taskProgress(task,{...body,retryAt:Math.min(body.retryAt || Infinity,Date.parse(freshness.retryAfter))});
+        return;
+      }
+      // This pass uses retained list identities directly. Report-link upgrades,
+      // their daily cap and unavailable target endpoints cannot block it.
+      const extract=Boolean(currentDocxDescriptor(list));
+      const admitted=enqueueAmendment(store,generation,extract?'amendment:extract:'+listId:linkedListKey(targetDocumentId,listId),extract?'amendment-extract':'amendment-list-detail',{listId,targetDocumentId,parserUpgrade:true},extract?112:115,true);
+      if(!admitted)store.db.prepare('UPDATE amendment_jobs SET retry_at=? WHERE generation=? AND key=?').run(worker.clock()+60_000,generation,task.key);
+      return admitted;
+    },
+    advance:source=>({afterKey:source.key}),
+  });
+  if(complete) {
+    store.putSource(generation,parserUpgradeKey,'amendment-parser-upgrade',{parserVersion:AMENDMENT_EXTRACTION_VERSION,...(task.body.retryAt?{retryAt:task.body.retryAt}:{})},new Date(worker.clock()).toISOString());
+    store.finishTask(task);
+  }
+}
 const preparationDocumentFilter=" AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')";
 function preparationThrough(store,generation,stage) {
   return store.db.prepare('SELECT MAX(key) AS key FROM sources WHERE generation=? AND kind=?'+(stage==='documents'?preparationDocumentFilter:'')).get(generation,preparationKinds[stage])?.key || '';
@@ -600,6 +638,7 @@ export async function amendmentTask(worker,task) {
   const {generation,body}=task,store=worker.store,signal=worker.controller.signal;
   signal.throwIfAborted();
   if(task.kind==='amendment-prepare'){await runPreparationSlice(worker,task);return;}
+  if(task.kind==='amendment-parser-upgrade'){await runParserUpgradeSlice(worker,task);return;}
   if(body.rebuild) {
     if(!await runRebuildSlice(worker,task))return;
   } else if(task.kind==='amendment-reparse') {
@@ -610,12 +649,21 @@ export async function amendmentTask(worker,task) {
     if(!await beginRebuild(worker,task,{kind:'sitting',sittingId:body.sourceKey.replace(/^motion-outcomes:/,'')}))return;
   } else if(task.kind==='amendment-list-detail') {
     const target=store.source(generation,targetKey(body.targetDocumentId));
-    const candidate=target&&linkedListCandidates(target.work).candidates.slice(0,AMENDMENT_LIMITS.listsPerTarget).find(candidate=>candidate.id===body.listId);
+    const retained=body.parserUpgrade&&store.source(generation,sourceKey(body.listId))?.work;
+    const candidate=target&&linkedListCandidates(target.work).candidates.slice(0,AMENDMENT_LIMITS.listsPerTarget).find(candidate=>candidate.id===body.listId) ||
+      (retained&&retained.targetDocumentId===body.targetDocumentId&&canonicalEPReference(retained.id)==='eli/dl/doc/'+body.listId?{id:body.listId,reference:'eli/dl/doc/'+body.listId,fingerprint:null}:null);
     if(candidate) {
-      const record=await worker.request('/documents/'+candidate.id);signal.throwIfAborted();
-      const list=record.payload.data.find(work=>canonicalEPReference(work.id)===candidate.reference);
-      if(!verifiedList(list,body.targetDocumentId,candidate.id))throw new Error('Linked amendment-list detail does not verify its exact document identity, type and forward target.');
-      saveVerifiedList(worker,generation,body.targetDocumentId,candidate,list,{basis:'list-detail',url:record.url,fetchedAt:record.fetchedAt});
+      const proofReady=body.parserUpgrade&&verifiedList(retained,body.targetDocumentId,body.listId)&&retained.distributionEvidence?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION;
+      if(!proofReady) {
+        const record=await worker.request('/documents/'+candidate.id);signal.throwIfAborted();
+        const list=record.payload.data.find(work=>canonicalEPReference(work.id)===candidate.reference);
+        if(!verifiedList(list,body.targetDocumentId,candidate.id))throw new Error('Linked amendment-list detail does not verify its exact document identity, type and forward target.');
+        saveVerifiedList(worker,generation,body.targetDocumentId,candidate,list,{basis:'list-detail',url:record.url,fetchedAt:record.fetchedAt});
+      }
+      if(body.parserUpgrade&&currentDocxDescriptor(store.source(generation,sourceKey(body.listId))?.work)&&!enqueueAmendment(store,generation,'amendment:extract:'+body.listId,'amendment-extract',{...body},112,true)) {
+        store.db.prepare('UPDATE amendment_jobs SET retry_at=? WHERE generation=? AND key=?').run(worker.clock()+60_000,generation,task.key);
+        return;
+      }
       rebuildAmendmentTarget(worker,generation,body.targetDocumentId);
     }
   } else if(task.kind==='amendment-extract') {
@@ -628,25 +676,42 @@ export async function amendmentTask(worker,task) {
       rebuildAmendmentTarget(worker,generation,body.targetDocumentId);
       return;
     }
-    worker.requests++;const cycle=store.get('working');if(cycle)store.updateCycle({requests:(cycle.requests || 0)+1});
-    let downloaded;
-    try {downloaded=await worker.runUpstream(admittedSignal=>worker.downloadAmendmentDocx(file.url,{signal:admittedSignal}),{source:'documents',priority:'background',signal});}
-    catch(error){signal.throwIfAborted();throw error;}
+    const parserUpgrade=saved.work.extraction&&saved.work.extraction.parserVersion!==AMENDMENT_EXTRACTION_VERSION;
+    const retrieve=async descriptor=>{
+      const retained=parserUpgrade?await retainedAmendmentSource(store,descriptor,{signal}):null;
+      if(retained)return retained;
+      if(parserUpgrade&&(worker.amendmentParserDownloads || 0)>=4) {
+        store.assertWriter();
+        store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=? WHERE generation=? AND key=?`).run(worker.clock()+30*60_000,generation,task.key);
+        return null;
+      }
+      if(parserUpgrade)worker.amendmentParserDownloads=(worker.amendmentParserDownloads || 0)+1;
+      worker.requests++;const cycle=store.get('working');if(cycle)store.updateCycle({requests:(cycle.requests || 0)+1});
+      let downloaded;
+      try {downloaded=await worker.runUpstream(admittedSignal=>worker.downloadAmendmentDocx(descriptor.url,{signal:admittedSignal}),{source:'documents',priority:'background',signal});}
+      catch(error){signal.throwIfAborted();throw error;}
+      signal.throwIfAborted();return {...downloaded,fetchedAt:new Date(worker.clock()).toISOString()};
+    };
+    const downloaded=await retrieve(file);
+    if(!downloaded)return;
     signal.throwIfAborted();
-    const fetchedAt=new Date(worker.clock()).toISOString(),extraction=extractAmendments(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt});
+    const fetchedAt=downloaded.fetchedAt,extraction=extractAmendments(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt});
     if(!Array.isArray(extraction.amendments)||extraction.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Amendment extraction exceeded its record budget.');
+    await retainAmendmentSource(store,file,downloaded.buffer,fetchedAt,{signal});
     for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
     signal.throwIfAborted();
     let authorNames=null;
     const alternate=alternateAuthorDescriptor(saved.work,extraction);
     if(alternate){
-      worker.requests++;const active=store.get('working');if(active)store.updateCycle({requests:(active.requests || 0)+1});
       try {
-        const other=await worker.runUpstream(admittedSignal=>worker.downloadAmendmentDocx(alternate.url,{signal:admittedSignal}),{source:'documents',priority:'background',signal});
+        if(worker.requests>=worker.budget)throw new Error('Alternate byline source deferred by the request budget.');
+        const other=await retrieve(alternate);
+        if(!other)throw new Error('Alternate byline source deferred by the parser upgrade download limit.');
         signal.throwIfAborted();
-        const retrievedAt=new Date(worker.clock()).toISOString(),source={url:alternate.url,fetchedAt:retrievedAt,language:alternate.language,contentHash:createHash('sha256').update(other.buffer).digest('hex')};
+        const retrievedAt=other.fetchedAt,source={url:alternate.url,fetchedAt:retrievedAt,language:alternate.language,contentHash:createHash('sha256').update(other.buffer).digest('hex')};
         const parsed=extractAmendments(other.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:alternate.language,sourceUrl:alternate.url,fetchedAt:retrievedAt});
         if(!Array.isArray(parsed.amendments)||parsed.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Alternate byline extraction exceeded its record budget.');
+        await retainAmendmentSource(store,alternate,other.buffer,retrievedAt,{signal});
         authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,parserVersion:AMENDMENT_EXTRACTION_VERSION,primaryDescriptor:normalizedDocxDescriptor(file),descriptor:alternate,source,amendments:parsed.amendments.map(({listId,targetDocumentId,number,authors,date,documentDate,dateBasis})=>({listId,targetDocumentId,number,authors,date,documentDate,dateBasis}))};
       }catch(error){signal.throwIfAborted();authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,error:String(error.message).slice(0,350),source:{url:alternate.url,language:alternate.language},attemptedAt:new Date(worker.clock()).toISOString(),amendments:[]};}
     }
@@ -703,7 +768,7 @@ export async function amendmentTask(worker,task) {
   store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='amendment-gap'").run(generation,'amendment:gap:'+task.key);
 }
 export function failAmendmentTask(worker,task,error) {
-  if(!task.kind.startsWith('amendment-')||task.kind==='amendment-prepare'||task.kind==='amendment-rebuild'||task.body.rebuild)return false;
+  if(!task.kind.startsWith('amendment-')||task.kind==='amendment-prepare'||task.kind==='amendment-parser-upgrade'||task.kind==='amendment-rebuild'||task.body.rebuild)return false;
   if(worker.stopped || worker.controller?.signal.aborted)return false;
   if(task.kind==='amendment-roster'){worker.store.set('amendmentMandateFallback',true);enqueueAmendment(worker.store,task.generation,'amendment:members:10','amendment-members',{offset:0,members:[]},108);}
   if(task.attempts<2)return false;

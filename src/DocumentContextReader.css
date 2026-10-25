@@ -18,6 +18,8 @@
 .document-context-text{max-width:76ch;font-size:1rem;line-height:1.75;overflow-wrap:anywhere}
 .document-context-text>p{margin:.95rem 0;white-space:pre-wrap}
 .document-context-text td>p{white-space:pre-wrap}
+.document-context-text [data-report-amendment="true"]{scroll-margin-block-start:1rem}
+@media(max-width:600px){.document-context-text [data-report-amendment="true"]{scroll-margin-block-start:7rem}}
 .document-context-text p.document-context-target{border-left:3px solid var(--context-blue);padding:.6rem .85rem;background:var(--surface-2);scroll-margin:4rem}
 .document-context-text p.document-context-target:focus{outline:2px solid var(--context-blue);outline-offset:3px}
 .document-context-object{display:inline;font-size:.8em;white-space:normal;margin:0 .2em}
