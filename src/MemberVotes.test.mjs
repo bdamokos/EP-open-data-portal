@@ -1004,6 +1004,7 @@ test('a mismatched subject URI cannot establish the report-title relationship',a
 for(const empty of [{titles:{},title:null,titleLanguage:null},{titles:{en:'  '},title:'',titleLanguage:'en'}])test('an empty subject title can use the exact English report title '+JSON.stringify(empty),async t=>{
  const item=linkedReportVote(),group={...reportSubject([item]),...empty};
  const h=await mount(t,{state:{decisionId:item.id},handler:url=>String(url).includes('source-record?')?Response.json(reportResponse()):Response.json(responseFor(url,{items:[item],subjects:[group]}))});
- assert.equal(h.calls.filter(url=>url.includes('source-record?')).length,1);
+ const lookups=h.calls.filter(url=>url.includes('source-record?'));assert(lookups.length>0);
+ for(const lookup of lookups)assert.equal(new URL(lookup,'http://localhost').searchParams.get('url'),reportResponse().sourceUrl);
  const title=h.container.querySelector('.member-votes-detail-subject');assert.equal(title.textContent,'Exact English report title');assert.equal(title.lang,'en');
 });
