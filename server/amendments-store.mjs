@@ -386,11 +386,32 @@ export function enqueueAmendment(store,generation,key,kind,body,priority=105,ref
   store.assertWriter();
   if(!kind.startsWith('amendment-') && store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key))return false;
   const enqueue=()=>{
-    const existing=store.db.prepare('SELECT 1 FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
+    // Recovery can adopt an ordinary delayed job. Add its intent without
+    // replacing the saved cursor or resetting failure/backoff state.
+    const recoveryBody=task=>{
+      if(body.parserUpgrade!==true||!['amendment-list-detail','amendment-extract'].includes(kind)||task.kind!==kind||task.done===1||typeof task.body!=='string')return task.body;
+      const saved=parse(task.body);
+      return saved.listId===body.listId&&saved.targetDocumentId===body.targetDocumentId&&saved.parserUpgrade!==true?JSON.stringify({...saved,parserUpgrade:true}):task.body;
+    };
+    const existing=store.db.prepare('SELECT kind,body,done FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
+    if(existing) {
+      const updated=recoveryBody(existing);
+      if(updated!==existing.body)store.db.prepare('UPDATE amendment_jobs SET body=? WHERE generation=? AND key=? AND done=0').run(updated,generation,key);
+    }
     if(!existing) {
       const checkpointKey='amendment:continuations',saved=store.source(generation,checkpointKey)?.work || {};
       const saveCheckpoint=work=>store.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,checkpointKey,'amendment-continuations',JSON.stringify(work),new Date(store.clock()).toISOString());
-      if([...(saved.tasks || []),...(saved.discovery || [])].some(task=>task.key===key))return true;
+      if([...(saved.tasks || []),...(saved.discovery || [])].some(task=>task.key===key)) {
+        let changed=false;
+        const merge=tasks=>(tasks || []).map(task=>{
+          if(task.key!==key)return task;
+          const updated=recoveryBody(task);if(updated===task.body)return task;
+          changed=true;return {...task,body:updated};
+        });
+        const tasks=merge(saved.tasks),discovery=merge(saved.discovery);
+        if(changed)saveCheckpoint({...saved,tasks,discovery});
+        return true;
+      }
       if(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs WHERE generation=?').get(generation).n>=200) {
         const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(store.clock()));
         const completed=new Map((saved.completed || []).filter(task=>task.key.includes(':'+today)).map(task=>[task.key,task]));

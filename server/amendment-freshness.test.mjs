@@ -714,6 +714,38 @@ test('unavailable current-schema metadata is reobserved even without report link
   await worker.task(nextAmendmentTask(store,generation));assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
 });
 
+for(const location of ['queue','tasks'])test('parser recovery adopts a delayed metadata retry in '+location+' without resetting progress',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.observeDistribution('omitted');downgrade(context);
+  const key='amendment:discover:'+targetId+':'+listId;
+  const savedBody={listId,targetDocumentId:targetId,offset:3,sources:[{url:'https://data.europarl.europa.eu/example',fetchedAt:context.at()}]};
+  enqueueAmendment(store,generation,key,'amendment-list-detail',savedBody,115,true);
+  worker.fetchRecord=async()=>{throw new Error('Offline metadata failure.');};
+  const retry=nextAmendmentTask(store,generation);
+  await assert.rejects(worker.task(retry),/Offline metadata failure/);store.failTask(retry,new Error('Offline metadata failure.'));
+  const before=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
+  assert(before.retry_at>store.clock());assert.equal(nextAmendmentTask(store,generation),null);
+  if(location!=='queue') {
+    store.putSource(generation,'amendment:continuations','amendment-continuations',{[location]:[before]},context.at());
+    store.db.prepare('DELETE FROM amendment_jobs WHERE generation=? AND key=?').run(generation,key);
+  }
+  const report=store.source(generation,targetKey);
+  store.putSource(generation,targetKey,'document',{...report.work,inverse_foresees_change_of:[]},report.fetchedAt);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  const after=location==='queue'?store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key):store.source(generation,'amendment:continuations').work[location][0];
+  assert.deepEqual(JSON.parse(after.body),{...savedBody,parserUpgrade:true});
+  assert.deepEqual({...after,body:before.body},{...before},'Only recovery intent changes; retry state and priority survive.');
+  if(location!=='queue') {
+    worker.checkpointContinuations(generation,{includeCore:false});
+    assert.deepEqual({...store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key)},{...after});
+  }
+  assert.equal(nextAmendmentTask(store,generation),null);context.advance(before.retry_at-store.clock());
+  let requests=0;worker.fetchRecord=async endpoint=>{assert.equal(endpoint,'/documents/'+listId);requests++;return {fetchedAt:context.at(),payload:{data:[listDetail(descriptor)]}};};
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(requests,1);assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  await worker.task(nextAmendmentTask(store,generation));assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+});
+
 for(const mode of ['omitted','empty'])test('fresh '+mode+' metadata observes once and preserves its distinct retry state',async t=>{
   const context=await fixture(t),{store,worker,generation,descriptor}=context;
   await context.observeDistribution(mode);downgrade(context);
