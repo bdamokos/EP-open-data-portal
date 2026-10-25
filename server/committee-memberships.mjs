@@ -79,7 +79,7 @@ export function createCommitteeMembershipReader({request, budgetMs = 8000} = {})
             rejectBody(id); throw Error('Committee identity unavailable');
           }
           bodies.push(body);
-          sources.push({url:record.url, fetchedAt:new Date(record.fetchedAt).toISOString(), stale:Boolean(record.stale)});
+          sources.push({url:record.url, ...(record.retrievedFrom ? {retrievedFrom:record.retrievedFrom} : {}), fetchedAt:new Date(record.fetchedAt).toISOString(), stale:Boolean(record.stale)});
           if (!identity(body) || memberships.some(m => m.id === id && m.classification !== tail(body.classification))) {rejectBody(id);failed = true;}
           else rejectedBodies.delete(id);
           if (record.stale || record.refreshError) failed = true;

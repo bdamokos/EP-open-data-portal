@@ -14,7 +14,8 @@ const category = (value, role, organization) => {
   if (classification === 'def/ep-entities/EU_INSTITUTION' && /^org\/ep-[1-9]\d*$/.test(local(organization)) && /^def\/ep-roles\/(PRESIDENT|PRESIDENT_VICE|QUAESTOR)$/.test(local(role))) return 'other-roles';
   return null;
 };
-const source = record => ({url:record.url, fetchedAt:new Date(record.fetchedAt).toISOString(), stale:Boolean(record.stale || record.refreshError)});
+// Batch-seeded body records name the request that returned them.
+const source = record => ({url:record.url, ...(record.retrievedFrom ? {retrievedFrom:record.retrievedFrom} : {}), fetchedAt:new Date(record.fetchedAt).toISOString(), stale:Boolean(record.stale || record.refreshError)});
 const hasLabels = body => body?.prefLabel && typeof body.prefLabel==='object' && !Array.isArray(body.prefLabel) && Object.values(body.prefLabel).some(value=>typeof value==='string'&&value.trim());
 const dateIssues = row => {
   const start=row.memberDuring?.startDate,end=row.memberDuring?.endDate;

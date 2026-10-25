@@ -97,6 +97,21 @@ function rememberSource(key, record, serialized = JSON.stringify(record)) {
     cache.delete(oldest);
   }
 }
+// Single reads and batch seeds may publish the same key concurrently. Each key's
+// file writes are serialized, and an older record never replaces a newer one.
+const sourceWrites = new Map();
+function publishSourceFile(key, record, serialized, signal) {
+  const prior = sourceWrites.get(key);
+  const write = (async () => {
+    const latest = await prior;
+    if (latest && latest.fetchedAt >= record.fetchedAt) return latest;
+    try { await writeCacheFile(filename(key), serialized, {signal}); return record; }
+    catch { return latest; }
+  })();
+  sourceWrites.set(key, write);
+  void write.finally(() => {if (sourceWrites.get(key) === write) sourceWrites.delete(key);});
+  return write;
+}
 async function readSourceRecord(file, signal) {
   signal?.throwIfAborted();
   // The inclusive end permits one overflow byte without trusting a prior stat.
@@ -278,7 +293,7 @@ export async function odp(
         refreshFailures.delete(key);
         if (retain) rememberSource(key, record, serialized);
         if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) {
-          await writeCacheFile(filename(key),serialized,{signal:budget.signal}).catch(()=>{});
+          await publishSourceFile(key,record,serialized,budget.signal);
         }
         budget.signal?.throwIfAborted();
         return record;
@@ -331,7 +346,9 @@ async function list(endpoint, params = {}, {priority='interactive'}={}) {
 // Profiles name dozens of corporate bodies, and each single read takes seconds
 // upstream. /corporate-bodies/{id,id,...} returns the same elements as the
 // single reads, so one batch seeds the exact per-ID records the validated
-// readers already use. Omitted or ambiguous elements fall back to single reads.
+// readers already use. A seeded record keeps its per-ID cache key as `url` and
+// names the request that actually returned it in `retrievedFrom`. Omitted or
+// ambiguous elements fall back to single reads.
 const BODY_BATCH = 100;
 const bodyId = /^(?:[1-9]\d*|ep-[1-9]\d*)$/;
 const bodyEndpoint = id => `/corporate-bodies/${id}`;
@@ -354,12 +371,15 @@ async function peekSource(key, signal, remember = false) {
 }
 async function seedSource(key, record, {memory, signal}) {
   const prior = await peekSource(key, signal);
-  if (prior && prior.fetchedAt >= record.fetchedAt) return;
+  // Re-check synchronously after the disk read: a single read in flight or one
+  // published meanwhile is at least as new as this batch and keeps its record.
+  const latest = cache.get(key)?.record;
+  if (pending.has(key) || [prior, latest].some(held => held && held.fetchedAt >= record.fetchedAt)) return;
   const serialized = JSON.stringify(record);
   refreshFailures.delete(key);
-  if (memory || cache.has(key)) rememberSource(key, record, serialized);
+  if (memory || latest) rememberSource(key, record, serialized);
   if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)
-    await writeCacheFile(filename(key), serialized, {signal}).catch(() => {});
+    await publishSourceFile(key, record, serialized, signal);
 }
 export async function prefetchCorporateBodies(ids, {signal = requestSignal(), priority = 'interactive', memory = true} = {}) {
   const wanted = [...new Set(ids.map(String))].filter(id => bodyId.test(id));
@@ -387,7 +407,7 @@ export async function prefetchCorporateBodies(ids, {signal = requestSignal(), pr
     const context = batch.payload['@context'];
     await Promise.all([...found].filter(([, element]) => element).map(([id, element]) => {
       const key = sourceKey(bodyEndpoint(id));
-      return seedSource(key, {url:key, fetchedAt:batch.fetchedAt, payload:{data:[element], ...(context === undefined ? {} : {'@context':context})}}, {memory, signal});
+      return seedSource(key, {url:key, retrievedFrom:batch.url, fetchedAt:batch.fetchedAt, payload:{data:[element], ...(context === undefined ? {} : {'@context':context})}}, {memory, signal});
     }));
   }
 }

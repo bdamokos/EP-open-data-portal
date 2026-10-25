@@ -34,7 +34,36 @@ test('a cold profile reads its bodies in one batch and later views read locally'
   assert.equal(seeded.url,'https://data.europarl.europa.eu/api/v2/corporate-bodies/6363?format=application%2Fld%2Bjson');
   assert.deepEqual(seeded.payload,{data:[bodies.get('6363')],'@context':['ctx']});
   assert.equal(seeded.stale,false);
+  assert.equal(seeded.retrievedFrom,'https://data.europarl.europa.eu/api/v2/corporate-bodies/5177,6363,6364,9999?format=application%2Fld%2Bjson');
+  const committeeSource=first.committeeMemberships.sources.find(source=>source.url===seeded.url);
+  assert.equal(committeeSource.retrievedFrom,seeded.retrievedFrom,'readers name the request that returned the body');
+  assert.equal(first.membershipHistory.items.find(item=>item.bodyId==='org/5177').body.source.retrievedFrom,seeded.retrievedFrom);
   requests.length=0;
   await odpProfileWithMemberships('124936');
   assert.deepEqual(requests.filter(url=>url.startsWith('/api/v2/corporate-bodies/')).filter(url=>!url.endsWith('/9999')),[],'retained bodies are never read again');
+});
+
+test('a batch never replaces a single read of the same body that is still in flight',async t=>{
+  const dir=await mkdtemp(path.join(tmpdir(),'corporate-body-race-'));
+  const previous=process.env.ODP_CACHE_DIR;process.env.ODP_CACHE_DIR=dir;
+  t.after(async()=>{if(previous===undefined)delete process.env.ODP_CACHE_DIR;else process.env.ODP_CACHE_DIR=previous;await rm(dir,{recursive:true,force:true});});
+  const body=label=>({id:'org/6363',identifier:'6363',classification:'def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING',label});
+  let releaseSingle,singleStarted;const started=new Promise(resolve=>singleStarted=resolve);
+  t.mock.method(globalThis,'fetch',async input=>{
+    const url=new URL(input);
+    if(url.pathname==='/api/v2/corporate-bodies/6363'){singleStarted();await new Promise(resolve=>releaseSingle=resolve);return Response.json({data:[body('single')]});}
+    if(url.pathname==='/api/v2/corporate-bodies/6363,6364')return Response.json({data:[body('batch'),{...body('other'),id:'org/6364',identifier:'6364'}]});
+    assert.fail('Unexpected upstream read '+url.pathname);
+  });
+  const {odp,prefetchCorporateBodies}=await import('./odp.mjs?race');
+  const single=odp('/corporate-bodies/6363',{},{priority:'background'});
+  await started;
+  await prefetchCorporateBodies(['6363','6364'],{signal:undefined});
+  assert.equal((await odp('/corporate-bodies/6364',{},{cachedOnly:true})).payload.data[0].label,'other');
+  releaseSingle();await single;
+  const kept=await odp('/corporate-bodies/6363',{},{cachedOnly:true});
+  assert.equal(kept.payload.data[0].label,'single');assert.equal(kept.retrievedFrom,undefined);
+  const {readFile}=await import('node:fs/promises');const {createHash}=await import('node:crypto');
+  const onDisk=JSON.parse(await readFile(path.join(dir,createHash('sha256').update(kept.url).digest('hex')+'.json'),'utf8'));
+  assert.equal(onDisk.payload.data[0].label,'single');
 });
