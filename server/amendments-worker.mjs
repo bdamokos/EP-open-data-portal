@@ -16,6 +16,7 @@ import { userAgent } from './user-agent.mjs';
 import {upstreamResponseError} from './odp.mjs';
 const DAY=86400000;
 const sourceKey=id=>'amendment:list:'+id;
+const distributionFingerprint=evidence=>createHash('sha256').update(JSON.stringify(evidence || null)).digest('hex');
 const rosterKey=date=>'amendment:roster:'+date;
 const targetKey=id=>'/plenary-documents/'+id;
 const idOf=work=>work.identifier || tail(work.id);
@@ -84,10 +85,11 @@ function linkedListCandidates(work) {
   for(const candidate of candidates.values())candidate.fingerprint=createHash('sha256').update(JSON.stringify({target,reference:candidate.reference,observations:candidate.observations})).digest('hex');
   return {candidates:[...candidates.values()],unavailable};
 }
-function saveVerifiedList(worker,generation,target,candidate,list,evidence) {
+function saveVerifiedList(worker,generation,target,candidate,list,evidence,{parserUpgrade=false}={}) {
   const prior=worker.store.source(generation,sourceKey(candidate.id)),files=documentFiles(list);
   const distributionEvidence=distributionEvidenceFor(list,{url:evidence.url,fetchedAt:evidence.fetchedAt,language:null});
-  worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',{...projectDocument(list),targetDocumentId:target,files,distributionEvidence,relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})},prior?.fetchedAt || evidence.fetchedAt);
+  const parserMetadataObservation=parserUpgrade&&distributionEvidence.state!=='available'?{parserVersion:AMENDMENT_EXTRACTION_VERSION,fingerprint:distributionFingerprint(distributionEvidence),retryAt:distributionEvidence.state==='unavailable'?worker.clock()+DAY:null}:null;
+  worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',{...projectDocument(list),targetDocumentId:target,files,distributionEvidence,...(parserMetadataObservation?{parserMetadataObservation}:{}),relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})},prior?.fetchedAt || evidence.fetchedAt);
 }
 function prepareLinkedLists(worker,generation,work,fetchedAt) {
   const id=idOf(work),linked=linkedListCandidates(work),verified=new Set(),unresolved=[];
@@ -257,6 +259,14 @@ async function runParserUpgradeSlice(worker,task) {
       if(freshness.status==='failed'&&Date.parse(freshness.retryAfter)>worker.clock()) {
         store.taskProgress(task,{...body,retryAt:Math.min(body.retryAt || Infinity,Date.parse(freshness.retryAfter))});
         return;
+      }
+      const observation=list.parserMetadataObservation;
+      if(!freshness.descriptor&&observation?.parserVersion===AMENDMENT_EXTRACTION_VERSION&&observation.fingerprint===distributionFingerprint(list.distributionEvidence)) {
+        if(observation.retryAt===null)return;
+        if(Number.isFinite(observation.retryAt)&&observation.retryAt>worker.clock()) {
+          store.taskProgress(task,{...body,retryAt:Math.min(body.retryAt || Infinity,observation.retryAt)});
+          return;
+        }
       }
       // This pass uses retained list identities directly. Report-link upgrades,
       // their daily cap and unavailable target endpoints cannot block it.
@@ -669,12 +679,12 @@ export async function amendmentTask(worker,task) {
     const candidate=target&&linkedListCandidates(target.work).candidates.slice(0,AMENDMENT_LIMITS.listsPerTarget).find(candidate=>candidate.id===body.listId) ||
       (retained&&retained.targetDocumentId===body.targetDocumentId&&canonicalEPReference(retained.id)==='eli/dl/doc/'+body.listId?{id:body.listId,reference:'eli/dl/doc/'+body.listId,fingerprint:null}:null);
     if(candidate) {
-      const proofReady=body.parserUpgrade&&verifiedList(retained,body.targetDocumentId,body.listId)&&retained.distributionEvidence?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION;
+      const proofReady=body.parserUpgrade&&verifiedList(retained,body.targetDocumentId,body.listId)&&Boolean(currentDocxDescriptor(retained));
       if(!proofReady) {
         const record=await worker.request('/documents/'+candidate.id);signal.throwIfAborted();
         const list=record.payload.data.find(work=>canonicalEPReference(work.id)===candidate.reference);
         if(!verifiedList(list,body.targetDocumentId,candidate.id))throw new Error('Linked amendment-list detail does not verify its exact document identity, type and forward target.');
-        saveVerifiedList(worker,generation,body.targetDocumentId,candidate,list,{basis:'list-detail',url:record.url,fetchedAt:record.fetchedAt});
+        saveVerifiedList(worker,generation,body.targetDocumentId,candidate,list,{basis:'list-detail',url:record.url,fetchedAt:record.fetchedAt},{parserUpgrade:Boolean(body.parserUpgrade)});
       }
       if(body.parserUpgrade&&currentDocxDescriptor(store.source(generation,sourceKey(body.listId))?.work)&&!admitParserList(store,generation,'amendment:extract:'+body.listId,'amendment-extract',{...body},112,task.key)) {
         store.db.prepare('UPDATE amendment_jobs SET retry_at=? WHERE generation=? AND key=?').run(worker.clock()+60_000,generation,task.key);

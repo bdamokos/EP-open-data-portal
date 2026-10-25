@@ -702,3 +702,33 @@ test('a repeated failure after byline progress still exhausts three attempts',as
   }
   assert.equal(extractionJob(store,generation).done,1);assert(store.source(generation,listKey).work.wordingRefreshFailure);
 });
+
+test('unavailable current-schema metadata is reobserved even without report links',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.observeDistribution('omitted');downgrade(context);
+  const report=store.source(generation,targetKey);store.putSource(generation,targetKey,'document',{...report.work,inverse_foresees_change_of:[]},report.fetchedAt);
+  let requests=0;worker.fetchRecord=async endpoint=>{assert.equal(endpoint,'/documents/'+listId);requests++;return {fetchedAt:context.at(),payload:{data:[listDetail(descriptor)]}};};
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(nextAmendmentTask(store,generation).kind,'amendment-list-detail');await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(requests,1);assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  await worker.task(nextAmendmentTask(store,generation));assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+});
+
+for(const mode of ['omitted','empty'])test('fresh '+mode+' metadata observes once and preserves its distinct retry state',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.observeDistribution(mode);downgrade(context);
+  let requests=0;const fetch=worker.fetchRecord;worker.fetchRecord=async(...args)=>{requests++;return fetch(...args);};
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(requests,1);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  for(let poll=0;poll<3;poll++)prepareAmendmentParserUpgrade(worker,generation);
+  assert.equal(requests,1);assert.equal(nextAmendmentTask(store,generation),null);assert.equal(amendmentParserUpgradeDue(store,generation),false);
+  const observed=store.source(generation,listKey).work.parserMetadataObservation;
+  assert.equal(observed.retryAt,mode==='omitted'?store.clock()+86400000:null);
+  if(mode==='omitted') {
+    context.advance(86400000);assert.equal(amendmentParserUpgradeDue(store,generation),true);
+    worker.fetchRecord=async()=>{requests++;return {fetchedAt:context.at(),payload:{data:[listDetail(descriptor)]}};};
+    prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
+    assert.equal(requests,2);assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  }
+});
