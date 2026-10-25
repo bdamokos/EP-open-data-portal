@@ -13,7 +13,7 @@ export function AvailabilityNote({sources,label='record',language='en',end,parti
   const frontierPeriod=Boolean(end&&summary.sources.some(source=>source.latestObservedDate&&end>=source.latestObservedDate));
   const qualifier=hasGap||limited?'Partial coverage':latest&&end&&end>latest?'Later dates unavailable':frontierPeriod?'Partial':null;
   return <div className="availability-note" lang="en">
-    <p>{latest?<>Latest {label}: <time lang={language} dateTime={latest}>{date(latest,language)}</time>{qualifier?<> · {qualifier}</>:null}</>:selectedObserved?<>Partial coverage</>:selectedChecked?'No matching records.':partial?'Partial coverage':'Unavailable.'}</p>
+    <p>{latest?<>Latest {label}: <time lang={language} dateTime={latest}>{date(latest,language)}</time>{qualifier?<> · {qualifier}</>:null}</>:selectedObserved?<>Partial coverage</>:selectedChecked?(hasGap||partial||summary.sources.some(source=>source.limited)?'Partial coverage':'No matching records.'):partial?'Partial coverage':'Unavailable.'}</p>
     <details><summary>Coverage</summary><ul>{summary.sources.map((source,index)=><li key={source.sourceKey+':'+index}>
       <strong>{sourceNames[source.sourceKey]||source.sourceKey.replaceAll('-',' ')}</strong>{source.stage==='text'&&source.language?<> · <span lang={language}>{new Intl.DisplayNames([language],{type:'language'}).of(source.language)||source.language}</span> text</>:null}
       <span>{source.latestObservedDate?<>Latest record: <time lang={language} dateTime={source.latestObservedDate}>{date(source.latestObservedDate,language)}</time>.</>:'Date unavailable.'}{source.gaps.length?' Some records could not be checked.':source.limited?' Some records are outside this view.':''}</span>

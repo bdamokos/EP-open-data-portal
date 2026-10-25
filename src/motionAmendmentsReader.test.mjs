@@ -92,7 +92,7 @@ test('the closed reader is lazy, opens the member page in batches of 20, and sel
   assert.equal(h.requests.length,1,'selecting a loaded row is a local action');
   let detail=h.container.querySelector('.motion-amendments__detail');
   assert.deepEqual([...detail.querySelectorAll('.motion-amendments__passage')].map(node=>node.textContent),[' ','Exact proposed & <public-text> wording.']);
-  assert.match(wordingViewText(detail),/The source supplies no original wording\./);
+  assert.match(wordingViewText(detail),/No original wording supplied\./);
   assert.doesNotMatch(wordingViewText(detail),/Original wording is unavailable/);
   assert.equal(detail.querySelector('public-text'),null,'source wording must be escaped');
   assert.equal(detail.querySelector('.motion-amendments__source a').href,source.url);
@@ -432,7 +432,7 @@ test('empty and withheld motion wording retain per-side source status without cl
     const detail=h.container.querySelector('.motion-amendments__detail');
     assert.equal(detail.querySelector('.wording-diff,ins,del'),null);
     if(number===14){assert.match(detail.textContent,/This wording could not be read reliably/);assert.doesNotMatch(detail.textContent,/Withheld old|Withheld new/);}
-    else assert.match(detail.textContent,/The source supplies no proposed wording/);
+    else assert.match(detail.textContent,/No proposed wording supplied\./);
     assert.doesNotMatch(detail.textContent,/Text deleted|No original text \(insertion\)/);
   }
 });
@@ -463,7 +463,7 @@ test('not indexed, observed empty and no member matches remain distinct, and glo
   assert.match(h.container.textContent,/No published amendment lists are recorded for this motion\./);
   assert.doesNotMatch(h.container.textContent,/Amendment information is unavailable|No matching proposals|processing|indexing|background work/i);
   await h.updateProps({language:'de'});const none=empty('no-indexed-member-matches');none.scope.requestedLanguage='de';none.totals={allIndexed:3,memberMatched:0};await h.respond(none);
-  assert.match(h.container.textContent,/No matching amendments/);
+  assert.match(h.container.textContent,/No matches in available amendments/,'incomplete coverage keeps the empty result scoped');
   assert.doesNotMatch(h.container.querySelector('.motion-amendments__scope button').textContent,/· 0/);
   assert.doesNotMatch(h.container.textContent,/No published amendment lists|Amendment information is unavailable|processing|indexing|background work/i);
   assert.equal(h.requests.length,3,'backgroundPending does not start a polling loop');

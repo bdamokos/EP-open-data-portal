@@ -54,6 +54,15 @@ async function setup(t,{query='',respond,highlights=false,members}={}) {
   return {...module,window,root,container,calls,registry,render,find,button,click,flushFrames,input,select,submit,searches,texts,loadModule:path=>loadModule(path)};
 }
 
+test('a finished local backfill keeps the search scoped to available texts',async t=>{
+  const view=await setup(t,{query:'fixture-fts-search=absent',respond:({url,body})=>{
+    if(url.pathname.endsWith('/corpus/search'))return Response.json({...results(body,[]),total:0,coverage:{complete:true,backfillComplete:true,authoritativeComplete:false}});
+  }});
+  await view.render();
+  assert.match(view.find('.explorer-search-count').textContent,/0 matching documents · Available texts/);
+  assert.match(view.container.textContent,/No matches in available text\./,'a complete local backfill is not an authoritative empty result');
+});
+
 test('search coverage stays partial independently of unavailable corpus status',async t=>{
   const view=await setup(t,{query:'fixture-fts-search=energy',respond:({url})=>{
     if(url.pathname.endsWith('/corpus/status'))return Response.json({error:{code:'corpus_status_timeout',message:'Corpus status is temporarily unavailable.'}},{status:503});
@@ -83,7 +92,7 @@ test('text search stays collapsed without requests, opens with focus, and posts 
   await view.render({...scope,sourceIds:[]});
   assert.deepEqual(view.searches().at(-1).body.sourceIds,[],'empty exact scope must never become an unrestricted search');
   assert.equal(view.container.querySelectorAll('.explorer-search-result').length,0);
-  assert.match(view.container.textContent,/No matches\. Try another phrase/);
+  assert.match(view.container.textContent,/No matches in available text\. Try another phrase/);
 });
 
 test('the reader opens the selected exact language fragment, escapes source markup and stays closed after closing',async t=>{

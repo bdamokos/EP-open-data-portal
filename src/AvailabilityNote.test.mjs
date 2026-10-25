@@ -27,4 +27,13 @@ test('coverage copy preserves positive upstream text, language retention and acc
   await render(sourceAvailability({sourceKey:'speech-text',latestObservedDate:'2026-10-16',gaps:[{start:'2026-09-01',end:'2026-09-30'}]}));
   assert.match(container.querySelector('p').textContent,/Partial coverage/);
   assert.match(container.textContent,/Some records could not be checked/);
+  const checked={sourceKey:'speech-text',route:'public-api',checkedAt:'2026-10-24T10:00:00Z',observedRecords:0};
+  await render(sourceAvailability(checked));
+  assert.equal(container.querySelector('p').textContent,'No matching records.');
+  for(const variant of [{limited:true},{gaps:[{start:'2026-09-01',end:'2026-09-30'}]}]){
+    await render(sourceAvailability({...checked,...variant}));
+    assert.equal(container.querySelector('p').textContent,'Partial coverage','a failed or limited check never claims an empty result');
+  }
+  await render(sourceAvailability({sourceKey:'speech-text',observedRecords:0}));
+  assert.equal(container.querySelector('p').textContent,'Unavailable.');
 });
