@@ -680,7 +680,7 @@ export async function amendmentTask(worker,task) {
     const retrieve=async descriptor=>{
       const retained=parserUpgrade?await retainedAmendmentSource(store,descriptor,{signal}):null;
       if(retained)return retained;
-      if(parserUpgrade&&(worker.amendmentParserDownloads || 0)>=4) {
+      if(worker.requests>=worker.budget||parserUpgrade&&(worker.amendmentParserDownloads || 0)>=4) {
         store.assertWriter();
         store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=? WHERE generation=? AND key=?`).run(worker.clock()+30*60_000,generation,task.key);
         return null;
@@ -704,9 +704,8 @@ export async function amendmentTask(worker,task) {
     const alternate=alternateAuthorDescriptor(saved.work,extraction);
     if(alternate){
       try {
-        if(worker.requests>=worker.budget)throw new Error('Alternate byline source deferred by the request budget.');
         const other=await retrieve(alternate);
-        if(!other)throw new Error('Alternate byline source deferred by the parser upgrade download limit.');
+        if(!other)return;
         signal.throwIfAborted();
         const retrievedAt=other.fetchedAt,source={url:alternate.url,fetchedAt:retrievedAt,language:alternate.language,contentHash:createHash('sha256').update(other.buffer).digest('hex')};
         const parsed=extractAmendments(other.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:alternate.language,sourceUrl:alternate.url,fetchedAt:retrievedAt});

@@ -27,12 +27,12 @@ const oldOriginal='The original legal wording.';
 const oldProposed='The previously verified proposed wording.';
 const freshProposed='The corrected proposal sets a detailed requirement for an annual public implementation report.';
 
-function amendmentDocx(proposed=oldProposed) {
+function amendmentDocx(proposed=oldProposed,author='Alex Common') {
   const escape=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const paragraph=value=>'<w:p><w:r><w:t>'+escape(value)+'</w:t></w:r></w:p>';
   const row=values=>'<w:tr>'+values.map(value=>'<w:tc>'+paragraph(value)+'</w:tc>').join('')+'</w:tr>';
   const xml='<w:document xmlns:w="urn:word"><w:body>'+paragraph('<Amend><Date>2.10.2026</Date><NumAm>1</NumAm>')+
-    paragraph('<Members>Alex Common</Members>')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+
+    paragraph('<Members>'+author+'</Members>')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+
     row(['Text proposed by the Commission','Amendment'])+row([oldOriginal,proposed])+'</w:tbl>'+paragraph('</Amend>')+'</w:body></w:document>';
   const name=Buffer.from('word/document.xml'), body=Buffer.from(xml), compressed=deflateRawSync(body);
   const local=Buffer.alloc(30);local.writeUInt32LE(0x04034b50);local.writeUInt16LE(8,8);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(name.length,26);
@@ -649,4 +649,20 @@ test('parser recovery respects retained cooldowns and wakes after expiry without
   assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
   await worker.task(nextAmendmentTask(store,generation));
   assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);assert.equal(store.source(generation,listKey).work.wordingRefreshFailure,undefined);
+});
+
+test('an alternate byline deferred by the request budget resumes using retained primary bytes',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;downgrade(context);context.advance(8*86400000);
+  const saved=store.source(generation,listKey),primary={url:oldUrl,language:'bg',byteSize:null},alternate={url:newUrl,language:'de',byteSize:null};
+  store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[primary,alternate]}},saved.fetchedAt);
+  const downloads=[];worker.downloadAmendmentDocx=async url=>{downloads.push(url);return {buffer:amendmentDocx(freshProposed,url===oldUrl?'Данило Дела Вале':'Danilo Della Valle')};};
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  worker.requests=0;worker.budget=1;await worker.task(nextAmendmentTask(store,generation));
+  assert.deepEqual(downloads,[oldUrl]);assert.equal(worker.requests,1);assert.equal(extractionJob(store,generation).done,0);
+  assert.equal(store.source(generation,listKey).work.extraction.parserVersion,'10');
+  context.advance(30*60_000);worker.requests=0;worker.budget=2;worker.amendmentParserDownloads=0;
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.deepEqual(downloads,[oldUrl,newUrl]);assert.equal(worker.requests,1);assert.equal(extractionJob(store,generation).done,1);
+  assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+  assert.equal(store.source(generation,listKey).work.authorNames.source.url,newUrl);
 });
