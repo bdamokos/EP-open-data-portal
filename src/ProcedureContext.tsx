@@ -1,4 +1,5 @@
-import {useEffect,useRef,useState} from 'react';
+import {FollowDossierButton} from './DossierControls';
+import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {FindInText} from './TextSearch';
 import {useInsightData} from './InsightData';
 import {humanDate} from './InsightCharts';
@@ -12,18 +13,22 @@ import {summaryStage,compoundLanguage} from './terms.mjs';
 export type OfficialTopic={id:string;label:string;language:string};
 type Context={reference:string;title:string;language:string;summaries:{id:string;stage:string;date:string|null}[];summary:null|{id:string;stage:string;date:string;blocks:{kind:string;text:string}[];method:string|null;source:{url:string}};subjects:{code:string;label:string}[];topics:OfficialTopic[];source:{url:string}};
 
-export function ProcedureContext({reference,language='en',onTopic,showTitle=false}:{reference:string;language?:string;onTopic?:(topic:OfficialTopic)=>void;showTitle?:boolean}) {
-  const [summary,setSummary]=useState(''),[expanded,setExpanded]=useState(false),summaryText=useRef<HTMLDivElement>(null);
-  useEffect(()=>{setSummary('');setExpanded(false);},[reference]);
+export function ProcedureContext({reference,language='en',onTopic,showTitle=false,showIdentity=true,initialSummary='',children,fallbackTitle}:{reference:string;language?:string;onTopic?:(topic:OfficialTopic)=>void;showTitle?:boolean;showIdentity?:boolean;initialSummary?:string;children?:ReactNode;fallbackTitle?:{title:string;titleLanguage:string|null}|null}) {
+  const [summary,setSummary]=useState(initialSummary),[expanded,setExpanded]=useState(false),summaryText=useRef<HTMLDivElement>(null);
+  useEffect(()=>{setSummary(initialSummary);setExpanded(false);},[reference,initialSummary]);
   const params=new URLSearchParams({reference,lang:language});if(summary)params.set('summary',summary);
   const {data,loading,error}=useInsightData<Context>('insights/procedure-context?'+params);
+  const title=data?{title:data.title,titleLanguage:data.language}:fallbackTitle;
+  const identity=showIdentity&&<div className="insight-dossier-title">
+    {showTitle&&title&&<h2 lang={title.titleLanguage??''}>{title.title}</h2>}
+    <div className="dossier-identity-row"><p lang="">{reference}</p>{(!showTitle||!loading)&&<FollowDossierButton reference={reference} title={title?.title} titleLanguage={title?.titleLanguage}/>}</div>
+  </div>;
   const press=<PressMentions key={'press:'+reference+':'+language} reference={reference} language={language} limit={showTitle?5:3}/>;
   const amendmentLink=<AmendmentTrailLink procedure={reference} language={language}>Amendments for this dossier</AmendmentTrailLink>;
-  if(!data)return <section lang="en" className="insight-procedure-context insight-procedure-fallback">{amendmentLink}<ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>{loading&&<p role="status">Loading summary…</p>}{press}{!loading&&error&&<p><a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer">Read on Legislative Observatory ↗</a></p>}</section>;
+  if(!data)return <section lang="en" className="insight-procedure-context insight-procedure-fallback" data-procedure-context-pending={loading&&!fallbackTitle?"true":undefined}>{identity}{amendmentLink}{children}<ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>{loading&&<p role="status">Loading summary…</p>}{press}{!loading&&error&&<p><a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer">Read on Legislative Observatory ↗</a></p>}</section>;
   const blocks=data.summary?.blocks||[],displayed=expanded?blocks:blocks.slice(0,2);
   return <section lang="en" className="insight-procedure-context">
-    {amendmentLink}
-    {showTitle&&<div className="insight-dossier-title"><h2 lang={data.language??''}>{data.title}</h2><p>{data.reference}</p></div>}
+    {identity}{amendmentLink}{children}
     <ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>
     {data.summary&&<><header><div><h3>Summary</h3><FindInText key={data.summary.id} label="Find in summary" target={summaryText} onOpen={()=>setExpanded(true)}/></div><div>{data.summaries.length>1?<label className="insight-summary-stage"><span className="explorer-sr-only">Summary stage</span><select value={data.summary.id} onChange={event=>{setSummary(event.target.value);setExpanded(false);}}>{data.summaries.map(item=>{const stage=summaryStage(item.stage,language);return <option lang={compoundLanguage(stage.language,item.date?language:stage.language)} value={item.id} key={item.id}>{stage.text}{item.date?' · '+humanDate(item.date,language):''}</option>;})}</select></label>:<span lang={summaryStage(data.summary.stage,language).language}>{summaryStage(data.summary.stage,language).text}</span>}{data.summaries.length===1&&<time lang={language}>{humanDate(data.summary.date,language)}</time>}</div></header>
       <div className="insight-official-summary" ref={summaryText} lang={data.language??''}>{displayed.map((block,index)=>block.kind==='heading'?<h4 key={index}>{block.text}</h4>:<p key={index}>{block.text}</p>)}</div>

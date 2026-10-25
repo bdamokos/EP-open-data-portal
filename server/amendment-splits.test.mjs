@@ -106,6 +106,32 @@ test('exact component identifiers are deduplicated and parts sort numerically',(
   const failed=parse([b,conflict]);assert.equal(failed.parts.length,1);assert.equal(failed.failures[0].code,'conflicting_part');assert.equal(failed.parts[0].conflictingDescriptions.length,2);
 });
 
+test('split character-reference failures retain their exact codes, messages and raw provenance',()=>{
+  for(const [token,code,message] of [
+    ['&AMP;','unsafe_xml','Only standard XML character references are supported.'],
+    ['&nbsp;','unsafe_xml','Only standard XML character references are supported.'],
+    ['&#x41oops;','unsafe_xml','Only standard XML character references are supported.'],
+    ['&#X26;','invalid_xml','The split description is not well-formed XML.'],
+    ['&#0;','invalid_xml','Invalid XML character reference.'],
+    ['&#1;','invalid_xml','Invalid XML character reference.'],
+    ['&#xD800;','invalid_xml','Invalid XML character reference.'],
+    ['&#1114112;','invalid_xml','Invalid XML character reference.'],
+  ]){
+    const input=part(1,'unused');input.expressionContent.en=`<partValue>‘${token}’</partValue>`;
+    const before=structuredClone(input),result=parse([input]);
+    assert.equal(result.parts[0].status,'unresolved',token);
+    assert.deepEqual(result.parts[0].failure,{code,message});
+    assert.equal(result.failures[0].rawDescription,input.expressionContent.en);
+    assert.equal(result.failures[0].partId,input.id);assert.equal(result.failures[0].language,'en');
+    assert.equal(result.failures[0].sourceUrl,sourceUrl);assert.equal(result.failures[0].fetchedAt,fetchedAt);
+    assert.deepEqual(input,before);
+  }
+  for(const [token,expected] of [['&#x00000026;','&'],['&#000000038;','&'],['&#xFFFE;','\ufffe'],['&#xFFFF;','\uffff'],['&#x1FFFE;','\u{1fffe}']]){
+    const input=part(1,'unused');input.expressionContent.en=`<partValue>‘${token}’</partValue>`;
+    const result=parse([input]);assert.deepEqual(result.failures,[],token);assert.equal(result.parts[0].plan.quote,expected);
+  }
+});
+
 test('unknown grammar and ambiguous references produce durable failures with provenance',()=>{
   for(const [description,code] of [['the last half of paragraph 2','unsupported_syntax'],['those words','ambiguous_anaphora'],['‘policy’ (last occurrence)','unsupported_qualifier'],['the third ‘R’ in the acronym ‘SRHR’','invalid_character_selector']]) {
     const result=parse([part(1,description)]), failure=result.failures[0];

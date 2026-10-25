@@ -19,6 +19,12 @@ test('motion cards keep each exact text and its outcome separate, with readable 
   t.after(async()=>{await vite.close();await window.happyDOM.close();});
   const {MotionStatuses,MotionOutcome}=await vite.ssrLoadModule('/src/MotionOutcome.tsx');
   const render=(component,properties)=>{const node=window.document.createElement('div');node.innerHTML=renderToStaticMarkup(createElement(component,properties));return node;};
+  await t.test('unknown indexed methods remain omitted rather than adding unavailable method copy',()=>{
+    for(const method of [null,'VOTE_UNKNOWN']){
+      const node=render(MotionOutcome,{...props,related:[{...joint,outcome:{...joint.outcome,method}}]});
+      assert.doesNotMatch(node.textContent,/Voting method unavailable/);assert.match(node.textContent,/Adopted/);
+    }
+  });
   await t.test('the collapsed card identifies both texts rather than implying one conflicting outcome',()=>{
     const node=render(MotionStatuses,props);
     assert.match(node.textContent,/Replaced by joint motion/);

@@ -81,8 +81,13 @@ export function ViewContent({render,onReady}:{render:()=>ReactNode;onReady:()=>v
   return render();
 }
 
-export function ViewLoading({language}:{language:string}) {
+export function ViewLoading({language,title,embedded=false}:{language:string;title?:string;embedded?:boolean}) {
   const term=interfaceTerm('loading-view',language);
+  if(embedded)return <section className="view-loading" data-view-loading="true" aria-busy="true">
+    {title&&<div className="insight-intro" lang="en"><h1>{title}</h1></div>}
+    <p role="status" lang={term.language}>{term.text}</p>
+    <div className="view-loading-placeholders" aria-hidden="true"><span/><span/><span/></div>
+  </section>;
   return <main className="explorer explorer-recovery" lang={term.language} data-view-loading="true" aria-busy="true">
     <p role="status">{term.text}</p>
     <a href={'?lang='+language}>{interfaceTerm('go-home',language).text}</a>

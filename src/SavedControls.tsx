@@ -1,3 +1,4 @@
+import {dossierStore,subscribeDossiers,useDossiers} from './DossierControls';
 import {createGroupsStore,GROUPS_KEY,groupIsNew,type GroupsSnapshot} from './followGroups.mjs';
 import {createCoverageStore,COVERAGE_KEY} from './followCoverage.mjs';
 import {createMembershipStore,MEMBERSHIP_KEY,membershipIsNew,type MembershipSnapshot} from './followMembership.mjs';
@@ -36,11 +37,12 @@ const clockListeners=new Set<()=>void>();
 function refreshSavedClock() {
   savedNow=Date.now();clearTimeout(expiryTimer);
   const membershipExpiry=membershipStore.snapshot().entries.filter(entry=>membershipIsNew(entry,savedNow)).map(entry=>entry.discoveredAt+24*60*60*1000);
-  const deadlines=[nextExpiry(savedStore.snapshot().items,savedNow),...membershipExpiry,...groupsStore.snapshot().entries.filter(entry=>groupIsNew(entry,savedNow)).map(entry=>entry.discoveredAt+24*60*60*1000)].filter((value):value is number=>value!==null);
+  const deadlines=[nextExpiry([...savedStore.snapshot().items,...dossierStore.snapshot().items],savedNow),...membershipExpiry,...groupsStore.snapshot().entries.filter(entry=>groupIsNew(entry,savedNow)).map(entry=>entry.discoveredAt+24*60*60*1000)].filter((value):value is number=>value!==null);
   const expiry=deadlines.length?Math.min(...deadlines):null;
   if(clockListeners.size&&expiry!==null)expiryTimer=setTimeout(refreshSavedClock,Math.max(1,expiry-savedNow));
   clockListeners.forEach(listener=>listener());
 }
+subscribeDossiers(()=>queueMicrotask(refreshSavedClock));
 window.addEventListener('focus',refreshSavedClock);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshSavedClock();});
 const subscribeClock=(callback:()=>void)=>{
@@ -48,9 +50,11 @@ const subscribeClock=(callback:()=>void)=>{
   return()=>{clockListeners.delete(callback);if(!clockListeners.size)clearTimeout(expiryTimer);};
 };
 export function useSavedNow() {return useSyncExternalStore(subscribeClock,()=>savedNow);}
-type SavedCheck={data:SavedStates;requestedKey:string};
+type SavedCheck={data:SavedStates;requestedKey:string;language:string};
 export const requestedKeys=new WeakMap<Promise<unknown>,string>();
 let pending:Promise<SavedCheck|undefined>|null=null,lastStatus=0,status:FollowingStatus|null=null;
+let statusError=false;
+const checkListeners=new Set<()=>void>();
 let manifestDone='',questionsDone='',pendingLanguage='';
 const taskKey=(language:string,items:SavedItem[])=>JSON.stringify([status?.epoch,status?.generation,status?.marksReady,language,items.map(item=>[savedKey(item),item.savedAt])]);
 const selectionKey=()=>savedStore.snapshot().items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
@@ -96,7 +100,7 @@ export function openSavedMember(item:SavedItem,language:string):Promise<unknown>
 export function checkSaved(language:string,force=false):Promise<SavedCheck|undefined> {
   if(pending) {
     if(pendingLanguage===language)return pending;
-    const queued=pending.catch(()=>undefined).then(()=>checkSaved(language,force));requestedKeys.set(queued,selectionKey());return queued;
+    const queued=pending.catch(()=>undefined).then(()=>document.visibilityState==='visible'?checkSaved(language,force):undefined);requestedKeys.set(queued,selectionKey());return queued;
   }
   pendingLanguage=language;
   const requestedKey=selectionKey();
@@ -108,10 +112,10 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
     // A new selection can use a fresh status already held by this tab.
     try {
       if(force||!status||Date.now()-lastStatus>=60_000) {
-        lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status');
+        lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status');statusError=false;
       }
       expected=status;
-    }catch(error){savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');setGroupsCheck('error');failures.push(error);}}
+    }catch(error){statusError=true;savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');setGroupsCheck('error');failures.push(error);}}
     let data:SavedStates={questions:[],checkedAt:'',coverage:{indexComplete:expected?.indexComplete===true}};
     const questions=items.filter(item=>item.kind==='question'),questionKey=taskKey(language,questions);
     // Question sources do not depend on marker readiness or manifest processing.
@@ -166,7 +170,7 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
     };
     await Promise.all([checkQuestions(),checkMembers(),checkMembership(),checkGroups()]);
     if(failures.length)throw failures[0];
-    expireActivityReads();return {data,requestedKey};
+    expireActivityReads();return {data,requestedKey,language};
   };
   pending=(async()=>{
     try{return await run();}catch(error){
@@ -176,17 +180,45 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
       }
       throw error;
     }
-  })().finally(()=>{pending=null;if(selectionKey()!==requestedKey)void checkSaved(language).catch(()=>{});});
+  })().finally(()=>{pending=null;checkListeners.forEach(listener=>listener());if(document.visibilityState==='visible'&&selectionKey()!==requestedKey)void checkSaved(language).catch(()=>{});});
   requestedKeys.set(pending,requestedKey);return pending;
 }
 export function useSavedChecks(language:string,following=false) {
-  const {items}=useSaved(),key=items.map(item=>savedKey(item)+':'+item.savedAt).sort().join(',');
-  useEffect(()=>{void checkSaved(language).catch(()=>{});},[following,key,language]);
+  const {items}=useSaved(),key=items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
   useEffect(()=>{
-    const check=()=>{if(document.visibilityState==='visible'&&Date.now()-lastStatus>=60_000)void checkSaved(language).catch(()=>{});};
-    window.addEventListener('focus',check);document.addEventListener('visibilitychange',check);
-    return()=>{window.removeEventListener('focus',check);document.removeEventListener('visibilitychange',check);};
-  },[language]);
+    if(!key)return;
+    let active=true,contextPending=true,timer:ReturnType<typeof setTimeout>|undefined;
+    const delay=()=>{
+      const saved=savedStore.snapshot(),hasMembers=saved.items.some(item=>item.kind==='mep'),hasQuestions=saved.items.some(item=>item.kind==='question');
+      const waiting=statusError||!status||hasMembers&&(!status.marksReady||status.membershipReady===false||status.groupsReady===false||saved.checkState!=='available'||membershipCheck==='error'||groupsCheck==='error')||hasQuestions&&saved.questionCheckState!=='available';
+      return waiting?60_000:4*60*60_000;
+    };
+    const schedule=()=>{
+      clearTimeout(timer);
+      if(active&&document.visibilityState==='visible')timer=setTimeout(()=>void check(),contextPending?1000:Math.max(1000,lastStatus+delay()-Date.now()));
+    };
+    const check=async()=>{
+      clearTimeout(timer);
+      if(document.visibilityState!=='visible')return;
+      if(contextPending||Date.now()-lastStatus>=delay()){
+        const checked=checkSaved(language),matches=requestedKeys.get(checked)===key;
+        try{
+          const result=await checked;
+          if(result?.requestedKey===key&&result.language===language)contextPending=false;
+        }catch{
+          // Matching failures use the short retry deadline; a shared request
+          // for another selection must leave this context pending.
+          if(matches)contextPending=false;
+        }
+      }
+      schedule();
+    };
+    const refresh=()=>{void check();};
+    checkListeners.add(schedule);
+    void check();
+    window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);
+    return()=>{active=false;clearTimeout(timer);checkListeners.delete(schedule);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};
+  },[following,key,language]);
 }
 type Resolution={pending?:boolean;error?:string};
 const resolutionAttempts=new Map<string,{at:number;error?:string;done?:boolean}>();
@@ -227,6 +259,6 @@ export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;co
   return <><button className={'explorer-save-button'+(saved?' is-saved':'')} lang={item.title?compoundLanguage(label.language,item.titleLanguage):label.language} aria-label={`${name}${item.title?' · '+item.title:''}`} aria-pressed={saved} title={tooltip} onClick={()=>{try{savedStore.toggle(item);setError('');}catch(e){setError((e as Error).message);}}}><span aria-hidden="true">{saved?'★':'☆'}</span>{!compact&&<span lang={label.language}>{label.text}</span>}</button>{error&&<small role="alert" lang="en">{error}</small>}</>;
 }
 export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:boolean}) {
-  const groups=useGroups(),membership=useMembership(),saved=useSaved(),now=useSavedNow(),items=saved.items,updates=items.filter(item=>itemHasNew(item,now)||item.kind==='mep'&&membership.entries.some(entry=>entry.mep===item.id&&membershipIsNew(entry,now))||item.kind==='mep'&&groups.entries.some(entry=>entry.mep===item.id&&groupIsNew(entry,now))).length;
-  return <button onClick={onClick} lang="en" aria-current={current?'page':undefined}>Following{updates>0?<span className="explorer-saved-count">{updates} new</span>:items.length>0?<small> {items.length}</small>:null}</button>;
+  const dossiers=useDossiers(),groups=useGroups(),membership=useMembership(),saved=useSaved(),now=useSavedNow(),items=[...saved.items,...dossiers.items],updates=items.filter(item=>itemHasNew(item,now)||item.kind==='mep'&&membership.entries.some(entry=>entry.mep===item.id&&membershipIsNew(entry,now))||item.kind==='mep'&&groups.entries.some(entry=>entry.mep===item.id&&groupIsNew(entry,now))).length;
+  return <button onClick={onClick} lang="en" aria-current={current?'page':undefined}>Following{updates>0&&<span className="explorer-saved-count" title={`${updates} followed ${updates===1?'item has':'items have'} new updates`}>{updates} new</span>}</button>;
 }

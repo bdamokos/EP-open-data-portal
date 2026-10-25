@@ -1,4 +1,5 @@
 import {personId} from './insights-model.mjs';
+import {decodeCharacterReferences} from './character-references.mjs';
 
 import {list,unique,term as tail,exactReference as reference,references,eventUri,identifier,labels,preferred,deriveVoteEvidence} from './vote-evidence.mjs';
 
@@ -8,14 +9,7 @@ const positions={for:'favor',against:'against',abstaining:'abstention'};
 // adjacent activity_label is plain text. Decode one layer without parsing tags
 // or treating percentages as URL escapes; source snapshots stay untouched.
 function referenceText(value) {
-  const named={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'"};
-  return value.replace(/&(?:amp|lt|gt|quot|apos|#(?:[0-9]+|x[0-9a-fA-F]+));/g,whole=>{
-    const entity=whole.slice(1,-1);
-    if(Object.hasOwn(named,entity))return named[entity];
-    const point=entity[1]==='x'?Number.parseInt(entity.slice(2),16):Number(entity.slice(1));
-    if(!Number.isSafeInteger(point)||point<1||point>0x10ffff||point>=0xd800&&point<=0xdfff||point<0x20&&![9,10,13].includes(point)||point===0xfffe||point===0xffff)return whole;
-    return String.fromCodePoint(point);
-  });
+  return decodeCharacterReferences(value,'vote-reference');
 }
 
 function count(value) {
@@ -56,7 +50,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
   const arraysAvailable=Object.values(actual.supplied).every(Boolean);
   const notConducted=['LAPSED','WITHDRAWN','CANCELLED','CANCELED','NOT_HELD'].includes(outcome);
   const type=tail(typeof raw.type==='string'?raw.type:raw['@type']);
-  const nonNamedMethod=method&&method.startsWith('VOTE_')&&method!=='VOTE_ELECTRONIC_ROLLCALL';
+  const nonNamedMethod=['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(method);
   const ballotStatus=notConducted?'not-conducted':type==='Vote'&&(arraysAvailable||nonNamedMethod)?'conducted':'unknown';
   const available=ballotStatus==='conducted'&&method==='VOTE_ELECTRONIC_ROLLCALL'&&arraysAvailable;
   const conflictingPersonIds=[...actual.byPerson].filter(([,values])=>values.length>1).map(([id])=>id).sort((a,b)=>Number(a)-Number(b));
@@ -70,6 +64,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
   else if(memberPositions.length>1)actualPosition={status:'conflicting',position:null};
   else if(available&&memberPositions.length===1)actualPosition={status:'recorded',position:memberPositions[0]};
   else if(available&&actual.malformedReferences===0&&totalsMatch!==false)actualPosition={status:'no-record',position:null};
+  else if(ballotStatus==='conducted'&&nonNamedMethod&&!Object.values(positions).some(suffix=>Object.hasOwn(raw,'had_voter_'+suffix))&&actual.malformedReferences===0)actualPosition={status:'not-individually-recorded',position:null};
   const intendedPositions=intended.byPerson.get(String(memberId))||[];
   const intention={status:intended.malformedReferences>0?'unavailable':intendedPositions.length?'reported':'not-reported',positions:intendedPositions};
 

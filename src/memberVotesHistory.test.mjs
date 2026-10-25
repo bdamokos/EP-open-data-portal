@@ -1,3 +1,4 @@
+import {wordingText} from './test-support/wordingText.mjs';
 import test from 'node:test';
 import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
@@ -21,9 +22,9 @@ function vote(number) {
 function response(url) {
   const query=url.searchParams,offset=Number(query.get('offset')||0),id=query.get('decision'),items=offset?[vote(3),vote(4)]:[vote(1),vote(2)];
   const week=query.get('week')==='latest'?WEEK:query.get('week'),sitting=query.get('sitting');
-  return {version:3,member:{id:url.pathname.split('/').at(-1)},positions:query.get('positions'),alignment:query.get('alignment')||'all',alignmentCounts:{with:4,against:0,abstained:0,unclassified:0},snapshotId:query.get('snapshot')||SNAPSHOT,
+  return {version:6,member:{id:url.pathname.split('/').at(-1)},positions:query.get('positions'),alignment:query.get('alignment')||'all',alignmentCounts:{with:4,against:0,abstained:0,unclassified:0},snapshotId:query.get('snapshot')||SNAPSHOT,
     period:sitting?{kind:'sitting',week:null,sittingId:sitting,from:sitting.slice(7),to:sitting.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
-    items,pagination:{offset,limit:50,returned:2,observedTotal:4,filteredTotal:4,nextOffset:offset?null:2},
+    items,pagination:{offset,limit:50,returned:2,observedTotal:4,recordedTotal:4,filteredTotal:4,nextOffset:offset?null:2},
     selected:id?Number(id.split('-').at(-1))<=4?{status:'found',item:vote(Number(id.split('-').at(-1)))}:{status:'not-found-in-scanned-data',item:null}:{status:'not-requested',item:null},
     subjects:[{id:SUBJECT,title:'Exact subject',titleLanguage:'en',titles:{en:'Exact subject'},documentIds:[DOCUMENT],agendaItemIds:[],counts:{observed:4,filtered:4,page:2},wholeTextDecisions:[]}],coverage:{status:'partial',termWide:false}};
 }
@@ -44,7 +45,7 @@ function multilingualContext() {
     request:async endpoint=>{assert.equal(endpoint,'/plenary-documents/'+DOCUMENT);return {payload:{data:[work]},fetchedAt,url:'https://example.test/public-fixture'+endpoint};},
     readText:async(node,language)=>{
       assert.equal(node.identifier,DOCUMENT);reads.push(language);
-      const paragraphs=language==='hu'?['Magyar forrás bevezetése.',variants[1].originalText,'2. A következő magyar bekezdés.']:['English source introduction.',variants[0].originalText,'2. The next English paragraph.'];
+      const paragraphs=language==='hu'?['Az Európai Parlament,','– tekintettel a nyilvános forrásokra,',variants[1].originalText,'2. A következő magyar bekezdés.']:['The European Parliament,','– having regard to public sources,',variants[0].originalText,'2. The next English paragraph.'];
       return {status:'available',textLanguage:language,availableTextLanguages:['en','hu'],paragraphs,notes:[],noteAnchors:[],documentLinks:[],structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'w:body/w:p['+ordinal+']',ordinal,container:'body',containerPath:'w:body',segment:0,complete:true})),sourceUrl:'https://example.test/synthetic-motion_'+language+'.docx',fetchedAt:new Date(fetchedAt).toISOString()};
     },download:async()=>{assert.fail('Indexed test wording never downloads a document.');},
   });
@@ -72,6 +73,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
     if(url.pathname.startsWith('/api/profile/'))return Response.json({...members[Number(url.pathname.split('/').at(-1))-1],birthDate:null,memberships:[]});
     if(url.pathname.startsWith('/api/document/'))return Response.json({...contextDocument(decodeURIComponent(url.pathname.split('/').at(-1))),roles:['AUTHOR'],coAuthors:[]});
     if(url.pathname.startsWith('/api/member-votes/'))return Response.json(response(url));
+    if(url.pathname.startsWith('/api/member-vote-explanations/'))return Response.json({version:2,memberId:url.pathname.split('/').at(-1),decisionId:url.searchParams.get('decision'),sittingId:SITTING,snapshotId:url.searchParams.get('snapshot'),subjectId:SUBJECT,matchScope:'subject',presentationAnchorDecisionId:null,items:[],written:{status:'unsupported',count:null},coverage:{status:'searched',searchComplete:true,gaps:[]}});
     if(url.pathname.startsWith('/api/document-context/')){
       const id=decodeURIComponent(url.pathname.split('/').at(-1));
       const choices=[ADOPTED,OTHER_ADOPTED].map(id=>({...contextDocument(id),relationship:{from:id,field:'adopts',to:DOCUMENT}}));
@@ -130,11 +132,11 @@ test('Votes is public; canonical pinning replaces, every user navigation pushes 
   assert.equal(history.length,length+1,'expansion is a user step despite module replace hint');
   assert.deepEqual(JSON.parse(params().get('mv-expanded')),[SUBJECT]);
   const expanded=location.href;
-  await h.click(button(h.container,'All decisions'));assert.equal(history.length,length+2);
-  assert.equal(params().get('mv-positions'),'all');
+  await h.click(button(h.container,'Recorded positions'));assert.equal(history.length,length+2);
+  assert.equal(params().get('mv-positions'),'recorded');
   await h.click(button(h.container,'Next page'));assert.equal(history.length,length+3);assert.equal(params().get('mv-offset'),'2');
-  await h.go(-1);assert.equal(params().get('mv-offset'),null);assert.equal(params().get('mv-positions'),'all');
-  await h.go(-1);assert.equal(location.href,expanded);assert.equal(button(h.container,'Recorded positions').getAttribute('aria-pressed'),'true');
+  await h.go(-1);assert.equal(params().get('mv-offset'),null);assert.equal(params().get('mv-positions'),'recorded');
+  await h.go(-1);assert.equal(location.href,expanded);assert.equal(button(h.container,'All decisions').getAttribute('aria-pressed'),'true');
   await h.go(2);assert.equal(params().get('mv-offset'),'2');
   for(const [key,value] of new URLSearchParams(search))assert.equal(params().get(key),value);
   await h.click(button(h.container,'Following'));
@@ -255,7 +257,8 @@ test('choosing Hungarian wording in one multilingual list opens and restores its
     assert.equal(location.href,context);assert.equal(params().get('lang'),'en','the interface language stays independent');
     assert.equal(params().get('mv-wording-lang'),'hu');assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
     const highlighted=h.container.querySelector('.document-context-reader [data-context-target="true"]');
-    assert.equal(highlighted?.textContent,source.indexed.variants[1].originalText);
+    assert(highlighted?.querySelector('.wording-diff'),'the exact Hungarian source is shown as an in-place diff');
+    assert.equal(wordingText(highlighted,'original'),source.indexed.variants[1].originalText);
     assert.equal(h.container.querySelector('.document-context-text')?.lang,'hu');
     assert.equal(h.container.querySelector('.member-votes').scrollTop,4237);assert.equal(h.container.querySelector('.explorer-profile-body').scrollTop,413);
   };
@@ -288,7 +291,7 @@ test('unknown wording language and conflicting same-language versions do not acq
     assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
     assert.equal(Boolean(h.container.querySelector('.document-context-reader [data-context-target="true"]')),false);
     assert.equal(Boolean(h.container.querySelector('.document-context-text [data-source-paragraph]')),true,'the exact source body stays readable without an assigned passage');
-    assert.equal(h.container.querySelector('.document-context-reader').textContent.includes('Passage not found.'),true);
+    assert.equal(h.container.querySelector('.document-context-reader .document-context-notice[role="status"]').textContent,kind==='unknown'?'The amendment wording language is unknown.':'The amendment wording is unavailable.');
     const resolved=source.results.find(result=>result.document);
     assert.notEqual(resolved.target.status,'found');assert.equal(Object.hasOwn(resolved,'requestedWordingLanguage'),true);
     assert.equal(resolved.requestedWordingLanguage,kind==='unknown'?null:'hu');
@@ -390,7 +393,7 @@ test('direct sitting/context/TA selection restores exactly; another MEP receives
   await h.click(h.container.querySelector('[data-member-id="2"] button'));
   await h.click(button(h.container,'Votes'));
   const first=h.requests.find(url=>url.pathname==='/api/member-votes/2');assert(first);
-  assert.deepEqual(Object.fromEntries(first.searchParams),{week:'latest',positions:'recorded',lang:'en',offset:'0',limit:'50'});
+  assert.deepEqual(Object.fromEntries(first.searchParams),{week:'latest',positions:'all',lang:'en',offset:'0',limit:'50'});
   assert.equal(params().get('mv-decision'),null);assert.equal(params().get('mv-sitting'),null);assert.equal(params().get('mv-document'),null);
   assert.equal(params().get('ma-document'),null);
   await h.go(-3);assert.equal(location.href,original);assert.equal(params().get('member'),'1');

@@ -13,14 +13,15 @@ test('future and same-day items are neutral even with a stale sitting phase',()=
   assert.equal(brusselsDate(Date.parse('2026-10-19T23:30:00Z')),today);
   assert.equal(brusselsDate(Date.parse('2026-10-25T23:30:00Z')),'2026-10-26');
 });
-test('recent publication waits expire to unknown coverage and never promise a deadline',()=>{
+test('waiting follows source evidence rather than the age of an empty selection',()=>{
   for(const kind of ['speech','vote']) {
-    assert.equal(plenaryAvailability(detail('2026-10-19'),kind,today).state,'awaiting');
-    assert.equal(plenaryAvailability(detail('2026-10-17'),kind,today).state,'awaiting');
-    assert.equal(plenaryAvailability(detail('2026-10-16'),kind,today).state,'unknown');
+    for(const day of ['2026-10-19','2026-10-17','2026-10-16'])assert.equal(plenaryAvailability(detail(day),kind,today).state,'unknown');
+    const availability={[kind==='speech'?'speech':'vote']:{latestObservedDate:'2026-10-16'}};
+    assert.equal(plenaryAvailability(detail('2026-10-17',{availability}),kind,today).state,'awaiting');
+    assert.equal(plenaryAvailability(detail('2026-10-16',{availability}),kind,today).state,'unknown');
     assert.equal(plenaryAvailability(detail('unknown'),kind,today).state,'unknown');
   }
-  assert.match(plenaryAvailability(detail('2026-10-16'),'vote',today).message,/not every vote is a roll call/);
+  assert.match(plenaryAvailability(detail('2026-10-16'),'vote',today).message,/Not every vote is a roll call/);
 });
 test('known source failures remain errors; linked records and previous debates retain their meaning',()=>{
   const failed=detail(today,{voteCoverage:{error:'429'},coverage:{gaps:[{source:'actual debate event',message:'timeout'}]}});
@@ -30,4 +31,9 @@ test('known source failures remain errors; linked records and previous debates r
   assert.equal(plenaryAvailability({...failed,votes:[{date:today}]},'vote',today),null);
   assert.equal(plenaryAvailability({...failed,speeches:[{date:today}]},'speech',today),null);
   assert.equal(plenaryAvailability(detail(today,{speeches:[{date:'2026-10-07'}]}),'speech',today).state,'today');
+  for(const kind of ['speech','vote']) {
+    const availability={[kind]:{latestObservedDate:'2026-10-16',gaps:[{start:'2026-10-17',end:'2026-10-19'}]}};
+    assert.equal(plenaryAvailability(detail('2026-10-18',{availability}),kind,today).state,'error');
+    assert.equal(plenaryAvailability(detail('2026-10-19',{availability:{[kind]:{...availability[kind],gaps:[{}]}}}),kind,today).state,'error');
+  }
 });

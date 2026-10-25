@@ -1,3 +1,5 @@
+import {indexAvailability,savedGaps,availabilityGap} from './availability-evidence.mjs';
+import {brusselsDay} from './analysis-period.mjs';
 import { outsidePerson, outsideCapacity } from './outside-model.mjs';
 import {speechAgendaMembership} from './speech-agenda.mjs';
 import { HttpError } from './http-utils.mjs';
@@ -86,13 +88,18 @@ function localizedTitles(titles,language) {
 function publicContribution(row,language) {
   return Object.fromEntries(['id','personId','date','term','start','end','parentIds','reportedParentIds','documentId','parentDocumentId','reference','originalLanguages','websiteUrl','websiteLanguage','source','headerSource','rosterSource'].map(key=>[key,row[key]]).concat([['titles',localizedTitles(row.titles,language)],['header',row.header?Object.fromEntries(['personId','name','role','languageTag','original','capacity'].map(key=>[key,row.header[key]])):null]]));
 }
-export function outsideCoverage(store, generation, truncated=false) {
+export function outsideCoverage(store, generation, truncated=false, query={}) {
   const counts = store.db.prepare("SELECT kind,COUNT(*) AS total,SUM(CASE WHEN done=1 THEN 1 ELSE 0 END) AS completed FROM tasks WHERE generation=? AND (kind LIKE 'outside-%' OR kind='speeches') GROUP BY kind").all(generation);
   const pending = counts.reduce((sum,row) => sum + row.total - row.completed,0);
   const initialized = Boolean(store.source(generation,'outside:state'));
   const unresolved=store.db.prepare("SELECT COUNT(DISTINCT speech) AS n FROM outside_contributions WHERE generation=? AND (json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0)").get(generation).n;
   const gaps=store.db.prepare("SELECT COUNT(*) AS n FROM sources WHERE generation=? AND kind='outside-gap'").get(generation).n;
-  return {complete:initialized && !pending && !unresolved && !gaps && !truncated, pending, unresolved, gaps, truncated, initialized, generation,
+  const failed=store.db.prepare("SELECT key,body FROM sources WHERE generation=? AND kind='outside-gap' LIMIT 501").all(generation);
+  const gapIntervals=failed.length>500?[{reason:'source-gap'}]:failed.map(row=>availabilityGap(JSON.parse(row.body).taskBody||{},row.key));
+  const window={start:query.term==='9'||query.term==='all'?'2019-07-02':'2024-07-16',end:query.term==='9'?'2024-07-15':brusselsDay(store.clock())};
+  const latestObservedDate=store.db.prepare('SELECT MAX(date) date FROM outside_contributions WHERE generation=? AND date<=?'+(query.term&&query.term!=='all'?" AND json_extract(body,'$.term')=?":'')).get(generation,window.end,...(query.term&&query.term!=='all'?[Number(query.term)]:[])).date||null;
+  const availability=indexAvailability(store,{sourceKey:'outside-speeches',family:'speeches',generation,start:window.start,end:window.end,latestObservedDate,gaps:[...savedGaps(store,generation,'speeches'),...gapIntervals],limited:Boolean(pending||unresolved||gaps||truncated)});
+  return {availability,window,complete:initialized && !pending && !unresolved && !gaps && !truncated, pending, unresolved, gaps, truncated, initialized, generation,
     updatedAt:store.get('lastSuccess') || store.get('working')?.startedAt || null,
     tasks:counts.map(row => ({kind:row.kind,total:row.total,completed:row.completed})),
     source:'European Parliament Open Data API v2'};
@@ -104,7 +111,7 @@ export function outsideDirectory(store, query) {
   const grouped = new Map();
   for (const row of rows) { if (!grouped.has(row.personId)) grouped.set(row.personId,[]); grouped.get(row.personId).push(row); }
   const people = [...grouped.values()].map(rows => outsidePerson(rows,agendas,query.language)).sort((a,b) => b.appearances - a.appearances || a.name.localeCompare(b.name));
-  return {term:query.term,people,coverage:outsideCoverage(store,generation,truncated)};
+  return {term:query.term,people,coverage:outsideCoverage(store,generation,truncated,query)};
 }
 export function outsideSpeaker(store, person, query) {
   if (!/^[1-9]\d{0,12}$/.test(person)) throw new HttpError(400,'invalid_person','Invalid speaker identifier.');
@@ -117,5 +124,5 @@ export function outsideSpeaker(store, person, query) {
     const row = classified(parse(item.body));
     if (row.personId !== person && row.parentIds.some(id => agendas.has(id))) coSpeeches.set(row.id + '|' + row.personId,row);
   }
-  return {person:outsidePerson(rows,agendas,query.language),contributions:rows.map(row=>publicContribution(row,query.language)),agendas:[...agendas.values()].filter(Boolean).map(agenda=>({...agenda,titles:localizedTitles(agenda.titles,query.language)})),coSpeakers:[...coSpeeches.values()].map(row=>publicContribution(row,query.language)),coverage:outsideCoverage(store,generation,truncated)};
+  return {person:outsidePerson(rows,agendas,query.language),contributions:rows.map(row=>publicContribution(row,query.language)),agendas:[...agendas.values()].filter(Boolean).map(agenda=>({...agenda,titles:localizedTitles(agenda.titles,query.language)})),coSpeakers:[...coSpeeches.values()].map(row=>publicContribution(row,query.language)),coverage:outsideCoverage(store,generation,truncated,query)};
 }

@@ -4,7 +4,7 @@ export function readJson<T>(url: string, options?: {
 }): Promise<T>;
 export function createDataClient(
   load: (route: string, signal: AbortSignal, options: { priority: 'auto' | 'low'; getPriority: () => 'auto' | 'low' }) => Promise<unknown>,
-  options?: { maxEntries?: number; maxAge?: number; timeoutFor?: (route: string) => number; prefetchDelay?: number },
+  options?: { maxEntries?: number; maxAge?: number; maxAgeFor?: (data: unknown, route: string) => number; timeoutFor?: (route: string) => number; prefetchDelay?: number },
 ): {
   expireMatching(matches: (route: string) => boolean): void;
   peek<T>(route: string): T | null;

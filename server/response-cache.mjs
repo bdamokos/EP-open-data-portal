@@ -11,6 +11,8 @@ function approvedPath(pathname) {
   const [, , resource, item] = parts;
   if (parts.length === 3) return direct.has(resource);
   if (parts.length !== 4 || !item) return false;
+  // Attendance registers remain revisable, independent observations.
+  if(resource==='member-attendance')return false;
   if (byId.has(resource)) return true;
   if (resource === 'insights') return insights.has(item);
   if (resource === 'corpus') return item === 'search' || item === 'text';
@@ -32,6 +34,7 @@ function transientState(payload) {
       if (key === 'kind' && ['agenda-unavailable', 'votes-unavailable'].includes(child)) return true;
       if (key === 'identityIssues' && Array.isArray(child) && child.some(issue => ['person-names-unavailable', 'person-profile-unavailable'].includes(issue))) return true;
       if (/errors?$/i.test(key) && child && (!Array.isArray(child) || child.length)) return true;
+      if (key === 'catalogueComplete' && child === false) return true;
       if (key === 'nextRetryAt' && child) return true;
       if (child && typeof child === 'object') pending.push(child);
     }

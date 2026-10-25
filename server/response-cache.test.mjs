@@ -76,7 +76,7 @@ test('flat transport preserves the finite cache allowlist and excludes retired n
       assert.deepEqual(policy(prefix + suffix, payload), {cacheControl: 'no-store', cdnCacheControl: 'no-store'}, prefix + suffix);
     }
   }
-  for (const suffix of ['motion-amendments/B-10-2026-0001', 'member-votes/43', 'speech-transcript/MTG-PL-2026-09-01-INT-1']) {
+  for (const suffix of ['motion-amendments/B-10-2026-0001', 'member-votes/43', 'member-attendance/43', 'speech-transcript/MTG-PL-2026-09-01-INT-1']) {
     assert.deepEqual(policy('/api/' + suffix), {cacheControl: 'no-store', cdnCacheControl: 'no-store'}, suffix);
   }
 });

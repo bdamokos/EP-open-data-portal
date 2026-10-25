@@ -1,3 +1,4 @@
+import {followingDossiers} from './follow-dossiers.mjs';
 import {followingResponse} from './insights-following.mjs';
 import {savedPostQuery,savedStates} from './insights-saved.mjs';
 import {groupVoicesQuery} from './group-voices-model.mjs';
@@ -6,6 +7,7 @@ import http from 'node:http';
 import {createHash} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {measureEventLoopDelay} from './event-loop-delay.mjs';
+import {prepareStartupIndexes} from './migrate-indexes.mjs';
 let eventLoopDelay;
 import {pathToFileURL} from 'node:url';
 import {apiPrefixes,config} from './config.mjs';
@@ -22,6 +24,8 @@ import {motionAmendmentsQuery,motionAmendmentsPage} from './motion-amendments.mj
 import {votePeriods} from './vote-periods.mjs';
 import {memberVotes,memberVotesQuery} from './member-votes.mjs';
 import {decisionVotes,decisionVotesQuery} from './decision-votes.mjs';
+import {memberAttendance,memberAttendanceQuery} from './member-attendance.mjs';
+import {memberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
 import {documentContext,documentContextQuery} from './document-context.mjs';
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
@@ -37,7 +41,7 @@ import {CORPUS_LIMITS,corpusQuery} from './corpus-store.mjs';
 import {createRequestBudget,runWithRequestSignal,waitForRequest,cancelledRequest,requestSignal} from './request-budget.mjs';
 
 import {SpeechInterventions,INTERVENTION_LIMITS} from './speech-intervention-service.mjs';
-import {OfficialContextSources} from './official-context.mjs';
+import {getSharedOfficialContextSources} from './official-context.mjs';
 import {EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext,procedureContextQuery,REFERENCE_SUMMARY_ORDER} from './procedure-context.mjs';
 import {LegalReferences,referencesQuery} from './legal-references.mjs';
@@ -48,7 +52,7 @@ let stopIndex=()=>{};let stopCorpus=()=>{};let insightService,pressMentions;
 // One owner per official-source cache directory, shared by insights and reading-time references.
 let officialContext;
 function official() {
-  if(!officialContext){const sources=new OfficialContextSources(),catalog=new EurovocCatalog(sources);officialContext={sources,catalog,procedures:new ProcedureContext(sources,catalog),progress:new ProcedureProgress(sources),references:new LegalReferences(sources)};}
+  if(!officialContext){const sources=getSharedOfficialContextSources(),catalog=new EurovocCatalog(sources);officialContext={sources,catalog,procedures:new ProcedureContext(sources,catalog),progress:new ProcedureProgress(sources),references:new LegalReferences(sources)};}
   return officialContext;
 }
 function positiveId(value) {
@@ -111,7 +115,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 }
 
 // Browser transport for this app. The gateway admits the same finite route set.
-const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -169,11 +173,17 @@ async function handleApi(request,response,url,apiPrefix){
     else if (segments[0] === 'vote-periods' && segments.length===1) {
       result=await votePeriods.query(url.searchParams);
     }
+    else if(segments[0]==='member-attendance'&&segments.length===2) {
+      result=await memberAttendance.query(positiveId(segments[1]),memberAttendanceQuery(url.searchParams));
+    }
     else if (segments[0] === 'member-votes' && segments.length===2) {
       result=await memberVotes.query(positiveId(segments[1]),memberVotesQuery(url.searchParams));
     }
     else if (segments[0] === 'decision-votes' && segments.length===2) {
       result=await decisionVotes(decisionVotesQuery(segments[1],url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
+    }
+    else if (segments[0] === 'member-vote-explanations' && segments.length===2) {
+      result=await memberVoteExplanations.query(positiveId(segments[1]),memberVoteExplanationsQuery(url.searchParams));
     }
     else if(segments[0]==='document-context'&&segments.length===2) {
       result=await documentContext.query(documentContextQuery(segments[1],url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
@@ -196,6 +206,12 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'group-voices') {
       result=groupVoicesPage(activityIndex().store,groupVoicesQuery(url.searchParams));
+    }
+    else if (segments.length===2 && segments[0]==='insights' && segments[1]==='following-dossiers') {
+      result=followingDossiers(activityIndex().store,url.searchParams);
+      const cacheControl=request.headers.authorization?'no-store':'public, max-age=3600';
+      sendJson(request,response,200,result,{cacheControl,cdnCacheControl:currentVersion?cacheControl:'no-store'});
+      return;
     }
     else if (segments.length === 2 && segments[0] === 'insights' && ['following-status','following-manifest','following-member','following-membership','following-groups','group-history'].includes(segments[1])) {
       const reply=followingResponse(activityIndex().store,segments[1],url.searchParams);
@@ -378,6 +394,8 @@ function shutDown(signal) {
 
 const isEntryPoint = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isEntryPoint) {
+  try {prepareStartupIndexes();}
+  catch(error){console.error('[index-prepare]',error.message);process.exit(1);}
   server.on("error", (error) => {
     console.error(`[parliament-explorer] server error: ${error.message}`);
     process.exitCode = 1;

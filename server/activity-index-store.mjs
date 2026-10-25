@@ -1,3 +1,7 @@
+import {generationGroupOn} from './group-attribution.mjs';
+import {activityAffiliation} from './group-aggregation.mjs';
+import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,touchAvailability,historyStatus} from './availability-history.mjs';
+import {activityAvailability} from './availability-evidence.mjs';
 import {groupHistorySchema,freezeGroupHistory} from './group-history.mjs';
 import {membershipSchema,freezeMembership} from './following-membership.mjs';
 import {followMarksVersion,prepareFollowMarks,publishFollowMarks,followIndexComplete} from './follow-marks.mjs';
@@ -12,7 +16,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
-import { amendmentReadVersion, amendmentReadIndexes, amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
+import { amendmentReadVersion, amendmentReadIndexes, amendmentLinkIndexVersion, amendmentLinkIndexes, amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches} from './refresh-policy.mjs';
@@ -40,7 +44,7 @@ export class ActivityStore {
     this.db = observeSqlite(new DatabaseSync(this.filename),'activity');
     if(!this.initializeIndexes) {
       try {
-        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1||this.get('followMarksVersion')!==followMarksVersion)throw new Error('Unprepared activity indexes.');
+        if(this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1||this.get('followMarksVersion')!==followMarksVersion)throw new Error('Unprepared activity indexes.');
       } catch {this.db.close();throw new Error('Activity indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(this.initializeIndexes)this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
@@ -72,6 +76,10 @@ export class ActivityStore {
     membershipSchema(this.db);groupHistorySchema(this.db);
     if(this.initializeIndexes){outsideSchema(this.db);amendmentsSchema(this.db);groupVoicesSchema(this.db);refreshPolicyTables(this.db);}
   }
+  readSnapshot(fn) {
+    if(this.db.isTransaction)return fn();
+    this.db.exec('BEGIN');try {const value=fn();this.db.exec('COMMIT');return value;}catch(error){this.db.exec('ROLLBACK');throw error;}
+  }
   get(key) { return parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value); }
   set(key,value) { this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value)); }
   transaction(fn) {
@@ -85,15 +93,17 @@ export class ActivityStore {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
       assertRefreshSnapshot(this);
-      const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion;
-      if((initialize||initializeProofs||this.get('activityReadVersion')!==activityReadVersion||this.get('followMarksVersion')!==followMarksVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+      const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion,initializeLinks=this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion;
+      if((initialize||initializeProofs||initializeLinks||this.get('activityReadVersion')!==activityReadVersion||this.get('followMarksVersion')!==followMarksVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
+      initializeAvailabilityHistory(this);
       // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
       // Refresh against the current clock before commit; elapsed build time must
       // never roll back a completed build solely because its old TTL expired.
       const refresh=()=>{if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner).changes!==1)throw new Error('Activity-index writer lease was lost.');};
       if(initialize){this.initializeResourceIndexes();initialized=true;refresh();}
       if(initializeProofs){amendmentReadIndexes(this.db);this.set('amendmentReadVersion',amendmentReadVersion);initialized=true;refresh();}
+      if(initializeLinks){amendmentLinkIndexes(this.db);this.set('amendmentLinkIndexVersion',amendmentLinkIndexVersion);initialized=true;refresh();}
       if(this.get('motionLinksIndexVersion')!==1) {
         this.assertWriter();
         this.db.exec('INSERT OR IGNORE INTO motion_links '+motionLinkSelect('source','sources AS source, '));
@@ -226,8 +236,10 @@ export class ActivityStore {
   finishTask(task) {
     const finish=()=>{
       this.assertWriter();this.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET done=1,error=NULL WHERE generation=? AND key=?`).run(task.generation,task.key);
+      observeCheck(this,task.body?.availabilityCheck);
       if(!task.groupVoiceJob) {
-        this.db.prepare('DELETE FROM refresh_gaps WHERE generation=? AND key=?').run(task.generation,task.key);
+        const removedGap=this.db.prepare('DELETE FROM refresh_gaps WHERE generation=? AND key=?').run(task.generation,task.key).changes;
+        if(removedGap)touchAvailability(this);
         this.db.prepare('DELETE FROM refresh_gap_admissions WHERE generation=? AND key=?').run(task.generation,task.key);
       }
     };
@@ -265,15 +277,28 @@ export class ActivityStore {
       .map(source=>({key:source.key,work:parse(source.body),fetchedAt:source.fetched_at}));
   }
   markSeen(generation,key) { this.assertWriter();this.db.prepare('UPDATE sources SET seen=1 WHERE generation=? AND key=?').run(generation,key); }
-  putSource(generation,key,kind,work,fetchedAt,rows=[]) {
+  putSource(generation,key,kind,work,fetchedAt,rows=[],{acquisition='unknown',sourceUrl=null}={}) {
     this.transaction(()=> {
       this.assertWriter();
+      const existed=Boolean(this.db.prepare('SELECT 1 FROM sources WHERE generation=? AND key=?').get(generation,key));
       this.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,key,kind,JSON.stringify(work),fetchedAt);
       projectQuestionFiles(this.db,generation,key,kind,work);
       if(kind==='document')updateDocumentRefresh(this,generation,key,work,fetchedAt);
       if(kind==='motion-outcomes')updateSittingRefresh(this,generation,key,work,fetchedAt);
       this.replaceRows(generation,key,rows);
       if(Object.hasOwn(work,'groupVoices'))recordGroupVoice(this,generation,work.groupVoices,work.outside,work.id);
+      const url=sourceUrl||work.groupVoices?.source?.url||work.outside?.source?.url||null;
+      const add=(record,family,subtype,stage='metadata',language=null,variant=null)=>observeSource(this,{sourceId:record.identifier||record.id,family,subtype,stage,language,variant,date:record.document_date||record.date,fetchedAt,url,acquisition,existed});
+      if(kind==='document'||kind==='amendment-list') {
+        add(work,/QUESTION/.test(work.work_type||'')?'questions':'documents',String(work.work_type||'').split('/').at(-1));
+        for(const answer of work.inverse_answers_to||[])if(answer&&typeof answer==='object')add(answer,'answers','QUESTION_WRITTEN_ANSWER');
+      }
+      if(kind==='speech'||kind==='outside-speech') {
+        const speech=work.outside||work.groupVoices||work;
+        add(speech,'speeches',work.kind||(work.groupVoices?'PLENARY_DEBATE_SPEECH':null));
+      }
+      if(kind==='motion-outcomes')for(const decision of work.decisions||[])observeSource(this,{sourceId:decision.activity_id||decision.id,family:'votes',subtype:'decision',date:decision.activity_date,fetchedAt,url,acquisition,existed});
+      finishAvailabilityWrite(this);
     });
   }
   replaceRows(generation,key,rows) {
@@ -315,7 +340,7 @@ export class ActivityStore {
     const low=Math.min(first,second),high=Math.max(first,second);
     // NOT IN / <> scans all retained item bodies even when nothing is deleted.
     // Separate indexed ranges also handle a nonadjacent recovery generation.
-    for(const table of ['sources','items','tasks','follow_summary','follow_generations','follow_touched','membership_snapshots','group_history_snapshots']) {
+    for(const table of ['sources','items','tasks','follow_summary','dossier_events','follow_generations','follow_touched','membership_snapshots','group_history_snapshots']) {
       this.db.prepare(`DELETE FROM ${table} WHERE generation<?`).run(low);
       this.db.prepare(`DELETE FROM ${table} WHERE generation>?`).run(high);
       if(low!==high)this.db.prepare(`DELETE FROM ${table} WHERE generation>? AND generation<?`).run(low,high);
@@ -334,6 +359,7 @@ export class ActivityStore {
     const refreshSnapshotReady=refreshSnapshotMatches(this);
     return { schemaVersion:1, enabled:true, term:10, complete:Boolean(active)&&gapCount===0&&refreshSnapshotReady, servingGeneration:generation,
       refreshSnapshotReady,
+      availabilityRevision:this.get('availabilityRevision')||0,availabilityHistory:historyStatus(this),
       coverageGaps:{count:gapCount,examples:gapExamples},
       phase:cycle?.phase || (active?'ready':'waiting'), lastSuccessfulRefresh:this.get('lastSuccess'), refreshStartedAt:cycle?.startedAt || null,
       stale:!this.get('lastSuccess') || this.clock()-Date.parse(this.get('lastSuccess'))>26*60*60_000,
@@ -345,7 +371,8 @@ export class ActivityStore {
       unresolvedJoinCount:(this.get('unresolved') || []).length, unresolvedJoins:(this.get('unresolved') || []).slice(0,100), unresolvedCategories:[...new Set((this.get('unresolved') || []).map(join=>join.category || 'reports-shadow'))], unsupportedCategories:Object.entries(CATEGORY_GAPS).map(([category,reason])=>({category,label:CATEGORIES[category],reason})),
       dataSource:'European Parliament Open Data API v2', attribution:'European Parliament, CC BY 4.0', schedule:'Daily after 03:00 Europe/Brussels; interrupted initial loads resume automatically.' };
   }
-  page(mep,{language='en',category=null,limit=10,offset=0,sourceId=null}={}) {
+  page(mep,options={}) {return this.readSnapshot(()=>this.activityPage(mep,options));}
+  activityPage(mep,{language='en',category=null,limit=10,offset=0,sourceId=null}={}) {
     const member=this.db.prepare('SELECT body FROM members WHERE id=?').get(String(mep));
     if (!member) return null;
     const status=this.status(), generation=status.servingGeneration;
@@ -362,8 +389,11 @@ export class ActivityStore {
       }));
       return outcomes.get(id);
     };
+    const groupOn=generationGroupOn(this,generation),memberData=parse(member.body);
     const present=body=>{
       const row=parse(body);
+      const question=row.recordKind==='answer'&&row.relatedQuestionId?this.source(generation,'/parliamentary-questions/'+row.relatedQuestionId)?.work:null;
+      Object.assign(row,activityAffiliation(row,question,groupOn,memberData?.groupCode));
       if(row.recordKind==='document' && row.motionType) {
         const source=this.source(generation,'/plenary-documents/'+row.sourceId);
         if(source && isMotion(source.work)) {
@@ -382,7 +412,6 @@ export class ActivityStore {
         }
       }
       if(row.recordKind==='answer'&&row.relatedQuestionId) {
-        const question=this.source(generation,'/parliamentary-questions/'+row.relatedQuestionId)?.work;
         const titles=Object.assign({},...(question?.is_realized_by||[]).map(expression=>expression.title||{}),question?.title_dcterms||{});
         if(Object.keys(titles).length)return {...localize({...row,titles},language),relatedQuestionTitles:titles,relatedQuestionTitle:sourceTitle(titles[languagePreference(Object.keys(titles).filter(code=>titles[code]?.trim()),language)[0]])};
       }
@@ -397,8 +426,9 @@ export class ActivityStore {
       return [id,{status:state,indexedCount:counts[id] || 0,total:state==='available'?counts[id] || 0:null,reason}];
     }));
     const exactTotal=category?categoryCoverage[category]?.status==='available':status.complete;
-    return { mepId:Number(mep), member:parse(member.body), term:10, requestedLanguage:language, category, total:exactTotal?total:null, indexedTotal:total, offset, limit, nextOffset:offset+items.length<total?offset+items.length:null,
-      order:'MEP activity/question date descending; answers remain attached to their question; source ID and category break ties', cache:status, categories:CATEGORIES, categoryGroups:CATEGORY_GROUPS, categoryCoverage, unclassifiedMotionCount:counts['unclassified-motions'] || 0, selectedItems, items };
+    const availability=activityAvailability(this,generation,{category,limited:!exactTotal});
+    return { mepId:Number(mep), member:memberData, term:10, requestedLanguage:language, category, total:exactTotal?total:null, indexedTotal:total, offset, limit, nextOffset:offset+items.length<total?offset+items.length:null,
+      order:'MEP activity/question date descending; answers remain attached to their question; source ID and category break ties', availability,cache:status, categories:CATEGORIES, categoryGroups:CATEGORY_GROUPS, categoryCoverage, unclassifiedMotionCount:counts['unclassified-motions'] || 0, selectedItems, items };
   }
   close() { this.release();this.db.close(); }
 }

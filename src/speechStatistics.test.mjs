@@ -27,7 +27,7 @@ async function statistics(t,fetch) {
     container,
     render:props=>act(async()=>root.render(createElement(InterventionStatistics,props))),
     unmount:()=>act(async()=>root.unmount()),
-    stat:label=>[...container.querySelectorAll('.intervention-stats-grid>div')].find(card=>card.querySelector('span').textContent===label)?.querySelector('strong').textContent,
+    stat:label=>[...container.querySelectorAll('.intervention-stats-grid>div')].find(card=>card.querySelector('span').firstChild.textContent===label)?.querySelector('strong').textContent,
   };
 }
 const result=(available,nextPage=null,overrides={})=>({
@@ -87,8 +87,8 @@ test('complete empty coverage displays known zeroes without a duplicate footer o
   const ui=await statistics(t,async()=>Response.json(data));
   await ui.render({member:257070});
   for(const label of ['Total contributions','On behalf of a group','Written statements','Blue cards raised','Blue cards answered','Blue-card reactions'])assert.equal(ui.stat(label),'0');
-  assert.equal(ui.container.querySelector('[role="status"],details'),null);
-  assert.match(ui.container.textContent,/Source refreshed: Oct 15, 2026/);
+  assert.equal(ui.container.querySelector('[role="status"]'),null);
+  assert.match(ui.container.textContent,/No matching records observed/);
   assert(!ui.container.textContent.includes('The Left'),'redundant group counts are omitted');
 });
 
@@ -102,7 +102,7 @@ test('a failed later page retains partial counts and retry automatically finishe
   });
   await ui.render({member:257070});
   assert.equal(ui.stat('Total contributions'),'50');
-  assert.match(ui.container.textContent,/Some contributions are unavailable/);
+  assert.match(ui.container.textContent,/Partial coverage/);
   assert.equal(ui.container.querySelector('[role="status"]'),null);
   assert.match(ui.container.querySelector('[role="alert"]').textContent,/temporarily unavailable/);
   fail=false;
@@ -114,7 +114,7 @@ test('a failed later page retains partial counts and retry automatically finishe
   assert.deepEqual(pages,[0,1,0,1]);
   assert.equal(ui.stat('Total contributions'),'69');
   assert.equal(ui.container.querySelector('[role="alert"],[role="status"]'),null);
-  assert(!ui.container.textContent.includes('Some contributions are unavailable'));
+  assert.match(ui.container.querySelector('.availability-note p').textContent,/Records observed/);
 });
 
 test('a first-page failure offers retry without presenting missing data as zero',async t=>{
@@ -180,9 +180,9 @@ test('saved collection date replaces the blanket partial label without hiding re
   data.coverage={...data.coverage,complete:false,issues:['retained-corpus'],latestDataDate:'2026-10-08'};
   const ui=await statistics(t,async()=>Response.json(data));
   await ui.render({member:257070});
-  assert.match(ui.container.textContent,/Latest data: Oct 8, 2026/);
+  assert.match(ui.container.textContent,/Latest saved speech record: Oct 8, 2026/);
   assert(!ui.container.textContent.includes('Partial coverage'));
-  assert(!ui.container.textContent.includes('unavailable'));
+  assert(ui.container.textContent.includes('Later dates unavailable'));
   assert(!ui.container.textContent.includes('could not be classified'));
   assert.equal(ui.container.querySelector('time').dateTime,'2026-10-08');
 });

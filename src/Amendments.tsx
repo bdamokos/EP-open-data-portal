@@ -161,12 +161,12 @@ function SourceVariants({item,language}:{item:Amendment;language:string}) {
     </section>)}</details>:null}
   </div>;
 }
-function AmendmentCard({item,language,onMember}:{item:Amendment;language:string;onMember?:InsightProps['onMember']}) {
+export function AmendmentCard({item,language,onMember,showOutcome=true}:{item:Amendment;language:string;onMember?:InsightProps['onMember'];showOutcome?:boolean}) {
   const splitParts=item.splitParts||[],decisions=item.decisions||[],whole=decisions.filter(decision=>!amendmentDecisionPart(splitParts,decision));
   const authors=item.authors||[];
   const title=selectLanguageText(item.titles,language,item.title||'','');
   return <article lang="en" className="explorer-amendment-card" id={'amendment-'+item.id}>
-    <header><div><p className="explorer-amendment-reference">{item.targetDocumentId||'Target document unavailable'}{item.listId&&<span> · {item.listId}</span>}</p><h4>Amendment {item.number??item.id}</h4>{item.title&&<p className="explorer-amendment-title" lang={title.text===item.title?title.language:''}>{item.title}</p>}</div><Outcome value={item.outcome}/></header>
+    <header><div><p className="explorer-amendment-reference">{item.targetDocumentId||'Target document unavailable'}{item.listId&&<span> · {item.listId}</span>}</p><h4>Amendment {item.number??item.id}</h4>{item.title&&<p className="explorer-amendment-title" lang={title.text===item.title?title.language:''}>{item.title}</p>}</div>{showOutcome&&<Outcome value={item.outcome}/>}</header>
     <AmendmentEvidenceState item={item}/>
     {!item.conflicted&&<><p className="explorer-amendment-target" lang={item.targetLabel?targetLabelLanguage(item):'en'}>{item.targetLabel||'Target provision unavailable'}</p><p className="explorer-amendment-meta">{joinMeta([documentDateLabel(item,language),metadataLanguage(item)?<><span lang="">{metadataLanguage(item).toUpperCase()}</span> · document language</>:'Document language unavailable',splitParts.length?'Split amendment · '+splitParts.length+' parts':null])}</p></>}
     <SourceVariants item={item} language={language}/>
@@ -175,7 +175,7 @@ function AmendmentCard({item,language,onMember}:{item:Amendment;language:string;
     {!item.conflicted&&<details className="explorer-amendment-wording"><summary>Compare original and proposed text</summary><AmendmentWording item={item}/></details>}
     {item.splitCoverageComplete===false&&<p className="explorer-amendment-secondary">Split-request coverage is incomplete. A complete amendment outcome cannot be established from these component bindings.</p>}
     {(decisions.length>0||splitParts.length>0)?<details className="explorer-amendment-voting"><summary>Decisions{splitParts.length?' and split parts':''} · {decisions.length} recorded</summary>{splitParts.length>0&&<ol className="explorer-amendment-parts">{splitParts.map((part,index)=><SplitPart key={part.id||JSON.stringify([part.componentIndex??index,part.rawDescription??part.description??null])} part={part} item={item} language={language}/>)}</ol>}{whole.length>0&&<ul className="explorer-amendment-decisions">{whole.map(decision=><Decision key={amendmentDecisionKey(decision)} item={item} decision={decision} language={language}/>)}</ul>}</details>:<p className="explorer-amendment-secondary">No outcome is recorded in the available sources.</p>}
-    <details className="explorer-amendment-evidence"><summary>Sources and coverage{item.gaps?.length?' · '+item.gaps.length+' gaps':''}</summary><p className="explorer-amendment-reference">{item.id}</p>
+    <details className="explorer-amendment-evidence"><summary>Sources and coverage{item.gaps?.length?' · '+item.gaps.length+(item.gaps.length===1?' gap':' gaps'):''}</summary><p className="explorer-amendment-reference">{item.id}</p>
       {item.identifierBasis==='derived-from-exact-target-and-number'&&<p>Dataset key derived from the exact target document and amendment number.</p>}
       {item.officialIds?.length?<p className="explorer-amendment-reference">Official references: {item.officialIds.join(', ')}</p>:null}
       {!item.conflicted&&<ComponentSources item={item} language={language}/>}

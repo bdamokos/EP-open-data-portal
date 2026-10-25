@@ -6,3 +6,5 @@
 @media(max-width:720px){.gv-person-name .insight-portrait{width:44px;height:52px}}
 
 .gv .gv-contribution-title{display:flex;align-items:baseline;justify-content:space-between;gap:16px;width:100%;border:0;padding:5px 0;font-weight:700;line-height:1.5}.gv-contribution-title>span:first-child{text-decoration:underline;text-underline-offset:4px;overflow-wrap:anywhere}
+
+.gv-summary .gv-unavailable{font-size:16px;font-weight:600;overflow-wrap:anywhere}
