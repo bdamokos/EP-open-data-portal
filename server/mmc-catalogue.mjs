@@ -53,7 +53,10 @@ export async function fetchCatalogue(date,{fetchImpl=fetch,clock=Date.now}={}) {
     const {payload,fetchedAt}=await boundedUpstream(async()=>{
       const response=await fetchImpl(url.href,{headers:{Accept:'application/json','User-Agent':userAgent('recording catalogue')},credentials:'omit',redirect:'error',signal:AbortSignal.any([requestSignal()??new AbortController().signal,AbortSignal.timeout(25000)])});
       const limited=upstreamResponseError(response,{source:'multimedia'});
-      if(limited||response.status!==200){await response.body?.cancel();throw limited||Object.assign(Error(`Recording search unavailable (${response.status}).`),{status:response.status});}
+      if(limited||response.status!==200){
+        await response.body?.cancel();
+        throw Object.assign(limited||Error(`Recording search unavailable (${response.status}).`),{catalogueSourceStatus:response.status});
+      }
       const payload=JSON.parse(await boundedText(response.body));
       return {payload,fetchedAt:new Date(clock()).toISOString()};
     },{source:'multimedia'});
@@ -96,8 +99,10 @@ export function createCatalogueReader({fetchImpl=fetch,clock=Date.now}={}) {
       signal.throwIfAborted();state.saved=snapshot;state.legacy=false;state.failure=null;
     });
     state.pending=operation.catch(error=>{
-      if(!isLocalRequestFailure(error)||error.code==='upstream_busy')state.failure={retryAt:Math.max(clock()+HOUR,error.retryAt??0),message:String(error.message).slice(0,200)};
-      if([401,403,429,503].includes(error.status)||error.code==='upstream_busy')sourceFailure=state.failure;
+      // The local queue also reports upstream_busy before a fetch starts.
+      // Only an actual HTTP response can impose a source-wide cooldown.
+      if(!isLocalRequestFailure(error)||error.catalogueSourceStatus)state.failure={retryAt:Math.max(clock()+HOUR,error.retryAt??0),message:String(error.message).slice(0,200)};
+      if([401,403,429,503].includes(error.catalogueSourceStatus))sourceFailure=state.failure;
       throw error;
     }).finally(()=>{state.pending=null;});
     return waitForRequest(state.pending);

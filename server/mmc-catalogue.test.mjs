@@ -7,6 +7,7 @@ import {createCatalogueReader,fetchCatalogue,validateCatalogue} from './mmc-cata
 import {speechMedia} from './mmc.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
 import {runWithRequestSignal,requestTimeout} from './request-budget.mjs';
+import {UpstreamQueue} from './upstream-queue.mjs';
 
 const fixture=JSON.parse(await readFile(new URL('./fixtures/mmc-search-20261005-08.json',import.meta.url),'utf8'));
 const date='2026-10-07',now=Date.parse('2026-10-25T12:00:00Z');
@@ -71,6 +72,21 @@ test('403 is an unavailable search, never an empty catalogue, and pauses other d
   await assert.rejects(reader('2026-10-08',directory),/403/);assert.equal(calls,1);
   await assert.rejects(readFile(path.join(directory,'catalogue-dates-v1',date+'.json')),error=>error.code==='ENOENT');
   time+=3600001;await assert.rejects(reader(date,directory),/403/);assert.equal(calls,2);
+});
+
+test('local admission failures do not create a date or source-wide failure cooldown',async t=>{
+  const queue=new UpstreamQueue({maximum:1,interactiveWaitMs:30});
+  const release=await queue.acquire();
+  t.mock.method(UpstreamQueue.prototype,'enqueue',queue.enqueue.bind(queue));
+  let calls=0;
+  const reader=createCatalogueReader({clock:()=>now,fetchImpl:async url=>{
+    calls++;
+    return Response.json(payload(new URL(url).searchParams.get('df')===date?[row()]:[]));
+  }});
+  await assert.rejects(reader(date),error=>error.code==='upstream_busy');
+  assert.equal(calls,0);release();
+  assert.equal((await reader(date)).total,1);assert.equal(calls,1);
+  assert.equal((await reader('2026-10-08')).total,0);assert.equal(calls,2);
 });
 
 test('failed refresh preserves the legacy file and usable records with stale provenance',async t=>{
