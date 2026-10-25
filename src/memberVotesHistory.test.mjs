@@ -66,7 +66,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
   });
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');
-    if(url.pathname==='/api/vote-periods')return Response.json({version:1,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}});
+    if(url.pathname==='/api/vote-periods')return Response.json({version:2,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}});
     requests.push(url);
     if(url.pathname==='/api/directory')return Response.json(directory);
     if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
