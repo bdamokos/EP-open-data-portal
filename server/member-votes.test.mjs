@@ -121,10 +121,44 @@ test('official undated TF scheduling containers do not invalidate voting or agen
   assert.equal(result.coverage.status,'complete');
   assert.equal(result.coverage.sittings[0].completeness.complete,true);
   assert.deepEqual(result.coverage.sittings[0].completeness.invalidSourceIds,[]);
+  const conflicting=await setup({agenda:[...fixture.foreseen.payload.data,{...timeframe,activity_date:'2026-10-06'}]}).service.query(MEMBER,query('sitting='+SITTING));
+  assert.deepEqual(conflicting.coverage.sittings[0].completeness.invalidSourceIds,[timeframe.id]);
+  assert.equal(conflicting.coverage.sittings[0].completeness.complete,false);
+  assert.equal(conflicting.coverage.sittings[0].completeness.votingRecordsComplete,true);
   for(const field of ['id','activity_id','activity_date']){
     const bad={...clone(finalDecision),[field]:field==='activity_date'?'2026-10-06':'wrong'};
     const response=await setup({decisions:[bad]}).service.query(MEMBER,query('sitting='+SITTING));
     assert.equal(response.coverage.status,'partial',field+' validation remains strict');
+  }
+});
+
+test('a limit-sized repeated first page cannot hide undeclared decisions beyond it',async()=>{
+  const decisions=Array.from({length:4},(_,i)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${285000+i}`,activity_id:`${SITTING}-DEC-${285000+i}`}));
+  const {service}=setup({decisions,results:[{...clone(finalResult),consists_of:decisions.slice(0,2).map(row=>row.id)}],limits:{decisionPageSize:2},override:({kind,endpoint,params,rows})=>{
+    if(kind==='decisions'||kind==='named')return source(endpoint,params,rows.slice(0,2));
+  }});
+  const result=await service.query(MEMBER,query('sitting='+SITTING));
+  assert.equal(result.coverage.status,'partial');
+  assert.equal(result.coverage.sittings[0].decisions.stopReason,'repeated-page');
+  assert.equal(result.pagination.observedTotal,2);
+  const duplicated=setup({decisions:decisions.slice(0,2),limits:{decisionPageSize:2},override:({kind,endpoint,params,rows})=>{
+    if(kind==='decisions'||kind==='named')return source(endpoint,params,[...rows,...rows]);
+  }});
+  assert.equal((await duplicated.service.query(MEMBER,query('sitting='+SITTING))).coverage.status,'partial','duplicate rows do not establish an oversized census');
+});
+
+test('repeated oversized named streams require conducted Vote roll calls but may omit unheld decisions',async()=>{
+  const decisions=Array.from({length:5},(_,i)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${286000+i}`,activity_id:`${SITTING}-DEC-${286000+i}`}));
+  decisions[3].decision_outcome='def/ep-statuses/LAPSED';
+  decisions[4].type='Decision';
+  for(const includeOptional of [false,true]){
+    const {service}=setup({decisions,limits:{decisionPageSize:2},override:({kind,endpoint,params,rows})=>{
+      if(kind==='decisions'||kind==='named')return source(endpoint,params,kind==='named'&&!includeOptional?rows.slice(0,3):rows);
+    }});
+    const result=await service.query(MEMBER,query('sitting='+SITTING));
+    assert.equal(result.coverage.status,'complete');
+    assert.equal(result.coverage.sittings[0].namedDecisions.stopReason,'declared-children');
+    assert.deepEqual(result.coverage.sittings[0].completeness.missingNamedDecisionIds,[]);
   }
 });
 
@@ -230,7 +264,7 @@ test('meeting-declared result identities prevent empty or omitted result streams
 test('decision endpoints that ignore offset terminate on repeats and keep coverage uncertain',async()=>{
   const count=MEMBER_VOTES_LIMITS.pageSize;
   const decisions=Array.from({length:count},(_,index)=>({...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-${200000+index}`,activity_id:`${SITTING}-DEC-${200000+index}`}));
-  const {service,calls}=setup({decisions,results:[{...clone(finalResult),consists_of:[...decisions.map(row=>row.id),`eli/dl/event/${SITTING}-DEC-299999`]}],limits:{decisionPageSize:count},override:({kind,endpoint,params,rows})=>{
+  const {service,calls}=setup({decisions,limits:{decisionPageSize:count},override:({kind,endpoint,params,rows})=>{
     if(kind==='decisions'||kind==='named')return source(endpoint,params,rows);
   }});
   const result=await service.query(MEMBER,query(`sitting=${SITTING}&limit=100`));
@@ -527,7 +561,7 @@ test('opposite outcomes duplicated within one page cannot publish a complete obs
 
 test('a short nonempty duplicate-only page remains incomplete rather than an end marker',async()=>{
   const second={...clone(finalDecision),id:`eli/dl/event/${SITTING}-DEC-250999`,activity_id:`${SITTING}-DEC-250999`};
-  const {service}=setup({decisions:[finalDecision,second],results:[{...clone(finalResult),consists_of:[finalDecision.id,`eli/dl/event/${SITTING}-DEC-299999`]}],limits:{decisionPageSize:2},override:({kind,params,supplied})=>{
+  const {service}=setup({decisions:[finalDecision,second],limits:{decisionPageSize:2},override:({kind,params,supplied})=>{
     if((kind==='decisions'||kind==='named')&&params.offset===2)return {...supplied,payload:{data:[kind==='named'?clone(finalDecision):Object.fromEntries(Object.entries(finalDecision).filter(([key])=>!key.startsWith('had_voter')))]}};
   }});
   const response=await service.query(MEMBER,query('sitting='+SITTING));

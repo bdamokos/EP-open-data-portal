@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {projectMemberSitting} from '../server/member-votes-model.mjs';
 import {knownVoteMethodLabel,voteMethodLabel} from './voteMethod.mjs';
-import {MEMBER_VOTES_PAGE_SIZE,memberVotesRoute,validateMemberVotesResponse,groupMemberVotes,displayVoteTitle,memberVoteLabel,memberVotePosition,memberVoteOutcome,memberVoteTotals,votingRecordUrl,topLevelVoteDocuments,exactAmendmentTargets} from './memberVotesPresentation.mjs';
+import {MEMBER_VOTES_PAGE_SIZE,memberVotesCoverageNotice,memberVotesRoute,validateMemberVotesResponse,groupMemberVotes,displayVoteTitle,memberVoteLabel,memberVotePosition,memberVoteOutcome,memberVoteTotals,votingRecordUrl,topLevelVoteDocuments,exactAmendmentTargets} from './memberVotesPresentation.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/member-votes.json',import.meta.url)));
 const memberId=197591,snapshotId='a'.repeat(64),sittingId='MTG-PL-2026-10-07';
@@ -170,4 +170,15 @@ test('electronic secret ballots validate across list, selected and whole-text de
   assert.equal(voteMethodLabel('VOTE_ELECTRONIC_SECRET'),'Secret ballot (electronic)');
   assert.equal(knownVoteMethodLabel('VOTE_ELECTRONIC_SECRET'),'Secret ballot (electronic)');
   for(const method of ['VOTE_SECRET','VOTE_SECRET_BALLOT'])assert.equal(voteMethodLabel(method),'Secret ballot');
+});
+
+
+test('coverage notices preserve calendar gaps, unavailable records and missing selected decisions',()=>{
+  const incomplete={status:'partial',failedSittingIds:[],incompleteSittingIds:[sittingId],sittings:[],catalogue:{state:'partial'}};
+  assert.equal(memberVotesCoverageNotice({coverage:incomplete}),'Incomplete voting records · 7 Oct 2026 · Sitting dates incomplete');
+  assert.equal(memberVotesCoverageNotice({coverage:{...incomplete,incompleteSittingIds:[]}}),'Sitting dates incomplete');
+  assert.equal(memberVotesCoverageNotice({coverage:{status:'unavailable',catalogue:{state:'unavailable'}}}),'Voting records unavailable');
+  const missing={coverage:incomplete,selected:{status:'not-found-in-scanned-data',item:null}};
+  assert.equal(memberVotesCoverageNotice(missing,{decisionId:sittingId+'-DEC-999'}),'Partial coverage');
+  assert.equal(memberVotesCoverageNotice(missing,{decisionId:sittingId+'-DEC-999',context:{documentId:'A-10-2026-0001'}}),null);
 });

@@ -94,7 +94,7 @@ export class MemberVotes extends VoteSourceReader {
     const voteErrors=[...errors];
     // MEETING_PART time slots can omit activity_date. They are scheduling
     // containers, never vote items; keep dated agenda-item validation intact.
-    const agendaItems={nodes:agenda.nodes.filter(n=>!(n.type==='ForeseenActivity'&&tail(n.had_activity_type)==='MEETING_PART'&&new RegExp('^eli/dl/event/'+sittingId+'-TF-\\d{4}$').test(relative(n.id))&&n.activity_id===tail(n.id)&&refs(n.inverse_was_scheduled_in).includes('eli/dl/event/'+sittingId)))};
+    const agendaItems={nodes:agenda.nodes.filter(n=>!(n.type==='ForeseenActivity'&&tail(n.had_activity_type)==='MEETING_PART'&&new RegExp('^eli/dl/event/'+sittingId+'-TF-\\d{4}$').test(relative(n.id))&&n.activity_id===tail(n.id)&&(n.activity_date===undefined||n.activity_date===date)&&refs(n.inverse_was_scheduled_in).includes('eli/dl/event/'+sittingId)))};
     const agendaNodes=eligible(agendaItems,'-[A-Z0-9-]{1,100}');
     const merged=new Map(allNodes.map(n=>[relative(n.id),n]));const conflictingDecisionIds=[];
     for(const n of namedNodes){
@@ -122,20 +122,23 @@ export class MemberVotes extends VoteSourceReader {
     const declaredDecisions=[...new Set(parents.flatMap(n=>refs(n.consists_of)))];
     const missingResultIds=[...new Set([...declaredResults.filter(id=>!resultIds.has(id)),...decisions.flatMap(n=>refs(n.inverse_consists_of)).filter(id=>!resultIds.has(id))])];
     const missingDecisionIds=declaredDecisions.filter(id=>!decisionIds.has(id));
-    const missingNamedDecisionIds=allNodes.filter(n=>tail(n.decision_method)==='VOTE_ELECTRONIC_ROLLCALL'&&!['LAPSED','WITHDRAWN'].includes(tail(n.decision_outcome))&&n.type==='Vote'&&!namedIds.has(relative(n.id))).map(n=>relative(n.id));
+    const requiresNamed=n=>tail(n.decision_method)==='VOTE_ELECTRONIC_ROLLCALL'&&!['LAPSED','WITHDRAWN'].includes(tail(n.decision_outcome))&&n.type==='Vote';
+    const missingNamedDecisionIds=allNodes.filter(n=>requiresNamed(n)&&!namedIds.has(relative(n.id))).map(n=>relative(n.id));
     const unresolvedAgendaItemIds=[...new Set(parents.flatMap(n=>refs(n.executed)).filter(id=>!agendaIds.has(id)))];
     const undeclaredChildResultIds=parents.filter(n=>!Array.isArray(n.consists_of)||!n.consists_of.length).map(n=>relative(n.id));
     // Some decision responses ignore limit/offset and repeat the entire census.
-    // Counts alone cannot prove exhaustion: require the exact declared ID set,
-    // complete result parents and unchanged, valid source observations.
+    // Only an oversized first page establishes that limit was ignored. A
+    // limit-sized repeat could be a truncated first page. Also require the
+    // exact declared ID set, complete parents and unchanged valid observations.
     const sameIds=(nodes,ids)=>nodes.length===ids.length&&nodes.every(n=>ids.includes(relative(n.id)));
     const resultGraphComplete=results.coverage.state==='complete'&&parents.length>0&&!missingResultIds.length&&!undeclaredChildResultIds.length&&declaredDecisions.every(id=>new RegExp('^eli/dl/event/'+sittingId+'-DEC-\\d+$').test(id));
     const confirmRepeated=(collection,validNodes,ids)=>{
-      if(collection.coverage.stopReason==='repeated-page'&&!collection.coverage.error&&!collection.conflicts.length&&collection.nodes.length===validNodes.length&&sameIds(validNodes,ids))Object.assign(collection.coverage,{state:'complete',stopReason:'declared-children'});
+      if(collection.firstPageRows>this.limits.decisionPageSize&&collection.coverage.stopReason==='repeated-page'&&!collection.coverage.error&&!collection.conflicts.length&&collection.nodes.length===validNodes.length&&sameIds(validNodes,ids))Object.assign(collection.coverage,{state:'complete',stopReason:'declared-children'});
     };
     if(resultGraphComplete&&!voteErrors.length){
       confirmRepeated(all,allNodes,declaredDecisions);
-      if(all.coverage.state==='complete')confirmRepeated(named,namedNodes,allNodes.filter(n=>tail(n.decision_method)==='VOTE_ELECTRONIC_ROLLCALL').map(n=>relative(n.id)));
+      const expectedNamed=allNodes.filter(n=>requiresNamed(n)||tail(n.decision_method)==='VOTE_ELECTRONIC_ROLLCALL'&&namedIds.has(relative(n.id)));
+      if(all.coverage.state==='complete')confirmRepeated(named,namedNodes,expectedNamed.map(n=>relative(n.id)));
     }
     const votingRecordsComplete=[all,named,results].every(c=>c.coverage.state==='complete')&&![missingResultIds,missingDecisionIds,missingNamedDecisionIds,conflictingDecisionIds,undeclaredChildResultIds,voteErrors].some(a=>a.length);
     const completeness={missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,invalidSourceIds:[...new Set(errors)],declaredResultCount:Array.isArray(node.consists_of)?declaredResults.length:declaredResults.length||null,declaredDecisionCount:declaredDecisions.length,votingRecordsComplete,complete:false};

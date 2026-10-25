@@ -566,7 +566,7 @@ test('coverage notice names incomplete sitting days and leaves unaffected detail
 test('a selected decision reports its own missing result, independently of period coverage',async t=>{
   const item=vote(1,{evidenceGaps:[{code:'missing-result',id:SUBJECT}]});
   const h=await mount(t,{state:{week:WEEK,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item],coverage:{status:'partial',incompleteSittingIds:[SITTING]}}))});
-  assert.equal(h.container.querySelector('.member-votes-notice').textContent,'Vote result incomplete.');
+  assert.equal(h.container.querySelector('.member-votes-notice').textContent,'Vote result incomplete');
   assert.doesNotMatch(h.container.querySelector('.member-votes-notice').textContent,/25 Mar|period/);
 });
 

@@ -4,9 +4,9 @@ export function memberVotesCoverageNotice(data,{decisionId=null,context=null}={}
   if(context)return null;
   if(decisionId){
     const vote=data.selected?.status==='found'&&data.selected.item?.id===decisionId?data.selected.item:null;
-    if(!vote)return null;
-    if(vote.sourceConflicts||vote.evidenceGaps?.some(gap=>['missing-result','conflicting-result-source','conflicting-decision-source'].includes(gap.code)))return 'Vote result incomplete.';
-    if(vote.method==='VOTE_ELECTRONIC_ROLLCALL'&&vote.actualPosition.status==='unavailable')return 'Recorded position unavailable.';
+    if(!vote)return data.coverage.status==='partial'?'Partial coverage':null;
+    if(vote.sourceConflicts||vote.evidenceGaps?.some(gap=>['missing-result','conflicting-result-source','conflicting-decision-source'].includes(gap.code)))return 'Vote result incomplete';
+    if(vote.method==='VOTE_ELECTRONIC_ROLLCALL'&&vote.actualPosition.status==='unavailable')return 'Recorded position unavailable';
     return null;
   }
   const coverage=data.coverage;
@@ -15,7 +15,8 @@ export function memberVotesCoverageNotice(data,{decisionId=null,context=null}={}
   const dates=ids.filter(validSitting).map(id=>id.slice(7)).sort();
   const label=coverage.status==='unavailable'?'Voting records unavailable':'Incomplete voting records';
   const days=dates.map(value=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z')));
-  return days.length?label+' · '+days.join(', '):coverage.catalogue?.state!=='complete'?'Sitting dates incomplete':label;
+  const calendarGap=coverage.catalogue&&coverage.catalogue.state!=='complete';
+  return days.length?label+' · '+days.join(', ')+(calendarGap?' · Sitting dates incomplete':''):coverage.status==='unavailable'?label:calendarGap?'Sitting dates incomplete':label;
 }
 const alignments=new Set(['all','with','against','abstained']);
 const positions=new Set(['recorded','all']);
