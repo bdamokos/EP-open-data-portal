@@ -207,7 +207,9 @@ test('the real vote collector propagates missing declared results and inconsiste
     const request=async(endpoint,params={})=>({url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.now(),payload:{data:
       (endpoint==='/meetings/'+SITTING?[meeting]:endpoint.endsWith('/decisions')?decisions:endpoint.endsWith('/vote-results')?[result]:agenda).slice(params.offset||0,(params.offset||0)+(params.limit||10000))}});
     const votes=new MemberVotes({request}),q=memberVotesQuery(new URLSearchParams({sitting:SITTING,decision:FINAL})),snapshot=await votes.snapshot(q);
-    assert.equal(snapshot.days[0].coverage.state,fault&&fault!=='identifier-conflict'?'partial':'complete');
+    assert.equal(snapshot.days[0].coverage.state,fault==='missing-result'?'partial':'complete');
+    assert.equal(snapshot.days[0].coverage.completeness.votingRecordsComplete,fault!=='missing-result');
+    assert.equal(snapshot.days[0].coverage.completeness.complete,!['missing-result','invalid-agenda'].includes(fault));
     let speechReads=0;
     const explanations=new MemberVoteExplanations({votes,request:async endpoint=>{speechReads++;return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.now(),payload:{data:endpoint==='/speeches'?[rows('speeches').find(row=>row.activity_id.endsWith('2706'))]:rows('parent9-3'),...(endpoint==='/speeches'?{meta:{total:1}}:{})}};}});
     const response=await explanations.query(MEMBER,{...q,snapshot:snapshot.id});

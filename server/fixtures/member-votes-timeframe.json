@@ -1,0 +1,22 @@
+{
+  "source": {
+    "url": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-19/foreseen-activities?format=application%2Fld%2Bjson&limit=50&offset=0",
+    "retrievedAt": "2026-10-25T18:05:25.640233+00:00",
+    "projection": "Only scheduling identity, timestamps, sitting and child references retained."
+  },
+  "node": {
+    "id": "eli/dl/event/MTG-PL-2026-10-19-TF-1915",
+    "type": "ForeseenActivity",
+    "activity_id": "MTG-PL-2026-10-19-TF-1915",
+    "had_activity_type": "def/ep-activities/MEETING_PART",
+    "activity_start_date": "2026-10-19T19:15:00+02:00",
+    "activity_end_date": "2026-10-19T21:00:00+02:00",
+    "inverse_was_scheduled_in": [
+      "eli/dl/event/MTG-PL-2026-10-19"
+    ],
+    "consists_of": [
+      "eli/dl/event/MTG-PL-2026-10-19-OJ-ITM-D-86",
+      "eli/dl/event/MTG-PL-2026-10-19-OJ-ITM-D-2"
+    ]
+  }
+}
