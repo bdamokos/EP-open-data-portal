@@ -685,3 +685,20 @@ test('settled parser checks avoid JSON scans and a later incompatible list inval
   prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
   assert.equal(store.db.prepare('SELECT done FROM amendment_jobs WHERE generation=? AND key=?').get(generation,'amendment:extract:'+other).done,0);
 });
+
+test('a repeated failure after byline progress still exhausts three attempts',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;downgrade(context);context.advance(8*86400000);
+  const saved=store.source(generation,listKey),primary={url:oldUrl,language:'bg',byteSize:null},alternate={url:newUrl,language:'de',byteSize:null};
+  store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[primary,alternate]}},saved.fetchedAt);
+  worker.downloadAmendmentDocx=async url=>({buffer:amendmentDocx(freshProposed,url===oldUrl?'Данило Дела Вале':'Danilo Della Valle')});
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  const put=store.putSource.bind(store),failure=new Error('Persistent failure publishing extracted byline evidence.');
+  t.mock.method(store,'putSource',(g,k,kind,work,...rest)=>{if(k===listKey&&work.extraction?.parserVersion===AMENDMENT_EXTRACTION_VERSION)throw failure;return put(g,k,kind,work,...rest);});
+  for(let attempt=0;attempt<3;attempt++) {
+    const task=nextAmendmentTask(store,generation);assert.equal(task.kind,'amendment-extract');assert.equal(task.attempts,attempt);
+    await assert.rejects(worker.task(task),error=>error===failure);
+    const exhausted=failAmendmentTask(worker,task,failure);assert.equal(exhausted,attempt===2);
+    if(!exhausted){store.failTask(task,failure);context.advance(extractionJob(store,generation).retry_at-store.clock()+1);}
+  }
+  assert.equal(extractionJob(store,generation).done,1);assert(store.source(generation,listKey).work.wordingRefreshFailure);
+});

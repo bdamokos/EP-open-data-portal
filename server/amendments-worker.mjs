@@ -719,7 +719,7 @@ export async function amendmentTask(worker,task) {
     let authorNames=null;
     const alternate=alternateAuthorDescriptor(saved.work,extraction);
     if(alternate){
-      store.taskProgress(task,{...body,sourceDownloaded:true});
+      if(!body.sourceDownloaded)store.taskProgress(task,{...body,sourceDownloaded:true});
       try {
         const other=await retrieve(alternate);
         if(!other)return;
