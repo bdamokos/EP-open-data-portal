@@ -7,6 +7,8 @@ import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 const parse=value=>JSON.parse(value);
 export const amendmentLinkIndexVersion=1;
+export const amendmentParserUpgradeKey='amendment:parser-upgrade';
+export const amendmentParserSourceRevisionKey='amendment:parser-source-revision';
 const amendmentLinkInvalidationWhere="json_type(body,'$.amendmentLinksVersion') IS NOT NULL AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')";
 export function amendmentLinkIndexes(db) {
   db.exec('CREATE INDEX IF NOT EXISTS amendment_link_invalidation ON sources(generation,key) WHERE '+amendmentLinkInvalidationWhere);

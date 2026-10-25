@@ -8,7 +8,7 @@ import { createAmendmentAuthorResolver, votingAliases } from './amendment-author
 import {AMENDMENT_AUTHOR_NAMES_VERSION,memberNameFields,alternateAuthorDescriptor,authorNameVariants,resolveParallelAuthors,listAuthorResolver,hasNonLatinAuthors} from './amendment-author-names.mjs';
 import { parseSplitRequest, SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentReference, amendmentSittings, amendmentDecision, amendmentTextLosses, amendmentProposerDate, validAmendmentDate, hasDecisionReferenceSet, targetMetadata, normalizedDocxDescriptor, sameDocxDescriptor, distributionEvidenceFor, currentDocxDescriptor, listWordingFreshness, checkedAggregateAttribution } from './amendments.mjs';
-import { recordSplitResults, saveAmendmentRows, enqueueAmendment } from './amendments-store.mjs';
+import { recordSplitResults, saveAmendmentRows, enqueueAmendment, amendmentParserUpgradeKey as parserUpgradeKey, amendmentParserSourceRevisionKey } from './amendments-store.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 import { runAmendmentWorkSlice } from './amendment-work-slices.mjs';
 import {retainedAmendmentSource,retainAmendmentSource} from './amendment-source-cache.mjs';
@@ -219,16 +219,20 @@ export function scheduleAmendments(worker,generation,work,fetchedAt,endpoint) {
 }
 const preparationMarkers=worker=>({amendmentsPreparedVersion:AMENDMENTS_VERSION,amendmentsPreparedDay:utcDay(worker),splitParserVersion:SPLIT_PARSER_VERSION,amendmentDocumentParserVersion:AMENDMENT_EXTRACTION_VERSION,amendmentDocumentLinksVersion:AMENDMENT_LINKS_VERSION,amendmentSittingProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION,amendmentDistributionProofVersion:AMENDMENT_DISTRIBUTION_PROOF_VERSION,amendmentAuthorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION});
 const preparationKinds={documents:'document',gaps:'amendment-gap',splits:'motion-outcomes'};
-const parserUpgradeKey='amendment:parser-upgrade';
 export function amendmentParserUpgradeDue(store,generation) {
   const marker=store.source(generation,parserUpgradeKey)?.work;
-  if(marker?.parserVersion===AMENDMENT_EXTRACTION_VERSION&&(!marker.retryAt||marker.retryAt>store.clock()))return false;
-  return Boolean(store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='amendment-list' AND json_type(body,'$.extraction')='object' AND COALESCE(json_extract(body,'$.extraction.parserVersion'),'')<>? LIMIT 1").get(generation,AMENDMENT_EXTRACTION_VERSION));
+  if(marker?.parserVersion===AMENDMENT_EXTRACTION_VERSION&&(marker.sourceRevision || 0)===(store.get(amendmentParserSourceRevisionKey) || 0)&&(!marker.retryAt||marker.retryAt>store.clock()))return false;
+  return Boolean(marker||store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='amendment-list' LIMIT 1").get(generation));
 }
 export function prepareAmendmentParserUpgrade(worker,generation) {
   if(!amendmentParserUpgradeDue(worker.store,generation))return;
+  const outdated=worker.store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='amendment-list' AND json_type(body,'$.extraction')='object' AND COALESCE(json_extract(body,'$.extraction.parserVersion'),'')<>? LIMIT 1").get(generation,AMENDMENT_EXTRACTION_VERSION);
+  if(!outdated) {
+    worker.store.putSource(generation,parserUpgradeKey,'amendment-parser-upgrade',{parserVersion:AMENDMENT_EXTRACTION_VERSION,sourceRevision:worker.store.get(amendmentParserSourceRevisionKey) || 0},new Date(worker.clock()).toISOString());
+    return;
+  }
   const throughKey=worker.store.db.prepare("SELECT MAX(key) AS key FROM sources WHERE generation=? AND kind='amendment-list'").get(generation)?.key || '';
-  enqueueAmendment(worker.store,generation,parserUpgradeKey+':'+AMENDMENT_EXTRACTION_VERSION,'amendment-parser-upgrade',{afterKey:'',throughKey},110,true);
+  enqueueAmendment(worker.store,generation,parserUpgradeKey+':'+AMENDMENT_EXTRACTION_VERSION,'amendment-parser-upgrade',{afterKey:'',throughKey,sourceRevision:worker.store.get(amendmentParserSourceRevisionKey) || 0},110,true);
 }
 async function runParserUpgradeSlice(worker,task) {
   const {store}=worker,{generation}=task;
@@ -252,7 +256,7 @@ async function runParserUpgradeSlice(worker,task) {
     advance:source=>({afterKey:source.key}),
   });
   if(complete) {
-    store.putSource(generation,parserUpgradeKey,'amendment-parser-upgrade',{parserVersion:AMENDMENT_EXTRACTION_VERSION,...(task.body.retryAt?{retryAt:task.body.retryAt}:{})},new Date(worker.clock()).toISOString());
+    store.putSource(generation,parserUpgradeKey,'amendment-parser-upgrade',{parserVersion:AMENDMENT_EXTRACTION_VERSION,sourceRevision:task.body.sourceRevision || 0,...(task.body.retryAt?{retryAt:task.body.retryAt}:{})},new Date(worker.clock()).toISOString());
     store.finishTask(task);
   }
 }

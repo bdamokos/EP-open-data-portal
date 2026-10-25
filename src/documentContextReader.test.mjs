@@ -910,3 +910,10 @@ for(const variant of ['wrong-list','wrong-document','opinion-only','duplicate','
   assert.equal(h.container.querySelectorAll('[data-report-amendment]').length,0);assert.equal(h.scrolls.length,0);
   assert(h.container.textContent.includes('The amendment wording is unavailable.'));
 });
+
+test('title-case opinion headings cannot provide the main report amendment sequence',async t=>{
+  const doc=reportFallbackText(['Cover page.','DRAFT EUROPEAN PARLIAMENT LEGISLATIVE RESOLUTION','No main comparison.','Opinion of the Committee on Development','Amendment 1','Opinion wording.','Amendment 2','More opinion wording.','PROCEDURE']);
+  const h=await harness(t,()=>fallbackResponse(doc));await h.render({request:fallbackRequest,language:'en'});
+  assert.equal(h.container.querySelectorAll('[data-report-amendment]').length,0);assert.equal(h.scrolls.length,0);
+  assert(h.container.textContent.includes('The amendment wording is unavailable.'));
+});

@@ -13,7 +13,7 @@ export function reportAmendmentHeading(text,documentId,amendmentId,listId) {
   const headings=paragraphs.map(clean),starts=[];
   for(let i=0;i<headings.length;i++)if(body(i)&&/^(?:DRAFT )?EUROPEAN PARLIAMENT LEGISLATIVE RESOLUTION$/i.test(headings[i]))starts.push(i);
   if(starts.length!==1)return null;
-  const start=starts[0],end=headings.findIndex((value,index)=>index>start&&body(index)&&/^(?:EXPLANATORY STATEMENT|OPINION OF THE COMMITTEE(?: .*)?|PROCEDURE(?: [–—-].*)?|MINORITY POSITION|INFORMATION ON ADOPTION(?: .*)?)$/.test(value));
+  const start=starts[0],end=headings.findIndex((value,index)=>index>start&&body(index)&&/^(?:EXPLANATORY STATEMENT|OPINION OF THE COMMITTEE(?: .*)?|PROCEDURE(?: [–—-].*)?|MINORITY POSITION|INFORMATION ON ADOPTION(?: .*)?)$/i.test(value));
   if(end<0)return null;
   let expected=1,matched=null;
   for(let index=start+1;index<end;index++) {

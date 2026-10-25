@@ -668,3 +668,20 @@ for(const migration of [true,false])test('an alternate byline deferred by the re
   assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
   assert.equal(store.source(generation,listKey).work.authorNames.source.url,newUrl);
 });
+
+test('settled parser checks avoid JSON scans and a later incompatible list invalidates the marker',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;
+  let scans=0;const prepare=store.db.prepare.bind(store.db);
+  t.mock.method(store.db,'prepare',sql=>{if(sql.includes("json_extract(body,'$.extraction.parserVersion')"))scans++;return prepare(sql);});
+  assert.equal(amendmentParserUpgradeDue(store,generation),true);
+  prepareAmendmentParserUpgrade(worker,generation);assert.equal(scans,1);
+  for(let poll=0;poll<10;poll++){assert.equal(amendmentParserUpgradeDue(store,generation),false);prepareAmendmentParserUpgrade(worker,generation);}
+  assert.equal(scans,1);
+  const saved=store.source(generation,listKey);store.putSource(generation,listKey,'amendment-list',saved.work,saved.fetchedAt);
+  assert.equal(amendmentParserUpgradeDue(store,generation),false,'A compatible update cannot introduce upgrade work.');
+  const other=listId.replace('001-001','002-002'),legacy={...saved.work,id:'eli/dl/doc/'+other,identifier:other,extraction:{...saved.work.extraction,parserVersion:'10'}};
+  store.putSource(generation,'amendment:list:'+other,'amendment-list',legacy,saved.fetchedAt);
+  assert.equal(amendmentParserUpgradeDue(store,generation),true);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(store.db.prepare('SELECT done FROM amendment_jobs WHERE generation=? AND key=?').get(generation,'amendment:extract:'+other).done,0);
+});

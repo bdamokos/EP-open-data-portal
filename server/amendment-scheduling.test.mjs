@@ -159,3 +159,22 @@ test('parser recovery keysets lists independently of report upgrades and resumes
   await worker.task(task(store,next.generation,key));assert.equal(row(store,next.generation,key).done,1);
   assert.equal(store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND kind='amendment-extract'").get(next.generation).n,13);assert.equal(worker.requests,0);
 });
+
+test('an incompatible list saved behind the upgrade cursor requires another bounded pass',async t=>{
+  const {prepareAmendmentParserUpgrade,amendmentParserUpgradeDue}=await import('./amendments-worker.mjs');
+  const {AMENDMENT_DISTRIBUTION_PROOF_VERSION}=await import('./amendments.mjs');
+  const {AMENDMENT_EXTRACTION_VERSION}=await import('./amendment-documents.mjs');
+  const {store,worker,generation}=setup(t),key='amendment:parser-upgrade:'+AMENDMENT_EXTRACTION_VERSION;
+  const put=targetId=>{
+    const listId=targetId+'-AM-001-001';
+    store.putSource(generation,'amendment:list:'+listId,'amendment-list',{id:'eli/dl/doc/'+listId,identifier:listId,targetDocumentId:targetId,extraction:{parserVersion:'10'},distributionEvidence:{version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:'available',descriptors:[{url:'https://data.europarl.europa.eu/distribution/test/'+listId+'.docx',language:'en',byteSize:null}]}},stamp);
+    return listId;
+  };
+  for(let i=0;i<11;i++)put(id(i));
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(task(store,generation,key));
+  const cursor=JSON.parse(row(store,generation,key).body).afterKey;
+  const late=put('A-10-2026-6000');assert('amendment:list:'+late<cursor);
+  await worker.task(task(store,generation,key));assert.equal(row(store,generation,key).done,1);assert.equal(amendmentParserUpgradeDue(store,generation),true);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(task(store,generation,key));await worker.task(task(store,generation,key));
+  assert.equal(row(store,generation,'amendment:extract:'+late).done,0);assert.equal(amendmentParserUpgradeDue(store,generation),false);
+});
