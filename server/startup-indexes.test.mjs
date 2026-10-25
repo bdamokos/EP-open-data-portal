@@ -16,6 +16,7 @@ function fixture(t) {
   const store=new ActivityStore(directory);assert(store.acquire());
   store.db.exec('DROP INDEX amendment_link_invalidation');store.set('amendmentLinkIndexVersion',null);
   store.db.exec('DROP INDEX activity_role_frontier');store.set('activityAvailabilityIndexVersion',null);
+  store.db.exec('DROP INDEX activity_member_roles');
   return {directory,store};
 }
 function environment(t,directory) {
@@ -42,6 +43,8 @@ test('entry point prepares a mounted legacy index before opening HTTP',async t=>
   assert.equal(code,0,output);
   assert.match(output,/amendment_link_invalidation/);assert.match(output,/listening on/);
   assert.match(output,/activity_role_frontier/);
+  assert.match(output,/activity_member_roles/);
+  assert(output.indexOf('activity_member_roles')<output.indexOf('listening on'));
   assert(output.indexOf('activity_role_frontier')<output.indexOf('listening on'));
   assert(output.indexOf('amendment_link_invalidation')<output.indexOf('listening on'));
   const ready=new ActivityStore(directory);assert.equal(ready.get('amendmentLinkIndexVersion'),amendmentLinkIndexVersion);ready.close();
@@ -56,4 +59,20 @@ test('entry point exits before listening when another writer holds the mounted d
   assert.equal(store.get('amendmentLinkIndexVersion'),null);
   assert.equal(store.get('activityAvailabilityIndexVersion'),null);
   assert.equal(store.db.prepare("SELECT 1 FROM sqlite_schema WHERE name='activity_role_frontier'").get(),undefined);
+  assert.equal(store.db.prepare("SELECT 1 FROM sqlite_schema WHERE name='activity_member_roles'").get(),undefined);
+});
+
+test('startup upgrades the frontier-only version without rebuilding its existing index',t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'startup-member-index-'));
+  t.after(()=>rmSync(directory,{recursive:true,force:true}));
+  const store=new ActivityStore(directory);assert(store.acquire());
+  const root=store.db.prepare("SELECT rootpage FROM sqlite_schema WHERE name='activity_role_frontier'").get().rootpage;
+  store.db.exec('DROP INDEX activity_member_roles');store.set('activityAvailabilityIndexVersion',1);
+  store.release();store.close();environment(t,directory);t.mock.method(console,'log',()=>{});
+  assert.equal(prepareStartupIndexes()[0].noop,false);
+  const ready=new ActivityStore(directory);
+  assert.equal(ready.get('activityAvailabilityIndexVersion'),activityAvailabilityIndexVersion);
+  assert.equal(ready.db.prepare("SELECT rootpage FROM sqlite_schema WHERE name='activity_role_frontier'").get().rootpage,root);
+  assert(ready.db.prepare("SELECT 1 FROM sqlite_schema WHERE name='activity_member_roles'").get());
+  ready.close();assert.equal(prepareStartupIndexes()[0].noop,true);
 });

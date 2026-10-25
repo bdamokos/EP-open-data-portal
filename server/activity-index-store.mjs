@@ -381,9 +381,12 @@ export class ActivityStore {
     if (!member) return null;
     const status=this.status(), generation=status.servingGeneration;
     const activityOnly=" AND COALESCE(json_extract(body,'$.recordKind'),'document')<>'answer'";
+    // Keep counts and role-filtered pages on the member-leading partial index;
+    // the global role frontier cannot narrow a read to this MEP.
+    const memberItems='items INDEXED BY activity_member_roles';
     const where='generation=? AND mep=?'+activityOnly+(category?' AND category=?':'');
     const params=[generation,String(mep),...(category?[category]:[])];
-    const total=this.db.prepare('SELECT COUNT(*) AS n FROM items WHERE '+where).get(...params).n;
+    const total=this.db.prepare('SELECT COUNT(*) AS n FROM '+memberItems+' WHERE '+where).get(...params).n;
     const sittingSources=new Map(), outcomes=new Map();
     const outcome=source=>{
       const id=source.work.identifier || source.work.id;
@@ -421,9 +424,9 @@ export class ActivityStore {
       }
       return localize(row,language);
     };
-    const items=this.db.prepare('SELECT body FROM items WHERE '+where+' ORDER BY date DESC,source_id DESC,category LIMIT ? OFFSET ?').all(...params,limit,offset).map(r=>present(r.body));
+    const items=this.db.prepare('SELECT body FROM '+(category?memberItems:'items')+' WHERE '+where+' ORDER BY date DESC,source_id DESC,category LIMIT ? OFFSET ?').all(...params,limit,offset).map(r=>present(r.body));
     const selectedItems=sourceId?this.db.prepare('SELECT body FROM items WHERE generation=? AND mep=? AND source_id=? ORDER BY category').all(generation,String(mep),sourceId).map(r=>present(r.body)):[];
-    const counts=Object.fromEntries(this.db.prepare('SELECT category,COUNT(*) AS count FROM items WHERE generation=? AND mep=?'+activityOnly+' GROUP BY category').all(generation,String(mep)).map(r=>[r.category,r.count]));
+    const counts=Object.fromEntries(this.db.prepare('SELECT category,COUNT(*) AS count FROM '+memberItems+' WHERE generation=? AND mep=?'+activityOnly+' GROUP BY category').all(generation,String(mep)).map(r=>[r.category,r.count]));
     const categoryCoverage=Object.fromEntries(Object.keys(CATEGORIES).map(id=> {
       const reason=CATEGORY_GAPS[id] || (!status.refreshSnapshotReady?'Refresh state requires offline reconciliation.':null) || (status.coverageGaps.count?'Some source records or refresh windows remain unavailable.':null) || (status.unresolvedCategories.includes(id)?id==='reports-shadow'?'Some report-stage joins are unresolved.':'Some source relationships or dates are incomplete.':null) || (['motions','individual-motions'].includes(id) && counts['unclassified-motions']?'Some motions lack a verified EP-rule classification.':null);
       const state=CATEGORY_GAPS[id]?'source-not-verified':status.coverageGaps.count||!status.refreshSnapshotReady?'incomplete-joins':!status.complete?'backfilling':reason?'incomplete-joins':'available';
