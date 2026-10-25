@@ -60,7 +60,7 @@ for(const language of ['en','hu','fr'])test(`${language}: conflicting versions a
   assert.deepEqual(collectiveReferences.map(node=>node.textContent),['eli/dl/doc/A-10-2026-0254-AM-1','eli/dl/doc/B-10-2026-0424-AM-2'],'the full recorded subject list includes co-decided amendments from other targets');
   assert(collectiveReferences.every(node=>node.getAttribute('lang')===''));
   const unverified=card('unverified-component').querySelector('.explorer-amendment-decision');
-  assert.equal(unverified.querySelector('strong').textContent,'Split decision');
+  assert.equal(unverified.querySelector('strong').textContent,'Unverified split decision');
   const retained=card('retained-variant-match');
   assert.match(retained.querySelector('.explorer-amendment-authors').textContent,/Current aggregate author/);
   assert.equal(retained.querySelectorAll('.explorer-amendment-variant').length,1);

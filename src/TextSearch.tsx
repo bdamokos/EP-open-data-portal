@@ -141,7 +141,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
 
 // CSS Custom Highlights leave React-managed text, links and footnotes intact.
 // Where unsupported, select only the active match using the native Selection.
-const findExcluded='button:not(.legal-ref):not(.source-primary),script,style,[hidden]';
+const findExcluded='button:not(.legal-ref),script,style,[hidden]';
 function matchDetails(range:Range,target:HTMLElement) {
   const details=new Set<HTMLDetailsElement>();
   if(!target.contains(range.commonAncestorContainer))return details;
@@ -169,7 +169,7 @@ export function FindInText({target,label='Find in this text',onOpen}:{target:Ref
     let frame=0;const update=()=>{window.cancelAnimationFrame(frame);frame=window.requestAnimationFrame(()=>{const element=target.current;if(!element)return;const walker=document.createTreeWalker(element,window.NodeFilter.SHOW_TEXT|window.NodeFilter.SHOW_ELEMENT),nodes:{node:Text;start:number;end:number}[]=[];let node,text='',lastBlock:Element|null=null;
       while((node=walker.nextNode())){
         if(node.nodeType===window.Node.ELEMENT_NODE){if((node as Element).tagName==='BR'&&!(node as Element).closest('[hidden]'))text+=' ';continue;}
-        // Inline reference and source-reader buttons contain searchable source text.
+        // Inline reference buttons contain searchable source text.
         const parent=node.parentElement;if(!parent||parent.closest(findExcluded))continue;
         const block=parent.closest('p,div,h1,h2,h3,h4,h5,h6,li,blockquote,section,article,td,th,pre,dt,dd,figcaption');
         if(lastBlock&&block!==lastBlock&&text&&!/\s$/.test(text))text+=' ';

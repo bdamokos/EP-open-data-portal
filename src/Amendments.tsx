@@ -50,7 +50,7 @@ function Decision({item,decision,language,compact=false}:{item:Amendment;decisio
   const complete=totals&&positions.every(([key])=>typeof totals[key]==='number'),total=complete?positions.reduce((sum,[key])=>sum+totals![key]!,0):null;
   const unbound=['unverified','unresolved-collective'].includes(decision.componentBinding||'');
   return <li className="explorer-amendment-decision" lang="en">
-    {(!compact||unbound)&&<div className="explorer-amendment-decision-heading"><strong>{decision.componentBinding==='unverified'?'Split decision':decision.componentBinding==='unresolved-collective'?'Collective decision':amendmentDecisionScope(item,decision)}</strong><Outcome value={decision.outcome}/></div>}
+    {(!compact||unbound)&&<div className="explorer-amendment-decision-heading"><strong>{decision.componentBinding==='unverified'?'Unverified split decision':decision.componentBinding==='unresolved-collective'?'Collective decision':amendmentDecisionScope(item,decision)}</strong><Outcome value={decision.outcome}/></div>}
     {hasTotals&&<>{complete&&total!>0&&<div className="amendment-vote-strip" aria-hidden="true">{positions.map(([key,label])=><span key={key} data-position={label} style={{flexGrow:totals![key]!}}/>)}</div>}<dl className="explorer-amendment-totals">{positions.map(([key,label])=><div key={key} data-position={label}><dt>{label.toLowerCase()}</dt><dd>{totals?.[key]!=null?<span lang={language}>{totals[key]!.toLocaleString(language)}</span>:'Unavailable'}</dd></div>)}</dl></>}
     <p className="explorer-amendment-meta">{total!=null?total.toLocaleString(language)+' votes · ':''}{voteMethodLabel(decision.method)}</p>
     <AmendmentNamedVotes item={item} decision={decision} language={language}/>
@@ -171,7 +171,6 @@ export function AmendmentCard({item,language,onMember,showOutcome=true}:{item:Am
       {item.procedureIds?.length?<p>Procedures: {item.procedureIds.map((reference,index)=><Fragment key={reference}>{index?', ':''}<span lang="">{reference}</span></Fragment>)}</p>:null}
       {item.topics?.length?<ul>{item.topics.map(topic=><li key={topic.id}><span lang={topic.language??''}>{topic.label}</span> <small>· {topic.basis==='dossier'?'dossier subject':'target provision'}</small></li>)}</ul>:null}
       {item.gaps?.length?<ul className="explorer-amendment-gap">{item.gaps.map((gap,index)=><li key={index}>{gapLabel(gap)}</li>)}</ul>:null}
-      {!item.conflicted&&authors.some(author=>author.personId)&&<p className="explorer-amendment-secondary">Author links are derived from public names, dated mandates and voting identities where available.</p>}
     </details>
   </article>;
 }

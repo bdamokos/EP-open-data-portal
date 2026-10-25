@@ -48,10 +48,11 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
       {data.state==='unmapped'&&<p className="procedure-progress-muted">Legislative progress unavailable.</p>}
       {data.state==='ambiguous'&&<p className="procedure-progress-muted">Legislative progress unavailable.</p>}
       {data.state==='mapped'&&<>
-        {partial(data.coverage)&&<p className="procedure-progress-status">{data.coverage.limited?'Timeline incomplete. ':''}{data.coverage.invalidRows||data.coverage.incompleteEvents?'Some source details are unavailable or inconsistent. ':''}The latest recorded event and scheduled action may be incomplete.</p>}
+        {partial(data.coverage)&&<p className="procedure-progress-status">{[data.coverage.limited?'Timeline incomplete':'Partial coverage',data.coverage.invalidRows||data.coverage.incompleteEvents?'some event details unavailable':null].filter(Boolean).join(' · ')}</p>}
         {latest?<p className="procedure-progress-latest"><span className="procedure-progress-muted">Latest recorded milestone</span><strong><EventName event={latest}/></strong><EventDate event={latest} language={language}/></p>:events.length?<p className="procedure-progress-muted">No dated milestone.</p>:<p className="procedure-progress-muted">No timeline events.</p>}
         {next&&<div className="procedure-progress-next"><span className="procedure-progress-tag">Next scheduled action</span><p><strong><EventName event={next}/></strong><EventDate event={next} language={language}/></p></div>}
-        {scheduled.some(event=>!event.date||event.date<today)&&<p className="procedure-progress-muted">Some scheduled events have no date.</p>}
+        {scheduled.some(event=>!event.date)&&<p className="procedure-progress-muted">Some scheduled events have no date.</p>}
+        {scheduled.some(event=>event.date&&event.date<today)&&<p className="procedure-progress-muted">Some scheduled dates have passed.</p>}
         {events.length>0&&<><button className="procedure-progress-toggle" type="button" aria-expanded={expanded} aria-controls={timelineId} onClick={()=>setExpanded(value=>!value)}>{expanded?'Hide timeline':'Show timeline'}</button>
           {expanded&&<div id={timelineId} className="procedure-progress-expanded">
             <div className="procedure-progress-filters"><label>Institution<select value={institution} onChange={event=>setInstitution(event.target.value)}><option value="all">All institutions</option>{options.map(term=><option key={term.id} value={term.id} lang={term.language||'en'}>{institutionLabel(term)}</option>)}</select></label><button type="button" aria-pressed={allEvents} onClick={()=>setAllEvents(value=>!value)}>{allEvents?'Show key milestones':'Show all recorded events'}</button></div>

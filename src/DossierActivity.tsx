@@ -60,8 +60,10 @@ function Coverage({coverage,section,pages}:{coverage:DossierCoverage;section:Dos
   const targets=new Map<string,DossierActivityResponse>();for(const page of pages)if(page.checkedTarget)targets.set(page.checkedTarget,mergeDossierPage(targets.get(page.checkedTarget)||null,page));
   // Gaps stay attributed to the exact target whose read failed.
   const gaps=targets.size?[...targets.entries()].flatMap(([target,page])=>page.coverage.gaps.map(gap=>target+' · '+gap)):coverage.gaps;
-  if(coverage.status==='complete'&&!gaps.length)return null;
-  return <div className="dossier-coverage"><p>{labels[section]} · {coverage.status==='unavailable'?'Records unavailable':'Partial coverage'}</p>{gaps.length>0&&<details><summary>Gaps · {gaps.length}</summary><ul>{gaps.map(gap=><li key={gap}>{gap}</li>)}</ul></details>}</div>;
+  const discovery=coverage.discovery,discoveryGap=Boolean(discovery&&(discovery.pending||discovery.refreshGaps||discovery.capacityGaps.length));
+  const allGaps=[...gaps,...(discovery?.capacityGaps||[])];
+  if(coverage.status==='complete'&&!gaps.length&&!discoveryGap)return null;
+  return <div className="dossier-coverage"><p>{labels[section]} · {coverage.status==='unavailable'?'Records unavailable':coverage.status==='partial'||gaps.length?'Partial coverage':discovery?.pending?'Other sources still being checked':'Other sources partially checked'}</p>{allGaps.length>0&&<details><summary>Gaps · {allGaps.length}</summary><ul>{allGaps.map(gap=><li key={gap}>{gap}</li>)}</ul></details>}</div>;
 }
 function Role({item,language}:{item:DossierRole;language:string}) {
   return <article className="dossier-role"><h4>{roleName(item.role)}</h4><p>{item.committee||'Committee not supplied'}{item.stage?' · '+stageLabel(item.stage):''}</p><p>{item.dateBasis==='document'?'Document date':'Recorded date'}: {item.date?<time lang={language}>{humanDate(item.date,language)}</time>:'unavailable'}{item.documentId?' · '+item.documentId:''}</p><Source source={item.source} id={item.participationId||item.id} language={language}/></article>;
@@ -127,5 +129,5 @@ export function ActivityDossierLinks({procedureIds,person,language='en'}:{proced
   const query=new URLSearchParams({procedures:ids.slice(0,3).join(','),lang:language});
   const state=useInsightData<DossierReferencesResponse>(ids.length?'insights/dossier-references?'+query:null);
   if(!ids.length)return null;
-  return <div className="dossier-work-links">{state.data&&<DossierWorkLinks references={state.data.items.filter(row=>ids.includes(row.id))} person={person} language={language}/>} {state.loading&&<p role="status">Finding dossier references…</p>}{state.error&&<p role="alert">Dossier references unavailable. <button type="button" onClick={state.retry}>Retry dossier links</button></p>}{state.data?.coverage.status!=='complete'&&state.data&&<details><summary>Some dossier references unavailable</summary><ul>{state.data.coverage.gaps.map((gap,index)=><li key={index}>{typeof gap==='string'?gap:gap.message||gap.code||'Reference unavailable'}{typeof gap==='object'&&gap.id?' · '+gap.id:''}</li>)}</ul></details>}</div>;
+  return <div className="dossier-work-links">{state.data&&<DossierWorkLinks references={state.data.items.filter(row=>ids.includes(row.id))} person={person} language={language}/>} {state.loading&&<p role="status">Finding dossier references…</p>}{state.error&&<p role="alert">Dossier references unavailable. <button type="button" onClick={state.retry}>Retry dossier links</button></p>}{state.data?.coverage.status!=='complete'&&state.data&&<details><summary>Some dossier references unavailable</summary><ul>{state.data.coverage.gaps.map((gap,index)=><li key={index}>{typeof gap==='string'?gap:gap.message||gap.code||'Reference unavailable'}{typeof gap==='object'&&gap.id?' · '+gap.id:''}</li>)}</ul></details>}{ids.length>3&&<p className="dossier-muted">First 3 of {ids.length} procedures shown.</p>}</div>;
 }

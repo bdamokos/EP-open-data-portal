@@ -106,7 +106,7 @@ test('multiple exact references require a choice and resolver preserves gaps wit
   anchor.dispatchEvent(new h.window.MouseEvent('click',{bubbles:true,cancelable:true,ctrlKey:true}));assert.equal(prevented,false,'modifier click retains the normal href');assert.equal(location.href,before);
   await h.render(createElement(h.module.ActivityDossierLinks,{person:257727,procedureIds:['2025-0176','2025-0233','2025-0407','2025-0999','invalid']}));
   const resolver=h.calls.find(url=>url.pathname.endsWith('dossier-references'));assert.equal(resolver.searchParams.get('procedures'),'2025-0176,2025-0233,2025-0407');
-  assert.equal(h.container.querySelectorAll('a').length,1);assert.match(h.container.textContent,/Exact procedure source unavailable/);assert.doesNotMatch(h.container.textContent,/first three/);
+  assert.equal(h.container.querySelectorAll('a').length,1);assert.match(h.container.textContent,/Exact procedure source unavailable/);assert.match(h.container.textContent,/First 3 of 4 procedures shown\./);
   assert(!h.container.innerHTML.includes('2025%2F0233%28COD%29'));
 });
 
@@ -150,6 +150,18 @@ test('same-generation partial and complete resolver snapshots revalidate when re
   function Read(){const state=useInsightData('insights/dossier-references?procedures=2025-0176&lang=en');return createElement('p',null,state.data?'ready':'loading');}
   await h.render(createElement(Read,{key:1}));await h.render(createElement(Read,{key:2}));
   assert.equal(h.calls.filter(url=>url.pathname.endsWith('dossier-references')).length,2);
+});
+
+test('complete target reads still label incomplete broader amendment discovery',async t=>{
+  const h=await harness(t,undefined,url=>{
+    if(url.searchParams.get('section')!=='amendments')return;
+    return Response.json(page('amendments','257727',[amendment],{coverage:{status:'complete',gaps:[],sources:[source],discovery:{pending:false,refreshGaps:true,capacityGaps:['Discovery limit reached.']}}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  const coverage=h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage');
+  assert(coverage,'discovery gaps keep a coverage label');
+  assert.match(coverage.querySelector('p').textContent,/Other sources partially checked/);
+  assert.deepEqual([...coverage.querySelectorAll('details li')].map(node=>node.textContent),['Discovery limit reached.']);
 });
 
 test('coverage attributes each amendment gap to its exact requested target',async t=>{

@@ -113,8 +113,6 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const body=exactBody&&(!found||indices.every(index=>index>=extracted.start))&&(!placed||placementStart!==undefined&&placementStart>=extracted.start)?extracted:{paragraphs:allParagraphs,start:0};
   const notes=text?.notes||[],anchors=text?.noteAnchors||[],links=text?.documentLinks||[],objects=text?.documentObjects||[];
   const annotatedSpan=placed&&placement?.span&&typeof wording?.originalText==='string'?mapContextAnnotations(allParagraphs,placement.span,wording.originalText,anchors,links):null;
-  const spanHasAnnotations=Boolean(placement?.span&&[...anchors,...links].some(item=>item.paragraph>=placement.span!.start&&item.paragraph<=placement.span!.end));
-  const annotationFallback=placed&&spanHasAnnotations&&!annotatedSpan;
   const renderOriginal=annotatedSpan&&typeof wording?.originalText==='string'?(value:string,start:number)=>{
     const end=start+value.length;
     const clipped=annotatedSpan.links.map(link=>({...link,start:Math.max(link.start,start),end:Math.min(link.end,end)})).filter(link=>link.end>link.start);
