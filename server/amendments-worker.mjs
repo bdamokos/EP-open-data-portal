@@ -91,12 +91,12 @@ function saveVerifiedList(worker,generation,target,candidate,list,evidence,{pars
   const parserMetadataObservation=parserUpgrade&&distributionEvidence.state!=='available'?{parserVersion:AMENDMENT_EXTRACTION_VERSION,fingerprint:distributionFingerprint(distributionEvidence),retryAt:distributionEvidence.state==='unavailable'?worker.clock()+DAY:null}:null;
   worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',{...projectDocument(list),targetDocumentId:target,files,distributionEvidence,...(parserMetadataObservation?{parserMetadataObservation}:{}),relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})},prior?.fetchedAt || evidence.fetchedAt);
 }
-function prepareLinkedLists(worker,generation,work,fetchedAt) {
+function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true}={}) {
   const id=idOf(work),linked=linkedListCandidates(work),verified=new Set(),unresolved=[];
   for(const candidate of linked.candidates.slice(0,AMENDMENT_LIMITS.listsPerTarget)) {
     let prior=worker.store.source(generation,sourceKey(candidate.id));
     const expandedVerified=candidate.expanded&&!candidate.unverifiedExpanded&&typeof candidate.expanded.amendmentDistributionDeclared==='boolean';
-    if(expandedVerified&&(prior?.work.targetDocumentId!==id || !prior?.work.relationshipEvidence || Date.parse(prior.work.relationshipEvidence.fetchedAt)<=Date.parse(fetchedAt))) {
+    if(discover&&expandedVerified&&(prior?.work.targetDocumentId!==id || !prior?.work.relationshipEvidence || Date.parse(prior.work.relationshipEvidence.fetchedAt)<=Date.parse(fetchedAt))) {
       saveVerifiedList(worker,generation,id,candidate,candidate.expanded,{basis:'expanded-target',url:'https://data.europarl.europa.eu/api/v2'+targetKey(id)+'?format=application%2Fld%2Bjson',fetchedAt});
       prior=worker.store.source(generation,sourceKey(candidate.id));
     }
@@ -104,7 +104,7 @@ function prepareLinkedLists(worker,generation,work,fetchedAt) {
     const detailVerified=proof?.basis==='list-detail'&&proof.targetReference==='eli/dl/doc/'+id&&proof.fingerprint===candidate.fingerprint&&worker.clock()-Date.parse(proof.fetchedAt)<7*DAY&&verifiedList(prior.work,id,candidate.id)&&prior.work.distributionEvidence?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION;
     if(!expandedVerified&&!detailVerified) {
       unresolved.push(candidate.id);
-      enqueueAmendment(worker.store,generation,linkedListKey(id,candidate.id),'amendment-list-detail',{listId:candidate.id,targetDocumentId:id},115,true);
+      if(discover)enqueueAmendment(worker.store,generation,linkedListKey(id,candidate.id),'amendment-list-detail',{listId:candidate.id,targetDocumentId:id},115,true);
       continue;
     }
     verified.add(candidate.id);
@@ -113,9 +113,9 @@ function prepareLinkedLists(worker,generation,work,fetchedAt) {
     const failedDescriptorMatches=failure&&(failure.descriptor==null&&freshness.descriptor==null||sameDocxDescriptor(failure.descriptor,freshness.descriptor));
     const retryDeferred=failedDescriptorMatches&&Date.parse(failure.retryAfter)>worker.clock();
     const unchanged=freshness.status==='fresh'&&worker.clock()-Date.parse(prior?.work.extraction?.fetchedAt || prior?.fetchedAt)<7*DAY;
-    if(currentDocxDescriptor(prior?.work)&&(!unchanged||alternateAuthorDescriptor(prior?.work,prior?.work.extraction)&&prior?.work.extraction?.authorNamesVersion!==AMENDMENT_AUTHOR_NAMES_VERSION)&&!retryDeferred)enqueueAmendment(worker.store,generation,'amendment:extract:'+candidate.id,'amendment-extract',{listId:candidate.id,targetDocumentId:id},112,true);
+    if(discover&&currentDocxDescriptor(prior?.work)&&(!unchanged||alternateAuthorDescriptor(prior?.work,prior?.work.extraction)&&prior?.work.extraction?.authorNamesVersion!==AMENDMENT_AUTHOR_NAMES_VERSION)&&!retryDeferred)enqueueAmendment(worker.store,generation,'amendment:extract:'+candidate.id,'amendment-extract',{listId:candidate.id,targetDocumentId:id},112,true);
     const date=prior?.work.document_date;
-    if(validAmendmentDate(date)&&(!worker.store.source(generation,rosterKey(date))||hasNonLatinAuthors(prior?.work.extraction)&&worker.store.source(generation,rosterKey(date))?.work.nameVersion!==AMENDMENT_AUTHOR_NAMES_VERSION))enqueueAmendment(worker.store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114,true);
+    if(discover&&validAmendmentDate(date)&&(!worker.store.source(generation,rosterKey(date))||hasNonLatinAuthors(prior?.work.extraction)&&worker.store.source(generation,rosterKey(date))?.work.nameVersion!==AMENDMENT_AUTHOR_NAMES_VERSION))enqueueAmendment(worker.store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114,true);
   }
   return {...linked,verified,unresolved};
 }
@@ -487,7 +487,7 @@ function cachedDirectSittings(store,generation,targetId) {
     ORDER BY source.key DESC`).all(generation,AMENDMENTS_VERSION,reference,AMENDMENT_LIMITS.sittingsPerTarget+1,generation);
   return {limited:candidates.length>AMENDMENT_LIMITS.sittingsPerTarget,sittingIds:candidates.slice(0,AMENDMENT_LIMITS.sittingsPerTarget).filter(source=>array(amendmentSitting(JSON.parse(source.body)).decisions).some(decision=>array(decision.decided_on_a_realization_of).some(value=>amendmentReference(value)?.targetDocumentId===targetId))).map(source=>source.key.replace(/^motion-outcomes:/,'')).filter(id=>/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(id))};
 }
-export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,observedDecisionIds=[],discoveredSittingIds=[]}={}) {
+export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,observedDecisionIds=[],discoveredSittingIds=[],discover=true}={}) {
   const store=worker.store,saved=store.source(generation,targetKey(id));if(!saved)return;
   const priorTarget=store.db.prepare('SELECT body FROM amendment_targets WHERE generation=? AND id=?').get(generation,id);
   const cachedDirect=cachedDirectSittings(store,generation,id);
@@ -496,7 +496,9 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   target.listProjectionVersion=saved.work.amendmentLinksVersion ?? null;
   target.discoveredSittingIds=discovered;
   const relationshipsKnown=Object.hasOwn(saved.work,'inverse_foresees_change_of')&&saved.work.inverse_foresees_change_of!=null&&saved.work.amendmentLinksVersion===AMENDMENT_LINKS_VERSION;
-  const linked=prepareLinkedLists(worker,generation,saved.work,saved.fetchedAt);
+  // Parser recovery has its own bounded list walk. Rebuild accepted rows from
+  // saved evidence without starting a second report-wide discovery fan-out.
+  const linked=prepareLinkedLists(worker,generation,saved.work,saved.fetchedAt,{discover});
   const currentListIds=linked.candidates.map(candidate=>candidate.id);
   const currentLists=new Set(currentListIds);
   target.linkedListCount=currentListIds.length;target.linkedListObservationCount=currentListIds.length+linked.unavailable;target.unresolvedListObservationCount=linked.unavailable;target.unresolvedListIds=linked.unresolved;
@@ -519,7 +521,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
     }
     return authorContexts.get(date);
   };
-  scheduleMandateProfiles(worker,generation,id,lists,aliases);
+  if(discover)scheduleMandateProfiles(worker,generation,id,lists,aliases);
   const base=(amendmentId,number)=>({id:amendmentId,number,listId:null,targetDocumentId:id,title:target.titles.en || id,titles:target.titles,date:null,documentDate:null,listDocumentDate:null,dateBasis:null,proposerDate:null,proposerDateBasis:null,targetDocumentDate:target.date,procedureIds:target.procedureIds,targetLabel:null,targetLabelLanguage:null,targetLabelSource:null,originalText:null,proposedText:null,language:null,authors:[],decisions:[],splitParts:[],topics:target.topics,sources:[...target.sources],gaps:[],identifierBasis:'derived-from-exact-target-and-number',officialIds:[]});
   if(cachedDirect.limited)gaps.push('This target exceeds the cached direct-decision sitting discovery limit.');
   if(!relationshipsKnown)gaps.push('Current amendment-list relationships are unavailable; previously indexed list evidence is unverified and retained.');
@@ -690,19 +692,19 @@ export async function amendmentTask(worker,task) {
         store.db.prepare('UPDATE amendment_jobs SET retry_at=? WHERE generation=? AND key=?').run(worker.clock()+60_000,generation,task.key);
         return;
       }
-      rebuildAmendmentTarget(worker,generation,body.targetDocumentId);
+      rebuildAmendmentTarget(worker,generation,body.targetDocumentId,{discover:!body.parserUpgrade});
     }
   } else if(task.kind==='amendment-extract') {
     const saved=store.source(generation,sourceKey(body.listId));if(!saved)throw new Error('Amendment-list metadata is unavailable.');
+    const parserUpgrade=Boolean(body.parserUpgrade||saved.work.extraction&&saved.work.extraction.parserVersion!==AMENDMENT_EXTRACTION_VERSION);
     const file=currentDocxDescriptor(saved.work);
     if(!file) {
       // A queued job can outlive the metadata that admitted it. Absence is an
       // observation to expose, not permission to download a historical URL.
       store.finishTask(task);
-      rebuildAmendmentTarget(worker,generation,body.targetDocumentId);
+      rebuildAmendmentTarget(worker,generation,body.targetDocumentId,{discover:!parserUpgrade});
       return;
     }
-    const parserUpgrade=saved.work.extraction&&saved.work.extraction.parserVersion!==AMENDMENT_EXTRACTION_VERSION;
     const retrieve=async descriptor=>{
       const retained=parserUpgrade||body.sourceDownloaded?await retainedAmendmentSource(store,descriptor,{signal}):null;
       if(retained)return retained;
@@ -724,7 +726,7 @@ export async function amendmentTask(worker,task) {
     const fetchedAt=downloaded.fetchedAt,extraction=extractAmendments(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt});
     if(!Array.isArray(extraction.amendments)||extraction.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Amendment extraction exceeded its record budget.');
     await retainAmendmentSource(store,file,downloaded.buffer,fetchedAt,{signal});
-    for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
+    if(!parserUpgrade)for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
     signal.throwIfAborted();
     let authorNames=null;
     const alternate=alternateAuthorDescriptor(saved.work,extraction);
@@ -744,7 +746,7 @@ export async function amendmentTask(worker,task) {
     const next={...saved.work,authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language},saved.work.document_date),sourceDescriptor:normalizedDocxDescriptor(file)}};
     delete next.wordingRefreshFailure;
     store.putSource(generation,sourceKey(body.listId),'amendment-list',next,next.extraction.fetchedAt);
-    rebuildAmendmentTarget(worker,generation,body.targetDocumentId);
+    rebuildAmendmentTarget(worker,generation,body.targetDocumentId,{discover:!parserUpgrade});
   } else if(task.kind==='amendment-roster') {
     const params={'mandate-date':body.date,limit:1000,offset:body.offset};
     const record=await worker.request('/meps/show-current',params);
@@ -811,7 +813,11 @@ export function failAmendmentTask(worker,task,error) {
   }
   worker.store.putSource(task.generation,'amendment:gap:'+task.key,'amendment-gap',{taskKey:task.key,taskKind:task.kind,taskBody:task.body,priority:task.priority,error:String(error.message).slice(0,350),failedAt:at},at);
   worker.store.finishTask(task);
-  if(failedList)rebuildAmendmentTarget(worker,task.generation,failedList);
+  if(failedList) {
+    const list=worker.store.source(task.generation,sourceKey(task.body.listId))?.work;
+    const parserUpgrade=Boolean(task.body.parserUpgrade||list?.extraction&&list.extraction.parserVersion!==AMENDMENT_EXTRACTION_VERSION);
+    rebuildAmendmentTarget(worker,task.generation,failedList,{discover:!parserUpgrade});
+  }
   return true;
 }
 export const amendmentDownloads={downloadDocxBuffer,downloadVotingXml};

@@ -27,11 +27,11 @@ const oldOriginal='The original legal wording.';
 const oldProposed='The previously verified proposed wording.';
 const freshProposed='The corrected proposal sets a detailed requirement for an annual public implementation report.';
 
-function amendmentDocx(proposed=oldProposed,author='Alex Common') {
+function amendmentDocx(proposed=oldProposed,author='Alex Common',number=1) {
   const escape=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const paragraph=value=>'<w:p><w:r><w:t>'+escape(value)+'</w:t></w:r></w:p>';
   const row=values=>'<w:tr>'+values.map(value=>'<w:tc>'+paragraph(value)+'</w:tc>').join('')+'</w:tr>';
-  const xml='<w:document xmlns:w="urn:word"><w:body>'+paragraph('<Amend><Date>2.10.2026</Date><NumAm>1</NumAm>')+
+  const xml='<w:document xmlns:w="urn:word"><w:body>'+paragraph('<Amend><Date>2.10.2026</Date><NumAm>'+number+'</NumAm>')+
     paragraph('<Members>'+author+'</Members>')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+
     row(['Text proposed by the Commission','Amendment'])+row([oldOriginal,proposed])+'</w:tbl>'+paragraph('</Amend>')+'</w:body></w:document>';
   const name=Buffer.from('word/document.xml'), body=Buffer.from(xml), compressed=deflateRawSync(body);
@@ -598,6 +598,49 @@ test('parser upgrade obtains current distribution proof directly when report met
   assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
   await worker.task(nextAmendmentTask(store,generation));
   assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+});
+
+for(const stage of ['extract','metadata','failed-extract','missing-distribution'])for(const pressure of [false,true])test('parser '+stage+' rebuild preserves admission and report links; pressure='+pressure,async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  const saved=store.source(generation,listKey),report=store.source(generation,targetKey),buffers=new Map();
+  const ids=Array.from({length:12},(_,i)=>targetId+'-AM-'+String(i+1).padStart(3,'0')+'-'+String(i+1).padStart(3,'0'));
+  for(const [index,id] of ids.entries()) {
+    const url='https://data.europarl.europa.eu/distribution/example/'+id+'_en.docx',buffer=amendmentDocx(freshProposed,'Alex Common',index+1);buffers.set(url,buffer);
+    const work=JSON.parse(JSON.stringify(saved.work).replaceAll(listId,id).replaceAll(descriptor.url,url));
+    work.extraction.parserVersion='10';work.extraction.amendments=work.extraction.amendments.map(amendment=>({...amendment,number:index+1}));
+    work.distributionEvidence.descriptors[0].byteSize=buffer.length;work.extraction.sourceDescriptor.byteSize=buffer.length;
+    if(stage==='metadata')delete work.distributionEvidence;
+    store.putSource(generation,'amendment:list:'+id,'amendment-list',work,saved.fetchedAt);
+  }
+  worker.downloadAmendmentDocx=async url=>{assert(buffers.has(url));return {buffer:buffers.get(url)};};
+  store.putSource(generation,targetKey,'document',{...report.work,inverse_foresees_change_of:ids.map(id=>'eli/dl/doc/'+id)},report.fetchedAt);
+  context.advance(8*86400000);
+  // Recovery must also avoid creating author-discovery work from missing dates.
+  store.db.prepare("DELETE FROM sources WHERE generation=? AND kind='amendment-roster'").run(generation);store.set('amendmentMandateFallback',true);
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
+  const listJobs=()=>store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND done=0 AND kind IN ('amendment-extract','amendment-list-detail')").get(generation).n;
+  assert.equal(listJobs(),8);
+  if(pressure) {
+    for(let i=store.db.prepare('SELECT COUNT(*) n FROM amendment_jobs WHERE generation=?').get(generation).n;i<200;i++)enqueueAmendment(store,generation,'filler:'+i,'amendment-reparse',{},1);
+    store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:Array.from({length:200},(_,i)=>({generation,key:'reserved:'+i,kind:'amendment-reparse',body:'{}',priority:1,done:0,attempts:0,retry_at:0,error:null}))},context.at());
+  }
+  const checkpoint=store.source(generation,'amendment:continuations'),marker=store.source(generation,targetKey).work.amendmentLinksVersion;
+  const job=nextAmendmentTask(store,generation);assert.equal(job.kind,stage==='metadata'?'amendment-list-detail':'amendment-extract');
+  if(stage==='missing-distribution') {
+    const key='amendment:list:'+job.body.listId,source=store.source(generation,key);
+    store.putSource(generation,key,'amendment-list',{...source.work,distributionEvidence:{version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:'unavailable',descriptors:[]}},source.fetchedAt);
+  }
+  if(stage==='metadata')worker.fetchRecord=async endpoint=>{
+    const id=endpoint.split('/').at(-1),url='https://data.europarl.europa.eu/distribution/example/'+id+'_en.docx';
+    return {fetchedAt:context.at(),payload:{data:[{...listDetail({url,language:'en',byteSize:buffers.get(url).length}),id:'eli/dl/doc/'+id,identifier:id}]}};
+  };
+  if(stage==='failed-extract')assert.equal(failAmendmentTask(worker,{...job,attempts:2},new Error('Offline DOCX failure.')),true);
+  else await worker.task(job);
+  assert(listJobs()<=8,'Recovery rebuilds cannot bypass the eight-job admission bound.');
+  assert.equal(store.source(generation,targetKey).work.amendmentLinksVersion,marker);
+  assert.deepEqual(store.source(generation,'amendment:continuations'),checkpoint,'Recovery must not fill reserves or create capacity gaps.');
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND kind IN ('amendment-roster','amendment-members','amendment-member') AND done=0").get(generation).n,0);
+  if(stage==='extract')assert.equal(store.source(generation,'amendment:list:'+job.body.listId).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
 });
 
 test('parser recovery downloads an expired or changed source and respects its bounded cold-download limit',async t=>{
