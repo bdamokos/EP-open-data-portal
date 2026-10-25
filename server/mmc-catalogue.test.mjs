@@ -25,6 +25,7 @@ test('cold dates load automatically, share one search and survive a reader resta
   const fetchImpl=async(url,options)=>{
     calls++;const query=new URL(url).searchParams;
     assert.equal(query.get('df'),date);assert.equal(query.get('dt'),date);assert.equal(query.get('page'),'1');assert.equal(query.get('pagesize'),'100');
+    assert.equal(options.headers['User-Agent'],'Mozilla/5.0 (compatible; EP-OpenData-Explorer/0.1; recording catalogue)');
     assert.equal(options.credentials,'omit');assert.equal(options.redirect,'error');assert.equal(options.headers.Authorization,undefined);assert.equal(options.headers.Cookie,undefined);assert.equal(options.headers.Origin,undefined);
     return Response.json(payload());
   };
@@ -62,6 +63,22 @@ test('verified empty results are cached briefly and automatically retried for la
   await settle(()=>calls===2);
   await settle(async()=>(await reader(date)).total===1);
   assert.equal((await reader(date)).total,1);
+});
+
+test('the live unpaginated empty envelope is valid only on a successful first page',async()=>{
+  const empty=JSON.parse(await readFile(new URL('./fixtures/mmc-search-empty.json',import.meta.url),'utf8'));
+  const snapshot=await fetchCatalogue('2026-10-25',{fetchImpl:async()=>Response.json(empty.payload)});
+  assert.equal(snapshot.total,0);assert.deepEqual(snapshot.records,[]);assert.equal(snapshot.sourcePages.length,1);
+  for(const patch of [{code:'1'},{totalElements:'0'},{page:1},{last:true}]) {
+    const changed=structuredClone(empty.payload);Object.assign(changed.resultJSON.response,patch);
+    await assert.rejects(fetchCatalogue(date,{fetchImpl:async()=>Response.json(changed)}));
+  }
+  let calls=0;
+  await assert.rejects(fetchCatalogue(date,{fetchImpl:async()=>{
+    if(++calls===2)return Response.json(empty.payload);
+    return Response.json(payload(Array.from({length:100},(_,i)=>row('20261007-'+i+'-PLENARY')),{last:false,totalPages:2,totalElements:'101'}));
+  }}));
+  assert.equal(calls,2);
 });
 
 test('403 is an unavailable search, never an empty catalogue, and pauses other dates',async t=>{

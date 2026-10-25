@@ -4,7 +4,7 @@ import path from 'node:path';
 import {boundedUpstream,upstreamResponseError} from './odp.mjs';
 import {writeCacheFile} from './cache-publication.mjs';
 import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
-import {userAgent} from './user-agent.mjs';
+import {browserCompatibleUserAgent} from './user-agent.mjs';
 
 export const MMC_BASE='https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0';
 const HOUR=3600000, MAX_BYTES=2*1024*1024, PAGE_SIZE=100, MAX_PAGES=10;
@@ -51,7 +51,7 @@ export async function fetchCatalogue(date,{fetchImpl=fetch,clock=Date.now}={}) {
     const url=new URL(MMC_BASE+'/search');
     url.search=new URLSearchParams({type:'105',subtype:'2',df:date,dt:date,pagesize:String(PAGE_SIZE),page:String(page)}).toString();
     const {payload,fetchedAt}=await boundedUpstream(async()=>{
-      const response=await fetchImpl(url.href,{headers:{Accept:'application/json','User-Agent':userAgent('recording catalogue')},credentials:'omit',redirect:'error',signal:AbortSignal.any([requestSignal()??new AbortController().signal,AbortSignal.timeout(25000)])});
+      const response=await fetchImpl(url.href,{headers:{Accept:'application/json','User-Agent':browserCompatibleUserAgent('recording catalogue')},credentials:'omit',redirect:'error',signal:AbortSignal.any([requestSignal()??new AbortController().signal,AbortSignal.timeout(25000)])});
       const limited=upstreamResponseError(response,{source:'multimedia'});
       if(limited||response.status!==200){
         await response.body?.cancel();
@@ -61,11 +61,15 @@ export async function fetchCatalogue(date,{fetchImpl=fetch,clock=Date.now}={}) {
       return {payload,fetchedAt:new Date(clock()).toISOString()};
     },{source:'multimedia'});
     const meta=payload?.resultJSON?.response,content=payload?.resultJSON?.content;
-    const count=typeof meta?.totalElements==='string'&&/^\d+$/.test(meta.totalElements)?Number(meta.totalElements):meta?.totalElements;
-    const validPageCount=Number.isInteger(meta?.totalPages)&&(meta.totalPages===Math.ceil(count/PAGE_SIZE)||count===0&&meta.totalPages===1);
-    if(String(meta?.code)!=='0'||!Number.isSafeInteger(count)||count<0||count>PAGE_SIZE*MAX_PAGES||!validPageCount||!Array.isArray(content)||meta.page!==page||meta.pageSize!==PAGE_SIZE||meta.first!==(page===1))throw Error('Invalid recording search pagination.');
-    const pageCount=Math.max(1,meta.totalPages);
-    if(pageCount>MAX_PAGES||total!==undefined&&(count!==total||pageCount!==pages)||meta.last!==(page===pageCount)||content.length!==Math.min(PAGE_SIZE,Math.max(0,count-(page-1)*PAGE_SIZE)))throw Error('Incomplete recording search.');
+    if(String(meta?.code)!=='0'||!Array.isArray(content))throw Error('Invalid recording search response.');
+    // The public search omits ALL pagination fields for a successful empty
+    // result. Accept that envelope only on the first page, never mid-walk.
+    const emptyEnvelope=page===1&&content.length===0&&['totalElements','totalPages','page','pageSize','first','last'].every(key=>!Object.hasOwn(meta,key));
+    const count=emptyEnvelope?0:typeof meta.totalElements==='string'&&/^\d+$/.test(meta.totalElements)?Number(meta.totalElements):meta.totalElements;
+    const validPageCount=emptyEnvelope||Number.isInteger(meta.totalPages)&&(meta.totalPages===Math.ceil(count/PAGE_SIZE)||count===0&&meta.totalPages===1);
+    if(!Number.isSafeInteger(count)||count<0||count>PAGE_SIZE*MAX_PAGES||!validPageCount||!emptyEnvelope&&(meta.page!==page||meta.pageSize!==PAGE_SIZE||meta.first!==(page===1)))throw Error('Invalid recording search pagination.');
+    const pageCount=emptyEnvelope?1:Math.max(1,meta.totalPages);
+    if(pageCount>MAX_PAGES||total!==undefined&&(count!==total||pageCount!==pages)||!emptyEnvelope&&meta.last!==(page===pageCount)||content.length!==Math.min(PAGE_SIZE,Math.max(0,count-(page-1)*PAGE_SIZE)))throw Error('Incomplete recording search.');
     total=count;pages=pageCount;
     for(const row of content) {
       if(String(row.mediaTypeId)!=='105'||row.categoryName!=='PLENARY'||ids.has(row.mediaBusinessID))throw Error('Invalid recording search identity.');
