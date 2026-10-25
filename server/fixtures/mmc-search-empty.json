@@ -1,0 +1,20 @@
+{
+  "sourceUrl": "https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0/search?type=105&subtype=2&df=2026-10-25&dt=2026-10-25&pagesize=100&page=1",
+  "fetchedAt": "2026-10-25T22:54:36.291Z",
+  "payload": {
+    "resultJSON": {
+      "response": {
+        "elapsed": "13",
+        "code": "0",
+        "messages": [
+          {
+            "type": "INFO",
+            "message": "Request executed propertly"
+          }
+        ],
+        "time": "2026-10-25T23:54:24 CET"
+      },
+      "content": []
+    }
+  }
+}
