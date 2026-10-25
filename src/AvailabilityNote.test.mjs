@@ -15,12 +15,12 @@ test('coverage copy preserves positive upstream text, language retention and acc
   t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const render=source=>act(async()=>root.render(createElement(AvailabilityNote,{sources:source,label:'text',end:'2026-10-24'})));
   await render(sourceAvailability({sourceKey:'speech-text',family:'speeches',stage:'text',language:'hu',observedRecords:3,route:'public-api',checkedAt:'2026-10-24T10:00:00Z',limited:true,retention:{reason:'language-not-retained'}}));
-  assert.match(container.querySelector('p').textContent,/Records observed/);
+  assert.match(container.querySelector('p').textContent,/Partial coverage/);
   assert.doesNotMatch(container.querySelector('p').textContent,/unavailable/i);
   assert.match(container.textContent,/Hungarian text/);
   assert.doesNotMatch(container.textContent,/Source language not retained locally/);
   assert.equal(container.querySelector('details>summary').textContent,'Coverage');
-  assert.match(container.textContent,/Collection date unavailable/);
+  assert.match(container.textContent,/Date unavailable\./);
   await render(sourceAvailability({sourceKey:'speech-text',latestObservedDate:'2026-10-16'}));
   assert.match(container.querySelector('p').textContent,/Later dates unavailable/);
   assert.equal(container.querySelector('time').getAttribute('datetime'),'2026-10-16');

@@ -160,7 +160,7 @@ test('complete target reads still label incomplete broader amendment discovery',
   await h.render(createElement(h.module.DossierActivity,{reference}));
   const coverage=h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage');
   assert(coverage,'discovery gaps keep a coverage label');
-  assert.match(coverage.querySelector('p').textContent,/Other sources partially checked/);
+  assert.match(coverage.querySelector('p').textContent,/Some amendment sources unavailable/);
   assert.deepEqual([...coverage.querySelectorAll('details li')].map(node=>node.textContent),['Discovery limit reached.']);
 });
 

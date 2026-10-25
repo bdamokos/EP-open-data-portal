@@ -35,7 +35,7 @@ test('motion cards keep each exact text and its outcome separate, with readable 
   await t.test('the expanded card attaches dates and totals to the joint text alone',()=>{
     const node=render(MotionOutcome,props),original=node.querySelector('.explorer-motion-text-outcome'),related=node.querySelector('.explorer-motion-joint-outcome');
     assert.match(original.textContent,/Original motion B10-0441\/2026/);
-    assert.match(original.textContent,/replaced by the joint text/);
+    assert.match(original.textContent,/Replaced by the joint text/);
     assert.match(original.textContent,/not adopted separately/);
     assert.doesNotMatch(related.textContent,/author of this joint motion/);
     assert.equal(original.querySelector('dl'),null);
@@ -54,7 +54,7 @@ test('motion cards keep each exact text and its outcome separate, with readable 
       assert.doesNotMatch(summary.textContent,/adopted/);
       const detail=render(MotionOutcome,{...props,related});
       assert.equal(detail.querySelector('dl'),null);
-      if(status==='unavailable')assert.match(detail.textContent,/No verified final outcome/);
+      if(status==='unavailable')assert.match(detail.textContent,/Final outcome unavailable/);
     }
   });
   await t.test('joint authorship is stated only from that joint text, independently of its adoption',()=>{

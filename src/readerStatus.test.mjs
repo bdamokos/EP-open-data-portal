@@ -186,7 +186,7 @@ test('failed refresh retries retain readable text, exact source metadata and sel
   const text=h.container.querySelector('.insight-reader-text'),source=h.container.querySelector('.insight-reader-source a');
   await h.finish(route,null,true);
   assert(!h.container.textContent.includes('No answer published.'),'a failed read must not claim parliamentary absence');
-  assert.match(h.container.querySelector('.reader-retry').textContent,/Saved text remains readable/);
+  assert.match(h.container.querySelector('.reader-retry').textContent,/temporarily unavailable/);
   let retry=h.container.querySelector('.reader-retry button');
   await act(async()=>{retry.focus();retry.click();});
   assert.equal(h.container.querySelector('.insight-reader-text'),text);assert.equal(text.textContent,body);assert.equal(text.lang,'en');assert.equal(h.container.querySelector('.insight-reader-source a'),source);

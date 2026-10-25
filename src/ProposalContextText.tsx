@@ -14,7 +14,7 @@ const safeHref=(raw:string|undefined|null)=>{try{const url=new URL(raw||'');retu
 export const proposalPlacementReasons:Record<string,string>={
   amends_existing_law:'This amendment changes existing law.',
   council_position_unavailable:'The Council position is unavailable here.',
-  baseline_unknown:'The source does not identify the text this amendment changes.',
+  baseline_unknown:'The text this amendment changes isn’t identified.',
   proposal_baseline_unavailable:'The Commission proposal is unavailable here.',
   math_comparison_unavailable:'The equations could not be compared.',
   parent_target_not_found:'The provision that would contain the new text could not be found.',
@@ -26,7 +26,7 @@ export const proposalPlacementReasons:Record<string,string>={
   target_not_found:'The passage this amendment changes could not be found.',
   target_reference_unavailable:'The proposal location is not specified clearly enough.',
   insertion_reference_unavailable:'The insertion location is not specified clearly enough.',
-  source_structure_unavailable:'The source does not establish the complete boundaries of this provision.',
+  source_structure_unavailable:'The full extent of this provision is unclear.',
   source_passage_incomplete:'The source passage is incomplete.',
   different_text_languages:'The proposal and amendment wording are in different languages.',
   matching_budget:'The amendment’s location could not be determined.',
@@ -139,7 +139,7 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
     <div className="document-context-text proposal-context-text" ref={reader} lang={baseline.language}>{!placed&&amendmentBlock(false)}{items.map((item,index)=>{
       const p=item.proposal,notes=p.notes as DocumentNote[],links=p.links as DocumentLink[];
       return <section key={index} data-proposal-item={item.kind+'-'+item.index}><h4 className="proposal-item-heading">{item.kind==='act'?'Proposal':'Annexes'}{item.index>1?' · part '+item.index:''}</h4>
-        {p.gaps.length>0&&<p className="document-context-notice">{p.gaps.some(gap=>gap.code==='excerpted-source')?'Excerpt.':p.contentComplete===false?'Some source content is unavailable.':'Some source structure could not be read.'}</p>}
+        {p.gaps.length>0&&<p className="document-context-notice">{p.gaps.some(gap=>gap.code==='excerpted-source')?'Excerpt.':p.contentComplete===false?'Some content unavailable.':'Some content could not be read.'}</p>}
         <ReferenceScope texts={readerTexts(p.paragraphs.map(p=>p.text),notes,links)} notes={notes} notePrefix={prefix+'-'+index} language={language} textLanguage={baseline.language} renderQuestion={question=><InsightQuestionReader id={question} language={language} heading="Referenced question" includeAnswers/>}>
           <ItemText proposal={p} itemIndex={index} placement={effective} block={amendmentBlock} prefix={prefix+'-'+index}/>
         </ReferenceScope>

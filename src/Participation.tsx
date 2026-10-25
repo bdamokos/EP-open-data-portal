@@ -20,12 +20,12 @@ export function Participation({language,sittings,onTopic,latestAvailable=true}:{
   const bins=data?.series||[],hasActivity=data?.topics.some(row=>row[metric]!==null),future=kind==='sitting'&&sittings.find(s=>s.id===value)?.phase==='upcoming'||Boolean(data?.topics.length&&data.topics.every(row=>row.upcoming));
   const agendaUnavailable=Boolean(data?.coverage.gaps.some(gap=>gap.kind==='agenda-unavailable'));
   const unavailableAgendaStatus=agendaUnavailable&&data?.topics.length?'Some agendas are unavailable.':'';
-  const unknownAgendaEmpty=agendaUnavailable?(data?.topics.length?'No saved agenda titles match this search.':'Agenda data is unavailable for this selection.'):null;
-  const activityUnavailable=!hasActivity&&agendaUnavailable&&Boolean(data?.topics.length)?'Activity data is unavailable for the saved agenda items.':'';
+  const unknownAgendaEmpty=agendaUnavailable?(data?.topics.length?'None of the available agenda items match this search.':'Agenda data is unavailable for this selection.'):null;
+  const activityUnavailable=!hasActivity&&agendaUnavailable&&Boolean(data?.topics.length)?'Activity unavailable.':'';
   const max=Math.max(1,...bins.map(bin=>bin[metric]||0)),x=(i:number)=>20+i/Math.max(1,bins.length-1)*620,y=(count:number)=>135-count/max*115;
   const resultStatus=data&&!state.loading&&!state.error?[
-    rows.length?`${rows.length.toLocaleString('en')}${agendaUnavailable?' saved':''} agenda ${rows.length===1?'item':'items'} in this selection.`:unknownAgendaEmpty||'No agenda items match this selection.',
-    future?'This period has not taken place.':!hasActivity?(agendaUnavailable?activityUnavailable:`No saved ${labels[metric].toLowerCase()} for this period.`):rows.some(row=>row[metric]===null)?`Some ${labels[metric].toLowerCase()} are unavailable.`:'',
+    rows.length?`${rows.length.toLocaleString('en')}${agendaUnavailable?' available':''} agenda ${rows.length===1?'item':'items'} in this selection.`:unknownAgendaEmpty||'No agenda items match this selection.',
+    future?'This period has not taken place.':!hasActivity?(agendaUnavailable?activityUnavailable:`No ${labels[metric].toLowerCase()} for this period.`):rows.some(row=>row[metric]===null)?`Some ${labels[metric].toLowerCase()} are unavailable.`:'',
     unavailableAgendaStatus,
     data.coverage.gaps.length?'Partial coverage':'',
   ].filter(Boolean).join(' '):null;

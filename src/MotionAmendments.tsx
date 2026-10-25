@@ -210,7 +210,7 @@ function AmendmentDetail({item,member,memberName,language,listId,onVariant,onCon
       </select>
     </label>}
     {unavailableVersion?<p className="motion-amendments__notice">That version is no longer available.</p>:
-      !record&&<p className="motion-amendments__notice">{selectable.length?'Choose a wording version to read this proposal.':'The source versions cannot be distinguished. Wording is unavailable.'}</p>}
+      !record&&<p className="motion-amendments__notice">{selectable.length?'Choose a wording version to read this proposal.':'Wording unavailable: the published versions conflict.'}</p>}
     {record&&<>
       {record.targetLabel&&<p className="motion-amendments__target" lang={sourceLanguage(record.targetLabelLanguage)}>{record.targetLabel}</p>}
       <Proposers record={record}/>
@@ -236,9 +236,9 @@ function AmendmentDetail({item,member,memberName,language,listId,onVariant,onCon
 }
 function emptyMessage(page:MotionAmendmentsPage) {
   if(page.coverage.resultState==='observed-empty')return 'No published amendment lists are recorded for this motion.';
-  if(page.coverage.resultState==='no-indexed-member-matches')return 'No matching proposals in the available records';
+  if(page.coverage.resultState==='no-indexed-member-matches')return 'No matching amendments';
   if(page.coverage.resultState==='not-indexed'||page.coverage.resultState==='unavailable')return 'Amendment information is unavailable for this motion';
-  return page.total?'No amendments are available on this page.':'No matching proposals in the available records';
+  return page.total?'No amendments are available on this page.':'No matching amendments';
 }
 
 /** The surrounding activity owns URL, history and scroll restoration. No catalogue or source writer is opened here. */
@@ -355,7 +355,7 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
           {(list.error||badPage)&&<div className="motion-amendments__notice"><p>Amendment information could not be loaded.</p><button type="button" onClick={()=>{focusHeading();list.retry();}}>Try again</button></div>}
           {selectedPending&&<p className="motion-amendments__notice">Loading the selected amendment…</p>}
           {selectedRoute&&(exact.error||badSelection)&&<div className="motion-amendments__notice"><p>The selected amendment could not be loaded.</p><button type="button" onClick={()=>{focusHeading();exact.retry();}}>Try again</button></div>}
-          {selectionUnavailable&&<p className="motion-amendments__notice">The requested amendment is unavailable in the available records.</p>}
+          {selectionUnavailable&&<p className="motion-amendments__notice">Amendment unavailable.</p>}
           {selected&&!inPage&&<div className="motion-amendments__selected"><p className="motion-amendments__outside">{selection?.inRequestedScope===false?'Selected amendment · outside this filter':'Selected amendment · outside this page'}</p>{detail(selected)}</div>}
           {page&&<>
             {!page.items.length&&<p className="motion-amendments__notice">{emptyMessage(page)}</p>}

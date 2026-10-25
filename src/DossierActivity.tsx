@@ -39,7 +39,7 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
       if(page.version!==2||page.procedure?.reference!==reference||page.memberId!==person||page.section!==section||!Array.isArray(page.items)||!page.coverage||!page.pagination)throw new Error('Unexpected dossier response.');
       if(previous.current&&(previous.current.generation!==page.generation||previous.current.amendmentGeneration!==page.amendmentGeneration)){
         pages.current.clear();
-        if(cursor.offset||cursor.targetOffset)page={...page,coverage:{...page.coverage,status:'partial',gaps:[...page.coverage.gaps,'Saved records changed. Reopen this dossier to reload earlier pages.']}};
+        if(cursor.offset||cursor.targetOffset)page={...page,coverage:{...page.coverage,status:'partial',gaps:[...page.coverage.gaps,'This dossier was updated. Reopen it to load earlier pages.']}};
       }
       pages.current.set(JSON.stringify(cursor),page);failedCursor.current=null;
       const ordered=[...pages.current.values()].sort((a,b)=>a.pagination.targetOffset-b.pagination.targetOffset||a.pagination.offset-b.pagination.offset);
@@ -63,7 +63,7 @@ function Coverage({coverage,section,pages}:{coverage:DossierCoverage;section:Dos
   const discovery=coverage.discovery,discoveryGap=Boolean(discovery&&(discovery.pending||discovery.refreshGaps||discovery.capacityGaps.length));
   const allGaps=[...gaps,...(discovery?.capacityGaps||[])];
   if(coverage.status==='complete'&&!gaps.length&&!discoveryGap)return null;
-  return <div className="dossier-coverage"><p>{labels[section]} · {coverage.status==='unavailable'?'Records unavailable':coverage.status==='partial'||gaps.length?'Partial coverage':discovery?.pending?'Other sources still being checked':'Other sources partially checked'}</p>{allGaps.length>0&&<details><summary>Gaps · {allGaps.length}</summary><ul>{allGaps.map(gap=><li key={gap}>{gap}</li>)}</ul></details>}</div>;
+  return <div className="dossier-coverage"><p>{labels[section]} · {coverage.status==='unavailable'?'Records unavailable':coverage.status==='partial'||gaps.length?'Partial coverage':discovery?.pending?'Still checking for more amendments':'Some amendment sources unavailable'}</p>{allGaps.length>0&&<details><summary>Gaps · {allGaps.length}</summary><ul>{allGaps.map(gap=><li key={gap}>{gap}</li>)}</ul></details>}</div>;
 }
 function Role({item,language}:{item:DossierRole;language:string}) {
   return <article className="dossier-role"><h4>{roleName(item.role)}</h4><p>{item.committee||'Committee not supplied'}{item.stage?' · '+stageLabel(item.stage):''}</p><p>{item.dateBasis==='document'?'Document date':'Recorded date'}: {item.date?<time lang={language}>{humanDate(item.date,language)}</time>:'unavailable'}{item.documentId?' · '+item.documentId:''}</p><Source source={item.source} id={item.participationId||item.id} language={language}/></article>;

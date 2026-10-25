@@ -25,7 +25,7 @@ test('attendance response guard rejects wrong members, sitting sets, status cert
 test('all attendance labels preserve sitting-level semantics and unknown states',()=>{
   const observed=day();
   for(const [status,label] of [['listed-present','Listed as present'],['listed-excused','Listed as excused'],['not-listed','Not listed'],['conflicting','Listed as both present and excused']])assert.match(memberAttendanceDetail({...observed,memberStatus:status}),new RegExp(label));
-  assert.match(memberAttendanceDetail(observed),/Presence at this individual vote is not recorded/);
+  assert.match(memberAttendanceDetail(observed),/Listed as present at this sitting\./);
   assert.match(memberAttendanceDetail({...observed,status:'not-published',memberStatus:null}),/not yet published/);
   for(const value of [undefined,{...observed,status:'partial',memberStatus:null},{...observed,status:'unavailable',memberStatus:null}])assert.match(memberAttendanceDetail(value),/Attendance register unavailable/);
   assert.equal(memberAttendanceLine([observed,{...observed,date:'2026-10-23',status:'not-published',memberStatus:null}]),'Attendance register: listed present 22 Oct · not yet published 23 Oct');

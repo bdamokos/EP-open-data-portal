@@ -59,7 +59,7 @@ test('search coverage stays partial independently of unavailable corpus status',
     if(url.pathname.endsWith('/corpus/status'))return Response.json({error:{code:'corpus_status_timeout',message:'Corpus status is temporarily unavailable.'}},{status:503});
   }});
   await view.render();
-  assert.match(view.find('.explorer-search-count').textContent,/1 matching document · Partial text coverage/);
+  assert.match(view.find('.explorer-search-count').textContent,/1 matching document · Partial coverage/);
   assert.equal(view.calls.some(call=>call.url.pathname.endsWith('/corpus/status')),false,'search does not turn unavailable global counts into zero coverage');
   assert.equal(view.container.querySelector('[role="alert"]'),null);
 });
@@ -83,7 +83,7 @@ test('text search stays collapsed without requests, opens with focus, and posts 
   await view.render({...scope,sourceIds:[]});
   assert.deepEqual(view.searches().at(-1).body.sourceIds,[],'empty exact scope must never become an unrestricted search');
   assert.equal(view.container.querySelectorAll('.explorer-search-result').length,0);
-  assert.match(view.container.textContent,/No matches in indexed text/);
+  assert.match(view.container.textContent,/No matches\. Try another phrase/);
 });
 
 test('the reader opens the selected exact language fragment, escapes source markup and stays closed after closing',async t=>{

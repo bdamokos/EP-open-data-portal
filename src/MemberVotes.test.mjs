@@ -158,7 +158,7 @@ test('API responses for the wrong member, period, filter, page or pinned snapsho
     ['requester binding',data=>({...data,items:[{...data.items[0],rollCallRequesters:[{id:'unbound',organizationLabels:{en:'Unbound requester'},binding:'different-decision'}]}]})],
   ])await t.test(label,async child=>{
     const h=await mount(child,{state:{week:WEEK,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(mutate(responseFor(url)))});
-    assert.match(h.container.textContent,/The requested voting records are unavailable here/);
+    assert.match(h.container.textContent,/These voting records are unavailable/);
     assert.equal(h.container.querySelector('.member-votes-row'),null);
     assert.equal(h.changes.length,0,'an invalid response cannot rewrite the requested URL state');
   });
@@ -177,7 +177,7 @@ test('a selected off-page decision uses its pinned projection without selecting 
 test('unknown or mismatched decision deep links never fall back to another page decision',async t=>{
   for(const status of ['not-found-in-scanned-data','unavailable','mismatched'])await t.test(status,async child=>{
     const h=await mount(child,{state:{week:WEEK,decisionId:decision(999),snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{selected:status==='mismatched'?{status:'found',item:vote(1)}:{status,item:null}}))});
-    assert.match(h.container.textContent,status==='mismatched'?/The requested voting records are unavailable here/:/The requested decision is unavailable in this period/);
+    assert.match(h.container.textContent,status==='mismatched'?/These voting records are unavailable/:/The requested decision is unavailable in this period/);
     assert.equal(h.container.querySelector('.member-votes-detail'),null);
     assert.equal(h.state.decisionId,decision(999));
   });
@@ -234,7 +234,7 @@ test('off-page whole-text outcomes do not add empty subjects or hide the recorde
   const absent=subject([],{id:'off-page-subject',counts:{observed:1,filtered:0,page:0},wholeTextDecisions:[whole]});
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,positions:'recorded'},handler:url=>Response.json(responseFor(url,{items:[],subjects:[absent],pagination:{observedTotal:1,filteredTotal:0}}))});
   assert.equal(h.container.querySelectorAll('.member-votes-subject').length,0);
-  assert.match(visiblePane(h.container).textContent,/No recorded positions are available for this period/);
+  assert.match(visiblePane(h.container).textContent,/No recorded positions in this period/);
   assert(button(h.container,'All decisions'),'the other decisions remain one action away');
 });
 
@@ -500,7 +500,7 @@ test('snapshot expiry requires explicit refresh and preserves the requested peri
   const item=vote(99,{context:{...vote(99).context,documentIds:[DOCUMENT]}}),nextSnapshot='b'.repeat(64);
   const initial={week:WEEK,sittingId:SITTING,positions:'all',alignment:'all',offset:50,decisionId:item.id,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT],context:{documentId:DOCUMENT,view:'document'}};
   const h=await mount(t,{state:initial,statusCompatibility:true,handler:url=>stateFrom(url).snapshotId===SNAPSHOT?Response.json({error:{code:'snapshot_expired',message:'Snapshot expired'}},{status:409}):Response.json(responseFor(url,{items:[vote(1)],selected:{status:'found',item},subjects:[subject([item],{counts:{observed:51,filtered:51,page:1}})],snapshotId:nextSnapshot,pagination:{observedTotal:51,filteredTotal:51}}))});
-  assert.match(h.container.textContent,/This saved view of the period has expired/);assert.equal(h.calls.length,1);assert.equal(h.changes.length,0);assert.equal(h.contexts.length,0);
+  assert.match(h.container.textContent,/This page is out of date/);assert.equal(h.calls.length,1);assert.equal(h.changes.length,0);assert.equal(h.contexts.length,0);
   await h.click('Refresh votes');
   assert.deepEqual(h.changes[0].state,{...initial,snapshotId:null});assert.equal(h.changes[0].options.replace,false);
   assert.deepEqual(h.state,{...initial,snapshotId:nextSnapshot});
@@ -520,7 +520,7 @@ test('explicit snapshot refresh bypasses a cached unpinned response instead of r
     return Response.json(responseFor(url,{items:[vote(1)],selected:{status:'found',item},subjects:[subject([item],{counts:{observed:51,filtered:51,page:1}})],snapshotId,pagination:{observedTotal:51,filteredTotal:51}}));
   }});
   assert.equal(unpinnedReads,1);assert.equal(h.state.snapshotId,SNAPSHOT);
-  assert.match(h.container.textContent,/This saved view of the period has expired/);
+  assert.match(h.container.textContent,/This page is out of date/);
   const beforeRefresh=h.changes.length;
   await h.click('Refresh votes');
   assert.equal(unpinnedReads,2,'explicit refresh must make a fresh network request despite the cached unpinned response');
@@ -719,7 +719,7 @@ for(const status of ['partial','unavailable'])test(status+' zero observations ne
 
 test('a member without recorded positions is not labelled as a sitting with no votes',async t=>{
  const h=await mount(t,{state:{sittingId:SITTING,week:WEEK,positions:'recorded'},handler:url=>Response.json(responseFor(url,{items:[],pagination:{observedTotal:1,filteredTotal:0},coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:1}]}}))});
- assert.equal(h.container.querySelector('.vote-period-no-votes'),null);assert.match(visiblePane(h.container).textContent,/No recorded positions are available/);assert.doesNotMatch(visiblePane(h.container).textContent,/No votes were recorded/);
+ assert.equal(h.container.querySelector('.vote-period-no-votes'),null);assert.match(visiblePane(h.container).textContent,/No recorded positions in this period/);assert.doesNotMatch(visiblePane(h.container).textContent,/No votes were recorded/);
 });
 
 test('outcome alignment retains the snapshot, resets pagination, marks rows and returns focus from detail',async t=>{
@@ -814,7 +814,7 @@ test('all decisions shows non-named ballots, shared methods, counts and page sum
 });
 
 for(const [status,memberStatus,expected] of [
-  ['observed','listed-present',/Listed as present.*Presence at this individual vote is not recorded/],
+  ['observed','listed-present',/^Listed as present at this sitting\.$/],
   ['observed','listed-excused',/Listed as excused/],
   ['observed','not-listed',/Not listed.*Not listed doesn’t mean absent\./],
   ['observed','conflicting',/Listed as both present and excused/],
@@ -850,7 +850,7 @@ test('attendance starts only after valid votes settle and failures leave votes a
 test('invalid vote envelopes cannot start attendance reads',async t=>{
   let starts=0;
   const h=await mount(t,{handler:url=>Response.json({...responseFor(url),version:3}),attendanceHandler:()=>{starts++;return Response.json(attendanceResponse());}});
-  assert.equal(starts,0);assert.match(h.container.textContent,/requested voting records are unavailable/);
+  assert.equal(starts,0);assert.match(h.container.textContent,/These voting records are unavailable/);
 });
 
 
