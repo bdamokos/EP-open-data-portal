@@ -4,7 +4,7 @@ import {Fragment,useId,useRef,useState,type ReactNode} from 'react';
 import {useData} from './data';
 import type {DocumentContextRequest,DocumentContextResponse} from './DocumentContextTypes';
 import type {PublicationDocument,NoteAnchor,DocumentLink} from './explorerTypes';
-import {publicationBody} from './publication-body.mjs';
+import {publicationBody,publicationHasMissingContent} from './publication-body.mjs';
 import {displayVoteTitle} from './memberVotesPresentation.mjs';
 import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from './References';
 import {InsightQuestionReader} from './InsightReaders';
@@ -127,7 +127,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
   const title=document?titleOf(document,language):null,hasText=text?.status==='available'&&allParagraphs.length>0;
   const extractionError=text?.status==='error',loadError=Boolean(state.error)||extractionError;
-  const incomplete=objects.some(object=>object.status==='unresolved')||Boolean(text?.extractionWarnings?.length)||text?.notesStatus==='not-extracted';
+  const incomplete=publicationHasMissingContent(text,body);
   const actual=text?.textLanguage||null;
   const availableLanguages=[...new Set([...(text?.availableTextLanguages||[]),...(actual?[actual]:[])])];
   const showPassage=()=>{const paragraph=reader.current?.querySelector<HTMLElement>('[data-context-target="true"]');paragraph?.scrollIntoView({block:'center'});paragraph?.focus({preventScroll:true});};
