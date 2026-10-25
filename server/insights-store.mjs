@@ -100,7 +100,7 @@ export class QuestionInsights {
       const params=[status.servingGeneration,query.start,query.end];
       const where="generation=? AND kind='document' AND json_extract(body,'$.document_date') BETWEEN ? AND ? AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')";
       const frozen=this.store.readSnapshot(()=>({
-        undatedQuestions:this.store.db.prepare('SELECT COUNT(*) AS n FROM sources WHERE '+where.replace("json_extract(body,'$.document_date') BETWEEN ? AND ?","(json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')")).get(status.servingGeneration).n,
+        undatedQuestions:this.store.db.prepare('SELECT COUNT(*) AS n FROM sources INDEXED BY question_window WHERE '+where.replace("json_extract(body,'$.document_date') BETWEEN ? AND ?","(json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')")).get(status.servingGeneration).n,
         count:this.store.db.prepare('SELECT COUNT(*) AS n FROM sources WHERE '+where).get(...params).n,
         rows:this.store.db.prepare('SELECT key,body,fetched_at FROM sources WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
         members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
