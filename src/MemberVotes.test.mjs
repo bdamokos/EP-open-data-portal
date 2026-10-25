@@ -987,3 +987,16 @@ for(const ambiguous of [false,true])test('unlinked or ambiguous report context s
  const h=await mount(t,{state:{decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item],subjects:[group]}))});
  assert.equal(h.calls.some(url=>url.includes('source-record?')),false);assert.equal(h.container.querySelector('.member-votes-detail-subject').lang,'fr');
 });
+
+for(const relationships of [undefined,null,{},[null]])test('malformed report relationships keep the subject usable '+JSON.stringify(relationships),async t=>{
+ const item=linkedReportVote();item.context.relationships=relationships;
+ const h=await mount(t,{state:{decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item],subjects:[reportSubject([item])]}))});
+ assert.equal(h.calls.some(url=>url.includes('source-record?')),false);
+ const title=h.container.querySelector('.member-votes-detail-subject');assert(title);assert.equal(title.textContent,'Sujet français');assert.equal(title.lang,'fr');
+});
+
+test('a mismatched subject URI cannot establish the report-title relationship',async t=>{
+ const item=linkedReportVote(),group=reportSubject([item]);group.uri='https://data.europarl.europa.eu/eli/dl/event/another-subject';item.context.relationships[0].from=group.uri;
+ const h=await mount(t,{state:{decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item],subjects:[group]}))});
+ assert.equal(h.calls.some(url=>url.includes('source-record?')),false);assert.equal(h.container.querySelector('.member-votes-detail-subject').textContent,'Sujet français');
+});
