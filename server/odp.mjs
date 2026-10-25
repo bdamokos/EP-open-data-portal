@@ -13,7 +13,7 @@ import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
 import {createCommitteeMembershipReader} from './committee-memberships.mjs';
 import {parliamentaryService} from './parliamentary-service.mjs';
-import {profileMemberships,createProfileMembershipReader} from './profile-memberships.mjs';
+import {profileMemberships,createProfileMembershipReader,reference} from './profile-memberships.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
@@ -149,7 +149,7 @@ function observeSource(entry,priority,signal) {
 export async function odp(
   endpoint,
   params = {},
-  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
+  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, retain=true, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
   signal?.throwIfAborted();
   const url = new URL(ODP_BASE + endpoint);
@@ -275,8 +275,8 @@ export async function odp(
         const record = { url: key, fetchedAt: Date.now(), payload };
         const serialized = JSON.stringify(record);
         refreshFailures.delete(key);
-        rememberSource(key, record, serialized);
-        if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) {
+        if (retain) rememberSource(key, record, serialized);
+        if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) {
           await writeCacheFile(filename(key),serialized,{signal:budget.signal}).catch(()=>{});
         }
         budget.signal?.throwIfAborted();
@@ -326,6 +326,83 @@ async function list(endpoint, params = {}, {priority='interactive'}={}) {
     "odp_pagination",
     "Parliament data exceeds the supported page count.",
   );
+}
+// Profiles name dozens of corporate bodies, and each single read takes seconds
+// upstream. /corporate-bodies/{id,id,...} returns the same elements as the
+// single reads, so one batch seeds the exact per-ID records the validated
+// readers already use. Omitted or ambiguous elements fall back to single reads.
+const BODY_BATCH = 100;
+const bodyId = /^(?:[1-9]\d*|ep-[1-9]\d*)$/;
+const bodyEndpoint = id => `/corporate-bodies/${id}`;
+const sourceKey = endpoint => {
+  const url = new URL(ODP_BASE + endpoint);
+  url.searchParams.set('format', 'application/ld+json');
+  return url.href;
+};
+// Reads a retained record without promoting it into the memory cache, so a
+// warmup over every body never evicts profile and roster records.
+async function peekSource(key, signal) {
+  const held = cache.get(key)?.record;
+  if (held || !cacheDir) return held || null;
+  try {
+    const record = JSON.parse(await readSourceRecord(filename(key), signal));
+    return record.url === key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data) ? record : null;
+  } catch { signal?.throwIfAborted(); return null; }
+}
+async function seedSource(key, record, {memory, signal}) {
+  const prior = await peekSource(key, signal);
+  if (prior && prior.fetchedAt >= record.fetchedAt) return;
+  const serialized = JSON.stringify(record);
+  refreshFailures.delete(key);
+  if (memory || cache.has(key)) rememberSource(key, record, serialized);
+  if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)
+    await writeCacheFile(filename(key), serialized, {signal}).catch(() => {});
+}
+export async function prefetchCorporateBodies(ids, {signal = requestSignal(), priority = 'interactive', memory = true} = {}) {
+  const wanted = [...new Set(ids.map(String))].filter(id => bodyId.test(id));
+  for (let i = 0; i < wanted.length; i += BODY_BATCH) {
+    const chunk = wanted.slice(i, i + BODY_BATCH);
+    const missing = [];
+    await Promise.all(chunk.map(async id => {
+      const key = sourceKey(bodyEndpoint(id));
+      // A recent single-read failure keeps its cooldown; the reader decides.
+      if ((refreshFailures.get(key)?.retryAt || 0) > Date.now()) return;
+      const held = await peekSource(key, signal);
+      if (!held || Date.now() - held.fetchedAt >= TTL) missing.push(id);
+    }));
+    signal?.throwIfAborted();
+    if (!missing.length) continue;
+    missing.sort();
+    // A batch of one is the single read itself, so it is retained normally.
+    const batch = await odp(bodyEndpoint(missing.join(',')), {}, {signal, priority, retain:missing.length === 1});
+    const found = new Map();
+    for (const element of batch.payload.data) {
+      const id = String(element?.id || '').replace(/^(?:https:\/\/data\.europarl\.europa\.eu\/)?org\//, '');
+      if (!missing.includes(id) || /^\d+$/.test(id) && String(element.identifier) !== id) continue;
+      found.set(id, found.has(id) ? null : element);
+    }
+    const context = batch.payload['@context'];
+    await Promise.all([...found].filter(([, element]) => element).map(([id, element]) => {
+      const key = sourceKey(bodyEndpoint(id));
+      return seedSource(key, {url:key, fetchedAt:batch.fetchedAt, payload:{data:[element], ...(context === undefined ? {} : {'@context':context})}}, {memory, signal});
+    }));
+  }
+}
+let bodyWarmup = null;
+// Keeps every corporate body retained on disk so a profile's first view reads
+// locally. The catalogue page and batches run in the background queue.
+export function startCorporateBodyWarmup({intervalMs = TTL / 2} = {}) {
+  const run = () => {
+    if (!cacheDir || bodyWarmup) return;
+    bodyWarmup = (async () => {
+      const all = await list('/corporate-bodies', {}, {priority:'background'});
+      await prefetchCorporateBodies(all.nodes.map(node => node.identifier), {priority:'background', memory:false, signal:undefined});
+    })().catch(() => {}).finally(() => {bodyWarmup = null;});
+  };
+  run();
+  const timer = setInterval(run, intervalMs);
+  timer.unref?.();
+  return () => clearInterval(timer);
 }
 export function validDuring(period, day = today()) {
   return Boolean(
@@ -622,6 +699,10 @@ export async function odpProfileWithMemberships(id) {
   }
   const optionalSignal=AbortSignal.timeout(8000);
   const signal=AbortSignal.any([optionalSignal,...(parentSignal?[parentSignal]:[])]);
+  // One batched read replaces dozens of serial body reads on a cold cache. The
+  // readers below still validate every body and read singly what is missing.
+  const organizations=Array.isArray(record.payload.data[0].hasMembership)?record.payload.data[0].hasMembership.map(row=>reference(row?.organization).replace(/^(?:https:\/\/data\.europarl\.europa\.eu\/)?org\//,'')):[];
+  await prefetchCorporateBodies(organizations,{signal:AbortSignal.any([AbortSignal.timeout(5000),signal])}).catch(()=>{parentSignal?.throwIfAborted();});
   const membershipHistory=await readProfileMemberships(observations,{signal,parentSignal});
   const committeeMemberships=await readCommitteeMemberships(profile,today(),{signal:parentSignal,optionalSignal:signal});
   if(!membershipHistory.observationComplete) {
