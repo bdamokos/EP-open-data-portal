@@ -98,7 +98,7 @@ const flush=async()=>{for(let i=0;i<15;i++)await Promise.resolve();};
 const clock=t=>{t.mock.timers.enable({apis:['setTimeout','Date'],now:10000});return async ms=>{t.mock.timers.tick(ms);await flush();};};
 
 test('route budgets distinguish upstream reads, extended routes and local projections',()=>{
-  for(const route of ['document-context/A-10-2026-0237?lang=en','member-votes/197591?week=2026-10-05'])assert.equal(dataTimeoutFor(route),35000,route);
+  for(const route of ['document-context/A-10-2026-0237?lang=en','member-votes/197591?week=2026-10-05','member-attendance/197591?sittings=MTG-PL-2026-10-05'])assert.equal(dataTimeoutFor(route),35000,route);
   for(const route of ['directory?lang=en','speeches/1','activities/1','speech-statistics/1','speech/MTG','document/X','speech-media/X','references?ids=X','reference-summary?x=1','source-record?url=x','insights/speech-cloud?x=1','insights/procedure-context','insights/topic-trends','insights/legislation','insights/participation'])assert.equal(dataTimeoutFor(route),35000,route);
   for(const route of ['latest-activities/1','activity-index/status','corpus/status','corpus/search?q=x','corpus/text','speech-transcript/X','insights/speech-words','insights/saved','insights/following-status','insights/following-manifest','insights/following-member','insights/group-voices','outside/directory','amendments?x=1','motion-amendments/X'])assert.equal(dataTimeoutFor(route),8000,route);
   assert.equal(dataTimeoutFor('profile/1'),40000);assert.equal(dataTimeoutFor('speech-context/X'),60000);assert.equal(dataTimeoutFor('motion-comparison/X'),90000);
