@@ -11,7 +11,7 @@ import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION } from './amendments.mjs';
 import { amendmentsPage, enqueueAmendment, nextAmendmentTask } from './amendments-store.mjs';
-import { amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, failAmendmentTask, prepareAmendments, rebuildAmendmentTarget, scheduleAmendments } from './amendments-worker.mjs';
+import { amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, failAmendmentTask, prepareAmendments, rebuildAmendmentTarget, scheduleAmendments, AMENDMENT_PARSER_DOWNLOAD_PACE } from './amendments-worker.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 
@@ -651,17 +651,38 @@ test('parser recovery downloads an expired or changed source and respects its bo
       const saved=store.source(generation,listKey);
       store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,url:newUrl}]}},saved.fetchedAt);
     }
-    if(mode==='cold-limit'){context.advance(8*86400000);worker.amendmentParserDownloads=4;}
+    if(mode==='cold-limit'){context.advance(8*86400000);worker.amendmentParserDownloadTimes=Array.from({length:AMENDMENT_PARSER_DOWNLOAD_PACE.downloads},(_,i)=>store.clock()-i*1000).reverse();}
     let downloads=0;worker.downloadAmendmentDocx=async url=>{assert.equal(url,mode==='changed'?newUrl:oldUrl);downloads++;return {buffer:amendmentDocx(freshProposed)};};
     prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
     await worker.task(nextAmendmentTask(store,generation));
     if(mode==='cold-limit') {
       assert.equal(downloads,0);assert.equal(extractionJob(store,generation).done,0);assert.equal(extractionJob(store,generation).attempts,0);
-      assert.equal(extractionJob(store,generation).retry_at,store.clock()+30*60_000);
-      context.advance(30*60_000);worker.amendmentParserDownloads=0;await worker.task(nextAmendmentTask(store,generation));
+      // The job waits only until the oldest paced download leaves the window.
+      const slot=store.clock()-(AMENDMENT_PARSER_DOWNLOAD_PACE.downloads-1)*1000+AMENDMENT_PARSER_DOWNLOAD_PACE.windowMs;
+      assert.equal(extractionJob(store,generation).retry_at,slot);
+      assert.equal(nextAmendmentTask(store,generation),null);
+      context.advance(slot-store.clock());await worker.task(nextAmendmentTask(store,generation));
     }
     assert.equal(downloads,1);assert.equal(store.source(generation,listKey).work.extraction.amendments[0].proposedText,freshProposed);
   }
+});
+
+test('a target rebuild rewrites only amendment rows whose stored projection changed',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;
+  const saved=store.source(generation,listKey),second={...saved.work.extraction.amendments[0],number:2,originalText:'Second original.',proposedText:'Second proposal.'};
+  store.putSource(generation,listKey,'amendment-list',{...saved.work,extraction:{...saved.work.extraction,amendments:[...saved.work.extraction.amendments,second]}},saved.fetchedAt);
+  rebuildAmendmentTarget(worker,generation,targetId,{discover:false});
+  store.db.exec('CREATE TEMP TABLE amendment_writes(id TEXT)');
+  store.db.exec('CREATE TEMP TRIGGER amendment_write_count AFTER INSERT ON main.amendments BEGIN INSERT INTO amendment_writes VALUES (NEW.id); END');
+  const writes=()=>store.db.prepare('SELECT id FROM amendment_writes ORDER BY id').all().map(row=>row.id);
+  rebuildAmendmentTarget(worker,generation,targetId,{discover:false});
+  assert.deepEqual(writes(),[]);
+  const current=store.source(generation,listKey);
+  store.putSource(generation,listKey,'amendment-list',{...current.work,extraction:{...current.work.extraction,amendments:current.work.extraction.amendments.map(amendment=>amendment.number===2?{...amendment,proposedText:'Second corrected proposal.'}:amendment)}},current.fetchedAt);
+  rebuildAmendmentTarget(worker,generation,targetId,{discover:false});
+  assert.deepEqual(writes(),[targetId+'-AM-2']);
+  const page=amendmentsPage(store,{document:targetId});
+  assert.deepEqual(page.items.map(item=>[item.number,item.proposedText]).sort(),[[1,oldProposed],[2,'Second corrected proposal.']]);
 });
 
 test('verified parser-upgrade metadata survives extraction admission pressure without another source request',async t=>{
@@ -705,7 +726,7 @@ for(const migration of [true,false])test('an alternate byline deferred by the re
   worker.requests=0;worker.budget=1;await worker.task(nextAmendmentTask(store,generation));
   assert.deepEqual(downloads,[oldUrl]);assert.equal(worker.requests,1);assert.equal(extractionJob(store,generation).done,0);
   assert.equal(store.source(generation,listKey).work.extraction.parserVersion,migration?'10':AMENDMENT_EXTRACTION_VERSION);
-  context.advance(30*60_000);worker.requests=0;worker.budget=2;worker.amendmentParserDownloads=0;
+  context.advance(30*60_000);worker.requests=0;worker.budget=2;
   await worker.task(nextAmendmentTask(store,generation));
   assert.deepEqual(downloads,[oldUrl,newUrl]);assert.equal(worker.requests,1);assert.equal(extractionJob(store,generation).done,1);
   assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);

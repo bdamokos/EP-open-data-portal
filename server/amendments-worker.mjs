@@ -236,6 +236,16 @@ export function prepareAmendmentParserUpgrade(worker,generation) {
   const throughKey=worker.store.db.prepare("SELECT MAX(key) AS key FROM sources WHERE generation=? AND kind='amendment-list'").get(generation)?.key || '';
   enqueueAmendment(worker.store,generation,parserUpgradeKey+':'+AMENDMENT_EXTRACTION_VERSION,'amendment-parser-upgrade',{afterKey:'',throughKey,sourceRevision:worker.store.get(amendmentParserSourceRevisionKey) || 0},110,true,{deferOnCapacity:true});
 }
+// Cold parser-upgrade downloads are paced in wall time across worker runs. A
+// long run cannot hold recovery behind a per-run count, and the 30-second run
+// cadence cannot burst past the pace. A deferred job waits only for the next slot.
+export const AMENDMENT_PARSER_DOWNLOAD_PACE=Object.freeze({downloads:4,windowMs:3*60_000});
+function parserDownloadWait(worker) {
+  const now=worker.clock(),{downloads,windowMs}=AMENDMENT_PARSER_DOWNLOAD_PACE;
+  const recent=(worker.amendmentParserDownloadTimes || []).filter(at=>at>now-windowMs&&at<=now);
+  worker.amendmentParserDownloadTimes=recent;
+  return recent.length<downloads?0:recent[recent.length-downloads]+windowMs-now;
+}
 function admitParserList(store,generation,key,kind,body,priority,replacing=null) {
   const checkpoint=store.source(generation,'amendment:continuations')?.work;
   const reserved=[...(checkpoint?.tasks || []),...(checkpoint?.discovery || [])];
@@ -708,12 +718,13 @@ export async function amendmentTask(worker,task) {
     const retrieve=async descriptor=>{
       const retained=parserUpgrade||body.sourceDownloaded?await retainedAmendmentSource(store,descriptor,{signal}):null;
       if(retained)return retained;
-      if(worker.requests>=worker.budget||parserUpgrade&&(worker.amendmentParserDownloads || 0)>=4) {
+      const wait=worker.requests>=worker.budget?30*60_000:parserUpgrade?parserDownloadWait(worker):0;
+      if(wait>0) {
         store.assertWriter();
-        store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=? WHERE generation=? AND key=?`).run(worker.clock()+30*60_000,generation,task.key);
+        store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=? WHERE generation=? AND key=?`).run(worker.clock()+wait,generation,task.key);
         return null;
       }
-      if(parserUpgrade)worker.amendmentParserDownloads=(worker.amendmentParserDownloads || 0)+1;
+      if(parserUpgrade)worker.amendmentParserDownloadTimes.push(worker.clock());
       worker.requests++;const cycle=store.get('working');if(cycle)store.updateCycle({requests:(cycle.requests || 0)+1});
       let downloaded;
       try {downloaded=await worker.runUpstream(admittedSignal=>worker.downloadAmendmentDocx(descriptor.url,{signal:admittedSignal}),{source:'documents',priority:'background',signal});}

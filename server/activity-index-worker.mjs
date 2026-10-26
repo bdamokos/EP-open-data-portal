@@ -616,7 +616,7 @@ export class ActivityWorker {
   async runIteration() {
     const pressDue=Boolean(this.press?.due()),due=this.due();
     if(!due&&!pressDue || !this.store.acquire())return;
-    this.running=true;this.requests=0;this.amendmentParserDownloads=0;const started=this.clock();
+    this.running=true;this.requests=0;const started=this.clock();
     this.runDeadline=this.monotonic()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
     try {
