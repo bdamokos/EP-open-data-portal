@@ -61,7 +61,7 @@ export async function participation(legislation,store,query,{clock=Date.now,read
   const sittings=query.week?catalogue.sittings.filter(s=>s.activity_date>=query.week&&s.activity_date<=end):catalogue.sittings.filter(s=>s.activity_id===selected);
   if(!sittings.length)missingSitting(catalogue);
   if(sittings.length>5)throw new HttpError(502,'sitting_calendar_invalid','Too many sitting days in this week.');
-  const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],speechProjectionGaps=new Set(),sources=[...(catalogue.sources||[])];
+  const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords,store}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],speechProjectionGaps=new Set(),sources=[...(catalogue.sources||[])];
   const recordSource=async(...args)=>{const record=await legislation.record(...args);sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});return record;};
   for(const sitting of sittings) {
     let base;try{base=await legislation.query({language:query.language,sitting:sitting.activity_id,topic:null,vote:null},catalogue,{status,groupOn});}catch{gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});continue;}sources.push(...(base.coverage?.sources||[]));const speechRows=new Map();let results=null,decisions=null;

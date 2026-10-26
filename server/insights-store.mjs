@@ -1,3 +1,4 @@
+import {demographicMetadata,demographicObservation,demographicPerson,retainedDemographicMetadata} from './demographic-metadata.mjs';
 import {questionGroupMetrics,contributionGroup} from './group-aggregation.mjs';
 import {indexAvailability,savedGaps} from './availability-evidence.mjs';
 import {generationGroupOn,datedPerson} from './group-attribution.mjs';
@@ -55,9 +56,10 @@ export function insightQuery(search, {now=Date.now(),kind='questions'}={}) {
 }
 
 // Read exact known cache keys. Never scan/copy the cache or trigger upstream fetches.
-export async function savedMetadata({directory=process.env.ODP_CACHE_DIR,members}={}) {
-  const metadata=new Map();if(!directory)return metadata;
+export async function savedMetadata({directory=process.env.ODP_CACHE_DIR,members=new Map(),store}={}) {
+  const metadata=new Map(),retained=store?retainedDemographicMetadata(store,members):new Map();
   async function record(endpoint,params={}) {
+    if(!directory)return null;
     const url=new URL('https://data.europarl.europa.eu/api/v2'+endpoint);
     for(const [k,v] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(k,String(v));
     try {
@@ -68,17 +70,20 @@ export async function savedMetadata({directory=process.env.ODP_CACHE_DIR,members
       const r=JSON.parse(data);return r.url===url.href&&Number.isFinite(r.fetchedAt)&&Array.isArray(r.payload?.data)?r:null;
     }catch{return null;}
   }
-  const roster=await record('/meps/show-current',{limit:1000,offset:0});
-  for(const p of roster?.payload.data||[]) {
-    const id=personId(p.id);if(!id)continue;
-    metadata.set(id,{...p,metadataFetchedAt:new Date(roster.fetchedAt).toISOString(),rosterMetadataFetchedAt:new Date(roster.fetchedAt).toISOString(),metadataApiUrl:roster.url});
-  }
-  // A bounded group of sequential reads avoids 719 concurrent open files.
-  const ids=[...members.keys()].slice(0,750);
-  for(let i=0;i<ids.length;i+=16) await Promise.all(ids.slice(i,i+16).map(async id=>{
-    const profile=await record('/meps/'+id),p=profile?.payload.data.find(p=>personId(p.id)===id);if(!p)return;
-    const fields=Object.fromEntries(['hasGender','bday','label'].filter(key=>p[key]!==undefined).map(key=>[key,p[key]]));
-    metadata.set(id,{...metadata.get(id),...fields,metadataFetchedAt:new Date(profile.fetchedAt).toISOString(),metadataApiUrl:profile.url});
+  const needRoster=!members.size||[...members.keys()].some(id=>!retained.get(id)?.observations.some(o=>o.kind==='roster'));
+  const roster=needRoster?await record('/meps/show-current',{limit:1000,offset:0}):null;
+  const rosterNodes=new Map((roster?.payload.data||[]).flatMap(p=>{const id=personId(p.id);return id&&demographicPerson(p,id)?[[id,p]]:[];}));
+  // Retained worker observations survive raw-cache eviction; legacy exact keys
+  // remain a read-only fallback until bounded background acquisition reaches them.
+  const ids=[...new Set([...members.keys(),...rosterNodes.keys()])].slice(0,750);
+  for(let i=0;i<ids.length;i+=16)await Promise.all(ids.slice(i,i+16).map(async id=>{
+    const saved=retained.get(id),observations=[...(saved?.observations||[])];
+    if(!observations.some(o=>o.kind==='roster')&&rosterNodes.has(id))observations.push(demographicObservation(rosterNodes.get(id),{id,url:roster.url,retrievedAt:roster.fetchedAt,kind:'roster'}));
+    if(!observations.some(o=>o.kind==='profile')) {
+      const profile=await record('/meps/'+id),person=profile?.payload.data.find(p=>demographicPerson(p,id));
+      if(person)observations.push(demographicObservation(person,{id,url:profile.url,retrievedAt:profile.fetchedAt}));
+    }
+    metadata.set(id,{label:rosterNodes.get(id)?.label,'api:political-group':rosterNodes.get(id)?.['api:political-group'],...demographicMetadata(id,observations,saved?.attempt)});
   }));
   return metadata;
 }
@@ -89,7 +94,7 @@ export class QuestionInsights {
     requestSignal()?.throwIfAborted();
     const status=this.store.status();if(!status.currentMeps||!status.servingGeneration)throw new HttpError(503,'insights_loading','The saved activity index is not available yet.');
     const groupOn=generationGroupOn(this.store,status.servingGeneration);
-    const key=JSON.stringify([status.servingGeneration,status.availabilityRevision,status.complete,status.progress?.completed,status.rosterFetchedAt,query.start,query.end]);
+    const key=JSON.stringify([status.servingGeneration,this.store.get('demographicRevision')||0,status.availabilityRevision,status.complete,status.progress?.completed,status.rosterFetchedAt,query.start,query.end]);
     const old=this.cache.get(key);if(old && this.clock()-old.at<INSIGHTS_LIMITS.cacheMs)return old.value;
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
     const groupCodes=groupOn.codes||new Set();
@@ -108,7 +113,7 @@ export class QuestionInsights {
         frontiers:this.store.db.prepare("SELECT json_extract(body,'$.work_type') subtype,json_extract(body,'$.document_date') date,fetched_at fetchedAt FROM sources WHERE generation=? AND kind='document' AND key LIKE '/parliamentary-questions/%'").all(status.servingGeneration)
       }));
       const {count,rows,members,undatedQuestions}=frozen;
-      const metadata=await this.loadMetadata({members});
+      const metadata=await this.loadMetadata({members,store:this.store});
       const sources=rows.map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at}));
       const bodies=await this.loadQuestionBodies(sources);
       const analysis=await analyzeQuestionsAsync(sources.map(questionFromSource).filter(Boolean),{bodies,signal});

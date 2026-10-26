@@ -83,7 +83,7 @@ export class SpeechCloudInsights {
   }
   async query(query,restarts=0) {
     requestSignal()?.throwIfAborted();
-    const status=this.store.status(),{page,...selection}=query,key=JSON.stringify([status.servingGeneration,status.availabilityRevision||0,selection]);let state=this.states.get(key);
+    const status=this.store.status(),{page,...selection}=query,key=JSON.stringify([status.servingGeneration,status.availabilityRevision||0,this.store.get?.('demographicRevision')||0,selection]);let state=this.states.get(key);
     if(state?.scope?.catalogue&&calendarNeedsRefresh(state.scope.catalogue)&&this.clock()-state.at>=60_000){this.states.delete(key);return {...await this.query({...query,page:0},restarts),restarted:true};}
     if(state&&this.clock()-state.at>CLOUD_LIMITS.cacheMs){this.states.delete(key);state=null;}
     if(!state) {state={at:this.clock(),scope:null,cursor:{date:0,offset:0},page:-1,records:new Map(),seen:new Set(),scans:new Map(),sourceIssues:new Set(),duplicates:0,sources:[],rawRecords:0,missingLanguage:0,invalidText:0,xmlBytes:0,truncated:false,pending:null,result:null};this.states.set(key,state);while(this.states.size>CLOUD_LIMITS.queries)this.states.delete(this.states.keys().next().value);}
@@ -107,7 +107,7 @@ export class SpeechCloudInsights {
     }
     if(state.corpusMode)return this.buildCorpus(state,query,page,limits);
     const members=new Map(this.store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)]));
-    const metadata=query.country?await this.loadMetadata({members}):new Map();
+    const metadata=query.country?await this.loadMetadata({members,store:this.store}):new Map();
     requestSignal()?.throwIfAborted();
     if(!state.scope.dates.length)state.cursor=null;
     while(state.cursor&&state.page<page) {
@@ -176,7 +176,7 @@ export class SpeechCloudInsights {
   }
   async buildCorpus(state,query,page,limits) {
     const members=new Map(this.store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)]));
-    const metadata=query.country?await this.loadMetadata({members}):new Map();
+    const metadata=query.country?await this.loadMetadata({members,store:this.store}):new Map();
     requestSignal()?.throwIfAborted();
     while(state.cursor&&state.page<page) {
       const result=state.corpusFirst||await this.readCorpusPage(this.corpusSelection(state,query,state.cursor.offset));

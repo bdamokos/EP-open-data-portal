@@ -6,7 +6,7 @@ import {phraseModelSteps} from './insights-phrases.mjs';
 import {finishWork,cooperativeWork} from './cooperative-work.mjs';
 import {questionAddressees} from './question-addressees.mjs';
 
-export const INSIGHTS_VERSION = 'titles-phrases-facets-v17-source-availability-dated-contributions';
+export const INSIGHTS_VERSION = 'titles-phrases-facets-v18-demographic-provenance';
 export const officialApi = path => 'https://data.europarl.europa.eu/api/v2' + path;
 export function personId(value) {
   let reference=typeof value==='string' ? value : value?.id;
@@ -62,15 +62,22 @@ export function ageAt(bday, referenceDate) {
 export function demographicStats(ids, members, metadata = new Map(), referenceDate) {
   const unique = [...new Set(ids.map(String))], roster = members instanceof Map ? members : new Map(members.map(m => [String(m.id),m]));
   const current = unique.filter(id => roster.has(id)), outside = unique.filter(id => !roster.has(id));
+  const demographicEvidence={};
   const dimensions = {country:new Map(),group:new Map(),gender:new Map(),age:new Map()};
   for (const id of current) {
     const meta = metadata.get(id) || {}, sex = tail(array(meta.hasGender)[0]);
     const age = ageAt(meta.bday,referenceDate);
+    const provenance=meta.demographicProvenance||{};
+    demographicEvidence[id]=Object.fromEntries(['bday','hasGender','api:country-of-representation'].map(field=>{
+      const value=provenance[field]||{status:meta[field]===undefined?'missing_acquisition':'available',value:meta[field]??null,sources:[],lastAttempt:null};
+      return [field,field==='bday'&&value.status==='available'&&age===null?{...value,status:'invalid',value:null}:value];
+    }));
     const values = {country:meta['api:country-of-representation'] || 'Unknown',group:meta['api:political-group'] || 'Unknown',gender:sex === 'FEMALE' ? 'Female' : sex === 'MALE' ? 'Male' : 'Unknown',age:age == null ? 'Unknown' : age < 35 ? '18–34' : age < 50 ? '35–49' : age < 65 ? '50–64' : '65+'};
     for (const [dimension,value] of Object.entries(values)) { const bucket=dimensions[dimension];bucket.set(value,(bucket.get(value)||0)+1); }
   }
   return {uniquePeople:unique.length,uniqueCurrentMeps:current.length,peopleOutsideCurrentRoster:outside.length,denominator:current.length,referenceDate,
-    basis:'Current saved roster and explicitly supplied cached profile metadata; not membership at activity time. Age uses explicit birth date at the stated reference date. People outside the current roster are listed separately.',
+    demographicEvidence,
+    basis:'Current saved roster and retained explicit profile metadata; not membership at activity time. Age uses explicit birth date at the stated reference date. People outside the current roster are listed separately.',
     metadataSourceDates:{from:current.flatMap(id=>[metadata.get(id)?.metadataFetchedAt,metadata.get(id)?.rosterMetadataFetchedAt]).filter(Boolean).sort()[0]||null,to:current.flatMap(id=>[metadata.get(id)?.metadataFetchedAt,metadata.get(id)?.rosterMetadataFetchedAt]).filter(Boolean).sort().at(-1)||null},
     dimensions:Object.fromEntries(Object.entries(dimensions).map(([key,value]) => [key, sortedCounts(value)]))};
 }

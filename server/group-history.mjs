@@ -1,3 +1,4 @@
+import {retainDemographicRecord} from './demographic-metadata.mjs';
 import {ODP_BASE,readCachedMepRecord} from './odp.mjs';
 import {membershipPersons,membershipLists} from './following-membership.mjs';
 
@@ -133,7 +134,7 @@ export async function groupHistoryTask(worker,task) {
     }else {
       const prior=store.source(generation,key);
       let record=await (worker.readCachedMepRecord||readCachedMepRecord)(body.id,{now:worker.clock(),signal:worker.controller.signal});
-      if(!record&&prior&&worker.clock()-Date.parse(prior.fetchedAt)<TTL){store.finishTask(task);return;}
+      if(!record&&prior&&store.source(generation,'demographic:profile:'+body.id)&&worker.clock()-Date.parse(prior.fetchedAt)<TTL){store.finishTask(task);return;}
       if(!record) {
         const cycle=store.get('working');
         if(!cycle||cycle.generation!==generation)throw Error('Group history acquisition requires a working generation.');
@@ -144,6 +145,7 @@ export async function groupHistoryTask(worker,task) {
       const person=record.payload?.data.find(row=>row.identifier===body.id);
       if(!person)throw Error('Missing exact group history person.');
       const mapping=Object.fromEntries(store.sources(generation,'group-body').map(source=>[source.work.org,source.work]));
+      retainDemographicRecord(store,generation,body.id,record);
       const observation=projectGroupHistory(person,mapping);
       store.putSource(generation,key,'group-history',{...observation,generation,url:record.url,retrievedAt:timestamp(record.fetchedAt)},timestamp(record.fetchedAt));
     }
