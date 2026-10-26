@@ -66,3 +66,25 @@ test('speech retry checks the corpus before starting exactly one forced detail r
   await h.finish(h.requests[6],{id:'X',available:true,xml:'<speech><p>Now retained.</p></speech>',metadata:{id:'X'}});
   assert.equal(h.requests.length,7,'complete retained metadata suppresses the fallback');assert.match(state().transcript.xml,/Now retained/);
 });
+
+
+test('a resolved insight route keeps its completed response while retries and different routes still fetch',async t=>{
+  const h=await harness(t),{useInsightData}=await h.load('/src/InsightData.ts');
+  const latest='insights/legislation?lang=en&week=latest',pinned='insights/legislation?lang=en&week=2026-10-05';
+  const equivalent=(loaded,requested,data)=>loaded===latest&&requested===data.resolvedRoute;
+  function Reader({route}){const state=useInsightData(route,equivalent);return createElement('section',null,createElement('output',null,JSON.stringify(state)),createElement('button',{onClick:state.retry},'Retry'));}
+  const render=route=>h.render(createElement(Reader,{route}));
+  const state=()=>JSON.parse(h.container.querySelector('output').textContent);
+  await render(latest);
+  await render(pinned);assert.equal(h.requests.length,2,'pending data cannot establish route equivalence');assert(h.requests[0].signal.aborted);
+  await render(latest);await h.finish(h.requests[2],{resolvedRoute:pinned,week:'2026-10-05'});
+  await render(pinned);assert.equal(h.requests.length,3,'pinning the completed response makes no new request');
+  assert.equal(state().route,pinned);assert.equal(state().data.week,'2026-10-05');assert.equal(state().loading,false);
+  await act(async()=>h.container.querySelector('button').click());
+  assert.equal(h.requests.length,4);assert.equal(h.requests[3].url.searchParams.get('week'),'2026-10-05','retry fetches the pinned route');
+  await h.finish(h.requests[3],{error:{message:'Unavailable'}},503);assert.equal(state().error,'Unavailable');
+  await act(async()=>h.container.querySelector('button').click());await h.finish(h.requests[4],{week:'2026-10-05'});
+  await render('insights/legislation?lang=fr&week=2026-10-05');assert.equal(h.requests.length,6);assert.equal(state().data,null,'different language remains fenced');
+  await h.finish(h.requests[5],{week:'2026-10-05'});
+  await render('insights/legislation?lang=fr&week=latest');assert.equal(h.requests.length,7);assert.equal(state().data,null,'a dated response does not resolve a new latest request');
+});

@@ -13,8 +13,8 @@ function response(params) {
     ...selected,phase:'past',procedures:[],committeeWork:[],roles:[],speeches:[],people:[],stats,votes:[],selectedVote:null,voteCoverage:{truncated:false},coverage:{roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}
   }:null};
 }
-async function harness(t,width=1440) {
-  const window=new Window({url:'http://localhost/?view=legislation'}),originals=new Map(),requests=[];
+async function harness(t,width=1440,query='') {
+  const window=new Window({url:'http://localhost/?view=legislation'+query}),originals=new Map(),requests=[],agendaRequests=[];
   for(const [key,value] of Object.entries({window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:width,requestAnimationFrame:callback=>{callback();return 0;},IS_REACT_ACT_ENVIRONMENT:true})) {
     originals.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});
   }
@@ -22,7 +22,7 @@ async function harness(t,width=1440) {
   t.mock.method(globalThis,'fetch',(input,options)=>{
     const url=new URL(input,location.href);
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected request '+url);
-    if(!url.searchParams.has('topic'))return Promise.resolve(Response.json(response(url.searchParams)));
+    if(!url.searchParams.has('topic')){agendaRequests.push(url);return Promise.resolve(Response.json(response(url.searchParams)));}
     return new Promise(resolve=>requests.push({url,...options,resolve,settled:false}));
   });
   t.after(async()=>{
@@ -40,7 +40,7 @@ async function harness(t,width=1440) {
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=language=>act(async()=>root.render(createElement(Legislation,{language,onBack(){}})));
   await render('en');
-  return {requests,container,render,window,tick,
+  return {requests,agendaRequests,container,render,window,tick,
     item:index=>container.querySelectorAll('.insight-agenda button')[index],
     hover:node=>act(async()=>node.dispatchEvent(new window.PointerEvent('pointerover',{bubbles:true,pointerType:'mouse'}))),
     leave:node=>act(async()=>node.dispatchEvent(new window.PointerEvent('pointerout',{bubbles:true,pointerType:'mouse'}))),
@@ -104,4 +104,41 @@ test('mobile detail completion respects intervening keyboard focus',async t=>{
   await h.render('fr');
   const navigation=container.querySelector('.insight-agenda-navigation');
   assert.equal(navigation.lang,'en','English navigation retains its own language');
+});
+
+for(const width of [1440,390])for(const query of ['', '&agenda-period=week:latest', '&agenda-period=week:2026-10-05'])test(`topic navigation preserves the agenda at ${width}px (${query||'default latest'})`,async t=>{
+  const h=await harness(t,width,query),{container,requests,agendaRequests,window}=h;
+  const sidebar=container.querySelector('.insight-agenda'),buttons=[...sidebar.querySelectorAll('button')];
+  sidebar.scrollTop=125;
+  const initial=location.href;
+  const assertAgenda=()=>{
+    assert(container.querySelector('.insight-agenda')===sidebar,'sidebar stays mounted');
+    assert([...sidebar.querySelectorAll('button')].every((button,index)=>button===buttons[index]),'topic buttons retain DOM identity');
+    assert.equal(sidebar.scrollTop,125,'sidebar scroll position is retained');
+    assert.equal(agendaRequests.length,1,'topic selection must not refetch the agenda');
+    assert(!container.textContent.includes('Loading agenda'));
+  };
+  await act(async()=>buttons[0].click());
+  await h.tick();assertAgenda();
+  assert.equal(requests.length,1);
+  assert.equal(requests[0].url.searchParams.get('sitting'),days[0].id);
+  assert.equal(new URL(location.href).searchParams.get('agenda-period'),'week:2026-10-05','selected-item links retain their concrete week');
+  const first=location.href;
+  await h.finish(requests[0]);assertAgenda();
+  const select=container.querySelector('.insight-agenda-select select');
+  await act(async()=>{select.value=topics[2].id;select.dispatchEvent(new window.Event('change',{bubbles:true}));});
+  await h.tick();assertAgenda();
+  assert.equal(requests[1].url.searchParams.get('sitting'),days[1].id);
+  await h.finish(requests[1],503);assertAgenda();
+  assert(container.querySelector('.insight-topic-detail [role=alert]'));
+  await act(async()=>container.querySelector('.insight-topic-detail [role=alert] button').click());
+  await h.finish(requests[2]);assertAgenda();
+  assert.equal(container.querySelector('.insight-topic-detail h2').textContent,topics[2].title);
+  for(const url of [first,initial,first]){
+    await act(async()=>{history.replaceState(null,'',url);window.dispatchEvent(new window.Event('popstate'));});
+    assertAgenda();
+    assert.equal(container.querySelector('.insight-topic-detail h2').textContent,url===initial?'Choose an agenda item':topics[0].title);
+  }
+  await act(async()=>container.querySelector('.insight-agenda-navigation button').click());
+  assertAgenda();assert.equal(container.querySelector('.insight-topic-detail h2').textContent,'Choose an agenda item');
 });
