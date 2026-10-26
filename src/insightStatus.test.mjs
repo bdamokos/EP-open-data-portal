@@ -108,6 +108,21 @@ test('an empty topic list over incomplete coverage stays scoped',async t=>{
   assert.doesNotMatch(h.container.textContent,/No topics with|No debates in this selection/,'incomplete coverage cannot establish an empty result');
 });
 
+for(const [name,coverage] of [['unmapped dossiers',{unmapped:1}],['pending mappings',{pending:1}]])test('a complete archive with '+name+' keeps empty topic results scoped',async t=>{
+  const complete={procedures:1,mapped:0,unmapped:0,pending:0,sourceError:false,truncated:false,indexComplete:true,...coverage};
+  const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90&trend-topic='+encodeURIComponent('http://eurovoc.europa.eu/404'),()=>trends([],{coverage:complete}));
+  await h.tick();
+  assert.match(h.status().textContent,/No matching topics · Partial coverage/);
+  assert.match(h.container.textContent,/No matching events · Partial coverage/);
+  assert.doesNotMatch(h.container.textContent,/No topics with|No debates in this selection|No events for this topic/,'unmapped or pending dossiers cannot establish an empty result');
+});
+
+test('a complete, fully mapped archive states an empty topic result plainly',async t=>{
+  const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',()=>trends([],{coverage:{procedures:1,mapped:1,unmapped:0,pending:0,sourceError:false,truncated:false,indexComplete:true}}));
+  await h.tick();
+  assert.match(h.status().textContent,/No topics with debates in this selection\./);
+});
+
 test('out-of-order timeline responses cannot announce a superseded period',async t=>{
   const old=deferred(),current=deferred();
   const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',url=>url.searchParams.get('days')==='90'?old.promise:current.promise);
