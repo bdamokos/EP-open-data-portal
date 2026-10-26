@@ -131,7 +131,7 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
     const anchor=inPlace&&proposal&&placement?.operation==='replace'&&placement.splice?.start.offset===0?units(proposal.units).find(unit=>unit.id===placement.evidence?.at(-1)?.anchor):undefined;
     const labelPrefix=anchor?.label?.prefix&&anchor.content[0]===placement?.splice?.start.paragraph&&original?.startsWith(anchor.label.prefix)?anchor.label.prefix:undefined;
     // Add the source number only when both columns start with a plain word, never a possible label.
-    const plain=(text:string|null|undefined)=>/^\s*\p{L}{2,}(?:\s|$)/u.test(text??'');
+    const plain=(text:string|null|undefined)=>/^\s*(?![ivxlcdm]+(?!\p{L}))\p{L}{2,}(?:\s+\p{L}|\s*$)/iu.test(text??'');
     const proposed=wording&&labelPrefix&&plain(wording.originalText)&&plain(wording.proposedText)?labelPrefix+(wording.proposedText??''):wording?.proposedText;
     return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment'+(number?' '+number:'')}><h4 lang="en">Amendment{number?' '+number:''}</h4>{wording&&<WordingDiff original={placement?.operation==='insert'?'':original} proposed={placement?.operation==='delete'?'':proposed!} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={renderOriginal}/>}</section>;
   };

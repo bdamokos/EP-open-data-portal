@@ -6,8 +6,9 @@ const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const labelPattern=label=>new RegExp(`^(?:\\(${escape(label.value)}\\)\\s*|${escape(label.value)}[.)]${/^\d/u.test(label.value)?'(?:\\s+|(?=\\p{Lu}))':'\\s*'})`,'u');
 const MAX_UNIT_CHARACTERS=256*1024,MAX_COLUMN_CHARACTERS=64*1024;
 const flat=units=>units.flatMap(unit=>[unit,...flat(unit.children)]);
-// Letters followed by whitespace or the end: never a provision label.
-const plainWordStart=text=>/^\s*\p{L}{2,}(?:\s|$)/u.test(text??'');
+// A non-Roman word of two or more letters followed by another word or the end
+// is never a provision label; anything else may be one.
+const plainWordStart=text=>/^\s*(?![ivxlcdm]+(?!\p{L}))\p{L}{2,}(?:\s+\p{L}|\s*$)/iu.test(text??'');
 const parentKey=unit=>JSON.stringify(unit.path.slice(0,-1).map(({kind,value,occurrence})=>[kind,value,occurrence??null]));
 const suffixes=['','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','ab','ac'];
 const latinSuffixes=['','bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
