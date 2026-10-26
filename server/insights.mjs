@@ -20,7 +20,7 @@ export function createInsights(store,options={}) {
   const clock=options.clock||Date.now,readMetadata=options.loadMetadata||savedMetadata;
   let metadata=null,pendingMetadata=null;
   const loadMetadata=async args=>{
-    const key=[...args.members.keys()].join(',');
+    const key=JSON.stringify([store.get('demographicRevision')||0,[...args.members.keys()]]);
     if(metadata?.key===key&&clock()-metadata.at<5*60_000)return metadata.value;
     if(pendingMetadata?.key===key)return pendingMetadata.promise;
     const promise=readMetadata(args).then(value=>{metadata={key,at:clock(),value};return value;});
@@ -45,11 +45,11 @@ export function createInsights(store,options={}) {
     if(view==='procedure-progress')return procedureProgress.query(procedureProgressQuery(searchParams));
     if(view==='topic-trends')return topicTrends.query(topicTrendsQuery(searchParams,{now:clock()}));
     if(view==='saved')return savedStates(store,savedQuery(searchParams));
-    if(view==='participation'){const query=participationQuery(searchParams),generation=store.status().servingGeneration;return views.get([INSIGHTS_VERSION,LEGISLATION_VIEW_VERSION,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,brusselsDay(clock()),query],()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}));}
+    if(view==='participation'){const query=participationQuery(searchParams),generation=store.status().servingGeneration;return views.get([INSIGHTS_VERSION,LEGISLATION_VIEW_VERSION,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,brusselsDay(clock()),query],()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}));}
     if(!['questions','legislation'].includes(view))throw new HttpError(404,'insight_not_found','Unknown insight view.');
     const query=insightQuery(searchParams,{kind:view,now:options.clock?.()??Date.now()});
     const version=view==='legislation'?INSIGHTS_VERSION+':'+LEGISLATION_VIEW_VERSION:INSIGHTS_VERSION;
     const generation=store.status().servingGeneration;
-    return views.get([version,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,view==='legislation'?brusselsDay(clock()):null,query],()=>view==='questions'?questions.query(query):legislation.query(query));
+    return views.get([version,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,view==='legislation'?brusselsDay(clock()):null,query],()=>view==='questions'?questions.query(query):legislation.query(query));
   }};
 }

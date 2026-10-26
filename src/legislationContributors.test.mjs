@@ -10,10 +10,12 @@ function detail(people,speeches,roles=[]) {
 }
 test('chair-only participation is excluded from people, roles and every demographic denominator',()=>{
   const chair=person('1'),speaker=person('2'),guest=person('3',false),input=detail([chair,speaker,guest],[speech('intro',[chair]),speech('debate',[speaker,guest])]);
+  input.stats.demographicEvidence={'1':{bday:{status:'source_omission'}},'2':{bday:{status:'available'}}};
   const before=structuredClone(input),headers=mergeSpeechSpeakers({},[header('intro','1')]),result=legislationContributors(input,headers);
   assert.deepEqual(result.people.map(p=>p.id),['2','3']);assert.equal(result.excludedCount,1);assert.deepEqual(result.roles.map(p=>p.id),['2','3']);
   assert.equal(result.stats.denominator,1);assert.equal(result.stats.uniqueCurrentMeps,1);assert.equal(result.stats.uniquePeople,2);assert.equal(result.stats.peopleOutsideCurrentRoster,1);
   for(const rows of Object.values(result.stats.dimensions))assert.equal(rows[0].count,1);
+  assert.deepEqual(Object.keys(result.stats.demographicEvidence),['2']);
   assert.deepEqual(input,before);
 });
 test('a chair with a separate speech stays involved regardless of speech order or header arrival',()=>{

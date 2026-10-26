@@ -1,3 +1,4 @@
+import {retainDemographicRecord} from './demographic-metadata.mjs';
 import {ODP_BASE,readCachedMepRecord} from './odp.mjs';
 import {membershipPersons,membershipLists} from './following-membership.mjs';
 
@@ -99,7 +100,8 @@ export async function groupHistoryTask(worker,task) {
     // rather than repeatedly using its allowance on the same current members.
     const known=people(store,generation),latest=store.db.prepare('SELECT date FROM items INDEXED BY item_lookup WHERE generation=? AND mep=? ORDER BY date DESC LIMIT 1');
     const recent=new Map(known.map(id=>[id,latest.get(store.get('active')||generation,id)?.date||'']));
-    const ids=known.sort((a,b)=>(Date.parse(store.source(generation,'group-history:'+a+':attempt')?.work.lastAttemptAt||store.source(generation,'group-history:'+a)?.fetchedAt)||0)-(Date.parse(store.source(generation,'group-history:'+b+':attempt')?.work.lastAttemptAt||store.source(generation,'group-history:'+b)?.fetchedAt)||0)||(recent.get(b)||'').localeCompare(recent.get(a)||'')||Number(a)-Number(b));
+    const attempted=new Map(known.map(id=>[id,Date.parse(store.source(generation,'group-history:'+id+':attempt')?.work.lastAttemptAt||store.source(generation,'group-history:'+id)?.fetchedAt)||0]));
+    const ids=known.sort((a,b)=>attempted.get(a)-attempted.get(b)||(recent.get(b)||'').localeCompare(recent.get(a)||'')||Number(a)-Number(b));
     store.transaction(()=>{
       rememberPeople(store,generation,ids);
       ids.forEach((id,index)=>store.enqueue(generation,'group-history:'+id,'group-history-person',{id},105-index/10000,true));
@@ -135,7 +137,7 @@ export async function groupHistoryTask(worker,task) {
     }else {
       const prior=store.source(generation,key);
       let record=await (worker.readCachedMepRecord||readCachedMepRecord)(body.id,{now:worker.clock(),signal:worker.controller.signal});
-      if(!record&&prior&&worker.clock()-Date.parse(prior.fetchedAt)<TTL){store.finishTask(task);return;}
+      if(!record&&prior&&store.source(generation,'demographic:profile:'+body.id)&&worker.clock()-Date.parse(prior.fetchedAt)<TTL){store.finishTask(task);return;}
       if(!record) {
         const cycle=store.get('working');
         if(!cycle||cycle.generation!==generation)throw Error('Group history acquisition requires a working generation.');
@@ -146,6 +148,7 @@ export async function groupHistoryTask(worker,task) {
       const person=record.payload?.data.find(row=>row.identifier===body.id);
       if(!person)throw Error('Missing exact group history person.');
       const mapping=Object.fromEntries(store.sources(generation,'group-body').map(source=>[source.work.org,source.work]));
+      retainDemographicRecord(store,generation,body.id,record);
       const observation=projectGroupHistory(person,mapping);
       store.putSource(generation,key,'group-history',{...observation,generation,url:record.url,retrievedAt:timestamp(record.fetchedAt)},timestamp(record.fetchedAt));
     }

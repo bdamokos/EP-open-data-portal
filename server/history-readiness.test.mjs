@@ -129,12 +129,16 @@ test('Questions, Legislation and Participation assembled cache identities recove
   const service=createInsights(store,{clock,viewCache:{directory:null}});
   const queries=[['questions','days=term'],['legislation','sitting=MTG-PL-2026-10-19'],['participation','']];
   for(const [view,query]of queries)await service.query(view,new URLSearchParams(query));
+  store.set('demographicRevision',100);
+  for(const [view,query]of queries)await service.query(view,new URLSearchParams(query));
   await runHistoryReadiness(worker,generation);
   for(const [view,query]of queries)await service.query(view,new URLSearchParams(query));
   for(let n=0;n<3;n++) {
     assert.notDeepEqual(keys[n],keys[n+3]);
+    assert.notDeepEqual(keys[n+3],keys[n+6]);
     assert.equal(keys[n][keys[n].indexOf(queries[n][0])+2],0);
-    assert.equal(keys[n+3][keys[n+3].indexOf(queries[n][0])+2],1);
+    assert.equal(keys[n+3][keys[n+3].indexOf(queries[n][0])+2],0);
+    assert.equal(keys[n+6][keys[n+6].indexOf(queries[n][0])+2],1);
   }
 });
 

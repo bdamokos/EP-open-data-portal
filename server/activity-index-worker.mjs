@@ -1,3 +1,4 @@
+import {retainDemographicRecord,retainDemographicAttempt,retainRosterAttempt,demographicPerson} from './demographic-metadata.mjs';
 import {cataloguePage,acquisitionMode,observeSource,finishAvailabilityWrite} from './availability-history.mjs';
 import {groupHistoryTask,scheduleGroupHistory} from './group-history.mjs';
 import {runHistoryReadiness,publishMissingHistory} from './history-readiness.mjs';
@@ -159,10 +160,31 @@ export class ActivityWorker {
   async request(endpoint,params={},opts={}) {
     this.store.assertWriter();this.requests++;
     const cycle=this.store.get('working');if(cycle)this.store.updateCycle({requests:(cycle.requests||0)+1});
-    const record=await this.fetchRecord(endpoint,params,{...opts,signal:this.controller.signal});
+    const demographicId=endpoint.match(/^\/meps\/([1-9]\d*)$/)?.[1];
+    const generation=cycle?.generation||this.store.get('active');
+    const currentRoster=endpoint==='/meps/show-current'&&!params['mandate-date'];
     const url=new URL(ODP_BASE+endpoint);
     for(const [key,value]of Object.entries({...params,...(!opts.xml?{format:'application/ld+json'}:{})}))url.searchParams.set(key,String(value));
-    return {...record,url:url.href};
+    let record;
+    try {record=await this.fetchRecord(endpoint,params,{...opts,signal:this.controller.signal});}
+    catch(error) {
+      if(generation&&!this.controller.signal.aborted) {
+        if(demographicId)retainDemographicAttempt(this.store,generation,demographicId,{url:url.href});
+        if(currentRoster)retainRosterAttempt(this.store,generation,{url:url.href,status:'fetch_failed'});
+      }
+      throw error;
+    }
+    const observed={...record,url:url.href};
+    if(generation&&demographicId) {
+      try {retainDemographicRecord(this.store,generation,demographicId,observed);}
+      catch(error) {retainDemographicAttempt(this.store,generation,demographicId);throw error;}
+    }
+    if(generation&&currentRoster)retainRosterAttempt(this.store,generation,{url:url.href,status:'success',at:typeof record.fetchedAt==='number'?new Date(record.fetchedAt).toISOString():record.fetchedAt});
+    if(generation&&currentRoster)for(const person of record.payload?.data||[]) {
+      const id=String(person.identifier||String(person.id||'').split('/').at(-1));
+      if(demographicPerson(person,id))retainDemographicRecord(this.store,generation,id,{...observed,payload:{data:[person]}},{kind:'roster'});
+    }
+    return observed;
   }
   async initialize(cycle) {
     const {generation}=cycle;
@@ -467,12 +489,21 @@ export class ActivityWorker {
       else this.scheduleMotionOutcomes(generation,source.work);
     }
   }
+  deferMotionRebuild(task,body) {
+    this.store.assertWriter();
+    // A full amendment queue must run before this higher-priority dependency
+    // retries admission. Keep its graph and retry history without recording an
+    // upstream failure or expanding either queue's capacity.
+    this.store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET body=?,retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(JSON.stringify({...body,amendmentRebuildPending:true}),this.clock()+30_000,task.generation,task.key);
+  }
   async loadMotionOutcomes(task) {
     const {generation,body}=task;
     if(!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(body.sittingId))throw new Error('Invalid motion sitting identifier.');
     if(body.amendmentRebuildPending) {
       const saved=this.store.source(generation,motionSourceKey(body.sittingId));
-      if(saved&&await refreshSittingTargets(this,generation,body.sittingId,saved.work))this.store.finishTask(task);
+      if(!saved)throw new Error('Saved vote results are unavailable for amendment rebuilding.');
+      if(await refreshSittingTargets(this,generation,body.sittingId,saved.work))this.store.finishTask(task);
+      else this.deferMotionRebuild(task,body);
       return;
     }
     const collection=body.stage==='results'?'vote-results':'decisions';
@@ -531,7 +562,7 @@ export class ActivityWorker {
     const replacement=truncated && saved && !saved.work.truncated ? {...saved.work,lastRefreshFailure,amendmentEvidence:fresh.amendmentEvidence || fresh} : fresh;
     this.store.putSource(generation,key,'motion-outcomes',replacement,truncated && saved && !saved.work.truncated?saved.fetchedAt:record.fetchedAt,[],{acquisition:acquisitionMode(this.store,task),sourceUrl:record.url});
     if(!await refreshSittingTargets(this,generation,body.sittingId,replacement)) {
-      this.store.taskProgress(task,{...next,amendmentRebuildPending:true});return;
+      this.deferMotionRebuild(task,next);return;
     }
     this.store.finishTask(task);
   }
