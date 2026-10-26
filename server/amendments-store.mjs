@@ -7,6 +7,8 @@ import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 const parse=value=>JSON.parse(value);
 export const amendmentLinkIndexVersion=1;
+export const amendmentParserUpgradeKey='amendment:parser-upgrade';
+export const amendmentParserSourceRevisionKey='amendment:parser-source-revision';
 const amendmentLinkInvalidationWhere="json_type(body,'$.amendmentLinksVersion') IS NOT NULL AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')";
 export function amendmentLinkIndexes(db) {
   db.exec('CREATE INDEX IF NOT EXISTS amendment_link_invalidation ON sources(generation,key) WHERE '+amendmentLinkInvalidationWhere);
@@ -380,15 +382,36 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
 export function amendmentCompletionMarker(task,today) {
   return task.done===1&&task.kind==='motion-outcomes'&&task.key.includes(':'+today)?{key:task.key,kind:task.kind,sittingId:parse(task.body).sittingId}:null;
 }
-export function enqueueAmendment(store,generation,key,kind,body,priority=105,refreshCompleted=false) {
+export function enqueueAmendment(store,generation,key,kind,body,priority=105,refreshCompleted=false,{deferOnCapacity=false}={}) {
   store.assertWriter();
   if(!kind.startsWith('amendment-') && store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key))return false;
   const enqueue=()=>{
-    const existing=store.db.prepare('SELECT 1 FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
+    // Recovery can adopt an ordinary delayed job. Add its intent without
+    // replacing the saved cursor or resetting failure/backoff state.
+    const recoveryBody=task=>{
+      if(body.parserUpgrade!==true||!['amendment-list-detail','amendment-extract'].includes(kind)||task.kind!==kind||task.done===1||typeof task.body!=='string')return task.body;
+      const saved=parse(task.body);
+      return saved.listId===body.listId&&saved.targetDocumentId===body.targetDocumentId&&saved.parserUpgrade!==true?JSON.stringify({...saved,parserUpgrade:true}):task.body;
+    };
+    const existing=store.db.prepare('SELECT kind,body,done FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
+    if(existing) {
+      const updated=recoveryBody(existing);
+      if(updated!==existing.body)store.db.prepare('UPDATE amendment_jobs SET body=? WHERE generation=? AND key=? AND done=0').run(updated,generation,key);
+    }
     if(!existing) {
       const checkpointKey='amendment:continuations',saved=store.source(generation,checkpointKey)?.work || {};
       const saveCheckpoint=work=>store.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,checkpointKey,'amendment-continuations',JSON.stringify(work),new Date(store.clock()).toISOString());
-      if([...(saved.tasks || []),...(saved.discovery || [])].some(task=>task.key===key))return true;
+      if([...(saved.tasks || []),...(saved.discovery || [])].some(task=>task.key===key)) {
+        let changed=false;
+        const merge=tasks=>(tasks || []).map(task=>{
+          if(task.key!==key)return task;
+          const updated=recoveryBody(task);if(updated===task.body)return task;
+          changed=true;return {...task,body:updated};
+        });
+        const tasks=merge(saved.tasks),discovery=merge(saved.discovery);
+        if(changed)saveCheckpoint({...saved,tasks,discovery});
+        return true;
+      }
       if(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs WHERE generation=?').get(generation).n>=200) {
         const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(store.clock()));
         const completed=new Map((saved.completed || []).filter(task=>task.key.includes(':'+today)).map(task=>[task.key,task]));
@@ -400,6 +423,7 @@ export function enqueueAmendment(store,generation,key,kind,body,priority=105,ref
           if(marker){completed.set(marker.key,marker);saveCheckpoint({...saved,completed:[...completed.values()]});}
           store.db.prepare('DELETE FROM amendment_jobs WHERE generation=? AND key=?').run(generation,reclaim.key);
         } else {
+          if(deferOnCapacity)return false;
           const tasks=[...(saved.tasks || [])];
           if(tasks.length<200) {
             tasks.push({generation,key,kind,body:JSON.stringify(body),priority,done:0,attempts:0,retry_at:0,error:null});

@@ -15,13 +15,13 @@ test('week and day changes clear all period-scoped state including the snapshot'
  for(const value of [day,votePeriodTransition(day,'2026-10-05')]){assert.equal(value.week,'2026-10-05');assert.equal(value.snapshotId,null);assert.equal(value.offset,0);assert.equal(value.decisionId,null);assert.equal(value.context,null);assert.deepEqual(value.expandedSubjectIds,[]);}
 });
 test('calendar validator rejects mismatched identities, weeks and duplicate observations',()=>{
- const data={version:1,weeks,coverage:{status:'partial',years:[{year:2026,state:'partial',sources:[]}]}};assert(validateVotePeriods(data));
- for(const patch of [{version:2},{weeks:[{...weeks[0],week:'2026-10-20'}]},{weeks:[{...weeks[0],sittings:[{sittingId:'MTG-PL-2026-10-20',date:'2026-10-19'}]}]},{weeks:[weeks[0],weeks[0]]}])assert.equal(validateVotePeriods({...data,...patch}),false);
+ const data={version:2,weeks,coverage:{status:'partial',years:[{year:2026,state:'partial',sources:[]}]}};assert(validateVotePeriods(data));
+ for(const patch of [{version:1},{weeks:[{...weeks[0],week:'2026-10-20'}]},{weeks:[{...weeks[0],sittings:[{sittingId:'MTG-PL-2026-10-20',date:'2026-10-19'}]}]},{weeks:[weeks[0],weeks[0]]}])assert.equal(validateVotePeriods({...data,...patch}),false);
 });
 
 
 test('calendar validator rejects malformed entries before inspecting their fields',()=>{
- const valid={version:1,weeks,coverage:{status:'partial',years:[{year:2026,state:'partial',sources:[]}]}};
+ const valid={version:2,weeks,coverage:{status:'partial',years:[{year:2026,state:'partial',sources:[]}]}};
  for(const value of [null,undefined,0,'text',[],true]){
   for(const data of [value,{...valid,coverage:value},{...valid,coverage:{...valid.coverage,years:[value]}},{...valid,weeks:[value]},{...valid,weeks:[{...weeks[0],sittings:[value]}]}]){
    assert.doesNotThrow(()=>validateVotePeriods(data));assert.equal(validateVotePeriods(data),false);

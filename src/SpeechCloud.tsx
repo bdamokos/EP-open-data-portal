@@ -25,18 +25,18 @@ function useCloud(route:string) {
   const [state,setState]=useState<{route:string;data:SpeechCloudResult|null;loading:boolean;error:string|null}>({route,data:null,loading:true,error:null});
   useEffect(()=>{
     let active=true;const controller=new AbortController();
-    const forcePage=state.route===route?failedPage.current:null;
+    const retryPage=attempt>0&&state.route===route?failedPage.current:null;
     setState(previous=>({route,data:previous.route===route?previous.data:null,loading:true,error:null}));
     void (async()=>{
-      let page:number|null=0,restarts=0;
+      let page:number|null=retryPage??0,restarts=0;
       try {
         while(active&&page!==null) {
           failedPage.current=page;
-          const data:SpeechCloudResult=await client.get(route+'&page='+page,{force:attempt>0&&page===forcePage,signal:controller.signal});
+          const data:SpeechCloudResult=await client.get(route+'&page='+page,{force:page===retryPage,signal:controller.signal});
           if(!active)return;
           if(data.restarted) {
             client.expireMatching(cachedRoute=>cachedRoute.startsWith(route+'&page='));
-            if(++restarts>2)throw new Error('Speeches were updated while loading. Try again.');
+            if(++restarts>2){failedPage.current=0;throw new Error('Speeches were updated while loading. Try again.');}
           }
           setState({route,data,loading:data.nextPage!==null,error:null});
           page=data.nextPage;

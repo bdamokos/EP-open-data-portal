@@ -72,6 +72,52 @@ test('repeated cloud changes stop at the restart bound and an explicit retry fet
   assert.equal(ui.container.querySelector('[role="alert"],[role="status"]'),null);
 });
 
+test('retry resumes a failed proxy page without depending on expired earlier pages',async t=>{
+  const pages=[],seen=[];let finish;
+  const partial=rows=>({...result(rows,2),availability:sourceAvailability({sourceKey:'speech-text',family:'speeches',stage:'text',language:'en',limited:true,observedRecords:rows.length,route:'public-api'}),coverage:{...result(rows).coverage,catalogueComplete:false,missingLanguage:3,unreadableText:1}});
+  const ui=await cloud(t,async input=>{
+    const page=Number(new URL(input,'http://localhost').searchParams.get('page'));pages.push(page);
+    if(pages.length===1)return Response.json({...partial(speeches.slice(0,50)),nextPage:1});
+    if(pages.length===2)return Response.json(partial(speeches.slice(0,100)));
+    if(pages.length===3||page!==2)return new Response('error code: 502\n',{status:502});
+    return new Promise(resolve=>finish=()=>resolve(Response.json({...partial(speeches),nextPage:null})));
+  });
+  await ui.render({member:1,onSpeechSpeakers:rows=>seen.push(rows.map(row=>row.id))});
+  assert.deepEqual(pages,[0,1,2],'a proxy error stops the walk without automatic retries');
+  assert.match(ui.container.querySelector('[role="alert"]').textContent,/Some speech text could not be loaded/);
+  assert.match(ui.container.querySelector('.explorer-cloud-caption').textContent,/100 speeches/);
+  const before=seen.at(-1);
+  await act(async()=>ui.container.querySelector('[role="alert"] button').click());
+  assert.deepEqual(pages,[0,1,2,2],'retry must use the failed cursor even when calendar pages have expired');
+  assert.match(ui.container.querySelector('.explorer-cloud-caption').textContent,/100 speeches/);
+  assert.match(ui.container.textContent,/Some sitting dates unavailable/);
+  assert.match(ui.container.querySelector('.availability-note').textContent,/Partial coverage/);
+  assert.deepEqual(seen.at(-1),before,'prior speech identities remain available during recovery');
+  await act(async()=>{finish();await new Promise(resolve=>setImmediate(resolve));});
+  assert.equal(Boolean(ui.container.querySelector('[role="alert"],.explorer-cloud-progress')),false);
+  assert.match(ui.container.querySelector('.explorer-cloud-caption').textContent,/102 speeches/);
+  assert.match(ui.container.textContent,/3 without text in this language\. 1 texts unreadable\./);
+  assert.match(ui.container.querySelector('.availability-note').textContent,/Partial coverage/);
+  assert.deepEqual(seen.at(-1),speeches.map(row=>row.id));
+});
+
+test('an initial proxy failure retries page zero and does not become an empty result',async t=>{
+  const pages=[];
+  const ui=await cloud(t,async input=>{
+    pages.push(Number(new URL(input,'http://localhost').searchParams.get('page')));
+    return pages.length===1?new Response('error code: 502\n',{status:502}):Response.json(result(speeches.slice(0,1)));
+  });
+  await ui.render({member:1});
+  assert.deepEqual(pages,[0]);
+  assert(ui.container.querySelector('[role="alert"]'));
+  assert.equal(ui.container.querySelector('.explorer-cloud-caption'),null);
+  assert.doesNotMatch(ui.container.textContent,/No (saved )?oral speeches/);
+  await act(async()=>ui.container.querySelector('[role="alert"] button').click());
+  assert.deepEqual(pages,[0,0]);
+  assert.equal(ui.container.querySelector('[role="alert"],[role="status"]'),null);
+  assert.match(ui.container.querySelector('.explorer-cloud-caption').textContent,/1 speech/);
+});
+
 test('retained-speech coverage remains visible beside an incomplete calendar',async t=>{
   for(const retained of [true,false])for(const calendarComplete of [true,false])await t.test(`${retained?'retained':'public'} / calendar ${calendarComplete}`,async t=>{
     const data=result(speeches.slice(0,1));

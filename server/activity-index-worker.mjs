@@ -9,7 +9,7 @@ import { stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { ODP_BASE, boundedUpstream, backoffUpstream } from './odp.mjs';
-import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
+import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
 import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
 import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
@@ -91,6 +91,7 @@ export class ActivityWorker {
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
     if(this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
     if(!cycle&&this.coreDue())return true;
+    if(amendmentParserUpgradeDue(this.store,generation))return true;
     if(cycle&&(!cycle.initialized||!cycle.reportJoinsReady||!cycle.procedureTitlesQueued||!cycle.procedureTypesQueued||
       cycle.motionOutcomesDay!==day(this.clock())||day(Date.parse(cycle.startedAt))!==day(this.clock())&&cycle.catchupDay!==day(this.clock())||
       !this.store.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(generation)))return true;
@@ -583,7 +584,7 @@ export class ActivityWorker {
   async runIteration() {
     const pressDue=Boolean(this.press?.due()),due=this.due();
     if(!due&&!pressDue || !this.store.acquire())return;
-    this.running=true;this.requests=0;const started=this.clock();
+    this.running=true;this.requests=0;this.amendmentParserDownloads=0;const started=this.clock();
     this.runDeadline=this.monotonic()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
     try {
@@ -597,6 +598,7 @@ export class ActivityWorker {
         this.checkpointContinuations(active);
       }
       const cycle=this.coreDue()?this.store.beginCycle():null,generation=cycle?.generation || active;
+      prepareAmendmentParserUpgrade(this,generation);
       for(const row of this.store.db.prepare('SELECT sitting_id FROM sitting_refresh WHERE generation=? AND next_check<=? ORDER BY next_check,sitting_id LIMIT 100').all(generation,this.clock())) {
         const delay=this.clock()<Date.parse(sittingConfirmationDay(row.sitting_id))?6*60*60_000:7*DAY;
         const gap=this.store.db.prepare("SELECT * FROM refresh_gaps WHERE generation=? AND sitting_id=? AND kind='motion-outcomes' ORDER BY retry_at LIMIT 1").get(generation,row.sitting_id);

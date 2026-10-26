@@ -9,8 +9,10 @@ import { playerContent, playerAudioMapping } from './player-content.mjs';
 import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
 import {retainedSpeechMetadata} from './corpus-speeches.mjs';
+import {MMC_BASE,validateCatalogue,recordingCatalogue} from './mmc-catalogue.mjs';
 
-export const MMC_BASE = 'https://api.multimedia.europarl.europa.eu/o/epmp-frontend-rest/v1.0';
+export {MMC_BASE,validateCatalogue};
+export const SPEECH_MEDIA_VERSION=2;
 const DAY = 86400000;
 const root = () => process.env.ODP_CACHE_DIR ? path.join(process.env.ODP_CACHE_DIR, 'mmc') : null;
 const pending = new Map();
@@ -19,8 +21,9 @@ const failures = new Map();
 const idPattern = /^\d{8}-[A-Z0-9-]{1,80}$/;
 const speechPattern = /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]{1,80}$/;
 const reason = {
-  'catalogue-missing': 'The recording catalogue has not been loaded for this date.',
+  'catalogue-missing': 'Recording unavailable.',
   'catalogue-invalid': 'The saved recording catalogue could not be verified.',
+  'catalogue-unavailable': 'Recording unavailable.',
   'missing-times': 'This contribution has no usable video start and end times.',
   'invalid-duration': 'The returned speech duration exceeds the one-hour prototype clip limit.',
   'not-recorded-speech': 'This contribution is not a recorded oral speech.',
@@ -33,20 +36,6 @@ const reason = {
   'audio-metadata-unavailable': 'The recording’s audio mapping is temporarily unavailable.',
   'audio-metadata-mismatch': 'The player audio metadata does not match the recording’s identity and coverage.',
 };
-
-export function validateCatalogue(value) {
-  if (value?.schemaVersion !== 1 || value.term !== 10 || !Number.isFinite(Date.parse(value.fetchedAt)) || !Array.isArray(value.records) || value.records.length > 1000 || value.records.length !== value.total || !Array.isArray(value.sourcePages)) throw new Error('Invalid catalogue.');
-  const ids = new Set();
-  for (const row of value.records) {
-    if (!idPattern.test(row.id) || ids.has(row.id) || !/^\d{4}-\d{2}-\d{2} /.test(row.start) || !/^\d{4}-\d{2}-\d{2} /.test(row.end)) throw new Error('Invalid catalogue record.');
-    ids.add(row.id);
-  }
-  for (const page of value.sourcePages) {
-    const url = new URL(page.url);
-    if (url.origin !== new URL(MMC_BASE).origin || url.pathname !== new URL(MMC_BASE + '/search').pathname || page.status !== 200) throw new Error('Invalid catalogue source.');
-  }
-  return value;
-}
 
 async function smallJson(filename, limit = 2 * 1024 * 1024) {
   const text = await readFile(filename, 'utf8');
@@ -154,15 +143,15 @@ async function speechForMedia(id) {
 export async function speechMedia(id, language, audio = language, dependencies = {}) {
   const directory = dependencies.directory ?? root();
   const speech = await (dependencies.speech || speechForMedia)(id);
-  const base = { speechId: id, available: false, embedUrl: null, originalEmbedUrl: null, requestedAudio: audio, initialAudio: 'or', availableAudioLanguages: [], audioVerification: 'unverified', selectionMethod: null, selectionVerifiedLanguages: [], requiresAudioCheck: true, audioMapping: null, recording: null, clip: null, provenance: { documentedSpeechApi: true, documentedMediaApi: false, documentedPlayerControl: false, documentedAudioContentApi: false, htmlScraping: false, catalogueRefresh: 'Explicit source snapshot; automatic server search remains blocked.' } };
+  const base = { speechId: id, available: false, embedUrl: null, originalEmbedUrl: null, requestedAudio: audio, initialAudio: 'or', availableAudioLanguages: [], audioVerification: 'unverified', selectionMethod: null, selectionVerifiedLanguages: [], requiresAudioCheck: true, audioMapping: null, recording: null, clip: null, provenance: { documentedSpeechApi: true, documentedMediaApi: false, documentedPlayerControl: false, documentedAudioContentApi: false, htmlScraping: false, catalogueRefresh: 'Automatic date-scoped public search with retained snapshots and bounded retry.' } };
   const fail = (status, additions = {}) => ({ ...base, ...additions, status, reason: reason[status] });
   if (!['PLENARY_DEBATE_SPEECH', 'VOTE_EXPLANATION_ORAL', 'PLENARY_PROCEEDING_SPEECH', 'PLENARY_CHAIR_SPEECH'].includes(speech.kind)) return fail('not-recorded-speech');
   if (!Number.isFinite(Date.parse(speech.start)) || !Number.isFinite(Date.parse(speech.end)) || Date.parse(speech.end) <= Date.parse(speech.start)) return fail('missing-times');
   if (Date.parse(speech.end)-Date.parse(speech.start)>3600000) return fail('invalid-duration');
   let catalogue;
-  try { catalogue = validateCatalogue(dependencies.catalogue || await smallJson(path.join(directory || '', 'catalogue-v1.json'))); }
-  catch (error) { return fail(error.code === 'ENOENT' || !directory ? 'catalogue-missing' : 'catalogue-invalid'); }
-  base.provenance.catalogue = { fetchedAt: catalogue.fetchedAt, dateFrom: catalogue.dateFrom, dateTo: catalogue.dateTo, total: catalogue.total, sourcePages: catalogue.sourcePages.map(page => page.url), acquisition: catalogue.acquisition };
+  try { catalogue = dependencies.catalogue ? validateCatalogue(dependencies.catalogue) : await (dependencies.loadCatalogue || recordingCatalogue)(speech.date,directory); }
+  catch (error) { if(isLocalRequestFailure(error))throw error;return fail(dependencies.catalogue?'catalogue-invalid':'catalogue-unavailable'); }
+  base.provenance.catalogue = { fetchedAt: catalogue.fetchedAt, dateFrom: catalogue.dateFrom, dateTo: catalogue.dateTo, total: catalogue.total, sourcePages: catalogue.sourcePages.map(page => page.url), acquisition: catalogue.acquisition, stale:Boolean(catalogue.stale),refreshInProgress:Boolean(catalogue.refreshInProgress),refreshError:catalogue.refreshError||null };
   const candidates = catalogue.records.filter(row => row.start.slice(0, 10) === speech.date && row.status === 'RECORDED');
   if (!candidates.length) return fail('catalogue-missing');
   const results = await Promise.allSettled(candidates.map(row => (dependencies.detail || recordingDetail)(row.id, directory)));

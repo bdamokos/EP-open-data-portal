@@ -1,0 +1,3296 @@
+{
+  "sources": {
+    "decisionUrls": [
+      "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-21/decisions?filter-output=voters&format=application%2Fld%2Bjson&limit=250&offset=0",
+      "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-21/decisions?filter-output=voters&format=application%2Fld%2Bjson&limit=250&offset=250",
+      "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-21/decisions?filter-output=voters&format=application%2Fld%2Bjson&limit=250&offset=500"
+    ],
+    "resultUrl": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-21/vote-results?format=application%2Fld%2Bjson&limit=50&offset=0",
+    "retrievedAt": "2026-10-25T18:06:59.301360+00:00",
+    "projection": "Exact decision identities/methods and result-parent child declarations. All three decision responses had identical data."
+  },
+  "decisionRows": [
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199277",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199277",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199033",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199033",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199237",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199237",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198958",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198958",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199055",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199055",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198660",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198660",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198678",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198678",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198302",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198302",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198983",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198983",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198759",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198759",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198949",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198949",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198718",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198718",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199274",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199274",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199194",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199194",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199234",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199234",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199275",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199275",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199148",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199148",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199184",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199184",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199016",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199016",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199187",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199187",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199189",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199189",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199138",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199138",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199252",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199252",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199212",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199212",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199211",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199211",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198961",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198961",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199182",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199182",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199106",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199106",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199168",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199168",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199012",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199012",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199246",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199246",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199266",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199266",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199271",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199271",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199121",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199121",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199013",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199013",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199195",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199195",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198691",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198691",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198941",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198941",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199172",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199172",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199111",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199111",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198996",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198996",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198352",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198352",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198933",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198933",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199232",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199232",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199040",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199040",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198985",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198985",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199218",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199218",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199070",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199070",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199207",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199207",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199226",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199226",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198997",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198997",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199000",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199000",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199174",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199174",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198968",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198968",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199019",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199019",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199004",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199004",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199282",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199282",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199095",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199095",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198721",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198721",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198972",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198972",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199276",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199276",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199203",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199203",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199128",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199128",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199178",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199178",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199287",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199287",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199076",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199076",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199115",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199115",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199171",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199171",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198992",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198992",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199047",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199047",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198999",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198999",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198659",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198659",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198923",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198923",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199075",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199075",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199258",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199258",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198720",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198720",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199158",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199158",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199260",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199260",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198989",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198989",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199204",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199204",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198672",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198672",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199116",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199116",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199220",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199220",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199193",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199193",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199060",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199060",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199005",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199005",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199056",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199056",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198677",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198677",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199181",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199181",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199039",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199039",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198944",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198944",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199244",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199244",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199023",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199023",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199269",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199269",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198965",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198965",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199231",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199231",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199284",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199284",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199119",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199119",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199124",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199124",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199157",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199157",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199221",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199221",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199261",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199261",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199272",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199272",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198994",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198994",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199003",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199003",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199098",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199098",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198294",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198294",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199064",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199064",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199090",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199090",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199091",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199091",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199009",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199009",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199084",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199084",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199209",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199209",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199251",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199251",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199088",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199088",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198299",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198299",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199014",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199014",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199027",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199027",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199131",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199131",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199230",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199230",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199132",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199132",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198298",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198298",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199219",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199219",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199022",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199022",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199228",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199228",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199140",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199140",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199050",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199050",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199170",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199170",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199198",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199198",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199094",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199094",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198971",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198971",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199169",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199169",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199263",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199263",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198654",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198654",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199167",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199167",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198765",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198765",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198945",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198945",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199164",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199164",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199072",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199072",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199127",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199127",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199152",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199152",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199010",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199010",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199334",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199334",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199160",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199160",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199290",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199290",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199229",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199229",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198708",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198708",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199108",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199108",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199122",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199122",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199029",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199029",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199242",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199242",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198942",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198942",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198326",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198326",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199223",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199223",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199136",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199136",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198325",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198325",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198295",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198295",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198995",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198995",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199020",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199020",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199335",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199335",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199159",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199159",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199166",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199166",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199250",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199250",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199267",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199267",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199264",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199264",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199279",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199279",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199038",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199038",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199235",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199235",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199141",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199141",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199143",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199143",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199233",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199233",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198981",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198981",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199156",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199156",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198966",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198966",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198671",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198671",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198406",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198406",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199206",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199206",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199173",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199173",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199213",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199213",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199190",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199190",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199089",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199089",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199008",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199008",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199273",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199273",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198960",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198960",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199068",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199068",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199286",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199286",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198675",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198675",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198711",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198711",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198937",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198937",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199087",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199087",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199253",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199253",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198922",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198922",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199256",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199256",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199176",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199176",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199135",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199135",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199255",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199255",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198386",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198386",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199030",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199030",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199062",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199062",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199001",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199001",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199163",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199163",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199069",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199069",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198950",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198950",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198988",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198988",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199034",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199034",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199215",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199215",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199285",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199285",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199101",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199101",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199071",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199071",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199147",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199147",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199262",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199262",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199259",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199259",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199025",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199025",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199199",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199199",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198940",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198940",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199185",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199185",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199092",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199092",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198980",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198980",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199113",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199113",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198935",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198935",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199265",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199265",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198970",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198970",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199154",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199154",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199339",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199339",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199175",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199175",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198939",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198939",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198948",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198948",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199133",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199133",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199280",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199280",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198383",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198383",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199241",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199241",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198770",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198770",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199247",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199247",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199059",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199059",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198761",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198761",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199015",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199015",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199043",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199043",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199151",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199151",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198947",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198947",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198964",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198964",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199107",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199107",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198719",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198719",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199099",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199099",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199129",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199129",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199144",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199144",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199224",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199224",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198959",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198959",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198973",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198973",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199049",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199049",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199085",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199085",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199035",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199035",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199217",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199217",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199123",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199123",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199243",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199243",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199202",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199202",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198665",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198665",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199161",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199161",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199338",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199338",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198746",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198746",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198987",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198987",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198304",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198304",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199002",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199002",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199052",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199052",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198998",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198998",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199196",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199196",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199112",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199112",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199179",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199179",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199216",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199216",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199125",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199125",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199031",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199031",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199183",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199183",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199139",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199139",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198991",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198991",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199254",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199254",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199149",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199149",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198976",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198976",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199063",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199063",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198305",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198305",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198658",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198658",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198357",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198357",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198408",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198408",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199018",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199018",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199037",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199037",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199011",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199011",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199118",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199118",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199120",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199120",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199096",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199096",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199006",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199006",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199097",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199097",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199067",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199067",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199288",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199288",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199146",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199146",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199192",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199192",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199017",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199017",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199110",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199110",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198986",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198986",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199227",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199227",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199153",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199153",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199236",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199236",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199061",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199061",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199065",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199065",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199074",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199074",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198969",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198969",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199103",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199103",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199058",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199058",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199137",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199137",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199066",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199066",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199268",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199268",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199032",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199032",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199102",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199102",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199093",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199093",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198374",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198374",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199024",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199024",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199134",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199134",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199130",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199130",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199225",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199225",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198946",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198946",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199104",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199104",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199117",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199117",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199188",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199188",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198936",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198936",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199026",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199026",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199086",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199086",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199191",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199191",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199205",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199205",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198977",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198977",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198984",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198984",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199210",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199210",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199281",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199281",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198745",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198745",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199180",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199180",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199257",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199257",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199021",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199021",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199248",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199248",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199289",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199289",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199197",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199197",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198774",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198774",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198979",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198979",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199239",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199239",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199007",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199007",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199150",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199150",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198993",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198993",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198967",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198967",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199054",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199054",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199341",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199341",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199109",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199109",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198974",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198974",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199083",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199083",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199114",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199114",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198701",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198701",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199042",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199042",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199142",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199142",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199082",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199082",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199028",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199028",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199238",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199238",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199046",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199046",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199240",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199240",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199051",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199051",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198962",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198962",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199155",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199155",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198409",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198409",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199041",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199041",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199100",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199100",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199105",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199105",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199249",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199249",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199053",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199053",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199044",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199044",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198722",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198722",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199245",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199245",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198760",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198760",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199073",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199073",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198990",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198990",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199057",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199057",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199048",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199048",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199208",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199208",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199177",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199177",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198747",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198747",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199222",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199222",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199186",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199186",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198407",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198407",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199200",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199200",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198705",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198705",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198978",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198978",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199145",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199145",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199201",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199201",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199165",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199165",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199081",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199081",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198963",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198963",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199278",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199278",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199337",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199337",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199270",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199270",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199162",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199162",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198297",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198297",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199126",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199126",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198773",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198773",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198975",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198975",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199045",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199045",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-198982",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-198982",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199214",
+      "type": "Decision",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199214",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-DEC-199283",
+      "type": "Vote",
+      "activity_id": "MTG-PL-2026-10-21-DEC-199283",
+      "activity_date": "2026-10-21",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND"
+    }
+  ],
+  "results": [
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-VOT-ITM-993264",
+      "activity_id": "MTG-PL-2026-10-21-VOT-ITM-993264",
+      "activity_date": "2026-10-21",
+      "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+      "consists_of": [
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198305",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198304",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198947"
+      ]
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-VOT-ITM-993273",
+      "activity_id": "MTG-PL-2026-10-21-VOT-ITM-993273",
+      "activity_date": "2026-10-21",
+      "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+      "consists_of": [
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199073",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199074",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198357",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199076",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198352",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199075"
+      ]
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-VOT-ITM-993278",
+      "activity_id": "MTG-PL-2026-10-21-VOT-ITM-993278",
+      "activity_date": "2026-10-21",
+      "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+      "consists_of": [
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198408",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198406",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198409",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198407"
+      ]
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-VOT-ITM-993251",
+      "activity_id": "MTG-PL-2026-10-21-VOT-ITM-993251",
+      "activity_date": "2026-10-21",
+      "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+      "consists_of": [
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198295",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198298",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198294",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198923",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198297",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198299",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198922"
+      ]
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-VOT-ITM-993266",
+      "activity_id": "MTG-PL-2026-10-21-VOT-ITM-993266",
+      "activity_date": "2026-10-21",
+      "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+      "consists_of": [
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198946",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198941",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198302",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198942",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198945",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198944"
+      ]
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-VOT-ITM-993336",
+      "activity_id": "MTG-PL-2026-10-21-VOT-ITM-993336",
+      "activity_date": "2026-10-21",
+      "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+      "consists_of": [
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199085",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199163",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199218",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199210",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199105",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199168",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199277",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199171",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199159",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199280",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199092",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199113",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199142",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199278",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199222",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199251",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199257",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199260",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199202",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199154",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199231",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199247",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199181",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199144",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199285",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199190",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199227",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199161",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199124",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199254",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199177",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199156",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199233",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199127",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199157",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199130",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199186",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199136",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199266",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199087",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199212",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199107",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199261",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199110",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199203",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199198",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199100",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199094",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199188",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199274",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199224",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199191",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199253",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199133",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199097",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199162",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199112",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199286",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199249",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199183",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199276",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199125",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199174",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199120",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199179",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199250",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199108",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199256",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199200",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199288",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199091",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199259",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199230",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199153",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199082",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199132",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199225",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199262",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199268",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199109",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199101",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199239",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199242",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199205",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199189",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199155",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199232",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199184",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199126",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199169",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199135",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199099",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199164",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199244",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199196",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199273",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199106",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199138",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199215",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199197",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199281",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199176",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199269",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199223",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199118",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199252",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199145",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199096",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199111",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199140",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199208",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199199",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199182",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199264",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199173",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199103",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199152",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199194",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199271",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199287",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199088",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199090",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199128",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199258",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199081",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199165",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199237",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199131",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199267",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199119",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199240",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199238",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199217",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199167",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199220",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199206",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199170",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199141",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199104",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199147",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199098",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199150",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199243",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199195",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199272",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199137",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199214",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199121",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199116",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199175",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199235",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199284",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199117",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199201",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199226",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199289",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199123",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199207",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199083",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199263",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199290",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199185",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199160",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199148",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199086",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199102",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199151",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199219",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199211",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199193",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199270",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199265",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199172",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199114",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199093",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199143",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199236",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199279",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199282",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199245",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199089",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199139",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199216",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199248",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199166",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199146",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199228",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199084",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199178",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199255",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199209",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199221",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199149",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199115",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199158",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199187",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199234",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199283",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199129",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199213",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199180",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199204",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199122",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199246",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199095",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199275",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199192",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199241",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199229",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199134"
+      ]
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-VOT-ITM-993256",
+      "activity_id": "MTG-PL-2026-10-21-VOT-ITM-993256",
+      "activity_date": "2026-10-21",
+      "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+      "consists_of": [
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199341"
+      ]
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-VOT-ITM-993294",
+      "activity_id": "MTG-PL-2026-10-21-VOT-ITM-993294",
+      "activity_date": "2026-10-21",
+      "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+      "consists_of": [
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198701",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199051",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199013",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198992",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199059",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199070",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198761",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198746",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199052",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198971",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199025",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198722",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199045",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198976",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199037",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198973",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199064",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199019",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199030",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198972",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198705",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198770",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198988",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199021",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198985",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199002",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199042",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198984",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199038",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198658",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198654",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199033",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199008",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199050",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198678",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199012",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199067",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198991",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199062",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199058",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198760",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198745",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198970",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199024",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198721",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199040",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198982",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199063",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199055",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199018",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198997",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198987",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199020",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199048",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199001",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198979",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198996",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199041",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198983",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198765",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198708",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199032",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199049",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198665",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199044",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199007",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198773",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198677",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198990",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199061",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199057",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199023",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198774",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199015",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198720",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199069",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198981",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199035",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199054",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199017",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198999",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199047",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198978",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199011",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198995",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198975",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199029",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199066",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198660",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198719",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199009",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198691",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199006",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198672",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199000",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199060",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199056",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199014",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199072",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198993",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199068",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198711",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198980",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199034",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199071",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198747",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199026",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199053",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199016",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198998",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199046",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198977",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199010",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198994",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198759",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198974",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199028",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199065",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199031",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199027",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199004",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198989",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199022",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199003",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198986",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198659",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199043",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199039",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198718",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198969",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199005",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198671",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198675"
+      ]
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-VOT-ITM-993265",
+      "activity_id": "MTG-PL-2026-10-21-VOT-ITM-993265",
+      "activity_date": "2026-10-21",
+      "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+      "consists_of": [
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198967",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199334",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199339",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198949",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198386",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198962",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198960",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198374",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199337",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198968",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198965",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198963",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198958",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198950",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199338",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-199335",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198383",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198966",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198964",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198948",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198959",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198961"
+      ]
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-10-21-VOT-ITM-993258",
+      "activity_id": "MTG-PL-2026-10-21-VOT-ITM-993258",
+      "activity_date": "2026-10-21",
+      "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+      "consists_of": [
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198937",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198935",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198325",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198933",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198936",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198939",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198940",
+        "eli/dl/event/MTG-PL-2026-10-21-DEC-198326"
+      ]
+    }
+  ]
+}
