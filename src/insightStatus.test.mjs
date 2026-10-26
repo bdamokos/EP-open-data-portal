@@ -101,6 +101,13 @@ test('topic status waits for every page, distinguishes shown topics and never tr
   assert.match(h.status().textContent,/1 topic.*Showing 1/,'explicit retry recovery announces the settled replacement');
 });
 
+test('an empty topic list over incomplete coverage stays scoped',async t=>{
+  const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',()=>trends([]));
+  await h.tick();
+  assert.match(h.status().textContent,/No matching topics · Partial coverage/);
+  assert.doesNotMatch(h.container.textContent,/No topics with|No debates in this selection/,'incomplete coverage cannot establish an empty result');
+});
+
 test('out-of-order timeline responses cannot announce a superseded period',async t=>{
   const old=deferred(),current=deferred();
   const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',url=>url.searchParams.get('days')==='90'?old.promise:current.promise);

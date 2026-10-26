@@ -52,4 +52,15 @@ test('an open membership reads as present only when it began in the current serv
   assert.match(current.find(text=>text.includes('Earlier delegation')),/From 2009-07-14/,'an open membership from an earlier term is not presented as current');
   assert.match(current.find(text=>text.includes('Dissolved delegation')),/From 2024-09-01/,'a membership of an ended body is not presented as current');
   assert(render('not-current').every(text=>!text.includes('Present')),'a former member has no present memberships');
+  const probe=(start,{end=null,temporal={startDate:'1979-07-17'},currentSince='2012-01-01'}={})=>{
+    const history={...membershipHistory,items:[{...item(9,'Probe',start,temporal),end}]};
+    window.document.body.innerHTML=renderToStaticMarkup(createElement(ProfileMemberships,{profile:{membershipHistory:history,currentAffiliation:{status:'matched',day:'2026-10-26'},parliamentaryService:{currentSince}},lang:'en',roleName:role=>role,date:value=>value,retry:()=>{}}));
+    return window.document.querySelector('li').textContent;
+  };
+  assert.match(probe('2014-07-01'),/From 2014-07-01/,'continuous service since an earlier term does not make an earlier-term membership current');
+  assert.match(probe('2024-09-01'),/2024-09-01 — Present/,'a long-lived body with only a start date keeps a current membership present');
+  assert.doesNotMatch(probe('2026-02-30'),/Present/,'an invalid start never establishes a present membership');
+  assert.match(probe('2030-01-01'),/From 2030-01-01/,'a future start is not present');
+  assert.doesNotMatch(probe('2024-09-01',{end:{raw:'unknown'}}),/Present/,'an invalid supplied end is not a missing end');
+  assert.match(probe('2024-09-01',{currentSince:'2025-03-01'}),/From 2024-09-01/,'a membership from before a return to Parliament is not present');
 });
