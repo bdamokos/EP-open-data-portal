@@ -1,5 +1,5 @@
 import {AvailabilityNote,PartialValue} from './AvailabilityNote';
-import {availabilityValue,type SourceAvailability,type AvailabilityState} from '../server/source-availability.mjs';
+import {availabilityValue,periodAvailability,type SourceAvailability,type AvailabilityState} from '../server/source-availability.mjs';
 import {AnalysisPeriodControl} from './AnalysisPeriod';
 import {brusselsDay,periodEndMinimum,type AnalysisPeriod} from '../server/analysis-period.mjs';
 import {useEffect,useRef,useState} from 'react';
@@ -38,9 +38,9 @@ export function TopicTrends({language='en',initialTopic}:{language?:string;initi
   const available=(data?.topics||[]).filter(topic=>total(topic)>0&&topic.label.toLocaleLowerCase(language).includes(search.toLocaleLowerCase(language))).sort((a,b)=>total(b)-total(a)||a.label.localeCompare(b.label,language));
   const selected=selection?data?.topics.find(topic=>topic.id===selection):available[0],series=selected?.series||[],maximum=Math.max(1,...series.map(row=>row[metric]??0)),x=(index:number)=>45+(series.length===1?0:index/(series.length-1))*(chartWidth-70),y=(count:number)=>190-count/maximum*155;
   const events=selected?.events.filter(event=>event.kind===metric&&(!week||event.date>=week&&event.date<new Date(Date.parse(week+'T12:00Z')+7*86400_000).toISOString().slice(0,10)))||[];
-  // Unmapped or pending dossiers and limited metric sources leave an empty result unestablished.
+  // Unmapped or pending dossiers and metric sources that do not cover the window leave an empty result unestablished.
   const metricAvailability=data?.availability?.[metric];
-  const partialTopics=Boolean(data&&(!data.coverage.indexComplete||data.coverage.truncated||(data.coverage.unmapped||0)>0||(data.coverage.pending||0)>0||metricAvailability&&(metricAvailability.limited||metricAvailability.gaps.length>0)));
+  const partialTopics=Boolean(data&&(!data.coverage.indexComplete||data.coverage.truncated||(data.coverage.unmapped||0)>0||(data.coverage.pending||0)>0||metricAvailability&&periodAvailability(data.window,metricAvailability,0).state!=='observed'));
   const resultStatus=data&&!loading&&!error?(data.coverage.sourceError?'Topic catalogue temporarily unavailable.':[
     available.length?`${available.length.toLocaleString('en')} ${available.length===1?'topic':'topics'} with ${metricName[metric].toLowerCase()} in this selection. Showing ${Math.min(available.length,more?60:12).toLocaleString('en')}.`:partialTopics?'No matching topics · Partial coverage':`No topics with ${metricName[metric].toLowerCase()} in this selection.`,
     !data.coverage.indexComplete?'Archive incomplete.':'',

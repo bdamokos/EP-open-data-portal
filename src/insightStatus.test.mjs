@@ -2,6 +2,7 @@ import {LegislationInsights} from '../server/insights-legislation.mjs';
 import {insightQuery} from '../server/insights-store.mjs';
 import {participation,participationQuery} from '../server/insights-participation.mjs';
 import {SpeechCloudInsights,speechCloudQuery} from '../server/speech-cloud.mjs';
+import {sourceAvailability} from '../server/source-availability.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -121,6 +122,36 @@ test('a complete, fully mapped archive states an empty topic result plainly',asy
   const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',()=>trends([],{coverage:{procedures:1,mapped:1,unmapped:0,pending:0,sourceError:false,truncated:false,indexComplete:true}}));
   await h.tick();
   assert.match(h.status().textContent,/No topics with debates in this selection\./);
+});
+
+for(const metric of ['debates','votes','committee'])test('empty '+metric+' topic results respect the selected date coverage',async t=>{
+  const complete={procedures:1,mapped:1,unmapped:0,pending:0,sourceError:false,truncated:false,indexComplete:true};
+  const cases=[
+    ['missing date evidence',{latestObservedDate:null}],
+    ['frontier before the period',{latestObservedDate:'2026-06-30'}],
+    ['frontier within the period',{latestObservedDate:'2026-09-15'}],
+    ['period ending at the frontier',{latestObservedDate:'2026-09-30'}],
+    ['unchecked start of the period',{checkedIntervals:[{start:'2026-07-15',end:'2026-10-01',basis:'saved-records'}]}],
+  ];
+  for(const [name,extra] of cases)await t.test(name,async t=>{
+    const evidence=sourceAvailability({sourceKey:'topic-'+metric,latestObservedDate:'2026-10-01',checkedIntervals:[{start:'2026-07-01',end:'2026-10-01',basis:'saved-records'}],today:'2026-10-26',...extra});
+    const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90&trend-metric='+metric+'&trend-topic='+encodeURIComponent('http://eurovoc.europa.eu/404'),()=>trends([],{coverage:complete,availability:{[metric]:evidence}}));
+    await h.tick();
+    assert.match(h.status().textContent,/No matching topics · Partial coverage/);
+    assert.match(h.container.querySelector('.insight-trend-picker').textContent,/No matching topics · Partial coverage/);
+    assert.match(h.container.textContent,/No matching events · Partial coverage/);
+    assert.doesNotMatch(h.container.textContent,/No topics with|No (debates|votes|committee events) in this selection|No events for this topic/);
+  });
+  await t.test('fully checked period before the frontier',async t=>{
+    const evidence=sourceAvailability({sourceKey:'topic-'+metric,latestObservedDate:'2026-10-01',start:'2026-07-01',end:'2026-10-01',today:'2026-10-26'});
+    const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90&trend-metric='+metric+'&trend-topic='+encodeURIComponent('http://eurovoc.europa.eu/404'),()=>trends([],{coverage:complete,availability:{[metric]:evidence}}));
+    await h.tick();
+    const label={debates:'debates',votes:'votes',committee:'committee events'}[metric];
+    assert.equal(h.status().textContent,'No topics with '+label+' in this selection.');
+    assert.match(h.container.querySelector('.insight-trend-picker').textContent,new RegExp('No '+label+' in this selection\\.'));
+    assert.match(h.container.textContent,/No events for this topic in the selected period\./);
+    assert.doesNotMatch(h.container.textContent,/Partial coverage/);
+  });
 });
 
 test('out-of-order timeline responses cannot announce a superseded period',async t=>{
