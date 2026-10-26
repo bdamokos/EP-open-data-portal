@@ -422,8 +422,9 @@ export async function prefetchCorporateBodies(ids, {signal = requestSignal(), pr
     signal?.throwIfAborted();
     if (!missing.length) continue;
     missing.sort();
-    // A batch of one is the single read itself, so it is retained normally.
-    const batch = await odp(bodyEndpoint(missing.join(',')), {}, {signal, priority, retain:missing.length === 1});
+    // A batch of one is the single read itself, so it is retained normally. Every
+    // selected body is missing, expired or republished, so cached data never answers.
+    const batch = await odp(bodyEndpoint(missing.join(',')), {}, {signal, priority, retain:missing.length === 1, force:true});
     const found = new Map();
     for (const element of batch.payload.data) {
       const id = String(element?.id || '').replace(/^(?:https:\/\/data\.europarl\.europa\.eu\/)?org\//, '');
@@ -529,7 +530,7 @@ async function directoryData() {
   const day = today();
   if (
     directory &&
-    ((directory.day === day && !directoryStale && Date.now() - directory.fetchedAt < TTL) ||
+    ((directory.day === day && !directoryStale && Date.now() - directory.listedAt < TTL) ||
       Date.now() - directoryCheckedAt < 60_000)
   )
     return directory;
@@ -548,7 +549,7 @@ async function directoryData() {
     // the current roster and committee identifiers behind upstream requests.
     await Promise.all(selected.map(async body => {
       try {
-        const record = await odp(`/corporate-bodies/${body.identifier}`, {}, {cachedOnly:true});
+        const record = await odp(`/corporate-bodies/${body.identifier}`, {}, {cachedOnly:true, ttl:BODY_TTL});
         if (committeeRecord(body, record)) {details.set(body.identifier, record);sources.push(record);}
       } catch { /* The public catalogue remains usable without a detail record. */ }
       if (!details.has(body.identifier) && retained?.has(body.identifier)) {
@@ -560,6 +561,9 @@ async function directoryData() {
     directory = {
       day,
       fetchedAt: Math.min(...sources.map(source => source.fetchedAt)),
+      // Committee details follow the body age limit; the roster and catalogue
+      // listings alone decide the directory's own freshness.
+      listedAt: Math.min(...[...roster.sources, ...bodies.sources].map(source => source.fetchedAt)),
       members: roster.nodes
         .map(memberSummary)
         .sort(compareMembers),
@@ -647,7 +651,7 @@ function startDirectoryDetails(work, {retry=false}={}) {
     for (let i = 0; i < missing.length; i += 2) {
       await Promise.all(missing.slice(i, i + 2).map(async body => {
         try {
-          const record = await odp(`/corporate-bodies/${body.identifier}`, {}, {priority:'background',force:invalid.has(body.identifier)});
+          const record = await odp(`/corporate-bodies/${body.identifier}`, {}, {priority:'background',ttl:BODY_TTL,force:invalid.has(body.identifier)});
           if (!committeeRecord(body, record)) {invalid.add(body.identifier);throw new Error('Committee details are unavailable.');}
           invalid.delete(body.identifier);errors.delete(body.identifier);
           publishCommitteeRecord(target,body,record);
@@ -823,7 +827,7 @@ export async function odpDirectory({retryCommitteeDetails=false}={}) {
     sync: { ...syncState },
     directoryCache: {
       computedAt: new Date(directoryCheckedAt).toISOString(),
-      stale: directoryStale || d.day !== today() || Date.now() - d.fetchedAt >= TTL,
+      stale: directoryStale || d.day !== today() || Date.now() - d.listedAt >= TTL,
       refreshInProgress: Boolean(directoryPromise || directoryDetailsPromise) || directorySources.some(source => pending.has(source.url)),
       refreshError: directoryError || directorySources.map(source => refreshFailures.get(source.url)?.message).find(Boolean) || null,
     },
@@ -1060,14 +1064,15 @@ export function plenarySyncWindow(rows, day) {
 const sittingWindows = new Map();
 async function sittingWindow(day) {
   const saved = sittingWindows.get(day);
-  // A read agenda, or Parliament's empty answer on a non-sitting day, holds for
-  // the day; an unavailable agenda is retried after an hour.
-  if (saved && (saved.known || Date.now() - saved.checkedAt < PLENARY_SYNC_MS)) return saved.window;
+  // Today's agenda may be published or revised during the day, so every answer
+  // about today, including an empty one, is rechecked hourly. A past day's read
+  // agenda is final; an unavailable one is retried after an hour.
+  if (saved && (saved.known && day !== dayOf(Date.now()) || Date.now() - saved.checkedAt < PLENARY_SYNC_MS)) return saved.window;
   let window = null, known = true;
   try {
     const rows = [];
     for (let offset = 0; offset < 200; offset += 50) {
-      const record = await odp(`/meetings/MTG-PL-${day}/foreseen-activities`, {limit:50, offset}, {priority:'background', signal:undefined});
+      const record = await odp(`/meetings/MTG-PL-${day}/foreseen-activities`, {limit:50, offset}, {priority:'background', signal:undefined, ttl:PLENARY_SYNC_MS});
       rows.push(...record.payload.data);
       if (record.payload.data.length < 50) break;
     }
@@ -1077,9 +1082,11 @@ async function sittingWindow(day) {
   for (const key of sittingWindows.keys()) if (sittingWindows.size > 4) sittingWindows.delete(key);
   return window;
 }
+// The Brussels calendar day before `day`; 24 hours earlier is wrong across DST.
+export const previousDay = day => new Date(Date.parse(day + 'T12:00:00Z') - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 async function inPlenaryWindow(now = Date.now()) {
   // A late sitting's tail can cross midnight, so yesterday's window counts too.
-  for (const day of [dayOf(now), dayOf(now - 24 * 60 * 60 * 1000)]) {
+  for (const day of [dayOf(now), previousDay(dayOf(now))]) {
     const window = await sittingWindow(day);
     if (window && now >= window.start && now <= window.end) return true;
   }
@@ -1134,26 +1141,28 @@ export async function syncOdpFeeds({ force = false } = {}) {
           changedMeps++;
         }
       }
+      // Retained bodies follow the feed in background batches on disk. A failure
+      // leaves them for the next sync, whose feed still lists them.
+      await prefetchCorporateBodies(bodies.map(update => update.id), {priority:'background', memory:false, signal:undefined,
+        updates:new Map(bodies.map(update => [update.id, Date.parse(update.updated)]))}).catch(() => {});
       for (const update of bodies) {
         const body = d.committees.find((c) => c.id === update.id);
         if (!body) continue;
-        const prior = await odp(`/corporate-bodies/${update.id}`,{}, {priority:'background'});
-        if (Date.parse(update.updated) > prior.fetchedAt) {
-          const record = await odp(`/corporate-bodies/${update.id}`, {}, {force:true,priority:'background'});
-          const catalogue = {identifier:body.id,label:body.code};
-          if (!committeeRecord(catalogue,record)) throw new Error('Committee details are unavailable.');
-          publishCommitteeRecord(d,catalogue,record);
-          if (directoryDetailWork?.target === d) {
-            directoryDetailWork.invalid.delete(body.id);directoryDetailWork.errors.delete(body.id);
-            detailCoverage(directoryDetailWork);
-          }
-          changedCommittees++;
+        let record = await odp(`/corporate-bodies/${update.id}`,{}, {priority:'background',ttl:BODY_TTL});
+        if (Date.parse(update.updated) > record.fetchedAt)
+          record = await odp(`/corporate-bodies/${update.id}`, {}, {force:true,priority:'background'});
+        // The directory shows a committee's details until a newer record exists.
+        const shown = directorySources.find(source => source.url === record.url);
+        if (shown && shown.fetchedAt >= record.fetchedAt) continue;
+        const catalogue = {identifier:body.id,label:body.code};
+        if (!committeeRecord(catalogue,record)) throw new Error('Committee details are unavailable.');
+        publishCommitteeRecord(d,catalogue,record);
+        if (directoryDetailWork?.target === d) {
+          directoryDetailWork.invalid.delete(body.id);directoryDetailWork.errors.delete(body.id);
+          detailCoverage(directoryDetailWork);
         }
+        changedCommittees++;
       }
-      // Retained profile bodies follow the same feed, in batches and on disk.
-      // A failure leaves them for the next sync, whose feed still lists them.
-      await prefetchCorporateBodies(bodies.map(update => update.id), {priority:'background', memory:false, signal:undefined,
-        updates:new Map(bodies.map(update => [update.id, Date.parse(update.updated)]))}).catch(() => {});
       syncState = {
         lastSuccess: began,
         lastAttempt: began,

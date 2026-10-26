@@ -139,7 +139,8 @@ test('expiry keeps a loaded directory and memberships available while refresh is
     assert.match(out.after.directoryCache.refreshError,/500/);
     assert.equal(out.requests,out.settledRequests,'polling does not restart failed sources: '+JSON.stringify(out.requestUrls));
     const counts=Object.values(out.requestUrls.reduce((all,url)=>({...all,[url]:(all[url]||0)+1}),{}));
-    assert.deepEqual([...new Set(out.requestUrls)].sort(),f.records.slice(0,3).map(record=>record.url).sort(),'only the stale roster and committee sources refresh; no profile or feed fan-out');
+    // A seven-hour-old committee detail is within the body age limit; only the listings refresh.
+    assert.deepEqual([...new Set(out.requestUrls)].sort(),f.records.slice(0,2).map(record=>record.url).sort(),'only the stale roster and committee listings refresh; no detail, profile or feed fan-out');
     assert(counts.length>=2,'independent stale roster and committee sources can refresh without fixed spacing');
     assert(counts.every(count=>count===1),'each failed source is fetched only once before its retry deadline');
   }finally{await rm(f.directory,{recursive:true,force:true});}

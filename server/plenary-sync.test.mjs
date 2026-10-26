@@ -19,6 +19,7 @@ test('a sitting window runs from its first agenda block to two hours after its l
   assert.equal(plenarySyncWindow([block(day,'X','unknown',null)],day),null);
 });
 
+let lastModule;
 async function syncAfter(t,{agenda,elapsedMs}) {
   const dir=await mkdtemp(path.join(tmpdir(),'plenary-sync-'));
   const previous=process.env.ODP_CACHE_DIR;process.env.ODP_CACHE_DIR=dir;
@@ -33,7 +34,8 @@ async function syncAfter(t,{agenda,elapsedMs}) {
     if(url.pathname.endsWith('/feed'))return new Response('<feed></feed>',{headers:{'content-type':'application/atom+xml'}});
     assert.fail('Unexpected upstream read '+url.pathname);
   });
-  const {syncOdpFeeds}=await import('./odp.mjs?sync-'+Math.random());
+  lastModule=Math.random();
+  const {syncOdpFeeds}=await import('./odp.mjs?sync-'+lastModule);
   await syncOdpFeeds();
   return requests;
 }
@@ -48,4 +50,24 @@ test('outside a sitting window the feeds wait for the daily sync',async t=>{
   const requests=await syncAfter(t,{elapsedMs:90*60_000,agenda:()=>new Response(null,{status:204})});
   assert(requests.some(url=>url.includes('/foreseen-activities')),'the sitting agenda was consulted');
   assert(!requests.some(url=>url.endsWith('/feed')),'no feed sync before a day has passed');
+});
+
+test('the previous sitting day is a calendar day, also across daylight saving changes',async()=>{
+  const {previousDay}=await import('./odp.mjs?previous');
+  assert.equal(previousDay('2026-03-30'),'2026-03-29');
+  assert.equal(previousDay('2026-10-26'),'2026-10-25');
+  assert.equal(previousDay('2026-03-01'),'2026-02-28');
+});
+
+test('an agenda published later in the day still opens the hourly window',async t=>{
+  const iso=offset=>new Date(Date.now()+offset).toISOString();
+  let published=false;
+  const requests=await syncAfter(t,{elapsedMs:90*60_000,agenda:day=>published?Response.json({data:[block(day,'0900',iso(-3*3600_000),iso(5*3600_000))]}):new Response(null,{status:204})});
+  assert(!requests.some(url=>url.endsWith('/meps/feed')),'no sitting was published yet');
+  published=true;requests.length=0;
+  const {syncOdpFeeds}=await import('./odp.mjs?sync-'+lastModule);
+  t.mock.timers.enable({apis:['Date'],now:Date.now()+61*60_000});
+  await syncOdpFeeds();
+  assert(requests.some(url=>url.includes('/foreseen-activities')),'today\'s empty agenda is rechecked after an hour');
+  assert(requests.some(url=>url.endsWith('/meps/feed')),'the published sitting starts the hourly sync');
 });
