@@ -21,7 +21,7 @@ const policy=(view,value)=>apiCachePolicy({method:'GET',headers:{}},new URL('htt
 const legislationQuery=topic=>insightQuery(new URLSearchParams({sitting:sittingId,...(topic?{topic}:{})}),{kind:'legislation',now:clock()});
 const participantQuery=()=>participationQuery(new URLSearchParams({sitting:sittingId}));
 
-function fixture({flags={},fail}={}) {
+function fixture({flags={},fail,memberCountryCode='IT',metadata=new Map([['1',{'api:country-of-representation':'IT',hasGender:'authority/MALE',bday:'1980-01-01'}]])}={}) {
   const containerId=sittingId+'-OJ-PART-1';
   const sitting={id:uri(sittingId),activity_id:sittingId,activity_date:'2026-10-07',had_activity_type:'def/ep-activities/PLENARY_SITTING',was_scheduled_in:[uri(containerId)],consists_of:[uri(eventId)]};
   const topic=(id,kind)=>({id:uri(id),activity_id:id,activity_date:sitting.activity_date,activity_label:{en:id},had_activity_type:'def/ep-activities/'+kind,based_on_a_realization_of:['eli/dl/doc/A-10-2026-0001'],inverse_was_scheduled_in:['eli/dl/proc/2026-0001']});
@@ -44,8 +44,8 @@ function fixture({flags={},fail}={}) {
     assert(Object.hasOwn(payloads,endpoint),'Unexpected source request: '+endpoint);
     const record=makeRecord(endpoint);return endpoint==='/meetings'?{...record,payload:{data:record.payload.data.filter(n=>Number(n.activity_date.slice(0,4))===params.year)}}:record;
   };
-  const store={clock:()=>Date.now(),get:()=>null,readSnapshot:fn=>fn(),status:()=>({currentMeps:1,servingGeneration:1,complete:false}),db:{prepare:sql=>({get:()=>undefined,all:()=>sql.includes('FROM members')?[{id:'1',body:JSON.stringify({id:'1',name:'Synthetic member',countryCode:'IT'})}]:sql.includes('FROM sources')?[{key:documentEndpoint,body:JSON.stringify(document),fetched_at:new Date(clock()).toISOString()}]:[]})}};
-  const options={clock,request,loadMetadata:async()=>new Map()};
+  const store={clock:()=>Date.now(),get:()=>null,readSnapshot:fn=>fn(),status:()=>({currentMeps:1,servingGeneration:1,complete:false}),db:{prepare:sql=>({get:()=>undefined,all:()=>sql.includes('FROM members')?[{id:'1',body:JSON.stringify({id:'1',name:'Synthetic member',countryCode:memberCountryCode})}]:sql.includes('FROM sources')?[{key:documentEndpoint,body:JSON.stringify(document),fetched_at:new Date(clock()).toISOString()}]:[]})}};
+  const options={clock,request,loadMetadata:async()=>metadata};
   const legislation=new LegislationInsights(store,options);
   const readEvent=async id=>{assert.equal(id,eventId);return makeRecord(eventEndpoint);};
   return {legislation,store,options,readEvent,calls};
@@ -86,7 +86,7 @@ for(const [name,endpoint,flags] of [
   assert.equal(policy('participation',value).cdnCacheControl,'no-store');
 });
 
-test('fresh legislation and participation snapshots remain cacheable with incomplete index coverage',async()=>{
+test('fresh legislation and participation snapshots with acquired demographics remain cacheable with incomplete index coverage',async()=>{
   const {legislation,store,readEvent,calls}=fixture();
   const debate=await legislation.query(legislationQuery(debateId)),vote=await legislation.query(legislationQuery(voteId));
   const value=await participation(legislation,store,participantQuery(),{clock,readEvent});
@@ -335,4 +335,28 @@ test('participation preserves transient memory evidence when its timestamp canno
   const value=await participation(legislation,store,participantQuery(),{clock,readEvent:async()=>record});
   assert(value.coverage.sources.some(source=>source.url===record.url&&source.stale));
   assert.equal(policy('participation',value).cdnCacheControl,'no-store');
+});
+
+test('cold demographic metadata keeps an otherwise fresh legislation snapshot uncacheable',async()=>{
+ const {legislation}=fixture({metadata:new Map()});
+ const value=await legislation.query(legislationQuery(voteId));
+ assert.equal(value.detail.selectedVote.stats.demographicEvidence['1'].bday.status,'missing_acquisition');
+ assert.equal(policy('legislation',value).cdnCacheControl,'no-store');
+});
+
+test('participation retains country acquisition states through the public cache boundary and recovers without profile reads',async()=>{
+ const metadata=new Map(),{legislation,store,readEvent}=fixture({metadata,memberCountryCode:null});
+ for(const status of ['missing_acquisition','fetch_failed','available']) {
+  const field={status,value:status==='available'?'IT':null,sources:[],lastAttempt:status==='fetch_failed'?{status:'fetch_failed'}:null};
+  metadata.set('1',{...(status==='available'?{'api:country-of-representation':'IT'}:{}),demographicProvenance:{'api:country-of-representation':field}});
+  const value=await participation(legislation,store,participantQuery(),{clock,readEvent});
+  assert.deepEqual(value.countryMetadata['1'],field);
+  assert.equal(value.countries.find(row=>row.code==='IT').delegationSize,status==='available'?1:0);
+  if(status==='available')assert.match(policy('participation',value).cdnCacheControl,/max-age=21600/);
+  else assert.equal(policy('participation',value).cdnCacheControl,'no-store');
+ }
+ metadata.get('1').demographicProvenance['api:country-of-representation'].lastAttempt={status:'fetch_failed'};
+ const retained=await participation(legislation,store,participantQuery(),{clock,readEvent});
+ assert.equal(retained.countries.find(row=>row.code==='IT').delegationSize,1);
+ assert.equal(policy('participation',retained).cdnCacheControl,'no-store');
 });
