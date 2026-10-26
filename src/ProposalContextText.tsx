@@ -1,3 +1,4 @@
+import {mapWordingFormatting} from './contextAnnotations.mjs';
 import {useId,useRef,type ReactNode} from 'react';
 import type {DocumentContextResponse} from './DocumentContextTypes';
 import type {DocumentLink,NoteAnchor,DocumentNote} from './explorerTypes';
@@ -136,7 +137,8 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
       if(anchors.some(a=>a.offset<=labelLength)||links.some(l=>l.start<labelLength))labelLength=0;
       renderOriginal=(value,offset)=>{const start=offset+labelLength,end=start+value.length;return <ReferenceText text={value} start={start} anchors={anchors.filter(a=>a.offset>start&&a.offset<=end||start===0&&a.offset===0)} links={links.map(l=>({...l,start:Math.max(l.start,start),end:Math.min(l.end,end)})).filter(l=>l.end>l.start)} final notePrefix={prefix+'-'+placement.itemIndex}/>;};
     }
-    return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment'+(number?' '+number:'')}><h4 lang="en">Amendment{number?' '+number:''}</h4>{labelLength>0&&<p className="document-context-provision-label" data-source-label="true">{sourcePrefix!.trim()}</p>}{wording&&<WordingDiff original={placement?.operation==='insert'?'':labelLength?original!.slice(labelLength):original} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={renderOriginal}/>}</section>;
+    const comparisonOriginal=labelLength?original!.slice(labelLength):original;
+    return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment'+(number?' '+number:'')}><h4 lang="en">Amendment{number?' '+number:''}</h4>{labelLength>0&&<p className="document-context-provision-label" data-source-label="true">{sourcePrefix!.trim()}</p>}{wording&&<WordingDiff originalFormatting={mapWordingFormatting(wording.originalText,comparisonOriginal,wording.originalFormatting)} proposedFormatting={wording.proposedFormatting} original={placement?.operation==='insert'?'':comparisonOriginal} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={renderOriginal}/>}</section>;
   };
   return <>
     <p className="proposal-context-summary">{official?<a href={official} target="_blank" rel="noreferrer">{identity} ↗</a>:identity} · <a href={report} target="_blank" rel="noreferrer">Parliament {data.documentId.startsWith('A-')?'report':'document'} ↗</a></p>

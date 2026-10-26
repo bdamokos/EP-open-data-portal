@@ -10,6 +10,7 @@ import type {Amendment,AmendmentDecision,AmendmentPage,AmendmentSource,Amendment
 import {amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentOutcomeLabel,amendmentPlanSummary,amendmentRoute,publicAmendmentSource} from './amendmentModel.mjs';
 import type {Directory} from './explorerTypes';
 import './Amendments.css';
+import {FormattedWording} from './components/WordingFormatting';
 import {WordingDiff} from './components/WordingDiff';
 import {AmendmentNamedVotes} from './AmendmentNamedVotes';
 import {voteMethodLabel} from './voteMethod.mjs';
@@ -111,9 +112,9 @@ function SplitPart({part,item,language}:{part:AmendmentSplit;item:Amendment;lang
 function AmendmentWording({item}:{item:AmendmentVariant}) {
   const withheld=item.textIntegrity==='incomplete';
   const readable=!withheld&&typeof item.originalText==='string'&&typeof item.proposedText==='string';
-  return <>{readable?<WordingDiff original={item.originalText!} proposed={item.proposedText!} language={wordingLanguage(item)} emptySemantics="insertion-deletion"/>:<div className="explorer-amendment-texts" lang="en">
-    <section><h5>Original text</h5>{withheld?<p className="explorer-amendment-secondary">Unavailable.</p>:item.originalText!==null&&item.originalText!==undefined?item.originalText===''?<p>No original text (insertion).</p>:<p lang={wordingLanguage(item)}>{item.originalText}</p>:<p className="explorer-amendment-secondary">Unavailable.</p>}</section>
-    <section><h5>Proposed text</h5>{withheld?<p className="explorer-amendment-secondary">Unavailable.</p>:item.proposedText!==null&&item.proposedText!==undefined?item.proposedText===''?<p>Text deleted.</p>:<p lang={wordingLanguage(item)}>{item.proposedText}</p>:<p className="explorer-amendment-secondary">Unavailable.</p>}</section>
+  return <>{readable?<WordingDiff originalFormatting={item.originalFormatting} proposedFormatting={item.proposedFormatting} original={item.originalText!} proposed={item.proposedText!} language={wordingLanguage(item)} emptySemantics="insertion-deletion"/>:<div className="explorer-amendment-texts" lang="en">
+    <section><h5>Original text</h5>{withheld?<p className="explorer-amendment-secondary">Unavailable.</p>:item.originalText!==null&&item.originalText!==undefined?item.originalText===''?<p>No original text (insertion).</p>:<p lang={wordingLanguage(item)}>{<FormattedWording text={item.originalText} formatting={item.originalFormatting}/>}</p>:<p className="explorer-amendment-secondary">Unavailable.</p>}</section>
+    <section><h5>Proposed text</h5>{withheld?<p className="explorer-amendment-secondary">Unavailable.</p>:item.proposedText!==null&&item.proposedText!==undefined?item.proposedText===''?<p>Text deleted.</p>:<p lang={wordingLanguage(item)}>{<FormattedWording text={item.proposedText} formatting={item.proposedFormatting}/>}</p>:<p className="explorer-amendment-secondary">Unavailable.</p>}</section>
   </div>}</>;
 }
 function AmendmentEvidenceState({item}:{item:AmendmentVariant}) {

@@ -1,3 +1,4 @@
+import type {WordingFormat} from './components/WordingFormatting';
 import {VoteSubjectTitle} from './VoteSubjectTitle';
 import {AttendanceLine,AttendanceDetail} from './MemberAttendance';
 import type {MemberAttendanceResponse} from './MemberAttendanceTypes';
@@ -34,7 +35,7 @@ export const defaultMemberVotesState:MemberVotesState={week:'latest',sittingId:n
 type WordingVariant={
   listId:string;language:string|null;targetLabel:string|null;targetLabelLanguage?:string|null;
   targetLabelSource?:Record<string,unknown>|null;fieldSources?:Record<string,unknown>|null;
-  wordingStatus:'available'|'unavailable';originalText:string|null;proposedText:string|null;authors:{name:string;personId?:string|null}[];
+  wordingStatus:'available'|'unavailable';originalText:string|null;proposedText:string|null;originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];authors:{name:string;personId?:string|null}[];
   source?:Record<string,unknown>|null;sourceFreshness?:{status:string}|null;
   wordingRetained?:boolean|null;proposerRetained?:boolean|null;recordRetained?:boolean|null;
 };
@@ -85,7 +86,7 @@ function Wording({documentId,amendmentId,language,openContext,showHeading=true}:
       {selected&&<>
         {typeof selected.targetLabel==='string'&&selected.targetLabel&&<><p className="member-votes-target-label" lang={targetLanguage||''}>{selected.targetLabel}</p></>}
         {(readable&&textLanguage||authors.length>0)&&<p className="member-votes-muted">{readable&&textLanguage&&'Text language: '+languageLabel(textLanguage)}{authors.length>0&&<>{readable&&textLanguage?' · ':''}Proposed by {authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/></span>)}</>}</p>}
-        {readable?<div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:'Original wording',proposed:'Proposed wording',emptyOriginal:'',emptyProposed:''}}/></div>:<p>Amendment wording unavailable here.</p>}
+        {readable?<div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff originalFormatting={selected.originalFormatting} proposedFormatting={selected.proposedFormatting} key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:'Original wording',proposed:'Proposed wording',emptyOriginal:'',emptyProposed:''}}/></div>:<p>Amendment wording unavailable here.</p>}
         {readable&&selected.wordingRetained&&<p className="member-votes-muted">Showing saved wording.</p>}
         <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,view:'document'})}>Read in context</button>
       </>}

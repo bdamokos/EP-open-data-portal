@@ -82,4 +82,21 @@ test('wording comparison modes, accessible announcements, source language, defau
   assert.match(container.textContent,/Mostly rewritten/);
   await render({original:'x'.repeat(20_001),proposed:'Small text'});assert.equal(container.querySelector('button,ins,del'),null);
   assert.match(container.textContent,/Too extensively changed to highlight\./);assert.equal(wordingText(container,'original'),props.original);
+  await render({original:'CO2 mg/m3(5)',proposed:'CO2 mg/m3(5)',presentation:'context',originalFormatting:[{start:2,end:3,kind:'subscript'},{start:8,end:9,kind:'superscript'}],proposedFormatting:[{start:2,end:3,kind:'subscript'},{start:8,end:9,kind:'superscript'},{start:10,end:11,kind:'superscript'}]});
+  assert.equal(container.querySelector('sub').textContent,'2');
+  assert.equal(container.querySelector('del').textContent.replace(/Deleted text: | end/g,''),'5');
+  assert.equal(container.querySelector('ins sup').textContent,'5');
+  assert.equal(wordingText(container,'original'),props.original);assert.equal(wordingText(container,'proposed'),props.proposed);
+  await act(async()=>button('Side by side').click());
+  const sides=container.querySelectorAll('.wording-diff__columns section');
+  assert.equal(sides[0].querySelector('del sup'),null);
+  assert.equal(sides[1].querySelector('ins sup').textContent,'5');
+  assert.equal(sides[0].querySelector('sub').textContent,'2');assert.equal(sides[1].querySelector('sub').textContent,'2');
+  assert.equal(wordingText(container,'original'),props.original);assert.equal(wordingText(container,'proposed'),props.proposed);
+  await render({original:'A4 CO2',proposed:'A1a CO2',originalFormatting:[{start:1,end:2,kind:'superscript'},{start:5,end:6,kind:'subscript'}],proposedFormatting:[{start:1,end:3,kind:'superscript'},{start:6,end:7,kind:'subscript'}],renderOriginal:(text,start)=>createElement('span',{'data-source-offset':start},text)});
+  assert.equal(wordingText(container,'original'),props.original);assert.equal(wordingText(container,'proposed'),props.proposed);
+  assert.equal(container.querySelector('del sup').textContent,'A4'.slice(1));
+  assert.equal(container.querySelector('ins sup').textContent,'1a');
+  assert.equal(container.querySelector('sub [data-source-offset]').dataset.sourceOffset,'5');
+
 });

@@ -2,7 +2,7 @@ import { array, tail, procedureIds, documentFiles } from './activity-index-model
 import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
-export const AMENDMENTS_VERSION = 3;
+export const AMENDMENTS_VERSION = 4;
 export const AMENDMENT_SITTING_PROJECTION_VERSION = 4;
 export const AMENDMENT_OUTCOME_PROOF_VERSION = 3;
 export const AMENDMENT_DISTRIBUTION_PROOF_VERSION = 2;
@@ -65,14 +65,21 @@ export function checkedAggregateAttribution(record) {
   const decisionLabel=record.targetLabelLanguage==='en'&&(record.decisions || []).some(decision=>decision.reference===record.targetLabel&&
     (!record.targetLabelSource||(decision.source&&decision.source.url===record.targetLabelSource.url&&decision.source.fetchedAt===record.targetLabelSource.fetchedAt)));
   return {...record,baseline:'unknown',baselineSource:null,documentReferences:[],targetPath:null,listId:null,authors:[],committeeProposer:null,onBehalfOf:null,date:null,documentDate:null,listDocumentDate:null,dateBasis:null,proposerDate:null,proposerDateBasis:null,
-    originalText:null,proposedText:null,language:null,justification:null,textParserVersion:null,textIntegrity:'unavailable',wordingSource:null,metadataSource:null,proposerSource:null,sourceFreshness:null,
+    originalText:null,proposedText:null,originalFormatting:[],proposedFormatting:[],language:null,justification:null,textParserVersion:null,textIntegrity:'unavailable',wordingSource:null,metadataSource:null,proposerSource:null,sourceFreshness:null,
     targetLabel:decisionLabel?record.targetLabel:null,targetLabelLanguage:decisionLabel?'en':null,targetLabelSource:decisionLabel?record.targetLabelSource ?? null:null,
     wordingRetained:false,proposerRetained:false,recordRetained:false,fieldSources:{}};
 }
-const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','comparison-grid','structural-revision','symbol-text-loss','non-text-content','vertical-text-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
+const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','comparison-grid','structural-revision','symbol-text-loss','non-text-content','vertical-text-loss','vertical-formatting-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
+export function validAmendmentFormatting(amendment) {
+  return !['original','proposed'].some(side=>{
+    const marks=amendment?.[side+'Formatting'],text=amendment?.[side+'Text'];
+    return marks!=null&&(!Array.isArray(marks)||marks.some((mark,index)=>!['superscript','subscript'].includes(mark?.kind)||!Number.isInteger(mark.start)||!Number.isInteger(mark.end)||mark.start<0||mark.end<=mark.start||typeof text!=='string'||mark.end>text.length||index>0&&mark.start<marks[index-1].end));
+  });
+}
 export function amendmentTextLosses(extraction,amendment) {
   const oversized=['originalText','proposedText'].some(field=>typeof amendment?.[field]==='string'&&amendment[field].length>AMENDMENT_LIMITS.text);
-  return [...array(extraction?.gaps),...array(amendment?.gaps),...(oversized?[{code:'wording-too-large',number:amendment.number,message:'Amendment wording exceeds the 60,000-character column limit; both columns are unavailable.'}]:[])].filter(gap=>textLossCodes.has(gap?.code) &&
+  const invalidFormatting=!validAmendmentFormatting(amendment);
+  return [...(invalidFormatting?[{code:'vertical-formatting-loss',number:amendment.number,message:'Vertical formatting cannot be tied to exact wording offsets; its wording is withheld.'}]:[]),...array(extraction?.gaps),...array(amendment?.gaps),...(oversized?[{code:'wording-too-large',number:amendment.number,message:'Amendment wording exceeds the 60,000-character column limit; both columns are unavailable.'}]:[])].filter(gap=>textLossCodes.has(gap?.code) &&
     (gap.number!=null?String(gap.number)===String(amendment.number):gap.code==='numbering-warning'||gap.scope==='document'));
 }
 export function canonicalEPReference(value) {

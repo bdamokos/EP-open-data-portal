@@ -1038,3 +1038,15 @@ for(const empty of [{titles:{},title:null,titleLanguage:null},{titles:{en:'  '},
  for(const lookup of lookups)assert.equal(new URL(lookup,'http://localhost').searchParams.get('url'),reportResponse().sourceUrl);
  const title=h.container.querySelector('.member-votes-detail-subject');assert.equal(title.textContent,'Exact English report title');assert.equal(title.lang,'en');
 });
+
+test('Votes wording preserves vertical spans and shows a formatting-only edit in both modes',async t=>{
+  const variant=wordingVariant({originalText:'CO2 note4',proposedText:'CO2 note4',originalFormatting:[{start:2,end:3,kind:'subscript'}],proposedFormatting:[{start:2,end:3,kind:'subscript'},{start:8,end:9,kind:'superscript'}]});
+  const h=await mountWording(t,{variants:[variant]});
+  const comparison=h.container.querySelector('.member-votes-comparison');
+  assert.equal(comparison.querySelector('sub').textContent,'2');
+  assert.equal(comparison.querySelector('ins sup').textContent,'4');
+  assert.equal(wordingText(comparison,'original'),variant.originalText);assert.equal(wordingText(comparison,'proposed'),variant.proposedText);
+  await h.click('Side by side');
+  assert.equal(comparison.querySelectorAll('sub').length,2);assert.equal(comparison.querySelector('ins sup').textContent,'4');
+  assert.equal(wordingText(comparison,'original'),variant.originalText);assert.equal(wordingText(comparison,'proposed'),variant.proposedText);
+});
