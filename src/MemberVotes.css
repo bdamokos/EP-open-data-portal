@@ -13,3 +13,7 @@
 .member-votes-attendance { flex-basis:100%; grid-column:1 / -1; min-width:0; border-top:1px solid var(--mv-line); padding-top:.7rem; font-size:.82rem; }
 .member-votes-attendance p { margin:.35rem 0; }
 .member-votes-context-vote{margin:0 0 20px}.member-votes-context-label{font-size:15px;font-weight:bold;margin:0!important}.member-votes-context-vote .member-votes-strip{margin:10px 0 0}
+
+.member-votes-context-vote .member-votes-part{margin:10px 0;padding:10px 12px;font-size:13px;line-height:1.5;max-width:90ch}
+.member-votes-context-vote .member-votes-part h3{font-size:12px;line-height:1.4;margin:0 0 6px}
+.member-votes-context-vote .member-votes-part p{margin:0;white-space:pre-wrap}

@@ -984,3 +984,41 @@ test('indexed amendment decisions omit unknown methods while reusing recognised 
   for(const row of rows)assert.doesNotMatch(row.textContent,/Voting method unavailable/);
   assert.match(rows[2].textContent,/Electronic vote \(names not recorded\)/);
 });
+
+function summaryBallot(id,position,outcome) {
+  const sitting=id.slice(0,17),date=sitting.slice(7);
+  const vote={id,sittingId:sitting,date,title:'Exact amendment decision',titleLanguage:'en',titles:{en:'Exact amendment decision'},referenceTexts:{en:'Amendment 13'},
+    method:'VOTE_ELECTRONIC_ROLLCALL',outcome,ballotStatus:'conducted',scope:{kind:'amendment'},actualPosition:{status:'recorded',position},intention:{status:'not-reported',positions:[]},
+    totals:{for:400,against:200,abstaining:0},alignment:'with',subjectId:null,context:{documentIds:[documentId],amendmentIds:[documentId+'-AM-13'],componentIds:[]},parts:[],rollCallRequesters:[],resultRelationship:{binding:'consistent'}};
+  return {version:7,member:{id:memberId},period:{kind:'sitting',week:null,sittingId:sitting,from:date,to:date},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[vote],subjects:[],
+    pagination:{offset:0,limit:50,returned:1,observedTotal:1,recordedTotal:1,filteredTotal:1,nextOffset:null},selected:{status:'found',item:vote},coverage:{status:'partial',termWide:false}};
+}
+
+test('amendment context reuses loaded split ballots and reload restores each exact part summary',async t=>{
+  const decisions=[1,2].map(number=>({id:'MTG-PL-2026-10-08-DEC-'+number,scope:'split-part',partId:'part-'+number,partNumber:number,outcome:number===1?'ADOPTED':'REJECTED',method:'VOTE_ELECTRONIC_ROLLCALL'}));
+  const item=amendment(13,{decisions,splitParts:decisions.map((_,index)=>({id:'part-'+(index+1),number:index+1,description:'Texte exact '+(index+1),language:'fr',wordingGrounding:'not-validated'}))});
+  for(const reload of [false,true])await t.test(reload?'reload':'open from detail',async t=>{
+    const h=await readerHarness(t,{realContext:true,state:{open:true,scope:'all',amendmentId:item.id,variantListId:item.listId,...(reload?{view:'context',contextTarget:'amendment',wordingLanguage:'en'}:{})}});
+    await h.respond(page({items:[item],scope:'all'}));
+    for(const [index,decision] of decisions.entries()) {
+      const request=h.requests.find(request=>request.url.searchParams.get('decision')===decision.id);assert(request);
+      await h.respond(summaryBallot(decision.id,index===0?'for':'against',decision.outcome),{request});
+    }
+    if(!reload){
+      const now=Date.now();t.mock.method(Date,'now',()=>now+60_000);
+      await h.click('Read in context');
+    }
+    const summary=h.container.querySelector('[aria-label="Votes on this amendment"]');assert(summary);
+    const rows=[...summary.querySelectorAll('.member-votes-context-vote')];assert.equal(rows.length,2);
+    for(const [index,row] of rows.entries()) {
+      assert.match(row.textContent,new RegExp('Amendment 13 · Part '+(index+1)));
+      assert.equal(row.querySelector('.motion-amendments__split-description').lang,'fr');
+      assert.equal(row.querySelector('.member-votes-position strong').textContent,index===0?'For':'Against');
+      assert.equal(row.querySelector('.member-votes-result strong').textContent,index===0?'Adopted':'Rejected');
+    }
+    assert.equal(h.requests.filter(request=>request.url.pathname.includes('/member-votes/')).length,2,'opening context reuses each loaded ballot');
+    await h.click('← Back to amendments');
+    assert.equal(h.state().view,'amendments');assert.equal(h.state().amendmentId,item.id);assert.equal(h.state().variantListId,item.listId);
+    assert.equal(document.activeElement,h.button('Read in context'));
+  });
+});
