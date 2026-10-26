@@ -10,7 +10,7 @@ import {ActivityWorker} from './activity-index-worker.mjs';
 import {projectDocument,documentRows} from './activity-index-model.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
 import {SPLIT_PARSER_VERSION} from './amendment-splits.mjs';
-import {amendmentsPage,enqueueAmendment} from './amendments-store.mjs';
+import {amendmentsPage,enqueueAmendment,nextAmendmentTask} from './amendments-store.mjs';
 import {prepareAmendments,refreshSittingTargets} from './amendments-worker.mjs';
 
 const date='2026-10-02',stamp='2026-10-17T08:00:00.000Z',sitting='MTG-PL-2026-10-07';
@@ -42,6 +42,67 @@ function sittingWork(ids,status) {
 }
 function saveSitting(store,generation,work) {store.putSource(generation,'motion-outcomes:'+sitting,'motion-outcomes',work,stamp);}
 const sittingKey='amendment:rebuild-sitting:'+sitting;
+function fillAmendmentQueues(store,generation,count=200) {
+  store.transaction(()=>{
+    for(let i=0;i<count;i++)store.db.prepare('INSERT INTO amendment_jobs(generation,key,kind,body,priority) VALUES (?,?,?,?,?)').run(generation,'occupied:'+i,'amendment-rebuild',JSON.stringify({rebuild:{kind:'profile',offset:0},targets:[]}),110);
+  });
+  store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:Array.from({length:200},(_,i)=>({generation,key:'deferred:'+i,kind:'amendment-rebuild',body:'{}',priority:109,done:0,attempts:0,retry_at:0,error:null})),discovery:[],completed:[]},stamp);
+}
+
+test('a full amendment queue defers its dependent vote task so capacity can drain without losing the saved graph',async t=>{
+  const {store,worker,generation}=setup(t);
+  let now=worker.clock();worker.clock=store.clock=()=>now;
+  const body={sittingId:sitting,stage:'decisions',offset:250,results:[{id:'retained-result'}],decisions:[{id:'retained-decision'}],sources:[source],amendmentRebuildPending:true};
+  const key='motion-outcomes:'+sitting+':correction';
+  store.enqueue(generation,key,'motion-outcomes',body,113);
+  store.db.prepare('UPDATE tasks SET attempts=2,error=? WHERE generation=? AND key=?').run('Previous source failure',generation,key);
+  const work=sittingWork([],'ADOPTED');saveSitting(store,generation,work);
+  fillAmendmentQueues(store,generation);
+  const accepted=store.source(generation,'motion-outcomes:'+sitting),lastSuccess=store.get('lastSuccess');
+  const first=store.nextTask(generation);await worker.task(first);
+  let retained=store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,key);
+  assert.equal(store.nextTask(generation),undefined,'the blocked high-priority task must yield to amendment jobs');
+  assert.equal(first.done,null,'ordinary vote tasks use the scheduler\'s NULL pending state');
+  assert.equal(retained.retry_at,now+30_000);assert.equal(retained.done,first.done);assert.equal(retained.attempts,2);assert.equal(retained.error,first.error);
+  assert.deepEqual(JSON.parse(retained.body),body);assert.deepEqual(store.source(generation,'motion-outcomes:'+sitting),accepted);
+  assert.equal(worker.requests,0);assert.equal(store.get('lastSuccess'),lastSuccess);
+  const drain=nextAmendmentTask(store,generation);await worker.task(drain);
+  assert.equal(row(store,generation,drain.key).done,1,'lower-priority work frees a direct queue slot');
+  now+=30_000;store.renew();
+  await worker.task(store.nextTask(generation));
+  retained=store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,key);
+  assert.equal(retained.done,1);assert.equal(row(store,generation,sittingKey).done,1);
+  assert.deepEqual(store.source(generation,'motion-outcomes:'+sitting),accepted);
+  assert.equal(worker.requests,0);assert.equal(store.get('lastSuccess'),lastSuccess);
+});
+
+test('fresh vote acquisition defers failed rebuild admission once and resumes without refetching',async t=>{
+  const {store,worker,generation}=setup(t);let now=worker.clock(),fetches=0;worker.clock=store.clock=()=>now;
+  const body={sittingId:sitting,stage:'decisions',offset:0,results:[],decisions:[],splits:[],sources:[]};
+  const key='motion-outcomes:'+sitting+':new';store.enqueue(generation,key,'motion-outcomes',body,113);
+  fillAmendmentQueues(store,generation);
+  worker.fetchRecord=async()=>{fetches++;return {payload:{data:[]},fetchedAt:stamp};};
+  await worker.task(store.nextTask(generation));
+  const saved=store.source(generation,'motion-outcomes:'+sitting),pending=store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,key);
+  assert(saved);assert.equal(pending.done,null);assert.equal(pending.retry_at,now+30_000);assert.equal(JSON.parse(pending.body).amendmentRebuildPending,true);
+  assert.equal(store.nextTask(generation),undefined);assert.equal(fetches,1);assert.equal(worker.requests,1);
+  await worker.task(nextAmendmentTask(store,generation));now+=30_000;store.renew();
+  await worker.task(store.nextTask(generation));
+  assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(generation,key).done,1);
+  assert.deepEqual(store.source(generation,'motion-outcomes:'+sitting),saved);assert.equal(fetches,1);assert.equal(worker.requests,1);
+});
+
+test('checkpointed vote tasks defer in the amendment queue and report a missing retained graph as an error',async t=>{
+  const {store,worker,generation}=setup(t),key='motion-outcomes:'+sitting+':optional';
+  const body={sittingId:sitting,amendmentRebuildPending:true};
+  enqueueAmendment(store,generation,key,'motion-outcomes',body,113);fillAmendmentQueues(store,generation,199);
+  await assert.rejects(worker.task(task(store,generation,key)),/Saved vote results are unavailable/);
+  saveSitting(store,generation,sittingWork([],'ADOPTED'));
+  await worker.task(task(store,generation,key));
+  const pending=row(store,generation,key);assert.equal(pending.done,0);assert.equal(pending.retry_at,worker.clock()+30_000);
+  assert.deepEqual(JSON.parse(pending.body),body);assert.notEqual(nextAmendmentTask(store,generation).key,key);
+  assert.equal(worker.requests,0);
+});
 
 test('preparation keysets more than ten targets and preserves its cursor across optional generation advancement',async t=>{
   const {store,worker,generation}=setup(t),ids=Array.from({length:13},(_,index)=>id(index));
