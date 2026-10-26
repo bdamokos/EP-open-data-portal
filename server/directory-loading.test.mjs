@@ -131,7 +131,7 @@ test('automatic directory polling respects failed detail refresh deadlines while
   const out=await run(t,`
     await save('/meps/show-current',{limit:1000,offset:0},[]);
     await save('/corporate-bodies/show-current',{limit:1000,offset:0},[body]);
-    await save('/corporate-bodies/6572',{},[{...body,prefLabel:{fr:'Nom retenu'}}],7*3600_000);
+    await save('/corporate-bodies/6572',{},[{...body,prefLabel:{fr:'Nom retenu'}}],8*24*3600_000);
     let calls=0,recover=false;
     globalThis.fetch=async url=>{
       if(!new URL(url).pathname.endsWith('/corporate-bodies/6572'))throw Error('Unexpected fixture source '+url);
