@@ -586,9 +586,9 @@ test('a relabelled provision keeps only the amendment’s own label',async t=>{
   assert(/(^|\W)a(\W|$)/.test(deleted),'the replaced source label is shown as deleted: '+text);
 });
 
-test('a quoted replacement label never acquires the source number',async t=>{
-  const {proposed}=await renderPlacedLabel(t,['Article 1','1. Old provision.'],'Article 1 – paragraph 1','Old provision.','‘2a. New provision.’');
-  assert(!/1\.\s*‘2a/.test(proposed),proposed);assert(proposed.includes('‘2a. New provision.’'),proposed);
+for(const label of ['‘2a. New provision.’','‘2a.New provision.’','2.1. New provision.'])test('replacement label '+label+' never acquires the source number',async t=>{
+  const {proposed}=await renderPlacedLabel(t,['Article 1','1. Old provision.'],'Article 1 – paragraph 1','Old provision.',label);
+  assert.equal(proposed.replace(/\s+/g,' ').trim(),label,proposed);
 });
 
 test('label-like wording is never treated as a provision number',async t=>{
