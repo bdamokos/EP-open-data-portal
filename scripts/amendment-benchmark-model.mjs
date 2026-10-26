@@ -36,6 +36,11 @@ const suffixOrder = suffix => {
   return [...suffix].reduce((value,c) => value*26+c.charCodeAt(0)-96,0);
 };
 const ordinal = value => typeof value==='number'?value:typeof value==='string'&&/^[A-Z]+$/.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
+function ambiguousRomanHeading(text,unit) {
+  const value=text?.paragraphs?.[unit?.start],format=text?.paragraphFormats?.[unit?.start];
+  if(typeof value!=='string'||unit.start!==unit.end||!/^\s*[IVXLCDM]+\.\s+\p{Lu}[^\n]*[^.;!?\s]\s*$/u.test(value))return false;
+  return ['bold','italic'].every(kind=>format?.marks?.some(mark=>mark.kind===kind&&mark.start===0&&mark.end===value.length));
+}
 const fail = reason => ({status:'failed', reason});
 const verified = reason => ({status:'verified', reason});
 
@@ -119,6 +124,11 @@ export function verifyPlacement({placement, wording, items, text, target = parse
   const ordered = siblings.sort((a,b) => a.start-b.start), at = ordered.findIndex(u => u.start === anchor.start);
   if (at < 0 || ordered.some(u => u.number === wanted && u.suffix === label.suffix)) return fail('oracle-duplicate-insertion-label');
   const previous=ordered[at-1],next = ordered[at+1],wantedOrdinal=ordinal(wanted);
+  // The shared segmenter can label a Roman section title "I. State ..." as
+  // recital I. Full bold/italic source marks make its kind ambiguous; they do
+  // not prove a backwards recital sequence or a wrong insertion. Do not score
+  // this as correct or as false without an independent sibling-kind oracle.
+  if(!proposal&&[previous,anchor,next].some(unit=>unit&&ambiguousRomanHeading(text,unit)))return {status:'unverified',reason:'oracle-sibling-kind-unverified'};
   if(previous&&(ordinal(previous.number)>ordinal(anchor.number)||ordinal(previous.number)===ordinal(anchor.number)&&suffixOrder(previous.suffix)>=suffixOrder(anchor.suffix)))return fail('oracle-previous-sibling-order');
   if (next && (next.start < end || ordinal(next.number) < wantedOrdinal || ordinal(next.number) === wantedOrdinal && (suffixOrder(next.suffix) == null || suffixOrder(next.suffix) <= rank))) return fail('oracle-next-sibling-order');
   return verified('oracle-sibling-boundary');

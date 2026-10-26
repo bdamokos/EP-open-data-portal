@@ -74,6 +74,10 @@ test('insertion oracle checks the preceding sibling and orders multi-letter reci
     const placement=resolveAmendmentPlacement(text,amendment);assert.equal(placement.status,'placed');
     assert.equal(verifyPlacement({placement,wording:amendment,text}).status,expected);
   }
+  const heading='I. State of play',text=source(['The European Parliament,','AA. Whereas a source recital;','AB. Whereas the final recital;',heading,'1. First operative paragraph.','ANNEX']);
+  text.paragraphFormats=text.paragraphs.map((_,i)=>i===3?{marks:[{kind:'bold',start:0,end:heading.length},{kind:'italic',start:0,end:heading.length}]}:{});
+  const amendment={...wording('Recital AB a (new)'),baseline:'motion-resolution'},placement=resolveAmendmentPlacement(text,amendment);
+  assert.equal(placement.status,'placed');assert.equal(verifyPlacement({placement,wording:amendment,text}).status,'unverified','a styled Roman section heading is not proof of a backwards recital sequence');
 });
 const row=(id,outcome='correct',voteIds=['vote-1'])=>({key:id,id,outcome,reason:outcome,documentType:'legislative-report',language:'en',patterns:['article'],voteIds});
 test('metrics count amendments once, preserve null zero-denominator shares and deduplicate collective/split votes',()=>{
