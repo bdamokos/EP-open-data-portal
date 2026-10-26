@@ -568,6 +568,29 @@ test('placed amendment keeps an unchanged provision number the amendment column 
   assert(block.textContent.includes('1.'));assert(block.querySelector('ins').textContent.includes('Changed'));
 });
 
+async function renderPlacedLabel(t,paragraphs,targetLabel,originalText,proposedText) {
+  const {parseProposal}=await import('../server/proposal-structure.mjs'),{resolveProposalPlacement}=await import('../server/proposal-placement.mjs');
+  const proposal=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),paragraphProperties:paragraphs.map((_,i)=>({styleId:i?'Normal':'Titrearticle',numberingComplete:true,notesComplete:true}))});
+  const value=proposalContextResponse(report,amendment,list,4),items=[{kind:'act',index:1,proposal}];
+  const variant={...value.amendment.variants[0],targetLabel,targetPath:{proposal:[],underlying:[],language:'en'},originalText,proposedText};
+  Object.assign(value,{proposal:{items},amendment:{...value.amendment,variants:[variant]},placement:resolveProposalPlacement(items,variant)});
+  assert.equal(value.placement.status,'placed');
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');
+  return {text:block.textContent,deleted:[...block.querySelectorAll('del')].map(node=>node.textContent).join(' ')};
+}
+
+test('a relabelled provision keeps only the amendment’s own label',async t=>{
+  const {text,deleted}=await renderPlacedLabel(t,['Article 1','1. Intro:','(a) Old provision.','(b) Other.'],'Article 1 – paragraph 1 – point a','Old provision.','(b) New provision.');
+  assert(/(^|\W)a(\W|$)/.test(deleted),'the replaced source label is shown as deleted: '+text);
+});
+
+test('label-like wording is never treated as a provision number',async t=>{
+  const {text,deleted}=await renderPlacedLabel(t,['Article 1','1. Lead text. A. Old sentence.'],'Article 1 – paragraph 1','A. Old sentence.','B. New sentence.');
+  assert(/(^|\W)A(\W|$)/.test(deleted),'the original wording is shown as deleted: '+text);
+});
+
 test('proposal deletion includes instruction 21(a) and its quotation while keeping 21(b) readable',async t=>{
   const h=await harness(t,()=>proposalContextResponse(report,amendment,list,7));
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});

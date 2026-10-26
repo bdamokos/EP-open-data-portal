@@ -127,9 +127,11 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
       }
       renderOriginal=(value,start)=>{const end=start+value.length;return <ReferenceText text={value} start={start} anchors={anchors.filter(a=>a.offset>start&&a.offset<=end||start===0&&a.offset===0)} links={links.map(l=>({...l,start:Math.max(l.start,start),end:Math.min(l.end,end)})).filter(l=>l.end>l.start)} final notePrefix={prefix+'-'+placement.itemIndex}/>;};
     }
-    // A placed source span keeps its provision number; amendment columns usually omit it.
-    const label=inPlace&&placement?.operation==='replace'&&original!==null&&wording?/^(?:\([\p{L}\p{N}]{1,6}\)|[\p{L}\p{N}]{1,6}[.)])\s+/u.exec(original)?.[0]:undefined;
-    const proposed=wording&&label&&![wording.originalText,wording.proposedText].some(text=>(text??'').trimStart().startsWith(label.trim()))?label+(wording.proposedText??''):wording?.proposedText;
+    // A placed source span keeps its parsed provision number; amendment columns usually omit it.
+    const anchor=inPlace&&proposal&&placement?.operation==='replace'&&placement.splice?.start.offset===0?units(proposal.units).find(unit=>unit.id===placement.evidence?.at(-1)?.anchor):undefined;
+    const labelPrefix=anchor?.label?.prefix&&anchor.content[0]===placement?.splice?.start.paragraph&&original?.startsWith(anchor.label.prefix)?anchor.label.prefix:undefined;
+    const labelled=(text:string|null|undefined)=>/^\s*(?:\([\p{L}\p{N}]{1,6}\)|[\p{L}\p{N}]{1,6}[.)])\s/u.test(text??'');
+    const proposed=wording&&labelPrefix&&!labelled(wording.originalText)&&!labelled(wording.proposedText)?labelPrefix+(wording.proposedText??''):wording?.proposedText;
     return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment'+(number?' '+number:'')}><h4 lang="en">Amendment{number?' '+number:''}</h4>{wording&&<WordingDiff original={placement?.operation==='insert'?'':original} proposed={placement?.operation==='delete'?'':proposed!} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={renderOriginal}/>}</section>;
   };
   return <>
