@@ -94,6 +94,18 @@ test('catalogue pagination and exact body details separate display codes from st
  assert.equal(calls.length,4); // Only the previously unavailable person is fetched; catalogue identities reuse their daily cache.
 });
 
+test('discovery reads attempt timestamps once per person while preserving oldest-first ordering',async t=>{
+ const {store}=fixture(t),g=store.beginCycle().generation;
+ const ids=Array.from({length:100},(_,i)=>String(42+i));store.setMembers(ids.map(id=>({id})));
+ for(const id of ids)store.putSource(g,'group-history:'+id+':attempt','group-history-attempt',{lastAttemptAt:new Date(Date.parse(day)-Number(id)*1000).toISOString()},day);
+ const read=store.source.bind(store),counts=new Map();
+ t.mock.method(store,'source',(generation,key)=>{if(/^group-history:\d+:attempt$/.test(key))counts.set(key,(counts.get(key)||0)+1);return read(generation,key);});
+ const worker=new ActivityWorker(store,{clock:()=>Date.parse(day)});
+ store.enqueue(g,'group-history:discover','group-history-discover',{},106);await worker.task(store.nextTask(g));
+ assert.equal(counts.size,100);assert([...counts.values()].every(count=>count===1));
+ assert.equal(store.nextTask(g).body.id,'141');
+});
+
 
 test('known term-10 people survive later roster/list omissions and correction identities get new marks',t=>{
  const {store,put}=fixture(t),g=store.beginCycle().generation;store.setMembers([{id:'42'}]);put(g);store.publish(g);

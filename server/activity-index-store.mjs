@@ -3,6 +3,7 @@ import {activityAffiliation} from './group-aggregation.mjs';
 import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,touchAvailability,historyStatus} from './availability-history.mjs';
 import {activityAvailability,activityAvailabilityIndexVersion,prepareActivityAvailability} from './availability-evidence.mjs';
 import {groupHistorySchema,freezeGroupHistory} from './group-history.mjs';
+import {historyReadiness} from './history-readiness.mjs';
 import {membershipSchema,freezeMembership} from './following-membership.mjs';
 import {followMarksVersion,prepareFollowMarks,publishFollowMarks,followIndexComplete} from './follow-marks.mjs';
 import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
@@ -365,7 +366,8 @@ export class ActivityStore {
     const gapCount=this.db.prepare('SELECT COUNT(*) AS n FROM refresh_gaps WHERE generation=?').get(generation).n;
     const gapExamples=this.db.prepare("SELECT key,kind,error,attempts,failed_at AS failedAt,CASE WHEN kind='coverage' THEN NULL ELSE retry_at END AS retryAt,sitting_id AS sittingId,json_extract(body,'$.endpoint') AS endpoint,json_extract(body,'$.recoveryId') AS sourceId,json_extract(body,'$.start') AS start,json_extract(body,'$.end') AS end FROM refresh_gaps WHERE generation=? ORDER BY key LIMIT 20").all(generation).map(gap=>({...gap,retryAt:gap.retryAt===null?null:new Date(gap.retryAt).toISOString()}));
     const refreshSnapshotReady=refreshSnapshotMatches(this);
-    return { schemaVersion:1, enabled:true, term:10, complete:Boolean(active)&&gapCount===0&&refreshSnapshotReady, servingGeneration:generation,
+    return { schemaVersion:2, enabled:true, term:10, complete:Boolean(active)&&gapCount===0&&refreshSnapshotReady, servingGeneration:generation,
+      history:historyReadiness(this,generation),
       refreshSnapshotReady,
       availabilityRevision:this.get('availabilityRevision')||0,availabilityHistory:historyStatus(this),
       coverageGaps:{count:gapCount,examples:gapExamples},

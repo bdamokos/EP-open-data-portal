@@ -1,7 +1,7 @@
 import {groupHistorySnapshot} from './group-history.mjs';
 import {CURRENT_TERM_START} from './analysis-period.mjs';
 
-export const GROUP_ATTRIBUTION_VERSION=1;
+export const GROUP_ATTRIBUTION_VERSION=2;
 
 const validDay=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
 const contains=(period,date)=>validDay(period.start)&&period.start<=date&&(period.end===null||validDay(period.end)&&period.end>=date);
@@ -15,6 +15,7 @@ export function createGroupOn(snapshot) {
     // Term 10 began on 16 July 2024. Do not project its open intervals into
     // a later parliamentary term (the five-year anniversary is an upper bound).
     if(!validDay(date)||date<CURRENT_TERM_START||date>='2029-07-16')return 'unavailable';
+    if(snapshot?.publication?.asOf&&date>snapshot.publication.asOf)return 'unavailable';
     const person=members.get(String(mep));
     if(!person||person.coverage==='unavailable')return 'unavailable';
     const mandates=person.mandates||[];
