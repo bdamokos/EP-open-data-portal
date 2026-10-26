@@ -728,6 +728,44 @@ test('parser download pacing debits when a queued download starts',async t=>{
   for(let index=pace.downloads;index<sorted.length;index++)assert(sorted[index]-sorted[index-pace.downloads]>=pace.windowMs);
 });
 
+// Holds queued source operations until the test opens the gate.
+function gatedUpstream(worker,expected) {
+  let open,arrived=0,reached;
+  const gate=new Promise(resolve=>{open=resolve;}),ready=new Promise(resolve=>{reached=resolve;});
+  worker.runUpstream=async operation=>{if(++arrived===expected)reached();await gate;return operation(new AbortController().signal);};
+  return {ready,open};
+}
+
+test('concurrently queued parser downloads cannot both take the last pacing slot',async t=>{
+  const context=await fixture(t),{worker}=context;context.advance(8*86400000);
+  const {ids,downloads,extract}=staleLists(context,pace.downloads+1);
+  for(const id of ids.slice(0,pace.downloads-1))assert.equal((await extract(id)).done,1);
+  const upstream=gatedUpstream(worker,2);
+  // Both jobs pass the queue-time check with one slot left.
+  const pending=[extract(ids[pace.downloads-1]),extract(ids[pace.downloads])];
+  await upstream.ready;upstream.open();
+  const results=await Promise.all(pending);
+  assert.equal(downloads.length,pace.downloads);
+  assert.deepEqual(results.map(result=>result.done).sort(),[0,1]);
+  assert.equal(results.find(result=>result.done===0).retry_at,downloads[0].at+pace.windowMs);
+});
+
+test('a parser download queued across writer-lease loss neither downloads nor records pacing',async t=>{
+  const context=await fixture(t),{store,worker}=context;context.advance(8*86400000);
+  const {ids,downloads,extract}=staleLists(context,1);
+  const before=store.get(amendmentParserDownloadsKey) ?? null;
+  const upstream=gatedUpstream(worker,1),pending=extract(ids[0]);
+  await upstream.ready;
+  // The lease expires while the download waits, and another writer takes over.
+  context.shiftWallClock(91_000);
+  const other=new ActivityStore(path.dirname(store.filename),{clock:()=>store.clock()});t.after(()=>other.close());
+  assert(other.acquire());
+  upstream.open();
+  await assert.rejects(pending,/writer lease was lost/);
+  assert.equal(downloads.length,0);
+  assert.deepEqual(other.get(amendmentParserDownloadsKey) ?? null,before);
+});
+
 test('parser download pacing is conservative when the wall clock moves backward',async t=>{
   const context=await fixture(t),{store,worker}=context;context.advance(8*86400000);
   const {ids,downloads,extract}=staleLists(context,6);
