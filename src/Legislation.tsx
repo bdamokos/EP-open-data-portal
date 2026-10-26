@@ -152,7 +152,8 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
     if(scroll)requestAnimationFrame(()=>speechTop.current?.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}));
   }
   const documentMember=detail?.people.find(p=>p.currentMep)?.id;
-  function chooseAgendaTopic(id:string){if(id!==topic)resetSearchPosition();if(data?.week)setAgendaPeriod('week:'+data.week);setTopic(id);setVote('');}
+  // Opening or closing details must leave the agenda period and its request unchanged.
+  function chooseAgendaTopic(id:string){if(id!==topic)resetSearchPosition();setTopic(id);setVote('');}
   function showAgenda(){
     const opener=agendaRef.current?.querySelector<HTMLButtonElement>('[aria-pressed=true]');
     chooseAgendaTopic('');
