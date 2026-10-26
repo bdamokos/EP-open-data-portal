@@ -122,7 +122,7 @@ for(const width of [1440,390])for(const query of ['', '&agenda-period=week:lates
   await h.tick();assertAgenda();
   assert.equal(requests.length,1);
   assert.equal(requests[0].url.searchParams.get('sitting'),days[0].id);
-  assert.equal(new URL(location.href).searchParams.get('agenda-period'),new URL(initial).searchParams.get('agenda-period'));
+  assert.equal(new URL(location.href).searchParams.get('agenda-period'),'week:2026-10-05','selected-item links retain their concrete week');
   const first=location.href;
   await h.finish(requests[0]);assertAgenda();
   const select=container.querySelector('.insight-agenda-select select');
