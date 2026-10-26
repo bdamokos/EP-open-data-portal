@@ -45,9 +45,9 @@ test('agenda availability distinguishes scheduled items, waits, gaps, source err
     assert.equal(container.querySelector('[role="alert"]'),null);
     assert.match(await show('today-'+kind),/scheduled today/);
     assert.equal(container.querySelector('[role="alert"]'),null);
-    assert.match(await show('recent-'+kind),/No linked .* observed/);
-    assert.match(await show('old-'+kind),/No linked .* observed/);
-    assert.match(await show('error-'+kind),/could not be checked/);
+    assert.match(await show('recent-'+kind),/No (?:speeches available|roll-call results)/);
+    assert.match(await show('old-'+kind),/No (?:speeches available|roll-call results)/);
+    assert.match(await show('error-'+kind),/could not be loaded/);
     assert(container.querySelector('[role="alert"]'));
   }
   recover=true;

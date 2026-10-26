@@ -92,14 +92,14 @@ test('the closed reader is lazy, opens the member page in batches of 20, and sel
   assert.equal(h.requests.length,1,'selecting a loaded row is a local action');
   let detail=h.container.querySelector('.motion-amendments__detail');
   assert.deepEqual([...detail.querySelectorAll('.motion-amendments__passage')].map(node=>node.textContent),[' ','Exact proposed & <public-text> wording.']);
-  assert.match(wordingViewText(detail),/The source supplies no original wording\./);
+  assert.match(wordingViewText(detail),/No original wording supplied\./);
   assert.doesNotMatch(wordingViewText(detail),/Original wording is unavailable/);
   assert.equal(detail.querySelector('public-text'),null,'source wording must be escaped');
   assert.equal(detail.querySelector('.motion-amendments__source a').href,source.url);
   await h.click(/^Amendment 14/);
   detail=h.container.querySelector('.motion-amendments__detail');
   assert.match(wordingViewText(detail),/Original wording is unavailable\./);
-  assert.doesNotMatch(wordingViewText(detail),/The source supplies no original wording/);
+  assert.doesNotMatch(wordingViewText(detail),/No original wording\./);
   assert.equal(h.requests.length,1);
 });
 
@@ -164,7 +164,7 @@ test('whole-text context ignores a missing amendment or wording version and Back
   const h=await readerHarness(t,{state:{open:true,scope:'all',offset:20,amendmentId:requestedId,variantListId:missingList}});
   const base=page({scope:'all',offset:20,total:45});await h.respond(base);
   await h.respond({...base,selection:{requestedId,status:'unavailable',item:null,inRequestedScope:null,inPage:false}});
-  assert.match(h.container.textContent,/The requested amendment is unavailable in the available records\./);
+  assert.match(h.container.textContent,/Amendment unavailable\./);
   await h.click('Read motion');
   assert.deepEqual({documentId:h.context().documentId,amendmentId:h.context().amendmentId,listId:h.context().listId,view:h.context().view},
     {documentId,amendmentId:undefined,listId:undefined,view:'document'});
@@ -267,7 +267,7 @@ test('missing amendment identity and unavailable wording versions stay explicit 
   const requestedId=`${documentId}-AM-99`,h=await readerHarness(t,{state:{open:true,amendmentId:requestedId}});
   const base=page();await h.respond(base);
   await h.respond({...base,selection:{requestedId,status:'unavailable',item:null,inRequestedScope:null,inPage:false}});
-  assert.match(h.container.textContent,/The requested amendment is unavailable in the available records\./);
+  assert.match(h.container.textContent,/Amendment unavailable\./);
   assert.equal(h.container.querySelector('.motion-amendments__detail'),null);
   assert.equal(h.container.querySelector('.motion-amendments__row-button').getAttribute('aria-expanded'),'false');
   await h.updateState({amendmentId:base.items[0].id,variantListId:`${documentId}-AM-900-901`});
@@ -432,7 +432,7 @@ test('empty and withheld motion wording retain per-side source status without cl
     const detail=h.container.querySelector('.motion-amendments__detail');
     assert.equal(detail.querySelector('.wording-diff,ins,del'),null);
     if(number===14){assert.match(detail.textContent,/This wording could not be read reliably/);assert.doesNotMatch(detail.textContent,/Withheld old|Withheld new/);}
-    else assert.match(detail.textContent,/The source supplies no proposed wording/);
+    else assert.match(detail.textContent,/No proposed wording supplied\./);
     assert.doesNotMatch(detail.textContent,/Text deleted|No original text \(insertion\)/);
   }
 });
@@ -463,7 +463,7 @@ test('not indexed, observed empty and no member matches remain distinct, and glo
   assert.match(h.container.textContent,/No published amendment lists are recorded for this motion\./);
   assert.doesNotMatch(h.container.textContent,/Amendment information is unavailable|No matching proposals|processing|indexing|background work/i);
   await h.updateProps({language:'de'});const none=empty('no-indexed-member-matches');none.scope.requestedLanguage='de';none.totals={allIndexed:3,memberMatched:0};await h.respond(none);
-  assert.match(h.container.textContent,/No matching proposals in the available records/);
+  assert.match(h.container.textContent,/No matches in available amendments/,'incomplete coverage keeps the empty result scoped');
   assert.doesNotMatch(h.container.querySelector('.motion-amendments__scope button').textContent,/· 0/);
   assert.doesNotMatch(h.container.textContent,/No published amendment lists|Amendment information is unavailable|processing|indexing|background work/i);
   assert.equal(h.requests.length,3,'backgroundPending does not start a polling loop');
@@ -766,7 +766,7 @@ test('accepted page and wording survive disclosure and exact-route navigation ro
     assert.equal(h.requests.at(-1).url.searchParams.get('amendment'),aliasId);
     assert.equal(h.container.querySelector('.motion-amendments__detail'),null);
     await h.respond({...currentPage(),selection:{requestedId:aliasId,status:'unavailable',item:null,inRequestedScope:null,inPage:false}});
-    assert.match(h.container.textContent,/The requested amendment is unavailable in the available records\./);
+    assert.match(h.container.textContent,/Amendment unavailable\./);
     assert.equal(h.container.querySelector('.motion-amendments__detail'),null);
     await h.click(/^Amendment 13/);assertCurrent();
     assert.equal(h.requests.length,requestsBeforeAlias+1,'exact primary rows remain local after each round trip');
@@ -784,7 +784,7 @@ test('an alias-only page match requires the authoritative exact lookup and canno
   // Another indexed primary record can carry this alias outside this page. Only
   // the exact endpoint can reject that globally ambiguous observation.
   await h.respond({...base,selection:{requestedId,status:'unavailable',item:null,inRequestedScope:null,inPage:false}});
-  assert.match(h.container.textContent,/The requested amendment is unavailable in the available records\./);
+  assert.match(h.container.textContent,/Amendment unavailable\./);
   assert.equal(h.container.querySelector('.motion-amendments__detail'),null);
   assert.equal(h.container.querySelector('.motion-amendments__row-button').getAttribute('aria-expanded'),'false');
   assert.doesNotMatch(wordingViewText(h.container),/Primary record wording/);
@@ -797,7 +797,7 @@ test('an alias-only page match requires the authoritative exact lookup and canno
   assert.equal(h.requests.length,3,'returning to an alias requests current authoritative identity evidence');
   assert.equal(h.requests.at(-1).url.searchParams.get('amendment'),requestedId);
   await h.respond({...base,selection:{requestedId,status:'unavailable',item:null,inRequestedScope:null,inPage:false}});
-  assert.match(h.container.textContent,/The requested amendment is unavailable in the available records\./);
+  assert.match(h.container.textContent,/Amendment unavailable\./);
 });
 
 test('an unreadable competing version stays visible and cannot fall back to the readable wording',async t=>{
@@ -930,7 +930,7 @@ test('readiness marks only expanded views waiting for accepted list or exact-sel
   await h.respond(page(),{request:refresh});assert.equal(pending(),'true');
   await h.respond(page({requestedId,selectionStatus:'unavailable'}),{request:exact});
   assert.equal(pending(),null,'an unavailable exact selection is settled');
-  assert.match(h.container.textContent,/requested amendment is unavailable/);
+  assert.match(h.container.textContent,/Amendment unavailable/);
 });
 
 test('failed and malformed reader responses settle readiness and retries become pending again',async t=>{

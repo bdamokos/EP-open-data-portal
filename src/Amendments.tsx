@@ -217,6 +217,6 @@ export function AmendmentsPage(props:InsightProps) {
       {(document||procedure||member||outcome||offset>0)&&<button type="button" onClick={()=>{setDocument('');setProcedure('');setMember('');setOutcome('');setOffset(0);}}>Clear filters</button>}
     </form>
     {directory.error&&<p lang="en" className="insight-secondary">Author choices are temporarily unavailable. <button onClick={directory.retry}>Reload authors</button></p>}
-    <Amendments language={language} document={document} procedure={procedure} member={member} outcome={outcome} offset={offset} onOutcome={setOutcome} onOffset={setOffset} onMember={props.onMember} heading={member?<>Amendments by <span lang="">{selectedAuthor?[selectedAuthor.firstName,selectedAuthor.lastName].join(' '):'MEP '+member}</span></>:procedure?<>Amendments for <span lang="">{procedure}</span></>:document?<>Amendments to <span lang="">{document}</span></>:'Latest indexed amendments'}/>
+    <Amendments language={language} document={document} procedure={procedure} member={member} outcome={outcome} offset={offset} onOutcome={setOutcome} onOffset={setOffset} onMember={props.onMember} heading={member?<>Amendments by <span lang="">{selectedAuthor?[selectedAuthor.firstName,selectedAuthor.lastName].join(' '):'MEP '+member}</span></>:procedure?<>Amendments for <span lang="">{procedure}</span></>:document?<>Amendments to <span lang="">{document}</span></>:'Latest amendments'}/>
   </InsightShell>;
 }

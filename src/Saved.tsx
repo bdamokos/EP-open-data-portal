@@ -18,8 +18,8 @@ function savedCheckMessage(items:SavedItem[],data:SavedStates) {
   const unread=items.filter(item=>itemHasNew(item,Date.now())||item.kind==='mep'&&(membershipEntries(membershipStore.snapshot(),item.id,Date.now()).fresh.length>0||groupEntries(groupsStore.snapshot(),item.id,Date.now()).fresh.length>0)).length;
   const unavailable=items.filter(item=>item.availability!=='available'||item.legacy).length;
   const state=store.snapshot();
-  if(items.some(item=>item.kind==='mep')&&state.checkState!=='available')return [state.checkState==='unavailable'?'Update checks are not available yet for MEPs.':'MEP updates could not be checked.',items.some(item=>item.kind==='question')&&state.questionCheckState==='available'?'Question answers were checked.':'','Saved items are still shown.'].filter(Boolean).join(' ');
-  return ['Check finished.',unread?`${unread} followed ${unread===1?'item has':'items have'} unread updates.`:'No unread updates are currently recorded.',unavailable?`Update information is unavailable for ${unavailable} followed ${unavailable===1?'item':'items'}.`:'',data.coverage?.indexComplete===true?'':'The saved index is incomplete.'].filter(Boolean).join(' ');
+  if(items.some(item=>item.kind==='mep')&&state.checkState!=='available')return [state.checkState==='unavailable'?'Update checks are not available yet for MEPs.':'MEP updates could not be checked.'].filter(Boolean).join(' ');
+  return ['Check finished.',unread?`${unread} followed ${unread===1?'item has':'items have'} unread updates.`:'No new updates.',unavailable?`Update information is unavailable for ${unavailable} followed ${unavailable===1?'item':'items'}.`:'',data.coverage?.indexComplete===true?'':'Some updates could not be checked.'].filter(Boolean).join(' ');
 }
 export type FollowingActivityProps={member:number;sourceId:string;profileHref:string;onOpenProfile:()=>void};
 type SavedProps={language:string;onBack:()=>void;onMember:(id:number,sourceId?:string)=>void;renderActivity:(props:FollowingActivityProps)=>ReactNode};
@@ -55,9 +55,9 @@ function FollowCard({item,language,onMember,renderActivity,now,resolution,retry,
     {!hasNew&&checkState==='available'&&!item.legacy&&<p>{item.availability==='available'?'No new updates.':item.checkedAt?'Update information is unavailable.':''}</p>}
     </div>
     {item.availability==='outside-roster'&&membership.members[item.id]?.status!=='former'&&<p>No longer on the current roster.</p>}
-    {item.kind==='question'&&<p>{item.current?.answerIds?.length?'Answer available.':item.availability==='available'?'No answer available in the indexed data yet.':'Answer availability has not been checked.'}</p>}
+    {item.kind==='question'&&<p>{item.current?.answerIds?.length?'Answer available.':item.availability==='available'?'No answer yet.':'Answer availability has not been checked.'}</p>}
     {item.legacy&&<p>Update check pending. <button onClick={check}>Retry</button></p>}
-    {!item.indexComplete&&<small>The index is incomplete; more updates may be available.</small>}
+    {!item.indexComplete&&<small>Some updates could not be checked.</small>}
     <div className="explorer-saved-actions">{(item.kind==='mep'||item.memberId)&&<button onClick={()=>{if(item.kind==='question')store.openQuestion(key);onMember(member,item.kind==='question'?item.id:undefined);}}>{item.kind==='mep'?'Profile':item.current?.answerIds?.length?'Read question and answers':'Read question'}</button>}
     {item.kind==='question'&&item.availability==='not-saved'&&<p>Question metadata is not available yet.</p>}
     {hasNew&&<button onClick={()=>{store.markRead(key);if(item.kind==='mep'){membershipStore.markRead(item.id);groupsStore.markRead(item.id);}}}>Mark all read</button>}</div>
@@ -87,7 +87,7 @@ export function Saved({language,onBack,onMember,renderActivity}:SavedProps) {
           // Keep this deliberate attempt attached to that result, including errors.
           if(!matches)continue;
           if(result){const settled=store.snapshot().items;setCompletion({items:settled,message:savedCheckMessage(settled,result.data)});}return;
-        }catch(e){if(!current())return;if(!matches)continue;setError((e as Error).message);setCompletion({items:store.snapshot().items,message:store.snapshot().questionCheckState==='available'?'Question answers were checked. Other updates could not be checked. Saved items are still shown.':'Could not check for updates. Saved items are still shown.'});return;}
+        }catch(e){if(!current())return;if(!matches)continue;setError((e as Error).message);setCompletion({items:store.snapshot().items,message:store.snapshot().questionCheckState==='available'?'Some updates could not be checked.':'Could not check for updates.'});return;}
       }
     })().finally(()=>{if(current())setChecking(false);});
   };

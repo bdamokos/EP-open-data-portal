@@ -11,9 +11,9 @@ export function plenaryAvailability(detail,kind,today=brusselsDate()) {
   const availability=detail.availability?.[speech?'speech':'vote'];
   const sourceGap=availability?.gaps?.some(gap=>!gap.start||!gap.end||gap.start<=date&&gap.end>=date);
   const failed=sourceGap||(speech?detail.coverage.gaps.some(gap=>['procedure','document debate association','speech association','actual debate event'].includes(gap.source)):Boolean(detail.voteCoverage.error));
-  if(failed)return {state:'error',message:speech?'Speech records could not be checked.':'Vote records could not be checked.'};
+  if(failed)return {state:'error',message:speech?'Speeches could not be loaded.':'Votes could not be loaded.'};
   if(date===today)return {state:'today',message:speech?'Debate scheduled today.':'Vote scheduled today.'};
   const frontier=availability?.latestObservedDate;
   if(frontier&&date>frontier)return {state:'awaiting',message:'Not yet available.'};
-  return {state:'unknown',message:speech?'No linked speeches observed.':'No linked roll-call records observed. Not every vote is a roll call.'};
+  return {state:'unknown',message:speech?'No speeches available.':'No roll-call results. Not every vote is a roll call.'};
 }

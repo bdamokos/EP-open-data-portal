@@ -77,6 +77,6 @@ test('the group route through InsightShared renders the public-data notice and s
   assert.equal(container.querySelector('.insight-intro h1')?.textContent,'Group voices');
   assert.equal(container.querySelector('.parliament-header [aria-current="page"]')?.textContent,'Group voices');
   assert.ok(requests.includes('/api/insights/group-voices'));
-  assert.equal(container.querySelector('.availability-note p')?.textContent,'Records unavailable for this selection.');
+  assert.equal(container.querySelector('.availability-note p')?.textContent,'Unavailable.');
   await assertPublicNotice(container);
 });

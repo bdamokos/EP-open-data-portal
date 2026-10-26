@@ -34,8 +34,8 @@ function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity
   const params=new URLSearchParams({'source-id':identity.sourceId,'source-key':identity.sourceKey});if(query.trim())params.set('q',query);
   const {data,error,loading,retry}=useData<StoredText>('corpus/text?'+params),body=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(!data)return;const frame=window.requestAnimationFrame(()=>body.current?.querySelector('mark')?.scrollIntoView({block:'nearest'}));return()=>window.cancelAnimationFrame(frame);},[data]);
-  return <section className="explorer-search-reader" lang="en" aria-label="Indexed matching text">
-    {loading&&!data&&<p role="status">Opening saved text…</p>}
+  return <section className="explorer-search-reader" lang="en" aria-label="Matching text">
+    {loading&&!data&&<p role="status">Opening…</p>}
     {error&&<p role="alert">{error} <button type="button" className="explorer-search-link" onClick={retry}>Retry</button>{sourcePageUrl(sourceUrl)&&<> · <a href={sourcePageUrl(sourceUrl)!} target="_blank" rel="noreferrer">Parliament page ↗</a></>}</p>}
     {data&&<><div className="explorer-search-meta"><span><span lang={language}>{languageName(data.language,language)}</span> · {data.translationType==='machine'?'Parliament machine translation':data.translationType==='original'?'Original text':'Published text'}</span></div>
       {expectedHash&&expectedHash!==data.sha256&&<p className="explorer-search-status">Text changed since the search. Search again to update the excerpts.</p>}
@@ -115,11 +115,11 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
       {scopeNote&&<p className="explorer-search-scope">{scopeNote}</p>}
       {(from||to)&&<p className="explorer-search-hint">{dateBasis==='question'?'Question date':'Publication date'}: <span lang={from?language:'en'}>{dateLabel(from,language)||'start'}</span> — <span lang={to?language:'en'}>{dateLabel(to,language)||'present'}</span></p>}
       {disabledReason&&<p role="status" className="explorer-search-status">{disabledReason}</p>}
-      {loading&&<p role="status" className="explorer-search-status">Searching saved text…</p>}
+      {loading&&<p role="status" className="explorer-search-status">Searching…</p>}
       {error&&<p role="alert" className="explorer-search-status">{error} <button className="explorer-search-link" type="button" onClick={()=>setAttempt(v=>v+1)}>Retry</button></p>}
       {data&&<div className="explorer-search-results" aria-busy={loading}>
-        <p role="status" className="explorer-search-count"><span lang={language}>{data.total.toLocaleString(language)}</span> {group==='question'?(data.total===1?'matching question':'matching questions'):(data.total===1?'matching document':'matching documents')} · {data.coverage.backfillComplete||data.coverage.complete?'Indexed texts only':'Partial text coverage'}</p>
-        {!data.total&&<p>No matches in indexed text. Try another phrase, language or period.</p>}
+        <p role="status" className="explorer-search-count"><span lang={language}>{data.total.toLocaleString(language)}</span> {group==='question'?(data.total===1?'matching question':'matching questions'):(data.total===1?'matching document':'matching documents')}{data.coverage.backfillComplete||data.coverage.complete?' · Available texts':' · Partial coverage'}</p>
+        {!data.total&&<p>No matches in available text. Try another phrase, language or period.</p>}
         {data.results.map(result=>{
           const sources=[...new Set(result.hits.map(hit=>hit.sourceId))];
           return <article className="explorer-search-result" key={result.sourceId}><div className="explorer-search-meta"><span>{group==='question'?'Question':kindLabel(result.kind)}{result.reference?' · '+result.reference:''}</span><span lang={language}>{dateLabel(group==='question'?result.questionDate||result.date:result.date,language)}</span></div><h4 lang="">{result.title||result.sourceId}</h4>
@@ -134,7 +134,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
         
         {data.truncated&&<p className="explorer-search-status">More matches are available. Narrow the period, language or document type to see them.</p>}
       </div>}
-      {selected&&!selectedHit&&!loading&&<><p className="explorer-search-status">Opening the linked saved text independently of this results page.</p><StoredReader identity={selected} query={query} language={language}/></>}
+      {selected&&!selectedHit&&!loading&&<><StoredReader identity={selected} query={query} language={language}/></>}
     </section>}
   </div>;
 }

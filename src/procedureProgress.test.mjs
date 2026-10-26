@@ -77,5 +77,5 @@ test('progress is independent, preserves exact selection and lazy readable docum
   assert.match(details.textContent,/Updated Commission proposal/);assert.doesNotMatch(details.textContent,/Saved document details/);
   assert.match(container.textContent,/Past scheduled event/);
   await act(async()=>button('Show all recorded events').click());assert.match(container.textContent,/Working party/);
-  assert.match(container.textContent,/Future date · status not supplied/);
+  assert.match(container.textContent,/Upcoming/);
 });

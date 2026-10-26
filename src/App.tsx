@@ -221,7 +221,7 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, include
     <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={failed?`${heading}: Text temporarily unavailable.`:state.data?`${heading}: ${text?.status==='available'?'Text loaded.':'Text unavailable.'}`:null}/>
     <div className="explorer-reader-heading"><h3>{headingDate ? <>Answer · <span lang={lang}>{date(headingDate,lang)}</span></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang="en">Read question</span></a>}{text&&<TextLanguagePicker available={text.availableTextLanguages} requested={lang} value={text.textLanguage} onChange={setRequestedLanguage} visibleLabel={false} title={text.translationType==='original'?'Original text':undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text.textLanguage} interfaceLanguage={lang}/>}/>}</div>
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}>Amendments to this document</AmendmentTrailLink>}
-    {state.loading&&!text&&<p role="status">Loading text…</p>}{failed&&!state.loading&&<ReaderRetry message={'Text temporarily unavailable.'+(text?.status==='available'?' Saved text remains readable.':'')} language={lang} retry={state.retry} retryAt={retryAt}/>}
+    {state.loading&&!text&&<p role="status">Loading text…</p>}{failed&&!state.loading&&<ReaderRetry message={'Text temporarily unavailable.'} language={lang} retry={state.retry} retryAt={retryAt}/>}
     {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="explorer-transcript" lang={text.textLanguage||""}><DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,text.paragraphs.length)} exactOffsets={body.exact} renderText={(source,paragraph,from,to,final,marks)=><AuthorMention text={paragraph.slice(from,to)} offset={from} final={final} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),from,to)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&!failed&&<p>Text unavailable.</p>}
     {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/><details className="explorer-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details></>}
     {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={"Answer"+(answer.date?" · "+date(answer.date,lang):"")} headingDate={answer.date}/>)}
@@ -273,9 +273,9 @@ function LinkedActivityFallback({ sourceId, member, lang, complete }: { sourceId
   const speechAuthor=contribution.data?.participants.includes(String(member));
   const matchedTitle=selectLanguageText(matched?.titles,lang,matched?.id||'', '');
   return <aside className="explorer-notice" lang="en">
-    <Status scope={`linked:${sourceId}:${member}:${lang}:${check}`} pending={document.loading||contribution.loading} message={document.error||contribution.error?null:!check?!sourceId?'Link not recognised.':complete?'Not in this MEP’s activity.':'Not indexed yet.':document.data&&!matched?'Linked item unavailable.':matched||contribution.data?'Linked item loaded.':null}/>
+    <Status scope={`linked:${sourceId}:${member}:${lang}:${check}`} pending={document.loading||contribution.loading} message={document.error||contribution.error?null:!check?!sourceId?'Link not recognised.':complete?'Not in this MEP’s activity.':'Not loaded yet.':document.data&&!matched?'Linked item unavailable.':matched||contribution.data?'Linked item loaded.':null}/>
     <strong>Linked activity <span lang={sourceId ? "" : "en"}>{sourceId || "identifier not recognised"}</span></strong>
-    <p>{!sourceId ? "Link not recognised." : complete ? "Not in this MEP’s activity." : "Not indexed yet."}</p>
+    <p>{!sourceId ? "Link not recognised." : complete ? "Not in this MEP’s activity." : "Not loaded yet."}</p>
     {sourceId && !check && <button onClick={() => setCheck(true)}>Look it up</button>}
     {(document.loading || contribution.loading) && <p role="status">Loading…</p>}
     {document.error && <ErrorView message={document.error} retry={document.retry} />}
@@ -283,13 +283,13 @@ function LinkedActivityFallback({ sourceId, member, lang, complete }: { sourceId
     {matched && <>
       <h3 lang={matchedTitle.language}>{matchedTitle.text}</h3>
       {matched.date && <p><span lang={lang}>{date(matched.date,lang)}</span>{answer ? " · Answer" : ""}</p>}
-      {answer && authored ? <p>Answer to this MEP’s question.</p> : document.data!.roles.length ? <p>Role: <span lang="">{document.data!.roles.join(", ")}</span></p> : <p>No link to this MEP recorded.</p>}
+      {answer && authored ? <p>Answer to this MEP’s question.</p> : document.data!.roles.length ? <p>Role: <span lang="">{document.data!.roles.join(", ")}</span></p> : <p>Not linked to this MEP.</p>}
       <PublicationText sourceId={sourceId!} member={member} lang={lang} heading={answer ? 'Answer' : /^[EPO]-/.test(sourceId!) ? 'Question' : 'Document text'} includeAnswers={!answer && /^[EPO]-/.test(sourceId!)} />
       {answer && document.data!.id!==sourceId && <PublicationText sourceId={document.data!.id} member={member} lang={lang} heading="Linked question" />}
       <PublicationFiles files={matched.files} lang={lang} />
     </>}
     {document.data && !matched && <p>Linked item unavailable.</p>}
-    {contribution.data && <>{!speechAuthor&&<p>No link to this MEP recorded.</p>}<Detail speech={contribution.data} lang={lang} /></>}
+    {contribution.data && <>{!speechAuthor&&<p>Not linked to this MEP.</p>}<Detail speech={contribution.data} lang={lang} /></>}
   </aside>;
 }
 export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpenProfile}:{member:number|string;sourceId:string;lang:string;profileHref:string;onOpenProfile:()=>void}) {
@@ -303,8 +303,8 @@ export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpen
     setMotion({scope,query});
   };
   return <section lang="en">
-    <Status scope={`following-detail:${scope}`} pending={state.loading} message={state.error?'Activity temporarily unavailable.':selected?'Activity loaded.':state.data?'Linked activity is not in the saved index.':null}/>
-    {state.loading&&!selected&&<p role="status">Checking the saved linked activity…</p>}
+    <Status scope={`following-detail:${scope}`} pending={state.loading} message={state.error?'Activity temporarily unavailable.':selected?'Activity loaded.':state.data?'This activity is unavailable.':null}/>
+    {state.loading&&!selected&&<p role="status">Loading…</p>}
     {state.error&&<ErrorView message={state.error} retry={state.retry}/>}
     {selected?<JoinedDetails key={`${scope}:${selected.id}`} item={selected} member={Number(member)} lang={lang} motionQuery={motionQuery} onMotionChange={onMotionChange}/>:
       !state.loading&&state.data&&<LinkedActivityFallback key={scope} sourceId={sourceId} member={Number(member)} lang={lang} complete={state.data.cache.complete}/>}
@@ -370,20 +370,20 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
         <button className={!category ? "selected" : ""} aria-pressed={!category} onClick={()=>choose("")}>All activities</button>
         {page.categoryGroups.map(group=><section key={group.label}><h3>{group.label}</h3>{group.categories.map(key=>{
           const status=page.categoryCoverage[key];
-          const count=status.status === "source-not-verified" ? "API source required" : `${status.indexedCount} saved`;
+          const count=status.status === "source-not-verified" ? "Unavailable" : `${status.indexedCount}`;
           return <button key={key} className={category===key ? "selected" : ""} aria-pressed={category===key} onClick={()=>choose(key)}><span>{page.categories[key]}</span><small>{count}</small></button>;
         })}</section>)}
       </nav>}
     </>}
-    <h3 ref={resultsHeading} tabIndex={-1} className="explorer-activity-results-title">{selectedLabel}{state.data && coverage?.status!=="source-not-verified" ? ` · ${state.data.indexedTotal} saved` : ""}</h3>
+    <h3 ref={resultsHeading} tabIndex={-1} className="explorer-activity-results-title">{selectedLabel}{state.data && coverage?.status!=="source-not-verified" ? ` · ${state.data.indexedTotal}` : ""}</h3>
     {page&&coverage?.status!=='source-not-verified'&&<AvailabilityNote sources={page.availability} language={lang}/>}
-    {state.loading && !state.data && <p role="status">Loading saved results…</p>}
+    {state.loading && !state.data && <p role="status">Loading…</p>}
     {state.error && <ErrorView message={state.error} retry={state.retry} />}
     {page && <>
       {coverage?.status === "source-not-verified" && <div className="explorer-notice"><strong>Unavailable</strong><p>{coverage.reason}</p></div>}
       {coverage?.status === "incomplete-joins" && <p className="explorer-notice">{coverage.reason} </p>}
       {!state.loading && state.data && !state.data.items.length && coverage?.status !== "source-not-verified" && <p>No activities in this selection.</p>}
-      {open && pinned.loading && !items.some(isOpen) && <p role="status">Checking the saved linked activity…</p>}
+      {open && pinned.loading && !items.some(isOpen) && <p role="status">Loading…</p>}
       {open && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
       {open && state.data && !pinned.loading && !items.some(isOpen) && <LinkedActivityFallback key={sourceId} sourceId={sourceId} member={id} lang={lang} complete={page.cache.complete} />}
       {items.map(item=>{
@@ -459,10 +459,10 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} filter={{selected:category,href:filterHref,select:selectCategory}}/>
     <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
     <div className="explorer-section-title" lang="en">{filtered?<h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{speechCategories.find(([key])=>key===category)?.[1]} · {filtered.length} loaded</h3>:<span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span>}</div>
-    {!filtered&&state.loading && !state.data && <p role="status" lang="en">Loading saved speeches…</p>}
+    {!filtered&&state.loading && !state.data && <p role="status" lang="en">Loading speeches…</p>}
     {!filtered&&state.error && <ErrorView message={state.error} retry={state.retry} />}
     {filtered&&!filtered.length?<p className="explorer-notice" lang="en">No matching contributions.</p>:!filtered&&state.data && !items.length && <p className="explorer-notice" lang="en">{state.data.cache.complete ? "No plenary contributions." : "No plenary contributions loaded yet."}</p>}
-    {!filtered&&initialSpeech && pinned.loading && <p role="status" lang="en">Checking the saved linked speech…</p>}
+    {!filtered&&initialSpeech && pinned.loading && <p role="status" lang="en">Loading…</p>}
     {!filtered&&initialSpeech && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
     {!filtered&&initialSpeech && state.data && !pinned.loading && !items.some(item=>item.sourceId===initialSpeech) && <LinkedActivityFallback key={initialSpeech} sourceId={initialSpeech} member={id} lang={lang} complete={state.data.cache.complete} />}
     {(filtered?filtered.slice(filteredOffset,filteredOffset+10):items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId);return {...base,...enriched,titles:{...base.titles,...enriched?.titles}};})).map(speech=>{const open=initialSpeech===speech.id,speechTitle=title(speech,lang);return <article className="explorer-speech" key={speech.id} id={`speech-${speech.id}`}>

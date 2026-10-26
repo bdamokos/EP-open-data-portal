@@ -53,7 +53,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const shown=()=>find('.insight-vote-detail h3').textContent;
   const voteSection=()=>find('.insight-vote-select').closest('section');
   assert.equal(shown(),'French final subject');assert.equal(find('.insight-vote-detail h3').lang,'fr');
-  assert.match(find('.insight-topic-detail').textContent,/Some source records are unavailable/,'missing documents alone retain the coverage warning');
+  assert.match(find('.insight-topic-detail').textContent,/Some records unavailable/,'missing documents alone retain the coverage warning');
   assert.equal(container.querySelector('.insight-data-credit'),null);
   assert.equal(container.querySelectorAll('footer .data-notice').length,1);
   await click('Continue reading');await click('All 8 people');await click('Read '+topic.documentIds[0]);

@@ -28,7 +28,7 @@ function VoteDetails({outcome,language}:{outcome:MotionOutcome;language:string})
       {([['for','For'],['against','Against'],['abstaining','Abstentions']] as const).map(([key,label])=><div key={key}><dt>{label}</dt><dd lang={language}>{outcome.totals![key]?.toLocaleString(language) ?? '—'}</dd></div>)}
     </dl>}
     {voted&&outcome.method==='VOTE_HAND'&&<p className="explorer-motion-explanation">Individual positions are not recorded for this voting method.</p>}
-    {outcome.status==='unavailable' && <p className="explorer-motion-explanation">No verified final outcome is available for this text.</p>}
+    {outcome.status==='unavailable' && <p className="explorer-motion-explanation">Final outcome unavailable.</p>}
   </>;
 }
 function readableDocumentUrl(value:string|null) {
@@ -49,7 +49,7 @@ export function MotionOutcome({outcome,related=[],reference,sourceId,language,me
       <h3>{related.length ? 'Original motion' : sourceId.startsWith('RC-') ? 'Joint motion' : 'Motion'} <span className="explorer-motion-reference">{reference}</span></h3>
       <ActivityVote indexed={{outcome:outcome.status==='unavailable'?null:outcome.status.toUpperCase(),method:outcome.method,totals:outcome.totals}} decisionId={outcome.decisionId} memberId={memberId} memberName={memberName} language={language}>
         <MotionStatus outcome={outcome}/><VoteDetails outcome={outcome} language={language}/>
-        {outcome.status==='lapsed' && <p className="explorer-motion-explanation">{related.length ? 'This motion was replaced by the joint text below. Parliament records the original motion as lapsed; it was not adopted separately.' : 'This text lapsed and was not adopted as a separate resolution.'}</p>}
+        {outcome.status==='lapsed' && <p className="explorer-motion-explanation">{related.length ? 'Replaced by the joint text below; not adopted separately.' : 'This text lapsed and was not adopted as a separate resolution.'}</p>}
       </ActivityVote>
     </div>}
     {related.map(motion=>{

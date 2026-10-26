@@ -57,7 +57,7 @@ test('wording comparison modes, accessible announcements, source language, defau
   await render({original:'',proposed:''});assert.equal(container.querySelector('button,ins,del'),null);
   assert.match(container.textContent,/No original text \(insertion\).*Text deleted/);
   await render({original:'',proposed:'Not an evidenced insertion',emptySemantics:'not-supplied'});
-  assert.equal(container.querySelector('button,ins,del'),null);assert.match(container.textContent,/The source supplies no original wording/);
+  assert.equal(container.querySelector('button,ins,del'),null);assert.match(container.textContent,/No original wording\./);
   await render({original:null,proposed:'Available wording'});assert.equal(container.querySelector('button,ins,del'),null);
   assert.match(container.textContent,/Original wording is unavailable/);
   for(const [original,proposed] of [[null,'Available'],['Available',null],[null,''],['',null]]){
