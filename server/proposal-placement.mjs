@@ -108,6 +108,9 @@ function subparagraphMatch(items,target,original) {
     unit=body[0];
   }
   if(!['paragraph','point'].includes(unit.kind))return {reason:'source_structure_unavailable'};
+  // A numbered line parsed as a title may be the real first subparagraph.
+  const container=flat(proposal.units).find(parent=>parent.children.includes(unit));
+  if(unit.implicit&&container?.children.some(child=>child.kind==='title'&&child.content.some(index=>/^\s*[‘'"“«„]?\(?[\p{L}\p{N}]{1,6}[.)]\s/u.test(proposal.paragraphs[index]?.text??''))))return {reason:'source_structure_unavailable'};
   const children=unit.children,lead=unit.implicit||!unit.content.length?null:{start:unit.content[0],end:children[0]?.extent.start??unit.extent.end};
   if(children.some(child=>child.kind!=='subparagraph')&&(last.number>1||!lead))return {reason:'source_structure_unavailable'};
   const bounds=[...(lead?[lead]:[]),...children.map(child=>child.extent)][last.number-1];

@@ -578,12 +578,17 @@ async function renderPlacedLabel(t,paragraphs,targetLabel,originalText,proposedT
   const h=await harness(t,()=>value);
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
   const block=h.container.querySelector('[data-amendment-block]');
-  return {text:block.textContent,deleted:[...block.querySelectorAll('del')].map(node=>node.textContent).join(' ')};
+  return {text:block.textContent,deleted:[...block.querySelectorAll('del')].map(node=>node.textContent).join(' '),proposed:[...block.querySelectorAll('.wording-diff__passage')].map(node=>{const copy=node.cloneNode(true);copy.querySelectorAll('del,.wording-diff__sr').forEach(child=>child.remove());return copy.textContent;}).join(' ')};
 }
 
 test('a relabelled provision keeps only the amendment’s own label',async t=>{
   const {text,deleted}=await renderPlacedLabel(t,['Article 1','1. Intro:','(a) Old provision.','(b) Other.'],'Article 1 – paragraph 1 – point a','Old provision.','(b) New provision.');
   assert(/(^|\W)a(\W|$)/.test(deleted),'the replaced source label is shown as deleted: '+text);
+});
+
+test('a quoted replacement label never acquires the source number',async t=>{
+  const {proposed}=await renderPlacedLabel(t,['Article 1','1. Old provision.'],'Article 1 – paragraph 1','Old provision.','‘2a. New provision.’');
+  assert(!/1\.\s*‘2a/.test(proposed),proposed);assert(proposed.includes('‘2a. New provision.’'),proposed);
 });
 
 test('label-like wording is never treated as a provision number',async t=>{
