@@ -56,8 +56,24 @@ export function mergeDossierPage(previous,page) {
   const participants=new Map(previous.participants.map(person=>[person.id,person]));
   for(const person of page.participants){const old=participants.get(person.id);participants.set(person.id,{...person,roles:[...new Map([...(old?.roles||[]),...person.roles].map(role=>[role.id,role])).values()],speeches:[...new Map([...(old?.speeches||[]),...(person.speeches||[])].map(speech=>[speech.id,speech])).values()]});}
   const before=previous.participantCoverage,after=page.participantCoverage;
-  const participantCoverage=before&&after?{...after,status:before.status==='complete'&&after.status==='complete'?'complete':before.status==='unavailable'&&after.status==='unavailable'?'unavailable':'partial',gaps:[...new Set([...before.gaps,...after.gaps])],sources:[...new Map([...before.sources,...after.sources].map(source=>[JSON.stringify(source),source])).values()]}:after||before;
+  const participantCoverage=before&&after?{...after,status:before.status==='complete'&&after.status==='complete'?'complete':before.status==='unavailable'&&after.status==='unavailable'?'unavailable':'partial',retryable:Boolean(before.retryable||after.retryable),failedDebates:[...new Set([...(before.failedDebates||[]),...(after.failedDebates||[])])],retained:Boolean(before.retained||after.retained),gaps:[...new Set([...before.gaps,...after.gaps])],sources:[...new Map([...before.sources,...after.sources].map(source=>[JSON.stringify(source),source])).values()]}:after||before;
   return {...page,items:[...items.values()],participants:[...participants.values()],participantCoverage,coverage:{...page.coverage,status,gaps:[...new Set([...previous.coverage.gaps,...page.coverage.gaps])],sources:[...sources.values()]}};
+}
+
+export function retainDossierContributors(previous,page) {
+  const coverage=page.participantCoverage;
+  if(!previous||previous.generation!==page.generation||previous.procedure.reference!==page.procedure.reference||previous.memberId!==page.memberId||previous.section!==page.section||previous.pagination.offset!==page.pagination.offset||previous.pagination.targetOffset!==page.pagination.targetOffset||!coverage||!coverage.retryable&&coverage.status!=='unavailable')return page;
+  const people=new Map(page.participants.map(person=>[person.id,person]));let retained=false;
+  for(const old of previous.participants){
+    const current=people.get(old.id),known=new Set((current?.speeches||[]).map(speech=>speech.id)),earlier=(old.speeches||[]).filter(speech=>!known.has(speech.id)&&(coverage.failedDebates?.length?coverage.failedDebates.includes(speech.debateId):coverage.status==='unavailable'));
+    if(!earlier.length)continue;
+    retained=true;
+    // Retain only established contribution evidence. Fresh role observations
+    // still replace old roles, and a successful retry can remove stale rows.
+    people.set(old.id,{id:old.id,name:current?.name||old.name,roles:current?.roles||[],speeches:[...earlier,...(current?.speeches||[])]});
+  }
+  if(!retained)return page;
+  return {...page,participants:[...people.values()],pagination:{...page.pagination,next:page.pagination.next||previous.pagination.next},participantCoverage:{...coverage,status:'partial',retained:true,sources:[...new Map([...(previous.participantCoverage?.sources||[]),...coverage.sources].map(source=>[JSON.stringify(source),source])).values()]}};
 }
 
 export const dossierEmptyLabel=coverage=>coverage.status==='complete'&&!coverage.gaps.length&&!coverage.discovery?.pending&&!coverage.discovery?.refreshGaps&&!coverage.discovery?.capacityGaps.length?'No linked records.':coverage.status==='unavailable'?'Records unavailable.':'No records available yet.';

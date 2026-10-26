@@ -8,7 +8,7 @@ import {PersonName,usePersonName} from './PersonName';
 import {humanDate,insightMemberHref,roleName} from './InsightShared';
 import {memberVoteLabel} from './memberVotesPresentation.mjs';
 import {useExplorerParam} from './explorerUrl';
-import {dossierEmptyLabel,dossierVoteCards,dossierFilters,dossierHref,dossierTimeline,fullDossierReference,mergeDossierPage,validDossierPerson} from './dossierActivityModel.mjs';
+import {dossierEmptyLabel,dossierVoteCards,dossierFilters,dossierHref,dossierTimeline,fullDossierReference,mergeDossierPage,retainDossierContributors,validDossierPerson} from './dossierActivityModel.mjs';
 import {dossierBackHref,dossierLinkClick,navigateDossier,useDossierReaderState} from './dossierJourney';
 import type {DossierActivityResponse,DossierAmendment,DossierCoverage,DossierCursor,DossierFilter,DossierItem,DossierReference,DossierReferencesResponse,DossierRole,DossierSection,DossierSource,DossierSpeech,DossierVote} from './DossierActivityTypes';
 import {useInsightData} from './InsightData';
@@ -36,19 +36,20 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
     const query=new URLSearchParams({reference,lang:language,section,offset:String(cursor.offset),'target-offset':String(cursor.targetOffset),limit:'25'});if(person)query.set('member',person);
     api<DossierActivityResponse>('insights/dossier-activity?'+query,controller.signal).then(page=>{
       if(!live)return;
-      if(page.version!==4||page.procedure?.reference!==reference||page.memberId!==person||page.section!==section||!Array.isArray(page.items)||!page.coverage||!page.pagination)throw new Error('Unexpected dossier response.');
+      if(page.version!==5||page.procedure?.reference!==reference||page.memberId!==person||page.section!==section||!Array.isArray(page.items)||!page.coverage||!page.pagination)throw new Error('Unexpected dossier response.');
       if(previous.current&&(previous.current.generation!==page.generation||previous.current.amendmentGeneration!==page.amendmentGeneration)){
         pages.current.clear();
         if(cursor.offset||cursor.targetOffset)page={...page,coverage:{...page.coverage,status:'partial',gaps:[...page.coverage.gaps,'This dossier was updated. Reopen it to load earlier pages.']}};
       }
-      pages.current.set(JSON.stringify(cursor),page);failedCursor.current=null;
+      const pageKey=JSON.stringify(cursor);page=retainDossierContributors(pages.current.get(pageKey),page);
+      pages.current.set(pageKey,page);failedCursor.current=null;
       const ordered=[...pages.current.values()].sort((a,b)=>a.pagination.targetOffset-b.pagination.targetOffset||a.pagination.offset-b.pagination.offset);
       const data=ordered.reduce<DossierActivityResponse|null>((all,page)=>mergeDossierPage(all,page),null)!;
       previous.current=data;setState({data,loading:false,error:null});
     }).catch(error=>{if(live){failedCursor.current=cursor;setState({data:previous.current,loading:false,error:error.message||'Section unavailable.'});}});
     return()=>{live=false;controller.abort();};
   },[key,active,request]);
-  const unavailable=[...pages.current.values()].find(page=>page.participantCoverage?.status==='unavailable')||[...pages.current.values()].find(page=>page.coverage.status==='unavailable');
+  const unavailable=[...pages.current.values()].find(page=>page.participantCoverage?.retryable||page.participantCoverage?.status==='unavailable')||[...pages.current.values()].find(page=>page.coverage.retryable||page.coverage.status==='unavailable');
   return {...(scoped?state:{data:null,loading:active,error:null}),pages:[...pages.current.values()],retryableUnavailable:Boolean(unavailable),retry:()=>setRequest(value=>({key,cursor:failedCursor.current||(unavailable?{offset:unavailable.pagination.offset,targetOffset:unavailable.pagination.targetOffset}:lastCursor.current),attempt:value.attempt+1})),more:()=>{if(state.data?.pagination.next&&!state.loading)setRequest(value=>({key,cursor:state.data!.pagination.next!,attempt:value.attempt+1}));}};
 }
 
@@ -63,7 +64,7 @@ function Coverage({coverage,section,pages}:{coverage:DossierCoverage;section:Dos
   const discovery=coverage.discovery,discoveryGap=Boolean(discovery&&(discovery.pending||discovery.refreshGaps||discovery.capacityGaps.length));
   const allGaps=[...gaps,...(discovery?.capacityGaps||[])];
   if(coverage.status==='complete'&&!gaps.length&&!discoveryGap)return null;
-  return <div className="dossier-coverage"><p>{section==='people'?'People':labels[section]} · {coverage.status==='unavailable'?'Records unavailable':coverage.status==='partial'||gaps.length?'Partial coverage':discovery?.pending?'Still checking for more amendments':discovery?.refreshGaps?'Some amendment sources unavailable':'Partial coverage'}</p>{allGaps.length>0&&<details><summary>Gaps · {allGaps.length}</summary><ul>{allGaps.map(gap=><li key={gap}>{gap}</li>)}</ul></details>}</div>;
+  return <div className="dossier-coverage"><p>{section==='people'?'People':labels[section]} · {coverage.status==='unavailable'?'Records unavailable':coverage.status==='partial'||gaps.length?'Partial coverage':discovery?.pending?'Still checking for more amendments':discovery?.refreshGaps?'Some amendment sources unavailable':'Partial coverage'}</p>{coverage.retained&&<p>Earlier records retained</p>}{allGaps.length>0&&<details><summary>Gaps · {allGaps.length}</summary><ul>{allGaps.map(gap=><li key={gap}>{gap}</li>)}</ul></details>}</div>;
 }
 function Role({item,language}:{item:DossierRole;language:string}) {
   return <article className="dossier-role"><h4>{roleName(item.role)}</h4><p>{item.committee||'Committee not supplied'}{item.stage?' · '+stageLabel(item.stage):''}</p><p>{item.dateBasis==='document'?'Document date':'Recorded date'}: {item.date?<time lang={language}>{humanDate(item.date,language)}</time>:'unavailable'}{item.documentId?' · '+item.documentId:''}</p><Source source={item.source} id={item.participationId||item.id} language={language}/></article>;

@@ -13,7 +13,7 @@ import {memberVotes} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 
-export const DOSSIER_ACTIVITY_VERSION=4;
+export const DOSSIER_ACTIVITY_VERSION=5;
 export const DOSSIER_ACTIVITY_LIMITS=Object.freeze({roles:500,documents:24,debatesPerPage:2,children:1000,speechRows:2000,votes:4000});
 const sectionNames=['roles','speeches','amendments','votes'];
 const validId=value=>/^\d{4}-\d{4}[A-Z]?$/.test(value||'');
@@ -112,7 +112,7 @@ export class DossierActivity {
     result.participantCoverage=speechResult.coverage;
     const people=new Map(result.participants.map(person=>[person.id,{...person,speeches:[]}]));
     this.store.readSnapshot(()=>{
-      if(this.store.status().servingGeneration!==result.generation){result.participantCoverage={...speechResult.coverage,status:'unavailable',gaps:['The activity index changed. Retry participants.']};return;}
+      if(this.store.status().servingGeneration!==result.generation){result.participantCoverage={...speechResult.coverage,status:'unavailable',retryable:true,gaps:['The activity index changed. Retry participants.']};return;}
       for(const speech of speechResult.items){
         let person=people.get(speech.personId);
         if(!person){const row=this.store.db.prepare('SELECT body FROM members WHERE id=?').get(speech.personId),member=row?JSON.parse(row.body):null;person={id:speech.personId,name:member?[member.firstName||member.givenName,member.lastName||member.familyName].filter(Boolean).join(' ')||member.name||member.label||null:null,roles:[],speeches:[]};people.set(person.id,person);}
@@ -145,6 +145,7 @@ export class DossierActivity {
   }
   async speeches(result,work,query,page) {
     const {coverage}=result,{targetOffset,language,member}=query;
+    coverage.retryable=false;coverage.failedDebates=[];
     const debates=sorted(array(work.consists_of).filter(event=>tail(event.had_activity_type)==='PLENARY_DEBATE'&&/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/.test(canonical(event.id))).map(event=>({...event,date:date(event.activity_date)})));
     const selected=debates.slice(targetOffset,targetOffset+DOSSIER_ACTIVITY_LIMITS.debatesPerPage),children=new Map();
     for(const event of selected)try {
@@ -153,14 +154,15 @@ export class DossierActivity {
       const ids=refs(nodes[0].consists_of).filter(value=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(value));
       if(ids.length>DOSSIER_ACTIVITY_LIMITS.children)coverage.gaps.push('Some debate children are outside this page.');
       for(const child of ids.slice(0,DOSSIER_ACTIVITY_LIMITS.children))children.set(tail(child),[...(children.get(tail(child))||[]),{...event,jointDebate:/joint debate/i.test(nodes[0].activity_label?.en||'')}]);
-      coverage.sources.push(source(record));
-    }catch(error){if(isLocalRequestFailure(error))throw error;coverage.gaps.push('A linked debate is unavailable.');}
+      const observation=source(record);coverage.sources.push(observation);
+      if(observation.refreshError)coverage.failedDebates.push(id);
+    }catch(error){if(isLocalRequestFailure(error))throw error;coverage.retryable=true;coverage.failedDebates.push(tail(event.id));coverage.gaps.push('A linked debate is unavailable.');}
     const rows=this.store.readSnapshot(()=>{
       if(this.store.status().servingGeneration!==result.generation)return null;
       if(!children.size)return [];
       return this.store.db.prepare('SELECT body,source_key FROM items WHERE generation=?'+(member?' AND mep=?':'')+' AND source_id IN ('+[...children].map(()=>'?').join(',')+') ORDER BY date,source_id,mep LIMIT ?').all(result.generation,...(member?[member]:[]),...children.keys(),DOSSIER_ACTIVITY_LIMITS.speechRows+1).map(row=>({...row,saved:this.store.source(result.generation,row.source_key)}));
     });
-    if(rows===null){coverage.status='unavailable';coverage.gaps.push('The activity index changed. Retry speeches.');return;}
+    if(rows===null){coverage.status='unavailable';coverage.retryable=true;coverage.gaps.push('The activity index changed. Retry speeches.');return;}
     const items=[];
     for(const row of rows.slice(0,DOSSIER_ACTIVITY_LIMITS.speechRows)) {
       const speech=JSON.parse(row.body),parents=children.get(speech.sourceId)||[];
@@ -175,9 +177,10 @@ export class DossierActivity {
     if(rows.length>DOSSIER_ACTIVITY_LIMITS.speechRows)coverage.gaps.push('Some saved speech records are outside this page.');
     coverage.gaps.push('Showing saved contributions linked to the checked debates.');
     if(coverage.sources.some(s=>s.stale||s.refreshInProgress||s.refreshError))coverage.gaps.push('Some source observations are refreshing.');
+    if(coverage.sources.some(s=>s.refreshError))coverage.retryable=true;
     const nextTarget=targetOffset+selected.length<debates.length?{offset:0,targetOffset:targetOffset+selected.length}:null;
     page(sorted([...new Map(items.map(item=>[item.id+'@'+item.personId,item])).values()]),nextTarget);
-    if(selected.length&&!children.size)coverage.status='unavailable';
+    if(selected.length&&!children.size&&coverage.retryable)coverage.status='unavailable';
   }
   async amendments(result,work,query) {
     const {coverage,procedure}=result,{member,language,targetOffset,offset,limit}=query;

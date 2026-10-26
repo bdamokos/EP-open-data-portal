@@ -72,7 +72,7 @@ test('saved speeches need exact debate children, preserve gaps and survive trans
   const x=setup(t);const r=await x.service.query(x.q('speeches'));
   assert.equal(r.items[0].id,SPEECH);assert.equal(r.items[0].jointDebate,true);assert.equal(r.items[0].stage,'RDG1');assert.equal(r.coverage.status,'partial');assert(!('xml' in r.items[0]));
   x.records.get('/events/'+DEBATE).payload.data[0].consists_of=[];
-  assert.equal((await x.service.query(x.q('speeches'))).items.length,0);
+  const empty=await x.service.query(x.q('speeches'));assert.equal(empty.items.length,0);assert.equal(empty.coverage.retryable,false);assert.equal(empty.coverage.status,'partial');
   x.records.delete('/events/'+DEBATE);const failed=await x.service.query(x.q('speeches'));assert.equal(failed.coverage.status,'unavailable');
   assert.equal((await x.service.query(x.q('roles'))).items.length,1,'a speech failure cannot blank roles');
 });
@@ -125,7 +125,7 @@ test('non-named ballots and intentions never become recorded member positions',a
   for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']){
     raw.decision_method='def/ep-decision-methods/'+method;
     const r=await x.service.query(x.q('votes')),vote=r.items.find(item=>item.id.endsWith('196161')).vote;
-    assert.equal(r.version,4);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
+    assert.equal(r.version,5);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
   }
 });
 test('a person without a recorded role is never replaced by a named participant',async t=>{
@@ -177,9 +177,9 @@ test('contributor discovery is bounded and retains separate pages, exact people 
   x.store.putSource(x.generation,'/speeches/'+SPEECH,'speech',raw,now,speechRows(raw,now));
   const first=await x.service.query(x.q('roles',null));
   assert.deepEqual(first.participants.map(p=>p.id).sort(),[OTHER,MEMBER].sort());assert(first.participants.every(p=>!p.roles.length&&p.speeches[0].id===SPEECH));
-  assert.equal(first.coverage.status,'complete');assert.equal(first.participantCoverage.status,'partial');assert.match(first.participantCoverage.gaps.join(' '),/debate is unavailable/);
+  assert.equal(first.coverage.status,'complete');assert.equal(first.participantCoverage.status,'partial');assert.equal(first.participantCoverage.retryable,true);assert.deepEqual(first.participantCoverage.failedDebates,[otherDebate]);assert.match(first.participantCoverage.gaps.join(' '),/debate is unavailable/);
   assert.deepEqual(first.pagination.next,{offset:0,targetOffset:2});assert(!x.calls.includes('/events/'+third));
-  const next=await x.service.query(x.q('roles',null,'target-offset=2'));assert.equal(next.participantCoverage.status,'unavailable');assert.equal(next.pagination.next,null);
+  const next=await x.service.query(x.q('roles',null,'target-offset=2'));assert.equal(next.participantCoverage.status,'unavailable');assert.equal(next.participantCoverage.retryable,true);assert.deepEqual(next.participantCoverage.failedDebates,[third]);assert.equal(next.pagination.next,null);
   raw.inverse_consists_of=[uri(otherDebate)];x.store.putSource(x.generation,'/speeches/'+SPEECH,'speech',raw,now,speechRows(raw,now));
   const conflict=await x.service.query(x.q('roles',null));assert.deepEqual(conflict.participants,[]);assert.match(conflict.participantCoverage.gaps.join(' '),/conflicting debate links/);
 });

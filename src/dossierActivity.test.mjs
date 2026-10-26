@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {dossierAmendmentVotes,dossierVoteCards,dossierHref,dossierTimeline,mergeDossierPage} from './dossierActivityModel.mjs';
+import {dossierAmendmentVotes,dossierVoteCards,dossierHref,dossierTimeline,mergeDossierPage,retainDossierContributors} from './dossierActivityModel.mjs';
 import {dataTimeoutFor} from './client.mjs';
 import {readFile} from 'node:fs/promises';
 import {contrast,paintedBackground,themeCss,tokenValue} from './test-support/themeStyles.mjs';
@@ -14,7 +14,7 @@ const speech={kind:'speech',id:'MTG-PL-2026-09-15-OTH-1',date:'2026-09-15',start
 const amendment={kind:'amendment',id:'A-10-2026-0010-AM-3@list',date:'2026-09-08',dateBasis:'tabling',stage:'RDG1',source,tabling:{status:'recorded',date:'2026-09-08',observations:[{id:'tabling-event',date:'2026-09-08',stage:'RDG1',source}]},amendment:{id:'A-10-2026-0010-AM-3',number:3,listId:'A-10-2026-0010-AM-001-003',targetDocumentId:'A-10-2026-0010',documentDate:'2026-09-09',dateBasis:'individual-amendment-document',outcome:'ADOPTED',textIntegrity:'complete',listRelationship:'current',authors:[{personId:'257727',name:'Named member'},{personId:'2',name:'Exact coauthor'}],onBehalfOf:['ENVI','SEDE'],decisions:[{id:'MTG-PL-2026-09-16-DEC-196161',outcome:'ADOPTED'}],sources:[source]}};
 function ballot(id,position='for',outcome='ADOPTED') {return {kind:'vote',id,date:'2026-09-16',stage:null,source,vote:{id,uri:'https://data.europarl.europa.eu/'+id,sittingId:'MTG-PL-2026-09-16',date:'2026-09-16',title:'Official decision title',titles:{en:'Official decision title'},titleLanguage:'en',referenceTexts:{en:'Provisional agreement'},scope:{kind:'amendment'},actualPosition:{status:'recorded',position},outcome,method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:'conducted',totals:{for:1,against:2,abstaining:3},context:{amendmentIds:[],componentIds:[]},parts:[],intention:{status:'not-reported',positions:[]}}};}
 const agreement=ballot('MTG-PL-2026-09-16-DEC-196161'),rejection=ballot('MTG-PL-2026-09-16-DEC-196519','against','REJECTED');
-function page(section,member='257727',items,extra={}) {return {version:4,procedure:{id:'2025-0176',reference,title:'Official full dossier title',titleLanguage:'en',source},memberId:member,section,participants:[{id:'257727',name:'Named member',roles:[role]},{id:'124984',name:'Other member',roles:[{...role,id:'role-2',personId:'124984',role:'RAPPORTEUR_SHADOW'}]}],items:items??({roles:[role],speeches:[speech],amendments:[amendment],votes:[agreement,rejection]}[section]),pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Some targets have not been checked.'],sources:[source]},generation:1,...extra};}
+function page(section,member='257727',items,extra={}) {return {version:5,procedure:{id:'2025-0176',reference,title:'Official full dossier title',titleLanguage:'en',source},memberId:member,section,participants:[{id:'257727',name:'Named member',roles:[role]},{id:'124984',name:'Other member',roles:[{...role,id:'role-2',personId:'124984',role:'RAPPORTEUR_SHADOW'}]}],items:items??({roles:[role],speeches:[speech],amendments:[amendment],votes:[agreement,rejection]}[section]),pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Some targets have not been checked.'],sources:[source]},generation:1,...extra};}
 
 async function harness(t,query='?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference)+'&dossier-person=257727',handler) {
   const window=new Window({url:'http://localhost/'+query});
@@ -324,4 +324,43 @@ test('a new person and filter restart at the first page after earlier pagination
   const route='?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference)+'&dossier-person=124984';
   await h.navigate(route);await h.click('Roles');await h.click('Speeches');
   assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='speeches').at(-1).searchParams.get('offset'),'0');assert.equal(h.container.querySelectorAll('.dossier-speech').length,1);
+});
+
+test('failed same-cursor contributor retry retains established speech evidence until a successful refresh',async t=>{
+  let attempt=0;
+  const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(rsp.procedure.label),url=>{
+    if(url.searchParams.get('section')!=='roles')return;
+    const data=rspPage('roles',null);attempt++;
+    if(attempt===2){data.participants=[];data.participantCoverage={status:'unavailable',retryable:true,gaps:['A linked debate is unavailable.'],sources:[rsp.procedureSource]};}
+    if(attempt===3){data.participants=[];data.participantCoverage={status:'partial',retryable:false,gaps:['Showing saved contributions linked to the checked debates.'],sources:[rsp.procedureSource]};}
+    return Response.json(data);
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference:rsp.procedure.label}));
+  assert.match(h.container.textContent,/Gabriele Bischoff/);await h.click('Retry people');
+  assert.match(h.container.textContent,/Gabriele Bischoff/);assert.match(h.container.textContent,/A linked debate is unavailable/);assert.match(h.container.textContent,/Earlier records retained/);
+  await h.click('Retry people');assert(!h.container.querySelector('.dossier-participants'));
+});
+
+test('partial contributor failure offers retry on its original cursor and clears the failure after recovery',async t=>{
+  let failed=true;
+  const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>{
+    if(url.searchParams.get('section')!=='roles')return;
+    const later=url.searchParams.get('target-offset')==='2';
+    return Response.json(page('roles',null,[],{participants:[{id:later?'124984':'257727',name:later?'Later speaker':'First speaker',roles:[],speeches:[speech]}],coverage:{status:'complete',gaps:[],sources:[source]},participantCoverage:{status:'partial',retryable:later&&failed,gaps:later&&failed?['A linked debate is unavailable.']:[],sources:[source]},pagination:{offset:0,targetOffset:later?2:0,limit:25,next:later?null:{offset:0,targetOffset:2}}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more people');
+  assert.match(h.container.textContent,/First speaker/);assert.match(h.container.textContent,/Later speaker/);
+  failed=false;await h.click('Retry people');
+  assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='roles').at(-1).searchParams.get('target-offset'),'2');
+  assert.match(h.container.textContent,/First speaker/);assert.match(h.container.textContent,/Later speaker/);assert.doesNotMatch(h.container.textContent,/A linked debate is unavailable/);
+  assert(![...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry people'));
+});
+
+
+test('failed contributor refresh retains only failed-debate speech evidence within its original scope',()=>{
+  const oldSpeaker={id:'257727',name:'Known speaker',roles:[role],speeches:[speech]},other={id:'124984',name:'Other speaker',roles:[],speeches:[{...speech,id:'second-speech',debateId:'other-debate'}]};
+  const before=page('roles',null,[],{participants:[oldSpeaker,other],participantCoverage:{status:'partial',gaps:[],sources:[source]}});
+  const failed=page('roles',null,[],{participants:[],participantCoverage:{status:'partial',retryable:true,failedDebates:[speech.debateId],gaps:['A linked debate is unavailable.'],sources:[source]}});
+  const kept=retainDossierContributors(before,failed);assert.deepEqual(kept.participants,[{...oldSpeaker,roles:[]}]);assert.equal(kept.participantCoverage.retained,true);
+  for(const changed of [{generation:before.generation+1},{memberId:'124984'},{procedure:{...before.procedure,reference:'2026/2925(RSP)'}},{pagination:{...failed.pagination,targetOffset:2}}])assert.deepEqual(retainDossierContributors(before,{...failed,...changed}).participants,[]);
 });
