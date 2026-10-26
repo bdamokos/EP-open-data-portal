@@ -23,7 +23,7 @@ async function runDossierChecks({force=false,signal,only}:{force?:boolean;signal
       if(!status.marksReady)throw Error('Updates unavailable.');
       const params=new URLSearchParams({epoch:status.epoch,generation:String(status.generation),procedures:items.map(item=>item.id).join(',')});
       const data=await api<any>('insights/following-dossiers?'+params,signal);
-      if(data.epoch!==status.epoch||data.generation!==status.generation)throw Error('The index changed.');
+      if(data.epoch!==status.epoch||data.generation!==status.generation)throw Error('Data was updated. Try again.');
       if(!publicAmendmentsEnabled)for(const row of data.items||[])row.entries=row.entries?.filter((entry:{eventKind:string})=>entry.eventKind!=='amendment-list');
       if(!signal?.aborted&&dossierStore.observeIndex(data,items)){lastIndexKey=indexKey;lastIndexAt=Date.now();}
     }catch{if(!signal?.aborted)items.forEach(item=>dossierStore.unavailable(item.id,item,'index'));}

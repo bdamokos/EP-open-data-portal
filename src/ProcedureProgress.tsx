@@ -20,7 +20,7 @@ function Status({event,today}:{event:ProgressEvent;today:string}) {
   if(event.status==='projected')return <span className="procedure-progress-tag">Scheduled</span>;
   if(event.status==='cancelled')return <span className="procedure-progress-tag procedure-progress-tag-muted">Cancelled</span>;
   if(event.status==='unknown')return <span className="procedure-progress-tag procedure-progress-tag-muted">{event.statuses.length===1&&event.statuses[0].label?<span lang={event.statuses[0].language||'en'}>{event.statuses[0].label}</span>:'Status unavailable'}</span>;
-  return event.date&&event.date>today?<span className="procedure-progress-tag procedure-progress-tag-muted">Future date · status not supplied</span>:null;
+  return event.date&&event.date>today?<span className="procedure-progress-tag procedure-progress-tag-muted">Upcoming</span>:null;
 }
 
 export function ProcedureProgress({reference,language}:{reference:string;language:string}) {
@@ -56,7 +56,7 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
         {events.length>0&&<><button className="procedure-progress-toggle" type="button" aria-expanded={expanded} aria-controls={timelineId} onClick={()=>setExpanded(value=>!value)}>{expanded?'Hide timeline':'Show timeline'}</button>
           {expanded&&<div id={timelineId} className="procedure-progress-expanded">
             <div className="procedure-progress-filters"><label>Institution<select value={institution} onChange={event=>setInstitution(event.target.value)}><option value="all">All institutions</option>{options.map(term=><option key={term.id} value={term.id} lang={term.language||'en'}>{institutionLabel(term)}</option>)}</select></label><button type="button" aria-pressed={allEvents} onClick={()=>setAllEvents(value=>!value)}>{allEvents?'Show key milestones':'Show all recorded events'}</button></div>
-            <p className="procedure-progress-muted" role="status">{visible.length} {visible.length===1?'event':'events'} in this selection{data.coverage.limited?' · limited source response':''}</p>
+            <p className="procedure-progress-muted" role="status">{visible.length} {visible.length===1?'event':'events'} in this selection{data.coverage.limited?' · incomplete':''}</p>
             <ol className="procedure-progress-timeline">{visible.map(event=><li key={event.id} className={event.status==='projected'?'procedure-progress-scheduled':undefined}>
               <EventDate event={event} language={language}/><div><Status event={event} today={today}/><h4><EventName event={event}/></h4><p className="procedure-progress-muted">{event.institutions.length?event.institutions.map((term,index)=><span key={term.id} lang={term.language||'en'}>{index>0?' · ':''}{institutionLabel(term)}</span>):'Institution not supplied'}</p>
                 {event.issues.length>0&&<p className="procedure-progress-muted">Some event details unavailable.</p>}

@@ -25,18 +25,18 @@ function useCloud(route:string) {
   const [state,setState]=useState<{route:string;data:SpeechCloudResult|null;loading:boolean;error:string|null}>({route,data:null,loading:true,error:null});
   useEffect(()=>{
     let active=true;const controller=new AbortController();
-    const forcePage=state.route===route?failedPage.current:null;
+    const retryPage=attempt>0&&state.route===route?failedPage.current:null;
     setState(previous=>({route,data:previous.route===route?previous.data:null,loading:true,error:null}));
     void (async()=>{
-      let page:number|null=0,restarts=0;
+      let page:number|null=retryPage??0,restarts=0;
       try {
         while(active&&page!==null) {
           failedPage.current=page;
-          const data:SpeechCloudResult=await client.get(route+'&page='+page,{force:attempt>0&&page===forcePage,signal:controller.signal});
+          const data:SpeechCloudResult=await client.get(route+'&page='+page,{force:page===retryPage,signal:controller.signal});
           if(!active)return;
           if(data.restarted) {
             client.expireMatching(cachedRoute=>cachedRoute.startsWith(route+'&page='));
-            if(++restarts>2)throw new Error('Saved speeches changed during loading. Please retry.');
+            if(++restarts>2){failedPage.current=0;throw new Error('Speeches were updated while loading. Try again.');}
           }
           setState({route,data,loading:data.nextPage!==null,error:null});
           page=data.nextPage;
@@ -75,7 +75,7 @@ export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage
     {data&&<p className="explorer-cloud-caption"><strong>{data.coverage.transcripts} {data.coverage.transcripts===1?'speech':'speeches'}</strong>{!member&&speakers>0&&<> · {speakers} {speakers===1?'speaker':'speakers'}</>}{data.window.start&&<> · <span lang={interfaceLanguage}>{humanDate(data.window.start,interfaceLanguage)}</span>{data.window.end&&data.window.end!==data.window.start&&<> — <span lang={interfaceLanguage}>{humanDate(data.window.end,interfaceLanguage)}</span></>}</>}</p>}
     {data&&<AvailabilityNote sources={data.availability} label="text" language={interfaceLanguage} end={data.window.end} partial={data.coverage.truncated||!data.coverage.complete||data.coverage.missingLanguage>0||data.coverage.unreadableText>0}/>}
     {loading&&!data&&<p role="status">Loading speech text…</p>}
-    {data?.words.length?<><div className="explorer-cloud-words" lang={data.language??''}>{data.words.slice(0,more?60:initialTerms).map((term,index)=><button key={term.word} aria-pressed={word===term.word} style={{fontSize:`calc(1rem + var(--cloud-scale, 1.05rem) * ${Math.sqrt(frequencies[index]/Math.max(1,...frequencies))})`}} onClick={()=>choose(term.word)}>{term.label||wordLabel(term.word)}<small>{data.coverage.transcripts===1?term.occurrences:term.speechCount}</small></button>)}</div><div className="explorer-cloud-footer"><small>{data.coverage.transcripts===1?'Occurrences in this speech':'Number of speeches mentioning each term'}{data.speeches.some(speech=>speech.machineTranslation)?' · includes machine translations':''}</small>{data.words.length>initialTerms&&<button onClick={()=>setMore(value=>!value)} aria-expanded={more}>{more?'Fewer terms':'More terms'}</button>}</div></>:data&&!loading&&<p>{data.coverage.associationUnavailable?'No earlier debate is linked to this item.':data.scope.phase==='upcoming'&&!data.window.start?(week?'This plenary week has not taken place.':'The sitting has not taken place.'):data.coverage.missingLanguage?(data.coverage.basis==='retained-corpus'?'No saved text in this language.':'Parliament has not supplied text in this language.'):(data.coverage.basis==='retained-corpus'?'No saved oral speeches in this selection.':'No oral speeches in this selection.')}</p>}
+    {data?.words.length?<><div className="explorer-cloud-words" lang={data.language??''}>{data.words.slice(0,more?60:initialTerms).map((term,index)=><button key={term.word} aria-pressed={word===term.word} style={{fontSize:`calc(1rem + var(--cloud-scale, 1.05rem) * ${Math.sqrt(frequencies[index]/Math.max(1,...frequencies))})`}} onClick={()=>choose(term.word)}>{term.label||wordLabel(term.word)}<small>{data.coverage.transcripts===1?term.occurrences:term.speechCount}</small></button>)}</div><div className="explorer-cloud-footer"><small>{data.coverage.transcripts===1?'Occurrences in this speech':'Number of speeches mentioning each term'}{data.speeches.some(speech=>speech.machineTranslation)?' · includes machine translations':''}</small>{data.words.length>initialTerms&&<button onClick={()=>setMore(value=>!value)} aria-expanded={more}>{more?'Fewer terms':'More terms'}</button>}</div></>:data&&!loading&&<p>{data.coverage.associationUnavailable?'No earlier debate is linked to this item.':data.scope.phase==='upcoming'&&!data.window.start?(week?'This plenary week has not taken place.':'The sitting has not taken place.'):data.coverage.missingLanguage?(data.coverage.basis==='retained-corpus'?'No text in this language.':'Not available in this language.'):(data.coverage.basis==='retained-corpus'?'No speeches in this selection.':'No oral speeches in this selection.')}</p>}
     {data&&!loading&&(data.coverage.missingLanguage>0||data.coverage.unreadableText>0)&&<p className="explorer-cloud-caption">{data.coverage.missingLanguage>0?`${data.coverage.missingLanguage} without text in this language. `:''}{data.coverage.unreadableText>0?`${data.coverage.unreadableText} texts unreadable.`:''}</p>}
     {loading&&data&&<p className="explorer-cloud-progress" role="status">Loading more speeches…</p>}
     {error&&<p role="alert">{data?.words.length?'Some speech text could not be loaded.':'Speech text could not be loaded.'} <button onClick={retry}>Try again</button></p>}

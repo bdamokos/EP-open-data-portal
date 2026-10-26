@@ -29,8 +29,8 @@ function Comparison({original,proposed,language,emptySemantics,presentation='com
   const mostlyRewritten=!oneSided&&diff?.status==='ok'&&diff.similarity<0.3;
   const [mode,setMode]=useState<'changes'|'sides'>(presentation==='context'||!mostlyRewritten?'changes':'sides');
   const columns=([
-    {side:'original',text:original,label:labels.original||'Original text',empty:labels.emptyOriginal??(emptySemantics==='insertion-deletion'?'No original text (insertion).':'The source supplies no original wording.')},
-    {side:'proposed',text:proposed,label:labels.proposed||'Proposed text',empty:labels.emptyProposed??(emptySemantics==='insertion-deletion'?'Text deleted.':'The source supplies no proposed wording.')},
+    {side:'original',text:original,label:labels.original||'Original text',empty:labels.emptyOriginal??(emptySemantics==='insertion-deletion'?'No original text (insertion).':'No original wording.')},
+    {side:'proposed',text:proposed,label:labels.proposed||'Proposed text',empty:labels.emptyProposed??(emptySemantics==='insertion-deletion'?'Text deleted.':'No proposed wording.')},
   ] as const);
   return <div className="wording-diff" lang="en">
     {oneSided&&<p className="wording-diff__note">{original===''?'New text':'Deleted text'}</p>}

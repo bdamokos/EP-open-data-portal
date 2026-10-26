@@ -160,8 +160,17 @@ test('complete target reads still label incomplete broader amendment discovery',
   await h.render(createElement(h.module.DossierActivity,{reference}));
   const coverage=h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage');
   assert(coverage,'discovery gaps keep a coverage label');
-  assert.match(coverage.querySelector('p').textContent,/Other sources partially checked/);
+  assert.match(coverage.querySelector('p').textContent,/Some amendment sources unavailable/);
   assert.deepEqual([...coverage.querySelectorAll('details li')].map(node=>node.textContent),['Discovery limit reached.']);
+});
+
+test('a discovery capacity limit alone is partial coverage, not unavailable sources',async t=>{
+  const h=await harness(t,undefined,url=>{
+    if(url.searchParams.get('section')!=='amendments')return;
+    return Response.json(page('amendments','257727',[amendment],{coverage:{status:'complete',gaps:[],sources:[source],discovery:{pending:false,refreshGaps:false,capacityGaps:['Discovery limit reached.']}}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  assert.match(h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage p').textContent,/Amendments · Partial coverage$/);
 });
 
 test('coverage attributes each amendment gap to its exact requested target',async t=>{

@@ -155,7 +155,7 @@ test('month controls preserve all 11 monthly counts, unlinked speeches and equiv
   const {window,container,select,change,click}=await harness(t,[detail],'?view=outside&ov-person=42');
   const expected=[
     ['2025-12','Dec 2025: 3 agenda items',3],['2026-01','Jan 2026: 1 agenda item',1],
-    ['2026-02','Feb 2026: 1 agenda item',1],['2026-03','Mar 2026: 0 observed agenda items',0],
+    ['2026-02','Feb 2026: 1 agenda item',1],['2026-03','Mar 2026: 0 agenda items',0],
     ['2026-04','Apr 2026: Agenda items unavailable','—'],['2026-05','May 2026: 1 agenda item',1],
     ['2026-06','Jun 2026: 1 agenda item',1],['2026-07','Jul 2026: 1 agenda item',1],
     ['2026-08','Aug 2026: 1 agenda item',1],['2026-09','Sep 2026: 1 agenda item',1],

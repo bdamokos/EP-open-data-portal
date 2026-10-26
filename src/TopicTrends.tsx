@@ -39,7 +39,7 @@ export function TopicTrends({language='en',initialTopic}:{language?:string;initi
   const selected=selection?data?.topics.find(topic=>topic.id===selection):available[0],series=selected?.series||[],maximum=Math.max(1,...series.map(row=>row[metric]??0)),x=(index:number)=>45+(series.length===1?0:index/(series.length-1))*(chartWidth-70),y=(count:number)=>190-count/maximum*155;
   const events=selected?.events.filter(event=>event.kind===metric&&(!week||event.date>=week&&event.date<new Date(Date.parse(week+'T12:00Z')+7*86400_000).toISOString().slice(0,10)))||[];
   const resultStatus=data&&!loading&&!error?(data.coverage.sourceError?'Topic catalogue temporarily unavailable.':[
-    available.length?`${available.length.toLocaleString('en')} ${available.length===1?'topic':'topics'} with mapped ${metricName[metric].toLowerCase()} in this selection. Showing ${Math.min(available.length,more?60:12).toLocaleString('en')}.`:`No topics with mapped ${metricName[metric].toLowerCase()} in the saved data for this selection.`,
+    available.length?`${available.length.toLocaleString('en')} ${available.length===1?'topic':'topics'} with mapped ${metricName[metric].toLowerCase()} in this selection. Showing ${Math.min(available.length,more?60:12).toLocaleString('en')}.`:`No topics with mapped ${metricName[metric].toLowerCase()} in this selection.`,
     !data.coverage.indexComplete?'Archive incomplete.':'',
     data.coverage.truncated?'Timeline limited to 600 matching dossiers; some activity is omitted.':'',
   ].filter(Boolean).join(' ')):null;

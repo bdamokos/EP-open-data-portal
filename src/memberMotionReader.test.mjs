@@ -142,7 +142,7 @@ test('expanded list/exact response readiness is exposed, while closed and settle
   const selected={...createMotionJourney(binding),amendments:{...createMotionJourney(binding).amendments,open:true,amendmentId:original+'-AM-99'}};
   const h=await harness(t,{url:share(selected).href,delayList:true});assert(h.container.querySelector('[data-motion-pending="true"]'));assert.equal(h.pending.length,1);
   await h.finish();assert.equal(h.pending.length,1);assert(h.container.querySelector('[data-motion-pending="true"]'),'exact selection remains unsettled');
-  await h.finish();assert.equal(h.container.querySelector('[data-motion-pending="true"]'),null);assert.match(h.container.textContent,/requested amendment is unavailable/i);
+  await h.finish();assert.equal(h.container.querySelector('[data-motion-pending="true"]'),null);assert.match(h.container.textContent,/Amendment unavailable/i);
   await h.click(/^Amendments/);assert.equal(h.container.querySelector('[data-motion-pending="true"]'),null);
 });
 

@@ -66,7 +66,8 @@ test('participation distinguishes unavailable agendas, verified empty agendas an
   const cases=[
     {name:'no agenda rows retrieved',topics:[],gaps:[agendaGap],search:'',status:/Agenda data is unavailable for this selection\./,visible:'Agenda data is unavailable for this selection.'},
     {name:'verified empty agenda',topics:[],gaps:[],search:'',status:/No agenda items match this selection\./,visible:'No agenda items available in this view.'},
-    {name:'unmatched title over partial saved agendas',topics:[row],gaps:[agendaGap],search:'absent',status:/No saved agenda titles match this search\. Some agendas are unavailable\./,visible:'No saved agenda titles match this search. Some agendas are unavailable.'},
+    {name:'unmatched title over partial saved agendas',topics:[row],gaps:[agendaGap],search:'absent',status:/None of the available agenda items match this search\. Some agendas are unavailable\./,visible:'None of the available agenda items match this search. Some agendas are unavailable.'},
+    {name:'unavailable speaking data over known agendas',topics:[{...row,speakers:null}],gaps:[],search:'',status:/MEPs speaking: unavailable for this period\./,visible:'MEPs speaking: unavailable for this period. Choose another sitting or open an agenda item below.'},
   ];
   for(const fixture of cases)await t.test(fixture.name,async t=>{
     const h=await harness(t,'/src/Participation.tsx','Participation','?hot-period=week%3A2026-10-05'+(fixture.search?'&hot-search='+fixture.search:''),()=>({window:{start:'2026-10-05',end:'2026-10-11'},series:[{date:sitting.date,speakers:null,voters:null,amendmentVotes:null}],topics:fixture.topics,coverage:{topicsWithSpeechLinks:fixture.topics.length,topics:fixture.topics.length,gaps:fixture.gaps}}),{language:'fr',sittings:[sitting],onTopic(){}});
