@@ -122,12 +122,15 @@ function newestSource(key, record) {
   const held = cache.get(key)?.record;
   return held && (!record || held.fetchedAt >= record.fetchedAt) ? held : record;
 }
+// Inside a lock the write itself is never cancelled: the lock is released only
+// once the file is published, and a cancelled caller merely stops waiting.
+const publishLocked = (key, serialized) => writeCacheFile(filename(key), serialized, {signal:null}).catch(() => {});
 function publishSourceFile(key, record, serialized, signal) {
-  return withSourceLock(key, async () => {
+  return waitForRequest(withSourceLock(key, async () => {
     const disk = await readDiskSource(key, signal);
-    if (disk && disk.fetchedAt >= record.fetchedAt) return;
-    await writeCacheFile(filename(key), serialized, {signal}).catch(() => {});
-  });
+    if (disk && disk.fetchedAt >= record.fetchedAt || signal?.aborted) return;
+    await publishLocked(key, serialized);
+  }), signal ?? null);
 }
 async function readSourceRecord(file, signal) {
   signal?.throwIfAborted();
@@ -389,16 +392,15 @@ async function peekSource(key, signal, remember = false) {
 // A single read in flight, or a newer record in memory or on disk, keeps its
 // record; the comparison and both publications happen under the key's lock.
 function seedSource(key, record, {memory, signal}) {
-  return withSourceLock(key, async () => {
+  return waitForRequest(withSourceLock(key, async () => {
     const disk = await readDiskSource(key, signal);
     const latest = cache.get(key)?.record;
-    if (pending.has(key) || [disk, latest].some(held => held && held.fetchedAt >= record.fetchedAt)) return;
+    if (signal?.aborted || pending.has(key) || [disk, latest].some(held => held && held.fetchedAt >= record.fetchedAt)) return;
     const serialized = JSON.stringify(record);
     refreshFailures.delete(key);
     if (memory || latest) rememberSource(key, record, serialized);
-    if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)
-      await writeCacheFile(filename(key), serialized, {signal}).catch(() => {});
-  });
+    if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) await publishLocked(key, serialized);
+  }), signal ?? null);
 }
 export async function prefetchCorporateBodies(ids, {signal = requestSignal(), priority = 'interactive', memory = true} = {}) {
   const wanted = [...new Set(ids.map(String))].filter(id => bodyId.test(id));
