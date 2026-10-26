@@ -34,6 +34,7 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
       <div className="insight-official-summary" ref={summaryText} lang={data.language??''}>{displayed.map((block,index)=>block.kind==='heading'?<h4 key={index}>{block.text}</h4>:<p key={index}>{block.text}</p>)}</div>
       <div className="insight-summary-footer">{blocks.length>2&&<button onClick={()=>setExpanded(value=>!value)} aria-expanded={expanded}>{expanded?'Show less':'Continue reading'}</button>}<a href={data.summary.source.url} target="_blank" rel="noreferrer">Legislative Observatory ↗</a><small><span lang={language}>{new Intl.DisplayNames([language],{type:'language'}).of(data.language)}</span>{data.summary.method?' · '+data.summary.method:''}</small></div>
     </>}
+    {showTitle&&!data.summary&&<p className="insight-secondary">Summary unavailable.</p>}
     {press}
     {data.topics.length>0&&<div className="insight-official-topics"><h4>Topics <small>EuroVoc</small></h4><div>{data.topics.map(topic=>onTopic?<button key={topic.id} lang={topic.language??''} onClick={()=>onTopic(topic)}>{topic.label} <span aria-hidden="true">↗</span></button>:<SourceLink key={topic.id} url={topic.id} language={language} contentLanguage={topic.language??''}>{topic.label}</SourceLink>)}</div></div>}
     {data.subjects.length>0&&<details><summary>Subject classification</summary><ul>{data.subjects.map(subject=><li key={subject.code} lang={data.language??''}>{subject.label} <small>{subject.code}</small></li>)}</ul></details>}

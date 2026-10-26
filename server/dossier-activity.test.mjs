@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
@@ -125,7 +125,7 @@ test('non-named ballots and intentions never become recorded member positions',a
   for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']){
     raw.decision_method='def/ep-decision-methods/'+method;
     const r=await x.service.query(x.q('votes')),vote=r.items.find(item=>item.id.endsWith('196161')).vote;
-    assert.equal(r.version,3);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
+    assert.equal(r.version,4);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
   }
 });
 test('a person without a recorded role is never replaced by a named participant',async t=>{
@@ -144,4 +144,42 @@ test('root insight routing uses the existing owned store and exact procedure cli
   assert.equal(data.items[0].personId,MEMBER);
   assert.deepEqual(calls,['/procedures/'+PID]);
   assert.equal((await service.query('dossier-references',new URLSearchParams({procedures:PID}))).items[0].reference,REF);
+});
+
+const rsp=JSON.parse(readFileSync(new URL('./fixtures/dossier-no-role-rsp.json',import.meta.url),'utf8'));
+test('no-role RSP discovers exact saved contributors independently of roles, summaries and scheduled agenda IDs',async t=>{
+  const x=setup(t),work=rsp.procedure,speech=rsp.speech,debate=speech.debateId;
+  x.records.set('/procedures/2026-2925',record('/procedures/2026-2925',work));
+  x.records.set('/events/'+debate,record('/events/'+debate,{id:uri(debate),activity_date:speech.date,consists_of:[uri(speech.id)]}));
+  const raw={id:uri(speech.id),activity_id:speech.id,activity_date:speech.date,activity_start_date:speech.start,had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+rsp.personId]}],inverse_consists_of:[uri(debate)]};
+  x.store.putSource(x.generation,'/speeches/'+speech.id,'speech',raw,speech.source.fetchedAt,speechRows(raw,speech.source.fetchedAt));
+  x.store.setMembers([{id:rsp.personId,firstName:'Gabriele',lastName:'Bischoff'}]);
+  const query=(section,member)=>dossierActivityQuery(new URLSearchParams({reference:work.label,section,...(member?{member}:{})}));
+  x.store.db.exec('PRAGMA query_only=ON');
+  const full=await x.service.query(query('roles'));
+  assert.equal(full.coverage.status,'unavailable');assert.equal(full.coverage.observedCount,null);assert.equal(full.items.length,0);
+  assert.equal(full.participantCoverage.status,'partial');assert.equal(full.participants.length,1);
+  assert.equal(full.participants[0].id,rsp.personId);assert.equal(full.participants[0].name,'Gabriele Bischoff');assert.deepEqual(full.participants[0].roles,[]);
+  assert.deepEqual(full.participants[0].speeches,[{id:speech.id,debateId:debate,date:speech.date,source:speech.source}]);
+  assert(!x.calls.some(endpoint=>endpoint.includes('OJ-ITM')||endpoint.startsWith('/persons/')||endpoint.startsWith('/speeches/')));
+  const person=await x.service.query(query('speeches',rsp.personId));assert.equal(person.items[0].id,speech.id);assert(!person.coverage.gaps.some(gap=>gap.includes('role')));
+  for(const section of ['amendments','votes']){const result=await x.service.query(query(section,rsp.personId));assert.deepEqual(result.items,[]);assert.equal(result.coverage.observedCount,null);assert.equal(result.coverage.status,'partial');assert(!result.coverage.gaps.some(gap=>gap.includes('role')));}
+  const hash=full.snapshotId;
+  x.store.db.exec('PRAGMA query_only=OFF');x.store.db.prepare('DELETE FROM items WHERE source_id=?').run(speech.id);
+  const empty=await x.service.query(query('roles'));assert.equal(empty.participants.length,0);assert.notEqual(empty.snapshotId,hash);
+});
+
+test('contributor discovery is bounded and retains separate pages, exact people and failed debate coverage',async t=>{
+  const x=setup(t),otherDebate='MTG-PL-2026-09-16-PVCRE-ITM-15',third='MTG-PL-2026-09-17-PVCRE-ITM-16';
+  x.work.had_participation=[];
+  for(const [id,day] of [[otherDebate,'2026-09-16'],[third,'2026-09-17']])x.work.consists_of.push({id:uri(id),activity_date:day,had_activity_type:'def/ep-activities/PLENARY_DEBATE'});
+  const raw={id:uri(SPEECH),activity_id:SPEECH,activity_date:'2026-09-15',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+MEMBER,'person/'+OTHER]}],inverse_consists_of:[uri(DEBATE)]};
+  x.store.putSource(x.generation,'/speeches/'+SPEECH,'speech',raw,now,speechRows(raw,now));
+  const first=await x.service.query(x.q('roles',null));
+  assert.deepEqual(first.participants.map(p=>p.id).sort(),[OTHER,MEMBER].sort());assert(first.participants.every(p=>!p.roles.length&&p.speeches[0].id===SPEECH));
+  assert.equal(first.coverage.status,'complete');assert.equal(first.participantCoverage.status,'partial');assert.match(first.participantCoverage.gaps.join(' '),/debate is unavailable/);
+  assert.deepEqual(first.pagination.next,{offset:0,targetOffset:2});assert(!x.calls.includes('/events/'+third));
+  const next=await x.service.query(x.q('roles',null,'target-offset=2'));assert.equal(next.participantCoverage.status,'unavailable');assert.equal(next.pagination.next,null);
+  raw.inverse_consists_of=[uri(otherDebate)];x.store.putSource(x.generation,'/speeches/'+SPEECH,'speech',raw,now,speechRows(raw,now));
+  const conflict=await x.service.query(x.q('roles',null));assert.deepEqual(conflict.participants,[]);assert.match(conflict.participantCoverage.gaps.join(' '),/conflicting debate links/);
 });

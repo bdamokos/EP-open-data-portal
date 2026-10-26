@@ -53,5 +53,11 @@ export function mergeDossierPage(previous,page) {
   const sources=new Map([...previous.coverage.sources,...page.coverage.sources].map(source=>[JSON.stringify(source),source]));
   const unavailable=previous.coverage.status==='unavailable'||page.coverage.status==='unavailable';
   const status=unavailable?(items.size?'partial':'unavailable'):previous.coverage.status==='partial'||page.coverage.status==='partial'?'partial':'complete';
-  return {...page,items:[...items.values()],coverage:{...page.coverage,status,gaps:[...new Set([...previous.coverage.gaps,...page.coverage.gaps])],sources:[...sources.values()]}};
+  const participants=new Map(previous.participants.map(person=>[person.id,person]));
+  for(const person of page.participants){const old=participants.get(person.id);participants.set(person.id,{...person,roles:[...new Map([...(old?.roles||[]),...person.roles].map(role=>[role.id,role])).values()],speeches:[...new Map([...(old?.speeches||[]),...(person.speeches||[])].map(speech=>[speech.id,speech])).values()]});}
+  const before=previous.participantCoverage,after=page.participantCoverage;
+  const participantCoverage=before&&after?{...after,status:before.status==='complete'&&after.status==='complete'?'complete':before.status==='unavailable'&&after.status==='unavailable'?'unavailable':'partial',gaps:[...new Set([...before.gaps,...after.gaps])],sources:[...new Map([...before.sources,...after.sources].map(source=>[JSON.stringify(source),source])).values()]}:after||before;
+  return {...page,items:[...items.values()],participants:[...participants.values()],participantCoverage,coverage:{...page.coverage,status,gaps:[...new Set([...previous.coverage.gaps,...page.coverage.gaps])],sources:[...sources.values()]}};
 }
+
+export const dossierEmptyLabel=coverage=>coverage.status==='complete'&&!coverage.gaps.length&&!coverage.discovery?.pending&&!coverage.discovery?.refreshGaps&&!coverage.discovery?.capacityGaps.length?'No linked records.':coverage.status==='unavailable'?'Records unavailable.':'No records available yet.';

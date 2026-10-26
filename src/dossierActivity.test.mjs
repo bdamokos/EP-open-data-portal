@@ -14,7 +14,7 @@ const speech={kind:'speech',id:'MTG-PL-2026-09-15-OTH-1',date:'2026-09-15',start
 const amendment={kind:'amendment',id:'A-10-2026-0010-AM-3@list',date:'2026-09-08',dateBasis:'tabling',stage:'RDG1',source,tabling:{status:'recorded',date:'2026-09-08',observations:[{id:'tabling-event',date:'2026-09-08',stage:'RDG1',source}]},amendment:{id:'A-10-2026-0010-AM-3',number:3,listId:'A-10-2026-0010-AM-001-003',targetDocumentId:'A-10-2026-0010',documentDate:'2026-09-09',dateBasis:'individual-amendment-document',outcome:'ADOPTED',textIntegrity:'complete',listRelationship:'current',authors:[{personId:'257727',name:'Named member'},{personId:'2',name:'Exact coauthor'}],onBehalfOf:['ENVI','SEDE'],decisions:[{id:'MTG-PL-2026-09-16-DEC-196161',outcome:'ADOPTED'}],sources:[source]}};
 function ballot(id,position='for',outcome='ADOPTED') {return {kind:'vote',id,date:'2026-09-16',stage:null,source,vote:{id,uri:'https://data.europarl.europa.eu/'+id,sittingId:'MTG-PL-2026-09-16',date:'2026-09-16',title:'Official decision title',titles:{en:'Official decision title'},titleLanguage:'en',referenceTexts:{en:'Provisional agreement'},scope:{kind:'amendment'},actualPosition:{status:'recorded',position},outcome,method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:'conducted',totals:{for:1,against:2,abstaining:3},context:{amendmentIds:[],componentIds:[]},parts:[],intention:{status:'not-reported',positions:[]}}};}
 const agreement=ballot('MTG-PL-2026-09-16-DEC-196161'),rejection=ballot('MTG-PL-2026-09-16-DEC-196519','against','REJECTED');
-function page(section,member='257727',items,extra={}) {return {version:3,procedure:{id:'2025-0176',reference,title:'Official full dossier title',titleLanguage:'en',source},memberId:member,section,participants:[{id:'257727',name:'Named member',roles:[role]},{id:'124984',name:'Other member',roles:[{...role,id:'role-2',personId:'124984',role:'RAPPORTEUR_SHADOW'}]}],items:items??({roles:[role],speeches:[speech],amendments:[amendment],votes:[agreement,rejection]}[section]),pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Some targets have not been checked.'],sources:[source]},generation:1,...extra};}
+function page(section,member='257727',items,extra={}) {return {version:4,procedure:{id:'2025-0176',reference,title:'Official full dossier title',titleLanguage:'en',source},memberId:member,section,participants:[{id:'257727',name:'Named member',roles:[role]},{id:'124984',name:'Other member',roles:[{...role,id:'role-2',personId:'124984',role:'RAPPORTEUR_SHADOW'}]}],items:items??({roles:[role],speeches:[speech],amendments:[amendment],votes:[agreement,rejection]}[section]),pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Some targets have not been checked.'],sources:[source]},generation:1,...extra};}
 
 async function harness(t,query='?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference)+'&dossier-person=257727',handler) {
   const window=new Window({url:'http://localhost/'+query});
@@ -279,4 +279,49 @@ test('component markers without indexed parts and incomplete split coverage reta
   assert.equal(cards.get(amendment.id).showOutcome,false);
   assert.equal(cards.get(second.id).showOutcome,false);
   assert.equal(cards.get(second.id).shared.length,1);
+});
+
+const rsp=JSON.parse(await readFile(new URL('../server/fixtures/dossier-no-role-rsp.json',import.meta.url),'utf8'));
+const rspPage=(section,member)=>page(section,member,section==='speeches'?[rsp.speech]:[],{procedure:{id:'2026-2925',reference:rsp.procedure.label,title:rsp.procedure.process_title.en,titleLanguage:'en',source:rsp.procedureSource},participants:member?[]:[{id:rsp.personId,name:'Gabriele Bischoff',roles:[],speeches:[rsp.speech]}],coverage:{status:section==='roles'?'unavailable':'partial',gaps:section==='roles'?['Procedure role records are unavailable.']:['Checked observation is incomplete.'],sources:[rsp.procedureSource]},...(!member?{participantCoverage:{status:'partial',gaps:['Showing saved contributions linked to the checked debates.'],sources:[rsp.procedureSource]}}:{})});
+test('no-role RSP opens from a cold person link, keeps speech before gaps, and full dossier finds its contributor',async t=>{
+  const query='?pl-mode=dossier&dossier-ref='+encodeURIComponent(rsp.procedure.label)+'&dossier-person='+rsp.personId+'&lang=en&role=both&view=legislation';
+  let failVotes=true;
+  const h=await harness(t,query,url=>{
+    if(!url.pathname.endsWith('dossier-activity'))return;
+    const section=url.searchParams.get('section');
+    if(section==='votes'&&failVotes)return Response.json({error:{message:'Unavailable'}},{status:502});
+    return Response.json(rspPage(section,url.searchParams.get('member')));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference:rsp.procedure.label}));
+  assert.equal(h.container.querySelector('.dossier-speech h4').textContent,rsp.speech.title);
+  assert(h.container.innerHTML.indexOf('dossier-timeline')<h.container.innerHTML.indexOf('dossier-section-status'));
+  assert.match(h.container.textContent,/Votes could not be loaded/);assert.doesNotMatch(h.container.textContent,/No linked records|No participants|rapporteur/i);
+  failVotes=false;await h.click('Retry votes');assert(h.container.querySelector('.dossier-speech'));
+  await h.click('Amendments');assert.doesNotMatch(h.container.textContent,/No linked amendments/);assert.match(h.container.textContent,/No records available yet/);
+  await h.click('Full dossier');assert.equal(h.container.querySelector('.dossier-participants a').textContent,'Gabriele Bischoff');assert.match(h.container.textContent,/Speeches · 1 shown/);
+  await h.click('Work on this dossier');assert(h.container.querySelector('.dossier-speech'));assert.equal(new URL(location.href).searchParams.get('dossier-person'),rsp.personId);
+});
+
+test('participant pages retain speech-only people and retries never erase successful pages',async t=>{
+  let fail=true;
+  const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>{
+    if(url.searchParams.get('section')!=='roles')return;
+    const later=url.searchParams.get('target-offset')==='2';
+    const coverage={status:later&&fail?'unavailable':'partial',gaps:later&&fail?['Debate unavailable.']:[],sources:[source]};
+    return Response.json(page('roles',null,[],{participants:later?(fail?[]:[{id:'124984',name:'Other speaker',roles:[],speeches:[speech]}]):[{id:'257727',name:'First speaker',roles:[],speeches:[speech]}],participantCoverage:coverage,coverage:{status:'complete',gaps:[],sources:[source]},pagination:{offset:0,targetOffset:later?2:0,limit:25,next:later?null:{offset:0,targetOffset:2}}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more people');
+  assert.match(h.container.textContent,/First speaker/);assert.match(h.container.textContent,/People · Partial coverage/);
+  fail=false;await h.click('Retry people');assert.match(h.container.textContent,/First speaker/);assert.match(h.container.textContent,/Other speaker/);assert.doesNotMatch(h.container.textContent,/Debate unavailable/);
+});
+
+test('a new person and filter restart at the first page after earlier pagination',async t=>{
+  const h=await harness(t,undefined,url=>{
+    if(url.searchParams.get('section')!=='speeches')return;
+    const member=url.searchParams.get('member');return Response.json(page('speeches',member,[{...speech,id:'speech-'+member}],{pagination:{offset:Number(url.searchParams.get('offset')),targetOffset:0,limit:25,next:url.searchParams.get('offset')==='0'?{offset:25,targetOffset:0}:null}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more speeches');
+  const route='?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference)+'&dossier-person=124984';
+  await h.navigate(route);await h.click('Roles');await h.click('Speeches');
+  assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='speeches').at(-1).searchParams.get('offset'),'0');assert.equal(h.container.querySelectorAll('.dossier-speech').length,1);
 });

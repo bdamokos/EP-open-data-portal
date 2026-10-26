@@ -13,7 +13,7 @@ import {memberVotes} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 
-export const DOSSIER_ACTIVITY_VERSION=3;
+export const DOSSIER_ACTIVITY_VERSION=4;
 export const DOSSIER_ACTIVITY_LIMITS=Object.freeze({roles:500,documents:24,debatesPerPage:2,children:1000,speechRows:2000,votes:4000});
 const sectionNames=['roles','speeches','amendments','votes'];
 const validId=value=>/^\d{4}-\d{4}[A-Z]?$/.test(value||'');
@@ -104,15 +104,35 @@ export class DossierActivity {
     }
     return {roles,participants:[...participants.values()],gaps};
   }
+  async participants(result,work,query) {
+    // Reuse the exact debate-child projection, without fetching individual people
+    // or speeches. A procedural role is not a prerequisite for a contribution.
+    const speechResult={...result,items:[],coverage:{status:'partial',gaps:[],sources:[result.procedure.source]},pagination:{...result.pagination,next:null}};
+    await this.speeches(speechResult,work,{...query,offset:0},(items,next)=>{speechResult.items=items;speechResult.pagination.next=next;});
+    result.participantCoverage=speechResult.coverage;
+    const people=new Map(result.participants.map(person=>[person.id,{...person,speeches:[]}]));
+    this.store.readSnapshot(()=>{
+      if(this.store.status().servingGeneration!==result.generation){result.participantCoverage={...speechResult.coverage,status:'unavailable',gaps:['The activity index changed. Retry participants.']};return;}
+      for(const speech of speechResult.items){
+        let person=people.get(speech.personId);
+        if(!person){const row=this.store.db.prepare('SELECT body FROM members WHERE id=?').get(speech.personId),member=row?JSON.parse(row.body):null;person={id:speech.personId,name:member?[member.firstName||member.givenName,member.lastName||member.familyName].filter(Boolean).join(' ')||member.name||member.label||null:null,roles:[],speeches:[]};people.set(person.id,person);}
+        person.speeches.push({id:speech.id,debateId:speech.debateId,date:speech.date,source:speech.source});
+      }
+    });
+    result.participants=[...people.values()];
+    result.pagination.next ||= speechResult.pagination.next;
+    result.coverage.truncated=Boolean(result.pagination.next);
+  }
   async query(query) {
     const {reference,language,member,section,offset,targetOffset,limit}=query,id=reference.split('(')[0].replace('/','-');
     const {work,procedure}=await this.procedure(id,language,reference);
     const local=this.store.readSnapshot(()=>{const generation=this.store.status().servingGeneration;return {generation,...this.localRoles(work,procedure,generation)};});
-    const coverage={status:'partial',gaps:[...local.gaps],sources:[procedure.source],checkedScope:section,observedCount:null,truncated:false},pagination={offset,targetOffset,limit,next:null};
+    const coverage={status:'partial',gaps:section==='roles'?[...local.gaps]:[],sources:[procedure.source],checkedScope:section,observedCount:null,truncated:false},pagination={offset,targetOffset,limit,next:null};
     const result={version:DOSSIER_ACTIVITY_VERSION,procedure,memberId:member,participants:local.participants,section,items:[],pagination,coverage,generation:local.generation};
     const page=(items,nextTarget=null)=>{result.items=items.slice(offset,offset+limit);pagination.next=offset+limit<items.length?{offset:offset+limit,targetOffset}:nextTarget;coverage.observedCount=items.length;coverage.truncated=Boolean(pagination.next);};
     if(section==='roles') {
       const roles=local.roles.filter(role=>!member||role.personId===member);page(roles);coverage.status=!Array.isArray(work.had_participation)&&!roles.length?'unavailable':local.gaps.length?'partial':'complete';
+      if(!member)await this.participants(result,work,query);
     }else if(section==='speeches')await this.speeches(result,work,query,page);
     else if(section==='amendments')await this.amendments(result,work,query);
     else await this.ballots(result,work,query);
@@ -120,7 +140,7 @@ export class DossierActivity {
     if(coverage.status==='unavailable')coverage.observedCount=null;
     coverage.gaps=[...new Set(coverage.gaps)];
     coverage.sources=[...new Map(coverage.sources.map(s=>[JSON.stringify([s.url,s.fetchedAt,s.contentHash||null]),s])).values()];
-    result.snapshotId=createHash('sha256').update(JSON.stringify([result.generation,result.section,result.items,result.coverage,result.pagination])).digest('hex');
+    result.snapshotId=createHash('sha256').update(JSON.stringify([result.generation,result.section,result.items,result.participants,result.participantCoverage,result.coverage,result.pagination])).digest('hex');
     requestSignal()?.throwIfAborted();return result;
   }
   async speeches(result,work,query,page) {
@@ -138,23 +158,25 @@ export class DossierActivity {
     const rows=this.store.readSnapshot(()=>{
       if(this.store.status().servingGeneration!==result.generation)return null;
       if(!children.size)return [];
-      return this.store.db.prepare('SELECT body,source_key FROM items WHERE generation=? AND mep=? AND source_id IN ('+[...children].map(()=>'?').join(',')+') ORDER BY date,source_id LIMIT ?').all(result.generation,member,...children.keys(),DOSSIER_ACTIVITY_LIMITS.speechRows+1).map(row=>({...row,saved:this.store.source(result.generation,row.source_key)}));
+      return this.store.db.prepare('SELECT body,source_key FROM items WHERE generation=?'+(member?' AND mep=?':'')+' AND source_id IN ('+[...children].map(()=>'?').join(',')+') ORDER BY date,source_id,mep LIMIT ?').all(result.generation,...(member?[member]:[]),...children.keys(),DOSSIER_ACTIVITY_LIMITS.speechRows+1).map(row=>({...row,saved:this.store.source(result.generation,row.source_key)}));
     });
     if(rows===null){coverage.status='unavailable';coverage.gaps.push('The activity index changed. Retry speeches.');return;}
     const items=[];
     for(const row of rows.slice(0,DOSSIER_ACTIVITY_LIMITS.speechRows)) {
       const speech=JSON.parse(row.body),parents=children.get(speech.sourceId)||[];
-      if(speech.recordKind!=='speech'||String(speech.mepId)!==member)continue;
+      const speaker=String(speech.mepId);
+      if(speech.recordKind!=='speech'||!personId('person/'+speaker)||member&&speaker!==member)continue;
       if(parents.length!==1){coverage.gaps.push('A contribution has conflicting debate links.');continue;}
       const actualParents=refs(row.saved?.work?.inverse_consists_of);
       if(actualParents.length&&(!actualParents.includes(canonical(parents[0].id))||actualParents.some(parent=>parent!==canonical(parents[0].id)))){coverage.gaps.push('A contribution has conflicting debate links.');continue;}
       const from={url:speech.provenance.apiUrl,fetchedAt:speech.provenance.sourceFetchedAt,language:null};
-      items.push({kind:'speech',id:speech.sourceId,date:date(speech.date),start:speech.start||null,stage:stage(parents[0].occured_at_stage),...pick(speech.titles,language,speech.speechKind==='PLENARY_DEBATE_WRITTEN_STATEMENT'?'Written statement':'Speech'),debateId:tail(parents[0].id),jointDebate:parents[0].jointDebate,source:from});
+      items.push({kind:'speech',id:speech.sourceId,personId:speaker,date:date(speech.date),start:speech.start||null,stage:stage(parents[0].occured_at_stage),...pick(speech.titles,language,speech.speechKind==='PLENARY_DEBATE_WRITTEN_STATEMENT'?'Written statement':'Speech'),debateId:tail(parents[0].id),jointDebate:parents[0].jointDebate,source:from});
     }
     if(rows.length>DOSSIER_ACTIVITY_LIMITS.speechRows)coverage.gaps.push('Some saved speech records are outside this page.');
     coverage.gaps.push('Showing saved contributions linked to the checked debates.');
+    if(coverage.sources.some(s=>s.stale||s.refreshInProgress||s.refreshError))coverage.gaps.push('Some source observations are refreshing.');
     const nextTarget=targetOffset+selected.length<debates.length?{offset:0,targetOffset:targetOffset+selected.length}:null;
-    page(sorted(unique(items)),nextTarget);
+    page(sorted([...new Map(items.map(item=>[item.id+'@'+item.personId,item])).values()]),nextTarget);
     if(selected.length&&!children.size)coverage.status='unavailable';
   }
   async amendments(result,work,query) {
