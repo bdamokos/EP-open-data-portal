@@ -51,6 +51,11 @@ test('exact structured group capacity replaces redundant translated role wording
   const intervention={speaker:{id:'256986'},onBehalfOf:[{id:'ECR',uri:'org/ECR',label:'ECR',politicalGroup:true,source:'participation_in_name_of'}]};
   assert.deepEqual(speakerPresentation(person,'bg',{intervention}).roles,[],'the existing exact ECR badge supplies this capacity');
   assert.deepEqual(speakerPresentation(person,'en',{intervention}).roles,[],'do not repeat a translated group-capacity line');
+  for(const text of ['on behalf of the  Group','  On behalf of\t the\nGroup  ','on behalf of the\u00a0Group']) {
+    const spaced={...person,roleLabels:{...person.roleLabels,en:{text,language:'en'}}};
+    assert.deepEqual(speakerPresentation(spaced,'en',{intervention}).roles,[],'source whitespace does not duplicate the structured group badge');
+    assert.deepEqual(speakerPresentation(spaced,'bg',{intervention}).roles,[]);
+  }
   for(const context of [undefined,{...intervention,speaker:{id:'1',name:person.name}},{...intervention,onBehalfOf:[]},{...intervention,onBehalfOf:[{...intervention.onBehalfOf[0],source:'unverified'}]}]) {
     assert.deepEqual(speakerPresentation(person,'bg',{intervention:context}).roles,[person.roleLabels.bg],'only the same exact speaker and structured source can replace the raw role');
   }
