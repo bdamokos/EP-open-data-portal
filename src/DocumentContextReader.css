@@ -52,3 +52,4 @@
 .proposal-table{border-collapse:collapse;width:100%;font-size:.9em}
 .proposal-table td{border:1px solid var(--context-border);padding:.5rem;vertical-align:top;min-width:5rem}
 .proposal-table td p{margin:.35rem 0}
+.document-context-provision-label{margin:0 0 6px;color:var(--ink-muted);font-size:14px}

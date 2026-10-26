@@ -810,6 +810,9 @@ test('member-vote A-report Read in context reaches the Commission proposal',asyn
   await h.click('Read in context');await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
   assert(h.container.textContent.includes('Commission proposal · COM(2025)0087'));
   assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,'true');
+  const reader=h.container.querySelector('.document-context-reader'),summary=reader.querySelector('[aria-label="Vote on this text"]');
+  assert(summary,'the reader keeps the vote in view');assert(summary.querySelector('.member-votes-position')&&summary.querySelector('.member-votes-result'));
+  assert.equal(reader.querySelector('.document-context-back').textContent,'← Back to vote');
   assert(h.calls.some(url=>url.includes('wording-lang=en')&&!url.includes('body=0')));
 });
 

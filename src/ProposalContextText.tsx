@@ -116,6 +116,13 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
   const showAmendment=()=>{const node=reader.current?.querySelector<HTMLElement>('[data-context-target="true"]');node?.scrollIntoView({block:'center'});node?.focus({preventScroll:true});};
   const amendmentBlock=(inPlace:boolean,proposal?:ProposalDocument)=>{
     const original=inPlace&&placement?.originalText!==undefined?placement.originalText:wording?.originalText??null;
+    // A placed source span keeps its parsed provision number. When the amendment's
+    // original column is exactly that span without the number, the number is shown
+    // as source context and only the wording is compared; proposed text is never changed.
+    const anchor=inPlace&&proposal&&placement?.operation==='replace'&&placement.splice?.start.offset===0?units(proposal.units).find(unit=>unit.id===placement.evidence?.at(-1)?.anchor):undefined;
+    const sourcePrefix=anchor?.label?.prefix&&anchor.content[0]===placement?.splice?.start.paragraph&&original?.startsWith(anchor.label.prefix)?anchor.label.prefix:undefined;
+    const collapse=(text:string|null|undefined)=>(text??'').replace(/\s+/gu,' ').trim();
+    let labelLength=sourcePrefix&&original!==null&&wording?.originalText&&collapse(original.slice(sourcePrefix.length))===collapse(wording.originalText)?sourcePrefix.length:0;
     let renderOriginal:((value:string,start:number)=>ReactNode)|undefined;
     if(inPlace&&proposal&&placement?.splice){
       const splice=placement.splice,anchors:NoteAnchor[]=[],links:DocumentLink[]=[];let base=0;
@@ -125,9 +132,11 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
         for(const l of proposal.links as DocumentLink[])if(l.paragraph===index&&l.end>start&&l.start<end)links.push({...l,start:base+Math.max(l.start,start)-start,end:base+Math.min(l.end,end)-start});
         base+=end-start+1;
       }
-      renderOriginal=(value,start)=>{const end=start+value.length;return <ReferenceText text={value} start={start} anchors={anchors.filter(a=>a.offset>start&&a.offset<=end||start===0&&a.offset===0)} links={links.map(l=>({...l,start:Math.max(l.start,start),end:Math.min(l.end,end)})).filter(l=>l.end>l.start)} final notePrefix={prefix+'-'+placement.itemIndex}/>;};
+      // A note or link on the number itself stays inside the compared source text.
+      if(anchors.some(a=>a.offset<=labelLength)||links.some(l=>l.start<labelLength))labelLength=0;
+      renderOriginal=(value,offset)=>{const start=offset+labelLength,end=start+value.length;return <ReferenceText text={value} start={start} anchors={anchors.filter(a=>a.offset>start&&a.offset<=end||start===0&&a.offset===0)} links={links.map(l=>({...l,start:Math.max(l.start,start),end:Math.min(l.end,end)})).filter(l=>l.end>l.start)} final notePrefix={prefix+'-'+placement.itemIndex}/>;};
     }
-    return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment'+(number?' '+number:'')}><h4 lang="en">Amendment{number?' '+number:''}</h4>{wording&&<WordingDiff original={placement?.operation==='insert'?'':original} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={renderOriginal}/>}</section>;
+    return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment'+(number?' '+number:'')}><h4 lang="en">Amendment{number?' '+number:''}</h4>{labelLength>0&&<p className="document-context-provision-label" data-source-label="true">{sourcePrefix!.trim()}</p>}{wording&&<WordingDiff original={placement?.operation==='insert'?'':labelLength?original!.slice(labelLength):original} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={renderOriginal}/>}</section>;
   };
   return <>
     <p className="proposal-context-summary">{official?<a href={official} target="_blank" rel="noreferrer">{identity} ↗</a>:identity} · <a href={report} target="_blank" rel="noreferrer">Parliament {data.documentId.startsWith('A-')?'report':'document'} ↗</a></p>

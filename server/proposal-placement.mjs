@@ -91,6 +91,37 @@ function matchUnit(proposal,unit,original) {
   return {span:{start:from.paragraph,end:to.paragraph},splice:{start:from,end:to},originalText:text.slice(start,end),whole};
 }
 
+// Subparagraphs carry no label in the proposal. Resolve the containing
+// provision and require a unique wording match within the numbered
+// subparagraph's own paragraphs. A provision's own lead text is the first
+// subparagraph; an implicit paragraph has none. Points make numbering ambiguous.
+function subparagraphMatch(items,target,original) {
+  const last=target.segments.at(-1);
+  if(last?.kind!=='subparagraph'||last.isNew||last.suffix||!last.number||target.segments.length<2)return null;
+  const parents=items.flatMap((item,itemIndex)=>proposalCandidates(item.proposal,target.segments.slice(0,-1)).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  if(!parents.length)return null;
+  if(parents.length>1||parents[0].unit.pathConflict)return {reason:'multiple_published_targets'};
+  const {itemIndex,proposal}=parents[0];let unit=parents[0].unit;
+  if(unit.kind==='article') {
+    const body=unit.children.filter(child=>child.kind!=='title');
+    if(body.length!==1||!body[0].implicit)return {reason:'source_structure_unavailable'};
+    unit=body[0];
+  }
+  if(!['paragraph','point'].includes(unit.kind))return {reason:'source_structure_unavailable'};
+  // A title row may be a mis-styled first subparagraph, so an implicit
+  // paragraph's ordinals are only trusted when its container has no title.
+  const container=flat(proposal.units).find(parent=>parent.children.includes(unit));
+  if(unit.implicit&&container?.children.some(child=>child.kind==='title'))return {reason:'source_structure_unavailable'};
+  const children=unit.children,lead=unit.implicit||!unit.content.length?null:{start:unit.content[0],end:children[0]?.extent.start??unit.extent.end};
+  if(children.some(child=>child.kind!=='subparagraph')&&(last.number>1||!lead))return {reason:'source_structure_unavailable'};
+  const bounds=[...(lead?[lead]:[]),...children.map(child=>child.extent)][last.number-1];
+  if(!bounds||bounds.end<=bounds.start)return null;
+  const match=matchUnit(proposal,unit,original);
+  if(!match.span)return match;
+  if(match.span.start<bounds.start||match.span.end>=bounds.end)return {reason:'conflicting_target_evidence'};
+  return {itemIndex,unit,match};
+}
+
 /** All addresses are proposal-level. Inner quoted provisions cannot be candidates. */
 export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language}={}) {
   const operation=amendmentOperation({originalText,proposedText}),evidence=[];
@@ -98,8 +129,12 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(!operation)return unresolved('amendment_wording_unavailable');
   if([originalText,proposedText].some(text=>text.length>MAX_COLUMN_CHARACTERS))return unresolved('matching_budget');
   if([originalText,proposedText].some(text=>text.includes('\uFFFC')))return unresolved('math_comparison_unavailable');
-  const paths=targetPath?.proposal;
+  // Lists without structured location tags still publish the location as a
+  // heading in the same document and language; that heading is the target.
+  const paths=targetPath?.proposal?.length?targetPath.proposal:null;
   if(paths&&paths.length!==1)return unresolved('target_reference_unavailable');
+  // A structured underlying-act target without a proposal address is not an outer location.
+  if(!paths&&targetPath?.underlying?.length)return unresolved('target_reference_unavailable');
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
@@ -137,7 +172,13 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     evidence.push({basis:'preceding-sibling-subtree',anchor:anchor.unit.id});
     return {operation,status:'placed',itemIndex:anchor.itemIndex,insertAfter:insertBefore-1,insertBefore,evidence};
   }
-  if(!candidates.length)return unresolved('target_not_found');
+  if(!candidates.length) {
+    const sub=subparagraphMatch(items,target,originalText);
+    if(!sub)return unresolved('target_not_found');
+    if(sub.reason)return unresolved(sub.reason);
+    evidence.push({basis:'subparagraph-wording-match',anchor:sub.unit.id});
+    return {operation,status:'placed',itemIndex:sub.itemIndex,span:sub.match.span,splice:sub.match.splice,originalText:sub.match.originalText,evidence};
+  }
   if(candidates.length>1&&new Set(candidates.map(c=>c.itemIndex+'|'+parentKey(c.unit))).size!==1)return unresolved('multiple_published_targets');
   const matches=candidates.map(candidate=>({...candidate,match:matchUnit(candidate.proposal,candidate.unit,originalText)}));
   const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole));

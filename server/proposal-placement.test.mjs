@@ -123,3 +123,44 @@ test('suffix insertions require physically ordered siblings within the exact par
   const nested=source(['Article 1','The act is amended:','(4) A.','(4c) C.','(4b) B.','Article 2','The act is amended:','(4) Other.'],['Titrearticle','','Point0','Point0','Point0','Titrearticle','','Point0']);
   assert.equal(resolve(nested,'Article 2 – paragraph 1 – point 4 a (new)').status,'placed','other parent order does not affect the selected siblings');
 });
+
+test('published heading locates amendments when the list has no structured location',()=>{
+  const projection=source(['Article 1','1. First paragraph text.','2. Second paragraph text.']);
+  const placed=resolveProposalPlacement([item(projection)],{targetLabel:'Article 1 – paragraph 2',targetPath:{proposal:[],underlying:[]},originalText:'Second paragraph text.',proposedText:'Changed text.',language:'en'});
+  assert.equal(placed.status,'placed');assert.equal(placed.span.start,2);
+  const conflicting=resolveProposalPlacement([item(projection)],{targetLabel:'Article 1 – paragraph 2',targetPath:{proposal:[{raw:'Article 1 – paragraph 1'},{raw:'Article 1 – paragraph 2'}],underlying:[]},originalText:'Second paragraph text.',proposedText:'Changed text.',language:'en'});
+  assert.equal(conflicting.reason,'target_reference_unavailable');
+});
+
+test('numbered subparagraphs place only within their own paragraphs',()=>{
+  const projection=source(['Article 1','1. Lead subparagraph text.','Second subparagraph text.','2. Next paragraph.']);
+  let placed=resolve(projection,'Article 1 – paragraph 1 – subparagraph 1','Lead subparagraph text.');
+  assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:1,end:1});assert.equal(placed.evidence.at(-1).basis,'subparagraph-wording-match');
+  placed=resolve(projection,'Article 1 – paragraph 1 – subparagraph 2','Second subparagraph text.');
+  assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
+  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 1','Second subparagraph text.').reason,'conflicting_target_evidence');
+  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 3','Second subparagraph text.').reason,'target_not_found');
+  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 2 a (new)').status,'unresolved');
+  const pointed=source(['Article 1','1. Intro:','(a) point;','Closing subparagraph.']);
+  assert.equal(resolve(pointed,'Article 1 – paragraph 1 – subparagraph 2','Closing subparagraph.').reason,'source_structure_unavailable');
+});
+
+test('an underlying-act target without a proposal address never falls back to the heading',()=>{
+  const projection=source(['Article 9','1. Shared wording.']);
+  const placed=resolveProposalPlacement([item(projection)],{targetLabel:'Article 9 – paragraph 1',targetPath:{proposal:[],underlying:[{raw:'Article 9 – paragraph 1'}]},originalText:'Shared wording.',proposedText:'Changed.',language:'en'});
+  assert.equal(placed.reason,'target_reference_unavailable');
+});
+
+test('implicit paragraphs number subparagraphs from their first child',()=>{
+  const projection=source(['Article 1','First subparagraph.','Second subparagraph.']);
+  let placed=resolve(projection,'Article 1 – paragraph 1 – subparagraph 1','First subparagraph.');assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:1,end:1});
+  placed=resolve(projection,'Article 1 – paragraph 1 – subparagraph 2','Second subparagraph.');assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
+  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 2','First subparagraph.').reason,'conflicting_target_evidence');
+  placed=resolve(projection,'Article 1 – subparagraph 2','Second subparagraph.');assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
+  assert.equal(resolve(projection,'Article 1 – subparagraph 1','Second subparagraph.').reason,'conflicting_target_evidence');
+  const titled=source(['Article 1','1. First subparagraph.','Second subparagraph.'],['Titrearticle','Titrearticle']);
+  const variants=['1.First subparagraph.','”1.First subparagraph.','a] First subparagraph.','lxxxviii) First subparagraph.','I. First subparagraph.','II ) First subparagraph.','ii . First subparagraph.','aa ] First subparagraph.','II\t) First subparagraph.','II\u00a0) First subparagraph.','II','aa','point aa','Programme objectives'].map(lead=>source(['Article 1',lead,'Second subparagraph.'],['Titrearticle','Titrearticle']));
+  for(const projection of [titled,...variants])for(const label of ['Article 1 – paragraph 1 – subparagraph 1','Article 1 – subparagraph 1'])assert.equal(resolve(projection,label,'Second subparagraph.').reason,'source_structure_unavailable',label);
+  const numbered=source(['Article 1','1. Lead.','2. Next.']);
+  assert.equal(resolve(numbered,'Article 1 – subparagraph 1','Lead.').reason,'source_structure_unavailable');
+});

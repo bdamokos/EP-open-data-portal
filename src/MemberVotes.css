@@ -12,3 +12,4 @@
 .member-votes-attendance-line { color:var(--mv-muted); margin:.25rem 0 .75rem; font-size:.82rem; overflow-wrap:anywhere; }
 .member-votes-attendance { flex-basis:100%; grid-column:1 / -1; min-width:0; border-top:1px solid var(--mv-line); padding-top:.7rem; font-size:.82rem; }
 .member-votes-attendance p { margin:.35rem 0; }
+.member-votes-context-vote{margin:0 0 20px}.member-votes-context-label{font-size:15px;font-weight:bold;margin:0!important}.member-votes-context-vote .member-votes-strip{margin:10px 0 0}

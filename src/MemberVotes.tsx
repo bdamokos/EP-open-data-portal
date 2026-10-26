@@ -23,7 +23,7 @@ export type MemberVotesState={
   week:string;sittingId:string|null;positions:'recorded'|'all';alignment:'all'|'with'|'against'|'abstained';offset:number;
   decisionId:string|null;snapshotId:string|null;expandedSubjectIds:string[];context:MemberVotesContext|null;
 };
-export type MemberVotesContextRequest=MemberVotesContext&{onBack:()=>void};
+export type MemberVotesContextRequest=MemberVotesContext&{onBack:()=>void;backLabel:string;summary:ReactNode};
 export type MemberVotesProps={
   memberId:number;memberName:string;language:string;state:MemberVotesState;
   onStateChange:(next:MemberVotesState,options?:{replace?:boolean})=>void;
@@ -91,6 +91,12 @@ function Wording({documentId,amendmentId,language,openContext,showHeading=true}:
       </>}
     </>
   </section>;
+}
+
+// The reader replaces the vote detail, so it keeps the position and result in view.
+function ContextVote({vote,memberName,language}:{vote:MemberVote;memberName:string;language:string}) {
+  return <section className="member-votes-context-vote" aria-label="Vote on this text"><p className="member-votes-eyebrow">{dateLabel(vote.date)}</p><p className="member-votes-context-label">{memberVoteLabel(vote,language)}</p>
+    <div className="member-votes-strip"><Position vote={vote} memberName={memberName}/><Result vote={vote}/></div></section>;
 }
 
 function Detail({vote,data,memberName,language,onDecision,openContext,attendance,attendanceLoading,attendanceAttempted,retryAttendance,explanationsActive}:{vote:MemberVote;data:MemberVotesResponse;memberName:string;language:string;onDecision:(id:string)=>void;openContext:(context:MemberVotesContext)=>void;attendance:MemberAttendanceResponse|null;attendanceLoading:boolean;attendanceAttempted:boolean;retryAttendance:()=>void;explanationsActive:boolean}) {
@@ -233,7 +239,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
         <button className="member-votes-back" type="button" onClick={()=>change({decisionId:null,context:null})}>← Back to votes</button>
         <div ref={headingRef}>{selected?<Detail vote={selected} data={data} attendance={attendance} attendanceLoading={attendanceRequest.loading} attendanceAttempted={attendanceRoute!==null} retryAttendance={attendanceRequest.retry} memberName={memberName} language={language} onDecision={selectDecision} openContext={context=>change({context})} explanationsActive={!state.context}/>:state.decisionId?<div className="member-votes-empty"><h2 tabIndex={-1}>Vote unavailable</h2><p>The requested decision is unavailable in this period.</p></div>:null}</div>
       </div>
-      {state.context&&(contextAllowed?renderContext({...state.context,onBack:()=>change({context:null})}):<div className="member-votes-empty"><button type="button" onClick={()=>change({context:null})}>← Back to vote</button><p>The requested document is unavailable for this vote.</p></div>)}
+      {state.context&&(contextAllowed?renderContext({...state.context,onBack:()=>change({context:null}),backLabel:'Back to vote',summary:<ContextVote vote={selected!} memberName={memberName} language={language}/>}):<div className="member-votes-empty"><button type="button" onClick={()=>change({context:null})}>← Back to vote</button><p>The requested document is unavailable for this vote.</p></div>)}
     </>}
   </section>;
 }
