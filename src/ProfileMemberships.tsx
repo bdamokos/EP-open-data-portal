@@ -19,9 +19,14 @@ const hasName=(item:HistoryItem)=>item.body?.prefLabel&&typeof item.body.prefLab
 
 export function ProfileMemberships({profile,lang,roleName,date,retry}:{profile:MemberProfile;lang:string;roleName:(role:string)=>string;date:(value:string,lang:string)=>string;retry:()=>void}) {
   const history=profile.membershipHistory;
-  const current=profile.currentAffiliation?.status==='matched';
+  const current=profile.currentAffiliation?.status==='matched',today=profile.currentAffiliation?.day||'',serviceStart=profile.parliamentaryService?.currentSince||'2024-07-16';
+  // An open end reads as ongoing only for a membership begun in the current service, with its body not ended.
+  const ongoing=(item:HistoryItem)=>{
+    const bodyEnd=(item.body?.temporal as {endDate?:unknown}|undefined)?.endDate;
+    return current&&typeof item.start==='string'&&item.start>=serviceStart&&!(typeof bodyEnd==='string'&&today&&bodyEnd<today);
+  };
   const row=(item:HistoryItem)=>{
-    const name=itemName(item,lang),role=roleCode(item),period=Period({start:item.start,end:item.end,ongoing:current,lang,date});
+    const name=itemName(item,lang),role=roleCode(item),period=Period({start:item.start,end:item.end,ongoing:ongoing(item),lang,date});
     const ordinaryAffiliation=role==='MEMBER'&&['national-parties','political-groups'].includes(item.section);
     return <li key={item.index}>
       <p><span lang={name.language}>{name.text}</span></p>

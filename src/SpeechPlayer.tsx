@@ -94,7 +94,7 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
       {media.loading && !media.data && <p role="status">Loading video…</p>}
     {media.error && <div className="explorer-notice" role="alert"><p>{media.error}</p><button onClick={()=>{returnFocus();media.retry();}}>Try video again</button></div>}
     {media.data && <>
-      {!media.data.available ? <div className="explorer-notice" role="alert"><strong>{media.data.status === 'audio-unavailable' ? `${activeName} audio unavailable` : ['audio-unverified','audio-selection-unverified'].includes(media.data.status) ? `${activeName} audio unavailable` : 'No video for this speech'}</strong>{media.data.reason&&<p>{media.data.reason}</p>}{!current.original&&media.data.status?.startsWith('audio-')&&<button onClick={()=>{audioControl.current?.focus({preventScroll:true});start(true);}}>Try original audio</button>}</div>
+      {!media.data.available ? <div className="explorer-notice" role="alert"><strong>{media.data.status === 'audio-unavailable' ? `${activeName} audio unavailable` : ['audio-unverified','audio-selection-unverified'].includes(media.data.status) ? `${activeName} audio unavailable` : 'Video unavailable'}</strong>{media.data.reason&&<p>{media.data.reason}</p>}{!current.original&&media.data.status?.startsWith('audio-')&&<button onClick={()=>{audioControl.current?.focus({preventScroll:true});start(true);}}>Try original audio</button>}</div>
         : !embed ? <p role="alert">This clip is unavailable. Open the full recording below.</p>
         : <>
           <ParliamentFrame key={speechFrameKey(current.speechId,lang,audio,frameAttempt,media.data.audioMapping)} src={embed} speechId={current.speechId} lang={lang} audio={audio} original={current.original} mapping={media.data.audioMapping!} returnFocus={returnFocus} />
@@ -104,7 +104,7 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
     </>}
   </section>;
   if(!speech)return {toggle:null,panel:null};
-  if(!playable)return {toggle:<span className="explorer-video-gap" lang="en"><strong>{written?'Written statement · no video':'No video'}</strong></span>,panel:null};
+  if(!playable)return {toggle:<span className="explorer-video-gap" lang="en"><strong>{written?'Written statement · no video':'Video unavailable'}</strong></span>,panel:null};
   return {toggle:<button ref={toggle} className="explorer-video-toggle" lang="en" title={current?'Close this speech’s video':'Open this speech’s video'} aria-expanded={Boolean(current)} aria-controls={panelId} onClick={()=>current?close():start(false)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3Z" fill="currentColor" stroke="none"/></svg><span>Video</span></button>,panel};
 }
 

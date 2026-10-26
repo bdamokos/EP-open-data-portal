@@ -82,7 +82,7 @@ export function PlenaryLiveBanner({language='en'}:{language?:string}) {
   const item=data.agenda.state==='presumed'?data.agenda.items[0]:null;
   const label=item?selectLanguageText(item.titles,language,item.id):null;
   return <section className="plenary-live-banner" aria-label="Plenary now" lang="en">
-    <div><div className="plenary-live-eyebrow"><span className="plenary-live-dot"/>{data.broadcast?'Plenary live':'Plenary now'}<span>Updated {clockText(data.current?.updatedAt||data.checkedAt)} Brussels</span></div><p title={data.current?.title||data.broadcast?.title}>{data.current?.title||data.broadcast?.title}</p>{item&&label&&<small><AgendaLink data={data} id={item.id}>Open scheduled agenda item</AgendaLink></small>}{data.agenda.state==='ambiguous'&&<small>Several agenda items in this block.</small>}</div>
+    <div><div className="plenary-live-eyebrow"><span className="plenary-live-dot"/>{data.broadcast?'Plenary live':'Plenary now'}<span>Updated {clockText(data.current?.updatedAt||data.checkedAt)} Brussels</span></div><p title={data.current?.title||data.broadcast?.title}>{data.current?.title||data.broadcast?.title}</p>{item&&label&&<small><AgendaLink data={data} id={item.id}>Open scheduled agenda item</AgendaLink></small>}{data.agenda.state==='ambiguous'&&<small>Current agenda item unclear.</small>}</div>
     {data.broadcast&&<button onClick={open}>{opened?'Show player':'Watch live'} <span aria-hidden="true">↗</span></button>}
   </section>;
 }

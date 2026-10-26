@@ -156,11 +156,11 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
         <>
           {body===state.data&&state.data?.textCache?.stale && <small lang="en">Showing saved transcript.{state.data.textCache.refreshInProgress ? " A refresh is running in the background." : state.data.textCache.refreshError ? " The last refresh failed." : ""}</small>}
           <div className="explorer-text-meta" lang="en">
-            {body.textLanguage ? <span lang="">{body.textLanguage.toUpperCase()}</span> : text.paragraphs.length ? "Language unspecified" : "Text unavailable"}
+            {body.textLanguage ? <span lang="">{body.textLanguage.toUpperCase()}</span> : text.paragraphs.length ? null : "Text unavailable"}
             {body.translationType === "machine" || text.machine
-              ? " · Parliament machine translation"
+              ? (body.textLanguage || !text.paragraphs.length ? " · " : "") + "Parliament machine translation"
               : body.translationType === "original"
-                ? " · Original text"
+                ? (body.textLanguage || !text.paragraphs.length ? " · " : "") + "Original text"
                 : ""}
             {body.textLanguage && body.textLanguage !== transcriptLanguage
               ? " · Requested-language text unavailable"

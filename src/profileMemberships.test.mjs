@@ -38,3 +38,18 @@ test('profile disclosures are collapsed, retain raw identifiers, language and sa
     if(entries.length>1){assert.doesNotMatch(page.textContent,/org\/5177|Role not supplied/);assert.match(page.textContent,/Unnamed organisation/);}
   }
 });
+
+test('an open membership reads as present only when it began in the current service and its body has not ended',async t=>{
+  const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>loadModule.close());
+  const {ProfileMemberships}=await loadModule('/src/ProfileMemberships.tsx');
+  const window=new Window();t.after(()=>window.happyDOM.close());
+  const item=(index,name,start,temporal)=>({index,section:'delegations',membershipId:'m'+index,bodyId:'org/'+index,role:'def/ep-roles/MEMBER',classification:null,start,end:null,dateIssues:[],observation:null,body:{id:'org/'+index,identifier:String(index),prefLabel:{en:name},classification:'',temporal,source:{url:'',fetchedAt:'',stale:false}}});
+  const items=[item(1,'Current delegation','2024-07-16',{startDate:'2024-07-16'}),item(2,'Earlier delegation','2009-07-14',{startDate:'2009-07-14',endDate:'2014-06-30'}),item(3,'Dissolved delegation','2024-09-01',{startDate:'2024-09-01',endDate:'2025-01-01'})];
+  const membershipHistory={version:1,observationAvailable:true,observationComplete:true,observationIssues:[],observations:[],labelsComplete:true,dateIssues:false,complete:true,error:null,sources:[],items};
+  const render=status=>{window.document.body.innerHTML=renderToStaticMarkup(createElement(ProfileMemberships,{profile:{membershipHistory,currentAffiliation:{status,day:'2026-10-26'},parliamentaryService:{currentSince:'2024-07-16'}},lang:'en',roleName:role=>role,date:value=>value,retry:()=>{}}));return [...window.document.querySelectorAll('li')].map(node=>node.textContent);};
+  const current=render('matched');
+  assert.match(current.find(text=>text.includes('Current delegation')),/2024-07-16 — Present/);
+  assert.match(current.find(text=>text.includes('Earlier delegation')),/From 2009-07-14/,'an open membership from an earlier term is not presented as current');
+  assert.match(current.find(text=>text.includes('Dissolved delegation')),/From 2024-09-01/,'a membership of an ended body is not presented as current');
+  assert(render('not-current').every(text=>!text.includes('Present')),'a former member has no present memberships');
+});
