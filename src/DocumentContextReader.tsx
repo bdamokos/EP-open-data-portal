@@ -182,7 +182,8 @@ function ContextSession({request,language,selectedDocumentId,onSelectedDocumentI
   const selectedChoice=choices.find(item=>item.id===selected),partial=data?.related.status==='partial';
   const pendingRelated=request.view==='adopted'&&related.loading&&(selected?!selectedChoice:!data);
   return <section className="document-context-reader" lang="en" aria-label="Document context" data-context-pending={pendingRelated?'true':undefined}>
-    <button type="button" className="document-context-back" onClick={request.onBack}>← Back</button>
+    <button type="button" className="document-context-back" onClick={request.onBack}>← {request.backLabel??'Back'}</button>
+    {request.summary}
     {request.view==='document'?<DocumentBody key={request.documentId+':'+selectedLanguage} id={request.documentId} language={selectedLanguage} interfaceLanguage={language} onLanguageChange={setLanguage} amendmentRequest={request}/>:<>
       {selected?<>
         <button type="button" className="document-context-choices-back" onClick={()=>select(null)}>← Adopted texts</button>

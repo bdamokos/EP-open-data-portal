@@ -553,6 +553,21 @@ test('Commission proposal replaces the report body for recorded CBAM amendments 
   }
 });
 
+test('placed amendment keeps an unchanged provision number the amendment column omits',async t=>{
+  const {parseProposal}=await import('../server/proposal-structure.mjs'),{resolveProposalPlacement}=await import('../server/proposal-placement.mjs');
+  const paragraphs=['Article 1','1.\tLead subparagraph text.','Second subparagraph text.'];
+  const proposal=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),paragraphProperties:paragraphs.map((_,i)=>({styleId:i?'Normal':'Titrearticle',numberingComplete:true,notesComplete:true}))});
+  const value=proposalContextResponse(report,amendment,list,4),items=[{kind:'act',index:1,proposal}];
+  const variant={...value.amendment.variants[0],targetLabel:'Article 1 – paragraph 1 – subparagraph 1',targetPath:{proposal:[],underlying:[],language:'en'},originalText:'Lead subparagraph text.',proposedText:'Changed subparagraph text.'};
+  Object.assign(value,{proposal:{items},amendment:{...value.amendment,variants:[variant]},placement:resolveProposalPlacement(items,variant)});
+  assert.equal(value.placement.status,'placed');
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.dataset.contextTarget,'true');
+  assert(![...block.querySelectorAll('del')].some(node=>node.textContent.includes('1.')),'the provision number is not shown as deleted');
+  assert(block.textContent.includes('1.'));assert(block.querySelector('ins').textContent.includes('Changed'));
+});
+
 test('proposal deletion includes instruction 21(a) and its quotation while keeping 21(b) readable',async t=>{
   const h=await harness(t,()=>proposalContextResponse(report,amendment,list,7));
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});

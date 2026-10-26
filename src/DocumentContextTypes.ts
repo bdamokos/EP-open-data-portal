@@ -1,7 +1,8 @@
+import type {ReactNode} from 'react';
 import type {ProposalDocument} from './proposalTypes';
 import type {PublicationDocument} from './explorerTypes';
 
-export type DocumentContextRequest={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted';onBack:()=>void};
+export type DocumentContextRequest={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted';onBack:()=>void;backLabel?:string;summary?:ReactNode};
 export type ContextSource={url:string;fetchedAt:string;contentHash:string;stale:boolean;refreshInProgress:boolean;refreshError:string|null;language?:string|null;resolvedSourceUrl?:string;retrievedByteSize?:number;sourceVersion?:{byteSize:number|null;issued:string|null}};
 export type DocumentContextResponse={
   version:4;
