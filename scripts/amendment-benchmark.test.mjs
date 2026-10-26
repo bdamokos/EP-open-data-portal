@@ -65,6 +65,16 @@ test('resolution oracles cover numeric and recital insertion and do not accept t
     assert.equal(verifyPlacement({placement:placed,wording:words,text:recital}).status,'verified','published recital prefixes may be omitted in original wording');
   }
 });
+test('insertion oracle checks the preceding sibling and orders multi-letter recital labels after Z',()=>{
+  for(const [paragraphs,targetLabel,expected] of [
+    [['3. Three.','4. Four.','3b. Misordered.','5. Five.'],'Paragraph 3 c (new)','failed'],
+    [['Z. Last single-letter recital.','AA. First double-letter recital.','1. Paragraph.'],'Recital Z a (new)','verified'],
+  ]) {
+    const text=source(['The European Parliament,',...paragraphs,'ANNEX']),amendment={...wording(targetLabel),baseline:'motion-resolution'};
+    const placement=resolveAmendmentPlacement(text,amendment);assert.equal(placement.status,'placed');
+    assert.equal(verifyPlacement({placement,wording:amendment,text}).status,expected);
+  }
+});
 const row=(id,outcome='correct',voteIds=['vote-1'])=>({key:id,id,outcome,reason:outcome,documentType:'legislative-report',language:'en',patterns:['article'],voteIds});
 test('metrics count amendments once, preserve null zero-denominator shares and deduplicate collective/split votes',()=>{
   const value=metrics([row('a'),row('b','withheld-source'),row('c','withheld-pipeline',['vote-2'])]);
