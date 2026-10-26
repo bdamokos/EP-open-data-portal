@@ -12,7 +12,7 @@ function hasStructuredGroupCapacity(person,intervention) {
   const english=person?.roleLabels?.en;
   return Boolean(person?.id&&person.id===intervention?.speaker?.id&&
     intervention?.onBehalfOf?.some(group=>group.politicalGroup&&group.source==='participation_in_name_of')&&
-    english?.language==='en'&&english.text.trim().toLowerCase()==='on behalf of the group');
+    english?.language==='en'&&english.text.trim().replace(/\s+/g,' ').toLowerCase()==='on behalf of the group');
 }
 export function speakerPresentation(person,language='en',{chair=false,intervention}={}) {
   chair=chair||person?.sittingRole==='chair'||person?.role==='Chairing the sitting'||speakerIsChair(person?.name);

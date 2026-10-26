@@ -68,6 +68,19 @@ test('shared reader and sequence retain exact ECR without promoting a conflictin
   assert(!h.container.textContent.includes('Verts/ALE'));
 });
 
+test('original English speech omits a double-spaced group role while retaining its PPE badge',async t=>{
+  // Public speech MTG-PL-2026-10-19-OTH-2017099670343, retrieved 2026-10-26.
+  const id='MTG-PL-2026-10-19-OTH-2017099670343';
+  const person={id:'249603',name:'Martine Kemp',roleLabels:{en:{text:'on behalf of the  Group',language:'en'}}};
+  const intervention={type:'speech',speaker:person,onBehalfOf:[{id:'PPE',uri:'org/PPE',label:'PPE',politicalGroup:true,source:'participation_in_name_of'}]};
+  const h=await harness(t,(route)=>route.startsWith('speech-transcript/')?{id,available:true,xml:'<speech><p>Original English transcript.</p></speech>',textLanguage:'en',translationType:'original',availableTextLanguages:['en'],metadata:{id,speakers:[person],intervention}}:undefined);
+  await h.render(el(h.InsightSpeechReader,{id,language:'en'}),'en');
+  assert.equal(h.container.querySelector('h3').textContent,'Martine Kemp');
+  assert(!h.container.querySelector('.insight-secondary'));
+  assert.equal(h.container.querySelector('.intervention-group').textContent,'On behalf of PPE');
+  assert.equal(h.container.querySelector('.insight-reader-text').textContent,'Original English transcript.');
+});
+
 async function harness(t,respond) {
   const window=new Window({url:'http://localhost/'}),requests=[],scrolls=[];
   class ReaderDOMParser extends window.DOMParser {
