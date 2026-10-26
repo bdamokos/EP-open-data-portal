@@ -94,7 +94,7 @@ test('URL cache is hash-verified, offline by default, bounded and honours Retry-
   try {
     const url='https://ep.bdamokos.org/api/amendments?limit=50',calls=[],waits=[];
     const cache=new InputCache(directory,{fetchMissing:true,cap:3,delay:0,sleep:async ms=>waits.push(ms),fetcher:async (url,opts)=>{calls.push({url,opts});return calls.length===1?new Response('busy',{status:429,headers:{'Retry-After':'2'}}):new Response('{"ok":true}');}});
-    const first=await cache.json(url);assert(first.value.ok);assert.equal(calls.length,2);assert(waits.some(ms=>ms>=1900));assert.equal(calls[0].opts.redirect,'error');
+    const first=await cache.json(url);assert(first.value.ok);assert.equal(calls.length,2);assert(waits.some(ms=>ms>=1900));assert.equal(calls[0].opts.redirect,'manual');
     const offline=new InputCache(directory,{fetcher:()=>{throw new Error('network forbidden');}});
     assert.equal((await offline.json(url)).value.ok,true);assert.equal(offline.requests,0);
     assert.equal((await offline.get(url+'&offset=50')).error,'not-cached');
@@ -105,6 +105,19 @@ test('URL cache is hash-verified, offline by default, bounded and honours Retry-
   } finally {await rm(directory,{recursive:true,force:true});}
   assert.equal(retryDelay('2'),2000);assert.equal(retryDelay('Wed, 21 Oct 2026 00:00:03 GMT',Date.parse('2026-10-21T00:00:00Z')),3000);
   for(const url of ['http://ep.bdamokos.org/api/amendments','https://ep.bdamokos.org/api/healthz','https://data.europarl.europa.eu/api/v2/meps','https://example.org/x.docx'])assert.equal(allowedInput(url),false);
+});
+test('official DOCX redirects use the shared host allowlist, cache both hops, and charge the request cap',async()=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-bench-redirect-'));
+  try {
+    const original='https://data.europarl.europa.eu/distribution/test/file.docx',target='https://redmapl3.europarl.europa.eu/RedmapFront/media/test/file.docx';
+    const cache=new InputCache(directory,{fetchMissing:true,cap:2,delay:0,sleep:async()=>{},fetcher:async url=>url===original?new Response('',{status:302,headers:{location:target}}):new Response('DOCX')});
+    const result=await cache.get(original);assert.equal(result.ok,true);assert.equal(result.url,original);assert.equal(result.resolvedSourceUrl,target);assert.equal(result.body.toString(),'DOCX');assert.equal(cache.requests,2);assert.equal(cache.manifest().length,2);
+    const offline=new InputCache(directory);assert.equal((await offline.get(original)).body.toString(),'DOCX');assert.equal(offline.requests,0);
+    const forbidden=new InputCache(directory,{fetchMissing:true,cap:1,delay:0,sleep:async()=>{},fetcher:async()=>new Response('',{status:302,headers:{location:'https://example.org/file.docx'}})});
+    assert.equal((await forbidden.get(original.replace('file.docx','bad.docx'))).error,'unapproved-document-redirect');assert.equal(forbidden.requests,1);
+    const limited=new InputCache(directory,{fetchMissing:true,cap:1,delay:0,sleep:async()=>{},fetcher:async()=>new Response('',{status:302,headers:{location:target.replace('file.docx','missing.docx')}})});
+    assert.equal((await limited.get(original.replace('file.docx','limited.docx'))).error,'not-cached');assert.equal(limited.requests,1);
+  } finally {await rm(directory,{recursive:true,force:true});}
 });
 
 // A tiny synthetic DOCX, generated entirely in memory. No downloaded fixtures.
