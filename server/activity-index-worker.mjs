@@ -1,5 +1,6 @@
 import {cataloguePage,acquisitionMode,observeSource,finishAvailabilityWrite} from './availability-history.mjs';
 import {groupHistoryTask,scheduleGroupHistory} from './group-history.mjs';
+import {runHistoryReadiness,publishMissingHistory} from './history-readiness.mjs';
 import {membershipTask,scheduleMembership} from './following-membership.mjs';
 import { booleanFromEnvironment, integerFromEnvironment, absolutePathFromEnvironment } from './config.mjs';
 import {groupVoiceProjection,groupVoiceJobKey,recordGroupVoice,groupVoiceWorkDue,groupVoicesCopy,initializeGroupVoices,nextGroupVoiceTask,enqueueGroupVoice} from './group-voices-store.mjs';
@@ -628,6 +629,7 @@ export class ActivityWorker {
         if(!this.store.get('working').groupHistoryScheduled) {
           scheduleGroupHistory(this.store,cycle.generation);this.store.updateCycle({groupHistoryScheduled:true});
         }
+        await runHistoryReadiness(this,cycle.generation);
         if(!this.store.get('working').mutableScheduled) {
           scheduleMutable(this,cycle.generation);this.store.updateCycle({mutableScheduled:true});
         }
@@ -683,6 +685,7 @@ export class ActivityWorker {
           finally {if(!task.groupVoiceJob&&(!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
         } finally {taskIteration();}
       }
+      if(cycle&&this.store.get('working'))publishMissingHistory(this.store,generation);
     } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}

@@ -1,7 +1,7 @@
 import {ODP_BASE,readCachedMepRecord} from './odp.mjs';
 import {membershipPersons,membershipLists} from './following-membership.mjs';
 
-export const GROUP_HISTORY_VERSION=1;
+export const GROUP_HISTORY_VERSION=2;
 const DAY=86_400_000,TTL=7*DAY;
 const classification='def/ep-entities/EU_POLITICAL_GROUP';
 const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
@@ -97,10 +97,12 @@ export async function groupHistoryTask(worker,task) {
   if(kind==='group-history-discover') {
     // Missing/oldest observations lead each cycle, so cold acquisition progresses
     // rather than repeatedly using its allowance on the same current members.
-    const ids=people(store,generation).sort((a,b)=>(Date.parse(store.source(generation,'group-history:'+a+':attempt')?.work.lastAttemptAt||store.source(generation,'group-history:'+a)?.fetchedAt)||0)-(Date.parse(store.source(generation,'group-history:'+b+':attempt')?.work.lastAttemptAt||store.source(generation,'group-history:'+b)?.fetchedAt)||0)||Number(a)-Number(b));
+    const known=people(store,generation),latest=store.db.prepare('SELECT date FROM items INDEXED BY item_lookup WHERE generation=? AND mep=? ORDER BY date DESC LIMIT 1');
+    const recent=new Map(known.map(id=>[id,latest.get(store.get('active')||generation,id)?.date||'']));
+    const ids=known.sort((a,b)=>(Date.parse(store.source(generation,'group-history:'+a+':attempt')?.work.lastAttemptAt||store.source(generation,'group-history:'+a)?.fetchedAt)||0)-(Date.parse(store.source(generation,'group-history:'+b+':attempt')?.work.lastAttemptAt||store.source(generation,'group-history:'+b)?.fetchedAt)||0)||(recent.get(b)||'').localeCompare(recent.get(a)||'')||Number(a)-Number(b));
     store.transaction(()=>{
       rememberPeople(store,generation,ids);
-      ids.forEach((id,index)=>store.enqueue(generation,'group-history:'+id,'group-history-person',{id},105-index/10000));
+      ids.forEach((id,index)=>store.enqueue(generation,'group-history:'+id,'group-history-person',{id},105-index/10000,true));
     });
     store.finishTask(task);return;
   }
@@ -156,23 +158,24 @@ export async function groupHistoryTask(worker,task) {
     store.finishTask(task);
   }
 }
-export function freezeGroupHistory(store,generation,previous) {
+export function freezeGroupHistory(store,generation,previous,{sourceGeneration=generation,publication=null,people:boundPeople=null}={}) {
   const prior=previous?groupHistorySnapshot(store,previous):null,members={},events=new Map((prior?.events||[]).map(event=>[event.id,event]));
-  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(store.clock()));
+  const today=publication?.asOf||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(store.clock()));
   const mark=store.db.prepare('INSERT OR IGNORE INTO membership_marks VALUES (?,?)'),read=store.db.prepare('SELECT mark FROM membership_marks WHERE event_id=?');
-  const ids=people(store,generation);
-  rememberPeople(store,generation,ids);
+  const ids=boundPeople?[...boundPeople]:people(store,sourceGeneration);
+  rememberPeople(store,sourceGeneration,ids);
   for(const id of ids) {
-    const source=store.source(generation,'group-history:'+id)?.work,attempt=store.source(generation,'group-history:'+id+':attempt')?.work;
-    const stale=!!source&&(source.generation!==generation||!!attempt?.lastError);
+    const source=store.source(sourceGeneration,'group-history:'+id)?.work,attempt=store.source(sourceGeneration,'group-history:'+id+':attempt')?.work;
+    const stale=!!source&&(source.generation!==sourceGeneration||!!attempt?.lastError);
     const person=source?{...source,stale,lastError:attempt?.lastError||null,lastAttemptAt:attempt?.lastAttemptAt||source.retrievedAt}:{coverage:'unavailable',mandateCoverage:'unavailable',mandates:[],groups:[],ambiguous:[],stale:false,lastError:attempt?.lastError||null,lastAttemptAt:attempt?.lastAttemptAt||null};
+    if(publication?.asOf)for(const key of ['mandates','groups','ambiguous'])person[key]=person[key].filter(period=>period.start<=today).map(period=>({...period,end:!period.end||period.end>today?today:period.end}));
     members[id]=person;
     const current=source?groupEvents(id,person,today):[];
     if(source?.coverage==='complete'&&!stale)for(const [key,event]of events)if(event.mep===id)events.delete(key);
     for(const event of current){mark.run(event.id,generation);events.set(event.id,{...event,mark:read.get(event.id).mark});}
   }
   const coverage={total:Object.keys(members).length,complete:Object.values(members).filter(person=>person.coverage==='complete').length,partial:Object.values(members).filter(person=>person.coverage==='partial').length,unavailable:Object.values(members).filter(person=>person.coverage==='unavailable').length};
-  const catalogue=store.source(generation,'group-history:catalogue');
-  const body={members,events:[...events.values()],coverage,catalogue:{retrievedAt:catalogue?.fetchedAt||null,sources:catalogue?.work.sources||[],bodies:store.sources(generation,'group-body').map(source=>source.work)}};
+  const catalogue=store.source(sourceGeneration,'group-history:catalogue');
+  const body={...(publication?{publication}:{}),members,events:[...events.values()],coverage,catalogue:{retrievedAt:catalogue?.fetchedAt||null,sources:catalogue?.work.sources||[],bodies:store.sources(sourceGeneration,'group-body').map(source=>source.work)}};
   store.db.prepare('INSERT OR REPLACE INTO group_history_snapshots VALUES (?,?)').run(generation,JSON.stringify(body));
 }

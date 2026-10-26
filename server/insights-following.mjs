@@ -44,7 +44,7 @@ export function followingResponse(store,view,search) {
     status:409,body:{error:{code:'generation_changed',message:'The index generation has changed.',epoch:status.epoch,generation:status.generation}}};
   if(['following-groups','group-history'].includes(view)) {
     const snapshot=groupHistorySnapshot(store,query.generation);
-    const body=view==='following-groups'&&snapshot?{members:Object.fromEntries(Object.entries(snapshot.members).map(([id,person])=>[id,{coverage:person.coverage,stale:person.stale}])),events:snapshot.events}:snapshot;
+    const body=view==='following-groups'&&snapshot?{...(snapshot.publication?{publication:snapshot.publication}:{}),members:Object.fromEntries(Object.entries(snapshot.members).map(([id,person])=>[id,{coverage:person.coverage,stale:person.stale}])),events:snapshot.events}:snapshot;
     return body?{status:200,body:{epoch:query.epoch,generation:query.generation,...body},cacheControl:'public, max-age=3600'}:unavailable();
   }
   if(view==='following-membership') {
