@@ -193,6 +193,28 @@ test('a known source translation omitted by retention keeps the public cloud fal
   const result=await service.query(speechCloudQuery(new URLSearchParams('member=42&days=term&lang=hu'),{now:now()}));
   assert.equal(calls,1);assert.equal(result.speeches[0].id,id);assert.equal(result.coverage.transcripts,1);assert.equal(result.coverage.basis,undefined);
 });
+test('missing retained translations are counted across the exact selection, independently of pagination',t=>{
+  const {store,add}=fixture(t,{realReaders:false});
+  const ids=Array.from({length:51},(_,n)=>add(activity(n+1)));
+  const missing=ids.at(-1);
+  store.db.prepare('DELETE FROM texts WHERE document_id=(SELECT id FROM documents WHERE source_id=?)').run(missing);
+  // Missing text for other members, dates and intervention kinds must not force
+  // this selection onto the public source. Unknown translations are gaps, too.
+  add(activity(100,{member:'7'}),{text:false});
+  add(activity(101,{date:'2026-09-01'}),{text:false});
+  add(activity(102,{kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'}),{text:false});
+  add(activity(103,{fragments:{hu:xml.replace('de-t-en-mtec','hu')}}),{text:false});
+  const query={member:'42',from:'2026-10-01',to:'2026-10-17',language:'en'};
+  store.db.exec('PRAGMA query_only=ON');
+  const first=store.speechPage({...query,limit:50}),last=store.speechPage({...query,offset:50,limit:50});
+  assert.equal(first.total,52);assert.equal(first.missingRetainedLanguage,1);
+  assert.equal(last.missingRetainedLanguage,1);
+  assert.equal(last.records.find(record=>record.id===missing).text,null);
+  assert.equal(store.speechPage({...query,sourceIds:ids.slice(0,50)}).missingRetainedLanguage,0);
+  assert.equal(store.speechPage({...query,dates:['2026-10-07'],sourceIds:[missing]}).missingRetainedLanguage,1);
+  assert.equal(store.speechPage({...query,member:'99'}).missingRetainedLanguage,0);
+  assert.equal(store.speechPage({...query,metadataOnly:true}).missingRetainedLanguage,0);
+});
 test('an unavailable later corpus page cannot reinterpret its offset as an upstream page',async t=>{
   const {index,add}=fixture(t);for(let n=1;n<=51;n++)add(activity(n));
   let reads=0;const service=new SpeechCloudInsights(index,{clock:now,readCorpusPage:params=>++reads===1?retainedSpeechPage(params):null});
