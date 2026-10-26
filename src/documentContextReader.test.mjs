@@ -578,15 +578,15 @@ async function renderPlacedLabel(t,paragraphs,targetLabel,originalText,proposedT
   const h=await harness(t,()=>value);
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
   const block=h.container.querySelector('[data-amendment-block]');
-  return {text:block.textContent,deleted:[...block.querySelectorAll('del')].map(node=>node.textContent).join(' '),proposed:[...block.querySelectorAll('.wording-diff__passage')].map(node=>{const copy=node.cloneNode(true);copy.querySelectorAll('del,.wording-diff__sr').forEach(child=>child.remove());return copy.textContent;}).join(' ')};
+  return {text:block.textContent,label:block.querySelector('[data-source-label]')?.textContent??null,deleted:[...block.querySelectorAll('del')].map(node=>node.textContent).join(' '),proposed:[...block.querySelectorAll('.wording-diff__passage')].map(node=>{const copy=node.cloneNode(true);copy.querySelectorAll('del,.wording-diff__sr').forEach(child=>child.remove());return copy.textContent;}).join(' ')};
 }
 
-test('a relabelled provision keeps only the amendment’s own label',async t=>{
-  const {text,deleted}=await renderPlacedLabel(t,['Article 1','1. Intro:','(a) Old provision.','(b) Other.'],'Article 1 – paragraph 1 – point a','Old provision.','(b) New provision.');
-  assert(/(^|\W)a(\W|$)/.test(deleted),'the replaced source label is shown as deleted: '+text);
+test('a source number is shown as context and proposed wording is never changed',async t=>{
+  const {label,proposed}=await renderPlacedLabel(t,['Article 1','1. Intro:','(a) Old provision.','(b) Other.'],'Article 1 – paragraph 1 – point a','Old provision.','(b) New provision.');
+  assert.equal(label,'(a)');assert.equal(proposed.replace(/\s+/g,' ').trim(),'(b) New provision.');
 });
 
-for(const label of ['‘2a. New provision.’','‘2a.New provision.’','2.1. New provision.','”2a.New provision.”','b] New provision.','lxxxviii) New provision.','A. New provision.','II ) New provision.','aa ] New provision.','ii\t. New provision.'])test('replacement label '+label+' never acquires the source number',async t=>{
+for(const label of ['Chapter II','point aa','Article premier','ΠΑΡΑΡΤΗΜΑ ΙΙ','aa','uvodna izjava 2','‘2a. New provision.’','‘2a.New provision.’','2.1. New provision.','”2a.New provision.”','b] New provision.','lxxxviii) New provision.','A. New provision.','II ) New provision.','aa ] New provision.','ii\t. New provision.'])test('replacement label '+label+' never acquires the source number',async t=>{
   const {proposed}=await renderPlacedLabel(t,['Article 1','1. Old provision.'],'Article 1 – paragraph 1','Old provision.',label);
   assert.equal(proposed.replace(/\s+/g,' ').trim(),label.replace(/\s+/g,' '),proposed);
 });

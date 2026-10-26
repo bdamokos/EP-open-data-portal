@@ -6,9 +6,6 @@ const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const labelPattern=label=>new RegExp(`^(?:\\(${escape(label.value)}\\)\\s*|${escape(label.value)}[.)]${/^\d/u.test(label.value)?'(?:\\s+|(?=\\p{Lu}))':'\\s*'})`,'u');
 const MAX_UNIT_CHARACTERS=256*1024,MAX_COLUMN_CHARACTERS=64*1024;
 const flat=units=>units.flatMap(unit=>[unit,...flat(unit.children)]);
-// A non-Roman word of two or more letters followed by another word or the end
-// is never a provision label; anything else may be one.
-const plainWordStart=text=>/^\s*(?![ivxlcdm]+(?!\p{L}))\p{L}{2,}(?:\s+\p{L}|\s*$)/iu.test(text??'');
 const parentKey=unit=>JSON.stringify(unit.path.slice(0,-1).map(({kind,value,occurrence})=>[kind,value,occurrence??null]));
 const suffixes=['','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','ab','ac'];
 const latinSuffixes=['','bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
@@ -111,10 +108,10 @@ function subparagraphMatch(items,target,original) {
     unit=body[0];
   }
   if(!['paragraph','point'].includes(unit.kind))return {reason:'source_structure_unavailable'};
-  // A labelled line parsed as a title may be the real first subparagraph.
-  // Trust the ordinals only when every sibling title starts with a plain word.
+  // A title row may be a mis-styled first subparagraph, so an implicit
+  // paragraph's ordinals are only trusted when its container has no title.
   const container=flat(proposal.units).find(parent=>parent.children.includes(unit));
-  if(unit.implicit&&container?.children.some(child=>child.kind==='title'&&child.content.some(index=>!plainWordStart(proposal.paragraphs[index]?.text))))return {reason:'source_structure_unavailable'};
+  if(unit.implicit&&container?.children.some(child=>child.kind==='title'))return {reason:'source_structure_unavailable'};
   const children=unit.children,lead=unit.implicit||!unit.content.length?null:{start:unit.content[0],end:children[0]?.extent.start??unit.extent.end};
   if(children.some(child=>child.kind!=='subparagraph')&&(last.number>1||!lead))return {reason:'source_structure_unavailable'};
   const bounds=[...(lead?[lead]:[]),...children.map(child=>child.extent)][last.number-1];

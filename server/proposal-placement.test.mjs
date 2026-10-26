@@ -159,7 +159,7 @@ test('implicit paragraphs number subparagraphs from their first child',()=>{
   placed=resolve(projection,'Article 1 – subparagraph 2','Second subparagraph.');assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
   assert.equal(resolve(projection,'Article 1 – subparagraph 1','Second subparagraph.').reason,'conflicting_target_evidence');
   const titled=source(['Article 1','1. First subparagraph.','Second subparagraph.'],['Titrearticle','Titrearticle']);
-  const variants=['1.First subparagraph.','”1.First subparagraph.','a] First subparagraph.','lxxxviii) First subparagraph.','I. First subparagraph.','II ) First subparagraph.','ii . First subparagraph.','aa ] First subparagraph.','II\t) First subparagraph.','II\u00a0) First subparagraph.','II'].map(lead=>source(['Article 1',lead,'Second subparagraph.'],['Titrearticle','Titrearticle']));
+  const variants=['1.First subparagraph.','”1.First subparagraph.','a] First subparagraph.','lxxxviii) First subparagraph.','I. First subparagraph.','II ) First subparagraph.','ii . First subparagraph.','aa ] First subparagraph.','II\t) First subparagraph.','II\u00a0) First subparagraph.','II','aa','point aa','Programme objectives'].map(lead=>source(['Article 1',lead,'Second subparagraph.'],['Titrearticle','Titrearticle']));
   for(const projection of [titled,...variants])for(const label of ['Article 1 – paragraph 1 – subparagraph 1','Article 1 – subparagraph 1'])assert.equal(resolve(projection,label,'Second subparagraph.').reason,'source_structure_unavailable',label);
   const numbered=source(['Article 1','1. Lead.','2. Next.']);
   assert.equal(resolve(numbered,'Article 1 – subparagraph 1','Lead.').reason,'source_structure_unavailable');
