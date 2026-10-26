@@ -131,7 +131,7 @@ test('late v1 tabs reconcile follows without discarding v2 history or announcing
 });
 test('failed follow writes revert; failed background writes retain entries and retry; tab-only follows work',()=>{
  const disk=storage(),store=createSavedStore(disk),set=disk.setItem;let fail=true;disk.setItem=(...args)=>{if(fail)throw Object.assign(Error('full'),{name:'QuotaExceededError'});set(...args);};
- assert.throws(()=>store.toggle(mep),/not kept/);assert.equal(store.snapshot().items.length,0);assert.equal(store.snapshot().storageError,'quota');
+ assert.throws(()=>store.toggle(mep),/Couldn't save in this browser/);assert.equal(store.snapshot().items.length,0);assert.equal(store.snapshot().storageError,'quota');
  fail=false;store.toggle(mep);store.applyManifest(manifest());fail=true;store.applyManifest(manifest(6));store.materialize(detail([['unread',0,6]]));assert.equal(item(store).entries[0].id,'unread');assert(store.snapshot().unsavedSince);
  fail=false;assert(store.retryStorage());assert.equal(item(createSavedStore(disk)).entries[0].id,'unread');const memory=createSavedStore(null);memory.toggle(mep);assert.equal(memory.snapshot().persistent,false);
 });

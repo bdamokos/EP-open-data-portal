@@ -2,6 +2,7 @@ import {LegislationInsights} from '../server/insights-legislation.mjs';
 import {insightQuery} from '../server/insights-store.mjs';
 import {participation,participationQuery} from '../server/insights-participation.mjs';
 import {SpeechCloudInsights,speechCloudQuery} from '../server/speech-cloud.mjs';
+import {sourceAvailability} from '../server/source-availability.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -92,13 +93,65 @@ test('topic status waits for every page, distinguishes shown topics and never tr
   await act(async()=>first.resolve(trends([trend(1)],{nextPage:1})));await h.tick();
   assert.equal(h.status().textContent,'','an intermediate page is not settled');
   await act(async()=>last.resolve(trends(Array.from({length:15},(_,i)=>trend(i+1)))));await h.tick();
-  assert.match(h.status().textContent,/15 topics.*Showing 12/);assert.match(h.status().textContent,/Archive incomplete/);assert.match(h.status().textContent,/some activity is omitted/);
+  assert.match(h.status().textContent,/15 topics.*Showing 12/);assert.match(h.status().textContent,/Archive incomplete/);assert.match(h.status().textContent,/first 600 matching dossiers/);
   await h.click('More topics');await h.tick();assert.match(h.status().textContent,/15 topics.*Showing 15/);assert.equal(h.calls.length,2);
   await h.navigate('?trend-days=180');await h.tick();
   assert.equal(h.status().textContent,'Topic catalogue temporarily unavailable.');assert.doesNotMatch(h.status().textContent,/No topics|0 topics/);
   assert(!h.container.textContent.includes('No mapped debates'),'a source failure must not show a contradictory empty-result claim');
   sourceError=false;await h.click('Try again');await h.tick();
   assert.match(h.status().textContent,/1 topic.*Showing 1/,'explicit retry recovery announces the settled replacement');
+});
+
+test('an empty topic list over incomplete coverage stays scoped',async t=>{
+  const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',()=>trends([]));
+  await h.tick();
+  assert.match(h.status().textContent,/No matching topics · Partial coverage/);
+  assert.doesNotMatch(h.container.textContent,/No topics with|No debates in this selection/,'incomplete coverage cannot establish an empty result');
+});
+
+for(const [name,coverage] of [['unmapped dossiers',{unmapped:1}],['pending mappings',{pending:1}]])test('a complete archive with '+name+' keeps empty topic results scoped',async t=>{
+  const complete={procedures:1,mapped:0,unmapped:0,pending:0,sourceError:false,truncated:false,indexComplete:true,...coverage};
+  const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90&trend-topic='+encodeURIComponent('http://eurovoc.europa.eu/404'),()=>trends([],{coverage:complete}));
+  await h.tick();
+  assert.match(h.status().textContent,/No matching topics · Partial coverage/);
+  assert.match(h.container.textContent,/No matching events · Partial coverage/);
+  assert.doesNotMatch(h.container.textContent,/No topics with|No debates in this selection|No events for this topic/,'unmapped or pending dossiers cannot establish an empty result');
+});
+
+test('a complete, fully mapped archive states an empty topic result plainly',async t=>{
+  const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',()=>trends([],{coverage:{procedures:1,mapped:1,unmapped:0,pending:0,sourceError:false,truncated:false,indexComplete:true}}));
+  await h.tick();
+  assert.match(h.status().textContent,/No topics with debates in this selection\./);
+});
+
+for(const metric of ['debates','votes','committee'])test('empty '+metric+' topic results respect the selected date coverage',async t=>{
+  const complete={procedures:1,mapped:1,unmapped:0,pending:0,sourceError:false,truncated:false,indexComplete:true};
+  const cases=[
+    ['missing date evidence',{latestObservedDate:null}],
+    ['frontier before the period',{latestObservedDate:'2026-06-30'}],
+    ['frontier within the period',{latestObservedDate:'2026-09-15'}],
+    ['period ending at the frontier',{latestObservedDate:'2026-09-30'}],
+    ['unchecked start of the period',{checkedIntervals:[{start:'2026-07-15',end:'2026-10-01',basis:'saved-records'}]}],
+  ];
+  for(const [name,extra] of cases)await t.test(name,async t=>{
+    const evidence=sourceAvailability({sourceKey:'topic-'+metric,latestObservedDate:'2026-10-01',checkedIntervals:[{start:'2026-07-01',end:'2026-10-01',basis:'saved-records'}],today:'2026-10-26',...extra});
+    const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90&trend-metric='+metric+'&trend-topic='+encodeURIComponent('http://eurovoc.europa.eu/404'),()=>trends([],{coverage:complete,availability:{[metric]:evidence}}));
+    await h.tick();
+    assert.match(h.status().textContent,/No matching topics · Partial coverage/);
+    assert.match(h.container.querySelector('.insight-trend-picker').textContent,/No matching topics · Partial coverage/);
+    assert.match(h.container.textContent,/No matching events · Partial coverage/);
+    assert.doesNotMatch(h.container.textContent,/No topics with|No (debates|votes|committee events) in this selection|No events for this topic/);
+  });
+  await t.test('fully checked period before the frontier',async t=>{
+    const evidence=sourceAvailability({sourceKey:'topic-'+metric,latestObservedDate:'2026-10-01',start:'2026-07-01',end:'2026-10-01',today:'2026-10-26'});
+    const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90&trend-metric='+metric+'&trend-topic='+encodeURIComponent('http://eurovoc.europa.eu/404'),()=>trends([],{coverage:complete,availability:{[metric]:evidence}}));
+    await h.tick();
+    const label={debates:'debates',votes:'votes',committee:'committee events'}[metric];
+    assert.equal(h.status().textContent,'No topics with '+label+' in this selection.');
+    assert.match(h.container.querySelector('.insight-trend-picker').textContent,new RegExp('No '+label+' in this selection\\.'));
+    assert.match(h.container.textContent,/No events for this topic in the selected period\./);
+    assert.doesNotMatch(h.container.textContent,/Partial coverage/);
+  });
 });
 
 test('out-of-order timeline responses cannot announce a superseded period',async t=>{

@@ -22,7 +22,7 @@ const dateLabel=(value:string|number|null|undefined,language:string)=>{
 };
 function LocalizedDate({value,language}:{value?:string|number|null;language:string}) {
   const text=dateLabel(value,language);
-  return text?<time lang={language}>{text}</time>:<span lang="en">date unavailable</span>;
+  return text?<time lang={language}>{text}</time>:null;
 }
 const joinMeta=(items:ReactNode[])=>items.filter(item=>item!==null&&item!==undefined&&item!==false&&item!=='').map((item,index)=><Fragment key={index}>{index?' · ':''}{item}</Fragment>);
 const metadataLanguage=(item:AmendmentVariant)=>Object.hasOwn(item,'metadataSource')?item.metadataSource?.language??'':item.language??'';
@@ -52,7 +52,7 @@ function Decision({item,decision,language,compact=false}:{item:Amendment;decisio
   return <li className="explorer-amendment-decision" lang="en">
     {(!compact||unbound)&&<div className="explorer-amendment-decision-heading"><strong>{decision.componentBinding==='unverified'?'Unverified split decision':decision.componentBinding==='unresolved-collective'?'Collective decision':amendmentDecisionScope(item,decision)}</strong><Outcome value={decision.outcome}/></div>}
     {hasTotals&&<>{complete&&total!>0&&<div className="amendment-vote-strip" aria-hidden="true">{positions.map(([key,label])=><span key={key} data-position={label} style={{flexGrow:totals![key]!}}/>)}</div>}<dl className="explorer-amendment-totals">{positions.map(([key,label])=><div key={key} data-position={label}><dt>{label.toLowerCase()}</dt><dd>{totals?.[key]!=null?<span lang={language}>{totals[key]!.toLocaleString(language)}</span>:'Unavailable'}</dd></div>)}</dl></>}
-    <p className="explorer-amendment-meta">{total!=null?total.toLocaleString(language)+' votes · ':''}{voteMethodLabel(decision.method)}</p>
+    {(total!=null||voteMethodLabel(decision.method))&&<p className="explorer-amendment-meta">{[total!=null?total.toLocaleString(language)+' votes':'',voteMethodLabel(decision.method)].filter(Boolean).join(' · ')}</p>}
     <AmendmentNamedVotes item={item} decision={decision} language={language}/>
     <details className="explorer-amendment-decision-record"><summary>Decision record</summary><p>{decision.date&&<>Decision date <LocalizedDate value={decision.date} language={language}/></>}</p>{source&&<a href={source} target="_blank" rel="noreferrer">Voting record ↗</a>}
       {(decision.collective||unbound||(decision.amendmentIds?.length||0)>1)&&Boolean(decision.amendmentIds?.length)&&<><p>Co-decided amendment references</p><ul className="explorer-amendment-collective-references">{decision.amendmentIds!.map(reference=><li key={reference} lang="">{reference}</li>)}</ul></>}
@@ -67,7 +67,7 @@ function SplitDescription({description,language,sourceDescriptions,rawDescriptio
   return <div className="explorer-amendment-description-fallback" lang="en">
     <p className="explorer-amendment-secondary">{code==='missing_language'&&language==='en'?'English split description unavailable.':'Readable split description unavailable.'}</p>
     {available.map(([sourceLanguage,text])=><div className="explorer-amendment-source-description" key={sourceLanguage}>
-      <p className="explorer-amendment-meta">{!sourceLanguage||sourceLanguage==='und'?'Source language unavailable':<><span lang="">{sourceLanguage.toUpperCase()}</span> · source description</>} · original fragment</p>
+      {sourceLanguage&&sourceLanguage!=='und'&&<p className="explorer-amendment-meta"><span lang="">{sourceLanguage.toUpperCase()}</span></p>}
       <pre lang={sourceLanguage}>{text}</pre>
     </div>)}
   </div>;

@@ -134,7 +134,7 @@ test('HTTP 200 unavailable target retains continuation and can retry the failed 
   assert.match(h.container.textContent,/Records unavailable/);assert([...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'));
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,0);assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1,'an unavailable AM cannot suppress its standalone vote');
   await h.click('Load more amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.textContent,/Exact target read failed/);
-  failed=false;await h.click('Retry amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.match(h.container.textContent,/Date unavailable/);assert.doesNotMatch(h.container.textContent,/Exact target read failed/);
+  failed=false;await h.click('Retry amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.doesNotMatch(h.container.textContent,/Date unavailable/);assert.doesNotMatch(h.container.textContent,/Exact target read failed/);
   assert.equal([...h.container.querySelectorAll('button')].filter(node=>node.textContent==='Load more amendments').length,0,'retrying an earlier target cannot reopen the completed continuation');
   assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1);
 });
@@ -337,7 +337,7 @@ test('failed same-cursor contributor retry retains established speech evidence u
   });
   await h.render(createElement(h.module.DossierActivity,{reference:rsp.procedure.label}));
   assert.match(h.container.textContent,/Gabriele Bischoff/);await h.click('Retry people');
-  assert.match(h.container.textContent,/Gabriele Bischoff/);assert.match(h.container.textContent,/A linked debate is unavailable/);assert.match(h.container.textContent,/Earlier records retained/);
+  assert.match(h.container.textContent,/Gabriele Bischoff/);assert.match(h.container.textContent,/A linked debate is unavailable/);assert.doesNotMatch(h.container.textContent,/Earlier records retained/);
   await h.click('Retry people');assert(!h.container.querySelector('.dossier-participants'));
 });
 

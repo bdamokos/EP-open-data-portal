@@ -33,7 +33,7 @@ test('progress is independent, preserves exact selection and lazy readable docum
   await act(async()=>root.render(createElement(ProcedureContext,{reference:ref,language:'en'})));
   assert.match(container.textContent,/Loading legislative progress/);assert.match(container.textContent,/Loading summary/);
   await act(async()=>answerProgress(Response.json({...progress,source:{...source,stale:true,refreshInProgress:true}})));
-  assert.match(container.textContent,/Saved progress · Updates may be available/);
+  assert.match(container.textContent,/Not checked recently\./);
   assert.doesNotMatch(container.textContent,/Checking for updates/,'a completed progress read must not imply continued checking');
   assert.match(container.textContent,/Committee report adopted/);assert.match(container.textContent,/Loading summary/,'a delayed summary does not block progress');
   const checked=container.querySelector('.procedure-progress header time');
@@ -50,9 +50,9 @@ test('progress is independent, preserves exact selection and lazy readable docum
   assert.equal(document.activeElement,filter);
   await act(async()=>answerSummary(Response.json({reference:ref,title:'Civil protection',language:'en',summary:{id:'1',stage:'proposal',date:'2026-10-01',blocks:[{kind:'paragraph',text:'Existing official summary.'}],source:{url:'https://oeil.europarl.europa.eu/oeil/en/document-summary?id=1'}},summaries:[{id:'1',stage:'proposal',date:'2026-10-01'}],subjects:[],topics:[],source:{url:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference='+ref}})));
   assert.match(container.textContent,/Existing official summary/);assert(button('Hide timeline'),'summary completion retains the expanded progress selection');
-  assert.match(container.textContent,/Saved progress · Updates may be available/,'late OEIL completion does not imply a progress read');
+  assert.match(container.textContent,/Not checked recently\./,'late OEIL completion does not imply a progress read');
   await act(async()=>button('Check again').click());
-  assert.match(container.textContent,/Saved progress · Checking for updates/);
+  assert.match(container.textContent,/Checking for updates/);
   assert(button('Check again').disabled);
   await act(async()=>answerProgress(Response.json(progress)));
   assert.doesNotMatch(container.textContent,/Saved progress/);assert(button('Hide timeline'));
@@ -63,13 +63,13 @@ test('progress is independent, preserves exact selection and lazy readable docum
   await act(async()=>answerDocuments(Response.json({...documentData,source:{...source,stale:true,refreshInProgress:true}})));
   const links=[...container.querySelectorAll('.procedure-progress a')];assert.equal(links.length,1);assert.match(links[0].href,/eur-lex\.europa\.eu\/legal-content\/EN\/TXT/);
   assert.equal(container.querySelectorAll('.procedure-progress a[href*="sparql"],.procedure-progress a[href*="resource/cellar"]').length,0);
-  assert.match(details.textContent,/Saved document details · Updates may be available/);
+  assert.match(details.textContent,/Not checked recently\./);
   assert.doesNotMatch(details.textContent,/Checking for updates/,'a completed read must not imply continued client polling');
   await act(async()=>button('Check again').click());
   assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,2,'retry bypasses the saved browser response');
   assert.match(details.textContent,/Commission proposal/,'saved links stay visible during the retry');
   await act(async()=>answerDocuments(Response.json({...documentData,source:{...source,stale:true,refreshError:'Source unavailable'}})));
-  assert.match(details.textContent,/Refresh unavailable/);
+  assert.match(details.textContent,/Couldn’t check for updates\./);
   await act(async()=>{details.open=false;details.dispatchEvent(new window.Event('toggle'));});
   await act(async()=>{details.open=true;details.dispatchEvent(new window.Event('toggle'));});
   assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,3,'reopening saved details makes a new bounded read');

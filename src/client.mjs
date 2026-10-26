@@ -52,7 +52,7 @@ export async function readJson(url, { signal, priority = 'auto', getPriority = (
       active.throwIfAborted();
       reportApiVersionMismatch(response.status, data);
       if (response.ok) {
-        if (!data) throw new Error('The data service returned an unreadable response.');
+        if (!data) throw new Error('Something went wrong. Try again.');
         return data;
       }
       const now = Date.now();

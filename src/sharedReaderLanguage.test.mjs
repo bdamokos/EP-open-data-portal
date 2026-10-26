@@ -29,7 +29,7 @@ test('player controls, unavailable states and parent-frame text stay English und
     await h.render(createElement(SpeechPlayer,{speech:{...speech,kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'},lang:locale}));
     assert.equal(effective(h.container.querySelector('.explorer-video-gap strong')),'en');
     await h.render(createElement(SpeechPlayer,{speech:{...speech,start:null},lang:locale}));
-    assert.equal(h.container.querySelector('strong').textContent,'Video timings unavailable');assert.equal(effective(h.container.querySelector('strong')),'en');
+    assert.equal(h.container.querySelector('strong').textContent,'Video unavailable');assert.equal(effective(h.container.querySelector('strong')),'en');
     await h.render(createElement(SpeechPlayer,{speech,lang:locale}));
     const actions=h.container.querySelectorAll('.explorer-video-toggle');
     assert.deepEqual([...actions].map(node=>node.textContent),['Video']);

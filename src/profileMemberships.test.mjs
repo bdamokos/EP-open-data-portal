@@ -21,9 +21,9 @@ test('profile disclosures are collapsed, retain raw identifiers, language and sa
   assert.deepEqual([...page.querySelectorAll('.explorer-profile-memberships > details > summary')].map(node=>node.textContent),['Political affiliations','Delegations and other roles']);
   assert.equal(page.querySelector('details').firstElementChild.tagName,'SUMMARY');
   assert.equal(page.querySelector('a'),null,'organisation records are not linked as machine-readable data');
-  assert.match(page.textContent,/Start date not supplied — End date not supplied/);assert.doesNotMatch(page.textContent,/Present/);
-  assert.match(page.textContent,/Start date invalid in source/);assert.match(page.textContent,/End date invalid in source/);
-  assert.match(page.textContent,/Role label unavailable/);assert.match(page.textContent,/Name unavailable/);
+  assert.doesNotMatch(page.textContent,/not supplied|invalid in source/);assert.doesNotMatch(page.textContent,/Present/);
+  assert.doesNotMatch(page.textContent,/invalid in source/);
+  assert.doesNotMatch(page.textContent,/Role label unavailable|Name unavailable/);assert.match(page.textContent,/Unnamed organisation/);assert.doesNotMatch(page.textContent,/org\/5142/);
   assert.equal([...page.querySelectorAll('[lang=fr]')][0].textContent,'Parti Socialiste');
   assert(![...page.querySelectorAll('ol p')].some(node=>node.textContent==='Tag'),'ordinary affiliation membership is implicit');
   assert.equal(page.querySelector('ol').classList.contains('explorer-membership'),false);
@@ -35,6 +35,32 @@ test('profile disclosures are collapsed, retain raw identifiers, language and sa
     assert.match(page.textContent,/Some memberships unavailable/);
     assert.doesNotMatch(page.textContent,/No memberships listed in the source|Membership information is unavailable/);
     assert(page.querySelector('button'));
-    if(entries.length>1){assert.match(page.textContent,/org\/5177/);assert.match(page.textContent,/Organisation identifier not supplied/);assert.match(page.textContent,/Role not supplied/);}
+    if(entries.length>1){assert.doesNotMatch(page.textContent,/org\/5177|Role not supplied/);assert.match(page.textContent,/Unnamed organisation/);}
   }
+});
+
+test('an open membership reads as present only when it began in the current service and its body has not ended',async t=>{
+  const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>loadModule.close());
+  const {ProfileMemberships}=await loadModule('/src/ProfileMemberships.tsx');
+  const window=new Window();t.after(()=>window.happyDOM.close());
+  const item=(index,name,start,temporal)=>({index,section:'delegations',membershipId:'m'+index,bodyId:'org/'+index,role:'def/ep-roles/MEMBER',classification:null,start,end:null,dateIssues:[],observation:null,body:{id:'org/'+index,identifier:String(index),prefLabel:{en:name},classification:'',temporal,source:{url:'',fetchedAt:'',stale:false}}});
+  const items=[item(1,'Current delegation','2024-07-16',{startDate:'2024-07-16'}),item(2,'Earlier delegation','2009-07-14',{startDate:'2009-07-14',endDate:'2014-06-30'}),item(3,'Dissolved delegation','2024-09-01',{startDate:'2024-09-01',endDate:'2025-01-01'})];
+  const membershipHistory={version:1,observationAvailable:true,observationComplete:true,observationIssues:[],observations:[],labelsComplete:true,dateIssues:false,complete:true,error:null,sources:[],items};
+  const render=status=>{window.document.body.innerHTML=renderToStaticMarkup(createElement(ProfileMemberships,{profile:{membershipHistory,currentAffiliation:{status,day:'2026-10-26'},parliamentaryService:{currentSince:'2024-07-16'}},lang:'en',roleName:role=>role,date:value=>value,retry:()=>{}}));return [...window.document.querySelectorAll('li')].map(node=>node.textContent);};
+  const current=render('matched');
+  assert.match(current.find(text=>text.includes('Current delegation')),/2024-07-16 — Present/);
+  assert.match(current.find(text=>text.includes('Earlier delegation')),/From 2009-07-14/,'an open membership from an earlier term is not presented as current');
+  assert.match(current.find(text=>text.includes('Dissolved delegation')),/From 2024-09-01/,'a membership of an ended body is not presented as current');
+  assert(render('not-current').every(text=>!text.includes('Present')),'a former member has no present memberships');
+  const probe=(start,{end=null,temporal={startDate:'1979-07-17'},currentSince='2012-01-01'}={})=>{
+    const history={...membershipHistory,items:[{...item(9,'Probe',start,temporal),end}]};
+    window.document.body.innerHTML=renderToStaticMarkup(createElement(ProfileMemberships,{profile:{membershipHistory:history,currentAffiliation:{status:'matched',day:'2026-10-26'},parliamentaryService:{currentSince}},lang:'en',roleName:role=>role,date:value=>value,retry:()=>{}}));
+    return window.document.querySelector('li').textContent;
+  };
+  assert.match(probe('2014-07-01'),/From 2014-07-01/,'continuous service since an earlier term does not make an earlier-term membership current');
+  assert.match(probe('2024-09-01'),/2024-09-01 — Present/,'a long-lived body with only a start date keeps a current membership present');
+  assert.doesNotMatch(probe('2026-02-30'),/Present/,'an invalid start never establishes a present membership');
+  assert.match(probe('2030-01-01'),/From 2030-01-01/,'a future start is not present');
+  assert.doesNotMatch(probe('2024-09-01',{end:{raw:'unknown'}}),/Present/,'an invalid supplied end is not a missing end');
+  assert.match(probe('2024-09-01',{currentSince:'2025-03-01'}),/From 2024-09-01/,'a membership from before a return to Parliament is not present');
 });

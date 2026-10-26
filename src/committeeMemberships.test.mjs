@@ -18,7 +18,7 @@ test('current committee cards render already merged role history and localized c
   page=render(profile,'hu');assert.match(page.textContent,/FEMM · Tag/);assert.match(page.textContent,/Elnök/);assert.match(page.textContent,/jelenleg/);assert.equal(page.querySelector('small').lang,'hu');
   for(const status of ['not-current','unavailable',undefined]) {
     page=render({...profile,currentAffiliation:status?{status}:undefined});
-    assert.doesNotMatch(page.textContent,/Present/);assert.match(page.textContent,/End date not supplied/);
+    assert.doesNotMatch(page.textContent,/Present|not supplied/);assert.match(page.textContent,/From 2022-01-25/);
     assert.equal(page.querySelectorAll('.is-current').length,0);
     assert.equal(page.querySelector('strong').textContent,'FEMM');
   }

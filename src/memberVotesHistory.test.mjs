@@ -284,7 +284,7 @@ test('unknown wording language and conflicting same-language versions do not acq
     await h.click(h.container.querySelector('.member-votes-subject h3 button'));
     await h.click(h.container.querySelectorAll('.member-votes-row')[1]);
     const selector=h.container.querySelector('select[aria-label="Amendment published version"]');
-    const option=[...selector.options].find(option=>option.textContent.includes(kind==='unknown'?'Language unknown':'Version 2 · Hungarian'));
+    const option=[...selector.options].find(option=>option.textContent.includes(kind==='unknown'?'Version 3':'Version 2 · Hungarian'));
     assert.equal(Boolean(option),true);
     await act(async()=>{selector.value=option.value;selector.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
     await h.click(button(h.container,'Read in context'));

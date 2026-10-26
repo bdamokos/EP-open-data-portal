@@ -370,7 +370,7 @@ test('nullable wording language is explicit, null text stays unavailable and emp
   const comparison=h.container.querySelector('.member-votes-comparison');
   assert.equal(comparison.getAttribute('lang'),'');
   assert.match(wordingViewText(comparison),/Texte original exact.*Texte proposé exact/);
-  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Text language unknown\./);
+  assert.doesNotMatch(wordingViewText(h.container.querySelector('.member-votes-wording')),/language unknown/i);
   for(const variant of variants.slice(1,3)) {
     await h.select(selector,variant.listId);
     assert.equal(h.container.querySelector('.member-votes-comparison'),null);
@@ -397,7 +397,7 @@ test('target labels use their own source language independently of amendment wor
   await h.select(selector,variants[1].listId);
   const unknown=[...h.container.querySelectorAll('.member-votes-wording p')].find(paragraph=>paragraph.textContent===variants[1].targetLabel);
   assert.equal(unknown.getAttribute('lang'),'');assert.equal(h.container.querySelector('.member-votes-comparison').getAttribute('lang'),'hu');
-  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Target language unknown\./);
+  assert.doesNotMatch(wordingViewText(h.container.querySelector('.member-votes-wording')),/language unknown/i);
   assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('English'));
 });
 
@@ -689,7 +689,7 @@ test('sitting-only links show their own week and Whole week never jumps to lates
 test('partial calendars disclose gaps separately and retain missing selected week and sitting options',async t=>{
   const calendar={version:2,weeks:[],coverage:{status:'partial',years:[{year:2026,state:'partial',sources:[]}]}};
   const h=await mount(t,{calendar,state:{week:'latest',sittingId:SITTING,snapshotId:SNAPSHOT}});
-  assert.match(h.container.textContent,/Some plenary dates could not be loaded; the list shows known sittings/);
+  assert.match(h.container.textContent,/Some plenary dates could not be loaded\./);
   const select=h.container.querySelector('.member-votes-period-navigation select');assert.equal(select.value,WEEK);assert.match(select.textContent,/Week of/);
   const selectedDay=h.container.querySelector('.member-votes-days button[aria-pressed=true]');assert(selectedDay);assert.match(selectedDay.textContent,/25/);
   assert(!h.container.textContent.includes('Some voting records for this period are unavailable'));
@@ -719,7 +719,7 @@ test('calendar jump controls keep the direct select, accessible icons and year g
 
 test('an observed empty calendar is distinct from unavailable and does not add a date input',async t=>{
  const h=await mount(t,{calendar:{version:2,weeks:[],coverage:{status:'complete',years:[]}}});
- assert.match(h.container.textContent,/No held plenary weeks are listed/);assert.equal(h.container.querySelector('input[type=date]'),null);assert.equal(button(h.container,'First plenary week').disabled,true);
+ assert.match(h.container.textContent,/No plenary weeks yet/);assert.equal(h.container.querySelector('input[type=date]'),null);assert.equal(button(h.container,'First plenary week').disabled,true);
 });
 
 test('only complete zero-decision days are muted as no-votes, remain clickable and open a sitting empty state',async t=>{
@@ -892,7 +892,7 @@ test('no scanned sittings leaves the unattempted attendance line hidden',async t
 test('not-listed detail discloses an unsupplied excused list beside the no-absence explanation',async t=>{
   const h=await mount(t,{state:{week:WEEK,decisionId:decision(1)},handler:url=>Response.json(responseFor(url)),attendanceHandler:()=>{const value=attendanceResponse({memberStatus:'not-listed'});value.sittings[0].excusedSupplied=false;value.sittings[0].counts.excused=null;return Response.json(value);}});
   const text=visiblePane(h.container).querySelector('.member-votes-attendance').textContent;
-  assert.match(text,/Not listed as present; this register supplies no excused list/);
+  assert.match(text,/Not listed as present\./);
   assert.match(text,/Not listed doesn’t mean absent\./);
 });
 

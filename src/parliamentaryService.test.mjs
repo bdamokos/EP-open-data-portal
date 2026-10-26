@@ -16,6 +16,6 @@ test('profile service line distinguishes continuous service, returning members, 
   assert.equal(render(undefined),'');assert.match(render({...continuous,currentSince:null,error:'Some dates are unavailable.'}),/Some dates are unavailable/);
   for(const status of ['not-current','unavailable',null]) {
     const text=render({...continuous,currentSince:'2019-07-02',periods:[{start:'2019-07-02',end:null}]},status);
-    assert.match(text,/Parliamentary service/);assert.match(text,/2019-07-02.*End date not supplied/);assert.doesNotMatch(text,/MEP since|Present/);
+    assert.match(text,/Parliamentary service/);assert.match(text,/From<\/span> <span[^>]*>2019-07-02/);assert.doesNotMatch(text,/not supplied/);assert.doesNotMatch(text,/MEP since|Present/);
   }
 });

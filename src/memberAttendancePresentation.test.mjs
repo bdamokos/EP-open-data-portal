@@ -32,12 +32,12 @@ test('all attendance labels preserve sitting-level semantics and unknown states'
 });
 
 test('shared method labels distinguish electronic non-roll-call and both secret aliases',()=>{
-  for(const [method,label] of [['VOTE_HAND','Show of hands'],['VOTE_ELECTRONIC','Electronic vote (names not recorded)'],['VOTE_ELECTRONIC_ROLLCALL','Roll-call vote'],['VOTE_SECRET','Secret ballot'],['VOTE_SECRET_BALLOT','Secret ballot'],[null,'Voting method unavailable'],['VOTE_UNKNOWN','Voting method unavailable'],['toString','Voting method unavailable']])assert.equal(voteMethodLabel(method),label);
+  for(const [method,label] of [['VOTE_HAND','Show of hands'],['VOTE_ELECTRONIC','Electronic vote (names not recorded)'],['VOTE_ELECTRONIC_ROLLCALL','Roll-call vote'],['VOTE_SECRET','Secret ballot'],['VOTE_SECRET_BALLOT','Secret ballot'],[null,''],['VOTE_UNKNOWN',''],['toString','']])assert.equal(voteMethodLabel(method),label);
 });
 
 
 test('a not-listed member with no supplied excused list does not acquire a negative excused observation',()=>{
-  assert.equal(memberAttendanceDetail({...day(),memberStatus:'not-listed',excusedSupplied:false}), 'Not listed as present; this register supplies no excused list.');
+  assert.equal(memberAttendanceDetail({...day(),memberStatus:'not-listed',excusedSupplied:false}), 'Not listed as present.');
   assert.equal(memberAttendanceDetail({...day(),memberStatus:'not-listed',excusedSupplied:true}), "Not listed in this sitting's attendance register.");
 });
 

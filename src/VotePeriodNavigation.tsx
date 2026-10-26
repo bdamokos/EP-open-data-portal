@@ -28,8 +28,8 @@ export function VotePeriodNavigation({state,resolvedWeek,language,sittingCoverag
   return <div className="member-votes-period-navigation">
     {request.loading&&!calendar&&<p role="status">Loading plenary dates…</p>}
     {unavailable?<><p className="member-votes-calendar-notice">The plenary calendar could not be loaded.</p><label htmlFor={id+'-date'}>Choose any date in the week<input id={id+'-date'} type="date" value={week==='latest'?'':week} aria-describedby={error?id+'-error':undefined} onChange={event=>{const monday=plenaryMonday(event.target.value);if(monday)choose(monday);else setError('Choose a valid date.');}}/></label><button type="button" onClick={request.retry}>Retry calendar</button></>:calendar&&<>
-      {calendar.coverage.status==='partial'&&<p className="member-votes-calendar-notice">Some plenary dates could not be loaded; the list shows known sittings.</p>}
-      {calendar.coverage.status==='complete'&&!weeks.length&&<p className="member-votes-calendar-notice">No held plenary weeks are listed for this term.</p>}
+      {calendar.coverage.status==='partial'&&<p className="member-votes-calendar-notice">Some plenary dates could not be loaded.</p>}
+      {calendar.coverage.status==='complete'&&!weeks.length&&<p className="member-votes-calendar-notice">No plenary weeks yet.</p>}
       <label htmlFor={id}>Plenary week</label>
       <div className="member-votes-week-navigation">{jumps.slice(0,2).map(chevron)}<select id={id} value={week} onChange={event=>choose(event.target.value)}>
         {!weeks.some(item=>item.week===week)&&<option value={week}>{week==='latest'?'Latest sitting week':'Week of '+format(week,language)}</option>}
