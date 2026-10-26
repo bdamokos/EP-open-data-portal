@@ -97,20 +97,37 @@ function rememberSource(key, record, serialized = JSON.stringify(record)) {
     cache.delete(oldest);
   }
 }
-// Single reads and batch seeds may publish the same key concurrently. Each key's
-// file writes are serialized, and an older record never replaces a newer one.
-const sourceWrites = new Map();
+// Single reads and batch seeds may publish the same key concurrently. Each
+// key's compare-and-publish runs alone and compares against the record on
+// disk, so an older record never replaces a newer one in memory or on disk.
+const sourceLocks = new Map();
+function withSourceLock(key, operation) {
+  const prior = sourceLocks.get(key);
+  const run = (async () => { await prior; return operation(); })();
+  const settled = run.catch(() => {});
+  sourceLocks.set(key, settled);
+  void settled.finally(() => {if (sourceLocks.get(key) === settled) sourceLocks.delete(key);});
+  return run;
+}
+async function readDiskSource(key, signal) {
+  if (!cacheDir) return null;
+  try {
+    const record = JSON.parse(await readSourceRecord(filename(key), signal));
+    return record.url === key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data) ? record : null;
+  } catch { signal?.throwIfAborted(); return null; }
+}
+// The latest of the memory record and a record just read from disk. Memory may
+// have advanced while the disk read was pending.
+function newestSource(key, record) {
+  const held = cache.get(key)?.record;
+  return held && (!record || held.fetchedAt >= record.fetchedAt) ? held : record;
+}
 function publishSourceFile(key, record, serialized, signal) {
-  const prior = sourceWrites.get(key);
-  const write = (async () => {
-    const latest = await prior;
-    if (latest && latest.fetchedAt >= record.fetchedAt) return latest;
-    try { await writeCacheFile(filename(key), serialized, {signal}); return record; }
-    catch { return latest; }
-  })();
-  sourceWrites.set(key, write);
-  void write.finally(() => {if (sourceWrites.get(key) === write) sourceWrites.delete(key);});
-  return write;
+  return withSourceLock(key, async () => {
+    const disk = await readDiskSource(key, signal);
+    if (disk && disk.fetchedAt >= record.fetchedAt) return;
+    await writeCacheFile(filename(key), serialized, {signal}).catch(() => {});
+  });
 }
 async function readSourceRecord(file, signal) {
   signal?.throwIfAborted();
@@ -185,7 +202,10 @@ export async function odp(
       });
       signal?.throwIfAborted();
       const record=JSON.parse(raw);
-      if(record.url===key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data)) {rememberSource(key,record);stored=record;}
+      if(record.url===key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data)) {
+        stored=newestSource(key,record);
+        if(stored===record)rememberSource(key,record);
+      }
     } catch { /* Missing or invalid reproducible cache. */ }
   }
   signal?.throwIfAborted();
@@ -361,25 +381,24 @@ const sourceKey = endpoint => {
 // memory cache; a warmup over every body must not evict profile and roster records.
 async function peekSource(key, signal, remember = false) {
   const held = cache.get(key)?.record;
-  if (held || !cacheDir) return held || null;
-  try {
-    const record = JSON.parse(await readSourceRecord(filename(key), signal));
-    if (record.url !== key || !Number.isFinite(record.fetchedAt) || !Array.isArray(record.payload?.data)) return null;
-    if (remember) rememberSource(key, record);
-    return record;
-  } catch { signal?.throwIfAborted(); return null; }
+  if (held) return held;
+  const record = newestSource(key, await readDiskSource(key, signal));
+  if (remember && record && !cache.has(key)) rememberSource(key, record);
+  return record;
 }
-async function seedSource(key, record, {memory, signal}) {
-  const prior = await peekSource(key, signal);
-  // Re-check synchronously after the disk read: a single read in flight or one
-  // published meanwhile is at least as new as this batch and keeps its record.
-  const latest = cache.get(key)?.record;
-  if (pending.has(key) || [prior, latest].some(held => held && held.fetchedAt >= record.fetchedAt)) return;
-  const serialized = JSON.stringify(record);
-  refreshFailures.delete(key);
-  if (memory || latest) rememberSource(key, record, serialized);
-  if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)
-    await publishSourceFile(key, record, serialized, signal);
+// A single read in flight, or a newer record in memory or on disk, keeps its
+// record; the comparison and both publications happen under the key's lock.
+function seedSource(key, record, {memory, signal}) {
+  return withSourceLock(key, async () => {
+    const disk = await readDiskSource(key, signal);
+    const latest = cache.get(key)?.record;
+    if (pending.has(key) || [disk, latest].some(held => held && held.fetchedAt >= record.fetchedAt)) return;
+    const serialized = JSON.stringify(record);
+    refreshFailures.delete(key);
+    if (memory || latest) rememberSource(key, record, serialized);
+    if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)
+      await writeCacheFile(filename(key), serialized, {signal}).catch(() => {});
+  });
 }
 export async function prefetchCorporateBodies(ids, {signal = requestSignal(), priority = 'interactive', memory = true} = {}) {
   const wanted = [...new Set(ids.map(String))].filter(id => bodyId.test(id));
