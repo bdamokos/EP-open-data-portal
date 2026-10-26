@@ -21,9 +21,9 @@ test('profile disclosures are collapsed, retain raw identifiers, language and sa
   assert.deepEqual([...page.querySelectorAll('.explorer-profile-memberships > details > summary')].map(node=>node.textContent),['Political affiliations','Delegations and other roles']);
   assert.equal(page.querySelector('details').firstElementChild.tagName,'SUMMARY');
   assert.equal(page.querySelector('a'),null,'organisation records are not linked as machine-readable data');
-  assert.match(page.textContent,/Start date not supplied — End date not supplied/);assert.doesNotMatch(page.textContent,/Present/);
-  assert.match(page.textContent,/Start date invalid in source/);assert.match(page.textContent,/End date invalid in source/);
-  assert.match(page.textContent,/Role label unavailable/);assert.match(page.textContent,/Name unavailable/);
+  assert.doesNotMatch(page.textContent,/not supplied|invalid in source/);assert.doesNotMatch(page.textContent,/Present/);
+  assert.doesNotMatch(page.textContent,/invalid in source/);
+  assert.doesNotMatch(page.textContent,/Role label unavailable|Name unavailable/);assert.match(page.textContent,/Unnamed organisation/);assert.doesNotMatch(page.textContent,/org\/5142/);
   assert.equal([...page.querySelectorAll('[lang=fr]')][0].textContent,'Parti Socialiste');
   assert(![...page.querySelectorAll('ol p')].some(node=>node.textContent==='Tag'),'ordinary affiliation membership is implicit');
   assert.equal(page.querySelector('ol').classList.contains('explorer-membership'),false);
@@ -35,6 +35,6 @@ test('profile disclosures are collapsed, retain raw identifiers, language and sa
     assert.match(page.textContent,/Some memberships unavailable/);
     assert.doesNotMatch(page.textContent,/No memberships listed in the source|Membership information is unavailable/);
     assert(page.querySelector('button'));
-    if(entries.length>1){assert.match(page.textContent,/org\/5177/);assert.match(page.textContent,/Organisation identifier not supplied/);assert.match(page.textContent,/Role not supplied/);}
+    if(entries.length>1){assert.doesNotMatch(page.textContent,/org\/5177|Role not supplied/);assert.match(page.textContent,/Unnamed organisation/);}
   }
 });

@@ -69,7 +69,7 @@ test('failed and mismatched responses preserve the vote and cannot supply stale 
 
 test('incomplete searches stay distinct from none found, without repeated attribution or links',async t=>{
   const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'speech-source-unavailable'}]}})});
-  assert.match(view.container.textContent,/could not be fully checked/);
+  assert.match(view.container.textContent,/Some oral explanations could not be loaded/);
   assert.doesNotMatch(view.container.textContent,/No oral explanation found|Written explanations|0 explanations/);
   assert.equal(view.container.querySelectorAll('button').length,1);
   assert.equal(view.container.querySelector('button').textContent,'Retry');
@@ -85,7 +85,7 @@ test('a complete empty search is one quiet line and has no retry',async t=>{
 
 test('structural gaps retain uncertainty without offering a retry',async t=>{
   const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'parent-read-limit'},{code:'explanation-transcript-conflict'}]}})});
-  assert.match(view.container.textContent,/could not be fully checked/);
+  assert.match(view.container.textContent,/Some oral explanations could not be loaded/);
   assert.equal(view.container.querySelectorAll('button').length,0);
 });
 

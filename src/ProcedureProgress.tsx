@@ -11,11 +11,11 @@ type Document={event:string;work:string;title:string|null;titleLanguage:string|n
 type Documents={reference:string;state:Progress['state'];dossier:string|null;documents:Document[];coverage:Coverage;source:Source};
 const institutions:Record<string,string>={EP:'European Parliament',CONSIL:'Council of the EU',COM:'European Commission',EESC:'European Economic and Social Committee',COR:'Committee of the Regions'};
 const institutionLabel=(term:Term)=>term.label||institutions[term.code]||'Institution not labelled';
-const eventLabel=(event:ProgressEvent)=>event.label||'Event label unavailable';
+const eventLabel=(event:ProgressEvent)=>event.label||'Event';
 const dated=(a:ProgressEvent,b:ProgressEvent)=>(a.date||'9999').localeCompare(b.date||'9999')||a.id.localeCompare(b.id);
 const partial=(coverage:Coverage)=>coverage.limited||coverage.invalidRows>0||coverage.incompleteEvents>0;
 function EventName({event}:{event:ProgressEvent}){return <span lang={event.labelLanguage||'en'}>{eventLabel(event)}</span>;}
-function EventDate({event,language}:{event:ProgressEvent;language:string}){return event.date?<time dateTime={event.date} lang={language}>{humanDate(event.date,language)}</time>:<span className="procedure-progress-muted">Date unavailable</span>;}
+function EventDate({event,language}:{event:ProgressEvent;language:string}){return event.date?<time dateTime={event.date} lang={language}>{humanDate(event.date,language)}</time>:null;}
 function Status({event,today}:{event:ProgressEvent;today:string}) {
   if(event.status==='projected')return <span className="procedure-progress-tag">Scheduled</span>;
   if(event.status==='cancelled')return <span className="procedure-progress-tag procedure-progress-tag-muted">Cancelled</span>;
@@ -44,7 +44,7 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
     {!data&&state.loading&&<p role="status">Loading legislative progress…</p>}
     {!data&&state.error&&<p className="procedure-progress-status" role="status">Legislative progress is temporarily unavailable. <button type="button" onClick={state.retry}>Try again</button></p>}
     {data&&<>
-      {(savedFailure||data.source.stale)&&<p className="procedure-progress-status" role="status">Saved progress · {state.loading?'Checking for updates…':savedFailure?'Refresh unavailable.':'Updates may be available.'} <button type="button" onClick={state.retry} disabled={state.loading}>Check again</button></p>}
+      {(savedFailure||data.source.stale)&&<p className="procedure-progress-status" role="status">{state.loading?'Checking for updates…':savedFailure?'Couldn’t check for updates.':'Not checked recently.'} <button type="button" onClick={state.retry} disabled={state.loading}>Check again</button></p>}
       {data.state==='unmapped'&&<p className="procedure-progress-muted">Legislative progress unavailable.</p>}
       {data.state==='ambiguous'&&<p className="procedure-progress-muted">Legislative progress unavailable.</p>}
       {data.state==='mapped'&&<>
@@ -64,9 +64,9 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
                   {documents.loading&&!docData&&<p role="status">Loading document links…</p>}
                   {documents.error&&!docData&&<p role="status">Document links are temporarily unavailable. <button type="button" onClick={documents.retry}>Try again</button></p>}
                   {docData&&<>
-                    {(documents.error||docData.source.refreshError||docData.source.stale)&&<p className="procedure-progress-muted" role="status">Saved document details · {documents.loading?'Checking for updates…':documents.error||docData.source.refreshError?'Refresh unavailable.':'Updates may be available.'} <button type="button" onClick={documents.retry} disabled={documents.loading}>Check again</button></p>}
+                    {(documents.error||docData.source.refreshError||docData.source.stale)&&<p className="procedure-progress-muted" role="status">{documents.loading?'Checking for updates…':documents.error||docData.source.refreshError?'Couldn’t check for updates.':'Not checked recently.'} <button type="button" onClick={documents.retry} disabled={documents.loading}>Check again</button></p>}
                     {partial(docData.coverage)&&<p className="procedure-progress-muted">Some document details unavailable.</p>}
-                    {docData.state==='mapped'&&docData.dossier===data.dossier?<>{docData.documents.filter(document=>document.event===event.id&&event.works.includes(document.work)&&document.url).length>0?<ul>{docData.documents.filter(document=>document.event===event.id&&event.works.includes(document.work)&&document.url).map(document=><li key={document.work}><a href={document.url!} target="_blank" rel="noreferrer" lang={document.titleLanguage||'en'}>{document.title||document.celex[0]||'Read Council document'} ↗</a>{document.titleLanguage&&document.titleLanguage!==language&&<small className="procedure-progress-muted"> · Showing {document.titleLanguage.toUpperCase()}</small>}</li>)}</ul>:<p className="procedure-progress-muted">No document link.</p>}{docData.documents.some(document=>document.event===event.id&&event.works.includes(document.work)&&!document.url)&&<p className="procedure-progress-muted">Some document links unavailable.</p>}</>:<p className="procedure-progress-muted">Document links could not be matched to this procedure.</p>}
+                    {docData.state==='mapped'&&docData.dossier===data.dossier?<>{docData.documents.filter(document=>document.event===event.id&&event.works.includes(document.work)&&document.url).length>0?<ul>{docData.documents.filter(document=>document.event===event.id&&event.works.includes(document.work)&&document.url).map(document=><li key={document.work}><a href={document.url!} target="_blank" rel="noreferrer" lang={document.titleLanguage||'en'}>{document.title||document.celex[0]||'Read Council document'} ↗</a>{document.titleLanguage&&document.titleLanguage!==language&&<small className="procedure-progress-muted"> · Showing {document.titleLanguage.toUpperCase()}</small>}</li>)}</ul>:<p className="procedure-progress-muted">No document link.</p>}{docData.documents.some(document=>document.event===event.id&&event.works.includes(document.work)&&!document.url)&&<p className="procedure-progress-muted">Some document links unavailable.</p>}</>:<p className="procedure-progress-muted">Document links unavailable.</p>}
                   </>}
                 </details>}
               </div>

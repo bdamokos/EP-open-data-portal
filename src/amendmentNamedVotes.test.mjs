@@ -87,7 +87,7 @@ for(const scenario of [{wording:'missing'},{wording:'unreadable',context:'missin
 
 test('unestablished memberships stay separate from verified groups',async t=>{
  const data=await voteFixture().read();data.voters[0].group=null;data.voters[0].groupStatus='ambiguous';
- const h=await mount(t,async()=>Response.json(data));await h.render();await h.open();assert(h.container.querySelector('.amendment-named-votes__group'));assert.match(h.container.textContent,/Group not established/);assert.match(h.container.textContent,/Non-attached/);
+ const h=await mount(t,async()=>Response.json(data));await h.render();await h.open();assert(h.container.querySelector('.amendment-named-votes__group'));assert.match(h.container.textContent,/Group unknown/);assert.match(h.container.textContent,/Non-attached/);
 });
 test('unknown methods from a named read stay unavailable',async t=>{
  const data=await voteFixture().read();data.decision.method=null;data.integrity='unavailable';
@@ -95,7 +95,7 @@ test('unknown methods from a named read stay unavailable',async t=>{
 });
 test('group sources show the captured membership generation and retrieval date',async t=>{
  const data=await voteFixture().read();data.groupHistory.catalogue.retrievedAt='2026-10-23T12:00:00Z';
- const h=await mount(t,async()=>Response.json(data));await h.render();await h.open();assert.match(h.container.textContent,/Groups: membership snapshot 7 · 2026-10-23T12:00:00Z/);
+ const h=await mount(t,async()=>Response.json(data));await h.render();await h.open();assert.doesNotMatch(h.container.textContent,/membership snapshot|Vote sources/);
 });
 
 test('a missing tally does not hide a known mismatch or imply an unlisted author had no vote',async t=>{

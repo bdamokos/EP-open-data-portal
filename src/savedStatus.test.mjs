@@ -270,7 +270,7 @@ test('background storage errors retain entries and failed follow changes revert 
  const h=await harness(t);await h.render();await h.check();const prototype=h.window.localStorage,original=prototype.setItem;
  t.mock.method(prototype,'setItem',function(...args){if(this===h.window.localStorage)throw Object.assign(Error('full'),{name:'QuotaExceededError'});return original.apply(this,args);});
  h.setStatus({generation:6});h.setDetail([['late',0,6]],[speech]);await h.check();await settle();assert.equal(h.item().entries[0].id,'late');assert.match(h.container.querySelector('[role="alert"]').textContent,/will be lost on reload/);
- await act(async()=>cards(h)[0].querySelector('.explorer-save-button').click());assert.equal(h.controls.savedStore.snapshot().items.length,1);assert.match(h.container.textContent,/follow change was not kept/);t.mock.restoreAll();await h.click('Retry saving');assert.equal(h.controls.savedStore.snapshot().storageError,null);
+ await act(async()=>cards(h)[0].querySelector('.explorer-save-button').click());assert.equal(h.controls.savedStore.snapshot().items.length,1);assert.match(h.container.textContent,/Couldn't save in this browser/);t.mock.restoreAll();await h.click('Retry saving');assert.equal(h.controls.savedStore.snapshot().storageError,null);
 });
 test('empty Following makes no requests; epoch reset keeps readable entries',async t=>{
  const h=await harness(t,[]);await h.render();assert(h.container.querySelector('.explorer-saved-heading button').disabled);assert.equal(h.requests.length,0);

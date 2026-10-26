@@ -1,5 +1,6 @@
 import type {Committee,MemberProfile} from './explorerTypes';
-import {committeeOrder,orderedMemberships,ongoingLabels} from './memberships.mjs';
+import {Period} from './Period';
+import {committeeOrder,orderedMemberships} from './memberships.mjs';
 
 export function CommitteeMemberships({profile,committees,lang,roleName,date,retry}:{
   profile:MemberProfile;committees:Committee[];lang:string;roleName:(role:string)=>string;date:(value:string,lang:string)=>string;retry:()=>void;
@@ -12,7 +13,7 @@ export function CommitteeMemberships({profile,committees,lang,roleName,date,retr
   const rank=(roles:string[])=>Math.min(...roles.map(role=>ranks.includes(role)?ranks.indexOf(role):9));
   const order=(card:typeof cards[number])=>{const code=committees.find(c=>c.id===card.id)?.code||card.code;const i=committeeOrder.indexOf(code);return i<0?999:i;};
   const ordered=cards.slice().sort((a,b)=>rank(a.roles)-rank(b.roles)||order(a)-order(b)||a.code.localeCompare(b.code));
-  const period=(start:string|null,end:string|null,current:boolean)=> <>{start?date(start,lang):<span lang="en">Start date unavailable</span>} — {end?date(end,lang):currentRosterMatched&&current?(ongoingLabels[lang]||ongoingLabels.en):<span lang="en">End date not supplied</span>}</>;
+  const period=(start:string|null,end:string|null,current:boolean)=>Period({start,end,ongoing:currentRosterMatched&&current,lang,date});
   return <>
     {!ordered.length&&<p lang="en">{history?.complete?'No active committee memberships were returned.':currentRosterMatched?'Current committee memberships are unavailable.':'Committee information is unavailable.'}</p>}
     {ordered.map(card=>{

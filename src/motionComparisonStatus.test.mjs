@@ -95,7 +95,7 @@ test('missing summaries preserve unknown counts and known passages without claim
   assert.match(h.container.querySelector('.explorer-diff-checkbox').textContent,/Show unchanged passages \(—\)/);assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,2);
   assert.match(h.status().textContent,/Comparison counts unavailable/);assert.doesNotMatch(h.status().textContent,/0 changed/);assert.doesNotMatch(h.container.textContent,/No wording differences\./);
   await h.change('Stages','original-adopted');await h.respond(1,{summary:null,rows:[]});await settle();
-  assert.match(h.container.textContent,/No comparison passages are available. Comparison counts are unavailable/);assert.doesNotMatch(h.container.textContent,/No wording differences\./);
+  assert.match(h.container.textContent,/Comparison unavailable\./);assert.doesNotMatch(h.container.textContent,/No wording differences\./);
   await h.change('Stages','joint-adopted');await h.respond(2,{summary:{changed:0,added:0,removed:0,unchanged:1,referenceChanged:0},rows:comparison(h.requests[2]).rows.slice(1)});await settle();
   assert.match(h.container.textContent,/No wording differences\./);assert.match(h.status().textContent,/0 changed/);
 });

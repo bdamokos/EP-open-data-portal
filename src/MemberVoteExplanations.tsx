@@ -64,6 +64,6 @@ export function MemberVoteExplanations({vote,data,memberId,language,onDecision}:
         </div>}
       </div>;
     })}
-    {result&&!items.length&&<p className="vote-explanation-status">{result.coverage.searchComplete?'No oral explanation found.':'Oral explanations could not be fully checked.'}{!result.coverage.searchComplete&&canRetry&&<> {retry}</>}</p>}
+    {result&&!items.length&&<p className="vote-explanation-status">{result.coverage.searchComplete?'No oral explanation found.':'Some oral explanations could not be loaded.'}{!result.coverage.searchComplete&&canRetry&&<> {retry}</>}</p>}
   </div>;
 }

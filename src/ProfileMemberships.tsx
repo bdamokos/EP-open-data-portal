@@ -1,4 +1,5 @@
 import type {MemberProfile,ProfileMembershipHistory} from './explorerTypes';
+import {Period} from './Period';
 import {selectLanguageText} from './language.mjs';
 
 type HistoryItem=ProfileMembershipHistory['items'][number];
@@ -8,27 +9,24 @@ const sections = [
 ];
 const knownRoles = new Set(['CHAIR','CHAIR_VICE','MEMBER','MEMBER_SUBSTITUTE']);
 const officeRoles:Record<string,string> = {PRESIDENT:'President',PRESIDENT_VICE:'Vice-President',CHAIR_CO:'Co-Chair',QUAESTOR:'Quaestor'};
-const validDate = (value:unknown):value is string => typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)
-  &&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
 const roleCode=(item:HistoryItem)=>item.role?.replace(/^https:\/\/data\.europarl\.europa\.eu\//,'').replace(/^def\/ep-roles\//,'');
 const itemName=(item:HistoryItem,lang:string)=>{
   const labels=item.body?.prefLabel;
   const names=labels&&typeof labels==='object'&&!Array.isArray(labels)?Object.fromEntries(Object.entries(labels).filter(([,value])=>typeof value==='string'&&value.trim())):{};
-  return selectLanguageText(names,lang,item.bodyId||'Organisation identifier not supplied',item.bodyId?'':'en');
+  return selectLanguageText(names,lang,'Unnamed organisation','en');
 };
 const hasName=(item:HistoryItem)=>item.body?.prefLabel&&typeof item.body.prefLabel==='object'&&!Array.isArray(item.body.prefLabel)&&Object.values(item.body.prefLabel).some(value=>typeof value==='string'&&value.trim());
 
 export function ProfileMemberships({profile,lang,roleName,date,retry}:{profile:MemberProfile;lang:string;roleName:(role:string)=>string;date:(value:string,lang:string)=>string;retry:()=>void}) {
   const history=profile.membershipHistory;
-  const periodDate=(value:unknown,side:'Start'|'End')=>value==null?<span lang="en">{side} date not supplied</span>:validDate(value)?<span lang={lang}>{date(value,lang)}</span>:<span lang="en">{side} date invalid in source</span>;
+  const current=profile.currentAffiliation?.status==='matched';
   const row=(item:HistoryItem)=>{
-    const name=itemName(item,lang),role=roleCode(item);
+    const name=itemName(item,lang),role=roleCode(item),period=Period({start:item.start,end:item.end,ongoing:current,lang,date});
     const ordinaryAffiliation=role==='MEMBER'&&['national-parties','political-groups'].includes(item.section);
     return <li key={item.index}>
-      <p><span lang={name.language}>{name.text}</span>{!hasName(item)&&<> · Name unavailable</>}</p>
-      {!ordinaryAffiliation&&<p><span lang={role&&knownRoles.has(role)?lang:'en'}>{!role?'Role not supplied':knownRoles.has(role)?roleName(role):officeRoles[role]||'Role label unavailable'}</span></p>}
-      <p className="explorer-affiliation-dates">{periodDate(item.start,'Start')} — {periodDate(item.end,'End')}
-        {item.dateIssues.includes('reversed-period')&&<> · <span lang="en">End date precedes start date</span></>}</p>
+      <p><span lang={name.language}>{name.text}</span></p>
+      {!ordinaryAffiliation&&role&&(knownRoles.has(role)||officeRoles[role])&&<p><span lang={knownRoles.has(role)?lang:'en'}>{knownRoles.has(role)?roleName(role):officeRoles[role]}</span></p>}
+      {period&&<p className="explorer-affiliation-dates">{period}</p>}
     </li>;
   };
   return <div className="explorer-profile-memberships" lang="en">

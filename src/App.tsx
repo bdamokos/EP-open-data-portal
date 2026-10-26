@@ -161,7 +161,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
               ? " · Parliament machine translation"
               : body.translationType === "original"
                 ? " · Original text"
-                : body.textLanguage ? " · Translation method unspecified" : ""}
+                : ""}
             {body.textLanguage && body.textLanguage !== transcriptLanguage
               ? " · Requested-language text unavailable"
               : ""}

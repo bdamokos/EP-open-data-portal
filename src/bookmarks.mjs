@@ -153,7 +153,7 @@ export function createSavedStore(storage,notify=()=>void 0) {
         const added={...item,id:String(item.id),savedAt:lastSavedAt=Math.max(Date.now(),lastSavedAt+1),updated:false};
         items=[...items,item.kind==='mep'?{...minimal(added),seen:manifest?.members[item.id]?marks(manifest.members[item.id]):null,entries:[],historyOmitted:0,unreadOmitted:0,legacyUpdated:false,signals:{}}:{...added,entries:[],historyOmitted:0}];
       }
-      if(!publish(true)){items=before;legacyKeys=previousKeys;try{storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys}));storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:legacyMirror(items)}));}catch{}derive();refresh();throw Error("Couldn't save in this browser: storage is full or blocked. This follow change was not kept.");}
+      if(!publish(true)){items=before;legacyKeys=previousKeys;try{storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys}));storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:legacyMirror(items)}));}catch{}derive();refresh();throw Error("Couldn't save in this browser.");}
     },
     applyManifest(data) {
       const reset=epoch!==null&&epoch!==data.epoch;manifest=data;

@@ -90,11 +90,11 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
     fetch(API_ROOT+'/corpus/search',{method:'POST',credentials:'omit',headers:{Accept:'application/json','Content-Type':'application/json'},body:request,signal:controller.signal}).then(async response=>{
       const data=await response.json().catch(()=>null);
       if(!response.ok){const code=data?.error?.code;let message=data?.error?.message||'Text search is temporarily unavailable.';
-        if(response.status===404||response.status===403||code==='corpus_disabled')message='Text search is not available on this site yet. You can still browse the documents.';
+        if(response.status===404||response.status===403||code==='corpus_disabled')message='Text search is not available yet.';
         else if(code==='corpus_busy')message='Search is busy. Please retry in a moment.';
         else if(code==='corpus_query_timeout')message='This search took too long. Narrow the period or text language, then retry.';
         throw new Error(message);}
-      if(!data||!Array.isArray(data.results))throw new Error('Text search returned an unreadable response. Please retry.');
+      if(!data||!Array.isArray(data.results))throw new Error('Search failed. Try again.');
       if(current)setState({key:request,data,loading:false,error:null});
     }).catch(error=>{if(current)setState(old=>({...old,loading:false,error:controller.signal.aborted?'This search took too long. Please retry.':error.message}));}).finally(()=>clearTimeout(timer));
     return()=>{current=false;controller.abort();clearTimeout(timer);};

@@ -59,7 +59,7 @@ function FollowCard({item,language,onMember,renderActivity,now,resolution,retry,
     {item.legacy&&<p>Update check pending. <button onClick={check}>Retry</button></p>}
     {!item.indexComplete&&<small>Some updates could not be checked.</small>}
     <div className="explorer-saved-actions">{(item.kind==='mep'||item.memberId)&&<button onClick={()=>{if(item.kind==='question')store.openQuestion(key);onMember(member,item.kind==='question'?item.id:undefined);}}>{item.kind==='mep'?'Profile':item.current?.answerIds?.length?'Read question and answers':'Read question'}</button>}
-    {item.kind==='question'&&item.availability==='not-saved'&&<p>Question metadata is not available yet.</p>}
+    {item.kind==='question'&&item.availability==='not-saved'&&<p>Details not available yet.</p>}
     {hasNew&&<button onClick={()=>{store.markRead(key);if(item.kind==='mep'){membershipStore.markRead(item.id);groupsStore.markRead(item.id);}}}>Mark all read</button>}</div>
     {item.kind==='mep'&&<GroupUpdates member={item.id} language={language} now={now} onMember={onMember}/>}
     {item.kind==='mep'&&<MembershipUpdates member={item.id} language={language} now={now} onMember={onMember}/>}

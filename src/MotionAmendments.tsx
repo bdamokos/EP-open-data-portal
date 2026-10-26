@@ -44,7 +44,7 @@ const nonnegative=(value:unknown)=>typeof value==='number'&&Number.isSafeInteger
 const title=(item:MotionAmendment)=>item.number!=null?`Amendment ${item.number}`:'Amendment';
 const checked=(record:MotionAmendment|MotionAmendmentVariant,member:string)=>record.memberMatch?.memberId===member&&record.memberMatch.status==='recorded'&&record.memberMatch.matched===true;
 const sourceLanguage=(value:string|null|undefined)=>value||'';
-const languageLabel=(value:string|null|undefined)=>value?value.toUpperCase():'Language unavailable';
+const languageLabel=(value:string|null|undefined)=>value?value.toUpperCase():'—';
 
 function validMotionState(state:MotionAmendmentsState) {
   return typeof state.open==='boolean'&&['member','all'].includes(state.scope)&&nonnegative(state.offset)&&state.offset<=1_000_000&&
@@ -215,11 +215,11 @@ function AmendmentDetail({item,member,memberName,language,listId,onVariant,onCon
       {record.targetLabel&&<p className="motion-amendments__target" lang={sourceLanguage(record.targetLabelLanguage)}>{record.targetLabel}</p>}
       <Proposers record={record}/>
       {checked(record,member)&&<p className="motion-amendments__member-tag">Selected MEP’s proposal</p>}
-      <p className="motion-amendments__muted">{record.wording?.languageFallback&&record.wording.language?
+      {(record.wording?.language||record.listDocumentDate)&&<p className="motion-amendments__muted">{record.wording?.language?(record.wording.languageFallback?
         <>Showing <span lang="">{languageLabel(record.wording.language)}</span> (requested <span lang="">{language.toUpperCase()}</span>)</>:
-        <>Wording language: <span lang="">{languageLabel(record.wording?.language)}</span></>}
-        {record.listDocumentDate&&<> · <span lang={language}>{dateLabel(record.listDocumentDate,language)}</span></>}
-      </p>
+        <>Wording language: <span lang="">{languageLabel(record.wording.language)}</span></>):null}
+        {record.listDocumentDate&&<>{record.wording?.language?' · ':''}<span lang={language}>{dateLabel(record.listDocumentDate,language)}</span></>}
+      </p>}
       
       {record.wording?.originalStatus==='available'&&record.wording.proposedStatus==='available'&&typeof record.originalText==='string'&&record.originalText!==''&&typeof record.proposedText==='string'&&record.proposedText!==''?
         <WordingDiff key={JSON.stringify(record)} original={record.originalText} proposed={record.proposedText} language={sourceLanguage(record.wording.language)} emptySemantics="not-supplied" labels={{original:'Original wording quoted in the amendment',proposed:'Proposed wording'}}/>:

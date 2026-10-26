@@ -87,13 +87,13 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
             <div className="explorer-diff-reader" lang={data.textLanguage || ''}>
               <h5 lang="en">{fullNames[readIndex]}{data.documents[readIndex]?` · ${data.documents[readIndex].reference}`:''}</h5>
               {textBlocks.map(block=><div key={block.index} className="explorer-diff-text-passage" data-kind={block.kind}><p className="explorer-diff-reference" lang="en">{reference(block)}</p><p className="explorer-diff-wording">{block.text}</p></div>)}
-              {!textBlocks.length&&<p lang="en">No extracted passages are available for this text.</p>}
+              {!textBlocks.length&&<p lang="en">Text unavailable.</p>}
             </div>
           </>:<>
             <p className="explorer-diff-legend"><span><del>Removed wording</del> · {fullNames[0]}</span><span><ins>Added wording</ins> · {fullNames[1]}</span></p>
             <label className="explorer-diff-checkbox"><input type="checkbox" checked={showUnchanged} onChange={e=>setShowUnchanged(e.target.checked)}/> Show unchanged passages ({summary?.unchanged ?? '—'})</label>
             {noDifferences&&<p>No wording differences.</p>}
-            {!rows.length&&!noDifferences&&<p>{summary?'No comparison passages are available for these results.':'No comparison passages are available. Comparison counts are unavailable.'}</p>}
+            {!rows.length&&!noDifferences&&<p>{summary?'Nothing to compare.':'Comparison unavailable.'}</p>}
             <div className="explorer-diff-rows" data-view={view} lang={data.textLanguage || ''}>{rows.map((row,i)=><article key={i} className="explorer-diff-row" data-kind={row.kind}>
               {view==='inline'?<InlinePassage row={row} labels={labels}/>:<><p className="explorer-diff-row-label" lang="en">{changeLabel(row,labels)}</p><div className="explorer-diff-columns"><Passage row={row} side="before" name={labels[0]}/><Passage row={row} side="after" name={labels[1]}/></div></>}
             </article>)}</div>

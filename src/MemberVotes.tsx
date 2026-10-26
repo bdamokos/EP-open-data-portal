@@ -49,7 +49,7 @@ const dateLabel=(value:string|null)=>{
 const languageLabel=(code:string)=>{try{return new Intl.DisplayNames(['en'],{type:'language'}).of(code)||code.toUpperCase();}catch{return code.toUpperCase();}};
 const chosenTitle=(record:{titles:Record<string,string>;title:string|null;titleLanguage:string|null},language:string)=>{
   const selected=selectVoteTitle(record.titles,language,record.title||'',record.titleLanguage||'en');
-  return {raw:selected.sourceLiteral,text:displayVoteTitle(selected.text)||'Subject title unavailable',language:selected.language};
+  return {raw:selected.sourceLiteral,text:displayVoteTitle(selected.text)||'Untitled vote',language:selected.language};
 };
 const periodLabel=(data:MemberVotesResponse|null,state:MemberVotesState)=>state.sittingId?'Sitting · '+dateLabel(state.sittingId.slice(7)):data?.period.from?'Week of '+dateLabel(data.period.from):state.week==='latest'?'Latest sitting week':'Week of '+dateLabel(state.week);
 
@@ -80,11 +80,11 @@ function Wording({documentId,amendmentId,language,openContext,showHeading=true}:
       {response.error&&<p role="alert">Amendment wording could not be loaded. <button type="button" disabled={response.loading} onClick={response.retry}>Retry wording</button></p>}
       {!response.loading&&!response.error&&!variants.length&&<p>Amendment wording unavailable here.</p>}
       {(options.length>1||selectedVersion!==null&&!selected)&&<label className="member-votes-variant">Published version<select aria-label="Amendment published version" value={selectedOption?.value||''} onChange={event=>setSelectedVersion(options.find(option=>option.value===event.target.value)?.key??'')}>
-        <option value="">Choose a published version</option>{options.map(({variant,value},index)=><option key={value} value={value}>Version {index+1} · {typeof variant.language==='string'&&variant.language.trim()?languageLabel(variant.language):'Language unknown'}{variant.wordingStatus==='unavailable'?' · Wording unavailable':''}</option>)}
+        <option value="">Choose a published version</option>{options.map(({variant,value},index)=><option key={value} value={value}>Version {index+1}{typeof variant.language==='string'&&variant.language.trim()?' · '+languageLabel(variant.language):''}{variant.wordingStatus==='unavailable'?' · Wording unavailable':''}</option>)}
       </select></label>}
       {selected&&<>
-        {typeof selected.targetLabel==='string'&&selected.targetLabel&&<><p className="member-votes-target-label" lang={targetLanguage||''}>{selected.targetLabel}</p>{!targetLanguage&&<p className="member-votes-muted">Target language unknown.</p>}</>}
-        {(readable||authors.length>0)&&<p className="member-votes-muted">{readable&&(textLanguage?'Text language: '+languageLabel(textLanguage):'Text language unknown.')}{authors.length>0&&<>{readable?' · ':''}Proposed by {authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/></span>)}</>}</p>}
+        {typeof selected.targetLabel==='string'&&selected.targetLabel&&<><p className="member-votes-target-label" lang={targetLanguage||''}>{selected.targetLabel}</p></>}
+        {(readable&&textLanguage||authors.length>0)&&<p className="member-votes-muted">{readable&&textLanguage&&'Text language: '+languageLabel(textLanguage)}{authors.length>0&&<>{readable&&textLanguage?' · ':''}Proposed by {authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/></span>)}</>}</p>}
         {readable?<div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:'Original wording',proposed:'Proposed wording',emptyOriginal:'',emptyProposed:''}}/></div>:<p>Amendment wording unavailable here.</p>}
         {readable&&selected.wordingRetained&&<p className="member-votes-muted">Showing saved wording.</p>}
         <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,view:'document'})}>Read in context</button>
