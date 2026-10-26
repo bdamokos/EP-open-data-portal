@@ -36,6 +36,15 @@ const contributionTime=(value:string|null,language:string)=>value&&Number.isFini
 const positions={for:'For',against:'Against',abstaining:'Abstaining'};
 const committeeAction=(kind:string)=>({COMMITTEE_TABLING_REPORT:'Draft report',COMMITTEE_TABLING_OPINION:'Draft opinion',COMMITTEE_TABLING_AMENDMENT:'Amendments',COMMITTEE_ADOPTING_REPORT:'Report adopted',COMMITTEE_ADOPTING_OPINION:'Opinion adopted',COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT:'Provisional agreement'} as Record<string,string>)[kind]||'Committee decision';
 const agendaItemRoute=(language:string,sitting:string,topic:string)=>'insights/legislation?'+new URLSearchParams({lang:language,sitting,topic});
+// Pinning the week in an item URL names the agenda already on screen.
+// Only this exact latest/concrete-week pair may share a completed response.
+function sameAgendaRoute(loaded:string,requested:string,data:LegislationResponse|LegislationNavigationResponse) {
+  if(!('week' in data)||!data.week)return false;
+  const previous=new URL(loaded,'https://explorer.invalid/'),next=new URL(requested,'https://explorer.invalid/');
+  if(previous.searchParams.get('week')!=='latest'||next.searchParams.get('week')!==data.week)return false;
+  previous.searchParams.set('week',data.week);
+  return previous.href===next.href;
+}
 function ContributorAnalysis({stats,language}:{stats:InsightStats;language:string}) {
   if(stats.denominator<=0&&!(stats.groupContributions?.total))return null;
   return <details className="insight-author-analysis" open><summary>About the contributors</summary><InsightDemographics stats={stats} language={language}/></details>;
@@ -106,7 +115,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   else if(selectedViewPeriod.startsWith('sitting:'))params.set('sitting',selectedViewPeriod.slice(8));
   else if(selectedViewPeriod.startsWith('week:'))params.set('week',selectedViewPeriod.slice(5));
   else if(sitting)params.set('sitting',sitting);
-  const base=useInsightData<LegislationResponse|LegislationNavigationResponse>(['agenda','cloud','participation'].includes(mode)?'insights/legislation?'+params:null),navigation=base.data,data=navigation?.sitting?navigation as LegislationResponse:null;
+  const base=useInsightData<LegislationResponse|LegislationNavigationResponse>(['agenda','cloud','participation'].includes(mode)?'insights/legislation?'+params:null,sameAgendaRoute),navigation=base.data,data=navigation?.sitting?navigation as LegislationResponse:null;
   // Retain navigation only: results remain fenced to the current request by useInsightData.
   const [agendaSittings,setAgendaSittings]=useState<LegislationResponse['sittings']>([]);
   useEffect(()=>{if(navigation)setAgendaSittings(navigation.sittings);},[navigation]);
