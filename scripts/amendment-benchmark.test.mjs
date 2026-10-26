@@ -85,6 +85,7 @@ test('patterns retain grammar and extraction limits; sample options select exact
   assert(targetPatterns(wording('Article 1 – paragraph 2 a (new)'),[{code:'vertical-text-loss'},{code:'comparison-grid'}]).includes('letter-suffix'));
   assert(targetPatterns(wording('Article -1')).includes('negative-label'));
   assert.equal(options([]).weeks,8);assert.equal(options([]).fetchMissing,false);
+  assert.throws(()=>options(['--fetch','--delay-ms','0']),/at least 750/);
   assert.deepEqual(options(['--document','B-10-2026-0001','--document','B-10-2026-0001']).documents,['B-10-2026-0001']);
   assert.throws(()=>options(['--from','2026-01-01']),/ordered/);assert.throws(()=>options(['--document','A-9-2024-0001']),/term-10/);
   assert.equal(monday('2026-10-22'),'2026-10-19');

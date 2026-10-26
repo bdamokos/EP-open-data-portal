@@ -25,6 +25,7 @@ export function options(args) {
     const value=args[++i];if(key==='documents')result.documents.push(value);else result[key]=value;
   }
   for(const key of ['weeks','cap','delay']) {result[key]=Number(result[key]);if(!Number.isSafeInteger(result[key])||result[key]<(key==='weeks'?1:0))throw new Error('Invalid '+key);}
+  if(result.fetchMissing&&result.delay<750)throw new Error('Public acquisition requires --delay-ms of at least 750.');
   for(const key of ['from','to','asOf'])if(result[key]&&(!/^\d{4}-\d{2}-\d{2}$/.test(result[key])||new Date(result[key]).toISOString().slice(0,10)!==result[key]))throw new Error('Invalid date: '+key);
   if(Boolean(result.from)!==Boolean(result.to)||result.from>result.to)throw new Error('--from and --to require an ordered inclusive date window.');
   result.documents=[...new Set(result.documents)].sort();
