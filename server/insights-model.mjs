@@ -75,10 +75,14 @@ export function demographicStats(ids, members, metadata = new Map(), referenceDa
     const values = {country:meta['api:country-of-representation'] || 'Unknown',group:meta['api:political-group'] || 'Unknown',gender:sex === 'FEMALE' ? 'Female' : sex === 'MALE' ? 'Male' : 'Unknown',age:age == null ? 'Unknown' : age < 35 ? '18–34' : age < 50 ? '35–49' : age < 65 ? '50–64' : '65+'};
     for (const [dimension,value] of Object.entries(values)) { const bucket=dimensions[dimension];bucket.set(value,(bucket.get(value)||0)+1); }
   }
+  const sourceDates=current.flatMap(id=>{
+    const meta=metadata.get(id)||{},dates=Object.values(meta.demographicProvenance||{}).flatMap(field=>field.sources.map(source=>source.retrievedAt)).filter(Boolean);
+    return dates.length?dates:[meta.metadataFetchedAt,meta.rosterMetadataFetchedAt].filter(Boolean);
+  }).sort();
   return {uniquePeople:unique.length,uniqueCurrentMeps:current.length,peopleOutsideCurrentRoster:outside.length,denominator:current.length,referenceDate,
     demographicEvidence,
     basis:'Current saved roster and retained explicit profile metadata; not membership at activity time. Age uses explicit birth date at the stated reference date. People outside the current roster are listed separately.',
-    metadataSourceDates:{from:current.flatMap(id=>[metadata.get(id)?.metadataFetchedAt,metadata.get(id)?.rosterMetadataFetchedAt]).filter(Boolean).sort()[0]||null,to:current.flatMap(id=>[metadata.get(id)?.metadataFetchedAt,metadata.get(id)?.rosterMetadataFetchedAt]).filter(Boolean).sort().at(-1)||null},
+    metadataSourceDates:{from:sourceDates[0]||null,to:sourceDates.at(-1)||null},
     dimensions:Object.fromEntries(Object.entries(dimensions).map(([key,value]) => [key, sortedCounts(value)]))};
 }
 export function memberPeople(ids, members, metadata = new Map()) {

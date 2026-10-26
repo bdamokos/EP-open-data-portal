@@ -104,3 +104,12 @@ test('older raw-cache observations cannot overwrite newer retained fields or era
  const metadata=(await savedMetadata({directory:null,members,store})).get('1');
  assert.equal(metadata.bday,'1980-01-01');assert.equal(metadata.demographicProvenance.bday.lastAttempt.status,'fetch_failed');
 });
+
+test('new roster reads do not hide the retrieval date of older birthday and gender evidence',async t=>{
+ const {store,generation,members}=fixture(t),profileAt='2026-10-20T09:00:00Z';
+ retainDemographicRecord(store,generation,'1',{...record('1',{bday:'1980-01-01',hasGender:'authority/FEMALE'}),fetchedAt:profileAt});
+ retainDemographicRecord(store,generation,'1',record('1',{'api:country-of-representation':'HU'}),{kind:'roster'});
+ const metadata=await savedMetadata({directory:null,members,store});
+ assert.deepEqual(demographicStats(['1'],members,metadata,'2026-10-26').metadataSourceDates,{from:profileAt,to:at});
+ assert.equal(metadata.get('1').demographicProvenance.bday.sources.find(source=>source.values.length).retrievedAt,profileAt);
+});
