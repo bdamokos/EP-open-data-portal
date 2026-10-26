@@ -44,12 +44,13 @@ export function mapContextAnnotations(paragraphs, span, original, anchors = [], 
 
 // A placed span may include an explicit provision prefix or different whitespace.
 // Only exact normalized text equivalence permits moving amendment formatting.
+// null means mapping failed; [] means verified text without vertical formatting.
 export function mapWordingFormatting(source,target,formatting=[]) {
-  if(typeof source!=='string'||typeof target!=='string')return [];
+  if(typeof source!=='string'||typeof target!=='string')return null;
   if(source===target)return formatting;
   let prefix=0;
   const label=target.match(/^\s*(?:\([\p{L}\p{N}]{1,6}\)|[\p{L}\p{N}]{1,6}[.)])\s+/u)?.[0];
   if(normalizedOffsets(source).normal!==normalizedOffsets(target).normal&&label)prefix=label.length;
   const mapped=mapContextAnnotations([source],{start:0,end:0},target.slice(prefix),[],formatting.map(mark=>({...mark,paragraph:0})));
-  return mapped?mapped.links.map(mark=>({start:mark.start+prefix,end:mark.end+prefix,kind:mark.kind})):[];
+  return mapped?mapped.links.map(mark=>({start:mark.start+prefix,end:mark.end+prefix,kind:mark.kind})):null;
 }

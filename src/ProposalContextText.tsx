@@ -138,7 +138,14 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
       renderOriginal=(value,offset)=>{const start=offset+labelLength,end=start+value.length;return <ReferenceText text={value} start={start} anchors={anchors.filter(a=>a.offset>start&&a.offset<=end||start===0&&a.offset===0)} links={links.map(l=>({...l,start:Math.max(l.start,start),end:Math.min(l.end,end)})).filter(l=>l.end>l.start)} final notePrefix={prefix+'-'+placement.itemIndex}/>;};
     }
     const comparisonOriginal=labelLength?original!.slice(labelLength):original;
-    return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment'+(number?' '+number:'')}><h4 lang="en">Amendment{number?' '+number:''}</h4>{labelLength>0&&<p className="document-context-provision-label" data-source-label="true">{sourcePrefix!.trim()}</p>}{wording&&<WordingDiff originalFormatting={mapWordingFormatting(wording.originalText,comparisonOriginal,wording.originalFormatting)} proposedFormatting={wording.proposedFormatting} original={placement?.operation==='insert'?'':comparisonOriginal} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={renderOriginal}/>}</section>;
+    // Formatting offsets belong to the compared wording, before the source
+    // annotation callback shifts them back past the separated provision label.
+    const originalFormatting=mapWordingFormatting(wording?.originalText,comparisonOriginal,wording?.originalFormatting);
+    // Placement also accepts punctuation/quotation normalization. If its source
+    // span cannot carry the column offsets exactly, compare both published
+    // columns with their own ranges; proposed wording is never modified.
+    const useColumns=originalFormatting===null;
+    return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment'+(number?' '+number:'')}><h4 lang="en">Amendment{number?' '+number:''}</h4>{labelLength>0&&<p className="document-context-provision-label" data-source-label="true">{sourcePrefix!.trim()}</p>}{wording&&<WordingDiff originalFormatting={useColumns?wording.originalFormatting:originalFormatting} proposedFormatting={wording.proposedFormatting} original={placement?.operation==='insert'?'':useColumns?wording.originalText:comparisonOriginal} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={useColumns?undefined:renderOriginal}/>}</section>;
   };
   return <>
     <p className="proposal-context-summary">{official?<a href={official} target="_blank" rel="noreferrer">{identity} ↗</a>:identity} · <a href={report} target="_blank" rel="noreferrer">Parliament {data.documentId.startsWith('A-')?'report':'document'} ↗</a></p>

@@ -20,5 +20,8 @@ test('placed formatting follows exact whitespace and an explicit provision prefi
   const target='1. CO2  mg/m3';
   const mapped=mapWordingFormatting('CO2 mg/m3',target,[{start:2,end:3,kind:'subscript'},{start:8,end:9,kind:'superscript'}]);
   assert.deepEqual(mapped,[{start:5,end:6,kind:'subscript'},{start:12,end:13,kind:'superscript'}]);
-  assert.deepEqual(mapWordingFormatting('Different',target,marks),[]);
+  assert.equal(mapWordingFormatting('Different',target,marks),null);
+  assert.deepEqual(mapWordingFormatting('CO2 mg/m3',target),[]);
+  assert.equal(mapWordingFormatting('CO2.', '1. CO2;', [{start:2,end:3,kind:'subscript'}]),null);
+  assert.equal(mapWordingFormatting('Different',target),null);
 });

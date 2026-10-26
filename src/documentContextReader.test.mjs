@@ -1,5 +1,6 @@
 import {parseProposal,proposalCandidates} from '../server/proposal-structure.mjs';
 import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
+import {wordingText} from './test-support/wordingText.mjs';
 import {proposalContextResponse} from './test-support/proposalContext.mjs';
 import test from 'node:test';
 import {API_VERSION} from '../server/api-version.mjs';
@@ -971,4 +972,26 @@ test('title-case opinion headings cannot provide the main report amendment seque
   const h=await harness(t,()=>fallbackResponse(doc));await h.render({request:fallbackRequest,language:'en'});
   assert.equal(h.container.querySelectorAll('[data-report-amendment]').length,0);assert.equal(h.scrolls.length,0);
   assert(h.container.textContent.includes('The amendment wording is unavailable.'));
+});
+
+
+for(const [name,originalText,sourceText] of [
+  ['punctuation','CO2.','1. CO2;'],
+  ['quotation','CO2 "target".','1. CO2 “target”.'],
+])test(`placed ${name} normalization keeps column formatting without inventing a change in either mode`,async t=>{
+  const paragraphs=['Article 1',sourceText];
+  const proposal=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),paragraphProperties:paragraphs.map((_,i)=>({styleId:i?'Normal':'Titrearticle',numberingComplete:true,notesComplete:true}))});
+  const value=proposalContextResponse(report,amendment,list,4),items=[{kind:'act',index:1,proposal}],marks=[{start:2,end:3,kind:'subscript'}];
+  const variant={...value.amendment.variants[0],targetLabel:'Article 1 – paragraph 1',targetPath:{proposal:[],underlying:[],language:'en'},originalText,proposedText:originalText,originalFormatting:marks,proposedFormatting:marks};
+  Object.assign(value,{proposal:{items},amendment:{...value.amendment,variants:[variant]},placement:resolveProposalPlacement(items,variant)});
+  assert.equal(value.placement.status,'placed');assert.notEqual(value.placement.originalText,originalText);
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.dataset.contextTarget,'true');
+  for(const mode of ['Changes','Side by side']) {
+    await h.click([...block.querySelectorAll('button')].find(button=>button.textContent===mode));
+    assert.equal(wordingText(block,'original'),originalText);assert.equal(wordingText(block,'proposed'),originalText);
+    assert.equal(block.querySelector('del,ins'),null,'normalization must not become a wording or formatting edit');
+    assert.deepEqual([...block.querySelectorAll('sub')].map(node=>node.textContent),mode==='Changes'?['2']:['2','2']);
+  }
 });
