@@ -1148,14 +1148,16 @@ export async function syncOdpFeeds({ force = false } = {}) {
       for (const update of bodies) {
         const body = d.committees.find((c) => c.id === update.id);
         if (!body) continue;
-        let record = await odp(`/corporate-bodies/${update.id}`,{}, {priority:'background',ttl:BODY_TTL});
+        const catalogue = {identifier:body.id,label:body.code};
+        // A retained record that fails validation is read again, so a corrected
+        // upstream record recovers without waiting for another feed entry.
+        const validate = payload => {if (!committeeRecord(catalogue,{payload})) throw new Error('Committee details are unavailable.');};
+        let record = await odp(`/corporate-bodies/${update.id}`,{}, {priority:'background',ttl:BODY_TTL,validate});
         if (Date.parse(update.updated) > record.fetchedAt)
-          record = await odp(`/corporate-bodies/${update.id}`, {}, {force:true,priority:'background'});
+          record = await odp(`/corporate-bodies/${update.id}`, {}, {force:true,priority:'background',validate});
         // The directory shows a committee's details until a newer record exists.
         const shown = directorySources.find(source => source.url === record.url);
         if (shown && shown.fetchedAt >= record.fetchedAt) continue;
-        const catalogue = {identifier:body.id,label:body.code};
-        if (!committeeRecord(catalogue,record)) throw new Error('Committee details are unavailable.');
         publishCommitteeRecord(d,catalogue,record);
         if (directoryDetailWork?.target === d) {
           directoryDetailWork.invalid.delete(body.id);directoryDetailWork.errors.delete(body.id);

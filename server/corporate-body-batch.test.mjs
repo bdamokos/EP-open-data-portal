@@ -100,3 +100,36 @@ test('retained bodies stay fresh for days and refresh when the feed republishes 
   await prefetchCorporateBodies(['2'],{signal:undefined});
   assert.deepEqual(requests,['/api/v2/corporate-bodies/2'],'the age limit is a backstop');
 });
+
+test('a retained committee record that fails validation is read again by the daily sync',async t=>{
+  const dir=await mkdtemp(path.join(tmpdir(),'corporate-body-invalid-'));
+  const previous=process.env.ODP_CACHE_DIR;process.env.ODP_CACHE_DIR=dir;
+  t.after(async()=>{if(previous===undefined)delete process.env.ODP_CACHE_DIR;else process.env.ODP_CACHE_DIR=previous;await rm(dir,{recursive:true,force:true});});
+  const {writeFile}=await import('node:fs/promises');const {createHash}=await import('node:crypto');
+  const classification='def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING';
+  const body={id:'org/6572',identifier:'6572',label:'EMPL',prefLabel:{en:'Employment'},classification,temporal:{startDate:'2024-07-16'}};
+  const save=async(endpoint,params,data,age)=>{
+    const url=new URL('https://data.europarl.europa.eu/api/v2'+endpoint);
+    for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,String(value));
+    await writeFile(path.join(dir,createHash('sha256').update(url.href).digest('hex')+'.json'),JSON.stringify({url:url.href,fetchedAt:Date.now()-age,payload:{data}}));
+  };
+  // Within the body age limit, published long before the feed's last entry, but invalid.
+  await save('/corporate-bodies/6572',{},[{...body,classification:undefined}],60*60*1000);
+  const feedUpdated=new Date(Date.now()-2*24*60*60*1000).toISOString();
+  await writeFile(path.join(dir,'sync-state.json'),JSON.stringify({lastSuccess:feedUpdated,lastAttempt:feedUpdated}));
+  let detailReads=0;
+  t.mock.method(globalThis,'fetch',async input=>{
+    const url=new URL(input);
+    if(url.pathname==='/api/v2/meps/show-current')return Response.json({data:[]});
+    if(url.pathname==='/api/v2/corporate-bodies/show-current')return Response.json({data:[body]});
+    if(url.pathname==='/api/v2/meps/feed')return new Response('<feed></feed>',{headers:{'content-type':'application/atom+xml'}});
+    if(url.pathname==='/api/v2/corporate-bodies/feed')return new Response(`<feed><entry><id>https://data.europarl.europa.eu/org/6572</id><updated>${feedUpdated}</updated></entry></feed>`,{headers:{'content-type':'application/atom+xml'}});
+    if(url.pathname==='/api/v2/corporate-bodies/6572'){detailReads++;return Response.json({data:[body]});}
+    assert.fail('Unexpected upstream read '+url.pathname);
+  });
+  const {syncOdpFeeds,odp}=await import('./odp.mjs?invalid');
+  const sync=await syncOdpFeeds({force:true});
+  assert.equal(sync.error,null);
+  assert(detailReads>=1,'the invalid record was read again');
+  assert.equal((await odp('/corporate-bodies/6572',{},{cachedOnly:true})).payload.data[0].classification,classification);
+});
