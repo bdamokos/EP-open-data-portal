@@ -21,7 +21,7 @@ async function fixture(t,age) {
     const record={url:url.href,fetchedAt,payload:{data}};records.push(record);
     await writeFile(path.join(directory,createHash('sha256').update(url.href).digest('hex')+'.json'),JSON.stringify(record));
   }
-  // Isolate directory refresh from the independent hourly feed scheduler while
+  // Isolate directory refresh from the independent daily feed scheduler while
   // tests advance their clock offset by seven hours (without freezing time).
   await writeFile(path.join(directory,'sync-state.json'),JSON.stringify({lastSuccess:new Date().toISOString(),lastAttempt:new Date(Date.now()+86400000).toISOString()}));
   return {directory,fetchedAt,records};

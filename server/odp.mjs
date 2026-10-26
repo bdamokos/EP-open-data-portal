@@ -373,6 +373,9 @@ async function list(endpoint, params = {}, {priority='interactive'}={}) {
 // names the request that actually returned it in `retrievedFrom`. Omitted or
 // ambiguous elements fall back to single reads.
 const BODY_BATCH = 100;
+// Bodies rarely change, and the daily feed sync refreshes those Parliament
+// republishes. The age limit is only a backstop for missed feed entries.
+const BODY_TTL = 7 * 24 * 60 * 60 * 1000;
 const bodyId = /^(?:[1-9]\d*|ep-[1-9]\d*)$/;
 const bodyEndpoint = id => `/corporate-bodies/${id}`;
 const sourceKey = endpoint => {
@@ -402,7 +405,9 @@ function seedSource(key, record, {memory, signal}) {
     if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) await publishLocked(key, serialized);
   }), signal ?? null);
 }
-export async function prefetchCorporateBodies(ids, {signal = requestSignal(), priority = 'interactive', memory = true} = {}) {
+// `updates` maps body IDs to feed publication times; an older retained record
+// is refreshed even within its age limit.
+export async function prefetchCorporateBodies(ids, {signal = requestSignal(), priority = 'interactive', memory = true, updates} = {}) {
   const wanted = [...new Set(ids.map(String))].filter(id => bodyId.test(id));
   for (let i = 0; i < wanted.length; i += BODY_BATCH) {
     const chunk = wanted.slice(i, i + BODY_BATCH);
@@ -412,7 +417,7 @@ export async function prefetchCorporateBodies(ids, {signal = requestSignal(), pr
       // A recent single-read failure keeps its cooldown; the reader decides.
       if ((refreshFailures.get(key)?.retryAt || 0) > Date.now()) return;
       const held = await peekSource(key, signal, memory);
-      if (!held || Date.now() - held.fetchedAt >= TTL) missing.push(id);
+      if (!held || Date.now() - held.fetchedAt >= BODY_TTL || held.fetchedAt < (updates?.get(id) ?? -Infinity)) missing.push(id);
     }));
     signal?.throwIfAborted();
     if (!missing.length) continue;
@@ -435,7 +440,7 @@ export async function prefetchCorporateBodies(ids, {signal = requestSignal(), pr
 let bodyWarmup = null;
 // Keeps every corporate body retained on disk so a profile's first view reads
 // locally. The catalogue page and batches run in the background queue.
-export function startCorporateBodyWarmup({intervalMs = TTL / 2} = {}) {
+export function startCorporateBodyWarmup({intervalMs = 24 * 60 * 60 * 1000} = {}) {
   const run = () => {
     if (!cacheDir || bodyWarmup) return;
     bodyWarmup = (async () => {
@@ -723,8 +728,9 @@ async function loadProfile(id, force = false, {priority='interactive'}={}) {
 export async function odpProfile(id, force = false, options={}) {
   return (await loadProfile(id,force,options)).profile;
 }
-const readCommitteeMemberships = createCommitteeMembershipReader({request:odp});
-const readProfileMemberships = createProfileMembershipReader({request:odp});
+const bodyRequest = (endpoint, params, options) => odp(endpoint, params, {ttl:BODY_TTL, ...options});
+const readCommitteeMemberships = createCommitteeMembershipReader({request:bodyRequest});
+const readProfileMemberships = createProfileMembershipReader({request:bodyRequest});
 const rejectedProfileObservations = new Set();
 export async function odpProfileWithMemberships(id) {
   let {profile,record} = await loadProfile(id);
@@ -1036,7 +1042,49 @@ let syncState = {
 };
 let syncPromise;
 let syncLoaded = false;
-const SYNC_MS = 60 * 60 * 1000;
+// Parliament republishes its records nightly; a daily check is enough, except
+// during a plenary sitting and two hours after it, when records change hourly.
+const SYNC_MS = 24 * 60 * 60 * 1000;
+const PLENARY_SYNC_MS = 60 * 60 * 1000;
+const PLENARY_TAIL_MS = 2 * 60 * 60 * 1000;
+// The sitting's agenda blocks bound its hours: from the first block start to
+// the last block end plus the tail. No timed block means no window.
+export function plenarySyncWindow(rows, day) {
+  const values = value => Array.isArray(value) ? value : value == null ? [] : [value];
+  const times = (Array.isArray(rows) ? rows : [])
+    .filter(row => String(row?.had_activity_type || '').endsWith('/MEETING_PART') && String(row.activity_id || '').startsWith(`MTG-PL-${day}-TF-`))
+    .flatMap(row => [...values(row.activity_start_date), ...values(row.activity_end_date)])
+    .map(value => Date.parse(value)).filter(Number.isFinite);
+  return times.length ? {start:Math.min(...times), end:Math.max(...times) + PLENARY_TAIL_MS} : null;
+}
+const sittingWindows = new Map();
+async function sittingWindow(day) {
+  const saved = sittingWindows.get(day);
+  // A read agenda, or Parliament's empty answer on a non-sitting day, holds for
+  // the day; an unavailable agenda is retried after an hour.
+  if (saved && (saved.known || Date.now() - saved.checkedAt < PLENARY_SYNC_MS)) return saved.window;
+  let window = null, known = true;
+  try {
+    const rows = [];
+    for (let offset = 0; offset < 200; offset += 50) {
+      const record = await odp(`/meetings/MTG-PL-${day}/foreseen-activities`, {limit:50, offset}, {priority:'background', signal:undefined});
+      rows.push(...record.payload.data);
+      if (record.payload.data.length < 50) break;
+    }
+    window = plenarySyncWindow(rows, day);
+  } catch (error) { if (error?.code !== 'odp_no_content') known = false; }
+  sittingWindows.set(day, {checkedAt:Date.now(), window, known});
+  for (const key of sittingWindows.keys()) if (sittingWindows.size > 4) sittingWindows.delete(key);
+  return window;
+}
+async function inPlenaryWindow(now = Date.now()) {
+  // A late sitting's tail can cross midnight, so yesterday's window counts too.
+  for (const day of [dayOf(now), dayOf(now - 24 * 60 * 60 * 1000)]) {
+    const window = await sittingWindow(day);
+    if (window && now >= window.start && now <= window.end) return true;
+  }
+  return false;
+}
 async function loadSyncState() {
   if (syncLoaded) return;
   syncLoaded = true;
@@ -1052,12 +1100,11 @@ async function loadSyncState() {
 export async function syncOdpFeeds({ force = false } = {}) {
   await loadSyncState();
   if (syncPromise) return syncPromise;
-  if (
-    !force &&
-    syncState.lastAttempt &&
-    Date.now() - Date.parse(syncState.lastAttempt) < SYNC_MS
-  )
-    return syncState;
+  if (!force && syncState.lastAttempt) {
+    const elapsed = Date.now() - Date.parse(syncState.lastAttempt);
+    if (elapsed < PLENARY_SYNC_MS || elapsed < SYNC_MS && !(await inPlenaryWindow().catch(() => false))) return syncState;
+    if (syncPromise) return syncPromise;
+  }
   syncPromise = (async () => {
     const d = await directoryData();
     const began = new Date().toISOString();
@@ -1103,6 +1150,10 @@ export async function syncOdpFeeds({ force = false } = {}) {
           changedCommittees++;
         }
       }
+      // Retained profile bodies follow the same feed, in batches and on disk.
+      // A failure leaves them for the next sync, whose feed still lists them.
+      await prefetchCorporateBodies(bodies.map(update => update.id), {priority:'background', memory:false, signal:undefined,
+        updates:new Map(bodies.map(update => [update.id, Date.parse(update.updated)]))}).catch(() => {});
       syncState = {
         lastSuccess: began,
         lastAttempt: began,

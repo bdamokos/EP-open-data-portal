@@ -67,3 +67,29 @@ test('a batch never replaces a single read of the same body that is still in fli
   const onDisk=JSON.parse(await readFile(path.join(dir,createHash('sha256').update(kept.url).digest('hex')+'.json'),'utf8'));
   assert.equal(onDisk.payload.data[0].label,'single');
 });
+
+test('retained bodies stay fresh for days and refresh when the feed republishes them',async t=>{
+  const dir=await mkdtemp(path.join(tmpdir(),'corporate-body-feed-'));
+  const previous=process.env.ODP_CACHE_DIR;process.env.ODP_CACHE_DIR=dir;
+  t.after(async()=>{if(previous===undefined)delete process.env.ODP_CACHE_DIR;else process.env.ODP_CACHE_DIR=previous;await rm(dir,{recursive:true,force:true});});
+  let label='first';const requests=[];
+  t.mock.method(globalThis,'fetch',async input=>{
+    const url=new URL(input);requests.push(url.pathname);
+    const ids=url.pathname.match(/^\/api\/v2\/corporate-bodies\/([\d,]+)$/)?.[1].split(',');
+    if(ids)return Response.json({data:ids.map(id=>({id:'org/'+id,identifier:id,label}))});
+    assert.fail('Unexpected upstream read '+url.pathname);
+  });
+  const {odp,prefetchCorporateBodies}=await import('./odp.mjs?feed');
+  await prefetchCorporateBodies(['1','2'],{signal:undefined});
+  const fetchedAt=(await odp('/corporate-bodies/1',{},{cachedOnly:true})).fetchedAt;
+  label='second';requests.length=0;
+  t.mock.timers.enable({apis:['Date'],now:fetchedAt+3*24*60*60*1000});
+  await prefetchCorporateBodies(['1','2'],{signal:undefined});
+  assert.deepEqual(requests,[],'a three-day-old body is still fresh');
+  await prefetchCorporateBodies(['1','2'],{signal:undefined,updates:new Map([['1',fetchedAt+1000],['2',fetchedAt-1000]])});
+  assert.deepEqual(requests,['/api/v2/corporate-bodies/1'],'only the body republished after its read is refreshed');
+  assert.equal((await odp('/corporate-bodies/1',{},{cachedOnly:true})).payload.data[0].label,'second');
+  t.mock.timers.setTime(fetchedAt+8*24*60*60*1000);requests.length=0;
+  await prefetchCorporateBodies(['2'],{signal:undefined});
+  assert.deepEqual(requests,['/api/v2/corporate-bodies/2'],'the age limit is a backstop');
+});
