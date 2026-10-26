@@ -516,9 +516,14 @@ export class CorpusStore {
     const selection=this.db.prepare('SELECT COUNT(*) n,COALESCE(SUM(revision),0) revision FROM speech_catalog WHERE '+where.join(' AND ')).get(...args);
     const total=selection.n,revision=total+':'+selection.revision+':'+(this.get('availabilityCoverageRevision')||0);
     if(params.expectedRevision!==undefined&&params.expectedRevision!==revision)return {changed:true};
-    const missingRetainedLanguage=params.metadataOnly||!params.language?0:this.db.prepare(`SELECT COUNT(*) n FROM speech_catalog c WHERE ${where.join(' AND ')}
-      AND EXISTS (SELECT 1 FROM json_each(c.available_languages) WHERE value=?)
-      AND NOT EXISTS (SELECT 1 FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=c.source_id AND t.source_format='xml-fragment' AND t.language=?)`).get(...args,params.language,params.language).n;
+    // Filter the selection before probing retained texts. SQLite can otherwise
+    // run the correlated text lookup for every speech in the date window,
+    // exhausting the reader budget even for a member with only a few speeches.
+    const missingRetainedLanguage=params.metadataOnly||!params.language?0:this.db.prepare(`WITH selected AS MATERIALIZED (
+      SELECT source_id FROM speech_catalog WHERE ${where.join(' AND ')}
+      AND EXISTS (SELECT 1 FROM json_each(available_languages) WHERE value=?)
+    ) SELECT COUNT(*) n FROM selected c WHERE NOT EXISTS (
+      SELECT 1 FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=c.source_id AND t.source_format='xml-fragment' AND t.language=?)`).get(...args,params.language,params.language).n;
     const direction=descending?'DESC':'ASC';
     const ids=this.db.prepare(`SELECT source_id FROM speech_catalog WHERE ${where.join(' AND ')} ORDER BY date ${direction},start ${direction},numbering ${direction},source_id ${direction} LIMIT ? OFFSET ?`).all(...args,limit,offset).map(row=>row.source_id);
     const result=this.speechDataSnapshot({...params,sourceIds:ids});
