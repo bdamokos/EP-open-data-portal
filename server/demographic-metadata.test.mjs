@@ -93,3 +93,14 @@ test('verified public Gosiewska, Petrov and Bossdorf records omit birthdays whil
   assert.equal(metadata.get('1').demographicProvenance['api:country-of-representation'].status,'fetch_failed');
   assert.match(metadata.get('1').demographicProvenance['api:country-of-representation'].lastAttempt.url,/show-current/);
  });
+
+test('older raw-cache observations cannot overwrite newer retained fields or erase a later fetch failure',async t=>{
+ const {store,generation,members}=fixture(t);
+ retainDemographicRecord(store,generation,'1',record('1',{bday:'1980-01-01'}));
+ const worker=new ActivityWorker(store,{fetchRecord:async()=>{throw Error('offline');}});await assert.rejects(worker.request('/meps/1'));
+ const older={...record('1',{bday:'1990-01-01'}),fetchedAt:'2026-10-20T09:00:00Z'};
+ retainDemographicRecord(store,generation,'1',older);
+ retainDemographicRecord(store,generation,'1',record('1',{bday:'1980-01-01'}));
+ const metadata=(await savedMetadata({directory:null,members,store})).get('1');
+ assert.equal(metadata.bday,'1980-01-01');assert.equal(metadata.demographicProvenance.bday.lastAttempt.status,'fetch_failed');
+});

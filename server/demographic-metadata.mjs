@@ -23,8 +23,11 @@ export function retainDemographicRecord(store,generation,id,record,{kind='profil
   if(!person)throw Error('Missing exact demographic person.');
   const observation=demographicObservation(person,{id,url:record.url,retrievedAt:record.fetchedAt,kind});
   store.transaction(()=>{
+    const prior=store.source(generation,`demographic:${kind}:${id}`)?.work;
+    if(prior&&Date.parse(prior.retrievedAt)>Date.parse(observation.retrievedAt))return;
     writeObservation(store,generation,`demographic:${kind}:${id}`,'demographic',observation,observation.retrievedAt);
-    if(kind==='profile')writeObservation(store,generation,'demographic:attempt:'+id,'demographic-attempt',{id,url:record.url,status:'success',at:observation.retrievedAt},observation.retrievedAt);
+    const attempt=store.source(generation,'demographic:attempt:'+id)?.work;
+    if(kind==='profile'&&(!attempt||Date.parse(attempt.at)<Date.parse(observation.retrievedAt)))writeObservation(store,generation,'demographic:attempt:'+id,'demographic-attempt',{id,url:record.url,status:'success',at:observation.retrievedAt},observation.retrievedAt);
   });
 }
 export function retainDemographicAttempt(store,generation,id,{url=ODP_BASE+'/meps/'+id,status='fetch_failed',at=new Date(store.clock()).toISOString()}={}) {
