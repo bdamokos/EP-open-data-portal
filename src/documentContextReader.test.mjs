@@ -568,9 +568,11 @@ test('placed amendment keeps an unchanged provision number the amendment column 
   assert(block.textContent.includes('1.'));assert(block.querySelector('ins').textContent.includes('Changed'));
 });
 
-async function renderPlacedLabel(t,paragraphs,targetLabel,originalText,proposedText) {
+async function renderPlacedLabel(t,paragraphs,targetLabel,originalText,proposedText,edit=proposal=>proposal) {
+  let proposal;
   const {parseProposal}=await import('../server/proposal-structure.mjs'),{resolveProposalPlacement}=await import('../server/proposal-placement.mjs');
-  const proposal=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),paragraphProperties:paragraphs.map((_,i)=>({styleId:i?'Normal':'Titrearticle',numberingComplete:true,notesComplete:true}))});
+  proposal=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),paragraphProperties:paragraphs.map((_,i)=>({styleId:i?'Normal':'Titrearticle',numberingComplete:true,notesComplete:true}))});
+  proposal=edit(proposal);
   const value=proposalContextResponse(report,amendment,list,4),items=[{kind:'act',index:1,proposal}];
   const variant={...value.amendment.variants[0],targetLabel,targetPath:{proposal:[],underlying:[],language:'en'},originalText,proposedText};
   Object.assign(value,{proposal:{items},amendment:{...value.amendment,variants:[variant]},placement:resolveProposalPlacement(items,variant)});
@@ -578,7 +580,7 @@ async function renderPlacedLabel(t,paragraphs,targetLabel,originalText,proposedT
   const h=await harness(t,()=>value);
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
   const block=h.container.querySelector('[data-amendment-block]');
-  return {text:block.textContent,label:block.querySelector('[data-source-label]')?.textContent??null,deleted:[...block.querySelectorAll('del')].map(node=>node.textContent).join(' '),proposed:[...block.querySelectorAll('.wording-diff__passage')].map(node=>{const copy=node.cloneNode(true);copy.querySelectorAll('del,.wording-diff__sr').forEach(child=>child.remove());return copy.textContent;}).join(' ')};
+  return {h,block,text:block.textContent,label:block.querySelector('[data-source-label]')?.textContent??null,deleted:[...block.querySelectorAll('del')].map(node=>node.textContent).join(' '),proposed:[...block.querySelectorAll('.wording-diff__passage')].map(node=>{const copy=node.cloneNode(true);copy.querySelectorAll('del,.wording-diff__sr').forEach(child=>child.remove());return copy.textContent;}).join(' ')};
 }
 
 test('a source number is shown as context and proposed wording is never changed',async t=>{
@@ -589,6 +591,16 @@ test('a source number is shown as context and proposed wording is never changed'
 for(const label of ['Chapter II','point aa','Article premier','ΠΑΡΑΡΤΗΜΑ ΙΙ','aa','uvodna izjava 2','‘2a. New provision.’','‘2a.New provision.’','2.1. New provision.','”2a.New provision.”','b] New provision.','lxxxviii) New provision.','A. New provision.','II ) New provision.','aa ] New provision.','ii\t. New provision.'])test('replacement label '+label+' never acquires the source number',async t=>{
   const {proposed}=await renderPlacedLabel(t,['Article 1','1. Old provision.'],'Article 1 – paragraph 1','Old provision.',label);
   assert.equal(proposed.replace(/\s+/g,' ').trim(),label.replace(/\s+/g,' '),proposed);
+});
+
+for(const [name,edit,check] of [
+  ['a link',proposal=>({...proposal,links:[...proposal.links,{paragraph:1,start:0,end:2,url:'https://example.org/number'}]}),block=>block.querySelector('a[href="https://example.org/number"]')],
+  ['a note marker',proposal=>({...proposal,anchors:[...proposal.anchors,{paragraph:1,offset:0,note:'n1',label:'1'}],notes:[...proposal.notes,{id:'n1',label:'1',text:'Number note.',links:[],complete:true,objects:[]}]}),block=>block.querySelector('sup,a[href*="note"]')],
+])test('a provision number carrying '+name+' stays in the compared source text',async t=>{
+  const {h,block,label}=await renderPlacedLabel(t,['Article 1','1. Old wording.'],'Article 1 – paragraph 1','Old wording.','New wording.',edit);
+  assert.equal(label,null);assert(check(block),'annotation kept in Changes mode');
+  await h.click([...block.querySelectorAll('button')].find(b=>b.textContent==='Side by side'));
+  assert(check(h.container.querySelector('[data-amendment-block]')),'annotation kept in Side by side mode');
 });
 
 test('label-like wording is never treated as a provision number',async t=>{
