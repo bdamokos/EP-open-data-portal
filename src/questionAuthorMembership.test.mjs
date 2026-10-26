@@ -108,8 +108,8 @@ test('political groups count dated contributions while person demographics retai
   const selected=stats();selected.groupContributions={rows:[{label:'S&D',count:2},{label:'Renew',count:1}],total:4,unavailable:1,dateBasis:'question document_date'};
   const h=await harness(t,{response:questions(selected)});
   assert.equal(h.container.querySelector('.insight-donut-total').textContent,'3');
-  assert.equal(h.container.querySelector('.insight-donut-caption').textContent,'Contributions');
-  assert.match(h.container.querySelector('.insight-demographics').textContent,/3 contributions · 1 unavailable/);
+  assert.equal(h.container.querySelector('.insight-donut-caption').textContent,'Assigned');
+  assert.match(h.container.querySelector('.insight-demographics').textContent,/3 of 4 contributions assigned · Percentages of assigned contributions/);
   assert.equal(h.container.querySelector('.insight-country-table li strong').textContent,'1');
   assert.match(h.caption().textContent,/Country, gender and age: 1 current MEPs/);
 });

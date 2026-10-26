@@ -36,7 +36,7 @@ test('vote matrix and group drill-down consume dated server buckets, including c
   await act(async()=>root.render(createElement(ContributorAnalysis,{stats,language:'en'})));
   assert(container.querySelector('.insight-author-analysis'));assert.equal(container.querySelector('.insight-donut-total').textContent,'1');assert.match(container.textContent,/S&D/);
   await act(async()=>root.render(createElement(ContributorAnalysis,{stats:{...stats,groupContributions:{rows:[],total:1,unavailable:1}},language:'en'})));
-  assert.match(container.textContent,/1 unavailable/);
+  assert.match(container.textContent,/Group breakdown unavailable/);
   await act(async()=>root.render(createElement(ContributorAnalysis,{stats:{...stats,groupContributions:{rows:[],total:0,unavailable:0}},language:'en'})));
   assert.equal(container.querySelector('.insight-author-analysis'),null);
 });
