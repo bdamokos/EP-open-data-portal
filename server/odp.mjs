@@ -1155,6 +1155,9 @@ export async function syncOdpFeeds({ force = false } = {}) {
         let record = await odp(`/corporate-bodies/${update.id}`,{}, {priority:'background',ttl:BODY_TTL,validate});
         if (Date.parse(update.updated) > record.fetchedAt)
           record = await odp(`/corporate-bodies/${update.id}`, {}, {force:true,priority:'background',validate});
+        // A read shared with another caller may resolve without this validator,
+        // so the returned record is checked again before it is published.
+        validate(record.payload);
         // The directory shows a committee's details until a newer record exists.
         const shown = directorySources.find(source => source.url === record.url);
         if (shown && shown.fetchedAt >= record.fetchedAt) continue;
