@@ -163,7 +163,9 @@ export function freezeGroupHistory(store,generation,previous,{sourceGeneration=g
   const today=publication?.asOf||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(store.clock()));
   const mark=store.db.prepare('INSERT OR IGNORE INTO membership_marks VALUES (?,?)'),read=store.db.prepare('SELECT mark FROM membership_marks WHERE event_id=?');
   const ids=boundPeople?[...boundPeople]:people(store,sourceGeneration);
-  rememberPeople(store,sourceGeneration,ids);
+  // Binding an older snapshot must not discard newer failed/deferred people
+  // from the working generation's durable discovery set.
+  rememberPeople(store,sourceGeneration,boundPeople?[...new Set([...people(store,sourceGeneration),...ids])]:ids);
   for(const id of ids) {
     const source=store.source(sourceGeneration,'group-history:'+id)?.work,attempt=store.source(sourceGeneration,'group-history:'+id+':attempt')?.work;
     const stale=!!source&&(source.generation!==sourceGeneration||!!attempt?.lastError);

@@ -105,13 +105,18 @@ test('newer working memberships and roster never leak past the serving publicati
   // Keep every serving person discoverable even though the newer roster differs.
   store.putSource(generation,'group-history:known-people','group-history-known-people',{ids:identities.map(row=>row[0])},at);
   const request=worker.fetchRecord;worker.fetchRecord=async(endpoint,params)=>{
-    if(endpoint==='/meps/999')return {payload:{data:[rawPerson('999','7018')]},fetchedAt:at};
+    if(endpoint==='/meps/999')throw Error('offline');
     if(endpoint==='/meps/show-incoming')return {payload:{data:[{identifier:'999',hasMembership:[{identifier:'999-m-1',organization:'org/ep-10',role:'def/ep-roles/MEMBER_PARLIAMENT',memberDuring:{startDate:'2026-10-25'}}]}]},fetchedAt:at};
     return request(endpoint,params);
   };
   await runHistoryReadiness(worker,generation);
   const snapshot=read('group-history').body;assert.equal(snapshot.publication.asOf,'2026-10-23');
   assert.equal(snapshot.members['999'],undefined);assert.equal(snapshot.members[id].generation,generation);
+  assert(store.source(generation,'group-history:known-people').work.ids.includes('999'));
+  store.setMembers([]);store.putSource(generation,'membership:incoming','membership',{mandates:[]},at);
+  store.enqueue(generation,'retry-discovery','group-history-discover',{},106);
+  await worker.task({...store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,'retry-discovery'),body:{}});
+  assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(generation,'group-history:999').done,0);
   assert.equal(snapshot.members[id].groups.length,1);assert.equal(snapshot.members[id].groups[0].end,'2026-10-23');
   assert.equal(snapshot.events.length,0);assert.equal(read('following-membership').body.members['999'],undefined);
   assert.equal(generationGroupOn(store,serving)(id,'2026-10-19').code,'PPE');
