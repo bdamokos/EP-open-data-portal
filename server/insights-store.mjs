@@ -2,6 +2,7 @@ import {demographicMetadata,demographicObservation,demographicPerson,retainedDem
 import {questionGroupMetrics,contributionGroup} from './group-aggregation.mjs';
 import {indexAvailability,savedGaps} from './availability-evidence.mjs';
 import {generationGroupOn,datedPerson} from './group-attribution.mjs';
+import {historyCacheKey} from './history-readiness.mjs';
 import {languagePreference} from './language-order.mjs';
 import {subjectPlace} from './insights-places.mjs';
 import { createHash } from 'node:crypto';
@@ -94,7 +95,7 @@ export class QuestionInsights {
     requestSignal()?.throwIfAborted();
     const status=this.store.status();if(!status.currentMeps||!status.servingGeneration)throw new HttpError(503,'insights_loading','The saved activity index is not available yet.');
     const groupOn=generationGroupOn(this.store,status.servingGeneration);
-    const key=JSON.stringify([status.servingGeneration,this.store.get('demographicRevision')||0,status.availabilityRevision,status.complete,status.progress?.completed,status.rosterFetchedAt,query.start,query.end]);
+    const key=JSON.stringify([status.servingGeneration,historyCacheKey(this.store,status.servingGeneration),this.store.get('demographicRevision')||0,status.availabilityRevision,status.complete,status.progress?.completed,status.rosterFetchedAt,query.start,query.end]);
     const old=this.cache.get(key);if(old && this.clock()-old.at<INSIGHTS_LIMITS.cacheMs)return old.value;
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
     const groupCodes=groupOn.codes||new Set();
