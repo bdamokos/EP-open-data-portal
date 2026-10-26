@@ -1,6 +1,6 @@
 import {sittingConfirmationDay,sittingOutcomesComplete,sittingSnapshotConfirmed} from './refresh-policy.mjs';
 import https from 'node:https';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { array, tail, documentFiles, projectDocument, AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 import { downloadDocxBuffer } from './document-text.mjs';
 import { extractAmendments, AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
@@ -236,15 +236,36 @@ export function prepareAmendmentParserUpgrade(worker,generation) {
   const throughKey=worker.store.db.prepare("SELECT MAX(key) AS key FROM sources WHERE generation=? AND kind='amendment-list'").get(generation)?.key || '';
   enqueueAmendment(worker.store,generation,parserUpgradeKey+':'+AMENDMENT_EXTRACTION_VERSION,'amendment-parser-upgrade',{afterKey:'',throughKey,sourceRevision:worker.store.get(amendmentParserSourceRevisionKey) || 0},110,true,{deferOnCapacity:true});
 }
-// Cold parser-upgrade downloads are paced in wall time across worker runs. A
-// long run cannot hold recovery behind a per-run count, and the 30-second run
-// cadence cannot burst past the pace. A deferred job waits only for the next slot.
+// Cold parser-upgrade downloads are paced across worker runs, restarts and
+// writer handoffs by a bounded history kept beside the index generations. A
+// worker measures its own entries on its monotonic clock; other entries use wall
+// time, and a timestamp ahead of the clock is clamped to now. A deferred job
+// waits only for the next free slot.
 export const AMENDMENT_PARSER_DOWNLOAD_PACE=Object.freeze({downloads:4,windowMs:3*60_000});
+export const amendmentParserDownloadsKey='amendmentParserDownloads';
+const parserDownloadWorker=worker=>worker.amendmentParserDownloadWorker ||= randomUUID();
+function parserDownloadHistory(worker) {
+  const {store}=worker,now=worker.clock(),monotonic=worker.monotonic(),self=parserDownloadWorker(worker),saved=store.get(amendmentParserDownloadsKey);
+  let clamped=false;
+  const entries=(Array.isArray(saved)?saved:[]).flatMap(entry=>{
+    let at=Number(entry?.at);if(!Number.isFinite(at))return [];
+    if(at>now){at=now;clamped=true;}
+    const own=entry.worker===self&&Number.isFinite(entry.monotonic)&&entry.monotonic<=monotonic;
+    const elapsed=own?monotonic-entry.monotonic:now-at;
+    return elapsed<AMENDMENT_PARSER_DOWNLOAD_PACE.windowMs?[{...(typeof entry.worker==='string'&&Number.isFinite(entry.monotonic)?{worker:entry.worker,monotonic:entry.monotonic}:{}),at,elapsed}]:[];
+  }).sort((a,b)=>b.elapsed-a.elapsed);
+  if(clamped){store.assertWriter();store.set(amendmentParserDownloadsKey,entries.map(({elapsed:_elapsed,...entry})=>entry));}
+  return entries;
+}
 function parserDownloadWait(worker) {
-  const now=worker.clock(),{downloads,windowMs}=AMENDMENT_PARSER_DOWNLOAD_PACE;
-  const recent=(worker.amendmentParserDownloadTimes || []).filter(at=>at>now-windowMs&&at<=now);
-  worker.amendmentParserDownloadTimes=recent;
-  return recent.length<downloads?0:recent[recent.length-downloads]+windowMs-now;
+  const entries=parserDownloadHistory(worker),{downloads,windowMs}=AMENDMENT_PARSER_DOWNLOAD_PACE;
+  return entries.length<downloads?0:windowMs-entries[entries.length-downloads].elapsed;
+}
+function recordParserDownload(worker) {
+  worker.store.assertWriter();
+  const entries=parserDownloadHistory(worker).map(({elapsed:_elapsed,...entry})=>entry);
+  entries.push({at:worker.clock(),worker:parserDownloadWorker(worker),monotonic:worker.monotonic()});
+  worker.store.set(amendmentParserDownloadsKey,entries.slice(-AMENDMENT_PARSER_DOWNLOAD_PACE.downloads));
 }
 function admitParserList(store,generation,key,kind,body,priority,replacing=null) {
   const checkpoint=store.source(generation,'amendment:continuations')?.work;
@@ -718,18 +739,27 @@ export async function amendmentTask(worker,task) {
     const retrieve=async descriptor=>{
       const retained=parserUpgrade||body.sourceDownloaded?await retainedAmendmentSource(store,descriptor,{signal}):null;
       if(retained)return retained;
-      const wait=worker.requests>=worker.budget?30*60_000:parserUpgrade?parserDownloadWait(worker):0;
-      if(wait>0) {
+      const defer=wait=>{
         store.assertWriter();
         store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=? WHERE generation=? AND key=?`).run(worker.clock()+wait,generation,task.key);
         return null;
+      };
+      const wait=worker.requests>=worker.budget?30*60_000:parserUpgrade?parserDownloadWait(worker):0;
+      if(wait>0)return defer(wait);
+      // The source queue can hold an operation through a cooldown. Pace and
+      // count the download when it actually starts, not when it is queued.
+      let paced=0,downloaded;
+      try {
+        downloaded=await worker.runUpstream(admittedSignal=>{
+          if(parserUpgrade){paced=parserDownloadWait(worker);if(paced>0)return null;recordParserDownload(worker);}
+          worker.requests++;const cycle=store.get('working');if(cycle)store.updateCycle({requests:(cycle.requests || 0)+1});
+          return worker.downloadAmendmentDocx(descriptor.url,{signal:admittedSignal});
+        },{source:'documents',priority:'background',signal});
       }
-      if(parserUpgrade)worker.amendmentParserDownloadTimes.push(worker.clock());
-      worker.requests++;const cycle=store.get('working');if(cycle)store.updateCycle({requests:(cycle.requests || 0)+1});
-      let downloaded;
-      try {downloaded=await worker.runUpstream(admittedSignal=>worker.downloadAmendmentDocx(descriptor.url,{signal:admittedSignal}),{source:'documents',priority:'background',signal});}
       catch(error){signal.throwIfAborted();throw error;}
-      signal.throwIfAborted();return {...downloaded,fetchedAt:new Date(worker.clock()).toISOString()};
+      signal.throwIfAborted();
+      if(paced>0)return defer(paced);
+      return {...downloaded,fetchedAt:new Date(worker.clock()).toISOString()};
     };
     const downloaded=await retrieve(file);
     if(!downloaded)return;
