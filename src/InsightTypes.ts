@@ -1,4 +1,4 @@
-export type DemographicFieldEvidence={status:'available'|'source_omission'|'missing_acquisition'|'fetch_failed'|'invalid'|'conflict';value:string|null;sources:{url:string;retrievedAt:string;language:string|null;field:string;values:unknown[]}[];lastAttempt:{id:string;url:string;status:'success'|'fetch_failed';at:string}|null};
+export type DemographicFieldEvidence={status:'available'|'source_omission'|'missing_acquisition'|'fetch_failed'|'invalid'|'conflict';value:string|null;sources:{url:string;retrievedAt:string;language:string|null;field:string;values:unknown[]}[];lastAttempt:{id:string|null;url:string;status:'success'|'fetch_failed';at:string}|null};
 import type {SourceAvailability} from '../server/source-availability.mjs';
 export type GroupContributions={rows:{label:string;count:number}[];total:number;unavailable:number;dateBasis:string};
 export type InsightPerson = { id:string; name:string|null; personUri:string; currentMep:boolean;profileUrl?:string|null;office?:string|null;officeLanguage?:string|null;group?:string|null;affiliationGroup?:string|null;contributionGroup?:string|null;country?:string|null };

@@ -83,7 +83,7 @@ export async function savedMetadata({directory=process.env.ODP_CACHE_DIR,members
       const profile=await record('/meps/'+id),person=profile?.payload.data.find(p=>demographicPerson(p,id));
       if(person)observations.push(demographicObservation(person,{id,url:profile.url,retrievedAt:profile.fetchedAt}));
     }
-    metadata.set(id,{label:rosterNodes.get(id)?.label,'api:political-group':rosterNodes.get(id)?.['api:political-group'],...demographicMetadata(id,observations,saved?.attempt)});
+    metadata.set(id,{label:rosterNodes.get(id)?.label,'api:political-group':rosterNodes.get(id)?.['api:political-group'],...demographicMetadata(id,observations,saved?.attempt,saved?.rosterAttempt)});
   }));
   return metadata;
 }

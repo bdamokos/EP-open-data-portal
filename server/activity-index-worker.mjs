@@ -1,4 +1,4 @@
-import {retainDemographicRecord,retainDemographicAttempt,demographicPerson} from './demographic-metadata.mjs';
+import {retainDemographicRecord,retainDemographicAttempt,retainRosterAttempt,demographicPerson} from './demographic-metadata.mjs';
 import {cataloguePage,acquisitionMode,observeSource,finishAvailabilityWrite} from './availability-history.mjs';
 import {groupHistoryTask,scheduleGroupHistory} from './group-history.mjs';
 import {membershipTask,scheduleMembership} from './following-membership.mjs';
@@ -161,20 +161,25 @@ export class ActivityWorker {
     const cycle=this.store.get('working');if(cycle)this.store.updateCycle({requests:(cycle.requests||0)+1});
     const demographicId=endpoint.match(/^\/meps\/([1-9]\d*)$/)?.[1];
     const generation=cycle?.generation||this.store.get('active');
+    const currentRoster=endpoint==='/meps/show-current'&&!params['mandate-date'];
+    const url=new URL(ODP_BASE+endpoint);
+    for(const [key,value]of Object.entries({...params,...(!opts.xml?{format:'application/ld+json'}:{})}))url.searchParams.set(key,String(value));
     let record;
     try {record=await this.fetchRecord(endpoint,params,{...opts,signal:this.controller.signal});}
     catch(error) {
-      if(demographicId&&generation&&!this.controller.signal.aborted)retainDemographicAttempt(this.store,generation,demographicId);
+      if(generation&&!this.controller.signal.aborted) {
+        if(demographicId)retainDemographicAttempt(this.store,generation,demographicId,{url:url.href});
+        if(currentRoster)retainRosterAttempt(this.store,generation,{url:url.href,status:'fetch_failed'});
+      }
       throw error;
     }
-    const url=new URL(ODP_BASE+endpoint);
-    for(const [key,value]of Object.entries({...params,...(!opts.xml?{format:'application/ld+json'}:{})}))url.searchParams.set(key,String(value));
     const observed={...record,url:url.href};
     if(generation&&demographicId) {
       try {retainDemographicRecord(this.store,generation,demographicId,observed);}
       catch(error) {retainDemographicAttempt(this.store,generation,demographicId);throw error;}
     }
-    if(generation&&endpoint==='/meps/show-current'&&!params['mandate-date'])for(const person of record.payload?.data||[]) {
+    if(generation&&currentRoster)retainRosterAttempt(this.store,generation,{url:url.href,status:'success',at:typeof record.fetchedAt==='number'?new Date(record.fetchedAt).toISOString():record.fetchedAt});
+    if(generation&&currentRoster)for(const person of record.payload?.data||[]) {
       const id=String(person.identifier||String(person.id||'').split('/').at(-1));
       if(demographicPerson(person,id))retainDemographicRecord(this.store,generation,id,{...observed,payload:{data:[person]}},{kind:'roster'});
     }

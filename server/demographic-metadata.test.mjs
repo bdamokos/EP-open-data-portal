@@ -81,3 +81,15 @@ test('verified public Gosiewska, Petrov and Bossdorf records omit birthdays whil
   assert.equal(metadata.demographicProvenance.bday.sources[0].url,record.url);
  }
 });
+
+ test('roster failures belong to representation fields, and profile failures never masquerade as roster failures',async t=>{
+  const {store,members}=fixture(t),worker=new ActivityWorker(store,{fetchRecord:async()=>{throw Error('offline');}});
+  await assert.rejects(worker.request('/meps/1'));
+  let metadata=await savedMetadata({directory:null,members,store});
+  assert.equal(metadata.get('1').demographicProvenance.bday.status,'fetch_failed');
+  assert.equal(metadata.get('1').demographicProvenance['api:country-of-representation'].status,'missing_acquisition');
+  await assert.rejects(worker.request('/meps/show-current',{limit:1000,offset:0}));
+  metadata=await savedMetadata({directory:null,members,store});
+  assert.equal(metadata.get('1').demographicProvenance['api:country-of-representation'].status,'fetch_failed');
+  assert.match(metadata.get('1').demographicProvenance['api:country-of-representation'].lastAttempt.url,/show-current/);
+ });

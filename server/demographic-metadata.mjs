@@ -30,7 +30,10 @@ export function retainDemographicRecord(store,generation,id,record,{kind='profil
 export function retainDemographicAttempt(store,generation,id,{url=ODP_BASE+'/meps/'+id,status='fetch_failed',at=new Date(store.clock()).toISOString()}={}) {
   store.transaction(()=>writeObservation(store,generation,'demographic:attempt:'+id,'demographic-attempt',{id,url,status,at},at));
 }
-export function demographicMetadata(id,observations=[],attempt=null) {
+export function retainRosterAttempt(store,generation,{url,status,at=new Date(store.clock()).toISOString()}) {
+  store.transaction(()=>writeObservation(store,generation,'demographic:roster-attempt','demographic-roster-attempt',{id:null,url,status,at},at));
+}
+export function demographicMetadata(id,observations=[],attempt=null,rosterAttempt=null) {
   const result={},provenance={};
   for(const field of fields) {
     // Country is representation on the roster, never citizenship on a profile.
@@ -39,9 +42,10 @@ export function demographicMetadata(id,observations=[],attempt=null) {
     const supplied=[...new Set(sources.flatMap(s=>s.values))];
     const valid=value=>field==='bday'?validDay(value):field==='hasGender'?typeof value==='string'&&/\/(?:FEMALE|MALE)$/.test(value):typeof value==='string'&&/^[A-Z]{2}$/.test(value);
     const profileObserved=relevant.some(o=>o.kind==='profile'),isAcquired=field==='api:country-of-representation'?relevant.length>0:profileObserved;
-    const status=supplied.length>1?'conflict':supplied.length&&!valid(supplied[0])?'invalid':supplied.length?'available':isAcquired?'source_omission':attempt?.status==='fetch_failed'?'fetch_failed':'missing_acquisition';
+    const fieldAttempt=field==='api:country-of-representation'?rosterAttempt:attempt;
+    const status=supplied.length>1?'conflict':supplied.length&&!valid(supplied[0])?'invalid':supplied.length?'available':isAcquired?'source_omission':fieldAttempt?.status==='fetch_failed'?'fetch_failed':'missing_acquisition';
     const value=status==='available'?supplied[0]:null;
-    provenance[field]={status,value,sources,lastAttempt:field==='api:country-of-representation'?null:attempt};
+    provenance[field]={status,value,sources,lastAttempt:fieldAttempt};
     if(value!==null)result[field]=value;
   }
   const dates=observations.map(o=>o.retrievedAt).sort();
@@ -49,12 +53,13 @@ export function demographicMetadata(id,observations=[],attempt=null) {
 }
 export function retainedDemographicMetadata(store,members) {
   const generation=store.get('working')?.generation||store.status().servingGeneration;
-  const rows=store.db.prepare("SELECT body FROM sources WHERE generation=? AND key>='demographic:' AND key<'demographic;' AND kind IN ('demographic','demographic-attempt')").all(generation);
-  const observations=new Map(),attempts=new Map();
+  const rows=store.db.prepare("SELECT body FROM sources WHERE generation=? AND key>='demographic:' AND key<'demographic;' AND kind IN ('demographic','demographic-attempt','demographic-roster-attempt')").all(generation);
+  const observations=new Map(),attempts=new Map();let rosterAttempt=null;
   for(const row of rows) {
     const value=JSON.parse(row.body);
-    if(value.status)attempts.set(value.id,value);
+    if(value.id===null)rosterAttempt=value;
+    else if(value.status)attempts.set(value.id,value);
     else observations.set(value.id,[...(observations.get(value.id)||[]),value]);
   }
-  return new Map([...members.keys()].map(id=>[id,{observations:observations.get(id)||[],attempt:attempts.get(id)||null}]));
+  return new Map([...members.keys()].map(id=>[id,{observations:observations.get(id)||[],attempt:attempts.get(id)||null,rosterAttempt}]));
 }
