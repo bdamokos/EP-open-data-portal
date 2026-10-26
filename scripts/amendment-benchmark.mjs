@@ -89,8 +89,12 @@ export async function evaluateReport(rows,sample,cache) {
     // For A reports proposal identity is resolved by report ID by the endpoint.
     // Prefer a live-readable variant to acquire that report/language projection;
     // its wording and its live placement are NEVER used for evaluation.
-    const candidates=commission?rows.flatMap(r=>variants(r).map(v=>({row:r,variant:v}))).filter(({variant:v})=>v.language===language&&v.baseline==='commission-proposal'&&v.listId):[];
-    const candidate=candidates.find(({variant:v})=>typeof v.originalText==='string'&&typeof v.proposedText==='string')||candidates[0];
+    const alternatives=commission?rows.flatMap(r=>variants(r).map(v=>({row:r,variant:v}))).filter(({variant:v})=>v.language===language&&v.listId):[];
+    const candidates=alternatives.filter(({variant:v})=>v.baseline==='commission-proposal');
+    // Stale live parser projections can clear every baseline/wording field.
+    // One deterministic report/language query records that acquisition barrier;
+    // repeating it for every amendment cannot recover the missing projection.
+    const candidate=candidates.find(({variant:v})=>typeof v.originalText==='string'&&typeof v.proposedText==='string')||candidates[0]||alternatives[0];
     const representative=candidate||{row,variant:wording};
     const url=contextUrl(row.targetDocumentId,language,commission?representative.variant:null,commission?representative.row:null);
     if(!contexts.has(url))contexts.set(url,await cache.json(url));

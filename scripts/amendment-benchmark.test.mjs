@@ -143,3 +143,15 @@ test('report evaluation re-extracts cached DOCX despite null live wording and ig
   const [conflicting]=await evaluateReport([conflict],{mode:'date-window',from:'2026-10-01',to:'2026-10-26',asOf:'2026-10-26'},cache);
   assert.equal(conflicting.stages.S5.reason,'conflicting_target_evidence','out-of-window decision evidence still constrains endpoint placement');
 });
+
+test('cleared live baseline markers do not multiply report/language proposal acquisition',async()=>{
+  const document='A-10-2026-0001',url='https://data.europarl.europa.eu/distribution/test/commission.docx';
+  const cell=value=>'<w:tc>'+paragraph(value)+'</w:tc>',tr=(a,b)=>'<w:tr>'+cell(a)+cell(b)+'</w:tr>';
+  const block=number=>paragraph('<Amend><Date>1.10.2026</Date><NumAm>'+number+'</NumAm>')+paragraph('<Article>Article 1 – paragraph 1</Article>')+'<w:tbl>'+tr('Text proposed by the Commission','Amendment')+tr('First paragraph.','Changed paragraph.')+'</w:tbl>'+paragraph('</Amend>');
+  const body=docx('<w:document xmlns:w="urn:word"><w:body>'+block(1)+block(2)+'</w:body></w:document>');
+  const rows=[1,2].map(number=>({id:document+'-AM-'+number,number,targetDocumentId:document,listId:document+'-AM-001-002',wordingSource:{url},originalText:null,proposedText:null,baseline:'unknown',language:'en',decisions:[{id:'vote-'+number,date:'2026-10-22',sittingId:'MTG-PL-2026-10-22',amendmentIds:[document+'-AM-'+number],source:{url:'https://data.europarl.europa.eu/api/v2/example',fetchedAt:'2026-10-23T00:00:00Z'}}]}));
+  const calls=[];
+  const cache={get:async()=>({ok:true,body,url,fetchedAt:'2026-10-23T00:00:00Z',sha256:digest(body)}),json:async url=>{calls.push(url);return {input:{ok:true,url},value:{documentId:document,baseline:{language:'en',status:'available'},proposal:{items:item(['Article 1','1. First paragraph.'])}}};}};
+  const evaluated=await evaluateReport(rows,{mode:'documents',asOf:'2026-10-26'},cache);
+  assert.equal(calls.length,1);assert(evaluated.every(row=>row.outcome==='correct'));
+});
