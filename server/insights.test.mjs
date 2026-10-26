@@ -1,3 +1,4 @@
+import {retainDemographicRecord} from './demographic-metadata.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync,writeFileSync,mkdtempSync,rmSync } from 'node:fs';
@@ -196,4 +197,21 @@ test('subject selection matches aliases by place ID, intersects filters and reta
     const empty=await query('subject=DEU');assert.equal(empty.counts.selectedQuestions,0);assert.equal(empty.selection.subjectLabel,'Germany');assert.equal(empty.coverage.indexComplete,false);
     assert.equal((await query('')).counts.selectedQuestions,5);
   } finally {store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});}
+});
+
+test('background demographic recovery invalidates assembled and shared metadata caches without a profile visit or TTL delay',async()=>{
+ const {createInsights}=await import('./insights.mjs');
+ const directory=mkdtempSync(path.join(os.tmpdir(),'insights-demographic-recovery-')),store=new ActivityStore(directory,{clock:now});
+ try {
+  store.acquire();const {generation}=store.beginCycle();store.setMembers([{id:'257043'}]);
+  store.putSource(generation,question.endpoint,'document',projectDocument(question.work),fixture.verifiedAt,documentRows(question.work,question.endpoint,fixture.verifiedAt).rows);
+  const service=createInsights(store,{clock:now,loadMetadata:args=>savedMetadata({...args,directory:null}),loadQuestionBodies:async()=>new Map()}),query=new URLSearchParams('days=1&end=2026-07-16');
+  const cold=await service.query('questions',query);
+  assert.deepEqual(cold.stats.dimensions.age,[{label:'Unknown',count:1}]);
+  assert.equal(cold.stats.demographicEvidence['257043'].bday.status,'missing_acquisition');
+  retainDemographicRecord(store,generation,'257043',{url:'https://data.europarl.europa.eu/api/v2/meps/257043?format=application%2Fld%2Bjson',fetchedAt:now(),payload:{data:[{identifier:'257043',bday:'1980-01-01'}]}});
+  const recovered=await service.query('questions',query);
+  assert.deepEqual(recovered.stats.dimensions.age,[{label:'35–49',count:1}]);
+  assert.equal(recovered.stats.demographicEvidence['257043'].bday.status,'available');
+ } finally {store.close();rmSync(directory,{recursive:true,force:true});}
 });

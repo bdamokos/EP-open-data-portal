@@ -211,3 +211,10 @@ test('vote-period calendar is admitted while stale, failed and unavailable sourc
  for(const state of [{stale:true},{refreshInProgress:true},{refreshError:{message:'Failed refresh'}}]){const value=structuredClone(payload);Object.assign(value.coverage.years[0].sources[0],state);assert.equal(policy('/api/vote-periods',value).cdnCacheControl,'no-store');}
  assert.equal(policy('/api/vote-periods',{coverage:{status:'unavailable'}}).cdnCacheControl,'no-store');
 });
+
+test('demographic acquisition gaps and failed refreshes reach the origin while observed omissions keep the normal lifetime',()=>{
+ for(const path of ['/api/insights/questions','/api/insights/legislation']) {
+  for(const field of [{status:'missing_acquisition'},{status:'fetch_failed'},{status:'available',lastAttempt:{status:'fetch_failed'}}])assert.equal(policy(path,{stats:{demographicEvidence:{'42':{bday:field}}}}).cdnCacheControl,'no-store');
+  assert.equal(seconds(policy(path,{stats:{demographicEvidence:{'42':{bday:{status:'source_omission',lastAttempt:{status:'success'}}}}}})),21600);
+ }
+});

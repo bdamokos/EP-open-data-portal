@@ -46,6 +46,7 @@ export function legislationContributors(detail, headers) {
   const roles=[...detail.roles,...detail.speeches.flatMap(speech=>speech.people.filter(person=>!chairing(speech,person.id)).map(person=>({id:person.id,role:speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT'?'WRITTEN_STATEMENT':'SPEAKER'})))];
   const included=new Set(roles.map(person=>person.id)),people=detail.people.filter(person=>included.has(person.id));
   const excluded=detail.people.filter(person=>!included.has(person.id)),stats={...detail.stats};
+  if(stats.demographicEvidence)stats.demographicEvidence=Object.fromEntries(Object.entries(stats.demographicEvidence).filter(([id])=>included.has(id)));
   stats.uniquePeople=people.length;stats.uniqueCurrentMeps=people.filter(person=>person.currentMep).length;
   stats.peopleOutsideCurrentRoster=people.length-stats.uniqueCurrentMeps;stats.denominator=stats.uniqueCurrentMeps;
   stats.dimensions=Object.fromEntries(Object.entries(detail.stats.dimensions).map(([dimension,rows])=>{

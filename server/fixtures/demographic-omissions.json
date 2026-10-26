@@ -1,0 +1,47 @@
+{
+  "note": "Selected demographic fields from exact public ODP records; bday is absent in each source record.",
+  "records": [
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/meps/257055?format=application%2Fld%2Bjson",
+      "fetchedAt": "2026-10-26T09:35:23.468752+00:00",
+      "payload": {
+        "data": [
+          {
+            "id": "person/257055",
+            "identifier": "257055",
+            "label": "Małgorzata GOSIEWSKA",
+            "hasGender": "http://publications.europa.eu/resource/authority/human-sex/FEMALE"
+          }
+        ]
+      }
+    },
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/meps/257257?format=application%2Fld%2Bjson",
+      "fetchedAt": "2026-10-26T09:35:23.553336+00:00",
+      "payload": {
+        "data": [
+          {
+            "id": "person/257257",
+            "identifier": "257257",
+            "label": "Hristo PETROV",
+            "hasGender": "http://publications.europa.eu/resource/authority/human-sex/MALE"
+          }
+        ]
+      }
+    },
+    {
+      "url": "https://data.europarl.europa.eu/api/v2/meps/256945?format=application%2Fld%2Bjson",
+      "fetchedAt": "2026-10-26T09:35:23.630835+00:00",
+      "payload": {
+        "data": [
+          {
+            "id": "person/256945",
+            "identifier": "256945",
+            "label": "Irmhild BOSSDORF",
+            "hasGender": "http://publications.europa.eu/resource/authority/human-sex/FEMALE"
+          }
+        ]
+      }
+    }
+  ]
+}

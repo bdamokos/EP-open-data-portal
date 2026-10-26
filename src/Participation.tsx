@@ -9,7 +9,7 @@ import {humanDate} from './InsightCharts';
 import {Status} from './Status';
 type Metric='speakers'|'voters'|'amendmentVotes';
 type Row={availability?:Record<Metric,AvailabilityState>;id:string;title:string;titleLanguage?:string|null;date:string;sittingId:string;upcoming:boolean;speakers:number|null;voters:number|null;amendmentVotes:number|null;rollCalls:number};
-type Response={availability?:Record<Metric,SourceAvailability>;topics:Row[];series:({date:string;availability?:Record<Metric,AvailabilityState>}&Record<Metric,number|null>)[];window:{start:string;end:string};coverage:{catalogueComplete?:boolean;topicsWithSpeechLinks:number;topics:number;gaps:{kind:string;sitting:string}[]}};
+type Response={countryMetadata?:Record<string,import('./InsightTypes').DemographicFieldEvidence>;availability?:Record<Metric,SourceAvailability>;topics:Row[];series:({date:string;availability?:Record<Metric,AvailabilityState>}&Record<Metric,number|null>)[];window:{start:string;end:string};coverage:{catalogueComplete?:boolean;topicsWithSpeechLinks:number;topics:number;gaps:{kind:string;sitting:string}[]}};
 export function Participation({language,sittings,onTopic,latestAvailable=true}:{language:string;sittings:Sitting[];latestAvailable?:boolean;onTopic:(sitting:string,topic:string)=>void}) {
   const [period,setPeriod]=useExplorerParam('hot-period',weekPeriod(latestHeldSitting(sittings,latestAvailable))),[metric,setMetric]=useExplorerParam<Metric>('hot-rank','speakers',['speakers','voters','amendmentVotes']),[country,setCountry]=useExplorerParam<string|null>('hot-country',null),[search,setSearch]=useExplorerParam<string>('hot-search','');
   const [kind,value]=[period.slice(0,period.indexOf(':')),period.slice(period.indexOf(':')+1)];

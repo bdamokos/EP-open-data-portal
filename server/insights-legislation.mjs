@@ -127,7 +127,7 @@ export class LegislationInsights {
     if(query.topic) {
       const topic=topics.find(t=>t.id===query.topic);if(!topic)throw new HttpError(404,'topic_not_found','That agenda topic is not in the selected sitting.');
       const members=new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)]));
-      const metadata=await this.loadMetadata({members});
+      const metadata=await this.loadMetadata({members,store:this.store});
       const docs=topic.documentIds.slice(0,LEGISLATION_LIMITS.selectedDocuments);
       const documents=docs.length?this.store.db.prepare(`SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind='document' AND json_extract(body,'$.identifier') IN (${docs.map(()=>'?').join(',')}) LIMIT ?`).all(status.servingGeneration,...docs,LEGISLATION_LIMITS.selectedDocuments).map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at})):[];
       const rows=docs.length?this.store.db.prepare(`SELECT body FROM items WHERE generation=? AND source_id IN (${docs.map(()=>'?').join(',')}) LIMIT ?`).all(status.servingGeneration,...docs,LEGISLATION_LIMITS.roleRows).map(r=>JSON.parse(r.body)):[];
