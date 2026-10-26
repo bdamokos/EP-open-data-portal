@@ -54,7 +54,7 @@ test('v1 migration preserves coverage state and consolidates differing baselines
  const coverage={dimension:'group',value:'S&D',enrolledAt:123,members:['1'],pending:['2'],dismissed:['3'],last:{1:'S&D',2:'EPP',3:'EPP',4:'EPP'}};
  storage.setItem(COVERAGE_KEY,JSON.stringify({version:1,followed:['1'],coverages:[coverage,{...coverage,value:'EPP',members:['4'],pending:[],dismissed:[],last:{1:'S&D',2:'EPP',3:'EPP',4:'S&D'}}]}));
  const store=createCoverageStore(storage,()=>{},()=>Date.parse('2026-10-01'));
- assert.equal(store.snapshot().version,3);
+ assert.equal(store.snapshot().version,4);
  assert.deepEqual(store.snapshot().coverages[0],Object.fromEntries(Object.entries(coverage).filter(([key])=>key!=='last')));
  assert.equal(store.snapshot().last.group['4'],null);
  store.observe(directory([member(1),member(2),member(3),member(4)]),follows(1));
@@ -203,4 +203,109 @@ test('a dismissed MEP followed later joins the set, so unfollowing them cancels 
  assert(store.snapshot().coverages.every(c=>c.members.includes('2')&&!c.dismissed.includes('2')));
  store.observe(directory([member(1),member(2)]),follows(1));assert.equal(store.snapshot().coverages.length,0);
  store.observe(directory([member(1),member(2),member(3)]),follows(1));assert.equal(store.suggestions().length,0);
+});
+
+test('all but one of four country members produces one all-other suggestion',()=>{
+ const {store}=harness();
+ store.observe(directory([1,2,3,4].map(id=>member(id,null,{countryCode:'HU'}))),follows(1,2,3));
+ assert.equal(store.snapshot().coverages.length,0);
+ assert.deepEqual(store.suggestions().map(s=>({id:s.member.id,reasons:s.reasons})),[{id:4,reasons:[{context:'You follow all other MEPs from Hungary.',reason:'Represents Hungary'}]}]);
+});
+test('near-complete suggestions require at least three members and exactly one missing',()=>{
+ for(const [count,followed] of [[4,[]],[1,[]],[2,[1]],[4,[1,2]]]){
+  const {store}=harness();store.observe(directory(Array.from({length:count},(_,i)=>member(i+1))),follows(...followed));
+  assert.deepEqual(store.suggestions(),[],`size ${count}, followed ${followed}`);
+ }
+});
+test('near-complete dismissal persists per dimension, value and MEP through reload and roster changes',()=>{
+ const {store,storage}=harness(),members=[1,2,3,4].map(id=>member(id,null,{countryCode:'HU'})),d=directory(members);
+ store.observe(d,follows(1,2,3));store.dismiss(4);
+ const restored=createCoverageStore(storage);restored.observe(d,follows(1,2,3));assert.deepEqual(restored.suggestions(),[]);
+ restored.observe(directory([...members,member(5,null,{countryCode:'HU'})]),follows(1,2,3));assert.deepEqual(restored.suggestions(),[]);
+ restored.observe(d,follows(1,2,3));assert.deepEqual(restored.suggestions(),[]);
+ // Another missing MEP from the same country remains eligible.
+ restored.observe(directory([...members.slice(0,3),member(5,null,{countryCode:'HU'})]),follows(1,2,3));
+ assert.deepEqual(restored.suggestions().map(s=>s.member.id),[5]);
+ // The same MEP can still be suggested for another exact filter value.
+ restored.observe(directory(members.map(m=>({...m,countryCode:'MT'}))),follows(1,2,3));
+ assert.equal(restored.suggestions()[0].member.id,4);
+ assert.equal(restored.suggestions()[0].reasons[0].context,'You follow all other MEPs from Malta.');
+});
+test('following the missing MEP completes coverage before the next newcomer observation',()=>{
+ for(const dismissed of [false,true]){
+  const {store,storage}=harness(),members=[1,2,3,4].map(id=>member(id,null,{countryCode:'HU'}));
+  store.observe(directory(members),follows(1,2,3));if(dismissed)store.dismiss(4);
+  store.syncFollows(follows(1,2,3,4));assert.deepEqual(store.suggestions(),[]);
+  assert.deepEqual(store.snapshot().coverages[0].members,['1','2','3','4']);
+  const restored=createCoverageStore(storage);
+  restored.observe(directory([...members,member(5,null,{countryCode:'HU'})]),follows(1,2,3,4));
+  assert.deepEqual(restored.suggestions().map(s=>s.member.id),[5]);
+  assert.equal(restored.suggestions()[0].reasons[0].context,'You follow all MEPs from Hungary.');
+ }
+});
+test('explicit unfollow from full coverage never resurfaces as near-complete after reload',()=>{
+ const {store,storage}=harness(),d=directory([1,2,3,4].map(id=>member(id)));
+ store.observe(d,follows(1,2,3,4));store.syncFollows(follows(1,2,3));store.observe(d,follows(1,2,3));
+ assert.deepEqual(store.suggestions(),[]);assert.equal(store.snapshot().cancelled.length,2);
+ const restored=createCoverageStore(storage);restored.observe(d,follows(1,2,3));assert.deepEqual(restored.suggestions(),[]);
+});
+test('one near-complete MEP combines country, group and committee reasons using the Members predicate',()=>{
+ const {store}=harness(),members=[1,2,3,4].map(id=>member(id,'S&D',{countryCode:'HU',memberships:[{id:'AGRI',role:id===4?'CHAIR':'MEMBER',current:true}]}));
+ // The Members predicate includes substitutes as well as chairs.
+ members.push(member(5,'EPP',{countryCode:'FR',memberships:[{id:'AGRI',role:'MEMBER_SUBSTITUTE',current:true}]}));
+ store.observe(directory(members),follows(1,2,3,5));
+ assert.equal(store.suggestions().length,1);assert.equal(store.suggestions()[0].member.id,4);
+ assert.deepEqual(store.suggestions()[0].reasons.map(r=>r.context),['You follow all other MEPs from Hungary.','You follow all other MEPs in the S&D group.','You follow all other MEPs on the AGRI committee.']);
+ store.dismiss(4);assert.deepEqual(store.suggestions(),[]);
+});
+test('near-complete committee requires a complete, successful membership index on every observation',()=>{
+ const members=[1,2,3,4].map(id=>member(id,null,{countryCode:null,memberships:[{id:'AGRI',role:'MEMBER',current:true}]}));
+ for(const d of [directory(members,false),{...directory(members),index:{complete:true,error:'failed'}},directory([...members,member(5,null,{countryCode:null,memberships:null})])]){
+  const {store}=harness();store.observe(d,follows(1,2,3));assert.deepEqual(store.suggestions(),[]);
+ }
+ const {store}=harness();store.observe(directory(members),follows(1,2,3));assert.equal(store.suggestions().length,1);
+ store.observe(directory(members,false),follows(1,2,3));assert.deepEqual(store.suggestions(),[]);
+});
+test('errored directories and missing country/group values cannot create near-complete suggestions',()=>{
+ const members=[1,2,3,4].map(id=>member(id));
+ for(const [d,error] of [[directory(members),true],[{...directory(members),directoryCache:{refreshError:'failed'}},false],[directory(members.map(m=>({...m,countryCode:null,groupCode:null}))),false]]){
+  const {store}=harness();store.observe(d,follows(1,2,3),error);assert.deepEqual(store.suggestions(),[]);
+ }
+});
+test('a covered group and near-complete country share one card without altering newcomer reasons',()=>{
+ const {store}=harness();store.observe(directory([member(1),member(2),member(3),member(4,'EPP')]),follows(1,2,3));
+ store.observe(directory([1,2,3,4].map(id=>member(id))),follows(1,2,3));
+ assert.equal(store.suggestions().length,1);
+ assert.deepEqual(store.suggestions()[0].reasons.map(r=>r.context),['You follow all MEPs in the S&D group.','You follow all other MEPs from Malta.']);
+});
+test('versions two and three migrate to four while preserving cancellations, baselines and follow order',()=>{
+ for(const version of [2,3]){
+  const {storage}=harness(),legacy={version,coverages:[],followed:['1','2','3'],last:{country:{1:'HU',2:'HU',3:'HU',4:'HU'}},cancelled:[{dimension:'country',value:'HU',cancelledAt:200}],unresolvedFollows:{country:[{id:'3',followedAt:100}]}};
+  storage.setItem(COVERAGE_KEY,JSON.stringify(legacy));const restored=createCoverageStore(storage,()=>{},()=>300);
+  assert.deepEqual(restored.snapshot(),{...legacy,version:4,nearDismissed:{},storageError:false});
+  restored.observe(directory([1,2,3,4].map(id=>member(id,null,{countryCode:'HU'}))),follows(1,2,3));assert.deepEqual(restored.suggestions(),[]);
+ }
+});
+test('version four rejects malformed near-complete dismissal maps',()=>{
+ for(const nearDismissed of [null,[],{country:[]},{country:{HU:['invalid']}},{unknown:{HU:['4']}}]){
+  const {storage}=harness();storage.setItem(COVERAGE_KEY,JSON.stringify({version:4,coverages:[],followed:['1'],last:{},cancelled:[],nearDismissed}));
+  assert.deepEqual(createCoverageStore(storage).snapshot().followed,[]);
+ }
+});
+test('re-following a cancelled missing MEP restores full coverage before a newcomer arrives',()=>{
+ const {store}=harness(),members=[1,2,3,4].map(id=>member(id));
+ store.observe(directory(members),follows(1,2,3,4));store.syncFollows(follows(1,2,3));
+ store.syncFollows(follows(1,2,3,4));assert.equal(store.snapshot().cancelled.length,0);assert.equal(store.snapshot().coverages.length,2);
+ store.observe(directory([...members,member(5)]),follows(1,2,3,4));
+ assert.deepEqual(store.suggestions().map(s=>s.member.id),[5]);
+ assert.deepEqual(store.suggestions()[0].reasons.map(r=>r.context),['You follow all MEPs from Malta.','You follow all MEPs in the S&D group.']);
+});
+test('unfollowing from a near-complete set cannot be suggested after the original missing MEP departs',()=>{
+ const {store,storage}=harness(),members=[1,2,3,4].map(id=>member(id));
+ store.observe(directory(members),follows(1,2,3));store.syncFollows(follows(1,2));
+ const restored=createCoverageStore(storage);restored.observe(directory(members.slice(0,3)),follows(1,2));
+ assert.equal(restored.snapshot().cancelled.length,2);assert.deepEqual(restored.suggestions(),[]);
+ restored.syncFollows(follows(1,2,3));assert.deepEqual(restored.snapshot().cancelled,[]);
+ restored.observe(directory([...members,member(5)]),follows(1,2,3,4));
+ assert.deepEqual(restored.suggestions().map(s=>s.member.id),[5]);
 });

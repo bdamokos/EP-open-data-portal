@@ -10,11 +10,12 @@ const matches=(value,target)=>Array.isArray(value)?value.includes(target):value=
 const filter=value=>dimensions.includes(value?.dimension)&&typeof value.value==='string'&&Boolean(value.value);
 const observation=value=>value&&typeof value==='object'&&!Array.isArray(value)&&Object.entries(value).every(([id,value])=>ids([id])&&(value===null||typeof value==='string'||Array.isArray(value)&&value.every(v=>typeof v==='string')));
 const timestamp=value=>Number.isFinite(value)&&value>=0;
-const initialState=()=>({version:3,coverages:[],followed:[],last:{},cancelled:[],unresolvedFollows:{},storageError:false});
+const initialState=()=>({version:4,coverages:[],followed:[],last:{},cancelled:[],unresolvedFollows:{},nearDismissed:{},storageError:false});
+const completeDimension=(directory,dimension)=>dimension!=='committee'||directory.index.complete&&!directory.index.error&&!directory.members.some(m=>m.memberships===null);
 function decode(raw,now) {
   try {
     const data=JSON.parse(raw);
-    if(![1,2,3].includes(data?.version)||!ids(data.followed)||!Array.isArray(data.coverages))return null;
+    if(![1,2,3,4].includes(data?.version)||!ids(data.followed)||!Array.isArray(data.coverages))return null;
     if(!data.coverages.every(c=>filter(c)&&Number.isFinite(c.enrolledAt)&&ids(c.members)&&ids(c.dismissed)&&ids(c.pending)))return null;
     if(data.version===1){
       const last={};
@@ -29,12 +30,13 @@ function decode(raw,now) {
     }
     if(!data.last||!Object.entries(data.last).every(([dimension,value])=>dimensions.includes(dimension)&&observation(value))||!Array.isArray(data.cancelled)||!data.cancelled.every(c=>filter(c)&&(c.cancelledAt===undefined||timestamp(c.cancelledAt))))return null;
     if(data.unresolvedFollows!==undefined&&(!data.unresolvedFollows||Array.isArray(data.unresolvedFollows)||typeof data.unresolvedFollows!=='object'||!Object.entries(data.unresolvedFollows).every(([dimension,value])=>dimensions.includes(dimension)&&Array.isArray(value)&&value.every(action=>typeof action==='string'?ids([action]):action&&ids([action.id])&&(action.followedAt===undefined||timestamp(action.followedAt))))))return null;
+    if(data.version===4&&(!data.nearDismissed||Array.isArray(data.nearDismissed)||typeof data.nearDismissed!=='object'||!Object.entries(data.nearDismissed).every(([dimension,filters])=>dimensions.includes(dimension)&&filters&&typeof filters==='object'&&!Array.isArray(filters)&&Object.entries(filters).every(([value,dismissed])=>value&&ids(dismissed)))))return null;
     // Unknown follow times are oldest; unknown cancellations are at least as
     // recent as every saved follow, so migration cannot undo an explicit unfollow.
     const unresolvedFollows=Object.fromEntries(Object.entries(data.unresolvedFollows||{}).map(([dimension,actions])=>[dimension,actions.map(action=>typeof action==='string'?{id:action,followedAt:0}:{...action,followedAt:action.followedAt??0})]));
     const migratedCancellationAt=Math.max(now,0,...Object.values(unresolvedFollows).flat().map(action=>action.followedAt));
     const cancelled=data.cancelled.map(c=>({...c,cancelledAt:c.cancelledAt??migratedCancellationAt}));
-    return {...initialState(),...data,version:3,cancelled,unresolvedFollows};
+    return {...initialState(),...data,version:4,cancelled,unresolvedFollows,nearDismissed:data.version===4?data.nearDismissed:{}};
   }catch{return null;}
 }
 export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
@@ -43,6 +45,23 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
   const publish=()=>{
     try {if(!storage)throw Error('Storage unavailable');storage.setItem(COVERAGE_KEY,JSON.stringify(state));state={...state,storageError:false};}
     catch{state={...state,storageError:true};}notify();return !state.storageError;
+  };
+  // Near-complete candidates are derived from the current trusted directory;
+  // only dismissals persist, shared by dimension rather than roster copies.
+  const nearCompleteFilters=(cancelled=state.cancelled)=>{
+    if(!directory)return [];
+    const followed=new Set(state.followed),filters=[];
+    for(const dimension of dimensions){
+      if(!completeDimension(directory,dimension))continue;
+      const last=Object.fromEntries(directory.members.map(m=>[String(m.id),values(m)[dimension]]));
+      const targets=new Set(Object.values(last).flatMap(value=>value===null?[]:Array.isArray(value)?value:[value]));
+      for(const value of targets){
+        if(state.coverages.some(c=>c.dimension===dimension&&c.value===value)||cancelled.some(c=>c.dimension===dimension&&c.value===value))continue;
+        const members=Object.keys(last).filter(id=>matches(last[id],value)),missing=members.filter(id=>!followed.has(id));
+        if(members.length>=3&&missing.length===1)filters.push({dimension,value,members,pending:missing});
+      }
+    }
+    return filters;
   };
   const syncFollows=(items,observedDirectory=directory)=>{
     const followed=items.filter(i=>i.kind==='mep').map(i=>String(i.id)),current=new Set(followed),removed=state.followed.filter(id=>!current.has(id));
@@ -58,6 +77,7 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
       return false;
     // A dismissed MEP followed later (e.g. from the profile) joins the set, so unfollowing them cancels it.
     }).map(c=>({...c,members:[...new Set([...c.members,...c.pending.filter(id=>current.has(id)),...c.dismissed.filter(id=>current.has(id))])],pending:c.pending.filter(id=>!current.has(id)),dismissed:c.dismissed.filter(id=>!current.has(id))}));
+    for(const c of nearCompleteFilters())if(removed.some(id=>c.members.includes(id))&&!cancelled.some(v=>v.dimension===c.dimension&&v.value===c.value))cancelled.push({dimension:c.dimension,value:c.value,cancelledAt:actionAt});
     const unresolvedFollows={};
     for(const dimension of dimensions){
       const unresolved=[];
@@ -72,6 +92,9 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
       }
       if(unresolved.length)unresolvedFollows[dimension]=unresolved;
     }
+    // Complete a near-complete set at the follow action, even if the next
+    // directory observation already contains another newcomer.
+    for(const c of nearCompleteFilters(cancelled))if(c.members.every(id=>current.has(id)))coverages.push({dimension:c.dimension,value:c.value,enrolledAt:actionAt,members:c.members,dismissed:[],pending:[]});
     const nextState={...state,followed,coverages,cancelled,unresolvedFollows};
     if(JSON.stringify(nextState)!==JSON.stringify(state)){state=nextState;publish();}
   };
@@ -85,7 +108,7 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
       directory=next;
       const followed=new Set(state.followed),coverages=state.coverages.map(c=>({...c})),observations={...state.last};
       for(const dimension of dimensions){
-        if(dimension==='committee'&&(!next.index.complete||next.index.error||next.members.some(m=>m.memberships===null)))continue;
+        if(!completeDimension(next,dimension))continue;
         const last=Object.fromEntries(next.members.map(m=>[String(m.id),values(m)[dimension]]));
         const previous=state.last[dimension]||{};
         observations[dimension]=last;
@@ -113,18 +136,26 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
     observeMembership(snapshot){events=snapshot.events.filter(e=>(e.lists||Object.keys(snapshot.lists)).some(list=>snapshot.lists[list].status!=='unavailable'));state={...state};notify();},
     suggestions(){
       if(!directory)return [];
+      const near=nearCompleteFilters();
       return directory.members.flatMap(member=>{
         const reasons=state.coverages.filter(c=>c.pending.includes(String(member.id))).map(c=>coverageReason(c,member,directory,events));
+        for(const c of near)if(c.pending.includes(String(member.id))&&!state.nearDismissed[c.dimension]?.[c.value]?.includes(String(member.id)))reasons.push(coverageReason({...c,nearComplete:true},member,directory));
         return reasons.length?[{member,reasons}]:[];
       });
     },
-    dismiss(id){state={...state,coverages:state.coverages.map(c=>c.pending.includes(String(id))?{...c,dismissed:[...new Set([...c.dismissed,String(id)])],pending:c.pending.filter(value=>value!==String(id))}:c)};return publish();},
+    dismiss(id){
+      const nearDismissed={...state.nearDismissed};
+      for(const c of nearCompleteFilters())if(c.pending.includes(String(id)))nearDismissed[c.dimension]={...nearDismissed[c.dimension],[c.value]:[...new Set([...(nearDismissed[c.dimension]?.[c.value]||[]),String(id)])]};
+      state={...state,nearDismissed,coverages:state.coverages.map(c=>c.pending.includes(String(id))?{...c,dismissed:[...new Set([...c.dismissed,String(id)])],pending:c.pending.filter(value=>value!==String(id))}:c)};return publish();
+    },
   };
 }
 // A later group-event source can supply {type:'group-joined', value, date, mep}.
 export function coverageReason(coverage,member,directory,events=[],language='en') {
   const {dimension,value,enrolledAt}=coverage,code=directory.committees.find(c=>c.id===value)?.code||value;
-  const context=dimension==='country'?`You follow all MEPs from ${countryName('en',value)}.`:dimension==='group'?`You follow all MEPs in the ${value} group.`:`You follow all MEPs on the ${code} committee.`;
+  const all=coverage.nearComplete?'all other':'all';
+  const context=dimension==='country'?`You follow ${all} MEPs from ${countryName('en',value)}.`:dimension==='group'?`You follow ${all} MEPs in the ${value} group.`:`You follow ${all} MEPs on the ${code} committee.`;
+  if(coverage.nearComplete)return {context,reason:dimension==='country'?`Represents ${countryName('en',value)}`:dimension==='group'?`In the ${value} group`:`On ${code}`};
   const dated=events.filter(e=>e.mep===String(member.id)&&Date.parse(e.date)>enrolledAt&&(e.type==='mandate-started'||dimension==='group'&&e.type==='group-joined'&&e.value===value)).sort((a,b)=>(a.type==='mandate-started'?0:1)-(b.type==='mandate-started'?0:1)||b.date.localeCompare(a.date))[0];
   const date=value=>new Intl.DateTimeFormat(language,{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
   let reason;
