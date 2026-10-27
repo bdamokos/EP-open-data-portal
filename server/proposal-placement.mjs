@@ -143,6 +143,40 @@ function uniqueDocumentWording(proposal,original) {
   return count===1;
 }
 const wholeLines=(proposal,match)=>match.splice.start.offset===0&&match.splice.end.offset===proposal.paragraphs[match.splice.end.paragraph].text.length;
+// A missing parser level cannot override a provision that the source actually
+// names. Match labels from the owning proposal units, allowing extra parser
+// levels; quoted underlying-act labels are a separate address space.
+function contradictoryFallbackOwner(ancestor,omitted,match) {
+  const overlaps=span=>span.paragraph>=match.span.start&&span.paragraph<=match.span.end&&
+    span.end>(span.paragraph===match.span.start?match.splice.start.offset:0)&&
+    span.start<(span.paragraph===match.span.end?match.splice.end.offset:Infinity);
+  const contradicts=chain=>{
+    const proposalOwners=chain.filter(unit=>unit.scope==='proposal');
+    const instruction=[ancestor,...proposalOwners].findLast(unit=>unit.instruction)?.instruction;
+    const instructionLead=instruction?.raw.split(/:\s*[‘“„«"'”]/u,1)[0];
+    for(const kind of new Set(omitted.map(segment=>segment.kind))){
+      const wanted=omitted.filter(segment=>segment.kind===kind);
+      let observed=proposalOwners.filter(unit=>!unit.implicit&&unit.label?.kind===kind).map(unit=>unit.label);
+      if(observed.length){
+        for(let index=wanted.length-1;index>=0;index--){
+          const exact=observed.findLastIndex(label=>label.value===wanted[index].value);
+          if(exact>=0)observed=observed.slice(0,exact);
+          // A label matching an earlier omitted level leaves the later level
+          // silent. An extra enclosing parser level does not change its owner.
+          else if(observed.length&&!wanted.slice(0,index).some(segment=>segment.value===observed.at(-1).value))return true;
+        }
+      }else{
+        const named=(instruction?.underlyingTargets??[]).filter(segment=>segment.kind===kind&&instructionLead.includes(segment.raw)&&
+          (segment.number!==null||/^[\p{L}]$|^[IVXLCDMivxlcdm]+$/u.test(segment.value)||/[([]/u.test(segment.raw)));
+        if(named.length&&!named.some(segment=>segment.value===wanted.at(-1).value))return true;
+      }
+    }
+    return false;
+  };
+  const visit=(unit,chain)=>unit.spans.some(overlaps)&&contradicts(chain)||unit.children.some(child=>visit(child,[...chain,child]));
+  return visit(ancestor,[]);
+}
+
 function ancestorFallback(target,original,candidatesFor) {
   if(target.segments.at(-1).kind==='subparagraph')return null;
   for(let depth=target.segments.length-1;depth>0;depth--){
@@ -151,6 +185,7 @@ function ancestorFallback(target,original,candidatesFor) {
     if(parents.length!==1)return null;
     const parent=parents[0],match=matchUnit(parent.proposal,parent.unit,original);
     if(!match.span||!wholeLines(parent.proposal,match)||!uniqueDocumentWording(parent.proposal,original))return null;
+    if(contradictoryFallbackOwner(parent.unit,target.segments.slice(depth),match))return {reason:'conflicting_target_evidence'};
     return {...parent,match};
   }
   return null;
@@ -216,7 +251,11 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   }
   if(!candidates.length) {
     const sub=subparagraphMatch(items,target,originalText,candidatesFor);
-    if(!sub){const fallback=ancestorFallback(target,originalText,candidatesFor);return fallback?placedMatch(fallback,'ancestor-unique-wording'):unresolved('target_not_found');}
+    if(!sub){
+      const fallback=ancestorFallback(target,originalText,candidatesFor);
+      if(fallback?.reason)return unresolved(fallback.reason);
+      return fallback?placedMatch(fallback,'ancestor-unique-wording'):unresolved('target_not_found');
+    }
     if(sub.reason)return unresolved(sub.reason);
     evidence.push({basis:'subparagraph-wording-match',anchor:sub.unit.id});
     return {operation,status:'placed',itemIndex:sub.itemIndex,span:sub.match.span,splice:sub.match.splice,originalText:sub.match.originalText,evidence};

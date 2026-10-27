@@ -173,10 +173,10 @@ test('implicit paragraphs number subparagraphs from their first child',()=>{
 // (shifted points), -0266 (unnumbered paragraphs) and -0257 AM142.
 test('missing parser levels fall back to the deepest unique ancestor and whole source lines',()=>{
   const cases=[
-    [source(['Article 1','The act is amended:','(b) Verified source line.'],['Titrearticle','','Point0']),'Article 1 – paragraph 1 – point a','Verified source line.',2],
+    [source(['Article 1','The act is amended:','Verified source line.']),'Article 1 – paragraph 1 – point a','Verified source line.',2],
     [source(['Article 1','First unnumbered paragraph.','Second unnumbered paragraph.']),'Article 1 – paragraph 2','Second unnumbered paragraph.',2],
     [source(['Article 13','2. Intro:','(d) Verified point.']),'Article 13 – paragraph 2 – subparagraph 1 – point d','Verified point.',2],
-    [source(['Article 1','The act is amended:','(1) Article 9 is replaced by the following:','‘Article 9','1. Early quotation.’;','(a) A unique later line.','(2) Other instruction.'],['Titrearticle','','Point0','Titrearticle','','Point1','Point0']),'Article 1 – paragraph 1 – point 1 – point z','A unique later line.',5],
+    [source(['Article 1','The act is amended:','(1) Article 9 is replaced by the following:','‘Article 9','1. Early quotation.’;','(a) A unique later line.','(2) Other instruction.'],['Titrearticle','','Point0','Titrearticle','','Point1','Point0']),'Article 1 – paragraph 1 – point 1 – subparagraph 1 – point a','A unique later line.',5],
   ];
   for(const [projection,label,original,start] of cases){const placed=resolve(projection,label,original);assert.equal(placed.status,'placed',label);assert.equal(placed.span.start,start);assert.equal(placed.splice.start.offset,0);assert.equal(placed.evidence.at(-1).basis,'ancestor-unique-wording');}
   const projection=source(['Article 1','First source line.','Second source line.','Article 2','Second source line.']);
@@ -212,4 +212,26 @@ test('a resolved point with different wording never recovers through its ancesto
   const projection=source(['Article 1','1. Lead:','(a) Text at the parsed address.','(b) Unique amendment quotation.']);
   const placed=resolve(projection,'Article 1 – paragraph 1 – point a','Unique amendment quotation.');
   assert.equal(placed.status,'unresolved');assert.equal(placed.reason,'conflicting_target_evidence');
+});
+
+test('COM(2025)531 quotation ownership contradicts a skipped point c but permits point d',()=>{
+  const recorded=fixture('proposal-placement-contradictory-owner.json'),proposal=parseProposal(recorded),items=[{kind:'act',index:1,proposal}];
+  assert.equal(recorded.paragraphs[249-recorded.sourceParagraphRange.start],'(d)\tin paragraph 9, the first sentence is replaced by the following:');
+  const rejected=resolveProposalPlacement(items,recorded.amendment);
+  assert.equal(rejected.status,'unresolved');assert.equal(rejected.reason,'conflicting_target_evidence');
+  const agreeing=resolveProposalPlacement(items,{...recorded.amendment,targetLabel:'Article 3 – paragraph 1 – point 2 – point d'});
+  assert.equal(agreeing.status,'placed');assert.equal(agreeing.evidence.at(-1).basis,'ancestor-unique-wording');
+  assert.deepEqual(agreeing.span,{start:250-recorded.sourceParagraphRange.start,end:250-recorded.sourceParagraphRange.start});
+});
+
+test('ancestor recovery uses explicit instruction references only when the owning label is silent',()=>{
+  const projection=reference=>source(['Article 1','The act is amended:','(1) '+reference,'‘Unique replacement text.’;','(2) Next instruction.'],['Titrearticle','','Point0','','Point0']);
+  const target='Article 1 – paragraph 1 – point 1 – point c',original='Unique replacement text.';
+  assert.equal(resolve(projection('point (d) is replaced by the following:'),target,original).reason,'conflicting_target_evidence');
+  for(const instruction of ['point (c) is replaced by the following:','the following text is replaced by the following:']){
+    const placed=resolve(projection(instruction),target,original);assert.equal(placed.status,'placed',instruction);assert.equal(placed.evidence.at(-1).basis,'ancestor-unique-wording');
+  }
+  const labelled=source(['Article 1','The act is amended:','(1) Instructions:','(d) An explicit source point.','(2) Next instruction.'],['Titrearticle','','Point0','Point1','Point0']);
+  assert.equal(resolve(labelled,'Article 1 – paragraph 1 – point 1 – subparagraph 1 – point c','An explicit source point.').reason,'conflicting_target_evidence');
+  assert.equal(resolve(labelled,'Article 1 – paragraph 1 – point 1 – subparagraph 1 – point d','An explicit source point.').status,'placed');
 });
