@@ -77,7 +77,9 @@ export function oracleNormal(value,labels=[]) {
     .split(/\r?\n/).map(line=>{
       let text=line.trim().replace(/^["']\s*/, '');
       if(prefix)text=text.replace(prefix,'');
-      return text;
+      // Published comparison columns can put a closing quote before or after
+      // the same terminators. Keep the marks, with one ordering on both sides.
+      return text.replace(/([.;]+)(["']+)([.;]*)$/u,'$2$1$3');
     }).join(' ').replace(/\s+/gu,' ').trim().replace(/[.;'"\s]+$/u,'');
 }
 const occurrences=(haystack,needle)=>{

@@ -57,6 +57,13 @@ test('oracle preserves internal punctuation when a comparison column flattens so
   assert.equal(oracleNormal(rows.join('\n'),labels),oracleNormal(original,labels));
   assert.equal(oracleNormal(rows.join('\r\n'),labels),oracleNormal(original,labels));
   assert.equal(oracleNormal(rows.join('\n'),labels),'Allocates funding as follows: the first programme receives ten units; the second programme receives five units. the balance remains available');
+  const quotedRows=['7. Amends the rule:','“A synthetic obligation applies.”;','the reporting duty remains;'];
+  const quotedText=source(['The European Parliament,',...quotedRows,'8. Requests a report.','ANNEX']);
+  const quotedOriginal=quotedRows.join('\n').replace('applies.”;','applies.;”');
+  const quoted={...amendment,originalText:quotedOriginal};
+  const placement={status:'placed',operation:'replace',span:{start:1,end:3}};
+  assert.equal(verifyPlacement({placement,wording:quoted,text:quotedText}).status,'verified','quote/terminator ordering remains typographic');
+  assert.equal(verifyPlacement({placement,wording:{...quoted,originalText:quotedOriginal.replace('applies.;”','applies.”')},text:quotedText}).status,'failed','the internal semicolon still matters');
 });
 test('introductory-part addresses are checked against their own provision',()=>{
   const items=item(['Article 1','1. Lead text of the paragraph:','(a) first point;','2. Other paragraph lead:']);
