@@ -696,6 +696,40 @@
         "sha256": "ebc2832ad8733b6c2d08f4c34fb7a625b1c5b9347a64389bafd372a5b234bd69",
         "status": 200
       }
+    },
+    {
+      "id": "A-10-2026-0104-AM-90",
+      "language": "en",
+      "label": "Citation 5 a (new)",
+      "grammar": "proposal",
+      "expected": {
+        "kind": "citation",
+        "value": "5a"
+      },
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0104-AM-090-097/A-10-2026-0104-AM-090-097_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0104-AM-090-097/A-10-2026-0104-AM-090-097_en.docx",
+        "fetchedAt": "2026-10-27T00:37:55.710Z",
+        "sha256": "c5d77c4e63dfd8baca540940e8ae75d68a5397bef81d8338066e6e17cdc8d512",
+        "status": 200
+      }
+    },
+    {
+      "id": "B-10-2026-0406-AM-44",
+      "language": "en",
+      "label": "Citation C a (new)",
+      "grammar": "proposal",
+      "expected": {
+        "kind": "citation",
+        "value": "Ca"
+      },
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0406-AM-040-049/B-10-2026-0406-AM-040-049_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0406-AM-040-049/B-10-2026-0406-AM-040-049_en.docx",
+        "fetchedAt": "2026-10-27T00:48:33.428Z",
+        "sha256": "7b9cc425cae35a901e736d22945fa6b711d528a3c3c0322c6cde1fa2d953d3e7",
+        "status": 200
+      }
     }
   ]
 }
