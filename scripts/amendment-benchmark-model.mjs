@@ -79,20 +79,29 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
   const span=placement.span;
   const source=proposal?proposal.paragraphs.map(p=>p.text).join('\n'):text.paragraphs.join('\n');
   const count=occurrences(oracleNormal(source,labels),oracleNormal(wording.originalText,labels));
-  // An introductory part lies inside its provision; check containment in that provision.
-  if(target.complete&&target.segments.at(-1)?.kind==='introductory-part')target={...target,segments:target.segments.slice(0,-1)};
+  // An introductory part is the provision's own lead before its first child;
+  // without children the lead cannot be established independently.
+  const introductory=target.complete&&target.segments.at(-1)?.kind==='introductory-part';
+  if(introductory)target={...target,segments:target.segments.slice(0,-1)};
   if(target.complete&&target.segments.length) {
     let candidates=[];
     if(proposal) {
       if(target.segments.some(segment=>segment.kind==='subparagraph'))return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
       candidates=flatten(proposal.units).filter(unit=>unit.scope==='proposal'&&unit.path.length>=target.segments.length&&pathKey(unit.path.slice(-target.segments.length))===pathKey(target.segments))
-        .map(unit=>({start:unit.extent.start,end:unit.extent.end-1,spans:flatten([unit]).flatMap(child=>child.spans||[])}));
+        .map(unit=>introductory
+          ?(unit.children.length?{start:unit.extent.start,end:Math.min(...unit.children.map(child=>child.extent.start))-1,spans:unit.spans||[]}:null)
+          :{start:unit.extent.start,end:unit.extent.end-1,spans:flatten([unit]).flatMap(child=>child.spans||[])});
+      if(introductory&&candidates.some(unit=>!unit))return {status:'unverified',reason:'oracle-introductory-part-unavailable'};
     } else {
       const label=target.segments.at(-1),parent=target.segments.at(-2);
       if(!['paragraph','recital','citation','point'].includes(label.kind)||label.kind==='point'&&parent?.kind!=='paragraph')return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
       const {units,reason}=rawResolutionUnits(text,wording.language);
       if(reason)return {status:'unverified',reason};
       candidates=units.filter(unit=>unit.kind===label.kind&&unit.label===label.value&&(label.kind!=='point'||units.find(owner=>owner.start===unit.parent)?.label===parent.value));
+      if(introductory) {
+        candidates=candidates.map(unit=>{const children=units.filter(child=>child.parent===unit.start);return children.length?{...unit,end:Math.min(...children.map(child=>child.start))-1}:null;});
+        if(candidates.some(unit=>!unit))return {status:'unverified',reason:'oracle-introductory-part-unavailable'};
+      }
     }
     if(!candidates.length)return {status:'unverified',reason:'oracle-address-unit-unavailable'};
     const inside=unit=>{

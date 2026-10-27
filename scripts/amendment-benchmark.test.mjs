@@ -50,6 +50,18 @@ test('introductory-part addresses are checked against their own provision',()=>{
   assert.equal(verifyPlacement({placement:elsewhere,wording:amendment,items}).status,'failed','a span outside the addressed provision fails');
 });
 
+test('a resolution introductory part is verified only within its lead rows',()=>{
+  const text=source(['The European Parliament,','1. Calls for:','(a) First point;','2. Next paragraph.','ANNEX']);
+  const at=row=>({status:'placed',operation:'replace',span:{start:row,end:row}});
+  const lead={...wording('Paragraph 1 – introductory part','Calls for:','Urges:'),baseline:'motion-resolution'};
+  assert.equal(verifyPlacement({placement:at(1),wording:lead,text}).status,'verified');
+  const child={...wording('Paragraph 1 – introductory part','(a) First point;','(a) Changed;'),baseline:'motion-resolution'};
+  assert.equal(verifyPlacement({placement:at(2),wording:child,text}).status,'failed','a child point is not the introductory part');
+  const bare=source(['The European Parliament,','1. Calls for change.','2. Next paragraph.','ANNEX']);
+  const noChildren={...wording('Paragraph 1 – introductory part','Calls for change.','Urges change.'),baseline:'motion-resolution'};
+  assert.equal(verifyPlacement({placement:at(1),wording:noChildren,text:bare}).reason,'oracle-introductory-part-unavailable');
+});
+
 test('proposal insertion oracle asserts parent, complete sibling subtree and following sibling order',()=>{
   const items=item(['Article 1','1. First.','Article 2','1. Second.']);
   const amendment=wording('Article 1 a (new)');const placement=resolveProposalPlacement(items,amendment);assert.equal(placement.status,'placed');
