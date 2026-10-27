@@ -1,6 +1,7 @@
 import {parseTargetLabel} from '../server/proposal-structure.mjs';
 import {placementReference} from '../server/document-context-model.mjs';
 import {rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
+import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 
 // Only these affirmative observations remove a row from the denominator.
@@ -33,21 +34,28 @@ const suffixOrder = suffix => {
   const latin = ['bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
   if (!suffix) return 0;
   if (latin.includes(suffix)) return latin.indexOf(suffix)+1;
+  const alphabet=/^[α-ω]+$/u.test(suffix)?'αβγδεζηθικλμνξοπρστυφχψω':/^[а-я]+$/u.test(suffix)?'абвгдежзийклмнопрстуфхцчшщъьюя':null;
+  if(alphabet)return [...suffix].reduce((value,c)=>value*alphabet.length+alphabet.indexOf(c)+1,0);
   if (!/^[a-z]{1,3}$/.test(suffix)) return null;
   return [...suffix].reduce((value,c) => value*26+c.charCodeAt(0)-96,0);
 };
-const ordinal = value => typeof value==='number'?value:typeof value==='string'&&/^[A-Z]+$/.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
+const ordinal = value => {
+  if(typeof value==='number')return value;
+  const alphabet=typeof value==='string'&&/^[A-Z]+$/.test(value)?'ABCDEFGHIJKLMNOPQRSTUVWXYZ':typeof value==='string'&&/^[А-Я]+$/u.test(value)?'АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЮЯ':null;
+  return alphabet?[...value].reduce((n,c)=>n*alphabet.length+alphabet.indexOf(c)+1,0):null;
+};
 const fail = reason => ({status:'failed', reason});
 const verified = reason => ({status:'verified', reason});
 
 export function parseBenchmarkTarget(wording) {
   try {
-    if (wording.language === 'en' && ['motion-resolution','unknown'].includes(wording.baseline)) {
-      const ref=placementReference(wording.targetLabel);
+    if (['motion-resolution','unknown'].includes(wording.baseline)) {
+      const ref=placementReference(wording.targetLabel,wording.language,wording.proposedText);
       if(ref) {
-        const split=/^(\d+|[A-Z]+)([a-z]*)$/.exec(ref.kind==='point'?ref.paragraph:ref.label);
-        const segment={kind:ref.kind==='point'?'paragraph':ref.kind,value:ref.kind==='point'?ref.paragraph:ref.label,number:split?(/^\d+$/.test(split[1])?Number(split[1]):split[1]):null,suffix:split?.[2]||'',isNew:/\(\s*new\s*\)/i.test((wording.targetLabel||'').split('\n')[0])};
-        return {raw:wording.targetLabel,language:'en',complete:true,segments:ref.kind==='point'?[segment,{kind:'point',value:ref.label,number:null,suffix:'',isNew:false}]:[segment],unparsed:[]};
+        const segments=(ref.parents||[]).map(parent=>({kind:parent.kind,value:parent.label,number:/^\d+$/.test(parent.label)?Number(parent.label):null,suffix:'',isNew:false}));
+        segments.push({kind:ref.after?'heading':ref.kind,value:ref.label,base:ref.base,number:/^\d+$/.test(ref.base)?Number(ref.base):ref.base,suffix:ref.suffix,isNew:ref.isNew,
+          ...(ref.negative?{negative:true}:{}),...(ref.after?{after:ref.base}:{})});
+        return {raw:wording.targetLabel,language:wording.language,complete:true,segments,unparsed:[]};
       }
     }
     const raw = wording.targetPath?.proposal?.length === 1 ? wording.targetPath.proposal[0].raw : wording.targetLabel;
@@ -99,6 +107,9 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
       if(reason)return {status:'unverified',reason};
       candidates=units.filter(unit=>unit.kind===label.kind&&unit.label===label.value&&(label.kind!=='point'||units.find(owner=>owner.start===unit.parent)?.label===parent.value));
       if(introductory) {
+        // Repeated paragraph numbers elsewhere in a multilingual report do not
+        // determine the lead boundary of the unit containing the returned span.
+        candidates=candidates.filter(unit=>span.start>=unit.start&&span.end<=unit.end);
         candidates=candidates.map(unit=>{const children=units.filter(child=>child.parent===unit.start);return children.length?{...unit,end:Math.min(...children.map(child=>child.start))-1}:null;});
         if(candidates.some(unit=>!unit))return {status:'unverified',reason:'oracle-introductory-part-unavailable'};
       }
@@ -125,10 +136,53 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
   return count===1?{...verified('oracle-unique-original-source-span'),originalOccurrences:count}:{status:'unverified',reason:'oracle-original-not-unique',occurrences:count};
 }
 
+function verifyResolutionInsertion(text,wording,target,placement) {
+  const label=target.segments.at(-1);
+  if(!label.isNew||label.negative)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  const raw=rawResolutionUnits(text,wording.language);
+  if(raw.reason)return {status:'unverified',reason:raw.reason};
+  const units=raw.units,parents=target.segments.slice(0,-1);
+  const owns=unit=>{
+    let at=units.find(candidate=>candidate.start===unit.parent);
+    for(const wanted of [...parents].reverse()) {
+      if(!at||at.kind!==wanted.kind||at.label!==wanted.value)return false;
+      at=units.find(candidate=>candidate.start===at.parent);
+    }
+    return true;
+  };
+  const kind=label.after?'paragraph':label.kind;
+  if(!['paragraph','recital','citation','point'].includes(kind))return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  const bases=units.filter(unit=>unit.kind===kind&&unit.label===String(label.base)&&owns(unit));
+  if(bases.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  const base=bases[0],family=units.filter(unit=>unit.kind===kind&&unit.parent===base.parent&&unit.group===base.group);
+  const before=suffix=>wording.language==='fr'?suffixOrder(suffix)<suffixOrder(label.suffix):suffix<label.suffix;
+  const preceding=family.filter(unit=>unit.label===String(label.base)||!label.after&&unit.label.startsWith(String(label.base))&&/^[a-zα-ωа-я]+$/u.test(unit.label.slice(String(label.base).length))&&before(unit.label.slice(String(label.base).length)));
+  const anchor=preceding.sort((a,b)=>a.start-b.start).at(-1);
+  if(!anchor?.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+  if(!label.after&&family.some(unit=>unit.label===label.value))return fail('oracle-duplicate-insertion-label');
+  // Independently reject a predecessor that appears after a later-numbered
+  // sibling, even if the placement happened to use that raw extent.
+  const numeric=value=>/^(\d+|[A-ZА-Я]+)([a-zα-ωа-я]*)$/u.exec(value);
+  const position=base=>/^\d+$/u.test(base)?Number(base):ordinal(base);
+  const ordered=family.filter(unit=>numeric(unit.label));
+  for(let i=1;i<ordered.length;i++) {
+    const previous=numeric(ordered[i-1].label),current=numeric(ordered[i].label);
+    if(position(previous[1])>position(current[1])
+      || position(previous[1])===position(current[1])&&suffixOrder(previous[2])>=suffixOrder(current[2]))return fail('oracle-previous-sibling-order');
+  }
+  const next=family.find(unit=>unit.start>anchor.start),nextLabel=next&&numeric(next.label),wanted=position(String(label.base));
+  if(!label.after&&nextLabel&&wanted!=null&&(position(nextLabel[1])<wanted||position(nextLabel[1])===wanted&&suffixOrder(nextLabel[2])<=suffixOrder(label.suffix)))return fail('oracle-next-sibling-order');
+  if(placement.insertBefore!==anchor.end+1||placement.insertAfter!==anchor.end)return fail('oracle-insertion-boundary-mismatch');
+  return verified('oracle-sibling-boundary');
+}
+
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement({placement, wording, items, text, target = parseBenchmarkTarget(wording)}) {
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
+  const expected = expectedOperation(wording);
+  if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
+  if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
   const proposal = items?.[placement.itemIndex]?.proposal;
   if (placement.operation === 'replace' || placement.operation === 'delete') {
     let source, labels = [];
@@ -154,6 +208,7 @@ export function verifyPlacement({placement, wording, items, text, target = parse
     return locationOracle({proposal,text,target,wording,placement,labels});
   }
   if (placement.operation !== 'insert' || !target.complete || !target.segments.length) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  if (!proposal) return verifyResolutionInsertion(text,wording,target,placement);
   const label = target.segments.at(-1), rank = suffixOrder(label.suffix);
   if (!label.isNew || !rank || label.number == null) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   let siblings, anchor, end;
@@ -168,25 +223,22 @@ export function verifyPlacement({placement, wording, items, text, target = parse
     siblings = all.filter(u => u.kind === label.kind && parentKey(u) === parentKey(anchor)).map(u => ({...u, number:u.label?.number, suffix:u.label?.suffix || '', start:u.extent.start}));
     anchor = {...anchor, number:anchor.label?.number, suffix:anchor.label?.suffix || '', start:anchor.extent.start};
     end = anchor.extent.end;
-  } else {
-    if (wording.language !== 'en' || !['paragraph','recital'].includes(label.kind)) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
-    const raw=rawResolutionUnits(text,wording.language);
-    if(raw.reason)return {status:'unverified',reason:raw.reason};
-    const units=raw.units;
-    const split = value => {const match = /^(\d+|[A-Z]+)([a-z]*)$/.exec(value); return match ? {number:/^\d+$/.test(match[1])?Number(match[1]):match[1],suffix:match[2]} : {number:null,suffix:''};};
-    const bases=units.filter(u=>u.kind===label.kind&&u.label===String(label.number));
-    if(bases.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
-    const base=bases[0];
-    siblings=units.filter(u=>u.kind===label.kind&&u.parent===base.parent&&u.group===base.group).map(u=>({...u,...split(u.label)}));
-    const preceding=siblings.filter(u=>u.number===label.number&&suffixOrder(u.suffix)!==null&&suffixOrder(u.suffix)<rank).sort((a,b)=>suffixOrder(a.suffix)-suffixOrder(b.suffix));
-    anchor=preceding.at(-1);
-    if(!anchor||!anchor.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
-    if (target.segments.length !== 1) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
-    end = anchor.end+1;
   }
   // Recital letters are carried as value rather than number by the parser.
   const wanted = label.number;
   if (anchor.number !== wanted || suffixOrder(anchor.suffix) == null || suffixOrder(anchor.suffix) >= rank || anchor.kind !== label.kind) return fail('oracle-anchor-label-mismatch');
+  // A parser-created implicit paragraph must not swallow the publication's
+  // next explicitly styled paragraph. A-10-2026-0069's unstyled article subtitle
+  // otherwise makes paragraphs 1 and 2 look like children of implicit paragraph 1.
+  if(proposal&&wording.language==='en'&&label.kind==='paragraph'&&anchor.implicit&&!anchor.instruction) {
+    const quoted=flatten(proposal.units).filter(unit=>unit.scope==='quoted');
+    for(const row of proposal.paragraphs) {
+      if(row.index<=anchor.start||row.index>=placement.insertBefore||!/^(?:Manual)?NumPar1$/i.test(row.properties?.styleId||''))continue;
+      if(quoted.some(unit=>row.index>=unit.extent.start&&row.index<unit.extent.end))continue;
+      const number=/^\s*(\d+)([a-z]*)[.)]\s/u.exec(row.text);
+      if(number&&(Number(number[1])>wanted||Number(number[1])===wanted&&suffixOrder(number[2])>=rank))return fail('oracle-published-paragraph-boundary-mismatch');
+    }
+  }
   if (placement.insertBefore !== end || placement.insertAfter !== end-1) return fail('oracle-insertion-boundary-mismatch');
   const ordered = siblings.sort((a,b) => a.start-b.start), at = ordered.findIndex(u => u.start === anchor.start);
   if (at < 0 || ordered.some(u => u.number === wanted && u.suffix === label.suffix)) return fail('oracle-duplicate-insertion-label');
@@ -249,12 +301,17 @@ export function compareBaseline(current, baseline, {placementOnly=false}={}) {
   const fingerprint = value => JSON.stringify({sample:value.sample,snapshotId:value.snapshotId,inputs:value.inputs});
   if (fingerprint(current) !== fingerprint(baseline)) throw new Error('Baseline sample/input hashes differ; replay the same frozen cache and sample.');
   const warnings=[];
-  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark.mjs'])if(current.code?.files?.[file]!==baseline.code?.files?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
-  const scope=placementOnly?'placement-only-frozen-projections':'full-pipeline';
+  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark.mjs'])if((current.harness?.files||current.code?.files)?.[file]!== (baseline.harness?.files||baseline.code?.files)?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
+  const replay=current.projectionMode==='cached-source-replay'&&['cached-source-replay','live-projection-comparison'].includes(baseline.projectionMode);
+  const scope=replay?'full-pipeline-cached-sources':placementOnly?'placement-only-frozen-projections':'full-pipeline';
   const refuse=reason=>({scope,failed:true,refused:true,warnings,reason,deltas:{},taxonomyDeltas:[],regressions:[]});
-  if(placementOnly) {
+  if(current.projectionMode!==baseline.projectionMode&&!replay)return refuse('Projection modes differ; create a cached-source baseline for this snapshot.');
+  if(replay) {
+    if(baseline.projectionMode==='live-projection-comparison')warnings.push('Baseline is the recorded live-projection comparison; deltas include switching to cached-source replay.');
+    if(placementOnly)warnings.push('--placement-only is an alias for full cached-source comparison; all producer outcomes are evaluated.');
+  } else if(placementOnly) {
     const before=baseline.code?.producerFingerprint,after=current.code?.producerFingerprint;
-    if(!before?.sha256||!after?.sha256||before.schemaVersion!==2||after.schemaVersion!==2||JSON.stringify(before)!==JSON.stringify(after))return refuse('Source-extraction/projection producers changed or their fingerprints are missing; placement-only comparison is unavailable pending #278.');
+    if(!before?.sha256||!after?.sha256||before.schemaVersion!==2||after.schemaVersion!==2||JSON.stringify(before)!==JSON.stringify(after))return refuse('Source-extraction/projection producers changed or their fingerprints are missing; placement-only comparison requires a new cached-source baseline.');
     for(const report of [baseline,current]) {
       const compatibility=report.compatibility;
       if(typeof compatibility?.compatible!=='boolean'||!Array.isArray(compatibility.mismatches)||!compatibility.compatible&&!compatibility.mismatches.length||compatibility.mismatches.some(m=>m.kind!=='document-context'||!Number.isInteger(m.observed)||m.observed<1||!Number.isInteger(m.expected)||m.expected<1))return refuse('Placement-only mode waives only a recorded document-context wrapper-version mismatch.');

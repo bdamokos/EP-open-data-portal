@@ -169,6 +169,17 @@ test('definition lists and manually dotted amending instructions remain points b
   const units=flat(amended.units);assert.deepEqual(units.filter(unit=>unit.scope==='proposal'&&unit.kind==='point').map(unit=>unit.label.value),['1','2']);assert.equal(units.filter(unit=>unit.kind==='quotation').length,2);assert(!amended.gaps.length);
 });
 
+test('centred bold Normal subtitles keep explicit article paragraphs separate',()=>{
+  const subtitle=text=>`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
+  const parsed=parseProposal(archive(body(p('Article 3','Titrearticle')+subtitle('Suspension')+
+    p('1. The Commission may suspend the application:','ManualNumPar1')+p('(a) First circumstance.','Point1')+
+    p('(b) Second circumstance.','Point1')+p('That implementing act shall apply provisionally.')+
+    p('2. The Commission shall notify the Parliament.','ManualNumPar1')+p('Article 4','Titrearticle'))));
+  const units=flat(parsed.units),one=proposalCandidates(parsed,'Article 3 – paragraph 1')[0],two=proposalCandidates(parsed,'Article 3 – paragraph 2')[0];
+  assert(one);assert(two);assert(!one.implicit);assert.equal(one.extent.start,2);assert.equal(one.extent.end,6);assert.equal(two.extent.start,6);
+  assert(units.some(unit=>unit.kind==='title'&&unit.content.includes(1)));assert.equal(parsed.complete,true);
+});
+
 test('inline quotation slices, article suffixes, indents and stable paths retain original punctuation',()=>{
   const text='(a) paragraph 1 is replaced by the following: ‘1. Quoted text.’;';
   const buffer=archive(body(p('Article 1')+p(text,'Point1')+p('Article 1a')+p('1. Another paragraph.')+p('— first indent')+p('Article 2')));
@@ -292,7 +303,7 @@ test('inline replacement openings retain subsequent paragraphs and articles unti
 test('inner term quotes and apostrophes cannot close the outer replacement',()=>{
   for(const [language,open,close,innerOpen,innerClose] of [
     ['en','‘','’','“','”'],['en','“','”','‘','’'],['de','„','“','‚','‘'],
-    ['fr','«','»','“','”'],['sv','”','”','‘','’'],['pl','„','”','«','»'],
+    ['fr','«','»','“','”'],['sv','”','”','‘','’'],['pl','„','”','«','»'],['hr','„','”','„','”'],
     ['en','"','"',"'","'"],['en',"'","'",'“','”'],
   ]){
     const row=fixture('proposal-language-excerpts.json').languages.find(row=>row.language===language);
@@ -599,6 +610,106 @@ test('target grammar preserves exact spaced suffixes, negative new points and ow
   assert.equal(parseTargetLabel('Article 4 – title').segments.at(-1).kind,'title');
   assert.equal(parseTargetLabel('Article 6 – paragraph 1 – introductory part').segments.at(-1).kind,'introductory-part');
   assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a (new)').segments.at(-1).negative,true);
-  assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a').complete,false);
+  assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a').complete,true);
   const finnish=parseTargetLabel('17 artikla – 1 kohta – -1 alakohta (uusi)','fi');assert.equal(finnish.complete,true);assert.equal(finnish.segments.at(-1).value,'-1');
+});
+
+test('COM(2025)531 keeps quoted points and Text3 Roman instructions in their own scopes',()=>{
+  const example=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='quotation');
+  const parsed=parseProposal(example,example),units=flat(parsed.units),base='Article 2 – paragraph 1 – point 2 – point a';
+  const [a]=proposalCandidates(parsed,base);
+  assert(a.complete);assert.deepEqual(a.children.filter(u=>u.kind==='point').map(u=>u.label.value),['i','ii','iii']);
+  const [second]=proposalCandidates(parsed,base+' – point ii');
+  assert(second.complete);assert.equal(second.extent.start,209-example.sourceParagraphRange.start);
+  assert.equal(second.extent.end,216-example.sourceParagraphRange.start);
+  assert.deepEqual(flat(second.children).filter(u=>u.kind==='point').map(u=>[u.label.value,u.scope]),[['a','quoted'],['b','quoted'],['c','quoted'],['d','quoted']]);
+  assert.equal(proposalCandidates(parsed,'Article 2 – paragraph 1 – point 2 – point b').length,1);
+  assert(!parsed.gaps.some(g=>['duplicate-label','unclosed-quotation','ambiguous-point-level'].includes(g.code)));
+  assert(units.filter(u=>u.kind==='point'&&u.scope==='proposal').every(u=>!u.pathConflict));
+});
+
+test('COM(2025)462 retains the published unnumbered annex and its numbered points',()=>{
+  const example=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='annex');
+  const parsed=parseProposal(example,example),units=flat(parsed.units),annex=units.find(u=>u.kind==='annex');
+  assert(annex);assert.equal(annex.label.raw,'ANNEX');assert.equal(annex.label.value,'');
+  assert.equal(units.filter(u=>u.kind==='recital').length,0);
+  assert.deepEqual(units.filter(u=>u.kind==='point'&&u.scope==='proposal').map(u=>u.label.value),['1','2','3']);
+  assert.equal(units.filter(u=>u.kind==='indent'&&u.path.some(p=>p.kind==='point'&&p.value==='1')).length,9);
+  assert.equal(proposalCandidates(parsed,'Annex I – paragraph 1 – point 1').length,0,'an unnumbered source annex does not acquire an invented Roman number');
+});
+
+test('COM(2025)549 dedents the second subparagraph of Article 13(2) out of point e',()=>{
+  const example=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='continuation');
+  const parsed=parseProposal(example,example),[paragraph]=proposalCandidates(parsed,'Article 13 – paragraph 2');
+  const [point]=proposalCandidates(parsed,'Article 13 – paragraph 2 – point e');
+  assert.equal(point.extent.end,333-example.sourceParagraphRange.start);
+  assert.equal(paragraph.children.at(-1).kind,'subparagraph');
+  assert.deepEqual(paragraph.children.at(-1).content,[333-example.sourceParagraphRange.start]);
+  assert.equal(paragraph.extent.end,334-example.sourceParagraphRange.start);
+});
+
+test('COM(2025)982 and 983 centred titles do not consume subparagraph ordinals or point labels',()=>{
+  for(const name of ['titles-regulation','titles-directive']){
+    const example=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name===name),parsed=parseProposal(example,example);
+    for(const article of [1,2])assert.equal(proposalCandidates(parsed,`Article ${article} – title`).length,1,name+' '+article);
+    const [first]=proposalCandidates(parsed,'Article 1 – paragraph 1');
+    assert.equal(first.children[0].kind,'subparagraph');
+    assert(parsed.paragraphs[first.children[0].content[0]].text.startsWith('The application'));
+    if(name==='titles-directive'){
+      const points=first.children.filter(u=>u.kind==='point');
+      assert.deepEqual(points.map(u=>u.label.value),['a','b','c']);
+      assert.equal(points[0].children.length,1,'unnumbered Point1letter text remains a continuation of point a');
+      assert(parsed.paragraphs[points[1].content[0]].text.includes('Article 17(2)'));
+    }
+  }
+});
+
+test('COM(2025)531 Text2 alphabetic replacement points remain siblings through c and d',()=>{
+  const excerpt=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='alphabetic-text2');
+  const result=parseProposal(excerpt,excerpt),paragraph=flat(result.units).find(u=>u.kind==='paragraph'&&u.scope==='quoted'&&u.label.value==='4a');
+  assert(paragraph);assert.equal(paragraph.extent.start,excerpt.sourceParagraphIndices.indexOf(296));
+  assert.deepEqual(paragraph.children.filter(u=>u.kind==='point').map(u=>u.label.value),['a','b','c','d','e','f']);
+  assert(paragraph.children.filter(u=>u.kind==='point').every(u=>!u.children.some(c=>c.kind==='point')));
+});
+
+test('real Croatian plural insertion, replacement and deletion instructions close replacement scopes',()=>{
+  for(const [name,article,point,ordinal,operation] of [['croatian-delete','2','3',224,'delete'],['croatian-insert','3','7',282,'insert'],['croatian-replace','3','2 – podtočka c',246,'replace']]){
+    const excerpt=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name===name),result=parseProposal(excerpt,excerpt);
+    const candidates=proposalCandidates(result,`Članak ${article} – stavak 1 – točka ${point}`,{language:'hr'});
+    assert.equal(candidates.length,1,name);assert.equal(candidates[0].scope,'proposal');
+    assert.equal(candidates[0].extent.start,excerpt.sourceParagraphIndices.indexOf(ordinal));
+    assert.equal(candidates[0].instruction.operation,operation);
+    assert.equal(instructionOperation(excerpt.paragraphs[excerpt.sourceParagraphIndices.indexOf(ordinal)],'hr'),operation);
+  }
+});
+
+test('Croatian COM(2025)531 closes low-high quotations before dotted Roman outer instructions',()=>{
+  const excerpt=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='croatian-roman-quotations'),result=parseProposal(excerpt,excerpt);
+  const [parent]=proposalCandidates(result,'Članak 2 – stavak 1 – točka 2 – podtočka a',{language:'hr'});
+  assert(parent);assert.deepEqual(parent.children.filter(u=>u.kind==='point').map(u=>u.label.value),['i','ii','iii']);
+  const expected=[['i',205,206,209],['ii',209,210,215],['iii',216,217,218]];
+  for(const [value,instruction,start,end] of expected){
+    const [unit]=proposalCandidates(result,`Članak 2 – stavak 1 – točka 2 – podtočka a – podtočka ${value}`,{language:'hr'});
+    assert(unit);assert.equal(unit.scope,'proposal');assert.equal(unit.extent.start,excerpt.sourceParagraphIndices.indexOf(instruction));
+    const quote=unit.children.find(u=>u.kind==='quotation');assert(quote);
+    assert.deepEqual(quote.extent,{start:excerpt.sourceParagraphIndices.indexOf(start),end:excerpt.sourceParagraphIndices.indexOf(end)});
+    assert(quote.children.every(child=>child.scope==='quoted'));assert(!flat(quote.children).some(child=>child.pathConflict));
+    assert.equal(unit.label.prefix,result.paragraphs[unit.extent.start].text.match(/^[ivxlcdm]+\.\s+/u)[0]);
+  }
+  assert(!result.gaps.some(g=>['duplicate-label','unclosed-quotation'].includes(g.code)));
+  const [b]=proposalCandidates(result,'Članak 2 – stavak 1 – točka 2 – podtočka b',{language:'hr'});
+  const quote=b.children.find(u=>u.kind==='quotation');
+  assert.equal(quote.extent.end,excerpt.sourceParagraphIndices.indexOf(223),'nested term quotations retain the whole replacement through paragraph 7');
+  assert.equal(proposalCandidates(result,'Članak 2 – stavak 1 – točka 3',{language:'hr'}).length,1);
+});
+
+test('COM(2024)23 annex dotted alphabetic siblings retain their complete bullet subtrees',()=>{
+  const excerpt=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='dotted-alphabetic-annex'),result=parseProposal(excerpt,excerpt);
+  const [parent]=proposalCandidates(result,'Annex II – paragraph 1 – point 3');
+  assert(parent);assert.deepEqual(parent.children.filter(u=>u.kind==='point').map(u=>u.label.value),['a','b','c','d','e','f','g','h','i','j']);
+  for(const [value,start,end] of [['d',64,69],['i',91,96],['j',96,101]]){
+    const [unit]=proposalCandidates(result,`Annex II – paragraph 1 – point 3 – point ${value}`);
+    assert(unit);assert(unit.complete);assert.deepEqual(unit.extent,{start:excerpt.sourceParagraphIndices.indexOf(start),end:excerpt.sourceParagraphIndices.indexOf(end)});
+    assert.equal(unit.children.filter(u=>u.kind==='indent').length,4);assert(!unit.children.some(u=>u.kind==='point'));
+  }
 });
