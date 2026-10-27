@@ -101,10 +101,12 @@ const sectionEnds={
   fi:["LIITE", "PERUSTELUT"],
   sv:["BILAGA", "MOTIVERING"],
 };
-const headingKey=value=>normalize(value).replace(/^\d+\.\s*/u,'').replace(/,$/u,'').toLocaleLowerCase('und');
-const resolutionHeading=(value,language)=>headingKey(value)===headingKey(sectionHeadings[language]?.[0]??'');
+const headingKey=value=>normalize(String(value).split(/[\r\n]/u)[0]).replace(/^\d+\.\s*/u,'').replace(/,$/u,'').toLocaleLowerCase('und');
+const resolutionHeading=(value,language)=>headingKey(value)===headingKey(sectionHeadings[language]?.[0]??'')
+  || language==='ga'&&headingKey(value)===headingKey('TAIRISCINT I gCOMHAIR RÚN Ó PHARLAIMINT NA hEORPA');
 export const resolutionSectionHeading=(value,language='en')=>resolutionHeading(value,language)
-  || Boolean(sectionHeadings[language]?.some(heading=>headingKey(value)===headingKey(heading)));
+  || Boolean(sectionHeadings[language]?.some(heading=>headingKey(value)===headingKey(heading)))
+  || language==='ga'&&headingKey(value)===headingKey('TOGRA LE hAGHAIDH CINNEADH Ó PHARLAIMINT NA hEORPA');
 const sectionEnd=(value,language)=>resolutionSectionHeading(value,language)
   || sectionEnds[language]?.some(heading=>{
     const key=headingKey(value),end=headingKey(heading);
@@ -123,9 +125,9 @@ export function motionBodySelection(paragraphs,language) {
   }
   if(sectionHeadings[language]) {
     const sections=[];let hasHeading=false;
-    for(let heading=0;heading<normalized.length;heading++)if(resolutionHeading(normalized[heading],language)) {
+    for(let heading=0;heading<normalized.length;heading++)if(resolutionHeading(paragraphs[heading],language)) {
       hasHeading=true;
-      let end=heading+1;while(end<normalized.length&&!sectionEnd(normalized[end],language))end++;
+      let end=heading+1;while(end<normalized.length&&!sectionEnd(paragraphs[end],language))end++;
       const candidates=starts.filter(start=>start>heading&&start<end);
       // A split contents entry may be an exact heading, but has no opening
       // before the next section. Several openings in one section stay ambiguous.

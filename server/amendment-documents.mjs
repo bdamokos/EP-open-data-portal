@@ -3,7 +3,7 @@ import { docxParts } from './document-text.mjs';
 import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTargetPath } from './amendment-baseline.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='13';
+export const AMENDMENT_EXTRACTION_VERSION='14';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);

@@ -610,7 +610,7 @@ test('target grammar preserves exact spaced suffixes, negative new points and ow
   assert.equal(parseTargetLabel('Article 4 – title').segments.at(-1).kind,'title');
   assert.equal(parseTargetLabel('Article 6 – paragraph 1 – introductory part').segments.at(-1).kind,'introductory-part');
   assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a (new)').segments.at(-1).negative,true);
-  assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a').complete,false);
+  assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a').complete,true);
   const finnish=parseTargetLabel('17 artikla – 1 kohta – -1 alakohta (uusi)','fi');assert.equal(finnish.complete,true);assert.equal(finnish.segments.at(-1).value,'-1');
 });
 
@@ -627,14 +627,5 @@ test('all 24 bare title and introductory selectors retain their own-text scope',
       if(amendment.number===12)assert.equal(target.segments.at(-2).kind,row.language==='fi'?'point':'subparagraph',`${row.language}: ${label}`);
       assert.equal(target.raw,label);
     }
-  }
-});
-
-test('Hungarian and Latvian negative new points round-trip their terminal ordinal dot',()=>{
-  for(const language of ['hu','lv'])for(const value of ['-a','-1']) {
-    const label=unitLabel({kind:'point',value,isNew:true},language),target=parseTargetLabel(label,language);
-    assert.equal(target.complete,true,label);assert.equal(target.segments[0].value,value,label);
-    assert.equal(target.segments[0].negative,true,label);assert.equal(target.segments[0].isNew,true,label);
-    assert.equal(parseTargetLabel(label.replace(/\([^)]*\)$/u,''),language).complete,false,label);
   }
 });

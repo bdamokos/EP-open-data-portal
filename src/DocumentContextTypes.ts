@@ -6,7 +6,7 @@ import type {PublicationDocument} from './explorerTypes';
 export type DocumentContextRequest={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted';onBack:()=>void;backLabel?:string;summary?:ReactNode};
 export type ContextSource={url:string;fetchedAt:string;contentHash:string;stale:boolean;refreshInProgress:boolean;refreshError:string|null;language?:string|null;resolvedSourceUrl?:string;retrievedByteSize?:number;sourceVersion?:{byteSize:number|null;issued:string|null}};
 export type DocumentContextResponse={
-  version:8;
+  version:15;
   baseline?:null|{kind:'commission-proposal';celex:string|null;workId:string|null;language:string;status:string;items:{kind:'act'|'annex';index:number;source:{url:string;resolvedSourceUrl?:string;fetchedAt:string;sha256:string;stale:boolean;refreshError:string|null}}[];gaps:unknown[];attribution:string};
   proposal?:null|{items:{kind:'act'|'annex';index:number;proposal:ProposalDocument}[]};
   documentId:string;

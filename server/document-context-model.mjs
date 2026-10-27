@@ -145,7 +145,7 @@ function publishedTargets(rows) {
     // A sentence beginning "Article 5 applies ..." is not an article heading.
     match = /^\s*Article\s+([1-9]\d{0,5}[a-z]?)(?:\s*$|[ \t]*[\r\n]|\s*[:–—-]\s+)/i.exec(row.value);
     if (match) reference = {kind: 'article', number: match[1].toLowerCase()};
-    match = /^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\))\s+/u.exec(value);
+    match = /^(?:\(([\p{Ll}]{1,4})\)|([\p{Ll}]{1,4})\))\s+/u.exec(value);
     // An observed label still competes for identity when its content is incomplete.
     // Record it before the completeness check prevents selection and further scope.
     if (match && paragraph) reference = {kind: 'point', number: paragraph, point: match[1] || match[2]};
@@ -248,7 +248,7 @@ export const DELETION_MARKERS = Object.freeze([
   'skreśla się', 'svītrots', 'išbraukta', 'välja jäetud', 'imħassar', 'scriosta',
 ]);
 const deletionMarkers = new Set(DELETION_MARKERS);
-export const isDeletionMarker = value => deletionMarkers.has(whitespace(value).normalize('NFC').toLowerCase());
+export const isDeletionMarker = value => deletionMarkers.has(whitespace(value).normalize('NFC').toLowerCase().replace(/\.$/u,''));
 export function amendmentOperation({originalText, proposedText} = {}) {
   if (typeof originalText !== 'string' || typeof proposedText !== 'string') return null;
   if (whitespace(originalText)) return !whitespace(proposedText) || isDeletionMarker(proposedText) ? 'delete' : 'replace';
@@ -310,7 +310,7 @@ function motionStructure(text, language) {
     // Word soft breaks separate a section label from its title inside one
     // paragraph. Inspect that physical line before whitespace normalization.
     const firstLine = headingNormal(whitespace(row.value.split(/[\r\n]/u)[0]));
-    if (row.source.container === 'body' && (resolutionEndPatterns[language]?.test(firstLine) || resolutionSectionHeading(value, language))) {
+    if (row.source.container === 'body' && (resolutionEndPatterns[language]?.test(firstLine) || resolutionSectionHeading(row.value, language))) {
       end = index - 1; endAvailable = row.complete; close(end, !row.complete); break;
     }
     if (row.source.container === 'body' && annexPrefixes[language]?.test(firstLine) && !/[.;!?]$/u.test(firstLine)) {
@@ -323,7 +323,7 @@ function motionStructure(text, language) {
       close(index - 1, true);
       // Incomplete labels still prevent a complete duplicate from claiming identity.
       if (row.source.container === 'body') {
-        const match = /^([1-9]\d{0,5}\s*[a-z]{0,3}|[A-Z]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value);
+        const match = /^([1-9]\d{0,5}\s*[a-z]{0,3}|[\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value);
         if (match) incompleteLabels.add(match[1].replace(/\s/g, ''));
       }
       continue;
@@ -341,12 +341,12 @@ function motionStructure(text, language) {
     let kind, label, level = 1;
     let match = /^([1-9]\d{0,5}\s*[a-z]{0,3})[.)]\s+/u.exec(value);
     if (match) {kind = 'paragraph'; label = match[1].replace(/\s/g, ''); provisionsStarted = true;}
-    else if ((match = /^([A-Z]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value))) {kind = 'recital'; label = match[1]; provisionsStarted = true;}
-    else if ((match = /^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\))\s+/u.exec(value)) && stack.some(unit => unit.kind === 'paragraph')) {kind = 'point'; label = match[1] || match[2]; level = 2;}
+    else if ((match = /^([\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value))) {kind = 'recital'; label = match[1]; provisionsStarted = true;}
+    else if ((match = /^(?:\(([\p{Ll}]{1,4})\)|([\p{Ll}]{1,4})\))\s+/u.exec(value)) && stack.some(unit => unit.kind === 'paragraph')) {kind = 'point'; label = match[1] || match[2]; level = 2;}
     else if (!provisionsStarted && /^[–—−\-•]\s*\S/u.test(value)) {kind = 'citation'; label = String(++citation);}
     // Fill only the absorption gaps. The existing policy for recognised
     // headings is handled separately (and can evolve in the stacked change).
-    else if (selection.multipleOpenings && !recordedHeading && !headingLike(value) && structuralRow(row, formats[index])) {
+    else if (!recordedHeading && !headingLike(value) && structuralRow(row, formats[index])) {
       close(index - 1);
       kind = 'heading'; label = value; level = 0;
     }
@@ -372,12 +372,13 @@ function motionStructure(text, language) {
   close(end);
   // A break taints units still open at that break. Earlier closed children
   // (including provisions under a long section heading) keep their own extent.
+  const extentUncertain = new Set(uncertain);
   const byStart = new Map(units.map(unit => [unit.start, unit]));
   for (const unit of units) for (let parent = byStart.get(unit.parent); parent; parent = byStart.get(parent.parent)) {
     if (invalid.has(parent.start) && unit.end >= parent.end) invalid.add(unit.start);
     if (uncertain.has(parent.start)) uncertain.add(unit.start);
   }
-  return {units, invalid, uncertain, incompleteLabels, certainHeadings, start, end, endAvailable, selection};
+  return {units, invalid, uncertain, extentUncertain, incompleteLabels, certainHeadings, start, end, endAvailable, selection};
 }
 
 /** Inclusive extents from complete, contiguous body rows; source breaks end scope.
@@ -389,26 +390,42 @@ export function segmentMotionUnits(text, language) {
 
 // Only the first (proposal-level) target line selects a provision. Underlying-act
 // lines are deliberately excluded, including their '(new)' annotations.
-export function placementReference(value, language = 'en') {
-  if (language !== 'en' && !/^\s*§/u.test(value || '')) {
-    let target;try {target = parseTargetLabel(value, language);} catch {return null;}
-    if (!target.complete) return null;
-    const [parent, child] = target.segments;
-    if (target.segments.length === 1 && ['paragraph','point'].includes(parent.kind) && parent.number > 0 && parent.number <= 999999)
-      return {kind:'paragraph', label:parent.value, paragraph:parent.value, base:String(parent.number), suffix:parent.suffix};
-    if (target.segments.length === 2 && parent.kind === 'paragraph' && child.kind === 'point' && parent.number > 0)
-      return {kind:'point', label:child.value, paragraph:parent.value, base:String(parent.number), suffix:parent.suffix};
-    return null;
-  }
+export function placementReference(value, language = 'en', proposedText = '') {
   const first = typeof value === 'string' ? value.split(/[\r\n]/)[0] : '';
-  const text = whitespace(first).replace(/\s*\(\s*new\s*\)\s*$/i, '').replace(/\.$/, '');
-  let match = /^(?:paragraph\s+|§\s*)([1-9]\d{0,5})\s*([a-z]{0,3})(?:\s*[,–—-]?\s*point\s+\(?([a-z]{1,4})\)?)?$/i.exec(text);
-  if (match) return {kind: match[3] ? 'point' : 'paragraph', label: match[3] || match[1] + match[2].toLowerCase(), paragraph: match[1] + match[2].toLowerCase(), base: match[1], suffix: match[2].toLowerCase()};
-  match = /^recital\s+([A-Z]{1,3})(?:\s+([a-z]{1,3})|([a-z]{1,3}))?$/.exec(text.replace(/^recital/i, 'recital'));
-  if (match) return {kind: 'recital', label: match[1] + (match[2] || match[3] || ''), base: match[1], suffix: match[2] || match[3] || ''};
-  match = /^citation\s+([1-9]\d{0,5})$/i.exec(text);
-  if (match) return {kind: 'citation', label: match[1]};
-  return null;
+  let text = whitespace(first);
+  // These are published resolution forms, separate from legislative paths.
+  const subheading = language === 'en' && /^Subheading \(new\)\s*(?:[–—-]\s*)?after paragraph (\d+)$/iu.exec(text);
+  if (subheading) return {kind: 'paragraph', label: subheading[1], base: subheading[1], suffix: '', after: true, isNew: true, parents: []};
+  if (language === 'en') text = text.replace(/^§\s*/u, 'Paragraph ').replace(/^Paragraph(?=\d)/iu, 'Paragraph ')
+    .replace(/^Rectial\b/u, 'Recital').replace(/^Paragraph (\d+) \(([a-z]+)\) ([a-z]) (\(new\))$/u, 'Paragraph $1 – point $2 $3 $4');
+  if (language === 'en') text = text.replace(/^(Paragraph\s+\d+\s*[a-z]{0,3})\s*,?\s+point\s+\(?([a-z]{1,4})\)?$/iu, '$1 – point $2');
+  if (language === 'da') text = text.replace(/^Punkt\b/iu, 'Stykke');
+  if (language === 'ro') text = text.replace(/^Punctul\b/iu, 'Paragraful');
+  if (language === 'cs') text = text.replace(/^Bod\b(?!\s+odůvodnění)/iu, 'Odstavec');
+  if (language === 'de') text = text.replace(/^Ziffer\b/iu, 'Absatz');
+  if (language === 'et') text = text.replace(/^Punkt\b/iu, 'Lõige');
+  // Citation ordinals count the published dash-led preambular siblings.
+  const citation = language === 'en' && /^Citation (\d+)(?:\s*([a-z]{1,3}))?(?:\s*\(new\))?$/iu.exec(text);
+  if (citation) return {kind: 'citation', label: citation[1] + (citation[2] || ''), base: citation[1], suffix: citation[2] || '', isNew: /\(new\)/iu.test(text), parents: []};
+  if (language === 'en' && /^\d+\s+[a-z] \(new\)$/u.test(text)) text = 'Paragraph ' + text;
+  let target;
+  try {target = parseTargetLabel(text, language);} catch {return null;}
+  if (!target.complete || target.underlyingLabel || !target.segments.length) return null;
+  const segments = target.segments.map(segment => {
+    let kind = segment.kind;
+    // The source calls these "Recital 6 b" / "Paragraph B a", while the
+    // resolution itself prints operative numbers / recital letters respectively.
+    if (kind === 'recital' && /^\d/u.test(segment.value)
+      && proposedText.trimStart().startsWith(segment.value + '.')) kind = 'paragraph';
+    if (kind === 'paragraph' && /^[\p{Lu}]/u.test(segment.value)) kind = 'recital';
+    return {...segment, kind, label: segment.value};
+  });
+  const last = segments.at(-1);
+  if (!['paragraph', 'recital', 'point'].includes(last.kind) || segments.slice(0,-1).some(s => !['paragraph','point'].includes(s.kind))) return null;
+  const parents = segments.slice(0,-1).map(({kind,label}) => ({kind,label}));
+  if (last.kind === 'point' && parents[0]?.kind !== 'paragraph') return null;
+  return {kind: last.kind, label: last.value, base: last.base ?? (last.number != null ? String(last.number) : last.suffix ? last.value.slice(0,-last.suffix.length) : last.value), suffix: last.suffix, isNew: last.isNew,
+    ...(last.negative ? {negative: true} : {}), parents, ...(parents.length ? {paragraph: parents[0].label} : {})};
 }
 // Match the proposal alignment's typographic folding while retaining every
 // punctuation mark; its full normalizer also removes boundary terminators.
@@ -453,15 +470,35 @@ export function resolveAmendmentPlacement(text, options = {}) {
       || headings.length && headings.every(heading => label(heading.left?.raw)))) return unresolved('baseline_unavailable');
     evidence.push({basis: 'published-resolution-section', heading: structure.selection.heading, opening: structure.start});
   }
-  const ref = placementReference(options.targetLabel, options.language);
-  const matching = reference => units.filter(unit => unit.kind === reference.kind && unit.label === reference.label &&
-    (reference.kind !== 'point' || units.find(parent => parent.start === unit.parent)?.label === reference.paragraph));
+  const ref = placementReference(options.targetLabel, options.language, options.proposedText);
+  const parentMatches = (unit, reference) => {
+    if (reference.kind !== 'point') return true;
+    let parent = units.find(candidate => candidate.start === unit.parent);
+    for (const wanted of [...(reference.parents || [{kind: 'paragraph', label: reference.paragraph}])].reverse()) {
+      if (!parent || parent.kind !== wanted.kind || parent.label !== wanted.label) return false;
+      parent = units.find(candidate => candidate.start === parent.parent);
+    }
+    return true;
+  };
+  const matching = reference => units.filter(unit => unit.kind === reference.kind && unit.label === reference.label && parentMatches(unit, reference));
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
   const span = unit => ({start: unit.start, end: unit.end});
   if (operation === 'insert') {
-    if (!ref || !ref.suffix || !['paragraph', 'recital'].includes(ref.kind)) return unresolved('insertion_reference_unavailable');
-    if (matching(ref).length) return unresolved('duplicate_target_label');
-    const siblings = units.filter(unit => unit.kind === ref.kind && (unit.label === ref.base || unit.label.startsWith(ref.base) && /^[a-z]+$/.test(unit.label.slice(ref.base.length)) && unit.label.slice(ref.base.length) < ref.suffix));
+    if (!ref || ref.negative || (!ref.suffix && !ref.after) || !['paragraph', 'recital', 'point', 'citation'].includes(ref.kind)) return unresolved('insertion_reference_unavailable');
+    if (!ref.after && matching(ref).length) return unresolved('duplicate_target_label');
+    if (ref.kind === 'point') {
+      const path = ref.parents || [], parent = path.at(-1);
+      const candidates = units.filter(unit => unit.kind === parent?.kind && unit.label === parent.label
+        && (path.length === 1 || parentMatches({...unit, kind: 'point'}, {...ref, parents: path.slice(0,-1)})));
+      if (candidates.length !== 1) return unresolved(candidates.length ? 'multiple_published_targets' : 'parent_target_not_found');
+    }
+    const rank = suffix => {
+      const latin = ['bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
+      if (options.language === 'fr' && (!suffix || latin.includes(suffix))) return suffix ? latin.indexOf(suffix) + 1 : 0;
+      return /^[a-z]{0,3}$/u.test(suffix) ? suffix : null;
+    };
+    const siblings = units.filter(unit => unit.kind === ref.kind && parentMatches(unit, ref)
+      && (unit.label === ref.base || !ref.after && unit.label.startsWith(ref.base) && rank(unit.label.slice(ref.base.length)) !== null && rank(unit.label.slice(ref.base.length)) < rank(ref.suffix)));
     if (!siblings.some(unit => unit.label === ref.base)) return unresolved('relative_target_not_found');
     const ordered = siblings.sort((a, b) => a.start - b.start), anchor = ordered.at(-1);
     if (new Set(siblings.map(unit => unit.label)).size !== siblings.length || siblings.some(unit => unit.parent !== anchor.parent)) return unresolved('multiple_published_targets');
@@ -469,18 +506,30 @@ export function resolveAmendmentPlacement(text, options = {}) {
     if (referenceText) {
       const relative = parseReference(referenceText);
       // Independent decision evidence may name the unsuffixed parent (After §19).
-      if (!relative || relative.relation !== 'after' || relative.kind !== ref.kind || (relative.number ?? relative.letter) !== ref.base) return unresolved('conflicting_target_evidence');
+      if (!relative || relative.relation !== 'after' || relative.kind !== ref.kind || (ref.kind === 'point' ? relative.point !== ref.base || relative.number !== ref.paragraph : (relative.number ?? relative.letter) !== ref.base)) return unresolved('conflicting_target_evidence');
       evidence.push({basis: 'relative-reference', reference: referenceText});
     }
+    // An ordinal citation also needs the complete preceding preamble: a lost
+    // dash item would renumber every later citation.
+    if (ref.kind === 'citation' && !complete(structure.start, anchor.end)) return unresolved('source_passage_incomplete');
     if (structure.invalid.has(anchor.start) || structure.incompleteLabels.has(anchor.label) || !complete(anchor.start, anchor.end)) return unresolved('source_passage_incomplete');
-    if (structure.uncertain.has(anchor.start)) return unresolved('resolution_extent_uncertain');
+    if (structure.uncertain.has(anchor.start) && !(anchor.kind === 'point'
+      && !structure.extentUncertain.has(anchor.start)
+      && complete(anchor.parent, anchor.end))) return unresolved('resolution_extent_uncertain');
     if (anchor.end === structure.end && !structure.endAvailable) return unresolved('resolution_end_unavailable');
     // Check the other side of the insertion independently of the anchor's
     // extent: it must be the verified heading, the next sibling, or a body end.
     const nextIndex = anchor.end + 1, next = rows[nextIndex];
     const nextSibling = units.find(unit => unit.start === nextIndex && unit.level === anchor.level && unit.parent === anchor.parent);
+    // The final point can end with its parent paragraph. The following
+    // paragraph independently verifies that parent's closing boundary.
+    const parent = units.find(unit => unit.start === anchor.parent);
+    const afterParent = parent?.kind === 'paragraph' && parent.end === anchor.end
+      && !structure.invalid.has(parent.start) && !structure.uncertain.has(parent.start)
+      && complete(parent.start, parent.end) && units.some(unit => unit.start === nextIndex
+        && unit.kind === parent.kind && unit.level === parent.level && unit.parent === parent.parent);
     if (resolutionSeparator(rows[anchor.end].value) || !next?.complete || !consecutive(rows[anchor.end], next)
-      || !(structure.certainHeadings.has(nextIndex) || nextSibling || units.some(unit => unit.start === nextIndex && unit.kind === 'heading') || anchor.end === structure.end && structure.endAvailable))
+      || !(structure.certainHeadings.has(nextIndex) || nextSibling || afterParent || units.some(unit => unit.start === nextIndex && unit.kind === 'heading') || anchor.end === structure.end && structure.endAvailable))
       return unresolved('resolution_extent_uncertain');
     return placed({insertAfter: anchor.end, insertBefore: anchor.end + 1});
   }

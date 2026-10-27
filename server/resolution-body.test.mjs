@@ -19,12 +19,23 @@ test('all 24 public discharge headings select only the resolution between decisi
     assert.equal(motionBodySelection(paragraphs,language).start,expected,language);
     assert(resolutionSectionHeading(decisionHeading,language),language);
     assert(!resolutionSectionHeading(decisionHeading+'\t3',language),language);
-    const options={language,targetLabel:'§ 1',baseline:'motion-resolution',baselineSource:{conflicted:false,headings:[{left:{raw:COMPARISON_HEADINGS[language]['motion-resolution']}}]},originalText:'Resolution wording;',proposedText:'Changed wording;'};
+    const options={language,baseline:'motion-resolution',baselineSource:{conflicted:false,headings:[{left:{raw:COMPARISON_HEADINGS[language]['motion-resolution']}}]},originalText:'1. Resolution wording;',proposedText:'Changed wording;'};
     const placed=resolveAmendmentPlacement(text(paragraphs),options);
     assert.equal(placed.status,'placed',language+': '+placed.reason);
     assert.deepEqual(placed.span,{start:expected+2,end:expected+2},language);
-    assert.equal(resolveAmendmentPlacement(text(paragraphs),{...options,originalText:'Decision wording;'}).status,'unresolved',language);
+    assert.equal(resolveAmendmentPlacement(text(paragraphs),{...options,originalText:'1. Decision wording;'}).status,'unresolved',language);
     assert.equal(resolveAmendmentPlacement(text(paragraphs),{...options,documentReferences:[{field:'DocAmend',raw:'Proposal for a decision'}]}).status,'unresolved',language);
     assert.equal(motionBodySelection([...decision,...resolution,...resolution],language).start,-1,language);
   }
 });
+
+for(const example of JSON.parse(readFileSync(new URL('./fixtures/resolution-language-insertions.json',import.meta.url)))) {
+  test(`same public amendment 3 inserts before the next heading in ${example.language}`,()=>{
+    const placed=resolveAmendmentPlacement(example.text,example.options);
+    assert.equal(placed.status,'placed',placed.reason);
+    assert.equal(placed.insertAfter,example.expectedInsertAfter);
+    assert.equal(placed.insertBefore,example.expectedInsertAfter+1);
+    assert.match(example.text.paragraphs[placed.insertAfter],/^68[.)]\s/u);
+    assert(!example.text.paragraphs[placed.insertBefore].startsWith('68'));
+  });
+}
