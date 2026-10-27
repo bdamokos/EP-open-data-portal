@@ -1,6 +1,7 @@
 import {retainDemographicRecord,retainDemographicAttempt,retainRosterAttempt,demographicPerson} from './demographic-metadata.mjs';
 import {cataloguePage,acquisitionMode,observeSource,finishAvailabilityWrite} from './availability-history.mjs';
 import {groupHistoryTask,scheduleGroupHistory} from './group-history.mjs';
+import {groupHistoryRepairDue,scheduleGroupHistoryRepair} from './group-history-repair.mjs';
 import {runHistoryReadiness,publishMissingHistory} from './history-readiness.mjs';
 import {membershipTask,scheduleMembership} from './following-membership.mjs';
 import { booleanFromEnvironment, integerFromEnvironment, absolutePathFromEnvironment } from './config.mjs';
@@ -87,7 +88,7 @@ export class ActivityWorker {
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;
   }
-  coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
+  coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.repairOnStartup&&groupHistoryRepairDue(this.store) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
@@ -630,6 +631,7 @@ export class ActivityWorker {
         this.checkpointContinuations(active);
       }
       const cycle=this.coreDue()?this.store.beginCycle():null,generation=cycle?.generation || active;
+      if(cycle)scheduleGroupHistoryRepair(this.store,generation);
       prepareAmendmentParserUpgrade(this,generation);
       for(const row of this.store.db.prepare('SELECT sitting_id FROM sitting_refresh WHERE generation=? AND next_check<=? ORDER BY next_check,sitting_id LIMIT 100').all(generation,this.clock())) {
         const delay=this.clock()<Date.parse(sittingConfirmationDay(row.sitting_id))?6*60*60_000:7*DAY;
@@ -745,6 +747,7 @@ export function latestActivities(id,params) {
 export function startActivityIndex() {
   if(!booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))return ()=>{};
   const {worker}=activityIndex();
+  worker.repairOnStartup=true;
   const run=()=>worker.run().catch(e=>console.error('[activity-index]',e.message));
   const timer=setInterval(run,30_000);timer.unref();void run();
   return ()=>{clearInterval(timer);worker.stop();};
