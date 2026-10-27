@@ -11,7 +11,7 @@ import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION } from './amendments.mjs';
 import { amendmentsPage, enqueueAmendment, nextAmendmentTask } from './amendments-store.mjs';
-import { amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, failAmendmentTask, prepareAmendments, rebuildAmendmentTarget, scheduleAmendments } from './amendments-worker.mjs';
+import { amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, failAmendmentTask, prepareAmendments, rebuildAmendmentTarget, scheduleAmendments, AMENDMENT_PARSER_DOWNLOAD_PACE, amendmentParserDownloadsKey } from './amendments-worker.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 
@@ -83,7 +83,7 @@ function extractionJob(store,generation) {
 
 async function fixture(t,{byteSize,baseline=true,initialDistribution='available',explicitNullSize=false}={}) {
   const directory=mkdtempSync(path.join(os.tmpdir(),'amendment-freshness-'));
-  let now=Date.parse(oldRetrievedAt),detail,downloads=0;
+  let now=Date.parse(oldRetrievedAt),mono=0,detail,downloads=0;
   const store=new ActivityStore(directory,{clock:()=>now});
   assert(store.acquire());
   const {generation}=store.beginCycle();
@@ -95,7 +95,7 @@ async function fixture(t,{byteSize,baseline=true,initialDistribution='available'
     work_type:'def/ep-document-types/REPORT_PLENARY',document_date:documentDate,title_dcterms:{en:'Public implementation report'},
     inverse_created_a_realization_of:['eli/dl/proc/2025-0233'],inverse_foresees_change_of:[detail.id],
     inverse_based_on_a_realization_of:['eli/dl/event/'+sittingId+'-VOT-ITM-123']};
-  const worker=new ActivityWorker(store,{runUpstream:unthrottledUpstream,clock:()=>now,
+  const worker=new ActivityWorker(store,{runUpstream:unthrottledUpstream,clock:()=>now,monotonic:()=>mono,
     fetchRecord:async endpoint=>{
       assert.equal(endpoint,'/documents/'+listId,'Unexpected network request in isolated amendment freshness test.');
       return {fetchedAt:new Date(now).toISOString(),payload:{data:[detail]}};
@@ -135,7 +135,9 @@ async function fixture(t,{byteSize,baseline=true,initialDistribution='available'
   } else assert.equal(downloads,0);
   return {store,worker,generation,descriptor,target,
     at:()=>new Date(now).toISOString(),
-    advance:milliseconds=>{now+=milliseconds;assert(store.acquire());},
+    advance:milliseconds=>{now+=milliseconds;mono+=Math.max(0,milliseconds);assert(store.acquire());},
+    // Moves only the wall clock; monotonic time keeps running forward.
+    shiftWallClock:milliseconds=>{now+=milliseconds;},
     async reverify(nextDescriptor,{date=correctedListDate}={}) {
       now+=1000;assert(store.renew());detail=listDetail(nextDescriptor,date);
       // This expanded observation omits the forward relation/type. It changes
@@ -651,17 +653,169 @@ test('parser recovery downloads an expired or changed source and respects its bo
       const saved=store.source(generation,listKey);
       store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,url:newUrl}]}},saved.fetchedAt);
     }
-    if(mode==='cold-limit'){context.advance(8*86400000);worker.amendmentParserDownloads=4;}
+    if(mode==='cold-limit'){context.advance(8*86400000);store.set(amendmentParserDownloadsKey,Array.from({length:AMENDMENT_PARSER_DOWNLOAD_PACE.downloads},(_,i)=>({at:store.clock()-(AMENDMENT_PARSER_DOWNLOAD_PACE.downloads-1-i)*1000})));}
     let downloads=0;worker.downloadAmendmentDocx=async url=>{assert.equal(url,mode==='changed'?newUrl:oldUrl);downloads++;return {buffer:amendmentDocx(freshProposed)};};
     prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
     await worker.task(nextAmendmentTask(store,generation));
     if(mode==='cold-limit') {
       assert.equal(downloads,0);assert.equal(extractionJob(store,generation).done,0);assert.equal(extractionJob(store,generation).attempts,0);
-      assert.equal(extractionJob(store,generation).retry_at,store.clock()+30*60_000);
-      context.advance(30*60_000);worker.amendmentParserDownloads=0;await worker.task(nextAmendmentTask(store,generation));
+      // The job waits only until the oldest paced download leaves the window.
+      const slot=store.clock()-(AMENDMENT_PARSER_DOWNLOAD_PACE.downloads-1)*1000+AMENDMENT_PARSER_DOWNLOAD_PACE.windowMs;
+      assert.equal(extractionJob(store,generation).retry_at,slot);
+      assert.equal(nextAmendmentTask(store,generation),null);
+      context.advance(slot-store.clock());await worker.task(nextAmendmentTask(store,generation));
     }
     assert.equal(downloads,1);assert.equal(store.source(generation,listKey).work.extraction.amendments[0].proposedText,freshProposed);
   }
+});
+
+// Stale lists whose extraction jobs run through the real admission and source-queue path.
+function staleLists(context,count) {
+  const {store,worker,generation,descriptor}=context,saved=store.source(generation,listKey),report=store.source(generation,targetKey);
+  const ids=Array.from({length:count},(_,i)=>targetId+'-AM-'+String(i+2).padStart(3,'0')+'-'+String(i+2).padStart(3,'0')),buffers=new Map(),downloads=[];
+  for(const [index,id] of ids.entries()) {
+    const url='https://data.europarl.europa.eu/distribution/example/'+id+'_en.docx',buffer=amendmentDocx(freshProposed,'Alex Common',index+2);buffers.set(url,buffer);
+    const work=JSON.parse(JSON.stringify(saved.work).replaceAll(listId,id).replaceAll(descriptor.url,url));
+    work.extraction.parserVersion='10';work.extraction.amendments=work.extraction.amendments.map(amendment=>({...amendment,number:index+2}));
+    work.distributionEvidence.descriptors[0].byteSize=buffer.length;work.extraction.sourceDescriptor.byteSize=buffer.length;
+    store.putSource(generation,'amendment:list:'+id,'amendment-list',work,saved.fetchedAt);
+  }
+  store.putSource(generation,targetKey,'document',{...report.work,inverse_foresees_change_of:[...[report.work.inverse_foresees_change_of].flat().filter(Boolean),...ids.map(id=>'eli/dl/doc/'+id)]},report.fetchedAt);
+  worker.downloadAmendmentDocx=async url=>{assert(buffers.has(url));downloads.push({url,at:store.clock()});return {buffer:buffers.get(url)};};
+  const extract=async(id,target=worker)=>{
+    const key='amendment:extract:'+id;
+    enqueueAmendment(target.store,generation,key,'amendment-extract',{listId:id,targetDocumentId:targetId,parserUpgrade:true},112,true);
+    const row=target.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
+    await target.task({...row,body:JSON.parse(row.body),amendmentJob:true});
+    return target.store.db.prepare('SELECT done,retry_at FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
+  };
+  return {ids,downloads,extract};
+}
+const pace=AMENDMENT_PARSER_DOWNLOAD_PACE;
+
+test('parser download pacing survives a worker restart and a writer handoff',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;context.advance(8*86400000);
+  const {ids,downloads,extract}=staleLists(context,6);
+  for(const id of ids.slice(0,pace.downloads))assert.equal((await extract(id)).done,1);
+  assert.equal(downloads.length,pace.downloads);
+  // A new worker in the same process has its own monotonic clock.
+  const restarted=new ActivityWorker(store,{runUpstream:unthrottledUpstream,clock:()=>store.clock(),monotonic:()=>0,downloadAmendmentDocx:worker.downloadAmendmentDocx});
+  context.advance(60_000);
+  const deferred=await extract(ids[4],restarted);
+  assert.equal(downloads.length,pace.downloads);assert.equal(deferred.done,0);
+  assert.equal(deferred.retry_at,downloads[0].at+pace.windowMs);
+  // A handoff opens the same database through a separate store and lease.
+  store.release();
+  const other=new ActivityStore(path.dirname(store.filename),{clock:()=>store.clock()});t.after(()=>other.close());
+  assert(other.acquire());
+  const successor=new ActivityWorker(other,{runUpstream:unthrottledUpstream,clock:()=>other.clock(),monotonic:()=>0,downloadAmendmentDocx:worker.downloadAmendmentDocx});
+  assert.equal((await extract(ids[5],successor)).done,0);assert.equal(downloads.length,pace.downloads);
+  context.shiftWallClock(pace.windowMs-60_000);assert(other.acquire());
+  assert.equal((await extract(ids[5],successor)).done,1);assert.equal(downloads.length,pace.downloads+1);
+  assert(other.get(amendmentParserDownloadsKey).length<=pace.downloads,'The persisted history stays bounded.');
+});
+
+test('parser download pacing debits when a queued download starts',async t=>{
+  const context=await fixture(t),{worker}=context;context.advance(8*86400000);
+  const {ids,downloads,extract}=staleLists(context,5);
+  // The source queue holds the first operation through a cooldown longer than the window.
+  let delayed=false;
+  worker.runUpstream=async(operation)=>{if(!delayed){delayed=true;context.advance(pace.windowMs+1000);}return operation(new AbortController().signal);};
+  for(const id of ids)await extract(id);
+  assert.equal(downloads.length,pace.downloads);
+  assert(downloads.every(download=>download.at===downloads[0].at),'All admitted downloads started after the queue delay.');
+  const sorted=downloads.map(download=>download.at).sort((a,b)=>a-b);
+  for(let index=pace.downloads;index<sorted.length;index++)assert(sorted[index]-sorted[index-pace.downloads]>=pace.windowMs);
+});
+
+// Holds queued source operations until the test opens the gate.
+function gatedUpstream(worker,expected) {
+  let open,arrived=0,reached;
+  const gate=new Promise(resolve=>{open=resolve;}),ready=new Promise(resolve=>{reached=resolve;});
+  worker.runUpstream=async operation=>{if(++arrived===expected)reached();await gate;return operation(new AbortController().signal);};
+  return {ready,open};
+}
+
+test('concurrently queued parser downloads cannot both take the last pacing slot',async t=>{
+  const context=await fixture(t),{worker}=context;context.advance(8*86400000);
+  const {ids,downloads,extract}=staleLists(context,pace.downloads+1);
+  for(const id of ids.slice(0,pace.downloads-1))assert.equal((await extract(id)).done,1);
+  const upstream=gatedUpstream(worker,2);
+  // Both jobs pass the queue-time check with one slot left.
+  const pending=[extract(ids[pace.downloads-1]),extract(ids[pace.downloads])];
+  await upstream.ready;upstream.open();
+  const results=await Promise.all(pending);
+  assert.equal(downloads.length,pace.downloads);
+  assert.deepEqual(results.map(result=>result.done).sort(),[0,1]);
+  assert.equal(results.find(result=>result.done===0).retry_at,downloads[0].at+pace.windowMs);
+});
+
+test('a parser download queued across writer-lease loss neither downloads nor records pacing',async t=>{
+  const context=await fixture(t),{store,worker}=context;context.advance(8*86400000);
+  const {ids,downloads,extract}=staleLists(context,1);
+  const before=store.get(amendmentParserDownloadsKey) ?? null;
+  const upstream=gatedUpstream(worker,1),pending=extract(ids[0]);
+  await upstream.ready;
+  // The lease expires while the download waits, and another writer takes over.
+  context.shiftWallClock(91_000);
+  const other=new ActivityStore(path.dirname(store.filename),{clock:()=>store.clock()});t.after(()=>other.close());
+  assert(other.acquire());
+  upstream.open();
+  await assert.rejects(pending,/writer lease was lost/);
+  assert.equal(downloads.length,0);
+  assert.deepEqual(other.get(amendmentParserDownloadsKey) ?? null,before);
+});
+
+test('parser download pacing is conservative when the wall clock moves backward',async t=>{
+  const context=await fixture(t),{store,worker}=context;context.advance(8*86400000);
+  const {ids,downloads,extract}=staleLists(context,6);
+  for(const id of ids.slice(0,pace.downloads))await extract(id);
+  assert.equal(downloads.length,pace.downloads);
+  context.shiftWallClock(-1000);
+  assert.equal((await extract(ids[4])).done,0);assert.equal(downloads.length,pace.downloads);
+  // Persisted timestamps read by another worker are clamped, not discarded.
+  const restarted=new ActivityWorker(store,{runUpstream:unthrottledUpstream,clock:()=>store.clock(),monotonic:()=>0,downloadAmendmentDocx:worker.downloadAmendmentDocx});
+  assert.equal((await extract(ids[5],restarted)).done,0);assert.equal(downloads.length,pace.downloads);
+  assert(store.get(amendmentParserDownloadsKey).every(entry=>entry.at<=store.clock()));
+  // Monotonic time alone frees this worker's own slots after the window.
+  context.advance(pace.windowMs);context.shiftWallClock(-pace.windowMs);
+  assert.equal((await extract(ids[4])).done,1);assert.equal(downloads.length,pace.downloads+1);
+});
+
+test('a target rebuild rewrites only amendment rows whose stored projection changed',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;
+  const saved=store.source(generation,listKey),second={...saved.work.extraction.amendments[0],number:2,originalText:'Second original.',proposedText:'Second proposal.'};
+  store.putSource(generation,listKey,'amendment-list',{...saved.work,extraction:{...saved.work.extraction,amendments:[...saved.work.extraction.amendments,second]}},saved.fetchedAt);
+  rebuildAmendmentTarget(worker,generation,targetId,{discover:false});
+  store.db.exec('CREATE TEMP TABLE amendment_writes(id TEXT)');
+  store.db.exec('CREATE TEMP TRIGGER amendment_write_count AFTER INSERT ON main.amendments BEGIN INSERT INTO amendment_writes VALUES (NEW.id); END');
+  const writes=()=>store.db.prepare('SELECT id FROM amendment_writes ORDER BY id').all().map(row=>row.id);
+  rebuildAmendmentTarget(worker,generation,targetId,{discover:false});
+  assert.deepEqual(writes(),[]);
+  const current=store.source(generation,listKey);
+  store.putSource(generation,listKey,'amendment-list',{...current.work,extraction:{...current.work.extraction,amendments:current.work.extraction.amendments.map(amendment=>amendment.number===2?{...amendment,proposedText:'Second corrected proposal.'}:amendment)}},current.fetchedAt);
+  rebuildAmendmentTarget(worker,generation,targetId,{discover:false});
+  assert.deepEqual(writes(),[targetId+'-AM-2']);
+  const page=amendmentsPage(store,{document:targetId});
+  assert.deepEqual(page.items.map(item=>[item.number,item.proposedText]).sort(),[[1,oldProposed],[2,'Second corrected proposal.']]);
+  // Each projected change writes exactly its rows, and the following unchanged
+  // rebuild writes none.
+  const both=[targetId+'-AM-1',targetId+'-AM-2'];
+  const change=(label,update,expected,check)=>{
+    store.db.exec('DELETE FROM amendment_writes');
+    const list=store.source(generation,listKey);store.putSource(generation,listKey,'amendment-list',update(structuredClone(list.work)),list.fetchedAt);
+    rebuildAmendmentTarget(worker,generation,targetId,{discover:false});
+    assert.deepEqual(writes(),expected,label);
+    const record=amendmentsPage(store,{document:targetId}).items.find(item=>item.number===2);check?.(record);
+    store.db.exec('DELETE FROM amendment_writes');rebuildAmendmentTarget(worker,generation,targetId,{discover:false});
+    assert.deepEqual(writes(),[],label+' settles');
+  };
+  const later='2026-10-17T09:00:00.000Z';
+  change('retrieval date',work=>{work.extraction.fetchedAt=later;work.extraction.amendments=work.extraction.amendments.map(amendment=>({...amendment,wordingSource:{...amendment.wordingSource,fetchedAt:later}}));return work;},both,record=>assert.equal(record.wordingSource.fetchedAt,later));
+  change('freshness',work=>{work.distributionEvidence.descriptors[0].byteSize+=1;work.files=work.files.map(file=>file.format==='DOCX'?{...file,byteSize:file.byteSize+1}:file);return work;},both,record=>assert.equal(record.sourceFreshness.status,'pending'));
+  change('gaps',work=>{work.extraction.amendments=work.extraction.amendments.map(amendment=>amendment.number===2?{...amendment,gaps:[...(amendment.gaps || []),'A fixture gap.']}:amendment);return work;},[targetId+'-AM-2'],record=>assert(record.gaps.includes('A fixture gap.')));
+  change('retained flags',work=>{work.extraction.amendments=work.extraction.amendments.map(amendment=>amendment.number===2?{...amendment,proposerRetained:true}:amendment);return work;},[targetId+'-AM-2'],record=>assert.equal(record.proposerRetained,true));
+  change('missing row',work=>{work.extraction.amendments=work.extraction.amendments.filter(amendment=>amendment.number!==2);return work;},[targetId+'-AM-2'],record=>assert(record.gaps.includes('Source was absent from the latest partial refresh.')));
 });
 
 test('verified parser-upgrade metadata survives extraction admission pressure without another source request',async t=>{
@@ -705,7 +859,7 @@ for(const migration of [true,false])test('an alternate byline deferred by the re
   worker.requests=0;worker.budget=1;await worker.task(nextAmendmentTask(store,generation));
   assert.deepEqual(downloads,[oldUrl]);assert.equal(worker.requests,1);assert.equal(extractionJob(store,generation).done,0);
   assert.equal(store.source(generation,listKey).work.extraction.parserVersion,migration?'10':AMENDMENT_EXTRACTION_VERSION);
-  context.advance(30*60_000);worker.requests=0;worker.budget=2;worker.amendmentParserDownloads=0;
+  context.advance(30*60_000);worker.requests=0;worker.budget=2;
   await worker.task(nextAmendmentTask(store,generation));
   assert.deepEqual(downloads,[oldUrl,newUrl]);assert.equal(worker.requests,1);assert.equal(extractionJob(store,generation).done,1);
   assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
