@@ -7,6 +7,8 @@ import { EventEmitter } from 'node:events';
 import { AMENDMENT_EXTRACTION_VERSION, extractAmendments } from './amendment-documents.mjs';
 import { docxParts, downloadDocxBuffer, downloadDocx } from './document-text.mjs';
 import { amendmentDownloads } from './amendments-worker.mjs';
+import {amendmentOperation,resolveAmendmentPlacement} from './document-context-model.mjs';
+import {resolveProposalPlacement} from './proposal-placement.mjs';
 
 // In-memory ZIPs keep tests offline while exercising the shared bounded reader.
 function archive(documentXml,stylesXml='',extra={}) {
@@ -28,6 +30,18 @@ const cell=(...paragraphs)=>`<w:tc>${paragraphs.join('')}</w:tc>`;
 const row=(...cells)=>`<w:tr>${cells.join('')}</w:tr>`;
 const table=(...rows)=>`<w:tbl>${row(cell(p('Motion for a resolution')),cell(p('Amendment')))}${rows.join('')}</w:tbl>`;
 const body=text=>`<w:document xmlns:w="urn:word"><w:body>${text}</w:body></w:document>`;
+
+test('extractor preserves published localized deletion cells for both placement paths',()=>{
+  const {examples}=JSON.parse(readFileSync(new URL('./fixtures/amendment-operation-excerpts.json',import.meta.url)));
+  for(const {language,deletion} of examples) {
+    const xml=body(p('<Amend><NumAm>5</NumAm>')+p('<Article>Recital 13</Article>')+table(row(cell(p(deletion.originalText)),cell(p(deletion.proposedText))))+p('</Amend>'));
+    const [amendment]=extractAmendments(archive(xml),{language,listId:'A-10-2025-0150-AM-001-129'}).amendments;
+    assert.equal(amendment.proposedText,deletion.proposedText,language);
+    assert.equal(amendmentOperation(amendment),'delete',language);
+    assert.equal(resolveProposalPlacement([],amendment).operation,'delete',language);
+    assert.equal(resolveAmendmentPlacement(null,amendment).operation,'delete',language);
+  }
+});
 const metadata=(number=1,{author='Bruno Gonçalves',date='2.10.2026',target='Paragraph 1'}={})=>p(`<Amend><Date>${date}</Date><NumAm>${number}</NumAm>`)+p(`<Members>${author}</Members>`)+p(`<Article>${target}</Article>`);
 const options={listId:'B-10-2026-0424-AM-001-001',targetDocumentId:'B-10-2026-0424',language:'en',sourceUrl:'https://data.europarl.europa.eu/distribution/example/amendment_en.docx',fetchedAt:'2026-10-16T17:15:00Z'};
 
