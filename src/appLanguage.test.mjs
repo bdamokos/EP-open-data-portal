@@ -41,8 +41,8 @@ function exactText(container,selector,text) {
   const node=[...container.querySelectorAll(selector)].find(node=>node.textContent===text);
   assert(node,'Missing '+selector+': '+text);return node;
 }
-async function harness(t,language,{items=speeches,query={},linkedDocument,speechResponse}={}) {
-  const window=new Window({url:'http://localhost/?'+new URLSearchParams({lang:language,...query})}),unexpected=[],requests=[];
+async function harness(t,language,{items=speeches,query={},linkedDocument,speechResponse,pathname='/'}={}) {
+  const window=new Window({url:'http://localhost'+pathname+'?'+new URLSearchParams({lang:language,...query})}),unexpected=[],requests=[];
   class ReaderDOMParser extends window.DOMParser {
     parseFromString(...args) {
       const parsed=super.parseFromString(...args),query=parsed.getElementsByTagNameNS.bind(parsed);
@@ -94,6 +94,27 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
   await act(async()=>root.render(createElement(App)));
   const click=node=>{assert(node,'Missing control');return act(async()=>node.click());};
   return {window,container,click,requests,tick,wait:()=>tick(350)};
+}
+
+for(const pathname of ['//attacker.example/','/browser/mep-speeches-poc/index.html']) {
+  test('rendered publication author links retain origin and document path at '+pathname,async t=>{
+    const result=documentResult(questionId);
+    result.coAuthors.push({id:256959,name:'Alexander Sell',profileAvailable:true,role:'QUESTION_AUTHOR'});
+    result.selectedText.paragraphs=['Alexander Sell submitted this question.'];
+    result.selectedText.notes=[];result.selectedText.noteAnchors=[];result.answers=[];
+    const h=await harness(t,'hu',{pathname,items:questions,query:{member:String(member.id),module:'activities'},linkedDocument:result});
+    await h.click(h.container.querySelector('.explorer-speech button'));
+    const reader=h.container.querySelector('.explorer-document-text');
+    for(const selector of ['.explorer-author-link','.explorer-coauthors a']) {
+      const anchor=reader.querySelector(selector);assert(anchor,selector);
+      const destination=new URL(anchor.href);
+      assert.equal(destination.origin,location.origin);
+      assert.equal(destination.pathname,pathname);
+      assert.equal(destination.search,'?lang=hu&member=256959&module=profile');
+      assert.equal(anchor.getAttribute('href'),destination.search);
+    }
+    assert.equal(reader.querySelector('.explorer-coauthors strong').textContent,'Mika Aaltola');
+  });
 }
 
 for(const language of ['en','hu','fr']) {

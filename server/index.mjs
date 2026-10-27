@@ -330,7 +330,12 @@ export async function handleRequest(request, response) {
   const started=performance.now(),eventLoop=performance.eventLoopUtilization();let route='/';
   response.explorerStartedAt=started;
   try {
-    const url = new URL(request.url || "/", "http://localhost");
+    const target = request.url || "/";
+    // Accept origin-form paths only, before URL parsing can reinterpret an authority.
+    if (!target.startsWith("/") || target.startsWith("//") || target.split("?", 1)[0].includes("\\") || /[\u0000-\u0020\u007f]/u.test(target)) {
+      throw new HttpError(400, "invalid_path", "The request path is invalid");
+    }
+    const url = new URL(target, "http://localhost");
     route=url.pathname;
     const apiPrefix = apiPrefixes.find(
       (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
