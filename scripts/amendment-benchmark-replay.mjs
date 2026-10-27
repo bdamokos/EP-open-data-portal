@@ -24,6 +24,16 @@ export function rawProposalReferences(buffer,runtime) {
 }
 
 export function sourceReplay(cache,runtime) {
+  const observedFiles=new Map();
+  const textWork=(work,language)=>{
+    const files=runtime.documentFiles(work).filter(f=>f.format==='DOCX'&&runtime.allowedDownload(f.url));
+    if(files.some(f=>f.language===language))return {work};
+    const declaration=observedFiles.get(language);
+    if(!declaration)return {work};
+    // The frozen public catalogue is also an exact-ID file declaration. Keep
+    // the current EP metadata unchanged and record the supplementary evidence.
+    return {work:{...work,is_realized_by:[...runtime.array(work.is_realized_by),{language,is_embodied_by:[{format:'DOCX',is_exemplified_by:declaration.url}]}]},declaration};
+  };
   const request=async endpoint=>{
     const input=await cache.get(publicDocumentUrl(endpoint.split('/').at(-1)),{accept:'application/ld+json'});
     if(!input.ok)return {payload:{data:[]},url:input.url,fetchedAt:Date.parse(input.fetchedAt),status:input.status};
@@ -48,14 +58,24 @@ export function sourceReplay(cache,runtime) {
   const readProposal=runtime.createProposalBaseline({documents,request});
   return {
     request,
+    observeFiles(id,contexts) {
+      for(const [language,{plain}] of contexts) {
+        const document=plain.value?.document;
+        if(plain.value?.documentId!==id||document?.selectedDocumentId&&document.selectedDocumentId!==id)continue;
+        const files=(document?.files||[]).filter(file=>file.language===language&&file.format==='DOCX'&&runtime.allowedDownload(file.url));
+        const urls=[...new Set(files.map(file=>file.url))];
+        if(urls.length===1)observedFiles.set(language,{url:urls[0],language,catalogue:{url:plain.input.url,sha256:plain.input.sha256,fetchedAt:plain.input.fetchedAt},upstreamSources:plain.value.sources||[]});
+      }
+    },
     references:buffer=>rawProposalReferences(buffer,runtime),
     async acquire(id,languages,references=new Map()) {
       const record=await request('/plenary-documents/'+id),work=record.payload.data[0];
       if(!work)return null;
       // Mirror documentText's selection with its checkout helpers. Acquisition
       // never needs a parsed amendment, document body or proposal projection.
-      const files=runtime.documentFiles(work).filter(f=>f.format==='DOCX'&&runtime.allowedDownload(f.url));
       for(const language of languages) {
+        const selected=textWork(work,language);
+        const files=runtime.documentFiles(selected.work).filter(f=>f.format==='DOCX'&&runtime.allowedDownload(f.url));
         const preferred=runtime.languagePreference(files.map(f=>f.language).filter(Boolean),language);
         const chosen=files.find(f=>f.language===preferred[0])||files[0];
         if(chosen)await cache.get(chosen.url);
@@ -73,6 +93,7 @@ export function sourceReplay(cache,runtime) {
     },
     async text(work,language) {
       if(!work)return {status:'unavailable',paragraphs:[],textLanguage:language,reason:'public-document-unavailable',sourceInput:null};
+      const selected=textWork(work,language);work=selected.work;
       const files=runtime.documentFiles(work).filter(f=>f.format==='DOCX'&&runtime.allowedDownload(f.url));
       const preferred=runtime.languagePreference(files.map(f=>f.language).filter(Boolean),language);
       const chosen=files.find(f=>f.language===preferred[0])||files[0];
@@ -82,7 +103,7 @@ export function sourceReplay(cache,runtime) {
         if(!input.ok)throw new Error('document-source-http-'+input.status);
         return {...runtime.docxContent(input.body),resolvedSourceUrl:input.resolvedSourceUrl||url};
       }});
-      cache.assertHealthy();return {...text,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok}:null};
+      cache.assertHealthy();return {...text,sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok}:null};
     },
     async proposal(options) {
       if(typeof options.language!=='string'||!options.reportId&&!options.celex)return {baseline:{status:'unresolved',language:options.language,gaps:['proposal-identity-unavailable']},items:[]};

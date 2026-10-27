@@ -18,14 +18,14 @@ function docx(xml) {
   end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(central.length+name.length,12);end.writeUInt32LE(local.length+name.length+body.length,16);
   return Buffer.concat([local,name,body,central,name,end]);
 }
-function fixture(commission=true,referenceOnly=false) {
+function fixture(commission=true,referenceOnly=false,omittedLanguage=false) {
   const document=(commission?'A':'B')+'-10-2026-0001',id=document+'-AM-1',listId=document+'-AM-001-001';
   const listUrl='https://data.europarl.europa.eu/distribution/test/'+document+'-list.docx',bodyUrl='https://data.europarl.europa.eu/distribution/test/'+document+'-body.docx';
   const row={id,targetDocumentId:document,number:1,listId,language:'en',baseline:'unknown',originalText:null,wordingSource:{url:listUrl},decisions:[{id:'vote',date:'2026-10-22',sittingId:'MTG-PL-2026-10-22',amendmentIds:[id],source:{url:'https://data.europarl.europa.eu/api/v2/example',fetchedAt:'2026-10-23T00:00:00Z'}}]};
   const cell=value=>'<w:tc>'+p(value)+'</w:tc>',tr=(a,b)=>'<w:tr>'+cell(a)+cell(b)+'</w:tr>';
   const list=docx(p('<Amend><NumAm>1</NumAm>')+(referenceOnly?p('<DocRef>COM(2026)1 final – 2026/0001(COD)</DocRef>'):'')+p('<Article>'+(commission?'Article 1 – paragraph 1':'Paragraph 1')+'</Article>')+'<w:tbl>'+tr(commission?'Text proposed by the Commission':'Motion for a resolution','Amendment')+tr('First paragraph.','Changed paragraph.')+'</w:tbl>'+p('</Amend>'));
   const language='http://publications.europa.eu/resource/authority/language/ENG',file={format:'http://publications.europa.eu/resource/authority/file-type/DOCX',is_exemplified_by:bodyUrl};
-  const work={id:'eli/dl/doc/'+document,identifier:document,work_type:'def/ep-document-types/'+(commission?'REPORT_PLENARY':'RESOLUTION_MOTION'),inverse_created_a_realization_of:['eli/dl/proc/2026-0001'],is_realized_by:[{language,title_alternative:referenceOnly?{}:{en:'COM(2026)1 final – 2026/0001(COD)'},is_embodied_by:[file]}]};
+  const work={id:'eli/dl/doc/'+document,identifier:document,work_type:'def/ep-document-types/'+(commission?'REPORT_PLENARY':'RESOLUTION_MOTION'),inverse_created_a_realization_of:['eli/dl/proc/2026-0001'],is_realized_by:[{language:omittedLanguage?'fr':language,title_alternative:referenceOnly?{}:{en:'COM(2026)1 final – 2026/0001(COD)'},is_embodied_by:[file]}]};
   const w='http://publications.europa.eu/resource/cellar/00000000-0000-0000-0000-000000000001',e=w+'.0001',m=e+'.01',item=m+'/DOC_1',celex='52026PC0001';
   const prop=(name,value,uri=false)=>`<c:${name}${uri?` r:resource="${value}"/>`:`>${value}</c:${name}>`}`;
   const desc=(id,body)=>`<r:Description r:about="${id}">${body}</r:Description>`;
@@ -34,7 +34,7 @@ function fixture(commission=true,referenceOnly=false) {
     desc(e,prop('expression_belongs_to_work',w,true)+prop('expression_uses_language',language,true))+
     desc(m,prop('manifestation_manifests_expression',e,true)+prop('manifestation_type','docx'))+
     desc(item,prop('item_belongs_to_manifestation',m,true)+'<o:sameAs r:resource="http://example.org/synthetic_ACT_part1.docx"/>')+'</r:RDF>';
-  const live={documentId:document,version:1,document:{selectedText:null},proposal:null,baseline:null};
+  const live={documentId:document,version:1,document:{selectedText:null,...(omittedLanguage?{selectedDocumentId:document,files:[{url:bodyUrl,language:'en',format:'DOCX'}]}:{})},proposal:null,baseline:null};
   const files=new Map([[listUrl,list],[bodyUrl,docx(['MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION','The European Parliament,','1. First paragraph.','2. Second paragraph.','ANNEX'].map(p).join(''))],[publicDocumentUrl(document),{data:[work]}],[contextUrl(apiBase,document,'en'),live],[contextUrl(apiBase,document,'en',row,row),live]]);
   const fetcher=async(url,options)=>{
     if(files.has(url)){const value=files.get(url);return new Response(Buffer.isBuffer(value)?value:JSON.stringify(value),{headers:{'content-type':Buffer.isBuffer(value)?'application/octet-stream':'application/ld+json'}});}
@@ -131,4 +131,15 @@ test('motion extraction failures improve through checkout replay without new sou
   assert.equal(after[0].outcome,'correct');assert.equal(cache.requests,requests);
   const report=rows=>({sample,snapshotId:'frozen-motion',inputs:manifest,projectionMode:'cached-source-replay',rows,metrics:metrics(rows)});
   assert.equal(compareBaseline(report(after),report(before)).deltas['counts.correct'],1);
+});
+
+test('an exact frozen public file declaration supplements a missing metadata language without using live text',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-metadata-language-gap-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  const runtime=await replayRuntime(root),f=fixture(false,false,true),cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:10,delay:0,sleep:async()=>{},fetcher:f.fetcher});
+  await acquireReport([f.row],sample,cache,sourceReplay(cache,runtime));await cache.seal(cache.manifest());
+  const [result]=await evaluateReport([f.row],sample,cache,{runtime,replay:sourceReplay(cache,runtime)});
+  assert.equal(result.outcome,'correct',JSON.stringify(result.stages));
+  assert(result.stages.S4.gaps.includes('requested-language-omitted-by-current-EP-metadata'));
+  assert.equal(result.stages.S4.projection.fileDeclarationSource.language,'en');
+  assert.equal(result.stages.S4.projection.fileDeclarationSource.catalogue.url,contextUrl(apiBase,f.document,'en'));
 });

@@ -110,13 +110,14 @@ export async function acquireReport(rows,sample,cache,replay) {
     for(const saved of [plain,proposal])if(saved.value&&saved.value.documentId!==rows[0].targetDocumentId)throw new Error('Context identity unavailable or inconsistent: '+saved.input.url);
     contexts.set(language,{plain,proposal});
   }
-  if(replay)await replay.acquire(rows[0].targetDocumentId,[...contexts.keys()],references);
+  if(replay){replay.observeFiles(rows[0].targetDocumentId,contexts);await replay.acquire(rows[0].targetDocumentId,[...contexts.keys()],references);}
   return contexts;
 }
 
 export async function evaluateReport(rows,sample,cache,{runtime,replay}={}) {
   const selected=rows.filter(row=>decisionsInSample(row,sample).length),extractions=new Map(),results=[];
   const contexts=await acquireReport(rows,sample,cache);
+  if(replay)replay.observeFiles(rows[0].targetDocumentId,contexts);
   const projected=new Map();
   const work=replay&&selected.length?(await replay.request('/plenary-documents/'+rows[0].targetDocumentId)).payload.data[0]:null;
   for(const row of selected) {
@@ -176,10 +177,10 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay}={}) {
       else unavailableReason=text?.sourceInput?.ok?'document-projection-unavailable':'acquisition-document-source-unavailable';
       stages.S4={
         ...(matching?passed({kind:commission?'commission-proposal':'resolution',language,baselineStatus:baseline?.status||text?.status}):blocked(unavailableReason)),
-        gaps:baseline?.gaps||[],
+        gaps:baseline?.gaps||text?.sourceMetadataGaps||[],
         liveProjectionObservation:{documentContextVersion:value?.version,documentStatus:value?.document?.selectedText?.status??null,documentReason:value?.document?.selectedText?.reason??null,proposalStatus:value?.baseline?.status??null},
         sourceUrl:replay?(commission?baseline?.items?.[0]?.source?.url||publicDocumentUrl(row.targetDocumentId):text?.sourceUrl||publicDocumentUrl(row.targetDocumentId)):input.url,
-        ...(replay?{projection:{mode:'cached-source-replay',celex:baseline?.celex??null,status:baseline?.status??text?.status,reason:text?.reason??null,workId:baseline?.workId??null,itemSources:baseline?.items?.map(({itemId,source})=>({itemId,url:source.url,sha256:source.sha256,fetchedAt:source.fetchedAt}))||[]}}:{}),
+        ...(replay?{projection:{mode:'cached-source-replay',celex:baseline?.celex??null,status:baseline?.status??text?.status,reason:text?.reason??null,fileDeclarationSource:text?.fileDeclarationSource??null,workId:baseline?.workId??null,itemSources:baseline?.items?.map(({itemId,source})=>({itemId,url:source.url,sha256:source.sha256,fetchedAt:source.fetchedAt}))||[]}}:{}),
       };
       if(stages.S2.status==='passed'&&matching) {
         const references=[...new Set((row.decisions||[]).filter(d=>(d.amendmentIds||[]).includes(row.id)&&d.source?.url&&d.source?.fetchedAt).map(d=>d.reference).filter(value=>typeof value==='string'))];
