@@ -3,7 +3,7 @@ import {fileURLToPath} from 'node:url';
 import {LANGUAGE_SECTIONS} from './amendment-language-vocabulary.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
-export const rawDocument=buffer=>JSON.parse(execFileSync('python3',[fileURLToPath(new URL('./amendment-language-raw.py',import.meta.url))],{input:buffer,maxBuffer:32*1024*1024}).toString());
+export const rawDocument=buffer=>JSON.parse(execFileSync('python3',[fileURLToPath(new URL('./amendment-language-raw.py',import.meta.url)),String(buffer.length)],{input:buffer,maxBuffer:32*1024*1024,timeout:30_000}).toString());
 // This deliberately does not import production labels, normalizers, segmenters
 // or proposal trees. Unsupported addresses remain explicitly unverified.
 export const rawNormal=value=>String(value).normalize('NFC').replace(/\u00ad/gu,'').replace(/[‘’]/gu,"'").replace(/[“”„«»]/gu,'"').replace(/[–—]/gu,'-').replace(/\s+/gu,' ').trim();

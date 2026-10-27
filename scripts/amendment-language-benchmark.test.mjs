@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {languageMetrics,compareLanguages,parityLocation,LANGUAGES,LANGUAGE_SAMPLE} from './amendment-language-benchmark.mjs';
+import {languageMetrics,compareLanguages,parityLocation,appendLanguageBaseline,LANGUAGES,LANGUAGE_SAMPLE} from './amendment-language-benchmark.mjs';
 import {rawDocument,rawExpected,verifyLanguagePlacement,simpleAddress} from './amendment-language-oracle.mjs';
 import {options} from './amendment-benchmark.mjs';
 
@@ -10,6 +13,7 @@ const report=rows=>({snapshotId:'fixed',sample:['sample'],inputs:['bytes'],oracl
 test('language mode is explicit and keeps the default identity benchmark',()=>{
   assert.equal(options(['--languages','--record-language-baseline']).languages,true);
   assert.equal(options([]).languages,undefined);
+  assert.throws(()=>options(['--record-language-baseline']),/requires --languages/);
   assert.equal(LANGUAGES.length,24);
   assert.ok(LANGUAGE_SAMPLE.some(s=>s.type==='second-reading'));
 });
@@ -79,4 +83,28 @@ test('location parity preserves source labels while comparing translated inserti
   assert.deepEqual(parityLocation(make('en','5b')),parityLocation(make('fr','5ter')));
   assert.deepEqual(parityLocation(make('en','5a')),parityLocation(make('el','5α')));
   assert.equal(make('fr','5ter').location.value,'5ter');
+});
+
+test('transport maintenance keeps a baseline only with identical raw expectations and assertions',()=>{
+  const base={...report([row('en')]),oracleFingerprint:'old'};
+  const same={...base,oracleFingerprint:'new'};
+  assert.equal(compareLanguages(same,base).failed,false);
+  assert.match(compareLanguages(same,base).warnings[0],/all raw expectations/);
+  assert.throws(()=>compareLanguages({...same,rows:[row('en','correct',{expected:{operation:'delete'}})]},base),/raw expectations/);
+});
+
+test('ratchet retries never rewrite the baseline or append a duplicate row',async()=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-language-ratchet-'));
+  try {
+    const first={...report([row('en')]),code:{head:'main'},oracleFingerprint:'policy'};
+    const saved=await appendLanguageBaseline(directory,first),bytes=await readFile(saved.record.file,'utf8');
+    assert.equal(saved.appended,true);
+    const retry=await appendLanguageBaseline(directory,{...first,comparison:{failed:false}});
+    assert.equal(retry.appended,false);
+    assert.equal(await readFile(saved.record.file,'utf8'),bytes);
+    assert.equal((await readFile(path.join(directory,'ratchet.jsonl'),'utf8')).trim().split('\n').length,1);
+    assert.equal((await readdir(path.join(directory,'output'))).length,1);
+    assert.equal((await appendLanguageBaseline(directory,{...first,code:{head:'next'}})).appended,true);
+    assert.equal((await readFile(path.join(directory,'ratchet.jsonl'),'utf8')).trim().split('\n').length,2);
+  } finally {await rm(directory,{recursive:true,force:true});}
 });

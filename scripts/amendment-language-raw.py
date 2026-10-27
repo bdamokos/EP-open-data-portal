@@ -84,4 +84,8 @@ def read_docx(data):
     return dict(paragraphs=paragraphs, amendments=blocks)
 
 if __name__ == '__main__':
-    print(json.dumps(read_docx(sys.stdin.buffer.read()), ensure_ascii=False))
+    length = int(sys.argv[1])
+    data = sys.stdin.buffer.read(length)
+    if len(data) != length:
+        raise ValueError('Truncated raw DOCX input')
+    print(json.dumps(read_docx(data), ensure_ascii=False))
