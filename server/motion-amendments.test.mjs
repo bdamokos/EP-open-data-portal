@@ -75,7 +75,7 @@ test('motion amendment queries accept only bounded exact motion/member scopes',(
 
 test('public B motion preserves list gaps, exact member matching and other proposers in all results',t=>{
   const {store}=seedPublic(t),all=page(store,'member='+imart),own=page(store,'member='+imart+'&scope=member');
-  assert.equal(all.schemaVersion,1);assert.equal(all.text.id,target);assert.equal(all.text.kind,'original');
+  assert.equal(all.schemaVersion,2);assert.equal(all.text.id,target);assert.equal(all.text.kind,'original');
   assert.equal(all.text.memberAuthorship.status,'recorded');assert(all.text.memberAuthorship.relationships.some(value=>value.includes('AUTHOR')));
   assert.equal(all.scope.results,'all');assert.equal(own.scope.results,'member');
   assert.equal(all.total,6);assert.deepEqual(all.totals,{allIndexed:6,memberMatched:4});assert.equal(own.total,4);

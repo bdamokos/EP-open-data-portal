@@ -61,7 +61,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'12');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'13');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -268,16 +268,17 @@ test('visible equations, formula images and embedded objects cannot become plain
   }
 });
 
-test('superscript, subscript and raised text cannot silently turn 10 and 3 into 103',()=>{
+test('superscript, subscript and raised text retain plain wording and exact ranges',()=>{
   for(const properties of ['<w:vertAlign w:val="superscript"/>','<w:vertAlign w:val="subscript"/>','<w:position w:val="6"/>'])for(const prefix of ['',row(cell(p('First original')),cell(p('First proposal')))]) {
     const xml=body(metadata()+table(prefix,row(cell('<w:p>'+run('10')+formattedRun(properties,'3')+'</w:p>'),cell(p('Proposed wording'))))+p('</Amend>'));
     const result=extractAmendments(archive(xml),options);
-    assert.equal(result.amendments[0].originalText,null);assert.equal(result.amendments[0].proposedText,null);
-    assert(result.amendments[0].gaps.some(gap=>gap.code==='vertical-text-loss'&&gap.number===1));
+    assert.match(result.amendments[0].originalText,/103$/);assert.match(result.amendments[0].proposedText,/Proposed wording$/);
+    const end=result.amendments[0].originalText.length;
+    assert.deepEqual(result.amendments[0].originalFormatting,[{start:end-1,end,kind:properties.includes('subscript')?'subscript':'superscript'}]);assert.deepEqual(result.gaps,[]);
   }
 });
 
-test('inherited character, paragraph and default baseline formatting remains explicit text loss',()=>{
+test('inherited character, paragraph and default vertical formatting retains exact spans',()=>{
   const cases=[
     {styles:'<w:style w:styleId="Super"><w:rPr><w:vertAlign w:val="superscript"/></w:rPr></w:style><w:style w:styleId="Inherited"><w:basedOn w:val="Super"/></w:style>',paragraph:'<w:p>'+run('10')+formattedRun('<w:rStyle w:val="Inherited"/>','3')+'</w:p>'},
     {styles:'<w:style w:styleId="Raised"><w:rPr><w:position w:val="6"/></w:rPr></w:style><w:style w:styleId="Inherited"><w:basedOn w:val="Raised"/></w:style>',paragraph:'<w:p>'+run('10')+formattedRun('<w:rStyle w:val="Inherited"/>','3')+'</w:p>'},
@@ -288,8 +289,8 @@ test('inherited character, paragraph and default baseline formatting remains exp
   for(const {styles,paragraph} of cases) {
     const xml=body(metadata()+table(row(cell(paragraph),cell(p('Proposed wording'))))+p('</Amend>'));
     const result=extractAmendments(archive(xml,'<w:styles>'+styles+'</w:styles>'),options);
-    assert.equal(result.amendments[0].originalText,null);assert.equal(result.amendments[0].proposedText,null);
-    assert(result.amendments[0].gaps.some(gap=>gap.code==='vertical-text-loss'&&gap.number===1));
+    assert.match(result.amendments[0].originalText,/103$/);assert.match(result.amendments[0].proposedText,/Proposed wording$/);
+    assert(result.amendments[0].originalFormatting.length>0);assert.deepEqual(result.gaps,[]);
   }
 });
 
@@ -334,7 +335,7 @@ test('ordinary table properties and positional annotation markers do not invalid
 });
 
 test('unsupported comparison geometry withholds both columns with a numbered gap while another amendment remains intact',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'12');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'13');
   const grid=widths=>'<w:tblGrid>'+widths.map(width=>`<w:gridCol${width==null?'':` w:w="${width}"`}/>`).join('')+'</w:tblGrid>';
   const propsCell=(text,properties='')=>'<w:tc><w:tcPr>'+properties+'</w:tcPr>'+p(text)+'</w:tc>';
   const header=row(propsCell('Motion for a resolution'),propsCell('Amendment'));
@@ -440,7 +441,7 @@ test('historical property snapshots and ordinary hidden or deleted inline text d
 });
 
 test('current paragraph-mark revisions cannot turn ambiguous decimal boundaries into accepted wording',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'12');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'13');
   for(const marker of ['del','ins','moveFrom','moveTo']) {
     const first='<w:p><w:pPr><w:rPr><w:'+marker+' w:id="9" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:rPr></w:pPr>'+run('Rate: 1')+'</w:p>';
     const xml=body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));
@@ -572,4 +573,35 @@ test('proposal-level document target distinguishes resolution wording from Commi
     const parsed=extractAmendments(archive(fixture.documentXml,fixture.stylesXml),fixture);
     for(const amendment of parsed.amendments)assert.equal(amendment.baseline,fixture.targetDocumentId==='A-10-2025-0085'?'commission-proposal':'motion-resolution');
   }
+});
+
+
+test('vertical ranges retain typed footnote markers and scientific notation through whitespace, cells and rows',()=>{
+  const sup=value=>formattedRun('<w:vertAlign w:val="superscript"/>',value),sub=value=>formattedRun('<w:vertAlign w:val="subscript"/>',value);
+  const original='<w:p>'+run('  😀 Citation ')+sup('4')+run('  ')+ '<w:br/>'+run('CO')+sub('2')+run('  ')+'</w:p>';
+  const proposed='<w:p>'+run('Citation ')+sup('1a')+run(' mg/m')+sup('3')+run('(')+sup('5')+run(')')+'</w:p>';
+  const xml=body(metadata()+table(row(cell(original,p('______'),p('4 Source note')),cell(proposed)),row(cell('<w:p>'+formattedRun('<w:position w:val="-4"/>','y')+'</w:p>'),cell('<w:p>'+formattedRun('<w:position w:val="4"/>','z')+'</w:p>')))+p('</Amend>'));
+  const {amendments:[a],gaps}=extractAmendments(archive(xml),options);
+  assert.equal(a.originalText,'😀 Citation 4\nCO2\n______\n4 Source note\ny');
+  assert.equal(a.proposedText,'Citation 1a mg/m3(5)\nz');
+  assert.deepEqual(a.originalFormatting,[{start:12,end:13,kind:'superscript'},{start:16,end:17,kind:'subscript'},{start:a.originalText.length-1,end:a.originalText.length,kind:'subscript'}]);
+  assert.deepEqual(a.proposedFormatting,[{start:9,end:11,kind:'superscript'},{start:16,end:17,kind:'superscript'},{start:18,end:19,kind:'superscript'},{start:21,end:22,kind:'superscript'}]);
+  assert.deepEqual(gaps,[]);
+  // Removing only presentation properties yields identical placement input.
+  const plain=xml.replace(/<w:rPr>[\s\S]*?<\/w:rPr>/g,'');
+  const oracle=extractAmendments(archive(plain),options).amendments[0];
+  assert.equal(a.originalText,oracle.originalText);assert.equal(a.proposedText,oracle.proposedText);
+});
+
+test('real footnote references keep their existing omission and notes gap, never a typed-marker span',()=>{
+  const xml=body(metadata()+table(row(cell('<w:p>'+run('Citation')+'<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:footnoteReference w:id="4"/></w:r></w:p>'),cell(p('New'))))+p('</Amend>'));
+  const {amendments:[a],gaps}=extractAmendments(archive(xml),options);
+  assert.equal(a.originalText,'Citation');assert.deepEqual(a.originalFormatting,[]);
+  assert(gaps.some(gap=>gap.code==='notes-unavailable'));assert(!gaps.some(gap=>gap.code==='vertical-formatting-loss'));
+});
+
+test('unknown vertical properties withhold wording with the narrower formatting gap',()=>{
+  const xml=body(metadata()+table(row(cell('<w:p>'+formattedRun('<w:position w:val="invalid"/>','4')+'</w:p>'),cell(p('New'))))+p('</Amend>'));
+  const {amendments:[a]}=extractAmendments(archive(xml),options);
+  assert.equal(a.originalText,null);assert.deepEqual(a.originalFormatting,[]);assert(a.gaps.some(gap=>gap.code==='vertical-formatting-loss'));
 });

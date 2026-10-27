@@ -2210,3 +2210,33 @@ test('a response-version upgrade reparses retained sitting relationships locally
  assert.equal(store.source(generation,motionSourceKey(sitting)).work.amendmentVersion,AMENDMENTS_VERSION);
  assert.deepEqual(store.source(generation,motionSourceKey(sitting)).work.decisions,work.decisions);
 });
+
+
+test('vertical formatting survives indexing and partial retention with its own exact text',async t=>{
+  const {store,worker,generation}=setup(t);
+  const originalFormatting=[{start:2,end:3,kind:'subscript'}],proposedFormatting=[{start:7,end:8,kind:'superscript'}];
+  seedTarget(store,generation,[amendment(1,{originalText:'CO2',proposedText:'CO2 mg/m3',originalFormatting,proposedFormatting})]);
+  await rebuildAmendmentTarget(worker,generation,targetId);
+  const [saved]=amendmentsPage(store,{document:targetId}).items;
+  assert.deepEqual(saved.originalFormatting,originalFormatting);assert.deepEqual(saved.proposedFormatting,proposedFormatting);
+  const body=JSON.parse(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,saved.id).body);
+  assert.deepEqual(body.proposedFormatting,proposedFormatting);
+  saveAmendmentRows(store,generation,metadata,[{...saved,originalText:null,proposedText:null,originalFormatting:[],proposedFormatting:[]}],coverage);
+  const [retained]=amendmentsPage(store,{document:targetId}).items;
+  assert.equal(retained.originalText,'CO2');assert.deepEqual(retained.originalFormatting,originalFormatting);
+  assert.equal(retained.proposedText,'CO2 mg/m3');assert.deepEqual(retained.proposedFormatting,proposedFormatting);
+});
+
+test('invalid vertical offsets withhold both columns and all spans at persistence',t=>{
+  const {store,generation}=setup(t);
+  saveAmendmentRows(store,generation,metadata,[row(1,{originalText:'CO2',proposedText:'New',originalFormatting:[{start:2,end:4,kind:'subscript'}]})],coverage);
+  const [saved]=amendmentsPage(store,{document:targetId}).items;
+  assert.equal(saved.originalText,null);assert.equal(saved.proposedText,null);
+  assert.deepEqual(saved.originalFormatting,[]);assert.deepEqual(saved.proposedFormatting,[]);
+  assert(saved.gaps.some(gap=>/Vertical formatting/.test(gap)));
+  const corrupt=JSON.stringify(row(1,{originalText:'CO2',proposedText:'New',originalFormatting:[{start:2,end:4,kind:'subscript'}]}));
+  store.db.prepare('UPDATE amendments SET body=? WHERE generation=? AND id=?').run(corrupt,generation,saved.id);
+  const [checked]=amendmentsPage(store,{document:targetId}).items;
+  assert.equal(checked.originalText,null);assert.deepEqual(checked.originalFormatting,[]);
+  assert.equal(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,saved.id).body,corrupt,'read sanitation preserves stored evidence');
+});

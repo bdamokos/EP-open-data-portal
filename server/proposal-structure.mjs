@@ -1,12 +1,12 @@
 import {createHash} from 'node:crypto';
 import {proposalDocx} from './proposal-docx.mjs';
 import {parseLabelSegment,parseTargetLabel,unitLabel,proposalNumber,proposalLanguage,isBareLabel} from './proposal-labels.mjs';
-import {normaliseForMatching} from './proposal-matching.mjs';
 import {officialDocumentUrl} from './proposal-math.mjs';
 import {instructionOperation} from './proposal-instructions.mjs';
 import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
-export {parseTargetLabel,unitLabel,normaliseForMatching};
+export {parseTargetLabel,unitLabel};
+export {normaliseForMatching} from './proposal-matching.mjs';
 export const PROPOSAL_PARSER_VERSION='6';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
