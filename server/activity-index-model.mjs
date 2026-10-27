@@ -52,7 +52,7 @@ export function projectDocument(w) {
   result.answersObserved=w.answersObserved ?? (Object.hasOwn(w,'inverse_answers_to') && w.inverse_answers_to!=null);
   if(tail(w.work_type)==='AMENDMENT_LIST')result.amendmentDistributionDeclared=typeof w.amendmentDistributionDeclared==='boolean'?w.amendmentDistributionDeclared:Object.hasOwn(w,'is_realized_by')&&w.is_realized_by!=null;
   result.is_realized_by = array(w.is_realized_by).map(e => ({ language:e.language, title:e.title,
-    is_embodied_by:array(e.is_embodied_by).map(m => ({format:m.format,byteSize:m.byteSize,is_exemplified_by:m.is_exemplified_by})) }));
+    is_embodied_by:array(e.is_embodied_by).map(m => ({format:m.format,byteSize:m.byteSize,...(m.issued!==undefined?{issued:m.issued}:{}),is_exemplified_by:m.is_exemplified_by})) }));
   result.inverse_answers_to = array(w.inverse_answers_to).filter(a => a && typeof a === 'object').map(projectDocument);
   if (['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].includes(tail(w.work_type))) {
     // Reprojecting an older cache cannot recover observations it discarded.

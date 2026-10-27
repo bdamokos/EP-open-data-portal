@@ -27,17 +27,22 @@ export function amendmentProposerDate(record,{documentDate=record?.documentDate,
   if(record?.proposerRetained)return null;
   return documented?{date:documented,basis:documentBasis}:listed?{date:listed,basis:'amendment-list-metadata'}:null;
 }
+// `issued` is the manifestation's published issue time, kept as published.
+// Older observations did not record it, so it is compared only when both
+// descriptors have one.
 export function normalizedDocxDescriptor(file) {
   if(typeof file?.url!=='string'||!file.url)return null;
-  return {url:file.url,language:typeof file.language==='string'?file.language:null,byteSize:file.byteSize!=null&&Number.isSafeInteger(Number(file.byteSize))&&Number(file.byteSize)>=0?Number(file.byteSize):null};
+  const issued=typeof file.issued==='string'&&Number.isFinite(Date.parse(file.issued))?file.issued:null;
+  return {url:file.url,language:typeof file.language==='string'?file.language:null,byteSize:file.byteSize!=null&&Number.isSafeInteger(Number(file.byteSize))&&Number(file.byteSize)>=0?Number(file.byteSize):null,...(issued?{issued}:{})};
 }
 export function sameDocxDescriptor(a,b) {
   const left=normalizedDocxDescriptor(a),right=normalizedDocxDescriptor(b);
-  return Boolean(left&&right&&left.url===right.url&&left.language===right.language&&left.byteSize===right.byteSize);
+  return Boolean(left&&right&&left.url===right.url&&left.language===right.language&&left.byteSize===right.byteSize&&
+    (!left.issued||!right.issued||Date.parse(left.issued)===Date.parse(right.issued)));
 }
 export function distributionEvidenceFor(work,source) {
   const descriptors=array(work?.is_realized_by).flatMap(expression=>array(expression?.is_embodied_by).flatMap(manifestation=>
-    documentFiles({is_realized_by:[{...expression,is_embodied_by:[manifestation]}]}).filter(file=>file.format==='DOCX').map(file=>normalizedDocxDescriptor({...file,byteSize:manifestation?.byteSize})))).filter(Boolean);
+    documentFiles({is_realized_by:[{...expression,is_embodied_by:[manifestation]}]}).filter(file=>file.format==='DOCX').map(file=>normalizedDocxDescriptor({...file,byteSize:manifestation?.byteSize,issued:manifestation?.issued})))).filter(Boolean);
   const available=typeof work?.amendmentDistributionDeclared==='boolean'?work.amendmentDistributionDeclared:Object.hasOwn(work || {},'is_realized_by')&&work.is_realized_by!=null;
   return {version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:descriptors.length?'available':available?'empty':'unavailable',descriptors,source:source || null};
 }

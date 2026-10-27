@@ -162,7 +162,7 @@ export function recordSplitResults(store,result) {
 export function saveAmendmentRows(store,generation,target,rows,coverage,{observedDecisionIds=[],freshSplitParts=[],invalidatedTextListIds=[],textParserVersion=null,currentListIds=null,listRelationshipsKnown=null}={}) {
   store.transaction(()=>{
     store.assertWriter();
-    const prior=store.db.prepare('SELECT id,body FROM amendments WHERE generation=? AND target=?').all(generation,target.id);
+    const prior=store.db.prepare('SELECT id,date,outcome,body FROM amendments WHERE generation=? AND target=?').all(generation,target.id);
     const merged=new Map(rows.map(row=>[row.id,row]));
     const observed=new Set(observedDecisionIds);
     const invalidatedLists=new Set(invalidatedTextListIds),currentLists=currentListIds===null?null:new Set(currentListIds);
@@ -266,8 +266,15 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
       row.gaps=[...new Set(row.gaps)];
       row.topics=checkedTargetTopics(row);
     }
+    // A target rebuild re-derives every row, but one list refresh usually
+    // changes only its own rows. Identical rows keep their stored bytes.
+    const stored=new Map(prior.map(row=>[row.id,row]));
     const put=store.db.prepare('INSERT OR REPLACE INTO amendments VALUES (?,?,?,?,?,?)');
-    for(const row of merged.values())put.run(generation,row.id,target.id,row.date || target.date || '',amendmentRowOutcome(row),JSON.stringify({...row,outcome:amendmentRowOutcome(row)}));
+    for(const row of merged.values()) {
+      const outcome=amendmentRowOutcome(row),date=row.date || target.date || '',body=JSON.stringify({...row,outcome}),previous=stored.get(row.id);
+      if(previous?.body===body&&previous.date===date&&previous.outcome===outcome)continue;
+      put.run(generation,row.id,target.id,date,outcome,body);
+    }
     const sittingIds=[...new Set([...(target.sittingIds || []),...[...merged.values()].flatMap(row=>(row.decisions || []).map(decision=>decision.sittingId).filter(Boolean))])];
     store.db.prepare('INSERT OR REPLACE INTO amendment_targets VALUES (?,?,?)').run(generation,target.id,JSON.stringify({...target,...coverage,sittingIds,...(retained||extraGaps.size?{complete:false,gaps:[...new Set([...(coverage.gaps || []),...extraGaps,...(retained?['Previously accepted amendment components are retained after an incomplete refresh.']:[])])]}: {})}));
   });

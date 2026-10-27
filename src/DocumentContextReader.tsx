@@ -150,6 +150,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {state.loading&&!data&&<p role="status">Loading document…</p>}
     {loadError&&<p className="document-context-notice" role="alert">{hasText?'Couldn’t update the document. Showing saved text.':extractionError?'Document text could not be loaded.':'Document could not be loaded.'} <button type="button" onClick={state.retry}>Try again</button></p>}
     {!state.loading&&!loadError&&!document&&<p>Document unavailable here.</p>}
+    {wording&&!hasText&&<div className="document-context-text">{amendmentBlock(false)}</div>}
     {document&&<>
       {actual&&<p className="document-context-language">{actual!==language?<TextLanguageFallback requested={language} actual={actual} interfaceLanguage={interfaceLanguage}/>:<>Text language: {languageName(actual)}</>}</p>}
       {id.startsWith('TA-')&&<CommissionFollowups id={id} language={language} interfaceLanguage={interfaceLanguage}/>}
