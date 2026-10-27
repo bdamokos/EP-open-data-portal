@@ -691,3 +691,14 @@ test('Croatian COM(2025)531 closes low-high quotations before dotted Roman outer
   assert.equal(quote.extent.end,excerpt.sourceParagraphIndices.indexOf(223),'nested term quotations retain the whole replacement through paragraph 7');
   assert.equal(proposalCandidates(result,'Članak 2 – stavak 1 – točka 3',{language:'hr'}).length,1);
 });
+
+test('COM(2024)23 annex dotted alphabetic siblings retain their complete bullet subtrees',()=>{
+  const excerpt=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='dotted-alphabetic-annex'),result=parseProposal(excerpt,excerpt);
+  const [parent]=proposalCandidates(result,'Annex II – paragraph 1 – point 3');
+  assert(parent);assert.deepEqual(parent.children.filter(u=>u.kind==='point').map(u=>u.label.value),['a','b','c','d','e','f','g','h','i','j']);
+  for(const [value,start,end] of [['d',64,69],['i',91,96],['j',96,101]]){
+    const [unit]=proposalCandidates(result,`Annex II – paragraph 1 – point 3 – point ${value}`);
+    assert(unit);assert(unit.complete);assert.deepEqual(unit.extent,{start:excerpt.sourceParagraphIndices.indexOf(start),end:excerpt.sourceParagraphIndices.indexOf(end)});
+    assert.equal(unit.children.filter(u=>u.kind==='indent').length,4);assert(!unit.children.some(u=>u.kind==='point'));
+  }
+});

@@ -37,11 +37,11 @@ function heading(text,language,style) {
 }
 function leadingNumber(text,language,style,numbering=null,activePoints=[]) {
   const line=cleanLead(text);
-  const dottedRoman=/^[ivxlcdm]+\.\s+/u.test(line)&&
-    (stylePoint.test(style)||/^Text\d/i.test(style)||/Roman/i.test(numbering?.format??''));
-  if(!/^[\d(•–—-]/u.test(line)&&! /^[\p{L}]{1,8}[)\]]/u.test(line)&&!dottedRoman)return null;
+  const dottedLabel=(stylePoint.test(style)||/^Text\d/i.test(style)||/Roman|Letter/i.test(numbering?.format??''))?
+    line.match(/^([\p{L}]|[ivxlcdm]{2,8})\.\s+/u):null;
+  if(!/^[\d(•–—-]/u.test(line)&&! /^[\p{L}]{1,8}[)\]]/u.test(line)&&!dottedLabel)return null;
   const point=line.match(/^\(?([\p{L}\d]+(?:\.\d+)*(?:\s+[\p{L}]{1,3})?)[)\]]\s*/u)??
-    (dottedRoman?line.match(/^([ivxlcdm]+)\.\s+/u):null);
+    dottedLabel;
   if(point) {
     const value=proposalNumber(point[1],language);if(!value)return null;
     const previous=activePoints.at(-1)?.unit.label?.value;

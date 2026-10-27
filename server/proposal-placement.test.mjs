@@ -327,3 +327,12 @@ test('real Commission structures place EP quotations and insertions at their off
   const excerpt=recorded.examples.find(e=>e.name==='continuation'),proposal=parseProposal(excerpt,excerpt),amendment=recorded.amendments.find(e=>e.id==='A-10-2026-0257-AM-143');
   assert.equal(resolveProposalPlacement([{kind:'act',index:1,proposal}],{...amendment,targetLabel:'Article 13 – paragraph 2 – subparagraph 1'}).status,'unresolved');
 });
+
+test('a dotted alphabetic annex point cannot consume its following published siblings',()=>{
+  const excerpt=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='dotted-alphabetic-annex'),proposal=parseProposal(excerpt,excerpt),items=[{kind:'annex',index:1,proposal}];
+  // Structural probe on the real Commission list; the new amendment is constructed.
+  const placed=resolveProposalPlacement(items,{language:'en',targetLabel:'Annex II – paragraph 1 – point 3 – point d a (new)',originalText:'',proposedText:'New point.'});
+  assert.equal(placed.status,'placed');assert.equal(placed.insertAfter,excerpt.sourceParagraphIndices.indexOf(68));assert.equal(placed.insertBefore,excerpt.sourceParagraphIndices.indexOf(69));
+  const wrongSibling=resolveProposalPlacement(items,{language:'en',targetLabel:'Annex II – paragraph 1 – point 3 – point d',originalText:excerpt.paragraphs[excerpt.sourceParagraphIndices.indexOf(69)],proposedText:'Changed wording.'});
+  assert.equal(wrongSibling.status,'unresolved');assert.equal(wrongSibling.reason,'conflicting_target_evidence');
+});

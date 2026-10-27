@@ -4310,6 +4310,729 @@
       ],
       "documentObjects": [],
       "tables": []
+    },
+    {
+      "name": "dotted-alphabetic-annex",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/272e2bb6-bb7c-11ee-b164-01aa75ed71a1.0001.01/DOC_2",
+      "sha256": "a99eed8bc2100682f291e2b286fb281d8bbf7f3bc01220d83246dfcf5673c1a6",
+      "retrievedAt": "2026-10-27T16:08:41.965819+00:00",
+      "language": "en",
+      "item": "annex",
+      "sourceParagraphRanges": [
+        {
+          "start": 44,
+          "end": 50
+        },
+        {
+          "start": 54,
+          "end": 55
+        },
+        {
+          "start": 59,
+          "end": 60
+        },
+        {
+          "start": 64,
+          "end": 70
+        },
+        {
+          "start": 75,
+          "end": 76
+        },
+        {
+          "start": 80,
+          "end": 81
+        },
+        {
+          "start": 86,
+          "end": 87
+        },
+        {
+          "start": 91,
+          "end": 102
+        }
+      ],
+      "sourceParagraphIndices": [
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        54,
+        59,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        75,
+        80,
+        86,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101
+      ],
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "ANNEX II",
+        "List of technologies, assets, facilities, equipment, networks, systems, services and economic activities of particular importance for the security or public order interests of the Union",
+        "1.\tItems listed in Annex I to Regulation (EU) 2021/821 of the European Parliament and of the Council (common list of dual-use items subject to export controls)",
+        "2.\tEquipment covered by Council Common Position 2008/944/CFSP defining common rules governing the control of exports of military technology and equipment (Common Military List of the European Union)",
+        "3.\tThe following critical technology areas for the EU’s economic security annexed to Commission Recommendation (EU) 2023/2113 of 3 October 2023 on critical technology areas for the EU’s economic security for further risk assessment with Member States:",
+        "a.\tAdvanced semiconductors technologies:",
+        "b.\tArtificial intelligence technologies:",
+        "c.\tQuantum technologies:",
+        "d.\tBiotechnologies:",
+        "•\ttechniques of genetic modification",
+        "•\tnew genomic techniques",
+        "•\tgene-drive",
+        "•\tsynthetic biology",
+        "e.\tAdvanced connectivity, navigation and digital technologies:",
+        "f.\tAdvanced sensing technologies:",
+        "g.\tSpace & propulsion technologies:",
+        "h.\tEnergy technologies:",
+        "i.\tRobotics and autonomous systems:",
+        "•\tDrones and vehicles (air, land, surface and underwater)",
+        "•\tRobots and robot-controlled precision systems",
+        "•\tExoskeletons",
+        "•\tAI-enabled systems",
+        "j.\tAdvanced materials, manufacturing and recycling technologies:",
+        "•\tTechnologies for nanomaterials, smart materials, advanced ceramic materials, stealth materials, safe and sustainable by design materials",
+        "•\tAdditive manufacturing, including in the field",
+        "•\tDigital controlled micro-precision manufacturing and small-scale laser machining/welding",
+        "•\tTechnologies for extraction, processing and recycling of critical raw materials (including hydrometallurgical extraction, bioleaching, nanotechnology-based filtration, electrochemical processing and black mass)",
+        "4.\tListed critical medicines: Medicines for human use that are essential for the proper functioning of the EU healthcare system and whose shortage would lead to an interruption in treatment and thus serious harm to patients, as listed in the Union list for critical medicines ."
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[47]",
+          "ordinal": 46,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[48]",
+          "ordinal": 47,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[49]",
+          "ordinal": 48,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[50]",
+          "ordinal": 49,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[51]",
+          "ordinal": 50,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[52]",
+          "ordinal": 51,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[57]",
+          "ordinal": 56,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[62]",
+          "ordinal": 61,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[67]",
+          "ordinal": 66,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[68]",
+          "ordinal": 67,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[69]",
+          "ordinal": 68,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[70]",
+          "ordinal": 69,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[71]",
+          "ordinal": 70,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[72]",
+          "ordinal": 71,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[78]",
+          "ordinal": 77,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[83]",
+          "ordinal": 82,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[89]",
+          "ordinal": 88,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[94]",
+          "ordinal": 93,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[95]",
+          "ordinal": 94,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[96]",
+          "ordinal": 95,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[97]",
+          "ordinal": 96,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[98]",
+          "ordinal": 97,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[99]",
+          "ordinal": 98,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[100]",
+          "ordinal": 99,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[101]",
+          "ordinal": 100,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[102]",
+          "ordinal": 101,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[103]",
+          "ordinal": 102,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[104]",
+          "ordinal": 103,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Annexetitre",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 8,
+              "kind": "bold"
+            },
+            {
+              "start": 0,
+              "end": 8,
+              "kind": "underline"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 104,
+              "kind": "bold"
+            },
+            {
+              "start": 105,
+              "end": 185,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54,
+          "marks": [
+            {
+              "start": 242,
+              "end": 276,
+              "kind": "underline"
+            }
+          ]
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
     }
   ],
   "amendments": [
