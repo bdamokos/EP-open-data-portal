@@ -187,6 +187,18 @@ export function verifyPlacement({placement, wording, items, text, target = parse
   // Recital letters are carried as value rather than number by the parser.
   const wanted = label.number;
   if (anchor.number !== wanted || suffixOrder(anchor.suffix) == null || suffixOrder(anchor.suffix) >= rank || anchor.kind !== label.kind) return fail('oracle-anchor-label-mismatch');
+  // A parser-created implicit paragraph must not swallow the publication's
+  // next explicitly styled paragraph. A-10-2026-0069's unstyled article subtitle
+  // otherwise makes paragraphs 1 and 2 look like children of implicit paragraph 1.
+  if(proposal&&wording.language==='en'&&label.kind==='paragraph'&&anchor.implicit&&!anchor.instruction) {
+    const quoted=flatten(proposal.units).filter(unit=>unit.scope==='quoted');
+    for(const row of proposal.paragraphs) {
+      if(row.index<=anchor.start||row.index>=placement.insertBefore||!/^(?:Manual)?NumPar1$/i.test(row.properties?.styleId||''))continue;
+      if(quoted.some(unit=>row.index>=unit.extent.start&&row.index<unit.extent.end))continue;
+      const number=/^\s*(\d+)([a-z]*)[.)]\s/u.exec(row.text);
+      if(number&&(Number(number[1])>wanted||Number(number[1])===wanted&&suffixOrder(number[2])>=rank))return fail('oracle-published-paragraph-boundary-mismatch');
+    }
+  }
   if (placement.insertBefore !== end || placement.insertAfter !== end-1) return fail('oracle-insertion-boundary-mismatch');
   const ordered = siblings.sort((a,b) => a.start-b.start), at = ordered.findIndex(u => u.start === anchor.start);
   if (at < 0 || ordered.some(u => u.number === wanted && u.suffix === label.suffix)) return fail('oracle-duplicate-insertion-label');

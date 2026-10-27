@@ -411,3 +411,19 @@ test('producer guard refuses empty-projection wrapper probe and source-selection
   for(const consumer of ['server/proposal-matching.mjs','server/document-context-model.mjs','server/document-context-placement.mjs'])
     assert.deepEqual(await edited((file,text)=>file===consumer?text+'\n// changed consumer\n':text),before,consumer);
 });
+
+test('proposal oracle rejects an implicit paragraph extent swallowing a published next paragraph',()=>{
+  const content=source(['Article 3','A subtitle','1. First paragraph:','(a) First point;','Continued lead text.','2. Second paragraph.','Article 4']);
+  for(const index of [2,5])content.paragraphProperties[index].styleId='ManualNumPar1';
+  content.paragraphProperties[3].styleId='Point1';
+  const items=[{kind:'act',index:1,proposal:parseProposal(content,{language:'en'})}];
+  const amendment=wording('Article 3 – paragraph 1 a (new)');
+  const placement=resolveProposalPlacement(items,amendment);assert.equal(placement.status,'placed');
+  const checked=verifyPlacement({placement,wording:amendment,items});
+  assert.equal(checked.status,'failed');assert.equal(checked.reason,'oracle-published-paragraph-boundary-mismatch');
+  assert.equal(classify({...stages(),S5:placement,S6:checked}).outcome,'false-placement');
+  content.paragraphProperties[1].styleId='Titrearticle';
+  const titled=[{kind:'act',index:1,proposal:parseProposal(content,{language:'en'})}];
+  const correct=resolveProposalPlacement(titled,amendment);assert.equal(correct.insertBefore,5);
+  assert.equal(verifyPlacement({placement:correct,wording:amendment,items:titled}).status,'verified');
+});
