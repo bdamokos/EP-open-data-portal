@@ -12,6 +12,7 @@
     "api:bump": "node scripts/api-version.mjs",
     "api:check": "node scripts/api-version.mjs --check",
     "bench:amendments": "node scripts/amendment-benchmark.mjs",
+    "bench:agenda": "node scripts/agenda-benchmark.mjs",
     "test:server": "node scripts/run-tests.mjs --server",
     "test:frontend": "node scripts/run-tests.mjs --frontend",
     "preview": "vite preview --host 127.0.0.1",
