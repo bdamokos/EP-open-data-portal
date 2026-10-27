@@ -203,12 +203,12 @@ function PublicationFiles({ files, lang }: { files: DocumentFile[]; lang: string
 }
 function AuthorMention({text,authors,lang,anchors,links,marks,notePrefix,offset=0,final=true}:{text:string;authors?:CoAuthor[];lang:string;anchors?:NoteAnchor[];links?:DocumentLink[];marks?:FormatMark[];notePrefix?:string;offset?:number;final?:boolean}) {
   const parts=coAuthorSegments(text,authors);let start=offset;
-  return <>{parts.map((part,index)=>{const from=start;start+=part.text.length;return part.id ? <a key={index} lang="" className="explorer-author-link" href={coAuthorProfileUrl(location.pathname,lang,part.id)}>{part.text}</a> : anchors ? <ReferenceText key={index} text={part.text} start={from} final={final&&index===parts.length-1} anchors={anchors} links={links} marks={marks} notePrefix={notePrefix}/> : part.text;})}</>;
+  return <>{parts.map((part,index)=>{const from=start;start+=part.text.length;return part.id ? <a key={index} lang="" className="explorer-author-link" href={coAuthorProfileUrl(lang,part.id)}>{part.text}</a> : anchors ? <ReferenceText key={index} text={part.text} start={from} final={final&&index===parts.length-1} anchors={anchors} links={links} marks={marks} notePrefix={notePrefix}/> : part.text;})}</>;
 }
 function CoAuthors({authors,lang,member}:{authors?:CoAuthor[];lang:string;member:number}) {
   const people=linkedCoAuthors(authors);
   if(!people.length)return null;
-  return <details className="explorer-coauthors" lang="en"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id} lang="">{person.id===member ? <strong><PersonName id={person.id} label={person.name}/></strong> : <a href={coAuthorProfileUrl(location.pathname,lang,person.id)}><PersonName id={person.id} label={person.name}/></a>}</li>)}</ul></details>;
+  return <details className="explorer-coauthors" lang="en"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id} lang="">{person.id===member ? <strong><PersonName id={person.id} label={person.name}/></strong> : <a href={coAuthorProfileUrl(lang,person.id)}><PersonName id={person.id} label={person.name}/></a>}</li>)}</ul></details>;
 }
 function PublicationText({ sourceId, member, lang, heading, headingDate, includeAnswers = false,question }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string} }) {
   const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang,sourceId]);
