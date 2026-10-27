@@ -3,7 +3,7 @@ import { docxParts } from './document-text.mjs';
 import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTargetPath } from './amendment-baseline.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='14';
+export const AMENDMENT_EXTRACTION_VERSION='15';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -224,13 +224,39 @@ function documentBlocks(parts,warnings) {
     return {raw,text,formatting,paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
   };
   const blocks=[];
-  const paragraphs=nodes=>{
-    const result=[];
-    for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
-      if(key==='w:p')result.push(paragraph(value));
-      else if(key!=='w:tbl'&&key!==':@'&&Array.isArray(value))result.push(...paragraphs(value));
-    }
-    return result;
+  const summary=content=>({
+    ...joinWording(content.filter(part=>part.text)),raw:content.map(part=>part.raw).join('\n'),
+    hasNotes:content.some(part=>part.hasNotes),losses:[...new Set(content.flatMap(part=>part.losses))],
+    symbolLoss:content.some(part=>part.symbolLoss),unsupportedBody:content.some(part=>part.unsupportedBody),
+  });
+  const tableOf=nodes=>{
+    let unsupported=unsupportedChildren(nodes,TABLE_CHILDREN),revised=structuralRevision(children(nodes,'w:tblPr'))||structuralMove(nodes);
+    const gridColumns=direct(children(nodes,'w:tblGrid'),'w:gridCol').length||2;
+    const rows=direct(nodes,'w:tr').map(row=>{
+      const rowNodes=row['w:tr'];
+      unsupported ||= unsupportedChildren(rowNodes,ROW_CHILDREN);
+      revised ||= structuralRevision(children(rowNodes,'w:trPr'))||structuralRevision(children(rowNodes,'w:tblPrEx'))||structuralMove(rowNodes);
+      const cells=direct(rowNodes,'w:tc').map(cell=>{
+        const cellNodes=cell['w:tc'],content=[];
+        unsupported ||= unsupportedChildren(cellNodes,CELL_CHILDREN);
+        revised ||= structuralRevision(children(cellNodes,'w:tcPr'))||structuralMove(cellNodes);
+        for(const node of cellNodes) {
+          if(node['w:p'])content.push({kind:'paragraph',...paragraph(node['w:p'])});
+          else if(node['w:tbl'])content.push(tableOf(node['w:tbl']));
+        }
+        const value=summary(content);
+        unsupported ||= value.unsupportedBody;
+        return {...value,content,grid:currentCellGrid(cellNodes),nested:content.some(part=>part.nestedUnsupported),revised:content.some(part=>part.revised)};
+      });
+      cells.gridNodes=rowNodes;
+      revised ||= cells.some(cell=>cell.revised);
+      return cells;
+    });
+    const legalGridSupported=gridColumns>0&&declaredGridSupported(nodes,gridColumns)&&rows.every(cells=>currentRowGridSupported(cells.gridNodes,cells,{stacked:true,columnCount:gridColumns}));
+    const value=summary(rows.map(cells=>({...joinWording(cells,'\t'),raw:cells.map(cell=>cell.raw).join('\t'),hasNotes:cells.some(cell=>cell.hasNotes),losses:cells.flatMap(cell=>cell.losses),symbolLoss:cells.some(cell=>cell.symbolLoss),unsupportedBody:cells.some(cell=>cell.unsupportedBody)})));
+    return {kind:'table',...value,rows,unsupported,revised,gridColumns,gridNodes:nodes,legalGridSupported,
+      gridUnsupported:!declaredGridSupported(nodes)||rows.some(cells=>!currentRowGridSupported(cells.gridNodes,cells)),
+      nestedUnsupported:unsupported||revised||!legalGridSupported||rows.some(cells=>cells.some(cell=>cell.nested))};
   };
   const walk=nodes=>{
     for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
@@ -238,30 +264,8 @@ function documentBlocks(parts,warnings) {
       if(alternateBranch(key))blocks.push({kind:'unsupported',code:'comparison-structure',message:'Alternative document branches cannot be selected reliably; their content and any amendment identities inside them are unavailable.'});
       else if(nonTextContent(key))blocks.push({kind:'unsupported',code:'non-text-content',message:CONTENT_LOSSES['non-text-content']});
       else if(key==='w:p')blocks.push({kind:'paragraph',...paragraph(value)});
-      else if(key==='w:tbl') {
-        // Only direct rows/cells have a supported comparison layout. Content
-        // controls, custom XML and alternate branches may wrap legal content;
-        // report those structures instead of silently dropping or flattening
-        // them into the surrounding row (including nested-table descendants).
-        let unsupported=unsupportedChildren(value,TABLE_CHILDREN);
-        let revised=structuralRevision(children(value,'w:tblPr'))||structuralMove(value);
-        const gridColumns=direct(children(value,'w:tblGrid'),'w:gridCol').length||2;
-        let gridUnsupported=!declaredGridSupported(value);
-        const rows=value.filter(n=>n['w:tr']).map(row=>{
-          unsupported ||= unsupportedChildren(row['w:tr'],ROW_CHILDREN);
-          revised ||= structuralRevision(children(row['w:tr'],'w:trPr'))||structuralRevision(children(row['w:tr'],'w:tblPrEx'))||structuralMove(row['w:tr']);
-          const cells=row['w:tr'].filter(n=>n['w:tc']).map(cell=>{
-            const content=paragraphs(cell['w:tc']);
-            unsupported ||= unsupportedChildren(cell['w:tc'],CELL_CHILDREN)||content.some(p=>p.unsupportedBody);
-            revised ||= structuralRevision(children(cell['w:tc'],'w:tcPr'))||structuralMove(cell['w:tc']);
-            return {...joinWording(content.filter(p=>p.text)),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),losses:[...new Set(content.flatMap(p=>p.losses))],symbolLoss:content.some(p=>p.symbolLoss),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"'),grid:currentCellGrid(cell['w:tc'])};
-          });
-          cells.gridNodes=row['w:tr'];
-          gridUnsupported ||= !currentRowGridSupported(row['w:tr'],cells);
-          return cells;
-        });
-        blocks.push({kind:'table',rows,unsupported,revised,gridUnsupported,gridColumns,gridNodes:value});
-      } else if(key!==':@'&&Array.isArray(value))walk(value);
+      else if(key==='w:tbl')blocks.push(tableOf(value));
+      else if(key!==':@'&&Array.isArray(value))walk(value);
     }
   };
   walk(parser().parse(parts.get('word/document.xml')));
@@ -293,6 +297,14 @@ function sectionHeading(cells,table,language) {
   const text=cells[0].text,heading=comparisonHeading(text,language);
   if(isAmendmentHeading(text,language))return {side:'proposed',heading};
   return !['unknown','other'].includes(heading.category)?{side:'original',heading}:null;
+}
+// A full-width layout cell cannot switch wording sides by horizontal position.
+// Keep its paragraphs and nested rows in order, with each inner table's own
+// grid. Paired comparison cells instead retain the whole nested table on their
+// already established side.
+function sectionRows(table) {
+  return table.rows.flatMap(cells=>cells.length===1&&cells[0].grid.span===table.gridColumns&&!cells[0].nested?
+    cells[0].content.flatMap(part=>part.kind==='table'?sectionRows(part):[{table,cells:[{...part,grid:cells[0].grid,nested:false}]}]):[{table,cells}]);
 }
 
 /** Extract individual amendments without flattening the original/proposed columns. */
@@ -347,24 +359,24 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     }
     const targetLabel=targetParts.map(metadata).filter(Boolean).join('\n')||null;
     const before=[],after=[],tables=group.filter(b=>b.kind==='table');let comparableRows=0,hasTable=false;
-    const firstTable=tables[0],firstRow=firstTable?.rows.find(cells=>cells.some(cell=>cell.text));
-    const stacked=firstRow&&sectionHeading(firstRow,firstTable,language)?.side==='original';
+    const rows=tables.flatMap(sectionRows),first=rows.find(row=>row.cells.some(cell=>cell.text));
+    const stacked=first&&sectionHeading(first.cells,first.table,language)?.side==='original';
     const sections=[];let section=null;
     for(const table of tables) {
       hasTable=true;
-      const gridUnsupported=stacked? ![1,2].includes(table.gridColumns)||!declaredGridSupported(table.gridNodes,table.gridColumns)
-        ||table.rows.some(cells=>!currentRowGridSupported(cells.gridNodes,cells,{stacked:true,columnCount:table.gridColumns})):table.gridUnsupported;
+      const gridUnsupported=stacked?!table.legalGridSupported:table.gridUnsupported;
       if(gridUnsupported)gap('comparison-grid',number,'The comparison grid contains unsupported column counts, spans, offsets or merges; both wording columns are withheld.');
       if(table.unsupported)gap('comparison-structure',number,'The comparison contains unsupported wrapped or embedded row/cell content; its wording is withheld.');
       if(table.revised)gap('structural-revision',number,'The comparison contains tracked structural insertion, deletion, merge or move markers; revision acceptance is unresolved and its wording is withheld.');
       let headerConfirmed=false;
-      for(const cells of table.rows) {
+      const comparisonRows=stacked?sectionRows(table):table.rows.map(cells=>({table,cells}));
+      for(const {table:rowTable,cells} of comparisonRows) {
         if(cells.some(c=>c.nested)){gap('nested-table',number,'A nested comparison table is unsupported.');continue;}
         if(cells.some(c=>c.symbolLoss))gap('symbol-text-loss',number,'A visible font-encoded symbol cannot be decoded reliably; comparison wording is withheld.');
         for(const code of Object.keys(CONTENT_LOSSES))if(cells.some(cell=>cell.losses.includes(code)))gap(code,number,CONTENT_LOSSES[code]);
         if(cells.every(c=>!c.text))continue;
         if(stacked) {
-          const heading=sectionHeading(cells,table,language);
+          const heading=sectionHeading(cells,rowTable,language);
           if(heading){section=heading;sections.push(heading);continue;}
           if(!section){gap('comparison-header',number,'A stacked comparison section has no explicit heading.');continue;}
           if(cells.some(c=>c.hasNotes))gap('notes-unavailable',number,'The comparison contains footnote or endnote references whose note text is not included in this extraction.');
