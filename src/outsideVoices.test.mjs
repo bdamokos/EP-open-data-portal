@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {sourceAvailability} from '../server/source-availability.mjs';
 
 const source={url:'https://example.test/public-fixture',fetchedAt:'2026-10-16T12:00:00Z'};
 const coverage={complete:false,pending:0,unresolved:0,gaps:1,truncated:false,initialized:true,generation:1,updatedAt:source.fetchedAt,tasks:[],source:'Public test fixture'};
@@ -90,6 +91,28 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
 
 const sourceIds=container=>[...new Set([...container.querySelectorAll('[data-ov-speech]')].map(node=>node.dataset.ovSpeech))].sort();
 const contributionIds=detail=>detail.contributions.map(c=>c.id).sort();
+
+test('monthly bars and month options localize dated gaps and preserve the overall notice',async t=>{
+  const dates=['2026-01-12','2026-01-13','2026-02-12','2026-03-12','2026-04-12','2026-06-12','2026-07-12','2026-08-12'];
+  const detail=speaker('42','Monthly guest',dates.map((date,i)=>speech(date,String(i),[item(date,1)])));
+  detail.coverage={...coverage,window:{start:'2024-07-16',end:'2026-09-30'},availability:sourceAvailability({
+    sourceKey:'outside-speeches',start:'2024-07-16',end:'2026-09-30',latestObservedDate:'2026-08-12',
+    gaps:[{start:'2023-12-13',end:'2023-12-13'},{start:'2026-04-01',end:'2026-04-30'}],
+  })};
+  const {container,select,click}=await harness(t,[detail],'?view=outside&ov-person=42');
+  const bars=[...container.querySelectorAll('.ov-monthly button')];
+  assert.deepEqual(bars.map(b=>b.querySelector('[data-availability]').dataset.availability),['observed','observed','observed','partial','observed','observed','observed','partial','unavailable']);
+  assert.equal(bars[0].getAttribute('aria-label'),'Jan 2026: 2 agenda items');
+  assert.equal(bars[3].getAttribute('aria-label'),'Apr 2026: 1 · Partial agenda item');
+  assert.equal(bars[4].getAttribute('aria-label'),'May 2026: 0 agenda items');
+  assert.equal(bars[8].getAttribute('aria-label'),'Sep 2026: Agenda items unavailable');
+  assert.deepEqual([...select('Month').options].slice(1).map(o=>o.textContent),bars.map(b=>b.getAttribute('aria-label')));
+  assert.equal(container.querySelectorAll('.ov-monthly .availability-partial').length,2);
+  assert.match(container.querySelector('.availability-note').textContent,/Partial coverage/);
+  assert.match(container.querySelector('.ov-sources').textContent,/Partial coverage/);
+  await act(async()=>bars[3].click());
+  assert.deepEqual(sourceIds(container),detail.contributions.filter(c=>c.date.startsWith('2026-04')).map(c=>c.id));
+});
 
 test('resolved agenda membership shows one debate and retains the original API links in evidence',async t=>{
   const wrong=item('2026-04-28',11),right=item('2026-04-28',12);

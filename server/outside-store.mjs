@@ -5,7 +5,12 @@ import {speechAgendaMembership} from './speech-agenda.mjs';
 import { HttpError } from './http-utils.mjs';
 import {languagePreference} from './language-order.mjs';
 
+export const OUTSIDE_COVERAGE_VERSION=2;
 const parse = value => JSON.parse(value);
+const boundedIntervals = rows => rows.length>500?[{reason:'source-gap'}]:rows.map(({body,sourceId})=>{
+  const gap=availabilityGap(body,sourceId);
+  return gap.start&&gap.end&&gap.start>gap.end?{...gap,start:null,end:null}:gap;
+});
 // Capacity is derived from retained source text, including records indexed by older code.
 const classified = row => ({...speechAgendaMembership(row),header:row.header?{...row.header,capacity:outsideCapacity(row.header.role)}:null});
 const agendaUpgradeKey = 'outside:agenda-membership';
@@ -95,10 +100,15 @@ export function outsideCoverage(store, generation, truncated=false, query={}) {
   const unresolved=store.db.prepare("SELECT COUNT(DISTINCT speech) AS n FROM outside_contributions WHERE generation=? AND (json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0)").get(generation).n;
   const gaps=store.db.prepare("SELECT COUNT(*) AS n FROM sources WHERE generation=? AND kind='outside-gap'").get(generation).n;
   const failed=store.db.prepare("SELECT key,body FROM sources WHERE generation=? AND kind='outside-gap' LIMIT 501").all(generation);
-  const gapIntervals=failed.length>500?[{reason:'source-gap'}]:failed.map(row=>availabilityGap(JSON.parse(row.body).taskBody||{},row.key));
+  const gapIntervals=boundedIntervals(failed.map(row=>({body:JSON.parse(row.body).taskBody||{},sourceId:row.key})));
+  const pendingRows=store.db.prepare("SELECT key,body FROM tasks WHERE generation=? AND (done<>1 OR done IS NULL) AND (kind LIKE 'outside-%' OR kind='speeches') LIMIT 501").all(generation);
+  const pendingIntervals=boundedIntervals(pendingRows.map(row=>({body:JSON.parse(row.body),sourceId:row.key})));
+  const unresolvedDates=store.db.prepare("SELECT DISTINCT date FROM outside_contributions WHERE generation=? AND (json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0) LIMIT 501").all(generation);
+  const unresolvedIntervals=boundedIntervals(unresolvedDates.map(row=>({body:{date:row.date}})));
   const window={start:query.term==='9'||query.term==='all'?'2019-07-02':'2024-07-16',end:query.term==='9'?'2024-07-15':brusselsDay(store.clock())};
   const latestObservedDate=store.db.prepare('SELECT MAX(date) date FROM outside_contributions WHERE generation=? AND date<=?'+(query.term&&query.term!=='all'?" AND json_extract(body,'$.term')=?":'')).get(generation,window.end,...(query.term&&query.term!=='all'?[Number(query.term)]:[])).date||null;
-  const availability=indexAvailability(store,{sourceKey:'outside-speeches',family:'speeches',generation,start:window.start,end:window.end,latestObservedDate,gaps:[...savedGaps(store,generation,'speeches'),...gapIntervals],limited:Boolean(pending||unresolved||gaps||truncated)});
+  // Dated gaps affect their own periods; only unbounded omissions limit every month.
+  const availability=indexAvailability(store,{sourceKey:'outside-speeches',family:'speeches',generation,start:window.start,end:window.end,latestObservedDate,gaps:[...savedGaps(store,generation,'speeches'),...gapIntervals,...pendingIntervals,...unresolvedIntervals],limited:!initialized||truncated});
   return {availability,window,complete:initialized && !pending && !unresolved && !gaps && !truncated, pending, unresolved, gaps, truncated, initialized, generation,
     updatedAt:store.get('lastSuccess') || store.get('working')?.startedAt || null,
     tasks:counts.map(row => ({kind:row.kind,total:row.total,completed:row.completed})),
