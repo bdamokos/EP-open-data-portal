@@ -119,3 +119,16 @@ test('a frozen manifest rejects even cached files outside its declared inputs',a
   const replay=new InputCache(directory,{apiBase});await replay.seal(manifest);
   await assert.rejects(()=>replay.get(second),/input-not-in-snapshot/);assert.equal(replay.requests,0);
 });
+
+test('motion extraction failures improve through checkout replay without new source requests',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-motion-parser-change-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  const runtime=await replayRuntime(root),f=fixture(false),cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:10,delay:0,sleep:async()=>{},fetcher:f.fetcher});
+  await acquireReport([f.row],sample,cache,sourceReplay(cache,runtime));const manifest=cache.manifest();await cache.seal(manifest);const requests=cache.requests;
+  const broken={...runtime,documentText:async()=>({status:'error',paragraphs:[],textLanguage:'en',reason:'synthetic extraction failure'})};
+  const before=await evaluateReport([f.row],sample,cache,{runtime:broken,replay:sourceReplay(cache,broken)});
+  assert.equal(before[0].outcome,'withheld-pipeline');assert.equal(before[0].stages.S4.projection.reason,'synthetic extraction failure');
+  const after=await evaluateReport([f.row],sample,cache,{runtime,replay:sourceReplay(cache,runtime)});
+  assert.equal(after[0].outcome,'correct');assert.equal(cache.requests,requests);
+  const report=rows=>({sample,snapshotId:'frozen-motion',inputs:manifest,projectionMode:'cached-source-replay',rows,metrics:metrics(rows)});
+  assert.equal(compareBaseline(report(after),report(before)).deltas['counts.correct'],1);
+});

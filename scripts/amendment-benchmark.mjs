@@ -179,7 +179,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay}={}) {
         gaps:baseline?.gaps||[],
         liveProjectionObservation:{documentContextVersion:value?.version,documentStatus:value?.document?.selectedText?.status??null,documentReason:value?.document?.selectedText?.reason??null,proposalStatus:value?.baseline?.status??null},
         sourceUrl:replay?(commission?baseline?.items?.[0]?.source?.url||publicDocumentUrl(row.targetDocumentId):text?.sourceUrl||publicDocumentUrl(row.targetDocumentId)):input.url,
-        ...(replay?{projection:{mode:'cached-source-replay',celex:baseline?.celex??null,status:baseline?.status??text?.status,workId:baseline?.workId??null,itemSources:baseline?.items?.map(({itemId,source})=>({itemId,url:source.url,sha256:source.sha256,fetchedAt:source.fetchedAt}))||[]}}:{}),
+        ...(replay?{projection:{mode:'cached-source-replay',celex:baseline?.celex??null,status:baseline?.status??text?.status,reason:text?.reason??null,workId:baseline?.workId??null,itemSources:baseline?.items?.map(({itemId,source})=>({itemId,url:source.url,sha256:source.sha256,fetchedAt:source.fetchedAt}))||[]}}:{}),
       };
       if(stages.S2.status==='passed'&&matching) {
         const references=[...new Set((row.decisions||[]).filter(d=>(d.amendmentIds||[]).includes(row.id)&&d.source?.url&&d.source?.fetchedAt).map(d=>d.reference).filter(value=>typeof value==='string'))];
