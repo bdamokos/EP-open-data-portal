@@ -124,6 +124,44 @@ test('only populated capacity buttons appear and stale empty-group links show al
   await click('Other speakers');assert.equal(container.querySelector('.ov-results strong').textContent,'1');
 });
 
+test('timeline legends follow the displayed markers through filters and empty results',async t=>{
+  const debate=speaker('42','Debate guest',[speech('2026-01-07','01',[item('2026-01-07',1)])]);
+  const specialId=item('2026-04-07',2),lawId=item('2026-09-07',3);
+  const special=speaker('43','Special guest',[speech('2026-04-07','01',[specialId])],{[specialId]:{kind:'PLENARY_ACTIVITY'}});
+  const law=speaker('44','Legislative guest',[speech('2026-09-07','01',[lawId])],{[lawId]:{legislative:true}});
+  const {container,change,navigate}=await harness(t,[debate,special,law]);
+  const legend=()=>[...container.querySelectorAll('.ov-legend>span')].map(n=>n.textContent);
+  assert.deepEqual(legend(),['■ Contributions','◇ Special event','L Legislative file']);
+  await change('Event','special');
+  assert.deepEqual(legend(),['◇ Special event']);
+  assert.equal(container.querySelectorAll('.ov-mark').length,1);
+  await change('Event','debate');
+  assert.deepEqual(legend(),['■ Contributions','L Legislative file']);
+  await navigate('?view=outside&ov-q=Debate');
+  assert.deepEqual(legend(),['■ Contributions']);
+  await navigate('?view=outside&ov-q=Legislative');
+  assert.deepEqual(legend(),['L Legislative file']);
+  await navigate('?view=outside&ov-q=Missing');
+  assert.equal(container.querySelector('.ov-legend'),null);
+  assert.equal(container.querySelectorAll('.ov-mark').length,0);
+  await navigate('?view=outside&ov-repeat=1');
+  assert.equal(container.querySelector('.ov-legend'),null);
+});
+
+test('clustered days only show legends for the resulting marker symbols',async t=>{
+  const debateId=item('2026-10-07',1),specialId=item('2026-10-08',2);
+  const detail=speaker('42','Mixed guest',[
+    speech('2026-10-07','01',[debateId]),speech('2026-10-08','02',[specialId]),
+  ],{[specialId]:{kind:'PLENARY_ACTIVITY'}});
+  const {container,change}=await harness(t,[detail]);
+  assert.equal(container.querySelectorAll('.ov-mark').length,1);
+  assert(container.querySelector('.ov-mark.ov-special'));
+  assert.equal(container.querySelector('.ov-legend').textContent,'◇ Special event');
+  await change('Event','debate');
+  assert.equal(container.querySelector('.ov-legend').textContent,'■ Contributions');
+  assert(container.querySelector('.ov-mark:not(.ov-special)'));
+});
+
 test('historical URL filters cannot broaden directory, speaker or day-panel requests',async t=>{
   const detail=speaker('42','Current guest',[speech('2026-10-07','01',[item('2026-10-07',4)])]);
   const {container,calls,click,navigate}=await harness(t,[detail],'?view=outside&ov-term=9');
