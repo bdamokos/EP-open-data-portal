@@ -5,11 +5,12 @@ import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {docxParts} from './document-text.mjs';
 import {HttpError} from './http-utils.mjs';
 import {createRequestBudget,sharedRequest,waitForRequest,requestSignal} from './request-budget.mjs';
-import {retryAfterSeconds} from './upstream-queue.mjs';
+import {retryAfterSeconds,UpstreamQueue} from './upstream-queue.mjs';
 import {writeCacheFile} from './cache-publication.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {userAgent} from './user-agent.mjs';
 import {getSharedOfficialContextSources} from './official-context.mjs';
+import {legalXhtmlXml} from './public-legal-xhtml.mjs';
 
 export const CELLAR_DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
 export const CELLAR_LIMITS=Object.freeze({metadataBytes:3*1024*1024,itemBytes:8*1024*1024,bundleBytes:24*1024*1024,items:32,redirects:3,diskBytes:256*1024*1024,memoryBytes:24*1024*1024,freshMs:7*86400_000,metadataFreshMs:6*3600_000});
@@ -22,10 +23,14 @@ export function proposalCelex(value) {
   if(typeof value!=='string'||!/^5(?:19|20)\d{2}PC\d{4}$/.test(value))throw new HttpError(400,'invalid_proposal_celex','Choose an exact Commission proposal CELEX identifier.');
   return value;
 }
+export function councilCelex(value) {
+  if(typeof value!=='string'||!/^5(?:19|20)\d{2}AG\d{4}\(01\)$/.test(value))throw new HttpError(400,'invalid_council_celex','Choose an exact Council position CELEX identifier.');
+  return value;
+}
 // RDF identifiers retain HTTP spelling. Only transport URLs are upgraded.
 export function cellarTransportUrl(value,{redirect=false}={}) {
   let url;try{url=new URL(value);}catch{throw failure('cellar_url','Unsupported CELLAR URL.');}
-  if(!['https:',...(redirect?['http:']:[])].includes(url.protocol)||url.hostname!=='publications.europa.eu'||url.username||url.password||url.port||url.search||url.hash||!(/^\/resource\/celex\/5(?:19|20)\d{2}PC\d{4}$/.test(url.pathname)||cellarPath.test(url.pathname)))throw failure('cellar_url','Unsupported CELLAR URL.');
+  if(!['https:',...(redirect?['http:']:[])].includes(url.protocol)||url.hostname!=='publications.europa.eu'||url.username||url.password||url.port||url.search||url.hash||!(/^\/resource\/celex\/5(?:19|20)\d{2}(?:PC\d{4}|AG\d{4}%2801%29)$/.test(url.pathname)||cellarPath.test(url.pathname)))throw failure('cellar_url','Unsupported CELLAR URL.');
   url.protocol='https:';return url.href;
 }
 export async function limitedCellarBody(response,maximum) {
@@ -38,6 +43,7 @@ export async function limitedCellarBody(response,maximum) {
 export class CellarDocuments {
   constructor({sources=getSharedOfficialContextSources(),fetchSource=sources.fetchSource,clock=Date.now,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'commission-proposals-v1'),freshMs=CELLAR_LIMITS.freshMs}={}) {
     Object.assign(this,{sources,fetchSource,clock,directory,freshMs});this.memory=new Map();this.pending=new Map();this.failures=new Map();this.bytes=0;
+    this.structuredQueue=new UpstreamQueue({maximum:1});
     this.disk=directory?new CacheDiskBudget(directory,{clock,maxBytes:CELLAR_LIMITS.diskBytes,maxEntries:4096,pattern:/^[a-f0-9]{64}\.(?:json|blob)$/}):null;
   }
   async request(input,{accept,language,validators={},maximum=CELLAR_LIMITS.metadataBytes}={}) {
@@ -52,7 +58,7 @@ export class CellarDocuments {
           const location=response.headers.get('location');await response.body?.cancel();
           if(!location||n===CELLAR_LIMITS.redirects)throw failure('cellar_redirect','The CELLAR redirect chain is incomplete or too long.');
           const next=cellarTransportUrl(new URL(location,target),{redirect:true});
-          if(accept===CELLAR_DOCX_MIME&&new URL(next).pathname!==new URL(initial).pathname)throw failure('cellar_redirect_identity','The DOCX redirect changed the discovered item identity.');
+          if([CELLAR_DOCX_MIME,'application/xhtml+xml'].includes(accept)&&new URL(next).pathname!==new URL(initial).pathname)throw failure('cellar_redirect_identity','The content redirect changed the discovered item identity.');
           target=next;continue;
         }
         if([429,503].includes(response.status)) {
@@ -76,7 +82,8 @@ export class CellarDocuments {
     }});
   }
   async metadata(celex) {
-    proposalCelex(celex);const url=`https://publications.europa.eu/resource/celex/${celex}`;
+    if(celex?.includes('AG'))councilCelex(celex);else proposalCelex(celex);
+    const encoded=encodeURIComponent(celex).replaceAll('(','%28').replaceAll(')','%29'),url=`https://publications.europa.eu/resource/celex/${encoded}`;
     return waitForRequest(this.sources.cache.get(['proposal-tree-v1',celex],async()=>{
       const result=await this.request(url,{accept:'application/rdf+xml;notice=tree'});
       if(result.status!==200)throw failure('cellar_metadata','The proposal metadata is unavailable.');
@@ -94,8 +101,8 @@ export class CellarDocuments {
     if(!this.directory)return null;
     try {
       const file=path.join(this.directory,key+'.json');if((await stat(file)).size>8192)return null;
-      const source=JSON.parse(await readFile(file,'utf8')),[celex,language,itemId]=JSON.parse(identity);
-      if(source.schemaVersion!==1||source.key!==key||source.identity!==identity||source.celex!==celex||source.language!==language||source.itemId!==itemId||source.url!==cellarTransportUrl(itemId,{redirect:true})||cellarTransportUrl(source.resolvedSourceUrl)!==source.url||source.format!=='DOCX'||!/^[a-f0-9]{64}$/.test(source.sha256)||!Number.isFinite(Date.parse(source.checkedAt))||!Number.isFinite(Date.parse(source.fetchedAt)))return null;
+      const source=JSON.parse(await readFile(file,'utf8')),[celex,language,itemId,format]=JSON.parse(identity);
+      if(source.schemaVersion!==1||source.key!==key||source.identity!==identity||source.celex!==celex||source.language!==language||source.itemId!==itemId||source.url!==cellarTransportUrl(itemId,{redirect:true})||cellarTransportUrl(source.resolvedSourceUrl)!==source.url||source.format!==format.toUpperCase()||!/^[a-f0-9]{64}$/.test(source.sha256)||!Number.isFinite(Date.parse(source.checkedAt))||!Number.isFinite(Date.parse(source.fetchedAt)))return null;
       const blob=source.sha256+'.blob';if((await stat(path.join(this.directory,blob))).size>CELLAR_LIMITS.itemBytes)return null;
       const buffer=await readFile(path.join(this.directory,blob));if(hash(buffer)!==source.sha256)return null;
       this.disk.used(key+'.json');this.disk.used(blob);const record={source,buffer};this.remember(key,record);return record;
@@ -110,9 +117,15 @@ export class CellarDocuments {
     return record;
   }
   async docx({celex,language,itemId,expressionId,manifestationId}) {
-    proposalCelex(celex);const url=cellarTransportUrl(itemId,{redirect:true});
+    return this.content({celex,language,itemId,expressionId,manifestationId,format:'DOCX'});
+  }
+  async content({celex,language,itemId,expressionId,manifestationId,format='DOCX'}) {
+    const mime=format==='DOCX'?CELLAR_DOCX_MIME:format==='XHTML'?'application/xhtml+xml':null;
+    if(!mime)throw failure('cellar_format','Unsupported CELLAR format.');
+    if(format==='DOCX')proposalCelex(celex);else councilCelex(celex);
+    const url=cellarTransportUrl(itemId,{redirect:true});
     if(!/\/DOC_\d+$/.test(url)||!/^http:\/\/publications\.europa\.eu\/resource\/authority\/language\/[A-Z]{3}$/.test(language))throw failure('cellar_item','Invalid proposal item identity.');
-    const identity=JSON.stringify([celex,language,itemId,'docx']),key=hash(identity);requestSignal()?.throwIfAborted();
+    const identity=JSON.stringify([celex,language,itemId,format.toLowerCase()]),key=hash(identity);requestSignal()?.throwIfAborted();
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
     const task=sharedRequest(async owner=>{
       const old=await this.stored(key,identity),age=old?this.clock()-Date.parse(old.source.checkedAt):Infinity;
@@ -120,11 +133,12 @@ export class CellarDocuments {
       const failureAt=this.failures.get(key);
       if(old&&failureAt&&this.clock()-failureAt.at<60_000)return {...old,source:{...old.source,stale:true,refreshError:failureAt.code}};
       try {
-        const result=await this.request(url,{accept:CELLAR_DOCX_MIME,language:language.split('/').at(-1).toLowerCase(),validators:old?.source,maximum:CELLAR_LIMITS.itemBytes});
+        const acquire=()=>this.request(url,{accept:mime,language:language.split('/').at(-1).toLowerCase(),validators:old?.source,maximum:CELLAR_LIMITS.itemBytes});
+        const result=format==='XHTML'?await this.structuredQueue.run(acquire,{signal:owner}):await acquire();
         if(result.status===304&&!old)throw failure('cellar_validator','CELLAR returned a validator without saved content.');
         const buffer=result.status===304?old.buffer:result.buffer;
-        try{docxParts(buffer);}catch{throw failure('cellar_docx','The source is not a supported DOCX package.');}
-        const now=new Date(this.clock()).toISOString(),source={schemaVersion:1,key,identity,url,resolvedSourceUrl:result.url,celex,language,itemId,expressionId,manifestationId,format:'DOCX',sha256:hash(buffer),etag:result.etag??(result.status===304?old?.source.etag:null)??null,lastModified:result.lastModified??(result.status===304?old?.source.lastModified:null)??null,fetchedAt:result.status===304?old.source.fetchedAt:now,checkedAt:now,stale:false,refreshError:null};
+        try{if(format==='DOCX')docxParts(buffer);else {const xml=legalXhtmlXml(buffer.toString('utf8'));if(/<!DOCTYPE|<!ENTITY/i.test(xml)||XMLValidator.validate(xml)!==true||!/<(?:\w+:)?html[\s>]/.test(xml))throw new Error();}}catch{throw failure(format==='DOCX'?'cellar_docx':'cellar_content','The source is not a supported legal document.');}
+        const now=new Date(this.clock()).toISOString(),source={schemaVersion:1,key,identity,url,resolvedSourceUrl:result.url,celex,language,itemId,expressionId,manifestationId,format,sha256:hash(buffer),etag:result.etag??(result.status===304?old?.source.etag:null)??null,lastModified:result.lastModified??(result.status===304?old?.source.lastModified:null)??null,fetchedAt:result.status===304?old.source.fetchedAt:now,checkedAt:now,stale:false,refreshError:null};
         const record=await this.save(key,{source,buffer});this.failures.delete(key);return record;
       }catch(error) {
         owner.throwIfAborted();
