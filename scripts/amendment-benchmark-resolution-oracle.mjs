@@ -23,8 +23,8 @@ const contiguous=(a,b)=>a?.complete===true&&b?.complete===true&&a.container==='b
 export function rawResolutionUnits(text,language) {
   const paragraphs=text?.paragraphs,sources=text?.paragraphSources;
   if(!Array.isArray(paragraphs)||sources?.length!==paragraphs.length)return {units:[],reason:'oracle-raw-structure-unavailable'};
-  // Insertions currently have English label grammar. For other languages an
-  // exact unique raw label may verify a span; duplicates remain unverified.
+  // Native-script provision labels remain literal. English and Romanian report
+  // headings delimit their motion; other duplicated bodies remain unverified.
   const grammar=language==='en'?{opening:/^\s*The European Parliament\s*,?\s*$/iu,heading:/^(?:\d+[.)]\s*)?MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION$/u}:language==='ro'?{opening:/^\s*Parlamentul European\s*,?\s*$/u,heading:/^(?:\d+[.)]\s*)?PROPUNERE DE REZOLUȚIE A PARLAMENTULUI EUROPEAN$/u}:null;
   const openers=paragraphs.flatMap((p,i)=>(grammar?.opening||/^\s*The European Parliament\s*,?\s*$/iu).test(p)&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
   if(grammar&&!openers.length)return {units:[],reason:'oracle-resolution-start-unverified'};
@@ -46,11 +46,11 @@ export function rawResolutionUnits(text,language) {
       if(source?.complete!==true||source.container!=='body')continue;
     }
     const separator=/^[°\s/]+$/u.test(value)&&value.includes('°');
-    const section=/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter|anexă|expunere de motive|aviz)\b/iu.test(value)&&!/[.;!?]$/u.test(value);
+    const section=/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter|anexă|expunere de motive|aviz)(?![\p{L}\p{N}_])/iu.test(value)&&!/[.;!?]$/u.test(value);
     const bold=wholeBold(paragraphs[i],format),heading=bold||Number.isInteger(format?.heading)&&format.heading>=1&&format.heading<=6;
     if(separator||section||heading) {
       events.push({start:i,boundary:true});group++;parent=null;
-      if(section&&/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|anexă|expunere de motive|aviz)\b/iu.test(value)){if(scoped)break;active=false;}
+      if(section&&/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|anexă|expunere de motive|aviz)(?![\p{L}\p{N}_])/iu.test(value)){if(scoped)break;active=false;}
       continue;
     }
     let ref=label(value);
